@@ -30,12 +30,15 @@ jobs:
       # Step 4: Install XcodeGen (to generate .xcodeproj)
       - name: Install XcodeGen
         run: |
-          brew install xcodegen
+          brew update
+          brew install xcodegen || brew upgrade xcodegen
 
       # Step 5: Generate Xcode project from project.yml
       - name: Generate Xcode project
         run: |
-          xcodegen generate
+          xcodegen generate --spec project.yml
+          ls -la
+          cat Blab.xcodeproj/project.pbxproj | head -50
 
       # Step 6: Build the app for iOS
       - name: Build iOS app
