@@ -1,0 +1,82 @@
+name: Build iOS App
+
+# Trigger this workflow manually or on push to main
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Blab iOS App
+    runs-on: macos-13  # macOS with Xcode pre-installed
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Xcode version
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_14.3.1.app
+
+      # Step 3: Show Xcode and Swift versions
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Step 4: Install XcodeGen (to generate .xcodeproj)
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+
+      # Step 5: Generate Xcode project from project.yml
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate
+
+      # Step 6: Build the app for iOS
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project Blab.xcodeproj \
+            -scheme Blab \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      # Step 7: Create IPA file (if build succeeds)
+      - name: Create IPA
+        run: |
+          # Find the .app bundle
+          APP_PATH=$(find build -name "Blab.app" | head -n 1)
+
+          # Create Payload directory structure
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+
+          # Zip it into an IPA
+          zip -r Blab-unsigned.ipa Payload
+
+          echo "✅ IPA created: Blab-unsigned.ipa"
+
+      # Step 8: Upload IPA as artifact
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blab-iOS-App
+          path: Blab-unsigned.ipa
+          retention-days: 30
+
+      # Step 9: Show success message
+      - name: Build complete
+        run: |
+          echo "🎉 Build successful!"
+          echo "📦 Download the IPA from the Actions tab"
+          echo "📱 Install on iPhone using Apple Configurator or Xcode"
