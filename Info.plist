@@ -48,5 +48,11 @@
 	</array>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Blab may use heart rate data to create adaptive audio-visual experiences.</string>
 </dict>
 </plist>
