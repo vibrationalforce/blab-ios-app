@@ -11,8 +11,11 @@ class MicrophoneManager: NSObject, ObservableObject {
     /// Current audio level (0.0 to 1.0)
     @Published var audioLevel: Float = 0.0
 
-    /// Detected frequency in Hz (fundamental pitch)
+    /// Detected frequency in Hz (fundamental pitch from FFT)
     @Published var frequency: Float = 0.0
+
+    /// Current pitch in Hz (fundamental frequency from YIN algorithm)
+    @Published var currentPitch: Float = 0.0
 
     /// Whether we have microphone permission
     @Published var hasPermission: Bool = false
@@ -37,6 +40,9 @@ class MicrophoneManager: NSObject, ObservableObject {
 
     /// Sample rate (will be set from audio format)
     private var sampleRate: Double = 44100.0
+
+    /// YIN pitch detector for fundamental frequency estimation
+    private let pitchDetector = PitchDetector()
 
 
     // MARK: - Initialization
@@ -159,6 +165,7 @@ class MicrophoneManager: NSObject, ObservableObject {
             self.isRecording = false
             self.audioLevel = 0.0
             self.frequency = 0.0
+            self.currentPitch = 0.0
         }
 
         print("⏹️ Recording stopped")
@@ -190,6 +197,9 @@ class MicrophoneManager: NSObject, ObservableObject {
         // Perform FFT for frequency detection
         let detectedFrequency = performFFT(on: channelDataValue, frameLength: frameLength)
 
+        // Perform YIN pitch detection for fundamental frequency
+        let detectedPitch = pitchDetector.detectPitch(buffer: buffer, sampleRate: Float(sampleRate))
+
         // Update UI on main thread with smoothing
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -200,6 +210,14 @@ class MicrophoneManager: NSObject, ObservableObject {
             // Smooth frequency changes (only update if significantly different)
             if detectedFrequency > 50 { // Ignore very low frequencies (likely noise)
                 self.frequency = self.frequency * 0.8 + detectedFrequency * 0.2
+            }
+
+            // Smooth pitch changes (YIN is more robust than FFT for voice)
+            if detectedPitch > 0 {
+                self.currentPitch = self.currentPitch * 0.8 + detectedPitch * 0.2
+            } else {
+                // Decay pitch to zero if no pitch detected
+                self.currentPitch *= 0.9
             }
         }
     }

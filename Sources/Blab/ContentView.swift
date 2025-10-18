@@ -60,12 +60,12 @@ struct ContentView: View {
                 // Frequency and amplitude display
                 if isRecording {
                     HStack(spacing: 40) {
-                        // Frequency display
+                        // FFT Frequency display
                         VStack(spacing: 4) {
                             Text("\(Int(microphoneManager.frequency))")
                                 .font(.system(size: 36, weight: .light, design: .monospaced))
                                 .foregroundColor(Color(hue: 0.55, saturation: 0.8, brightness: 0.9))
-                            Text("Hz")
+                            Text("FFT Hz")
                                 .font(.system(size: 12, weight: .light))
                                 .foregroundColor(.white.opacity(0.5))
                         }
@@ -78,6 +78,32 @@ struct ContentView: View {
                             Text("level")
                                 .font(.system(size: 12, weight: .light))
                                 .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .scale))
+
+                    // YIN Pitch display (more accurate for voice)
+                    HStack(spacing: 20) {
+                        VStack(spacing: 4) {
+                            Text("\(Int(microphoneManager.currentPitch))")
+                                .font(.system(size: 30, weight: .light, design: .monospaced))
+                                .foregroundColor(pitchColor(microphoneManager.currentPitch))
+                            Text("voice pitch (YIN)")
+                                .font(.system(size: 10, weight: .light))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+
+                        // Display musical note if pitch detected
+                        if microphoneManager.currentPitch > 0 {
+                            VStack(spacing: 4) {
+                                Text(musicalNote(microphoneManager.currentPitch))
+                                    .font(.system(size: 30, weight: .light, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.9))
+                                Text("note")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
                         }
                     }
                     .padding(.bottom, 20)
@@ -234,6 +260,44 @@ struct ContentView: View {
         } else {
             return Color.green.opacity(0.8)
         }
+    }
+
+    /// Color for pitch based on frequency range
+    /// Low (bass) = blue, Mid (voice) = purple, High (soprano) = pink
+    private func pitchColor(_ pitch: Float) -> Color {
+        if pitch < 100 {
+            return Color.blue.opacity(0.7)
+        } else if pitch < 200 {
+            return Color(hue: 0.6, saturation: 0.7, brightness: 0.85) // Blue-purple
+        } else if pitch < 400 {
+            return Color(hue: 0.75, saturation: 0.7, brightness: 0.85) // Purple
+        } else if pitch < 800 {
+            return Color(hue: 0.85, saturation: 0.7, brightness: 0.85) // Pink-purple
+        } else {
+            return Color.pink.opacity(0.8)
+        }
+    }
+
+    /// Convert frequency to musical note name (12-tone equal temperament)
+    /// A4 = 440 Hz is the reference
+    private func musicalNote(_ frequency: Float) -> String {
+        guard frequency > 0 else { return "-" }
+
+        // Note names in chromatic scale
+        let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+
+        // Calculate semitones from A4 (440 Hz)
+        let semitonesFromA4 = 12.0 * log2(frequency / 440.0)
+        let roundedSemitones = Int(round(semitonesFromA4))
+
+        // A4 is note index 9 (A) in octave 4
+        let noteIndex = (9 + roundedSemitones) % 12
+        let octave = 4 + (9 + roundedSemitones) / 12
+
+        // Handle negative modulo correctly
+        let positiveNoteIndex = (noteIndex + 12) % 12
+
+        return "\(noteNames[positiveNoteIndex])\(octave)"
     }
 
     // MARK: - Actions
