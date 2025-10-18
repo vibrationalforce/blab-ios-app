@@ -1,14 +1,19 @@
 import SwiftUI
 
 /// Main user interface for the Blab app
-/// This view contains the recording controls and visualizations
+/// Optimized with proper state management and error handling
 struct ContentView: View {
 
     /// Access to the microphone manager from the environment
     @EnvironmentObject var microphoneManager: MicrophoneManager
 
-    /// Track whether we're currently recording
-    @State private var isRecording = false
+    /// Show permission denial alert
+    @State private var showPermissionAlert = false
+
+    /// Computed property - single source of truth for recording state
+    private var isRecording: Bool {
+        microphoneManager.isRecording
+    }
 
     var body: some View {
         ZStack {
@@ -31,78 +36,190 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .padding(.top, 60)
 
-                Spacer()
-
-                // Particle visualization placeholder
-                ParticleView(isActive: isRecording)
-                    .frame(height: 300)
-                    .padding(.horizontal, 40)
+                Text("breath → sound")
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundColor(.white.opacity(0.5))
+                    .tracking(3)
 
                 Spacer()
 
-                // Audio level indicator
+                // Advanced particle visualization with audio data
+                ParticleView(
+                    isActive: isRecording,
+                    audioLevel: microphoneManager.audioLevel,
+                    frequency: microphoneManager.frequency > 0 ? microphoneManager.frequency : nil
+                )
+                .frame(height: 350)
+                .padding(.horizontal, 30)
+
+                Spacer()
+
+                // Frequency and amplitude display
                 if isRecording {
-                    HStack(spacing: 12) {
-                        ForEach(0..<20, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(microphoneManager.audioLevel > Float(index) / 20.0 ?
-                                      Color.green : Color.gray.opacity(0.3))
-                                .frame(width: 8, height: CGFloat(20 + index * 3))
+                    HStack(spacing: 40) {
+                        // Frequency display
+                        VStack(spacing: 4) {
+                            Text("\(Int(microphoneManager.frequency))")
+                                .font(.system(size: 36, weight: .light, design: .monospaced))
+                                .foregroundColor(Color(hue: 0.55, saturation: 0.8, brightness: 0.9))
+                            Text("Hz")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+
+                        // Amplitude display
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.2f", microphoneManager.audioLevel))
+                                .font(.system(size: 36, weight: .light, design: .monospaced))
+                                .foregroundColor(Color(hue: 0.4, saturation: 0.8, brightness: 0.9))
+                            Text("level")
+                                .font(.system(size: 12, weight: .light))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    .padding(.bottom, 20)
+                    .transition(.opacity.combined(with: .scale))
+                }
+
+                // Audio level bars (improved visualization)
+                if isRecording {
+                    HStack(spacing: 8) {
+                        ForEach(0..<24, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(barColor(for: index))
+                                .frame(width: 6, height: barHeight(for: index))
                         }
                     }
                     .padding(.bottom, 20)
                     .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.2), value: microphoneManager.audioLevel)
                 }
 
-                // Start/Stop Button
+                // Control Button
                 Button(action: toggleRecording) {
                     ZStack {
                         Circle()
-                            .fill(isRecording ? Color.red : Color.green)
+                            .fill(isRecording ? Color.red : Color(hue: 0.55, saturation: 0.8, brightness: 0.7))
                             .frame(width: 100, height: 100)
-                            .shadow(color: isRecording ? .red.opacity(0.5) : .green.opacity(0.5),
-                                    radius: 20)
+                            .shadow(
+                                color: isRecording ? .red.opacity(0.5) : Color.cyan.opacity(0.3),
+                                radius: 20
+                            )
 
                         Image(systemName: isRecording ? "stop.fill" : "mic.fill")
                             .font(.system(size: 40))
                             .foregroundColor(.white)
                     }
                 }
-                .padding(.bottom, 40)
+                .disabled(!microphoneManager.hasPermission && isRecording)
+                .padding(.bottom, 30)
 
                 // Status text
-                Text(isRecording ? "Recording..." : "Tap to Start")
-                    .font(.system(size: 18, weight: .medium))
+                Text(statusText)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
                     .padding(.bottom, 60)
             }
         }
         .onAppear {
             // Request microphone permission when the app launches
-            microphoneManager.requestPermission()
+            checkPermissions()
+        }
+        .alert("Microphone Access Required", isPresented: $showPermissionAlert) {
+            Button("Open Settings", action: openSettings)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Blab needs microphone access to create music from your voice. Please enable it in Settings.")
         }
     }
 
-    /// Toggle recording on/off
+    // MARK: - Computed Properties
+
+    /// Status text based on current state
+    private var statusText: String {
+        if !microphoneManager.hasPermission {
+            return "Grant Microphone Access"
+        } else if isRecording {
+            if microphoneManager.frequency > 50 {
+                return "Listening... \(Int(microphoneManager.frequency)) Hz"
+            } else {
+                return "Listening..."
+            }
+        } else {
+            return "Tap to Start"
+        }
+    }
+
+    /// Calculate bar height based on audio level
+    private func barHeight(for index: Int) -> CGFloat {
+        let threshold = Float(index) / 24.0
+        let active = microphoneManager.audioLevel > threshold
+        let baseHeight: CGFloat = 4
+        let maxHeight: CGFloat = 60
+
+        if active {
+            let relativeHeight = CGFloat(microphoneManager.audioLevel - threshold) * 4.0
+            return baseHeight + min(relativeHeight * maxHeight, maxHeight)
+        }
+        return baseHeight
+    }
+
+    /// Color for audio bars based on level
+    private func barColor(for index: Int) -> Color {
+        let threshold = Float(index) / 24.0
+        let active = microphoneManager.audioLevel > threshold
+
+        if active {
+            // Gradient from cyan to yellow to red as level increases
+            let normalizedIndex = Double(index) / 24.0
+            return Color(hue: 0.55 - normalizedIndex * 0.4, saturation: 0.8, brightness: 0.9)
+        }
+        return Color.gray.opacity(0.2)
+    }
+
+    // MARK: - Actions
+
+    /// Toggle recording on/off with proper error handling
     private func toggleRecording() {
         if isRecording {
             microphoneManager.stopRecording()
         } else {
-            microphoneManager.startRecording()
-        }
+            if microphoneManager.hasPermission {
+                microphoneManager.startRecording()
 
-        // Animate the button with haptic feedback
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            isRecording.toggle()
-        }
+                // Provide haptic feedback
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+            } else {
+                // Request permission and show alert if denied
+                microphoneManager.requestPermission()
 
-        // Provide haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
+                // Check again after a delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if !microphoneManager.hasPermission {
+                        showPermissionAlert = true
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check permissions on launch
+    private func checkPermissions() {
+        if !microphoneManager.hasPermission {
+            microphoneManager.requestPermission()
+        }
+    }
+
+    /// Open iOS Settings app
+    private func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 }
 
-/// Preview for Xcode canvas (helpful for development)
+/// Preview for Xcode canvas
 #Preview {
     ContentView()
         .environmentObject(MicrophoneManager())

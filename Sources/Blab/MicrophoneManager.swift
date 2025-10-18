@@ -1,15 +1,18 @@
 import AVFoundation
 import SwiftUI
+import Accelerate
 
-/// Manages microphone access and audio input capture
-/// This class handles all audio recording functionality
+/// Manages microphone access and advanced audio processing
+/// Now includes FFT for frequency detection and professional-grade DSP
 class MicrophoneManager: NSObject, ObservableObject {
 
     // MARK: - Published Properties
-    // These properties automatically update the UI when they change
 
     /// Current audio level (0.0 to 1.0)
     @Published var audioLevel: Float = 0.0
+
+    /// Detected frequency in Hz (fundamental pitch)
+    @Published var frequency: Float = 0.0
 
     /// Whether we have microphone permission
     @Published var hasPermission: Bool = false
@@ -26,8 +29,14 @@ class MicrophoneManager: NSObject, ObservableObject {
     /// The input node that captures microphone data
     private var inputNode: AVAudioInputNode?
 
-    /// Timer to update audio levels regularly
-    private var levelTimer: Timer?
+    /// FFT setup for frequency analysis
+    private var fftSetup: vDSP_DFT_Setup?
+
+    /// Buffer size for FFT (power of 2)
+    private let fftSize = 2048
+
+    /// Sample rate (will be set from audio format)
+    private var sampleRate: Double = 44100.0
 
 
     // MARK: - Initialization
@@ -53,7 +62,6 @@ class MicrophoneManager: NSObject, ObservableObject {
     }
 
     /// Request microphone permission from the user
-    /// This will show the iOS permission dialog
     func requestPermission() {
         AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {
@@ -94,9 +102,18 @@ class MicrophoneManager: NSObject, ObservableObject {
             let recordingFormat = inputNode?.outputFormat(forBus: 0)
             guard let format = recordingFormat else { return }
 
+            // Store sample rate for frequency calculation
+            sampleRate = format.sampleRate
+
+            // Setup FFT
+            fftSetup = vDSP_DFT_zop_CreateSetup(
+                nil,
+                vDSP_Length(fftSize),
+                vDSP_DFT_Direction.FORWARD
+            )
+
             // Install a tap to capture audio data
-            // The tap captures audio in blocks (buffers)
-            inputNode?.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+            inputNode?.installTap(onBus: 0, bufferSize: UInt32(fftSize), format: format) { [weak self] buffer, _ in
                 self?.processAudioBuffer(buffer)
             }
 
@@ -104,82 +121,133 @@ class MicrophoneManager: NSObject, ObservableObject {
             audioEngine.prepare()
             try audioEngine.start()
 
-            isRecording = true
-            print("🎙️ Recording started")
+            DispatchQueue.main.async {
+                self.isRecording = true
+            }
 
-            // Start a timer to update the audio level display
-            startLevelTimer()
+            print("🎙️ Recording started with FFT enabled")
 
         } catch {
             print("❌ Failed to start recording: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.isRecording = false
+            }
         }
     }
 
     /// Stop recording audio
     func stopRecording() {
-        // Stop the audio engine
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
+        // Safely stop the audio engine
+        if let engine = audioEngine, engine.isRunning {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+        }
+
         audioEngine = nil
         inputNode = nil
 
-        // Stop the level timer
-        stopLevelTimer()
+        // Destroy FFT setup
+        if let setup = fftSetup {
+            vDSP_DFT_DestroySetup(setup)
+            fftSetup = nil
+        }
 
         // Deactivate the audio session
         try? AVAudioSession.sharedInstance().setActive(false)
 
-        isRecording = false
-        audioLevel = 0.0
+        DispatchQueue.main.async {
+            self.isRecording = false
+            self.audioLevel = 0.0
+            self.frequency = 0.0
+        }
 
         print("⏹️ Recording stopped")
     }
 
 
-    // MARK: - Audio Processing
+    // MARK: - Audio Processing with FFT
 
-    /// Process incoming audio data and calculate the audio level
+    /// Process incoming audio data with FFT for frequency detection
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData else { return }
 
+        let frameLength = Int(buffer.frameLength)
         let channelDataValue = channelData.pointee
-        let channelDataCount = Int(buffer.frameLength)
 
-        // Calculate the RMS (Root Mean Square) level
-        // This gives us the average "loudness" of the audio
+        // Calculate RMS (amplitude/volume)
         var sum: Float = 0.0
-        for i in 0..<channelDataCount {
-            let sample = channelDataValue[i]
-            sum += sample * sample
-        }
+        vDSP_sve(channelDataValue, 1, &sum, vDSP_Length(frameLength))
+        let mean = sum / Float(frameLength)
 
-        let rms = sqrt(sum / Float(channelDataCount))
+        var sumSquares: Float = 0.0
+        var meanNegative = -mean
+        vDSP_vsq(channelDataValue, 1, &sumSquares, vDSP_Length(frameLength))
+        let rms = sqrt(sumSquares / Float(frameLength) - mean * mean)
 
-        // Convert to a 0-1 scale for easier visualization
-        // Apply some scaling to make it more responsive
-        let normalizedLevel = min(rms * 20, 1.0)
+        // Normalize to 0-1 range with better sensitivity
+        let normalizedLevel = min(rms * 15.0, 1.0)
 
-        // Update on the main thread since we're changing a @Published property
+        // Perform FFT for frequency detection
+        let detectedFrequency = performFFT(on: channelDataValue, frameLength: frameLength)
+
+        // Update UI on main thread with smoothing
         DispatchQueue.main.async { [weak self] in
-            self?.audioLevel = normalizedLevel
+            guard let self = self else { return }
+
+            // Smooth audio level changes
+            self.audioLevel = self.audioLevel * 0.7 + normalizedLevel * 0.3
+
+            // Smooth frequency changes (only update if significantly different)
+            if detectedFrequency > 50 { // Ignore very low frequencies (likely noise)
+                self.frequency = self.frequency * 0.8 + detectedFrequency * 0.2
+            }
         }
     }
 
+    /// Perform FFT to detect fundamental frequency
+    private func performFFT(on data: UnsafePointer<Float>, frameLength: Int) -> Float {
+        guard let setup = fftSetup else { return 0 }
 
-    // MARK: - Level Timer
+        // Prepare buffers
+        var realParts = [Float](repeating: 0, count: fftSize)
+        var imagParts = [Float](repeating: 0, count: fftSize)
 
-    /// Start a timer to regularly update the audio level display
-    private func startLevelTimer() {
-        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            // The actual level is updated in processAudioBuffer
-            // This timer just ensures smooth UI updates
+        // Copy audio data to real parts (pad with zeros if needed)
+        let copyLength = min(frameLength, fftSize)
+        for i in 0..<copyLength {
+            realParts[i] = data[i]
         }
-    }
 
-    /// Stop the level timer
-    private func stopLevelTimer() {
-        levelTimer?.invalidate()
-        levelTimer = nil
+        // Apply Hann window to reduce spectral leakage
+        var window = [Float](repeating: 0, count: fftSize)
+        vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
+        vDSP_vmul(realParts, 1, window, 1, &realParts, 1, vDSP_Length(fftSize))
+
+        // Perform FFT
+        vDSP_DFT_Execute(setup, &realParts, &imagParts, &realParts, &imagParts)
+
+        // Calculate magnitudes (power spectrum)
+        var magnitudes = [Float](repeating: 0, count: fftSize / 2)
+        for i in 0..<(fftSize / 2) {
+            magnitudes[i] = sqrt(realParts[i] * realParts[i] + imagParts[i] * imagParts[i])
+        }
+
+        // Find peak frequency (ignore DC component at index 0)
+        var maxMagnitude: Float = 0
+        var maxIndex: vDSP_Length = 0
+
+        vDSP_maxvi(Array(magnitudes[1...]), 1, &maxMagnitude, &maxIndex, vDSP_Length(magnitudes.count - 1))
+        maxIndex += 1 // Adjust for skipping index 0
+
+        // Convert bin index to frequency
+        let frequency = Float(maxIndex) * Float(sampleRate) / Float(fftSize)
+
+        // Only return frequencies in audible/useful range
+        if frequency > 50 && frequency < 2000 && maxMagnitude > 0.01 {
+            return frequency
+        }
+
+        return 0.0
     }
 
 
