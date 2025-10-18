@@ -7,6 +7,9 @@ struct ContentView: View {
     /// Access to the microphone manager from the environment
     @EnvironmentObject var microphoneManager: MicrophoneManager
 
+    /// HealthKit manager for HRV biofeedback
+    @StateObject private var healthKitManager = HealthKitManager()
+
     /// Show permission denial alert
     @State private var showPermissionAlert = false
 
@@ -81,6 +84,43 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale))
                 }
 
+                // HRV Biofeedback Display
+                if healthKitManager.isAuthorized && isRecording {
+                    HStack(spacing: 40) {
+                        // Heart Rate
+                        VStack(spacing: 4) {
+                            Text("\(Int(healthKitManager.heartRate))")
+                                .font(.system(size: 30, weight: .light, design: .monospaced))
+                                .foregroundColor(Color.red.opacity(0.8))
+                            Text("BPM")
+                                .font(.system(size: 10, weight: .light))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+
+                        // HRV RMSSD
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.1f", healthKitManager.hrvRMSSD))
+                                .font(.system(size: 30, weight: .light, design: .monospaced))
+                                .foregroundColor(Color.green.opacity(0.8))
+                            Text("HRV ms")
+                                .font(.system(size: 10, weight: .light))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+
+                        // Coherence Score
+                        VStack(spacing: 4) {
+                            Text("\(Int(healthKitManager.hrvCoherence))")
+                                .font(.system(size: 30, weight: .light, design: .monospaced))
+                                .foregroundColor(coherenceColor(healthKitManager.hrvCoherence))
+                            Text("coherence")
+                                .font(.system(size: 10, weight: .light))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    .padding(.bottom, 15)
+                    .transition(.opacity.combined(with: .scale))
+                }
+
                 // Audio level bars (improved visualization)
                 if isRecording {
                     HStack(spacing: 8) {
@@ -124,6 +164,11 @@ struct ContentView: View {
         .onAppear {
             // Request microphone permission when the app launches
             checkPermissions()
+
+            // Request HealthKit authorization
+            Task {
+                try? await healthKitManager.requestAuthorization()
+            }
         }
         .alert("Microphone Access Required", isPresented: $showPermissionAlert) {
             Button("Open Settings", action: openSettings)
@@ -177,15 +222,35 @@ struct ContentView: View {
         return Color.gray.opacity(0.2)
     }
 
+    /// Color for coherence score based on HeartMath zones
+    /// 0-40: Low coherence (red) - stress/anxiety
+    /// 40-60: Medium coherence (yellow) - transitional
+    /// 60-100: High coherence (green) - optimal/flow state
+    private func coherenceColor(_ score: Double) -> Color {
+        if score < 40 {
+            return Color.red.opacity(0.8)
+        } else if score < 60 {
+            return Color.yellow.opacity(0.8)
+        } else {
+            return Color.green.opacity(0.8)
+        }
+    }
+
     // MARK: - Actions
 
     /// Toggle recording on/off with proper error handling
     private func toggleRecording() {
         if isRecording {
             microphoneManager.stopRecording()
+            healthKitManager.stopMonitoring()
         } else {
             if microphoneManager.hasPermission {
                 microphoneManager.startRecording()
+
+                // Start HealthKit monitoring if authorized
+                if healthKitManager.isAuthorized {
+                    healthKitManager.startMonitoring()
+                }
 
                 // Provide haptic feedback
                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
