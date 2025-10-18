@@ -58,11 +58,14 @@ struct ContentView: View {
 
                 Spacer()
 
-                // Advanced particle visualization with audio data
+                // Advanced particle visualization with biofeedback integration
                 ParticleView(
                     isActive: isRecording,
                     audioLevel: microphoneManager.audioLevel,
-                    frequency: microphoneManager.frequency > 0 ? microphoneManager.frequency : nil
+                    frequency: microphoneManager.frequency > 0 ? microphoneManager.frequency : nil,
+                    voicePitch: microphoneManager.currentPitch,
+                    hrvCoherence: healthKitManager.hrvCoherence,
+                    heartRate: healthKitManager.heartRate
                 )
                 .frame(height: 350)
                 .padding(.horizontal, 30)
