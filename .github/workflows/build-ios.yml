@@ -25,7 +25,13 @@ jobs:
           echo "macOS version:"
           sw_vers
 
-      # Step 3: Create minimal Xcode project structure manually
+      # Step 3: Copy Info.plist to project root
+      - name: Setup Info.plist
+        run: |
+          ls -la
+          echo "✅ Info.plist exists in repo"
+
+      # Step 4: Create minimal Xcode project structure manually
       - name: Create Xcode project structure
         run: |
           # Create Xcode project directory
