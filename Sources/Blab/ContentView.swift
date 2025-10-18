@@ -10,8 +10,20 @@ struct ContentView: View {
     /// HealthKit manager for HRV biofeedback
     @StateObject private var healthKitManager = HealthKitManager()
 
+    /// Binaural beat generator for healing frequencies
+    @StateObject private var binauralGenerator = BinauralBeatGenerator()
+
     /// Show permission denial alert
     @State private var showPermissionAlert = false
+
+    /// Show binaural beat controls
+    @State private var showBinauralControls = false
+
+    /// Currently selected brainwave state
+    @State private var selectedBrainwaveState: BinauralBeatGenerator.BrainwaveState = .alpha
+
+    /// Binaural beat amplitude
+    @State private var binauralAmplitude: Float = 0.3
 
     /// Computed property - single source of truth for recording state
     private var isRecording: Bool {
@@ -161,24 +173,137 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.2), value: microphoneManager.audioLevel)
                 }
 
-                // Control Button
-                Button(action: toggleRecording) {
-                    ZStack {
-                        Circle()
-                            .fill(isRecording ? Color.red : Color(hue: 0.55, saturation: 0.8, brightness: 0.7))
-                            .frame(width: 100, height: 100)
-                            .shadow(
-                                color: isRecording ? .red.opacity(0.5) : Color.cyan.opacity(0.3),
-                                radius: 20
-                            )
+                // Control Buttons
+                HStack(spacing: 30) {
+                    // Binaural beats toggle
+                    Button(action: toggleBinauralBeats) {
+                        VStack(spacing: 8) {
+                            ZStack {
+                                Circle()
+                                    .fill(binauralGenerator.isPlaying ? Color.purple : Color.gray.opacity(0.3))
+                                    .frame(width: 60, height: 60)
+                                    .shadow(
+                                        color: binauralGenerator.isPlaying ? .purple.opacity(0.5) : .clear,
+                                        radius: 15
+                                    )
 
-                        Image(systemName: isRecording ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.white)
+                                Image(systemName: binauralGenerator.isPlaying ? "waveform.circle.fill" : "waveform.circle")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.white)
+                            }
+
+                            if binauralGenerator.isPlaying {
+                                Text(binauralGenerator.audioMode == .binaural ? "Binaural" : "Isochronic")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.white.opacity(0.7))
+                            } else {
+                                Text("Beats OFF")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
+                    }
+
+                    // Main record button
+                    Button(action: toggleRecording) {
+                        ZStack {
+                            Circle()
+                                .fill(isRecording ? Color.red : Color(hue: 0.55, saturation: 0.8, brightness: 0.7))
+                                .frame(width: 100, height: 100)
+                                .shadow(
+                                    color: isRecording ? .red.opacity(0.5) : Color.cyan.opacity(0.3),
+                                    radius: 20
+                                )
+
+                            Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .disabled(!microphoneManager.hasPermission && isRecording)
+
+                    // Binaural controls toggle
+                    Button(action: { showBinauralControls.toggle() }) {
+                        VStack(spacing: 8) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 60, height: 60)
+
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("Settings")
+                                .font(.system(size: 10, weight: .light))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
                     }
                 }
-                .disabled(!microphoneManager.hasPermission && isRecording)
-                .padding(.bottom, 30)
+                .padding(.bottom, 20)
+
+                // Binaural beat controls (expandable)
+                if showBinauralControls {
+                    VStack(spacing: 15) {
+                        Text("Binaural Beat Controls")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+
+                        // Brainwave state picker
+                        Picker("Brainwave State", selection: $selectedBrainwaveState) {
+                            ForEach(BinauralBeatGenerator.BrainwaveState.allCases, id: \.self) { state in
+                                Text(state.rawValue.capitalized).tag(state)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: selectedBrainwaveState) { newState in
+                            binauralGenerator.configure(state: newState)
+                            if binauralGenerator.isPlaying {
+                                binauralGenerator.stop()
+                                binauralGenerator.start()
+                            }
+                        }
+
+                        // State description
+                        Text(selectedBrainwaveState.description)
+                            .font(.system(size: 12, weight: .light))
+                            .foregroundColor(.white.opacity(0.6))
+
+                        // Amplitude control
+                        VStack(spacing: 5) {
+                            HStack {
+                                Text("Volume")
+                                    .font(.system(size: 12, weight: .light))
+                                Spacer()
+                                Text(String(format: "%.0f%%", binauralAmplitude * 100))
+                                    .font(.system(size: 12, weight: .light, design: .monospaced))
+                            }
+                            .foregroundColor(.white.opacity(0.7))
+
+                            Slider(value: $binauralAmplitude, in: 0.0...0.6)
+                                .onChange(of: binauralAmplitude) { newValue in
+                                    binauralGenerator.configure(
+                                        carrier: 432.0,
+                                        beat: selectedBrainwaveState.beatFrequency,
+                                        amplitude: newValue
+                                    )
+                                    if binauralGenerator.isPlaying {
+                                        binauralGenerator.stop()
+                                        binauralGenerator.start()
+                                    }
+                                }
+                        }
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color.black.opacity(0.4))
+                    )
+                    .padding(.horizontal, 30)
+                    .transition(.opacity.combined(with: .scale))
+                    .padding(.bottom, 10)
+                }
 
                 // Status text
                 Text(statusText)
@@ -331,6 +456,30 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// Toggle binaural beats on/off
+    private func toggleBinauralBeats() {
+        if binauralGenerator.isPlaying {
+            binauralGenerator.stop()
+        } else {
+            // Configure with current settings
+            binauralGenerator.configure(
+                carrier: 432.0,  // Healing frequency
+                beat: selectedBrainwaveState.beatFrequency,
+                amplitude: binauralAmplitude
+            )
+            binauralGenerator.start()
+
+            // Optional: Adapt to HRV if available
+            if healthKitManager.isAuthorized {
+                binauralGenerator.setBeatFrequencyFromHRV(coherence: healthKitManager.hrvCoherence)
+            }
+        }
+
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
     }
 
     /// Check permissions on launch
