@@ -7,17 +7,20 @@ struct ContentView: View {
     /// Access to the microphone manager from the environment
     @EnvironmentObject var microphoneManager: MicrophoneManager
 
-    /// HealthKit manager for HRV biofeedback
-    @StateObject private var healthKitManager = HealthKitManager()
+    /// Access to the central audio engine from the environment
+    @EnvironmentObject var audioEngine: AudioEngine
 
-    /// Binaural beat generator for healing frequencies
-    @StateObject private var binauralGenerator = BinauralBeatGenerator()
+    /// Access to HealthKit manager from the environment
+    @EnvironmentObject var healthKitManager: HealthKitManager
 
     /// Show permission denial alert
     @State private var showPermissionAlert = false
 
     /// Show binaural beat controls
     @State private var showBinauralControls = false
+
+    /// Show spatial audio controls
+    @State private var showSpatialControls = false
 
     /// Currently selected brainwave state
     @State private var selectedBrainwaveState: BinauralBeatGenerator.BrainwaveState = .alpha
@@ -183,20 +186,20 @@ struct ContentView: View {
                         VStack(spacing: 8) {
                             ZStack {
                                 Circle()
-                                    .fill(binauralGenerator.isPlaying ? Color.purple : Color.gray.opacity(0.3))
+                                    .fill(audioEngine.binauralBeatsEnabled ? Color.purple : Color.gray.opacity(0.3))
                                     .frame(width: 60, height: 60)
                                     .shadow(
-                                        color: binauralGenerator.isPlaying ? .purple.opacity(0.5) : .clear,
+                                        color: audioEngine.binauralBeatsEnabled ? .purple.opacity(0.5) : .clear,
                                         radius: 15
                                     )
 
-                                Image(systemName: binauralGenerator.isPlaying ? "waveform.circle.fill" : "waveform.circle")
+                                Image(systemName: audioEngine.binauralBeatsEnabled ? "waveform.circle.fill" : "waveform.circle")
                                     .font(.system(size: 28))
                                     .foregroundColor(.white)
                             }
 
-                            if binauralGenerator.isPlaying {
-                                Text(binauralGenerator.audioMode == .binaural ? "Binaural" : "Isochronic")
+                            if audioEngine.binauralBeatsEnabled {
+                                Text("Binaural ON")
                                     .font(.system(size: 10, weight: .light))
                                     .foregroundColor(.white.opacity(0.7))
                             } else {
@@ -225,6 +228,31 @@ struct ContentView: View {
                     }
                     .disabled(!microphoneManager.hasPermission && isRecording)
 
+                    // Spatial audio toggle (if available)
+                    if audioEngine.spatialAudioEngine != nil {
+                        Button(action: { showSpatialControls.toggle() }) {
+                            VStack(spacing: 8) {
+                                ZStack {
+                                    Circle()
+                                        .fill(audioEngine.spatialAudioEnabled ? Color.cyan.opacity(0.3) : Color.gray.opacity(0.3))
+                                        .frame(width: 60, height: 60)
+                                        .shadow(
+                                            color: audioEngine.spatialAudioEnabled ? .cyan.opacity(0.3) : .clear,
+                                            radius: 10
+                                        )
+
+                                    Image(systemName: "airpodspro")
+                                        .font(.system(size: 28))
+                                        .foregroundColor(.white)
+                                }
+
+                                Text("Spatial")
+                                    .font(.system(size: 10, weight: .light))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
+                    }
+
                     // Binaural controls toggle
                     Button(action: { showBinauralControls.toggle() }) {
                         VStack(spacing: 8) {
@@ -246,6 +274,74 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 20)
 
+                // Spatial Audio Controls (NEW!)
+                if showSpatialControls && audioEngine.spatialAudioEngine != nil {
+                    VStack(spacing: 15) {
+                        HStack {
+                            Image(systemName: "airpodspro")
+                                .font(.system(size: 18))
+                                .foregroundColor(.cyan)
+
+                            Text("Spatial Audio")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.8))
+
+                            Spacer()
+
+                            // Status indicator
+                            Circle()
+                                .fill(audioEngine.spatialAudioEnabled ? .green : .gray)
+                                .frame(width: 10, height: 10)
+                        }
+
+                        // Toggle
+                        Toggle(isOn: Binding(
+                            get: { audioEngine.spatialAudioEnabled },
+                            set: { _ in audioEngine.toggleSpatialAudio() }
+                        )) {
+                            Text("Enable 3D Audio")
+                                .font(.system(size: 13, weight: .light))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .toggleStyle(SwitchToggleStyle(tint: .cyan))
+
+                        // Device Info
+                        if let capabilities = audioEngine.deviceCapabilities {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Device: \(capabilities.deviceModel)")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.6))
+
+                                if capabilities.hasAirPodsConnected {
+                                    Text("AirPods: \(capabilities.airPodsModel ?? "Unknown")")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+
+                                if capabilities.supportsASAF {
+                                    Text("✅ ASAF Supported (iOS 19+)")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.green.opacity(0.7))
+                                } else {
+                                    Text("⚠️ ASAF requires iOS 19+ & iPhone 16+")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.yellow.opacity(0.6))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+                        }
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color.black.opacity(0.4))
+                    )
+                    .padding(.horizontal, 30)
+                    .transition(.opacity.combined(with: .scale))
+                    .padding(.bottom, 10)
+                }
+
                 // Binaural beat controls (expandable)
                 if showBinauralControls {
                     VStack(spacing: 15) {
@@ -254,22 +350,18 @@ struct ContentView: View {
                             .foregroundColor(.white.opacity(0.8))
 
                         // Brainwave state picker
-                        Picker("Brainwave State", selection: $selectedBrainwaveState) {
+                        Picker("Brainwave State", selection: Binding(
+                            get: { audioEngine.currentBrainwaveState },
+                            set: { audioEngine.setBrainwaveState($0) }
+                        )) {
                             ForEach(BinauralBeatGenerator.BrainwaveState.allCases, id: \.self) { state in
                                 Text(state.rawValue.capitalized).tag(state)
                             }
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: selectedBrainwaveState) { newState in
-                            binauralGenerator.configure(state: newState)
-                            if binauralGenerator.isPlaying {
-                                binauralGenerator.stop()
-                                binauralGenerator.start()
-                            }
-                        }
 
                         // State description
-                        Text(selectedBrainwaveState.description)
+                        Text(audioEngine.currentBrainwaveState.description)
                             .font(.system(size: 12, weight: .light))
                             .foregroundColor(.white.opacity(0.6))
 
@@ -279,23 +371,15 @@ struct ContentView: View {
                                 Text("Volume")
                                     .font(.system(size: 12, weight: .light))
                                 Spacer()
-                                Text(String(format: "%.0f%%", binauralAmplitude * 100))
+                                Text(String(format: "%.0f%%", audioEngine.binauralAmplitude * 100))
                                     .font(.system(size: 12, weight: .light, design: .monospaced))
                             }
                             .foregroundColor(.white.opacity(0.7))
 
-                            Slider(value: $binauralAmplitude, in: 0.0...0.6)
-                                .onChange(of: binauralAmplitude) { newValue in
-                                    binauralGenerator.configure(
-                                        carrier: 432.0,
-                                        beat: selectedBrainwaveState.beatFrequency,
-                                        amplitude: newValue
-                                    )
-                                    if binauralGenerator.isPlaying {
-                                        binauralGenerator.stop()
-                                        binauralGenerator.start()
-                                    }
-                                }
+                            Slider(value: Binding(
+                                get: { audioEngine.binauralAmplitude },
+                                set: { audioEngine.setBinauralAmplitude($0) }
+                            ), in: 0.0...0.6)
                         }
                     }
                     .padding(20)
@@ -433,11 +517,13 @@ struct ContentView: View {
     /// Toggle recording on/off with proper error handling
     private func toggleRecording() {
         if isRecording {
-            microphoneManager.stopRecording()
+            // Stop via AudioEngine (handles all components)
+            audioEngine.stop()
             healthKitManager.stopMonitoring()
         } else {
             if microphoneManager.hasPermission {
-                microphoneManager.startRecording()
+                // Start via AudioEngine (handles all components)
+                audioEngine.start()
 
                 // Start HealthKit monitoring if authorized
                 if healthKitManager.isAuthorized {
@@ -463,22 +549,8 @@ struct ContentView: View {
 
     /// Toggle binaural beats on/off
     private func toggleBinauralBeats() {
-        if binauralGenerator.isPlaying {
-            binauralGenerator.stop()
-        } else {
-            // Configure with current settings
-            binauralGenerator.configure(
-                carrier: 432.0,  // Healing frequency
-                beat: selectedBrainwaveState.beatFrequency,
-                amplitude: binauralAmplitude
-            )
-            binauralGenerator.start()
-
-            // Optional: Adapt to HRV if available
-            if healthKitManager.isAuthorized {
-                binauralGenerator.setBeatFrequencyFromHRV(coherence: healthKitManager.hrvCoherence)
-            }
-        }
+        // Use AudioEngine to toggle (handles configuration)
+        audioEngine.toggleBinauralBeats()
 
         // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)

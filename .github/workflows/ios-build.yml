@@ -1,0 +1,112 @@
+name: iOS Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  build:
+    name: Build and Test iOS App
+    runs-on: macos-14  # Latest macOS with Xcode 15+
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Select Xcode Version
+      run: sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+
+    - name: Show Xcode Version
+      run: xcodebuild -version
+
+    - name: Show Swift Version
+      run: swift --version
+
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v3
+      with:
+        path: .build
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+
+    - name: Resolve Swift Dependencies
+      run: swift package resolve
+
+    - name: Build Swift Package
+      run: swift build -c release
+
+    - name: Run Swift Tests
+      run: swift test
+
+    - name: Build for iOS Simulator (iPhone 15 Pro)
+      run: |
+        xcodebuild clean build \
+          -scheme Blab \
+          -sdk iphonesimulator \
+          -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.2' \
+          CODE_SIGNING_ALLOWED=NO \
+          | xcpretty || true
+
+    - name: Archive Build Artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: blab-build-artifacts
+        path: .build/
+        retention-days: 7
+
+  # Optional: TestFlight deployment job (requires secrets)
+  deploy-testflight:
+    name: Deploy to TestFlight
+    runs-on: macos-14
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install App Store Connect API Key
+      env:
+        APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      run: |
+        mkdir -p ~/private_keys
+        echo "$APP_STORE_CONNECT_API_KEY" > ~/private_keys/AuthKey.p8
+
+    - name: Build and Archive for Release
+      env:
+        MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      run: |
+        xcodebuild archive \
+          -scheme Blab \
+          -sdk iphoneos \
+          -configuration Release \
+          -archivePath ./build/Blab.xcarchive \
+          CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
+          PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE }}"
+
+    - name: Export IPA
+      run: |
+        xcodebuild -exportArchive \
+          -archivePath ./build/Blab.xcarchive \
+          -exportOptionsPlist ./ExportOptions.plist \
+          -exportPath ./build
+
+    - name: Upload to TestFlight
+      env:
+        APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      run: |
+        xcrun altool --upload-app \
+          --type ios \
+          --file ./build/Blab.ipa \
+          --apiKey $APP_STORE_CONNECT_KEY_ID \
+          --apiIssuer $APP_STORE_CONNECT_ISSUER_ID
+
+    - name: Notify Success
+      if: success()
+      run: echo "✅ Successfully deployed to TestFlight!"

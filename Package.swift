@@ -6,7 +6,9 @@ import PackageDescription
 let package = Package(
     name: "Blab",
     platforms: [
-        .iOS(.v16)  // Minimum iOS 16 for iPhone 16 Pro Max compatibility
+        .iOS(.v15)  // Minimum iOS 15 for wide device compatibility
+                    // iOS 16+ recommended for enhanced features
+                    // iOS 19+ for Apple Spatial Audio Features (ASAF)
     ],
     products: [
         // The main app product
@@ -21,7 +23,11 @@ let package = Package(
         // The main app target
         .target(
             name: "Blab",
-            dependencies: []),
+            dependencies: [],
+            resources: [
+                // Include Info.plist and other resources
+                .process("Resources")
+            ]),
 
         // Test target for unit tests
         .testTarget(
