@@ -153,6 +153,29 @@ struct TimeSignature: Codable {
     var description: String {
         "\(numerator)/\(denominator)"
     }
+
+    /// Alternative property names for clarity
+    var beats: Int {
+        get { numerator }
+        set { numerator = newValue }
+    }
+
+    var noteValue: Int {
+        get { denominator }
+        set { denominator = newValue }
+    }
+
+    /// Initialize with beats and noteValue
+    init(beats: Int, noteValue: Int) {
+        self.numerator = beats
+        self.denominator = noteValue
+    }
+
+    /// Initialize with numerator and denominator
+    init(numerator: Int, denominator: Int) {
+        self.numerator = numerator
+        self.denominator = denominator
+    }
 }
 
 /// Bio-data point captured during session
@@ -205,6 +228,13 @@ struct SessionMetadata: Codable {
 // MARK: - Session Templates
 
 extension Session {
+    /// Session template types
+    enum SessionTemplate {
+        case meditation
+        case healing
+        case creative
+        case custom
+    }
     /// Create meditation session template
     static func meditationTemplate() -> Session {
         var session = Session(name: "Meditation Session", tempo: 60)

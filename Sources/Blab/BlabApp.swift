@@ -15,6 +15,9 @@ struct BlabApp: App {
     /// HealthKit manager for biofeedback
     @StateObject private var healthKitManager = HealthKitManager()
 
+    /// Recording engine for multi-track recording
+    @StateObject private var recordingEngine = RecordingEngine()
+
     init() {
         // Initialize AudioEngine with MicrophoneManager
         let micManager = MicrophoneManager()
@@ -28,6 +31,7 @@ struct BlabApp: App {
                 .environmentObject(microphoneManager)  // Makes mic manager available to all views
                 .environmentObject(audioEngine)         // Makes audio engine available
                 .environmentObject(healthKitManager)    // Makes health data available
+                .environmentObject(recordingEngine)     // Makes recording engine available
                 .preferredColorScheme(.dark)            // Force dark theme
                 .onAppear {
                     // Connect HealthKit to AudioEngine for bio-parameter mapping

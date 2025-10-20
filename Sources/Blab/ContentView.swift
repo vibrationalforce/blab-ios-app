@@ -13,8 +13,14 @@ struct ContentView: View {
     /// Access to HealthKit manager from the environment
     @EnvironmentObject var healthKitManager: HealthKitManager
 
+    /// Access to Recording engine from the environment
+    @EnvironmentObject var recordingEngine: RecordingEngine
+
     /// Show permission denial alert
     @State private var showPermissionAlert = false
+
+    /// Show recording controls
+    @State private var showRecordingControls = false
 
     /// Show binaural beat controls
     @State private var showBinauralControls = false
@@ -269,6 +275,29 @@ struct ContentView: View {
                         }
                     }
 
+                    // Recording controls toggle
+                    Button(action: { showRecordingControls.toggle() }) {
+                        VStack(spacing: 8) {
+                            ZStack {
+                                Circle()
+                                    .fill(recordingEngine.isRecording ? Color.red.opacity(0.3) : Color.gray.opacity(0.3))
+                                    .frame(width: 60, height: 60)
+                                    .shadow(
+                                        color: recordingEngine.isRecording ? .red.opacity(0.3) : .clear,
+                                        radius: 10
+                                    )
+
+                                Image(systemName: "waveform.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("Studio")
+                                .font(.system(size: 10, weight: .light))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    }
+
                     // Binaural controls toggle
                     Button(action: { showBinauralControls.toggle() }) {
                         VStack(spacing: 8) {
@@ -432,6 +461,13 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showVisualizationPicker) {
             VisualizationModePicker(selectedMode: $selectedVisualizationMode)
+        }
+        .sheet(isPresented: $showRecordingControls) {
+            RecordingControlsView()
+                .environmentObject(recordingEngine)
+                .environmentObject(healthKitManager)
+                .environmentObject(microphoneManager)
+                .presentationDetents([.medium, .large])
         }
     }
 
