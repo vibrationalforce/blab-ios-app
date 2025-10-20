@@ -68,6 +68,17 @@ class AudioEngine: ObservableObject {
     init(microphoneManager: MicrophoneManager) {
         self.microphoneManager = microphoneManager
 
+        // Configure audio session for optimal performance
+        do {
+            try AudioConfiguration.configureAudioSession()
+            print(AudioConfiguration.latencyStats())
+        } catch {
+            print("⚠️  Failed to configure audio session: \(error)")
+        }
+
+        // Set real-time audio thread priority
+        AudioConfiguration.setAudioThreadPriority()
+
         // Configure default binaural beat settings
         binauralGenerator.configure(
             carrier: 432.0,  // Healing frequency
