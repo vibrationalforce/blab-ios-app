@@ -56,6 +56,9 @@ class AudioEngine: ObservableObject {
     /// Device capabilities
     private var deviceCapabilities: DeviceCapabilities?
 
+    /// Node graph for effects processing
+    private var nodeGraph: NodeGraph?
+
 
     // MARK: - Private Properties
 
@@ -107,9 +110,13 @@ class AudioEngine: ObservableObject {
         // Start monitoring device capabilities
         deviceCapabilities?.startMonitoringAudioRoute()
 
+        // Initialize node graph with default biofeedback chain
+        nodeGraph = NodeGraph.createBiofeedbackChain()
+
         print("🎵 AudioEngine initialized")
         print("   Spatial Audio: \(deviceCapabilities?.canUseSpatialAudio == true ? "✅" : "❌")")
         print("   Head Tracking: \(headTrackingManager?.isAvailable == true ? "✅" : "❌")")
+        print("   Node Graph: \(nodeGraph?.nodes.count ?? 0) nodes loaded")
     }
 
 
