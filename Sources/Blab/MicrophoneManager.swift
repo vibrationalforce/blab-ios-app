@@ -23,6 +23,12 @@ class MicrophoneManager: NSObject, ObservableObject {
     /// Whether we're currently recording
     @Published var isRecording: Bool = false
 
+    /// Audio buffer for waveform visualization (last 512 samples)
+    @Published var audioBuffer: [Float]? = nil
+
+    /// FFT magnitudes for spectral visualization (256 bins)
+    @Published var fftMagnitudes: [Float]? = nil
+
 
     // MARK: - Private Properties
 
@@ -194,8 +200,13 @@ class MicrophoneManager: NSObject, ObservableObject {
         // Normalize to 0-1 range with better sensitivity
         let normalizedLevel = min(rms * 15.0, 1.0)
 
-        // Perform FFT for frequency detection
-        let detectedFrequency = performFFT(on: channelDataValue, frameLength: frameLength)
+        // Capture audio buffer for waveform visualization (last 512 samples)
+        let bufferSampleCount = min(512, frameLength)
+        var capturedBuffer = [Float](repeating: 0, count: bufferSampleCount)
+        cblas_scopy(Int32(bufferSampleCount), channelDataValue, 1, &capturedBuffer, 1)
+
+        // Perform FFT for frequency detection and get magnitudes
+        let (detectedFrequency, magnitudes) = performFFT(on: channelDataValue, frameLength: frameLength)
 
         // Perform YIN pitch detection for fundamental frequency
         let detectedPitch = pitchDetector.detectPitch(buffer: buffer, sampleRate: Float(sampleRate))
@@ -219,12 +230,16 @@ class MicrophoneManager: NSObject, ObservableObject {
                 // Decay pitch to zero if no pitch detected
                 self.currentPitch *= 0.9
             }
+
+            // Update audio buffer and FFT magnitudes for visualizations
+            self.audioBuffer = capturedBuffer
+            self.fftMagnitudes = magnitudes
         }
     }
 
-    /// Perform FFT to detect fundamental frequency
-    private func performFFT(on data: UnsafePointer<Float>, frameLength: Int) -> Float {
-        guard let setup = fftSetup else { return 0 }
+    /// Perform FFT to detect fundamental frequency and return magnitudes
+    private func performFFT(on data: UnsafePointer<Float>, frameLength: Int) -> (frequency: Float, magnitudes: [Float]) {
+        guard let setup = fftSetup else { return (0, []) }
 
         // Prepare buffers
         var realParts = [Float](repeating: 0, count: fftSize)
@@ -250,6 +265,20 @@ class MicrophoneManager: NSObject, ObservableObject {
             magnitudes[i] = sqrt(realParts[i] * realParts[i] + imagParts[i] * imagParts[i])
         }
 
+        // Downsample magnitudes for visualization (256 bins for spectral mode)
+        let visualBins = 256
+        var visualMagnitudes = [Float](repeating: 0, count: visualBins)
+        let binRatio = magnitudes.count / visualBins
+        for i in 0..<visualBins {
+            let startIdx = i * binRatio
+            let endIdx = min(startIdx + binRatio, magnitudes.count)
+            var sum: Float = 0
+            for j in startIdx..<endIdx {
+                sum += magnitudes[j]
+            }
+            visualMagnitudes[i] = sum / Float(binRatio)
+        }
+
         // Find peak frequency (ignore DC component at index 0)
         var maxMagnitude: Float = 0
         var maxIndex: vDSP_Length = 0
@@ -262,10 +291,10 @@ class MicrophoneManager: NSObject, ObservableObject {
 
         // Only return frequencies in audible/useful range
         if frequency > 50 && frequency < 2000 && maxMagnitude > 0.01 {
-            return frequency
+            return (frequency, visualMagnitudes)
         }
 
-        return 0.0
+        return (0.0, visualMagnitudes)
     }
 
 

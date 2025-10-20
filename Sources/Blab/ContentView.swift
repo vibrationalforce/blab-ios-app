@@ -22,6 +22,12 @@ struct ContentView: View {
     /// Show spatial audio controls
     @State private var showSpatialControls = false
 
+    /// Show visualization mode picker
+    @State private var showVisualizationPicker = false
+
+    /// Currently selected visualization mode
+    @State private var selectedVisualizationMode: VisualizationMode = .particles
+
     /// Currently selected brainwave state
     @State private var selectedBrainwaveState: BinauralBeatGenerator.BrainwaveState = .alpha
 
@@ -61,17 +67,27 @@ struct ContentView: View {
 
                 Spacer()
 
-                // Advanced particle visualization with biofeedback integration
-                ParticleView(
-                    isActive: isRecording,
-                    audioLevel: microphoneManager.audioLevel,
-                    frequency: microphoneManager.frequency > 0 ? microphoneManager.frequency : nil,
-                    voicePitch: microphoneManager.currentPitch,
-                    hrvCoherence: healthKitManager.hrvCoherence,
-                    heartRate: healthKitManager.heartRate
-                )
-                .frame(height: 350)
-                .padding(.horizontal, 30)
+                // Visualization (mode-based)
+                visualizationView
+                    .frame(height: 350)
+                    .padding(.horizontal, 30)
+
+                // Visualization mode picker button
+                Button(action: { showVisualizationPicker.toggle() }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: selectedVisualizationMode.icon)
+                            .font(.system(size: 12))
+                        Text(selectedVisualizationMode.rawValue)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(.white.opacity(0.7))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(selectedVisualizationMode.color.opacity(0.2))
+                    )
+                }
 
                 Spacer()
 
@@ -414,6 +430,9 @@ struct ContentView: View {
         } message: {
             Text("Blab needs microphone access to create music from your voice. Please enable it in Settings.")
         }
+        .sheet(isPresented: $showVisualizationPicker) {
+            VisualizationModePicker(selectedMode: $selectedVisualizationMode)
+        }
     }
 
     // MARK: - Computed Properties
@@ -430,6 +449,48 @@ struct ContentView: View {
             }
         } else {
             return "Tap to Start"
+        }
+    }
+
+    /// Visualization view based on selected mode
+    @ViewBuilder
+    private var visualizationView: some View {
+        switch selectedVisualizationMode {
+        case .particles:
+            ParticleView(
+                isActive: isRecording,
+                audioLevel: microphoneManager.audioLevel,
+                frequency: microphoneManager.frequency > 0 ? microphoneManager.frequency : nil,
+                voicePitch: microphoneManager.currentPitch,
+                hrvCoherence: healthKitManager.hrvCoherence,
+                heartRate: healthKitManager.heartRate
+            )
+        case .cymatics:
+            CymaticsView(
+                audioLevel: microphoneManager.audioLevel,
+                frequency: microphoneManager.frequency,
+                hrvCoherence: healthKitManager.hrvCoherence,
+                heartRate: healthKitManager.heartRate
+            )
+        case .waveform:
+            WaveformMode(
+                audioBuffer: microphoneManager.audioBuffer ?? [],
+                audioLevel: microphoneManager.audioLevel,
+                hrvCoherence: healthKitManager.hrvCoherence
+            )
+        case .spectral:
+            SpectralMode(
+                fftMagnitudes: microphoneManager.fftMagnitudes ?? [],
+                audioLevel: microphoneManager.audioLevel,
+                hrvCoherence: healthKitManager.hrvCoherence
+            )
+        case .mandala:
+            MandalaMode(
+                audioLevel: microphoneManager.audioLevel,
+                frequency: microphoneManager.frequency,
+                hrvCoherence: healthKitManager.hrvCoherence,
+                heartRate: healthKitManager.heartRate
+            )
         }
     }
 
