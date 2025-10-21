@@ -39,9 +39,11 @@ public class UnifiedControlHub: ObservableObject {
     private var gestureRecognizer: GestureRecognizer?
     private var gestureConflictResolver: GestureConflictResolver?
     private var gestureToAudioMapper: GestureToAudioMapper?
+    private var healthKitManager: HealthKitManager?
+    private var bioParameterMapper: BioParameterMapper?
 
     // TODO: Add when implementing
-    // private let bioManager: HealthKitManager?
+    // private let gazeTracker: GazeTracker?
 
     // MARK: - Control Loop
 
@@ -128,6 +130,58 @@ public class UnifiedControlHub: ObservableObject {
         print("[UnifiedControlHub] Hand tracking disabled")
     }
 
+    /// Enable biometric monitoring (HealthKit)
+    public func enableBiometricMonitoring() async throws {
+        let healthKit = HealthKitManager()
+        let bioMapper = BioParameterMapper()
+
+        // Request HealthKit authorization
+        try await healthKit.requestAuthorization()
+
+        guard healthKit.isAuthorized else {
+            throw NSError(
+                domain: "com.blab.healthkit",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "HealthKit authorization denied"]
+            )
+        }
+
+        self.healthKitManager = healthKit
+        self.bioParameterMapper = bioMapper
+
+        // Subscribe to HRV changes
+        healthKit.$hrvCoherence
+            .sink { [weak self] coherence in
+                self?.handleBioSignalUpdate()
+            }
+            .store(in: &cancellables)
+
+        healthKit.$heartRate
+            .sink { [weak self] _ in
+                self?.handleBioSignalUpdate()
+            }
+            .store(in: &cancellables)
+
+        // Start monitoring
+        healthKit.startMonitoring()
+
+        print("[UnifiedControlHub] Biometric monitoring enabled")
+    }
+
+    /// Disable biometric monitoring
+    public func disableBiometricMonitoring() {
+        healthKitManager?.stopMonitoring()
+        healthKitManager = nil
+        bioParameterMapper = nil
+        print("[UnifiedControlHub] Biometric monitoring disabled")
+    }
+
+    /// Handle bio signal updates from HealthKit
+    private func handleBioSignalUpdate() {
+        // Bio signal updates happen via Combine subscriptions
+        // Actual mapping happens in updateFromBioSignals()
+    }
+
     // MARK: - Lifecycle
 
     /// Start the unified control system
@@ -139,6 +193,8 @@ public class UnifiedControlHub: ObservableObject {
 
         // Start hand tracking if enabled
         handTrackingManager?.startTracking()
+
+        // HealthKit monitoring already started in enableBiometricMonitoring()
 
         // Start control loop
         startControlLoop()
@@ -188,12 +244,51 @@ public class UnifiedControlHub: ObservableObject {
     // MARK: - Input Updates (Placeholder implementations)
 
     private func updateFromBioSignals() {
-        // TODO: Implement when HealthKitManager is integrated
-        // Example:
-        // guard let bioManager = bioManager else { return }
-        // let hrv = bioManager.hrv
-        // let heartRate = bioManager.heartRate
-        // mapBioToAudio(hrv: hrv, heartRate: heartRate)
+        guard let healthKit = healthKitManager,
+              let mapper = bioParameterMapper else {
+            return
+        }
+
+        // Get current biometric data
+        let hrvCoherence = healthKit.hrvCoherence
+        let heartRate = healthKit.heartRate
+        let voicePitch: Float = 0.0  // TODO: Get from audio analysis
+        let audioLevel: Float = 0.5  // TODO: Get from audio engine
+
+        // Update bio parameter mapping
+        mapper.updateParameters(
+            hrvCoherence: hrvCoherence,
+            heartRate: heartRate,
+            voicePitch: voicePitch,
+            audioLevel: audioLevel
+        )
+
+        // Apply bio-derived audio parameters
+        applyBioAudioParameters(mapper)
+    }
+
+    /// Apply bio-derived audio parameters to audio engine
+    private func applyBioAudioParameters(_ mapper: BioParameterMapper) {
+        // Apply filter cutoff
+        // TODO: Apply to actual AudioEngine filter node
+        // print("[Bio→Audio] Filter Cutoff: \(Int(mapper.filterCutoff)) Hz")
+
+        // Apply reverb wetness
+        // TODO: Apply to actual AudioEngine reverb node
+        // print("[Bio→Audio] Reverb Wet: \(Int(mapper.reverbWet * 100))%")
+
+        // Apply amplitude
+        // TODO: Apply to actual AudioEngine master volume
+        // print("[Bio→Audio] Amplitude: \(Int(mapper.amplitude * 100))%")
+
+        // Apply tempo
+        // TODO: Apply to tempo-synced effects (delay, arpeggiator)
+        // print("[Bio→Audio] Tempo: \(String(format: "%.1f", mapper.tempo)) BPM")
+
+        // Apply spatial position
+        // TODO: Apply to spatial audio engine
+        // let (x, y, z) = mapper.spatialPosition
+        // print("[Bio→Audio] Spatial: (\(String(format: "%.2f", x)), \(String(format: "%.2f", y)), \(String(format: "%.2f", z)))")
     }
 
     private func updateFromFaceTracking() {

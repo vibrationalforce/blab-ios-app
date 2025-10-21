@@ -18,27 +18,48 @@ struct BlabApp: App {
     /// Recording engine for multi-track recording
     @StateObject private var recordingEngine = RecordingEngine()
 
+    /// UnifiedControlHub for multimodal input
+    @StateObject private var unifiedControlHub: UnifiedControlHub
+
     init() {
         // Initialize AudioEngine with MicrophoneManager
         let micManager = MicrophoneManager()
         _microphoneManager = StateObject(wrappedValue: micManager)
-        _audioEngine = StateObject(wrappedValue: AudioEngine(microphoneManager: micManager))
+
+        let audioEng = AudioEngine(microphoneManager: micManager)
+        _audioEngine = StateObject(wrappedValue: audioEng)
+
+        _unifiedControlHub = StateObject(wrappedValue: UnifiedControlHub(audioEngine: audioEng))
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(microphoneManager)  // Makes mic manager available to all views
-                .environmentObject(audioEngine)         // Makes audio engine available
-                .environmentObject(healthKitManager)    // Makes health data available
-                .environmentObject(recordingEngine)     // Makes recording engine available
-                .preferredColorScheme(.dark)            // Force dark theme
+                .environmentObject(microphoneManager)      // Makes mic manager available to all views
+                .environmentObject(audioEngine)             // Makes audio engine available
+                .environmentObject(healthKitManager)        // Makes health data available
+                .environmentObject(recordingEngine)         // Makes recording engine available
+                .environmentObject(unifiedControlHub)       // Makes unified control available
+                .preferredColorScheme(.dark)                // Force dark theme
                 .onAppear {
                     // Connect HealthKit to AudioEngine for bio-parameter mapping
                     audioEngine.connectHealthKit(healthKitManager)
 
                     // Connect RecordingEngine to AudioEngine for audio routing
                     recordingEngine.connectAudioEngine(audioEngine)
+
+                    // Enable biometric monitoring through UnifiedControlHub
+                    Task {
+                        do {
+                            try await unifiedControlHub.enableBiometricMonitoring()
+                            print("✅ Biometric monitoring enabled via UnifiedControlHub")
+                        } catch {
+                            print("⚠️ Biometric monitoring not available: \(error.localizedDescription)")
+                        }
+                    }
+
+                    // Start UnifiedControlHub
+                    unifiedControlHub.start()
 
                     print("🎵 BLAB App Started - All Systems Connected!")
                 }
