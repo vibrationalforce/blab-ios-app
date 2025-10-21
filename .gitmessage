@@ -1,0 +1,35 @@
+# <type>: <subject>
+#
+# <body>
+#
+# 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+#
+# Co-Authored-By: Claude <noreply@anthropic.com>
+
+# Type can be:
+#   feat     (new feature)
+#   fix      (bug fix)
+#   docs     (changes to documentation)
+#   style    (formatting, missing semicolons, etc; no code change)
+#   refactor (refactoring production code)
+#   test     (adding missing tests, refactoring tests; no production code change)
+#   chore    (updating build tasks, package manager configs, etc; no production code change)
+#   perf     (performance improvement)
+#
+# Subject should use imperative tone and say what you did.
+# The body should go into detail about changes made.
+#
+# Example:
+# feat: Add bio-mapping presets system
+#
+# - Implemented 10 configurable bio-parameter mapping presets
+# - Added BioMappingPresets enum with Creative, Meditation, Focus modes
+# - Created PresetSelectionView UI component
+# - Integrated Kalman filter for smoother bio-signal processing
+# - Added comprehensive unit tests with 85% coverage
+#
+# Closes #42
+#
+# 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+#
+# Co-Authored-By: Claude <noreply@anthropic.com>
