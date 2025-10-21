@@ -1,15 +1,14 @@
 # 🔒 Current Work Status
 
-**Last Updated:** 2025-10-21 14:35 UTC
+**Last Updated:** 2025-10-21 15:45 UTC
 
 ## Active Development
 
 | AI System | Status | Branch | Working On | ETA |
 |-----------|--------|--------|------------|-----|
-| Claude Code (Mac) | 🟢 IDLE | `main` | All features merged | - |
+| Claude Code (Mac) | 🟡 PAUSED | `main` | Week 2 Hand Tracking (80% done) | Resume anytime |
 | GPT Codex | 🟢 IDLE | `main` | - | - |
 | Claude (iPhone) | 🟢 IDLE | - | - | - |
-| Other Claude | ✅ MERGED | `main` | Week 1 implementation merged | - |
 
 ## Rules
 

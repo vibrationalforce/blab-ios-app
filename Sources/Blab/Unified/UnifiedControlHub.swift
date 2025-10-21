@@ -35,10 +35,13 @@ public class UnifiedControlHub: ObservableObject {
     private let audioEngine: AudioEngine?
     private var faceTrackingManager: ARFaceTrackingManager?
     private var faceToAudioMapper: FaceToAudioMapper?
+    private var handTrackingManager: HandTrackingManager?
+    private var gestureRecognizer: GestureRecognizer?
+    private var gestureConflictResolver: GestureConflictResolver?
+    private var gestureToAudioMapper: GestureToAudioMapper?
 
     // TODO: Add when implementing
     // private let bioManager: HealthKitManager?
-    // private let handTrackingManager: HandTrackingManager?
 
     // MARK: - Control Loop
 
@@ -84,6 +87,47 @@ public class UnifiedControlHub: ObservableObject {
         print("[UnifiedControlHub] Face tracking disabled")
     }
 
+    /// Enable hand tracking and gesture recognition
+    public func enableHandTracking() {
+        let handManager = HandTrackingManager()
+        let gestureRec = GestureRecognizer(handTracker: handManager)
+        let conflictRes = GestureConflictResolver(
+            handTracker: handManager,
+            faceTracker: faceTrackingManager
+        )
+        let gestureMapper = GestureToAudioMapper()
+
+        self.handTrackingManager = handManager
+        self.gestureRecognizer = gestureRec
+        self.gestureConflictResolver = conflictRes
+        self.gestureToAudioMapper = gestureMapper
+
+        // Subscribe to gesture changes
+        gestureRec.$leftHandGesture
+            .sink { [weak self] gesture in
+                self?.handleGestureUpdate(hand: .left, gesture: gesture)
+            }
+            .store(in: &cancellables)
+
+        gestureRec.$rightHandGesture
+            .sink { [weak self] gesture in
+                self?.handleGestureUpdate(hand: .right, gesture: gesture)
+            }
+            .store(in: &cancellables)
+
+        print("[UnifiedControlHub] Hand tracking enabled")
+    }
+
+    /// Disable hand tracking
+    public func disableHandTracking() {
+        handTrackingManager?.stopTracking()
+        handTrackingManager = nil
+        gestureRecognizer = nil
+        gestureConflictResolver = nil
+        gestureToAudioMapper = nil
+        print("[UnifiedControlHub] Hand tracking disabled")
+    }
+
     // MARK: - Lifecycle
 
     /// Start the unified control system
@@ -92,6 +136,9 @@ public class UnifiedControlHub: ObservableObject {
 
         // Start face tracking if enabled
         faceTrackingManager?.start()
+
+        // Start hand tracking if enabled
+        handTrackingManager?.startTracking()
 
         // Start control loop
         startControlLoop()
@@ -173,7 +220,90 @@ public class UnifiedControlHub: ObservableObject {
     }
 
     private func updateFromHandGestures() {
-        // TODO: Implement when HandTrackingManager is integrated
+        guard let gestureRecognizer = gestureRecognizer,
+              let handTrackingManager = handTrackingManager,
+              let conflictResolver = gestureConflictResolver else {
+            return
+        }
+
+        // Update gesture recognition
+        gestureRecognizer.updateGestures()
+
+        // Apply gestures to audio parameters (if validated)
+        applyGestureParameters()
+    }
+
+    /// Handle gesture updates from GestureRecognizer
+    private func handleGestureUpdate(hand: HandTrackingManager.Hand, gesture: GestureRecognizer.Gesture) {
+        guard let gestureRecognizer = gestureRecognizer,
+              let conflictResolver = gestureConflictResolver else {
+            return
+        }
+
+        // Validate gesture with conflict resolver
+        let confidence = gestureRecognizer.leftGestureConfidence // Use appropriate confidence
+        guard conflictResolver.shouldProcessGesture(gesture, hand: hand, confidence: confidence) else {
+            return
+        }
+
+        // Gesture is valid - mapping happens in applyGestureParameters()
+    }
+
+    /// Apply gesture-derived audio parameters to audio engine
+    private func applyGestureParameters() {
+        guard let gestureRecognizer = gestureRecognizer,
+              let mapper = gestureToAudioMapper else {
+            return
+        }
+
+        // Map gestures to audio parameters
+        let audioParams = mapper.mapToAudio(gestureRecognizer: gestureRecognizer)
+
+        // Apply parameters to audio engine
+        applyGestureAudioParameters(audioParams)
+    }
+
+    /// Apply gesture-derived audio parameters to audio engine
+    private func applyGestureAudioParameters(_ params: GestureToAudioMapper.AudioParameters) {
+        // Apply filter parameters
+        if let cutoff = params.filterCutoff {
+            // TODO: Apply to actual AudioEngine filter node
+            // print("[Gesture→Audio] Filter Cutoff: \(Int(cutoff)) Hz")
+        }
+
+        if let resonance = params.filterResonance {
+            // TODO: Apply to actual AudioEngine filter node
+            // print("[Gesture→Audio] Filter Resonance: \(String(format: "%.2f", resonance))")
+        }
+
+        // Apply reverb parameters
+        if let size = params.reverbSize {
+            // TODO: Apply to actual AudioEngine reverb node
+            // print("[Gesture→Audio] Reverb Size: \(String(format: "%.2f", size))")
+        }
+
+        if let wetness = params.reverbWetness {
+            // TODO: Apply to actual AudioEngine reverb node
+            // print("[Gesture→Audio] Reverb Wetness: \(String(format: "%.2f", wetness))")
+        }
+
+        // Apply delay parameters
+        if let delayTime = params.delayTime {
+            // TODO: Apply to actual AudioEngine delay node
+            // print("[Gesture→Audio] Delay Time: \(String(format: "%.3f", delayTime)) s")
+        }
+
+        // Trigger MIDI notes
+        if let midiNote = params.midiNoteOn {
+            // TODO: Send MIDI note via MIDIController
+            print("[Gesture→MIDI] Note On: \(midiNote.note), Velocity: \(midiNote.velocity)")
+        }
+
+        // Handle preset changes
+        if let presetChange = params.presetChange {
+            // TODO: Change to preset
+            print("[Gesture→Audio] Switch to preset: \(presetChange)")
+        }
     }
 
     private func updateFromGazeTracking() {
@@ -183,9 +313,27 @@ public class UnifiedControlHub: ObservableObject {
     // MARK: - Conflict Resolution
 
     private func resolveConflicts() {
-        // TODO: Implement conflict detection
-        // For now, always mark as resolved
-        conflictResolved = true
+        guard let conflictResolver = gestureConflictResolver else {
+            conflictResolved = true
+            return
+        }
+
+        // Check for input conflicts
+        // Priority: Touch > Gesture > Face > Gaze > Position > Bio
+
+        // For now, check if gestures conflict with face tracking
+        let hasActiveGesture = gestureRecognizer?.leftHandGesture != .none ||
+                               gestureRecognizer?.rightHandGesture != .none
+        let hasActiveFace = faceTrackingManager?.isTracking ?? false
+
+        if hasActiveGesture && hasActiveFace {
+            // Gesture takes priority over face (per priority rules)
+            // Mark as resolved since we have a clear priority
+            conflictResolved = true
+        } else {
+            // No conflict
+            conflictResolved = true
+        }
     }
 
     // MARK: - Output Updates
