@@ -118,28 +118,32 @@ class PitchDetector {
                                             frameLength: Int,
                                             differenceFunction: inout [Float],
                                             maxLag: Int) {
-        for tau in 0..<maxLag {
+        // Each lag τ compares frameLength - τ samples.  Using a fixed window length
+        // truncates low-lag comparisons and skews the YIN difference function.  We
+        // adapt the length per τ and rely on vDSP to sum the squared distances
+        // without allocating temporary buffers.
+        guard maxLag > 0 else { return }
+
+        differenceFunction[0] = 0.0
+
+        guard maxLag > 1 else { return }
+
+        for tau in 1..<maxLag {
+            let length = frameLength - tau
+
+            guard length > 0 else {
+                differenceFunction[tau] = 0.0
+                continue
+            }
+
             var sum: Float = 0.0
 
-            // Calculate sum of squared differences
-            // d(τ) = Σ (x[j] - x[j+τ])²
-            let length = frameLength - maxLag
-            var differences = [Float](repeating: 0, count: length)
-
-            // x[j] - x[j+τ]
-            vDSP_vsub(data.advanced(by: tau),  // x[j+τ]
-                     1,
-                     data,                      // x[j]
-                     1,
-                     &differences,
-                     1,
-                     vDSP_Length(length))
-
-            // Square the differences
-            vDSP_vsq(differences, 1, &differences, 1, vDSP_Length(length))
-
-            // Sum all squared differences
-            vDSP_sve(differences, 1, &sum, vDSP_Length(length))
+            vDSP_distancesq(data,
+                             1,
+                             data.advanced(by: tau),
+                             1,
+                             &sum,
+                             vDSP_Length(length))
 
             differenceFunction[tau] = sum
         }
