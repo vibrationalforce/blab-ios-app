@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Combine
+import Accelerate
 
 /// Manages multi-track audio recording with bio-signal integration
 /// Coordinates recording, playback, and real-time monitoring
@@ -24,17 +25,32 @@ class RecordingEngine: ObservableObject {
     /// Recording level (0.0 - 1.0)
     @Published var recordingLevel: Float = 0.0
 
+    /// Real-time waveform data for current recording
+    @Published var recordingWaveform: [Float] = []
+
+    /// Current track being recorded
+    @Published var currentTrackID: UUID?
+
 
     // MARK: - Private Properties
 
     /// Audio engine for recording/playback
     private var audioEngine: AVAudioEngine?
 
+    /// Input node for recording
+    private var inputNode: AVAudioInputNode?
+
     /// Audio file for current recording
     private var audioFile: AVAudioFile?
 
     /// Timer for position updates
     private var timer: Timer?
+
+    /// Waveform buffer for real-time display (max 1000 samples)
+    private var waveformBuffer: [Float] = []
+
+    /// Reference to main audio engine for audio routing
+    private weak var mainAudioEngine: AudioEngine?
 
     /// Directory for storing session files
     private let sessionsDirectory: URL
@@ -66,6 +82,15 @@ class RecordingEngine: ObservableObject {
 
         print("📁 Recording engine initialized")
         print("   Sessions directory: \(sessionsDirectory.path)")
+    }
+
+
+    // MARK: - Audio Engine Connection
+
+    /// Connect to main audio engine for audio routing
+    func connectAudioEngine(_ audioEngine: AudioEngine) {
+        self.mainAudioEngine = audioEngine
+        print("🔌 Connected to main audio engine")
     }
 
 
@@ -139,13 +164,19 @@ class RecordingEngine: ObservableObject {
         )
 
         track.url = trackURL
+        currentTrackID = track.id
 
         // Add track to session
         session.tracks.append(track)
         currentSession = session
 
+        // Setup audio engine for recording
+        try setupAudioRecording()
+
         isRecording = true
         currentTime = 0.0
+        waveformBuffer.removeAll()
+        recordingWaveform.removeAll()
 
         // Start timer for position updates
         startTimer()
@@ -153,9 +184,79 @@ class RecordingEngine: ObservableObject {
         print("🔴 Started recording: \(track.name)")
     }
 
+    /// Setup audio engine tap for recording
+    private func setupAudioRecording() throws {
+        audioEngine = AVAudioEngine()
+        guard let engine = audioEngine else { return }
+
+        inputNode = engine.inputNode
+        guard let input = inputNode else { return }
+
+        let inputFormat = input.outputFormat(forBus: 0)
+
+        // Install tap to capture audio data
+        input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
+            Task { @MainActor [weak self] in
+                self?.processRecordingBuffer(buffer)
+            }
+        }
+
+        try engine.start()
+        print("🎙️ Audio recording engine started")
+    }
+
+    /// Process incoming audio buffer during recording
+    private func processRecordingBuffer(_ buffer: AVAudioPCMBuffer) {
+        guard let channelData = buffer.floatChannelData else { return }
+
+        let frameLength = Int(buffer.frameLength)
+        let channelDataValue = channelData.pointee
+
+        // Calculate RMS for level meter
+        var sum: Float = 0.0
+        vDSP_sve(channelDataValue, 1, &sum, vDSP_Length(frameLength))
+
+        var sumSquares: Float = 0.0
+        vDSP_svesq(channelDataValue, 1, &sumSquares, vDSP_Length(frameLength))
+
+        let rms = sqrt(sumSquares / Float(frameLength))
+        recordingLevel = min(rms * 10.0, 1.0) // Normalize and clamp
+
+        // Write to audio file
+        if let file = audioFile {
+            try? file.write(from: buffer)
+        }
+
+        // Update waveform buffer for real-time display
+        updateWaveformBuffer(channelDataValue, frameLength: frameLength)
+    }
+
+    /// Update waveform buffer for real-time visualization
+    private func updateWaveformBuffer(_ data: UnsafePointer<Float>, frameLength: Int) {
+        // Downsample to max 1000 points
+        let maxPoints = 1000
+        let stride = max(1, frameLength / maxPoints)
+
+        for i in stride(from: 0, to: frameLength, by: stride) {
+            if waveformBuffer.count >= maxPoints {
+                waveformBuffer.removeFirst()
+            }
+            waveformBuffer.append(data[i])
+        }
+
+        // Update published waveform
+        recordingWaveform = waveformBuffer
+    }
+
     /// Stop recording current track
     func stopRecording() throws {
         guard isRecording else { return }
+
+        // Stop audio engine
+        if let engine = audioEngine, let input = inputNode {
+            input.removeTap(onBus: 0)
+            engine.stop()
+        }
 
         isRecording = false
         stopTimer()
@@ -175,7 +276,11 @@ class RecordingEngine: ObservableObject {
         }
 
         audioFile = nil
+        audioEngine = nil
+        inputNode = nil
         currentTime = 0.0
+        recordingLevel = 0.0
+        currentTrackID = nil
 
         print("⏹️ Stopped recording")
     }

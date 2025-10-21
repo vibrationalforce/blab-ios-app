@@ -30,6 +30,12 @@ class LoopEngine: ObservableObject {
     /// Metronome enabled
     @Published var metronomeEnabled: Bool = false
 
+    /// Is currently overdubbing
+    @Published var isOverdubbing: Bool = false
+
+    /// Loop being overdubbed
+    @Published var overdubLoopID: UUID?
+
 
     // MARK: - Loop Model
 
@@ -164,6 +170,65 @@ class LoopEngine: ObservableObject {
         }
 
         loopStartTime = nil
+    }
+
+
+    // MARK: - Overdub Functionality
+
+    /// Start overdubbing on existing loop
+    func startOverdub(loopID: UUID) {
+        guard !isOverdubbing, !isRecordingLoop else { return }
+        guard let loopIndex = loops.firstIndex(where: { $0.id == loopID }) else { return }
+
+        isOverdubbing = true
+        overdubLoopID = loopID
+        loopStartTime = Date()
+
+        // Start playback if not already playing
+        if !isPlayingLoops {
+            startPlayback()
+        }
+
+        print("🎙️ Started overdub on loop: \(loops[loopIndex].name)")
+    }
+
+    /// Stop overdubbing and merge with original loop
+    func stopOverdub() {
+        guard isOverdubbing, let loopID = overdubLoopID else { return }
+        guard let loopIndex = loops.firstIndex(where: { $0.id == loopID }) else { return }
+
+        isOverdubbing = false
+
+        // In a real implementation, this would:
+        // 1. Stop recording the overdub
+        // 2. Mix the overdub with the original loop
+        // 3. Save the merged result
+        // For now, we'll create a new loop
+
+        let overdubName = "\(loops[loopIndex].name) (Overdub)"
+        var newLoop = Loop(
+            name: overdubName,
+            bars: loops[loopIndex].bars,
+            color: Loop.LoopColor.allCases.randomElement() ?? .cyan
+        )
+
+        loops.append(newLoop)
+
+        overdubLoopID = nil
+        loopStartTime = nil
+
+        print("⏹️ Stopped overdub, created: \(overdubName)")
+    }
+
+    /// Cancel overdub without saving
+    func cancelOverdub() {
+        guard isOverdubbing else { return }
+
+        isOverdubbing = false
+        overdubLoopID = nil
+        loopStartTime = nil
+
+        print("❌ Cancelled overdub")
     }
 
 

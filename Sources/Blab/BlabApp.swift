@@ -36,6 +36,10 @@ struct BlabApp: App {
                 .onAppear {
                     // Connect HealthKit to AudioEngine for bio-parameter mapping
                     audioEngine.connectHealthKit(healthKitManager)
+
+                    // Connect RecordingEngine to AudioEngine for audio routing
+                    recordingEngine.connectAudioEngine(audioEngine)
+
                     print("🎵 BLAB App Started - All Systems Connected!")
                 }
         }
