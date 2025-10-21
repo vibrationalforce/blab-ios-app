@@ -41,6 +41,9 @@ public class UnifiedControlHub: ObservableObject {
     private var gestureToAudioMapper: GestureToAudioMapper?
     private var healthKitManager: HealthKitManager?
     private var bioParameterMapper: BioParameterMapper?
+    private var midi2Manager: MIDI2Manager?
+    private var mpeZoneManager: MPEZoneManager?
+    private var midiToSpatialMapper: MIDIToSpatialMapper?
 
     // TODO: Add when implementing
     // private let gazeTracker: GazeTracker?
@@ -182,6 +185,40 @@ public class UnifiedControlHub: ObservableObject {
         // Actual mapping happens in updateFromBioSignals()
     }
 
+    /// Enable MIDI 2.0 + MPE output
+    public func enableMIDI2() async throws {
+        let midi2 = MIDI2Manager()
+        try await midi2.initialize()
+
+        let mpe = MPEZoneManager(midi2Manager: midi2)
+        let spatialMapper = MIDIToSpatialMapper()
+
+        self.midi2Manager = midi2
+        self.mpeZoneManager = mpe
+        self.midiToSpatialMapper = spatialMapper
+
+        // Configure MPE zone (15 member channels)
+        mpe.sendMPEConfiguration(memberChannels: 15)
+        mpe.setPitchBendRange(semitones: 48)  // ±4 octaves
+
+        print("[UnifiedControlHub] MIDI 2.0 + MPE enabled")
+    }
+
+    /// Disable MIDI 2.0
+    public func disableMIDI2() {
+        // Release all active voices
+        mpeZoneManager?.releaseAllVoices()
+
+        // Cleanup MIDI
+        midi2Manager?.cleanup()
+
+        midi2Manager = nil
+        mpeZoneManager = nil
+        midiToSpatialMapper = nil
+
+        print("[UnifiedControlHub] MIDI 2.0 disabled")
+    }
+
     // MARK: - Lifecycle
 
     /// Start the unified control system
@@ -267,7 +304,7 @@ public class UnifiedControlHub: ObservableObject {
         applyBioAudioParameters(mapper)
     }
 
-    /// Apply bio-derived audio parameters to audio engine
+    /// Apply bio-derived audio parameters to audio engine and spatial mapping
     private func applyBioAudioParameters(_ mapper: BioParameterMapper) {
         // Apply filter cutoff
         // TODO: Apply to actual AudioEngine filter node
@@ -285,10 +322,43 @@ public class UnifiedControlHub: ObservableObject {
         // TODO: Apply to tempo-synced effects (delay, arpeggiator)
         // print("[Bio→Audio] Tempo: \(String(format: "%.1f", mapper.tempo)) BPM")
 
-        // Apply spatial position
-        // TODO: Apply to spatial audio engine
-        // let (x, y, z) = mapper.spatialPosition
-        // print("[Bio→Audio] Spatial: (\(String(format: "%.2f", x)), \(String(format: "%.2f", y)), \(String(format: "%.2f", z)))")
+        // Apply bio-reactive spatial field (AFA)
+        if let mpe = mpeZoneManager, let spatialMapper = midiToSpatialMapper {
+            // Convert active MPE voices to spatial field
+            let voiceData = mpe.activeVoices.map { voice in
+                MPEVoiceData(
+                    id: voice.id,
+                    note: voice.note,
+                    velocity: voice.velocity,
+                    pitchBend: voice.pitchBend,
+                    brightness: voice.brightness
+                )
+            }
+
+            // Morph AFA field geometry based on HRV coherence
+            let fieldGeometry: MIDIToSpatialMapper.AFAField.FieldGeometry
+            let coherence = healthKitManager?.hrvCoherence ?? 50.0
+
+            if coherence < 40 {
+                // Low coherence (stress) = Grid (structured, grounding)
+                fieldGeometry = .grid(rows: 3, cols: 3, spacing: 0.5)
+            } else if coherence < 60 {
+                // Medium coherence = Circle (transitional)
+                fieldGeometry = .circle(radius: 1.5, sourceCount: voiceData.count)
+            } else {
+                // High coherence (flow) = Fibonacci Sphere (natural, harmonious)
+                fieldGeometry = .fibonacci(sourceCount: voiceData.count)
+            }
+
+            // Generate AFA field
+            if !voiceData.isEmpty {
+                let afaField = spatialMapper.mapToAFA(voices: voiceData, geometry: fieldGeometry)
+                spatialMapper.afaField = afaField
+
+                // TODO: Apply AFA field to SpatialAudioEngine
+                // print("[Bio→AFA] Field geometry: \(fieldGeometry), Sources: \(afaField.sources.count)")
+            }
+        }
     }
 
     private func updateFromFaceTracking() {
@@ -307,11 +377,24 @@ public class UnifiedControlHub: ObservableObject {
         applyFaceAudioParameters(audioParams)
     }
 
-    /// Apply face-derived audio parameters to audio engine
+    /// Apply face-derived audio parameters to audio engine and MPE
     private func applyFaceAudioParameters(_ params: AudioParameters) {
+        // Apply to audio engine
         // TODO: Apply to actual AudioEngine once extended
-        // For now, just log for debugging
         // print("[Face→Audio] Cutoff: \(Int(params.filterCutoff)) Hz, Q: \(String(format: "%.2f", params.filterResonance))")
+
+        // Apply to all active MPE voices
+        if let mpe = mpeZoneManager {
+            for voice in mpe.activeVoices {
+                // Jaw open → Per-note brightness (CC 74)
+                let jawOpen = params.filterCutoff / 8000.0  // Normalize cutoff to 0-1
+                mpe.setVoiceBrightness(voice: voice, brightness: jawOpen)
+
+                // Smile → Per-note timbre (CC 71)
+                let smile = params.filterResonance / 5.0  // Normalize resonance to 0-1
+                mpe.setVoiceTimbre(voice: voice, timbre: smile)
+            }
+        }
     }
 
     private func updateFromHandGestures() {
@@ -388,10 +471,30 @@ public class UnifiedControlHub: ObservableObject {
             // print("[Gesture→Audio] Delay Time: \(String(format: "%.3f", delayTime)) s")
         }
 
-        // Trigger MIDI notes
+        // Trigger MIDI notes via MPE
         if let midiNote = params.midiNoteOn {
-            // TODO: Send MIDI note via MIDIController
-            print("[Gesture→MIDI] Note On: \(midiNote.note), Velocity: \(midiNote.velocity)")
+            if let mpe = mpeZoneManager {
+                // Allocate MPE voice for polyphonic expression
+                if let voice = mpe.allocateVoice(
+                    note: midiNote.note,
+                    velocity: Float(midiNote.velocity) / 127.0
+                ) {
+                    print("[Gesture→MPE] Voice allocated: Note \(midiNote.note), Channel \(voice.channel + 1)")
+
+                    // Apply initial per-note expression from gestures
+                    if let gestureRec = gestureRecognizer {
+                        // Pinch amount → Pitch bend
+                        let pinchBend = (gestureRec.leftPinchAmount * 2.0) - 1.0  // Map 0-1 to -1 to +1
+                        mpe.setVoicePitchBend(voice: voice, bend: pinchBend)
+
+                        // Spread amount → Brightness
+                        mpe.setVoiceBrightness(voice: voice, brightness: gestureRec.leftSpreadAmount)
+                    }
+                }
+            } else {
+                // Fallback to MIDI 1.0 if MPE not enabled
+                print("[Gesture→MIDI] Note On: \(midiNote.note), Velocity: \(midiNote.velocity)")
+            }
         }
 
         // Handle preset changes

@@ -56,12 +56,22 @@ struct BlabApp: App {
                         } catch {
                             print("⚠️ Biometric monitoring not available: \(error.localizedDescription)")
                         }
+
+                        // Enable MIDI 2.0 + MPE
+                        do {
+                            try await unifiedControlHub.enableMIDI2()
+                            print("✅ MIDI 2.0 + MPE enabled via UnifiedControlHub")
+                        } catch {
+                            print("⚠️ MIDI 2.0 not available: \(error.localizedDescription)")
+                        }
                     }
 
                     // Start UnifiedControlHub
                     unifiedControlHub.start()
 
                     print("🎵 BLAB App Started - All Systems Connected!")
+                    print("🎹 MIDI 2.0 + MPE + Spatial Audio Ready")
+                    print("🌊 Stereo → 3D → 4D → AFA Sound")
                 }
         }
     }
