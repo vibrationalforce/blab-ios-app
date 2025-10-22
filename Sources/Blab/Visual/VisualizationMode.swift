@@ -8,6 +8,10 @@ enum VisualizationMode: String, CaseIterable, Identifiable {
     case waveform = "Waveform"
     case spectral = "Spectral"
     case mandala = "Mandala"
+    case immersive360 = "Immersive 360"
+    case sculpture = "Sculpture"
+    case facade = "Façade Mapping"
+    case hologram = "Hologram"
 
     var id: String { rawValue }
 
@@ -18,6 +22,10 @@ enum VisualizationMode: String, CaseIterable, Identifiable {
         case .waveform: return "waveform.path"
         case .spectral: return "chart.bar"
         case .mandala: return "circle.hexagongrid"
+        case .immersive360: return "globe"
+        case .sculpture: return "cube"
+        case .facade: return "building.2"
+        case .hologram: return "sparkles"
         }
     }
 
@@ -33,6 +41,14 @@ enum VisualizationMode: String, CaseIterable, Identifiable {
             return "Real-time frequency spectrum analyzer"
         case .mandala:
             return "Radial symmetry patterns with sacred geometry"
+        case .immersive360:
+            return "Generative 360° domes blending prompts, video, and live audio"
+        case .sculpture:
+            return "Volumetric sculptures ready for CNC/3D print fabrication"
+        case .facade:
+            return "Architectural projection mapping blueprints"
+        case .hologram:
+            return "Multi-layer holographic sequences for fan arrays and MR"
         }
     }
 
@@ -43,6 +59,28 @@ enum VisualizationMode: String, CaseIterable, Identifiable {
         case .waveform: return .green
         case .spectral: return .purple
         case .mandala: return .pink
+        case .immersive360: return .orange
+        case .sculpture: return .yellow
+        case .facade: return .teal
+        case .hologram: return .mint
+        }
+    }
+}
+
+extension VisualizationMode {
+    /// Map visualization modes to the underlying generative medium when applicable.
+    var associatedOutputMedium: OutputMedium? {
+        switch self {
+        case .immersive360:
+            return .immersive360
+        case .sculpture:
+            return .sculptural
+        case .facade:
+            return .facadeProjection
+        case .hologram:
+            return .hologram
+        default:
+            return nil
         }
     }
 }
