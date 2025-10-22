@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import QuartzCore
 
 /// Central orchestrator for all input modalities in BLAB
 ///
@@ -50,14 +51,19 @@ public class UnifiedControlHub: ObservableObject {
 
     // MARK: - Control Loop
 
-    private var controlLoopTimer: AnyCancellable?
-    private let controlQueue = DispatchQueue(
-        label: "com.blab.control",
-        qos: .userInteractive
-    )
+    private var displayLink: CADisplayLink?
+    private var fallbackTimer: Timer?
+    private var fallbackLastTimestamp: CFTimeInterval?
+    private var frequencyAverage = ExponentialMovingAverage(smoothingFactor: 0.2)
+#if canImport(QuartzCore)
+    private lazy var displayLinkProxy = DisplayLinkProxy(owner: self)
+#endif
 
-    private var lastUpdateTime: Date = Date()
     private let targetFrequency: Double = 60.0  // 60 Hz
+
+    private var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
 
     // MARK: - Cancellables
 
@@ -240,28 +246,34 @@ public class UnifiedControlHub: ObservableObject {
     /// Stop the unified control system
     public func stop() {
         print("[UnifiedControlHub] Stopping control system...")
-        controlLoopTimer?.cancel()
-        controlLoopTimer = nil
+        stopControlLoop()
+
+        faceTrackingManager?.stop()
+        handTrackingManager?.stopTracking()
+        healthKitManager?.stopMonitoring()
     }
 
     // MARK: - Control Loop (60 Hz)
 
     private func startControlLoop() {
-        let interval = 1.0 / targetFrequency  // ~16.67ms for 60 Hz
+        stopControlLoop()
+        frequencyAverage.reset()
+        controlLoopFrequency = 0
 
-        controlLoopTimer = Timer.publish(every: interval, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                self?.controlLoopTick()
-            }
+#if canImport(QuartzCore)
+        if !isRunningUnitTests {
+            startDisplayLink()
+            return
+        }
+#endif
+
+        startFallbackTimer()
     }
 
-    private func controlLoopTick() {
-        // Measure actual frequency
-        let now = Date()
-        let deltaTime = now.timeIntervalSince(lastUpdateTime)
-        controlLoopFrequency = 1.0 / deltaTime
-        lastUpdateTime = now
+    private func controlLoopTick(deltaTime: CFTimeInterval) {
+        guard deltaTime > 0 else { return }
+
+        updateControlLoopFrequency(using: deltaTime)
 
         // Priority-based parameter updates
         updateFromBioSignals()
@@ -277,6 +289,76 @@ public class UnifiedControlHub: ObservableObject {
         updateVisualEngine()
         updateLightSystems()
     }
+
+    private func updateControlLoopFrequency(using deltaTime: CFTimeInterval) {
+        let measuredFrequency = 1.0 / deltaTime
+        controlLoopFrequency = frequencyAverage.addSample(measuredFrequency)
+    }
+
+#if canImport(QuartzCore)
+    private func startDisplayLink() {
+        displayLink?.invalidate()
+        displayLinkProxy.reset()
+
+        let link = CADisplayLink(target: displayLinkProxy, selector: #selector(DisplayLinkProxy.handleDisplayLink(_:)))
+        link.preferredFrameRateRange = CAFrameRateRange(
+            minimum: Float(targetFrequency),
+            maximum: Float(targetFrequency),
+            preferred: Float(targetFrequency)
+        )
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+#endif
+
+    private func startFallbackTimer() {
+        let interval = 1.0 / targetFrequency
+        fallbackTimer?.invalidate()
+        fallbackLastTimestamp = nil
+
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            self?.handleFallbackTimerFire()
+        }
+
+        timer.tolerance = interval * 0.1
+
+        RunLoop.main.add(timer, forMode: .common)
+        fallbackTimer = timer
+    }
+
+    private func stopControlLoop() {
+#if canImport(QuartzCore)
+        displayLink?.invalidate()
+        displayLink = nil
+        displayLinkProxy.reset()
+#endif
+        fallbackTimer?.invalidate()
+        fallbackTimer = nil
+        fallbackLastTimestamp = nil
+        frequencyAverage.reset()
+        controlLoopFrequency = 0
+    }
+
+    private func handleFallbackTimerFire() {
+        let now = CFAbsoluteTimeGetCurrent()
+
+        guard let last = fallbackLastTimestamp else {
+            fallbackLastTimestamp = now
+            return
+        }
+
+        fallbackLastTimestamp = now
+        let delta = now - last
+        guard delta > 0 else { return }
+        controlLoopTick(deltaTime: delta)
+    }
+
+#if canImport(QuartzCore)
+    private func handleDisplayLinkTick(deltaTime: CFTimeInterval) {
+        guard deltaTime > 0 else { return }
+        controlLoopTick(deltaTime: deltaTime)
+    }
+#endif
 
     // MARK: - Input Updates (Placeholder implementations)
 
@@ -547,6 +629,78 @@ public class UnifiedControlHub: ObservableObject {
 
     private func updateLightSystems() {
         // TODO: Update LED/DMX lights with current state
+    }
+
+    // MARK: - Control Loop Helpers
+
+#if canImport(QuartzCore)
+    @MainActor
+    private final class DisplayLinkProxy {
+
+        weak var owner: UnifiedControlHub?
+        private var lastTimestamp: CFTimeInterval?
+
+        init(owner: UnifiedControlHub) {
+            self.owner = owner
+        }
+
+        @objc
+        func handleDisplayLink(_ link: CADisplayLink) {
+            guard let owner else {
+                link.invalidate()
+                return
+            }
+
+            let timestamp = link.timestamp
+
+            guard let lastTimestamp else {
+                self.lastTimestamp = timestamp
+                return
+            }
+
+            self.lastTimestamp = timestamp
+            let delta = timestamp - lastTimestamp
+            guard delta > 0 else { return }
+            owner.handleDisplayLinkTick(deltaTime: delta)
+        }
+
+        func reset() {
+            lastTimestamp = nil
+        }
+    }
+#endif
+
+    private struct ExponentialMovingAverage {
+
+        private let smoothingFactor: Double
+        private var state: Double?
+
+        init(smoothingFactor: Double) {
+            let clamped = max(0, min(1, smoothingFactor))
+            self.smoothingFactor = clamped
+        }
+
+        mutating func reset() {
+            state = nil
+        }
+
+        mutating func addSample(_ newValue: Double) -> Double {
+            let sanitized = max(newValue, 0)
+
+            guard let state else {
+                self.state = sanitized
+                return sanitized
+            }
+
+            guard smoothingFactor > 0 else {
+                self.state = sanitized
+                return sanitized
+            }
+
+            let next = state + smoothingFactor * (sanitized - state)
+            self.state = next
+            return next
+        }
     }
 
     // MARK: - Utilities

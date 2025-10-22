@@ -23,11 +23,23 @@ public class FaceToAudioMapper {
     public var jawOpenThreshold: Float = 0.05
 
     /// Smoothing factor for parameter changes (0.0 = no smoothing, 1.0 = max smoothing)
-    public var smoothingFactor: Float = 0.85
+    public var smoothingFactor: Float = 0.85 {
+        didSet {
+            if smoothingFactor > 1 {
+                smoothingFactor = 1
+            } else if smoothingFactor < 0 {
+                smoothingFactor = 0
+            }
+
+            if smoothingFactor == 0 {
+                smoothedParams = nil
+            }
+        }
+    }
 
     // MARK: - State
 
-    private var smoothedParams: AudioParameters = AudioParameters()
+    private var smoothedParams: AudioParameters?
 
     // MARK: - Public Methods
 
@@ -52,10 +64,16 @@ public class FaceToAudioMapper {
         // 5. Mouth Pucker → Modulation depth
         params.modulationDepth = Double(faceExpression.mouthPucker)
 
-        // Apply smoothing to avoid abrupt changes
-        smoothedParams = applySmoothing(current: smoothedParams, target: params)
+        guard smoothingFactor > 0 else {
+            smoothedParams = params
+            return params
+        }
 
-        return smoothedParams
+        let current = smoothedParams ?? params
+        let smoothed = applySmoothing(current: current, target: params)
+        smoothedParams = smoothed
+
+        return smoothed
     }
 
     // MARK: - Individual Mappings
@@ -66,10 +84,11 @@ public class FaceToAudioMapper {
     /// - Fully open (1.0): 8000 Hz (bright, open)
     private func mapJawToFilterCutoff(_ jawOpen: Float) -> Double {
         // Apply threshold to prevent noise
-        let effectiveJawOpen = max(0, jawOpen - jawOpenThreshold)
-
-        // Exponential mapping (sounds more natural)
-        let normalized = Double(effectiveJawOpen / (1.0 - jawOpenThreshold))
+        let threshold = max(0.0, min(Double(jawOpenThreshold), 0.99))
+        let jawValue = max(0.0, min(Double(jawOpen), 1.0))
+        let span = max(0.01, 1.0 - threshold)
+        let normalizedInput = max(0, jawValue - threshold)
+        let normalized = min(max(normalizedInput / span, 0), 1)
         let minFreq = 200.0
         let maxFreq = 8000.0
 
@@ -116,7 +135,8 @@ public class FaceToAudioMapper {
         current: AudioParameters,
         target: AudioParameters
     ) -> AudioParameters {
-        let alpha = Double(1.0 - smoothingFactor)  // 0.15 for smoothingFactor 0.85
+        let clampedFactor = max(0.0, min(1.0, Double(smoothingFactor)))
+        let alpha = 1.0 - clampedFactor  // 0.15 for smoothingFactor 0.85
 
         return AudioParameters(
             filterCutoff: lerp(current.filterCutoff, target.filterCutoff, alpha),
@@ -135,7 +155,10 @@ public class FaceToAudioMapper {
         to: ClosedRange<Double>
     ) -> Double {
         let normalized = (value - from.lowerBound) / (from.upperBound - from.lowerBound)
-        let clamped = normalized.clamped(to: 0...1)
+        let range = from.upperBound - from.lowerBound
+        guard range != 0 else { return to.lowerBound }
+
+        let clamped = max(0, min(1, normalized))
         return to.lowerBound + clamped * (to.upperBound - to.lowerBound)
     }
 
