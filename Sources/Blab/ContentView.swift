@@ -31,6 +31,9 @@ struct ContentView: View {
     /// Show visualization mode picker
     @State private var showVisualizationPicker = false
 
+    /// Show prompt-based sound designer
+    @State private var showPromptDesigner = false
+
     /// Currently selected visualization mode
     @State private var selectedVisualizationMode: VisualizationMode = .particles
 
@@ -319,6 +322,23 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 20)
 
+                Button(action: { showPromptDesigner.toggle() }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Prompt Sound Designer")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.12))
+                    )
+                }
+                .padding(.bottom, 8)
+
                 // Spatial Audio Controls (NEW!)
                 if showSpatialControls && audioEngine.spatialAudioEngine != nil {
                     VStack(spacing: 15) {
@@ -461,6 +481,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showVisualizationPicker) {
             VisualizationModePicker(selectedMode: $selectedVisualizationMode)
+        }
+        .sheet(isPresented: $showPromptDesigner) {
+            PromptSoundDesignerView()
+                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showRecordingControls) {
             RecordingControlsView()
