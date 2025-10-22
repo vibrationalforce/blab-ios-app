@@ -30,6 +30,9 @@ public class UnifiedControlHub: ObservableObject {
     /// Current control loop frequency (Hz)
     @Published public private(set) var controlLoopFrequency: Double = 0
 
+    /// Latest generative visual experience blueprint
+    @Published public private(set) var generativeVisualExperience: GenerativeVisualExperience?
+
     // MARK: - Dependencies (Injected)
 
     private let audioEngine: AudioEngine?
@@ -44,6 +47,10 @@ public class UnifiedControlHub: ObservableObject {
     private var midi2Manager: MIDI2Manager?
     private var mpeZoneManager: MPEZoneManager?
     private var midiToSpatialMapper: MIDIToSpatialMapper?
+
+    /// Generative visuals composer + last request cache
+    private let generativeVisualComposer = GenerativeVisualComposer()
+    private var lastGenerativeRequest: GenerativeVisualRequest?
 
     // TODO: Add when implementing
     // private let gazeTracker: GazeTracker?
@@ -219,6 +226,83 @@ public class UnifiedControlHub: ObservableObject {
         print("[UnifiedControlHub] MIDI 2.0 disabled")
     }
 
+    // MARK: - Generative Visuals
+
+    /// Create or update the generative visual experience from a request.
+    @discardableResult
+    public func submitGenerativeVisualRequest(
+        _ request: GenerativeVisualRequest
+    ) -> GenerativeVisualExperience {
+        let experience = generativeVisualComposer.composeExperience(from: request)
+        generativeVisualExperience = experience
+        lastGenerativeRequest = request
+
+        let mediumsDescription: String
+        if request.targetMediums.isEmpty {
+            mediumsDescription = "all mediums"
+        } else {
+            mediumsDescription = request.targetMediums.map { $0.displayName }.joined(separator: ", ")
+        }
+
+        print("[UnifiedControlHub] Generative visuals configured for \(mediumsDescription)")
+        return experience
+    }
+
+    /// Ensure there is a baseline blueprint ready for UI previews.
+    public func ensureDefaultGenerativeExperience() {
+        guard generativeVisualExperience == nil else { return }
+
+        let defaultRequest = GenerativeVisualRequest(
+            prompt: "Bioluminescent aurora temple evolving into holographic sculptures",
+            importedAssets: [
+                .init(
+                    kind: .video,
+                    traits: [.panoramic, .textureRich],
+                    dominantColors: [
+                        .init(hue: 0.6, saturation: 0.7, brightness: 0.8),
+                        .init(hue: 0.78, saturation: 0.65, brightness: 0.9)
+                    ],
+                    metadata: ["subject": "aurora horizon"]
+                ),
+                .init(
+                    kind: .depthScan,
+                    traits: [.volumetric, .holographic],
+                    dominantColors: [
+                        .init(hue: 0.52, saturation: 0.55, brightness: 0.75)
+                    ],
+                    metadata: ["subject": "crystal sculpture"]
+                ),
+                .init(
+                    kind: .image,
+                    traits: [.architectural, .facadeReference],
+                    dominantColors: [
+                        .init(hue: 0.12, saturation: 0.5, brightness: 0.85)
+                    ],
+                    metadata: ["subject": "museum façade"]
+                )
+            ],
+            targetMediums: [],
+            preferredTechnologies: [],
+            enableAudioReactivity: true,
+            enableBioSignalModulation: true
+        )
+
+        submitGenerativeVisualRequest(defaultRequest)
+    }
+
+    /// Rebuild the experience using the last request or a custom one.
+    public func regenerateGenerativeVisualExperience(
+        with request: GenerativeVisualRequest? = nil
+    ) {
+        if let request {
+            submitGenerativeVisualRequest(request)
+        } else if let lastGenerativeRequest {
+            submitGenerativeVisualRequest(lastGenerativeRequest)
+        } else {
+            ensureDefaultGenerativeExperience()
+        }
+    }
+
     // MARK: - Lifecycle
 
     /// Start the unified control system
@@ -233,6 +317,9 @@ public class UnifiedControlHub: ObservableObject {
 
         // HealthKit monitoring already started in enableBiometricMonitoring()
 
+        // Prepare a generative visual blueprint if needed
+        ensureDefaultGenerativeExperience()
+
         // Start control loop
         startControlLoop()
     }
@@ -242,6 +329,10 @@ public class UnifiedControlHub: ObservableObject {
         print("[UnifiedControlHub] Stopping control system...")
         controlLoopTimer?.cancel()
         controlLoopTimer = nil
+
+        generativeVisualComposer.reset()
+        generativeVisualExperience = nil
+        lastGenerativeRequest = nil
     }
 
     // MARK: - Control Loop (60 Hz)
@@ -542,7 +633,17 @@ public class UnifiedControlHub: ObservableObject {
     }
 
     private func updateVisualEngine() {
-        // TODO: Update visual engine with current state
+        guard generativeVisualComposer.currentExperience != nil else { return }
+
+        let audioLevel = Double(audioEngine?.microphoneManager.audioLevel ?? 0)
+        let bioSignal = healthKitManager?.hrvCoherence.map { $0 / 100.0 }
+
+        generativeVisualComposer.updateReactiveState(
+            audioLevel: audioLevel,
+            bioSignal: bioSignal
+        )
+
+        generativeVisualExperience = generativeVisualComposer.currentExperience
     }
 
     private func updateLightSystems() {

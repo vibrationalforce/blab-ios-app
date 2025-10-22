@@ -114,6 +114,51 @@ final class UnifiedControlHubTests: XCTestCase {
         XCTAssertTrue(stats.isRunningAtTarget, "Control loop should be running at target frequency")
     }
 
+    // MARK: - Generative Visuals
+
+    func testSubmitGenerativeVisualRequestPublishesExperience() {
+        let request = GenerativeVisualRequest(
+            prompt: "Bioluminescent plaza",
+            importedAssets: [
+                .init(
+                    kind: .image,
+                    traits: [.architectural],
+                    dominantColors: [
+                        .init(hue: 0.45, saturation: 0.6, brightness: 0.8)
+                    ],
+                    metadata: ["subject": "museum façade"]
+                )
+            ],
+            targetMediums: [.facadeProjection, .hologram],
+            preferredTechnologies: [.projectionMapping],
+            enableAudioReactivity: true,
+            enableBioSignalModulation: false
+        )
+
+        let experience = sut.submitGenerativeVisualRequest(request)
+
+        XCTAssertNotNil(sut.generativeVisualExperience)
+        XCTAssertEqual(experience.summary.mediums, [.facadeProjection, .hologram])
+    }
+
+    func testRegenerateUsesLastRequestWhenNoneProvided() {
+        let request = GenerativeVisualRequest(
+            prompt: "Holographic garden",
+            importedAssets: [
+                .init(kind: .video, traits: [.holographic], dominantColors: [], metadata: [:])
+            ],
+            targetMediums: [.hologram],
+            preferredTechnologies: [],
+            enableAudioReactivity: true,
+            enableBioSignalModulation: true
+        )
+
+        sut.submitGenerativeVisualRequest(request)
+        sut.regenerateGenerativeVisualExperience()
+
+        XCTAssertEqual(sut.generativeVisualExperience?.summary.mediums, [.hologram])
+    }
+
     // MARK: - Utility Tests
 
     func testMapRange() {

@@ -16,6 +16,9 @@ struct ContentView: View {
     /// Access to Recording engine from the environment
     @EnvironmentObject var recordingEngine: RecordingEngine
 
+    /// Access to the multimodal control system
+    @EnvironmentObject var unifiedControlHub: UnifiedControlHub
+
     /// Show permission denial alert
     @State private var showPermissionAlert = false
 
@@ -527,6 +530,17 @@ struct ContentView: View {
                 hrvCoherence: healthKitManager.hrvCoherence,
                 heartRate: healthKitManager.heartRate
             )
+        case .immersive360, .sculpture, .facade, .hologram:
+            GenerativeExperiencePreview(
+                experience: unifiedControlHub.generativeVisualExperience,
+                highlightedMedium: selectedVisualizationMode.associatedOutputMedium,
+                regenerateAction: {
+                    unifiedControlHub.regenerateGenerativeVisualExperience()
+                }
+            )
+            .onAppear {
+                unifiedControlHub.ensureDefaultGenerativeExperience()
+            }
         }
     }
 
