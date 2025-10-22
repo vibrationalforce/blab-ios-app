@@ -2,9 +2,101 @@ import AVFoundation
 import SwiftUI
 import Accelerate
 
+// MARK: - Supporting Types
+
+/// Helper that maintains an exponential moving average with separate attack
+/// and release constants. Used to smooth amplitude updates before they hit the
+/// UI or downstream biofeedback processors.
+private struct AmplitudeSmoother {
+    var attackTime: Double
+    var releaseTime: Double
+    private(set) var sampleRate: Double
+    private var currentValue: Float = 0
+
+    init(attackTime: Double, releaseTime: Double, sampleRate: Double) {
+        self.attackTime = attackTime
+        self.releaseTime = releaseTime
+        self.sampleRate = sampleRate
+    }
+
+    mutating func reset(sampleRate: Double) {
+        self.sampleRate = sampleRate
+        currentValue = 0
+    }
+
+    mutating func process(level: Float, frameCount: Int) -> Float {
+        guard sampleRate > 0 else { return level }
+
+        let blockDuration = Double(frameCount) / sampleRate
+        let attackCoeff = exp(-blockDuration / max(attackTime, 0.0001))
+        let releaseCoeff = exp(-blockDuration / max(releaseTime, 0.0001))
+
+        if level > currentValue {
+            currentValue = attackCoeff * currentValue + (1 - attackCoeff) * level
+        } else {
+            currentValue = releaseCoeff * currentValue + (1 - releaseCoeff) * level
+        }
+
+        return currentValue
+    }
+}
+
+/// Scratch buffers that are reused for FFT processing to avoid per-frame
+/// allocations. All arrays are sized for the configured FFT size and lazily
+/// resized if needed.
+private final class FFTScratch {
+    private(set) var size: Int
+    private(set) var visualBins: Int
+    var real: [Float]
+    var imag: [Float]
+    var window: [Float]
+    var magnitudes: [Float]
+    var visualMagnitudes: [Float]
+
+    init(size: Int, visualBins: Int) {
+        self.size = size
+        self.visualBins = visualBins
+        self.real = [Float](repeating: 0, count: size)
+        self.imag = [Float](repeating: 0, count: size)
+        self.window = [Float](repeating: 0, count: size)
+        vDSP_hann_window(&self.window, vDSP_Length(size), Int32(vDSP_HANN_NORM))
+        self.magnitudes = [Float](repeating: 0, count: size / 2)
+        self.visualMagnitudes = [Float](repeating: 0, count: visualBins)
+    }
+
+    func ensure(size: Int, visualBins: Int) {
+        if size != self.size {
+            self.size = size
+            real = [Float](repeating: 0, count: size)
+            imag = [Float](repeating: 0, count: size)
+            window = [Float](repeating: 0, count: size)
+            vDSP_hann_window(&window, vDSP_Length(size), Int32(vDSP_HANN_NORM))
+            magnitudes = [Float](repeating: 0, count: size / 2)
+        }
+
+        if visualBins != self.visualBins {
+            self.visualBins = visualBins
+            visualMagnitudes = [Float](repeating: 0, count: visualBins)
+        }
+    }
+}
+
 /// Manages microphone access and advanced audio processing
 /// Now includes FFT for frequency detection and professional-grade DSP
 class MicrophoneManager: NSObject, ObservableObject {
+
+    /// Metrics representing the state of a single audio input channel.
+    struct ChannelMetrics: Identifiable, Equatable {
+        let id: UUID
+        let kind: AudioGraph.InputKind
+        let name: String
+        var amplitude: Float
+        var peakAmplitude: Float
+        var frequency: Float
+        var pitch: Float
+        var clarity: Float
+        var updatedAt: Date
+    }
 
     // MARK: - Published Properties
 
@@ -29,6 +121,9 @@ class MicrophoneManager: NSObject, ObservableObject {
     /// FFT magnitudes for spectral visualization (256 bins)
     @Published var fftMagnitudes: [Float]? = nil
 
+    /// Per-input metrics for multi-source processing chains.
+    @Published private(set) var channelMetrics: [ChannelMetrics] = []
+
 
     // MARK: - Private Properties
 
@@ -50,12 +145,67 @@ class MicrophoneManager: NSObject, ObservableObject {
     /// YIN pitch detector for fundamental frequency estimation
     private let pitchDetector = PitchDetector()
 
+    /// Shared audio graph when the microphone manager is used alongside the
+    /// modular `AudioGraph` builder. When `nil` the manager falls back to its
+    /// internal `AVAudioEngine` instance.
+    private var sharedGraph: AudioGraph?
+
+    /// Handle for the microphone channel within the shared audio graph.
+    private var microphoneChannel: AudioGraph.InputChannel?
+
+    /// Stable identifier used when running the manager without a shared graph.
+    private let localMicrophoneChannelID = UUID()
+
+    /// Currently active identifier for the microphone channel.
+    private var microphoneChannelID: UUID?
+
+    /// Metrics cache keyed by channel identifier.
+    private var channelMetricsMap: [UUID: ChannelMetrics] = [:]
+
+    /// Peak hold values per channel.
+    private var peakHold: [UUID: Float] = [:]
+
+    /// Cached identifiers for transient external input sources.
+    private var transientChannelIDs: [AudioGraph.InputKind: UUID] = [:]
+
+    /// Processing queue used to avoid heavy DSP work on the main thread.
+    private let processingQueue = DispatchQueue(
+        label: "com.blab.microphone.processing",
+        qos: .userInteractive
+    )
+
+    /// Scratch buffers shared across FFT calls.
+    private let scratchBuffers = FFTScratch(size: 2048, visualBins: 256)
+
+    /// Buffer used for waveform capture (reused between frames).
+    private var waveformBuffer = [Float](repeating: 0, count: 512)
+
+    /// RMS smoother for amplitude updates.
+    private var amplitudeSmoother = AmplitudeSmoother(
+        attackTime: 0.02,
+        releaseTime: 0.15,
+        sampleRate: 44100
+    )
+
 
     // MARK: - Initialization
 
     override init() {
         super.init()
         checkPermission()
+        microphoneChannelID = localMicrophoneChannelID
+        channelMetricsMap[localMicrophoneChannelID] = ChannelMetrics(
+            id: localMicrophoneChannelID,
+            kind: .microphone,
+            name: AudioGraph.InputKind.microphone.displayName,
+            amplitude: 0,
+            peakAmplitude: 0,
+            frequency: 0,
+            pitch: 0,
+            clarity: 0,
+            updatedAt: Date()
+        )
+        channelMetrics = Array(channelMetricsMap.values)
     }
 
 
@@ -90,11 +240,77 @@ class MicrophoneManager: NSObject, ObservableObject {
 
     // MARK: - Recording Control
 
+    /// Attach the microphone manager to a shared audio graph so that recording
+    /// and analysis can reuse the app-wide engine.
+    func attach(to audioGraph: AudioGraph) {
+        var graph = audioGraph
+
+        do {
+            let channel = try graph.registerInput(node: audioGraph.input, kind: .microphone)
+            sharedGraph = graph
+            microphoneChannel = channel
+            microphoneChannelID = channel.id
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.channelMetricsMap[channel.id] = ChannelMetrics(
+                    id: channel.id,
+                    kind: channel.kind,
+                    name: channel.kind.displayName,
+                    amplitude: 0,
+                    peakAmplitude: 0,
+                    frequency: 0,
+                    pitch: 0,
+                    clarity: 0,
+                    updatedAt: Date()
+                )
+                self.publishChannelMetrics()
+            }
+        } catch {
+            print("⚠️ Failed to attach microphone to shared graph: \(error)")
+        }
+    }
+
+    /// Remove the microphone channel from an attached audio graph.
+    func detachFromAudioGraph() {
+        if var graph = sharedGraph, let channel = microphoneChannel {
+            graph.removeInput(channel)
+        }
+
+        sharedGraph = nil
+        microphoneChannel = nil
+        microphoneChannelID = localMicrophoneChannelID
+    }
+
     /// Start recording audio from the microphone
     func startRecording() {
         guard hasPermission else {
             print("⚠️ Cannot start recording: No microphone permission")
             requestPermission()
+            return
+        }
+
+        if let graph = sharedGraph, let channel = microphoneChannel {
+            let format = graph.input.outputFormat(forBus: 0)
+            sampleRate = format.sampleRate
+            configureFFT(for: sampleRate)
+
+            graph.installTap(on: channel, bufferSize: UInt32(fftSize), format: format) { [weak self] buffer, _ in
+                self?.processAudioBuffer(buffer, channelID: channel.id, kind: channel.kind)
+            }
+
+            do {
+                try graph.start()
+                DispatchQueue.main.async { [weak self] in
+                    self?.isRecording = true
+                }
+            } catch {
+                print("❌ Failed to start shared audio graph: \(error)")
+                DispatchQueue.main.async { [weak self] in
+                    self?.isRecording = false
+                }
+            }
+
             return
         }
 
@@ -116,6 +332,7 @@ class MicrophoneManager: NSObject, ObservableObject {
 
             // Store sample rate for frequency calculation
             sampleRate = format.sampleRate
+            configureFFT(for: sampleRate)
 
             // Setup FFT
             fftSetup = vDSP_DFT_zop_CreateSetup(
@@ -126,7 +343,8 @@ class MicrophoneManager: NSObject, ObservableObject {
 
             // Install a tap to capture audio data
             inputNode?.installTap(onBus: 0, bufferSize: UInt32(fftSize), format: format) { [weak self] buffer, _ in
-                self?.processAudioBuffer(buffer)
+                guard let self = self else { return }
+                self.processAudioBuffer(buffer, channelID: self.localMicrophoneChannelID, kind: .microphone)
             }
 
             // Prepare and start the audio engine
@@ -149,7 +367,11 @@ class MicrophoneManager: NSObject, ObservableObject {
 
     /// Stop recording audio
     func stopRecording() {
-        // Safely stop the audio engine
+        if let graph = sharedGraph, let channel = microphoneChannel {
+            graph.removeTap(from: channel)
+        }
+
+        // Safely stop the local audio engine if used
         if let engine = audioEngine, engine.isRunning {
             engine.stop()
             engine.inputNode.removeTap(onBus: 0)
@@ -180,121 +402,227 @@ class MicrophoneManager: NSObject, ObservableObject {
 
     // MARK: - Audio Processing with FFT
 
+    /// Prepare FFT scratch buffers when the sample rate changes.
+    private func configureFFT(for sampleRate: Double) {
+        amplitudeSmoother.reset(sampleRate: sampleRate)
+        scratchBuffers.ensure(size: fftSize, visualBins: 256)
+    }
+
     /// Process incoming audio data with FFT for frequency detection
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let channelData = buffer.floatChannelData else { return }
+    private func processAudioBuffer(
+        _ buffer: AVAudioPCMBuffer,
+        channelID: UUID,
+        kind: AudioGraph.InputKind
+    ) {
+        processingQueue.async { [weak self] in
+            guard let self = self, let channelData = buffer.floatChannelData else { return }
 
-        let frameLength = Int(buffer.frameLength)
-        let channelDataValue = channelData.pointee
+            let frameLength = Int(buffer.frameLength)
+            guard frameLength > 0 else { return }
 
-        // Calculate RMS (amplitude/volume)
-        var sum: Float = 0.0
-        vDSP_sve(channelDataValue, 1, &sum, vDSP_Length(frameLength))
-        let mean = sum / Float(frameLength)
+            let channelPointer = channelData.pointee
 
-        var sumSquares: Float = 0.0
-        var meanNegative = -mean
-        vDSP_vsq(channelDataValue, 1, &sumSquares, vDSP_Length(frameLength))
-        let rms = sqrt(sumSquares / Float(frameLength) - mean * mean)
+            // Calculate RMS using vDSP for efficiency
+            var sum: Float = 0
+            vDSP_sve(channelPointer, 1, &sum, vDSP_Length(frameLength))
+            let mean = sum / Float(frameLength)
 
-        // Normalize to 0-1 range with better sensitivity
-        let normalizedLevel = min(rms * 15.0, 1.0)
+            var sumSquares: Float = 0
+            vDSP_vsq(channelPointer, 1, &sumSquares, vDSP_Length(frameLength))
+            let rms = sqrt(sumSquares / Float(frameLength) - mean * mean)
+            let normalizedLevel = min(rms * 15.0, 1.0)
 
-        // Capture audio buffer for waveform visualization (last 512 samples)
-        let bufferSampleCount = min(512, frameLength)
-        var capturedBuffer = [Float](repeating: 0, count: bufferSampleCount)
-        cblas_scopy(Int32(bufferSampleCount), channelDataValue, 1, &capturedBuffer, 1)
+            let smoothedLevel = self.amplitudeSmoother.process(level: normalizedLevel, frameCount: frameLength)
 
-        // Perform FFT for frequency detection and get magnitudes
-        let (detectedFrequency, magnitudes) = performFFT(on: channelDataValue, frameLength: frameLength)
+            // Capture waveform snapshot
+            let bufferSampleCount = min(self.waveformBuffer.count, frameLength)
+            cblas_scopy(Int32(bufferSampleCount), channelPointer, 1, &self.waveformBuffer, 1)
+            let waveformSnapshot = Array(self.waveformBuffer.prefix(bufferSampleCount))
 
-        // Perform YIN pitch detection for fundamental frequency
-        let detectedPitch = pitchDetector.detectPitch(buffer: buffer, sampleRate: Float(sampleRate))
+            // Perform FFT and pitch detection
+            let (detectedFrequency, magnitudes, _, clarity) = self.performFFT(
+                on: channelPointer,
+                frameLength: frameLength
+            )
 
-        // Update UI on main thread with smoothing
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            let detectedPitch = self.pitchDetector.detectPitch(
+                buffer: buffer,
+                sampleRate: Float(self.sampleRate)
+            )
 
-            // Smooth audio level changes
-            self.audioLevel = self.audioLevel * 0.7 + normalizedLevel * 0.3
+            // Peak hold for metering
+            let decayedPeak = (self.peakHold[channelID] ?? 0) * 0.92
+            let peak = max(decayedPeak, smoothedLevel)
+            self.peakHold[channelID] = peak
 
-            // Smooth frequency changes (only update if significantly different)
-            if detectedFrequency > 50 { // Ignore very low frequencies (likely noise)
-                self.frequency = self.frequency * 0.8 + detectedFrequency * 0.2
+            let metrics = ChannelMetrics(
+                id: channelID,
+                kind: kind,
+                name: kind.displayName,
+                amplitude: smoothedLevel,
+                peakAmplitude: peak,
+                frequency: detectedFrequency,
+                pitch: detectedPitch,
+                clarity: clarity,
+                updatedAt: Date()
+            )
+
+            let spectralSnapshot = magnitudes
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+
+                if channelID == self.microphoneChannelID {
+                    self.audioLevel = self.audioLevel * 0.6 + smoothedLevel * 0.4
+
+                    if detectedFrequency > 50 {
+                        self.frequency = self.frequency * 0.8 + detectedFrequency * 0.2
+                    }
+
+                    if detectedPitch > 0 {
+                        self.currentPitch = self.currentPitch * 0.8 + detectedPitch * 0.2
+                    } else {
+                        self.currentPitch *= 0.9
+                    }
+
+                    self.audioBuffer = waveformSnapshot
+                    self.fftMagnitudes = spectralSnapshot
+                }
+
+                self.channelMetricsMap[channelID] = metrics
+                self.publishChannelMetrics()
             }
-
-            // Smooth pitch changes (YIN is more robust than FFT for voice)
-            if detectedPitch > 0 {
-                self.currentPitch = self.currentPitch * 0.8 + detectedPitch * 0.2
-            } else {
-                // Decay pitch to zero if no pitch detected
-                self.currentPitch *= 0.9
-            }
-
-            // Update audio buffer and FFT magnitudes for visualizations
-            self.audioBuffer = capturedBuffer
-            self.fftMagnitudes = magnitudes
         }
     }
 
     /// Perform FFT to detect fundamental frequency and return magnitudes
-    private func performFFT(on data: UnsafePointer<Float>, frameLength: Int) -> (frequency: Float, magnitudes: [Float]) {
-        guard let setup = fftSetup else { return (0, []) }
+    private func performFFT(on data: UnsafePointer<Float>, frameLength: Int) -> (frequency: Float, magnitudes: [Float], peak: Float, clarity: Float) {
+        guard let setup = fftSetup else { return (0, [], 0, 0) }
 
-        // Prepare buffers
-        var realParts = [Float](repeating: 0, count: fftSize)
-        var imagParts = [Float](repeating: 0, count: fftSize)
+        scratchBuffers.ensure(size: fftSize, visualBins: 256)
 
-        // Copy audio data to real parts (pad with zeros if needed)
         let copyLength = min(frameLength, fftSize)
-        for i in 0..<copyLength {
-            realParts[i] = data[i]
-        }
 
-        // Apply Hann window to reduce spectral leakage
-        var window = [Float](repeating: 0, count: fftSize)
-        vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
-        vDSP_vmul(realParts, 1, window, 1, &realParts, 1, vDSP_Length(fftSize))
+        var resolvedFrequency: Float = 0
+        var resolvedPeak: Float = 0
+        var resolvedClarity: Float = 0
 
-        // Perform FFT
-        vDSP_DFT_Execute(setup, &realParts, &imagParts, &realParts, &imagParts)
+        scratchBuffers.real.withUnsafeMutableBufferPointer { realPtr in
+            scratchBuffers.imag.withUnsafeMutableBufferPointer { imagPtr in
+                guard let realBase = realPtr.baseAddress, let imagBase = imagPtr.baseAddress else { return }
 
-        // Calculate magnitudes (power spectrum)
-        var magnitudes = [Float](repeating: 0, count: fftSize / 2)
-        for i in 0..<(fftSize / 2) {
-            magnitudes[i] = sqrt(realParts[i] * realParts[i] + imagParts[i] * imagParts[i])
-        }
+                realPtr.initialize(repeating: 0)
+                imagPtr.initialize(repeating: 0)
+                cblas_scopy(Int32(copyLength), data, 1, realBase, 1)
 
-        // Downsample magnitudes for visualization (256 bins for spectral mode)
-        let visualBins = 256
-        var visualMagnitudes = [Float](repeating: 0, count: visualBins)
-        let binRatio = magnitudes.count / visualBins
-        for i in 0..<visualBins {
-            let startIdx = i * binRatio
-            let endIdx = min(startIdx + binRatio, magnitudes.count)
-            var sum: Float = 0
-            for j in startIdx..<endIdx {
-                sum += magnitudes[j]
+                scratchBuffers.window.withUnsafeBufferPointer { windowPtr in
+                    if let windowBase = windowPtr.baseAddress {
+                        vDSP_vmul(realBase, 1, windowBase, 1, realBase, 1, vDSP_Length(fftSize))
+                    }
+                }
+
+                vDSP_DFT_Execute(setup, realBase, imagBase, realBase, imagBase)
+
+                let halfSize = fftSize / 2
+                var maxMagnitude: Float = 0
+                var maxIndex = 0
+                var totalEnergy: Float = 0
+
+                for i in 0..<halfSize {
+                    let real = realBase[i]
+                    let imag = imagBase[i]
+                    let magnitude = hypot(real, imag)
+                    scratchBuffers.magnitudes[i] = magnitude
+                    totalEnergy += magnitude
+
+                    if magnitude > maxMagnitude {
+                        maxMagnitude = magnitude
+                        maxIndex = i
+                    }
+                }
+
+                let binRatio = max(1, halfSize / scratchBuffers.visualMagnitudes.count)
+                for i in 0..<scratchBuffers.visualMagnitudes.count {
+                    let start = i * binRatio
+                    let end = min(start + binRatio, halfSize)
+                    var sum: Float = 0
+                    for j in start..<end {
+                        sum += scratchBuffers.magnitudes[j]
+                    }
+                    scratchBuffers.visualMagnitudes[i] = sum / Float(max(1, end - start))
+                }
+
+                resolvedFrequency = Float(maxIndex) * Float(sampleRate) / Float(fftSize)
+                resolvedPeak = maxMagnitude
+                resolvedClarity = totalEnergy > 0 ? maxMagnitude / totalEnergy : 0
             }
-            visualMagnitudes[i] = sum / Float(binRatio)
         }
 
-        // Find peak frequency (ignore DC component at index 0)
-        var maxMagnitude: Float = 0
-        var maxIndex: vDSP_Length = 0
+        let magnitudes = Array(scratchBuffers.visualMagnitudes)
+        return (resolvedFrequency, magnitudes, resolvedPeak, resolvedClarity)
+    }
 
-        vDSP_maxvi(Array(magnitudes[1...]), 1, &maxMagnitude, &maxIndex, vDSP_Length(magnitudes.count - 1))
-        maxIndex += 1 // Adjust for skipping index 0
 
-        // Convert bin index to frequency
-        let frequency = Float(maxIndex) * Float(sampleRate) / Float(fftSize)
+    // MARK: - Channel Management Helpers
 
-        // Only return frequencies in audible/useful range
-        if frequency > 50 && frequency < 2000 && maxMagnitude > 0.01 {
-            return (frequency, visualMagnitudes)
+    /// Register a channel in the metrics map if it does not already exist.
+    private func registerChannelIfNeeded(id: UUID, kind: AudioGraph.InputKind) {
+        if channelMetricsMap[id] != nil { return }
+
+        channelMetricsMap[id] = ChannelMetrics(
+            id: id,
+            kind: kind,
+            name: kind.displayName,
+            amplitude: 0,
+            peakAmplitude: 0,
+            frequency: 0,
+            pitch: 0,
+            clarity: 0,
+            updatedAt: Date()
+        )
+        publishChannelMetrics()
+    }
+
+    /// Publish the current metrics to subscribers in a deterministic order.
+    private func publishChannelMetrics() {
+        channelMetrics = channelMetricsMap.values.sorted { lhs, rhs in
+            if lhs.name == rhs.name {
+                return lhs.updatedAt > rhs.updatedAt
+            }
+            return lhs.name < rhs.name
+        }
+    }
+
+    /// Allow external audio sources (virtual instruments, BLE sensors, etc.) to
+    /// reuse the microphone manager's analysis pipeline.
+    func processExternalBuffer(
+        _ buffer: AVAudioPCMBuffer,
+        kind: AudioGraph.InputKind,
+        identifier: UUID? = nil
+    ) {
+        var channelID: UUID
+
+        if let identifier {
+            channelID = identifier
+        } else if let existing = transientChannelIDs[kind] {
+            channelID = existing
+        } else {
+            let newID = UUID()
+            transientChannelIDs[kind] = newID
+            channelID = newID
+
+            DispatchQueue.main.async { [weak self] in
+                self?.registerChannelIfNeeded(id: newID, kind: kind)
+            }
         }
 
-        return (0.0, visualMagnitudes)
+        if identifier != nil {
+            DispatchQueue.main.async { [weak self] in
+                self?.registerChannelIfNeeded(id: channelID, kind: kind)
+            }
+        }
+
+        processAudioBuffer(buffer, channelID: channelID, kind: kind)
     }
 
 
