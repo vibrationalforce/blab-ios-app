@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import CoreMIDI
 import Combine
 
@@ -438,26 +439,64 @@ class MIDIToLightMapper: ObservableObject {
     }
 }
 
-// MARK: - UDP Socket (Simple Art-Net Implementation)
+// MARK: - UDP Socket (Art-Net UDP Implementation)
 
 class UDPSocket {
     private let address: String
     private let port: UInt16
-    // TODO: Implement actual UDP socket using Network framework
+    private var connection: NWConnection?
+    private let queue = DispatchQueue(label: "com.blab.udp", qos: .userInitiated)
 
     init(address: String, port: UInt16) throws {
         self.address = address
         self.port = port
-        // Placeholder - real implementation would use NWConnection
-        print("💡 UDP Socket initialized: \(address):\(port)")
+
+        // Create UDP connection
+        let host = NWEndpoint.Host(address)
+        let port = NWEndpoint.Port(integerLiteral: port)
+
+        connection = NWConnection(
+            to: .hostPort(host: host, port: port),
+            using: .udp
+        )
+
+        // Setup state handler
+        connection?.stateUpdateHandler = { [weak self] state in
+            switch state {
+            case .ready:
+                print("💡 UDP Socket connected: \(address):\(port)")
+            case .failed(let error):
+                print("❌ UDP Socket failed: \(error)")
+            case .cancelled:
+                print("🔌 UDP Socket cancelled")
+            default:
+                break
+            }
+        }
+
+        // Start connection
+        connection?.start(queue: queue)
     }
 
     func send(data: Data) {
-        // Placeholder - real implementation would send via NWConnection
-        // print("📤 Sent \(data.count) bytes to \(address):\(port)")
+        guard let connection = connection else {
+            print("⚠️ UDP Socket not connected")
+            return
+        }
+
+        connection.send(
+            content: data,
+            completion: .contentProcessed { error in
+                if let error = error {
+                    print("❌ UDP send error: \(error)")
+                }
+            }
+        )
     }
 
     func close() {
+        connection?.cancel()
+        connection = nil
         print("🔌 UDP Socket closed")
     }
 }

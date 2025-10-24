@@ -201,10 +201,7 @@ struct SpatialAudioControlsView: View {
         let audioEngine = AudioEngine(microphoneManager: micManager)
         let capabilities = DeviceCapabilities()
         let headTracking = HeadTrackingManager()
-        let spatial = SpatialAudioEngine(
-            headTrackingManager: headTracking,
-            deviceCapabilities: capabilities
-        )
+        let spatial = SpatialAudioEngine()  // New API: self-contained
 
         SpatialAudioControlsView(
             audioEngine: audioEngine,

@@ -45,6 +45,12 @@ public class UnifiedControlHub: ObservableObject {
     private var mpeZoneManager: MPEZoneManager?
     private var midiToSpatialMapper: MIDIToSpatialMapper?
 
+    // Phase 3: Spatial Audio + Visual + LED Integration
+    private var spatialAudioEngine: SpatialAudioEngine?
+    private var midiToVisualMapper: MIDIToVisualMapper?
+    private var push3LEDController: Push3LEDController?
+    private var midiToLightMapper: MIDIToLightMapper?
+
     // TODO: Add when implementing
     // private let gazeTracker: GazeTracker?
 
@@ -217,6 +223,66 @@ public class UnifiedControlHub: ObservableObject {
         midiToSpatialMapper = nil
 
         print("[UnifiedControlHub] MIDI 2.0 disabled")
+    }
+
+    // MARK: - Phase 3 Integration
+
+    /// Enable spatial audio engine
+    public func enableSpatialAudio() throws {
+        let spatial = SpatialAudioEngine()
+        try spatial.start()
+        self.spatialAudioEngine = spatial
+        print("[UnifiedControlHub] Spatial audio enabled")
+    }
+
+    /// Disable spatial audio
+    public func disableSpatialAudio() {
+        spatialAudioEngine?.stop()
+        spatialAudioEngine = nil
+        print("[UnifiedControlHub] Spatial audio disabled")
+    }
+
+    /// Enable MIDI to visual mapping
+    public func enableVisualMapping() {
+        let visualMapper = MIDIToVisualMapper()
+        self.midiToVisualMapper = visualMapper
+        print("[UnifiedControlHub] Visual mapping enabled")
+    }
+
+    /// Disable visual mapping
+    public func disableVisualMapping() {
+        midiToVisualMapper = nil
+        print("[UnifiedControlHub] Visual mapping disabled")
+    }
+
+    /// Enable Push 3 LED controller
+    public func enablePush3LED() throws {
+        let push3 = Push3LEDController()
+        try push3.connect()
+        self.push3LEDController = push3
+        print("[UnifiedControlHub] Push 3 LED controller enabled")
+    }
+
+    /// Disable Push 3 LED
+    public func disablePush3LED() {
+        push3LEDController?.disconnect()
+        push3LEDController = nil
+        print("[UnifiedControlHub] Push 3 LED controller disabled")
+    }
+
+    /// Enable DMX/LED strip lighting
+    public func enableLighting() throws {
+        let lighting = MIDIToLightMapper()
+        try lighting.connect()
+        self.midiToLightMapper = lighting
+        print("[UnifiedControlHub] DMX lighting enabled")
+    }
+
+    /// Disable lighting
+    public func disableLighting() {
+        midiToLightMapper?.disconnect()
+        midiToLightMapper = nil
+        print("[UnifiedControlHub] DMX lighting disabled")
     }
 
     // MARK: - Lifecycle
@@ -542,11 +608,46 @@ public class UnifiedControlHub: ObservableObject {
     }
 
     private func updateVisualEngine() {
-        // TODO: Update visual engine with current state
+        guard let visualMapper = midiToVisualMapper,
+              let healthKit = healthKitManager else {
+            return
+        }
+
+        // Update visual parameters from bio-signals
+        let bioParams = MIDIToVisualMapper.BioParameters(
+            hrvCoherence: healthKit.hrvCoherence,
+            heartRate: healthKit.heartRate,
+            breathingRate: 6.0,  // TODO: Calculate from HRV
+            audioLevel: 0.5      // TODO: Get from audio engine
+        )
+
+        visualMapper.updateBioParameters(bioParams)
     }
 
     private func updateLightSystems() {
-        // TODO: Update LED/DMX lights with current state
+        guard let healthKit = healthKitManager else {
+            return
+        }
+
+        let bioData = MIDIToLightMapper.BioData(
+            hrvCoherence: healthKit.hrvCoherence,
+            heartRate: healthKit.heartRate,
+            breathingRate: 6.0  // TODO: Calculate from HRV
+        )
+
+        // Update Push 3 LED patterns
+        if let push3 = push3LEDController {
+            push3.updateBioReactive(
+                hrvCoherence: bioData.hrvCoherence,
+                heartRate: bioData.heartRate,
+                breathingRate: bioData.breathingRate
+            )
+        }
+
+        // Update DMX/LED strip lighting
+        if let lighting = midiToLightMapper {
+            lighting.updateBioReactive(bioData)
+        }
     }
 
     // MARK: - Utilities
