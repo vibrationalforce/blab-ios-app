@@ -148,22 +148,29 @@ class MIDIToLightMapper: ObservableObject {
         print("💡 Added fixture: \(fixture.name) @ DMX \(fixture.startAddress)")
     }
 
-    // MARK: - Start/Stop
+    // MARK: - Biometric Data Structure
 
-    func start() {
+    /// Bio-reactive lighting data from HealthKit/sensors
+    struct BioData {
+        var hrvCoherence: Double
+        var heartRate: Double
+        var breathingRate: Double
+    }
+
+    // MARK: - Connection Management
+
+    /// Connect to Art-Net network
+    func connect() throws {
         guard !isActive else { return }
 
         // Initialize Art-Net socket
-        do {
-            artNetSocket = try UDPSocket(address: artNetAddress, port: artNetPort)
-            isActive = true
-            print("✅ DMX/LED Mapper started (Art-Net → \(artNetAddress):\(artNetPort))")
-        } catch {
-            print("⚠️ Failed to start Art-Net: \(error)")
-        }
+        artNetSocket = try UDPSocket(address: artNetAddress, port: artNetPort)
+        isActive = true
+        print("✅ DMX/LED Mapper connected (Art-Net → \(artNetAddress):\(artNetPort))")
     }
 
-    func stop() {
+    /// Disconnect from Art-Net network
+    func disconnect() {
         guard isActive else { return }
 
         blackoutAll()
@@ -171,7 +178,17 @@ class MIDIToLightMapper: ObservableObject {
         artNetSocket = nil
         isActive = false
 
-        print("🛑 DMX/LED Mapper stopped")
+        print("🛑 DMX/LED Mapper disconnected")
+    }
+
+    // MARK: - Start/Stop (Legacy)
+
+    func start() {
+        try? connect()
+    }
+
+    func stop() {
+        disconnect()
     }
 
     // MARK: - MIDI → Light Mapping
@@ -239,6 +256,14 @@ class MIDIToLightMapper: ObservableObject {
     }
 
     // MARK: - Biometric → Light Mapping
+
+    /// Update lights from bio-reactive data (UnifiedControlHub interface)
+    func updateBioReactive(_ bioData: BioData) {
+        updateFromBioSignals(
+            hrvCoherence: bioData.hrvCoherence,
+            heartRate: bioData.heartRate
+        )
+    }
 
     /// Update lights based on HRV coherence and heart rate
     func updateFromBioSignals(hrvCoherence: Double, heartRate: Double) {

@@ -91,6 +91,16 @@ class MIDIToVisualMapper: ObservableObject {
         }
     }
 
+    // MARK: - Biometric Data Structure
+
+    /// Bio-reactive visual data from HealthKit/sensors
+    struct BioParameters {
+        var hrvCoherence: Double
+        var heartRate: Double
+        var breathingRate: Double
+        var audioLevel: Float
+    }
+
     // MARK: - MIDI → Visual Mapping
 
     /// Map MIDI note on to visual parameters
@@ -168,6 +178,15 @@ class MIDIToVisualMapper: ObservableObject {
     }
 
     // MARK: - Biometric → Visual Mapping
+
+    /// Update visuals from bio-reactive data (UnifiedControlHub interface)
+    func updateBioParameters(_ bioParams: BioParameters) {
+        updateFromBioSignals(
+            hrvCoherence: bioParams.hrvCoherence,
+            heartRate: bioParams.heartRate
+        )
+        updateFromAudioLevel(bioParams.audioLevel)
+    }
 
     /// Map HRV coherence to visual parameters
     func updateFromBioSignals(hrvCoherence: Double, heartRate: Double) {
