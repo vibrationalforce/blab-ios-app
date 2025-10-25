@@ -1,0 +1,10 @@
+{
+  "subsystem": "unified-control",
+  "build": "v0.2",
+  "tests": [
+    "UnifiedControlHubTests",
+    "FaceToAudioMapperTests"
+  ],
+  "lint": "not_run",
+  "warnings": 0
+}

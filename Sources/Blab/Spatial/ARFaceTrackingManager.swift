@@ -130,16 +130,15 @@ public class ARFaceTrackingManager: NSObject, ObservableObject {
             }
         }
 
-        // Update published blend shapes (on main thread)
-        Task { @MainActor in
-            self.blendShapes = processedShapes
-            self.updateFaceExpression(from: processedShapes)
+        if blendShapes != processedShapes {
+            blendShapes = processedShapes
         }
+        updateFaceExpression(from: processedShapes)
     }
 
     /// Extract commonly used expressions for easier access
     private func updateFaceExpression(from shapes: [ARFaceAnchor.BlendShapeLocation: Float]) {
-        faceExpression = FaceExpression(
+        let expression = FaceExpression(
             jawOpen: shapes[.jawOpen] ?? 0,
             mouthSmileLeft: shapes[.mouthSmileLeft] ?? 0,
             mouthSmileRight: shapes[.mouthSmileRight] ?? 0,
@@ -154,6 +153,10 @@ public class ARFaceTrackingManager: NSObject, ObservableObject {
             mouthPucker: shapes[.mouthPucker] ?? 0,
             cheekPuff: shapes[.cheekPuff] ?? 0
         )
+
+        if faceExpression != expression {
+            faceExpression = expression
+        }
     }
 
     // MARK: - Utilities
@@ -183,9 +186,7 @@ extension ARFaceTrackingManager: ARSessionDelegate {
         processBlendShapes(faceAnchor.blendShapes)
 
         // Extract head transform
-        Task { @MainActor in
-            self.headTransform = faceAnchor.transform
-        }
+        headTransform = faceAnchor.transform
 
         // Update tracking quality (based on tracking state)
         let quality: Float = switch session.currentFrame?.camera.trackingState {
@@ -195,9 +196,7 @@ extension ARFaceTrackingManager: ARSessionDelegate {
         case nil: 0.0
         }
 
-        Task { @MainActor in
-            self.trackingQuality = quality
-        }
+        trackingQuality = quality
     }
 
     public func session(_ session: ARSession, didFailWithError error: Error) {
