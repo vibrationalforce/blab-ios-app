@@ -6,6 +6,13 @@ import AVFoundation
 @MainActor
 class ExportManager {
 
+    /// Optional bio-signal provider used to enrich metadata exports.
+    var bioSignalProvider: BioSignalProvider?
+
+    init(bioSignalProvider: BioSignalProvider? = nil) {
+        self.bioSignalProvider = bioSignalProvider
+    }
+
     // MARK: - Export Formats
 
     enum ExportFormat {
@@ -134,6 +141,10 @@ class ExportManager {
         // Export session metadata
         let metadataURL = packageURL.appendingPathComponent("session.json")
         try exportSessionMetadata(session: session, outputURL: metadataURL)
+
+        // Export Blab metadata
+        let blabMetadataURL = packageURL.appendingPathComponent("blab_metadata.json")
+        try exportBlabMetadata(session: session, outputURL: blabMetadataURL)
 
         // Copy individual tracks
         let tracksDir = packageURL.appendingPathComponent("tracks", isDirectory: true)
@@ -283,6 +294,16 @@ class ExportManager {
         ]
 
         let data = try JSONSerialization.data(withJSONObject: metadata, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: outputURL)
+    }
+
+    /// Export Blab-specific metadata alongside audio.
+    private func exportBlabMetadata(session: Session, outputURL: URL) throws {
+        let metadata = BlabMetadata.from(session: session, bioVector: bioSignalProvider?.vector)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(metadata)
         try data.write(to: outputURL)
     }
 

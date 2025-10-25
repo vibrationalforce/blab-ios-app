@@ -47,6 +47,15 @@ class AudioEngine: ObservableObject {
     /// Bio-parameter mapper (HRV/HR → Audio parameters)
     private let bioParameterMapper = BioParameterMapper()
 
+    /// Combined bio-signal provider shared with visualization/export subsystems.
+    let bioSignalProvider = BioSignalProvider()
+
+    /// Internal sequencer core for tempo automation and MIDI clock.
+    let sequencer = SequencerCore()
+
+    /// Visualization pipeline that bridges audio/bio data to SwiftUI components.
+    let visualizationPipeline = HybridVisualizationPipeline()
+
     /// HealthKit manager for HRV-based adaptations
     private var healthKitManager: HealthKitManager?
 
@@ -59,6 +68,9 @@ class AudioEngine: ObservableObject {
     /// Node graph for effects processing
     private var nodeGraph: NodeGraph?
 
+    /// Modular audio graph that coordinates shared routing.
+    private var audioGraph: AudioGraph
+
 
     // MARK: - Private Properties
 
@@ -70,6 +82,9 @@ class AudioEngine: ObservableObject {
 
     init(microphoneManager: MicrophoneManager) {
         self.microphoneManager = microphoneManager
+        var graph = AudioGraph()
+        microphoneManager.attach(to: graph)
+        self.audioGraph = graph
 
         // Configure audio session for optimal performance
         do {
@@ -113,6 +128,13 @@ class AudioEngine: ObservableObject {
         // Initialize node graph with default biofeedback chain
         nodeGraph = NodeGraph.createBiofeedbackChain()
 
+        visualizationPipeline.bind(
+            audioEngine: self,
+            bioProvider: bioSignalProvider,
+            microphone: microphoneManager,
+            sequencer: sequencer
+        )
+
         print("🎵 AudioEngine initialized")
         print("   Spatial Audio: \(deviceCapabilities?.canUseSpatialAudio == true ? "✅" : "❌")")
         print("   Head Tracking: \(headTrackingManager?.isAvailable == true ? "✅" : "❌")")
@@ -124,6 +146,12 @@ class AudioEngine: ObservableObject {
 
     /// Start the audio engine (microphone + optional binaural beats + spatial audio)
     func start() {
+        do {
+            try audioGraph.start()
+        } catch {
+            print("⚠️ Failed to start audio graph: \(error)")
+        }
+
         // Start microphone
         microphoneManager.startRecording()
 
@@ -154,6 +182,9 @@ class AudioEngine: ObservableObject {
     func stop() {
         // Stop microphone
         microphoneManager.stopRecording()
+
+        // Stop graph routing
+        audioGraph.stop()
 
         // Stop binaural beats
         binauralGenerator.stop()
@@ -238,6 +269,7 @@ class AudioEngine: ObservableObject {
     /// - Parameter healthKitManager: HealthKit manager instance
     func connectHealthKit(_ healthKitManager: HealthKitManager) {
         self.healthKitManager = healthKitManager
+        bioSignalProvider.bind(to: healthKitManager)
 
         // Subscribe to HRV coherence changes
         healthKitManager.$hrvCoherence
@@ -312,6 +344,8 @@ class AudioEngine: ObservableObject {
             voicePitch: voicePitch,
             audioLevel: audioLevel
         )
+
+        bioSignalProvider.updateAudioMetrics(level: audioLevel, pitch: voicePitch)
 
         // Apply mapped parameters to audio engine
         applyBioParameters()
