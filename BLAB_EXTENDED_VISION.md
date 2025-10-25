@@ -145,6 +145,7 @@ Sources/Blab/Audio/
 - Thread-safe parameter updates (lock-free atomic operations)
 - MPE support (per-note expression)
 - Spatial audio with HRTF (binaural)
+- Neural stem separation engine rivaling Spectral Layers for surgical source isolation
 
 **Performance Budget:**
 - CPU: < 15% (A15+)
@@ -736,6 +737,81 @@ class MultiplayerSpatialSync {
 
 ---
 
+### 8. BLABSeparation — Neural Stem & Mix Deconstruction
+
+**Files:**
+```
+Sources/Blab/Audio/Separation/
+├── StemSeparationEngine.swift     # Hybrid-transformer source separation
+├── SeparationScheduler.swift      # Low-latency block streaming
+├── SeparationModelLoader.swift    # Core ML + Metal model management
+└── SeparationQualityProfile.swift # Spectral Layers-grade presets
+```
+
+**Key Capabilities:**
+- Spectral Layers-class stem extraction (vocals, drums, bass, instruments, FX, ambience, dialog)
+- Adaptive mode switching: **Live** (<30 ms, 4-stem) vs **Studio** (<1.5x realtime, 8-12 stem)
+- Automatic artifact suppression using phase-consistent neural resynthesis
+- Region-aware separation for AAF (Avid/Nuendo), ARA (Logic), and Ableton Live session exports
+- Gesture-controlled focus separation (pinch → isolate performer, gaze → solo target)
+
+**Processing Flow:**
+```swift
+let frame = audioBuffer.dequeueBlock(size: 2048)
+let magnitudes = stft(frame)
+let latent = transformer.encode(magnitudes)
+let separated = decoder.decode(latent, stems: currentPreset.stemCount)
+let enhanced = phaseAlign(separated, reference: frame)
+delegate?.didRender(stems: enhanced)
+```
+
+---
+
+### 9. BLABPost — AI Film, Post & Spatial Mastering Suite
+
+**Files:**
+```
+Sources/Blab/Post/
+├── PostProductionHub.swift        # Timeline + scene intelligence
+├── FilmEffectStack.swift          # Color, grain, match move, cleanup
+├── DialogueEnhancer.swift         # Neural denoise/de-reverb
+├── AtmosRenderer.swift            # Dolby Atmos / Apple Spatial Audio (ASAF)
+├── AmbisonicsEncoder.swift        # 1st-3rd order ambisonics pipeline
+└── AIDirector.swift               # Prompt-to-edit + auto-shot matching
+```
+
+**Feature Set:**
+- Nuendo/Avid-grade editorial timeline with slip, slide, trim, ripple, multicam sync
+- AI-assisted dialog cleanup, noise removal, dereverb, de-ess with live preview
+- Gesture + voice-driven effect stacks (Logic Pro Smart Controls, Ableton-style macros)
+- Spatial audio mastering: Dolby Atmos ADM BWF, Apple Spatial Audio Format (ASAF), binaural, and theatrical 7.1.4
+- Automatic cue sheet generation + Loudness compliance (EBU R128, ATSC A/85)
+- Scene-aware suggestions: auto-mix Foley, match EQ, crossfade smoothing
+
+---
+
+### 10. BLABDistribution — Rendering, Delivery & Live Presence
+
+**Files:**
+```
+Sources/Blab/Distribution/
+├── RenderManager.swift            # Audio/video batch renderer
+├── ProfileLibrary.swift           # Platform-optimized presets (Netflix, Spotify, TikTok, etc.)
+├── DeliveryOrchestrator.swift     # Direct-to-platform publishing APIs
+├── LiveStreamEncoder.swift        # Low-latency WebRTC + RTMP stack
+└── QCValidator.swift              # Automated quality checks & loudness reports
+```
+
+**Pipelines:**
+- One-click renders for stereo, stem packs, Atmos masters, immersive binaural, and ambisonics
+- Video render paths: ProRes, H.265 HDR10, AV1 social clips with auto-captioning + burned-in subtitles
+- Distribution connectors: Apple Music, Spotify, YouTube, TikTok, Twitch, custom S3/CloudFront
+- Live streaming mode: sub-80ms glass-to-glass latency with adaptive bitrate + spatial audio fold-down
+- Collaboration exports: Ableton ALS, Logic LXP, Pro Tools session/AAF, Fruity Loops FLP stems
+- Compliance automation: LUFS targets, peak limiting, true-peak, loudness range, QC reports
+
+---
+
 ## 🎮 UNREAL ENGINE 5.6 INTEGRATION
 
 ### XR/Desktop Extension
@@ -855,6 +931,9 @@ See `BLAB_90_DAY_ROADMAP.md` for detailed weekly milestones.
 ✅ Support multiplayer spatial sessions (WebRTC)
 ✅ Bridge to Unreal Engine 5.6 (OSC)
 ✅ Have 50+ beta testers on TestFlight
+✅ Deliver Spectral Layers-class stem separation with live/studio modes
+✅ Provide AI-assisted post pipeline (dialog cleanup, auto edits, spatial mastering)
+✅ Ship one-click render/distribution profiles for pro and creator platforms
 
 ---
 
