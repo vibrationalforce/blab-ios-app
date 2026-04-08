@@ -219,11 +219,17 @@ final class CameraAnalyzer {
     /// This avoids the @MainActor crash from accessing pixel buffers on background threads.
     func processExtractedRGB(avgR: Float, avgG: Float, avgB: Float) {
         frameCount += 1
+
+        // Frame skipping: process every 2nd frame at ~30fps = 15Hz effective sample rate.
+        // The bandpass filter coefficients are designed for effectiveSampleRate (15Hz).
+        // Without skipping, cutoff frequencies would be wrong → broken pulse detection.
+        guard frameCount % analyzeEveryNthFrame == 0 else { return }
+
         brightness = (avgR + avgG + avgB) / 3.0
         redChannel = avgR
 
-        // Log every 60 frames (~2 sec at 30fps)
-        if frameCount % 60 == 0 {
+        // Log every 30 processed frames (~2 sec at 15Hz effective)
+        if (frameCount / analyzeEveryNthFrame) % 30 == 0 {
             log.log(.info, category: .biofeedback,
                 "rPPG frame \(frameCount): R=\(String(format:"%.2f",avgR)) G=\(String(format:"%.2f",avgG)) B=\(String(format:"%.2f",avgB)) finger=\(isFingerDetected) pulse=\(isPulseDetecting) bpm=\(Int(estimatedBPM))")
         }
