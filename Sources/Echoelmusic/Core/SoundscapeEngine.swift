@@ -22,6 +22,9 @@ final class SoundscapeEngine {
     private let weatherProvider = WeatherProvider()
     private var circadianClock = CircadianClock()
     private var ouraClient: OuraRingClient?
+    #if canImport(CoreMotion)
+    let motionProvider = MotionActivityProvider()
+    #endif
 
     /// MIDI input receiver (MIDI 2.0 + MPE)
     let midiInput = MIDIInput()
@@ -185,6 +188,11 @@ final class SoundscapeEngine {
 
         weatherProvider.startUpdating()
 
+        // Start motion activity detection (Core Motion — no permission needed)
+        #if canImport(CoreMotion)
+        motionProvider.startMonitoring()
+        #endif
+
         // Auto-sync Oura data every 10 minutes if connected
         startOuraAutoSync()
 
@@ -245,6 +253,14 @@ final class SoundscapeEngine {
         let circadian = circadianClock.currentPhase
 
         // 3. Fuse into unified state
+        #if canImport(CoreMotion)
+        let motionActivity = motionProvider.activityState.rawValue
+        let motionIntensity = Double(motionProvider.smoothedIntensity)
+        #else
+        let motionActivity = "Unknown"
+        let motionIntensity = 0.0
+        #endif
+
         state = SoundscapeState(
             heartRate: snapshot.heartRate,
             hrv: snapshot.hrvNormalized,
@@ -254,7 +270,9 @@ final class SoundscapeEngine {
             weatherCondition: weather.condition,
             windSpeed: weather.windSpeed,
             humidity: weather.humidity,
-            circadianPhase: circadian
+            circadianPhase: circadian,
+            activityState: motionActivity,
+            movementIntensity: motionIntensity
         )
 
         // 4. Apply bio-reactive parameters to ALL voices
@@ -271,10 +289,15 @@ final class SoundscapeEngine {
         // 5. Update texture layer
         textureSynth.coherence = Float(state.coherence)
 
-        // 6. Apply weather modulation
+        // 6. Apply motion modulation (Core Motion activity + accelerometer)
+        #if canImport(CoreMotion)
+        applyMotionModulation()
+        #endif
+
+        // 7. Apply weather modulation
         applyWeatherModulation(weather)
 
-        // 6. Apply circadian modulation
+        // 8. Apply circadian modulation
         applyCircadianModulation(circadian)
 
         // 7. Record bio sample for session history (~1Hz, every 60th frame)
@@ -322,6 +345,32 @@ final class SoundscapeEngine {
             voice.spectralShape = shape
         }
     }
+
+    // MARK: - Motion Modulation
+
+    #if canImport(CoreMotion)
+    /// Apply motion activity and movement intensity to soundscape.
+    /// Stationary = dark, spacious, slow | Active = bright, dry, fast
+    private func applyMotionModulation() {
+        let activity = motionProvider.activityState
+        let intensity = motionProvider.smoothedIntensity
+
+        // Texture evolution speed: still = glacial, moving = alive
+        textureSynth.evolutionRate = 2.0 + intensity * 8.0  // 2 → 10
+
+        // Movement intensity adds brightness and noise to all voices
+        for voice in [voiceRoot, voiceFifth, voiceOctave, voiceHigh] {
+            // Additive brightness from movement (stacks with bio-reactive mapping)
+            voice.brightness += intensity * 0.1 + activity.brightnessMultiplier * 0.05
+
+            // Additive reverb from stillness (stationary/driving = more spacious)
+            voice.reverbMix += activity.reverbBoost
+
+            // Movement adds subtle noise texture (body in motion = more organic)
+            voice.noiseLevel += intensity * 0.03
+        }
+    }
+    #endif
 
     // MARK: - MIDI
 
@@ -459,5 +508,9 @@ struct SoundscapeState {
 
     // Circadian
     var circadianPhase: CircadianPhase = .active
+
+    // Motion
+    var activityState: String = "Unknown"
+    var movementIntensity: Double = 0.0
 }
 #endif

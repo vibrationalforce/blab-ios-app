@@ -742,23 +742,34 @@ public final class EchoelDDSP: @unchecked Sendable {
         coherenceTrend: Float = 0
     ) {
         // =====================================================================
-        // HEART RATE = PRIMARY MODULATION
-        // Dark trance pad: filter sweep + amplitude pulse synced to HR
+        // BIO-REACTIVE MAPPINGS — DESIGNED TO BE AUDIBLE
+        // Each mapping must produce a change the user can HEAR.
+        // Previous ranges were too subtle (0.15-0.45 brightness = inaudible).
+        // Now: dramatic but musical. The user must FEEL their body in the sound.
         // =====================================================================
 
-        let smoothCoeff: Float = 0.95
+        let smoothCoeff: Float = 0.92  // Slightly faster response than 0.95
 
-        // 1. Heart rate → Filter sweep (LFO synced to approximate pulse rate)
-        //    HR normalized 0-1 maps to LFO speed: ~0.8 Hz (resting) to ~2 Hz (active)
-        let lfoSpeed: Float = 0.8 + heartRate * 1.2
+        // 1. Heart rate → Filter LFO speed + filter cutoff range
+        //    Resting (0.0) = slow sweep through warm range
+        //    Active (1.0) = faster sweep through brighter range
+        let lfoSpeed: Float = 0.5 + heartRate * 2.0  // 0.5 Hz → 2.5 Hz
         _lfoPhase += lfoSpeed / 60.0  // 60 Hz update rate
         if _lfoPhase > 1.0 { _lfoPhase -= 1.0 }
         let lfoValue = (1.0 + sinf(_lfoPhase * .pi * 2)) * 0.5 // 0-1 sine LFO
 
-        // Filter sweep: dark (0.15) to slightly open (0.45) with LFO
-        let targetBrightness: Float = 0.15 + lfoValue * 0.25 + heartRate * 0.1
+        // Filter brightness: 0.08 (very dark/warm) → 0.7 (bright/open)
+        // Coherence opens the filter, heart rate shifts the range, LFO sweeps
+        let baseFilter: Float = 0.08 + coherence * 0.35  // 0.08-0.43 base
+        let hrShift: Float = heartRate * 0.2               // +0.0-0.2 from HR
+        let lfoSweep: Float = lfoValue * 0.15              // ±0.15 LFO sweep
+        let targetBrightness = (baseFilter + hrShift + lfoSweep).clamped(to: 0.05...0.8)
         _smoothedBrightness = _smoothedBrightness * smoothCoeff + targetBrightness * (1.0 - smoothCoeff)
         brightness = _smoothedBrightness
+
+        // Also drive actual filter cutoff for SVF — DRAMATIC sweep
+        // Low coherence = 600 Hz (muffled), High coherence = 6000 Hz (open)
+        filterCutoff = 600 + coherence * 5400 + heartRate * 1500
 
         // Recalculate spectral envelope 4x/sec
         _spectralUpdateCounter += 1
@@ -767,22 +778,29 @@ public final class EchoelDDSP: @unchecked Sendable {
             updateSpectralEnvelope()
         }
 
-        // 2. Heart rate → Amplitude pulse (subtle pump synced to heartbeat)
-        let ampPulse: Float = 0.4 + lfoValue * 0.15  // 0.4 to 0.55
+        // 2. Heart rate → Amplitude pulse (audible pump synced to pulse)
+        let ampBase: Float = 0.35 + coherence * 0.15     // Calm = fuller
+        let ampPulse: Float = ampBase + lfoValue * 0.25   // 0.35-0.75 range
         _smoothedAmplitude = _smoothedAmplitude * smoothCoeff + ampPulse * (1.0 - smoothCoeff)
         amplitude = _smoothedAmplitude
 
-        // 3. Vibrato: very slow detune drift (not heartbeat-synced — just analog feel)
-        // vibratoRate and vibratoDepth set in configureVoices(), not changed here
+        // 3. Heart rate → Vibrato depth (calm = gentle drift, excited = audible wobble)
+        vibratoDepth = 0.01 + heartRate * 0.08  // 1 cent → 9 cent (clearly audible at top)
+        vibratoRate = 0.05 + heartRate * 0.15   // Very slow → moderate
 
-        // 4. Coherence → Harmonicity (calm = slightly purer)
-        harmonicity = 0.65 + coherence * 0.2   // 0.65 to 0.85 — always thick
+        // 4. Coherence → Harmonicity (low = gritty/tense, high = pure/resolved)
+        harmonicity = 0.45 + coherence * 0.45   // 0.45 (rough) → 0.90 (pure)
 
-        // 5. HRV → Reverb (calm = spacious)
-        reverbMix = 0.25 + hrvVariability * 0.2  // 0.25 to 0.45
+        // 5. HRV → Reverb + spatial character
+        //    Low HRV = dry, tense, close | High HRV = spacious, open, lush
+        reverbMix = 0.10 + hrvVariability * 0.45  // 0.10 → 0.55
+        reverbDecay = 1.0 + hrvVariability * 3.0  // 1s → 4s decay
 
-        // 6. Noise — slight analog grit
-        noiseLevel = 0.02 + (1.0 - coherence) * 0.04  // 0.02 to 0.06
+        // 6. Coherence → Noise (low coherence = texture/tension, high = clean)
+        noiseLevel = 0.01 + (1.0 - coherence) * 0.12  // 0.01 → 0.13
+
+        // 7. Breath phase → Filter LFO depth (breathing modulates filter movement)
+        lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
     }
 
     /// Legacy 3-parameter bio-reactive interface (backwards compatible)

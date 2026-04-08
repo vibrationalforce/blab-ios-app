@@ -149,34 +149,50 @@ struct SoundscapeView: View {
         let conf = engine.bioSourceManager.confidence
 
         let color: Color = {
-            if source == .fallback { return .gray }
+            if source == .fallback { return .white.opacity(0.15) }
             if conf > 0.7 { return .green }
             if conf > 0.4 { return .yellow }
             return .red
         }()
 
         let label: String = {
-            if source == .fallback { return "No Signal" }
-            if conf > 0.7 { return "Signal Stable" }
-            if conf > 0.4 { return "Signal Weak" }
+            if source == .fallback { return "Environment Mode" }
+            if conf > 0.7 { return "Bio Signal Stable" }
+            if conf > 0.4 { return "Bio Signal Weak" }
             return "Searching..."
         }()
 
-        return HStack(spacing: 8) {
-            // Pulsing LED dot
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
-                .shadow(color: color.opacity(0.6), radius: source != .fallback ? 4 : 0)
+        return VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                // LED dot
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .shadow(color: color.opacity(0.6), radius: source != .fallback ? 4 : 0)
 
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(color.opacity(0.7))
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(color.opacity(0.7))
 
-            if source != .fallback {
-                Text("via \(source.displayName)")
+                if source != .fallback {
+                    Text("via \(source.displayName)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.2))
+                }
+            }
+
+            // When in fallback mode, show what IS driving the sound
+            if source == .fallback {
+                #if canImport(CoreMotion)
+                let activity = engine.state.activityState
+                Text("Time + Weather + Motion (\(activity))")
                     .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.2))
+                    .foregroundStyle(.white.opacity(0.15))
+                #else
+                Text("Time + Weather")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.15))
+                #endif
             }
         }
     }
