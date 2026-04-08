@@ -2,10 +2,13 @@
 import SwiftUI
 import HealthKit
 
-/// Minimal onboarding: explain concept, request HealthKit, optional Oura.
+/// Minimal onboarding: explain concept, request HealthKit, start playing.
+/// Last tap ("Listen") completes onboarding AND auto-starts the soundscape.
 struct OnboardingView: View {
 
     @Binding var isComplete: Bool
+    /// Set to true on completion — EchoelmusicApp reads this to auto-play
+    @Binding var shouldAutoPlay: Bool
     @State private var currentPage = 0
 
     var body: some View {
@@ -115,16 +118,21 @@ struct OnboardingView: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Tap play. Your soundscape begins.")
+            Text("Your soundscape begins now.")
                 .font(.system(size: 15))
                 .foregroundStyle(.white.opacity(0.4))
 
             Spacer()
 
             Button {
+                shouldAutoPlay = true
                 isComplete = true
             } label: {
-                Text("Start")
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 13))
+                    Text("Listen")
+                }
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)

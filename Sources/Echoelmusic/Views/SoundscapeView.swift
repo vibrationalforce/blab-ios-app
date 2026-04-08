@@ -11,6 +11,7 @@ struct SoundscapeView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showSettings = false
     @State private var showHistory = false
+    @State private var showCameraPulse = false
     @State private var selectedTab: ControlTab = .mix
 
     enum ControlTab: String, CaseIterable {
@@ -23,11 +24,9 @@ struct SoundscapeView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar
+                // Top bar — minimal, only icons
                 HStack {
-                    Button {
-                        showHistory = true
-                    } label: {
+                    Button { showHistory = true } label: {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 16))
                             .foregroundStyle(.white.opacity(0.2))
@@ -38,7 +37,7 @@ struct SoundscapeView: View {
 
                     Spacer()
 
-                    // Session timer
+                    // Session timer (only when playing)
                     if engine.sessionTracker.isActive {
                         Text(formatTimer(engine.sessionTracker.currentDuration))
                             .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -48,9 +47,19 @@ struct SoundscapeView: View {
 
                     Spacer()
 
-                    Button {
-                        showSettings = true
-                    } label: {
+                    // Camera pulse — direct access, 1 tap
+                    Button { showCameraPulse = true } label: {
+                        Image(systemName: engine.bioSourceManager.isCameraActive
+                            ? "heart.fill" : "heart.text.clipboard")
+                            .font(.system(size: 16))
+                            .foregroundStyle(engine.bioSourceManager.isCameraActive
+                                ? .red.opacity(0.6) : .white.opacity(0.2))
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Pulse measurement")
+
+                    Button { showSettings = true } label: {
                         Image(systemName: "gearshape")
                             .font(.system(size: 16))
                             .foregroundStyle(.white.opacity(0.2))
@@ -63,32 +72,40 @@ struct SoundscapeView: View {
 
                 Spacer()
 
-                // Coherence ring — subtle visual feedback
+                // Coherence ring — always visible, the heart of the app
                 coherenceRing
 
                 Spacer()
 
-                // Sound controls — Mix + Sound Design tabs
+                // Sound controls — only when playing (keep pre-play clean)
                 if engine.isPlaying {
                     controlTabs
                         .padding(.bottom, 12)
+
+                    // Bio metrics — only show when playing
+                    bioDisplay
                 }
 
-                // Bio metrics
-                bioDisplay
-
-                // Biofeedback signal status LED
+                // Signal status — always visible (tells user what's happening)
                 signalStatusLED
-                    .padding(.top, 16)
+                    .padding(.top, engine.isPlaying ? 16 : 0)
 
                 // Play/Pause
                 playButton
                     .padding(.top, 24)
                     .padding(.bottom, 16)
 
-                // Source indicator
-                sourceLabel
-                    .padding(.bottom, 40)
+                // Source indicator — compact
+                if engine.isPlaying {
+                    sourceLabel
+                        .padding(.bottom, 40)
+                } else {
+                    // Pre-play: just show the output device
+                    Text(engine.audioOutputName)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.1))
+                        .padding(.bottom, 40)
+                }
             }
             .padding(.horizontal, 24)
         }
@@ -99,6 +116,10 @@ struct SoundscapeView: View {
         }
         .sheet(isPresented: $showHistory) {
             SessionHistoryView()
+        }
+        .sheet(isPresented: $showCameraPulse) {
+            CameraMeasurementView()
+                .environment(engine)
         }
     }
 

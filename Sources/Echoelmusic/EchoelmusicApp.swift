@@ -12,6 +12,7 @@ struct EchoelmusicApp: App {
     @State private var soundscapeEngine: SoundscapeEngine
     @State private var store: EchoelStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -31,7 +32,7 @@ struct EchoelmusicApp: App {
             if hasCompletedOnboarding {
                 mainContent
             } else {
-                OnboardingView(isComplete: $hasCompletedOnboarding)
+                OnboardingView(isComplete: $hasCompletedOnboarding, shouldAutoPlay: $shouldAutoPlay)
             }
         }
     }
@@ -59,6 +60,13 @@ struct EchoelmusicApp: App {
             await store.updateSubscriptionStatus()
 
             log.log(.info, category: .system, "STARTUP COMPLETE — Soundscape ready")
+
+                // Auto-play if user just finished onboarding
+                if shouldAutoPlay {
+                    shouldAutoPlay = false
+                    soundscapeEngine.togglePlayback()
+                    log.log(.info, category: .system, "Auto-play triggered from onboarding")
+                }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
