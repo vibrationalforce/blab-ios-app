@@ -43,61 +43,62 @@ final class SoundscapeEngine {
     nonisolated(unsafe) let voiceHigh = EchoelDDSP(sampleRate: 48000)
 
     // User-controllable mix levels (exposed to UI via sliders)
-    var mixRoot: Float = 0.40 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
-    var mixFifth: Float = 0.25 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
-    var mixOctave: Float = 0.20 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
-    var mixHigh: Float = 0.10 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    // Start quiet: mostly root, others barely there — user opens them up
+    var mixRoot: Float = 0.25 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    var mixFifth: Float = 0.06 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    var mixOctave: Float = 0.04 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    var mixHigh: Float = 0.02 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
 
     /// Lock-free mix levels for audio thread
     nonisolated(unsafe) private let _mixLevels: UnsafeMutablePointer<(Float, Float, Float, Float)> = {
         let p = UnsafeMutablePointer<(Float, Float, Float, Float)>.allocate(capacity: 1)
-        p.initialize(to: (0.40, 0.25, 0.20, 0.10))
+        p.initialize(to: (0.25, 0.06, 0.04, 0.02))
         return p
     }()
 
-    /// Cellular automata texture layer — subtle background shimmer
+    /// Cellular automata texture layer — barely audible background shimmer
     nonisolated(unsafe) private let textureSynth: EchoelCellular = {
         let t = EchoelCellular(cellCount: 128, sampleRate: 48000)
         t.synthMode = .additive
         t.rule = .rule90
-        t.gain = 0.03       // Very quiet shimmer
+        t.gain = 0.008      // Barely there — grows with motion/coherence
         t.frequency = 55
-        t.evolutionRate = 2  // Glacial
-        t.smoothing = 0.8
+        t.evolutionRate = 1  // Very glacial
+        t.smoothing = 0.9
         return t
     }()
 
     /// All 4 DDSP voices (for SoundDesignView access)
     var allVoices: [EchoelDDSP] { [voiceRoot, voiceFifth, voiceOctave, voiceHigh] }
 
-    /// Configure all voices — warm meditative pad
-    /// Clean, gentle, musical. User tunes via Sound Design panel.
+    /// Configure all voices — starts as a single quiet low tone.
+    /// Gentle, minimal, inviting. Bio-reactivity and user tuning add complexity over time.
     private func configureVoices() {
         for voice in [voiceRoot, voiceFifth, voiceOctave, voiceHigh] {
-            voice.harmonicity = 0.9        // Clean harmonic
-            voice.noiseLevel = 0.01        // Almost silent noise
+            voice.harmonicity = 0.95       // Very clean, almost pure sine
+            voice.noiseLevel = 0.005       // Nearly silent noise
             voice.spectralShape = .dark    // Warm rolloff
-            voice.brightness = 0.2         // Dark and warm
-            voice.attack = 0.5             // Smooth fade in
-            voice.decay = 0.3
-            voice.sustain = 0.85           // Full sustain
-            voice.release = 2.0
-            voice.reverbMix = 0.3          // Spacious
-            voice.reverbDecay = 2.0
-            voice.vibratoDepth = 0.02      // Very subtle drift
-            voice.filterCutoff = 5000      // Open filter
-            voice.lfoToFilterDepth = 0.1   // Very gentle sweep
-            voice.filter.resonance = 0.2   // No harsh peaks
-            voice.filterLFO.rate = 0.15    // Very slow LFO
-            voice.filterLFO.depth = 0.2    // Subtle
-            voice.entrainment.depth = 0.0  // Off by default — user enables
+            voice.brightness = 0.08        // Very dark — just the fundamental shines through
+            voice.attack = 1.5             // Slow, gentle fade in
+            voice.decay = 0.5
+            voice.sustain = 0.9            // Full sustain
+            voice.release = 3.0            // Long fade out
+            voice.reverbMix = 0.2          // Subtle space
+            voice.reverbDecay = 3.0        // Long tail
+            voice.vibratoDepth = 0.005     // Barely perceptible drift
+            voice.filterCutoff = 1200      // Low — warm and muffled
+            voice.lfoToFilterDepth = 0.05  // Tiny filter movement
+            voice.filter.resonance = 0.1   // No peaks
+            voice.filterLFO.rate = 0.08    // Very slow LFO
+            voice.filterLFO.depth = 0.1    // Subtle
+            voice.entrainment.depth = 0.0  // Off by default
         }
         // Slight per-voice detuning for width
-        voiceRoot.vibratoRate = 0.08
-        voiceFifth.vibratoRate = 0.06
-        voiceOctave.vibratoRate = 0.1
-        voiceHigh.vibratoRate = 0.05
-        voiceHigh.amplitude = 0.35         // High voice quieter
+        voiceRoot.vibratoRate = 0.04
+        voiceFifth.vibratoRate = 0.03
+        voiceOctave.vibratoRate = 0.05
+        voiceHigh.vibratoRate = 0.025
+        voiceHigh.amplitude = 0.2          // High voice very quiet
     }
 
     /// Pointer for lock-free audio thread flag — is the soundscape actively generating?

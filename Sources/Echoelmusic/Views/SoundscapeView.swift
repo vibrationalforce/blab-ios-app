@@ -11,6 +11,12 @@ struct SoundscapeView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showSettings = false
     @State private var showHistory = false
+    @State private var selectedTab: ControlTab = .mix
+
+    enum ControlTab: String, CaseIterable {
+        case mix = "Mix"
+        case sound = "Sound"
+    }
 
     var body: some View {
         ZStack {
@@ -62,10 +68,10 @@ struct SoundscapeView: View {
 
                 Spacer()
 
-                // Harmony sliders
+                // Sound controls — Mix + Sound Design tabs
                 if engine.isPlaying {
-                    harmonySliders
-                        .padding(.bottom, 16)
+                    controlTabs
+                        .padding(.bottom, 12)
                 }
 
                 // Bio metrics
@@ -197,18 +203,98 @@ struct SoundscapeView: View {
         }
     }
 
-    // MARK: - Harmony Sliders
+    // MARK: - Control Tabs (Mix + Sound Design)
+
+    private var controlTabs: some View {
+        VStack(spacing: 10) {
+            // Tab picker
+            HStack(spacing: 0) {
+                ForEach(ControlTab.allCases, id: \.self) { tab in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { selectedTab = tab }
+                    } label: {
+                        Text(tab.rawValue)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(selectedTab == tab ? 0.5 : 0.15))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.03)))
+            .padding(.horizontal, 16)
+
+            // Content
+            switch selectedTab {
+            case .mix:
+                harmonySliders
+            case .sound:
+                soundDesignPanel
+            }
+        }
+    }
 
     private var harmonySliders: some View {
         @Bindable var eng = engine
-        return VStack(spacing: 10) {
+        return VStack(spacing: 8) {
             harmonySlider(label: "Root", value: $eng.mixRoot)
-            harmonySlider(label: "Fifth", value: $eng.mixFifth)
-            harmonySlider(label: "Octave", value: $eng.mixOctave)
-            harmonySlider(label: "High", value: $eng.mixHigh)
+            harmonySlider(label: "Third", value: $eng.mixFifth)
+            harmonySlider(label: "Fifth", value: $eng.mixOctave)
+            harmonySlider(label: "Octave", value: $eng.mixHigh)
         }
         .padding(.horizontal, 16)
     }
+
+    private var soundDesignPanel: some View {
+        VStack(spacing: 8) {
+            compactSlider("Filter", value: filterCutoffBinding, range: 200...12000, log: true)
+            compactSlider("Warmth", value: harmonicityBinding, range: 0.3...1.0)
+            compactSlider("Space", value: reverbMixBinding, range: 0...0.8)
+            compactSlider("Texture", value: noiseLevelBinding, range: 0...0.2)
+            compactSlider("Attack", value: attackBinding, range: 0.1...3.0)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    // MARK: - Sound Design Bindings (write to all 4 voices)
+
+    private var filterCutoffBinding: Binding<Float> {
+        Binding(
+            get: { engine.voiceRoot.filterCutoff },
+            set: { v in for voice in engine.allVoices { voice.filterCutoff = v } }
+        )
+    }
+
+    private var harmonicityBinding: Binding<Float> {
+        Binding(
+            get: { engine.voiceRoot.harmonicity },
+            set: { v in for voice in engine.allVoices { voice.harmonicity = v } }
+        )
+    }
+
+    private var reverbMixBinding: Binding<Float> {
+        Binding(
+            get: { engine.voiceRoot.reverbMix },
+            set: { v in for voice in engine.allVoices { voice.reverbMix = v } }
+        )
+    }
+
+    private var noiseLevelBinding: Binding<Float> {
+        Binding(
+            get: { engine.voiceRoot.noiseLevel },
+            set: { v in for voice in engine.allVoices { voice.noiseLevel = v } }
+        )
+    }
+
+    private var attackBinding: Binding<Float> {
+        Binding(
+            get: { engine.voiceRoot.attack },
+            set: { v in for voice in engine.allVoices { voice.attack = v } }
+        )
+    }
+
+    // MARK: - Slider Components
 
     private func harmonySlider(label: String, value: Binding<Float>) -> some View {
         HStack(spacing: 10) {
@@ -224,6 +310,36 @@ struct SoundscapeView: View {
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.2))
                 .frame(width: 30, alignment: .trailing)
+        }
+    }
+
+    @ViewBuilder
+    private func compactSlider(_ label: String, value: Binding<Float>, range: ClosedRange<Float>, log: Bool = false) -> some View {
+        HStack(spacing: 10) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.25))
+                .frame(width: 50, alignment: .leading)
+
+            if log {
+                // Logarithmic slider for frequency
+                let logMin = log2(max(1, range.lowerBound))
+                let logMax = log2(range.upperBound)
+                let logBinding = Binding<Float>(
+                    get: { log2(max(1, value.wrappedValue)) },
+                    set: { value.wrappedValue = powf(2, $0) }
+                )
+                Slider(value: logBinding, in: logMin...logMax)
+                    .tint(.white.opacity(0.2))
+            } else {
+                Slider(value: value, in: range)
+                    .tint(.white.opacity(0.2))
+            }
+
+            Text(log ? String(format: "%.0f", value.wrappedValue) : String(format: "%.2f", value.wrappedValue))
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.2))
+                .frame(width: 36, alignment: .trailing)
         }
     }
 
