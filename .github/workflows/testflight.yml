@@ -202,7 +202,7 @@ jobs:
       (needs.compile_check.result == 'success' || needs.compile_check.result == 'skipped') &&
       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all') &&
       github.event.inputs.build_only != 'true'
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v4
