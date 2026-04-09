@@ -61,12 +61,12 @@ struct EchoelmusicApp: App {
 
             log.log(.info, category: .system, "STARTUP COMPLETE — Soundscape ready")
 
-                // Auto-play if user just finished onboarding
-                if shouldAutoPlay {
-                    shouldAutoPlay = false
-                    soundscapeEngine.togglePlayback()
-                    log.log(.info, category: .system, "Auto-play triggered from onboarding")
-                }
+            // Auto-play if user just finished onboarding
+            if shouldAutoPlay {
+                shouldAutoPlay = false
+                soundscapeEngine.togglePlayback()
+                log.log(.info, category: .system, "Auto-play triggered from onboarding")
+            }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {

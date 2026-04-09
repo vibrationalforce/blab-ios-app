@@ -136,6 +136,7 @@ struct SoundscapeView: View {
     private var coherenceRing: some View {
         let coherence = engine.state.coherence
         let hr = engine.state.heartRate
+        let hasBioSignal = engine.bioSourceManager.primarySource != .fallback
 
         return ZStack {
             // Outer ring — coherence glow
@@ -146,26 +147,40 @@ struct SoundscapeView: View {
                 )
                 .frame(width: 200, height: 200)
 
-            // Inner pulse — heart rate driven (subtle glow)
+            // Inner pulse
             Circle()
                 .fill(Color.white.opacity(0.02 + coherence * 0.04))
                 .frame(width: 140, height: 140)
 
-            // Heart rate number (primary)
-            VStack(spacing: 4) {
-                Text("\(Int(hr))")
-                    .font(.system(size: 48, weight: .light, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .contentTransition(.numericText())
+            // Content: real BPM when bio signal, circadian phase when environment
+            if hasBioSignal {
+                VStack(spacing: 4) {
+                    Text("\(Int(hr))")
+                        .font(.system(size: 48, weight: .light, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .contentTransition(.numericText())
 
-                Text("BPM")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.25))
-                    .textCase(.uppercase)
-                    .kerning(2)
+                    Text("BPM")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.25))
+                        .textCase(.uppercase)
+                        .kerning(2)
+                }
+                .accessibilityLabel("Heart rate \(Int(hr)) BPM")
+            } else {
+                VStack(spacing: 4) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundStyle(.white.opacity(0.3))
+
+                    Text(engine.state.circadianPhase.rawValue.capitalized)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .textCase(.uppercase)
+                        .kerning(1.5)
+                }
+                .accessibilityLabel("Environment mode, \(engine.state.circadianPhase.rawValue) phase")
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Heart rate \(Int(hr)) BPM, Coherence \(Int(coherence * 100)) percent")
         }
     }
 
@@ -486,7 +501,7 @@ extension BioDataSource {
         case .camera: return "Camera"
         case .arkit: return "Face Tracking"
         case .microphone: return "Microphone"
-        case .fallback: return "Simulated"
+        case .fallback: return "Environment"
         }
     }
 }
