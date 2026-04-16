@@ -234,20 +234,6 @@ jobs:
           fi
           echo "iOS $SDK_VER SDK confirmed — ITMS-90725 requirement met."
 
-      - name: "Install iOS Simulator Runtime"
-        run: |
-          SDK_BUILD=$(xcodebuild -version -sdk iphonesimulator | grep -i "ProductBuildVersion" | awk '{print $2}')
-          echo "Required SDK build: $SDK_BUILD"
-          if xcrun simctl runtime list 2>/dev/null | grep -q "$SDK_BUILD"; then
-            echo "Matching simulator runtime already installed"
-          else
-            echo "Installing iOS simulator runtime (build: $SDK_BUILD)..."
-            xcodebuild -downloadPlatform iOS -buildVersion "$SDK_BUILD" 2>&1 || {
-              echo "Specific version failed, trying generic download..."
-              xcodebuild -downloadPlatform iOS 2>&1 || true
-            }
-          fi
-
       - name: "Cache Swift PM"
         uses: actions/cache@v4
         with:
