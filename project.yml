@@ -23,7 +23,7 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     PRODUCT_NAME: $(TARGET_NAME)
-    MARKETING_VERSION: "7.1.0"
+    MARKETING_VERSION: "8.0.0"
     CURRENT_PROJECT_VERSION: "${BUILD_NUMBER:=1}"
     ENABLE_BITCODE: NO
     ALWAYS_SEARCH_USER_PATHS: NO
@@ -90,6 +90,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: "Echoelmusic connects to EEG headbands and wearable sensors for bio-reactive soundscape generation."
         NSBluetoothPeripheralUsageDescription: "Echoelmusic connects to EEG headbands for brainwave-reactive audio."
         NSLocationWhenInUseUsageDescription: "Echoelmusic uses your location to fetch weather data that shapes your soundscape."
+        NSMotionUsageDescription: "Echoelmusic uses motion data to detect your activity (walking, running, stationary) and adapt the soundscape to your movement."
 
         ITSAppUsesNonExemptEncryption: false
 
