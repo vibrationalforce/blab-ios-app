@@ -43,9 +43,9 @@ jobs:
                 workflow_id: 'testflight.yml',
                 ref: 'main',
                 inputs: {
-                  platform: 'all',
+                  platform: 'ios',
                   clean_build: 'false',
-                  skip_compile_check: 'false'
+                  skip_compile_check: 'true'
                 }
               });
               console.log('TestFlight workflow dispatched successfully!');

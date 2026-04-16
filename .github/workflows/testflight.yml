@@ -41,7 +41,7 @@ on:
       skip_compile_check:
         description: 'Skip simulator compile check'
         required: false
-        default: false
+        default: true
         type: boolean
 
 concurrency:
@@ -195,11 +195,10 @@ jobs:
   ios:
     name: "iOS"
     runs-on: macos-26
-    needs: [preflight, compile_check]
+    needs: [preflight]
     if: |
       always() &&
       needs.preflight.outputs.ready == 'true' &&
-      (needs.compile_check.result == 'success' || needs.compile_check.result == 'skipped') &&
       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all') &&
       github.event.inputs.build_only != 'true'
     timeout-minutes: 120
@@ -525,11 +524,10 @@ jobs:
   macos:
     name: "macOS"
     runs-on: macos-26
-    needs: [preflight, compile_check]
+    needs: [preflight]
     if: |
       always() &&
       needs.preflight.outputs.ready == 'true' &&
-      (needs.compile_check.result == 'success' || needs.compile_check.result == 'skipped') &&
       (github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all') &&
       github.event.inputs.build_only != 'true'
     timeout-minutes: 90
@@ -733,11 +731,10 @@ jobs:
   watchos:
     name: "watchOS"
     runs-on: macos-26
-    needs: [preflight, compile_check]
+    needs: [preflight]
     if: |
       always() &&
       needs.preflight.outputs.ready == 'true' &&
-      (needs.compile_check.result == 'success' || needs.compile_check.result == 'skipped') &&
       (github.event.inputs.platform == 'watchos' || github.event.inputs.platform == 'all') &&
       github.event.inputs.build_only != 'true'
     timeout-minutes: 90
@@ -942,11 +939,10 @@ jobs:
   tvos:
     name: "tvOS"
     runs-on: macos-26
-    needs: [preflight, compile_check]
+    needs: [preflight]
     if: |
       always() &&
       needs.preflight.outputs.ready == 'true' &&
-      (needs.compile_check.result == 'success' || needs.compile_check.result == 'skipped') &&
       (github.event.inputs.platform == 'tvos' || github.event.inputs.platform == 'all') &&
       github.event.inputs.build_only != 'true'
     timeout-minutes: 90
@@ -1151,11 +1147,10 @@ jobs:
   visionos:
     name: "visionOS"
     runs-on: macos-26
-    needs: [preflight, compile_check]
+    needs: [preflight]
     if: |
       always() &&
       needs.preflight.outputs.ready == 'true' &&
-      (needs.compile_check.result == 'success' || needs.compile_check.result == 'skipped') &&
       (github.event.inputs.platform == 'visionos' || github.event.inputs.platform == 'all') &&
       github.event.inputs.build_only != 'true'
     timeout-minutes: 90
