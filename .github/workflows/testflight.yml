@@ -118,6 +118,18 @@ jobs:
       - name: "Print Xcode Version"
         run: xcodebuild -version
 
+      - name: "Verify iOS 26 SDK (ITMS-90725)"
+        run: |
+          SDK=$(xcodebuild -showsdks | grep -E "iphoneos[0-9]" | tail -1)
+          echo "Available iOS SDK: $SDK"
+          SDK_VER=$(echo "$SDK" | grep -oE "iphoneos[0-9]+" | grep -oE "[0-9]+")
+          echo "SDK major version: $SDK_VER"
+          if [ -z "$SDK_VER" ] || [ "$SDK_VER" -lt 26 ]; then
+            echo "::error title=SDK Too Old::iOS SDK version $SDK_VER is below 26. ITMS-90725 will reject this build after April 28 2026. Check Xcode version on runner."
+            exit 1
+          fi
+          echo "iOS $SDK_VER SDK confirmed — ITMS-90725 requirement met."
+
       - name: "Cache Swift PM"
         uses: actions/cache@v4
         with:
@@ -209,6 +221,18 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: "Verify iOS 26 SDK (ITMS-90725)"
+        run: |
+          SDK=$(xcodebuild -showsdks | grep -E "iphoneos[0-9]" | tail -1)
+          echo "Available iOS SDK: $SDK"
+          SDK_VER=$(echo "$SDK" | grep -oE "iphoneos[0-9]+" | grep -oE "[0-9]+")
+          echo "SDK major version: $SDK_VER"
+          if [ -z "$SDK_VER" ] || [ "$SDK_VER" -lt 26 ]; then
+            echo "::error title=SDK Too Old::iOS SDK version $SDK_VER is below 26. ITMS-90725 will reject this build after April 28 2026. Check Xcode version on runner."
+            exit 1
+          fi
+          echo "iOS $SDK_VER SDK confirmed — ITMS-90725 requirement met."
 
       - name: "Install iOS Simulator Runtime"
         run: |
@@ -339,13 +363,15 @@ jobs:
           fi
           echo "=== ARCHIVE SUCCESSFUL ==="
 
-      - name: "Export IPA"
+      - name: "Export & Upload to TestFlight"
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
+          # destination:upload — xcodebuild uploads directly to App Store Connect,
+          # no IPA written to disk, no separate Fastlane upload step needed.
           cat > /tmp/ExportOptions.plist << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -360,11 +386,12 @@ jobs:
               <key>uploadSymbols</key>
               <true/>
               <key>destination</key>
-              <string>export</string>
+              <string>upload</string>
           </dict>
           </plist>
           PLIST
 
+          echo "=== Exporting & Uploading directly to TestFlight ==="
           set +eo pipefail
           xcodebuild -exportArchive \
             -archivePath ./build/Echoelmusic.xcarchive \
@@ -379,119 +406,24 @@ jobs:
           set -eo pipefail
 
           if [ $RESULT -ne 0 ]; then
-            echo ""
-            echo "=== EXPORT FAILED (exit code $RESULT) ==="
-            tail -50 /tmp/export.log
+            echo "=== EXPORT/UPLOAD FAILED (exit $RESULT) ==="
+            SWIFT_ERRORS=$(grep -E ': error: ' /tmp/export.log | head -20 | tr '\n' ' ||| ' || true)
+            echo "::error title=Export/Upload Errors::${SWIFT_ERRORS:-NO_SWIFT_ERRORS_FOUND}"
+            LAST_LINES=$(tail -30 /tmp/export.log | tr '\n' ' ||| ' || true)
+            echo "::error title=Export Tail::${LAST_LINES}"
+            echo "## Export/Upload Failed (exit $RESULT)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -80 /tmp/export.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-
-          echo "=== EXPORT SUCCESSFUL ==="
-          ls -la ./build/*.ipa 2>/dev/null || echo "No IPA found"
-
-      - name: "Inspect IPA Bundle"
-        run: |
-          IPA=$(ls "$(pwd)"/build/*.ipa 2>/dev/null | head -1)
-          [ -z "$IPA" ] && { echo "No IPA to inspect"; exit 0; }
-          mkdir -p /tmp/ipa_inspect
-          unzip -o "$IPA" -d /tmp/ipa_inspect > /dev/null 2>&1
-          APP_DIR=$(ls -d /tmp/ipa_inspect/Payload/*.app 2>/dev/null | head -1)
-          [ -z "$APP_DIR" ] && { echo "No .app in IPA"; exit 0; }
-
-          echo "=== Bundle Info ==="
-          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_DIR/Info.plist" 2>/dev/null || echo "unknown")
-          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_DIR/Info.plist" 2>/dev/null || echo "unknown")
-          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP_DIR/Info.plist" 2>/dev/null || echo "unknown")
-          echo "Bundle: $BUNDLE_ID | Version: $VERSION ($BUILD)"
-
-          # Icons
-          ICON_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "$APP_DIR/Info.plist" 2>/dev/null || echo "none")
-          ASSETS_SIZE=$(ls -la "$APP_DIR/Assets.car" 2>/dev/null | awk '{print $5}' || echo "0")
-          echo "Icon: $ICON_NAME | Assets.car: ${ASSETS_SIZE} bytes"
-
-          # Extensions
-          EXT_COUNT=$(ls -d "$APP_DIR"/PlugIns/*.appex 2>/dev/null | wc -l | tr -d ' ')
-          echo "Extensions: $EXT_COUNT"
-          for APPEX in "$APP_DIR"/PlugIns/*.appex; do
-            [ -d "$APPEX" ] || continue
-            EXT_NAME=$(basename "$APPEX")
-            BIN_NAME="${EXT_NAME%.appex}"
-            HAS_PLIST=$( [ -f "$APPEX/Info.plist" ] && echo "OK" || echo "MISSING" )
-            HAS_BIN=$( [ -f "$APPEX/$BIN_NAME" ] && echo "OK" || echo "MISSING" )
-            HAS_SIG=$( [ -d "$APPEX/_CodeSignature" ] && echo "OK" || echo "MISSING" )
-            echo "  $EXT_NAME — plist:$HAS_PLIST bin:$HAS_BIN sig:$HAS_SIG"
-            [ "$HAS_PLIST" = "MISSING" ] && echo "::error title=Extension Error::$EXT_NAME missing Info.plist"
-            [ "$HAS_BIN" = "MISSING" ] && echo "::error title=Extension Error::$EXT_NAME missing binary"
-          done
-
-          rm -rf /tmp/ipa_inspect
-
-      - name: "Validate IPA"
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        run: |
-          IPA=$(ls "$(pwd)"/build/*.ipa 2>/dev/null | head -1)
-          [ -z "$IPA" ] && { echo "::warning::No IPA found, skipping validation"; exit 0; }
-          API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
-
-          echo "=== Validating IPA ==="
-          echo "IPA: $IPA ($(du -h "$IPA" | cut -f1))"
-
-          # Basic IPA structure validation (fast, no network)
-          mkdir -p /tmp/ipa_validate
-          unzip -t "$IPA" > /dev/null 2>&1 || { echo "::error::IPA is not a valid zip archive"; exit 1; }
-          unzip -o "$IPA" -d /tmp/ipa_validate > /dev/null 2>&1
-          APP_DIR=$(ls -d /tmp/ipa_validate/Payload/*.app 2>/dev/null | head -1)
-          if [ -z "$APP_DIR" ]; then
-            echo "::error::No .app bundle in IPA Payload"
-            exit 1
-          fi
-
-          # Validate required files exist
-          ERRORS=0
-          [ -f "$APP_DIR/Info.plist" ] && echo "[OK] Info.plist" || { echo "[FAIL] Info.plist missing"; ERRORS=$((ERRORS+1)); }
-          [ -d "$APP_DIR/_CodeSignature" ] && echo "[OK] Code signature" || { echo "[FAIL] _CodeSignature missing"; ERRORS=$((ERRORS+1)); }
-
-          # Check minimum deployment target
-          MIN_OS=$(/usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP_DIR/Info.plist" 2>/dev/null || echo "unknown")
-          echo "MinimumOSVersion: $MIN_OS"
-
-          rm -rf /tmp/ipa_validate
-          [ $ERRORS -gt 0 ] && { echo "::error::IPA structure validation failed"; exit 1; }
-          echo "=== IPA VALIDATION PASSED ==="
-
-      - name: "Upload to TestFlight"
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          echo "=== Files in ./build/ ==="
-          ls -la ./build/ 2>/dev/null || echo "No build directory"
-          IPA=$(ls "$(pwd)"/build/*.ipa 2>/dev/null | head -1)
-          if [ -z "$IPA" ]; then
-            echo "::error title=No IPA::No IPA found in $(pwd)/build/"
-            exit 1
-          fi
-
-          echo "Uploading $IPA to TestFlight..."
-          set +eo pipefail
-          IPA_PATH="$IPA" fastlane ios upload 2>&1 | tee /tmp/upload.log
-          RESULT=${PIPESTATUS[0]}
-          set -eo pipefail
-          if [ $RESULT -ne 0 ]; then
-            ERRORS=$(tail -30 /tmp/upload.log | tr '\n' ' | ')
-            echo "::error title=Upload Failed::${ERRORS}"
-            exit 1
-          fi
-          echo "=== UPLOAD SUCCESSFUL ==="
+          echo "=== EXPORT & UPLOAD SUCCESSFUL ==="
 
       - name: "Error Summary"
         if: failure()
         run: |
           echo "## iOS Deploy Failed" >> $GITHUB_STEP_SUMMARY
-          for logfile in /tmp/archive.log /tmp/export.log /tmp/upload.log; do
+          for logfile in /tmp/archive.log /tmp/export.log; do
             if [ -f "$logfile" ]; then
               echo "### $(basename $logfile)" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
@@ -509,7 +441,6 @@ jobs:
             /tmp/archive.log
             /tmp/export.log
             build/logs/**
-            build/*.ipa
           retention-days: 7
           if-no-files-found: warn
 
