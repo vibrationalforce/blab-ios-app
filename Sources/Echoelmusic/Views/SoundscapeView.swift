@@ -18,7 +18,7 @@ struct SoundscapeView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar — minimal, only icons
+                // Top bar
                 HStack {
                     Button { showHistory = true } label: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -31,7 +31,7 @@ struct SoundscapeView: View {
 
                     Spacer()
 
-                    // Session timer (only when playing)
+                    // Session timer (always when active)
                     if engine.sessionTracker.isActive {
                         Text(formatTimer(engine.sessionTracker.currentDuration))
                             .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -41,7 +41,7 @@ struct SoundscapeView: View {
 
                     Spacer()
 
-                    // Camera pulse — direct access, 1 tap
+                    // Camera pulse — always accessible
                     Button { showCameraPulse = true } label: {
                         Image(systemName: engine.bioSourceManager.isCameraActive
                             ? "heart.fill" : "heart.text.clipboard")
@@ -66,40 +66,30 @@ struct SoundscapeView: View {
 
                 Spacer()
 
-                // Coherence ring — always visible, the heart of the app
+                // Coherence ring — always visible
                 coherenceRing
 
                 Spacer()
 
-                // Sound controls — only when playing (keep pre-play clean)
-                if engine.isPlaying {
-                    voiceMixer
-                        .padding(.bottom, 12)
+                // Voice mixer — always visible (audio auto-starts)
+                voiceMixer
+                    .padding(.bottom, 12)
 
-                    // Bio metrics — only show when playing
-                    bioDisplay
-                }
+                // Bio metrics — always visible
+                bioDisplay
 
-                // Signal status — always visible (tells user what's happening)
+                // Bio source status — shows detected source and flow zone
                 signalStatusLED
-                    .padding(.top, engine.isPlaying ? 16 : 0)
+                    .padding(.top, 16)
 
-                // Play/Pause
-                playButton
+                // Pause/Resume — only visible when manually paused
+                pauseResumeButton
                     .padding(.top, 24)
                     .padding(.bottom, 16)
 
-                // Source indicator — compact
-                if engine.isPlaying {
-                    sourceLabel
-                        .padding(.bottom, 40)
-                } else {
-                    // Pre-play: just show the output device
-                    Text(engine.audioOutputName)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.1))
-                        .padding(.bottom, 40)
-                }
+                // Source + output device
+                sourceLabel
+                    .padding(.bottom, 40)
             }
             .padding(.horizontal, 24)
         }
@@ -325,43 +315,41 @@ struct SoundscapeView: View {
         }
     }
 
-    // MARK: - Play Button
+    // MARK: - Pause/Resume Button (audio auto-starts — this is pause control only)
 
-    private var playButton: some View {
+    private var pauseResumeButton: some View {
         Button {
             engine.togglePlayback()
-            // Auto-save session when stopping
+            // Save session when stopping
             if !engine.isPlaying, let session = engine.lastCompletedSession {
                 modelContext.insert(session)
-                log.log(.info, category: .system, "Session saved: \(session.durationSeconds)s, avg coherence \(String(format: "%.0f%%", session.avgCoherence * 100))")
+                log.log(.info, category: .system, "Session saved: \(session.durationSeconds)s")
             }
         } label: {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(engine.isPlaying ? 0.08 : 0.05))
-                    .frame(width: 72, height: 72)
+                    .stroke(.white.opacity(0.08), lineWidth: 1)
+                    .frame(width: 56, height: 56)
 
                 if engine.isPlaying {
-                    // Pause icon
-                    HStack(spacing: 8) {
+                    HStack(spacing: 7) {
                         RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.5))
-                            .frame(width: 3, height: 20)
+                            .fill(Color.white.opacity(0.35))
+                            .frame(width: 3, height: 16)
                         RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.5))
-                            .frame(width: 3, height: 20)
+                            .fill(Color.white.opacity(0.35))
+                            .frame(width: 3, height: 16)
                     }
                 } else {
-                    // Play icon (triangle)
                     Image(systemName: "play.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white.opacity(0.4))
                         .offset(x: 2)
                 }
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(engine.isPlaying ? "Pause soundscape" : "Play soundscape")
+        .accessibilityLabel(engine.isPlaying ? "Pause" : "Resume")
     }
 
     // MARK: - Source Label
@@ -370,15 +358,10 @@ struct SoundscapeView: View {
         let source = engine.state.source
         let weather = engine.state.weatherCondition
 
-        return VStack(spacing: 4) {
-            Text("\(source.displayName) · \(weather.rawValue.capitalized)")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.15))
-                .kerning(1)
-
-            Text(engine.audioOutputName)
+        return VStack(spacing: 3) {
+            Text("\(source.displayName)  ·  \(weather.rawValue.capitalized)  ·  \(engine.audioOutputName)")
                 .font(.system(size: 10, weight: .regular))
-                .foregroundStyle(.white.opacity(0.1))
+                .foregroundStyle(.white.opacity(0.12))
         }
     }
 }

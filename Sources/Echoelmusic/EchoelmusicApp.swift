@@ -61,11 +61,13 @@ struct EchoelmusicApp: App {
 
             log.log(.info, category: .system, "STARTUP COMPLETE — Soundscape ready")
 
-            // Auto-play if user just finished onboarding
-            if shouldAutoPlay {
-                shouldAutoPlay = false
+            // Auto-start on every launch — no play button required
+            // 1.5s delay lets audio engine and bio sources stabilize before first sound
+            shouldAutoPlay = false
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if !soundscapeEngine.isPlaying {
                 soundscapeEngine.togglePlayback()
-                log.log(.info, category: .system, "Auto-play triggered from onboarding")
+                log.log(.info, category: .system, "Auto-play started")
             }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
