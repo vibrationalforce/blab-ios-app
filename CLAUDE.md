@@ -19,7 +19,7 @@ Bio-reactive ambient soundscape generator. Your body, weather, and time of day c
 - **Mode:** RALPH WIGGUM LAMBDA — iterative tightening until tight
 - **SDK:** Must target iOS 26 SDK (ITMS-90725, deadline April 28, 2026)
 - **Architecture:** Focused soundscape generator (stripped from 12-tool suite)
-- **Files:** 34 source / 9 tests | ~13,000 lines | **Swift 100%**
+- **Files:** 39 Swift + 2 Metal / 9 tests | ~14,000 lines | **Swift 100%**
 
 ---
 
@@ -96,12 +96,13 @@ All inter-component communication uses explicit Combine observation (`.sink`, `$
 ## REPO STRUCTURE
 
 ```
-Sources/Echoelmusic/   ← Main iOS app (32 files)
-  Audio/               ← AudioEngine, AudioConfiguration, BreathDetector, VibratoEngine
-  Bio/                 ← BioSourceManager, EchoelBioEngine, OuraRingClient, CameraAnalyzer, EEG
+Sources/Echoelmusic/   ← Main iOS app (37 files: 35 Swift + 2 Metal shaders)
+  Audio/               ← AudioEngine, AudioConfiguration, MIDIInput
+  Bio/                 ← BioSourceManager, EchoelBioEngine, OuraRingClient, EEGSensorBridge, MotionActivityProvider
   Core/                ← SoundscapeEngine, WeatherProvider, CircadianClock, EchoelStore, SessionStore
   DSP/                 ← EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit
-  Views/               ← SoundscapeView, SettingsView, OnboardingView, SessionHistoryView
+  Video/               ← CameraAnalyzer, CameraCapture, ChromaKey.metal, VisualRendererKernels.metal
+  Views/               ← SoundscapeView, SettingsView, OnboardingView, SessionHistoryView, SoundDesignView, CameraMeasurementView
 Sources/EchoelmusicAUv3/ ← AUv3 Generator Plugin (2 files)
 Tests/                 ← 9 test files (Audio, Bio, DSP, Core)
 docs/                  ← Website (GitHub Pages — artist landing page)
