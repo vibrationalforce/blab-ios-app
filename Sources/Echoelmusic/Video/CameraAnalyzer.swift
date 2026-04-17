@@ -71,24 +71,59 @@ final class CameraAnalyzer {
     /// Effective sample rate after frame skipping
     private let effectiveSampleRate: Double = 15.0 // 30fps / 2
 
-    // Raw signal buffer
+    // Raw and filtered signal buffers — maintained in sync
     private var rawRedSignal: [Float] = []
+    private var filteredRedSignal: [Float] = []  // Running filtered signal (avoids O(n²) re-filtering)
     private var signalTimestamps: [TimeInterval] = []
-    private let maxSignalLength = 512 // ~34 seconds at 15Hz
+    private let maxSignalLength = 600 // ~40 seconds at 15Hz
+
+    // DC offset removal — slow-tracking mean prevents DC from leaking into bandpass
+    private var dcEstimate: Float = 0
 
     // Bandpass filter state (2nd order Butterworth, 0.7–4 Hz)
     private var bpState = BandpassState()
+
+    // Pre-computed Butterworth bandpass coefficients (constant for fixed sample rate)
+    // Computed once — avoids tanf/exp on every filter call
+    private let bpc: BandpassCoefficients
 
     // Peak detection
     private var peakIndices: [Int] = []
     private var lastPeakTime: TimeInterval = 0
 
-    // Finger detection
+    // Finger detection — 30 frames = 2 seconds at 15Hz for robust detection
     private var fingerDetectionBuffer: [Bool] = []
-    private let fingerDetectionWindow = 10 // frames
+    private let fingerDetectionWindow = 30
 
     // Motion detection
     private var previousBrightness: Float = 0.5
+
+    // MARK: - Bandpass Filter Coefficients (pre-computed, constant)
+
+    /// Pre-computed 2nd-order Butterworth bandpass coefficients
+    private struct BandpassCoefficients {
+        // High-pass at 0.7 Hz
+        let hpA0, hpA1, hpA2, hpB1, hpB2: Float
+        // Low-pass at 4.0 Hz
+        let lpA0, lpA1, lpA2, lpB1, lpB2: Float
+
+        init(sampleRate: Float) {
+            // High-pass at 0.7 Hz: bilinear transform Butterworth 2nd order
+            let wHP = tanf(Float.pi * 0.7 / sampleRate)
+            let wHP2 = wHP * wHP
+            let a0hp = 1.0 / (1.0 + 1.414 * wHP + wHP2)
+            hpA0 = a0hp;  hpA1 = -2.0 * a0hp;  hpA2 = a0hp
+            hpB1 = 2.0 * (wHP2 - 1.0) * a0hp
+            hpB2 = (1.0 - 1.414 * wHP + wHP2) * a0hp
+            // Low-pass at 4.0 Hz: bilinear transform Butterworth 2nd order
+            let wLP = tanf(Float.pi * 4.0 / sampleRate)
+            let wLP2 = wLP * wLP
+            let denom = 1.0 + 1.414 * wLP + wLP2
+            lpA0 = wLP2 / denom;  lpA1 = 2.0 * wLP2 / denom;  lpA2 = wLP2 / denom
+            lpB1 = 2.0 * (wLP2 - 1.0) / denom
+            lpB2 = (1.0 - 1.414 * wLP + wLP2) / denom
+        }
+    }
 
     // MARK: - Bandpass Filter State
 
@@ -106,6 +141,12 @@ final class CameraAnalyzer {
         var lp_x2: Float = 0
         var lp_y1: Float = 0
         var lp_y2: Float = 0
+    }
+
+    // MARK: - Init
+
+    init() {
+        bpc = BandpassCoefficients(sampleRate: Float(effectiveSampleRate))
     }
 
     // MARK: - Frame Analysis
@@ -278,10 +319,12 @@ final class CameraAnalyzer {
 
     private func resetPulseState() {
         rawRedSignal.removeAll()
+        filteredRedSignal.removeAll()
         signalTimestamps.removeAll()
         peakIndices.removeAll()
         rrIntervals.removeAll()
         bpState = BandpassState()
+        dcEstimate = 0
         estimatedBPM = 0
         bpmConfidence = 0
         signalQuality = 0
@@ -291,177 +334,99 @@ final class CameraAnalyzer {
     private func processPulseSignal(avgR: Float) {
         let now = ProcessInfo.processInfo.systemUptime
 
-        // Append raw red channel value
+        // DC offset removal: slow-tracking mean (τ ≈ 6.6s at 15Hz)
+        // Removes baseline drift and respiration contamination before bandpass
+        dcEstimate = dcEstimate * 0.99 + avgR * 0.01
+        let dcRemoved = avgR - dcEstimate
+
+        // Filter DC-removed signal and store alongside raw
+        let filtered = applyBandpassFilter(dcRemoved)
+
         rawRedSignal.append(avgR)
+        filteredRedSignal.append(filtered)
         signalTimestamps.append(now)
 
         if rawRedSignal.count > maxSignalLength {
             rawRedSignal.removeFirst()
+            filteredRedSignal.removeFirst()
             signalTimestamps.removeFirst()
-            // Adjust peak indices
             peakIndices = peakIndices.compactMap { $0 > 0 ? $0 - 1 : nil }
         }
-
-        // Apply bandpass filter to latest sample
-        let filtered = applyBandpassFilter(avgR)
 
         // Need at least 3 seconds of data before peak detection
         guard rawRedSignal.count >= Int(effectiveSampleRate * 3) else { return }
 
-        // Peak detection on filtered signal
-        detectPeaks(latestFiltered: filtered, timestamp: now)
-
-        // Calculate signal quality
+        // Peak detection uses stored filtered signal (O(n) vs previous O(n²))
+        detectPeaks(timestamp: now)
         updateSignalQuality()
     }
 
-    /// 2nd-order IIR bandpass filter (0.7–4.0 Hz)
-    /// Implemented as cascaded high-pass + low-pass (Butterworth)
+    /// 2nd-order IIR bandpass filter (0.7–4.0 Hz) using pre-computed coefficients
     private func applyBandpassFilter(_ input: Float) -> Float {
-        let fs = Float(effectiveSampleRate)
+        let hpOut = bpc.hpA0 * input + bpc.hpA1 * bpState.hp_x1 + bpc.hpA2 * bpState.hp_x2
+            - bpc.hpB1 * bpState.hp_y1 - bpc.hpB2 * bpState.hp_y2
+        bpState.hp_x2 = bpState.hp_x1;  bpState.hp_x1 = input
+        bpState.hp_y2 = bpState.hp_y1;  bpState.hp_y1 = hpOut
 
-        // High-pass at 0.7 Hz — remove DC drift and respiration
-        // Butterworth 2nd order: pre-warped bilinear transform
-        let fHP: Float = 0.7
-        let wHP = tanf(Float.pi * fHP / fs)
-        let wHP2 = wHP * wHP
-        let aHP0: Float = 1.0 / (1.0 + 1.414 * wHP + wHP2)
-        let aHP1: Float = -2.0 * aHP0
-        let aHP2: Float = aHP0
-        let bHP1: Float = 2.0 * (wHP2 - 1.0) * aHP0
-        let bHP2: Float = (1.0 - 1.414 * wHP + wHP2) * aHP0
-
-        let hpOut = aHP0 * input + aHP1 * bpState.hp_x1 + aHP2 * bpState.hp_x2
-            - bHP1 * bpState.hp_y1 - bHP2 * bpState.hp_y2
-
-        bpState.hp_x2 = bpState.hp_x1
-        bpState.hp_x1 = input
-        bpState.hp_y2 = bpState.hp_y1
-        bpState.hp_y1 = hpOut
-
-        // Low-pass at 4.0 Hz — remove high-frequency noise
-        let fLP: Float = 4.0
-        let wLP = tanf(Float.pi * fLP / fs)
-        let wLP2 = wLP * wLP
-        let aLP0: Float = wLP2 / (1.0 + 1.414 * wLP + wLP2)
-        let aLP1: Float = 2.0 * aLP0
-        let aLP2: Float = aLP0
-        let bLP1: Float = 2.0 * (wLP2 - 1.0) / (1.0 + 1.414 * wLP + wLP2)
-        let bLP2: Float = (1.0 - 1.414 * wLP + wLP2) / (1.0 + 1.414 * wLP + wLP2)
-
-        let lpOut = aLP0 * hpOut + aLP1 * bpState.lp_x1 + aLP2 * bpState.lp_x2
-            - bLP1 * bpState.lp_y1 - bLP2 * bpState.lp_y2
-
-        bpState.lp_x2 = bpState.lp_x1
-        bpState.lp_x1 = hpOut
-        bpState.lp_y2 = bpState.lp_y1
-        bpState.lp_y1 = lpOut
+        let lpOut = bpc.lpA0 * hpOut + bpc.lpA1 * bpState.lp_x1 + bpc.lpA2 * bpState.lp_x2
+            - bpc.lpB1 * bpState.lp_y1 - bpc.lpB2 * bpState.lp_y2
+        bpState.lp_x2 = bpState.lp_x1;  bpState.lp_x1 = hpOut
+        bpState.lp_y2 = bpState.lp_y1;  bpState.lp_y1 = lpOut
 
         return lpOut
     }
 
     // MARK: - Peak Detection
 
-    /// Adaptive threshold peak detection
-    /// Finds local maxima in filtered signal with minimum inter-beat interval
-    private func detectPeaks(latestFiltered: Float, timestamp: TimeInterval) {
-        let n = rawRedSignal.count
+    /// Adaptive threshold peak detection using stored filtered signal (O(n) per call)
+    private func detectPeaks(timestamp: TimeInterval) {
+        let n = filteredRedSignal.count
         guard n >= 5 else { return }
 
-        // Re-filter recent window for peak detection (last 10 seconds)
         let windowSize = min(n, Int(effectiveSampleRate * 10))
         let startIdx = n - windowSize
+        let window = Array(filteredRedSignal[startIdx..<n])
 
-        // Build filtered signal for window
-        var filteredWindow = [Float](repeating: 0, count: windowSize)
-        var tempState = BandpassState()
-        for i in 0..<windowSize {
-            let fs = Float(effectiveSampleRate)
-            let input = rawRedSignal[startIdx + i]
-
-            // High-pass
-            let fHP: Float = 0.7
-            let wHP = tanf(Float.pi * fHP / fs)
-            let wHP2 = wHP * wHP
-            let aHP0: Float = 1.0 / (1.0 + 1.414 * wHP + wHP2)
-            let aHP1: Float = -2.0 * aHP0
-            let aHP2: Float = aHP0
-            let bHP1: Float = 2.0 * (wHP2 - 1.0) * aHP0
-            let bHP2: Float = (1.0 - 1.414 * wHP + wHP2) * aHP0
-
-            let hpOut = aHP0 * input + aHP1 * tempState.hp_x1 + aHP2 * tempState.hp_x2
-                - bHP1 * tempState.hp_y1 - bHP2 * tempState.hp_y2
-            tempState.hp_x2 = tempState.hp_x1
-            tempState.hp_x1 = input
-            tempState.hp_y2 = tempState.hp_y1
-            tempState.hp_y1 = hpOut
-
-            // Low-pass
-            let fLP: Float = 4.0
-            let wLP = tanf(Float.pi * fLP / fs)
-            let wLP2 = wLP * wLP
-            let aLP0: Float = wLP2 / (1.0 + 1.414 * wLP + wLP2)
-            let aLP1: Float = 2.0 * aLP0
-            let aLP2: Float = aLP0
-            let bLP1: Float = 2.0 * (wLP2 - 1.0) / (1.0 + 1.414 * wLP + wLP2)
-            let bLP2: Float = (1.0 - 1.414 * wLP + wLP2) / (1.0 + 1.414 * wLP + wLP2)
-
-            let lpOut = aLP0 * hpOut + aLP1 * tempState.lp_x1 + aLP2 * tempState.lp_x2
-                - bLP1 * tempState.lp_y1 - bLP2 * tempState.lp_y2
-            tempState.lp_x2 = tempState.lp_x1
-            tempState.lp_x1 = hpOut
-            tempState.lp_y2 = tempState.lp_y1
-            tempState.lp_y1 = lpOut
-
-            filteredWindow[i] = lpOut
-        }
-
-        // Adaptive threshold: 60% of max amplitude in recent window
+        // Adaptive threshold: 55% of amplitude range
         var maxAmp: Float = 0
-        vDSP_maxv(filteredWindow, 1, &maxAmp, vDSP_Length(windowSize))
+        vDSP_maxv(window, 1, &maxAmp, vDSP_Length(windowSize))
         var minAmp: Float = 0
-        vDSP_minv(filteredWindow, 1, &minAmp, vDSP_Length(windowSize))
+        vDSP_minv(window, 1, &minAmp, vDSP_Length(windowSize))
         let amplitude = maxAmp - minAmp
-        let threshold = minAmp + amplitude * 0.6
+        // Reject flat signal — no finger contact
+        guard amplitude > 0.0003 else { return }
+        let threshold = minAmp + amplitude * 0.55
 
         // Minimum inter-beat interval: 300ms (200 BPM max)
         let minPeakDistance = Int(effectiveSampleRate * 0.3)
 
-        // Find peaks
+        // Find local maxima above threshold
         var newPeaks: [Int] = []
         for i in 2..<(windowSize - 2) {
-            let val = filteredWindow[i]
+            let val = window[i]
             guard val > threshold else { continue }
-            // Local maximum: higher than 2 neighbors on each side
-            if val > filteredWindow[i - 1] && val > filteredWindow[i - 2]
-                && val > filteredWindow[i + 1] && val > filteredWindow[i + 2] {
-
-                // Check minimum distance from last peak
-                if let lastPeak = newPeaks.last {
-                    guard (i - lastPeak) >= minPeakDistance else { continue }
-                }
+            if val > window[i-1] && val > window[i-2] && val > window[i+1] && val > window[i+2] {
+                if let last = newPeaks.last, (i - last) < minPeakDistance { continue }
                 newPeaks.append(i)
             }
         }
 
-        // Convert peak indices to absolute indices and calculate intervals
         guard newPeaks.count >= 3 else { return }
 
         var intervals: [Double] = []
         for j in 1..<newPeaks.count {
-            let dt = signalTimestamps[startIdx + newPeaks[j]] - signalTimestamps[startIdx + newPeaks[j - 1]]
-            // Validate: 300ms to 1500ms (40-200 BPM)
+            let dt = signalTimestamps[startIdx + newPeaks[j]] - signalTimestamps[startIdx + newPeaks[j-1]]
             guard dt > 0.3 && dt < 1.5 else { continue }
             intervals.append(dt)
         }
 
         guard intervals.count >= 2 else { return }
 
-        // Reject outliers: remove intervals > 1.5 IQR from median
+        // IQR outlier rejection
         let sorted = intervals.sorted()
-        let median = sorted[sorted.count / 2]
-        let q1 = sorted[sorted.count / 4]
-        let q3 = sorted[sorted.count * 3 / 4]
+        let cnt = sorted.count
+        let q1 = sorted[cnt / 4]
+        let q3 = sorted[(cnt * 3) / 4]
         let iqr = q3 - q1
         let cleanIntervals = intervals.filter {
             $0 > (q1 - 1.5 * iqr) && $0 < (q3 + 1.5 * iqr)
@@ -471,31 +436,20 @@ final class CameraAnalyzer {
 
         let avgInterval = cleanIntervals.reduce(0, +) / Double(cleanIntervals.count)
         let bpm = 60.0 / avgInterval
+        guard bpm > 40 && bpm < 200 else { return }
 
-        // Confidence from interval consistency
         let variance = cleanIntervals.reduce(0.0) { $0 + ($1 - avgInterval) * ($1 - avgInterval) }
             / Double(cleanIntervals.count)
-        let stdDev = sqrt(variance)
-        let cv = stdDev / avgInterval // coefficient of variation
-        let confidence = max(0, min(1, 1.0 - cv * 3.0)) // CV < 0.33 = full confidence
+        let cv = sqrt(variance) / avgInterval
+        let confidence = max(0, min(1, 1.0 - cv * 3.0))
 
-        // Smooth BPM output
-        if confidence > 0.3 {
-            if estimatedBPM == 0 {
-                estimatedBPM = bpm
-            } else {
-                estimatedBPM = estimatedBPM * 0.7 + bpm * 0.3
-            }
-            bpmConfidence = bpmConfidence * 0.8 + confidence * 0.2
+        if confidence > 0.25 {
+            estimatedBPM = estimatedBPM == 0 ? bpm : estimatedBPM * 0.80 + bpm * 0.20
+            bpmConfidence = bpmConfidence * 0.92 + confidence * 0.08
         }
 
-        // Store RR intervals for HRV (in milliseconds)
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
-
-        // Calculate RMSSD
-        if rrIntervals.count >= 3 {
-            calculateRMSSD()
-        }
+        if rrIntervals.count >= 3 { calculateRMSSD() }
     }
 
     // MARK: - HRV Calculation
@@ -558,6 +512,7 @@ final class CameraAnalyzer {
         isPulseDetecting = false
         isFingerDetected = false
         fingerDetectionBuffer.removeAll()
+        dcEstimate = 0
     }
 }
 #endif

@@ -98,6 +98,9 @@ final class BioSourceManager {
                     analyzer.startPulseDetection()
                 }
                 log.log(.info, category: .biofeedback, "Camera rPPG started — frames flowing")
+                // Lock exposure after 2s for stable PPG baseline
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                capture.lockExposure()
             } catch {
                 log.log(.error, category: .biofeedback, "Camera start failed: \(error.localizedDescription)")
                 await MainActor.run { [weak self] in
