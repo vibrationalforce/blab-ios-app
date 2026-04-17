@@ -86,8 +86,8 @@ final class SoundscapeEngine {
             voice.reverbMix = 0.35         // Spacious — meditative default
             voice.reverbDecay = 3.0        // Long tail
             voice.vibratoDepth = 0.005     // Barely perceptible drift
-            voice.filterCutoff = 1200      // Low — warm and muffled
-            voice.lfoToFilterDepth = 0.05  // Tiny filter movement
+            voice.filterCutoff = 220       // High-cut at 220 Hz — warm drone start
+            voice.lfoToFilterDepth = 0.03  // Minimal filter movement at start
             voice.filter.resonance = 0.1   // No peaks
             voice.filterLFO.rate = 0.08    // Very slow LFO
             voice.filterLFO.depth = 0.1    // Subtle

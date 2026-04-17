@@ -122,7 +122,7 @@ public final class EchoelDDSP: @unchecked Sendable {
     public var lfoToFilterDepth: Float = 0.15     // Gentle filter sweep
 
     /// Base filter cutoff (before modulation) [20-20000 Hz]
-    public var filterCutoff: Float = 5000.0     // Start more open
+    public var filterCutoff: Float = 220.0     // Warm, dark start — opens with coherence
 
     /// Isochronic brainwave entrainment
     public let entrainment = EchoelEntrainment(sampleRate: 48000)
@@ -767,14 +767,15 @@ public final class EchoelDDSP: @unchecked Sendable {
         _smoothedBrightness = _smoothedBrightness * smoothCoeff + targetBrightness * (1.0 - smoothCoeff)
         brightness = _smoothedBrightness
 
-        // Drive filter cutoff with smoothing — prevents jarring sweeps
-        // Low coherence = 600 Hz (warm/muffled), High coherence = 5000 Hz (open)
-        let targetCutoff: Float = 600 + coherence * 4400 + heartRate * 1000
-        filterCutoff = filterCutoff * 0.95 + targetCutoff * 0.05
+        // Filter opens with coherence — starts at 220 Hz (dark), blooms toward 1800 Hz (open)
+        // Coherence drives the opening (body must relax to hear the filter open)
+        // Very slow smoothing (α=0.97) for silky transitions
+        let targetCutoff: Float = 200 + coherence * 1600
+        filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03
 
-        // Recalculate spectral envelope 4x/sec
+        // Recalculate spectral envelope 10x/sec for snappier bio response
         _spectralUpdateCounter += 1
-        if _spectralUpdateCounter >= 15 {
+        if _spectralUpdateCounter >= 6 {
             _spectralUpdateCounter = 0
             updateSpectralEnvelope()
         }
