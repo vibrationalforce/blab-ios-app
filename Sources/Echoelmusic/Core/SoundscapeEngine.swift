@@ -107,6 +107,10 @@ final class SoundscapeEngine {
     /// Pre-allocated scratch buffers for audio render block — NO heap allocation
     nonisolated(unsafe) private var _padScratch = [Float](repeating: 0, count: 4096)
     nonisolated(unsafe) private var _texScratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v1Scratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v2Scratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v3Scratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v4Scratch = [Float](repeating: 0, count: 4096)
 
     /// NotificationCenter observer token for cleanup
     nonisolated(unsafe) private var routeChangeObserver: NSObjectProtocol?
@@ -131,6 +135,10 @@ final class SoundscapeEngine {
         let texture = textureSynth
         let padRef = _padScratch
         let texRef = _texScratch
+        let v1Ref = _v1Scratch
+        let v2Ref = _v2Scratch
+        let v3Ref = _v3Scratch
+        let v4Ref = _v4Scratch
         let mixPtr = _mixLevels
 
         // Capture pointer to atomic flag — safe for audio thread read
@@ -156,11 +164,12 @@ final class SoundscapeEngine {
             var tex = texRef
             for i in 0..<count { pad[i] = 0; tex[i] = 0 }
 
-            // Render each voice and mix with levels
-            var v1 = [Float](repeating: 0, count: count)
-            var v2 = [Float](repeating: 0, count: count)
-            var v3 = [Float](repeating: 0, count: count)
-            var v4 = [Float](repeating: 0, count: count)
+            // Render each voice and mix with levels — pre-allocated, no heap allocation
+            var v1 = v1Ref
+            var v2 = v2Ref
+            var v3 = v3Ref
+            var v4 = v4Ref
+            for i in 0..<count { v1[i] = 0; v2[i] = 0; v3[i] = 0; v4[i] = 0 }
             root.render(buffer: &v1, frameCount: count)
             fifth.render(buffer: &v2, frameCount: count)
             octave.render(buffer: &v3, frameCount: count)
