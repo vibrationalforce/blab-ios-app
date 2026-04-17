@@ -767,9 +767,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         _smoothedBrightness = _smoothedBrightness * smoothCoeff + targetBrightness * (1.0 - smoothCoeff)
         brightness = _smoothedBrightness
 
-        // Also drive actual filter cutoff for SVF — DRAMATIC sweep
-        // Low coherence = 600 Hz (muffled), High coherence = 6000 Hz (open)
-        filterCutoff = 600 + coherence * 5400 + heartRate * 1500
+        // Drive filter cutoff with smoothing — prevents jarring sweeps
+        // Low coherence = 600 Hz (warm/muffled), High coherence = 5000 Hz (open)
+        let targetCutoff: Float = 600 + coherence * 4400 + heartRate * 1000
+        filterCutoff = filterCutoff * 0.95 + targetCutoff * 0.05
 
         // Recalculate spectral envelope 4x/sec
         _spectralUpdateCounter += 1
@@ -780,7 +781,7 @@ public final class EchoelDDSP: @unchecked Sendable {
 
         // 2. Heart rate → Amplitude pulse (audible pump synced to pulse)
         let ampBase: Float = 0.35 + coherence * 0.15     // Calm = fuller
-        let ampPulse: Float = ampBase + lfoValue * 0.25   // 0.35-0.75 range
+        let ampPulse: Float = ampBase + lfoValue * 0.12   // 0.35-0.62 range — gentler
         _smoothedAmplitude = _smoothedAmplitude * smoothCoeff + ampPulse * (1.0 - smoothCoeff)
         amplitude = _smoothedAmplitude
 
@@ -793,7 +794,7 @@ public final class EchoelDDSP: @unchecked Sendable {
 
         // 5. HRV → Reverb + spatial character
         //    Low HRV = dry, tense, close | High HRV = spacious, open, lush
-        reverbMix = 0.10 + hrvVariability * 0.45  // 0.10 → 0.55
+        reverbMix = 0.20 + hrvVariability * 0.35  // 0.20 → 0.55 (floor raised for meditation)
         reverbDecay = 1.0 + hrvVariability * 3.0  // 1s → 4s decay
 
         // 6. Coherence → Noise (low coherence = texture/tension, high = clean)
