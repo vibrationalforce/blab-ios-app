@@ -1,6 +1,7 @@
 #if canImport(SwiftUI)
 import SwiftUI
 import HealthKit
+import os.log
 
 /// Minimal onboarding: explain concept, request HealthKit, start playing.
 /// Last tap ("Listen") completes onboarding AND auto-starts the soundscape.
@@ -168,7 +169,13 @@ struct OnboardingView: View {
             HKQuantityType(.heartRateVariabilitySDNN),
             HKQuantityType(.respiratoryRate)
         ]
-        store.requestAuthorization(toShare: nil, read: types) { _, _ in }
+        store.requestAuthorization(toShare: nil, read: types) { success, error in
+            if let error {
+                os_log(.error, "HealthKit auth failed: %{public}@", error.localizedDescription)
+            } else if !success {
+                os_log(.info, "HealthKit auth denied by user")
+            }
+        }
     }
 }
 #endif
