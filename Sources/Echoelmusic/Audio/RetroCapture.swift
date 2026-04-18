@@ -19,12 +19,17 @@ final class RetroCapture {
     private(set) var recordingSeconds = 0
     private(set) var lastURL: URL?
 
+    /// Downsampled waveform for UI display — 200 RMS values spanning last 30s.
+    /// Updated every 500ms via waveformTimer.
+    private(set) var waveformSamples: [Float] = Array(repeating: 0, count: 200)
+
     // MARK: - Ring buffer (always-on pre-roll: 30s stereo @ 48kHz ≈ 11MB)
 
     private let preRollSeconds: Int = 30
-    private let ringCapacity: Int                        // frames (2ch interleaved, so *2 floats)
+    private let waveformResolution: Int = 200       // display points
+    private let ringCapacity: Int
     nonisolated(unsafe) private let ring: UnsafeMutablePointer<Float>
-    nonisolated(unsafe) private let ringWriteFrame: UnsafeMutablePointer<Int64>  // atomic-width
+    nonisolated(unsafe) private let ringWriteFrame: UnsafeMutablePointer<Int64>
 
     // MARK: - Recording
 
@@ -32,6 +37,7 @@ final class RetroCapture {
     nonisolated(unsafe) private let isActive: UnsafeMutablePointer<Bool>
 
     private var timer: Timer?
+    private var waveformTimer: Timer?
 
     // MARK: - Init / deinit
 
@@ -103,6 +109,35 @@ final class RetroCapture {
 
         log.log(.info, category: .audio,
                 "RetroCapture tap installed — \(Int(format.sampleRate))Hz \(format.channelCount)ch, \(preRollSeconds)s ring")
+
+        // Start waveform refresh at 2Hz for UI display
+        waveformTimer?.invalidate()
+        waveformTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.updateWaveform() }
+        }
+    }
+
+    // MARK: - Waveform
+
+    private func updateWaveform() {
+        let totalFrames = ringCapacity
+        let endFrame   = Int(ringWriteFrame.pointee)
+        let startFrame = max(0, endFrame - totalFrames)
+        let framesPerBin = totalFrames / waveformResolution
+        guard framesPerBin > 0 else { return }
+
+        var samples = [Float](repeating: 0, count: waveformResolution)
+        for bin in 0..<waveformResolution {
+            var sum: Float = 0
+            for f in 0..<framesPerBin {
+                let frame = startFrame + bin * framesPerBin + f
+                let slot  = (frame % ringCapacity) * 2
+                let l = ring[slot], r = ring[slot + 1]
+                sum += l * l + r * r
+            }
+            samples[bin] = sqrt(sum / Float(framesPerBin * 2))
+        }
+        waveformSamples = samples
     }
 
     // MARK: - Recording control

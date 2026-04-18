@@ -576,6 +576,10 @@ struct MasterView: View {
                     }
                 }
 
+                // Waveform preview — live ring buffer visualization
+                WaveformView(samples: rec.waveformSamples, isRecording: rec.isRecording)
+                    .frame(height: 48)
+
                 separator
 
                 // Format + target
@@ -977,6 +981,43 @@ struct MasterView: View {
         return String(format: "%d:%02d", m, s)
     }
 
+}
+
+// MARK: - WaveformView
+
+/// Draws a symmetric RMS waveform from 200 pre-downsampled bins.
+/// Each bin is a centered vertical bar; height = RMS amplitude 0–1.
+private struct WaveformView: View {
+
+    let samples: [Float]
+    let isRecording: Bool
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let count = samples.count
+            let barW = w / CGFloat(count)
+
+            Canvas { ctx, size in
+                let barColor = isRecording
+                    ? Color.red.opacity(0.55)
+                    : Color.white.opacity(0.18)
+
+                for (i, sample) in samples.enumerated() {
+                    let amp   = CGFloat(min(sample * 4, 1.0))  // boost low-level audio visually
+                    let barH  = max(amp * h, 1)
+                    let x     = CGFloat(i) * barW + barW * 0.2
+                    let y     = (h - barH) / 2
+                    let rect  = CGRect(x: x, y: y, width: barW * 0.6, height: barH)
+                    let path  = Path(roundedRect: rect, cornerRadius: barW * 0.2)
+                    ctx.fill(path, with: .color(barColor))
+                }
+            }
+            .frame(width: w, height: h)
+        }
+        .animation(.linear(duration: 0.5), value: samples.map { $0 })
+    }
 }
 
 // MARK: - StudioMode
