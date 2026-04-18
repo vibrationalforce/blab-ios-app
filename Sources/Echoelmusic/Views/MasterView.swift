@@ -57,7 +57,6 @@ struct MasterView: View {
                 switch activeMode {
                 case .perform: performContent
                 case .mix:     mixContent
-                case .bio:     bioContent
                 case .stream:  streamContent
                 case .export:  exportContent
                 }
@@ -140,6 +139,9 @@ struct MasterView: View {
             }
 
             Spacer()
+
+            // Bio badge — always visible, driven by BioSourceManager
+            bioBadge
 
             // LIVE badge — Phase 2 placeholder
             HStack(spacing: 5) {
@@ -239,70 +241,31 @@ struct MasterView: View {
         .padding(.horizontal, 24)
     }
 
-    // MARK: - Bio
+    // MARK: - Bio Badge (status bar — always visible, no dedicated tab)
 
-    private var bioContent: some View {
-        VStack(spacing: 28) {
-            Spacer()
+    private var bioBadge: some View {
+        let hr = engine.state.heartRate
+        let coherence = engine.state.coherence
+        let hasBio = engine.bioSourceManager.primarySource != .fallback
 
-            HStack(spacing: 40) {
-                bioMetricLarge(
-                    value: "\(Int(engine.state.heartRate))",
-                    unit: "BPM",
-                    label: "Heart Rate"
-                )
-                bioMetricLarge(
-                    value: String(format: "%.0f", engine.state.hrv * 100),
-                    unit: "ms",
-                    label: "HRV"
-                )
+        let dotColor: Color = hasBio ? (coherence > 0.6 ? .green : coherence > 0.3 ? .yellow : .orange) : .white.opacity(0.1)
+
+        return Button { showCameraPulse = true } label: {
+            HStack(spacing: 5) {
+                Circle().fill(dotColor).frame(width: 6, height: 6)
+                Text(hasBio ? "\(Int(hr))" : "–")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white.opacity(hasBio ? 0.4 : 0.15))
             }
-
-            // Coherence bar
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Coherence")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.25))
-                        .textCase(.uppercase)
-                        .kerning(1.5)
-                    Spacer()
-                    Text(String(format: "%.0f%%", engine.state.coherence * 100))
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.45))
-                }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.06))
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.white.opacity(0.3))
-                            .frame(width: geo.size.width * CGFloat(engine.state.coherence))
-                    }
-                }
-                .frame(height: 3)
-            }
-            .padding(.horizontal, 32)
-
-            Button { showCameraPulse = true } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: engine.bioSourceManager.isCameraActive ? "heart.fill" : "heart.text.clipboard")
-                        .font(.system(size: 13))
-                    Text(engine.bioSourceManager.isCameraActive ? "Camera Pulse Active" : "Measure via Camera")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(.white.opacity(0.35))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
         }
-        .padding(.horizontal, 24)
+        .buttonStyle(.plain)
+        .accessibilityLabel(hasBio ? "Heart rate \(Int(hr)) BPM — tap for camera pulse" : "No bio signal — tap to measure")
     }
 
     // MARK: - Stream (Phase 2 placeholder)
@@ -393,11 +356,19 @@ struct MasterView: View {
     // MARK: - Compact landscape sub-views
 
     private var bioCompactRow: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 20) {
             bioMetricSmall(value: "\(Int(engine.state.heartRate))", unit: "BPM")
             bioMetricSmall(value: String(format: "%.0f%%", engine.state.coherence * 100), unit: "Coh")
             bioMetricSmall(value: String(format: "%.0f", engine.state.hrv * 100), unit: "HRV")
             Spacer()
+            Button { showCameraPulse = true } label: {
+                Image(systemName: "heart.text.clipboard")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.2))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Measure pulse via camera")
         }
     }
 
@@ -611,13 +582,12 @@ struct MasterView: View {
 // MARK: - StudioMode
 
 enum StudioMode: String, CaseIterable {
-    case perform, mix, bio, stream, export
+    case perform, mix, stream, export
 
     var label: String {
         switch self {
         case .perform: return "Perform"
         case .mix:     return "Mix"
-        case .bio:     return "Bio"
         case .stream:  return "Stream"
         case .export:  return "Export"
         }
@@ -627,7 +597,6 @@ enum StudioMode: String, CaseIterable {
         switch self {
         case .perform: return "music.quarternote.3"
         case .mix:     return "slider.horizontal.3"
-        case .bio:     return "heart.text.clipboard"
         case .stream:  return "dot.radiowaves.left.and.right"
         case .export:  return "square.and.arrow.up"
         }
