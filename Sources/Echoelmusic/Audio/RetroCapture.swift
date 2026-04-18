@@ -8,10 +8,8 @@ import os.log
 ///
 /// Lifecycle:
 ///   1. `install(on:)` — installs tap on mainMixerNode, ring buffer fills continuously.
-///   2. `startRecording()` — begins writing to disk from this moment forward.
+///   2. `startRecording()` — prepends last 30s pre-roll, then begins writing live audio.
 ///   3. `stopRecording(completion:)` — closes file, calls completion with URL.
-///
-/// Phase 2: `startRecording()` will prepend the 30-second pre-roll to the file.
 @MainActor @Observable
 final class RetroCapture {
 
@@ -109,14 +107,13 @@ final class RetroCapture {
 
     // MARK: - Recording control
 
-    /// Begin writing to a new timestamped CAF file in Documents/Recordings/.
+    /// Begin a new recording: prepend the last 30s pre-roll from the ring buffer,
+    /// then enable the live tap write. The finished file starts from "now minus 30s".
     func startRecording() {
         guard !isRecording else { return }
 
         do {
             let url = try makeRecordingURL()
-            // Format must match the tap format — derive from Documents path convention
-            // File format: 32-bit float PCM, 48kHz, stereo (matches tap)
             guard let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 2) else {
                 log.log(.error, category: .audio, "RetroCapture: cannot create recording format")
                 return
@@ -125,6 +122,10 @@ final class RetroCapture {
                                        settings: format.settings,
                                        commonFormat: .pcmFormatFloat32,
                                        interleaved: false)
+
+            // Write pre-roll BEFORE enabling live tap — file begins 30s in the past
+            try writePreRollToFile(file, format: format, seconds: preRollSeconds)
+
             activeFile.pointee = file
             isActive.pointee   = true
             isRecording        = true
@@ -135,10 +136,45 @@ final class RetroCapture {
                 Task { @MainActor [weak self] in self?.recordingSeconds += 1 }
             }
 
-            log.log(.info, category: .audio, "RetroCapture recording started → \(url.lastPathComponent)")
+            log.log(.info, category: .audio,
+                    "RetroCapture recording started (+\(preRollSeconds)s pre-roll) → \(url.lastPathComponent)")
 
         } catch {
             log.log(.error, category: .audio, "RetroCapture: failed to start — \(error.localizedDescription)")
+        }
+    }
+
+    /// Deinterleave ring buffer data and write to file in 8192-frame chunks.
+    /// Must be called BEFORE activating the live tap to preserve correct chronological order.
+    private func writePreRollToFile(_ file: AVAudioFile, format: AVAudioFormat, seconds: Int) throws {
+        let totalFrames = min(seconds * 48000, ringCapacity)
+        let endFrame   = Int(ringWriteFrame.pointee)
+        let startFrame = max(0, endFrame - totalFrames)
+        let chunkSize  = 8192
+        var written    = 0
+
+        while written < totalFrames {
+            let frames = min(chunkSize, totalFrames - written)
+            guard let pcmBuf = AVAudioPCMBuffer(pcmFormat: format,
+                                                frameCapacity: AVAudioFrameCount(frames)) else {
+                written += frames; continue
+            }
+            pcmBuf.frameLength = AVAudioFrameCount(frames)
+
+            guard let ch0 = pcmBuf.floatChannelData?[0],
+                  let ch1 = pcmBuf.floatChannelData?[1] else {
+                written += frames; continue
+            }
+
+            // Deinterleave from ring buffer (L, R, L, R, …)
+            for f in 0..<frames {
+                let src = ((startFrame + written + f) % ringCapacity) * 2
+                ch0[f] = ring[src]
+                ch1[f] = ring[src + 1]
+            }
+
+            try file.write(from: pcmBuf)
+            written += frames
         }
     }
 
@@ -163,10 +199,10 @@ final class RetroCapture {
         _ = closedFile  // ARC releases AVAudioFile here, flushing buffers
     }
 
-    // MARK: - Pre-roll snapshot (Phase 2 hook)
+    // MARK: - Pre-roll snapshot (for external preview / waveform display)
 
-    /// Returns the last `seconds` of captured audio as a PCM buffer.
-    /// Phase 2: called by startRecording() to prepend pre-roll to the recording.
+    /// Returns the last `seconds` of ring buffer audio as interleaved stereo floats.
+    /// Use for waveform preview. Recording already prepends pre-roll via writePreRollToFile().
     func snapshotPreRoll(seconds: Int = 30) -> [Float] {
         let frames  = min(seconds * 48000, ringCapacity)
         let endFrame = Int(ringWriteFrame.pointee)

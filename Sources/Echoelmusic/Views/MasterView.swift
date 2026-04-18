@@ -121,11 +121,13 @@ struct MasterView: View {
                 }
             } label: {
                 let rec = audioEngine.retroCapture.isRecording
+                // Pre-roll adds 30s — show total captured duration including pre-roll
+                let totalSecs = audioEngine.retroCapture.recordingSeconds + (rec ? 30 : 0)
                 HStack(spacing: 6) {
                     Circle()
                         .fill(rec ? Color.red : Color.white.opacity(0.15))
                         .frame(width: 7, height: 7)
-                    Text(rec ? formatTimer(audioEngine.retroCapture.recordingSeconds) : "REC")
+                    Text(rec ? formatTimer(totalSecs) : "REC")
                         .font(.system(size: 11, weight: .semibold, design: rec ? .monospaced : .default))
                         .foregroundStyle(rec ? .red : .white.opacity(0.35))
                 }
