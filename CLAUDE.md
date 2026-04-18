@@ -1,4 +1,4 @@
-# CLAUDE.md — Echoelmusic v8.0 Soundscape
+# CLAUDE.md — Echoelmusic v9.0 Live Music Studio
 
 ## IDENTITY
 
@@ -7,7 +7,8 @@ Developer: Echoel (Michael Terbuyken) @ Studio Hamburg
 App Apple ID: 6757957358
 Bundle: com.echoelmusic.*
 
-Bio-reactive ambient soundscape generator. Your body, weather, and time of day create evolving sound.
+**Echoel — Live Music Studio. Record. Stream. Release.**
+Bio-reactive ambient soundscape generator with pro-grade recording, live streaming, and instant mastering.
 
 **SCIENCE-ONLY.** No esoteric terminology. No chakras, auras, energy healing. Evidence-based biofeedback. Every wellness claim requires peer-reviewed citation.
 
@@ -15,17 +16,17 @@ Bio-reactive ambient soundscape generator. Your body, weather, and time of day c
 
 ## CURRENT STATE
 
-- **Branch:** `main`
+- **Branch:** `claude/deep-audit-context-review-5cWfI` (v9.0 — pending merge to main)
 - **Mode:** RALPH WIGGUM LAMBDA — iterative tightening until tight
 - **SDK:** Must target iOS 26 SDK (ITMS-90725, deadline April 28, 2026)
-- **Architecture:** Focused soundscape generator (stripped from 12-tool suite)
-- **Files:** 39 Swift + 2 Metal / 9 tests | ~14,000 lines | **Swift 100%**
+- **Architecture:** Live Music Studio (DAW + streaming + mastering in one screen)
+- **Files:** 46 Swift + 2 Metal / 9 tests | ~16,500 lines | **Swift 100%**
 
 ---
 
 ## BRAND
 
-Echoelmusic — Bio-reactive ambient soundscape generator.
+Echoelmusic — Live Music Studio. Record. Stream. Release.
 
 NEVER use "BLAB", "Vibrational Force", or legacy branding anywhere.
 
@@ -35,49 +36,48 @@ NEVER use "BLAB", "Vibrational Force", or legacy branding anywhere.
 
 ```
 EchoelmusicApp (@main)
-├── AudioEngine (AVAudioEngine)
-├── BioSourceManager (multi-wearable fusion)
-│   ├── HealthKit (Apple Watch HR, HRV, breathing)
-│   ├── CameraAnalyzer (rPPG pulse from finger/face)
-│   ├── OuraRingClient (sleep, readiness, resting HR)
-│   └── EEGSensorBridge (Muse/NeuroSky)
+├── AudioEngine (AVAudioEngine master bus)
+│   ├── RetroCapture        ← 30s ring buffer + on-demand .caf recording
+│   ├── AutoMixChain        ← EQ → Compressor → Limiter → auto-LUFS
+│   ├── LiveStreamEngine    ← H.264/AAC .mp4 → ShareLink to YouTube/Twitch
+│   └── SingleExport        ← BS.1770 LUFS mastering → WAV/AAC export
+├── MicrophoneManager
 ├── SoundscapeEngine (central hub)
+│   ├── BioSourceManager (multi-wearable fusion)
+│   │   ├── HealthKit (Apple Watch HR, HRV, breathing)
+│   │   ├── CameraAnalyzer (rPPG pulse from finger/face)
+│   │   ├── OuraRingClient (sleep, readiness, resting HR)
+│   │   └── EEGSensorBridge (Muse/NeuroSky)
 │   ├── WeatherProvider (WeatherKit + time-based fallback)
 │   ├── CircadianClock (4 phases + Oura sleep data)
 │   ├── EchoelDDSP (bio-reactive harmonic pad)
 │   ├── EchoelCellular (texture layer)
 │   └── AVAudioSourceNode → AudioEngine → Speaker
+├── ClipEngine              ← Ableton-style scene launcher (6 presets + capture)
 ├── EchoelStore (StoreKit 2 subscriptions)
 └── Views
-    ├── SoundscapeView (coherence ring, bio metrics, confidence)
-    ├── SettingsView (bio sources, Oura connect, audio output)
-    ├── OnboardingView (3-page HealthKit flow)
-    └── SessionHistoryView (SwiftData)
+    ├── MasterView          ← ONE-SCREEN studio (Perform|Mix|Stream|Export tabs)
+    ├── SessionGridView     ← 2×N scene grid with morph + rename
+    ├── CameraPreviewView   ← Live viewfinder during stream recording
+    ├── SettingsView        ← bio sources, Oura connect, audio output
+    ├── OnboardingView      ← 3-page HealthKit flow
+    └── SessionHistoryView  ← SwiftData session log
 ```
 
 AUv3 Generator Plugin (augn): Bio-reactive soundscape usable in Logic Pro, GarageBand, AUM.
 
-Communication: Explicit wiring via `EchoelCreativeWorkspace` hub — `.connectAudioEngine()`, `.connectMixer()`, Combine observation. All tools react to BioSnapshot.
+### Studio Modes (MasterView tabs)
 
-### Component Wiring (actual architecture)
+| Mode | Content |
+|------|---------|
+| Perform | Scene grid (ClipEngine) + coherence mini-header + play/pause |
+| Mix | Voice sliders + AutoMixChain (LUFS, preset, target) |
+| Stream | Camera preview + H.264 recording + ShareLink |
+| Export | Waveform preview + LUFS mastering + WAV/AAC export |
 
-```
-EchoelmusicApp (init)
-├─ AudioEngine(microphoneManager:)    ← master AVAudioEngine
-│   └─ connectMixer(ProMixEngine)     ← routing hub
-├─ RecordingEngine
-│   └─ connectAudioEngine(AudioEngine)
-└─ EchoelCreativeWorkspace.shared     ← central hub singleton
-    ├─ connectAudioEngine(AudioEngine) ← wires Combine pipelines
-    ├─ BPMGridEditEngine              ← beat/tempo sync
-    ├─ ProSessionEngine               ← multi-track sessions
-    ├─ VideoEditingEngine             ← timeline + compositing
-    ├─ ProColorGrading                ← live color
-    └─ EchoelDDSP (bioSynth)         ← bio-reactive synthesis
-        └─ mic audioLevel → bioCoherence → applyBioReactive()
-```
-
-All inter-component communication uses explicit Combine observation (`.sink`, `$property`) stored in `cancellables`. No implicit message bus.
+### Bio (always visible — not a tab)
+Bio signal shown as compact badge in status bar: HR number + coherence dot.
+Tap → CameraMeasurementView for rPPG pulse measurement.
 
 ---
 
@@ -96,13 +96,15 @@ All inter-component communication uses explicit Combine observation (`.sink`, `$
 ## REPO STRUCTURE
 
 ```
-Sources/Echoelmusic/   ← Main iOS app (37 files: 35 Swift + 2 Metal shaders)
-  Audio/               ← AudioEngine, AudioConfiguration, MIDIInput
+Sources/Echoelmusic/   ← Main iOS app (46 Swift + 2 Metal shaders)
+  Audio/               ← AudioEngine, AudioConfiguration, MIDIInput,
+                          RetroCapture, AutoMixChain, LiveStreamEngine, SingleExport
   Bio/                 ← BioSourceManager, EchoelBioEngine, OuraRingClient, EEGSensorBridge, MotionActivityProvider
-  Core/                ← SoundscapeEngine, WeatherProvider, CircadianClock, EchoelStore, SessionStore
+  Core/                ← SoundscapeEngine, ClipEngine, WeatherProvider, CircadianClock, EchoelStore, SessionStore
   DSP/                 ← EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit
   Video/               ← CameraAnalyzer, CameraCapture, ChromaKey.metal, VisualRendererKernels.metal
-  Views/               ← SoundscapeView, SettingsView, OnboardingView, SessionHistoryView, SoundDesignView, CameraMeasurementView
+  Views/               ← MasterView, SessionGridView, CameraPreviewView, SettingsView,
+                          OnboardingView, SessionHistoryView, SoundDesignView, CameraMeasurementView
 Sources/EchoelmusicAUv3/ ← AUv3 Generator Plugin (2 files)
 Tests/                 ← 9 test files (Audio, Bio, DSP, Core)
 docs/                  ← Website (GitHub Pages — artist landing page)
