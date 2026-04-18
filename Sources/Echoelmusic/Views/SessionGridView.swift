@@ -25,6 +25,8 @@ struct SessionGridView: View {
                         clipEngine.launch(scene)
                     } onDelete: {
                         clipEngine.remove(scene)
+                    } onRename: { name in
+                        clipEngine.rename(scene, to: name)
                     }
                 }
 
@@ -96,18 +98,37 @@ private struct SceneButton: View {
     let isMorphing: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
+    let onRename: (String) -> Void
+
+    @State private var isRenaming = false
+    @State private var draftName = ""
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
-                // Scene name
+                // Scene name / rename field
                 HStack {
-                    Text(scene.name)
-                        .font(.system(size: 13, weight: isActive ? .semibold : .medium))
-                        .foregroundStyle(.white.opacity(isActive ? 0.9 : 0.45))
-                        .lineLimit(1)
+                    if isRenaming {
+                        TextField("", text: $draftName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .tint(.white.opacity(0.6))
+                            .onSubmit { commitRename() }
+                    } else {
+                        Text(scene.name)
+                            .font(.system(size: 13, weight: isActive ? .semibold : .medium))
+                            .foregroundStyle(.white.opacity(isActive ? 0.9 : 0.45))
+                            .lineLimit(1)
+                    }
                     Spacer()
-                    if isQueued {
+                    if isRenaming {
+                        Button { commitRename() } label: {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                    } else if isQueued {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 9))
                             .foregroundStyle(.white.opacity(0.4))
@@ -150,8 +171,10 @@ private struct SceneButton: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(
-                        isActive ? accentColor.opacity(isMorphing ? 0.6 : 0.3) : Color.white.opacity(0.08),
-                        lineWidth: isActive ? 1 : 1
+                        isRenaming ? accentColor.opacity(0.5) :
+                        isActive ? accentColor.opacity(isMorphing ? 0.6 : 0.3) :
+                        Color.white.opacity(0.08),
+                        lineWidth: 1
                     )
             )
             .animation(.easeInOut(duration: 0.2), value: isActive)
@@ -159,10 +182,21 @@ private struct SceneButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(scene.name) scene\(isActive ? ", active" : "")")
         .contextMenu {
+            Button {
+                draftName = scene.name
+                isRenaming = true
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
             Button(role: .destructive) { onDelete() } label: {
                 Label("Delete Scene", systemImage: "trash")
             }
         }
+    }
+
+    private func commitRename() {
+        isRenaming = false
+        onRename(draftName)
     }
 
     private var accentColor: Color {

@@ -91,6 +91,13 @@ final class ClipEngine {
         scenes.append(scene)
     }
 
+    /// Rename a scene by ID.
+    func rename(_ scene: Scene, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let i = scenes.firstIndex(where: { $0.id == scene.id }) else { return }
+        scenes[i].name = trimmed
+    }
+
     /// Remove a scene by ID.
     func remove(_ scene: Scene) {
         scenes.removeAll { $0.id == scene.id }
