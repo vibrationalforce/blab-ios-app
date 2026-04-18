@@ -6,6 +6,59 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-04-18 — Live Studio Pivot (v9.0 Architecture)
+
+### Branch: `claude/deep-audit-context-review-5cWfI`
+
+### Commits (this session)
+- `docs: add FEATURE_MATRIX.md — full static audit 2026-04-18`
+- `fix: log HealthKit auth errors in OnboardingView`
+- `docs: add pivot plan — Echoel Live Music Studio`
+- `feat: MasterView — one-screen Live Music Studio shell`
+- `refactor: bio aus Mode Strip — jetzt Badge in Status Bar`
+- `feat: RetroCapture — always-on ring buffer + REC button live`
+- `feat: AutoMixChain — instant pro sound on master bus`
+- `feat: add ClipEngine + SessionGridView (Ableton-style scene launcher)`
+- `feat: add LiveStreamEngine — RTMP output to YouTube/Twitch`
+- `feat: add SingleExport — LUFS-normalized mastering + WAV/AAC export`
+
+### Strategic Pivot: Bio-Soundscape → Live Music Studio
+
+User decision: Reposition Echoelmusic from bio-reactive soundscape generator to
+a **DAW + Multidimensional Media Production Suite** — best of Ableton/FL Studio/Logic
+combined with live streaming and content tools. One screen, no window switching,
+iPhone-optimized portrait, landscape for Mac/iPad.
+
+**USP:** Record a 2:30 improv → sounds professional → publish as single. All in one app.
+
+### 6-Module Live Studio Architecture (all shipped this session)
+
+| Module | File | What it does |
+|--------|------|--------------|
+| MasterView | Views/MasterView.swift | One-screen shell, 4 tabs (Perform/Mix/Stream/Export), portrait+landscape |
+| RetroCapture | Audio/RetroCapture.swift | 30s always-recording ring buffer, tap → .caf file |
+| AutoMixChain | Audio/AutoMixChain.swift | EQ+Compressor+Limiter, auto-LUFS, 4 presets |
+| ClipEngine + SessionGridView | Core/ClipEngine.swift + Views/SessionGridView.swift | Ableton scene launcher, 6 defaults, 2s smoothstep morph |
+| LiveStreamEngine | Audio/LiveStreamEngine.swift | RTMP → YouTube/Twitch, destination picker, key input, live timer |
+| SingleExport | Audio/SingleExport.swift | BS.1770 LUFS measurement, gain normalize, WAV/AAC export, ShareLink |
+
+### Key Architecture Changes vs v8.2
+- `SoundscapeView` replaced by `MasterView` as root view
+- `EchoelmusicApp` now owns: `AudioEngine`, `MicrophoneManager`, `SoundscapeEngine`, `EchoelStore`, `ClipEngine`
+- `AudioEngine` now owns: `RetroCapture`, `AutoMixChain`, `LiveStreamEngine`, `SingleExport`
+- Bio demoted from tab → compact badge in status bar (HR + coherence dot)
+- `StudioMode` enum: `perform | mix | stream | export`
+- AutoMixChain inserts between `masterMixer` → `mainMixerNode` (before engine start)
+- RetroCapture is sole owner of `mainMixerNode` tap (replaced old `startOutputRecording()`)
+
+### App State: v9.0 (branch, not yet on main)
+- All 6 Live Studio modules functional
+- RTMP streaming: Phase 1 (AVAssetWriter AAC audio, video Phase 2)
+- Pre-roll export: Phase 2 (ring buffer exists, snapshotPreRoll() hook in place)
+- Ready for TestFlight build from this branch
+
+---
+
 ## 2026-04-17 — Deep Audit + Context Review + TestFlight Prep
 
 ### Branch: `claude/deep-audit-context-review-5cWfI`

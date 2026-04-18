@@ -83,6 +83,20 @@ Architectural and strategic decisions with context and rationale.
 - **Expected outcome:** Parallel development capability, better utilization of Claude Code sessions
 - **Review date:** 2026-04-19
 
+### 2026-04-18 Live Studio Pivot — v9.0 Architecture
+- **Decision:** Reposition Echoelmusic from bio-reactive soundscape generator to a DAW + Live Media Production Suite. New tagline: "Record. Stream. Release." One-screen iPhone UI, no window switching.
+- **Reasoning:** Bio-only soundscape has limited commercial appeal. Combining pro-level improv recording + instant mastering + live streaming hits a clear market gap. User can produce a release-ready single from a 2:30 session without leaving the app.
+- **Alternatives considered:** Incremental bio-feature expansion — rejected (niche ceiling). Full DAW (multitrack) — deferred to v10.
+- **Expected outcome:** Broader audience, App Store differentiation, TestFlight feedback loop on live streaming
+- **Review date:** 2026-05-18
+
+### 2026-04-18 Bio as Badge (not Tab)
+- **Decision:** Removed Bio from `StudioMode` tab strip. Bio now shown as compact HR number + coherence dot in status bar; tap opens CameraMeasurementView.
+- **Reasoning:** Bio is ambient context, not an active tool in a DAW workflow. A live performer doesn't switch to a "Bio" tab mid-session. Status bar badge gives constant visibility without consuming a tab slot.
+- **Alternatives considered:** Keep Bio tab — rejected (wrong cognitive model for DAW UX)
+- **Expected outcome:** Cleaner 4-tab strip (Perform/Mix/Stream/Export), bio always visible without interrupting flow
+- **Review date:** 2026-05-18
+
 ---
 
 ### 2026-03-11 Persistent Memory System
