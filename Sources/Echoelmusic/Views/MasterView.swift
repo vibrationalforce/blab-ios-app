@@ -9,6 +9,8 @@ import os.log
 /// No navigation stack. No window switching. Everything visible.
 struct MasterView: View {
 
+    let clipEngine: ClipEngine
+
     @Environment(SoundscapeEngine.self) private var engine
     @Environment(AudioEngine.self) private var audioEngine
     @Environment(EchoelBioEngine.self) private var bio
@@ -217,10 +219,19 @@ struct MasterView: View {
 
     private var performContent: some View {
         VStack(spacing: 0) {
-            Spacer()
-            coherenceRing
-            Spacer()
-            pauseResumeButton.padding(.bottom, 24)
+            // Compact header: coherence ring miniature + play/pause
+            HStack(spacing: 16) {
+                pauseResumeButton
+                coherenceMini
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            // Scene launcher grid
+            SessionGridView(clipEngine: clipEngine)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -528,6 +539,43 @@ struct MasterView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Coherence Mini (perform header)
+
+    private var coherenceMini: some View {
+        let coherence = engine.state.coherence
+        let hr = engine.state.heartRate
+        let hasBio = engine.bioSourceManager.primarySource != .fallback
+
+        return HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.05 + coherence * 0.15), lineWidth: 1.5)
+                    .frame(width: 32, height: 32)
+                if hasBio {
+                    Text("\(Int(hr))")
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .contentTransition(.numericText())
+                } else {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundStyle(.white.opacity(0.25))
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(hasBio ? "BPM" : engine.state.circadianPhase.rawValue.capitalized)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.18))
+                    .textCase(.uppercase)
+                    .kerning(1)
+                Text(String(format: "%.0f%% coh", coherence * 100))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.2))
+            }
+        }
+        .accessibilityLabel(hasBio ? "Heart rate \(Int(hr)) BPM, coherence \(Int(coherence * 100))%" : "Environment mode")
     }
 
     // MARK: - Coherence Ring (reused from SoundscapeView)
