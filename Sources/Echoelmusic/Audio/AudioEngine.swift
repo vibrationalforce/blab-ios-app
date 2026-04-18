@@ -174,7 +174,6 @@ public final class AudioEngine {
         startMeterPollTimer()
         retroCapture.install(on: masterEngine)
         autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }
-        liveStream.connect(audio: self)
         isRunning = true
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }

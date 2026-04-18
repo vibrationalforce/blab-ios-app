@@ -394,57 +394,69 @@ struct MasterView: View {
         let stream = audioEngine.liveStream
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Live status header
                 streamStatusHeader(stream: stream)
                     .padding(.top, 20)
 
                 separator
 
-                // Destination picker
-                sectionHeader("Destination")
-                    .padding(.top, 4)
-                VStack(spacing: 6) {
-                    ForEach(LiveStreamEngine.destinations) { dest in
-                        Button { stream.selectedDestination = dest } label: {
-                            HStack {
-                                Text(dest.name)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.white.opacity(stream.selectedDestination == dest ? 0.85 : 0.35))
-                                Spacer()
-                                if stream.selectedDestination == dest {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.white.opacity(0.5))
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.white.opacity(stream.selectedDestination == dest ? 0.2 : 0.07), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                // Stream key input
-                sectionHeader("Stream Key")
-                    .padding(.top, 4)
-                streamKeyField(stream: stream)
-
-                // Custom RTMP URL (only for custom destination)
-                if stream.selectedDestination.rtmpBase.isEmpty {
-                    sectionHeader("RTMP URL")
+                // Done state — show ShareLink to upload
+                if let url = stream.state.doneURL {
+                    streamDoneView(url: url, stream: stream)
+                } else {
+                    // Destination picker
+                    sectionHeader("Upload To")
                         .padding(.top, 4)
-                    rtmpURLField(stream: stream)
+                    VStack(spacing: 6) {
+                        ForEach(LiveStreamEngine.destinations) { dest in
+                            Button { stream.selectedDestination = dest } label: {
+                                HStack {
+                                    Text(dest.name)
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(.white.opacity(stream.selectedDestination == dest ? 0.85 : 0.35))
+                                    Spacer()
+                                    if stream.selectedDestination == dest {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.white.opacity(0.5))
+                                    }
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(stream.selectedDestination == dest ? 0.2 : 0.07), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // Camera toggle
+                    HStack {
+                        Text("Front Camera")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.35))
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { stream.cameraEnabled },
+                            set: { stream.cameraEnabled = $0 }
+                        ))
+                        .tint(.white.opacity(0.4))
+                        .labelsHidden()
+                    }
+                    .padding(.top, 4)
+
+                    separator
+
+                    streamGoLiveButton(stream: stream)
+                        .padding(.vertical, 8)
+
+                    Text("Records video + audio locally. Upload via ShareLink when done.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.18))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
                 }
-
-                separator
-
-                // Go live button
-                streamGoLiveButton(stream: stream)
-                    .padding(.vertical, 8)
 
                 Spacer(minLength: 24)
             }
@@ -452,24 +464,69 @@ struct MasterView: View {
         }
     }
 
+    private func streamDoneView(url: URL, stream: LiveStreamEngine) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 36, weight: .light))
+                .foregroundStyle(.green.opacity(0.6))
+
+            VStack(spacing: 4) {
+                Text("Recording ready")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+                Text(url.lastPathComponent)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .lineLimit(1)
+            }
+
+            ShareLink(item: url) {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Share / Upload to \(stream.selectedDestination.name)")
+                }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            Button { stream.resetAfterDone() } label: {
+                Text("Record Again")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.3))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
+    }
+
     private func streamStatusHeader(stream: LiveStreamEngine) -> some View {
         HStack(spacing: 10) {
             switch stream.state {
             case .idle:
                 Circle().fill(Color.white.opacity(0.1)).frame(width: 8, height: 8)
-                Text("Offline")
+                Text("Ready to record")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.25))
             case .connecting:
                 ProgressView().scaleEffect(0.7).tint(.white.opacity(0.4))
-                Text("Connecting…")
+                Text("Starting camera…")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
             case .live(let duration):
                 Circle().fill(Color.red).frame(width: 8, height: 8)
-                Text("LIVE  \(formatTimer(duration))")
+                Text("REC  \(formatTimer(duration))")
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.red.opacity(0.9))
+            case .done:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green.opacity(0.6))
+                Text("Saved")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.green.opacity(0.6))
             case .error(let msg):
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 13))
@@ -481,32 +538,6 @@ struct MasterView: View {
             }
             Spacer()
         }
-    }
-
-    @ViewBuilder
-    private func streamKeyField(stream: LiveStreamEngine) -> some View {
-        @Bindable var s = stream
-        SecureField("Paste stream key…", text: $s.streamKey)
-            .font(.system(size: 13, design: .monospaced))
-            .foregroundStyle(.white.opacity(0.7))
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
-    }
-
-    @ViewBuilder
-    private func rtmpURLField(stream: LiveStreamEngine) -> some View {
-        @Bindable var s = stream
-        TextField("rtmp://your-server/live", text: $s.rtmpURL)
-            .font(.system(size: 13, design: .monospaced))
-            .foregroundStyle(.white.opacity(0.7))
-            .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
     }
 
     private func streamGoLiveButton(stream: LiveStreamEngine) -> some View {
@@ -527,7 +558,7 @@ struct MasterView: View {
                         .fill(isLive ? Color.red : Color.white.opacity(0.7))
                         .frame(width: 7, height: 7)
                 }
-                Text(isLive ? "Stop Stream" : isConnecting ? "Connecting…" : "Go Live")
+                Text(isLive ? "Stop Recording" : isConnecting ? "Starting…" : "Start Recording")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.black)
             }
@@ -538,7 +569,7 @@ struct MasterView: View {
         }
         .buttonStyle(.plain)
         .disabled(isConnecting)
-        .accessibilityLabel(isLive ? "Stop live stream" : "Go live")
+        .accessibilityLabel(isLive ? "Stop recording" : "Start recording for stream")
     }
 
     // MARK: - Export
@@ -753,14 +784,16 @@ struct MasterView: View {
     }
 
     private var streamStatusRow: some View {
-        let isLive = audioEngine.liveStream.state.isLive
+        let s = audioEngine.liveStream.state
+        let isLive = s.isLive
+        let isDone = s.doneURL != nil
         return HStack(spacing: 8) {
             Circle()
-                .fill(isLive ? Color.red : Color.white.opacity(0.07))
+                .fill(isLive ? Color.red : isDone ? Color.green.opacity(0.6) : Color.white.opacity(0.07))
                 .frame(width: 6, height: 6)
-            Text(isLive ? "LIVE" : "Stream offline")
+            Text(isLive ? "REC" : isDone ? "Saved" : "Stream ready")
                 .font(.system(size: 11, weight: isLive ? .semibold : .regular))
-                .foregroundStyle(isLive ? .red.opacity(0.9) : .white.opacity(0.14))
+                .foregroundStyle(isLive ? .red.opacity(0.9) : isDone ? .green.opacity(0.6) : .white.opacity(0.14))
             Spacer()
         }
     }
