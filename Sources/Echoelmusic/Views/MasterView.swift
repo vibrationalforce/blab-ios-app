@@ -228,22 +228,124 @@ struct MasterView: View {
 
     private var mixContent: some View {
         @Bindable var eng = engine
-        return VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Voice Mix")
-                .padding(.top, 20)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeader("Voice Mix")
+                    .padding(.top, 20)
 
-            voiceSlider(label: "Root",   value: $eng.mixRoot)
-            voiceSlider(label: "Fifth",  value: $eng.mixFifth)
-            voiceSlider(label: "Octave", value: $eng.mixOctave)
-            voiceSlider(label: "High",   value: $eng.mixHigh)
+                voiceSlider(label: "Root",   value: $eng.mixRoot)
+                voiceSlider(label: "Fifth",  value: $eng.mixFifth)
+                voiceSlider(label: "Octave", value: $eng.mixOctave)
+                voiceSlider(label: "High",   value: $eng.mixHigh)
 
-            separator.padding(.vertical, 8)
+                separator.padding(.vertical, 8)
 
-            signalStatusRow
+                // AutoMixChain — master processing
+                autoMixPanel
 
-            Spacer()
+                separator.padding(.vertical, 8)
+
+                signalStatusRow
+
+                Spacer(minLength: 24)
+            }
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
+    }
+
+    private var autoMixPanel: some View {
+        let mix = audioEngine.autoMixChain
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                sectionHeader("Auto Master")
+                Spacer()
+                // LUFS reading
+                Text(mix.lufsReading > -59
+                     ? String(format: "%.1f LUFS", mix.lufsReading)
+                     : "– LUFS")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(lufsColor(mix.lufsReading))
+                // Enable toggle
+                Button {
+                    mix.isEnabled.toggle()
+                } label: {
+                    Text(mix.isEnabled ? "ON" : "OFF")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(mix.isEnabled ? .white.opacity(0.7) : .white.opacity(0.2))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.white.opacity(mix.isEnabled ? 0.25 : 0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Target LUFS row
+            HStack(spacing: 10) {
+                Text("Target")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .frame(width: 44, alignment: .leading)
+                HStack(spacing: 6) {
+                    ForEach([(-14, "Stream"), (-9, "Club"), (-23, "Broadcast")], id: \.0) { val, label in
+                        Button {
+                            mix.targetLUFS = Float(val)
+                        } label: {
+                            Text(label)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(mix.targetLUFS == Float(val) ? .white : .white.opacity(0.25))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color.white.opacity(mix.targetLUFS == Float(val) ? 0.2 : 0.06), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Preset row
+            HStack(spacing: 10) {
+                Text("Sound")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .frame(width: 44, alignment: .leading)
+                HStack(spacing: 6) {
+                    ForEach([
+                        (AutoMixChain.Preset.balanced,    "Balanced"),
+                        (AutoMixChain.Preset.warm,        "Warm"),
+                        (AutoMixChain.Preset.bright,      "Bright"),
+                        (AutoMixChain.Preset.transparent, "Flat"),
+                    ], id: \.1) { preset, label in
+                        Button { mix.preset = preset } label: {
+                            Text(label)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(mix.preset == preset ? .white : .white.opacity(0.25))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color.white.opacity(mix.preset == preset ? 0.2 : 0.06), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func lufsColor(_ lufs: Float) -> Color {
+        guard lufs > -59 else { return .white.opacity(0.15) }
+        let target = audioEngine.autoMixChain.targetLUFS
+        let diff = abs(lufs - target)
+        if diff < 1.5 { return .green }
+        if diff < 4.0 { return .yellow }
+        return .orange
     }
 
     // MARK: - Bio Badge (status bar — always visible, no dedicated tab)

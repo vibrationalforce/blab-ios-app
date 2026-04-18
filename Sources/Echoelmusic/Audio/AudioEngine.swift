@@ -25,6 +25,9 @@ public final class AudioEngine {
     /// Retroactive capture — always-recording ring buffer + on-demand disk writer.
     let retroCapture = RetroCapture()
 
+    /// Master mastering chain — EQ + compression + limiting + auto-LUFS.
+    let autoMixChain = AutoMixChain()
+
     @ObservationIgnored private let masterEngine = AVAudioEngine()
     @ObservationIgnored private let masterMixer = AVAudioMixerNode()
     @ObservationIgnored private let masterPlayerNode = AVAudioPlayerNode()
@@ -110,7 +113,13 @@ public final class AudioEngine {
         }
 
         masterEngine.connect(masterPlayerNode, to: masterMixer, format: processingFormat)
-        masterEngine.connect(masterMixer, to: masterEngine.mainMixerNode, format: processingFormat)
+        // Insert AutoMixChain: masterMixer → EQ → Compressor → Limiter → mainMixerNode
+        autoMixChain.insert(
+            into: masterEngine,
+            from: masterMixer,
+            to: masterEngine.mainMixerNode,
+            format: processingFormat
+        )
         masterMixer.outputVolume = masterVolume
         masterEngine.mainMixerNode.outputVolume = 1.0
 
@@ -158,6 +167,7 @@ public final class AudioEngine {
         if inputMonitoringEnabled { microphoneManager.startRecording() }
         startMeterPollTimer()
         retroCapture.install(on: masterEngine)
+        autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }
         isRunning = true
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }
