@@ -31,6 +31,9 @@ final class BioSourceManager {
     /// Whether camera pulse detection is active
     var isCameraActive: Bool = false
 
+    /// Timestamp of last confirmed real-time update from primary source
+    private var lastRealUpdateTime: TimeInterval = 0
+
     // MARK: - Lifecycle
 
     func startStreaming() {
@@ -94,10 +97,18 @@ final class BioSourceManager {
                 try await capture.start()
                 await MainActor.run { [weak self] in
                     self?.enableTorch(true)
-                    self?.isCameraActive = true
                     analyzer.startPulseDetection()
                 }
-                log.log(.info, category: .biofeedback, "Camera rPPG started — frames flowing")
+                log.log(.info, category: .biofeedback, "Camera rPPG started — waiting for frames")
+                // Wait 500ms for session to deliver first frames before claiming active
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await MainActor.run { [weak self] in
+                    self?.isCameraActive = true
+                }
+                log.log(.info, category: .biofeedback, "Camera rPPG active — frames flowing")
+                // Lock exposure after 2s for stable PPG baseline
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                capture.lockExposure()
             } catch {
                 log.log(.error, category: .biofeedback, "Camera start failed: \(error.localizedDescription)")
                 await MainActor.run { [weak self] in
@@ -176,16 +187,22 @@ final class BioSourceManager {
             }
         }
 
-        // Calculate confidence
+        // Calculate confidence with staleness decay
+        let now = ProcessInfo.processInfo.systemUptime
         switch merged.source {
         case .healthKit, .appleWatch, .chestStrap:
+            lastRealUpdateTime = now
             confidence = 1.0
         case .camera:
-            confidence = cameraAnalyzer?.bpmConfidence ?? 0.5
+            let camConf = cameraAnalyzer?.bpmConfidence ?? 0
+            if camConf > 0 { lastRealUpdateTime = now }
+            confidence = camConf
         case .ouraRing:
             confidence = 0.3 // Daily aggregate, not real-time
         case .fallback:
-            confidence = 0.0
+            // Decay confidence if real source was recently active but now gone
+            let staleSeconds = now - lastRealUpdateTime
+            confidence = lastRealUpdateTime > 0 ? max(0, 1.0 - staleSeconds / 10.0) : 0.0
         default:
             confidence = 0.5
         }

@@ -22,9 +22,17 @@ public final class AudioEngine {
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterR = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private var meterPollTimer: Timer?
 
-    /// Always-on retrospective capture buffer (last 30s of audio)
-    /// Stores recent audio for potential session export
-    @ObservationIgnored private var retrospectiveFrames: [[Float]] = []
+    /// Retroactive capture — always-recording ring buffer + on-demand disk writer.
+    let retroCapture = RetroCapture()
+
+    /// Master mastering chain — EQ + compression + limiting + auto-LUFS.
+    let autoMixChain = AutoMixChain()
+
+    /// RTMP live stream output — audio to YouTube/Twitch.
+    let liveStream = LiveStreamEngine()
+
+    /// LUFS-normalized mastering + export (WAV/AAC) for completed sessions.
+    let singleExport = SingleExport()
 
     @ObservationIgnored private let masterEngine = AVAudioEngine()
     @ObservationIgnored private let masterMixer = AVAudioMixerNode()
@@ -111,7 +119,13 @@ public final class AudioEngine {
         }
 
         masterEngine.connect(masterPlayerNode, to: masterMixer, format: processingFormat)
-        masterEngine.connect(masterMixer, to: masterEngine.mainMixerNode, format: processingFormat)
+        // Insert AutoMixChain: masterMixer → EQ → Compressor → Limiter → mainMixerNode
+        autoMixChain.insert(
+            into: masterEngine,
+            from: masterMixer,
+            to: masterEngine.mainMixerNode,
+            format: processingFormat
+        )
         masterMixer.outputVolume = masterVolume
         masterEngine.mainMixerNode.outputVolume = 1.0
 
@@ -158,6 +172,8 @@ public final class AudioEngine {
         }
         if inputMonitoringEnabled { microphoneManager.startRecording() }
         startMeterPollTimer()
+        retroCapture.install(on: masterEngine)
+        autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }
         isRunning = true
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }
@@ -231,50 +247,6 @@ public final class AudioEngine {
         }
         masterPlayerNode.scheduleBuffer(buffer, at: nil, options: loopCount, completionHandler: nil)
         if !masterPlayerNode.isPlaying { masterPlayerNode.play() }
-    }
-
-    // MARK: - Output Recording (Synth Capture)
-
-    var isRecordingOutput: Bool = false
-    @ObservationIgnored private var outputRecordingFile: AVAudioFile?
-
-    /// Start recording the master output to a file.
-    /// Captures synth output including bio-reactive modulation.
-    func startOutputRecording() throws -> URL {
-        guard !isRecordingOutput else {
-            throw NSError(domain: "AudioEngine", code: 1, userInfo: [NSLocalizedDescriptionKey: "Already recording output"])
-        }
-        let format = masterEngine.mainMixerNode.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else {
-            throw NSError(domain: "AudioEngine", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid output format"])
-        }
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let recordingsDir = documentsPath.appendingPathComponent("Recordings", isDirectory: true)
-        try FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
-        let fileName = "echoelmusic_\(Int(Date().timeIntervalSince1970)).caf"
-        let fileURL = recordingsDir.appendingPathComponent(fileName)
-        let file = try AVAudioFile(forWriting: fileURL, settings: format.settings)
-        outputRecordingFile = file
-        // Capture file directly — do NOT capture self on audio thread
-        // (guard let self on @MainActor triggers dispatch_assert_queue_fail)
-        nonisolated(unsafe) let capturedFile = file
-        masterEngine.mainMixerNode.installTap(onBus: 0, bufferSize: 4096, format: format) { @Sendable buffer, _ in
-            do { try capturedFile.write(from: buffer) }
-            catch { log.audio("Output recording write error: \(error)", level: .error) }
-        }
-        isRecordingOutput = true
-        log.audio("Started output recording to \(fileURL.lastPathComponent)")
-        return fileURL
-    }
-
-    /// Stop recording the master output.
-    func stopOutputRecording() {
-        guard isRecordingOutput else { return }
-        masterEngine.mainMixerNode.removeTap(onBus: 0)
-        outputRecordingFile = nil
-        isRecordingOutput = false
-        log.audio("Stopped output recording")
     }
 
     // MARK: - Source Node Registration

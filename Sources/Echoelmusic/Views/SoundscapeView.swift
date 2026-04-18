@@ -12,19 +12,13 @@ struct SoundscapeView: View {
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var showCameraPulse = false
-    @State private var selectedTab: ControlTab = .mix
-
-    enum ControlTab: String, CaseIterable {
-        case mix = "Mix"
-        case sound = "Sound"
-    }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar — minimal, only icons
+                // Top bar
                 HStack {
                     Button { showHistory = true } label: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -37,7 +31,7 @@ struct SoundscapeView: View {
 
                     Spacer()
 
-                    // Session timer (only when playing)
+                    // Session timer (always when active)
                     if engine.sessionTracker.isActive {
                         Text(formatTimer(engine.sessionTracker.currentDuration))
                             .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -47,7 +41,7 @@ struct SoundscapeView: View {
 
                     Spacer()
 
-                    // Camera pulse — direct access, 1 tap
+                    // Camera pulse — always accessible
                     Button { showCameraPulse = true } label: {
                         Image(systemName: engine.bioSourceManager.isCameraActive
                             ? "heart.fill" : "heart.text.clipboard")
@@ -72,40 +66,30 @@ struct SoundscapeView: View {
 
                 Spacer()
 
-                // Coherence ring — always visible, the heart of the app
+                // Coherence ring — always visible
                 coherenceRing
 
                 Spacer()
 
-                // Sound controls — only when playing (keep pre-play clean)
-                if engine.isPlaying {
-                    controlTabs
-                        .padding(.bottom, 12)
+                // Voice mixer — always visible (audio auto-starts)
+                voiceMixer
+                    .padding(.bottom, 12)
 
-                    // Bio metrics — only show when playing
-                    bioDisplay
-                }
+                // Bio metrics — always visible
+                bioDisplay
 
-                // Signal status — always visible (tells user what's happening)
+                // Bio source status — shows detected source and flow zone
                 signalStatusLED
-                    .padding(.top, engine.isPlaying ? 16 : 0)
+                    .padding(.top, 16)
 
-                // Play/Pause
-                playButton
+                // Pause/Resume — only visible when manually paused
+                pauseResumeButton
                     .padding(.top, 24)
                     .padding(.bottom, 16)
 
-                // Source indicator — compact
-                if engine.isPlaying {
-                    sourceLabel
-                        .padding(.bottom, 40)
-                } else {
-                    // Pre-play: just show the output device
-                    Text(engine.audioOutputName)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.1))
-                        .padding(.bottom, 40)
-                }
+                // Source + output device
+                sourceLabel
+                    .padding(.bottom, 40)
             }
             .padding(.horizontal, 24)
         }
@@ -189,9 +173,17 @@ struct SoundscapeView: View {
     private var signalStatusLED: some View {
         let source = engine.bioSourceManager.primarySource
         let conf = engine.bioSourceManager.confidence
+        let coherence = engine.state.coherence
+        let isPlaying = engine.isPlaying
 
+        // Flow zone: coherence-based when playing with bio signal, confidence-based otherwise
         let color: Color = {
             if source == .fallback { return .white.opacity(0.15) }
+            if isPlaying {
+                if coherence > 0.6 { return .green }
+                if coherence > 0.3 { return .yellow }
+                return .orange
+            }
             if conf > 0.7 { return .green }
             if conf > 0.4 { return .yellow }
             return .red
@@ -199,14 +191,16 @@ struct SoundscapeView: View {
 
         let label: String = {
             if source == .fallback { return "Environment Mode" }
-            if conf > 0.7 { return "Bio Signal Stable" }
-            if conf > 0.4 { return "Bio Signal Weak" }
-            return "Searching..."
+            if isPlaying {
+                if coherence > 0.6 { return "Flow" }
+                if coherence > 0.3 { return "Settling" }
+                return "Searching"
+            }
+            return "Ready"
         }()
 
         return VStack(spacing: 8) {
             HStack(spacing: 8) {
-                // LED dot
                 Circle()
                     .fill(color)
                     .frame(width: 8, height: 8)
@@ -214,24 +208,23 @@ struct SoundscapeView: View {
 
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(color.opacity(0.7))
+                    .foregroundStyle(color.opacity(0.8))
 
                 if source != .fallback {
-                    Text("via \(source.displayName)")
+                    Text("·  \(source.displayName)")
                         .font(.system(size: 10))
                         .foregroundStyle(.white.opacity(0.2))
                 }
             }
 
-            // When in fallback mode, show what IS driving the sound
             if source == .fallback {
                 #if canImport(CoreMotion)
                 let activity = engine.state.activityState
-                Text("Time + Weather + Motion (\(activity))")
+                Text("Time · Weather · Motion (\(activity))")
                     .font(.system(size: 10))
                     .foregroundStyle(.white.opacity(0.15))
                 #else
-                Text("Time + Weather")
+                Text("Time · Weather")
                     .font(.system(size: 10))
                     .foregroundStyle(.white.opacity(0.15))
                 #endif
@@ -239,100 +232,20 @@ struct SoundscapeView: View {
         }
     }
 
-    // MARK: - Control Tabs (Mix + Sound Design)
+    // MARK: - Voice Mixer (4 sliders — simpler than Mix+Sound tabs)
 
-    private var controlTabs: some View {
-        VStack(spacing: 10) {
-            // Tab picker
-            HStack(spacing: 0) {
-                ForEach(ControlTab.allCases, id: \.self) { tab in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.15)) { selectedTab = tab }
-                    } label: {
-                        Text(tab.rawValue)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(selectedTab == tab ? 0.5 : 0.15))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.03)))
-            .padding(.horizontal, 16)
-
-            // Content
-            switch selectedTab {
-            case .mix:
-                harmonySliders
-            case .sound:
-                soundDesignPanel
-            }
-        }
-    }
-
-    private var harmonySliders: some View {
+    private var voiceMixer: some View {
         @Bindable var eng = engine
         return VStack(spacing: 8) {
-            harmonySlider(label: "Root", value: $eng.mixRoot)
-            harmonySlider(label: "Third", value: $eng.mixFifth)
-            harmonySlider(label: "Fifth", value: $eng.mixOctave)
-            harmonySlider(label: "Octave", value: $eng.mixHigh)
+            voiceSlider(label: "Root", value: $eng.mixRoot)
+            voiceSlider(label: "Third", value: $eng.mixFifth)
+            voiceSlider(label: "Fifth", value: $eng.mixOctave)
+            voiceSlider(label: "Octave", value: $eng.mixHigh)
         }
         .padding(.horizontal, 16)
     }
 
-    private var soundDesignPanel: some View {
-        VStack(spacing: 8) {
-            compactSlider("Filter", value: filterCutoffBinding, range: 200...12000, log: true)
-            compactSlider("Warmth", value: harmonicityBinding, range: 0.3...1.0)
-            compactSlider("Space", value: reverbMixBinding, range: 0...0.8)
-            compactSlider("Texture", value: noiseLevelBinding, range: 0...0.2)
-            compactSlider("Attack", value: attackBinding, range: 0.1...3.0)
-        }
-        .padding(.horizontal, 16)
-    }
-
-    // MARK: - Sound Design Bindings (write to all 4 voices)
-
-    private var filterCutoffBinding: Binding<Float> {
-        Binding(
-            get: { engine.voiceRoot.filterCutoff },
-            set: { v in for voice in engine.allVoices { voice.filterCutoff = v } }
-        )
-    }
-
-    private var harmonicityBinding: Binding<Float> {
-        Binding(
-            get: { engine.voiceRoot.harmonicity },
-            set: { v in for voice in engine.allVoices { voice.harmonicity = v } }
-        )
-    }
-
-    private var reverbMixBinding: Binding<Float> {
-        Binding(
-            get: { engine.voiceRoot.reverbMix },
-            set: { v in for voice in engine.allVoices { voice.reverbMix = v } }
-        )
-    }
-
-    private var noiseLevelBinding: Binding<Float> {
-        Binding(
-            get: { engine.voiceRoot.noiseLevel },
-            set: { v in for voice in engine.allVoices { voice.noiseLevel = v } }
-        )
-    }
-
-    private var attackBinding: Binding<Float> {
-        Binding(
-            get: { engine.voiceRoot.attack },
-            set: { v in for voice in engine.allVoices { voice.attack = v } }
-        )
-    }
-
-    // MARK: - Slider Components
-
-    private func harmonySlider(label: String, value: Binding<Float>) -> some View {
+    private func voiceSlider(label: String, value: Binding<Float>) -> some View {
         HStack(spacing: 10) {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
@@ -346,36 +259,6 @@ struct SoundscapeView: View {
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.2))
                 .frame(width: 30, alignment: .trailing)
-        }
-    }
-
-    @ViewBuilder
-    private func compactSlider(_ label: String, value: Binding<Float>, range: ClosedRange<Float>, log: Bool = false) -> some View {
-        HStack(spacing: 10) {
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.25))
-                .frame(width: 50, alignment: .leading)
-
-            if log {
-                // Logarithmic slider for frequency
-                let logMin = log2(max(1, range.lowerBound))
-                let logMax = log2(range.upperBound)
-                let logBinding = Binding<Float>(
-                    get: { log2(max(1, value.wrappedValue)) },
-                    set: { value.wrappedValue = powf(2, $0) }
-                )
-                Slider(value: logBinding, in: logMin...logMax)
-                    .tint(.white.opacity(0.2))
-            } else {
-                Slider(value: value, in: range)
-                    .tint(.white.opacity(0.2))
-            }
-
-            Text(log ? String(format: "%.0f", value.wrappedValue) : String(format: "%.2f", value.wrappedValue))
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.2))
-                .frame(width: 36, alignment: .trailing)
         }
     }
 
@@ -432,43 +315,41 @@ struct SoundscapeView: View {
         }
     }
 
-    // MARK: - Play Button
+    // MARK: - Pause/Resume Button (audio auto-starts — this is pause control only)
 
-    private var playButton: some View {
+    private var pauseResumeButton: some View {
         Button {
             engine.togglePlayback()
-            // Auto-save session when stopping
+            // Save session when stopping
             if !engine.isPlaying, let session = engine.lastCompletedSession {
                 modelContext.insert(session)
-                log.log(.info, category: .system, "Session saved: \(session.durationSeconds)s, avg coherence \(String(format: "%.0f%%", session.avgCoherence * 100))")
+                log.log(.info, category: .system, "Session saved: \(session.durationSeconds)s")
             }
         } label: {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(engine.isPlaying ? 0.08 : 0.05))
-                    .frame(width: 72, height: 72)
+                    .stroke(.white.opacity(0.08), lineWidth: 1)
+                    .frame(width: 56, height: 56)
 
                 if engine.isPlaying {
-                    // Pause icon
-                    HStack(spacing: 8) {
+                    HStack(spacing: 7) {
                         RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.5))
-                            .frame(width: 3, height: 20)
+                            .fill(Color.white.opacity(0.35))
+                            .frame(width: 3, height: 16)
                         RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.5))
-                            .frame(width: 3, height: 20)
+                            .fill(Color.white.opacity(0.35))
+                            .frame(width: 3, height: 16)
                     }
                 } else {
-                    // Play icon (triangle)
                     Image(systemName: "play.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white.opacity(0.4))
                         .offset(x: 2)
                 }
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(engine.isPlaying ? "Pause soundscape" : "Play soundscape")
+        .accessibilityLabel(engine.isPlaying ? "Pause" : "Resume")
     }
 
     // MARK: - Source Label
@@ -477,15 +358,10 @@ struct SoundscapeView: View {
         let source = engine.state.source
         let weather = engine.state.weatherCondition
 
-        return VStack(spacing: 4) {
-            Text("\(source.displayName) · \(weather.rawValue.capitalized)")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.15))
-                .kerning(1)
-
-            Text(engine.audioOutputName)
+        return VStack(spacing: 3) {
+            Text("\(source.displayName)  ·  \(weather.rawValue.capitalized)  ·  \(engine.audioOutputName)")
                 .font(.system(size: 10, weight: .regular))
-                .foregroundStyle(.white.opacity(0.1))
+                .foregroundStyle(.white.opacity(0.12))
         }
     }
 }

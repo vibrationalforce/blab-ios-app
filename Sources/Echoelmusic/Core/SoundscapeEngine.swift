@@ -43,16 +43,16 @@ final class SoundscapeEngine {
     nonisolated(unsafe) let voiceHigh = EchoelDDSP(sampleRate: 48000)
 
     // User-controllable mix levels (exposed to UI via sliders)
-    // Start quiet: mostly root, others barely there — user opens them up
-    var mixRoot: Float = 0.25 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
-    var mixFifth: Float = 0.06 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
-    var mixOctave: Float = 0.04 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
-    var mixHigh: Float = 0.02 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    // Balanced chord: root anchors, third/fifth/octave fill the space
+    var mixRoot: Float = 0.40 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    var mixFifth: Float = 0.20 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    var mixOctave: Float = 0.15 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
+    var mixHigh: Float = 0.10 { didSet { _mixLevels.pointee = (mixRoot, mixFifth, mixOctave, mixHigh) } }
 
     /// Lock-free mix levels for audio thread
     nonisolated(unsafe) private let _mixLevels: UnsafeMutablePointer<(Float, Float, Float, Float)> = {
         let p = UnsafeMutablePointer<(Float, Float, Float, Float)>.allocate(capacity: 1)
-        p.initialize(to: (0.25, 0.06, 0.04, 0.02))
+        p.initialize(to: (0.40, 0.20, 0.15, 0.10))
         return p
     }()
 
@@ -83,11 +83,11 @@ final class SoundscapeEngine {
             voice.decay = 0.5
             voice.sustain = 0.9            // Full sustain
             voice.release = 3.0            // Long fade out
-            voice.reverbMix = 0.2          // Subtle space
+            voice.reverbMix = 0.35         // Spacious — meditative default
             voice.reverbDecay = 3.0        // Long tail
             voice.vibratoDepth = 0.005     // Barely perceptible drift
-            voice.filterCutoff = 1200      // Low — warm and muffled
-            voice.lfoToFilterDepth = 0.05  // Tiny filter movement
+            voice.filterCutoff = 220       // High-cut at 220 Hz — warm drone start
+            voice.lfoToFilterDepth = 0.03  // Minimal filter movement at start
             voice.filter.resonance = 0.1   // No peaks
             voice.filterLFO.rate = 0.08    // Very slow LFO
             voice.filterLFO.depth = 0.1    // Subtle
@@ -107,6 +107,10 @@ final class SoundscapeEngine {
     /// Pre-allocated scratch buffers for audio render block — NO heap allocation
     nonisolated(unsafe) private var _padScratch = [Float](repeating: 0, count: 4096)
     nonisolated(unsafe) private var _texScratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v1Scratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v2Scratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v3Scratch = [Float](repeating: 0, count: 4096)
+    nonisolated(unsafe) private var _v4Scratch = [Float](repeating: 0, count: 4096)
 
     /// NotificationCenter observer token for cleanup
     nonisolated(unsafe) private var routeChangeObserver: NSObjectProtocol?
@@ -131,6 +135,10 @@ final class SoundscapeEngine {
         let texture = textureSynth
         let padRef = _padScratch
         let texRef = _texScratch
+        let v1Ref = _v1Scratch
+        let v2Ref = _v2Scratch
+        let v3Ref = _v3Scratch
+        let v4Ref = _v4Scratch
         let mixPtr = _mixLevels
 
         // Capture pointer to atomic flag — safe for audio thread read
@@ -156,11 +164,12 @@ final class SoundscapeEngine {
             var tex = texRef
             for i in 0..<count { pad[i] = 0; tex[i] = 0 }
 
-            // Render each voice and mix with levels
-            var v1 = [Float](repeating: 0, count: count)
-            var v2 = [Float](repeating: 0, count: count)
-            var v3 = [Float](repeating: 0, count: count)
-            var v4 = [Float](repeating: 0, count: count)
+            // Render each voice and mix with levels — pre-allocated, no heap allocation
+            var v1 = v1Ref
+            var v2 = v2Ref
+            var v3 = v3Ref
+            var v4 = v4Ref
+            for i in 0..<count { v1[i] = 0; v2[i] = 0; v3[i] = 0; v4[i] = 0 }
             root.render(buffer: &v1, frameCount: count)
             fifth.render(buffer: &v2, frameCount: count)
             octave.render(buffer: &v3, frameCount: count)
@@ -214,12 +223,28 @@ final class SoundscapeEngine {
         if isPlaying {
             let baseFreq = circadianClock.suggestedBaseFrequency
             // Minor chord: root, minor 3rd (6:5), fifth (3:2), octave (2:1)
-            // Dark, moody, Timbaland-style
+            // Staggered onsets — voices enter one at a time for gentle acoustic bloom
             voiceRoot.noteOn(frequency: baseFreq)
-            voiceFifth.noteOn(frequency: baseFreq * 1.2)     // Minor third (6:5)
-            voiceOctave.noteOn(frequency: baseFreq * 1.5)    // Perfect fifth (3:2)
-            voiceHigh.noteOn(frequency: baseFreq * 2.0)      // Octave
             _isGeneratingPtr?.pointee = true
+            let bf = baseFreq
+            let vFifth = voiceFifth
+            let vOctave = voiceOctave
+            let vHigh = voiceHigh
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                guard self?.isPlaying == true else { return }
+                vFifth.noteOn(frequency: bf * 1.2)     // Minor third +500ms
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard self?.isPlaying == true else { return }
+                vOctave.noteOn(frequency: bf * 1.5)    // Fifth +1.0s
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard self?.isPlaying == true else { return }
+                vHigh.noteOn(frequency: bf * 2.0)      // Octave +1.5s
+            }
             sessionTracker.start(
                 source: bioSourceManager.primarySource,
                 phase: circadianClock.currentPhase,

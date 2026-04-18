@@ -60,10 +60,17 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             throw CameraCaptureError.noCamera
         }
 
-        // Configure device
+        // Configure device: continuous auto-exposure initially, locked after stabilization
         try device.lockForConfiguration()
         if device.isExposureModeSupported(.continuousAutoExposure) {
             device.exposureMode = .continuousAutoExposure
+        }
+        // Prefer lower frame rate for consistent timing (15–30 fps range)
+        if let range = device.activeFormat.videoSupportedFrameRateRanges.first {
+            let targetFPS = min(30.0, range.maxFrameRate)
+            let duration = CMTimeMake(value: 1, timescale: Int32(targetFPS))
+            device.activeVideoMinFrameDuration = duration
+            device.activeVideoMaxFrameDuration = duration
         }
         device.unlockForConfiguration()
 
@@ -86,6 +93,20 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             throw CameraCaptureError.configurationFailed
         }
         session.addOutput(output)
+    }
+
+    // MARK: - Exposure Lock (call after ~2s for stable PPG baseline)
+
+    /// Lock camera exposure to prevent auto-gain from corrupting PPG signal
+    func lockExposure() {
+        sessionQueue.async { [weak self] in
+            guard let self,
+                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
+                  device.isExposureModeSupported(.locked) else { return }
+            try? device.lockForConfiguration()
+            device.exposureMode = .locked
+            device.unlockForConfiguration()
+        }
     }
 
     // MARK: - Stop

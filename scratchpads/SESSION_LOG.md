@@ -6,6 +6,135 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-04-18 — Live Studio Pivot (v9.0 Architecture)
+
+### Branch: `claude/deep-audit-context-review-5cWfI`
+
+### Commits (this session)
+- `docs: add FEATURE_MATRIX.md — full static audit 2026-04-18`
+- `fix: log HealthKit auth errors in OnboardingView`
+- `docs: add pivot plan — Echoel Live Music Studio`
+- `feat: MasterView — one-screen Live Music Studio shell`
+- `refactor: bio aus Mode Strip — jetzt Badge in Status Bar`
+- `feat: RetroCapture — always-on ring buffer + REC button live`
+- `feat: AutoMixChain — instant pro sound on master bus`
+- `feat: add ClipEngine + SessionGridView (Ableton-style scene launcher)`
+- `feat: add LiveStreamEngine — RTMP output to YouTube/Twitch`
+- `feat: add SingleExport — LUFS-normalized mastering + WAV/AAC export`
+
+### Strategic Pivot: Bio-Soundscape → Live Music Studio
+
+User decision: Reposition Echoelmusic from bio-reactive soundscape generator to
+a **DAW + Multidimensional Media Production Suite** — best of Ableton/FL Studio/Logic
+combined with live streaming and content tools. One screen, no window switching,
+iPhone-optimized portrait, landscape for Mac/iPad.
+
+**USP:** Record a 2:30 improv → sounds professional → publish as single. All in one app.
+
+### 6-Module Live Studio Architecture (all shipped this session)
+
+| Module | File | What it does |
+|--------|------|--------------|
+| MasterView | Views/MasterView.swift | One-screen shell, 4 tabs (Perform/Mix/Stream/Export), portrait+landscape |
+| RetroCapture | Audio/RetroCapture.swift | 30s always-recording ring buffer, tap → .caf file |
+| AutoMixChain | Audio/AutoMixChain.swift | EQ+Compressor+Limiter, auto-LUFS, 4 presets |
+| ClipEngine + SessionGridView | Core/ClipEngine.swift + Views/SessionGridView.swift | Ableton scene launcher, 6 defaults, 2s smoothstep morph |
+| LiveStreamEngine | Audio/LiveStreamEngine.swift | RTMP → YouTube/Twitch, destination picker, key input, live timer |
+| SingleExport | Audio/SingleExport.swift | BS.1770 LUFS measurement, gain normalize, WAV/AAC export, ShareLink |
+
+### Key Architecture Changes vs v8.2
+- `SoundscapeView` replaced by `MasterView` as root view
+- `EchoelmusicApp` now owns: `AudioEngine`, `MicrophoneManager`, `SoundscapeEngine`, `EchoelStore`, `ClipEngine`
+- `AudioEngine` now owns: `RetroCapture`, `AutoMixChain`, `LiveStreamEngine`, `SingleExport`
+- Bio demoted from tab → compact badge in status bar (HR + coherence dot)
+- `StudioMode` enum: `perform | mix | stream | export`
+- AutoMixChain inserts between `masterMixer` → `mainMixerNode` (before engine start)
+- RetroCapture is sole owner of `mainMixerNode` tap (replaced old `startOutputRecording()`)
+
+### App State: v9.0 (branch, not yet on main)
+- All 6 Live Studio modules functional
+- RTMP streaming: Phase 1 (AVAssetWriter AAC audio, video Phase 2)
+- Pre-roll export: Phase 2 (ring buffer exists, snapshotPreRoll() hook in place)
+- Ready for TestFlight build from this branch
+
+---
+
+## 2026-04-17 — Deep Audit + Context Review + TestFlight Prep
+
+### Branch: `claude/deep-audit-context-review-5cWfI`
+
+### Commits (this session)
+- `fix: eliminate heap allocation in AVAudioSourceNode render block`
+- `docs: update CLAUDE.md file count (34 → 39 Swift + 2 Metal)`
+- `docs: review overdue decisions — extend dates, mark superseded`
+- `docs: session log — deep audit 2026-04-17`
+
+### Critical Fix Applied
+**Audio thread heap allocation in SoundscapeEngine.swift (lines 160-163)**
+
+The `AVAudioSourceNode` render block was allocating 4 fresh `[Float]` arrays on every callback (every ~2.67ms at 48kHz/128 frames). Forbidden per audio thread rules. Fixed by:
+- Added 4 pre-allocated scratch buffers (`_v1Scratch` through `_v4Scratch`, 4096 floats each) alongside existing `_padScratch`/`_texScratch`
+- Captured them in `connect()` as `v1Ref`...`v4Ref`
+- Render block now uses `var v1 = v1Ref` (pre-allocated) instead of `[Float](repeating: 0, count: count)` (heap allocation)
+
+### Full Codebase Audit Results
+
+**Code Quality: A+ CONFIRMED**
+- 0 force unwraps in production (AUv3 IUOs are standard AudioUnit boilerplate)
+- 0 `print()` in Sources
+- 0 `try!` in Sources
+- 0 `UIScreen.main`
+- 0 TODO/FIXME/HACK
+- 0 `ObservableObject` — correctly using `@Observable` throughout
+- 1 `as! UInt32` in MIDIInput.swift:94 (Mirror reflection — acceptable)
+
+**Architecture Verified**
+- `@preconcurrency @MainActor @Observable` pattern confirmed correct on all public classes (OuraRingClient, MemoryPressureHandler, CrashSafeStatePersistence, EchoelBioEngine)
+- EchoelBioEngine dual class definitions are conditional compilation (`#if canImport(HealthKit)`) — correct
+- BioSourceManager, WeatherProvider, EchoelStore all have proper @MainActor + nonisolated delegate callbacks
+- All Combine subscriptions stored in cancellables
+
+**File Count Updated**
+- CLAUDE.md corrected: 39 Swift + 2 Metal shaders (ChromaKey.metal, VisualRendererKernels.metal), ~14,000 lines
+- New Video/ directory added to CLAUDE.md repo structure (CameraAnalyzer, CameraCapture)
+- New views added: SoundDesignView, CameraMeasurementView (not in old CLAUDE.md)
+
+**TestFlight CI: PRODUCTION READY**
+- Xcode 26.2 + iOS 26 SDK verified in testflight.yml
+- ITMS-90725 compliance check present (compile_check job)
+- Last build: v8.2.0 (e8ce207, today)
+- iOS deployment target correctly stays at 17.0 (ITMS-90725 = build WITH iOS 26 SDK, NOT raise min target)
+- TestFlight trigger: GitHub Actions → "TestFlight Build & Deploy" → platform: ios
+
+**Decisions Reviewed (8 decisions processed)**
+- 5 decisions from 2026-03-16 reviewed, review dates extended to 2026-05-17
+- "Wire All 12 EchoelTools" marked SUPERSEDED (architecture changed to focused soundscape in v8.0)
+- 2 decisions from 2026-03-18 reviewed, extended to 2026-05-17
+- Persistent Memory System (2026-03-11) reviewed, extended to 2026-05-17
+
+### Current App Version: v8.2.0
+- Auto-start audio on every launch (no play button)
+- 220 Hz high-cut filter default (warm drone)
+- Bio detection improved (camera rPPG race condition fixed)
+- UI simplified (voice mixer + bio metrics always visible)
+
+### Key Architecture (current)
+```
+EchoelmusicApp (@main)
+├── AudioEngine (AVAudioEngine)
+├── SoundscapeEngine (central hub)
+│   ├── BioSourceManager → Watch/Camera/Oura fusion
+│   ├── WeatherProvider (WeatherKit + fallback)
+│   ├── CircadianClock (4 phases)
+│   ├── 4× EchoelDDSP voices (root/fifth/octave/shimmer)
+│   ├── EchoelCellular (texture)
+│   └── AVAudioSourceNode → AudioEngine → Speaker
+├── EchoelStore (StoreKit 2)
+└── Views: SoundscapeView, SettingsView, OnboardingView, SessionHistoryView, SoundDesignView, CameraMeasurementView
+```
+
+---
+
 ## 2026-03-20 — GStack + Matt Pocock + Toolkit Hardening
 
 ### Branch: `claude/implement-gstack-toolkit-jYr6Q`

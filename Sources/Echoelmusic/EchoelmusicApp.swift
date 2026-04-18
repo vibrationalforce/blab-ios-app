@@ -2,8 +2,8 @@
 import SwiftUI
 import SwiftData
 
-/// Echoelmusic — Bio-Reactive Soundscape Generator
-/// Your body, weather, and time of day create evolving ambient soundscapes.
+/// Echoel — Live Music Studio
+/// Record. Stream. Release.
 @main
 struct EchoelmusicApp: App {
 
@@ -11,6 +11,7 @@ struct EchoelmusicApp: App {
     @State private var microphoneManager: MicrophoneManager
     @State private var soundscapeEngine: SoundscapeEngine
     @State private var store: EchoelStore
+    @State private var clipEngine: ClipEngine
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -23,6 +24,7 @@ struct EchoelmusicApp: App {
         _audioEngine = State(wrappedValue: audio)
         _soundscapeEngine = State(wrappedValue: SoundscapeEngine())
         _store = State(wrappedValue: EchoelStore())
+        _clipEngine = State(wrappedValue: ClipEngine())
 
         _ = MemoryPressureHandler.shared
     }
@@ -39,7 +41,7 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        SoundscapeView()
+        MasterView(clipEngine: clipEngine)
         .environment(audioEngine)
         .environment(EchoelBioEngine.shared)
         .environment(soundscapeEngine)
@@ -54,18 +56,21 @@ struct EchoelmusicApp: App {
 
             log.log(.info, category: .system, "STARTUP [3/4] Connecting soundscape engine...")
             soundscapeEngine.connect(audio: audioEngine, bio: EchoelBioEngine.shared)
+            clipEngine.connect(to: soundscapeEngine)
 
             log.log(.info, category: .system, "STARTUP [4/4] Loading store products...")
             await store.loadProducts()
             await store.updateSubscriptionStatus()
 
-            log.log(.info, category: .system, "STARTUP COMPLETE — Soundscape ready")
+            log.log(.info, category: .system, "STARTUP COMPLETE — Echoel Live Studio ready")
 
-            // Auto-play if user just finished onboarding
-            if shouldAutoPlay {
-                shouldAutoPlay = false
+            // Auto-start on every launch — no play button required
+            // 1.5s delay lets audio engine and bio sources stabilize before first sound
+            shouldAutoPlay = false
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if !soundscapeEngine.isPlaying {
                 soundscapeEngine.togglePlayback()
-                log.log(.info, category: .system, "Auto-play triggered from onboarding")
+                log.log(.info, category: .system, "Auto-play started")
             }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
