@@ -397,6 +397,20 @@ struct MasterView: View {
                 streamStatusHeader(stream: stream)
                     .padding(.top, 20)
 
+                // Live camera preview
+                if stream.state.isLive && stream.cameraEnabled {
+                    #if canImport(UIKit)
+                    CameraPreviewView(session: stream.captureSession)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.red.opacity(0.35), lineWidth: 1)
+                        )
+                    #endif
+                }
+
                 separator
 
                 // Done state — show ShareLink to upload

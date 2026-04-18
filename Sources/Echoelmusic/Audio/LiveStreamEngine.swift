@@ -54,7 +54,7 @@ final class LiveStreamEngine: NSObject {
 
     // MARK: - Capture
 
-    @ObservationIgnored private let captureSession  = AVCaptureSession()
+    let captureSession = AVCaptureSession()   // exposed for CameraPreviewView
     @ObservationIgnored private let captureQueue    = DispatchQueue(label: "com.echoelmusic.stream.capture",
                                                                     qos: .userInitiated)
     // MARK: - Writer
