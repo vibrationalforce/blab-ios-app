@@ -10,13 +10,11 @@ import os.log
 struct MasterView: View {
 
     @Environment(SoundscapeEngine.self) private var engine
+    @Environment(AudioEngine.self) private var audioEngine
     @Environment(EchoelBioEngine.self) private var bio
     @Environment(\.modelContext) private var modelContext
 
     @State private var activeMode: StudioMode = .perform
-    @State private var isRecording = false
-    @State private var recordingSeconds = 0
-    @State private var recordingTimer: Timer?
 
     @State private var showSettings = false
     @State private var showHistory = false
@@ -112,25 +110,32 @@ struct MasterView: View {
 
     private var statusBar: some View {
         HStack(spacing: 10) {
-            // REC button
-            Button { toggleRecording() } label: {
+            // REC button — wired to RetroCapture
+            Button {
+                if audioEngine.retroCapture.isRecording {
+                    audioEngine.retroCapture.stopRecording()
+                } else {
+                    audioEngine.retroCapture.startRecording()
+                }
+            } label: {
+                let rec = audioEngine.retroCapture.isRecording
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(isRecording ? Color.red : Color.white.opacity(0.15))
+                        .fill(rec ? Color.red : Color.white.opacity(0.15))
                         .frame(width: 7, height: 7)
-                    Text(isRecording ? formatTimer(recordingSeconds) : "REC")
-                        .font(.system(size: 11, weight: .semibold, design: isRecording ? .monospaced : .default))
-                        .foregroundStyle(isRecording ? .red : .white.opacity(0.35))
+                    Text(rec ? formatTimer(audioEngine.retroCapture.recordingSeconds) : "REC")
+                        .font(.system(size: 11, weight: .semibold, design: rec ? .monospaced : .default))
+                        .foregroundStyle(rec ? .red : .white.opacity(0.35))
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(isRecording ? Color.red.opacity(0.35) : Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke((audioEngine.retroCapture.isRecording ? Color.red.opacity(0.35) : Color.white.opacity(0.08)), lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isRecording ? "Stop recording" : "Start recording")
+            .accessibilityLabel(audioEngine.retroCapture.isRecording ? "Stop recording" : "Start recording")
 
             if engine.sessionTracker.isActive {
                 Text(formatTimer(engine.sessionTracker.currentDuration))
@@ -561,22 +566,6 @@ struct MasterView: View {
         return String(format: "%d:%02d", m, s)
     }
 
-    // MARK: - Recording (placeholder for RetroCapture)
-
-    private func toggleRecording() {
-        isRecording.toggle()
-        if isRecording {
-            recordingSeconds = 0
-            recordingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                Task { @MainActor in self.recordingSeconds += 1 }
-            }
-            log.log(.info, category: .audio, "Recording started")
-        } else {
-            recordingTimer?.invalidate()
-            recordingTimer = nil
-            log.log(.info, category: .audio, "Recording stopped — \(recordingSeconds)s")
-        }
-    }
 }
 
 // MARK: - StudioMode
