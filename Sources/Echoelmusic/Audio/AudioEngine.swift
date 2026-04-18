@@ -28,6 +28,9 @@ public final class AudioEngine {
     /// Master mastering chain — EQ + compression + limiting + auto-LUFS.
     let autoMixChain = AutoMixChain()
 
+    /// RTMP live stream output — audio to YouTube/Twitch.
+    let liveStream = LiveStreamEngine()
+
     @ObservationIgnored private let masterEngine = AVAudioEngine()
     @ObservationIgnored private let masterMixer = AVAudioMixerNode()
     @ObservationIgnored private let masterPlayerNode = AVAudioPlayerNode()
@@ -168,6 +171,7 @@ public final class AudioEngine {
         startMeterPollTimer()
         retroCapture.install(on: masterEngine)
         autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }
+        liveStream.connect(audio: self)
         isRunning = true
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }

@@ -386,22 +386,157 @@ struct MasterView: View {
         .accessibilityLabel(hasBio ? "Heart rate \(Int(hr)) BPM — tap for camera pulse" : "No bio signal — tap to measure")
     }
 
-    // MARK: - Stream (Phase 2 placeholder)
+    // MARK: - Stream
 
     private var streamContent: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(systemName: "dot.radiowaves.left.and.right")
-                .font(.system(size: 36, weight: .light))
-                .foregroundStyle(.white.opacity(0.1))
-            Text("Live Stream")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.2))
-            Text("Next build")
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.1))
+        let stream = audioEngine.liveStream
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Live status header
+                streamStatusHeader(stream: stream)
+                    .padding(.top, 20)
+
+                separator
+
+                // Destination picker
+                sectionHeader("Destination")
+                    .padding(.top, 4)
+                VStack(spacing: 6) {
+                    ForEach(LiveStreamEngine.destinations) { dest in
+                        Button { stream.selectedDestination = dest } label: {
+                            HStack {
+                                Text(dest.name)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.white.opacity(stream.selectedDestination == dest ? 0.85 : 0.35))
+                                Spacer()
+                                if stream.selectedDestination == dest {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.white.opacity(0.5))
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.white.opacity(stream.selectedDestination == dest ? 0.2 : 0.07), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Stream key input
+                sectionHeader("Stream Key")
+                    .padding(.top, 4)
+                streamKeyField(stream: stream)
+
+                // Custom RTMP URL (only for custom destination)
+                if stream.selectedDestination.rtmpBase.isEmpty {
+                    sectionHeader("RTMP URL")
+                        .padding(.top, 4)
+                    rtmpURLField(stream: stream)
+                }
+
+                separator
+
+                // Go live button
+                streamGoLiveButton(stream: stream)
+                    .padding(.vertical, 8)
+
+                Spacer(minLength: 24)
+            }
+            .padding(.horizontal, 24)
+        }
+    }
+
+    private func streamStatusHeader(stream: LiveStreamEngine) -> some View {
+        HStack(spacing: 10) {
+            switch stream.state {
+            case .idle:
+                Circle().fill(Color.white.opacity(0.1)).frame(width: 8, height: 8)
+                Text("Offline")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.25))
+            case .connecting:
+                ProgressView().scaleEffect(0.7).tint(.white.opacity(0.4))
+                Text("Connecting…")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            case .live(let duration):
+                Circle().fill(Color.red).frame(width: 8, height: 8)
+                Text("LIVE  \(formatTimer(duration))")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.red.opacity(0.9))
+            case .error(let msg):
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.orange)
+                Text(msg)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange.opacity(0.8))
+                    .lineLimit(2)
+            }
             Spacer()
         }
+    }
+
+    @ViewBuilder
+    private func streamKeyField(stream: LiveStreamEngine) -> some View {
+        @Bindable var s = stream
+        SecureField("Paste stream key…", text: $s.streamKey)
+            .font(.system(size: 13, design: .monospaced))
+            .foregroundStyle(.white.opacity(0.7))
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+    }
+
+    @ViewBuilder
+    private func rtmpURLField(stream: LiveStreamEngine) -> some View {
+        @Bindable var s = stream
+        TextField("rtmp://your-server/live", text: $s.rtmpURL)
+            .font(.system(size: 13, design: .monospaced))
+            .foregroundStyle(.white.opacity(0.7))
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+    }
+
+    private func streamGoLiveButton(stream: LiveStreamEngine) -> some View {
+        let isLive = stream.state.isLive
+        let isConnecting = stream.state == .connecting
+        return Button {
+            if isLive || isConnecting {
+                stream.stopStream()
+            } else {
+                stream.startStream()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if isConnecting {
+                    ProgressView().scaleEffect(0.7).tint(.black)
+                } else {
+                    Circle()
+                        .fill(isLive ? Color.red : Color.white.opacity(0.7))
+                        .frame(width: 7, height: 7)
+                }
+                Text(isLive ? "Stop Stream" : isConnecting ? "Connecting…" : "Go Live")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(isLive ? Color.red.opacity(0.85) : Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .disabled(isConnecting)
+        .accessibilityLabel(isLive ? "Stop live stream" : "Go live")
     }
 
     // MARK: - Export (Phase 1 shell — SingleExport wires here)
@@ -491,11 +626,14 @@ struct MasterView: View {
     }
 
     private var streamStatusRow: some View {
-        HStack(spacing: 8) {
-            Circle().fill(Color.white.opacity(0.07)).frame(width: 6, height: 6)
-            Text("Stream offline")
-                .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.14))
+        let isLive = audioEngine.liveStream.state.isLive
+        return HStack(spacing: 8) {
+            Circle()
+                .fill(isLive ? Color.red : Color.white.opacity(0.07))
+                .frame(width: 6, height: 6)
+            Text(isLive ? "LIVE" : "Stream offline")
+                .font(.system(size: 11, weight: isLive ? .semibold : .regular))
+                .foregroundStyle(isLive ? .red.opacity(0.9) : .white.opacity(0.14))
             Spacer()
         }
     }
