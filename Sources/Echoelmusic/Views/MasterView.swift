@@ -539,72 +539,193 @@ struct MasterView: View {
         .accessibilityLabel(isLive ? "Stop live stream" : "Go live")
     }
 
-    // MARK: - Export (Phase 1 shell — SingleExport wires here)
+    // MARK: - Export
 
     private var exportContent: some View {
-        VStack(spacing: 20) {
-            Spacer()
+        let exporter = audioEngine.singleExport
+        let rec = audioEngine.retroCapture
 
-            if engine.sessionTracker.isActive {
-                VStack(spacing: 6) {
-                    Text(formatTimer(engine.sessionTracker.currentDuration))
-                        .font(.system(size: 52, weight: .light, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.55))
-                    Text("Session in progress")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.2))
-                }
-
-                // LUFS meter placeholder
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Recording status header
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Level")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.2))
-                            .textCase(.uppercase)
-                            .kerning(1.5)
+                    sectionHeader("Recording")
+                        .padding(.top, 20)
+
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(rec.isRecording ? Color.red : Color.white.opacity(0.12))
+                            .frame(width: 7, height: 7)
+                        if rec.isRecording {
+                            Text(formatTimer(rec.recordingSeconds))
+                                .font(.system(size: 20, weight: .light, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.7))
+                        } else {
+                            Text("No active recording")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.25))
+                        }
                         Spacer()
-                        Text("– LUFS")
+                        // LUFS from master chain
+                        let lufs = audioEngine.autoMixChain.lufsReading
+                        Text(lufs > -59 ? String(format: "%.1f LUFS", lufs) : "– LUFS")
                             .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.2))
+                            .foregroundStyle(lufsColor(lufs))
                     }
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.white.opacity(0.06))
-                        .frame(height: 3)
                 }
-                .padding(.horizontal, 40)
 
-                Button {
-                    // Phase 1: SingleExport will hook here
-                    if engine.isPlaying { engine.togglePlayback() }
-                    if let session = engine.lastCompletedSession {
-                        modelContext.insert(session)
-                        log.log(.info, category: .system, "Session saved: \(session.durationSeconds)s")
+                separator
+
+                // Format + target
+                sectionHeader("Export Format")
+                HStack(spacing: 6) {
+                    ForEach(SingleExport.OutputFormat.allCases) { fmt in
+                        Button { exporter.outputFormat = fmt } label: {
+                            Text(fmt.label)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(exporter.outputFormat == fmt ? .white : .white.opacity(0.3))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.white.opacity(exporter.outputFormat == fmt ? 0.2 : 0.07), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
-                } label: {
-                    Text("Finalize & Export")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 13)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Finalize and export session")
 
-            } else {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 36, weight: .light))
-                    .foregroundStyle(.white.opacity(0.1))
-                Text("No active session")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.2))
+                sectionHeader("Target Level")
+                HStack(spacing: 6) {
+                    ForEach([(-14, "Stream"), (-9, "Club"), (-23, "Broadcast")], id: \.0) { val, label in
+                        Button { exporter.targetLUFS = Float(val) } label: {
+                            Text(label)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(exporter.targetLUFS == Float(val) ? .white : .white.opacity(0.3))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.white.opacity(exporter.targetLUFS == Float(val) ? 0.2 : 0.07), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                separator
+
+                // Export progress / done state
+                exportStateView(exporter: exporter)
+
+                // Export trigger
+                exportActionButton(exporter: exporter, rec: rec)
+                    .padding(.vertical, 8)
+
+                Spacer(minLength: 24)
             }
-
-            Spacer()
+            .padding(.horizontal, 24)
         }
     }
+
+    @ViewBuilder
+    private func exportStateView(exporter: SingleExport) -> some View {
+        switch exporter.exportState {
+        case .idle:
+            EmptyView()
+        case .analyzing:
+            HStack(spacing: 8) {
+                ProgressView().scaleEffect(0.7).tint(.white.opacity(0.4))
+                Text("Analyzing…")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+        case .exporting(let progress):
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Exporting")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.3))
+                        .textCase(.uppercase)
+                        .kerning(1)
+                    Spacer()
+                    Text("\(Int(progress * 100))%")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.06)).frame(height: 3)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: geo.size.width * CGFloat(progress), height: 3)
+                    }
+                }
+                .frame(height: 3)
+            }
+        case .done(let url):
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle")
+                    .foregroundStyle(.green.opacity(0.7))
+                Text(url.lastPathComponent)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.35))
+                    .lineLimit(1)
+                Spacer()
+                ShareLink(item: url) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .frame(width: 32, height: 32)
+                }
+            }
+        case .error(let msg):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                Text(msg)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange.opacity(0.8))
+                    .lineLimit(2)
+            }
+        }
+    }
+
+    private func exportActionButton(exporter: SingleExport, rec: RetroCapture) -> some View {
+        let isDone = exporter.exportState.isDone
+        let isBusy: Bool = {
+            switch exporter.exportState {
+            case .analyzing, .exporting: return true
+            default: return false
+            }
+        }()
+
+        return Button {
+            if isDone {
+                exporter.reset()
+            } else if let url = rec.lastURL {
+                Task { await exporter.export(sourceURL: url) }
+            } else {
+                // Stop recording first, then export
+                rec.stopRecording { url in
+                    guard let url else { return }
+                    Task { await exporter.export(sourceURL: url) }
+                }
+            }
+        } label: {
+            Text(isDone ? "Export Again" : isBusy ? "Processing…" : "Master & Export")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(isBusy ? Color.white.opacity(0.4) : Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy || (!isDone && rec.lastURL == nil && !rec.isRecording))
+        .accessibilityLabel(isDone ? "Export again" : "Master and export recording")
+    }
+
 
     // MARK: - Compact landscape sub-views
 

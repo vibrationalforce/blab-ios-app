@@ -31,6 +31,9 @@ public final class AudioEngine {
     /// RTMP live stream output — audio to YouTube/Twitch.
     let liveStream = LiveStreamEngine()
 
+    /// LUFS-normalized mastering + export (WAV/AAC) for completed sessions.
+    let singleExport = SingleExport()
+
     @ObservationIgnored private let masterEngine = AVAudioEngine()
     @ObservationIgnored private let masterMixer = AVAudioMixerNode()
     @ObservationIgnored private let masterPlayerNode = AVAudioPlayerNode()
