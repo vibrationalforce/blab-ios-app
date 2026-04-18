@@ -2,8 +2,8 @@
 import SwiftUI
 import SwiftData
 
-/// Echoelmusic — Bio-Reactive Soundscape Generator
-/// Your body, weather, and time of day create evolving ambient soundscapes.
+/// Echoel — Live Music Studio
+/// Record. Stream. Release.
 @main
 struct EchoelmusicApp: App {
 
@@ -39,7 +39,7 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        SoundscapeView()
+        MasterView()
         .environment(audioEngine)
         .environment(EchoelBioEngine.shared)
         .environment(soundscapeEngine)
@@ -59,7 +59,7 @@ struct EchoelmusicApp: App {
             await store.loadProducts()
             await store.updateSubscriptionStatus()
 
-            log.log(.info, category: .system, "STARTUP COMPLETE — Soundscape ready")
+            log.log(.info, category: .system, "STARTUP COMPLETE — Echoel Live Studio ready")
 
             // Auto-start on every launch — no play button required
             // 1.5s delay lets audio engine and bio sources stabilize before first sound
