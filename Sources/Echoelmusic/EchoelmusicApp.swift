@@ -2,8 +2,7 @@
 import SwiftUI
 import SwiftData
 
-/// Echoel — Live Music Studio
-/// Record. Stream. Release.
+/// Echoelmusic — Your body. Your music.
 @main
 struct EchoelmusicApp: App {
 
@@ -41,7 +40,7 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        MasterView(clipEngine: clipEngine)
+        MomentCaptureView(clipEngine: clipEngine)
         .environment(audioEngine)
         .environment(EchoelBioEngine.shared)
         .environment(soundscapeEngine)
