@@ -1,4 +1,4 @@
-#if canImport(AVFoundation) && !targetEnvironment(macCatalyst)
+#if canImport(AVFoundation)
 import AVFoundation
 import Accelerate
 import Observation
@@ -6,7 +6,7 @@ import Observation
 /// Transparent mastering chain inserted between masterMixer and mainMixerNode.
 /// Makes any improv session sound release-ready without user intervention.
 ///
-/// Graph after install: masterMixer → EQ → Compressor → Limiter → mainMixerNode
+/// Graph after install: masterMixer → EQ → gainNode → mainMixerNode
 ///
 /// Controls:
 /// - isEnabled: bypass entire chain
@@ -35,9 +35,8 @@ final class AutoMixChain {
 
     // MARK: - AVAudio nodes
 
-    @ObservationIgnored private let eq          = AVAudioUnitEQ(numberOfBands: 4)
-    @ObservationIgnored private let compressor  = AVAudioUnitDynamicsProcessor()
-    @ObservationIgnored private let limiter     = AVAudioUnitDynamicsProcessor()
+    @ObservationIgnored private let eq      = AVAudioUnitEQ(numberOfBands: 4)
+    @ObservationIgnored private let gainNode = AVAudioMixerNode()
 
     // MARK: - LUFS meter (via metering timer reading masterLevel RMS)
     @ObservationIgnored private var masterLevelRef: (() -> Float)?
@@ -54,17 +53,15 @@ final class AutoMixChain {
         format: AVAudioFormat
     ) {
         engine.attach(eq)
-        engine.attach(compressor)
-        engine.attach(limiter)
+        engine.attach(gainNode)
 
-        engine.connect(source,      to: eq,          format: format)
-        engine.connect(eq,          to: compressor,  format: format)
-        engine.connect(compressor,  to: limiter,     format: format)
-        engine.connect(limiter,     to: destination, format: format)
+        engine.connect(source,   to: eq,       format: format)
+        engine.connect(eq,       to: gainNode, format: format)
+        engine.connect(gainNode, to: destination, format: format)
 
-        configureNodes()
+        configureEQ()
         isInstalled = true
-        log.audio("AutoMixChain inserted — EQ → Compressor → Limiter → mainMixer")
+        log.audio("AutoMixChain inserted — EQ → gainNode → mainMixer")
     }
 
     /// Provide a closure that returns the current master RMS (0-1 linear).
@@ -94,17 +91,12 @@ final class AutoMixChain {
 
     private func updateAutoGain() {
         guard isInstalled, lufsReading > -59 else { return }
-        let gain = Swift.min(Swift.max(targetLUFS - lufsReading, -12), 12)
-        compressor.masterGain = gain
+        let gainDB = Swift.min(Swift.max(targetLUFS - lufsReading, -12), 12)
+        let linearGain = Foundation.pow(10.0, Double(gainDB) / 20.0)
+        gainNode.outputVolume = Float(Swift.min(Swift.max(linearGain, 0.25), 4.0))
     }
 
     // MARK: - Node configuration
-
-    private func configureNodes() {
-        configureEQ()
-        configureCompressor()
-        configureLimiter()
-    }
 
     private func configureEQ() {
         // Band 0: High-pass 40Hz — remove sub-bass rumble
@@ -130,26 +122,6 @@ final class AutoMixChain {
         eq.bands[3].frequency   = 10000
         eq.bands[3].gain        = 2.0
         eq.bands[3].bypass      = false
-    }
-
-    private func configureCompressor() {
-        // Transparent glue compression: 4:1, soft knee, medium times
-        compressor.threshold        = -24     // dBFS
-        compressor.headRoom         = 8       // 8dB above threshold before limiting
-        compressor.compressionRatio = 4
-        compressor.attackTime       = 0.010   // 10ms
-        compressor.releaseTime      = 0.100   // 100ms
-        compressor.masterGain       = 0
-    }
-
-    private func configureLimiter() {
-        // Hard brick-wall limiter: -0.3 dBFS ceiling
-        limiter.threshold           = -1.0    // dBFS — start limiting at -1
-        limiter.headRoom            = 0.3     // never exceed -0.3 dBFS
-        limiter.compressionRatio    = 100     // brick wall
-        limiter.attackTime          = 0.001   // 1ms — catches transients
-        limiter.releaseTime         = 0.050   // 50ms
-        limiter.masterGain          = 0
     }
 
     // MARK: - Preset switching
@@ -178,9 +150,8 @@ final class AutoMixChain {
     // MARK: - Bypass
 
     private func applyBypass() {
-        eq.bypass         = !isEnabled
-        compressor.bypass = !isEnabled
-        limiter.bypass    = !isEnabled
+        eq.bypass = !isEnabled
+        if !isEnabled { gainNode.outputVolume = 1.0 }
         log.audio("AutoMixChain \(isEnabled ? "enabled" : "bypassed")")
     }
 }

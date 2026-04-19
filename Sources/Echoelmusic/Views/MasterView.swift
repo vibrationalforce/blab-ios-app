@@ -845,7 +845,7 @@ struct MasterView: View {
             HStack(spacing: 3) {
                 ForEach(0..<4, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.white.opacity(conf > Float(i) * 0.25 ? 0.28 : 0.05))
+                        .fill(Color.white.opacity(conf > Double(i) * 0.25 ? 0.28 : 0.05))
                         .frame(width: 12, height: 3)
                 }
             }

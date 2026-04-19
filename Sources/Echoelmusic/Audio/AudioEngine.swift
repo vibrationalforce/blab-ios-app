@@ -119,7 +119,7 @@ public final class AudioEngine {
         }
 
         masterEngine.connect(masterPlayerNode, to: masterMixer, format: processingFormat)
-        // Insert AutoMixChain: masterMixer → EQ → Compressor → Limiter → mainMixerNode
+        // Insert AutoMixChain: masterMixer → EQ → gainNode → mainMixerNode
         autoMixChain.insert(
             into: masterEngine,
             from: masterMixer,

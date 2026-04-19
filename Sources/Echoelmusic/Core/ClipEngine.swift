@@ -118,7 +118,7 @@ final class ClipEngine {
 
         // Apply harmonicity immediately (no interpolation needed — DDSP handles smoothly)
         for voice in eng.allVoices {
-            voice.harmonicity = Double(scene.harmonicity)
+            voice.harmonicity = scene.harmonicity
         }
 
         morphTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
