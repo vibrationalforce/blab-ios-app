@@ -122,13 +122,13 @@ final class ClipEngine {
         }
 
         morphTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.morphStep() }
+            Task { @MainActor [weak self] in self?.advanceMorph() }
         }
 
         log.log(.info, category: .audio, "Scene launched: \(scene.name)")
     }
 
-    private func morphStep() {
+    private func advanceMorph() {
         guard let eng = soundscapeEngine,
               let origin = morphOrigin,
               let target = morphTarget else {

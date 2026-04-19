@@ -1,4 +1,4 @@
-#if canImport(AVFoundation)
+#if canImport(AVFoundation) && !targetEnvironment(macCatalyst)
 import AVFoundation
 import Accelerate
 import Observation

@@ -57,14 +57,14 @@ final class LiveStreamEngine: NSObject {
     let captureSession = AVCaptureSession()   // exposed for CameraPreviewView
     @ObservationIgnored private let captureQueue    = DispatchQueue(label: "com.echoelmusic.stream.capture",
                                                                     qos: .userInitiated)
-    // MARK: - Writer
+    // MARK: - Writer (nonisolated(unsafe) — accessed from capture queue delegate)
 
-    @ObservationIgnored private var assetWriter:    AVAssetWriter?
-    @ObservationIgnored private var videoInput:     AVAssetWriterInput?
-    @ObservationIgnored private var audioInput:     AVAssetWriterInput?
-    @ObservationIgnored private var videoAdaptor:   AVAssetWriterInputPixelBufferAdaptor?
-    @ObservationIgnored private var sessionStarted: Bool = false
-    @ObservationIgnored private var firstAudioPTS:  CMTime = .invalid
+    @ObservationIgnored nonisolated(unsafe) private var assetWriter:    AVAssetWriter?
+    @ObservationIgnored nonisolated(unsafe) private var videoInput:     AVAssetWriterInput?
+    @ObservationIgnored nonisolated(unsafe) private var audioInput:     AVAssetWriterInput?
+    @ObservationIgnored nonisolated(unsafe) private var videoAdaptor:   AVAssetWriterInputPixelBufferAdaptor?
+    @ObservationIgnored nonisolated(unsafe) private var sessionStarted: Bool = false
+    @ObservationIgnored nonisolated(unsafe) private var firstAudioPTS:  CMTime = .invalid
     @ObservationIgnored private var outputURL:      URL?
 
     // MARK: - Timer
