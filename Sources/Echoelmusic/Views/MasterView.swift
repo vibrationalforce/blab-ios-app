@@ -759,7 +759,6 @@ struct MasterView: View {
             } else {
                 // Stop recording first, then export
                 rec.stopRecording { url in
-                    guard let url else { return }
                     Task { await exporter.export(sourceURL: url) }
                 }
             }
