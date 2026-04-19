@@ -96,8 +96,8 @@ final class BioVisualRenderer: NSObject {
 
     private func updateParams(size: CGSize) {
         let t = Float(Date().timeIntervalSince(startTime))
-        let coherence = Float(soundscape?.coherence ?? 0.5)
-        let hr = Float(soundscape?.heartRate ?? 72)
+        let coherence = Float(soundscape?.state.coherence ?? 0.5)
+        let hr = Float(soundscape?.state.heartRate ?? 72)
         let freq = soundscape?.voiceRoot.frequency ?? 110
 
         params.time = t

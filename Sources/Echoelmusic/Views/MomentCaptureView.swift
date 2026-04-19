@@ -16,8 +16,8 @@ struct MomentCaptureView: View {
     @State private var showStudio = false
     @State private var shareItem: URL?
 
-    private var heartRate: Int { Int(soundscape.heartRate.rounded()) }
-    private var coherence: Double { soundscape.coherence }
+    private var heartRate: Int { Int(soundscape.state.heartRate.rounded()) }
+    private var coherence: Double { soundscape.state.coherence }
 
     var body: some View {
         ZStack {
