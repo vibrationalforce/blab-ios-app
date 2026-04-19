@@ -21,6 +21,8 @@ struct MasterView: View {
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var showCameraPulse = false
+    @State private var shareDuration: Int = 30
+    @State private var shortRenderer = ShortContentRenderer()
 
     var body: some View {
         GeometryReader { geo in
@@ -57,7 +59,7 @@ struct MasterView: View {
                 switch activeMode {
                 case .perform: performContent
                 case .mix:     mixContent
-                case .stream:  streamContent
+                case .share:   shareContent
                 case .export:  exportContent
                 }
             }
@@ -98,7 +100,7 @@ struct MasterView: View {
                     .frame(height: 1)
                     .padding(.vertical, 8)
 
-                streamStatusRow
+                shareStatusRow
                     .padding(.horizontal, 16)
                     .padding(.bottom, 12)
 
@@ -151,22 +153,6 @@ struct MasterView: View {
 
             // Bio badge — always visible, driven by BioSourceManager
             bioBadge
-
-            // LIVE badge — Phase 2 placeholder
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 6, height: 6)
-                Text("LIVE")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.18))
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
-            )
 
             Button { showHistory = true } label: {
                 Image(systemName: "clock.arrow.circlepath")
@@ -388,89 +374,74 @@ struct MasterView: View {
         .accessibilityLabel(hasBio ? "Heart rate \(Int(hr)) BPM — tap for camera pulse" : "No bio signal — tap to measure")
     }
 
-    // MARK: - Stream
+    // MARK: - Share (Short Content)
 
-    private var streamContent: some View {
-        let stream = audioEngine.liveStream
+    private var shareContent: some View {
+        let hr      = engine.state.heartRate
+        let coh     = engine.state.coherence
+        let hasBio  = engine.bioSourceManager.primarySource != .fallback
+        let rec     = audioEngine.retroCapture
+
         return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                streamStatusHeader(stream: stream)
+            VStack(alignment: .leading, spacing: 20) {
+                sectionHeader("Short Content")
                     .padding(.top, 20)
 
-                // Live camera preview
-                if stream.state.isLive && stream.cameraEnabled {
-                    #if canImport(UIKit)
-                    CameraPreviewView(session: stream.captureSession)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.red.opacity(0.35), lineWidth: 1)
-                        )
-                    #endif
+                // Bio context summary
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(hasBio ? "\(Int(hr)) BPM" : "—")
+                            .font(.system(size: 22, weight: .light, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text("Heart Rate")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.2))
+                            .textCase(.uppercase)
+                            .kerning(1)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(hasBio ? String(format: "%.0f%%", coh * 100) : "—")
+                            .font(.system(size: 22, weight: .light, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text("Coherence")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.2))
+                            .textCase(.uppercase)
+                            .kerning(1)
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.07), lineWidth: 1)
+                )
+
+                separator
+
+                // Duration picker
+                sectionHeader("Duration")
+                HStack(spacing: 8) {
+                    ForEach([15, 30, 60], id: \.self) { secs in
+                        Button { shareDuration = secs } label: {
+                            Text("\(secs)s")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(shareDuration == secs ? .white : .white.opacity(0.3))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .stroke(Color.white.opacity(shareDuration == secs ? 0.2 : 0.07), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 separator
 
-                // Done state — show ShareLink to upload
-                if let url = stream.state.doneURL {
-                    streamDoneView(url: url, stream: stream)
-                } else {
-                    // Destination picker
-                    sectionHeader("Upload To")
-                        .padding(.top, 4)
-                    VStack(spacing: 6) {
-                        ForEach(LiveStreamEngine.destinations) { dest in
-                            Button { stream.selectedDestination = dest } label: {
-                                HStack {
-                                    Text(dest.name)
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundStyle(.white.opacity(stream.selectedDestination == dest ? 0.85 : 0.35))
-                                    Spacer()
-                                    if stream.selectedDestination == dest {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.white.opacity(0.5))
-                                    }
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(stream.selectedDestination == dest ? 0.2 : 0.07), lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    // Camera toggle
-                    HStack {
-                        Text("Front Camera")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.35))
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { stream.cameraEnabled },
-                            set: { stream.cameraEnabled = $0 }
-                        ))
-                        .tint(.white.opacity(0.4))
-                        .labelsHidden()
-                    }
-                    .padding(.top, 4)
-
-                    separator
-
-                    streamGoLiveButton(stream: stream)
-                        .padding(.vertical, 8)
-
-                    Text("Records video + audio locally. Upload via ShareLink when done.")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.18))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                }
+                // Render state / action
+                shareActionArea(rec: rec, hr: Int(hr), coh: coh, hasBio: hasBio)
 
                 Spacer(minLength: 24)
             }
@@ -478,112 +449,130 @@ struct MasterView: View {
         }
     }
 
-    private func streamDoneView(url: URL, stream: LiveStreamEngine) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 36, weight: .light))
-                .foregroundStyle(.green.opacity(0.6))
-
-            VStack(spacing: 4) {
-                Text("Recording ready")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
-                Text(url.lastPathComponent)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.25))
-                    .lineLimit(1)
-            }
-
-            ShareLink(item: url) {
-                HStack(spacing: 8) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Share / Upload to \(stream.selectedDestination.name)")
-                }
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-
-            Button { stream.resetAfterDone() } label: {
-                Text("Record Again")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.3))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 8)
-    }
-
-    private func streamStatusHeader(stream: LiveStreamEngine) -> some View {
-        HStack(spacing: 10) {
-            switch stream.state {
-            case .idle:
-                Circle().fill(Color.white.opacity(0.1)).frame(width: 8, height: 8)
-                Text("Ready to record")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.25))
-            case .connecting:
-                ProgressView().scaleEffect(0.7).tint(.white.opacity(0.4))
-                Text("Starting camera…")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
-            case .live(let duration):
-                Circle().fill(Color.red).frame(width: 8, height: 8)
-                Text("REC  \(formatTimer(duration))")
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.red.opacity(0.9))
-            case .done:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green.opacity(0.6))
-                Text("Saved")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.green.opacity(0.6))
-            case .error(let msg):
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.orange)
-                Text(msg)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange.opacity(0.8))
-                    .lineLimit(2)
-            }
-            Spacer()
-        }
-    }
-
-    private func streamGoLiveButton(stream: LiveStreamEngine) -> some View {
-        let isLive = stream.state.isLive
-        let isConnecting = stream.state == .connecting
-        return Button {
-            if isLive || isConnecting {
-                stream.stopStream()
-            } else {
-                stream.startStream()
-            }
-        } label: {
-            HStack(spacing: 8) {
-                if isConnecting {
-                    ProgressView().scaleEffect(0.7).tint(.black)
-                } else {
-                    Circle()
-                        .fill(isLive ? Color.red : Color.white.opacity(0.7))
-                        .frame(width: 7, height: 7)
-                }
-                Text(isLive ? "Stop Recording" : isConnecting ? "Starting…" : "Start Recording")
+    @ViewBuilder
+    private func shareActionArea(rec: RetroCapture, hr: Int, coh: Double, hasBio: Bool) -> some View {
+        switch shortRenderer.rendererState {
+        case .idle:
+            if let audioURL = rec.lastURL {
+                // Render short clip from existing recording
+                Button {
+                    Task {
+                        await shortRenderer.render(
+                            duration: shareDuration,
+                            audioURL: audioURL,
+                            heartRate: hr,
+                            coherence: coh,
+                            hasBio: hasBio,
+                            waveformSamples: rec.waveformSamples
+                        )
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "video.badge.plus")
+                        Text("Create \(shareDuration)s Clip")
+                    }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Create \(shareDuration) second clip")
+            } else {
+                // No recording yet — start one first
+                Button {
+                    rec.startRecording()
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(rec.isRecording ? Color.red : Color.white.opacity(0.6))
+                            .frame(width: 7, height: 7)
+                        Text(rec.isRecording ? "Recording… \(formatTimer(rec.recordingSeconds))" : "Start Recording First")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.black)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(rec.isRecording ? Color.red.opacity(0.85) : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            .background(isLive ? Color.red.opacity(0.85) : Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+        case .rendering(let progress):
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Rendering")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.3))
+                        .textCase(.uppercase)
+                        .kerning(1)
+                    Spacer()
+                    Text("\(Int(progress * 100))%")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.06)).frame(height: 3)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: geo.size.width * CGFloat(progress), height: 3)
+                    }
+                }
+                .frame(height: 3)
+            }
+
+        case .done(let url):
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(.green.opacity(0.7))
+                    Text("Clip ready")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                    Spacer()
+                }
+                ShareLink(item: url) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share Clip")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                Button { shortRenderer.reset() } label: {
+                    Text("Create Another")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
+                .buttonStyle(.plain)
+            }
+
+        case .error(let msg):
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    Text(msg)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange.opacity(0.8))
+                        .lineLimit(2)
+                }
+                Button { shortRenderer.reset() } label: {
+                    Text("Try Again")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(isConnecting)
-        .accessibilityLabel(isLive ? "Stop recording" : "Start recording for stream")
     }
 
     // MARK: - Export
@@ -796,17 +785,15 @@ struct MasterView: View {
         }
     }
 
-    private var streamStatusRow: some View {
-        let s = audioEngine.liveStream.state
-        let isLive = s.isLive
-        let isDone = s.doneURL != nil
+    private var shareStatusRow: some View {
+        let rec = audioEngine.retroCapture
         return HStack(spacing: 8) {
             Circle()
-                .fill(isLive ? Color.red : isDone ? Color.green.opacity(0.6) : Color.white.opacity(0.07))
+                .fill(rec.isRecording ? Color.red : Color.white.opacity(0.07))
                 .frame(width: 6, height: 6)
-            Text(isLive ? "REC" : isDone ? "Saved" : "Stream ready")
-                .font(.system(size: 11, weight: isLive ? .semibold : .regular))
-                .foregroundStyle(isLive ? .red.opacity(0.9) : isDone ? .green.opacity(0.6) : .white.opacity(0.14))
+            Text(rec.isRecording ? "REC \(formatTimer(rec.recordingSeconds))" : "Share ready")
+                .font(.system(size: 11, weight: rec.isRecording ? .semibold : .regular))
+                .foregroundStyle(rec.isRecording ? .red.opacity(0.9) : .white.opacity(0.14))
             Spacer()
         }
     }
@@ -1069,13 +1056,13 @@ private struct WaveformView: View {
 // MARK: - StudioMode
 
 enum StudioMode: String, CaseIterable {
-    case perform, mix, stream, export
+    case perform, mix, share, export
 
     var label: String {
         switch self {
         case .perform: return "Perform"
         case .mix:     return "Mix"
-        case .stream:  return "Stream"
+        case .share:   return "Share"
         case .export:  return "Export"
         }
     }
@@ -1084,7 +1071,7 @@ enum StudioMode: String, CaseIterable {
         switch self {
         case .perform: return "music.quarternote.3"
         case .mix:     return "slider.horizontal.3"
-        case .stream:  return "dot.radiowaves.left.and.right"
+        case .share:   return "video.badge.plus"
         case .export:  return "square.and.arrow.up"
         }
     }

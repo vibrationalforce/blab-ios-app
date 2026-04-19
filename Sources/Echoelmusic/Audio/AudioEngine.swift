@@ -28,9 +28,6 @@ public final class AudioEngine {
     /// Master mastering chain — EQ + compression + limiting + auto-LUFS.
     let autoMixChain = AutoMixChain()
 
-    /// RTMP live stream output — audio to YouTube/Twitch.
-    let liveStream = LiveStreamEngine()
-
     /// LUFS-normalized mastering + export (WAV/AAC) for completed sessions.
     let singleExport = SingleExport()
 

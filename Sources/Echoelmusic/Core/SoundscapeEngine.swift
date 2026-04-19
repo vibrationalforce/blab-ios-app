@@ -302,13 +302,15 @@ final class SoundscapeEngine {
         )
 
         // 4. Apply bio-reactive parameters to ALL voices
-        // Heart rate is PRIMARY modulation source
+        // Heart rate is PRIMARY modulation source; breath opens/closes the filter
         let normalizedHR = ((state.heartRate - 40) / 160).clamped(to: 0...1)
+        let breathPhase = Float(snapshot.breathPhase)
         for voice in [voiceRoot, voiceFifth, voiceOctave, voiceHigh] {
             voice.applyBioReactive(
                 coherence: Float(state.coherence),
                 hrvVariability: Float(state.hrv),
-                heartRate: Float(normalizedHR)
+                heartRate: Float(normalizedHR),
+                breathPhase: breathPhase
             )
         }
 
@@ -341,11 +343,14 @@ final class SoundscapeEngine {
     // MARK: - Environmental Modulation
 
     private func applyWeatherModulation(_ weather: WeatherSnapshot) {
-        let reverbBlend = (1.0 - weather.temperature.clamped(to: 0...1)) * 0.4
-        let noiseFloor = weather.windSpeed.clamped(to: 0...1) * 0.1
+        // Weather adds a delta on top of bio-reactive base values (additive, not replacement)
+        // Cold/rainy → more reverb (spacious feel) | Warm/sunny → slightly drier
+        let reverbDelta = Float((1.0 - weather.temperature.clamped(to: 0...1)) * 0.15)
+        // Wind → subtle noise texture (organic outdoor feel)
+        let noiseDelta = Float(weather.windSpeed.clamped(to: 0...1) * 0.04)
         for voice in [voiceRoot, voiceFifth, voiceOctave, voiceHigh] {
-            voice.reverbMix = Float(reverbBlend) + 0.15
-            voice.noiseLevel = Float(noiseFloor) + 0.01
+            voice.reverbMix = (voice.reverbMix + reverbDelta).clamped(to: 0.15...0.65)
+            voice.noiseLevel = (voice.noiseLevel + noiseDelta).clamped(to: 0.005...0.18)
         }
     }
 
