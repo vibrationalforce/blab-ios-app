@@ -1,4 +1,4 @@
-# CLAUDE.md — Echoelmusic v9.0 Live Music Studio
+# CLAUDE.md — Echoel v10 (DAW + Video + Stream)
 
 ## IDENTITY
 
@@ -7,111 +7,117 @@ Developer: Echoel (Michael Terbuyken) @ Studio Hamburg
 App Apple ID: 6757957358
 Bundle: com.echoelmusic.*
 
-**Echoel — Live Music Studio. Record. Stream. Release.**
-Bio-reactive ambient soundscape generator with pro-grade recording, live streaming, and instant mastering.
+**Echoel — Make Beats. Record Video. Stream Live.**
+A unified iPhone studio that replaces FL Studio Mobile + Ableton + iPhone Camera + InShot + OBS in one app.
 
-**SCIENCE-ONLY.** No esoteric terminology. No chakras, auras, energy healing. Evidence-based biofeedback. Every wellness claim requires peer-reviewed citation.
+Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-track Recorder** (mic over beats) · **Video Capture & Trim** (camera + clip editing) · **RTMP Live Stream** (YouTube / Twitch / Facebook / custom).
 
 ---
 
 ## CURRENT STATE
 
-- **Branch:** `claude/deep-audit-context-review-5cWfI` (v9.0 — pending merge to main)
-- **Mode:** RALPH WIGGUM LAMBDA — iterative tightening until tight
-- **SDK:** Must target iOS 26 SDK (ITMS-90725, deadline April 28, 2026)
-- **Architecture:** Live Music Studio (DAW + streaming + mastering in one screen)
+- **Branch:** `claude/unified-production-app-Qdm6b` (v10 pivot)
+- **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
+- **Active Plan:** `scratchpads/PLAN_v10_TestFlight_Sprint.md` (3-week sprint, TestFlight 2026-05-17)
+- **SDK:** iOS 26 SDK required (ITMS-90725, deadline 2026-04-28)
+- **Architecture:** Mobile DAW + Video Editor + RTMP Live Streaming — iPhone-first
 - **Files:** 46 Swift + 2 Metal / 9 tests | ~16,500 lines | **Swift 100%**
 
 ---
 
 ## BRAND
 
-Echoelmusic — Live Music Studio. Record. Stream. Release.
+Echoel — Make Beats. Record Video. Stream Live.
 
-NEVER use "BLAB", "Vibrational Force", or legacy branding anywhere.
+The product replaces FL Studio Mobile + Ableton + iPhone-Camera + InShot + OBS in one iPhone app.
+NEVER use "BLAB", "Vibrational Force", or legacy bio-wellness/soundscape branding in user-facing copy.
 
 ---
 
-## ARCHITECTURE
+## ARCHITECTURE (v10 Target)
 
 ```
 EchoelmusicApp (@main)
-├── AudioEngine (AVAudioEngine master bus)
-│   ├── RetroCapture        ← 30s ring buffer + on-demand .caf recording
-│   ├── AutoMixChain        ← EQ → Compressor → Limiter → auto-LUFS
-│   ├── LiveStreamEngine    ← H.264/AAC .mp4 → ShareLink to YouTube/Twitch
-│   └── SingleExport        ← BS.1770 LUFS mastering → WAV/AAC export
-├── MicrophoneManager
-├── SoundscapeEngine (central hub)
-│   ├── BioSourceManager (multi-wearable fusion)
-│   │   ├── HealthKit (Apple Watch HR, HRV, breathing)
-│   │   ├── CameraAnalyzer (rPPG pulse from finger/face)
-│   │   ├── OuraRingClient (sleep, readiness, resting HR)
-│   │   └── EEGSensorBridge (Muse/NeuroSky)
-│   ├── WeatherProvider (WeatherKit + time-based fallback)
-│   ├── CircadianClock (4 phases + Oura sleep data)
-│   ├── EchoelDDSP (bio-reactive harmonic pad)
-│   ├── EchoelCellular (texture layer)
-│   └── AVAudioSourceNode → AudioEngine → Speaker
-├── ClipEngine              ← Ableton-style scene launcher (6 presets + capture)
-├── EchoelStore (StoreKit 2 subscriptions)
-└── Views
-    ├── MasterView          ← ONE-SCREEN studio (Perform|Mix|Stream|Export tabs)
-    ├── SessionGridView     ← 2×N scene grid with morph + rename
-    ├── CameraPreviewView   ← Live viewfinder during stream recording
-    ├── SettingsView        ← bio sources, Oura connect, audio output
-    ├── OnboardingView      ← 3-page HealthKit flow
-    └── SessionHistoryView  ← SwiftData session log
+└── StudioRoot                     ← TabView with 4 tabs (NEW)
+    ├── BeatTab                    ← drum pads + 16-step sequencer (NEW)
+    │   └── PatternEngine          ← 8-track × 16-step + tempo clock (NEW)
+    │       └── SamplerVoice       ← one-shot WAV player (NEW)
+    ├── RecordTab                  ← mic + master mixer + REC (NEW)
+    │   ├── MultiTrackRecorder     ← mic over beats, sample-accurate sync (NEW)
+    │   ├── RetroCapture           ← 30s pre-roll ring buffer (KEEP)
+    │   └── AutoMixChain           ← EQ → Comp → Limiter → LUFS (KEEP)
+    ├── VideoTab                   ← camera capture + trim (NEW)
+    │   ├── CameraSession          ← AVCaptureSession 1080p30 (NEW)
+    │   ├── VideoRecorder          ← AVAssetWriter H.264+AAC (NEW)
+    │   └── ClipTrimmer            ← in/out points (NEW)
+    └── ShareTab                   ← RTMP stream + export (NEW)
+        ├── RTMPPublisher          ← HaishinKit wrapper (NEW)
+        └── SingleExport           ← LUFS mastering → WAV/AAC/MP4 (KEEP)
+
+Audio Foundation (KEEP):
+  AudioEngine (AVAudioEngine master bus) · MicrophoneManager · SPSCQueue ·
+  EchoelDDSP (reused as synth voice) · EchoelCellular (reused as FX texture)
 ```
 
-AUv3 Generator Plugin (augn): Bio-reactive soundscape usable in Logic Pro, GarageBand, AUM.
+Deprecated from main flow (kept compilable, not initialized):
+  SoundscapeEngine, ClipEngine, MomentCaptureView, BioSourceManager,
+  HealthKit/Oura/EEG/rPPG bridges, WeatherProvider, CircadianClock.
 
-### Studio Modes (MasterView tabs)
+Protected (do not modify without explicit user approval):
+  BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver.
 
-| Mode | Content |
+### Studio Tabs
+
+| Tab | Content |
 |------|---------|
-| Perform | Scene grid (ClipEngine) + coherence mini-header + play/pause |
-| Mix | Voice sliders + AutoMixChain (LUFS, preset, target) |
-| Stream | Camera preview + H.264 recording + ShareLink |
-| Export | Waveform preview + LUFS mastering + WAV/AAC export |
-
-### Bio (always visible — not a tab)
-Bio signal shown as compact badge in status bar: HR number + coherence dot.
-Tap → CameraMeasurementView for rPPG pulse measurement.
+| Beat | 8 drum pads · 16-step sequencer · tempo · play/stop |
+| Record | Mic level meter · REC · track list (Beat + Mic) · master volume |
+| Video | Camera preview · REC · front/back toggle · trim slider |
+| Share | RTMP URL+key · bitrate · start/stop stream · export WAV/MP4 |
 
 ---
 
-## TECH STACK — Zero Dependencies
+## TECH STACK — One Dependency Only
 
-| Platform | Framework |
+| Layer | Framework |
 |---|---|
-| Apple (all) | AVFoundation + Accelerate + Metal |
-| Android | Oboe + AAudio + Health Connect |
-| Desktop Plugins | iPlug2 (MIT) |
-| DSP | Pure C++17 |
-| Build | Tuist + Fastlane + Codemagic |
+| Apple (iPhone) | AVFoundation + Accelerate + Metal + CoreMIDI + VideoToolbox + SwiftData |
+| RTMP/RTMPS | HaishinKit (MIT, pinned exact tag) — sole external dependency |
+| Build | Tuist / XcodeGen + Fastlane (TestFlight upload) + GitHub Actions |
+| DSP | Swift (audio-thread-safe, lock-free SPSC queues) |
+
+iPhone-only for v10 MVP. iPad / Mac / Watch / Vision deferred to v1.1+.
 
 ---
 
-## REPO STRUCTURE
+## REPO STRUCTURE (v10)
 
 ```
-Sources/Echoelmusic/   ← Main iOS app (46 Swift + 2 Metal shaders)
+Sources/Echoelmusic/
   Audio/               ← AudioEngine, AudioConfiguration, MIDIInput,
-                          RetroCapture, AutoMixChain, LiveStreamEngine, SingleExport
-  Bio/                 ← BioSourceManager, EchoelBioEngine, OuraRingClient, EEGSensorBridge, MotionActivityProvider
-  Core/                ← SoundscapeEngine, ClipEngine, WeatherProvider, CircadianClock, EchoelStore, SessionStore
-  DSP/                 ← EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit
-  Video/               ← CameraAnalyzer, CameraCapture, ChromaKey.metal, VisualRendererKernels.metal
-  Views/               ← MasterView, SessionGridView, CameraPreviewView, SettingsView,
-                          OnboardingView, SessionHistoryView, SoundDesignView, CameraMeasurementView
-Sources/EchoelmusicAUv3/ ← AUv3 Generator Plugin (2 files)
-Tests/                 ← 9 test files (Audio, Bio, DSP, Core)
-docs/                  ← Website (GitHub Pages — artist landing page)
-.github/workflows/     ← CI/CD (testflight.yml, ci.yml, etc.)
+                          RetroCapture, AutoMixChain, SingleExport (KEEP)
+                       ← MultiTrackRecorder (NEW W2)
+  Sequencer/           ← PatternEngine, SamplerVoice (NEW W1)
+  Video/               ← CameraSession, VideoRecorder, ClipTrimmer (NEW W2)
+                       ← existing CameraCapture/CameraAnalyzer kept compilable
+  Stream/              ← RTMPPublisher (NEW W3)
+  Studio/              ← StudioRoot, BeatTab, RecordTab, VideoTab, ShareTab (NEW W1–W3)
+  Core/                ← EchoelStore, SPSCQueue, ProfessionalLogger, MemoryPressureHandler,
+                          PlatformAvailability, NumericExtensions, SessionStore (KEEP)
+                       ← SoundscapeEngine, ClipEngine, WeatherProvider, CircadianClock (DEPRECATED, kept compilable)
+  Bio/                 ← BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver (PROTECTED)
+                       ← BioSourceManager, OuraRingClient, EEGSensorBridge, MotionActivityProvider (DEPRECATED)
+  DSP/                 ← EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit (KEEP, reused as synth voices)
+  Views/               ← MomentCaptureView, MasterView, SoundscapeView, MetalBioView,
+                          BioVisualRenderer, OnboardingView, SettingsView, SessionGridView,
+                          SessionHistoryView, SoundDesignView, CameraMeasurementView (DEPRECATED, not in main flow)
+Sources/EchoelmusicAUv3/ ← AUv3 Generator Plugin (deferred, not active in v10)
+Tests/                 ← 9 existing + new SequencerTests, RecorderTests, VideoTests, RTMPTests
+docs/                  ← Website (GitHub Pages)
+.github/workflows/     ← CI/CD (testflight.yml is primary)
 ```
 
-DO NOT create new top-level directories.
+Allowed new top-level directories under `Sources/Echoelmusic/`: `Sequencer/`, `Stream/`, `Studio/`. No others without approval.
 
 ---
 

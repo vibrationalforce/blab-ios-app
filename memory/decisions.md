@@ -2,6 +2,20 @@
 
 Architectural and strategic decisions with context and rationale.
 
+---
+
+### 2026-04-26 v10 Pivot: DAW + Video + Stream (Hybrid Strategy)
+- **Decision:** Pivot Echoelmusic from bio-reactive ambient soundscape generator to a unified iPhone-first creation studio combining mobile DAW, video editor, and RTMP live streaming. Hybrid approach: keep the audio infrastructure (AudioEngine, RetroCapture, AutoMixChain, SingleExport, EchoelDDSP, EchoelCellular, SPSCQueue, EchoelStore) and the protected bio DSP (BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver, untouched). Deprecate from main flow: SoundscapeEngine, ClipEngine, MomentCaptureView, BioSourceManager auto-streaming. Build new: PatternEngine + SamplerVoice (16-step × 8-track sequencer), MultiTrackRecorder, CameraSession + VideoRecorder + ClipTrimmer, RTMPPublisher (HaishinKit), and a 4-tab StudioRoot (Beat / Record / Video / Share).
+- **Reasoning:** User wants FL Studio Mobile + Ableton + iPhone Camera + InShot + RTMP streaming "in einem Programm" with TestFlight in 3 weeks ("der sich gewaschen hat"). Ground-up rewrite kills the deadline; pure crash-fix on the bio-soundscape abstraction does not deliver a DAW. Hybrid preserves ~60% working audio infrastructure and reaches the new product surface in a focused 3-week sprint.
+- **Alternatives considered:**
+  - Ground-up rewrite (Echoel Studio fresh repo) — rejected: 4–6 weeks foundation, then features on top, miss deadline
+  - Pure Ralph-Wiggum crash-fix mode on existing v9.0 code — rejected: fixes wrong abstraction, doesn't ship the DAW vision
+  - Keep SoundscapeEngine as hub, bolt on DAW features — rejected: bio-soundscape mental model fights track/clip mental model
+- **Expected outcome:** TestFlight build by 2026-05-17 with all three pillars (Beat / Record / Video / Share) interactive on iPhone. RTMP stream to YouTube test-stream verified. Single dependency added: HaishinKit. Bio-protected DSP unchanged.
+- **Review date:** 2026-05-17 (TestFlight upload date — verify deliverables match this decision)
+
+---
+
 ## Format
 
 ### [DATE] Decision Title

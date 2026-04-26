@@ -6,6 +6,58 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-04-26 — v10 Pivot: DAW + Video + RTMP Stream (Strategic Reset)
+
+### Branch: `claude/unified-production-app-Qdm6b`
+### Mode: Strategy + documentation only (sandbox has no Swift toolchain)
+
+### What happened
+User declared the v9.0 TestFlight unusable and wants a complete strategy reset toward
+**FL Studio Mobile + Ableton + iPhone Camera + InShot + RTMP — all in one iPhone app.**
+Aspirational target: "better than Reaper, Logic, CapCut, OBS, DaVinci in one software."
+
+### Decision (delegated to Claude by user: "Du entscheidest")
+**Hybrid strategy** — neither ground-up rewrite (kills 3-week TestFlight deadline)
+nor pure crash-fixing on the bio-soundscape abstraction (delivers no DAW).
+
+- KEEP audio infrastructure: AudioEngine, RetroCapture, AutoMixChain, SingleExport,
+  EchoelDDSP, EchoelCellular, SPSCQueue, EchoelStore, MicrophoneManager
+- PROTECT (no modify): BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver
+- DEPRECATE from main flow (kept compilable): SoundscapeEngine, ClipEngine,
+  MomentCaptureView, BioSourceManager, HealthKit/Oura/EEG/rPPG bridges
+- BUILD NEW: PatternEngine + SamplerVoice (sequencer), MultiTrackRecorder,
+  CameraSession + VideoRecorder + ClipTrimmer, RTMPPublisher (HaishinKit),
+  StudioRoot + 4 tabs (Beat / Record / Video / Share)
+- SINGLE NEW DEP: HaishinKit (RTMP), pinned exact tag
+
+### 3-week sprint locked
+- W1: Beat tab + sequencer (engine + sampler + UI + StudioRoot scaffold)
+- W2: Record tab (MultiTrackRecorder) + Video tab (camera + AVAssetWriter + trim)
+- W3: Share tab (RTMP via HaishinKit) + export + polish + TestFlight upload 2026-05-17
+
+### Deliverables this session (sandbox-bound, doc-only)
+- `scratchpads/PLAN_v10_TestFlight_Sprint.md` — authoritative roadmap (supersedes prior plan files)
+- `memory/decisions.md` + `decisions.csv` — v10 pivot + HaishinKit dependency entries
+- `CLAUDE.md` — surgical rewrite: identity, current state, brand, architecture diagram,
+  tech stack, repo structure all reflect v10 direction
+- This SESSION_LOG entry
+
+### Next session (must run on Mac with Xcode 26.2 + Swift toolchain)
+1. Read `scratchpads/PLAN_v10_TestFlight_Sprint.md`
+2. Day 1: `swift build` baseline must pass before anything else
+3. Day 2 onward: follow the sprint table — one commit per feature/fix, tests required
+
+### Notes / pitfalls
+- `EchoelmusicApp.swift` currently boots `MomentCaptureView` (bio Metal visualizer),
+  not `MasterView`. Replace with `StudioRoot` in W1 Day 5 — and remove the
+  `soundscapeEngine.togglePlayback()` auto-play.
+- TestFlight is `workflow_dispatch` only (`testflight.yml`).
+- Existing planning files (PLAN_PIVOT_LIVE_STUDIO, PLAN_DAW_VIDEO_MVP, PLAN_EchoelStudio,
+  PLAN_ARCHITECTURE_MAXIMUM, PLAN_MISSING_SYSTEMS) are SUPERSEDED — do not re-base
+  on those, use the v10 sprint plan only.
+
+---
+
 ## 2026-04-18 — Live Studio Pivot (v9.0 Architecture)
 
 ### Branch: `claude/deep-audit-context-review-5cWfI`
