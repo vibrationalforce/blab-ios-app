@@ -6,6 +6,71 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-04-28 — Doc Cleanup + Day-2 PatternEngine Scaffold
+
+### Branch: `claude/unified-production-app-Qdm6b`
+### Mode: Sandbox-Claude only (no toolchain)
+
+### Commits this session
+- `5364c18` docs: deep audit + cleanup — 24 stale .md files removed, working method established
+- `644c6cf` feat(sequencer): PatternEngine — 16-step × 8-track drum pattern model
+
+### Operating model clarified: iPhone + GitHub only (no Mac)
+User confirmed: every action goes via iPhone Claude Code + GitHub web UI.
+Build oracle is `testflight.yml` on GitHub Actions macOS runner. No local
+`swift build` exists in the loop. WORKING_METHOD.md rewritten to match.
+
+### GitHub PAT configured
+`.claude/settings.local.json` written with token (chmod 600, gitignored).
+Sandbox cannot validate token (intercepting proxy returns 401/403 for all
+api.github.com calls); user must verify from iPhone or rotate.
+
+### Doc cleanup (24 files removed)
+- 5 superseded plans (PLAN_PIVOT_LIVE_STUDIO/DAW_VIDEO_MVP/EchoelStudio/MISSING_SYSTEMS/ARCHITECTURE_MAXIMUM)
+- 5 dated TEST_COVERAGE_ANALYSIS_2026-03-* (pre-pivot v8 codebase)
+- 4 stale research/audit docs (DEEP_ANALYSIS, DEEP_RESEARCH_REALISTIC_APP, FEASIBILITY, RESEARCH_*)
+- ARCHITECTURE_AUDIT_2026-02-27, ZONE_Z1_AUDIT (pre-pivot)
+- AGENTS.md (98K-LOC zone narrative — fictional)
+- BUILD.md (CMake/Windows/Linux — pre iPhone-only)
+- .github/CLAUDE_TODO.md (Phase 10000, longevity nutrition)
+- .github/TESTFLIGHT_STATUS.md (BioModulator, Android — pre-pivot)
+- .ai/CLAUDE_CODE_MASTER.md, .ai/LOOP_MODE.md (old vision artifacts)
+- docs/dev/FEATURE_MATRIX.md (v8.0 with 39 files)
+
+Source-of-truth set: CLAUDE.md, .ai/WORKING_METHOD.md,
+scratchpads/PLAN_v10_TestFlight_Sprint.md, scratchpads/SESSION_LOG.md (this file),
+memory/{decisions,user,people,preferences}.md, decisions.csv,
+.claude/rules/swift-audio.md, README.md.
+
+### Day-2 code: PatternEngine + SequencerTests
+**Sources/Echoelmusic/Sequencer/PatternEngine.swift** (134 lines)
+- Pure Foundation + Observation, no AVFoundation yet
+- @MainActor @Observable final class — matches RetroCapture pattern
+- 8 × 16 boolean grid, transport (play/stop), tempo [30,300] BPM
+- Timer-driven 16th-note advance via MainActor.assumeIsolated
+- onStep(track,step) callback — wires to SamplerVoice in W1-Day-3
+
+**Tests/EchoelmusicTests/SequencerTests.swift** (~140 lines, 27 tests)
+- Initial state, toggleStep bounds, setStep, clear, setTempo clamping
+- play/stop transport, idempotency, onStep callback wiring
+- All @MainActor isolated, follows RetroCaptureTests pattern
+
+### Next session pickup
+1. User triggers `testflight.yml` on iPhone with `build_only=true`
+2. If green: proceed to W1-Day-3 = SamplerVoice (One-Shot WAV player +
+   AVAudioSourceNode integration, hooks into AudioEngine.attachSourceNode)
+3. If red: that's the cycle. Read failure log, fix, re-trigger.
+
+### Files now expected to exist by W1 end
+- Sources/Echoelmusic/Sequencer/PatternEngine.swift ✅
+- Sources/Echoelmusic/Sequencer/SamplerVoice.swift ⏭ (W1-Day-3)
+- Sources/Echoelmusic/Studio/StudioRoot.swift ⏭ (W1-Day-5)
+- Sources/Echoelmusic/Studio/BeatTab.swift ⏭ (W1-Day-4)
+- Tests/EchoelmusicTests/SequencerTests.swift ✅
+- Tests/EchoelmusicTests/SamplerVoiceTests.swift ⏭ (W1-Day-3)
+
+---
+
 ## 2026-04-26 — v10 Pivot: DAW + Video + RTMP Stream (Strategic Reset)
 
 ### Branch: `claude/unified-production-app-Qdm6b`
