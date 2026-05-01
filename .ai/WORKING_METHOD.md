@@ -6,21 +6,21 @@ This file is short on purpose. If it grows past two screens, something is wrong.
 
 ---
 
-## Reality Check (Sandbox vs Mac)
+## Reality Check (iPhone + GitHub only — no Mac in the loop)
 
-| Capability | Sandbox (this Claude) | Mac (User / Mac Claude) |
-|---|---|---|
-| Edit files | ✅ | ✅ |
-| `swift build` / `swift test` | ❌ no toolchain | ✅ Xcode 26.2 + Swift 6 |
-| `xcodebuild` | ❌ | ✅ |
-| `fastlane pilot upload` | ❌ | ✅ |
-| iOS Simulator | ❌ | ✅ |
-| Real device test | ❌ | ✅ |
-| Git commit + push | ✅ | ✅ |
-| GitHub Actions `workflow_dispatch` trigger | ❌ no `gh` CLI, no MCP tool | ✅ via `gh workflow run` or web UI |
-| Read GitHub PRs / issues / commits | ✅ via `mcp__github__*` | ✅ |
+| Capability | Sandbox-Claude (this) | iPhone-User (you) | GitHub Actions (macOS runner) |
+|---|---|---|---|
+| Edit files | ✅ | ✅ via Working Copy / GitHub web | ✅ |
+| `swift build` / `swift test` | ❌ no toolchain | ❌ iPhone has no Swift CLI | ✅ in CI |
+| `xcodebuild archive` | ❌ | ❌ | ✅ in CI (`testflight.yml`) |
+| `fastlane pilot upload` | ❌ | ❌ | ✅ in CI (`testflight.yml`) |
+| Trigger workflow_dispatch | ❌ no `gh`, no MCP tool | ✅ via GitHub web UI on iPhone | n/a |
+| Read GitHub PRs / issues / commits | ✅ via `mcp__github__*` | ✅ via web | ✅ |
+| Real device test | ❌ | ✅ TestFlight on iPhone | ❌ |
 
-**Implication:** Sandbox-Claude proposes & writes code, Mac-side runs the build. The CI workflow `testflight.yml` is the canonical build oracle — it runs on GitHub macOS runners and is the only way to reach TestFlight from this sandbox.
+**Implication:** The build oracle is **`testflight.yml` on GitHub Actions**. There is no local-build escape hatch. Every code change reaches truth via one path: push → trigger workflow on iPhone → CI verifies on macOS runner → TestFlight (or build error log).
+
+This is stricter than a normal dev loop. It rewards small, focused commits and punishes speculative refactors.
 
 ---
 
@@ -31,31 +31,39 @@ This file is short on purpose. If it grows past two screens, something is wrong.
 │                                                                         │
 │   1. PICK              from PLAN_v10_TestFlight_Sprint.md (next item)   │
 │         ↓                                                               │
-│   2. WRITE             one feature OR one fix in ≤ 3 files              │
+│   2. WRITE             one feature OR one fix in ≤ 3 files (sandbox)    │
 │         ↓                                                               │
 │   3. COMMIT            conventional prefix, one logical change          │
 │         ↓                                                               │
 │   4. PUSH              to claude/unified-production-app-Qdm6b           │
 │         ↓                                                               │
-│   5. CI BUILD          User triggers testflight.yml (build_only: true)  │
+│   5. TRIGGER CI        iPhone → github.com/.../actions →                │
+│                          testflight.yml → "Run workflow":               │
+│                            platform: ios                                │
+│                            build_only: true       (verify-only first)   │
+│                            skip_compile_check: false                    │
 │         ↓                                                               │
-│   6. VERIFY            Mac CI green? → continue. Red? → fix forward.    │
+│   6. WAIT ~10 MIN      CI runs preflight + simulator compile + archive  │
 │         ↓                                                               │
-│   7. DEVICE TEST       once per feature, on real iPhone                 │
+│   7. READ RESULT       iPhone GitHub Actions tab shows green/red        │
 │         ↓                                                               │
-│   8. LOG               update SESSION_LOG.md with commit + outcome      │
+│   8. DEVICE TEST       once feature stable: re-trigger with             │
+│                          build_only: false → Fastlane pilot uploads     │
+│                          → TestFlight push notification on iPhone       │
 │         ↓                                                               │
-│   9. REPEAT            back to PICK                                     │
+│   9. LOG               update SESSION_LOG.md with commit + outcome      │
+│         ↓                                                               │
+│  10. REPEAT            back to PICK                                     │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Hard rules:**
 - ONE feature/fix per cycle. No batching unrelated work.
-- Build green is non-negotiable. Red CI = drop everything until green.
+- Every push runs CI with `build_only: true` BEFORE TestFlight upload.
 - Tests get written in the same commit as the feature, not later.
-- No commit without `swift build` having run somewhere (Mac local OR CI).
-- No "I think this will compile." Either it built, or it didn't ship.
+- No commit without sandbox-Claude having checked the code against the existing patterns in the repo (idioms, imports, access levels, concurrency annotations).
+- Red CI = drop everything until green. No new feature work on a red branch.
 
 ---
 
@@ -76,28 +84,31 @@ This file is short on purpose. If it grows past two screens, something is wrong.
 
 ---
 
-## Triggering CI from Sandbox
+## Triggering CI from iPhone (no Mac, no gh CLI)
 
-Sandbox-Claude **cannot** trigger workflows. To verify a build:
+Sandbox-Claude cannot trigger workflows. The user does it from iPhone:
 
-1. Sandbox-Claude commits + pushes
-2. User runs on Mac:
-   ```bash
-   gh workflow run testflight.yml \
-     -f platform=ios \
-     -f build_only=true \
-     -f skip_compile_check=false
-   ```
-   …or clicks "Run workflow" in GitHub Actions UI.
-3. Wait ~10 min for compile-check + build_only result.
-4. User pastes failure log, OR confirms green.
+**Step 1 — Open the workflow:**
+Safari → `https://github.com/vibrationalforce/Echoelmusic/actions/workflows/testflight.yml`
 
-For the actual TestFlight upload:
-```bash
-gh workflow run testflight.yml -f platform=ios -f build_only=false
-```
+**Step 2 — Tap "Run workflow":**
+Top-right "Run workflow" button → set inputs:
 
-**Slash command on Mac:** `/testflight-deploy` runs the full pre-flight + deploy.
+| Input | Verify-only | TestFlight upload |
+|---|---|---|
+| `platform` | `ios` | `ios` |
+| `clean_build` | `false` | `false` (or `true` if cache poisoned) |
+| `skip_tests` | `true` | `false` |
+| `build_only` | **`true`** | **`false`** |
+| `skip_compile_check` | `false` | `true` |
+
+**Step 3 — Watch:**
+Same Actions tab, refresh, or open the run page. ~10 min for `build_only`. ~30–45 min for full TestFlight upload.
+
+**Step 4 — Read the result:**
+Green: continue. Red: tap the failed job, expand the failed step, copy the last 30–60 lines of log, paste back to me here.
+
+**Tip:** After every push, **always run `build_only: true` first**. Only after green, re-run with `build_only: false` to push the build to TestFlight.
 
 ---
 
@@ -164,17 +175,19 @@ Anything less is not "gewaschen" — it's a draft.
 
 ## Read This First (Session-Start Checklist)
 
-Every Mac session starts with:
+Every sandbox-Claude session starts by reading these files in order:
 
-```bash
-cd Echoelmusic
-git fetch origin
-git checkout claude/unified-production-app-Qdm6b
-git pull
-cat .ai/WORKING_METHOD.md      # this file
-cat scratchpads/PLAN_v10_TestFlight_Sprint.md
-tail -60 scratchpads/SESSION_LOG.md
-swift build 2>&1 | tail -30    # baseline must be green
+```
+1. CLAUDE.md                                  ← project doctrine
+2. .ai/WORKING_METHOD.md                      ← this file (the loop)
+3. scratchpads/PLAN_v10_TestFlight_Sprint.md  ← what to build next
+4. tail -60 scratchpads/SESSION_LOG.md        ← what just happened
+5. memory/decisions.md                        ← active architectural decisions
+6. git log --oneline -10                      ← last 10 commits
 ```
 
-If `swift build` is red, that's the cycle. Nothing else happens until it's green.
+The session-start state question that must be answered before any code change:
+**"Is the latest CI run on `claude/unified-production-app-Qdm6b` green?"**
+- If green: pick the next item from PLAN_v10 and write it.
+- If red: that's the cycle. Read the failure, fix it, re-trigger CI.
+- If unknown: ask the user to trigger `build_only: true` and report the result.
