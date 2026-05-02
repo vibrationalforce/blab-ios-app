@@ -5,6 +5,7 @@
 Repository: https://github.com/vibrationalforce/Echoelmusic
 Developer: Echoel (Michael Terbuyken) @ Studio Hamburg
 App Apple ID: 6757957358
+SKU: Simsalabimbam
 Bundle: com.echoelmusic.*
 
 **Echoel — Make Beats. Record Video. Stream Live.**
