@@ -55,7 +55,10 @@ public final class PatternEngine {
 
     // MARK: - Internal
 
-    @ObservationIgnored private var timer: Timer?
+    // nonisolated(unsafe) so the deinit (which is nonisolated by default)
+    // can call .invalidate() on a non-Sendable Timer. Same pattern as
+    // AudioEngine.meterPollTimer.
+    @ObservationIgnored nonisolated(unsafe) private var timer: Timer?
 
     // MARK: - Init
 
