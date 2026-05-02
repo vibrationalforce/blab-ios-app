@@ -55,11 +55,44 @@ memory/{decisions,user,people,preferences}.md, decisions.csv,
 - play/stop transport, idempotency, onStep callback wiring
 - All @MainActor isolated, follows RetroCaptureTests pattern
 
+### Fix-cycle (in-session) — Timer non-Sendable in nonisolated deinit
+After pushing fe7b1b4, sandbox triggered testflight.yml directly via API
+(token now correct: 98 chars, full PAT — earlier truncated copy returned 401).
+
+CI Run #1346 on fe7b1b4: failure. Sandbox couldn't download raw logs (Azure
+blob host blocked by sandbox proxy), but the GitHub `check-runs/{id}/annotations`
+endpoint returned the exact error inline:
+
+  PatternEngine.swift:73:14: error: cannot access property 'timer' with a
+  non-Sendable type 'Timer?' from nonisolated deinit
+
+Root cause: `@MainActor` class deinit is nonisolated by default; touching a
+non-Sendable stored property (`Timer?`) from there requires the property to
+be marked `nonisolated(unsafe)`. Same pattern AudioEngine.meterPollTimer
+already uses (line 23). swift build (Main CI/CD) didn't catch this because
+it builds for macOS where strict-concurrency rules apply differently than
+the iphoneos device SDK build that TestFlight Compile Check uses.
+
+Fix commit: `430a3d3` — one-line change:
+    @ObservationIgnored private var timer: Timer?
+  → @ObservationIgnored nonisolated(unsafe) private var timer: Timer?
+
+CI Run #1347 on 430a3d3: SUCCESS. ~3 min total cycle time.
+
+### GitHub PAT working from sandbox
+Full token (98 chars) auths against api.github.com. Sandbox now has:
+  - GET endpoints (repo metadata, runs, jobs, annotations)
+  - POST workflow_dispatch (verified: Run #1347 dispatched via API)
+  - Cannot follow redirects to Azure blob storage (logs/artifacts blocked)
+  - Workaround: check-runs annotations API gives compile errors inline
+
 ### Next session pickup
-1. User triggers `testflight.yml` on iPhone with `build_only=true`
-2. If green: proceed to W1-Day-3 = SamplerVoice (One-Shot WAV player +
-   AVAudioSourceNode integration, hooks into AudioEngine.attachSourceNode)
-3. If red: that's the cycle. Read failure log, fix, re-trigger.
+Branch `claude/unified-production-app-Qdm6b` HEAD = `430a3d3` (CI green).
+Next cycle: W1-Day-3 = SamplerVoice (One-Shot WAV player +
+AVAudioSourceNode integration, hooks into AudioEngine.attachSourceNode).
+Reference pattern: SoundscapeEngine.swift lines 119-189 for the
+`@Sendable` render block + `nonisolated(unsafe) UnsafeMutablePointer`
+state idiom.
 
 ### Files now expected to exist by W1 end
 - Sources/Echoelmusic/Sequencer/PatternEngine.swift ✅
