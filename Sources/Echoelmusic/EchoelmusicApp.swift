@@ -8,6 +8,7 @@ struct EchoelmusicApp: App {
     @State private var audioEngine: AudioEngine
     @State private var microphoneManager: MicrophoneManager
     @State private var store: EchoelStore
+    @State private var beatPlayer: BeatPlayer
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -19,6 +20,7 @@ struct EchoelmusicApp: App {
         _microphoneManager = State(wrappedValue: mic)
         _audioEngine = State(wrappedValue: audio)
         _store = State(wrappedValue: EchoelStore())
+        _beatPlayer = State(wrappedValue: BeatPlayer())
 
         _ = MemoryPressureHandler.shared
     }
@@ -38,11 +40,16 @@ struct EchoelmusicApp: App {
         StudioRoot()
             .environment(audioEngine)
             .environment(store)
+            .environment(beatPlayer)
             .task {
-                log.log(.info, category: .system, "STARTUP [1/2] Starting audio engine...")
+                log.log(.info, category: .system, "STARTUP [1/3] Starting audio engine...")
                 audioEngine.start()
 
-                log.log(.info, category: .system, "STARTUP [2/2] Loading store products...")
+                log.log(.info, category: .system, "STARTUP [2/3] Loading drum samples + attaching voices...")
+                beatPlayer.loadDefaultSamples()
+                beatPlayer.attach(to: audioEngine)
+
+                log.log(.info, category: .system, "STARTUP [3/3] Loading store products...")
                 await store.loadProducts()
                 await store.updateSubscriptionStatus()
 

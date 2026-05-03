@@ -5,7 +5,7 @@ import SwiftUI
 struct StudioRoot: View {
     var body: some View {
         TabView {
-            BeatTabPlaceholder()
+            BeatTab()
                 .tabItem { Label("Beat", systemImage: "square.grid.4x3.fill") }
 
             RecordTabPlaceholder()
@@ -17,16 +17,6 @@ struct StudioRoot: View {
             ShareTabPlaceholder()
                 .tabItem { Label("Share", systemImage: "antenna.radiowaves.left.and.right") }
         }
-    }
-}
-
-private struct BeatTabPlaceholder: View {
-    var body: some View {
-        TabPlaceholder(
-            symbol: "square.grid.4x3.fill",
-            title: "Beat",
-            subtitle: "16-step sequencer · wires up W1-Day-3"
-        )
     }
 }
 
