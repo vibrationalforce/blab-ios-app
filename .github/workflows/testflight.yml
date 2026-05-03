@@ -422,7 +422,27 @@ jobs:
             exit 1
           fi
 
-          python3 -m pip install --quiet --user 'pyjwt[crypto]>=2.8'
+          echo "=== Python diagnostics ==="
+          which python3 || true
+          python3 --version || true
+          python3 -m pip --version || true
+
+          echo "=== Installing pyjwt[crypto] ==="
+          PIP_LOG=/tmp/pip.log
+          set +e
+          python3 -m pip install --user --break-system-packages 'pyjwt[crypto]>=2.8' 2>&1 | tee "$PIP_LOG"
+          PIP_RESULT=${PIPESTATUS[0]}
+          set -e
+          if [ "$PIP_RESULT" -ne 0 ]; then
+            echo "::error title=pip install failed::pyjwt install returned $PIP_RESULT"
+            {
+              echo "## ASC Verify — pip install failed"
+              echo '```'
+              tail -60 "$PIP_LOG"
+              echo '```'
+            } >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
           # JWT signed in-process from the secret directly — no filesystem
           # dependency on prior steps that may have cleaned up the key file.
