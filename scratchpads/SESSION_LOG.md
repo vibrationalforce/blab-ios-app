@@ -6,6 +6,28 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-05-03 — Cleanup + StudioRoot scaffold + TestFlight build verify
+
+### Branch: `claude/echoelmusic-app-review-lVRVP`
+### Mode: Sandbox-Claude (no toolchain) — verify on CI
+
+### Commits this session
+- `feat(studio): StudioRoot — 4-tab TabView scaffold` — `Sources/Echoelmusic/Studio/StudioRoot.swift` (NEW, ~80 LOC). Pure SwiftUI, no audio coupling yet. Beat / Record / Video / Share placeholders.
+- `feat(app): switch root to StudioRoot, drop bio auto-play and deprecated boot wiring` — `Sources/Echoelmusic/EchoelmusicApp.swift`. Removed: `SoundscapeEngine` + `ClipEngine` `@State` instantiations, the 1.5s `togglePlayback()` Task, `.environment(soundscape/bio)`, `.modelContainer(SoundscapeSession)`, `import SwiftData`. Kept: `audioEngine`, `microphoneManager`, `store`, `MemoryPressureHandler`, `OnboardingView` gate.
+- `docs: sync branch line in CLAUDE.md + W1 status entry` — CLAUDE.md "Current State" now reflects `claude/echoelmusic-app-review-lVRVP`, file count 47.
+
+### Decisions
+- **HaishinKit pin deferred** to W3 (when `Stream/RTMPPublisher.swift` actually imports it). Avoids adding an unverified dep right before a TestFlight verify build.
+- **StudioRootTests deferred** until StudioRoot compiles green on CI (no Swift toolchain in sandbox to validate `@MainActor` SwiftUI tests locally).
+- **PAT not persisted on disk** per user instruction — used only in-memory for `curl` workflow_dispatch, then dropped from session.
+
+### Next pickup
+1. Confirm `testflight.yml` build_only=true run is green on CI.
+2. If green: trigger full TestFlight upload (`build_only=false`).
+3. Then W1-Day-3: `Sequencer/SamplerVoice.swift` (one-shot WAV player wired to `PatternEngine.onStep`).
+
+---
+
 ## 2026-04-28 — Doc Cleanup + Day-2 PatternEngine Scaffold
 
 ### Branch: `claude/unified-production-app-Qdm6b`

@@ -17,12 +17,13 @@ Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-trac
 
 ## CURRENT STATE
 
-- **Branch:** `claude/unified-production-app-Qdm6b` (v10 pivot)
+- **Branch:** `claude/echoelmusic-app-review-lVRVP` (W1 cleanup + StudioRoot)
 - **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
 - **Active Plan:** `scratchpads/PLAN_v10_TestFlight_Sprint.md` (3-week sprint, TestFlight 2026-05-17)
-- **SDK:** iOS 26 SDK required (ITMS-90725, deadline 2026-04-28)
+- **SDK:** iOS 26 SDK required (ITMS-90725, deadline 2026-04-28 — passed; Xcode 26.2 enforced via `setup-xcode@v1` in `testflight.yml`)
 - **Architecture:** Mobile DAW + Video Editor + RTMP Live Streaming — iPhone-first
-- **Files:** 46 Swift + 2 Metal / 9 tests | ~16,500 lines | **Swift 100%**
+- **Root view:** `Studio/StudioRoot.swift` (4-tab `TabView`, Beat live in W1-Day-3+)
+- **Files:** 47 Swift + 2 Metal / 10 tests | ~16,500 lines | **Swift 100%**
 
 ---
 
