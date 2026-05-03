@@ -32,16 +32,28 @@ public final class BeatPlayer {
         self.voices = Self.trackNames.map { _ in SamplerVoice() }
     }
 
+    /// Resource bundle for the drum WAVs. `Bundle.module` exists only when
+    /// built via SwiftPM (`SWIFT_PACKAGE` is defined). The XcodeGen-built
+    /// target (used by `testflight.yml`) bundles resources into the main
+    /// app bundle instead.
+    private static var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return .main
+        #endif
+    }
+
     /// Loads `Resources/Drums/<TrackName>.wav` into each voice. Missing
     /// files are silently skipped — that voice stays silent until a sample
     /// is loaded explicitly via `voices[i].loadSample(from:)`.
     public func loadDefaultSamples() {
-        let bundle = Bundle.module
+        let bundle = Self.resourceBundle
         for (i, name) in Self.trackNames.enumerated() {
             let url = bundle.url(forResource: name, withExtension: "wav", subdirectory: "Drums")
                 ?? bundle.url(forResource: name, withExtension: "wav")
             guard let url else {
-                log.log(.warn, category: .audio, "BeatPlayer: missing drum sample \(name).wav")
+                log.log(.warning, category: .audio, "BeatPlayer: missing drum sample \(name).wav")
                 continue
             }
             do {
