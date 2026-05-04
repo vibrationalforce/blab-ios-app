@@ -42,14 +42,21 @@ struct EchoelmusicApp: App {
             .environment(store)
             .environment(beatPlayer)
             .task {
-                log.log(.info, category: .system, "STARTUP [1/3] Starting audio engine...")
-                audioEngine.start()
-
-                log.log(.info, category: .system, "STARTUP [2/3] Loading drum samples + attaching voices...")
+                // Configure audio topology BEFORE starting the engine.
+                // Hot-attaching source nodes to a running AVAudioEngine
+                // causes pause/restart cycles that have crashed at launch
+                // (build 1363). Attaching first keeps masterEngine stopped
+                // until all 8 voices are wired, then a single .start().
+                log.log(.info, category: .system, "STARTUP [1/4] Loading drum samples...")
                 beatPlayer.loadDefaultSamples()
+
+                log.log(.info, category: .system, "STARTUP [2/4] Attaching beat voices to audio engine...")
                 beatPlayer.attach(to: audioEngine)
 
-                log.log(.info, category: .system, "STARTUP [3/3] Loading store products...")
+                log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
+                audioEngine.start()
+
+                log.log(.info, category: .system, "STARTUP [4/4] Loading store products...")
                 await store.loadProducts()
                 await store.updateSubscriptionStatus()
 
