@@ -31,8 +31,15 @@ import Foundation
 ///
 /// **Polyphony:** Retriggering before the previous tail finishes resets
 /// the playback position to 0 (drum-machine convention; no voice stealing).
-@MainActor
-public final class SamplerVoice {
+///
+/// **Concurrency:** `nonisolated` (NOT `@MainActor`). The render closure
+/// passed to `AVAudioSourceNode` is invoked on the audio thread; if this
+/// class were `@MainActor`, the inferred closure isolation would trip
+/// `swift_task_checkIsolatedSwift` on every audio callback (build 1368
+/// crash on AURemoteIO::IOThread, EXC_BREAKPOINT). Thread safety is
+/// preserved by the contract: main thread loads the sample and bumps the
+/// trigger counter; audio thread reads only.
+public final class SamplerVoice: @unchecked Sendable {
 
     // MARK: - Constants
 
