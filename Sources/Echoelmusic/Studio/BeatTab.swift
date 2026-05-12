@@ -22,19 +22,14 @@ struct BeatTab: View {
     private let groupCount = 4
 
     var body: some View {
-        // Bisect probe: minimal body to isolate launch crash on real device.
-        // If 1366 launches with this stub, the crash was inside the full
-        // BeatTab UI (Slider binding / ForEach over pattern.steps / etc).
-        // Restored in next cycle once we know where the crash is.
-        VStack(spacing: 12) {
-            Image(systemName: "square.grid.4x3.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.secondary)
-            Text("Beat — bisect probe")
-                .font(.title)
-            Text("BeatPlayer present: \(beatPlayer.voices.count) voices")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        // Cycle 1 restoration: transport row only (Play/Stop + Tempo + Clear).
+        // stepGrid and padRow follow in cycles 2 and 3 once this is
+        // confirmed crash-free on device.
+        VStack(spacing: 16) {
+            transportRow(player: beatPlayer)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
