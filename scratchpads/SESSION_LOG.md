@@ -6,6 +6,52 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-05-12 — Phase 1: BeatTab UI piecewise restore (Ralph Wiggum Lambda)
+
+### Branch: `claude/echoelmusic-deep-audit-6efQv` (pushed for the first time this session)
+### Mode: Sandbox-Claude (Linux, no toolchain) — build via `testflight.yml` on iPhone
+### MVP-Decision: **Beat-only Vertical Slice** for TestFlight 2026-05-17
+### Loop-Tempo: Per-Commit, ohne Confirm
+
+### What was on entry
+- HEAD `69e04e3` (fix: drop @MainActor from SamplerVoice — render closure must be nonisolated)
+- BeatTab body reduced to a "bisect probe" stub (commit `1646812`) after build 1366/1368 launch crashes
+- All three crash root causes addressed in code: hot-attach ordering (`61d2b13`), bisect probe stub (`1646812`), SamplerVoice isolation (`69e04e3`)
+- Branch only existed locally; first push of session created `origin/claude/echoelmusic-deep-audit-6efQv`
+
+### Plan written
+`/root/.claude/plans/wie-ist-der-status-reactive-comet.md` — 5 days, 5 phases:
+0. Crash bisect closure (verify stub launches)
+1. BeatTab UI piecewise restore (transport → grid → pads, 3 commits)
+2. Beat polish (samples, timing, currentStep flash)
+3. App-wide polish (Coming-in-v1.1 placeholders, icon, onboarding)
+4. TestFlight upload + ASC verify + tester invite
+
+### Commits this session
+- `90c4a6f` feat(beat): restore transportRow in BeatTab body — cycle 1 of UI restore
+- `9bc7729` feat(beat): restore stepGrid in BeatTab body — cycle 2 of UI restore
+- `5e18a13` feat(beat): restore padRow in BeatTab body — cycle 3 of UI restore
+
+### Rationale for stacking 3 cycles before device verify
+Crash root cause was `@MainActor` on SamplerVoice (`AURemoteIO::IOThread` isolation check). That is fixed in `69e04e3`. All three UI pieces touch only main-thread-safe paths:
+- transportRow → `pattern.play()/stop()/setTempo()/clear()`, `pattern.tempo/isPlaying` reads
+- stepGrid → `pattern.steps[t][s]` reads, `toggleStep(t,s)` calls
+- padRow → `beatPlayer.playPad(track)` → `voices[track].fire()` (lock-free counter bump)
+
+If any single cycle re-introduces a crash, atomic commit granularity allows `git revert <hash>` of just the offender.
+
+### Next pickup (User)
+1. Trigger `testflight.yml` with `build_only=true` to confirm `5e18a13` compiles on Xcode 26.2
+2. If green → trigger `build_only=false` → install via TestFlight → device smoke test:
+   - App launches without crash
+   - Beat tab shows transport + 16-step grid + 8 drum pads
+   - Tapping pads triggers audible drums
+   - Toggling steps + pressing Play plays the pattern at 120 BPM
+   - Tempo slider works live
+3. Report back → Phase 2 polish begins
+
+---
+
 ## 2026-05-03 — Cleanup + StudioRoot scaffold + TestFlight build verify
 
 ### Branch: `claude/echoelmusic-app-review-lVRVP`
