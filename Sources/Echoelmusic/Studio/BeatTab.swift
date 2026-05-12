@@ -22,16 +22,18 @@ struct BeatTab: View {
     private let groupCount = 4
 
     var body: some View {
-        // Cycle 2 restoration: transport + step grid. Pad row follows in
-        // cycle 3. Each restoration is its own commit so a regression can
-        // be reverted in isolation.
+        // Cycle 3 restoration: full BeatTab UI — transport + step grid + pads.
+        // Pads trigger \`beatPlayer.playPad(track)\` which fires the matching
+        // SamplerVoice (lock-free trigger counter on the audio thread).
         VStack(spacing: 16) {
             transportRow(player: beatPlayer)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
             stepGrid(player: beatPlayer)
                 .padding(.horizontal, 12)
-            Spacer()
+            padRow
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
