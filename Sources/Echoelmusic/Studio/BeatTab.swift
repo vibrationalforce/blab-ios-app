@@ -22,13 +22,15 @@ struct BeatTab: View {
     private let groupCount = 4
 
     var body: some View {
-        // Cycle 1 restoration: transport row only (Play/Stop + Tempo + Clear).
-        // stepGrid and padRow follow in cycles 2 and 3 once this is
-        // confirmed crash-free on device.
+        // Cycle 2 restoration: transport + step grid. Pad row follows in
+        // cycle 3. Each restoration is its own commit so a regression can
+        // be reverted in isolation.
         VStack(spacing: 16) {
             transportRow(player: beatPlayer)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
+            stepGrid(player: beatPlayer)
+                .padding(.horizontal, 12)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
