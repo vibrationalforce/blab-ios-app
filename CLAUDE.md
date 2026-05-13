@@ -17,13 +17,14 @@ Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-trac
 
 ## CURRENT STATE
 
-- **Branch:** `claude/echoelmusic-app-review-lVRVP` (W1 cleanup + StudioRoot)
+- **Branch:** `claude/echoelmusic-deep-audit-6efQv` (Phase 3 — Beat-only TestFlight MVP polish)
 - **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
-- **Active Plan:** `scratchpads/PLAN_v10_TestFlight_Sprint.md` (3-week sprint, TestFlight 2026-05-17)
+- **Active Plan:** `/root/.claude/plans/wie-ist-der-status-reactive-comet.md` (5-day sprint, TestFlight 2026-05-17)
+- **MVP scope:** Beat-only vertical slice. Record/Video/Share visible as "Coming in v1.1" placeholders.
 - **SDK:** iOS 26 SDK required (ITMS-90725, deadline 2026-04-28 — passed; Xcode 26.2 enforced via `setup-xcode@v1` in `testflight.yml`)
-- **Architecture:** Mobile DAW + Video Editor + RTMP Live Streaming — iPhone-first
-- **Root view:** `Studio/StudioRoot.swift` (4-tab `TabView`, Beat live in W1-Day-3+)
-- **Files:** 47 Swift + 2 Metal / 10 tests | ~16,500 lines | **Swift 100%**
+- **Architecture:** Mobile DAW + Video Editor + RTMP Live Streaming — iPhone-first (Beat tab only in v10 MVP)
+- **Root view:** `Studio/StudioRoot.swift` (4-tab `TabView`, BeatTab UI fully restored after launch-crash bisect)
+- **Files:** 52 Swift + 2 Metal / 14 tests / 603 test methods | ~16,500 lines | **Swift 100%**
 
 ---
 
