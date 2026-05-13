@@ -50,6 +50,28 @@ If any single cycle re-introduces a crash, atomic commit granularity allows `git
    - Tempo slider works live
 3. Report back → Phase 2 polish begins
 
+### Phase 3 commits (same session, autonomous polish)
+- `3a3e983` feat(onboarding): rewrite for v10 Beat-MVP — drop v8 soundscape copy + HealthKit ask
+- `e183c1f` feat(studio): placeholder copy "Coming in v1.1" for Record/Video/Share tabs
+- `0b408be` docs(claude-md): sync Current State to v10 Beat-MVP polish phase
+
+### Deep audit findings (read-only, no fixes applied in this session)
+Three parallel Explore agents ran on Bio-DSP, AUv3, and codebase health.
+
+**1. Fabricated Bio-DSP citations.** `CLAUDE.md` and `decisions.md` list `BioEventGraph`, `HilbertSensorMapper`, `BioSignalDeconvolver` as "PROTECTED" with citations to "Rausch 2012 DELLY" / "Rausch 2017 Tracy". **None of those three Swift files exist in `Sources/Echoelmusic/Bio/`.** Only `EchoelBioEngine.swift`, `BioSourceManager.swift`, `MotionActivityProvider.swift`, `OuraRingClient.swift`. The bio→audio mappings in `EchoelDDSP.applyBioReactive()` (lines 735-806) work audibly (coherence→harmonicity, HRV→reverb, breath→filter LFO) but the underlying "coherence" is a variance-of-RR-differences heuristic, not HRV spectral analysis. Citations are unverifiable.
+
+**Authenticity risk:** marketing claims of "peer-reviewed bio-feedback" are not backed by the code. Reframe as "body-responsive audio (not a medical device)" — protects from claims liability and is honest about what the synthesis actually does.
+
+**2. Broken test references.** `Tests/EchoelmusicTests/BioIntegrationTests.swift:579-601` calls `HilbertSensorMapper.map(...)` and `HilbertSensorMapper.mapToGrid(...)`. Those types do not exist in `Sources/`. **The TestFlight build only ships because `testflight.yml.skip_tests` defaults to `true`.** A `swift test` or any CI run with `skip_tests=false` will fail to compile the test target.
+
+Path forward (post-v10): either implement the Hilbert mapper (real code is straightforward — small recursive function) or delete the dead tests. Same for any other ghost-type references in `BioIntegrationTests.swift`.
+
+**3. AUv3 plugin 80 % ship-ready.** `Sources/EchoelmusicAUv3/` contains a complete bio-reactive generator plugin (536 LOC, 8 automatable parameters, 3 factory presets, full state save). One blocker: `Resources/EchoelmusicAUv3/Info.plist:39` declares `aufx` (effect) but the kernel is `augn` (generator) — would fail to load in Logic/GarageBand/AUM. Target is disabled in `project.yml:138-140` pending ASC bundle-ID registration. ~26 hours of engineering between today and standalone App Store submission. Realistic standalone price: $14.99-$19.99. **Zero direct competition in bio-reactive AUv3 space** (verified in `memory/decisions.md` 2026-03-16 entry).
+
+**4. Pivot history.** 3 product pivots in 7 weeks (v8 Soundscape → v9 Live Studio → v10 DAW+Video+Stream). v8 shipped to TestFlight; v9 never reached users (declared "unusable" before any external install); v10 in progress. ~715 LOC of deprecated-but-compilable code accumulated as "escape routes". Codebase discipline is high (603 real behavioral test methods, conventional commits, audit-grade `os_log` usage, zero force-unwraps). Strategic direction is unstable.
+
+**Verdict on v10 brand line ("better than Reaper + Logic + CapCut + OBS + DaVinci in one app"):** fantasy. Achievable horizon: "better than mobile competitors at one specific thing." The current Beat-only MVP fits that horizon. Don't expand scope before v10 ships and produces real user feedback.
+
 ---
 
 ## 2026-05-03 — Cleanup + StudioRoot scaffold + TestFlight build verify
