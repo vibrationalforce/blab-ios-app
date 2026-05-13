@@ -1,14 +1,15 @@
 #if canImport(SwiftUI)
 import SwiftUI
-import HealthKit
-import os.log
 
-/// Minimal onboarding: explain concept, request HealthKit, start playing.
-/// Last tap ("Listen") completes onboarding AND auto-starts the soundscape.
+/// Minimal onboarding for v10 Beat-MVP: welcome → preview → tap to start.
+///
+/// HealthKit request removed — v10 Beat-MVP does not read biometrics on the
+/// audio path. (Bio integration returns as an opt-in feature in v1.1+ when
+/// the Record/Stream tabs ship.)
 struct OnboardingView: View {
 
     @Binding var isComplete: Bool
-    /// Set to true on completion — EchoelmusicApp reads this to auto-play
+    /// Retained for binding parity with EchoelmusicApp; unused in v10.
     @Binding var shouldAutoPlay: Bool
     @State private var currentPage = 0
 
@@ -19,7 +20,7 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 TabView(selection: $currentPage) {
                     welcomePage.tag(0)
-                    healthPage.tag(1)
+                    previewPage.tag(1)
                     readyPage.tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
@@ -35,16 +36,20 @@ struct OnboardingView: View {
         VStack(spacing: 24) {
             Spacer()
 
+            Image(systemName: "square.grid.4x3.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.white.opacity(0.3))
+
             Text("Echoelmusic")
                 .font(.system(size: 32, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Your body creates the soundscape.")
+            Text("Make Beats.")
                 .font(.system(size: 17))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
 
-            Text("Heart rate, breathing, weather, and time of day shape an ambient sound that's uniquely yours.")
+            Text("A 16-step, 8-track sequencer in your pocket. Tap pads to play, toggle steps to build patterns.")
                 .font(.system(size: 15))
                 .foregroundStyle(.white.opacity(0.35))
                 .multilineTextAlignment(.center)
@@ -57,25 +62,26 @@ struct OnboardingView: View {
         .padding(.bottom, 60)
     }
 
-    private var healthPage: some View {
+    private var previewPage: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "heart.fill")
+            Image(systemName: "calendar.badge.clock")
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.3))
 
-            Text("Connect Your Body")
+            Text("Coming in v1.1")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Echoelmusic reads heart rate and HRV from Apple Watch to make the soundscape respond to your physiology in real-time.")
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.4))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+            VStack(alignment: .leading, spacing: 12) {
+                row(symbol: "mic.fill", text: "Record vocals over your beats")
+                row(symbol: "video.fill", text: "Capture and trim video clips")
+                row(symbol: "antenna.radiowaves.left.and.right", text: "Live stream to RTMP destinations")
+            }
+            .padding(.horizontal, 40)
 
-            Text("No wearable? Use your camera or just enjoy the ambient mode.")
+            Text("This first release ships the beat maker. The rest is in active development.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.25))
                 .multilineTextAlignment(.center)
@@ -83,26 +89,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            Button {
-                requestHealthKit()
-                currentPage = 2
-            } label: {
-                Text("Allow HealthKit")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 12))
-            }
-            .padding(.horizontal, 40)
-
-            Button {
-                currentPage = 2
-            } label: {
-                Text("Skip for now")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.3))
-            }
+            nextButton(label: "Got it")
         }
         .padding(.bottom, 60)
     }
@@ -119,26 +106,27 @@ struct OnboardingView: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Your soundscape begins now.")
+            Text("Tap a pad to play. Toggle steps to build a pattern. Hit play.")
                 .font(.system(size: 15))
                 .foregroundStyle(.white.opacity(0.4))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
 
             Spacer()
 
             Button {
-                shouldAutoPlay = true
                 isComplete = true
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 13))
-                    Text("Listen")
+                    Text("Start")
                 }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(.white, in: RoundedRectangle(cornerRadius: 12))
             }
             .padding(.horizontal, 40)
         }
@@ -146,6 +134,19 @@ struct OnboardingView: View {
     }
 
     // MARK: - Helpers
+
+    private func row(symbol: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 14))
+                .frame(width: 20)
+                .foregroundStyle(.white.opacity(0.5))
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.6))
+            Spacer()
+        }
+    }
 
     private func nextButton(label: String) -> some View {
         Button {
@@ -159,23 +160,6 @@ struct OnboardingView: View {
                 .background(.white, in: RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 40)
-    }
-
-    private func requestHealthKit() {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
-        let store = HKHealthStore()
-        let types: Set<HKSampleType> = [
-            HKQuantityType(.heartRate),
-            HKQuantityType(.heartRateVariabilitySDNN),
-            HKQuantityType(.respiratoryRate)
-        ]
-        store.requestAuthorization(toShare: nil, read: types) { success, error in
-            if let error {
-                os_log(.error, "HealthKit auth failed: %{public}@", error.localizedDescription)
-            } else if !success {
-                os_log(.info, "HealthKit auth denied by user")
-            }
-        }
     }
 }
 #endif
