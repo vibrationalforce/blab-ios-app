@@ -25,7 +25,7 @@ private struct RecordTabPlaceholder: View {
         TabPlaceholder(
             symbol: "mic.fill",
             title: "Record",
-            subtitle: "Multi-track recorder · W2"
+            subtitle: "Coming in v1.1"
         )
     }
 }
@@ -35,7 +35,7 @@ private struct VideoTabPlaceholder: View {
         TabPlaceholder(
             symbol: "video.fill",
             title: "Video",
-            subtitle: "Camera + trim · W2"
+            subtitle: "Coming in v1.1"
         )
     }
 }
@@ -45,7 +45,7 @@ private struct ShareTabPlaceholder: View {
         TabPlaceholder(
             symbol: "antenna.radiowaves.left.and.right",
             title: "Share",
-            subtitle: "RTMP stream + export · W3"
+            subtitle: "Coming in v1.1"
         )
     }
 }
