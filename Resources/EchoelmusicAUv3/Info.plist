@@ -32,11 +32,11 @@
 				<key>name</key>
 				<string>Echoelmusic Technologies: EchoelmusicAUv3</string>
 				<key>description</key>
-				<string>Bio-Reactive Audio Effect</string>
+				<string>Bio-Reactive Ambient Generator</string>
 				<key>manufacturer</key>
 				<string>Echo</string>
 				<key>type</key>
-				<string>aufx</string>
+				<string>augn</string>
 				<key>subtype</key>
 				<string>echl</string>
 				<key>version</key>
@@ -45,7 +45,8 @@
 				<true/>
 				<key>tags</key>
 				<array>
-					<string>Effects</string>
+					<string>Generators</string>
+					<string>Synthesizers</string>
 				</array>
 			</dict>
 		</array>
