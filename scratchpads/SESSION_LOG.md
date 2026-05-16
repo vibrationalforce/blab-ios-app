@@ -50,11 +50,6 @@ If any single cycle re-introduces a crash, atomic commit granularity allows `git
    - Tempo slider works live
 3. Report back → Phase 2 polish begins
 
-### Phase 3 commits (same session, autonomous polish)
-- `3a3e983` feat(onboarding): rewrite for v10 Beat-MVP — drop v8 soundscape copy + HealthKit ask
-- `e183c1f` feat(studio): placeholder copy "Coming in v1.1" for Record/Video/Share tabs
-- `0b408be` docs(claude-md): sync Current State to v10 Beat-MVP polish phase
-
 ### Deep audit findings (read-only, no fixes applied in this session)
 Three parallel Explore agents ran on Bio-DSP, AUv3, and codebase health.
 
@@ -71,6 +66,75 @@ Path forward (post-v10): either implement the Hilbert mapper (real code is strai
 **4. Pivot history.** 3 product pivots in 7 weeks (v8 Soundscape → v9 Live Studio → v10 DAW+Video+Stream). v8 shipped to TestFlight; v9 never reached users (declared "unusable" before any external install); v10 in progress. ~715 LOC of deprecated-but-compilable code accumulated as "escape routes". Codebase discipline is high (603 real behavioral test methods, conventional commits, audit-grade `os_log` usage, zero force-unwraps). Strategic direction is unstable.
 
 **Verdict on v10 brand line ("better than Reaper + Logic + CapCut + OBS + DaVinci in one app"):** fantasy. Achievable horizon: "better than mobile competitors at one specific thing." The current Beat-only MVP fits that horizon. Don't expand scope before v10 ships and produces real user feedback.
+
+### Phase 3 commits (same session, autonomous polish)
+- `3a3e983` feat(onboarding): rewrite for v10 Beat-MVP — drop v8 soundscape copy + HealthKit ask
+- `e183c1f` feat(studio): placeholder copy "Coming in v1.1" for Record/Video/Share tabs
+- `0b408be` docs(claude-md): sync Current State to v10 Beat-MVP polish phase
+- `f4bd091` fix(auv3): correct AudioComponent type — aufx (Effect) → augn (Generator)
+
+### STATE CHANGE (same session, late): TestFlight ALREADY GREEN on e183c1f
+
+After the Phase 3 commits were pushed, the autonomous CI infrastructure
+took over without explicit user action:
+
+- `auto-merge-claude.yml` triggers on push to `claude/**` with changes
+  under `Sources/`, `Tests/`, `Package.swift`, `project.yml`, or
+  `.github/workflows/`.
+- Auto-merge merges the source-touching commits to `main`, then
+  dispatches `testflight.yml` with `platform=all, clean_build=false`
+  and the workflow defaults (`build_only=false`, `skip_tests=true`).
+- Verified by direct GitHub API query: TestFlight workflow run on
+  commit `e183c1f` (run id 25801120483) completed successfully with
+  the iOS job's `Export & Upload to TestFlight` step at `success`
+  and the `Verify build landed in App Store Connect` step at `success`.
+
+**Implication:** the Beat-MVP (BeatTab UI fully restored + Onboarding
+v10 + Coming-in-v1.1 placeholders) is already live in TestFlight on
+the user's Apple ID. The earlier "user must trigger testflight.yml"
+instruction was based on a stale model of the CI infrastructure. The
+real bottleneck is **device install + smoke test**, not CI dispatch.
+
+### Token deposited (same session, after the state-change discovery)
+
+User provided a fine-grained PAT (token name `claude-code`). Persisted
+to `.claude/settings.local.json` (gitignored, chmod 600) for direct
+authenticated GitHub API access from the sandbox. Authenticated as
+`vibrationalforce`. Used in this session for:
+- listing workflow runs by head_sha
+- inspecting check-runs + job steps
+- verifying ASC upload completion
+
+The MCP github toolset does not expose `workflow_dispatch`. Direct
+`curl` to `api.github.com/.../actions/workflows/.../dispatches` is the
+fallback path; the auto-merge pattern obviates the need for manual
+dispatch in normal source-edit cycles.
+
+### W2_RECORDER C1 (dormant skeleton, pushed same session)
+
+- `86fbd8e` feat(record): MultiTrackRecorder skeleton — W2-C1, dormant
+
+`Sources/Echoelmusic/Audio/MultiTrackRecorder.swift` (NEW, 81 LOC).
+Pure declaration scaffold:
+- `@MainActor @Observable public final class MultiTrackRecorder`
+- Observed state: `isRecording`, `recordingSeconds`, `trackURLs`
+- Method surface: `prepareForRecording(engine:)`, `startRecording()`,
+  `stopRecording() async -> [URL]`
+- `MultiTrackRecorderError` enum: 4 cases
+
+Not referenced from anywhere. Cannot crash. Auto-merge will dispatch
+a new TestFlight build automatically. If that build fails (compile
+error in the skeleton), revert single commit; Beat-MVP unaffected.
+
+### Loop posture now (autonomous)
+
+- Sandbox-Claude makes code changes + pushes
+- `auto-merge-claude.yml` merges to main + dispatches TestFlight
+- `testflight.yml` archives + uploads to ASC + verifies
+- Sandbox-Claude polls workflow runs via authenticated GitHub API
+- User installs from TestFlight on iPhone, reports device behavior
+
+Only step that requires the user is the **device smoke test**.
 
 ---
 
