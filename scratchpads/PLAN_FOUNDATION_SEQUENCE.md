@@ -51,34 +51,40 @@
 | V3 | **Modulation Matrix v0.** Persistable mapping table (Codable JSON): {source bus topic} × {scale, curve, smooth} → {destination parameter}. Minimal UI. | new `Modulation/` dir | High |
 | V4 | **Two more EchoelTools.** One uses breath-phase (Hilbert phase output), one uses motion-energy. | `Tools/` | Med |
 
-### Floor for protected DSP triad (interleaved with Phase 3)
+### Protected DSP triad — interleaved with Vision-Reflect
 
-| # | Cycle | Files touched | Risk |
-|---|-------|---------------|------|
-| P1 | **`HilbertSensorMapper.swift` real implementation.** Pure value type, vDSP-based Hilbert transform, audio-thread-safe. Satisfies `SKILL.md` contract. Unlocks the dead test in `BioIntegrationTests.swift:579-601`. Owner approval required per SKILL.md status. | new `Bio/HilbertSensorMapper.swift` | High |
-| P2 | **`BioSignalDeconvolver.swift` real implementation.** Detrend + notch + separate + validity flag, per SKILL.md. Wired between sensors and `HilbertSensorMapper`. | new `Bio/BioSignalDeconvolver.swift` | High |
-| P3 | **`BioEventGraph.swift` real implementation.** Event detectors consume cleaned + phase-marked samples; emit `BioEvent` onto bus. Per SKILL.md. | new `Bio/BioEventGraph.swift` | High |
+Owner direction 2026-05-18: **Option 2b confirmed (implement).** Interleaving rather than block-at-end, so each P-cycle unlocks the V-cycle that needs it:
+
+| # | Cycle | Sits between | Files touched | Risk |
+|---|-------|--------------|---------------|------|
+| P1 | **`HilbertSensorMapper.swift`.** Pure value type, vDSP-based Hilbert transform, audio-thread-safe. Satisfies `SKILL.md` contract. Unlocks the dead test in `BioIntegrationTests.swift:579-601`. | After S6, before V1 — so V1's OSC out can publish instantaneous phase, not just BPM. | new `Bio/HilbertSensorMapper.swift` | High |
+| P2 | **`BioSignalDeconvolver.swift`.** Detrend + notch + separate + validity flag per SKILL.md. Wired between sensors and `HilbertSensorMapper`. Cleans Oura HR/PPG before phase analysis. | After V1, before V2 — so by the time Air-CC arrives, the bio side already delivers clean phased signals. | new `Bio/BioSignalDeconvolver.swift` | High |
+| P3 | **`BioEventGraph.swift`.** Event detectors consume cleaned + phase-marked samples; emit `BioEvent` on bus. | After V2, before V3 — Modulation Matrix gains discrete triggers (heartbeat, breath onset, coherence-shift) alongside continuous values. | new `Bio/BioEventGraph.swift` | High |
 
 > P-cycles each require an explicit "APPROVED: modify [Component]" before the file ships, per the SKILL.md status block. After landing, those files become read-only.
 
-### Ship rail
+### Ship rail (revised — P-cycles interleaved)
 
 | # | Cycle | Goal |
 |---|-------|------|
-| Z1 | TestFlight build with F1..S6 landed | Bio-aware tab on device, Oura-verified |
-| Z2 | TestFlight build with V1..V2 landed | OSC out + Air CC verified against companion |
-| Z3 | TestFlight build with V3..V4 landed | Modulation matrix usable |
-| Z4 | TestFlight build with P1..P3 landed | Protected-DSP triad live, dead test rehabilitated |
+| Z1 | TestFlight build with F1..S6 landed | Bio-aware tab on device, Oura-verified, no protected DSP yet |
+| Z2 | TestFlight build with P1 + V1 landed | OSC out carrying live Hilbert phase, dead test rehabilitated |
+| Z3 | TestFlight build with P2 + V2 landed | Clean Oura signal, Air-CC in, validity-flag honored downstream |
+| Z4 | TestFlight build with P3 + V3 + V4 landed | Discrete `BioEvent`s on bus, Modulation Matrix UI, two further tools |
 
 Each Z is preceded by `swift build` + `swift test` green, real-device smoke test against the §8 checklist in master prompt, and copy review against the science-only line in master prompt §0.
 
 ---
 
-## Open decisions still owed by owner before cycle F1 lands
+## Owner decisions on record (2026-05-18)
 
-1. **Protected DSP path.** P1–P3 above assume Option 2b (implement). If owner picks 2a (retract + delete dead tests), P-cycles disappear and `CLAUDE.md` / `decisions.md` get a one-commit cleanup instead. Decision affects Z4's existence.
-2. **App-Group identifier final form.** `group.com.echoelmusic` vs `group.com.echoelmusic.shared`. Pick one, F2 enforces.
-3. **`EngineBus` isolation model.** Actor vs `@MainActor` class vs hybrid (control plane on main, data plane on dedicated audio thread). Decided in S1 plan-mode.
+1. **Protected DSP path:** Option 2b — implement. Interleaved with V-cycles per the table above.
+2. **App-Group identifier:** `group.com.echoelmusic` (Master-Prompt form). F2 enforces.
+3. **F1 authority:** Delegated to Claude ("Du entscheidest. Zukunftsträchtiges Management"). F1 executes immediately after this plan update commits.
+
+## Decisions still owed (deferred to their own cycle)
+
+- **`EngineBus` isolation model.** Actor vs `@MainActor` class vs hybrid (control plane on main, data plane on dedicated audio thread). Decided in S1 plan-mode.
 
 ---
 
