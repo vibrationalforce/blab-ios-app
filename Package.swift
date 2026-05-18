@@ -6,11 +6,8 @@ import PackageDescription
 let package = Package(
     name: "Echoelmusic",
     platforms: [
-        .iOS(.v17),        // iPhone & iPad - required for @Observable macro
-        .macOS(.v14),      // macOS Sonoma+ for @Observable support
-        .watchOS(.v10),    // Apple Watch - required for @Observable
-        .tvOS(.v17),       // Apple TV - required for @Observable
-        .visionOS(.v1)     // Apple Vision Pro - Spatial Audio & Immersive
+        .iOS(.v18)         // iPhone-first per master prompt §1. Other-platform code remains
+                           // compilable behind #if canImport(...) guards but is not a v10 deliverable.
     ],
     products: [
         // Core library - shared across all platforms

@@ -23,7 +23,7 @@ let project = Project(
             "SWIFT_VERSION": "6.0",
             "SWIFT_STRICT_CONCURRENCY": "complete",
             "ENABLE_PREVIEWS": "YES",
-            "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
+            "IPHONEOS_DEPLOYMENT_TARGET": "18.0",
             "MACOSX_DEPLOYMENT_TARGET": "14.0",
             "WATCHOS_DEPLOYMENT_TARGET": "10.0",
             "TVOS_DEPLOYMENT_TARGET": "17.0",
