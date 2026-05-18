@@ -10,6 +10,9 @@ struct EchoelmusicApp: App {
     @State private var store: EchoelStore
     @State private var beatPlayer: BeatPlayer
     @State private var bus: EngineBus
+    #if canImport(HealthKit)
+    @State private var healthBio: HealthKitBioPublisher
+    #endif
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -23,6 +26,9 @@ struct EchoelmusicApp: App {
         _store = State(wrappedValue: EchoelStore())
         _beatPlayer = State(wrappedValue: BeatPlayer())
         _bus = State(wrappedValue: EngineBus())
+        #if canImport(HealthKit)
+        _healthBio = State(wrappedValue: HealthKitBioPublisher())
+        #endif
 
         _ = MemoryPressureHandler.shared
     }
@@ -64,6 +70,10 @@ struct EchoelmusicApp: App {
                 await store.updateSubscriptionStatus()
 
                 log.log(.info, category: .system, "STARTUP COMPLETE — Echoel Studio ready")
+
+                #if canImport(HealthKit)
+                await healthBio.start(publishing: bus)
+                #endif
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {

@@ -50,6 +50,11 @@ public final class BioSimulator {
         task = Task { @MainActor [weak self, weak bus] in
             while !Task.isCancelled {
                 guard let self, let bus else { break }
+                // Defer to any real bio publisher already on the bus.
+                if let latest = bus.latestBio, latest.source != .fallback {
+                    try? await Task.sleep(for: .seconds(2))
+                    continue
+                }
                 bus.publish(bio: self.nextFrame())
                 try? await Task.sleep(for: .seconds(1))
             }
