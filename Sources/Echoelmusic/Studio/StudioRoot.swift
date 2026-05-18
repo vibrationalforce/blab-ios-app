@@ -3,20 +3,35 @@ import SwiftUI
 
 @MainActor
 struct StudioRoot: View {
+
+    @Environment(EngineBus.self) private var bus
+
+    #if DEBUG
+    @State private var simulator = BioSimulator()
+    #endif
+
     var body: some View {
-        TabView {
-            BeatTab()
-                .tabItem { Label("Beat", systemImage: "square.grid.4x3.fill") }
+        VStack(spacing: 0) {
+            BioStripView()
+            TabView {
+                BeatTab()
+                    .tabItem { Label("Beat", systemImage: "square.grid.4x3.fill") }
 
-            RecordTabPlaceholder()
-                .tabItem { Label("Record", systemImage: "mic.fill") }
+                RecordTabPlaceholder()
+                    .tabItem { Label("Record", systemImage: "mic.fill") }
 
-            VideoTabPlaceholder()
-                .tabItem { Label("Video", systemImage: "video.fill") }
+                VideoTabPlaceholder()
+                    .tabItem { Label("Video", systemImage: "video.fill") }
 
-            ShareTabPlaceholder()
-                .tabItem { Label("Share", systemImage: "antenna.radiowaves.left.and.right") }
+                ShareTabPlaceholder()
+                    .tabItem { Label("Share", systemImage: "antenna.radiowaves.left.and.right") }
+            }
         }
+        #if DEBUG
+        .task {
+            simulator.start(publishing: bus)
+        }
+        #endif
     }
 }
 
