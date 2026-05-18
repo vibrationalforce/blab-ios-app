@@ -72,14 +72,10 @@
 	<string>Echoelmusic uses TrueDepth camera for face tracking to map your expressions to audio-visual parameters.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth MIDI controllers and audio devices for professional music creation.</string>
-	<key>NSHomeKitUsageDescription</key>
-	<string>Echoelmusic connects to your smart home devices to synchronize lighting scenes and ambiance with your bio-reactive audio experience.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Echoelmusic uses your location to discover nearby events, connect with other users, and provide location-aware audio experiences.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Echoelmusic uses your location to discover nearby events, connect with other users, and provide location-aware audio experiences even in the background.</string>
-	<key>NSEyeTrackingUsageDescription</key>
-	<string>Echoelmusic uses eye tracking for immersive gaze-based audio control on supported devices.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Echoelmusic can save visualizations, session screenshots, and captured photos to your photo library.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
