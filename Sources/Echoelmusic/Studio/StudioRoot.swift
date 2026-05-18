@@ -15,16 +15,16 @@ struct StudioRoot: View {
             BioStripView()
             TabView {
                 BeatTab()
-                    .tabItem { Label("Beat", systemImage: "square.grid.4x3.fill") }
+                    .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
 
                 RecordTabPlaceholder()
-                    .tabItem { Label("Record", systemImage: "mic.fill") }
+                    .tabItem { Label("Works", systemImage: "waveform") }
 
                 VideoTabPlaceholder()
-                    .tabItem { Label("Video", systemImage: "video.fill") }
+                    .tabItem { Label("Sync", systemImage: "link") }
 
                 ShareTabPlaceholder()
-                    .tabItem { Label("Share", systemImage: "antenna.radiowaves.left.and.right") }
+                    .tabItem { Label("Well", systemImage: "heart.fill") }
             }
         }
         #if DEBUG
@@ -38,9 +38,9 @@ struct StudioRoot: View {
 private struct RecordTabPlaceholder: View {
     var body: some View {
         TabPlaceholder(
-            symbol: "mic.fill",
-            title: "Record",
-            subtitle: "Coming in v1.1"
+            symbol: "waveform",
+            title: "Works",
+            subtitle: "Sessions · Recordings · DAW handoff"
         )
     }
 }
@@ -48,9 +48,9 @@ private struct RecordTabPlaceholder: View {
 private struct VideoTabPlaceholder: View {
     var body: some View {
         TabPlaceholder(
-            symbol: "video.fill",
-            title: "Video",
-            subtitle: "Coming in v1.1"
+            symbol: "link",
+            title: "Sync",
+            subtitle: "OSC · MIDI · MPE · Air controllers"
         )
     }
 }
@@ -58,9 +58,9 @@ private struct VideoTabPlaceholder: View {
 private struct ShareTabPlaceholder: View {
     var body: some View {
         TabPlaceholder(
-            symbol: "antenna.radiowaves.left.and.right",
-            title: "Share",
-            subtitle: "Coming in v1.1"
+            symbol: "heart.fill",
+            title: "Well",
+            subtitle: "Evidence-based breath & coherence"
         )
     }
 }
