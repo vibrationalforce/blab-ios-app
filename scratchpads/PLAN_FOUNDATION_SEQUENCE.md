@@ -37,8 +37,9 @@
 |---|-------|---------------|------|------------|
 | S1 | **`EngineBus` skeleton.** New `Sources/Echoelmusic/Core/EngineBus.swift`. Defines the typed pub/sub bus, `BioEvent`, `BioSampleFrame`, `ControllerEvent` value types, and the `EngineBus` `actor` (or `@MainActor`-isolated class — to be decided in plan-mode). Lock-free `SPSCQueue` (already in repo) used for audio-thread paths. Not yet wired into `EchoelmusicApp`. Dormant + tested. | new file + new tests | Low — dormant | Approve before push |
 | S2 | **Wire `EngineBus` into `EchoelmusicApp`.** Single environment injection. No subscribers yet. BeatTab continues to work unchanged. | `EchoelmusicApp.swift`, `StudioRoot.swift` | Low | Approve before push |
-| S3 | **Oura → `EngineBus`.** `OuraRingClient` publishes `BioSampleFrame` (HR, HRV, breath) onto the bus. No consumers yet other than a debug log. Validated against real Oura ring (owner's device). | `Sources/Echoelmusic/Bio/OuraRingClient.swift`, new `BioPublisher` adapter, tests | Med — real hardware | Device-verify before next |
-| S4 | **HealthKit fallback → `EngineBus`.** When Oura is absent, `EchoelBioEngine` publishes the same `BioSampleFrame` shape. Sources are interchangeable from the bus's perspective. | `EchoelBioEngine.swift`, new `BioPublisher` adapter | Low | Approve before push |
+| S3 | **Oura → `EngineBus`.** `OuraRingClient` publishes `BioSampleFrame` (HR, HRV, breath) onto the bus. Validated against real Oura ring (owner's device). | `Sources/Echoelmusic/Bio/OuraRingClient.swift`, new `OuraBioPublisher` adapter, tests | Med — real hardware | Device-verify before next |
+| P0 | **NEW: Polar H10 BLE direct.** `Sources/Echoelmusic/Bio/PolarH10BioPublisher.swift`. CoreBluetooth direct, no Kubios. Publishes `BioSampleFrame` with `source = .ble` at decimated rate. Polar H10 is HRV ground-truth (Sensors 2026 validation, Pearson r > 0.99 vs ECG) — pairs with S3 to cross-check Oura HRV. Per `STRATEGY_2026-05-18.md`. | new file + new tests | Med — BLE hardware | Device-verify before next |
+| S4 | **HealthKit → `EngineBus`.** `HealthKitBioPublisher` polls `EchoelBioEngine.snapshot` and publishes `BioSampleFrame` with `source = .healthKit`. **DONE — `9d8e99b`.** | `EchoelBioEngine.swift`, new `HealthKitBioPublisher` | Low | Approve before push |
 | S5 | **CoreMIDI MPE input layer.** Extend `MIDIInput.swift` to detect MPE zones (RPN 6,6), split per-note channels, and publish `ControllerEvent` (note + per-note CC74/pressure/pitchbend) onto `EngineBus`. Tested with canned MIDI byte streams. | `MIDIInput.swift`, new tests | Med | Approve before push |
 | S6 | **First `EchoelTools` tool.** Minimal `Sources/Echoelmusic/Tools/HRVPadTool.swift` — subscribes to `BioSampleFrame.hrvNormalized` on the bus, modulates one parameter (filter cutoff) of an existing `EchoelDDSP` voice. Lives in a new `Studio/ToolsTab.swift` (the "Beat" tab name stays for now). | new dir `Tools/`, new tab | Med | Device-verify before next |
 
@@ -49,7 +50,7 @@
 | V1 | **OSC output layer.** `Sources/Echoelmusic/Sync/OSCSender.swift` — UDP socket, `/echoelmusic/bio/*` and `/echoelmusic/audio/*` paths per master prompt §2. Subscribes to bus, sends. Configurable host:port. Verified end-to-end against TouchDesigner/Resolume. | new `Sync/` dir | Med |
 | V2 | **Air-CC receiver.** Network MIDI session listener; CC 21–31 → `ControllerEvent.air(dimension:value:)` on bus. Off by default, opt-in via Settings. | `Sync/`, `MIDIInput.swift` | Med |
 | V3 | **Modulation Matrix v0.** Persistable mapping table (Codable JSON): {source bus topic} × {scale, curve, smooth} → {destination parameter}. Minimal UI. | new `Modulation/` dir | High |
-| V4 | **Two more EchoelTools.** One uses breath-phase (Hilbert phase output), one uses motion-energy. | `Tools/` | Med |
+| V4 | ~~**Two more EchoelTools.** One uses breath-phase (Hilbert phase output), one uses motion-energy.~~ **SUPERSEDED by EchoelLoop module** (Loopy-Pro-style canvas + bio-modulated widgets, scheduled Q2 2027 per `STRATEGY_2026-05-18.md`). | post-V3 future cycle | High |
 
 ### Protected DSP triad — interleaved with Vision-Reflect
 
