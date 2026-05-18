@@ -9,6 +9,7 @@ struct EchoelmusicApp: App {
     @State private var microphoneManager: MicrophoneManager
     @State private var store: EchoelStore
     @State private var beatPlayer: BeatPlayer
+    @State private var bus: EngineBus
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -21,6 +22,7 @@ struct EchoelmusicApp: App {
         _audioEngine = State(wrappedValue: audio)
         _store = State(wrappedValue: EchoelStore())
         _beatPlayer = State(wrappedValue: BeatPlayer())
+        _bus = State(wrappedValue: EngineBus())
 
         _ = MemoryPressureHandler.shared
     }
@@ -41,6 +43,7 @@ struct EchoelmusicApp: App {
             .environment(audioEngine)
             .environment(store)
             .environment(beatPlayer)
+            .environment(bus)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
