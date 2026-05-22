@@ -19,6 +19,9 @@ struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
     @Environment(BioReactiveSynthVoice.self) private var voice
+    #if canImport(CoreMIDI)
+    @Environment(MIDIBusPublisher.self) private var midi
+    #endif
 
     var body: some View {
         HStack(spacing: 16) {
@@ -32,6 +35,7 @@ struct BioStripView: View {
             divider
             metric(label: "→",   value: synthFramesString, unit: nil)
             Spacer(minLength: 0)
+            midiDot
             playButton
             sourceTag
         }
@@ -65,6 +69,24 @@ struct BioStripView: View {
         Rectangle()
             .fill(Color.white.opacity(0.1))
             .frame(width: 1, height: 10)
+    }
+
+    // MARK: - MIDI activity indicator
+
+    /// Small dot that brightens for ~1 s after a MIDI controller event
+    /// arrives on the bus. Honest "no controller connected" otherwise.
+    @ViewBuilder
+    private var midiDot: some View {
+        #if canImport(CoreMIDI)
+        let now = CFAbsoluteTimeGetCurrent()
+        let fresh = midi.lastEventTimestamp > 0 && (now - midi.lastEventTimestamp) < 1.0
+        Circle()
+            .fill(fresh ? Color.green : Color.white.opacity(0.15))
+            .frame(width: 6, height: 6)
+            .accessibilityLabel(fresh ? "MIDI active" : "MIDI idle")
+        #else
+        EmptyView()
+        #endif
     }
 
     // MARK: - Play toggle

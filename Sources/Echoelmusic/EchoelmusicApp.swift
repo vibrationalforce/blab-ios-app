@@ -17,6 +17,10 @@ struct EchoelmusicApp: App {
     @State private var polarH10: PolarH10BioPublisher
     #endif
     @State private var bioVoice: BioReactiveSynthVoice
+    #if canImport(CoreMIDI)
+    @State private var midiInput: MIDIInput
+    @State private var midiPub: MIDIBusPublisher
+    #endif
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -37,6 +41,11 @@ struct EchoelmusicApp: App {
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
+        #if canImport(CoreMIDI)
+        let midi = MIDIInput()
+        _midiInput = State(wrappedValue: midi)
+        _midiPub = State(wrappedValue: MIDIBusPublisher(midi: midi))
+        #endif
 
         _ = MemoryPressureHandler.shared
     }
@@ -59,6 +68,9 @@ struct EchoelmusicApp: App {
             .environment(beatPlayer)
             .environment(bus)
             .environment(bioVoice)
+            #if canImport(CoreMIDI)
+            .environment(midiPub)
+            #endif
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
@@ -88,6 +100,9 @@ struct EchoelmusicApp: App {
                 polarH10.start(publishing: bus)
                 #endif
                 bioVoice.start(subscribing: bus)
+                #if canImport(CoreMIDI)
+                midiPub.start(publishing: bus)
+                #endif
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {
