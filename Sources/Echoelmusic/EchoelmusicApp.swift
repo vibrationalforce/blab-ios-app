@@ -21,6 +21,9 @@ struct EchoelmusicApp: App {
     @State private var midiInput: MIDIInput
     @State private var midiPub: MIDIBusPublisher
     #endif
+    #if canImport(Network)
+    @State private var osc: OSCSender
+    #endif
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -46,6 +49,9 @@ struct EchoelmusicApp: App {
         _midiInput = State(wrappedValue: midi)
         _midiPub = State(wrappedValue: MIDIBusPublisher(midi: midi))
         #endif
+        #if canImport(Network)
+        _osc = State(wrappedValue: OSCSender())
+        #endif
 
         _ = MemoryPressureHandler.shared
     }
@@ -70,6 +76,9 @@ struct EchoelmusicApp: App {
             .environment(bioVoice)
             #if canImport(CoreMIDI)
             .environment(midiPub)
+            #endif
+            #if canImport(Network)
+            .environment(osc)
             #endif
             .task {
                 // Configure audio topology BEFORE starting the engine.
@@ -102,6 +111,9 @@ struct EchoelmusicApp: App {
                 bioVoice.start(subscribing: bus)
                 #if canImport(CoreMIDI)
                 midiPub.start(publishing: bus)
+                #endif
+                #if canImport(Network)
+                osc.start(subscribing: bus)
                 #endif
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in

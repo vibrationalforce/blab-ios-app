@@ -22,6 +22,9 @@ struct BioStripView: View {
     #if canImport(CoreMIDI)
     @Environment(MIDIBusPublisher.self) private var midi
     #endif
+    #if canImport(Network)
+    @Environment(OSCSender.self) private var osc
+    #endif
 
     var body: some View {
         HStack(spacing: 16) {
@@ -36,6 +39,7 @@ struct BioStripView: View {
             metric(label: "→",   value: synthFramesString, unit: nil)
             Spacer(minLength: 0)
             midiDot
+            oscDot
             playButton
             sourceTag
         }
@@ -84,6 +88,24 @@ struct BioStripView: View {
             .fill(fresh ? Color.green : Color.white.opacity(0.15))
             .frame(width: 6, height: 6)
             .accessibilityLabel(fresh ? "MIDI active" : "MIDI idle")
+        #else
+        EmptyView()
+        #endif
+    }
+
+    // MARK: - OSC activity indicator
+
+    /// Blue dot — bright while OSC is sending bus updates outbound,
+    /// dim white when the sender is idle / not yet started.
+    @ViewBuilder
+    private var oscDot: some View {
+        #if canImport(Network)
+        let now = CFAbsoluteTimeGetCurrent()
+        let fresh = osc.isActive && osc.lastSentTimestamp > 0 && (now - osc.lastSentTimestamp) < 1.0
+        Circle()
+            .fill(fresh ? Color.blue : Color.white.opacity(0.15))
+            .frame(width: 6, height: 6)
+            .accessibilityLabel(fresh ? "OSC streaming" : "OSC idle")
         #else
         EmptyView()
         #endif
