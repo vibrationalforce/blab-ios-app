@@ -1,58 +1,63 @@
 ---
 name: HilbertSensorMapper
-description: Use when working with phase analysis of biosignals — breath phase, heartbeat phase, instantaneous amplitude, phase coherence, phase-locking between signals, or any task that needs the analytic signal of a sensor stream. Load this skill before reading, calling, debugging, or writing tests against HilbertSensorMapper. Do NOT load for unrelated audio, UI, or MIDI work.
+description: Use when laying out 1-D sensor channels (EEG electrodes, multi-band coherence values, biosignal arrays) into a 2-D texture, grid, or visual map such that numerically adjacent channels land at spatially adjacent cells. Load this skill before reading, calling, debugging, or writing tests against HilbertSensorMapper. Do NOT load for unrelated audio, UI, or MIDI work. For Hilbert-transform (analytic-signal) usage see the separate `HilbertAnalyticSignal` module if/when it exists.
 ---
 
 # HilbertSensorMapper — Protected DSP Component
 
 ## Status: READ-ONLY
 
-`HilbertSensorMapper` is core IP. **It is not modified, refactored, "cleaned up", "optimized", or wrapped in adapters without an explicit written "APPROVED: modify HilbertSensorMapper" from the owner.** If a compile error, crash, or test failure points at this file, fix the caller, the filtering upstream, or the threading — not the component.
+`HilbertSensorMapper` is core IP. **It is not modified, refactored, "cleaned up", "optimized", or wrapped in adapters without an explicit written "APPROVED: modify HilbertSensorMapper" from the owner.** If a compile error, crash, or test failure points at this file, fix the caller, the input ordering, or the grid sizing — not the component.
 
 ## Conceptual Overview
 
-`HilbertSensorMapper` applies a Hilbert transform to band-limited biosignals to produce the **analytic signal** — a complex-valued representation from which two derived signals are continuously available:
+`HilbertSensorMapper` implements the **Hilbert space-filling curve** for 1-D → 2-D locality-preserving layout. Given a linear index along the curve, it returns 2-D coordinates such that numerically adjacent indices (i and i+1) always land at spatially adjacent grid cells (Manhattan distance ≤ 1). This matters whenever a one-dimensional sequence of sensor channels — EEG electrodes, frequency bands, coherence sweeps, sample buffers — needs to be visualised or processed as a 2-D texture without breaking the locality of nearby channels.
 
-- **Instantaneous amplitude** (envelope): how strong the signal is at this moment
-- **Instantaneous phase** (in radians, unwrapped or wrapped to [-π, π]): where in its cycle the signal currently is
+The Hilbert curve is defined on square grids whose side length is a power of two; the mapper rounds the requested `order` up to the next power of two internally. The output 2-D grid is exactly `gridSize × gridSize` in `mapToGrid`.
 
-It is the mathematical foundation for everything in the app that needs to know not just "what value is this signal right now" but "where in its cycle is it" — breath-phase-driven modulation, heart-coherent visuals, phase-locked-loop-style synchronization between two biosignals, etc.
+> Naming note: This component is named for the **Hilbert curve** (space-filling fractal), not the **Hilbert transform** (analytic-signal phase / amplitude). The two are distinct mathematical objects. If a later cycle needs instantaneous phase from band-limited biosignals, that ships as a separate `HilbertAnalyticSignal` module so the two concerns don't get conflated.
 
-Hilbert transforms are mathematically well-defined only for **narrow-band signals**. The mapper assumes its input is already band-pass filtered to the frequency range of interest (e.g. 0.05–0.5 Hz for breath, 0.5–4 Hz for HR envelope). Feeding it broadband signals produces meaningless phase output.
+## API surface
+
+```swift
+public enum HilbertSensorMapper {
+    public static func map(index: Int, order: Int) -> (Int, Int)
+    public static func mapToGrid(values: [Float], gridSize: Int) -> [[Float]]
+}
+```
+
+Both members are pure, nonisolated, and safe to call from any thread.
 
 ## How to use it (the caller's side)
 
-- Always band-pass filter upstream before handing samples to the mapper. The filter is the caller's responsibility, not the component's.
-- Sample-rate matters. Configure the mapper for the actual sample rate of the input stream; don't assume defaults.
-- The first samples after start contain transient artifacts. Discard or mark them as invalid for at least one full cycle of the slowest expected oscillation.
-- For phase-locking comparisons between two streams, both must come from the same Hilbert configuration window — don't compare phases from differently-configured instances.
-- Consume outputs via `EngineBus` or the documented public stream API. Don't reach into internal buffers.
+- Decide your grid size based on how many channels you actually have. `gridSize = 8` accommodates up to 64 channels.
+- Pass channel values in the order you want adjacency preserved — typically the natural sensor order or a frequency-ordered EEG band sweep.
+- Treat the returned `[[Float]]` as `grid[y][x]` (row-major). Empty cells (beyond `values.count`) are zero.
+- Edge case: `order = 0` returns `(0, 0)` — safe degenerate value, do not treat as an error.
 
 ## How to debug it (without touching it)
 
-1. Plot the input signal and verify it is **band-limited** (looks roughly sinusoidal in the target band).
-2. Plot the instantaneous amplitude — it should be a smooth envelope, not noisy.
-3. Plot the instantaneous phase — it should be monotonically increasing (modulo 2π wraps).
-4. If amplitude is noisy or phase jumps erratically: the upstream filter is wrong or the input is broadband. **Fix upstream**, not the mapper.
-5. If output is correct in isolation but consumers misbehave: the bug is in phase unwrapping or comparison logic at the consumer.
+1. If 1-D adjacent values appear to land far apart in 2-D, check that you're treating `grid[y][x]` correctly — not `grid[x][y]`.
+2. If `mapToGrid` returns fewer rows / columns than expected, verify `gridSize` was the correct power-of-two for your channel count.
+3. The map is fully deterministic — the same `(index, order)` always returns the same `(x, y)`. If you see non-determinism, the bug is in the caller's input ordering, not here.
+4. For visualisation: a useful sanity render is to colour `grid[y][x]` by `(x + y * gridSize) / Float(gridSize*gridSize)` — you should see a continuous gradient that snakes through the grid in the Hilbert pattern.
 
 ## Constraints for any code that touches it
 
-- No allocation, no locks, no GCD calls on the audio/processing thread that feeds it.
-- Sample buffers passed in must match the configured block size and sample rate exactly.
-- Don't create multiple instances of the mapper against the same input stream; fan out from one instance.
-- Tests use canned sine/chirp/breath-shaped vectors; never live sensors.
+- Inputs are pure value types (Int, [Float]). No external state, no allocations beyond the returned 2-D array.
+- Don't pass negative `order` or `gridSize` — both clamp to safe defaults but the caller intent is unclear.
+- For very large grids (`order > 1024`) the recursion depth is fine (iterative algorithm) but the returned 2-D `[[Float]]` array allocates `O(n²)` cells. If that matters, the caller should reuse buffers.
 
 ## What you may freely do
 
-- Build consumers (visuals, synth modulators, OSC senders) on top of its output
-- Configure new instances for new band-limited streams (after filtering)
-- Write integration tests with canned input vectors
-- Document phase conventions actually used by consumers in this SKILL.md
+- Layout EEG electrode arrays, frequency band sweeps, coherence values into Metal textures via `mapToGrid`
+- Build visual modes (Hilbert visualization in EchoelVis) on top of its output
+- Compose with image filters or Metal shaders that consume the 2-D grid
+- Write integration tests with deterministic input vectors
 
 ## What you may NOT do
 
-- Edit the Swift file(s) implementing `HilbertSensorMapper`
-- Replace the Hilbert implementation with an alternative (FFT-based, FIR-based, etc.) — even if "more efficient"
-- Bypass it and compute phase another way for the same signal class
+- Edit the Swift file implementing `HilbertSensorMapper`
+- Replace the iterative algorithm with an alternative (Moore curve, Z-order / Morton, Peano) — even if "more efficient"
+- Add coordinate-system variants without owner approval (the current convention is row-major `grid[y][x]`)
 - Rename, move, or split the module
