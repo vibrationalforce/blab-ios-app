@@ -95,9 +95,12 @@ public final class BioReactiveSynthVoice {
 
     // MARK: - Note gating (UI control plane)
 
-    public func playNote() {
-        guard !isPlayingNote else { return }
-        synth.noteOn()
+    /// Open the envelope at the synth's current frequency (or, if
+    /// supplied, retune to `frequency` first). Re-entrant: a second
+    /// `playNote` while already playing retriggers — monophonic,
+    /// last-note-wins.
+    public func playNote(frequency: Float? = nil) {
+        synth.noteOn(frequency: frequency)
         isPlayingNote = true
     }
 
@@ -105,6 +108,11 @@ public final class BioReactiveSynthVoice {
         guard isPlayingNote else { return }
         synth.noteOff()
         isPlayingNote = false
+    }
+
+    /// Standard A440 equal temperament: midi 69 = 440 Hz.
+    public nonisolated static func frequency(forMIDINote note: UInt8) -> Float {
+        440 * powf(2, (Float(note) - 69) / 12)
     }
 
     // MARK: - Bus subscription
@@ -119,8 +127,37 @@ public final class BioReactiveSynthVoice {
             while !Task.isCancelled {
                 guard let self, let bus = self.bus else { break }
                 self.applyLatestIfFresh(from: bus)
+                self.drainControllerEvents(from: bus)
                 try? await Task.sleep(for: .milliseconds(100))
             }
+        }
+    }
+
+    /// Pulls every queued ControllerEvent since the last tick and
+    /// applies the music-meaningful ones to the synth envelope:
+    ///   .noteOn      → playNote(frequency: midiNote→Hz)
+    ///   .noteOff     → releaseNote()
+    ///   .pitchBend   → instantaneous frequency offset (±2 semitones)
+    /// .slide, .airCC, .channelPressure are reserved for later cycles
+    /// when modulation matrix consumes them.
+    private func drainControllerEvents(from bus: EngineBus) {
+        while let event = bus.controllerEvents.dequeue() {
+            apply(controller: event)
+        }
+    }
+
+    private func apply(controller event: ControllerEvent) {
+        switch event.kind {
+        case .noteOn:
+            playNote(frequency: Self.frequency(forMIDINote: event.note))
+        case .noteOff:
+            releaseNote()
+        case .pitchBend:
+            let semis = event.value * 2.0
+            let base = Self.frequency(forMIDINote: event.note > 0 ? event.note : 69)
+            synth.frequency = base * powf(2, semis / 12)
+        case .slide, .airCC, .channelPressure:
+            break
         }
     }
 
