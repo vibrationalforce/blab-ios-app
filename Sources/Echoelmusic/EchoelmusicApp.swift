@@ -13,6 +13,9 @@ struct EchoelmusicApp: App {
     #if canImport(HealthKit)
     @State private var healthBio: HealthKitBioPublisher
     #endif
+    #if canImport(CoreBluetooth)
+    @State private var polarH10: PolarH10BioPublisher
+    #endif
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -28,6 +31,9 @@ struct EchoelmusicApp: App {
         _bus = State(wrappedValue: EngineBus())
         #if canImport(HealthKit)
         _healthBio = State(wrappedValue: HealthKitBioPublisher())
+        #endif
+        #if canImport(CoreBluetooth)
+        _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
 
         _ = MemoryPressureHandler.shared
@@ -73,6 +79,9 @@ struct EchoelmusicApp: App {
 
                 #if canImport(HealthKit)
                 await healthBio.start(publishing: bus)
+                #endif
+                #if canImport(CoreBluetooth)
+                polarH10.start(publishing: bus)
                 #endif
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
