@@ -70,6 +70,7 @@ struct EchoelmusicApp: App {
 
                 log.log(.info, category: .system, "STARTUP [2/4] Attaching beat voices to audio engine...")
                 beatPlayer.attach(to: audioEngine)
+                bioVoice.attach(to: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 audioEngine.start()

@@ -32,6 +32,7 @@ struct BioStripView: View {
             divider
             metric(label: "→",   value: synthFramesString, unit: nil)
             Spacer(minLength: 0)
+            playButton
             sourceTag
         }
         .font(.system(size: 12, weight: .medium, design: .monospaced))
@@ -64,6 +65,28 @@ struct BioStripView: View {
         Rectangle()
             .fill(Color.white.opacity(0.1))
             .frame(width: 1, height: 10)
+    }
+
+    // MARK: - Play toggle
+
+    private var playButton: some View {
+        Button {
+            if voice.isPlayingNote {
+                voice.releaseNote()
+            } else {
+                voice.playNote()
+            }
+        } label: {
+            Image(systemName: voice.isPlayingNote ? "stop.fill" : "play.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(voice.isPlayingNote ? Color.white : Color.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(voice.isPlayingNote ? Color.white.opacity(0.18) : Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(voice.isPlayingNote ? "Stop bio-reactive voice" : "Play bio-reactive voice")
     }
 
     // MARK: - Source tag
