@@ -18,6 +18,7 @@ import SwiftUI
 struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
+    @Environment(BioReactiveSynthVoice.self) private var voice
 
     var body: some View {
         HStack(spacing: 16) {
@@ -28,6 +29,8 @@ struct BioStripView: View {
             metric(label: "Br",  value: breathString,    unit: "/min")
             divider
             metric(label: "Coh", value: coherenceString, unit: nil)
+            divider
+            metric(label: "→",   value: synthFramesString, unit: nil)
             Spacer(minLength: 0)
             sourceTag
         }
@@ -104,6 +107,12 @@ struct BioStripView: View {
     private var coherenceString: String {
         guard let v = bus.latestBio?.coherence else { return "—" }
         return String(format: "%.2f", v)
+    }
+
+    /// Count of frames the BioReactiveSynthVoice has applied to its
+    /// EchoelDDSP — visible proof the bus → DSP chain is alive.
+    private var synthFramesString: String {
+        voice.framesApplied > 0 ? "\(voice.framesApplied)" : "—"
     }
 
     private func sourceLabel(_ source: BioSource) -> String {

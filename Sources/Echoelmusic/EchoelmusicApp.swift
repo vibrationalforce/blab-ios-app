@@ -16,6 +16,7 @@ struct EchoelmusicApp: App {
     #if canImport(CoreBluetooth)
     @State private var polarH10: PolarH10BioPublisher
     #endif
+    @State private var bioVoice: BioReactiveSynthVoice
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -35,6 +36,7 @@ struct EchoelmusicApp: App {
         #if canImport(CoreBluetooth)
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
+        _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
 
         _ = MemoryPressureHandler.shared
     }
@@ -56,6 +58,7 @@ struct EchoelmusicApp: App {
             .environment(store)
             .environment(beatPlayer)
             .environment(bus)
+            .environment(bioVoice)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
@@ -83,6 +86,7 @@ struct EchoelmusicApp: App {
                 #if canImport(CoreBluetooth)
                 polarH10.start(publishing: bus)
                 #endif
+                bioVoice.start(subscribing: bus)
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {
