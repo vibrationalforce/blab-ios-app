@@ -75,16 +75,12 @@
 		<string>_midi._udp</string>
 		<string>_echoelmusic._tcp</string>
 	</array>
-	<key>NSHomeKitUsageDescription</key>
-	<string>Echoelmusic connects to HomeKit accessories for bio-reactive smart lighting control synchronized with your music.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Echoelmusic uses your location to discover nearby DMX lighting fixtures and network audio devices.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Echoelmusic uses your location to discover nearby DMX lighting fixtures and network audio devices.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Echoelmusic uses motion data for gesture-based audio control and spatial audio head tracking.</string>
-	<key>NSEyeTrackingUsageDescription</key>
-	<string>Echoelmusic uses eye tracking for immersive gaze-based audio control on supported devices.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Echoelmusic can save visualizations, session screenshots, and captured photos to your photo library.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
@@ -98,7 +94,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 	<key>MinimumOSVersion</key>
-	<string>17.0</string>
+	<string>18.0</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
