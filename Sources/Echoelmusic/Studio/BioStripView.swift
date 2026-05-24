@@ -19,6 +19,7 @@ struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
     @Environment(BioReactiveSynthVoice.self) private var voice
+    @Environment(BioEventPublisher.self) private var events
     #if canImport(CoreMIDI)
     @Environment(MIDIBusPublisher.self) private var midi
     #endif
@@ -38,6 +39,7 @@ struct BioStripView: View {
             divider
             metric(label: "→",   value: synthFramesString, unit: nil)
             Spacer(minLength: 0)
+            eventDot
             midiDot
             oscDot
             playButton
@@ -91,6 +93,20 @@ struct BioStripView: View {
         #else
         EmptyView()
         #endif
+    }
+
+    // MARK: - Discrete bio-event indicator
+
+    /// Amber dot — brightens for ~1 s after BioEventGraph publishes a
+    /// discrete event (breath onset / motion peak) onto the bus.
+    @ViewBuilder
+    private var eventDot: some View {
+        let now = CFAbsoluteTimeGetCurrent()
+        let fresh = events.lastEventTimestamp > 0 && (now - events.lastEventTimestamp) < 1.0
+        Circle()
+            .fill(fresh ? Color.orange : Color.white.opacity(0.15))
+            .frame(width: 6, height: 6)
+            .accessibilityLabel(fresh ? "Bio event detected" : "No recent bio event")
     }
 
     // MARK: - OSC activity indicator

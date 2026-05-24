@@ -17,6 +17,7 @@ struct EchoelmusicApp: App {
     @State private var polarH10: PolarH10BioPublisher
     #endif
     @State private var bioVoice: BioReactiveSynthVoice
+    @State private var bioEvents: BioEventPublisher
     #if canImport(CoreMIDI)
     @State private var midiInput: MIDIInput
     @State private var midiPub: MIDIBusPublisher
@@ -44,6 +45,7 @@ struct EchoelmusicApp: App {
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
+        _bioEvents = State(wrappedValue: BioEventPublisher())
         #if canImport(CoreMIDI)
         let midi = MIDIInput()
         _midiInput = State(wrappedValue: midi)
@@ -74,6 +76,7 @@ struct EchoelmusicApp: App {
             .environment(beatPlayer)
             .environment(bus)
             .environment(bioVoice)
+            .environment(bioEvents)
             #if canImport(CoreMIDI)
             .environment(midiPub)
             #endif
@@ -109,6 +112,7 @@ struct EchoelmusicApp: App {
                 polarH10.start(publishing: bus)
                 #endif
                 bioVoice.start(subscribing: bus)
+                bioEvents.start(on: bus)
                 #if canImport(CoreMIDI)
                 midiPub.start(publishing: bus)
                 #endif
