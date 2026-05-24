@@ -48,9 +48,20 @@ public final class BioReactiveSynthVoice {
     /// released (silent / fading).
     public private(set) var isPlayingNote = false
 
+    /// When true, breath inhale/exhale onsets from the bus drive the
+    /// envelope (the synth breathes with you) whenever no external
+    /// controller note is held. Toggle off for pure manual play.
+    public var breathPlayEnabled = true
+
     // MARK: - Bus subscription state
 
     public private(set) var isSubscribed = false
+
+    @ObservationIgnored
+    private var heldByController = false
+
+    @ObservationIgnored
+    private var lastBioEventTimestamp: TimeInterval = -1
 
     public private(set) var lastApplied: BioSampleFrame?
 
@@ -128,6 +139,7 @@ public final class BioReactiveSynthVoice {
                 guard let self, let bus = self.bus else { break }
                 self.applyLatestIfFresh(from: bus)
                 self.drainControllerEvents(from: bus)
+                self.consumeBioEventsIfFresh(from: bus)
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
@@ -149,14 +161,36 @@ public final class BioReactiveSynthVoice {
     private func apply(controller event: ControllerEvent) {
         switch event.kind {
         case .noteOn:
+            heldByController = true
             playNote(frequency: Self.frequency(forMIDINote: event.note))
         case .noteOff:
+            heldByController = false
             releaseNote()
         case .pitchBend:
             let semis = event.value * 2.0
             let base = Self.frequency(forMIDINote: event.note > 0 ? event.note : 69)
             synth.frequency = base * powf(2, semis / 12)
         case .slide, .airCC, .channelPressure:
+            break
+        }
+    }
+
+    /// When no external controller note is held, the breath drives the
+    /// envelope: inhale onset opens it, exhale onset releases it — the
+    /// synth breathes with you. A held MIDI/MPE note takes priority and
+    /// suppresses breath triggering so the performer always leads.
+    private func consumeBioEventsIfFresh(from bus: EngineBus) {
+        guard let event = bus.latestBioEvent else { return }
+        guard event.timestamp != lastBioEventTimestamp else { return }
+        lastBioEventTimestamp = event.timestamp
+        guard breathPlayEnabled, !heldByController else { return }
+
+        switch event.kind {
+        case .breathInhaleOnset:
+            playNote()
+        case .breathExhaleOnset:
+            releaseNote()
+        case .heartbeat, .motionPeak, .coherenceShift, .eegBurst:
             break
         }
     }
