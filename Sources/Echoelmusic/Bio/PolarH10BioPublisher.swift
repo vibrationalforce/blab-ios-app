@@ -275,6 +275,19 @@ extension PolarH10BioPublisher: CBPeripheralDelegate {
                 if self.rrIntervals.count > self.maxRRIntervals {
                     self.rrIntervals.removeFirst()
                 }
+                // Each RR interval marks one completed beat. Emit a
+                // discrete heartbeat event with real, low-latency
+                // timing — unlike deriving beats from the averaged HR
+                // value (which the master prompt warns is too laggy
+                // for beat-sync). aux carries the RR interval in ms.
+                // All bioEvent producers publish from @MainActor, so
+                // enqueues to the SPSC bioEvents queue are serialized.
+                self.bus?.publish(bioEvent: BioEvent(
+                    timestamp: CFAbsoluteTimeGetCurrent(),
+                    kind: .heartbeat,
+                    confidence: 1,
+                    aux: Float(rr * 1000)
+                ))
             }
         }
     }
