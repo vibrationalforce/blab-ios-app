@@ -17,14 +17,16 @@ Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-trac
 
 ## CURRENT STATE
 
-- **Branch:** `claude/echoelmusic-deep-audit-6efQv` (Phase 3 — Beat-only TestFlight MVP polish)
+- **Branch:** `claude/audit-echoelmusic-foundation-Q9OYQ` (Foundation → Bio-Reactive Vision, 33 commits)
 - **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
-- **Active Plan:** `/root/.claude/plans/wie-ist-der-status-reactive-comet.md` (5-day sprint, TestFlight 2026-05-17)
-- **MVP scope:** Beat-only vertical slice. Record/Video/Share visible as "Coming in v1.1" placeholders.
-- **SDK:** iOS 26 SDK required (ITMS-90725, deadline 2026-04-28 — passed; Xcode 26.2 enforced via `setup-xcode@v1` in `testflight.yml`)
-- **Architecture:** Mobile DAW + Video Editor + RTMP Live Streaming — iPhone-first (Beat tab only in v10 MVP)
-- **Root view:** `Studio/StudioRoot.swift` (4-tab `TabView`, BeatTab UI fully restored after launch-crash bisect)
-- **Files:** 52 Swift + 2 Metal / 14 tests / 603 test methods | ~16,500 lines | **Swift 100%**
+- **Positioning:** "The first bio-reactive performance instrument. What Loopy Pro, Bitwig, and TouchDesigner together cannot do." (`scratchpads/STRATEGY_2026-05-18.md`)
+- **Architecture:** `EngineBus` (hybrid `@MainActor @Observable` control plane + lock-free SPSCQueue data plane) routes 3 topics — `bioFrames` / `controllerEvents` / `bioEvents`. Modules are bus producers/consumers, never directly coupled.
+- **Live pipeline:** HealthKit + Polar H10 (BLE direct) + Demo → bioFrames → BioReactiveSynthVoice (EchoelDDSP, audible, breath-triggered envelope) + OSCSender (`/echoelmusic/bio/*` UDP out). CoreMIDI MPE → controllerEvents → synth notes (performer priority). BioEventGraph → bioEvents (breath/motion onsets).
+- **Protected DSP triad (READ-ONLY, now implemented):** BioSignalDeconvolver (detrend·notch·validity), HilbertSensorMapper (1D→2D Hilbert curve), BioEventGraph (heartbeat/breath/motion detectors). Pure value types, SKILL.md contracts under `.claude/skills/`.
+- **SDK:** iOS 18 deployment floor (Package.swift + project.yml + Resources/iOS/Info.plist synced). Xcode 26.2 in `testflight.yml`. App Group `group.com.echoelmusic`.
+- **Root view:** `Studio/StudioRoot.swift` — Tools / Works / Sync / Well + live `BioStripView` (HR·HRV·Br·Coh, synth-frame count, MIDI/OSC/event activity dots, play toggle).
+- **⚠️ DEPLOY BLOCKER (owner-side, pre-existing):** No TestFlight since `v1.0.0` (2025-12-03), predates this branch. Auto-merge to main works; `testflight.yml` dispatches but fails in-pipeline. Inspect Actions → red job (likely expired App Store Connect API key secret OR provisioning needing the app-group registered). Helper: `bash scripts/check-testflight.sh`.
+- **Files:** ~64 Swift + 2 Metal | new test suites: EngineBus, PolarH10, BioSignalDeconvolver, BioEventGraph, OSCSender | **Swift 100%**
 
 ---
 

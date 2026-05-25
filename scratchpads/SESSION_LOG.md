@@ -1620,3 +1620,56 @@ When starting a new session:
 3. Check `docs/dev/FEATURE_MATRIX.md` for feature readiness
 4. Run `swift build` to verify current build state
 5. Then proceed with the new task
+
+---
+
+# SESSION 2026-05-22 — Foundation → Bio-Reactive Vision (branch `claude/audit-echoelmusic-foundation-Q9OYQ`)
+
+**Arc:** Phase-1 foundation audit → full biofeedback-first vision slice, end-to-end, 33 commits.
+
+## What was built (in order)
+
+1. **Foundation audit** (`3a36658`) — inventoried 55 Swift files vs the new master-prompt vision; surfaced 3 owner decisions (product direction, protected-DSP path, iOS bump).
+2. **Protected-DSP SKILL contracts** (`8d888ab`/`027006a`/`dd9a5c2`) — BioEventGraph, BioSignalDeconvolver, HilbertSensorMapper read-only contracts under `.claude/skills/`.
+3. **Sequence plan + owner decisions** (`47aa2fc`/`6351ad3`) — 17-cycle ledger; 2b (implement protected DSP), app-group `group.com.echoelmusic`, iOS 18.
+4. **F1/F2** (`ad85ef2`/`8e0966b`) — iOS 18 floor, iPhone-only SPM platforms, app-group rename, permission scrub.
+5. **EngineBus** (`1b68fd3`/`8d6f34c`) — hybrid isolation: `@MainActor @Observable` control plane + lock-free SPSCQueue data plane; 3 topics (bioFrames/controllerEvents/bioEvents); wired into app.
+6. **Visible bio strip + DEBUG simulator + tab rename** (`70d8276`/`f7843f8`) — Tools/Works/Sync/Well.
+7. **Bio publishers** — HealthKit (`9d8e99b`), Polar H10 BLE direct (`4f9a511`, parses 0x2A37 + RR → RMSSD).
+8. **Strategy re-anchor** (`1546b43`) — positioning: "the first bio-reactive performance instrument"; grounded the owner's competitive doc against real repo state (doc claimed 1552 commits / 12 tools — fiction).
+9. **Deep audit + README** (`4a1c35c`/`369eb2b`) — connection map; EngineBus had zero subscribers; honest README.
+10. **First subscriber + audio output** (`2791792`/`a350d19`) — BioReactiveSynthVoice wraps EchoelDDSP.applyBioReactive; AVAudioSourceNode → masterMixer; audible.
+11. **S5 MIDI + loop closure** (`75edd09`/`52867b2`) — MIDIBusPublisher → controllerEvents; MPE note triggers bio-modulated synth.
+12. **V1 OSC out** (`d32c198`) — `/echoelmusic/bio/*` UDP; bus externalized to Resolume/TouchDesigner/etc.
+13. **Protected DSP triad implemented** — P1 HilbertSensorMapper (`bd5ebf6`), P2 BioSignalDeconvolver (`d9c3d4a`), P3 BioEventGraph (`4e006df`). All pure value types, read-only per SKILL, with test suites.
+14. **Pre-deploy CI sync** (`585e4af`) — discovered CI uses `project.yml` + `Resources/iOS/Info.plist`, NOT the root files F1/F2 edited; synced iOS 18 + permission scrub to the real CI truth-source.
+15. **CI diagnostic helper** (`efa84e7`) — `scripts/check-testflight.sh` reads local token, surfaces failed-job log.
+16. **BioEventPublisher** (`662faae`) — feeds bus frames through BioEventGraph, publishes breath/motion events to the third topic.
+17. **Breathing synth** (`eb28051`) — BioReactiveSynthVoice consumes breath onsets: inhale swells the envelope, exhale releases. Biofeedback *plays* the instrument, not just modulates it.
+
+## End state of the bus
+
+```
+HealthKit / Polar H10 / Demo → bioFrames        → BioReactiveSynthVoice → audio out (timbre + breath envelope)
+CoreMIDI MPE                 → controllerEvents  → BioReactiveSynthVoice → notes (performer priority)
+BioEventGraph                → bioEvents         → BioReactiveSynthVoice → breath-triggered envelope
+                                bioFrames         → OSCSender             → /echoelmusic/bio/* UDP out
+```
+
+## CRITICAL OPEN BLOCKER (owner-side, not code)
+
+**TestFlight has not deployed since `v1.0.0` (2025-12-03) — predates this whole branch.** `auto-merge-claude.yml` IS working (every push auto-merges to main; main HEAD is current). `testflight.yml` IS dispatched on each merge. But the build fails somewhere in its pipeline and no MCP tool / sandboxed agent can read CI logs from this environment (no gh CLI, no fastlane, MCP has no workflow_runs endpoint, system-prompt forbids direct API).
+
+**Next session / owner MUST:** open github.com/vibrationalforce/Echoelmusic/actions → latest red TestFlight run → identify failed job. Likely an expired App Store Connect API key secret (Dec→May) OR provisioning (app-group rename needs registering in App Store Connect). If it's a Swift compile error, bisect `9d8e99b…eb28051`. Helper: `bash scripts/check-testflight.sh`.
+
+## Note on credentials
+
+A GitHub PAT was pasted into the chat transcript this session. It is compromised by exposure and should be **revoked** at github.com/settings/tokens regardless of use. The agent did not and cannot use it (MCP-only GitHub access by host config).
+
+## Next code cycles (when deploy unblocks)
+
+- Polar H10 RR-interval → real `.heartbeat` BioEvents (low-latency, RR already parsed)
+- Heartbeat-triggered BeatPlayer steps
+- Modulation Matrix UI (V3)
+- OSC In (return channel) + OSC for controllerEvents/bioEvents
+- BioSignalDeconvolver → HilbertSensorMapper → BioEventGraph composed as a real chain on raw waveform (needs Polar PMD service for raw ECG)
