@@ -3,9 +3,9 @@
 # Note: www-to-non-www and HTTP-to-HTTPS are handled by Cloudflare domain settings
 # =============================================================================
 
-# App Store shortcut
-/app https://apps.apple.com/app/echoelmusic/id6757957358 302
-/download https://apps.apple.com/app/echoelmusic/id6757957358 302
+# App Store shortcut (app not yet released — point to overview until live)
+/app /overview.html 302
+/download /overview.html 302
 
 # Common page aliases
 /datenschutz /privacy.html 301

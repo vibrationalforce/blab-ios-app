@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.3.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Overview - Echoelmusic | Complete Feature Reference</title>
+    <meta name="description" content="Complete overview of Echoelmusic — the bio-reactive performance instrument. 12 unified Echoel* engines, platforms, editions, tech specs, bio-mappings, privacy and safety. Coming soon to Apple devices.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Echoelmusic — Complete Overview">
+    <meta property="og:description" content="The full reference: 12 unified engines, platforms, editions, specs, bio-mappings, privacy and safety. Coming soon.">
+    <meta property="og:url" content="https://echoelmusic.com/overview.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Echoelmusic — Complete Overview">
+    <meta name="twitter:description" content="The full reference: 12 unified engines, platforms, editions, specs, privacy and safety.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/overview.html">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Overview","item":"https://echoelmusic.com/overview.html"}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.3">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+
+    <style>
+        .status-badge {
+            display: inline-block; margin-top: 16px;
+            border: 1px solid var(--border); color: var(--dim);
+            font-weight: 600; padding: 6px 16px; border-radius: 10px;
+            letter-spacing: 0.5px;
+        }
+        .lead { text-align: center; color: var(--dim); line-height: 1.7; max-width: 640px; margin: 0 auto 8px; }
+        .lead strong { color: var(--text); }
+
+        .ov-toc { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 28px 0 8px; }
+        .ov-toc a, .ov-toc a:visited {
+            color: var(--dim); border: 1px solid var(--border); border-radius: 8px;
+            padding: 6px 12px; font-size: 13px; font-weight: 600; text-decoration: none;
+            transition: color 0.2s, background 0.2s;
+        }
+        .ov-toc a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+        .data-row { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .data-row:last-child { border-bottom: none; }
+        .data-row .k { flex: 0 0 200px; color: var(--text); font-weight: 700; }
+        .data-row .v { color: var(--dim); line-height: 1.6; }
+        @media (max-width: 560px) { .data-row { flex-direction: column; gap: 2px; } .data-row .k { flex: none; } }
+
+        .engine-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; }
+        .engine-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+        .engine-item h4 { color: var(--text); font-weight: 700; margin-bottom: 2px; font-size: 14px; }
+        .engine-item p { color: var(--dim); line-height: 1.55; font-size: 13px; margin: 0; }
+
+        .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 16px; }
+        .pillar { padding: 16px 0; }
+        .pillar h4 { color: var(--text); margin-bottom: 4px; }
+        .pillar p { color: var(--dim); font-size: 13px; line-height: 1.5; margin: 0; }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="overview.html" aria-current="page">Overview</a>
+                <a href="tools.html">Tools</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="overview.html" aria-current="page">Overview</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+            <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main">
+        <div class="subpage subpage--wider">
+            <div class="subpage-hero">
+                <h1>Complete Overview</h1>
+                <p class="subtitle">Echoelmusic — the first bio-reactive performance instrument. Make beats, record video, stream live. Everything from one signal chain: your body.</p>
+                <span class="status-badge">App — Coming Soon</span>
+            </div>
+
+            <p class="lead"><strong>One app replaces FL Studio Mobile + Ableton + iPhone Camera + InShot + OBS.</strong> Your heartbeat, breath and movement drive sound, visuals, video and light in real time — what Loopy Pro, Bitwig and TouchDesigner together cannot do.</p>
+
+            <nav class="ov-toc" aria-label="On this page">
+                <a href="#pillars">Pillars</a>
+                <a href="#engines">12 Engines</a>
+                <a href="#how">How it works</a>
+                <a href="#bio">Bio-Mappings</a>
+                <a href="#platforms">Platforms</a>
+                <a href="#editions">Editions</a>
+                <a href="#who">Who it's for</a>
+                <a href="#specs">Specs</a>
+                <a href="#privacy">Privacy</a>
+                <a href="#safety">Safety</a>
+            </nav>
+
+            <!-- PILLARS -->
+            <section id="pillars">
+                <h2>Core Pillars</h2>
+                <div class="pillars">
+                    <div class="pillar"><h4>Beat Maker</h4><p>16-step &times; 8-track sequencer + sampler. Make beats from scratch.</p></div>
+                    <div class="pillar"><h4>Multi-track Recorder</h4><p>Record mic over beats with sample-accurate sync.</p></div>
+                    <div class="pillar"><h4>Video Capture &amp; Trim</h4><p>Camera capture, clip editing, ProRes recording.</p></div>
+                    <div class="pillar"><h4>RTMP Live Stream</h4><p>Stream to YouTube, Twitch, Facebook or any custom RTMP.</p></div>
+                </div>
+            </section>
+
+            <!-- ENGINES -->
+            <section id="engines">
+                <h2>The 12 Engines</h2>
+                <p>Every tool talks to every other tool through one creative workspace — biology in, art out. Full capability breakdown on the <a href="tools.html">Tools</a> page.</p>
+                <div class="engine-grid">
+                    <div class="engine-item"><h4>EchoelSynth</h4><p>DDSP, modal, cellular, sampler, EchoelBeat, breakbeat chopper, spectral morph.</p></div>
+                    <div class="engine-item"><h4>EchoelFX</h4><p>EQ, dynamics, reverb, delay, modulation, drive, mastering + analog emulations.</p></div>
+                    <div class="engine-item"><h4>EchoelMix</h4><p>Console, multi-track recording, LUFS metering, session &amp; BPM sync.</p></div>
+                    <div class="engine-item"><h4>EchoelSeq</h4><p>Step sequencer, pattern engine, automation, Euclidean &amp; polyrhythm.</p></div>
+                    <div class="engine-item"><h4>EchoelMIDI</h4><p>MIDI 2.0, MPE, touch instruments, real-time audio-to-MIDI.</p></div>
+                    <div class="engine-item"><h4>EchoelBio</h4><p>HRV, heart rate, breath, face tracking, signal deconvolution, events.</p></div>
+                    <div class="engine-item"><h4>EchoelVis</h4><p>GPU visuals at 120fps — particles, Hilbert map, generative &amp; AR worlds.</p></div>
+                    <div class="engine-item"><h4>EchoelVid</h4><p>NLE editor, multi-cam, Apple ProRes, color grading, streaming.</p></div>
+                    <div class="engine-item"><h4>EchoelLux</h4><p>DMX-512, Art-Net 4, HomeKit smart lighting, cue system.</p></div>
+                    <div class="engine-item"><h4>EchoelStage</h4><p>External displays, projection mapping, multi-screen output.</p></div>
+                    <div class="engine-item"><h4>EchoelNet</h4><p>OSC, Ableton Link, cross-device tempo &amp; data sync.</p></div>
+                    <div class="engine-item"><h4>EchoelAI</h4><p>On-device CoreML, stem separation. Private, fast, no cloud.</p></div>
+                </div>
+            </section>
+
+            <!-- HOW -->
+            <section id="how">
+                <h2>How it works</h2>
+                <div class="data-row"><div class="k">1 — Sense</div><div class="v">Apple Watch, Polar H10 or iPhone camera read heartbeat, breathing and movement in real time. No setup.</div></div>
+                <div class="data-row"><div class="k">2 — Transform</div><div class="v">Biology shapes sound, visuals and light. Coherence opens the mix; your pulse drives the bass; breath shapes the envelope.</div></div>
+                <div class="data-row"><div class="k">3 — Radiate</div><div class="v">Record it, film it, stream it, light up a room — from living room to festival stage.</div></div>
+            </section>
+
+            <!-- BIO MAPPINGS -->
+            <section id="bio">
+                <h2>Bio-Mappings</h2>
+                <p>How biometric signals map to creative parameters through the DDSP engine:</p>
+                <div class="data-row"><div class="k">Coherence</div><div class="v">Harmonicity &middot; visual complexity &middot; shape morphing</div></div>
+                <div class="data-row"><div class="k">HRV</div><div class="v">Brightness &middot; color palette</div></div>
+                <div class="data-row"><div class="k">Heart rate</div><div class="v">Vibrato &middot; rhythmic pulse &middot; tempo</div></div>
+                <div class="data-row"><div class="k">Breath phase</div><div class="v">Amplitude envelope &middot; visual expansion</div></div>
+                <div class="data-row"><div class="k">Breath depth</div><div class="v">Noise level</div></div>
+                <div class="data-row"><div class="k">LF/HF ratio</div><div class="v">Spectral tilt &middot; tension / release</div></div>
+            </section>
+
+            <!-- PLATFORMS -->
+            <section id="platforms">
+                <h2>Platforms</h2>
+                <div class="data-row"><div class="k">At launch</div><div class="v">iPhone first (iOS 18+). Built natively on Apple frameworks — no wrappers, no Electron.</div></div>
+                <div class="data-row"><div class="k">Planned</div><div class="v">iPad, Mac, Apple Watch, Apple TV, Vision Pro.</div></div>
+                <div class="data-row"><div class="k">Plugin &amp; host</div><div class="v">AUv3 plugin and host — works inside Logic Pro, GarageBand and compatible DAWs.</div></div>
+                <div class="data-row"><div class="k">Dependencies</div><div class="v">One external dependency (HaishinKit for RTMP). Everything else is pure Apple.</div></div>
+            </section>
+
+            <!-- EDITIONS -->
+            <section id="editions">
+                <h2>Editions</h2>
+                <div class="data-row"><div class="k">Creative Suite</div><div class="v">Musicians, filmmakers, performers, installation artists. The full creative platform.</div></div>
+                <div class="data-row"><div class="k">Research Edition</div><div class="v">Universities and clinical researchers. Data export, validated protocols, API access.</div></div>
+                <div class="data-row"><div class="k">Bio-Reactive Audio SDK</div><div class="v">Game developers. Unity &amp; Unreal integration for interactive worlds.</div></div>
+            </section>
+
+            <!-- WHO -->
+            <section id="who">
+                <h2>Who it's for</h2>
+                <div class="data-row"><div class="k">Musicians &amp; Producers</div><div class="v">A full studio that responds to your body — a dimension no plugin can reach.</div></div>
+                <div class="data-row"><div class="k">DJs &amp; Performers</div><div class="v">Your pulse controls lights, your energy shapes visuals; the crowd feels you.</div></div>
+                <div class="data-row"><div class="k">Filmmakers &amp; Artists</div><div class="v">Generative art from biology. Record it, project it, stream it.</div></div>
+                <div class="data-row"><div class="k">Installations &amp; Staging</div><div class="v">Projection mapping, DMX, multi-screen — bio-reactive spaces at any scale.</div></div>
+                <div class="data-row"><div class="k">Therapists &amp; Coaches</div><div class="v">Biofeedback as creative expression. HRV coherence made audible and visible.</div></div>
+                <div class="data-row"><div class="k">Education &amp; Accessibility</div><div class="v">Music from breath and movement — creative expression without barriers.</div></div>
+            </section>
+
+            <!-- SPECS -->
+            <section id="specs">
+                <h2>Technical Specs</h2>
+                <div class="data-row"><div class="k">Audio latency</div><div class="v">Real-time, low-latency engine (target &lt;10ms).</div></div>
+                <div class="data-row"><div class="k">Visuals</div><div class="v">Metal GPU-accelerated, up to 120fps.</div></div>
+                <div class="data-row"><div class="k">Bio loop</div><div class="v">Real-time control loop up to 120Hz.</div></div>
+                <div class="data-row"><div class="k">MIDI</div><div class="v">Full MIDI 2.0 protocol + MPE.</div></div>
+                <div class="data-row"><div class="k">AI</div><div class="v">On-device CoreML, Neural Engine accelerated.</div></div>
+                <div class="data-row"><div class="k">Networking</div><div class="v">OSC + Ableton Link (target &lt;5ms on LAN).</div></div>
+            </section>
+
+            <!-- PRIVACY -->
+            <section id="privacy">
+                <h2>Privacy</h2>
+                <p>All biometric data is processed <strong>locally on your device</strong>. No accounts, no analytics, no third-party SDKs. AI runs entirely on-device — your data never leaves your hardware. See <a href="privacy.html">Privacy</a> and <a href="security.html">Security</a> for details.</p>
+            </section>
+
+            <!-- SAFETY -->
+            <section id="safety">
+                <h2>Health &amp; Safety</h2>
+                <div class="warning-box">
+                    <p>Echoelmusic is a creative tool for self-observation, <strong>not a medical device</strong> and not for diagnosis.</p>
+                    <ul>
+                        <li>Do <strong>not</strong> use brainwave-entrainment modes while operating vehicles or machinery.</li>
+                        <li>Do <strong>not</strong> use under the influence of alcohol or drugs.</li>
+                        <li>For therapeutic use, coordinate any medication changes with your provider.</li>
+                        <li>Visual flash rate is capped at 3&nbsp;Hz (W3C WCAG epilepsy compliance).</li>
+                    </ul>
+                    <p>More on the <a href="health.html">Health</a> and <a href="accessibility.html">Accessibility</a> pages.</p>
+                </div>
+            </section>
+
+            <div class="cta-box">
+                <h3>Coming Soon</h3>
+                <p>Echoelmusic is in active development. Explore the full toolkit while you wait.</p>
+                <a href="tools.html" class="btn">Explore the 12 Engines</a>
+            </div>
+        </div>
+
+        <!-- Social -->
+        <div class="social">
+            <a href="https://instagram.com/echoelmusic" aria-label="Instagram" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
+            <a href="https://tiktok.com/@echoelmusic" aria-label="TikTok" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg>
+            </a>
+            <a href="https://youtube.com/@echoelmusic" aria-label="YouTube" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+            <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+    <script src="shared.js?v=10.3"></script>
+</body>
+</html>
