@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.6.0',K='echoel-nuke';try{
+    (function(){var V='10.6.1',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -165,7 +165,7 @@
                 <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)            <b>CONSUMERS</b>
   HealthKit / Apple Watch  ─┐
   Polar H10  (BLE direct)  ─┤
-  iPhone camera  (rPPG)    ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ 🔊
+  iPhone camera  (rPPG)    ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
   Demo (DEBUG)             ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
         │                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
         ▼ BioSourceManager (confidence fusion)                                          │

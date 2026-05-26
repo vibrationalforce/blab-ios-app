@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.6.0',K='echoel-nuke';try{
+    (function(){var V='10.6.1',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -687,7 +687,7 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" opacity="0.5"/><circle cx="12" cy="12" r="10" opacity="0.25"/></svg>
                             </div>
                             <span class="cap-label">Visuals</span>
-                            <span class="cap-detail">Generative &middot; AR Worlds<br>Particles &middot; 60fps</span>
+                            <span class="cap-detail">Generative &middot; AR Worlds<br>Particles &middot; 120fps</span>
                         </div>
                         <div class="cap-node">
                             <div class="cap-icon">
@@ -764,7 +764,7 @@
                 <div class="bento-card">
                     <div class="bento-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" opacity="0.5"/><circle cx="12" cy="12" r="10" opacity="0.25"/></svg></div>
                     <h3>Living visuals</h3>
-                    <p>Generative Worlds, AR Worlds, particles, fractals. GPU-accelerated at 60fps. Biology paints worlds.</p>
+                    <p>Generative Worlds, AR Worlds, particles, fractals. GPU-accelerated at 120fps. Biology paints worlds.</p>
                 </div>
 
                 <!-- Video & Streaming -->

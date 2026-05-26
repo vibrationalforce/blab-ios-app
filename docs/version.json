@@ -1,5 +1,5 @@
 {
-  "version": "10.6.0",
+  "version": "10.6.1",
   "build": "2026-05-26",
   "features": {
     "monochromeDesign": true,
@@ -30,7 +30,7 @@
     "arWorlds": true
   },
   "changelog": [
-    "v10.6.0: Added a complete Formats & Standards section (Overview) and Formats & I/O (Architecture) covering spatial audio (stereo today; Atmos/3D/ambisonics/head-tracked planned), audio (WAV/AAC/CAF + LUFS), MIDI 2.0/MPE, video (H.264 MP4 today; H.265/ProRes/4K planned), visuals & projection mapping (NDI/Syphon/AirPlay), lighting (DMX-512/Art-Net/HomeKit) and streaming (RTMP). Added Spatial Audio capability to EchoelFX.",
+    "v10.6.1: Added a complete Formats & Standards section (Overview) and Formats & I/O (Architecture) covering spatial audio (stereo today; Atmos/3D/ambisonics/head-tracked planned), audio (WAV/AAC/CAF + LUFS), MIDI 2.0/MPE, video (H.264 MP4 today; H.265/ProRes/4K planned), visuals & projection mapping (NDI/Syphon/AirPlay), lighting (DMX-512/Art-Net/HomeKit) and streaming (RTMP). Added Spatial Audio capability to EchoelFX.",
     "v10.5.0: Deepest codebase audit (4 parallel agents, file-level): rebuilt Architecture page with a dedicated Multidimensional/MPE section (MIDI 2.0, per-note pitch bend, slide/timbre CC74, air-CC), a working AUv3-generator section (8 automatable params, factory presets), exact synthesis detail (DDSP noise colours/spectral shapes, 8 Cellular rules, 8 Modal materials), real effects (convolution reverb, 4-band EQ, LUFS, SVF), 5 Metal visual modes + chroma key, short-form video export, and LIVE/ROADMAP tags throughout (DMX/Stage/AI/Ableton Link/ProRes marked roadmap honestly).",
     "v10.4.0: Added developer-grade Architecture page (EngineBus signal chain, SPSC data plane, bio-DSP triad, synthesis engines, OSC API, concurrency, performance, module map, honest implementation status) grounded in a deep codebase audit. Normalized navigation + complete footer (12 links) across every page; fixed Artist footer. 'Architecture' added to menu and sitemap.",
     "v10.3.0: Restored full product site (12-engine EchoelToolkit + complete menu) combined with the Echoel artist page. App CTAs replaced with 'Coming Soon' (app not yet released). English.",
