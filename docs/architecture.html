@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.4.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Architecture - Echoelmusic | Developer Reference</title>
+    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, protected bio-DSP triad, synthesis engines, OSC API, concurrency model and performance budgets. A precise developer reference.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Echoelmusic — Architecture (Developer Reference)">
+    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, protected DSP triad, synthesis engines, OSC API, concurrency and performance.">
+    <meta property="og:url" content="https://echoelmusic.com/architecture.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Echoelmusic — Architecture">
+    <meta name="twitter:description" content="The bio-reactive signal chain from sensor to sound. A precise developer reference.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/architecture.html">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Architecture","item":"https://echoelmusic.com/architecture.html"}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.4">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+
+    <style>
+        .status-badge {
+            display: inline-block; margin-top: 16px;
+            border: 1px solid var(--border); color: var(--dim);
+            font-weight: 600; padding: 6px 16px; border-radius: 10px; letter-spacing: 0.5px;
+        }
+        .lead { text-align: center; color: var(--dim); line-height: 1.7; max-width: 680px; margin: 0 auto 8px; }
+        .lead strong { color: var(--text); }
+
+        .ov-toc { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 28px 0 8px; }
+        .ov-toc a, .ov-toc a:visited {
+            color: var(--dim); border: 1px solid var(--border); border-radius: 8px;
+            padding: 6px 12px; font-size: 13px; font-weight: 600; text-decoration: none;
+            transition: color 0.2s, background 0.2s;
+        }
+        .ov-toc a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+        .data-row { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .data-row:last-child { border-bottom: none; }
+        .data-row .k { flex: 0 0 220px; color: var(--text); font-weight: 700; }
+        .data-row .k code { font-weight: 700; }
+        .data-row .v { color: var(--dim); line-height: 1.6; }
+        @media (max-width: 600px) { .data-row { flex-direction: column; gap: 2px; } .data-row .k { flex: none; } }
+
+        code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.92em; color: var(--text); }
+        .flow {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 12.5px; line-height: 1.7; color: var(--dim);
+            border: 1px solid var(--border); border-radius: 12px;
+            padding: 18px 20px; overflow-x: auto; white-space: pre; margin: 8px 0 4px;
+        }
+        .flow b { color: var(--text); font-weight: 700; }
+
+        .note { color: var(--dim); font-size: 13px; line-height: 1.6; border-left: 2px solid var(--border); padding-left: 14px; margin: 14px 0; }
+        .note strong { color: var(--text); }
+
+        .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+        @media (max-width: 600px) { .twocol { grid-template-columns: 1fr; } }
+        .twocol h3 { color: var(--text); font-size: 14px; letter-spacing: 1px; text-transform: uppercase; margin: 8px 0 6px; }
+        .twocol ul { list-style: none; padding: 0; margin: 0; }
+        .twocol li { color: var(--dim); padding: 6px 0; border-bottom: 1px solid var(--border); line-height: 1.5; font-size: 13.5px; }
+        .twocol li:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="overview.html">Overview</a>
+                <a href="tools.html">Tools</a>
+                <a href="architecture.html" aria-current="page">Architecture</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+            <a href="architecture.html" aria-current="page">Architecture</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+            <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main">
+        <div class="subpage subpage--wider">
+            <div class="subpage-hero">
+                <h1>Architecture</h1>
+                <p class="subtitle">How Echoelmusic is built — one bio-reactive signal chain, from sensor to sound, on a lock-free real-time core. A precise reference for developers.</p>
+                <span class="status-badge">Developer reference &middot; v10 &middot; App coming soon</span>
+            </div>
+
+            <p class="lead">Echoelmusic is a native Apple app (<strong>Swift 6</strong>, strict concurrency). Modules never call each other directly — they produce and consume on a central bus, the <strong>EngineBus</strong>. Biology flows in as data, art flows out as audio, visuals and control. Built on <strong>AVFoundation, Accelerate/vDSP, Metal, CoreMIDI, CoreBluetooth and SwiftData</strong>, with a single external dependency (HaishinKit, for RTMP).</p>
+
+            <nav class="ov-toc" aria-label="On this page">
+                <a href="#chain">Signal chain</a>
+                <a href="#bus">EngineBus</a>
+                <a href="#bio">Bio capture</a>
+                <a href="#triad">DSP triad</a>
+                <a href="#synth">Synthesis</a>
+                <a href="#audio">Audio</a>
+                <a href="#seq">Sequencer</a>
+                <a href="#ui">Studio UI</a>
+                <a href="#osc">OSC API</a>
+                <a href="#concurrency">Concurrency</a>
+                <a href="#perf">Performance</a>
+                <a href="#map">Module map</a>
+                <a href="#status">Status</a>
+            </nav>
+
+            <!-- SIGNAL CHAIN -->
+            <section id="chain">
+                <h2>The Signal Chain</h2>
+                <p>One chain runs the whole instrument. Sensors are fused into a normalized bio frame, published on the bus, and consumed in parallel by the synth voice, the OSC sender and the event detector. Performer input (MIDI/MPE) joins on its own topic and takes priority over bio for note gating.</p>
+                <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)            <b>CONSUMERS</b>
+  Apple Watch / HealthKit  ─┐
+  Polar H10  (BLE direct)  ─┤
+  iPhone camera  (rPPG)    ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ 🔊
+  Demo generator           ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
+        │                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
+        ▼ BioSourceManager (confidence fusion)                                          │
+                                          <b>bioEvents</b> ◀───────────────────────────────────┘
+  CoreMIDI / MPE  ──────────────▶ <b>controllerEvents</b> ─▶ synth notes (performer priority)</div>
+                <p class="note">Three typed topics, three independent rates: <strong>bioFrames</strong> (≤4&nbsp;Hz, the slow body signal), <strong>controllerEvents</strong> (real-time MIDI), <strong>bioEvents</strong> (discrete onsets). Each is a lock-free queue, so a slow sensor never stalls the audio thread.</p>
+            </section>
+
+            <!-- ENGINEBUS -->
+            <section id="bus">
+                <h2>EngineBus &mdash; the spine</h2>
+                <p><code>EngineBus</code> is <code>@MainActor @Observable</code> and is the single source of truth. It has a <strong>hybrid design</strong>: a control plane for SwiftUI (observable <code>latestBio</code>, <code>latestControllerEvent</code>, <code>latestBioEvent</code> snapshots) and a <strong>lock-free data plane</strong> of three typed queues for real-time consumers. Producers call <code>nonisolated</code> publish methods from any thread; consumers poll the queues without ever touching the bus object.</p>
+                <div class="data-row"><div class="k"><code>bioFrames</code></div><div class="v"><code>SPSCQueue&lt;BioSampleFrame&gt;</code> — heart rate (BPM), HRV (normalized), breath rate, breath phase, coherence, motion energy.</div></div>
+                <div class="data-row"><div class="k"><code>controllerEvents</code></div><div class="v"><code>SPSCQueue&lt;ControllerEvent&gt;</code> — note on/off, pitch bend, channel pressure, slide, air-CC (MIDI 2.0 / MPE-style).</div></div>
+                <div class="data-row"><div class="k"><code>bioEvents</code></div><div class="v"><code>SPSCQueue&lt;BioEvent&gt;</code> — discrete onsets (heartbeat, breath inhale/exhale, motion peak) with a confidence score.</div></div>
+                <div class="data-row"><div class="k">Publish API</div><div class="v"><code>publish(bio:)</code>, <code>publish(controller:)</code>, <code>publish(bioEvent:)</code> — all <code>nonisolated</code>: atomic enqueue, then an async hop to the MainActor updates the observable snapshot. No locks, no allocation on the data plane.</div></div>
+                <div class="data-row"><div class="k"><code>SPSCQueue</code></div><div class="v">Cache-line-padded, lock-free single-producer / single-consumer ring buffer. Power-of-two capacity; <code>enqueue()</code> drops the oldest on overflow; <code>tryEnqueue()</code>, <code>dequeue()</code>, <code>peek()</code>; counters for dropped/enqueued/dequeued. Index updates use atomic memory barriers — no malloc, no locks.</div></div>
+            </section>
+
+            <!-- BIO CAPTURE -->
+            <section id="bio">
+                <h2>Bio Capture &amp; Fusion</h2>
+                <p>Several sources can feed the bus at once; <code>BioSourceManager</code> merges them into one <code>BioSnapshot</code> by confidence, so the highest-quality available signal wins.</p>
+                <div class="data-row"><div class="k">Polar H10</div><div class="v"><code>PolarH10BioPublisher</code> talks BLE directly (CoreBluetooth, no SDK) to the standard Heart Rate service (<code>0x180D</code>/<code>0x2A37</code>). It parses RR intervals (1/1024&nbsp;s units) and emits one discrete <code>.heartbeat</code> event per beat; RMSSD is computed from a 30-interval window. Lowest latency — beats are timed, not derived from an averaged BPM.</div></div>
+                <div class="data-row"><div class="k">Camera (rPPG)</div><div class="v"><code>CameraCapture</code> + <code>CameraAnalyzer</code> — remote photoplethysmography (Verkruysse-style), 0.7&ndash;4&nbsp;Hz bandpass, peak detection, RMSSD HRV and a BPM confidence score from the rear camera.</div></div>
+                <div class="data-row"><div class="k">HealthKit</div><div class="v">Apple Watch heart rate (~1&nbsp;Hz). Note the platform constraint: watch HR carries 4&ndash;5&nbsp;s latency, so it is not used for beat-accurate sync.</div></div>
+                <div class="data-row"><div class="k">Fusion</div><div class="v"><code>BioSourceManager</code> — confidence-weighted priority (Watch &gt; camera rPPG &gt; daily sources &gt; demo fallback), with decay so a dropped source ages out gracefully.</div></div>
+            </section>
+
+            <!-- DSP TRIAD -->
+            <section id="triad">
+                <h2>Protected Bio-DSP Triad</h2>
+                <p>Three pure value types form the read-only signal-conditioning core. They allocate nothing and take no locks, so they are safe to run on the audio thread. Contracts are pinned as SKILL.md specs and treated as protected (changed only with explicit approval).</p>
+                <div class="data-row"><div class="k">BioSignalDeconvolver</div><div class="v"><code>struct</code> — first conditioning stage: <strong>detrend</strong> (biquad high-pass; 0.5&nbsp;Hz PPG/ECG, 1&nbsp;Hz EEG, 0.1&nbsp;Hz accelerometer) + <strong>mains notch</strong> (50/60&nbsp;Hz, Q=30) + <strong>validity</strong> flag (recovering / valid / corrupt). Direct-Form-II-Transposed biquads. <code>process(_:) → CleanedSample</code>. Separates slow drift, mains hum and dropouts from the live signal.</div></div>
+                <div class="data-row"><div class="k">HilbertSensorMapper</div><div class="v"><code>enum</code> (static) — maps a 1-D sensor index to a 2-D grid coordinate along a <strong>Hilbert curve</strong>, so numerically adjacent channels land in spatially adjacent cells (Manhattan distance ≤ 1). <code>map(index:order:)</code>, <code>mapToGrid(values:gridSize:)</code>. Used to lay electrode/coherence arrays into 2-D textures without scrambling locality.</div></div>
+                <div class="data-row"><div class="k">BioEventGraph</div><div class="v"><code>struct</code> — turns continuous frames into discrete events. <strong>Heartbeat</strong> (adaptive threshold + 300&nbsp;ms refractory + 2&nbsp;s envelope follower, ≤200&nbsp;bpm), <strong>breath</strong> phase markers (inhale on the 0.5 crossing, exhale on wrap), <strong>motion peak</strong> (hysteresis 0.6/0.3). <code>process(…) → [BioEvent]</code>; each event carries <code>kind</code>, <code>confidence</code> and an <code>aux</code> value (e.g. inter-beat interval). EEG-burst and coherence-shift detectors are reserved.</div></div>
+                <p class="note">These modules use solid, well-understood DSP (RBJ-cookbook biquads, envelope/threshold and hysteresis detection); the design is informed by the bio-signal deconvolution and event-graph literature rather than porting any single paper verbatim.</p>
+            </section>
+
+            <!-- SYNTHESIS -->
+            <section id="synth">
+                <h2>Synthesis Engines</h2>
+                <p>All synthesis is Accelerate/vDSP-vectorized and audio-thread-safe (pre-allocated buffers, <code>@unchecked Sendable</code>, no allocation in the render path). Each engine exposes the same bio-reactive mapping surface.</p>
+                <div class="data-row"><div class="k">EchoelDDSP</div><div class="v">Harmonic-plus-noise synthesizer — 64 sinusoidal partials (<code>vvsinf</code>/<code>vDSP_dotpr</code>), 65-band FIR noise, spectral morphing, timbre transfer, convolution reverb and isochronic entrainment. Carries the 7 core bio-mappings.</div></div>
+                <div class="data-row"><div class="k">EchoelCellular</div><div class="v">Cellular-automata synthesis — Wolfram rules 30/90/110/184 (256-cell 1-D) or 64×64 Game of Life (2-D), in wavetable, additive, FM and spectral modes.</div></div>
+                <div class="data-row"><div class="k">EchoelModalBank</div><div class="v">Physical modal resonator — up to 64 modes for bells, plates, strings, glass and drums; stiffness (inharmonicity), damping, size and brightness, with material morphing.</div></div>
+                <div class="data-row"><div class="k">Toolkit</div><div class="v"><code>EchoelVDSPKit</code> (FFT/DFT, convolution, biquad cascade, windowing), <code>EchoelLFO</code>, <code>EchoelSVFilter</code> (Chamberlin state-variable), <code>EchoelEntrainment</code> (Delta–Gamma isochronic) — shared building blocks.</div></div>
+                <div class="data-row"><div class="k">Bio-mappings</div><div class="v">Coherence → harmonicity; HRV → brightness/reverb; heart rate → vibrato/pulse; breath phase → amplitude envelope; breath depth → noise; LF/HF → spectral tilt; coherence trend → shape morph. Applied via <code>synth.applyBioReactive(…)</code>.</div></div>
+            </section>
+
+            <!-- AUDIO -->
+            <section id="audio">
+                <h2>Audio Foundation</h2>
+                <div class="data-row"><div class="k">AudioEngine</div><div class="v">Master <code>AVAudioEngine</code> with a stereo mixer bus at 48&nbsp;kHz. Hosts the synth source node, sampler voices and the mix/export chain.</div></div>
+                <div class="data-row"><div class="k">AudioConfiguration</div><div class="v">48&nbsp;kHz preferred; buffer presets 128 / 256 / 512 frames (2.67 / 5.3 / 10.7&nbsp;ms); <code>playAndRecord</code> session with Bluetooth; real-time thread priority.</div></div>
+                <div class="data-row"><div class="k">Capture &amp; mix</div><div class="v"><code>MicrophoneManager</code> (1024-pt FFT analysis), <code>RetroCapture</code> (pre-roll ring buffer), <code>AutoMixChain</code> (EQ → compressor → limiter → LUFS), <code>SingleExport</code> (LUFS-normalized WAV/AAC).</div></div>
+            </section>
+
+            <!-- SEQUENCER -->
+            <section id="seq">
+                <h2>Sequencer &amp; Sampler</h2>
+                <div class="data-row"><div class="k">PatternEngine</div><div class="v"><strong>8 tracks × 16 steps</strong>, 30&ndash;300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s).</div></div>
+                <div class="data-row"><div class="k">SamplerVoice</div><div class="v">One-shot WAV playback on an <code>AVAudioSourceNode</code>, fired lock-free via an atomic trigger counter (no allocation on the audio thread). <code>BeatPlayer</code> manages eight voices.</div></div>
+            </section>
+
+            <!-- STUDIO UI -->
+            <section id="ui">
+                <h2>Studio UI</h2>
+                <p><code>EchoelmusicApp</code> (<code>@main</code>) configures audio before the UI, starts the bio publishers, and mounts <code>StudioRoot</code>. The root is a live <code>BioStripView</code> over a four-tab <code>TabView</code>. SwiftUI observes the EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
+                <div class="data-row"><div class="k">BioStripView</div><div class="v">Always-on readout: <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
+                <div class="data-row"><div class="k">Tabs</div><div class="v"><strong>Tools</strong> (BeatTab — drum pads + step grid, implemented) · <strong>Works</strong> · <strong>Sync</strong> · <strong>Well</strong> (placeholders pending spec).</div></div>
+            </section>
+
+            <!-- OSC API -->
+            <section id="osc">
+                <h2>EchoelSync &mdash; OSC API</h2>
+                <p><code>OSCSender</code> mirrors the bio frame out over UDP (Network.framework), so any visual or audio tool on the network can react to the body. OSC 1.0, big-endian 32-bit floats, ~100&nbsp;ms cadence (sent only when the frame changes). Default target <code>localhost:8000</code>; target latency &lt;5&nbsp;ms on LAN. Works with Resolume, TouchDesigner, MadMapper, Sonic Pi and TidalCycles.</p>
+                <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/bpm</code></div><div class="v">float [40–200]</div></div>
+                <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/hrv</code></div><div class="v">float [0–1]</div></div>
+                <div class="data-row"><div class="k"><code>/echoelmusic/bio/breath/rate</code></div><div class="v">float [4–30]</div></div>
+                <div class="data-row"><div class="k"><code>/echoelmusic/bio/breath/phase</code></div><div class="v">float [0–1]</div></div>
+                <div class="data-row"><div class="k"><code>/echoelmusic/bio/coherence</code></div><div class="v">float [0–1]</div></div>
+                <div class="data-row"><div class="k"><code>/echoelmusic/bio/motion</code></div><div class="v">float [0–1]</div></div>
+            </section>
+
+            <!-- CONCURRENCY -->
+            <section id="concurrency">
+                <h2>Concurrency &amp; Audio-Thread Safety</h2>
+                <p>The split is strict. The <strong>control plane</strong> (<code>@MainActor @Observable</code>) drives SwiftUI; the <strong>data plane</strong> (lock-free SPSC queues) drives audio. A producer never blocks a consumer.</p>
+                <div class="twocol">
+                    <div>
+                        <h3>Forbidden on the audio thread</h3>
+                        <ul>
+                            <li>malloc / free, array growth</li>
+                            <li>locks, mutexes, semaphores</li>
+                            <li>ObjC messaging, GCD / async</li>
+                            <li>file or network I/O, logging</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>Allowed</h3>
+                        <ul>
+                            <li>pre-allocated Float buffers</li>
+                            <li>vDSP / Accelerate, C math</li>
+                            <li>ring-buffer read/write</li>
+                            <li>atomic-width property reads</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="note"><strong>Performer priority:</strong> when a MIDI note is held, controller input overrides the breath-gated envelope — the player always wins over the body.</p>
+            </section>
+
+            <!-- PERFORMANCE -->
+            <section id="perf">
+                <h2>Performance Budgets</h2>
+                <div class="data-row"><div class="k">Audio latency</div><div class="v">Target &lt;10&nbsp;ms (fail &gt;15&nbsp;ms). 256-frame buffer ≈ 5.3&nbsp;ms.</div></div>
+                <div class="data-row"><div class="k">CPU</div><div class="v">Target &lt;30% (fail &gt;50%)</div></div>
+                <div class="data-row"><div class="k">Memory</div><div class="v">Target &lt;200&nbsp;MB (fail &gt;300&nbsp;MB)</div></div>
+                <div class="data-row"><div class="k">Visuals</div><div class="v">120&nbsp;fps target (fail &lt;60&nbsp;fps), Metal</div></div>
+                <div class="data-row"><div class="k">Bio loop</div><div class="v">Up to 120&nbsp;Hz (fail &lt;60&nbsp;Hz)</div></div>
+                <div class="data-row"><div class="k">OSC</div><div class="v">&lt;5&nbsp;ms on LAN</div></div>
+            </section>
+
+            <!-- MODULE MAP -->
+            <section id="map">
+                <h2>Module Map</h2>
+                <p>How the product surface (the 12 <a href="tools.html">Echoel engines</a>) maps onto real source modules:</p>
+                <div class="data-row"><div class="k">EchoelSynth</div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank · SamplerVoice</div></div>
+                <div class="data-row"><div class="k">EchoelFX</div><div class="v">EchoelVDSPKit · EchoelSVFilter · EchoelLFO · AutoMixChain</div></div>
+                <div class="data-row"><div class="k">EchoelMix</div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
+                <div class="data-row"><div class="k">EchoelSeq</div><div class="v">PatternEngine · BeatPlayer</div></div>
+                <div class="data-row"><div class="k">EchoelMIDI</div><div class="v">MIDIInput · ControllerEvent → EngineBus.controllerEvents</div></div>
+                <div class="data-row"><div class="k">EchoelBio</div><div class="v">BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · PolarH10BioPublisher · CameraAnalyzer · BioSourceManager</div></div>
+                <div class="data-row"><div class="k">EchoelVis</div><div class="v">Metal renderers · HilbertSensorMapper · BioStripView</div></div>
+                <div class="data-row"><div class="k">EchoelVid</div><div class="v">CameraCapture · ShortContentRenderer</div></div>
+                <div class="data-row"><div class="k">EchoelNet</div><div class="v">OSCSender (EchoelSync)</div></div>
+                <div class="data-row"><div class="k">EchoelSynth core</div><div class="v">EngineBus · SPSCQueue · BioReactiveSynthVoice (the bio→sound bridge)</div></div>
+            </section>
+
+            <!-- STATUS -->
+            <section id="status">
+                <h2>Implementation Status</h2>
+                <p>Honest current state — the app is in active development and <strong>not yet released</strong>.</p>
+                <div class="twocol">
+                    <div>
+                        <h3>Live today</h3>
+                        <ul>
+                            <li>EngineBus + 3 SPSC topics</li>
+                            <li>Bio-DSP triad (conditioning, mapping, events)</li>
+                            <li>DDSP / Cellular / Modal synthesis</li>
+                            <li>AudioEngine master bus</li>
+                            <li>PatternEngine + SamplerVoice</li>
+                            <li>Polar H10 + camera rPPG + HealthKit</li>
+                            <li>BioReactiveSynthVoice (breath-gated)</li>
+                            <li>OSC out (EchoelSync)</li>
+                            <li>Studio shell + BioStripView + BeatTab</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>On the roadmap</h3>
+                        <ul>
+                            <li>Works / Sync / Well tabs</li>
+                            <li>Multi-track recorder wiring</li>
+                            <li>Video NLE + ProRes export</li>
+                            <li>RTMP streaming (HaishinKit)</li>
+                            <li>DMX-512 / Art-Net lighting</li>
+                            <li>AUv3 plugin &amp; host</li>
+                            <li>iPad · Mac · Watch · TV · Vision</li>
+                            <li>On-device AI (CoreML) stems</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <div class="cta-box">
+                <h3>Go deeper</h3>
+                <p>Read the per-engine capabilities, or the full feature overview.</p>
+                <a href="tools.html" class="btn">The 12 Engines</a>
+            </div>
+        </div>
+
+        <!-- Social -->
+        <div class="social">
+            <a href="https://instagram.com/echoelmusic" aria-label="Instagram" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
+            <a href="https://tiktok.com/@echoelmusic" aria-label="TikTok" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg>
+            </a>
+            <a href="https://youtube.com/@echoelmusic" aria-label="YouTube" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+            <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+    <script src="shared.js?v=10.4"></script>
+</body>
+</html>

@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.3.0',K='echoel-nuke';try{
+    (function(){var V='10.4.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -39,7 +39,7 @@
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
     <link rel="canonical" href="https://echoelmusic.com/overview.html">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Overview","item":"https://echoelmusic.com/overview.html"}]}</script>
-    <link rel="stylesheet" href="shared.css?v=10.3">
+    <link rel="stylesheet" href="shared.css?v=10.4">
     <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -90,6 +90,7 @@
                 <a href="/">Home</a>
                 <a href="overview.html" aria-current="page">Overview</a>
                 <a href="tools.html">Tools</a>
+                <a href="architecture.html">Architecture</a>
                 <a href="faq.html">FAQ</a>
                 <a href="support.html">Support</a>
                 <a href="artist.html">Artist</a>
@@ -103,6 +104,7 @@
             <a href="/">Home</a>
             <a href="overview.html" aria-current="page">Overview</a>
             <a href="tools.html">Tools</a>
+                <a href="architecture.html">Architecture</a>
             <a href="faq.html">FAQ</a>
             <a href="support.html">Support</a>
             <a href="artist.html">Artist</a>
@@ -152,7 +154,8 @@
             <!-- ENGINES -->
             <section id="engines">
                 <h2>The 12 Engines</h2>
-                <p>Every tool talks to every other tool through one creative workspace — biology in, art out. Full capability breakdown on the <a href="tools.html">Tools</a> page.</p>
+                <p>Every tool talks to every other tool through one creative workspace — biology in, art out. Full capability breakdown on the <a href="tools.html">Tools</a>
+                <a href="architecture.html">Architecture</a> page.</p>
                 <div class="engine-grid">
                     <div class="engine-item"><h4>EchoelSynth</h4><p>DDSP, modal, cellular, sampler, EchoelBeat, breakbeat chopper, spectral morph.</p></div>
                     <div class="engine-item"><h4>EchoelFX</h4><p>EQ, dynamics, reverb, delay, modulation, drive, mastering + analog emulations.</p></div>
@@ -276,6 +279,7 @@
         <div class="footer-links">
             <a href="overview.html">Overview</a>
             <a href="tools.html">Tools</a>
+            <a href="architecture.html">Architecture</a>
             <a href="faq.html">FAQ</a>
             <a href="support.html">Support</a>
             <a href="artist.html">Artist</a>
@@ -288,6 +292,6 @@
         </div>
     </footer>
 
-    <script src="shared.js?v=10.3"></script>
+    <script src="shared.js?v=10.4"></script>
 </body>
 </html>

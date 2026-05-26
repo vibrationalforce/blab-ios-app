@@ -1,5 +1,5 @@
 {
-  "version": "10.3.0",
+  "version": "10.4.0",
   "build": "2026-05-26",
   "features": {
     "monochromeDesign": true,
@@ -30,6 +30,7 @@
     "arWorlds": true
   },
   "changelog": [
+    "v10.4.0: Added developer-grade Architecture page (EngineBus signal chain, SPSC data plane, bio-DSP triad, synthesis engines, OSC API, concurrency, performance, module map, honest implementation status) grounded in a deep codebase audit. Normalized navigation + complete footer (12 links) across every page; fixed Artist footer. 'Architecture' added to menu and sitemap.",
     "v10.3.0: Restored full product site (12-engine EchoelToolkit + complete menu) combined with the Echoel artist page. App CTAs replaced with 'Coming Soon' (app not yet released). English.",
     "v10.2.1: Fix hero content invisible with Reduce Motion (prefers-reduced-motion). All animated elements now get explicit opacity:1 fallback. SW cache bump to v10.2.1.",
     "v10.2.1: Website aligned with actual codebase — 12 tools (EchoelSynth, EchoelFX, EchoelMix, EchoelSeq, EchoelMIDI, EchoelBio, EchoelVis, EchoelVid, EchoelLux, EchoelStage, EchoelNet, EchoelAI). Removed non-existent features from website. EngineBus → EchoelCreativeWorkspace.",
