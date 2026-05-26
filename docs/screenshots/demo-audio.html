@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Echoelmusic - Audio Demo Screenshot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --neon-pink: #e0e0e0; --neon-cyan: #e0e0e0; --neon-purple: rgba(224,224,224,0.6); --deep-black: #000000; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            width: 390px; height: 844px;
+            background: var(--deep-black);
+            font-family: 'Inter', sans-serif;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        .header { padding: 60px 24px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { font-family: 'Orbitron', monospace; font-size: 18px; }
+        .bpm { font-family: 'Orbitron', monospace; color: var(--neon-pink); }
+        .waveform {
+            height: 120px; padding: 0 24px;
+            display: flex; align-items: center; gap: 2px;
+        }
+        .bar {
+            flex: 1; background: linear-gradient(180deg, rgba(224,224,224,0.8), rgba(224,224,224,0.4), rgba(224,224,224,0.2));
+            border-radius: 2px;
+            animation: wave 0.5s ease-in-out infinite;
+        }
+        @keyframes wave { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+        .bar:nth-child(odd) { animation-delay: 0.1s; }
+        .bar:nth-child(3n) { animation-delay: 0.2s; }
+        .bar:nth-child(4n) { animation-delay: 0.15s; }
+        .synth-section { padding: 24px; }
+        .section-title { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--neon-cyan); margin-bottom: 16px; letter-spacing: 2px; }
+        .knobs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .knob { text-align: center; }
+        .knob-dial {
+            width: 56px; height: 56px; margin: 0 auto 8px;
+            border-radius: 50%;
+            background: conic-gradient(from 135deg, rgba(224,224,224,0.8) 0%, rgba(224,224,224,0.4) var(--value), rgba(255,255,255,0.1) var(--value));
+            display: flex; align-items: center; justify-content: center;
+        }
+        .knob-inner { width: 44px; height: 44px; background: #111111; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .knob-value { font-family: 'Orbitron', monospace; font-size: 12px; }
+        .knob-label { font-size: 10px; color: rgba(224,224,224,0.5); }
+        .filter-section { background: rgba(255,255,255,0.03); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+        .filter-visual { height: 60px; position: relative; margin-bottom: 12px; }
+        .filter-curve { width: 100%; height: 100%; }
+        .preset-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+        .preset { padding: 10px 20px; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 12px; white-space: nowrap; }
+        .preset.active { background: rgba(224,224,224,0.15); }
+        .nav-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 84px; background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); display: flex; justify-content: space-around; align-items: center; padding-bottom: 20px; }
+        .nav-item { text-align: center; opacity: 0.5; }
+        .nav-item.active { opacity: 1; }
+        .nav-icon { font-size: 24px; margin-bottom: 4px; }
+        .nav-label { font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Bio-Reactive Synth</h2>
+        <span class="bpm">72 BPM</span>
+    </div>
+    <div class="waveform">
+        <div class="bar" style="height:40px"></div>
+        <div class="bar" style="height:60px"></div>
+        <div class="bar" style="height:80px"></div>
+        <div class="bar" style="height:100px"></div>
+        <div class="bar" style="height:70px"></div>
+        <div class="bar" style="height:90px"></div>
+        <div class="bar" style="height:50px"></div>
+        <div class="bar" style="height:110px"></div>
+        <div class="bar" style="height:85px"></div>
+        <div class="bar" style="height:65px"></div>
+        <div class="bar" style="height:95px"></div>
+        <div class="bar" style="height:55px"></div>
+        <div class="bar" style="height:75px"></div>
+        <div class="bar" style="height:105px"></div>
+        <div class="bar" style="height:45px"></div>
+        <div class="bar" style="height:85px"></div>
+        <div class="bar" style="height:70px"></div>
+        <div class="bar" style="height:95px"></div>
+        <div class="bar" style="height:60px"></div>
+        <div class="bar" style="height:80px"></div>
+    </div>
+    <div class="synth-section">
+        <div class="section-title">OSCILLATOR</div>
+        <div class="knobs">
+            <div class="knob">
+                <div class="knob-dial" style="--value:75%"><div class="knob-inner"><span class="knob-value">75</span></div></div>
+                <div class="knob-label">ATTACK</div>
+            </div>
+            <div class="knob">
+                <div class="knob-dial" style="--value:45%"><div class="knob-inner"><span class="knob-value">45</span></div></div>
+                <div class="knob-label">DECAY</div>
+            </div>
+            <div class="knob">
+                <div class="knob-dial" style="--value:60%"><div class="knob-inner"><span class="knob-value">60</span></div></div>
+                <div class="knob-label">SUSTAIN</div>
+            </div>
+            <div class="knob">
+                <div class="knob-dial" style="--value:30%"><div class="knob-inner"><span class="knob-value">30</span></div></div>
+                <div class="knob-label">RELEASE</div>
+            </div>
+        </div>
+        <div class="filter-section">
+            <div class="section-title" style="margin-bottom:8px">FILTER (HRV-Linked)</div>
+            <svg class="filter-curve" viewBox="0 0 300 60" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="filterGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#e0e0e0;stop-opacity:0.3"/>
+                        <stop offset="50%" style="stop-color:#999999;stop-opacity:0.3"/>
+                        <stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:0.1"/>
+                    </linearGradient>
+                </defs>
+                <path d="M0 55 Q50 55 100 50 T150 30 T200 10 T250 5 L300 5 L300 60 L0 60 Z" fill="url(#filterGrad)"/>
+                <path d="M0 55 Q50 55 100 50 T150 30 T200 10 T250 5" stroke="#e0e0e0" stroke-width="2" fill="none"/>
+            </svg>
+        </div>
+        <div class="section-title">PRESETS</div>
+        <div class="preset-row">
+            <div class="preset active">Coherent Pad</div>
+            <div class="preset">Heart Pulse</div>
+            <div class="preset">Breath Wave</div>
+            <div class="preset">Quantum</div>
+        </div>
+    </div>
+    <div class="nav-bar">
+        <div class="nav-item"><div class="nav-icon" style="font-size:14px;font-weight:700;opacity:0.5">B</div><div class="nav-label">Bio</div></div>
+        <div class="nav-item active"><div class="nav-icon" style="font-size:14px;font-weight:700">A</div><div class="nav-label">Audio</div></div>
+        <div class="nav-item"><div class="nav-icon" style="font-size:14px;font-weight:700;opacity:0.5">V</div><div class="nav-label">Visual</div></div>
+        <div class="nav-item"><div class="nav-icon" style="font-size:14px;font-weight:700;opacity:0.5">L</div><div class="nav-label">Lights</div></div>
+        <div class="nav-item"><div class="nav-icon" style="font-size:14px;font-weight:700;opacity:0.5">S</div><div class="nav-label">Settings</div></div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,72 @@
+# =============================================================================
+# Cloudflare Pages Headers — Security & Performance
+# =============================================================================
+
+# All pages - security headers
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(self), geolocation=(), payment=(), usb=(), bluetooth=(), serial=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  X-DNS-Prefetch-Control: on
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  X-Robots-Tag: index, follow
+
+# HTML pages - no cache (always fresh)
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# 404 page
+/404.html
+  Cache-Control: public, max-age=3600
+
+# Root page
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+# SVG/images - cache 1 month
+/*.svg
+  Cache-Control: public, max-age=2592000, immutable
+/*.png
+  Cache-Control: public, max-age=2592000, immutable
+
+# Fonts - cache 1 year (immutable, versioned by filename)
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+# Shared CSS/JS - cache 1 hour (cache-busted via ?v= query param)
+/shared.css
+  Cache-Control: public, max-age=3600
+/shared.js
+  Cache-Control: public, max-age=3600
+
+# Service worker - no cache (must update immediately)
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Manifest - cache 1 hour
+/manifest.json
+  Cache-Control: public, max-age=3600
+
+# Version - no cache
+/version.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Sitemap & robots - cache 1 day
+/sitemap.xml
+  Cache-Control: public, max-age=86400
+/robots.txt
+  Cache-Control: public, max-age=86400
+
+# Apple app site association - cache 1 hour, allow cross-origin
+/.well-known/*
+  Cache-Control: public, max-age=3600
+  Access-Control-Allow-Origin: *
+
+# Screenshots - cache 1 week
+/screenshots/*
+  Cache-Control: public, max-age=604800

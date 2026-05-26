@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.3.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>EchoelToolkit - Echoelmusic</title>
+    <meta name="description" content="12 unified Echoel* tools for bio-reactive music, visuals, lighting, and AI. EchoelSynth, EchoelFX, EchoelMix, EchoelSeq, EchoelMIDI, EchoelBio, EchoelVis, EchoelVid, EchoelLux, EchoelStage, EchoelNet, EchoelAI.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="EchoelToolkit - Unified Creative Tools">
+    <meta property="og:description" content="12 unified Echoel* tools for synthesis, effects, mixing, sequencing, MIDI, biometrics, visuals, video, lighting, stage, networking, and AI. All connected via EchoelCreativeWorkspace.">
+    <meta property="og:url" content="https://echoelmusic.com/tools.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="EchoelToolkit - Unified Creative Tools">
+    <meta name="twitter:description" content="12 unified Echoel* tools. Fewer tools, more power. All connected via EchoelCreativeWorkspace.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/tools.html">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Tools","item":"https://echoelmusic.com/tools.html"}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.3">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+
+    <style>
+        .tool-section { margin-bottom: 48px; }
+        .tool-header { margin-bottom: 20px; }
+        .tool-header h2 {
+            font-size: clamp(22px, 4vw, 30px); font-weight: 700;
+            letter-spacing: -1px; margin-bottom: 4px; line-height: 1.1;
+        }
+        .tool-header .tagline {
+            color: var(--dim); font-style: italic; line-height: 1.6;
+        }
+
+        .capability-list { display: grid; gap: 2px; }
+        .capability {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .capability:last-child { border-bottom: none; }
+        .capability h4 {
+            color: var(--text); font-weight: 700; margin-bottom: 4px;
+            font-size: 14px; letter-spacing: 0.3px;
+        }
+        .capability p {
+            color: var(--dim); line-height: 1.6; margin-bottom: 0;
+            font-size: 14px;
+        }
+
+        .tool-overview {
+            color: var(--dim); line-height: 1.7; margin-bottom: 20px;
+        }
+        .tool-overview strong { color: var(--text); }
+
+        .tool-divider {
+            height: 1px; border: none; margin: 0;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+
+        .toolkit-intro {
+            text-align: center; margin-bottom: 48px;
+            padding-bottom: 32px; border-bottom: 1px solid var(--border);
+        }
+        .toolkit-intro p { color: var(--dim); line-height: 1.7; max-width: 600px; margin: 0 auto; }
+        .toolkit-intro strong { color: var(--text); }
+
+        .toolkit-stats {
+            display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .toolkit-stat { text-align: center; }
+        .toolkit-stat .val { font-size: 20px; font-weight: 700; color: var(--text); }
+        .toolkit-stat .label { color: var(--dim); font-size: 13px; }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="tools.html">Tools</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main">
+        <div class="subpage subpage--wider">
+            <div class="subpage-hero">
+                <h1>EchoelToolkit</h1>
+                <p class="subtitle">Unified tools. All connected via EchoelCreativeWorkspace.</p>
+            </div>
+
+            <div class="toolkit-intro">
+                <p>Every tool talks to every other tool. <strong>EchoelBio</strong> feeds biometric data to <strong>EchoelSynth</strong>, which shapes sound for <strong>EchoelVis</strong>, which drives visuals for <strong>EchoelLux</strong>. One signal chain from heartbeat to stage lighting. Zero configuration.</p>
+                <div class="toolkit-stats">
+                    <div class="toolkit-stat"><div class="val">12</div><div class="label">Unified Tools</div></div>
+                    <div class="toolkit-stat"><div class="val">6</div><div class="label">Platforms</div></div>
+                    <div class="toolkit-stat"><div class="val">0</div><div class="label">External Deps</div></div>
+                    <div class="toolkit-stat"><div class="val">AUv3</div><div class="label">Plugin &amp; Host</div></div>
+                </div>
+            </div>
+
+            <!-- ===== ECHOELSYNTH ===== -->
+            <div class="tool-section" id="synth">
+                <div class="tool-header">
+                    <h2>EchoelSynth</h2>
+                    <p class="tagline">All synthesis in one engine. Multiple engines, bio-reactive mappings, vDSP vectorized.</p>
+                </div>
+                <p class="tool-overview">From neural audio synthesis to analog drum machines. Every engine responds to your body: coherence opens harmonics, heart rate drives rhythmic pulse, breath shapes amplitude. All synthesis runs on Apple's Accelerate framework with <strong>zero external dependencies</strong>.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>DDSP &mdash; Differentiable Digital Signal Processing</h4>
+                        <p>Neural audio synthesis with harmonic + noise model, spectral morphing, and ML-powered timbre control. Train on any sound source. Your biometrics modulate the latent space in real time.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Modal Synthesis</h4>
+                        <p>Physics-constrained modal resonator. Strings, membranes, bells, plates, gongs &mdash; each with realistic decay and excitation models. Material properties shift with HRV coherence.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Cellular Automata</h4>
+                        <p>Evolving cellular automata drive audio synthesis. Simple rules create organic, unpredictable textures. Rule sets mutate based on your bio-state &mdash; calm states produce ordered patterns, stress creates chaos.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Sampler</h4>
+                        <p>Multi-zone, multi-layer sampler with high polyphony, slice-based playback, round-robin, and velocity layers. Load any audio file. Bio-reactive sample selection and playback speed.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>EchoelBeat</h4>
+                        <p>Analog drum machine and bass synth. Pitch glide, click envelope, drive, and filter &mdash; tuned for sub-bass. Accent patterns driven by heart rate variability.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Breakbeat Chopper</h4>
+                        <p>Jungle and DnB slice engine. Auto-slicing via transient detection, per-slice pitch shift and time stretch, pattern sequencer with swing, roll and stutter effects, reverse and half-speed. Bio-reactive slice selection: coherence drives structured patterns, low coherence triggers chaos.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Spectral Morph &amp; Timbre Transfer</h4>
+                        <p>Morph between spectral snapshots in real time &mdash; your biometrics control the morph position. Transfer the tonal character of one sound onto another: voice to synth, guitar to pad, breath to bass.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Factory Presets</h4>
+                        <p>Presets across categories: Ambient, Bass, Lead, Pad, Percussion, Texture, and Bio-Reactive. Every preset has bio-reactive mappings pre-configured.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELFX ===== -->
+            <div class="tool-section" id="fx">
+                <div class="tool-header">
+                    <h2>EchoelFX</h2>
+                    <p class="tagline">Every effect and analog emulation. Zero latency compensation needed.</p>
+                </div>
+                <p class="tool-overview">Studio-grade effects with <strong>classic analog emulations</strong>. Every parameter can be modulated by biometric signals. Chain effects in any order. Works standalone or as plugin (AUv3, VST3, CLAP) inside Logic Pro, Ableton Live, GarageBand, Bitwig, REAPER, or any compatible host.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>EQ &amp; Compression</h4>
+                        <p>Parametric and graphic EQ with analog warmth modeling. VCA, Opto, FET, and VariMu compression styles &mdash; from transparent glue to aggressive pumping. Bio-reactive threshold tracking.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Reverb &amp; Delay</h4>
+                        <p>Algorithmic and convolution reverb: rooms, halls, plates, springs with bio-reactive decay times. 8 delay types: tape, ping-pong, stereo, grain, reverse, ducking, rhythmic, and shimmer.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Modulation &amp; Drive</h4>
+                        <p>Chorus, flanger, phaser, tremolo, vibrato, ring mod. 5 saturation modes: tube warmth, tape crunch, transistor grit, digital clip, and wave fold. LFO rates sync to breathing.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Mastering: Limiter, VCA, Tube, FET</h4>
+                        <p>Brick-wall limiter with true-peak detection. VCA bus compression for punchy glue. Warm tube saturation with inductor EQ. Fast FET limiting with all-buttons mode for aggressive parallel compression.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELMIX ===== -->
+            <div class="tool-section" id="mix">
+                <div class="tool-header">
+                    <h2>EchoelMix</h2>
+                    <p class="tagline">Mixing console, multi-track recording, and session management.</p>
+                </div>
+                <p class="tool-overview">Full channel-strip mixer with per-channel volume, pan, solo, mute, sends, inserts, and bus routing. Session save/load with undo history, version snapshots, and auto-recovery.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>Console</h4>
+                        <p>Full mixing console with unlimited channel strips. Per-channel EQ, dynamics, sends, and insert slots. Bus routing for submixes and effects returns.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Recording</h4>
+                        <p>Multi-track recording with punch-in, loop recording, and automatic take management. Record audio, MIDI, and biometric data simultaneously.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Metering &amp; Analysis</h4>
+                        <p>Peak, RMS, LUFS, and true-peak metering. Stereo correlation, spectral analyzer, and loudness history. Meets broadcast standards (EBU R128, ATSC A/85).</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Session &amp; BPM Sync</h4>
+                        <p>Session management with save/load, undo history, version snapshots, and auto-recovery. Global tempo sync with tap tempo, MIDI clock send/receive, and Ableton Link support.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELSEQ ===== -->
+            <div class="tool-section" id="seq">
+                <div class="tool-header">
+                    <h2>EchoelSeq</h2>
+                    <p class="tagline">Step sequencer, pattern engine, and automation. Euclidean rhythms and polyrhythm.</p>
+                </div>
+                <p class="tool-overview">8-track step sequencer with per-step probability and velocity. Pattern bank with chain, randomize, mutate, and real-time morphing. Euclidean rhythm generation, polyrhythmic patterns, and swing control.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>Step Sequencer &amp; Patterns</h4>
+                        <p>Variable step length, probability, and velocity per step. Large pattern bank. Chain patterns into songs. Randomize and mutate patterns based on bio-state.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Automation</h4>
+                        <p>Record and draw automation for any parameter. Curves, ramps, LFOs, and bio-reactive modulation sources. Every knob in every tool is automatable.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELMIDI ===== -->
+            <div class="tool-section" id="midi">
+                <div class="tool-header">
+                    <h2>EchoelMIDI</h2>
+                    <p class="tagline">MIDI 2.0, MPE, touch instruments, and audio-to-MIDI conversion.</p>
+                </div>
+                <p class="tool-overview">Full <strong>MIDI 2.0</strong> with high-resolution control and per-note controllers. MPE for expressive multi-touch playing. Built-in touch instruments. Real-time audio-to-MIDI pitch detection &mdash; sing, hum, or play any instrument to generate MIDI notes.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>MIDI 2.0 &amp; MPE</h4>
+                        <p>Full MIDI 2.0 protocol with high-resolution control, per-note controllers, and property exchange. Multidimensional Polyphonic Expression: per-note pitch bend, slide, and pressure for expressive playing.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Touch Instruments: Keys, Pads, Drums, Strum</h4>
+                        <p>Touch keyboard with velocity, aftertouch, configurable scales, and split zones. 16-pad grid with choke groups and MPC-style note repeat. Drum machine with per-pad tuning. Guitar/string strum interface with chord voicings and strumming patterns.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Audio-to-MIDI</h4>
+                        <p>Real-time pitch detection converts any audio input &mdash; voice, guitar, flute, whistling &mdash; into MIDI notes with velocity and expression. YIN-based algorithm with sub-millisecond latency.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELBIO ===== -->
+            <div class="tool-section" id="bio">
+                <div class="tool-header">
+                    <h2>EchoelBio</h2>
+                    <p class="tagline">Biometric capture, signal deconvolution, and event detection. The source of everything.</p>
+                </div>
+                <p class="tool-overview">EchoelBio is the heart of the entire platform. It captures <strong>HRV, heart rate, breath, face tracking, and movement</strong> and feeds clean signals to every other tool via EchoelCreativeWorkspace. Your biology becomes the universal controller.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>HRV &amp; Heart Rate</h4>
+                        <p>Heart Rate Variability analysis: RMSSD, SDNN, pNN50 &mdash; the core coherence signal driving all bio-reactive mappings. Real-time BPM from Apple Watch or iPhone camera drives tempo, intensity, and rhythmic pulse.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Breath &amp; Movement</h4>
+                        <p>Respiratory rate detection via accelerometer or camera. Controls reverb depth, pad swells, and visual expansion. Accelerometer and gyroscope data from Apple Watch for gesture detection.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Face Tracking (ARKit)</h4>
+                        <p>ARKit face tracking with 52 blendshapes. Expressions map to filters, pitch, and visual parameters. Mouth, eyebrow, and jaw movements become real-time controllers for any parameter in the signal chain.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Signal Deconvolution &amp; LF/HF</h4>
+                        <p>Separates overlapping bio signals into clean, independent control streams. LF/HF ratio analysis: sympathetic vs parasympathetic balance drives tension/release in the mix.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Event Detection &amp; Timeline</h4>
+                        <p>Automatic detection of coherence peaks, breath cycles, and movement bursts. Full timeline graph visualization of all bio events over time. Events can trigger cues, scene changes, and automation.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELVIS ===== -->
+            <div class="tool-section" id="vis">
+                <div class="tool-header">
+                    <h2>EchoelVis</h2>
+                    <p class="tagline">GPU-accelerated visuals. 10+ modes at 120fps. Metal-powered bio-reactive rendering.</p>
+                </div>
+                <p class="tool-overview">Metal-powered visual engine running at <strong>120fps</strong>. From particles and Hilbert curves to generative worlds and AR environments. Everything reacts to your audio and biology in real time.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>Visual Modes</h4>
+                        <p>Waveform, Spectrum, Particles, Hilbert Map, Bio Graph, Flow Field, Kaleidoscope, Nebula, Generative Worlds, and AR Worlds. Each mode responds to audio amplitude, frequency, and biometric signals simultaneously.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Generative &amp; AR Worlds</h4>
+                        <p>Generative Worlds &mdash; abstract bio-reactive environments that evolve with your physiology. AR Worlds &mdash; augmented reality anchored at real locations. Both driven by coherence, heart rate, and breath data.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Bio-Reactive Visualization</h4>
+                        <p>Hilbert curve sensor mapping preserves locality of multi-dimensional bio data in 2D space. Coherence drives visual complexity, HRV modulates color palette, and breath phase controls visual expansion and contraction.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELVID ===== -->
+            <div class="tool-section" id="vid">
+                <div class="tool-header">
+                    <h2>EchoelVid</h2>
+                    <p class="tagline">Video capture, editing, streaming, and ProRes export.</p>
+                </div>
+                <p class="tool-overview">Full non-linear video editor with timeline, multi-cam switching, and professional color grading. <strong>Apple ProRes</strong> recording and export. Real-time RTMP streaming to any platform.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>NLE Editor</h4>
+                        <p>Non-linear video editor with timeline, razor tool, transitions, and keyframe animation. Multi-layer compositing with blend modes. Bio-synced transitions that cut on coherence peaks.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Multi-Cam &amp; ProRes</h4>
+                        <p>Multi-cam switching between connected cameras with stabilization. Apple ProRes 422/4444 recording for broadcast quality. H.264/H.265 hardware encoding for streaming.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Color Grading</h4>
+                        <p>Professional color grading with LUTs, curves, color wheels, and bio-reactive color shifts. Real-time color correction with GPU-accelerated processing.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELLUX ===== -->
+            <div class="tool-section" id="lux">
+                <div class="tool-header">
+                    <h2>EchoelLux</h2>
+                    <p class="tagline">DMX 512, Art-Net, smart home lighting, and cue system.</p>
+                </div>
+                <p class="tool-overview">Control any light source from your heartbeat. Professional <strong>DMX-512 and Art-Net 4</strong> for stage rigs. Smart home integration for living rooms. Bio-reactive chase patterns and fixture profiles.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>DMX 512 &amp; Art-Net</h4>
+                        <p>Full DMX-512 universe control with fixture profiles, dimmer curves, and bio-reactive chase patterns. Art-Net 4 over UDP port 6454 for multi-universe support on large-scale rigs.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Smart Home</h4>
+                        <p>HomeKit integration for smart home lighting. Your living room lights respond to your biometrics and music in real time. From ambient relaxation to full bio-reactive immersion.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Cue System</h4>
+                        <p>Professional cue list with timed triggers, crossfades, follow cues, and beat grid sync. Program an entire show with bio-reactive overrides. Scene transitions driven by coherence state.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELSTAGE ===== -->
+            <div class="tool-section" id="stage">
+                <div class="tool-header">
+                    <h2>EchoelStage</h2>
+                    <p class="tagline">External displays, projection mapping, and multi-screen output.</p>
+                </div>
+                <p class="tool-overview">Multi-screen output with separate performer, audience, and therapist views. Connect external displays via <strong>USB-C, HDMI, or AirPlay</strong>. Projection mapping with edge blending and warping.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>External Displays</h4>
+                        <p>Connect any external display via USB-C, HDMI, or AirPlay. Separate content per screen: performer view on device, audience visuals on projector, bio-data on therapist display.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Projection Mapping</h4>
+                        <p>Map visuals onto any surface with edge blending, warping, and multi-projector alignment. Warp grids for non-flat surfaces. Bio-reactive visual content adapts to the mapped geometry.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELNET ===== -->
+            <div class="tool-section" id="net">
+                <div class="tool-header">
+                    <h2>EchoelNet</h2>
+                    <p class="tagline">OSC, Ableton Link, and cross-device networking.</p>
+                </div>
+                <p class="tool-overview">Connect to any professional system. <strong>Open Sound Control</strong> for bidirectional communication with DAWs, VJ software, game engines, and custom applications. <strong>Ableton Link</strong> for tempo and phase sync across devices on the same network.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>OSC (Open Sound Control)</h4>
+                        <p>Full OSC 1.0 protocol over UDP. Bidirectional communication with DAWs, VJ software, game engines, and custom applications. Send and receive bio-reactive data, audio parameters, and control messages. Target latency &lt;5ms on LAN.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>Ableton Link</h4>
+                        <p>Tempo and phase synchronization across all devices on the same network. Beat-locked sessions with Ableton Live, other Link-enabled apps, and multiple Echoelmusic instances. Zero-config peer discovery.</p>
+                    </div>
+                </div>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- ===== ECHOELAI ===== -->
+            <div class="tool-section" id="ai">
+                <div class="tool-header">
+                    <h2>EchoelAI</h2>
+                    <p class="tagline">On-device intelligence via CoreML. Private, fast, no cloud.</p>
+                </div>
+                <p class="tool-overview">All intelligence runs <strong>entirely on-device via CoreML</strong>. No cloud, no latency, fully private. AI stem separation and on-device inference for creative assistance.</p>
+                <div class="capability-list">
+                    <div class="capability">
+                        <h4>CoreML &amp; On-Device Inference</h4>
+                        <p>On-device inference with zero cloud dependency. Runs entirely on your hardware &mdash; your data never leaves your device. Neural Engine acceleration on Apple Silicon for real-time processing.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>AI Stem Separation</h4>
+                        <p>Isolate vocals, drums, bass, and instruments from any audio track. CoreML-powered source separation runs on-device with low latency. Feed separated stems back into the bio-reactive signal chain.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Social -->
+        <div class="social">
+            <a href="https://instagram.com/echoelmusic" aria-label="Instagram" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
+            <a href="https://tiktok.com/@echoelmusic" aria-label="TikTok" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg>
+            </a>
+            <a href="https://youtube.com/@echoelmusic" aria-label="YouTube" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+
+    <script src="shared.js?v=10.3"></script>
+</body>
+</html>

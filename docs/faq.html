@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.3.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>FAQ - Echoelmusic</title>
+    <meta name="description" content="Frequently asked questions about Echoelmusic bio-reactive audio-visual platform.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="FAQ - Echoelmusic">
+    <meta property="og:description" content="Frequently asked questions about Echoelmusic bio-reactive audio-visual platform.">
+    <meta property="og:url" content="https://echoelmusic.com/faq.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="FAQ - Echoelmusic">
+    <meta name="twitter:description" content="Frequently asked questions about Echoelmusic bio-reactive audio-visual platform.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/faq.html">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"FAQ","item":"https://echoelmusic.com/faq.html"}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is Echoelmusic?","acceptedAnswer":{"@type":"Answer","text":"Echoelmusic is a bio-reactive creative platform that transforms your biometric signals (heart rate, HRV, breathing) into music, visuals, and lighting in real-time. Available on iPhone, iPad, Mac, Apple Watch, Apple TV, and Vision Pro."}},{"@type":"Question","name":"What makes it bio-reactive?","acceptedAnswer":{"@type":"Answer","text":"EchoelBio captures your biometrics — HRV, heart rate, breath, face tracking, EEG, and movement — and feeds them to every other tool via EchoelCreativeWorkspace. Your heart rate influences tempo, HRV modulates effects depth, breathing shapes spatial audio, and coherence affects harmony and saturation."}},{"@type":"Question","name":"What are the EchoelTools?","acceptedAnswer":{"@type":"Answer","text":"12 engines consolidated into unified tools: EchoelSynth (synthesis), EchoelFX (effects), EchoelMix (mixing/recording), EchoelSeq (sequencer), EchoelMIDI (MIDI 2.0/MPE), EchoelBio (biometrics), EchoelVis (visuals), EchoelVid (video), EchoelLux (lighting), EchoelStage (displays/projection), EchoelNet (OSC/Ableton Link), EchoelAI (on-device intelligence). All connected via EchoelCreativeWorkspace."}},{"@type":"Question","name":"Do I need special hardware?","acceptedAnswer":{"@type":"Answer","text":"For basic use, just your iPhone or iPad. Bio-reactive features work with your iPhone's front camera or an Apple Watch / Bluetooth heart rate monitor. For lighting, Echoelmusic controls smart home lights, DMX fixtures, and Art-Net networks."}},{"@type":"Question","name":"Which platforms are supported?","acceptedAnswer":{"@type":"Answer","text":"iOS 15+, macOS 12+, watchOS 8+, tvOS 15+, and visionOS 1+. Android, Web PWA, Windows, and Linux may follow in the future."}},{"@type":"Question","name":"What synthesis engines are included?","acceptedAnswer":{"@type":"Answer","text":"All synthesis is unified inside EchoelSynth — one tool with multiple engines: DDSP, Modal, Cellular Automata, Sampler, EchoelBeat, Breakbeat Chopper, and Spectral Morph. Plus factory presets and bio-reactive synthesis."}},{"@type":"Question","name":"How many effects are there?","acceptedAnswer":{"@type":"Answer","text":"All effects are unified inside EchoelFX — one tool with a full range of effect types including EQ, compressor, reverb, delay, modulation, drive, limiter, and full analog emulations (VCA, Tube EQ, FET, VariMu, Opto). Zero external dependencies."}},{"@type":"Question","name":"What visual modes are available?","acceptedAnswer":{"@type":"Answer","text":"All visuals live inside EchoelVis — GPU-accelerated modes including Waveform, Spectrum, Particles, Hilbert Map, Bio Graph, Flow Field, Kaleidoscope, Nebula, Generative Worlds, and AR Worlds. Video editing is in EchoelVid with NLE editor, ProRes recording, and color grading."}},{"@type":"Question","name":"Can I control lights and lasers?","acceptedAnswer":{"@type":"Answer","text":"Yes — lighting lives inside EchoelLux (DMX 512, Art-Net, smart home) and stage output inside EchoelStage (external displays, projection mapping, AirPlay)."}},{"@type":"Question","name":"What AI features does Echoelmusic have?","acceptedAnswer":{"@type":"Answer","text":"All intelligence lives inside EchoelAI — entirely on-device via CoreML. AI stem separation isolates vocals, drums, bass, and instruments. No cloud, no latency, fully private."}},{"@type":"Question","name":"Can I collaborate with others?","acceptedAnswer":{"@type":"Answer","text":"Yes — EchoelNet provides OSC (Open Sound Control) for bidirectional communication with DAWs and software, plus Ableton Link for tempo sync across devices on the same network."}},{"@type":"Question","name":"Who owns what I create?","acceptedAnswer":{"@type":"Answer","text":"You do. 100%. Everything you create with Echoelmusic belongs entirely to you. No royalty claims, no usage restrictions."}},{"@type":"Question","name":"How much does Echoelmusic cost?","acceptedAnswer":{"@type":"Answer","text":"Echoelmusic is coming soon. At launch it will be free, with full access to all features. No ads, no hidden costs, no tracking."}},{"@type":"Question","name":"Is this a medical device?","acceptedAnswer":{"@type":"Answer","text":"No. Echoelmusic is a creative tool, not a medical device. Biofeedback features are for creative and general wellness purposes only."}},{"@type":"Question","name":"Is my data safe?","acceptedAnswer":{"@type":"Answer","text":"All biometric data is processed locally on your device. No accounts, no analytics, no third-party SDKs. Platform-native encryption (AES-256) protects local storage."}},{"@type":"Question","name":"Is Echoelmusic accessible?","acceptedAnswer":{"@type":"Answer","text":"Yes. WCAG 2.2 AAA compliance with multiple accessibility modes, color blindness modes, reduced motion support, and broad language support with RTL."}}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.3">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="tools.html">Tools</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main" class="subpage subpage--wide">
+        <div class="subpage-hero">
+            <h1>FAQ</h1>
+            <div class="subtitle">Everything you need to know about Echoelmusic</div>
+        </div>
+
+        <div class="faq-section">
+            <h2>General</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What is Echoelmusic?</div>
+                <div class="faq-answer">Echoelmusic is a bio-reactive creative platform that transforms your biometric signals (heart rate, HRV, breathing) into music, visuals, and lighting in real-time. Available on iPhone, iPad, Mac, Apple Watch, Apple TV, and Vision Pro.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What makes it "bio-reactive"?</div>
+                <div class="faq-answer">Bio-reactive means the software responds to your body in real time. <strong>EchoelBio</strong> captures your biometrics — HRV, heart rate, breath, face tracking, and movement — and feeds them to every other tool via EchoelCreativeWorkspace. Your heart rate influences tempo and filter brightness, HRV modulates reverb and effects depth, breathing shapes delay and spatial audio, and your coherence level affects harmony, warmth, and saturation. Your body becomes the controller.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Do I need special hardware?</div>
+                <div class="faq-answer">For basic use, just your iPhone or iPad. Bio-reactive features work with your <strong>iPhone's front camera</strong> (face tracking for pulse and expression) or an <strong>Apple Watch / Bluetooth heart rate monitor</strong> for deeper biometric data. For lighting, Echoelmusic controls smart home lights, DMX fixtures, and Art-Net networks — from your living room to the stage. For MIDI, any class-compliant controller connects instantly.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What are the EchoelTools?</div>
+                <div class="faq-answer">All of Echoelmusic's engines are consolidated into <strong>12 unified tools</strong>, connected via EchoelCreativeWorkspace:<ul><li><strong>EchoelSynth</strong> — Multiple synthesis engines (DDSP, Modal, Cellular Automata, Sampler, EchoelBeat, Breakbeat Chopper, Spectral Morph)</li><li><strong>EchoelFX</strong> — Effects &amp; analog emulations (EQ, Comp, Reverb, Delay, Tube, FET, VCA)</li><li><strong>EchoelMix</strong> — Console mixer, multi-track recording, session management &amp; metering</li><li><strong>EchoelSeq</strong> — Step sequencer, pattern bank, Euclidean rhythms &amp; automation</li><li><strong>EchoelMIDI</strong> — MIDI 2.0, MPE, touch instruments (keys, pads, drums, strum, Audio&rarr;MIDI)</li><li><strong>EchoelBio</strong> — HRV, heart rate, breath, face tracking (ARKit) &amp; LF/HF analysis</li><li><strong>EchoelVis</strong> — GPU-accelerated visuals (10+ modes, Metal 120fps, Hilbert bio-mapping)</li><li><strong>EchoelVid</strong> — Video capture, NLE editor, multi-cam, ProRes, color grading</li><li><strong>EchoelLux</strong> — DMX 512, Art-Net, smart home lighting &amp; cue system</li><li><strong>EchoelStage</strong> — External displays, projection mapping &amp; AirPlay</li><li><strong>EchoelNet</strong> — OSC &amp; Ableton Link networking</li><li><strong>EchoelAI</strong> — On-device CoreML intelligence &amp; AI stem separation</li></ul>Fewer tools, more power. Every tool talks to every other tool in real time.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Platforms</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Which platforms are supported?</div>
+                <div class="faq-answer"><ul><li><strong>iOS 15+</strong> — iPhone, iPad</li><li><strong>macOS 12+</strong> — Apple Silicon &amp; Intel</li><li><strong>watchOS 8+</strong> — Apple Watch (bio-data source)</li><li><strong>tvOS 15+</strong> — Apple TV</li><li><strong>visionOS 1+</strong> — Apple Vision Pro (360&deg; immersive spaces)</li></ul>Android, Web PWA, Windows, and Linux may follow in the future.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Instruments &amp; Synthesis</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What synthesis engines are included?</div>
+                <div class="faq-answer">All synthesis is unified inside <strong>EchoelSynth</strong> — one tool with multiple pluggable backends:<ul><li><strong>DDSP</strong> — Differentiable DSP (harmonic + noise model, ML-powered)</li><li><strong>Modal</strong> — Physics-constrained modal resonator (bells, plates, strings, gongs)</li><li><strong>Cellular Automata</strong> — Wolfram rules drive audio synthesis</li><li><strong>Sampler</strong> — Multi-zone sample playback with velocity layers</li><li><strong>EchoelBeat</strong> — Classic drum machine + bass synth</li><li><strong>Breakbeat Chopper</strong> — Jungle/DnB slice engine with transient detection</li></ul>Plus factory presets across multiple categories and bio-reactive synthesis that maps your biometrics directly to sound parameters in real time. All connected via EchoelCreativeWorkspace.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What touch instruments are available?</div>
+                <div class="faq-answer"><ul><li><strong>Chord Pad</strong> — 11 chord types, 13 scales, strum &amp; arpeggio modes</li><li><strong>Drum Pad</strong> — 16-pad grid with 6 kits (Acoustic, Electronic, EchoelBeat, TR-909, Hip Hop, Percussion)</li><li><strong>Melody XY Pad</strong> — Continuous 2D pitch/timbre control with scale quantization</li><li><strong>Keyboard</strong> — Multi-octave piano with velocity &amp; pitch bend</li><li><strong>Strum Pad</strong> — Guitar-style strumming with full chord support</li></ul>All touch instruments support MIDI 2.0 with MPE (per-note expression).</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Are there orchestral instruments?</div>
+                <div class="faq-answer">Yes. Orchestral instruments across full sections — Strings (Violins I/II, Violas, Cellos, Basses), Brass (Trumpets, French Horns, Trombones, Tuba), Woodwinds (Flutes, Oboes, Clarinets, Bassoons), Choir (SATB), Keyboards (Grand Piano, Concert Harp, Celesta), and Percussion (Timpani). Many articulation types from legato and spiccato to col legno, flutter tongue, and overblown.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Effects &amp; DSP</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">How many effects are there?</div>
+                <div class="faq-answer">All effects are unified inside <strong>EchoelFX</strong> — one tool with a full range of effect types and slot-based inserts. Includes EQ, compressor, reverb, delay, modulation, drive, limiter, gate, de-esser, stereo imaging, pitch correction, analog console saturation, and full analog emulations (VCA, Tube EQ, FET, VariMu, Opto). All built natively with zero external dependencies. Every effect has real DSP algorithms.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What analog-inspired processing is included?</div>
+                <div class="faq-answer">Our <strong>EchoelWarmth</strong> engine offers 9 analog-inspired processing modes — each modeled after the character of classic studio hardware, with our own Echoelmusic identity:<ul><li><strong>EchoelGlue</strong> — Punchy VCA bus compression</li><li><strong>EchoelThrust</strong> — Aggressive punch with tone control</li><li><strong>EchoelSilk</strong> — Warm transformer saturation with inductor EQ</li><li><strong>EchoelAir</strong> — Passive tube EQ with the famous boost/cut trick</li><li><strong>EchoelVelvet</strong> — Smooth variable-mu tube limiting</li><li><strong>EchoelOpto</strong> — Program-dependent optical compression</li><li><strong>EchoelBite</strong> — Fast FET limiting with all-buttons mode</li><li><strong>EchoelDream</strong> — Ultra-smooth tube mastering</li><li><strong>EchoelWarmth</strong> — Feedback compression with British character</li></ul>Plus <strong>EchoelVibe</strong> creative effects: <strong>EchoelPunish</strong> saturation (5 drive modes), <strong>EchoelTime</strong> delay (8 echo styles), and <strong>EchoelMorph</strong> pitch/formant shifting with robot mode.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Composing &amp; Music Creation</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Does Echoelmusic compose music for me?</div>
+                <div class="faq-answer"><strong>No — and that's by design.</strong> Echoelmusic is a creativity tool, not an AI that generates finished pieces. Your biometric data guides the musical parameters — tempo from your heart rate, harmonic variation from your HRV, dynamic expression from your breathing — but <strong>you are always the creator</strong>. We evolve your creativity, we don't replace it.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What composing tools are available?</div>
+                <div class="faq-answer"><strong>EchoelSeq</strong> provides the sequencer and automation layer:<ul><li><strong>Step Sequencer</strong> — 8-track, variable steps with probability, velocity per step, large pattern bank</li><li><strong>Euclidean Rhythms</strong> — Algorithmically generated patterns with polyrhythm and swing</li><li><strong>Automation</strong> — Record and draw automation for any parameter with curves, ramps, and bio-reactive modulation</li><li><strong>Bio-Reactive Patterns</strong> — Patterns mutate based on your bio-state. Calm states produce ordered rhythms, stress creates variation.</li></ul></div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>MIDI &amp; Hardware</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What MIDI features are supported?</div>
+                <div class="faq-answer">All MIDI lives inside <strong>EchoelMIDI</strong>. Full <strong>MIDI 2.0</strong> with Universal MIDI Packets (32-bit resolution), MPE (MIDI Polyphonic Expression) for per-note control, and <strong>inter-app tempo sync</strong> for beat-locked sessions with other music apps and devices. Any class-compliant MIDI controller works. Controllers with RGB LED grids get dedicated bio-reactive feedback patterns. Real-time Audio&rarr;MIDI pitch detection lets you sing or play any instrument to generate MIDI notes.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What about recording and export?</div>
+                <div class="faq-answer"><strong>EchoelMix</strong> handles recording and session management. Export formats including WAV, FLAC, AAC, MP3, ProRes, and H.264/H.265. Export presets for streaming services, social media, and broadcast. Multi-track recording with punch-in, loop recording, and automatic take management.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Does Echoelmusic work as a plugin and host?</div>
+                <div class="faq-answer"><strong>Both.</strong> All 12 Echoel* tools are available as AUv3 Audio Unit plugins. Load them in Logic Pro, GarageBand, AUM, or any AUv3-compatible host. On macOS, VST3 and CLAP formats are also supported for use in Ableton Live, Bitwig, REAPER, and other DAWs. Echoelmusic itself is also a host &mdash; load third-party AUv3 instruments and effects directly into the bio-reactive signal chain.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Visuals &amp; Lighting</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What visual modes are available?</div>
+                <div class="faq-answer">All visuals live inside <strong>EchoelVis</strong> — GPU-accelerated Metal rendering at 120fps. 10+ modes: Waveform, Spectrum, Particles, Hilbert Map, Bio Graph, Flow Field, Kaleidoscope, Nebula, Generative Worlds, and AR Worlds. All respond to your audio and biometrics in real time via Hilbert curve bio-mapping.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Can I control lights and lasers?</div>
+                <div class="faq-answer">Yes — lighting lives inside <strong>EchoelLux</strong> and stage output inside <strong>EchoelStage</strong>. From your living room to the stage. <strong>Smart home lights</strong> respond to your biometrics and music in real time. <strong>DMX 512 and Art-Net 4</strong> control professional fixtures — moving heads, LED bars, and strobes. External displays via USB-C/HDMI/AirPlay, projection mapping with edge blending and warping. A professional cue system syncs all lighting to the beat grid.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Video &amp; Streaming</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What video features are included?</div>
+                <div class="faq-answer">Video lives inside <strong>EchoelVid</strong> — a full NLE editor with timeline, razor, and keyframe animation, multi-cam switching with stabilization, Apple ProRes recording, professional color grading with LUTs, curves, and color wheels, Metal GPU shader pipeline, and multi-layer compositing with blend modes.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Can I stream live?</div>
+                <div class="faq-answer">Yes. Professional RTMP streaming with complete protocol handshake, multi-platform support (YouTube, Twitch, Facebook, Instagram, TikTok), adaptive bitrate from 1.5 Mbps to 50 Mbps, H.264 hardware encoding, and real-time quality monitoring.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Intelligence</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What AI features does Echoelmusic have?</div>
+                <div class="faq-answer">All intelligence lives inside <strong>EchoelAI</strong> — entirely on-device via CoreML. AI stem separation isolates vocals, drums, bass, and instruments. No cloud, no latency, fully private.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Collaboration &amp; Immersive</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Can I collaborate with others?</div>
+                <div class="faq-answer">Yes — <strong>EchoelNet</strong> provides OSC (Open Sound Control) for bidirectional communication with DAWs, VJ software, and custom applications, plus Ableton Link for tempo and phase sync across all devices on the same network.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What immersive features are available on Vision Pro?</div>
+                <div class="faq-answer">Full 360&deg; immersive quantum light spaces with RealityKit, spatial tap and drag gestures, floating photon particles, bio-coherence panels, eye gaze tracking for audio-visual control, and 8 immersive modes from mixed reality to volumetric and passthrough. Also: Siri Shortcuts, iOS widgets, Live Activities on Dynamic Island, and watchOS complications.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Content &amp; Ownership</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Who owns what I create?</div>
+                <div class="faq-answer"><strong>You do. 100%.</strong> Everything you create with Echoelmusic — music, visuals, recordings — belongs entirely to you. No royalty claims, no usage restrictions. Use commercially, remix, distribute — it's yours. We claim no rights to user-generated content.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Pricing</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">How much will Echoelmusic cost?</div>
+                <div class="faq-answer">Echoelmusic is <strong>coming soon</strong>. At launch it will be free, with full access to all features. No ads, no hidden costs, no tracking.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Will it always be free?</div>
+                <div class="faq-answer">The core app will remain free. Optional Pro features may be available in the future for users who want advanced capabilities like session history, analytics, and cloud sync.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Health &amp; Privacy</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Is this a medical device?</div>
+                <div class="faq-answer"><strong>No.</strong> Echoelmusic is a creative tool, not a medical device. Biofeedback features (heart rate, HRV, coherence scores) are for creative and general wellness purposes only. They are not clinically validated measurements. Always consult healthcare professionals for medical advice. See our <a href="health.html">Health Disclaimer</a>.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Photosensitivity warnings?</div>
+                <div class="faq-answer">Some visual effects include flashing lights, rapid color changes, and laser patterns. If you have photosensitive epilepsy or seizure conditions, consult a physician before use. Accessibility options can reduce or disable motion and flashing effects.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Is my data safe?</div>
+                <div class="faq-answer">All biometric data is processed locally on your device. We don't collect, store, or transmit personal data. No accounts, no analytics, no third-party SDKs. Platform-native encryption (AES-256) protects local storage. See our <a href="privacy.html">Privacy Policy</a> and <a href="security.html">Security</a> page.</div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h2>Accessibility</h2>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Is Echoelmusic accessible?</div>
+                <div class="faq-answer">Yes. WCAG 2.2 AAA compliance with 6 accessibility modes: Standard, Vision Assist (VoiceOver, large text, high contrast), Hearing Assist (visual alerts, captions), Motor Assist (large targets, voice control, switch access), Cognitive Assist (simplified UI), and Full Accessibility. 5 color blindness modes using the Brettel algorithm. Reduced motion support throughout. 37 languages with RTL support for Arabic and Hebrew. See our <a href="accessibility.html">Accessibility</a> page.</div>
+            </div>
+        </div>
+
+        <div class="cta-box">
+            <h3>Still have questions?</h3>
+            <p>We're here to help.</p>
+            <a href="mailto:michaelterbuyken@gmail.com?subject=Echoelmusic%20Question" class="btn">Contact Support</a>
+        </div>
+    </main>
+
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+    <script src="shared.js?v=10.3"></script>
+    <script>
+    document.querySelectorAll('.faq-question').forEach(function(q) {
+        function toggle() {
+            var item = q.parentElement;
+            var isOpen = item.classList.toggle('open');
+            q.setAttribute('aria-expanded', isOpen);
+        }
+        q.addEventListener('click', toggle);
+        q.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+        });
+    });
+    </script>
+</body>
+</html>

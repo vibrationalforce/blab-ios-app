@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Echoelmusic App Icon — CI v7.1 grayscale on black -->
+  <rect width="1024" height="1024" fill="#000"/>
+  <text x="512" y="470" text-anchor="middle" font-family="'Atkinson Hyperlegible','SF Pro Display',Arial,sans-serif" font-weight="700" font-size="530" fill="#e0e0e0">E</text>
+  <g stroke="#e0e0e0" fill="none" stroke-width="32" stroke-linecap="round">
+    <path d="M245,610 C295,555 375,555 425,610 C475,665 549,665 599,610 C649,555 729,555 779,610" opacity="0.8"/>
+    <path d="M245,710 C295,655 375,655 425,710 C475,765 549,765 599,710 C649,655 729,655 779,710" opacity="0.4"/>
+    <path d="M245,810 C295,755 375,755 425,810 C475,865 549,865 599,810 C649,755 729,755 779,810" opacity="0.2"/>
+  </g>
+</svg>

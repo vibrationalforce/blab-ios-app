@@ -1,55 +1,236 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-US">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy — Echoelmusic</title>
-    <meta name="description" content="Privacy Policy — Echoelmusic. This website does not track you.">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.3.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Privacy Policy - Echoelmusic</title>
+    <meta name="description" content="No accounts. No tracking. No ads. Your data stays on your device.">
     <meta name="theme-color" content="#000000">
-    <meta name="robots" content="noindex">
+    <meta property="og:title" content="Privacy Policy - Echoelmusic">
+    <meta property="og:description" content="No accounts. No tracking. No ads. Your data stays on your device.">
+    <meta property="og:url" content="https://echoelmusic.com/privacy.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Privacy Policy - Echoelmusic">
+    <meta name="twitter:description" content="No accounts. No tracking. No ads. Your data stays on your device.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
     <link rel="canonical" href="https://echoelmusic.com/privacy.html">
+    <link rel="alternate" hreflang="en" href="https://echoelmusic.com/privacy.html">
+    <link rel="alternate" hreflang="de" href="https://echoelmusic.com/datenschutz">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Privacy Policy","item":"https://echoelmusic.com/privacy.html"}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.3">
     <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
-    <style>
-        @font-face { font-family: 'Atkinson Hyperlegible'; src: url('fonts/atkinson-regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
-        @font-face { font-family: 'Atkinson Hyperlegible'; src: url('fonts/atkinson-bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, sans-serif; background: #000; color: #e0e0e0; -webkit-font-smoothing: antialiased; line-height: 1.6; font-size: 14px; }
-        a { color: inherit; text-decoration: none; }
-        a:focus-visible { outline: 2px solid #e0e0e0; outline-offset: 2px; }
-        .page { max-width: 600px; margin: 0 auto; padding: 80px 24px 60px; }
-        .back { display: inline-block; color: rgba(224,224,224,0.4); font-size: 13px; margin-bottom: 40px; transition: color 0.2s; }
-        .back:hover { color: #e0e0e0; }
-        h1 { font-size: clamp(24px, 5vw, 32px); font-weight: 700; letter-spacing: -1px; margin-bottom: 32px; }
-        h2 { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: rgba(224,224,224,0.35); margin-bottom: 12px; margin-top: 32px; }
-        p { color: rgba(224,224,224,0.6); line-height: 1.75; margin-bottom: 8px; }
-        p a { color: rgba(224,224,224,0.8); border-bottom: 1px solid rgba(224,224,224,0.2); transition: color 0.2s; }
-        p a:hover { color: #e0e0e0; }
-    </style>
 </head>
 <body>
-    <div class="page">
-        <a href="/" class="back">&larr; Back</a>
-        <h1>Privacy Policy</h1>
-
-        <h2>Overview</h2>
-        <p>This website does not use cookies, analytics, tracking, or advertising. No personal data is collected or stored.</p>
-
-        <h2>Hosting</h2>
-        <p>This website is hosted on GitHub Pages. GitHub may collect technical log data (IP address, browser type) as part of their infrastructure. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">GitHub's privacy statement</a>.</p>
-
-        <h2>External Links</h2>
-        <p>This website links to third-party services (Instagram, TikTok, YouTube). When you follow these links, their respective privacy policies apply.</p>
-
-        <h2>Contact</h2>
-        <p>For privacy-related questions: <a href="mailto:echoel@tropicaldrones.com">echoel@tropicaldrones.com</a></p>
-
-        <h2>Your Rights (GDPR)</h2>
-        <p>Since this website does not collect personal data, rights to access, rectification, and erasure are inherently fulfilled. If you have concerns, contact us at the address above.</p>
-
-        <p style="margin-top:32px;color:rgba(224,224,224,0.3);font-size:12px;">Last updated: March 2026</p>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="tools.html">Tools</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
     </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main" class="subpage">
+        <div class="subpage-hero">
+            <h1>Privacy Policy</h1>
+            <p class="date">Updated: February 2026</p>
+        </div>
+
+        <div class="subpage-summary">
+            <strong>Summary:</strong> No accounts. No tracking. No ads. Your data stays on your device.
+        </div>
+
+        <section>
+            <h2>Our Approach</h2>
+            <p>Echoelmusic is built with privacy as a core principle, not an afterthought. We believe your biometric data, creative work, and personal health information belong to you alone.</p>
+            <p><strong>Key principles:</strong></p>
+            <ul>
+                <li>No user accounts or authentication systems</li>
+                <li>No cloud storage of personal or biometric data</li>
+                <li>No tracking, analytics, or advertising networks</li>
+                <li>No third-party SDKs that collect data</li>
+                <li>All processing happens on your device</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Data We Do NOT Collect</h2>
+            <p>We do not collect, store, or transmit any of the following:</p>
+            <ul>
+                <li><strong>Personal identifiers:</strong> Names, email addresses, phone numbers, or any account information</li>
+                <li><strong>Biometric data:</strong> Heart rate, HRV, breathing patterns, or any health metrics</li>
+                <li><strong>Usage analytics:</strong> How you use the app, which features you access, or session duration</li>
+                <li><strong>Device information:</strong> Device IDs, advertising IDs, or hardware specifications</li>
+                <li><strong>Location data:</strong> GPS coordinates, Wi-Fi networks, or IP addresses</li>
+                <li><strong>Audio recordings:</strong> Microphone input, voice data, or recorded audio</li>
+                <li><strong>Visual data:</strong> Face tracking data, camera feed, or AR session recordings</li>
+                <li><strong>Creative content:</strong> Your music, videos, or artistic creations</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Data Processing</h2>
+            <p>All data processing occurs locally on your device:</p>
+            <p><strong>Biometric Data:</strong> Heart rate variability (HRV), heart rate, and breathing patterns from Apple Watch or HealthKit are processed in real-time on your device to influence audio, visuals, and lighting. This data never leaves your device and is not stored.</p>
+            <p><strong>Audio Input:</strong> Microphone input for music production, voice synthesis, and audio analysis is processed locally. No audio is uploaded to servers or shared with third parties.</p>
+            <p><strong>Face Tracking:</strong> Facial expression tracking using Apple's ARKit and TrueDepth camera is processed on-device for bio-reactive features. Facial data is never stored or transmitted.</p>
+            <p><strong>Camera & Sensors:</strong> Camera input for video processing, motion tracking, and spatial audio positioning is handled entirely on-device with no external transmission.</p>
+        </section>
+
+        <section>
+            <h2>HealthKit Data</h2>
+            <p>Echoelmusic integrates with Apple HealthKit to access heart rate and HRV data for bio-reactive features. This integration is governed by Apple's strict privacy requirements:</p>
+            <ul>
+                <li>HealthKit data is <strong>never shared with third parties</strong></li>
+                <li>HealthKit data is <strong>never used for advertising</strong></li>
+                <li>HealthKit data <strong>never leaves your device</strong></li>
+                <li>You control which health metrics Echoelmusic can access</li>
+                <li>You can revoke access at any time in iOS Settings</li>
+            </ul>
+            <p>We use HealthKit data solely to create bio-reactive audio-visual experiences in real-time. The data is read, processed, and immediately discarded—it is never stored.</p>
+        </section>
+
+        <section>
+            <h2>Camera & Sensors</h2>
+            <p>Echoelmusic requests camera and sensor permissions for the following features:</p>
+            <p><strong>Camera Access:</strong> Used for video recording, AR experiences, and face tracking. All processing is local. No images or video are uploaded to servers.</p>
+            <p><strong>Microphone Access:</strong> Used for audio recording, voice input, and sound analysis. All audio processing is local.</p>
+            <p><strong>Motion & Fitness:</strong> Used for spatial audio positioning and gesture control. All sensor data is processed on-device.</p>
+            <p>You can deny or revoke these permissions at any time in iOS Settings. Denying permissions will disable related features but the app will continue to function.</p>
+        </section>
+
+        <section>
+            <h2>Collaboration Features</h2>
+            <p>If you choose to use collaboration features such as SharePlay or AirDrop to share projects with others:</p>
+            <ul>
+                <li>Shared data is transmitted directly between devices using Apple's encrypted protocols</li>
+                <li>We do not see, store, or have access to shared content</li>
+                <li>You control what you share and with whom</li>
+                <li>Shared sessions use end-to-end encryption provided by Apple</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Third-Party Services</h2>
+            <p>Echoelmusic does not integrate any third-party analytics, advertising, or tracking services. We do not use:</p>
+            <ul>
+                <li>Google Analytics or Firebase</li>
+                <li>Facebook SDK or Pixel</li>
+                <li>Advertising networks (AdMob, etc.)</li>
+                <li>Crash reporting services that collect personal data</li>
+                <li>Social media login or sharing SDKs</li>
+            </ul>
+            <p>If you choose to share your creations externally (e.g., exporting to Files, sharing via social media), those services' privacy policies apply.</p>
+        </section>
+
+        <section>
+            <h2>Children's Privacy</h2>
+            <p>Echoelmusic does not knowingly collect any data from anyone, including children under 13. The app is designed to function entirely offline with no data collection, making it safe for all ages.</p>
+            <p>Parents and guardians should be aware that the app uses biometric sensors (heart rate, face tracking) for creative expression. All data is processed locally and never transmitted.</p>
+        </section>
+
+        <section>
+            <h2>Data Retention</h2>
+            <p>Since we do not collect data, there is no data retention. Your creative projects, settings, and preferences are stored locally on your device. If you delete the app, all local data is removed from your device.</p>
+            <p><strong>To completely remove all data:</strong></p>
+            <ul>
+                <li>Delete the Echoelmusic app from your device</li>
+                <li>If you backed up projects to iCloud Drive or Files, delete them manually</li>
+                <li>Revoke HealthKit permissions in iOS Settings (optional)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Your Rights (GDPR)</h2>
+            <p>Under the General Data Protection Regulation (GDPR) and similar privacy laws, you have certain rights regarding your personal data. Since Echoelmusic does not collect personal data, these rights are inherently protected:</p>
+            <ul>
+                <li><strong>Right to Access:</strong> All data is stored locally on your device, accessible to you at all times</li>
+                <li><strong>Right to Rectification:</strong> You can modify all local data directly in the app</li>
+                <li><strong>Right to Erasure:</strong> Delete the app to remove all data instantly</li>
+                <li><strong>Right to Data Portability:</strong> Export your projects in standard formats (audio, video, MIDI) at any time</li>
+                <li><strong>Right to Object:</strong> Not applicable as we don't process personal data</li>
+                <li><strong>Right to Withdraw Consent:</strong> Revoke permissions (HealthKit, camera, mic) in iOS Settings at any time</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Changes to This Policy</h2>
+            <p>We may update this Privacy Policy to reflect changes in the app or legal requirements. When we do, we will update the "Updated" date at the top of this page. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+            <p>Material changes will be communicated through the App Store update notes.</p>
+        </section>
+
+        <div class="contact-box">
+            <h3>Contact</h3>
+            <p>If you have questions about this Privacy Policy, please contact:</p>
+            <a href="mailto:michaelterbuyken@gmail.com">michaelterbuyken@gmail.com</a>
+        </div>
+    </main>
+
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+<script src="shared.js?v=10.3"></script>
 </body>
 </html>

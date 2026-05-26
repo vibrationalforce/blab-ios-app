@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 100">
+  <!-- Echoelmusic — Horizontal Logo: E + echo waves mark + Wordmark — CI v7.1 -->
+
+  <!-- E + echo waves mark -->
+  <text x="50" y="46" text-anchor="middle"
+        font-family="'Atkinson Hyperlegible',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif"
+        font-weight="700" font-size="52" fill="#e0e0e0">E</text>
+  <g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round">
+    <path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/>
+    <path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/>
+    <path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="105" y="57" font-family="'Atkinson Hyperlegible',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif"
+        font-size="34" font-weight="700" fill="#e0e0e0" letter-spacing="-1.5">
+    Echoelmusic
+  </text>
+</svg>

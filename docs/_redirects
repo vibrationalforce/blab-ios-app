@@ -1,0 +1,16 @@
+# =============================================================================
+# Cloudflare Pages Redirects
+# Note: www-to-non-www and HTTP-to-HTTPS are handled by Cloudflare domain settings
+# =============================================================================
+
+# App Store shortcut
+/app https://apps.apple.com/app/echoelmusic/id6757957358 302
+/download https://apps.apple.com/app/echoelmusic/id6757957358 302
+
+# Common page aliases
+/datenschutz /privacy.html 301
+/agb /terms.html 301
+/hilfe /support.html 301
+/barrierefreiheit /accessibility.html 301
+/gesundheit /health.html 301
+/sicherheit /security.html 301

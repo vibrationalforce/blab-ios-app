@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.3.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Artist — Echoel (Michael Terbuyken) | Music Producer &amp; Sound Artist, Hamburg</title>
+    <meta name="description" content="Echoel (Michael Terbuyken) — music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Based in Hamburg. Creator of Echoelmusic. Shown at Documenta, Ars Electronica, Fusion Festival.">
+    <meta name="theme-color" content="#000000">
+    <meta name="keywords" content="Echoel, Michael Terbuyken, music producer, sound artist, Hamburg, multisensory installation, vibration installation, Documenta, Ars Electronica, Fusion Festival, Tropical Drones, Loewe Immerlieb, electronic music">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Echoel — Music Producer &amp; Sound Artist">
+    <meta property="og:description" content="Music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Hamburg. Creator of Echoelmusic.">
+    <meta property="og:type" content="profile">
+    <meta property="og:url" content="https://echoelmusic.com/artist.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Echoel — Music Producer &amp; Sound Artist">
+    <meta name="twitter:description" content="Music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Hamburg.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/artist.html">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "Michael Terbuyken",
+      "alternateName": "Echoel",
+      "url": "https://echoelmusic.com/artist.html",
+      "jobTitle": "Music Producer & Sound Artist",
+      "address": { "@type": "PostalAddress", "addressLocality": "Hamburg", "addressCountry": "DE" },
+      "sameAs": [
+        "https://instagram.com/echoelmusic",
+        "https://tiktok.com/@echoelmusic",
+        "https://youtube.com/@echoelmusic",
+        "https://www.tropicaldrones.com/"
+      ]
+    }
+    </script>
+
+    <link rel="stylesheet" href="shared.css?v=10.3">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+
+    <style>
+        .artist-bio { color: var(--dim); line-height: 1.85; margin-bottom: 8px; }
+        .artist-bio a, .artist-bio a:visited { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+        .artist-bio a:hover { text-decoration: none; }
+
+        .project-list { list-style: none; padding: 0; margin: 0; }
+        .project-list li { border-bottom: 1px solid var(--border); }
+        .project-list li:last-child { border-bottom: none; }
+        .project-list a, .project-list a:visited {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 0; color: var(--dim); text-decoration: none; transition: color 0.2s;
+        }
+        .project-list a:hover { color: var(--text); }
+        .project-name { font-weight: 700; color: var(--text); }
+        .project-desc { display: block; font-size: 13px; color: var(--dim); margin-top: 2px; }
+        .project-arrow { color: var(--dim); margin-left: 16px; flex-shrink: 0; transition: transform 0.2s; }
+        .project-list a:hover .project-arrow { transform: translateX(3px); }
+
+        .venues { color: var(--dim); line-height: 2; }
+        .label-list { color: var(--dim); line-height: 2; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="tools.html">Tools</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html" aria-current="page">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+            <a href="artist.html" aria-current="page">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main">
+        <div class="subpage subpage--wide">
+            <div class="subpage-hero">
+                <h1>Echoel</h1>
+                <p class="subtitle">Michael Terbuyken &middot; Music Producer &amp; Sound Artist &middot; Hamburg</p>
+            </div>
+
+            <section>
+                <p class="artist-bio">Music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Based in Hamburg. Creating interactive multisensory installations, video, visuals, light and musical performance since 2006 &mdash; most recently a <a href="https://www.instagram.com/reel/C8HI8lstsir/" target="_blank" rel="noopener noreferrer">vibration pontons and sound mirror workshop</a> at Burgbeben STRNBRG 2024, created together with Anna.Elisie as <a href="https://www.instagram.com/loewe.immerlieb" target="_blank" rel="noopener noreferrer">Loewe Immerlieb</a>. Active across multiple music projects with the <a href="https://www.tropicaldrones.com/" target="_blank" rel="noopener noreferrer">Tropical Drones</a> collective, and creator of <a href="/">Echoelmusic</a> &mdash; a bio-reactive performance instrument.</p>
+            </section>
+
+            <section>
+                <h2>Projects</h2>
+                <ul class="project-list">
+                    <li><a href="https://www.instagram.com/loewe.immerlieb" target="_blank" rel="noopener noreferrer"><span><span class="project-name">Loewe Immerlieb</span><span class="project-desc">Duo &mdash; regular releases</span></span><span class="project-arrow">&rarr;</span></a></li>
+                    <li><a href="https://digitalewaerme.de" target="_blank" rel="noopener noreferrer"><span><span class="project-name">Digitale W&auml;rme</span><span class="project-desc">Electronic music</span></span><span class="project-arrow">&rarr;</span></a></li>
+                    <li><a href="https://nia9ara.de" target="_blank" rel="noopener noreferrer"><span><span class="project-name">Nia9ara</span><span class="project-desc">Autotune, 808s, electric guitar, retro-futuristic</span></span><span class="project-arrow">&rarr;</span></a></li>
+                    <li><a href="https://www.tropicaldrones.com/supernaturalhealingkillers/" target="_blank" rel="noopener noreferrer"><span><span class="project-name">Super Natural Healing Killers</span><span class="project-desc">Electronic music</span></span><span class="project-arrow">&rarr;</span></a></li>
+                    <li><a href="https://www.instagram.com/xt14_artist" target="_blank" rel="noopener noreferrer"><span><span class="project-name">XT14</span><span class="project-desc">Co-writing &amp; production</span></span><span class="project-arrow">&rarr;</span></a></li>
+                    <li><a href="https://www.tropicaldrones.com/" target="_blank" rel="noopener noreferrer"><span><span class="project-name">Tropical Drones</span><span class="project-desc">Artist collective</span></span><span class="project-arrow">&rarr;</span></a></li>
+                    <li><a href="https://www.instagram.com/anna.elisie" target="_blank" rel="noopener noreferrer"><span><span class="project-name">Anna.Elisie / Veganmom</span><span class="project-desc">Vegan food blog</span></span><span class="project-arrow">&rarr;</span></a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Selected Venues &amp; Festivals</h2>
+                <p class="venues">Documenta Kassel &middot; Ars Electronica Linz &middot; Fusion Festival L&auml;rz &middot; Garbicz Festival &middot; Kampnagel Hamburg &middot; Golden Pudel Club Hamburg &middot; G&auml;ngeviertel Hamburg &middot; S&uuml;dpol Hamburg &middot; Fundbureau Hamburg &middot; Astra Stube Hamburg &middot; Hafenklang Hamburg &middot; Kater Blau Berlin &middot; Ritter Butzke Berlin &middot; Jonny Kn&uuml;ppel Berlin &middot; Rummels Bucht Berlin &middot; Canadian Embassy Berlin &middot; Redlight Radio Amsterdam &middot; Albert und Tina Wien &middot; Konotor 80 Leipzig &middot; P8 Karlsruhe &middot; Projekt 42 M&ouml;nchengladbach &middot; Off the Radar Festival &middot; Int. Short Film Festival Detmold &middot; Film Festival Bilkent University Ankara</p>
+            </section>
+
+            <section>
+                <h2>Echoel Solo</h2>
+                <p class="venues">Electronic dance music and hip hop instrumentals, partially with vocals. Released on labels worldwide.</p>
+                <p class="label-list">RSNZRFLXN (Hamburg) &middot; LikeBirdz (Hamburg) &middot; Mereia (Hamburg) &middot; Slow Punch (Hamburg) &middot; Magicians on Duty (Miami) &middot; 8K&#x14D; (Singapore) &middot; Akasha MX (Mexico City) &middot; M&#x14E;N&#x245;D&#x245; (Berlin) &middot; Kollektiv Liebe (Karlsruhe)</p>
+            </section>
+
+            <div class="contact-box">
+                <h3>Contact</h3>
+                <p><a href="mailto:echoel@tropicaldrones.com">echoel@tropicaldrones.com</a></p>
+            </div>
+        </div>
+
+        <!-- Social -->
+        <div class="social">
+            <a href="https://instagram.com/echoelmusic" aria-label="Instagram" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </a>
+            <a href="https://tiktok.com/@echoelmusic" aria-label="TikTok" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg>
+            </a>
+            <a href="https://youtube.com/@echoelmusic" aria-label="YouTube" rel="noopener noreferrer" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+    <script src="shared.js?v=10.3"></script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.3.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Security - Echoelmusic</title>
+    <meta name="description" content="Enterprise-grade security. AES-256 encryption, certificate pinning, biometric authentication.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Security - Echoelmusic">
+    <meta property="og:description" content="Enterprise-grade security. AES-256 encryption, biometric authentication.">
+    <meta property="og:url" content="https://echoelmusic.com/security.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Security - Echoelmusic">
+    <meta name="twitter:description" content="Enterprise-grade security. AES-256 encryption, biometric authentication.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/security.html">
+    <link rel="alternate" hreflang="en" href="https://echoelmusic.com/security.html">
+    <link rel="alternate" hreflang="de" href="https://echoelmusic.com/sicherheit">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Security","item":"https://echoelmusic.com/security.html"}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.3">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="tools.html">Tools</a>
+                <a href="faq.html">FAQ</a>
+                <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="tools.html">Tools</a>
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </nav>
+    </div>
+
+    <main id="main" class="subpage">
+        <div class="subpage-hero">
+            <h1>Security</h1>
+            <p class="date">Updated: February 2026</p>
+            <span class="hero-badge">Privacy-First Design</span>
+        </div>
+        <div class="subpage-summary"><strong>Your data stays on your device.</strong> Echoelmusic uses a local-first architecture with platform-native encryption and authentication. No servers, no accounts, no tracking.</div>
+
+        <section>
+            <h2>Local-First Architecture</h2>
+            <p>Echoelmusic processes all data locally on your device. We do not operate external servers or cloud backends for user data. This means:</p>
+            <ul>
+                <li><strong>No user accounts:</strong> No registration, no passwords to leak</li>
+                <li><strong>No data collection:</strong> We do not collect, store, or transmit your personal data</li>
+                <li><strong>No analytics tracking:</strong> No third-party analytics or ad SDKs</li>
+                <li><strong>No external dependencies:</strong> Built entirely on Apple native frameworks</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Encryption</h2>
+            <ul>
+                <li><strong>Data at Rest:</strong> Local data protected using Apple Data Protection</li>
+                <li><strong>AES-256:</strong> Strong encryption for sensitive local storage via Apple CryptoKit</li>
+                <li><strong>TLS 1.2/1.3:</strong> All network connections (collaboration, streaming) use encrypted transport</li>
+                <li><strong>Certificate Pinning:</strong> Protection against man-in-the-middle attacks on network requests</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Authentication</h2>
+            <ul>
+                <li><strong>Face ID / Touch ID:</strong> Optional biometric authentication for sensitive features (Apple devices)</li>
+                <li><strong>Optic ID:</strong> Supported on Apple Vision Pro</li>
+                <li><strong>Keychain / Keystore:</strong> Credentials stored in platform-native secure enclaves</li>
+                <li><strong>Device Integrity:</strong> Basic integrity checks to protect against tampered environments</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Biometric Data Handling</h2>
+            <p>Heart rate, HRV, and other biometric data read from Apple HealthKit is:</p>
+            <ul>
+                <li><strong>Processed locally:</strong> All biometric-to-audio mapping happens on-device in real time</li>
+                <li><strong>Never transmitted:</strong> Biometric data is not sent to any server or third party</li>
+                <li><strong>Not stored permanently:</strong> Session data exists only during active use</li>
+                <li><strong>User-controlled:</strong> Biometric access requires explicit permission and can be revoked at any time</li>
+            </ul>
+            <p>Echoelmusic is <strong>not a medical device</strong>. Biometric readings are used for creative and entertainment purposes only. See our <a href="health.html">Health Disclaimer</a>.</p>
+        </section>
+
+        <section>
+            <h2>Data Protection Compliance</h2>
+            <ul>
+                <li><strong>GDPR:</strong> Compliant with EU General Data Protection Regulation &mdash; minimal data collection by design</li>
+                <li><strong>CCPA:</strong> Compliant with California Consumer Privacy Act &mdash; no personal information sold or shared</li>
+                <li><strong>App Store Guidelines:</strong> Reviewed against Apple App Store and Google Play security requirements</li>
+                <li><strong>Privacy by Design:</strong> Data minimization and local processing are core architectural principles, not afterthoughts</li>
+            </ul>
+            <p>For full details on data handling, see our <a href="privacy.html">Privacy Policy</a>.</p>
+        </section>
+
+        <section>
+            <h2>Open Source &amp; Transparency</h2>
+            <p>Echoelmusic uses only native Apple frameworks (Core Audio, HealthKit, Metal, AVFoundation, CryptoKit). No third-party SDKs, analytics, or ad networks are included in the app.</p>
+            <p>We believe transparency builds trust. If you have questions about our security practices, we are happy to discuss them.</p>
+        </section>
+
+        <section>
+            <h2>Limitations</h2>
+            <p>No software is perfectly secure. While we follow security best practices, we cannot guarantee absolute security. Specifically:</p>
+            <ul>
+                <li>Security depends on your device's OS version and security updates</li>
+                <li>Collaboration and streaming features involve network communication governed by third-party platform policies</li>
+                <li>Biometric sensor accuracy depends on hardware and conditions outside our control</li>
+                <li>We encourage you to keep your device updated and use strong device passcodes</li>
+            </ul>
+        </section>
+
+        <div class="contact-box">
+            <h3>Responsible Disclosure</h3>
+            <p>Found a security issue? We take all reports seriously. Please contact us with details and we will respond within 72 hours.</p>
+            <a href="mailto:michaelterbuyken@gmail.com">michaelterbuyken@gmail.com</a>
+        </div>
+    </main>
+
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <div class="footer-links">
+            <a href="faq.html">FAQ</a>
+            <a href="support.html">Support</a>
+                <a href="artist.html">Artist</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+<script src="shared.js?v=10.3"></script>
+</body>
+</html>

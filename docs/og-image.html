@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <title>Echoelmusic OG Image</title>
+    <style>
+        @font-face { font-family: 'Atkinson Hyperlegible'; src: url('fonts/atkinson-regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+        @font-face { font-family: 'Atkinson Hyperlegible'; src: url('fonts/atkinson-bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            width: 1200px;
+            height: 630px;
+            font-family: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            background: #000000;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .ambient1 {
+            position: absolute;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%);
+            top: -80px; left: -60px;
+        }
+        .ambient2 {
+            position: absolute;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.02) 0%, transparent 70%);
+            bottom: -80px; right: -40px;
+        }
+        .content {
+            position: relative; z-index: 1;
+            display: flex; align-items: center; gap: 56px; padding: 60px;
+        }
+        .waveform-mark {
+            width: 200px; height: 200px; position: relative; flex-shrink: 0;
+        }
+        .waveform-mark svg { width: 100%; height: 100%; }
+        .text { max-width: 680px; }
+        h1 {
+            font-size: 69px; font-weight: 700; line-height: 1;
+            margin-bottom: 16px; letter-spacing: -2px;
+            color: #e0e0e0; -webkit-text-fill-color: #e0e0e0;
+        }
+        .tagline {
+            font-size: 23px; font-weight: 700; margin-bottom: 12px;
+            color: rgba(224,224,224,0.9);
+        }
+        p {
+            font-size: 13px; color: rgba(224,224,224,0.5);
+            margin-bottom: 28px; line-height: 1.6;
+        }
+        .badges { display: flex; gap: 12px; margin-bottom: 24px; }
+        .badge {
+            padding: 6px 16px; border-radius: 20px; font-size: 9px;
+            font-weight: 700; letter-spacing: 0.3px;
+        }
+        .badge { background: rgba(255,255,255,0.06); color: rgba(224,224,224,0.7); }
+        .platforms {
+            font-size: 10px; color: rgba(224,224,224,0.35); letter-spacing: 0.5px;
+        }
+        .free-badge {
+            position: absolute; bottom: 36px; right: 56px;
+            background: rgba(255,255,255,0.06);
+            padding: 8px 20px; border-radius: 20px;
+            font-size: 9px; font-weight: 700; color: rgba(224,224,224,0.5);
+            letter-spacing: 1px;
+        }
+        .bottom-line {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(224,224,224,0.1), transparent);
+            opacity: 0.2;
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient1"></div>
+    <div class="ambient2"></div>
+
+    <div class="content">
+        <div class="waveform-mark">
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="ws" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#e0e0e0" stop-opacity="0.6"/><stop offset="15%" stop-color="#e0e0e0"/><stop offset="50%" stop-color="#e0e0e0" stop-opacity="0.8"/><stop offset="100%" stop-color="#e0e0e0" stop-opacity="0.6"/></linearGradient>
+                    <linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#e0e0e0" stop-opacity="0.3"/><stop offset="50%" stop-color="#e0e0e0" stop-opacity="0.4"/><stop offset="100%" stop-color="#e0e0e0" stop-opacity="0.2"/></linearGradient>
+                    <filter id="glow"><feGaussianBlur stdDeviation="4"/></filter>
+                    <filter id="gb"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+                <!-- Echo rings -->
+                <circle cx="92" cy="100" r="30" fill="none" stroke="#e0e0e0" stroke-width="0.5" opacity="0.08"/>
+                <circle cx="92" cy="100" r="55" fill="none" stroke="#e0e0e0" stroke-width="0.4" opacity="0.06"/>
+                <circle cx="92" cy="100" r="82" fill="none" stroke="#e0e0e0" stroke-width="0.3" opacity="0.04"/>
+                <!-- Glow -->
+                <path d="M 15 100 L 48 100 L 60 62 L 72 136 L 82 76 C 86 88 92 100 100 100 L 110 100 C 116 100 122 78 130 78 C 138 78 142 100 148 100 C 154 100 158 120 164 120 C 168 120 172 104 185 100" fill="none" stroke="url(#wg)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+                <!-- Main waveform -->
+                <path d="M 15 100 L 48 100 L 60 62 L 72 136 L 82 76 C 86 88 92 100 100 100 L 110 100 C 116 100 122 78 130 78 C 138 78 142 100 148 100 C 154 100 158 120 164 120 C 168 120 172 104 185 100" fill="none" stroke="url(#ws)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#gb)"/>
+                <!-- Crisp -->
+                <path d="M 15 100 L 48 100 L 60 62 L 72 136 L 82 76 C 86 88 92 100 100 100 L 110 100 C 116 100 122 78 130 78 C 138 78 142 100 148 100 C 154 100 158 120 164 120 C 168 120 172 104 185 100" fill="none" stroke="url(#ws)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Heart pulse dot -->
+                <circle cx="60" cy="62" r="4" fill="#e0e0e0" opacity="0.5"/>
+                <circle cx="60" cy="62" r="2" fill="#e0e0e0" opacity="0.9"/>
+            </svg>
+        </div>
+        <div class="text">
+            <h1>Echoelmusic</h1>
+            <div class="tagline">Create from Within</div>
+            <p>Your body's vibrations become music, visuals, film, and light. Bio-reactive creative platform.</p>
+            <div class="badges">
+                <span class="badge">6 Synths</span>
+                <span class="badge">90+ Effects</span>
+                <span class="badge">30+ Visuals</span>
+                <span class="badge">Bio-Reactive</span>
+            </div>
+            <div class="platforms">iPhone &middot; iPad &middot; Mac &middot; Apple Watch &middot; Apple TV &middot; Vision Pro</div>
+        </div>
+    </div>
+
+    <div class="free-badge">FREE FOR A LIMITED TIME</div>
+    <div class="bottom-line"></div>
+</body>
+</html>
