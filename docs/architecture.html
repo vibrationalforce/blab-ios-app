@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.4.0',K='echoel-nuke';try{
+    (function(){var V='10.5.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -21,10 +21,10 @@
     </script>
 
     <title>Architecture - Echoelmusic | Developer Reference</title>
-    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, protected bio-DSP triad, synthesis engines, OSC API, concurrency model and performance budgets. A precise developer reference.">
+    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, multidimensional MPE control, protected bio-DSP triad, synthesis engines, AUv3 plugin, visuals, OSC API, concurrency and performance. A precise developer reference, audited against the source.">
     <meta name="theme-color" content="#000000">
     <meta property="og:title" content="Echoelmusic — Architecture (Developer Reference)">
-    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, protected DSP triad, synthesis engines, OSC API, concurrency and performance.">
+    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, MPE, the DSP triad, synthesis, AUv3, visuals, OSC, concurrency and performance.">
     <meta property="og:url" content="https://echoelmusic.com/architecture.html">
     <meta property="og:image" content="https://echoelmusic.com/og-image.png">
     <meta property="og:locale" content="en_US">
@@ -39,7 +39,7 @@
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
     <link rel="canonical" href="https://echoelmusic.com/architecture.html">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Architecture","item":"https://echoelmusic.com/architecture.html"}]}</script>
-    <link rel="stylesheet" href="shared.css?v=10.4">
+    <link rel="stylesheet" href="shared.css?v=10.5">
     <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -78,6 +78,7 @@
 
         .note { color: var(--dim); font-size: 13px; line-height: 1.6; border-left: 2px solid var(--border); padding-left: 14px; margin: 14px 0; }
         .note strong { color: var(--text); }
+        .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--border); color: var(--dim); margin-left: 6px; vertical-align: 1px; }
 
         .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
         @media (max-width: 600px) { .twocol { grid-template-columns: 1fr; } }
@@ -130,20 +131,24 @@
         <div class="subpage subpage--wider">
             <div class="subpage-hero">
                 <h1>Architecture</h1>
-                <p class="subtitle">How Echoelmusic is built — one bio-reactive signal chain, from sensor to sound, on a lock-free real-time core. A precise reference for developers.</p>
+                <p class="subtitle">How Echoelmusic is built — one bio-reactive signal chain, from sensor to sound, on a lock-free real-time core. A precise reference for developers, audited against the source.</p>
                 <span class="status-badge">Developer reference &middot; v10 &middot; App coming soon</span>
             </div>
 
-            <p class="lead">Echoelmusic is a native Apple app (<strong>Swift 6</strong>, strict concurrency). Modules never call each other directly — they produce and consume on a central bus, the <strong>EngineBus</strong>. Biology flows in as data, art flows out as audio, visuals and control. Built on <strong>AVFoundation, Accelerate/vDSP, Metal, CoreMIDI, CoreBluetooth and SwiftData</strong>, with a single external dependency (HaishinKit, for RTMP).</p>
+            <p class="lead">Echoelmusic is a native Apple app (<strong>Swift 6</strong>, strict concurrency). Modules never call each other directly — they produce and consume on a central bus, the <strong>EngineBus</strong>. Biology flows in as data; art flows out as audio, visuals and control. Built on <strong>AVFoundation, Accelerate/vDSP, Metal, CoreMIDI, CoreBluetooth, HealthKit and SwiftData</strong>, with a single planned external dependency (HaishinKit, for RTMP). Every claim below is marked <span class="tag">LIVE</span> (shipping) or <span class="tag">ROADMAP</span> (designed, not yet built).</p>
 
             <nav class="ov-toc" aria-label="On this page">
                 <a href="#chain">Signal chain</a>
                 <a href="#bus">EngineBus</a>
+                <a href="#mpe">Multidimensional / MPE</a>
                 <a href="#bio">Bio capture</a>
                 <a href="#triad">DSP triad</a>
                 <a href="#synth">Synthesis</a>
+                <a href="#fx">Effects</a>
                 <a href="#audio">Audio</a>
                 <a href="#seq">Sequencer</a>
+                <a href="#plugin">AUv3 plugin</a>
+                <a href="#visuals">Visuals &amp; video</a>
                 <a href="#ui">Studio UI</a>
                 <a href="#osc">OSC API</a>
                 <a href="#concurrency">Concurrency</a>
@@ -157,86 +162,126 @@
                 <h2>The Signal Chain</h2>
                 <p>One chain runs the whole instrument. Sensors are fused into a normalized bio frame, published on the bus, and consumed in parallel by the synth voice, the OSC sender and the event detector. Performer input (MIDI/MPE) joins on its own topic and takes priority over bio for note gating.</p>
                 <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)            <b>CONSUMERS</b>
-  Apple Watch / HealthKit  ─┐
+  HealthKit / Apple Watch  ─┐
   Polar H10  (BLE direct)  ─┤
   iPhone camera  (rPPG)    ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ 🔊
-  Demo generator           ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
+  Demo (DEBUG)             ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
         │                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
         ▼ BioSourceManager (confidence fusion)                                          │
                                           <b>bioEvents</b> ◀───────────────────────────────────┘
-  CoreMIDI / MPE  ──────────────▶ <b>controllerEvents</b> ─▶ synth notes (performer priority)</div>
-                <p class="note">Three typed topics, three independent rates: <strong>bioFrames</strong> (≤4&nbsp;Hz, the slow body signal), <strong>controllerEvents</strong> (real-time MIDI), <strong>bioEvents</strong> (discrete onsets). Each is a lock-free queue, so a slow sensor never stalls the audio thread.</p>
+  CoreMIDI 2.0 / MPE ───────────▶ <b>controllerEvents</b> ─▶ synth notes (performer priority)</div>
+                <p class="note">Three typed topics, three independent rates: <strong>bioFrames</strong> (≤4&nbsp;Hz, the slow body signal), <strong>controllerEvents</strong> (real-time MIDI/MPE), <strong>bioEvents</strong> (discrete onsets). Each is a lock-free queue, so a slow sensor never stalls the audio thread.</p>
             </section>
 
             <!-- ENGINEBUS -->
             <section id="bus">
-                <h2>EngineBus &mdash; the spine</h2>
+                <h2>EngineBus &mdash; the spine <span class="tag">LIVE</span></h2>
                 <p><code>EngineBus</code> is <code>@MainActor @Observable</code> and is the single source of truth. It has a <strong>hybrid design</strong>: a control plane for SwiftUI (observable <code>latestBio</code>, <code>latestControllerEvent</code>, <code>latestBioEvent</code> snapshots) and a <strong>lock-free data plane</strong> of three typed queues for real-time consumers. Producers call <code>nonisolated</code> publish methods from any thread; consumers poll the queues without ever touching the bus object.</p>
                 <div class="data-row"><div class="k"><code>bioFrames</code></div><div class="v"><code>SPSCQueue&lt;BioSampleFrame&gt;</code> — heart rate (BPM), HRV (normalized), breath rate, breath phase, coherence, motion energy.</div></div>
-                <div class="data-row"><div class="k"><code>controllerEvents</code></div><div class="v"><code>SPSCQueue&lt;ControllerEvent&gt;</code> — note on/off, pitch bend, channel pressure, slide, air-CC (MIDI 2.0 / MPE-style).</div></div>
+                <div class="data-row"><div class="k"><code>controllerEvents</code></div><div class="v"><code>SPSCQueue&lt;ControllerEvent&gt;</code> — note on/off, pitch bend, slide, air-CC (MPE).</div></div>
                 <div class="data-row"><div class="k"><code>bioEvents</code></div><div class="v"><code>SPSCQueue&lt;BioEvent&gt;</code> — discrete onsets (heartbeat, breath inhale/exhale, motion peak) with a confidence score.</div></div>
                 <div class="data-row"><div class="k">Publish API</div><div class="v"><code>publish(bio:)</code>, <code>publish(controller:)</code>, <code>publish(bioEvent:)</code> — all <code>nonisolated</code>: atomic enqueue, then an async hop to the MainActor updates the observable snapshot. No locks, no allocation on the data plane.</div></div>
                 <div class="data-row"><div class="k"><code>SPSCQueue</code></div><div class="v">Cache-line-padded, lock-free single-producer / single-consumer ring buffer. Power-of-two capacity; <code>enqueue()</code> drops the oldest on overflow; <code>tryEnqueue()</code>, <code>dequeue()</code>, <code>peek()</code>; counters for dropped/enqueued/dequeued. Index updates use atomic memory barriers — no malloc, no locks.</div></div>
             </section>
 
+            <!-- MPE -->
+            <section id="mpe">
+                <h2>Multidimensional Control &mdash; MPE <span class="tag">LIVE</span></h2>
+                <p>Performer gestures arrive over <strong>CoreMIDI with the MIDI 2.0 protocol</strong> (<code>MIDIInputPortCreateWithProtocol(._2_0)</code>), parsing both MIDI 1.0 (16-bit) and MIDI 2.0 (32-bit) words and normalizing everything to clean float ranges. Each axis becomes a <code>ControllerEvent</code> on the bus — this is the <strong>multidimensional (MPE)</strong> layer: one note carries several continuous, independent dimensions of expression.</p>
+                <div class="data-row"><div class="k">Note + velocity</div><div class="v"><code>.noteOn</code> / <code>.noteOff</code> — note 0–127, velocity [0–1] (7-bit MIDI 1.0 or 16-bit MIDI 2.0).</div></div>
+                <div class="data-row"><div class="k">Per-note pitch bend</div><div class="v"><code>.pitchBend</code> — [−1…+1]; 14-bit (MIDI 1.0) or 32-bit (MIDI 2.0). The X / glide dimension.</div></div>
+                <div class="data-row"><div class="k">Slide / timbre (CC&nbsp;74)</div><div class="v"><code>.slide</code> — [0–1]. The Y / vertical dimension on MPE controllers.</div></div>
+                <div class="data-row"><div class="k">Air-CC (CC&nbsp;21–31)</div><div class="v"><code>.airCC</code> — [0–1], CC number preserved in <code>auxCC</code>. Breath / wind-controller and gestural "air" dimensions.</div></div>
+                <div class="data-row"><div class="k">Next</div><div class="v"><code>.channelPressure</code> (Z / pressure) and MPE member/master <strong>zone detection</strong> (RPN 6,6) are defined in the event model and wired in the next cycle. <span class="tag">ROADMAP</span></div></div>
+                <p class="note"><strong>Performer priority:</strong> while a MIDI note is held, controller input overrides the breath-gated bio envelope — the player always wins over the body.</p>
+            </section>
+
             <!-- BIO CAPTURE -->
             <section id="bio">
-                <h2>Bio Capture &amp; Fusion</h2>
+                <h2>Bio Capture &amp; Fusion <span class="tag">LIVE</span></h2>
                 <p>Several sources can feed the bus at once; <code>BioSourceManager</code> merges them into one <code>BioSnapshot</code> by confidence, so the highest-quality available signal wins.</p>
-                <div class="data-row"><div class="k">Polar H10</div><div class="v"><code>PolarH10BioPublisher</code> talks BLE directly (CoreBluetooth, no SDK) to the standard Heart Rate service (<code>0x180D</code>/<code>0x2A37</code>). It parses RR intervals (1/1024&nbsp;s units) and emits one discrete <code>.heartbeat</code> event per beat; RMSSD is computed from a 30-interval window. Lowest latency — beats are timed, not derived from an averaged BPM.</div></div>
-                <div class="data-row"><div class="k">Camera (rPPG)</div><div class="v"><code>CameraCapture</code> + <code>CameraAnalyzer</code> — remote photoplethysmography (Verkruysse-style), 0.7&ndash;4&nbsp;Hz bandpass, peak detection, RMSSD HRV and a BPM confidence score from the rear camera.</div></div>
-                <div class="data-row"><div class="k">HealthKit</div><div class="v">Apple Watch heart rate (~1&nbsp;Hz). Note the platform constraint: watch HR carries 4&ndash;5&nbsp;s latency, so it is not used for beat-accurate sync.</div></div>
-                <div class="data-row"><div class="k">Fusion</div><div class="v"><code>BioSourceManager</code> — confidence-weighted priority (Watch &gt; camera rPPG &gt; daily sources &gt; demo fallback), with decay so a dropped source ages out gracefully.</div></div>
+                <div class="data-row"><div class="k">HealthKit</div><div class="v"><code>EchoelBioEngine</code> derives heart rate, RMSSD-normalized HRV, breath rate (iOS&nbsp;17+) and coherence; <code>HealthKitBioPublisher</code> polls it every 500&nbsp;ms and publishes a frame. Apple Watch HR carries 4–5&nbsp;s latency, so it isn't used for beat-accurate sync.</div></div>
+                <div class="data-row"><div class="k">Polar H10</div><div class="v"><code>PolarH10BioPublisher</code> — BLE directly (CoreBluetooth, no SDK) to the Heart Rate service (<code>0x180D</code>/<code>0x2A37</code>). Parses RR intervals (1/1024&nbsp;s), emits one discrete <code>.heartbeat</code> per beat, and computes RMSSD over a 30-interval window. Lowest latency — beats are timed, not averaged.</div></div>
+                <div class="data-row"><div class="k">Camera (rPPG)</div><div class="v"><code>CameraCapture</code> + <code>CameraAnalyzer</code> — finger-on-lens photoplethysmography: red-channel extraction, 0.7–4&nbsp;Hz 2nd-order Butterworth bandpass (42–240&nbsp;BPM), peak detection with IQR outlier rejection, RMSSD and a confidence score.</div></div>
+                <div class="data-row"><div class="k">Fusion / Demo</div><div class="v"><code>BioSourceManager</code> confidence priority (Watch &gt; camera &gt; daily &gt; fallback) with decay. <code>BioSimulator</code> provides a walking demo signal in DEBUG builds only and defers the moment a real source appears.</div></div>
             </section>
 
             <!-- DSP TRIAD -->
             <section id="triad">
-                <h2>Protected Bio-DSP Triad</h2>
+                <h2>Protected Bio-DSP Triad <span class="tag">LIVE</span></h2>
                 <p>Three pure value types form the read-only signal-conditioning core. They allocate nothing and take no locks, so they are safe to run on the audio thread. Contracts are pinned as SKILL.md specs and treated as protected (changed only with explicit approval).</p>
-                <div class="data-row"><div class="k">BioSignalDeconvolver</div><div class="v"><code>struct</code> — first conditioning stage: <strong>detrend</strong> (biquad high-pass; 0.5&nbsp;Hz PPG/ECG, 1&nbsp;Hz EEG, 0.1&nbsp;Hz accelerometer) + <strong>mains notch</strong> (50/60&nbsp;Hz, Q=30) + <strong>validity</strong> flag (recovering / valid / corrupt). Direct-Form-II-Transposed biquads. <code>process(_:) → CleanedSample</code>. Separates slow drift, mains hum and dropouts from the live signal.</div></div>
-                <div class="data-row"><div class="k">HilbertSensorMapper</div><div class="v"><code>enum</code> (static) — maps a 1-D sensor index to a 2-D grid coordinate along a <strong>Hilbert curve</strong>, so numerically adjacent channels land in spatially adjacent cells (Manhattan distance ≤ 1). <code>map(index:order:)</code>, <code>mapToGrid(values:gridSize:)</code>. Used to lay electrode/coherence arrays into 2-D textures without scrambling locality.</div></div>
-                <div class="data-row"><div class="k">BioEventGraph</div><div class="v"><code>struct</code> — turns continuous frames into discrete events. <strong>Heartbeat</strong> (adaptive threshold + 300&nbsp;ms refractory + 2&nbsp;s envelope follower, ≤200&nbsp;bpm), <strong>breath</strong> phase markers (inhale on the 0.5 crossing, exhale on wrap), <strong>motion peak</strong> (hysteresis 0.6/0.3). <code>process(…) → [BioEvent]</code>; each event carries <code>kind</code>, <code>confidence</code> and an <code>aux</code> value (e.g. inter-beat interval). EEG-burst and coherence-shift detectors are reserved.</div></div>
+                <div class="data-row"><div class="k">BioSignalDeconvolver</div><div class="v"><code>struct</code> — first conditioning stage: <strong>detrend</strong> (biquad high-pass; 0.5&nbsp;Hz PPG/ECG, 1&nbsp;Hz EEG, 0.1&nbsp;Hz accelerometer) + <strong>mains notch</strong> (50/60&nbsp;Hz, Q=30) + <strong>validity</strong> flag (recovering / valid / corrupt). Direct-Form-II-Transposed biquads. <code>process(_:) → CleanedSample</code>.</div></div>
+                <div class="data-row"><div class="k">HilbertSensorMapper</div><div class="v"><code>enum</code> (static) — maps a 1-D sensor index to a 2-D grid coordinate along a <strong>Hilbert curve</strong>, so numerically adjacent channels land in spatially adjacent cells (Manhattan distance ≤ 1). <code>map(index:order:)</code>, <code>mapToGrid(values:gridSize:)</code>.</div></div>
+                <div class="data-row"><div class="k">BioEventGraph</div><div class="v"><code>struct</code> — continuous frames → discrete events. <strong>Heartbeat</strong> (adaptive threshold + 300&nbsp;ms refractory + 2&nbsp;s envelope, ≤200&nbsp;bpm), <strong>breath</strong> phase markers (inhale on the 0.5 crossing, exhale on wrap), <strong>motion peak</strong> (hysteresis 0.6/0.3). Each <code>BioEvent</code> carries <code>kind</code>, <code>confidence</code>, <code>aux</code> (e.g. inter-beat interval). EEG-burst &amp; coherence-shift detectors are reserved.</div></div>
                 <p class="note">These modules use solid, well-understood DSP (RBJ-cookbook biquads, envelope/threshold and hysteresis detection); the design is informed by the bio-signal deconvolution and event-graph literature rather than porting any single paper verbatim.</p>
             </section>
 
             <!-- SYNTHESIS -->
             <section id="synth">
-                <h2>Synthesis Engines</h2>
-                <p>All synthesis is Accelerate/vDSP-vectorized and audio-thread-safe (pre-allocated buffers, <code>@unchecked Sendable</code>, no allocation in the render path). Each engine exposes the same bio-reactive mapping surface.</p>
-                <div class="data-row"><div class="k">EchoelDDSP</div><div class="v">Harmonic-plus-noise synthesizer — 64 sinusoidal partials (<code>vvsinf</code>/<code>vDSP_dotpr</code>), 65-band FIR noise, spectral morphing, timbre transfer, convolution reverb and isochronic entrainment. Carries the 7 core bio-mappings.</div></div>
-                <div class="data-row"><div class="k">EchoelCellular</div><div class="v">Cellular-automata synthesis — Wolfram rules 30/90/110/184 (256-cell 1-D) or 64×64 Game of Life (2-D), in wavetable, additive, FM and spectral modes.</div></div>
-                <div class="data-row"><div class="k">EchoelModalBank</div><div class="v">Physical modal resonator — up to 64 modes for bells, plates, strings, glass and drums; stiffness (inharmonicity), damping, size and brightness, with material morphing.</div></div>
-                <div class="data-row"><div class="k">Toolkit</div><div class="v"><code>EchoelVDSPKit</code> (FFT/DFT, convolution, biquad cascade, windowing), <code>EchoelLFO</code>, <code>EchoelSVFilter</code> (Chamberlin state-variable), <code>EchoelEntrainment</code> (Delta–Gamma isochronic) — shared building blocks.</div></div>
-                <div class="data-row"><div class="k">Bio-mappings</div><div class="v">Coherence → harmonicity; HRV → brightness/reverb; heart rate → vibrato/pulse; breath phase → amplitude envelope; breath depth → noise; LF/HF → spectral tilt; coherence trend → shape morph. Applied via <code>synth.applyBioReactive(…)</code>.</div></div>
+                <h2>Synthesis Engines <span class="tag">LIVE</span></h2>
+                <p>All synthesis is Accelerate/vDSP-vectorized and audio-thread-safe (pre-allocated buffers, no allocation in the render path). Each engine exposes the same bio-reactive mapping surface.</p>
+                <div class="data-row"><div class="k">EchoelDDSP</div><div class="v">Harmonic-plus-noise — 64 partials (<code>vvsinf</code>/<code>vDSP_dotpr</code>) + 65-band FIR noise. 5 noise colours (white/pink/brown/blue/violet), 8 spectral shapes (natural, bright, dark, formant, metallic, hollow, bell, flat), ADSR (linear/exp/log), timbre transfer (violin, flute, trumpet, cello, clarinet, oboe), convolution reverb.</div></div>
+                <div class="data-row"><div class="k">EchoelCellular</div><div class="v">Cellular-automata synthesis — 8 rules (30, 90, 110, 150, 184, 60, 105, 73), 4 modes (wavetable, additive, FM, spectral-2D / Game of Life), 5 seed patterns.</div></div>
+                <div class="data-row"><div class="k">EchoelModalBank</div><div class="v">Physical modal resonator — 8 materials (bell, plate, bar, string, glass, drum, gong, custom); stiffness (inharmonicity), damping, size, brightness, strike position/velocity; impulse or continuous (bowed/breath) excitation.</div></div>
+                <div class="data-row"><div class="k">Toolkit</div><div class="v"><code>EchoelVDSPKit</code> (DFT, real FFT with 5 windows, FIR convolution, biquad cascade / parametric EQ, decimator, spectral analyzer), <code>EchoelSVFilter</code> (Chamberlin LP/HP/BP/notch), <code>EchoelLFO</code> (5 waveforms, 0.01–20&nbsp;Hz), <code>EchoelEntrainment</code> (isochronic Delta&nbsp;2 / Theta&nbsp;6 / Alpha&nbsp;10 / Beta&nbsp;20 / Gamma&nbsp;40&nbsp;Hz).</div></div>
+                <div class="data-row"><div class="k">Bio-mappings (7)</div><div class="v">Heart rate → filter-LFO speed + vibrato; coherence → filter cutoff + harmonicity; HRV → reverb mix/decay + damping; breath depth → filter-LFO depth; breath phase → amplitude envelope; coherence trend → spectral-shape morph. Applied via <code>synth.applyBioReactive(…)</code>.</div></div>
+            </section>
+
+            <!-- EFFECTS -->
+            <section id="fx">
+                <h2>Effects &amp; Mastering</h2>
+                <div class="data-row"><div class="k">Reverb <span class="tag">LIVE</span></div><div class="v">Convolution reverb with synthetic impulse response inside EchoelDDSP — wet/dry and decay control, HRV-reactive.</div></div>
+                <div class="data-row"><div class="k">EQ + auto-gain <span class="tag">LIVE</span></div><div class="v"><code>AutoMixChain</code> — 4-band EQ (40&nbsp;Hz high-pass, 180&nbsp;Hz low-shelf, 3&nbsp;kHz parametric, 10&nbsp;kHz high-shelf) + LUFS auto-gain to −14&nbsp;LUFS (±12&nbsp;dB), with 4 presets (balanced, warm, bright, transparent).</div></div>
+                <div class="data-row"><div class="k">Filter + saturation <span class="tag">LIVE</span></div><div class="v">LFO-swept state-variable filter; soft <code>tanh</code> saturation in the voice-mix stage.</div></div>
+                <div class="data-row"><div class="k">More <span class="tag">ROADMAP</span></div><div class="v">Delay, chorus/flanger/phaser/tremolo, and dedicated compressor/limiter with analog (VCA/Opto/FET/VariMu/Tube) emulations.</div></div>
             </section>
 
             <!-- AUDIO -->
             <section id="audio">
-                <h2>Audio Foundation</h2>
-                <div class="data-row"><div class="k">AudioEngine</div><div class="v">Master <code>AVAudioEngine</code> with a stereo mixer bus at 48&nbsp;kHz. Hosts the synth source node, sampler voices and the mix/export chain.</div></div>
+                <h2>Audio Foundation <span class="tag">LIVE</span></h2>
+                <div class="data-row"><div class="k">AudioEngine</div><div class="v">Master <code>AVAudioEngine</code> with a stereo mixer bus at 48&nbsp;kHz. Hosts the synth source node, sampler voices and the mix/export chain. A single <code>.start()</code> after all voices are attached avoids a hot-attach crash.</div></div>
                 <div class="data-row"><div class="k">AudioConfiguration</div><div class="v">48&nbsp;kHz preferred; buffer presets 128 / 256 / 512 frames (2.67 / 5.3 / 10.7&nbsp;ms); <code>playAndRecord</code> session with Bluetooth; real-time thread priority.</div></div>
-                <div class="data-row"><div class="k">Capture &amp; mix</div><div class="v"><code>MicrophoneManager</code> (1024-pt FFT analysis), <code>RetroCapture</code> (pre-roll ring buffer), <code>AutoMixChain</code> (EQ → compressor → limiter → LUFS), <code>SingleExport</code> (LUFS-normalized WAV/AAC).</div></div>
+                <div class="data-row"><div class="k">Capture &amp; export</div><div class="v"><code>MicrophoneManager</code> (1024-pt FFT), <code>RetroCapture</code> (30&nbsp;s stereo 48&nbsp;kHz pre-roll ring buffer → .caf), <code>SingleExport</code> (LUFS-normalized WAV/AAC). <code>MultiTrackRecorder</code> is a skeleton. <span class="tag">ROADMAP</span></div></div>
             </section>
 
             <!-- SEQUENCER -->
             <section id="seq">
-                <h2>Sequencer &amp; Sampler</h2>
-                <div class="data-row"><div class="k">PatternEngine</div><div class="v"><strong>8 tracks × 16 steps</strong>, 30&ndash;300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s).</div></div>
-                <div class="data-row"><div class="k">SamplerVoice</div><div class="v">One-shot WAV playback on an <code>AVAudioSourceNode</code>, fired lock-free via an atomic trigger counter (no allocation on the audio thread). <code>BeatPlayer</code> manages eight voices.</div></div>
+                <h2>Sequencer &amp; Sampler <span class="tag">LIVE</span></h2>
+                <div class="data-row"><div class="k">PatternEngine</div><div class="v"><strong>8 tracks × 16 steps</strong>, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s). Steps are on/off today; per-step velocity/probability, automation and Euclidean/polyrhythm are <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">SamplerVoice</div><div class="v">One-shot WAV on an <code>AVAudioSourceNode</code>, fired lock-free via an atomic trigger counter (no allocation on the audio thread). <code>BeatPlayer</code> drives 8 voices from 8 factory drum samples (kick, snare, clap, hats, bass, perc, lead-FX).</div></div>
+            </section>
+
+            <!-- AUv3 -->
+            <section id="plugin">
+                <h2>AUv3 Plugin <span class="tag">LIVE</span></h2>
+                <p>Echoelmusic ships a working <strong>Audio Unit v3 generator</strong> (<code>augn / echl / Echo</code>) that runs inside Logic Pro, GarageBand and other AUv3 hosts. The render block uses pre-allocated scratch buffers — zero heap allocation on the audio thread — and state round-trips through <code>fullState</code>.</p>
+                <div class="data-row"><div class="k">Parameters (8)</div><div class="v">Coherence → harmonicity, HRV → brightness, Heart Rate, Breath Phase → amplitude, Base Frequency (40–440&nbsp;Hz), Texture, Reverb Mix, Master Gain — all DAW-automatable via <code>AUParameterTree</code>.</div></div>
+                <div class="data-row"><div class="k">Presets</div><div class="v">Factory presets: Ambient Calm, Deep Sleep, Active Focus.</div></div>
+                <div class="data-row"><div class="k">UI</div><div class="v">SwiftUI plugin view (Bio-Reactive + Sound sections) via <code>UIHostingController</code>. AUv3 <em>host</em> support is <span class="tag">ROADMAP</span>.</div></div>
+            </section>
+
+            <!-- VISUALS & VIDEO -->
+            <section id="visuals">
+                <h2>Visuals &amp; Video <span class="tag">LIVE</span></h2>
+                <p>A Metal renderer (<code>MetalBioView</code> / <code>BioVisualRenderer</code>) runs at <strong>120&nbsp;fps</strong>. Coherence drives complexity and palette; heart rate adds a pulse.</p>
+                <div class="data-row"><div class="k">Visual modes (5)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (64 procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars — all in <code>VisualRendererKernels.metal</code>.</div></div>
+                <div class="data-row"><div class="k">Chroma key</div><div class="v">A 6-pass GPU pipeline (<code>ChromaKey.metal</code>): HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays.</div></div>
+                <div class="data-row"><div class="k">Video export</div><div class="v"><code>ShortContentRenderer</code> — 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay, 15 / 30 / 60&nbsp;s; audio re-encoded to AAC.</div></div>
+                <div class="data-row"><div class="k">Roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds; NLE editing, ProRes, multi-cam, colour grading, RTMP streaming (v1.1). <span class="tag">ROADMAP</span></div></div>
             </section>
 
             <!-- STUDIO UI -->
             <section id="ui">
-                <h2>Studio UI</h2>
-                <p><code>EchoelmusicApp</code> (<code>@main</code>) configures audio before the UI, starts the bio publishers, and mounts <code>StudioRoot</code>. The root is a live <code>BioStripView</code> over a four-tab <code>TabView</code>. SwiftUI observes the EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
+                <h2>Studio UI &amp; App Wiring <span class="tag">LIVE</span></h2>
+                <p><code>EchoelmusicApp</code> (<code>@main</code>) builds the graph in order — <code>MicrophoneManager → AudioEngine → EchoelStore → BeatPlayer → EngineBus</code>, then the bio publishers (HealthKit, Polar&nbsp;H10), the <code>BioReactiveSynthVoice</code>, the <code>BioEventPublisher</code>, MIDI (CoreMIDI), and the OSC sender — configures audio <em>before</em> the UI, then mounts the studio. SwiftUI observes EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
                 <div class="data-row"><div class="k">BioStripView</div><div class="v">Always-on readout: <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
-                <div class="data-row"><div class="k">Tabs</div><div class="v"><strong>Tools</strong> (BeatTab — drum pads + step grid, implemented) · <strong>Works</strong> · <strong>Sync</strong> · <strong>Well</strong> (placeholders pending spec).</div></div>
+                <div class="data-row"><div class="k">Studio views</div><div class="v">Perform (scene grid), Mix (voice + AutoMix + signal status), Share (short-form export), Export (WAV/AAC), Settings (bio source), and a 60-second camera-pulse measurement.</div></div>
             </section>
 
             <!-- OSC API -->
             <section id="osc">
-                <h2>EchoelSync &mdash; OSC API</h2>
-                <p><code>OSCSender</code> mirrors the bio frame out over UDP (Network.framework), so any visual or audio tool on the network can react to the body. OSC 1.0, big-endian 32-bit floats, ~100&nbsp;ms cadence (sent only when the frame changes). Default target <code>localhost:8000</code>; target latency &lt;5&nbsp;ms on LAN. Works with Resolume, TouchDesigner, MadMapper, Sonic Pi and TidalCycles.</p>
+                <h2>EchoelSync &mdash; OSC API <span class="tag">LIVE</span></h2>
+                <p><code>OSCSender</code> mirrors the bio frame out over UDP (Network.framework), so any visual or audio tool on the network can react to the body. OSC 1.0, big-endian 32-bit floats, ~100&nbsp;ms cadence (sent only when the frame changes). Default target <code>localhost:8000</code>; target latency &lt;5&nbsp;ms on LAN. Works with Resolume, TouchDesigner, MadMapper, Sonic Pi and TidalCycles. Ableton&nbsp;Link sync is <span class="tag">ROADMAP</span>.</p>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/bpm</code></div><div class="v">float [40–200]</div></div>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/hrv</code></div><div class="v">float [0–1]</div></div>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/breath/rate</code></div><div class="v">float [4–30]</div></div>
@@ -269,7 +314,6 @@
                         </ul>
                     </div>
                 </div>
-                <p class="note"><strong>Performer priority:</strong> when a MIDI note is held, controller input overrides the breath-gated envelope — the player always wins over the body.</p>
             </section>
 
             <!-- PERFORMANCE -->
@@ -278,8 +322,8 @@
                 <div class="data-row"><div class="k">Audio latency</div><div class="v">Target &lt;10&nbsp;ms (fail &gt;15&nbsp;ms). 256-frame buffer ≈ 5.3&nbsp;ms.</div></div>
                 <div class="data-row"><div class="k">CPU</div><div class="v">Target &lt;30% (fail &gt;50%)</div></div>
                 <div class="data-row"><div class="k">Memory</div><div class="v">Target &lt;200&nbsp;MB (fail &gt;300&nbsp;MB)</div></div>
-                <div class="data-row"><div class="k">Visuals</div><div class="v">120&nbsp;fps target (fail &lt;60&nbsp;fps), Metal</div></div>
-                <div class="data-row"><div class="k">Bio loop</div><div class="v">Up to 120&nbsp;Hz (fail &lt;60&nbsp;Hz)</div></div>
+                <div class="data-row"><div class="k">Visuals</div><div class="v">120&nbsp;fps (Metal); short-form render 30&nbsp;fps; camera rPPG 15&nbsp;fps</div></div>
+                <div class="data-row"><div class="k">Bio loop</div><div class="v">Synth bio-poll 10&nbsp;Hz; OSC out ~100&nbsp;ms; HealthKit 500&nbsp;ms; Polar H10 per-beat</div></div>
                 <div class="data-row"><div class="k">OSC</div><div class="v">&lt;5&nbsp;ms on LAN</div></div>
             </section>
 
@@ -287,16 +331,17 @@
             <section id="map">
                 <h2>Module Map</h2>
                 <p>How the product surface (the 12 <a href="tools.html">Echoel engines</a>) maps onto real source modules:</p>
-                <div class="data-row"><div class="k">EchoelSynth</div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank · SamplerVoice</div></div>
-                <div class="data-row"><div class="k">EchoelFX</div><div class="v">EchoelVDSPKit · EchoelSVFilter · EchoelLFO · AutoMixChain</div></div>
-                <div class="data-row"><div class="k">EchoelMix</div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
-                <div class="data-row"><div class="k">EchoelSeq</div><div class="v">PatternEngine · BeatPlayer</div></div>
-                <div class="data-row"><div class="k">EchoelMIDI</div><div class="v">MIDIInput · ControllerEvent → EngineBus.controllerEvents</div></div>
-                <div class="data-row"><div class="k">EchoelBio</div><div class="v">BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · PolarH10BioPublisher · CameraAnalyzer · BioSourceManager</div></div>
-                <div class="data-row"><div class="k">EchoelVis</div><div class="v">Metal renderers · HilbertSensorMapper · BioStripView</div></div>
-                <div class="data-row"><div class="k">EchoelVid</div><div class="v">CameraCapture · ShortContentRenderer</div></div>
-                <div class="data-row"><div class="k">EchoelNet</div><div class="v">OSCSender (EchoelSync)</div></div>
-                <div class="data-row"><div class="k">EchoelSynth core</div><div class="v">EngineBus · SPSCQueue · BioReactiveSynthVoice (the bio→sound bridge)</div></div>
+                <div class="data-row"><div class="k">EchoelSynth <span class="tag">LIVE</span></div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank · SamplerVoice</div></div>
+                <div class="data-row"><div class="k">EchoelFX <span class="tag">LIVE</span></div><div class="v">EchoelVDSPKit · EchoelSVFilter · EchoelLFO · AutoMixChain · DDSP convolution reverb</div></div>
+                <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
+                <div class="data-row"><div class="k">EchoelSeq <span class="tag">LIVE</span></div><div class="v">PatternEngine · BeatPlayer</div></div>
+                <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
+                <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · PolarH10BioPublisher · CameraAnalyzer · BioSourceManager</div></div>
+                <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView · BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal</div></div>
+                <div class="data-row"><div class="k">EchoelVid <span class="tag">LIVE</span></div><div class="v">CameraCapture · ShortContentRenderer (NLE/ProRes/RTMP roadmap)</div></div>
+                <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
+                <div class="data-row"><div class="k">EchoelLux / EchoelStage / EchoelAI <span class="tag">ROADMAP</span></div><div class="v">DMX-512 / Art-Net / HomeKit lighting · external displays / projection · on-device CoreML &amp; stems — designed, not yet implemented.</div></div>
+                <div class="data-row"><div class="k">Bridge <span class="tag">LIVE</span></div><div class="v">EngineBus · SPSCQueue · BioReactiveSynthVoice (the bio→sound bridge)</div></div>
             </section>
 
             <!-- STATUS -->
@@ -308,27 +353,34 @@
                         <h3>Live today</h3>
                         <ul>
                             <li>EngineBus + 3 SPSC topics</li>
-                            <li>Bio-DSP triad (conditioning, mapping, events)</li>
+                            <li>MIDI 2.0 + MPE (pitch/slide/air)</li>
+                            <li>Bio-DSP triad</li>
+                            <li>HealthKit + Polar H10 + camera rPPG</li>
                             <li>DDSP / Cellular / Modal synthesis</li>
-                            <li>AudioEngine master bus</li>
-                            <li>PatternEngine + SamplerVoice</li>
-                            <li>Polar H10 + camera rPPG + HealthKit</li>
-                            <li>BioReactiveSynthVoice (breath-gated)</li>
+                            <li>Convolution reverb · 4-band EQ · LUFS</li>
+                            <li>AudioEngine + 30s RetroCapture</li>
+                            <li>PatternEngine + SamplerVoice (8 drums)</li>
+                            <li>AUv3 generator plugin (8 params)</li>
+                            <li>5 Metal visual modes @120fps + chroma key</li>
+                            <li>Short-form MP4 + WAV/AAC export</li>
                             <li>OSC out (EchoelSync)</li>
-                            <li>Studio shell + BioStripView + BeatTab</li>
                         </ul>
                     </div>
                     <div>
                         <h3>On the roadmap</h3>
                         <ul>
-                            <li>Works / Sync / Well tabs</li>
-                            <li>Multi-track recorder wiring</li>
-                            <li>Video NLE + ProRes export</li>
-                            <li>RTMP streaming (HaishinKit)</li>
-                            <li>DMX-512 / Art-Net lighting</li>
-                            <li>AUv3 plugin &amp; host</li>
+                            <li>MPE channel pressure + zone detection</li>
+                            <li>Sequencer automation / Euclidean / polyrhythm</li>
+                            <li>Multi-track recorder</li>
+                            <li>Delay / modulation / compressor / limiter</li>
+                            <li>Video NLE + ProRes + colour grading</li>
+                            <li>RTMP streaming (HaishinKit, v1.1)</li>
+                            <li>EchoelLux — DMX-512 / Art-Net / HomeKit</li>
+                            <li>EchoelStage — displays / projection</li>
+                            <li>EchoelAI — on-device CoreML / stems</li>
+                            <li>Ableton Link</li>
+                            <li>AUv3 host</li>
                             <li>iPad · Mac · Watch · TV · Vision</li>
-                            <li>On-device AI (CoreML) stems</li>
                         </ul>
                     </div>
                 </div>
@@ -374,6 +426,6 @@
         </div>
     </footer>
 
-    <script src="shared.js?v=10.4"></script>
+    <script src="shared.js?v=10.5"></script>
 </body>
 </html>
