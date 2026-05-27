@@ -62,7 +62,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--text); outline-
 .nav-logo svg { width: 28px; height: 28px; flex-shrink: 0; }
 .nav-logo span {
     position: absolute; left: 50%; transform: translateX(-50%);
-    white-space: nowrap; pointer-events: none;
+    white-space: nowrap;
     font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
 }
 .nav-links { display: none; align-items: center; gap: 4px; }

@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.7.0',K='echoel-nuke';try{
+    (function(){var V='10.8.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -178,7 +178,7 @@
         .nav-logo svg { width: 28px; height: 28px; flex-shrink: 0; }
         .nav-logo span {
             position: absolute; left: 50%; transform: translateX(-50%);
-            white-space: nowrap; pointer-events: none;
+            white-space: nowrap;
             font-size: 14px; letter-spacing: 3px; text-transform: uppercase;
         }
 
@@ -889,6 +889,17 @@
                     <div class="spec-val">All Apple</div>
                     <div class="spec-label">iPhone to Vision Pro</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========== ARTIST ========== -->
+        <div id="artist" class="section">
+            <div class="section-label reveal">Artist</div>
+            <h2 class="section-title reveal">Created by Echoel</h2>
+            <p class="section-sub reveal">Michael Terbuyken &mdash; music producer &amp; sound artist, Hamburg.</p>
+            <div class="reveal" style="max-width:640px; margin:0 auto; text-align:center;">
+                <p style="color:var(--dim); line-height:1.85; margin-bottom:24px;">Music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Creating interactive multisensory installations, video, light and musical performance since 2006 &mdash; shown at Documenta, Ars Electronica and Fusion Festival. Active with the <a href="https://www.tropicaldrones.com/" target="_blank" rel="noopener noreferrer" style="color:var(--text); border-bottom:1px solid var(--border);">Tropical Drones</a> collective and <a href="https://www.instagram.com/loewe.immerlieb" target="_blank" rel="noopener noreferrer" style="color:var(--text); border-bottom:1px solid var(--border);">Loewe Immerlieb</a> &mdash; and the creator of Echoelmusic.</p>
+                <a href="artist.html" class="hero-cta" style="background:var(--text); color:#000;">Full artist page &rarr;</a>
             </div>
         </div>
 
