@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.9.1',K='echoel-nuke';try{
+    (function(){var V='10.9.2',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -298,7 +298,7 @@
             <section id="formats">
                 <h2>Formats &amp; I/O</h2>
                 <div class="data-row"><div class="k">Audio <span class="tag">LIVE</span></div><div class="v">48&nbsp;kHz / 32-bit float internal; buffers 128 / 256 / 512. Export WAV + AAC/M4A at −14&nbsp;LUFS; 30&nbsp;s CAF pre-roll. FLAC / ALAC + stem export <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">Spatial audio</div><div class="v">Stereo with HRV-reactive spatial reverb character <span class="tag">LIVE</span>; 3D object panning, Dolby&nbsp;Atmos, head-tracked binaural (AirPods), 5.1 / 7.1.4 &amp; ambisonics <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Spatial audio</div><div class="v">Stereo with HRV-reactive spatial reverb character <span class="tag">LIVE</span>; 3D object panning, Dolby&nbsp;Atmos, head-tracked spatial audio (AirPods), 5.1 / 7.1.4 &amp; ambisonics <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI&nbsp;2.0 + MPE input <span class="tag">LIVE</span>; Standard MIDI File (.mid) I/O and MIDI output <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Video</div><div class="v">H.264 MP4 720×1280 short-form (15/30/60&nbsp;s) <span class="tag">LIVE</span>; H.265/HEVC, ProRes 422/4444, 1080p/4K, LUT grading <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">Metal 120&nbsp;fps + 6-pass chroma key <span class="tag">LIVE</span>; projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay <span class="tag">ROADMAP</span>.</div></div>
