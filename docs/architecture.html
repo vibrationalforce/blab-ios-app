@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.6.1',K='echoel-nuke';try{
+    (function(){var V='10.7.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -39,7 +39,7 @@
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
     <link rel="canonical" href="https://echoelmusic.com/architecture.html">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Architecture","item":"https://echoelmusic.com/architecture.html"}]}</script>
-    <link rel="stylesheet" href="shared.css?v=10.6">
+    <link rel="stylesheet" href="shared.css?v=10.7">
     <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -172,6 +172,7 @@
                                           <b>bioEvents</b> ◀───────────────────────────────────┘
   CoreMIDI 2.0 / MPE ───────────▶ <b>controllerEvents</b> ─▶ synth notes (performer priority)</div>
                 <p class="note">Three typed topics, three independent rates: <strong>bioFrames</strong> (≤4&nbsp;Hz, the slow body signal), <strong>controllerEvents</strong> (real-time MIDI/MPE), <strong>bioEvents</strong> (discrete onsets). Each is a lock-free queue, so a slow sensor never stalls the audio thread.</p>
+                <p class="note"><strong>Modulation, not control:</strong> bio signals are modulation sources for the parameter lanes you paint — not hard controllers. Tempo can optionally follow heart rate, but watch-HR latency (4–5&nbsp;s) makes that a loose adopt, never a beat-lock. The expressivity lives in continuous modulation of your own automation.</p>
             </section>
 
             <!-- ENGINEBUS -->
@@ -438,6 +439,6 @@
         </div>
     </footer>
 
-    <script src="shared.js?v=10.6"></script>
+    <script src="shared.js?v=10.7"></script>
 </body>
 </html>

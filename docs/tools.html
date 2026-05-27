@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.6.1',K='echoel-nuke';try{
+    (function(){var V='10.7.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -39,7 +39,7 @@
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
     <link rel="canonical" href="https://echoelmusic.com/tools.html">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Tools","item":"https://echoelmusic.com/tools.html"}]}</script>
-    <link rel="stylesheet" href="shared.css?v=10.6">
+    <link rel="stylesheet" href="shared.css?v=10.7">
     <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -178,11 +178,11 @@
                         <p>Multi-zone, multi-layer sampler with high polyphony, slice-based playback, round-robin, and velocity layers. Load any audio file. Bio-reactive sample selection and playback speed.</p>
                     </div>
                     <div class="capability">
-                        <h4>EchoelBeat</h4>
+                        <h4>EchoelBeat <span class="tag">Planned</span></h4>
                         <p>Analog drum machine and bass synth. Pitch glide, click envelope, drive, and filter &mdash; tuned for sub-bass. Accent patterns driven by heart rate variability.</p>
                     </div>
                     <div class="capability">
-                        <h4>Breakbeat Chopper</h4>
+                        <h4>Breakbeat Chopper <span class="tag">Planned</span></h4>
                         <p>Jungle and DnB slice engine. Auto-slicing via transient detection, per-slice pitch shift and time stretch, pattern sequencer with swing, roll and stutter effects, reverse and half-speed. Bio-reactive slice selection: coherence drives structured patterns, low coherence triggers chaos.</p>
                     </div>
                     <div class="capability">
@@ -218,11 +218,11 @@
                         <p>Chorus, flanger, phaser, tremolo, vibrato, ring mod. 5 saturation modes: tube warmth, tape crunch, transistor grit, digital clip, and wave fold. LFO rates sync to breathing.</p>
                     </div>
                     <div class="capability">
-                        <h4>Mastering: Limiter, VCA, Tube, FET</h4>
+                        <h4>Mastering: Limiter, VCA, Tube, FET <span class="tag">Planned</span></h4>
                         <p>Brick-wall limiter with true-peak detection. VCA bus compression for punchy glue. Warm tube saturation with inductor EQ. Fast FET limiting with all-buttons mode for aggressive parallel compression.</p>
                     </div>
                     <div class="capability">
-                        <h4>Spatial Audio &amp; 3D Panning</h4>
+                        <h4>Spatial Audio &amp; 3D Panning <span class="tag">Planned</span></h4>
                         <p>Place every sound in three-dimensional space — azimuth, elevation and distance per source. Dolby Atmos and spatial-audio rendering, head-tracked binaural for AirPods, and multichannel (5.1 / 7.1.4) and ambisonic output. Coherence and breath steer the room size and width; HRV reactivity shapes the spatial reverb character.</p>
                     </div>
                 </div>
@@ -242,7 +242,7 @@
                         <p>Full mixing console with unlimited channel strips. Per-channel EQ, dynamics, sends, and insert slots. Bus routing for submixes and effects returns.</p>
                     </div>
                     <div class="capability">
-                        <h4>Recording</h4>
+                        <h4>Recording <span class="tag">Planned</span></h4>
                         <p>Multi-track recording with punch-in, loop recording, and automatic take management. Record audio, MIDI, and biometric data simultaneously.</p>
                     </div>
                     <div class="capability">
@@ -270,7 +270,7 @@
                         <p>Variable step length, probability, and velocity per step. Large pattern bank. Chain patterns into songs. Randomize and mutate patterns based on bio-state.</p>
                     </div>
                     <div class="capability">
-                        <h4>Automation</h4>
+                        <h4>Automation <span class="tag">Planned</span></h4>
                         <p>Record and draw automation for any parameter. Curves, ramps, LFOs, and bio-reactive modulation sources. Every knob in every tool is automatable.</p>
                     </div>
                 </div>
@@ -290,11 +290,11 @@
                         <p>Full MIDI 2.0 protocol with high-resolution control, per-note controllers, and property exchange. Multidimensional Polyphonic Expression: per-note pitch bend, slide, and pressure for expressive playing.</p>
                     </div>
                     <div class="capability">
-                        <h4>Touch Instruments: Keys, Pads, Drums, Strum</h4>
+                        <h4>Touch Instruments: Keys, Pads, Drums, Strum <span class="tag">Planned</span></h4>
                         <p>Touch keyboard with velocity, aftertouch, configurable scales, and split zones. 16-pad grid with choke groups and MPC-style note repeat. Drum machine with per-pad tuning. Guitar/string strum interface with chord voicings and strumming patterns.</p>
                     </div>
                     <div class="capability">
-                        <h4>Audio-to-MIDI</h4>
+                        <h4>Audio-to-MIDI <span class="tag">Planned</span></h4>
                         <p>Real-time pitch detection converts any audio input &mdash; voice, guitar, flute, whistling &mdash; into MIDI notes with velocity and expression. YIN-based algorithm with sub-millisecond latency.</p>
                     </div>
                 </div>
@@ -311,14 +311,14 @@
                 <div class="capability-list">
                     <div class="capability">
                         <h4>HRV &amp; Heart Rate</h4>
-                        <p>Heart Rate Variability analysis: RMSSD, SDNN, pNN50 &mdash; the core coherence signal driving all bio-reactive mappings. Real-time BPM from Apple Watch or iPhone camera drives tempo, intensity, and rhythmic pulse.</p>
+                        <p>Heart Rate Variability analysis: RMSSD, SDNN, pNN50 &mdash; the core coherence signal driving all bio-reactive mappings. Real-time BPM from Apple Watch or iPhone camera. Tempo can optionally lock to your pulse, but heart rate's real job is to <strong>modulate the parameters you paint</strong> &mdash; vibrato, filter motion and intensity &mdash; not to force the beat.</p>
                     </div>
                     <div class="capability">
                         <h4>Breath &amp; Movement</h4>
                         <p>Respiratory rate detection via accelerometer or camera. Controls reverb depth, pad swells, and visual expansion. Accelerometer and gyroscope data from Apple Watch for gesture detection.</p>
                     </div>
                     <div class="capability">
-                        <h4>Face Tracking (ARKit)</h4>
+                        <h4>Face Tracking (ARKit) <span class="tag">Planned</span></h4>
                         <p>ARKit face tracking with 52 blendshapes. Expressions map to filters, pitch, and visual parameters. Mouth, eyebrow, and jaw movements become real-time controllers for any parameter in the signal chain.</p>
                     </div>
                     <div class="capability">
@@ -346,7 +346,7 @@
                         <p>Waveform, Spectrum, Particles, Hilbert Map, Bio Graph, Flow Field, Kaleidoscope, Nebula, Generative Worlds, and AR Worlds. Each mode responds to audio amplitude, frequency, and biometric signals simultaneously.</p>
                     </div>
                     <div class="capability">
-                        <h4>Generative &amp; AR Worlds</h4>
+                        <h4>Generative &amp; AR Worlds <span class="tag">Planned</span></h4>
                         <p>Generative Worlds &mdash; abstract bio-reactive environments that evolve with your physiology. AR Worlds &mdash; augmented reality anchored at real locations. Both driven by coherence, heart rate, and breath data.</p>
                     </div>
                     <div class="capability">
@@ -366,15 +366,15 @@
                 <p class="tool-overview">Full non-linear video editor with timeline, multi-cam switching, and professional color grading. <strong>Apple ProRes</strong> recording and export. Real-time RTMP streaming to any platform.</p>
                 <div class="capability-list">
                     <div class="capability">
-                        <h4>NLE Editor</h4>
+                        <h4>NLE Editor <span class="tag">Planned</span></h4>
                         <p>Non-linear video editor with timeline, razor tool, transitions, and keyframe animation. Multi-layer compositing with blend modes. Bio-synced transitions that cut on coherence peaks.</p>
                     </div>
                     <div class="capability">
-                        <h4>Multi-Cam &amp; ProRes</h4>
+                        <h4>Multi-Cam &amp; ProRes <span class="tag">Planned</span></h4>
                         <p>Multi-cam switching between connected cameras with stabilization. Apple ProRes 422/4444 recording for broadcast quality. H.264/H.265 hardware encoding for streaming.</p>
                     </div>
                     <div class="capability">
-                        <h4>Color Grading</h4>
+                        <h4>Color Grading <span class="tag">Planned</span></h4>
                         <p>Professional color grading with LUTs, curves, color wheels, and bio-reactive color shifts. Real-time color correction with GPU-accelerated processing.</p>
                     </div>
                 </div>
@@ -384,7 +384,7 @@
             <!-- ===== ECHOELLUX ===== -->
             <div class="tool-section" id="lux">
                 <div class="tool-header">
-                    <h2>EchoelLux</h2>
+                    <h2>EchoelLux <span class="tag">Planned</span></h2>
                     <p class="tagline">DMX 512, Art-Net, smart home lighting, and cue system.</p>
                 </div>
                 <p class="tool-overview">Control any light source from your heartbeat. Professional <strong>DMX-512 and Art-Net 4</strong> for stage rigs. Smart home integration for living rooms. Bio-reactive chase patterns and fixture profiles.</p>
@@ -408,7 +408,7 @@
             <!-- ===== ECHOELSTAGE ===== -->
             <div class="tool-section" id="stage">
                 <div class="tool-header">
-                    <h2>EchoelStage</h2>
+                    <h2>EchoelStage <span class="tag">Planned</span></h2>
                     <p class="tagline">External displays, projection mapping, and multi-screen output.</p>
                 </div>
                 <p class="tool-overview">Multi-screen output with separate performer, audience, and therapist views. Connect external displays via <strong>USB-C, HDMI, or AirPlay</strong>. Projection mapping with edge blending and warping.</p>
@@ -438,7 +438,7 @@
                         <p>Full OSC 1.0 protocol over UDP. Bidirectional communication with DAWs, VJ software, game engines, and custom applications. Send and receive bio-reactive data, audio parameters, and control messages. Target latency &lt;5ms on LAN.</p>
                     </div>
                     <div class="capability">
-                        <h4>Ableton Link</h4>
+                        <h4>Ableton Link <span class="tag">Planned</span></h4>
                         <p>Tempo and phase synchronization across all devices on the same network. Beat-locked sessions with Ableton Live, other Link-enabled apps, and multiple Echoelmusic instances. Zero-config peer discovery.</p>
                     </div>
                 </div>
@@ -448,7 +448,7 @@
             <!-- ===== ECHOELAI ===== -->
             <div class="tool-section" id="ai">
                 <div class="tool-header">
-                    <h2>EchoelAI</h2>
+                    <h2>EchoelAI <span class="tag">Planned</span></h2>
                     <p class="tagline">On-device intelligence via CoreML. Private, fast, no cloud.</p>
                 </div>
                 <p class="tool-overview">All intelligence runs <strong>entirely on-device via CoreML</strong>. No cloud, no latency, fully private. AI stem separation and on-device inference for creative assistance.</p>
@@ -500,6 +500,6 @@
     </footer>
 
 
-    <script src="shared.js?v=10.6"></script>
+    <script src="shared.js?v=10.7"></script>
 </body>
 </html>

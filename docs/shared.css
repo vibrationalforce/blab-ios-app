@@ -89,6 +89,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--text); outline-
     cursor: default; box-shadow: none; transform: none;
 }
 .nav-cta--soon:hover { transform: none; box-shadow: none; background: transparent; color: var(--dim); }
+/* Planned / roadmap badge */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--border); color: var(--dim); margin-left: 6px; vertical-align: 1px; text-transform: none; }
 @media (min-width: 900px) { .nav-links { display: flex; } .burger { display: none !important; } }
 
 /* ===== BURGER ===== */
