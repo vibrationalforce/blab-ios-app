@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.8.0',K='echoel-nuke';try{
+    (function(){var V='10.8.1',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -176,9 +176,9 @@
             <div class="contact-box">
                 <h3>Feedback & Suggestions</h3>
                 <p>We continuously improve accessibility based on user feedback. If you encounter barriers or have suggestions, please reach out.</p>
-                <a href="mailto:michaelterbuyken@gmail.com">
+                <a href="mailto:echoel@tropicaldrones.com">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                    michaelterbuyken@gmail.com
+                    echoel@tropicaldrones.com
                 </a>
             </div>
         </section>
