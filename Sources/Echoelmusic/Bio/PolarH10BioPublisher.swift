@@ -70,7 +70,7 @@ public final class PolarH10BioPublisher: NSObject {
         super.init()
     }
 
-    public func start(publishing to bus: EngineBus) {
+    public func start(publishing bus: EngineBus) {
         guard !isPublishing else { return }
         self.bus = bus
         isPublishing = true

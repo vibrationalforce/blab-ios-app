@@ -42,7 +42,7 @@ public final class HealthKitBioPublisher {
 
     /// Request HealthKit permission and begin polling the engine snapshot
     /// for fresh frames to publish onto the bus. Idempotent.
-    public func start(publishing to bus: EngineBus) async {
+    public func start(publishing bus: EngineBus) async {
         guard !isPublishing else { return }
         isAuthorized = await engine.requestAuthorization()
         guard isAuthorized else {

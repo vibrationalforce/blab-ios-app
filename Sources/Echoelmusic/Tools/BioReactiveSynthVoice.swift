@@ -130,7 +130,7 @@ public final class BioReactiveSynthVoice {
 
     /// Begin polling bus.latestBio at 10 Hz and forwarding fresh
     /// frames into synth.applyBioReactive(...). Idempotent.
-    public func start(subscribing to bus: EngineBus) {
+    public func start(subscribing bus: EngineBus) {
         guard !isSubscribed else { return }
         self.bus = bus
         isSubscribed = true

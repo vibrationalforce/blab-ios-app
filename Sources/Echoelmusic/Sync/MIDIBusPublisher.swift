@@ -44,7 +44,7 @@ public final class MIDIBusPublisher {
         self.midi = midi
     }
 
-    public func start(publishing to bus: EngineBus) {
+    public func start(publishing bus: EngineBus) {
         guard !isPublishing else { return }
         self.bus = bus
         wireCallbacks()

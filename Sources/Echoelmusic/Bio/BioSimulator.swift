@@ -44,7 +44,7 @@ public final class BioSimulator {
 
     /// Begin publishing one frame per second to the given bus.
     /// No-op if already running.
-    public func start(publishing to bus: EngineBus) {
+    public func start(publishing bus: EngineBus) {
         guard !isRunning else { return }
         isRunning = true
         task = Task { @MainActor [weak self, weak bus] in

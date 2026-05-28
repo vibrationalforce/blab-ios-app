@@ -60,7 +60,7 @@ public final class OSCSender {
         self.port = port
     }
 
-    public func start(subscribing to bus: EngineBus) {
+    public func start(subscribing bus: EngineBus) {
         guard !isActive else { return }
         self.bus = bus
         connect()
