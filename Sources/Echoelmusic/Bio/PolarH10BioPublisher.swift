@@ -17,7 +17,7 @@
 
 #if canImport(CoreBluetooth)
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 #if canImport(Observation)
 import Observation
 #endif
