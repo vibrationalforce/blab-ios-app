@@ -1,3 +1,6 @@
+KONZEPT-BUILD - IN ENTWICKLUNG
+Echoelmusic ist ein frühes Konzept. Dieser Build enthält den Live-Kern; die vollständige Vision steht in der Beschreibung. Feedback, Mitwirkende und Entwickler willkommen: echoel@tropicaldrones.com
+
 Version 1.2.0 - Phase 10000 ULTIMATE MODE
 
 BETA - KOSTENLOS FÜR BEGRENZTE ZEIT

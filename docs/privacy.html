@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.10.0',K='echoel-nuke';try{
+    (function(){var V='10.11.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -223,7 +223,7 @@
     </main>
 
     <footer>
-        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <span class="footer-copy">&copy; 2026 Echoelmusic &middot; Concept in development</span>
         <div class="footer-links">
             <a href="overview.html">Overview</a>
             <a href="tools.html">Tools</a>

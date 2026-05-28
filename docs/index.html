@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.10.0',K='echoel-nuke';try{
+    (function(){var V='10.11.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -659,7 +659,7 @@
                         Coming Soon
                     </span>
                     <a href="tools.html" class="hero-cta" style="background:var(--text);color:#000;">Explore Tools</a>
-                    <p class="hero-urgency">Coming soon to all Apple devices</p>
+                    <p class="hero-urgency">A concept in active development &middot; coming to Apple devices</p>
                     <p class="hero-platforms">
                         iPhone &middot; iPad &middot; Mac &middot; Apple Watch &middot; Apple TV &middot; Vision Pro
                     </p>
@@ -715,15 +715,16 @@
             </div>
         </header>
 
-        <!-- ========== BETA / EARLY ACCESS ========== -->
-        <div id="beta" class="section">
-            <div class="section-label reveal">Beta</div>
-            <h2 class="section-title reveal">Be an early tester</h2>
-            <p class="section-sub reveal">Echoelmusic is heading to TestFlight. Want in early?</p>
-            <div class="reveal" style="max-width:600px; margin:0 auto; text-align:center;">
-                <p style="color:var(--dim); line-height:1.85; margin-bottom:20px;">Requirements: <strong style="color:var(--text);">iPhone, iOS&nbsp;18 or later</strong>. The beta focuses on the live core — bio-reactive synthesis, the beat sequencer, and OSC sync. Your heartbeat, breath and coherence modulate the sound in real time.</p>
-                <a href="mailto:echoel@tropicaldrones.com?subject=Echoelmusic%20beta%20access" class="hero-cta" style="background:var(--text); color:#000;">Request beta access</a>
-                <p class="hero-platforms" style="margin-top:16px;">Feedback &amp; questions: <a href="mailto:echoel@tropicaldrones.com" style="color:var(--text); border-bottom:1px solid var(--border);">echoel@tropicaldrones.com</a></p>
+        <!-- ========== CONCEPT / GET INVOLVED ========== -->
+        <div id="concept" class="section">
+            <div class="section-label reveal">Concept</div>
+            <h2 class="section-title reveal">A concept in the making</h2>
+            <p class="section-sub reveal">This site describes the full vision of Echoelmusic. It is currently a concept in active development.</p>
+            <div class="reveal" style="max-width:620px; margin:0 auto; text-align:center;">
+                <p style="color:var(--dim); line-height:1.85; margin-bottom:20px;">Part of it already runs &mdash; bio-reactive synthesis, the beat sequencer and OSC sync; much more is on the roadmap. The <a href="architecture.html" style="color:var(--text); border-bottom:1px solid var(--border);">Architecture</a> page shows exactly what is live today versus planned. We're building the first bio-reactive performance instrument, and we'd love help shaping it.</p>
+                <p style="color:var(--text); font-weight:600; margin-bottom:20px;">Interested, a developer, or want to collaborate or test? Get in touch.</p>
+                <a href="mailto:echoel@tropicaldrones.com?subject=Echoelmusic%20%E2%80%94%20interested" class="hero-cta" style="background:var(--text); color:#000;">Get in touch</a>
+                <p class="hero-platforms" style="margin-top:16px;"><a href="mailto:echoel@tropicaldrones.com" style="color:var(--text); border-bottom:1px solid var(--border);">echoel@tropicaldrones.com</a></p>
             </div>
         </div>
 
@@ -921,7 +922,7 @@
 
     <!-- Footer -->
     <footer>
-        <span class="footer-copy">&copy; 2026 Echoelmusic</span>
+        <span class="footer-copy">&copy; 2026 Echoelmusic &middot; Concept in development</span>
         <div class="footer-links">
             <a href="overview.html">Overview</a>
             <a href="tools.html">Tools</a>

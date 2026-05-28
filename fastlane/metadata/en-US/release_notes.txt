@@ -1,3 +1,6 @@
+CONCEPT BUILD - IN DEVELOPMENT
+Echoelmusic is an early concept. This build runs the live core; the full vision is in the App Store description. Feedback, collaboration and developers welcome: echoel@tropicaldrones.com
+
 Version 1.2.0 - Phase 10000 ULTIMATE MODE
 
 BETA - FREE FOR A LIMITED TIME
