@@ -39,7 +39,7 @@ public final class BioReactiveSynthVoice {
 
     /// Underlying synthesizer.
     @ObservationIgnored
-    public let synth: EchoelDDSP
+    nonisolated public let synth: EchoelDDSP
 
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
@@ -79,7 +79,7 @@ public final class BioReactiveSynthVoice {
     // MARK: - Audio render scratch (audio-thread only after attach)
 
     @ObservationIgnored
-    private static let maxBlockFrames = 4096
+    nonisolated private static let maxBlockFrames = 4096
 
     @ObservationIgnored
     private static let sampleRate: Double = 48_000
@@ -88,10 +88,10 @@ public final class BioReactiveSynthVoice {
     /// Audio thread writes into this via `synth.render(...)` and then
     /// memcpys into the AudioBufferList. Never re-allocated after init.
     @ObservationIgnored
-    private var scratchBuffer: [Float]
+    nonisolated(unsafe) private var scratchBuffer: [Float]
 
     public init() {
-        self.synth = EchoelDDSP(sampleRate: Self.sampleRate)
+        self.synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
         self.scratchBuffer = Array(repeating: 0, count: Self.maxBlockFrames)
     }
 
