@@ -1692,3 +1692,11 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - Get failed TestFlight job log → fix real archive/signing cause.
 - Optionally re-enable AUv3 target dependency (com.echoelmusic.app.auv3 now registered per owner).
 - Website "elevate vision" pass if desired.
+
+## 2026-05-29 (cont.) — second brain + convergence
+- `1c05072` fix(signing): disabled unused iCloud/CloudKit entitlement (0 code refs) → removes a provisioning failure mode for TestFlight upload.
+- `1c0f884` / `93ae276` docs(site): Overview live-vs-planned consistency; homepage SoftwareApplication OS corrected to iOS 18, device strip iPhone-first.
+- `9bc8670` docs(dev): **FEATURE_MATRIX.md** created — the "second brain". Maps the 12 conceptual Echoel* tools → real Swift modules → LIVE/PARTIAL/ROADMAP → TestFlight acceptance. (The 12 "tools" are a taxonomy, not Swift types.) Build #1 acceptance scope + signing config of record documented there.
+- `b7f5d1c` fix(midi): MIDIInput force-cast → crash-safe compactMap.
+- Only real code defect from the audit is now fixed; EngineBus surface confirmed clean.
+- STILL the gate: TestFlight CI run/log (host blocks Actions access). Run testflight.yml → green ships build #1, red → paste iOS-job step-summary.
