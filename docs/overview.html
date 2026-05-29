@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.11.0',K='echoel-nuke';try{
+    (function(){var V='10.11.1',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -148,9 +148,9 @@
                 <h2>Core Pillars</h2>
                 <div class="pillars">
                     <div class="pillar"><h4>Beat Maker</h4><p>16-step &times; 8-track sequencer + sampler. Make beats from scratch.</p></div>
-                    <div class="pillar"><h4>Multi-track Recorder</h4><p>Record mic over beats with sample-accurate sync.</p></div>
-                    <div class="pillar"><h4>Video Capture &amp; Trim</h4><p>Camera capture, clip editing, ProRes recording.</p></div>
-                    <div class="pillar"><h4>RTMP Live Stream</h4><p>Stream to YouTube, Twitch, Facebook or any custom RTMP.</p></div>
+                    <div class="pillar"><h4>Multi-track Recorder <span class="tag">Planned</span></h4><p>Record mic over beats with sample-accurate sync.</p></div>
+                    <div class="pillar"><h4>Video Capture &amp; Trim</h4><p>Camera capture and short-form clips. ProRes recording planned.</p></div>
+                    <div class="pillar"><h4>RTMP Live Stream <span class="tag">Planned</span></h4><p>Stream to YouTube, Twitch, Facebook or any custom RTMP.</p></div>
                 </div>
             </section>
 
@@ -166,11 +166,11 @@
                     <div class="engine-item"><h4>EchoelSeq</h4><p>Step sequencer, pattern engine, automation, Euclidean &amp; polyrhythm.</p></div>
                     <div class="engine-item"><h4>EchoelMIDI</h4><p>MIDI 2.0, MPE, touch instruments, real-time audio-to-MIDI.</p></div>
                     <div class="engine-item"><h4>EchoelBio</h4><p>HRV, heart rate, breath, face tracking, signal deconvolution, events.</p></div>
-                    <div class="engine-item"><h4>EchoelVis</h4><p>GPU visuals at 120fps — particles, Hilbert map, generative &amp; AR worlds.</p></div>
-                    <div class="engine-item"><h4>EchoelVid</h4><p>NLE editor, multi-cam, Apple ProRes, color grading, streaming.</p></div>
+                    <div class="engine-item"><h4>EchoelVis</h4><p>GPU visuals at 120fps — particles, Hilbert map, chroma key. Generative &amp; AR worlds planned.</p></div>
+                    <div class="engine-item"><h4>EchoelVid</h4><p>Short-form video capture (H.264, 9:16). NLE editor, multi-cam, ProRes, color grading &amp; streaming planned.</p></div>
                     <div class="engine-item"><h4>EchoelLux <span class="tag">Planned</span></h4><p>DMX-512, Art-Net 4, HomeKit smart lighting, cue system.</p></div>
                     <div class="engine-item"><h4>EchoelStage <span class="tag">Planned</span></h4><p>External displays, projection mapping, multi-screen output.</p></div>
-                    <div class="engine-item"><h4>EchoelNet</h4><p>OSC, Ableton Link, cross-device tempo &amp; data sync.</p></div>
+                    <div class="engine-item"><h4>EchoelNet</h4><p>OSC (EchoelSync) live. Ableton Link &amp; cross-device sync planned.</p></div>
                     <div class="engine-item"><h4>EchoelAI <span class="tag">Planned</span></h4><p>On-device CoreML, stem separation. Private, fast, no cloud.</p></div>
                 </div>
             </section>
