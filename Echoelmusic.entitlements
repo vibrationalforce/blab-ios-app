@@ -2,11 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- HealthKit Access (bio-reactive features) -->
+	<!-- HealthKit Access (bio-reactive features — LIVE: HealthKitBioPublisher) -->
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 
-	<!-- iCloud / CloudKit (session sync, device token storage) -->
+	<!-- iCloud / CloudKit — DISABLED for v10.
+	     No CloudKit usage exists in the codebase (0 references), but this
+	     entitlement makes automatic provisioning require a registered
+	     iCloud.com.echoelmusic.app container, which blocks the TestFlight
+	     archive/upload until that container exists. Re-enable together when
+	     session sync actually ships AND the container is registered in the
+	     developer portal.
 	<key>com.apple.developer.icloud-services</key>
 	<array>
 		<string>CloudKit</string>
@@ -15,6 +21,7 @@
 	<array>
 		<string>iCloud.com.echoelmusic.app</string>
 	</array>
+	-->
 
 	<!-- App Groups (shared data with extensions) -->
 	<key>com.apple.security.application-groups</key>
