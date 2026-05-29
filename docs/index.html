@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.11.1',K='echoel-nuke';try{
+    (function(){var V='10.11.2',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -98,7 +98,7 @@
           "@id": "https://echoelmusic.com/#app",
           "name": "Echoelmusic",
           "applicationCategory": "MultimediaApplication",
-          "operatingSystem": ["iOS 15+", "macOS 12+", "watchOS 8+", "tvOS 15+", "visionOS 1+"],
+          "operatingSystem": "iOS 18.0",
           "description": "Bio-reactive multimedia art production. Unified Echoel* tools — synthesis, effects, mixing, sequencing, MIDI, biometrics, visuals, lighting, networking, and AI. All from your body.",
           "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "availability": "https://schema.org/PreOrder"},
           "featureList": "Bio-reactive music, EchoelToolkit (12 unified tools), EchoelSynth (synthesis engines), EchoelFX (effects + analog emulations), EchoelMix (mixing + session), EchoelSeq (sequencer + automation), EchoelMIDI (MIDI 2.0 + MPE + touch instruments), EchoelBio (HRV/face tracking/breath), EchoelVis (GPU visuals + Generative Worlds + AR Worlds), EchoelVid (NLE video + ProRes + color grading), EchoelLux (DMX 512 + Art-Net + smart home), EchoelStage (external displays + projection mapping), EchoelNet (OSC + Ableton Link), EchoelAI (on-device CoreML + stem separation)"
@@ -661,7 +661,7 @@
                     <a href="tools.html" class="hero-cta" style="background:var(--text);color:#000;">Explore Tools</a>
                     <p class="hero-urgency">A concept in active development &middot; coming to Apple devices</p>
                     <p class="hero-platforms">
-                        iPhone &middot; iPad &middot; Mac &middot; Apple Watch &middot; Apple TV &middot; Vision Pro
+                        iPhone first &middot; then iPad &middot; Mac &middot; Apple Watch &middot; Apple TV &middot; Vision Pro
                     </p>
                 </div>
 
