@@ -1,0 +1,123 @@
+{
+  "$comment": "Machine-readable mirror of docs/dev/FEATURE_MATRIX.md — the 'second brain'. Tool <-> code <-> status <-> TestFlight acceptance. Regenerate/update whenever FEATURE_MATRIX.md changes. Truth-source: this file + the code; docs/architecture.html is the human mirror.",
+  "schema": "echoelmusic.status/1",
+  "product": "Echoelmusic v10 — bio-reactive performance instrument",
+  "updated": "2026-05-29",
+  "platform": { "os": "iOS 18.0", "device": "iPhone", "marketingVersion": "10.0.0" },
+  "statusLegend": {
+    "LIVE": "ships in TestFlight build #1",
+    "PARTIAL": "some capability live, rest roadmap",
+    "ROADMAP": "no code yet — vision only"
+  },
+  "spine": {
+    "EngineBus": "Sources/Echoelmusic/Core/EngineBus.swift",
+    "SPSCQueue": "Sources/Echoelmusic/Core/SPSCQueue.swift",
+    "AudioEngine": "Sources/Echoelmusic/Audio/AudioEngine.swift"
+  },
+  "tools": [
+    {
+      "name": "EchoelSynth", "status": "LIVE",
+      "files": ["DSP/EchoelDDSP.swift", "DSP/EchoelCellular.swift", "DSP/EchoelModalBank.swift", "EchoelPolyDDSP", "Sequencer/SamplerVoice.swift", "Tools/BioReactiveSynthVoice.swift"],
+      "live": "DDSP/modal/cellular synthesis, one-shot sampler, bio-reactive audible voice",
+      "roadmap": "EchoelBeat, breakbeat chopper, spectral morph",
+      "acceptance": "Play toggle opens envelope and produces sound; bio frames modulate timbre"
+    },
+    {
+      "name": "EchoelFX", "status": "PARTIAL",
+      "files": ["DSP/EchoelSVFilter.swift", "DSP/EchoelLFO.swift", "DSP/EchoelVDSPKit.swift", "Audio/AutoMixChain.swift"],
+      "live": "Convolution reverb (HRV-reactive), 4-band EQ + LUFS auto-gain (-14 LUFS), LFO-swept SVF, tanh saturation",
+      "roadmap": "delay, chorus/flanger/phaser/tremolo, comp/limiter, analog emulations",
+      "acceptance": "Export applies AutoMix to -14 LUFS without clipping"
+    },
+    {
+      "name": "EchoelMix", "status": "PARTIAL",
+      "files": ["Audio/AudioEngine.swift", "Audio/AutoMixChain.swift", "Audio/SingleExport.swift", "Audio/RetroCapture.swift", "MicrophoneManager.swift"],
+      "live": "master bus, mic 1024-pt FFT, 30s CAF pre-roll, LUFS WAV/AAC export",
+      "roadmap": "MultiTrackRecorder (skeleton), console UI, FLAC/ALAC, stem export",
+      "acceptance": "SingleExport writes a valid -14 LUFS WAV/AAC"
+    },
+    {
+      "name": "EchoelSeq", "status": "LIVE",
+      "files": ["Sequencer/PatternEngine.swift", "Sequencer/BeatPlayer.swift", "Sequencer/SamplerVoice.swift"],
+      "live": "8 tracks x 16 steps, 30-300 BPM, 16th-note clock, on/off steps",
+      "roadmap": "per-step velocity/probability, automation, Euclidean/polyrhythm",
+      "acceptance": "BeatTab plays a pattern at set BPM; play/stop responds"
+    },
+    {
+      "name": "EchoelMIDI", "status": "LIVE",
+      "files": ["Audio/MIDIInput.swift", "Sync/MIDIBusPublisher.swift"],
+      "live": "MIDI 2.0 + MPE input -> EngineBus.controllerEvents -> synth notes (performer priority)",
+      "roadmap": "Standard MIDI File I/O, MIDI output, touch instruments, audio-to-MIDI",
+      "acceptance": "External MPE controller triggers synth notes"
+    },
+    {
+      "name": "EchoelBio", "status": "LIVE",
+      "files": ["Core/EngineBus.swift", "Bio/HealthKitBioPublisher.swift", "Bio/PolarH10BioPublisher.swift", "Bio/BioSimulator.swift", "Bio/EchoelBioEngine.swift", "Bio/BioEventPublisher.swift"],
+      "protected": ["Bio/BioEventGraph.swift", "Bio/HilbertSensorMapper.swift", "Bio/BioSignalDeconvolver.swift"],
+      "live": "HealthKit + Polar H10 (BLE direct, RR->RMSSD) + Demo -> bioFrames; breath/motion onset events",
+      "roadmap": "face tracking (ARKit), raw PPG/ECG waveform -> heartbeat events",
+      "acceptance": "BioStripView shows live HR/HRV/Br/Coh; Demo source works on Simulator"
+    },
+    {
+      "name": "EchoelVis", "status": "PARTIAL",
+      "files": ["Video/Shaders/VisualRendererKernels.metal", "Video/Shaders/ChromaKey.metal", "Views/MetalBioView.swift", "Views/BioVisualRenderer.swift"],
+      "live": "Metal 120fps, 5 visual modes, 6-pass chroma key",
+      "roadmap": "generative & AR worlds, Hilbert-map display, flow field, kaleidoscope, nebula",
+      "acceptance": "A Metal visual renders without GPU validation errors at >=60 fps"
+    },
+    {
+      "name": "EchoelVid", "status": "PARTIAL",
+      "files": ["Video/CameraCapture.swift", "Video/CameraAnalyzer.swift", "Video/ShortContentRenderer.swift"],
+      "live": "camera capture, short-form H.264 MP4 720x1280 (9:16), 15/30/60s",
+      "roadmap": "NLE editor, multi-cam, H.265/ProRes, 1080p/4K, LUT grading, RTMP streaming",
+      "acceptance": "Records a valid short-form MP4 to the photo library"
+    },
+    {
+      "name": "EchoelLux", "status": "ROADMAP",
+      "files": [],
+      "roadmap": "DMX-512, Art-Net 4 (UDP 6454), HomeKit, fixture profiles, cue lists",
+      "acceptance": "Out of scope for build #1"
+    },
+    {
+      "name": "EchoelStage", "status": "ROADMAP",
+      "files": [],
+      "roadmap": "external displays, projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay",
+      "acceptance": "Out of scope for build #1"
+    },
+    {
+      "name": "EchoelNet", "status": "PARTIAL",
+      "files": ["Sync/OSCSender.swift"],
+      "live": "OSC 1.0/UDP, big-endian floats, ~100ms cadence, 6 bio addresses /echoelmusic/bio/*, default localhost:8000",
+      "roadmap": "Ableton Link tempo/phase, bidirectional OSC, OSC for controller/bio events",
+      "acceptance": "OSC frames reach a LAN receiver (Resolume/TouchDesigner/Sonic Pi)"
+    },
+    {
+      "name": "EchoelAI", "status": "ROADMAP",
+      "files": [],
+      "roadmap": "on-device CoreML, stem separation (private, no cloud)",
+      "acceptance": "Out of scope for build #1"
+    }
+  ],
+  "testflightBuild1": {
+    "target": "iOS 18, iPhone",
+    "scope": "ship LIVE + the LIVE part of PARTIAL; exclude EchoelLux/Stage/AI and all ROADMAP rows",
+    "acceptance": [
+      "Synth audible and bio-modulated",
+      "Beat sequencer plays",
+      "Bio strip shows live HR/HRV/coherence (Demo on Simulator)",
+      "MPE controller plays the synth",
+      "OSC streams bio out over UDP",
+      "Export writes -14 LUFS WAV/AAC",
+      "A Metal visual renders >=60 fps",
+      "Short-form MP4 records"
+    ],
+    "signing": {
+      "style": "automatic + -allowProvisioningUpdates",
+      "secrets": ["APP_STORE_CONNECT_KEY_ID", "APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_PRIVATE_KEY", "APPLE_TEAM_ID"],
+      "entitlements": ["com.apple.developer.healthkit", "group.com.echoelmusic (App Group)"],
+      "disabled": "iCloud/CloudKit (no code uses it; blocked provisioning until container registered)",
+      "auv3": "target dependency disabled until main app archives green",
+      "firstSuspectIfUploadFails": "App Store Connect API key (created Dec) expired/revoked"
+    }
+  }
+}
