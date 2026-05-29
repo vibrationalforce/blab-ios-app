@@ -91,7 +91,7 @@ final class MIDIInput {
         var packet = list.packet
 
         for _ in 0..<list.numPackets {
-            let words = Mirror(reflecting: packet.words).children.map { $0.value as! UInt32 }
+            let words = Mirror(reflecting: packet.words).children.compactMap { $0.value as? UInt32 }
             let wordCount = Int(packet.wordCount)
 
             if wordCount >= 1 {

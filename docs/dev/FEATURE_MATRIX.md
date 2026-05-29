@@ -60,7 +60,7 @@ acceptance line.
 - **Live:** MIDI 2.0 + MPE input (per-note bend, slide/CC74, air-CC) → bio-modulated synth notes (performer priority over breath).
 - **Roadmap:** Standard MIDI File I/O, MIDI output, touch instruments, audio-to-MIDI.
 - **TestFlight acceptance:** an external MPE controller triggers synth notes.
-- **Known nit:** `MIDIInput.swift:94` uses a force-cast (`as! UInt32`) — banned per rules, not a compile blocker; fix to a safe cast in a future cycle.
+- **Fixed:** `MIDIInput.swift:94` force-cast (`as! UInt32`) → crash-safe `compactMap { as? UInt32 }` (behavior-preserving; the word tuple is homogeneous UInt32).
 
 ### 6. EchoelBio — `LIVE`
 - **Code:** `Core/EngineBus.swift` (`BioSampleFrame`), `Bio/HealthKitBioPublisher.swift`, `Bio/PolarH10BioPublisher.swift`, `Bio/BioSimulator.swift`, `Bio/EchoelBioEngine.swift`, `Bio/BioEventPublisher.swift`
