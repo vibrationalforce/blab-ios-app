@@ -1673,3 +1673,22 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - Modulation Matrix UI (V3)
 - OSC In (return channel) + OSC for controllerEvents/bioEvents
 - BioSignalDeconvolver → HilbertSensorMapper → BioEventGraph composed as a real chain on raw waveform (needs Polar PMD service for raw ECG)
+
+---
+
+# SESSION 2026-05-29 — Website↔Repo audit + TestFlight config unification (branch `claude/echoelmusic-website-audit-KMcUX`)
+
+## Audit findings
+- THREE visions coexist: Homepage (full 12-tool, all-Apple-devices vision), Architecture page (honest LIVE-vs-ROADMAP spec, iPhone/iOS18 bio-instrument), CLAUDE.md (DAW: Beat/Record/Video/Share). Owner chose **full homepage vision** as north-star.
+- Website is already well-framed: homepage = "concept in active development"; Architecture page marks every claim LIVE/ROADMAP. No fiction. `Stream/` dir empty (RTMP roadmap-only), HaishinKit not in deps yet.
+- **Root config drift fixed (commit 25c5330):** `project.yml info.properties` (XcodeGen's Info.plist source) had drifted from the good `Resources/iOS/Info.plist` — was missing NSLocalNetwork/NSBonjourServices/PhotoLibrary/ATS + bluetooth-peripheral, and carried legacy 'soundscape'/weather copy. A regenerated build would have lost OSC/local-networking permissions. Now unified; iOS 17→18; MARKETING_VERSION 8.2.0→10.0.0; AUv3 display name de-soundscaped.
+
+## TestFlight blocker (UNRESOLVED, owner-side)
+- CI signing relies on 4 secrets: APP_STORE_CONNECT_KEY_ID / ISSUER_ID / PRIVATE_KEY / APPLE_TEAM_ID, with `-allowProvisioningUpdates`. `DEVELOPMENT_TEAM:""` in project.yml is fine (CI injects it).
+- Cannot read Actions logs from this env (no MCP Actions tool; host forbids direct API/gh). #1 suspect: App Store Connect API key (created Dec) revoked/expired. Owner must paste the failed-job step summary (archive.log tail is written to $GITHUB_STEP_SUMMARY).
+- **SECURITY:** owner pasted a real `github_pat_...` into chat again — flagged for immediate revocation; not used/committed.
+
+## Next cycles
+- Get failed TestFlight job log → fix real archive/signing cause.
+- Optionally re-enable AUv3 target dependency (com.echoelmusic.app.auv3 now registered per owner).
+- Website "elevate vision" pass if desired.
