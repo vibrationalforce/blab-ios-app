@@ -29,7 +29,7 @@ Capabilities (all routed through one typed bus): **Beat Maker** (16-step × 8-tr
 - **Protected DSP triad (READ-ONLY, now implemented):** BioSignalDeconvolver (detrend·notch·validity), HilbertSensorMapper (1D→2D Hilbert curve), BioEventGraph (heartbeat/breath/motion detectors). Pure value types, SKILL.md contracts under `.claude/skills/`.
 - **SDK:** iOS 18 deployment floor (Package.swift + project.yml + Resources/iOS/Info.plist synced). Xcode 26.2 in `testflight.yml`. App Group `group.com.echoelmusic`.
 - **Root view:** `Studio/StudioRoot.swift` — Tools / Works / Sync / Well + live `BioStripView` (HR·HRV·Br·Coh, synth-frame count, MIDI/OSC/event activity dots, play toggle).
-- **⚠️ DEPLOY BLOCKER (owner-side, pre-existing):** No TestFlight since `v1.0.0` (2025-12-03), predates this branch. Auto-merge to main works; `testflight.yml` dispatches but fails in-pipeline. Inspect Actions → red job (likely expired App Store Connect API key secret OR provisioning needing the app-group registered). Helper: `bash scripts/check-testflight.sh`.
+- **✅ TESTFLIGHT PIPELINE: GREEN (verified 2026-05-30).** Prior "deploy blocker" note is resolved — `testflight.yml` runs #1404–#1407 on `main` all succeeded across every platform (iOS upload + Summary), preflight confirms App Store Connect secrets are present and valid. Dispatch + poll from the sandbox via `bash scripts/check-testflight.sh dispatch` (token in gitignored `.claude/settings.local.json`). Push the feature branch's newer work (bio synth / OSC / Polar) to TestFlight with a full `build_only=false` run once a branch verification run is green.
 - **Files:** ~64 Swift + 2 Metal | new test suites: EngineBus, PolarH10, BioSignalDeconvolver, BioEventGraph, OSCSender | **Swift 100%**
 
 ---

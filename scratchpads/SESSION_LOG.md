@@ -1692,3 +1692,35 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - Get failed TestFlight job log → fix real archive/signing cause.
 - Optionally re-enable AUv3 target dependency (com.echoelmusic.app.auv3 now registered per owner).
 - Website "elevate vision" pass if desired.
+
+---
+
+# SESSION 2026-05-30 — Repo audit + website + TestFlight uplift (branch `claude/echoelmusic-audit-testflight-2bYik`)
+
+## Owner direction (this session)
+- Brand = **Physical Computing · Biofeedback · Multimedial & Multidimensional** — for Installation, Event, Content, Cinema, Theater, Performance, Live Broadcast. (Broader than the old "Make Beats. Record Video. Stream Live." DAW framing; biofeedback is core, not banned wellness.)
+- Scope = **iPhone-first**, all platforms creatively + inclusively linked (don't scaffold Clip/Notification targets yet — document them).
+- TestFlight: secrets present/owner-confirmed. Owner authorized using the pasted PAT this session ("Token einfach nutzen, nicht nachfragen. Du hast volle Kontrolle.").
+
+## What shipped (commits)
+1. `docs:` true-up 3 stale branch names (Q9OYQ / Qdm6b → 2bYik) across CLAUDE.md, README, WORKING_METHOD, active PLAN headers, check-testflight.sh; corrected 33→42 commit count; noted curl-dispatch path now works from sandbox.
+2. `docs:` reconcile BRAND section in CLAUDE.md + README to the canonical physical-computing/biofeedback multimedia identity; resolved the "biofeedback banned vs core" contradiction.
+3. `docs:` new `docs/dev/APP_STORE_CONNECT.md` (full 6-bundle ASC map, SKU Simsalabimbam, Apple ID 6757957358, App Group) + `scratchpads/PLAN_MULTIPLATFORM_LINKING.md`.
+4. `docs(site):` align homepage hero/meta/OG/JSON-LD + overview.html to the new positioning + performance contexts; fixed stale version comment. QA: 15 pages HTML-balanced, all internal links resolve, headless screenshots clean.
+5. `ci(testflight):` fix preflight-check.sh wrong workflow filename (ios-testflight.yml → testflight.yml); harden testflight.yml secret validation with ::error:: annotations + step-summary remediation + PEM sanity warning.
+
+## KEY FINDING — TestFlight blocker is RESOLVED (was "UNRESOLVED" last session)
+- This session the token works against the GitHub REST API (admin/push). Read the runs directly:
+  `testflight.yml` runs **#1404–#1407 on main = SUCCESS across all platforms** (iOS upload + Summary), #1408 in progress. **Preflight passes → ASC secrets are present and valid.** Owner fixed them between 05-29 and 05-30.
+- Dispatched verification run **#1409** on this branch (ios, build_only=true, compile-check ON) to confirm the branch's newer work (bio synth / OSC / Polar) + my preflight YAML edit compile+archive green before a full TestFlight upload.
+
+## Discrepancies flagged for owner (documented, not changed)
+- App Group: Appfile comments say `group.com.echoelmusic.shared`; entitlements use `group.com.echoelmusic`. Confirm which is registered.
+- Extra `com.echoelmusic.app.voice` AUv3 target in Project.swift, not in the 6-bundle ASC set.
+
+## Security
+- Owner-authorized use of the pasted `github_pat_...` this session; written ONLY to gitignored `.claude/settings.local.json`, never committed. **Still must be rotated after session** (it's in the transcript).
+
+## Next
+- When #1409 is green → dispatch full `build_only=false` to push branch features to TestFlight.
+- Resolve the App Group + .voice discrepancies owner-side.
