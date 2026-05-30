@@ -4,9 +4,11 @@
 
 Repository: https://github.com/vibrationalforce/Echoelmusic
 Developer: Echoel (Michael Terbuyken) @ Studio Hamburg
-App Apple ID: 6757957358
-SKU: Simsalabimbam
-Bundle: com.echoelmusic.*
+App Apple ID: 6757957358 · SKU: Simsalabimbam · Team ID: via `APPLE_TEAM_ID` secret
+Bundle prefix: `com.echoelmusic` · App Group: `group.com.echoelmusic`
+Bundles: `.app` (main, universal) · `.app.auv3` · `.app.watchkitapp` · `.app.widgets` · `.app.clip` (deferred) · `.app.notification-service` (deferred)
+
+**Canonical identity map:** `docs/dev/APP_STORE_CONNECT.md` · **Cross-platform plan:** `scratchpads/PLAN_MULTIPLATFORM_LINKING.md`
 
 **Echoel — Physical Computing · Biofeedback · Multimedial & Multidimensional.**
 An immersive, iPhone-first instrument and production platform where the body — heart, breath, motion, brain rhythm — drives sound, image, light, and broadcast in real time.
