@@ -137,13 +137,18 @@ public final class SamplerVoice: @unchecked Sendable {
     // MARK: - Source node
 
     private func makeSourceNode() -> AVAudioSourceNode {
-        let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 1)
-            ?? AVAudioFormat()
         let state = renderState
-        return AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList in
+        let renderBlock: AVAudioSourceNodeRenderBlock = { _, _, frameCount, audioBufferList in
             state.render(frameCount: Int(frameCount), audioBufferList: audioBufferList)
             return noErr
         }
+        // A constant sample rate always yields a valid format; if the OS ever
+        // returns nil, use the format-inferring initializer rather than the no-arg
+        // AVAudioFormat() (an invalid 0 Hz/0 ch format that crashes the node init).
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 1) else {
+            return AVAudioSourceNode(renderBlock: renderBlock)
+        }
+        return AVAudioSourceNode(format: format, renderBlock: renderBlock)
     }
 }
 

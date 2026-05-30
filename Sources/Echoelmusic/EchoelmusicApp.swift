@@ -30,6 +30,7 @@ struct EchoelmusicApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        log.log(.info, category: .system, "APP INIT [start] — constructing engines (no audio I/O here)")
         let mic = MicrophoneManager()
         let audio = AudioEngine(microphoneManager: mic)
 
@@ -56,6 +57,7 @@ struct EchoelmusicApp: App {
         #endif
 
         _ = MemoryPressureHandler.shared
+        log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
     }
 
     var body: some Scene {
@@ -89,17 +91,23 @@ struct EchoelmusicApp: App {
                 // causes pause/restart cycles that have crashed at launch
                 // (build 1363). Attaching first keeps masterEngine stopped
                 // until all 8 voices are wired, then a single .start().
-                log.log(.info, category: .system, "STARTUP [1/4] Loading drum samples...")
+                //
+                // All AVAudioSession/AVAudioEngine work runs HERE (post-UI), never
+                // in App.init(): prepareGraph() builds the session + master graph.
+                log.log(.info, category: .system, "STARTUP [1/5] Preparing audio session + master graph...")
+                audioEngine.prepareGraph()
+
+                log.log(.info, category: .system, "STARTUP [2/5] Loading drum samples...")
                 beatPlayer.loadDefaultSamples()
 
-                log.log(.info, category: .system, "STARTUP [2/4] Attaching beat voices to audio engine...")
+                log.log(.info, category: .system, "STARTUP [3/5] Attaching beat voices to audio engine...")
                 beatPlayer.attach(to: audioEngine)
                 bioVoice.attach(to: audioEngine)
 
-                log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
+                log.log(.info, category: .system, "STARTUP [4/5] Starting audio engine...")
                 audioEngine.start()
 
-                log.log(.info, category: .system, "STARTUP [4/4] Loading store products...")
+                log.log(.info, category: .system, "STARTUP [5/5] Loading store products...")
                 await store.loadProducts()
                 await store.updateSubscriptionStatus()
 

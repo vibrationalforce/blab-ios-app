@@ -229,15 +229,13 @@ public final class BioReactiveSynthVoice {
     // MARK: - Source node (audio thread)
 
     private func makeSourceNode() -> AVAudioSourceNode {
-        let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 1)
-            ?? AVAudioFormat()
         // Capture self weakly to keep the render closure from retaining the
         // MainActor-bound voice. nonisolated(unsafe) is acceptable because
         // the render closure runs on the audio thread and only touches
         // the synth (Float-atomic params) and the scratch buffer
         // (audio-thread-only after first render).
         nonisolated(unsafe) let weakSelf = WeakBox(self)
-        return AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList in
+        let renderBlock: AVAudioSourceNodeRenderBlock = { _, _, frameCount, audioBufferList in
             guard let voice = weakSelf.value else {
                 BioReactiveSynthVoice.silence(audioBufferList: audioBufferList, frameCount: Int(frameCount))
                 return noErr
@@ -245,6 +243,13 @@ public final class BioReactiveSynthVoice {
             voice.renderOnAudioThread(frameCount: Int(frameCount), audioBufferList: audioBufferList)
             return noErr
         }
+        // A constant sample rate always yields a valid format; if the OS ever
+        // returns nil, use the format-inferring initializer rather than the no-arg
+        // AVAudioFormat() (an invalid 0 Hz/0 ch format that crashes the node init).
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: Self.sampleRate, channels: 1) else {
+            return AVAudioSourceNode(renderBlock: renderBlock)
+        }
+        return AVAudioSourceNode(format: format, renderBlock: renderBlock)
     }
 
     /// Audio thread. Reads (potentially racy) synth params and writes

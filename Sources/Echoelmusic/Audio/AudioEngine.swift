@@ -41,6 +41,9 @@ public final class AudioEngine {
 
     let microphoneManager: MicrophoneManager
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
+    /// True once the audio session is configured and the master graph is built.
+    /// Guards `prepareGraph()` so it runs exactly once, post-UI.
+    @ObservationIgnored private var graphPrepared = false
 
     convenience init() {
         self.init(microphoneManager: MicrophoneManager())
@@ -51,17 +54,8 @@ public final class AudioEngine {
         _rawMeterL.initialize(to: 0)
         _rawMeterR.initialize(to: 0)
 
-        do {
-            try AudioConfiguration.configureAudioSession()
-            AudioConfiguration.registerInterruptionHandlers()
-            log.audio(AudioConfiguration.latencyStats())
-        } catch {
-            log.audio("Failed to configure audio session: \(error)", level: .warning)
-        }
-
-        AudioConfiguration.setAudioThreadPriority()
-        setupMasterEngine()
-
+        // Interruption / route-change handlers are cheap closure storage with no
+        // audio I/O — safe to wire at init.
         AudioConfiguration.onInterruptionBegan = { [weak self] in
             self?.masterEngine.pause()
             self?.isRunning = false
@@ -86,8 +80,31 @@ public final class AudioEngine {
             }
         }
 
-        log.audio("AudioEngine initialized — master output wired to hardware")
-        log.audio("   Master Engine: \(masterEngine.isRunning ? "Running" : "Ready")")
+        // IMPORTANT: audio-session activation and AVAudioEngine graph construction
+        // are deferred to prepareGraph() (run post-UI from the startup task). Doing
+        // that work here — inside App.init(), before the first frame — risked an
+        // instant launch crash on device: AVAudioEngine graph errors surface as
+        // Objective-C exceptions that Swift try/catch cannot intercept. Keep init cheap.
+        log.audio("AudioEngine initialized (graph deferred to prepareGraph)")
+    }
+
+    /// Configure the audio session and build the master engine graph. Idempotent.
+    /// Must run before attaching source nodes or calling `start()`. Called post-UI
+    /// from the app's startup task so no AVAudioSession/AVAudioEngine work happens
+    /// before the UI is on screen.
+    func prepareGraph() {
+        guard !graphPrepared else { return }
+        graphPrepared = true
+        do {
+            try AudioConfiguration.configureAudioSession()
+            AudioConfiguration.registerInterruptionHandlers()
+            log.audio(AudioConfiguration.latencyStats())
+        } catch {
+            log.audio("Failed to configure audio session: \(error)", level: .warning)
+        }
+        AudioConfiguration.setAudioThreadPriority()
+        setupMasterEngine()
+        log.audio("AudioEngine graph prepared — master output wired to hardware")
     }
 
     private func setupMasterEngine() {
@@ -150,6 +167,9 @@ public final class AudioEngine {
     }
 
     func start() {
+        // Ensure the session + graph exist before starting, regardless of caller
+        // (startup task, scenePhase .active, or route-change recovery).
+        prepareGraph()
         if !masterEngine.isRunning {
             masterEngine.prepare()
             do {
@@ -249,6 +269,9 @@ public final class AudioEngine {
     // MARK: - Source Node Registration
 
     func attachSourceNode(_ sourceNode: AVAudioSourceNode) {
+        // The master graph (masterMixer attached + connected) must exist before
+        // we connect a source node into it. Idempotent — no-op once prepared.
+        prepareGraph()
         let wasRunning = masterEngine.isRunning
         if wasRunning { masterEngine.pause() }
         masterEngine.attach(sourceNode)
