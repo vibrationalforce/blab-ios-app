@@ -1721,6 +1721,10 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 ## Security
 - Owner-authorized use of the pasted `github_pat_...` this session; written ONLY to gitignored `.claude/settings.local.json`, never committed. **Still must be rotated after session** (it's in the transcript).
 
-## Next
-- When #1409 is green → dispatch full `build_only=false` to push branch features to TestFlight.
-- Resolve the App Group + .voice discrepancies owner-side.
+## Outcome — TestFlight deploy SHIPPED ✅
+- #1409 green → dispatched full upload #1410 (ios, build_only=false). **#1410 = SUCCESS.**
+  iOS job steps confirmed: Archive ✅ · Export & Upload to TestFlight ✅ · **Verify build landed in App Store Connect ✅** (ASC API polled + confirmed). First ASC-verified TestFlight build from this branch — the v1.0.0-only drought is over.
+
+## Next (owner-side)
+- Resolve the App Group (`group.com.echoelmusic` vs `…shared`) + extra `…app.voice` AUv3 discrepancies.
+- Rotate the PAT (it's in the transcript).
