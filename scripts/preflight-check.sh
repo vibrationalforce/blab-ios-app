@@ -303,7 +303,7 @@ fi
 echo ""
 echo "--- Checking CI/CD Workflow ---"
 
-WORKFLOW_FILE=".github/workflows/ios-testflight.yml"
+WORKFLOW_FILE=".github/workflows/testflight.yml"
 if [[ -f "$WORKFLOW_FILE" ]]; then
     pass "TestFlight workflow exists"
 
