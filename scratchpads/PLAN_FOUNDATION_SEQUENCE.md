@@ -1,7 +1,7 @@
 # Echoelmusic — Foundation Sequence (Phase 2 → Phase 3)
 
 **Date:** 2026-05-18
-**Branch:** `claude/audit-echoelmusic-foundation-Q9OYQ`
+**Branch:** `claude/echoelmusic-audit-testflight-2bYik` (was `claude/audit-echoelmusic-foundation-Q9OYQ`)
 **Predecessor:** `scratchpads/AUDIT_FOUNDATION_2026-05-18.md` (Phase 1)
 **Authority:** Owner direction 2026-05-18 — "Alles für die Zukunft vorbereiten iOS 27. iPhone First. Ouraring bereits vorhanden zum Testen."
 

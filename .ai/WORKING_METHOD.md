@@ -14,7 +14,7 @@ This file is short on purpose. If it grows past two screens, something is wrong.
 | `swift build` / `swift test` | ❌ no toolchain | ❌ iPhone has no Swift CLI | ✅ in CI |
 | `xcodebuild archive` | ❌ | ❌ | ✅ in CI (`testflight.yml`) |
 | `fastlane pilot upload` | ❌ | ❌ | ✅ in CI (`testflight.yml`) |
-| Trigger workflow_dispatch | ❌ no `gh`, no MCP tool | ✅ via GitHub web UI on iPhone | n/a |
+| Trigger workflow_dispatch | ✅ via `curl` + PAT (`scripts/check-testflight.sh dispatch`) | ✅ via GitHub web UI on iPhone | n/a |
 | Read GitHub PRs / issues / commits | ✅ via `mcp__github__*` | ✅ via web | ✅ |
 | Real device test | ❌ | ✅ TestFlight on iPhone | ❌ |
 
@@ -35,7 +35,7 @@ This is stricter than a normal dev loop. It rewards small, focused commits and p
 │         ↓                                                               │
 │   3. COMMIT            conventional prefix, one logical change          │
 │         ↓                                                               │
-│   4. PUSH              to claude/unified-production-app-Qdm6b           │
+│   4. PUSH              to claude/echoelmusic-audit-testflight-2bYik     │
 │         ↓                                                               │
 │   5. TRIGGER CI        iPhone → github.com/.../actions →                │
 │                          testflight.yml → "Run workflow":               │
@@ -86,7 +86,8 @@ This is stricter than a normal dev loop. It rewards small, focused commits and p
 
 ## Triggering CI from iPhone (no Mac, no gh CLI)
 
-Sandbox-Claude cannot trigger workflows. The user does it from iPhone:
+Sandbox-Claude can now dispatch directly via `bash scripts/check-testflight.sh dispatch`
+(curl + PAT from the gitignored `.claude/settings.local.json`). The user can also do it from iPhone:
 
 **Step 1 — Open the workflow:**
 Safari → `https://github.com/vibrationalforce/Echoelmusic/actions/workflows/testflight.yml`
@@ -187,7 +188,7 @@ Every sandbox-Claude session starts by reading these files in order:
 ```
 
 The session-start state question that must be answered before any code change:
-**"Is the latest CI run on `claude/unified-production-app-Qdm6b` green?"**
+**"Is the latest CI run on `claude/echoelmusic-audit-testflight-2bYik` green?"**
 - If green: pick the next item from PLAN_v10 and write it.
 - If red: that's the cycle. Read the failure, fix it, re-trigger CI.
 - If unknown: ask the user to trigger `build_only: true` and report the result.

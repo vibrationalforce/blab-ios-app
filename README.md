@@ -9,7 +9,7 @@ What Loopy Pro, Bitwig, and TouchDesigner together cannot do: a single iPhone ap
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Foundation%20%E2%86%92%20Skelett-blue.svg)](./scratchpads/PLAN_FOUNDATION_SEQUENCE.md)
 
-> Pre-TestFlight. Foundation cycles in progress on `claude/audit-echoelmusic-foundation-Q9OYQ`. See `scratchpads/STRATEGY_2026-05-18.md` and `scratchpads/PLAN_FOUNDATION_SEQUENCE.md` for the sequenced roadmap.
+> Pre-TestFlight. Foundation cycles in progress on `claude/echoelmusic-audit-testflight-2bYik`. See `scratchpads/STRATEGY_2026-05-18.md` and `scratchpads/PLAN_FOUNDATION_SEQUENCE.md` for the sequenced roadmap.
 
 ---
 

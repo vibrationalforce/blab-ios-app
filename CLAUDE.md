@@ -17,7 +17,7 @@ Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-trac
 
 ## CURRENT STATE
 
-- **Branch:** `claude/audit-echoelmusic-foundation-Q9OYQ` (Foundation → Bio-Reactive Vision, 33 commits)
+- **Branch:** `claude/echoelmusic-audit-testflight-2bYik` (Foundation → Bio-Reactive Vision → TestFlight, 42+ commits ahead of `main`)
 - **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
 - **Positioning:** "The first bio-reactive performance instrument. What Loopy Pro, Bitwig, and TouchDesigner together cannot do." (`scratchpads/STRATEGY_2026-05-18.md`)
 - **Architecture:** `EngineBus` (hybrid `@MainActor @Observable` control plane + lock-free SPSCQueue data plane) routes 3 topics — `bioFrames` / `controllerEvents` / `bioEvents`. Modules are bus producers/consumers, never directly coupled.
