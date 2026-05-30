@@ -1,8 +1,8 @@
 # Echoelmusic
 
-**The first bio-reactive performance instrument.**
+**Physical Computing · Biofeedback · Multimedial & Multidimensional.**
 
-What Loopy Pro, Bitwig, and TouchDesigner together cannot do: a single iPhone app where every sound, modulation, and visual is driven by your live physiology — heart rate, HRV, breath, motion, brain rhythms — through a typed pub/sub bus that any external controller, DAW, or stage tool can subscribe to.
+An immersive, iPhone-first instrument and production platform for **Installation · Event · Content · Cinema · Theater · Performance · Live Broadcast.** A single app where every sound, modulation, visual, and light cue is driven by your live physiology — heart rate, HRV, breath, motion, brain rhythms — through a typed pub/sub bus that any external controller, DAW, or stage tool can subscribe to. What Loopy Pro, Bitwig, and TouchDesigner together cannot do.
 
 [![iOS](https://img.shields.io/badge/iOS-18+-black.svg)](https://developer.apple.com/ios/)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)

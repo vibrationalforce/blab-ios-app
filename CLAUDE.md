@@ -1,4 +1,4 @@
-# CLAUDE.md — Echoel v10 (DAW + Video + Stream)
+# CLAUDE.md — Echoel v10 (Bio · Audio · Video · Light · Broadcast)
 
 ## IDENTITY
 
@@ -8,10 +8,12 @@ App Apple ID: 6757957358
 SKU: Simsalabimbam
 Bundle: com.echoelmusic.*
 
-**Echoel — Make Beats. Record Video. Stream Live.**
-A unified iPhone studio that replaces FL Studio Mobile + Ableton + iPhone Camera + InShot + OBS in one app.
+**Echoel — Physical Computing · Biofeedback · Multimedial & Multidimensional.**
+An immersive, iPhone-first instrument and production platform where the body — heart, breath, motion, brain rhythm — drives sound, image, light, and broadcast in real time.
 
-Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-track Recorder** (mic over beats) · **Video Capture & Trim** (camera + clip editing) · **RTMP Live Stream** (YouTube / Twitch / Facebook / custom).
+Built for: **Installation · Event · Content · Cinema · Theater · Performance · Live Broadcast.**
+
+Capabilities (all routed through one typed bus): **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-track Recorder** (mic over beats) · **Video Capture & Trim** · **RTMP Live Stream** (YouTube / Twitch / Facebook / custom) · **bio-reactive synthesis** · **OSC / MIDI / MPE I/O** · **generative visuals + lighting**.
 
 ---
 
@@ -32,10 +34,15 @@ Pillars: **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-trac
 
 ## BRAND
 
-Echoel — Make Beats. Record Video. Stream Live.
+**Echoel — Physical Computing · Biofeedback · Multimedial & Multidimensional.**
 
-The product replaces FL Studio Mobile + Ableton + iPhone-Camera + InShot + OBS in one iPhone app.
-NEVER use "BLAB", "Vibrational Force", or legacy bio-wellness/soundscape branding in user-facing copy.
+An immersive multimedia instrument and production platform for **Installation · Event · Content · Cinema · Theater · Performance · Live Broadcast.** The body is the controller: heart, breath, motion, and brain rhythm drive sound, image, light, and stream in real time.
+
+Concrete capabilities span beat-making, multi-track recording, video capture/edit, RTMP live streaming, bio-reactive synthesis, generative visuals, and OSC/MIDI/MPE integration — but the identity is **the instrument**, not any single competitor it replaces.
+
+**Biofeedback is core, not wellness.** Echoel treats physiology as a first-class, science-based modulation source (HRV resonance, peer-reviewed bio-signal processing). It is NOT a wellness, soundscape, or therapy product.
+
+NEVER use "BLAB", "Vibrational Force", legacy bio-wellness/soundscape branding, or esoteric terminology ("healing frequencies", chakras, Solfeggio) in user-facing copy.
 
 ---
 
