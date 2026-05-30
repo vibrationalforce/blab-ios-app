@@ -1725,6 +1725,13 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - #1409 green → dispatched full upload #1410 (ios, build_only=false). **#1410 = SUCCESS.**
   iOS job steps confirmed: Archive ✅ · Export & Upload to TestFlight ✅ · **Verify build landed in App Store Connect ✅** (ASC API polled + confirmed). First ASC-verified TestFlight build from this branch — the v1.0.0-only drought is over.
 
+## Launch-crash fix (owner reported #1410 crashes immediately on launch, before UI)
+- Static diagnosis (no crash log available): only heavy synchronous work in App.init() was AudioEngine.init() building the full AVAudioEngine graph. AVAudioEngine graph errors are Objective-C exceptions Swift try/catch can't intercept → uncatchable crash before first frame. #1410 was the first installable build since v1.0.0, so this new startup wiring never ran on device.
+- Fix (`fix(audio):` fe18285): moved AVAudioSession activation + master-graph build out of init into idempotent `AudioEngine.prepareGraph()`, called post-UI from the startup .task (and defensively from start()/attachSourceNode()). App.init() now cheap, no audio I/O before UI. Added APP INIT + STARTUP[1..5] breadcrumb logs. Hardened both source-node factories: dropped the unsafe `?? AVAudioFormat()` (invalid 0Hz/0ch → AVAudioSourceNode crash) for the format-inferring `AVAudioSourceNode(renderBlock:)` initializer (no force unwrap).
+- Verified: compile-check #1411 green; full upload **#1413 = SUCCESS, ASC-verified** (Archive + Export & Upload + Verify-landed-in-ASC all green). Awaiting owner on-device confirmation the launch crash is gone.
+- If it still crashes: capture iPhone → Settings → Privacy & Security → Analytics & Improvements → Analytics Data → `Echoelmusic-…`; the breadcrumbs pinpoint the failing step in one more cycle.
+
 ## Next (owner-side)
+- Install build #1413 and confirm launch crash resolved.
 - Resolve the App Group (`group.com.echoelmusic` vs `…shared`) + extra `…app.voice` AUv3 discrepancies.
 - Rotate the PAT (it's in the transcript).
