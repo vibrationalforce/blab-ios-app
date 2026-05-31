@@ -2,18 +2,19 @@
 //  BioSimulator.swift
 //  Echoelmusic
 //
-//  DEBUG-only placeholder bio source. Publishes a slowly-walking
-//  BioSampleFrame onto EngineBus once per second so dev builds show
-//  a live bus while no real sensor (Oura, HealthKit, BLE) is wired in.
+//  Explicit, user-initiated DEMO bio source. Publishes a slowly-walking
+//  BioSampleFrame onto EngineBus once per second so the instrument is
+//  playable without paired hardware (Oura, HealthKit, BLE) — essential
+//  for evaluating the bio-reactive synth, modulation matrix, and OSC out
+//  on a device that has no sensor connected.
 //
-//  Compiled out of Release builds via #if DEBUG so TestFlight users
-//  see an honest "no source connected" state instead of fabricated
-//  biometric data. Master prompt §1: science-first display, real data
-//  only — the simulator's source label is `.fallback` and the strip
-//  flags it as a demo.
+//  Honesty: the frame's source is `.fallback`, so the bio strip always
+//  labels it "Demo" — it is never presented as real biometric data, and
+//  it only runs when the user explicitly enables it (or, in DEBUG, auto-on
+//  for development). It defers to any real bio publisher already on the bus.
+//  Master prompt §1: science-first display — the demo is clearly flagged.
 //
 
-#if DEBUG
 import Foundation
 #if canImport(Observation)
 import Observation
@@ -90,4 +91,3 @@ public final class BioSimulator {
         min(max(x, range.lowerBound), range.upperBound)
     }
 }
-#endif

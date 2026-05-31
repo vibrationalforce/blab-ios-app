@@ -6,13 +6,14 @@ struct StudioRoot: View {
 
     @Environment(EngineBus.self) private var bus
 
-    #if DEBUG
-    @State private var simulator = BioSimulator()
-    #endif
+    /// Opt-in demo bio source (labeled "Demo"). Owned here, toggled from the
+    /// bio strip's source tag so the instrument is playable without hardware.
+    @State private var demoSource = BioSimulator()
 
     var body: some View {
         VStack(spacing: 0) {
             BioStripView()
+                .environment(demoSource)
             TabView {
                 BeatTab()
                     .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
@@ -28,8 +29,10 @@ struct StudioRoot: View {
             }
         }
         #if DEBUG
+        // Dev convenience: auto-start the demo so the bus is live in the
+        // simulator/Xcode. Release requires an explicit tap on the source tag.
         .task {
-            simulator.start(publishing: bus)
+            demoSource.start(publishing: bus)
         }
         #endif
     }

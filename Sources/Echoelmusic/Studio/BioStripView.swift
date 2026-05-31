@@ -20,6 +20,7 @@ struct BioStripView: View {
     @Environment(EngineBus.self) private var bus
     @Environment(BioReactiveSynthVoice.self) private var voice
     @Environment(BioEventPublisher.self) private var events
+    @Environment(BioSimulator.self) private var demoSource
     #if canImport(CoreMIDI)
     @Environment(MIDIBusPublisher.self) private var midi
     #endif
@@ -28,7 +29,7 @@ struct BioStripView: View {
     #endif
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             metric(label: "HR",  value: hrString,        unit: "bpm")
             divider
             metric(label: "HRV", value: hrvString,       unit: nil)
@@ -36,15 +37,14 @@ struct BioStripView: View {
             metric(label: "Br",  value: breathString,    unit: "/min")
             divider
             metric(label: "Coh", value: coherenceString, unit: nil)
-            divider
-            metric(label: "→",   value: synthFramesString, unit: nil)
-            Spacer(minLength: 0)
+            Spacer(minLength: 4)
             eventDot
             midiDot
             oscDot
             playButton
             sourceTag
         }
+        .lineLimit(1)
         .font(.system(size: 12, weight: .medium, design: .monospaced))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -60,7 +60,7 @@ struct BioStripView: View {
     // MARK: - Metric cells
 
     private func metric(label: String, value: String, unit: String?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(label)
                 .foregroundStyle(.secondary)
             Text(value)
@@ -69,6 +69,7 @@ struct BioStripView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var divider: some View {
@@ -151,22 +152,39 @@ struct BioStripView: View {
 
     // MARK: - Source tag
 
-    @ViewBuilder
+    /// Tappable source tag. Shows the live source label; when no real sensor
+    /// is connected, tapping starts/stops the explicit "Demo" source so the
+    /// instrument is playable without hardware.
     private var sourceTag: some View {
-        if let bio = bus.latestBio {
-            Text(sourceLabel(bio.source))
+        Button {
+            toggleDemo()
+        } label: {
+            Text(sourceText)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.white.opacity(0.08))
+                .background(demoSource.isRunning ? Color.green.opacity(0.22) : Color.white.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(demoSource.isRunning ? Color.green : Color.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Bio source: \(sourceText). Tap to toggle demo source.")
+    }
+
+    /// Real sensor frames win; otherwise reflect demo state with a tap hint.
+    private var sourceText: String {
+        if let bio = bus.latestBio, bio.source != .fallback {
+            return sourceLabel(bio.source)
+        }
+        return demoSource.isRunning ? "Demo" : "Demo ▷"
+    }
+
+    private func toggleDemo() {
+        if demoSource.isRunning {
+            demoSource.stop()
         } else {
-            Text("No source")
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.white.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .foregroundStyle(.secondary)
+            demoSource.start(publishing: bus)
         }
     }
 
@@ -190,12 +208,6 @@ struct BioStripView: View {
     private var coherenceString: String {
         guard let v = bus.latestBio?.coherence else { return "—" }
         return String(format: "%.2f", v)
-    }
-
-    /// Count of frames the BioReactiveSynthVoice has applied to its
-    /// EchoelDDSP — visible proof the bus → DSP chain is alive.
-    private var synthFramesString: String {
-        voice.framesApplied > 0 ? "\(voice.framesApplied)" : "—"
     }
 
     private func sourceLabel(_ source: BioSource) -> String {
