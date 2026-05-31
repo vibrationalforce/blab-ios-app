@@ -1837,3 +1837,54 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 2. NEXT: persist + expand Modulation (Codable matrix → EchoelStore/UserDefaults; more destinations: non-conflicting synth param, OSC-out of mod values; heartbeat→beat route).
 3. THEN: Visuals (EchoelVis) — wire Metal bio-visual renderer into a visible surface.
 4. Synth musicality tuning — AFTER owner device re-test with Demo source on (needs ear).
+
+---
+
+## 2026-05-31 — FULL SESSION TALLY (11 cycles + 2 audits, all CI-green + on TestFlight)
+
+Dev model confirmed: repo IS the build env (GitHub Actions macOS-26 + XcodeGen
++ Fastlane). Loop per cycle: write → push → ci.yml (xcodebuild build+test iOS
+sim + macOS) → auto-merge to main → testflight.yml auto archive+upload. Token
+used via env var only (never on disk; harness rejects a `github` key in
+settings.local.json).
+
+| # | Commit | Cycle |
+|---|--------|-------|
+| 1 | 98190b6 | OSC discrete bio-events `/echoelmusic/bio/event/*` (ASC-verified #1416) |
+| 2 | 0d6441a | ModulationMatrix v0 (Codable value types + evaluate) |
+| 3 | a1026f4 | ModulationEngine runtime + app wiring (seq.tempo destination) |
+| 4 | 13e8fda | Routing UI (Sync tab) — live/Capture, depth/invert |
+| 5 | 6d920b3 | Demo bio source in Release (tap source tag) + fixed bio-strip char-wrap |
+| 6 | b32312e | Well tab — coherence readout + paced-breathing guide |
+| 7 | 22c16df | Works tab — SessionRecorder (Codable→UserDefaults) + history |
+| 8 | 371211d | Modulation persistence (matrix → UserDefaults) |
+| 9 | dbadeef | OSC-out of modulation values `/echoelmusic/mod/<key>` (outputTap) |
+| 10 | 114a47a | refactor: extract shared PollingLoop, de-dup 4 bus subscribers (audit P1) |
+| 11 | 01fc040 | Immersive bio-visual (SwiftUI Canvas: rings=HR, color=coherence, breath=spread) |
+
+Audits committed: `SENIOR_AUDIT_2026-05-31.md` (architecture/perf/root-cause/refactor),
+`SECURITY_AUDIT_2026-05-31.md` (🔴 rotate the exposed PAT).
+
+ALL FOUR TABS ARE NOW REAL (no placeholders): Tools(Beat) / Works(sessions) /
+Sync(modulation) / Well(coherence+breath+immersive visual).
+
+### Generic "act like a senior X" prompt-pack — how handled
+Owner pasted ~10 generic templates (build-from-scratch, DB schema/REST API/
+caching, K8s/Docker, frontend component lib, architecture/debug/perf/security/
+clean-arch/tech-lead). Applied the ones that fit a native-iOS instrument
+(architecture+security+perf → 2 audits; clean-arch → the PollingLoop refactor);
+declined the server/web/infra ones as non-applicable (no backend exists; CLAUDE.md
+forbids restructuring/new deps). Did NOT fabricate infrastructure.
+
+### Gated on OWNER (not doable here)
+- 🔴 ROTATE the GitHub PAT (pasted in transcript; push/admin scope).
+- Synth musicality tuning — needs device ear (tap Demo ▷ + play, report what's off).
+- Linux `swift build` red (quick-test.yml, pre-existing ≥05-25) — paste the
+  compile error (job logs egress-blocked from sandbox; no Linux toolchain here).
+- Register `group.com.echoelmusic` in ASC if not already.
+
+### Deliberately NOT done (avoid gold-plating / risk)
+- Audit P4 (param-ownership registry) — premature with a single destination;
+  revisit when multiple destinations exist.
+- Reusing the Metal `BioVisualRenderer` — coupled to deprecated SoundscapeEngine;
+  built a clean SwiftUI Canvas visual instead.
