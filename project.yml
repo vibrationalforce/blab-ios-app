@@ -169,6 +169,12 @@ targets:
         type: group
         excludes:
           - "**/*.md"
+      # Shared DSP (self-contained: Foundation+Accelerate only) compiled into
+      # the extension module so the AU can synthesize without a framework.
+      - path: Sources/Echoelmusic/DSP
+        type: group
+      # Foundation-only App-Group bridge for live vitals from the main app.
+      - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
     info:
       path: Resources/EchoelmusicAUv3/Info.plist
       properties:

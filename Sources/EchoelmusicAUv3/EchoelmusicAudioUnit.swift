@@ -23,6 +23,11 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     private let texture = EchoelCellular(cellCount: 128, sampleRate: 48000)
     private var isNoteOn = false
 
+    /// Shared vitals from the main app over the App Group. Refreshed OFF the
+    /// render thread by `vitalsTimer`; the render block never reads UserDefaults.
+    private let bioFeedback = BioFeedbackManager()
+    nonisolated(unsafe) private var vitalsTimer: DispatchSourceTimer?
+
     /// Pre-allocated scratch buffers for render block — NO heap allocation on audio thread
     nonisolated(unsafe) private var padScratch = [Float](repeating: 0, count: 4096)
     nonisolated(unsafe) private var texScratch = [Float](repeating: 0, count: 4096)
@@ -292,13 +297,40 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         synth.amplitude = 0.6
         synth.noteOn(frequency: baseFreqParam.value)
         isNoteOn = true
+        startVitalsPolling()
         os_log(.info, log: Self.auLog, "Generator started: %.0f Hz", baseFreqParam.value)
     }
 
     public override func deallocateRenderResources() {
         super.deallocateRenderResources()
+        vitalsTimer?.cancel()
+        vitalsTimer = nil
         if isNoteOn { synth.noteOff(); isNoteOn = false }
         os_log(.info, log: Self.auLog, "Generator stopped")
+    }
+
+    // MARK: - Shared vitals (App Group → bio params)
+
+    /// Starts a 2 Hz utility-queue timer (NOT the render thread) that reads the
+    /// latest vitals shared by the main app and pushes them into the bio params.
+    private func startVitalsPolling() {
+        let timer = DispatchSource.makeTimerSource(
+            queue: DispatchQueue(label: "com.echoelmusic.app.auv3.vitals", qos: .utility)
+        )
+        timer.schedule(deadline: .now() + 0.5, repeating: 0.5)
+        timer.setEventHandler { [weak self] in self?.pullSharedVitals() }
+        timer.resume()
+        vitalsTimer = timer
+    }
+
+    /// Folds the latest App-Group vitals into the bio params; the existing
+    /// param observer applies them to the synth. Runs off the render thread.
+    private func pullSharedVitals() {
+        guard bioFeedback.refreshFromSharedStore() != nil else { return }
+        coherenceParam.value = bioFeedback.coherence
+        hrvParam.value = bioFeedback.hrv
+        heartRateParam.value = max(0, min(1, (bioFeedback.heartRate - 40) / 160))
+        breathPhaseParam.value = bioFeedback.breathPhase
     }
 
     public override var internalRenderBlock: AUInternalRenderBlock {
