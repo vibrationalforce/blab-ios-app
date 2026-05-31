@@ -54,7 +54,7 @@ public final class ModulationEngine {
     public var outputTap: ((ModDestination, Float) -> Void)?
 
     @ObservationIgnored
-    private var task: Task<Void, Never>?
+    private let loop = PollingLoop()
 
     @ObservationIgnored
     private var lastFrameTimestamp: TimeInterval = -1
@@ -110,18 +110,14 @@ public final class ModulationEngine {
         guard !isActive else { return }
         self.bus = bus
         isActive = true
-        task = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                guard let self, let bus = self.bus else { break }
-                self.tick(from: bus)
-                try? await Task.sleep(for: .milliseconds(100))
-            }
+        loop.start(interval: .milliseconds(100)) { [weak self] in
+            guard let self, let bus = self.bus else { return }
+            self.tick(from: bus)
         }
     }
 
     public func stop() {
-        task?.cancel()
-        task = nil
+        loop.stop()
         isActive = false
     }
 

@@ -71,7 +71,7 @@ public final class BioReactiveSynthVoice {
     private weak var bus: EngineBus?
 
     @ObservationIgnored
-    private var task: Task<Void, Never>?
+    private let loop = PollingLoop()
 
     @ObservationIgnored
     private var lastTimestamp: TimeInterval = -1
@@ -134,14 +134,11 @@ public final class BioReactiveSynthVoice {
         guard !isSubscribed else { return }
         self.bus = bus
         isSubscribed = true
-        task = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                guard let self, let bus = self.bus else { break }
-                self.applyLatestIfFresh(from: bus)
-                self.drainControllerEvents(from: bus)
-                self.consumeBioEventsIfFresh(from: bus)
-                try? await Task.sleep(for: .milliseconds(100))
-            }
+        loop.start(interval: .milliseconds(100)) { [weak self] in
+            guard let self, let bus = self.bus else { return }
+            self.applyLatestIfFresh(from: bus)
+            self.drainControllerEvents(from: bus)
+            self.consumeBioEventsIfFresh(from: bus)
         }
     }
 
@@ -196,8 +193,7 @@ public final class BioReactiveSynthVoice {
     }
 
     public func stop() {
-        task?.cancel()
-        task = nil
+        loop.stop()
         isSubscribed = false
     }
 

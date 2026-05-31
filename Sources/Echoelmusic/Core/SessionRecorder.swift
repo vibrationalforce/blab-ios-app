@@ -60,7 +60,7 @@ public final class SessionRecorder {
     @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
 
     @ObservationIgnored private weak var bus: EngineBus?
-    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private let loop = PollingLoop()
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let storageKey = "bioSessions.v1"
@@ -79,14 +79,11 @@ public final class SessionRecorder {
         startDate = Date()
         elapsedSeconds = 0
         isRecording = true
-        task = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                guard let self, let bus = self.bus else { break }
-                if let frame = bus.latestBio { self.ingest(frame) }
-                if let start = self.startDate {
-                    self.elapsedSeconds = Int(Date().timeIntervalSince(start))
-                }
-                try? await Task.sleep(for: .seconds(1))
+        loop.start(interval: .seconds(1)) { [weak self] in
+            guard let self, let bus = self.bus else { return }
+            if let frame = bus.latestBio { self.ingest(frame) }
+            if let start = self.startDate {
+                self.elapsedSeconds = Int(Date().timeIntervalSince(start))
             }
         }
     }
@@ -96,7 +93,7 @@ public final class SessionRecorder {
     @discardableResult
     public func stop() -> BioSessionSummary? {
         guard isRecording else { return nil }
-        task?.cancel(); task = nil
+        loop.stop()
         isRecording = false
         let summary = currentSummary()
         startDate = nil
