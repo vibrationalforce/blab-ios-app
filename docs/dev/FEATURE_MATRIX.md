@@ -91,8 +91,8 @@ acceptance line.
 
 ### 11. EchoelNet — `PARTIAL`
 - **Code:** `Sync/OSCSender.swift` (EchoelSync)
-- **Live:** OSC 1.0 over UDP, big-endian floats, ~100 ms cadence, 6 bio addresses `/echoelmusic/bio/*`, default `localhost:8000`.
-- **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, OSC for controller/bio events.
+- **Live:** OSC 1.0 over UDP, big-endian floats, ~100 ms cadence, 6 continuous bio addresses `/echoelmusic/bio/*` + 6 discrete bio-event addresses `/echoelmusic/bio/event/*` (heartbeat/breath/motion/coherence/eeg, args `[confidence, aux]`), default `localhost:8000`.
+- **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, OSC for controller events.
 - **TestFlight acceptance:** OSC frames reach a LAN receiver (Resolume/TouchDesigner/Sonic Pi).
 
 ### 12. EchoelAI — `ROADMAP`

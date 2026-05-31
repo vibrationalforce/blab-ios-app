@@ -58,6 +58,39 @@ final class OSCSenderTests: XCTestCase {
         XCTAssertEqual(Array(data), expected)
     }
 
+    // MARK: - address(for:) — discrete bio-event mapping
+
+    func testAddress_eachKind_mapsToExpectedPath() {
+        XCTAssertEqual(OSCSender.address(for: .heartbeat),         "/echoelmusic/bio/event/heartbeat")
+        XCTAssertEqual(OSCSender.address(for: .breathInhaleOnset), "/echoelmusic/bio/event/breath/inhale")
+        XCTAssertEqual(OSCSender.address(for: .breathExhaleOnset), "/echoelmusic/bio/event/breath/exhale")
+        XCTAssertEqual(OSCSender.address(for: .motionPeak),        "/echoelmusic/bio/event/motion")
+        XCTAssertEqual(OSCSender.address(for: .coherenceShift),    "/echoelmusic/bio/event/coherence")
+        XCTAssertEqual(OSCSender.address(for: .eegBurst),          "/echoelmusic/bio/event/eeg")
+    }
+
+    func testAddress_allKinds_areUniqueAndUnderEventNamespace() {
+        let kinds: [BioEvent.Kind] = [
+            .heartbeat, .breathInhaleOnset, .breathExhaleOnset,
+            .motionPeak, .coherenceShift, .eegBurst
+        ]
+        let addresses = kinds.map { OSCSender.address(for: $0) }
+        XCTAssertEqual(Set(addresses).count, kinds.count, "addresses must be unique per kind")
+        for a in addresses {
+            XCTAssertTrue(a.hasPrefix("/echoelmusic/bio/event/"), "\(a) must live under the event namespace")
+        }
+    }
+
+    // A heartbeat event encodes to address + [confidence, aux] as two floats.
+    func testEncode_heartbeatEvent_addressPlusTwoFloats() {
+        let data = OSCSender.encode(
+            address: OSCSender.address(for: .heartbeat),
+            floats: [1.0, 0.0]
+        )
+        // ",ff" type tag → two big-endian floats follow the padded address.
+        XCTAssertEqual(Array(data.suffix(8)), [0x3F, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    }
+
     // MARK: - Lifecycle
 
     @MainActor

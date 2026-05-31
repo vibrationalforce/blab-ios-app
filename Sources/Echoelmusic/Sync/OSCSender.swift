@@ -18,6 +18,14 @@
 //    /echoelmusic/bio/coherence     float [0..1]
 //    /echoelmusic/bio/motion        float [0..1]
 //
+//  Discrete BioEventGraph events (kind → address, args [confidence, aux]):
+//    /echoelmusic/bio/event/heartbeat      float[2]  aux = inter-beat interval ms
+//    /echoelmusic/bio/event/breath/inhale  float[2]
+//    /echoelmusic/bio/event/breath/exhale  float[2]
+//    /echoelmusic/bio/event/motion         float[2]
+//    /echoelmusic/bio/event/coherence      float[2]
+//    /echoelmusic/bio/event/eeg            float[2]  aux = band power
+//
 //  Default endpoint: localhost:8000 (same as TouchOSC default;
 //  user-configurable in a later cycle).
 //
@@ -55,6 +63,9 @@ public final class OSCSender {
     @ObservationIgnored
     private var lastFrameTimestamp: TimeInterval = -1
 
+    @ObservationIgnored
+    private var lastEventTimestamp: TimeInterval = -1
+
     public init(host: String = "localhost", port: UInt16 = 8000) {
         self.host = host
         self.port = port
@@ -69,6 +80,7 @@ public final class OSCSender {
             while !Task.isCancelled {
                 guard let self, let bus = self.bus else { break }
                 self.sendIfFresh(from: bus)
+                self.sendEventIfFresh(from: bus)
                 try? await Task.sleep(for: .milliseconds(100))
             }
         }
@@ -100,6 +112,38 @@ public final class OSCSender {
         lastFrameTimestamp = frame.timestamp
         send(frame: frame)
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()
+    }
+
+    /// Sends the latest discrete bio event if it is newer than the one we
+    /// last forwarded. Reads the `@MainActor` snapshot (`latestBioEvent`),
+    /// not the lock-free `bioEvents` queue, so it never contends with the
+    /// audio-thread consumer for that SPSC queue. At the 100 ms tick cadence,
+    /// events closer together than 100 ms collapse to the most recent — fine
+    /// for heartbeat/breath/motion rates; a return channel can tighten this later.
+    private func sendEventIfFresh(from bus: EngineBus) {
+        guard let event = bus.latestBioEvent else { return }
+        guard event.timestamp != lastEventTimestamp else { return }
+        lastEventTimestamp = event.timestamp
+        send(event: event)
+        lastSentTimestamp = CFAbsoluteTimeGetCurrent()
+    }
+
+    private func send(event: BioEvent) {
+        send(address: Self.address(for: event.kind), floats: [event.confidence, event.aux])
+    }
+
+    /// OSC address for a discrete bio event, mirroring the continuous
+    /// `/echoelmusic/bio/*` space with an `/event/` segment. Pure mapping,
+    /// unit-testable without a socket.
+    public static func address(for kind: BioEvent.Kind) -> String {
+        switch kind {
+        case .heartbeat:         return "/echoelmusic/bio/event/heartbeat"
+        case .breathInhaleOnset: return "/echoelmusic/bio/event/breath/inhale"
+        case .breathExhaleOnset: return "/echoelmusic/bio/event/breath/exhale"
+        case .motionPeak:        return "/echoelmusic/bio/event/motion"
+        case .coherenceShift:    return "/echoelmusic/bio/event/coherence"
+        case .eegBurst:          return "/echoelmusic/bio/event/eeg"
+        }
     }
 
     private func send(frame: BioSampleFrame) {
