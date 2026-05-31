@@ -25,6 +25,7 @@ struct EchoelmusicApp: App {
     #if canImport(Network)
     @State private var osc: OSCSender
     #endif
+    @State private var modulationEngine: ModulationEngine
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -55,6 +56,7 @@ struct EchoelmusicApp: App {
         #if canImport(Network)
         _osc = State(wrappedValue: OSCSender())
         #endif
+        _modulationEngine = State(wrappedValue: ModulationEngine())
 
         _ = MemoryPressureHandler.shared
         log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
@@ -85,6 +87,7 @@ struct EchoelmusicApp: App {
             #if canImport(Network)
             .environment(osc)
             #endif
+            .environment(modulationEngine)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
@@ -127,6 +130,15 @@ struct EchoelmusicApp: App {
                 #if canImport(Network)
                 osc.start(subscribing: bus)
                 #endif
+
+                // Modulation routing: wire real destinations, then go live.
+                // Default matrix is empty → nothing is applied until the user
+                // adds a route, so this is a zero-behavior-change wiring.
+                // Tempo handler scales the [0..1] modulation into [30..300] BPM.
+                modulationEngine.register(ModDestinationKey.tempo) { [weak beatPlayer] value in
+                    beatPlayer?.pattern.setTempo(30 + Double(value) * 270)
+                }
+                modulationEngine.start(subscribing: bus)
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {
