@@ -116,7 +116,6 @@ let project = Project(
             entitlements: .file(path: "Echoelmusic.entitlements"),
             dependencies: [
                 .target(name: "EchoelmusicAUv3"),
-                .target(name: "EchoelVoice"),
                 .target(name: "EchoelmusicWidgets"),
                 .target(name: "EchoelmusicWatch"),
                 .target(name: "EchoelmusicTV")
@@ -325,51 +324,6 @@ let project = Project(
             settings: .settings(
                 base: [
                     "PRODUCT_BUNDLE_IDENTIFIER": "com.echoelmusic.app.auv3",
-                    "TARGETED_DEVICE_FAMILY": "1,2",
-                    "SKIP_INSTALL": "YES",
-                    "SUPPORTS_MACCATALYST": "YES"
-                ],
-                defaultSettings: .recommended
-            )
-        ),
-
-        // MARK: - EchoelVoice AUv3 Plugin (Bio-Reactive Vocal Processor)
-        Target(
-            name: "EchoelVoice",
-            platform: .iOS,
-            product: .appExtension,
-            bundleId: "com.echoelmusic.app.voice",
-            deploymentTarget: .iOS(targetVersion: "17.0", devices: [.iphone, .ipad]),
-            infoPlist: .extendingDefault(with: [
-                "CFBundleDisplayName": "EchoelVoice",
-                "NSExtension": [
-                    "NSExtensionPointIdentifier": "com.apple.AudioUnit-UI",
-                    "NSExtensionPrincipalClass": "$(PRODUCT_MODULE_NAME).EchoelVoiceViewController",
-                    "AudioComponents": [
-                        [
-                            "name": "Echoelmusic Technologies: EchoelVoice",
-                            "description": "Bio-Reactive Vocal Processor",
-                            "factoryFunction": "EchoelVoiceAudioUnitFactory",
-                            "manufacturer": "Echo",
-                            "type": "aufx",
-                            "subtype": "evoc",
-                            "version": 10000,
-                            "sandboxSafe": true,
-                            "tags": ["Effects", "Vocal", "Pitch Correction", "Bio-Reactive"]
-                        ]
-                    ]
-                ],
-                "CFBundleShortVersionString": "1.0.0",
-                "CFBundleVersion": "1"
-            ]),
-            sources: [
-                "Sources/EchoelVoice/**/*.swift"
-            ],
-            entitlements: .file(path: "EchoelVoice.entitlements"),
-            dependencies: [],
-            settings: .settings(
-                base: [
-                    "PRODUCT_BUNDLE_IDENTIFIER": "com.echoelmusic.app.voice",
                     "TARGETED_DEVICE_FAMILY": "1,2",
                     "SKIP_INSTALL": "YES",
                     "SUPPORTS_MACCATALYST": "YES"

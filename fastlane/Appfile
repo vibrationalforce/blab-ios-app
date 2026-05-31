@@ -82,6 +82,6 @@ end
 #       Notification service: com.echoelmusic.app.notification-service
 #
 # App Groups:
-#   - group.com.echoelmusic.shared     (shared data between apps & extensions)
+#   - group.com.echoelmusic            (shared data between apps & extensions)
 #
 # =============================================================================
