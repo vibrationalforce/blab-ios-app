@@ -1815,3 +1815,25 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - Known pre-existing red: `quick-test.yml` Linux `swift build` (≥05-25, not ours; logs egress-blocked → owner must paste error).
 - On-device TODO: OSC bio-events (LAN receiver), and Modulation — open Sync tab, add a route to seq.tempo, confirm tempo follows coherence/HR; test Capture/Drift.
 - Next cycles: persist ModulationMatrix (Codable) via EchoelStore; expand destinations (non-conflicting synth path, OSC-out of mod values); heartbeat→beat as a route once a seq-trigger destination exists.
+
+## Device feedback (owner screenshots, 4 tabs)
+- Modulation UI works (Sync tab shows Co…ce → seq.tempo, Live/Capture, Depth, Invert). BUT: (a) BioStripView labels wrapped char-by-char vertically; (b) "No source" — DEBUG-only BioSimulator meant Release/TestFlight had NO bio source, so nothing reacted and the synth was a bare drone ("nur wenige Störgeräusche"). Owner: realize the full Echoelmusic.com vision, "Alles step by step Ralph."
+
+## Feature cycle 5 — Demo source in Release + strip layout (SHIPPED, ASC-verified #6d920b3)
+- `6d920b3` `fix(bio): playable Demo source in Release + fix bio-strip layout`. Un-gated BioSimulator (#if DEBUG removed) → explicit user-initiated DEMO source, still honestly labeled "Demo" (.fallback), defers to real sensors; DEBUG auto-starts. BioStripView: source tag is now a tap-toggle (start/stop demo), metrics get lineLimit(1)+fixedSize (no more char-wrap), dropped dev frame-counter. StudioRoot owns demoSource, injects to strip.
+- Validation: CI/CD success (iOS+macOS) + TestFlight Archive→Upload→ASC-verified.
+- Synth-tuning diagnosis: EchoelDDSP defaults are MUSICAL (110Hz A2, harmonicity 0.88, noiseLevel 0.01, 0.5s attack/2s release). The "noise" was the no-source drone. Tuning deferred until owner re-tests with Demo source ON (needs ear).
+
+## Feature cycle 6 — Well tab (SHIPPED, CI green #b32312e)
+- `b32312e` `feat(well): real Well tab`. New `Studio/WellView.swift`: live coherence headline (legible-first) + state caption, HR/HRV/breath readouts, paced-breathing guide (4–8/min, default 6 = baroreflex resonance), ~0.1Hz functional animation, "self-observation not diagnosis" line. Reads bus snapshot. Removed ShareTabPlaceholder.
+- Validation: CI/CD success (Build & Test iOS iPhone 16 Pro + SE + macOS + Perf).
+
+## Feature cycle 7 — Works tab (SHIPPED #22c16df, CI pending at log time)
+- `22c16df` `feat(works): real Works tab`. New `Core/SessionRecorder.swift` (@MainActor @Observable): samples bus.latestBio @1Hz while recording, timestamp-deduped HR/HRV/coherence averages + peak, persists [BioSessionSummary] as Codable JSON in UserDefaults (no SwiftData). 6 pure unit tests (averaging, dedup, peak, persistence round-trip via suite UserDefaults). New `Studio/WorksView.swift`: Record/Stop, live elapsed + coh/HRV, persisted history list. Removed RecordTabPlaceholder + TabPlaceholder.
+- **All four tabs now real screens** (Tools/Works/Sync/Well) — no placeholders remain.
+
+## Remaining Ralph queue ("Alles step by step")
+1. ✅ cycle 6 Well · ✅ cycle 7 Works
+2. NEXT: persist + expand Modulation (Codable matrix → EchoelStore/UserDefaults; more destinations: non-conflicting synth param, OSC-out of mod values; heartbeat→beat route).
+3. THEN: Visuals (EchoelVis) — wire Metal bio-visual renderer into a visible surface.
+4. Synth musicality tuning — AFTER owner device re-test with Demo source on (needs ear).
