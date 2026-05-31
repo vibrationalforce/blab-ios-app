@@ -132,6 +132,16 @@ public final class OSCSender {
         send(address: Self.address(for: event.kind), floats: [event.confidence, event.aux])
     }
 
+    /// Stream one modulation-matrix output value out as
+    /// `/echoelmusic/mod/<key>` (e.g. `/echoelmusic/mod/seq.tempo`), so an
+    /// external tool can react to the same modulation the app applies. No-op
+    /// until the sender is active.
+    public func sendModulation(key: String, value: Float) {
+        guard isActive else { return }
+        send(address: "/echoelmusic/mod/\(key)", floats: [value])
+        lastSentTimestamp = CFAbsoluteTimeGetCurrent()
+    }
+
     /// OSC address for a discrete bio event, mirroring the continuous
     /// `/echoelmusic/bio/*` space with an `/event/` segment. Pure mapping,
     /// unit-testable without a socket.

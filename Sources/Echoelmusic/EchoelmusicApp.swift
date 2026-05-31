@@ -139,6 +139,12 @@ struct EchoelmusicApp: App {
                     beatPlayer?.pattern.setTempo(30 + Double(value) * 270)
                 }
                 modulationEngine.start(subscribing: bus)
+                #if canImport(Network)
+                // Stream every active modulation output out as /echoelmusic/mod/<key>.
+                modulationEngine.outputTap = { [weak osc] destination, value in
+                    osc?.sendModulation(key: destination.key, value: value)
+                }
+                #endif
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {

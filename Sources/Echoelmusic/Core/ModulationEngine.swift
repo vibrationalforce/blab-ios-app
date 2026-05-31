@@ -47,6 +47,12 @@ public final class ModulationEngine {
     @ObservationIgnored
     private var destinations: [String: (Float) -> Void] = [:]
 
+    /// Optional observer called for every evaluated output (destination, value)
+    /// on each apply — used to stream modulation values out over OSC without
+    /// coupling the engine to the network layer.
+    @ObservationIgnored
+    public var outputTap: ((ModDestination, Float) -> Void)?
+
     @ObservationIgnored
     private var task: Task<Void, Never>?
 
@@ -139,6 +145,7 @@ public final class ModulationEngine {
         guard !outputs.isEmpty else { return }
         for (destination, value) in outputs {
             destinations[destination.key]?(value)
+            outputTap?(destination, value)
         }
         lastAppliedTimestamp = CFAbsoluteTimeGetCurrent()
     }

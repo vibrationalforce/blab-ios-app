@@ -132,6 +132,27 @@ final class ModulationEngineTests: XCTestCase {
         XCTAssertFalse(engine.isActive)
     }
 
+    // MARK: - output tap
+
+    func testOutputTap_firesForEachActiveOutput() {
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [
+            route(.coherence, "a"), route(.heartRate, "b")
+        ]))
+        var taps: [String: Float] = [:]
+        engine.outputTap = { dest, v in taps[dest.key] = v }
+        engine.apply(frame(coh: 0.5, hr: 200))
+        XCTAssertEqual(taps["a"] ?? -1, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(taps["b"] ?? -1, 1.0, accuracy: 1e-6)
+    }
+
+    func testOutputTap_notCalledForEmptyMatrix() {
+        let engine = ModulationEngine()
+        var calls = 0
+        engine.outputTap = { _, _ in calls += 1 }
+        engine.apply(frame(coh: 1.0))
+        XCTAssertEqual(calls, 0)
+    }
+
     // MARK: - persistence
 
     func testPersistence_savesAndReloadsMatrix() {
