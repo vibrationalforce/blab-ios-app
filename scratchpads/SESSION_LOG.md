@@ -1789,3 +1789,13 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - Root cause NOT yet pinned: no source file imports an Apple framework unguarded (checked), so it's a subtler transitive/Apple-only-type or Linux Foundation/language issue. **Can't diagnose precisely from the sandbox:** job-log redirect goes to `*.blob.core.windows.net` (egress proxy "Host not in allowlist"), and there is no Linux Swift toolchain here to reproduce.
 - Impact: LOW for shipping — iOS/macOS CI (`ci.yml`) + TestFlight archive are the real gates and are GREEN. Linux quick-test is a cheap pre-check only.
 - **To fix:** owner opens the failed `quick-test.yml` run in the Actions UI (not egress-blocked for them) and pastes the `swift build` error → then it's a quick targeted fix. Or treat as known tech-debt.
+
+## Feature cycle 3 — ModulationEngine runtime + app wiring (SHIPPED to TestFlight)
+- Commit `a1026f4` `feat(modulation): ModulationEngine runtime + wire matrix into app`. New `Core/ModulationEngine.swift` (@MainActor @Observable, pure Foundation): ticks `bus.latestBio` @100ms (mirrors OSCSender), evaluates matrix, dispatches [0..1] to registered destination closures (decoupled, cross-platform). Wired into EchoelmusicApp: instantiated + `.environment` + started after other subscribers; registers `seq.tempo` → `PatternEngine.setTempo` scaling [0..1]→[30..300] BPM.
+- **Design note (from Explore agent runtime map):** the 7 synth params are already owned by `BioReactiveSynthVoice.applyBioReactive` (its own 10Hz loop) — driving them from the matrix would fight that loop. Sequencer tempo is unclaimed → clean first destination. Default matrix EMPTY = zero behavior change until a route is added.
+- 11 unit tests (dispatch, empty-matrix no-op, live/hold, registry, tick timestamp-dedup via bus.publish with async-settle, lifecycle).
+- **Validation:** CI/CD #3191 (Build & Test iOS iPhone 16 Pro + SE + macOS + all platforms + Perf + Lint + Security) = SUCCESS — edited app entry compiles + tests pass. TestFlight (a1026f4): iOS Archive + Upload ✅. Auto-merged to main (#587).
+
+## Modulation subsystem state (after cycles 2+3)
+- `ModulationMatrix` (value types, tested) + `ModulationEngine` (runtime, wired+started) on TestFlight. Chain live: BioEventGraph → bus → {synth, OSC events, ModulationEngine}. Matrix can drive tempo live the instant a route exists.
+- **MISSING for end-user "running":** no UI to author routes, and no persistence. Next: routing UI (add route, source→destination picker, live/hold toggle + Capture button, depth/invert) + persist matrix via EchoelStore. UI needs on-device UX eval.

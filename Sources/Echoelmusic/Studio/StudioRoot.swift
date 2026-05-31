@@ -20,7 +20,7 @@ struct StudioRoot: View {
                 RecordTabPlaceholder()
                     .tabItem { Label("Works", systemImage: "waveform") }
 
-                VideoTabPlaceholder()
+                ModulationView()
                     .tabItem { Label("Sync", systemImage: "link") }
 
                 ShareTabPlaceholder()
@@ -41,16 +41,6 @@ private struct RecordTabPlaceholder: View {
             symbol: "waveform",
             title: "Works",
             subtitle: "Sessions · Recordings · DAW handoff"
-        )
-    }
-}
-
-private struct VideoTabPlaceholder: View {
-    var body: some View {
-        TabPlaceholder(
-            symbol: "link",
-            title: "Sync",
-            subtitle: "OSC · MIDI · MPE · Air controllers"
         )
     }
 }
