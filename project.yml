@@ -152,9 +152,14 @@ targets:
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APP_ICON_ASSETS: YES
         ASSETCATALOG_COMPILER_STANDALONE_ICON_BEHAVIOR: all
     dependencies: []
-      # AUv3 extension disabled — no provisioning profile registered.
-      # Re-enable when com.echoelmusic.app.auv3 is registered in App Store Connect.
-      # - target: EchoelmusicAUv3
+      # AUv3 extension is COMPILE-VERIFIED green (probe/auv3-compile run #1431,
+      # 2026-05-31): it builds + embeds with its own DSP closure + BioFeedbackManager.
+      # Kept DISABLED here so the app archive does not build/sign it (signing is
+      # unverified). TO SHIP: confirm com.echoelmusic.app.auv3 has an App-Group
+      # provisioning profile in App Store Connect, then change to:
+      #   dependencies:
+      #     - target: EchoelmusicAUv3
+      # and a full archive will sign + upload it.
     entitlements:
       path: Echoelmusic.entitlements
 
@@ -175,6 +180,8 @@ targets:
         type: group
       # Foundation-only App-Group bridge for live vitals from the main app.
       - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
+      # Shared numeric helpers (clamped/mapped/lerp) the DSP uses.
+      - path: Sources/Echoelmusic/Core/NumericExtensions.swift
     info:
       path: Resources/EchoelmusicAUv3/Info.plist
       properties:
