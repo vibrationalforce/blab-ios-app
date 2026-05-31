@@ -24,7 +24,7 @@ struct StudioRoot: View {
                 ModulationView()
                     .tabItem { Label("Sync", systemImage: "link") }
 
-                ShareTabPlaceholder()
+                WellView()
                     .tabItem { Label("Well", systemImage: "heart.fill") }
             }
         }
@@ -44,16 +44,6 @@ private struct RecordTabPlaceholder: View {
             symbol: "waveform",
             title: "Works",
             subtitle: "Sessions · Recordings · DAW handoff"
-        )
-    }
-}
-
-private struct ShareTabPlaceholder: View {
-    var body: some View {
-        TabPlaceholder(
-            symbol: "heart.fill",
-            title: "Well",
-            subtitle: "Evidence-based breath & coherence"
         )
     }
 }
