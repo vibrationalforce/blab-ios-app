@@ -1762,3 +1762,19 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - **Run #1415 (build_only=true, skip_compile_check=false) on x0MN0 @ 8182f98 = SUCCESS.** Preflight ✅ · **Compile Check ✅** (real iOS sim compile, Xcode 26.2 / iOS 26 SDK) · upload + other platforms skipped by design. **Branch HEAD compiles green.**
 - **No new TestFlight upload performed:** this session's 3 commits touch only a comment, the unused Tuist `Project.swift`, and docs — `project.yml`/`Package.swift`/sources/CI untouched. Shipping bits are byte-identical to the already-ASC-verified #1410. A fresh `build_only=false` upload would only bump the build number with identical app code; deferred to owner's call.
 - **PAT still must be rotated** after this session (it's in the transcript again).
+
+## Feature cycle 1 — OSC discrete bio-events (SHIPPED + ASC-verified)
+- Owner clarified the dev model: **the repo IS the build env** (GitHub Actions macOS-26 + XcodeGen + Fastlane); no local Xcode needed. Loop = write → push → CI compile/test → (auto) TestFlight.
+- CI workflow map learned:
+  - `testflight.yml` `compile_check` = `xcodebuild build -scheme Echoelmusic` (app source only, no tests).
+  - `quick-test.yml` = `swift test` on **Linux** → skips `#if canImport(Network)` code (OSCSender excluded).
+  - `ci.yml` ("CI/CD Pipeline") = macOS-26, `xcodebuild test` on iOS sim (18.2) + macOS → **runs Network-guarded tests**. Auto-triggers on push.
+  - `auto-merge-claude.yml` auto-merges each push to `main`, then the merge dispatches a **full** `testflight.yml` archive+upload (build_only=false).
+- Commit `98190b6` `feat(osc): stream discrete BioEventGraph events over OSC`. Adds 6 `/echoelmusic/bio/event/*` addresses (heartbeat/breath-inhale/exhale/motion/coherence/eeg), args `[confidence, aux]`. Reads the `@MainActor latestBioEvent` snapshot (same as the continuous-frame path) — NOT the `bioEvents` SPSC queue — so no audio-thread consumer contention. Protected BioEventGraph untouched (consume-only). New pure `OSCSender.address(for:)` + 3 unit tests. FEATURE_MATRIX EchoelNet updated (events moved roadmap→live).
+- **Validation (all green on 98190b6):** CI/CD #3189 Build&Test iOS (iPhone 16 Pro + SE) + macOS + Perf/Memory + Lint + Security ✅ (these compiled+ran the new Network tests). TestFlight #1416 iOS: Archive ✅ · Export & Upload ✅ · **Verify build landed in ASC ✅**. Auto-merged to main (#585).
+- **On device, verify with a LAN OSC receiver** (Resolume/TouchDesigner/Sonic Pi at `localhost:8000` or LAN host): heartbeat/breath/motion events arrive on `/echoelmusic/bio/event/*` with [confidence, aux].
+
+## Next cycle candidates (non-protected first)
+- Heartbeat-triggered BeatPlayer steps (flagship; consume latestBioEvent snapshot, @MainActor — no protected change).
+- OSC-In return channel (bidirectional OSC) + OSC for controllerEvents.
+- ⚠️ Polar-RR → real `.heartbeat` BioEvents would MODIFY protected BioEventGraph — needs explicit owner "APPROVED: modify BioEventGraph" first.
