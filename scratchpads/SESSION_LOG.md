@@ -1778,3 +1778,14 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 - Heartbeat-triggered BeatPlayer steps (flagship; consume latestBioEvent snapshot, @MainActor — no protected change).
 - OSC-In return channel (bidirectional OSC) + OSC for controllerEvents.
 - ⚠️ Polar-RR → real `.heartbeat` BioEvents would MODIFY protected BioEventGraph — needs explicit owner "APPROVED: modify BioEventGraph" first.
+
+## Feature cycle 2 — ModulationMatrix v0 (SHIPPED to iOS, dormant)
+- Owner reframed "heartbeat→beat" into the general design: "frei wählbar welche Parameter moduliert werden; Echtzeit gekoppelt ODER ein gefangener Wert bleibt starr/leicht moduliert." → built the `ModulationMatrix` (was V3 in the plan).
+- Commit `0d6441a` `feat(modulation): ModulationMatrix v0`. New `Core/ModulationMatrix.swift` (placed in Core/, not a new top-level dir — CLAUDE.md gates new dirs). Pure Codable value types: `ModSource` (6 bio channels + range-normalization), `ModDestination` (opaque key), `ModMode` `.live | .hold(value,drift)` (drift 0 = rigid), `ModRoute` (+depth/invert/enabled, `captured(from:)` latches current value), `ModulationMatrix.evaluate(frame)` (additive+clamped per destination). NaN/degenerate-guarded. 24 pure unit tests. Dormant — not wired to audio/UI yet. Touches no protected code. FEATURE_MATRIX spine row added.
+- **Validation:** CI/CD #3190 (macOS + iOS sim xcodebuild test) = SUCCESS — the 24 tests pass, all compiles. Auto-merged to main (#586) → TestFlight auto-upload.
+
+## ⚠️ Pre-existing CI red: Linux `swift build` (quick-test.yml)
+- `quick-test.yml` "🧪 Swift Tests" job fails at step **"Build (Linux)" = `swift build`** (tests then skipped). **Failing on EVERY run back to ≥#520 (2026-05-25)** — incl. #525 on `fe18285`, which predates this whole session. **NOT a regression from cycle 1/2.**
+- Root cause NOT yet pinned: no source file imports an Apple framework unguarded (checked), so it's a subtler transitive/Apple-only-type or Linux Foundation/language issue. **Can't diagnose precisely from the sandbox:** job-log redirect goes to `*.blob.core.windows.net` (egress proxy "Host not in allowlist"), and there is no Linux Swift toolchain here to reproduce.
+- Impact: LOW for shipping — iOS/macOS CI (`ci.yml`) + TestFlight archive are the real gates and are GREEN. Linux quick-test is a cheap pre-check only.
+- **To fix:** owner opens the failed `quick-test.yml` run in the Actions UI (not egress-blocked for them) and pastes the `swift build` error → then it's a quick targeted fix. Or treat as known tech-debt.
