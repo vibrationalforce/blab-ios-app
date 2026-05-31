@@ -27,7 +27,7 @@ set -euo pipefail
 OWNER="vibrationalforce"
 REPO="Echoelmusic"
 WORKFLOW="testflight.yml"
-BRANCH="claude/echoelmusic-audit-testflight-2bYik"
+BRANCH="claude/echoelmusic-audit-testflight-x0MN0"
 
 SETTINGS_FILE=".claude/settings.local.json"
 

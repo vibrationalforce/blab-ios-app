@@ -2,7 +2,7 @@
 
 **Status:** AUTHORITATIVE — supersedes PLAN_PIVOT_LIVE_STUDIO, PLAN_DAW_VIDEO_MVP, PLAN_EchoelStudio, PLAN_ARCHITECTURE_MAXIMUM, PLAN_MISSING_SYSTEMS.
 **Decided:** 2026-04-26
-**Branch:** `claude/echoelmusic-audit-testflight-2bYik` (was `claude/unified-production-app-Qdm6b`)
+**Branch:** `claude/echoelmusic-audit-testflight-x0MN0` (was `claude/unified-production-app-Qdm6b`)
 **Deadline:** TestFlight upload 2026-05-17 (3 Wochen ab heute), iOS 26 SDK Compliance 2026-04-28.
 
 ---
@@ -178,6 +178,6 @@ Diese Sandbox hat **kein Swift** und kein Xcode → keine Code-Änderungen, da n
 1. ✅ Diese Plan-Datei (`PLAN_v10_TestFlight_Sprint.md`)
 2. ⏭ Decision-Log-Eintrag in `memory/decisions.md`
 3. ⏭ Identity-Update in `CLAUDE.md` (kleine, präzise Edits)
-4. ⏭ Commit + Push auf `claude/echoelmusic-audit-testflight-2bYik`
+4. ⏭ Commit + Push auf `claude/echoelmusic-audit-testflight-x0MN0`
 
 **Nächste Session auf Mac mit Toolchain:** Tag-1-Aufgaben starten. `swift build` → grün → Tag 2.

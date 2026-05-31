@@ -35,7 +35,7 @@ This is stricter than a normal dev loop. It rewards small, focused commits and p
 │         ↓                                                               │
 │   3. COMMIT            conventional prefix, one logical change          │
 │         ↓                                                               │
-│   4. PUSH              to claude/echoelmusic-audit-testflight-2bYik     │
+│   4. PUSH              to claude/echoelmusic-audit-testflight-x0MN0     │
 │         ↓                                                               │
 │   5. TRIGGER CI        iPhone → github.com/.../actions →                │
 │                          testflight.yml → "Run workflow":               │
@@ -188,7 +188,7 @@ Every sandbox-Claude session starts by reading these files in order:
 ```
 
 The session-start state question that must be answered before any code change:
-**"Is the latest CI run on `claude/echoelmusic-audit-testflight-2bYik` green?"**
+**"Is the latest CI run on `claude/echoelmusic-audit-testflight-x0MN0` green?"**
 - If green: pick the next item from PLAN_v10 and write it.
 - If red: that's the cycle. Read the failure, fix it, re-trigger CI.
 - If unknown: ask the user to trigger `build_only: true` and report the result.
