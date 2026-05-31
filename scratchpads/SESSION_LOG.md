@@ -1728,3 +1728,30 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 ## Next (owner-side)
 - Resolve the App Group (`group.com.echoelmusic` vs `…shared`) + extra `…app.voice` AUv3 discrepancies.
 - Rotate the PAT (it's in the transcript).
+
+---
+
+# SESSION 2026-05-31 — Clear the open-task backlog (branch `claude/echoelmusic-audit-testflight-x0MN0`)
+
+## Owner direction
+- "Arbeite alle offenen Tasks nacheinander ab. Der letzte Chat hat sich aufgehängt." (Work through all open tasks one by one; the previous chat hung.)
+
+## Environment constraints (this container)
+- **No Swift toolchain** (Linux sandbox) — `swift build`/`test` impossible. Builds are CI/TestFlight-only.
+- **`.claude/settings.local.json` is ABSENT** in this fresh container → no GitHub PAT present. GitHub MCP toolset has no workflow_dispatch/runs endpoint. ⇒ **TestFlight dispatch + CI-log reading are not possible from this sandbox; both are owner-side now.**
+- ⇒ Feature cycles that need build + device verification were intentionally NOT landed blind (would risk the launch-crash regressions seen in prior sessions; violates Ralph Wiggum build→test→ship).
+
+## What shipped (commits, pushed to origin/x0MN0)
+1. `chore(config):` resolve the two owner-flagged discrepancies from 05-30:
+   - App Group: corrected the stale `fastlane/Appfile` comment `group.com.echoelmusic.shared` → `group.com.echoelmusic` (entitlements + owner decision F2 already use the canonical form).
+   - Removed the **dead** `EchoelVoice` / `com.echoelmusic.app.voice` AUv3 target from `Project.swift` (Tuist). Provably dead: referenced non-existent `Sources/EchoelVoice/` + `EchoelVoice.entitlements`, sat outside the canonical 6-bundle ASC set, and Tuist/`Project.swift` is used by **no** workflow (CI builds `project.yml` via XcodeGen). Also dropped its dependency ref from the main app target. Remaining bundle IDs now all within the canonical set. Brace/paren-balanced.
+2. `docs:` true-up stale branch refs `…-2bYik` → `…-x0MN0` across CLAUDE.md, README, `.ai/WORKING_METHOD.md`, `scripts/check-testflight.sh` (BRANCH= dispatch target), active PLAN headers. Corrected the "42+ commits ahead of main" note — branch is 1 commit ahead of origin/main (prior cycles auto-merged); now states it tracks main + current work.
+
+## Audit findings (read-only, no fixes needed)
+- Codebase is clean: **0** banned patterns (`print(`, `try!`, `as!`, `ObservableObject`, `UIScreen.main`), **0** TODO/FIXME in Sources, **0** crash-risk force-unwrap *uses* in shipping code. The 11 `Type!` hits are standard implicitly-unwrapped AU property declarations in the AUv3 target (disabled in `project.yml`, not in build #1).
+- FEATURE_MATRIX build-#1 scope (LIVE + LIVE-part-of-PARTIAL) is complete; remaining items are ROADMAP or feature cycles.
+
+## Remaining open tasks — gated, NOT doable in this sandbox
+- **Owner-side now:** rotate the PAT (still in transcript); register `group.com.echoelmusic` in App Store Connect; restore `.claude/settings.local.json` if sandbox CI dispatch is wanted again.
+- **Needs Swift build + device verification** (don't land blind): Polar H10 RR→real `.heartbeat` BioEvents; heartbeat-triggered BeatPlayer steps; Modulation Matrix UI (V3); OSC-In return channel + OSC for controller/bio events; compose BioSignalDeconvolver→HilbertSensorMapper→BioEventGraph on raw waveform (needs Polar PMD raw ECG).
+- **Bookkeeping:** ~16 entries in `decisions.csv` are past their review_date (cron will flag `REVIEW_DUE`). Left for an owner review pass rather than unilateral status rewrites.
