@@ -55,3 +55,30 @@ repo) — but automatic signing already works, so this is optional.
 Separate migration cycle: register in ASC → update `Echoelmusic.entitlements` +
 `EchoelmusicAUv3.entitlements` → change `BioFeedbackManager.appGroupIdentifier`
 → verify a build_only archive signs. Do it alone, not mixed with target work.
+
+## AUv3 blocker discovered 2026-05-31 (why it can't be flipped on with the token)
+The `EchoelmusicAUv3` target has `dependencies: []` and compiles ONLY
+`Sources/EchoelmusicAUv3/**`, but its code references `EchoelDDSP`,
+`EchoelCellular` (and would need `BioFeedbackManager`) — all in the main
+`Echoelmusic` module. As configured it **cannot link/compile**. (The 4-arg
+`applyBioReactive` and 2-arg `render` calls are fine — those APIs have default
+params — so the blocker is *linking*, not API drift.)
+
+To enable the AUv3 properly:
+1. **Structural (needs owner approval):** create a shared framework target
+   (e.g. `EchoelmusicKit`) holding `DSP/` + the shared `Core/` types
+   (EchoelDDSP, EchoelCellular, BioFeedbackManager, BioVitals); have BOTH the
+   app and the AUv3 depend on it. This is the only clean way the extension can
+   use the DSP + the App-Group bridge.
+2. **ASC (owner-only, not doable via GitHub token):** confirm/register
+   `com.echoelmusic.app.auv3` with an App-Group-enabled provisioning profile.
+3. Wire `BioFeedbackManager.refreshFromSharedStore()` on the AUv3's UI/timer
+   tick (OFF the render thread) → feed the atomic fields into the AU params /
+   synth in `internalRenderBlock`.
+4. Verify: enable the dependency → build_only compile-check green → then a full
+   archive to confirm signing → only then keep it on main.
+
+Because step 1 is a CLAUDE.md "new target/restructure" (needs approval) and the
+push→auto-merge→full-TestFlight chain would archive it immediately, this is NOT
+a safe unattended change. Blocked on: owner approval of the framework split +
+ASC confirmation. The GitHub token alone cannot complete or verify it.
