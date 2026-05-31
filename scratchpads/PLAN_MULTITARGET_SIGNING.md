@@ -56,11 +56,27 @@ Separate migration cycle: register in ASC → update `Echoelmusic.entitlements` 
 `EchoelmusicAUv3.entitlements` → change `BioFeedbackManager.appGroupIdentifier`
 → verify a build_only archive signs. Do it alone, not mixed with target work.
 
-## AUv3 blocker discovered 2026-05-31 (why it can't be flipped on with the token)
-The `EchoelmusicAUv3` target has `dependencies: []` and compiles ONLY
+## AUv3 — RESOLVED & COMPILE-VERIFIED 2026-05-31 (no framework needed)
+Earlier assumption (a shared framework is required) was **superseded**. The
+self-contained DSP made a framework unnecessary: the `EchoelmusicAUv3` target
+now compiles its own copy of the closure — its 2 files + `Sources/Echoelmusic/DSP`
+(Foundation+Accelerate only) + `Core/BioFeedbackManager.swift` +
+`Core/NumericExtensions.swift` — into its own module. No `public` refactor, no
+app file touched. Verified GREEN on `probe/auv3-compile` run **#1431** (build_only,
+no signing). The AUv3 reads live vitals from the App Group via a 2 Hz utility-queue
+timer (off the render thread) → bio AU params → synth.
+
+**Remaining gate to SHIP (owner-only):** confirm an App-Group provisioning
+profile for `com.echoelmusic.app.auv3` in ASC, then enable
+`dependencies: [- target: EchoelmusicAUv3]` on the dev branch → the auto
+full-archive signs + uploads it. Signing is the only unverified step (GitHub
+token has no ASC access).
+
+### Original blocker note (for history)
+The `EchoelmusicAUv3` target had `dependencies: []` and compiled ONLY
 `Sources/EchoelmusicAUv3/**`, but its code references `EchoelDDSP`,
-`EchoelCellular` (and would need `BioFeedbackManager`) — all in the main
-`Echoelmusic` module. As configured it **cannot link/compile**. (The 4-arg
+`EchoelCellular` (and now `BioFeedbackManager`) — all in the main
+`Echoelmusic` module. As originally configured it could not link/compile. (The 4-arg
 `applyBioReactive` and 2-arg `render` calls are fine — those APIs have default
 params — so the blocker is *linking*, not API drift.)
 
