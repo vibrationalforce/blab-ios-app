@@ -1799,3 +1799,19 @@ A GitHub PAT was pasted into the chat transcript this session. It is compromised
 ## Modulation subsystem state (after cycles 2+3)
 - `ModulationMatrix` (value types, tested) + `ModulationEngine` (runtime, wired+started) on TestFlight. Chain live: BioEventGraph → bus → {synth, OSC events, ModulationEngine}. Matrix can drive tempo live the instant a route exists.
 - **MISSING for end-user "running":** no UI to author routes, and no persistence. Next: routing UI (add route, source→destination picker, live/hold toggle + Capture button, depth/invert) + persist matrix via EchoelStore. UI needs on-device UX eval.
+
+## Feature cycle 4 — ModulationView routing UI (SHIPPED to TestFlight)
+- Commit `13e8fda` `feat(modulation): routing UI in the Sync tab`. New `Studio/ModulationView.swift` replaces the Sync-tab placeholder (VideoTabPlaceholder removed). Per-route editor: source picker (6 bio channels) → destination (engine.registeredDestinations, e.g. seq.tempo), Live/Capture segmented mode, Depth + Invert, enable toggle, swipe-delete. Capture freezes the source's current normalized value into `.hold`; Drift slider = light movement around held (0 rigid). Binds the live `@Bindable ModulationEngine` so edits apply next tick. UI house-style (solid fills, labels-above, legible-first, no glass/glow).
+- **Validation:** CI/CD #3192 (SwiftUI compiles on iOS/macOS/all platforms + tests) = SUCCESS — compiled blind, no Float format-style / binding errors. TestFlight (13e8fda): iOS Archive + Upload ✅. Auto-merged main (#588).
+
+## SESSION SUMMARY 2026-05-31 — 4 feature cycles + config cleanup, all green/shipped
+1. config discrepancies (App Group comment, dead app.voice Tuist target) — `5263f44`
+2. branch-ref true-up + commit-count — `d63dd4b`
+3. **cycle 1** OSC discrete bio-events `/echoelmusic/bio/event/*` — `98190b6` (ASC-verified #1416)
+4. **cycle 2** ModulationMatrix v0 (value types + evaluate) — `0d6441a`
+5. **cycle 3** ModulationEngine runtime + app wiring (seq.tempo destination) — `a1026f4`
+6. **cycle 4** ModulationView routing UI (Sync tab) — `13e8fda`
+- Dev model confirmed: repo IS the build env. Loop proven: write → push → ci.yml (macOS xcodebuild test, runs Network+pure tests) → auto-merge main → testflight auto-archive+upload. Token via env var only (NEVER on disk; harness rejects `github` key in settings.local.json). **PAT in transcript → ROTATE after session.**
+- Known pre-existing red: `quick-test.yml` Linux `swift build` (≥05-25, not ours; logs egress-blocked → owner must paste error).
+- On-device TODO: OSC bio-events (LAN receiver), and Modulation — open Sync tab, add a route to seq.tempo, confirm tempo follows coherence/HR; test Capture/Drift.
+- Next cycles: persist ModulationMatrix (Codable) via EchoelStore; expand destinations (non-conflicting synth path, OSC-out of mod values); heartbeat→beat as a route once a seq-trigger destination exists.
