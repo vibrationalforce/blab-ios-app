@@ -26,6 +26,7 @@ acceptance line.
 | SPSCQueue | `Sources/Echoelmusic/Core/SPSCQueue.swift` | Lock-free single-producer/single-consumer ring; audio-thread safe. |
 | AudioEngine | `Sources/Echoelmusic/Audio/AudioEngine.swift` | `AVAudioEngine` master bus. Attach source nodes **before** `start()`. |
 | Store / Logger | `Core/EchoelStore.swift`, `Core/ProfessionalLogger.swift` (`EchoelLogger`) | Persistence; `os_log` wrapper (never `print`). |
+| ModulationMatrix | `Core/ModulationMatrix.swift` | Freely-routable bio→parameter mapping. Per-route `live` (real-time) or `hold(value,drift)` (capture, rigid or lightly modulated). Pure `Codable` value types + deterministic `evaluate(frame)`. **Dormant v0** — tested, not yet wired to audio/UI. |
 
 ---
 
