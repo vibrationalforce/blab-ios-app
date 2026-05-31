@@ -17,6 +17,7 @@ struct WellView: View {
 
     @State private var breathsPerMin: Double = 6
     @State private var inhaling = false
+    @State private var showVisual = false
 
     /// Seconds per half-breath (inhale or exhale) at the chosen rate.
     private var halfCycle: Double { 30.0 / max(breathsPerMin, 1) }
@@ -27,12 +28,28 @@ struct WellView: View {
                 coherenceHeadline
                 readoutRow
                 pacer
+                immersiveButton
                 evidenceNote
             }
             .padding(20)
             .frame(maxWidth: .infinity)
         }
         .background(Color.black)
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showVisual) { BioVisualView() }
+        #endif
+    }
+
+    private var immersiveButton: some View {
+        Button {
+            showVisual = true
+        } label: {
+            Label("Immersive visual", systemImage: "circle.hexagongrid.fill")
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.bordered)
+        .tint(.green)
     }
 
     // MARK: Coherence headline
