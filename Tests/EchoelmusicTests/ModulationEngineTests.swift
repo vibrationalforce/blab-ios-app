@@ -131,4 +131,31 @@ final class ModulationEngineTests: XCTestCase {
         engine.stop()
         XCTAssertFalse(engine.isActive)
     }
+
+    // MARK: - persistence
+
+    func testPersistence_savesAndReloadsMatrix() {
+        let suite = "ModulationEngineTests.\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let defaults = UserDefaults(suiteName: suite)!
+
+        let e1 = ModulationEngine(defaults: defaults)
+        e1.matrix.routes.append(route(.coherence, "seq.tempo", mode: .hold(value: 0.4, drift: 0.1)))
+        e1.save()
+
+        let e2 = ModulationEngine(defaults: defaults)
+        XCTAssertEqual(e2.matrix.routes.count, 1)
+        XCTAssertEqual(e2.matrix.routes.first?.source, .coherence)
+        XCTAssertEqual(e2.matrix.routes.first?.destination, ModDestination("seq.tempo"))
+    }
+
+    func testInit_noPersistedData_keepsPassedMatrix() {
+        let suite = "ModulationEngineTests.\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let defaults = UserDefaults(suiteName: suite)!
+        let m = ModulationMatrix(routes: [route(.hrv, "x")])
+        let e = ModulationEngine(matrix: m, defaults: defaults)
+        XCTAssertEqual(e.matrix.routes.count, 1)
+        XCTAssertEqual(e.matrix.routes.first?.source, .hrv)
+    }
 }

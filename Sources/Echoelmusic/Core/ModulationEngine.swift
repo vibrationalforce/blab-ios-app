@@ -53,8 +53,31 @@ public final class ModulationEngine {
     @ObservationIgnored
     private var lastFrameTimestamp: TimeInterval = -1
 
-    public init(matrix: ModulationMatrix = ModulationMatrix()) {
+    @ObservationIgnored
+    private let defaults: UserDefaults
+
+    @ObservationIgnored
+    private let storageKey = "modulationMatrix.v1"
+
+    public init(matrix: ModulationMatrix = ModulationMatrix(), defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         self.matrix = matrix
+        load() // a persisted matrix, if any, wins over the passed default
+    }
+
+    // MARK: - Persistence
+
+    /// Saves the current routing table. Call after edits (the routing UI
+    /// invokes this on any change to `matrix.routes`).
+    public func save() {
+        guard let data = try? JSONEncoder().encode(matrix) else { return }
+        defaults.set(data, forKey: storageKey)
+    }
+
+    private func load() {
+        guard let data = defaults.data(forKey: storageKey),
+              let decoded = try? JSONDecoder().decode(ModulationMatrix.self, from: data) else { return }
+        matrix = decoded
     }
 
     // MARK: - Destination registry

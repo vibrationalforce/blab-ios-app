@@ -45,6 +45,9 @@ struct ModulationView: View {
                 }
             }
             .navigationTitle("Modulation")
+            .onChange(of: engine.matrix.routes) {
+                engine.save()
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
