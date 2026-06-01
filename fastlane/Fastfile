@@ -73,44 +73,23 @@ def upload_to_testflight_with_retry(api_key, changelog, ipa_path: nil, max_retri
 end
 
 # =============================================================================
-# SIGNING HELPER — Revokes stale certs and creates fresh ones
+# SIGNING HELPER — reuse-or-create a cert (NON-destructive)
 # =============================================================================
+# NOTE: distribution archiving in CI is done by `xcodebuild
+# -allowProvisioningUpdates` + the ASC API key, which manages the
+# distribution cert/profile itself. This helper only provisions a *development*
+# cert for any platform job that still calls it. It MUST NOT revoke certs:
+# the former "revoke ALL development certificates" step was a destructive race
+# when platform jobs run in parallel (each revoking the others' fresh certs).
+# `cert` reuses an existing certificate when available and only creates one if
+# needed — idempotent and concurrency-safe.
 
 def setup_signing_certs(cert_platform: "ios")
   api_key = setup_api_key
   keychain_path = "#{ENV['HOME']}/Library/Keychains/build.keychain-db"
   keychain_password = ""
 
-  # Step 1: Revoke ALL development certificates to clear the limit
-  # Fastlane's cert --force only revokes one, but the limit may already be maxed
-  UI.message("Revoking ALL development certificates via API...")
-  begin
-    token = Spaceship::ConnectAPI::Token.create(
-      key_id: ENV["ASC_KEY_ID"],
-      issuer_id: ENV["ASC_ISSUER_ID"],
-      key: ENV["ASC_KEY_CONTENT"]
-    )
-    Spaceship::ConnectAPI.token = token
-
-    certs = Spaceship::ConnectAPI::Certificate.all
-    dev_certs = certs.select { |c|
-      t = c.certificate_type
-      t == "DEVELOPMENT" || t == "IOS_DEVELOPMENT" || t == "MAC_APP_DEVELOPMENT"
-    }
-
-    UI.message("Found #{dev_certs.count} development certificate(s), revoking all...")
-    dev_certs.each do |c|
-      UI.message("  Revoking #{c.id} (#{c.certificate_type})")
-      c.delete!
-    end
-    UI.success("All #{dev_certs.count} development certificates revoked")
-  rescue => e
-    UI.important("Warning during cert revocation: #{e.message}")
-    UI.important("Continuing anyway - cert action will try to create/reuse...")
-  end
-
-  # Step 2: Create a fresh Development certificate for the requested platform
-  UI.message("Creating fresh Development certificate for platform: #{cert_platform}...")
+  UI.message("Provisioning Development certificate (reuse-or-create) for platform: #{cert_platform}...")
   cert(
     development: true,
     api_key: api_key,
@@ -119,7 +98,7 @@ def setup_signing_certs(cert_platform: "ios")
     keychain_password: keychain_password,
     platform: cert_platform
   )
-  UI.success("Fresh #{cert_platform} Development certificate installed in keychain")
+  UI.success("#{cert_platform} Development certificate available in keychain")
 end
 
 # =============================================================================
