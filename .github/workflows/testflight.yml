@@ -246,10 +246,13 @@ jobs:
               2>&1 | tee "/tmp/compile-$scheme.log"
             local rc=${PIPESTATUS[0]}
             if [ $rc -ne 0 ]; then
-              # Surface available destinations so any destination mismatch is self-explaining.
-              echo "--- available destinations for $scheme ---"
-              xcodebuild -project Echoelmusic.xcodeproj -scheme "$scheme" -showdestinations 2>&1 | grep -E "platform:" | head -20 || true
-              echo "::error title=$scheme Compile Errors::$(grep -E ': error: |error:' /tmp/compile-$scheme.log | head -15 | tr '\n' ' ||| ' || true)"
+              # Raw logs live on a blob host the sandbox can't reach; surface the
+              # available destinations + the error tail through the ANNOTATION
+              # channel (api.github.com) so failures are diagnosable from here.
+              DESTS=$(xcodebuild -project Echoelmusic.xcodeproj -scheme "$scheme" -showdestinations 2>&1 | grep -E "platform:" | head -20 | tr '\n' ' ||| ' || true)
+              echo "::warning title=$scheme available destinations::${DESTS:-NONE_FOUND}"
+              TAIL=$(tail -20 /tmp/compile-$scheme.log | tr '\n' ' ||| ' || true)
+              echo "::error title=$scheme Compile Errors::$(grep -E ': error: |error:' /tmp/compile-$scheme.log | head -10 | tr '\n' ' ||| ' || true) === TAIL: $TAIL"
               echo "## $scheme — compile FAILED (exit $rc)" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               grep -E "error:" "/tmp/compile-$scheme.log" | head -30 >> $GITHUB_STEP_SUMMARY
