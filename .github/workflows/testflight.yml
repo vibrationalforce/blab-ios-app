@@ -267,6 +267,7 @@ jobs:
           # main Echoelmusic compile proves works on this runner.
           compile_scheme EchoelmusicWidgets "generic/platform=iOS"
           compile_scheme EchoelmusicWatch "generic/platform=watchOS"
+          compile_scheme EchoelmusicAUv3 "generic/platform=iOS"
           set -eo pipefail
           [ $FAILED -eq 0 ]
 
