@@ -171,7 +171,7 @@
     "visual": ["PhotonicsVisualizationEngine", "CymaticsRenderer"],
     "biofeedback": ["HealthKitManager", "BioParameterMapper", "RealTimeHealthKitEngine"],
     "collaboration": ["CollaborationSyncEngine", "GroupCoherenceEngine"],
-    "wellness": ["CircadianRhythmEngine", "EvidenceBasedHRVTraining", "BioModulator"],
+    "physiology": ["CircadianRhythmEngine", "EvidenceBasedHRVTraining", "BioModulator"],
     "production": ["StreamEngine", "VideoProcessingEngine", "CreativeStudioEngine"]
   }
 }
