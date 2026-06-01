@@ -24,14 +24,25 @@ table here. Update this file whenever a target or identifier changes.
 The owner-registered ASC identifier set. Universal Purchase: all primary platforms share the
 single `com.echoelmusic.app` ID so one purchase unlocks iOS / macOS / tvOS / visionOS.
 
-| ASC display name | Bundle ID | Role | Target status |
-|---|---|---|---|
-| Echoelmusic | `com.echoelmusic.app` | Main app (iOS + universal) | ✅ defined (`Project.swift`, `project.yml`) |
-| Echoelmusic AUv3 | `com.echoelmusic.app.auv3` | Audio Unit v3 extension (embedded) | ✅ defined |
-| Echoelmusic Clip | `com.echoelmusic.app.clip` | App Clip | ⏳ ASC-registered, **target deferred** |
-| Echoelmusic Notification Service | `com.echoelmusic.app.notification-service` | Notification Service extension | ⏳ ASC-registered, **target deferred** |
-| Echoelmusic watchOS | `com.echoelmusic.app.watchkitapp` | watchOS companion | ✅ defined |
-| Echoelmusic Widgets | `com.echoelmusic.app.widgets` | WidgetKit extension | ✅ defined |
+> ⚠️ **Two project generators, only one builds in CI.** `Project.swift` (Tuist) declares the
+> full ecosystem; `project.yml` (XcodeGen) is what `testflight.yml` actually generates and
+> archives (`xcodegen generate --spec project.yml`). The "CI target status" column below
+> reflects `project.yml` — the ground truth for what ships. See
+> `scratchpads/PLAN_ECOSYSTEM_LOOP.md` for the per-target activation sequence.
+
+| ASC display name | Bundle ID | Role | Tuist (`Project.swift`) | CI (`project.yml`) |
+|---|---|---|---|---|
+| Echoelmusic | `com.echoelmusic.app` | Main app (iOS + universal) | ✅ declared | ✅ **builds in CI** |
+| Echoelmusic AUv3 | `com.echoelmusic.app.auv3` | Audio Unit v3 extension (embedded) | ✅ declared | ✅ defined, dependency **disabled** |
+| Echoelmusic Widgets | `com.echoelmusic.app.widgets` | WidgetKit extension | ✅ declared | ❌ **not in CI spec** |
+| Echoelmusic watchOS | `com.echoelmusic.app.watchkitapp` | watchOS companion | ✅ declared | ❌ **not in CI spec** |
+| Echoelmusic Clip | `com.echoelmusic.app.clip` | App Clip | ❌ | ❌ ASC-registered, **target deferred** |
+| Echoelmusic Notification Service | `com.echoelmusic.app.notification-service` | Notification Service extension | ❌ | ❌ ASC-registered, **target deferred** |
+
+> **Additional Tuist-only platforms** not yet in `project.yml`: `EchoelmusicMac` (macOS),
+> `EchoelmusicTV` (tvOS), `EchoelmusicVision` (visionOS) — all share `com.echoelmusic.app`
+> (Universal Purchase). They build under Tuist but **do not ship via the CI pipeline** until
+> ported to `project.yml`, one signing-verified cycle each.
 
 ### App Group
 
