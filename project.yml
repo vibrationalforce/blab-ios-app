@@ -158,13 +158,18 @@ targets:
       # compile_check; signing/provisioning of com.echoelmusic.app.widgets is
       # verified by the next full archive (build_only=false).
       - target: EchoelmusicWidgets
-      # watchOS companion (C6b) — now embedded with the companion link in place.
-      # The watch Info.plist sets WKCompanionAppBundleIdentifier = com.echoelmusic.app;
-      # with the `platform: watchOS` approach XcodeGen generates the
-      # Embed-Watch-Content phase (NOT the case with supportedDestinations,
-      # XcodeGen #1463). The earlier bare embed failed export ("expected one {}")
-      # precisely because the companion key was missing.
-      - target: EchoelmusicWatch
+      # watchOS companion — embed BLOCKED (C6b). Even WITH
+      # WKCompanionAppBundleIdentifier=com.echoelmusic.app in the watch
+      # Info.plist, the archive still exports with ZERO valid distribution
+      # methods ("Unknown Distribution Error" / "expected one {}"). Root cause is
+      # the generated "Embed Watch Content" phase under XcodeGen+Xcode26, which
+      # cannot be inspected/fixed from the Linux sandbox (no local Xcode). Kept
+      # dependency-OFF so the app+widget archive uploads cleanly (build 1454
+      # path). Companion key retained for when the embed phase is solved.
+      # NEXT: open the generated .xcodeproj in Xcode, verify the watch app lands
+      # in the "Watch" folder via an Embed-Watch-Content phase (not PlugIns/
+      # Frameworks); or try XcodeGen dependency `embed: true`/`copy` overrides.
+      # - target: EchoelmusicWatch   # re-enable once the embed phase is correct
       # AUv3 extension is COMPILE-VERIFIED green (probe/auv3-compile run #1431,
       # 2026-05-31): it builds + embeds with its own DSP closure + BioFeedbackManager.
       # Kept DISABLED here so the app archive does not build/sign it (signing is
