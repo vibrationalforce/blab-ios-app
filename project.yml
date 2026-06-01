@@ -261,6 +261,45 @@ targets:
         DEVELOPMENT_TEAM: ""
     dependencies: []
 
+  # ===========================================================================
+  # EchoelmusicWatch — watchOS companion (glance + future on-wrist HR source)
+  # ===========================================================================
+  # Cycle C5 (scaffold). Dependency OFF the iOS app (not embedded yet) so the
+  # app archive cannot build/sign it — signing-safe pattern. Compile-verify in
+  # isolation via the EchoelmusicWatch scheme. TO SHIP (C6): confirm
+  # com.echoelmusic.app.watchkitapp provisioning, then embed as a dependency of
+  # the Echoelmusic target. C7 adds HealthKit on-wrist HR → App Group.
+  # HARD CONSTRAINT: Watch HR ~4–5 s latency → display/trend only, NO beat-sync.
+  EchoelmusicWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: Sources/EchoelmusicWatch
+        type: group
+        excludes:
+          - "**/*.md"
+      # Foundation-only App-Group bridge (shared with app + AUv3 + Widgets).
+      - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
+    info:
+      path: Resources/EchoelmusicWatch/Info.plist
+      properties:
+        CFBundleDisplayName: Echoel
+        WKApplication: true
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+    entitlements:
+      path: EchoelmusicWatch.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.watchkitapp
+        INFOPLIST_FILE: Resources/EchoelmusicWatch/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        WATCHOS_DEPLOYMENT_TARGET: "10.0"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+    dependencies: []
+
 # =============================================================================
 # SCHEMES
 # =============================================================================
@@ -288,6 +327,16 @@ schemes:
     build:
       targets:
         EchoelmusicWidgets: all
+    run:
+      config: Debug
+    analyze:
+      config: Debug
+
+  # Isolated compile-verification scheme for the watchOS companion (cycle C5).
+  EchoelmusicWatch:
+    build:
+      targets:
+        EchoelmusicWatch: all
     run:
       config: Debug
     analyze:
