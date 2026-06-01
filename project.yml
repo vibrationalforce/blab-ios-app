@@ -170,14 +170,14 @@ targets:
       # in the "Watch" folder via an Embed-Watch-Content phase (not PlugIns/
       # Frameworks); or try XcodeGen dependency `embed: true`/`copy` overrides.
       # - target: EchoelmusicWatch   # re-enable once the embed phase is correct
-      # AUv3 extension is COMPILE-VERIFIED green (probe/auv3-compile run #1431,
-      # 2026-05-31): it builds + embeds with its own DSP closure + BioFeedbackManager.
-      # Kept DISABLED here so the app archive does not build/sign it (signing is
-      # unverified). TO SHIP: confirm com.echoelmusic.app.auv3 has an App-Group
-      # provisioning profile in App Store Connect, then change to:
-      #   dependencies:
-      #     - target: EchoelmusicAUv3
-      # and a full archive will sign + upload it.
+      # AUv3 generator plugin — now compile-verified for iOS via compile_check
+      # (run 26765481421, after the SDKROOT fix). It is an app-extension, the
+      # SAME class as the widget that embeds + ships cleanly (unlike the watchOS
+      # app). Embedded so the app hosts its own AU plugin (usable in Logic /
+      # GarageBand / AUM). com.echoelmusic.app.auv3 signing/provisioning is
+      # created by xcodebuild -allowProvisioningUpdates + the ASC API key on the
+      # next full archive (same mechanism that provisioned the widget).
+      - target: EchoelmusicAUv3
     entitlements:
       path: Echoelmusic.entitlements
 
