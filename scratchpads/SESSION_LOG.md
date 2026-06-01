@@ -37,7 +37,9 @@ Read this FIRST when continuing work on Echoelmusic.
 ### Update — CI cert-race ROOT FIXED + watch C6b attempted/blocked (later 2026-06-01)
 - **C6b watch embed attempted twice (bare + WKCompanionAppBundleIdentifier) → both export with ZERO distribution methods** ("Unknown Distribution Error" / "expected one {}"). Root is the generated Embed-Watch-Content phase under XcodeGen+Xcode26 — needs **local Xcode** to inspect (Linux sandbox can't). Reverted to shippable app+widget; logged BLOCKED. Companion key + compile-verified watch target retained.
 - **CI cert-race ROOT FIXED (verified):** removed `setup_signing` from the iOS job and proved iOS still ships green **without** it — **build 1461, ASC state=VALID**. Distribution signing is entirely `xcodebuild -allowProvisioningUpdates` + ASC API key. Also neutralized the destructive "revoke ALL dev certs" in `Fastfile:setup_signing_certs` (was a parallel-job race) → now idempotent reuse-or-create.
-- **Latest shippable:** app + widget + **AUv3 plugin** (CX live bio), build **1467 VALID**. AUv3 compile gate caught its macOS-only SDKROOT misconfig; fixed + embedded + shipped (app-extension, embeds cleanly like the widget).
+- **Latest shippable:** app + widget + **AUv3 plugin** (CX live bio), build **1469 VALID**.
+- **iOS CI path now fully fastlane-free** (build 1469): dropped vestigial `gem install fastlane` from the iOS job after the cert-race fix — pure `xcodebuild` archive+upload. settingGroups DRY refactor skipped (not verifiable via no-signing compile_check).
+- **Brand sweep:** website (faq wellness→self-observation, tools.html Partial badges), settings.json wellness→physiology. Gated (Info.plist HealthKit string, screenshots/send-push workflows, Framefile screenshot label) flagged, not touched.
 
 ### Still open (deliberate)
 - 🟡 **CI matrix collapse** — 5 near-identical platform jobs (~900 lines) → one matrix/composite action. Organizational refactor (not a root bug); high blast radius on the green pipeline → its own scoped, verified effort.
