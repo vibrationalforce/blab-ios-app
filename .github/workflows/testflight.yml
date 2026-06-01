@@ -347,7 +347,9 @@ jobs:
           echo "$ASC_KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
-          # Create fresh empty keychain (avoids stale cert conflicts)
+          # Create fresh empty keychain (avoids stale cert conflicts).
+          # xcodebuild populates it with the distribution cert it creates via
+          # -allowProvisioningUpdates + the API key passed to the Archive step.
           KEYCHAIN_PATH="$HOME/Library/Keychains/build.keychain-db"
           security create-keychain -p "" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -356,22 +358,14 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
           echo "Fresh keychain ready"
 
-      - name: "Setup Signing Certificates"
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          echo "Revoking stale certificates and creating fresh one..."
-          set +eo pipefail
-          fastlane ios setup_signing 2>&1 | tee /tmp/signing.log
-          RESULT=${PIPESTATUS[0]}
-          set -eo pipefail
-          if [ $RESULT -ne 0 ]; then
-            echo "::warning title=Fastlane cert failed::Falling back to xcodebuild automatic signing"
-            echo "SIGNING_FALLBACK=true" >> $GITHUB_ENV
-          fi
+      # NOTE (CI root fix): the former "Setup Signing Certificates" step
+      # (fastlane ios setup_signing) is removed. It revoked ALL development
+      # certificates every run and created a *development* cert — but the
+      # Archive step below signs for *distribution* via xcodebuild
+      # -allowProvisioningUpdates + the ASC API key, which manages the
+      # distribution cert/profile itself (the dev cert was vestigial, proven by
+      # the pre-existing SIGNING_FALLBACK path). Revoking all certs while the
+      # per-platform jobs run in parallel was a real race / destructive op.
 
       - name: "Archive"
         env:
