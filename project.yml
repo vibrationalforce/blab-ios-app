@@ -158,11 +158,13 @@ targets:
       # compile_check; signing/provisioning of com.echoelmusic.app.widgets is
       # verified by the next full archive (build_only=false).
       - target: EchoelmusicWidgets
-      # watchOS companion — compile-verified green (compile_check on 7c2af59:
-      # EchoelmusicWatch builds for watchOS). Embedded as the app's Watch
-      # content. Signing/provisioning of com.echoelmusic.app.watchkitapp is
-      # verified by the next full archive (build_only=false).
-      - target: EchoelmusicWatch
+      # watchOS companion — compile-verified green but NOT embedded here. A
+      # naive `- target: EchoelmusicWatch` dependency produced an archive with
+      # ZERO valid distribution methods (exportArchive: "expected one {}"),
+      # i.e. a malformed embed. Embedding a watchOS app needs the correct
+      # Embed-Watch-Content phase + companion Info.plist keys
+      # (WKCompanionAppBundleIdentifier) — handled in its own cycle (C6b).
+      # Kept dependency-OFF so the app archives + uploads cleanly meanwhile.
       # AUv3 extension is COMPILE-VERIFIED green (probe/auv3-compile run #1431,
       # 2026-05-31): it builds + embeds with its own DSP closure + BioFeedbackManager.
       # Kept DISABLED here so the app archive does not build/sign it (signing is
