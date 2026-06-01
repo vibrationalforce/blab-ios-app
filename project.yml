@@ -229,10 +229,17 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        # Explicit SDKROOT/SUPPORTED_PLATFORMS — without these XcodeGen's
+        # `platform: iOS` left AUv3 defaulting to macOS-only destinations
+        # (compile_check caught it). Same fix as the app/widget targets.
+        SDKROOT: iphoneos
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SKIP_INSTALL: YES
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
-        SUPPORTS_MACCATALYST: YES
+        # iOS-only v10: the app target has no Catalyst, so neither should the
+        # plugin. (Was YES — stale; produced Mac Catalyst destinations.)
+        SUPPORTS_MACCATALYST: NO
     dependencies: []
 
   # ===========================================================================
