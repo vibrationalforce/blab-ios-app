@@ -331,9 +331,9 @@ jobs:
         with:
           version: '2.42.0'
 
-      - name: "Install Fastlane & Generate Project"
+      - name: "Generate Project"
         run: |
-          gem install fastlane:2.225.0 -N --no-document
+          # fastlane removed from the iOS job (setup_signing gone; upload is pure xcodebuild) — saves ~1-2 min
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
           xcodegen generate --spec project.yml
