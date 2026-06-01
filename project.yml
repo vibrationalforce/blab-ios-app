@@ -151,7 +151,13 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APP_ICON_ASSETS: YES
         ASSETCATALOG_COMPILER_STANDALONE_ICON_BEHAVIOR: all
-    dependencies: []
+    dependencies:
+      # Widget extension — compile-verified green (compile_check run on 7c2af59:
+      # EchoelmusicWidgets builds for iOS). Embedded so the app bundles the
+      # widget. Compile of the embedded build is checked no-signing via
+      # compile_check; signing/provisioning of com.echoelmusic.app.widgets is
+      # verified by the next full archive (build_only=false).
+      - target: EchoelmusicWidgets
       # AUv3 extension is COMPILE-VERIFIED green (probe/auv3-compile run #1431,
       # 2026-05-31): it builds + embeds with its own DSP closure + BioFeedbackManager.
       # Kept DISABLED here so the app archive does not build/sign it (signing is
