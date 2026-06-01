@@ -26,9 +26,13 @@ Read this FIRST when continuing work on Echoelmusic.
 ### Cross-cutting gap found (NOT yet wired) — Cycle CX
 `BioFeedbackPublisher.start(publishingFrom:)` is **never called** in `EchoelmusicApp.swift`, and nothing reloads `WidgetCenter`. Until wired, widget/watch show "No session yet". Touches the app archive → do CI-verified, not blind.
 
-### Next (gated)
-- **TestFlight upload** of the embedded build (`build_only=false`) — outward-facing, awaiting explicit user go; verifies `…app.widgets` + `…app.watchkitapp` provisioning.
-- Then CX wiring, then visionOS/tvOS/Catalyst per spec.
+### SHIPPED ✅ — TestFlight build 1454 (App Store Connect state=VALID, 2026-06-01)
+- First ecosystem build live: **app + EchoelmusicWidgets embedded**, CX wired (widget shows real live bio data).
+- **Two export blockers fixed en route:** (1) Xcode 26.2 rejects export `method: app-store` → changed all 5 platform blocks to `app-store-connect`; (2) embedding the watchOS app produced an archive with ZERO valid distribution methods (export `expected one {}`) — web-confirmed that embedded-watch archives break export. Un-embedded the watch.
+
+### Next
+- **C6b — watch companion embed (proper):** needs `WKCompanionAppBundleIdentifier` + Embed-Watch-Content phase, not a bare `- target` dependency. Watch target + scheme stay compile-verified meanwhile.
+- visionOS / tvOS / Mac-Catalyst per `SPEC_ECOSYSTEM_TARGETS.md`.
 
 ### Token
 PAT rotated + stored in gitignored `.claude/settings.local.json` this session (login `vibrationalforce`).
