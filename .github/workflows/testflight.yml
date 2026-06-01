@@ -217,11 +217,57 @@ jobs:
             exit 1
           fi
 
+      # Ecosystem extension/companion targets are dependency-OFF the app scheme
+      # (signing-safe), so the main compile above never touches them. Compile
+      # each of their schemes here (no signing) to give the loop real per-target
+      # green/red. Scheme-existence guarded so a future removal can't break CI.
+      - name: "Compile ecosystem targets (no signing)"
+        run: |
+          set +eo pipefail
+          FAILED=0
+          compile_scheme() {
+            local scheme="$1" platform="$2" supported="$3"
+            if ! xcodebuild -project Echoelmusic.xcodeproj -list 2>/dev/null | grep -q "$scheme"; then
+              echo "::warning title=Scheme Not Found::$scheme not in project — skipping compile"
+              echo "## $scheme — skipped (scheme not found)" >> $GITHUB_STEP_SUMMARY
+              return
+            fi
+            echo "=== Compiling $scheme (generic/platform=$platform) ==="
+            xcodebuild build \
+              -project Echoelmusic.xcodeproj \
+              -scheme "$scheme" \
+              -destination "generic/platform=$platform" \
+              -configuration Release \
+              -derivedDataPath ./build/DerivedData \
+              -skipPackagePluginValidation \
+              -parallelizeTargets \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
+              COMPILER_INDEX_STORE_ENABLE=NO \
+              ONLY_ACTIVE_ARCH=NO \
+              SUPPORTED_PLATFORMS="$supported" \
+              2>&1 | tee "/tmp/compile-$scheme.log"
+            local rc=${PIPESTATUS[0]}
+            if [ $rc -ne 0 ]; then
+              echo "::error title=$scheme Compile Errors::$(grep -E ': error: ' /tmp/compile-$scheme.log | head -15 | tr '\n' ' ||| ' || true)"
+              echo "## $scheme — compile FAILED (exit $rc)" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep -E "error:" "/tmp/compile-$scheme.log" | head -30 >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              FAILED=1
+            else
+              echo "## $scheme — compile OK" >> $GITHUB_STEP_SUMMARY
+            fi
+          }
+          compile_scheme EchoelmusicWidgets iOS iphoneos
+          compile_scheme EchoelmusicWatch watchOS watchos
+          set -eo pipefail
+          [ $FAILED -eq 0 ]
+
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: compile-check-log
-          path: /tmp/compile.log
+          path: /tmp/compile*.log
           retention-days: 3
 
   # ===========================================================================
