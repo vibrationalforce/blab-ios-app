@@ -106,6 +106,45 @@
   "env": {
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
   },
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(swift build:*)",
+      "Bash(swift test:*)",
+      "Bash(xcodebuild -list:*)",
+      "Bash(xcodebuild -version:*)",
+      "Bash(xcodegen:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(python3 -c:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== Echoel persistent memory (memory/) ==='; cat memory/*.md 2>/dev/null; echo; echo '=== recent session log ==='; sed -n '1,80p' scratchpads/SESSION_LOG.md 2>/dev/null"
+          }
+        ]
+      }
+    ]
+  },
   "workflow": {
     "branchPrefix": "claude/",
     "commitStyle": "conventional",
