@@ -226,29 +226,30 @@ jobs:
           set +eo pipefail
           FAILED=0
           compile_scheme() {
-            local scheme="$1" platform="$2" supported="$3"
+            local scheme="$1" destination="$2"
             if ! xcodebuild -project Echoelmusic.xcodeproj -list 2>/dev/null | grep -q "$scheme"; then
               echo "::warning title=Scheme Not Found::$scheme not in project — skipping compile"
               echo "## $scheme — skipped (scheme not found)" >> $GITHUB_STEP_SUMMARY
               return
             fi
-            echo "=== Compiling $scheme (generic/platform=$platform) ==="
+            echo "=== Compiling $scheme ($destination) ==="
             xcodebuild build \
               -project Echoelmusic.xcodeproj \
               -scheme "$scheme" \
-              -destination "generic/platform=$platform" \
+              -destination "$destination" \
               -configuration Release \
               -derivedDataPath ./build/DerivedData \
               -skipPackagePluginValidation \
               -parallelizeTargets \
               CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
               COMPILER_INDEX_STORE_ENABLE=NO \
-              ONLY_ACTIVE_ARCH=NO \
-              SUPPORTED_PLATFORMS="$supported" \
               2>&1 | tee "/tmp/compile-$scheme.log"
             local rc=${PIPESTATUS[0]}
             if [ $rc -ne 0 ]; then
-              echo "::error title=$scheme Compile Errors::$(grep -E ': error: ' /tmp/compile-$scheme.log | head -15 | tr '\n' ' ||| ' || true)"
+              # Surface available destinations so any destination mismatch is self-explaining.
+              echo "--- available destinations for $scheme ---"
+              xcodebuild -project Echoelmusic.xcodeproj -scheme "$scheme" -showdestinations 2>&1 | grep -E "platform:" | head -20 || true
+              echo "::error title=$scheme Compile Errors::$(grep -E ': error: |error:' /tmp/compile-$scheme.log | head -15 | tr '\n' ' ||| ' || true)"
               echo "## $scheme — compile FAILED (exit $rc)" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               grep -E "error:" "/tmp/compile-$scheme.log" | head -30 >> $GITHUB_STEP_SUMMARY
@@ -258,8 +259,11 @@ jobs:
               echo "## $scheme — compile OK" >> $GITHUB_STEP_SUMMARY
             fi
           }
-          compile_scheme EchoelmusicWidgets iOS iphoneos
-          compile_scheme EchoelmusicWatch watchOS watchos
+          # Simulator generic destinations: always present on the runner, no
+          # signing/provisioning needed — the canonical "does it compile" check
+          # for app-extension + watchOS-app schemes.
+          compile_scheme EchoelmusicWidgets "generic/platform=iOS Simulator"
+          compile_scheme EchoelmusicWatch "generic/platform=watchOS Simulator"
           set -eo pipefail
           [ $FAILED -eq 0 ]
 
