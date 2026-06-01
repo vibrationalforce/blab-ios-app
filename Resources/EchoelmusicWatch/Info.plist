@@ -13,5 +13,10 @@
 	<!-- Modern single-target SwiftUI watchOS app -->
 	<key>WKApplication</key>
 	<true/>
+	<!-- Companion link to the iOS app — required for the watch app to embed as
+	     Watch Content and for the archive to be App-Store-distributable. Its
+	     absence produced an archive with zero valid distribution methods. -->
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>com.echoelmusic.app</string>
 </dict>
 </plist>
