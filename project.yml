@@ -343,6 +343,19 @@ schemes:
     archive:
       config: Release
 
+  # Isolated compile-verification scheme for the AUv3 extension. The target
+  # existed without a scheme, so compile_check (which builds by scheme name)
+  # could not verify it — only an ad-hoc probe could. This makes AUv3
+  # first-class for CI compile verification.
+  EchoelmusicAUv3:
+    build:
+      targets:
+        EchoelmusicAUv3: all
+    run:
+      config: Debug
+    analyze:
+      config: Debug
+
   # Isolated compile-verification scheme for the Widget extension (cycle C2).
   # Lets CI `build_only` prove the widget compiles WITHOUT embedding it in the
   # app archive, so the green TestFlight pipeline is never bet on a blind embed.
