@@ -6,6 +6,35 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-01 — Apple-ecosystem loop: Widget + Watch shipped & CI-verified (Ralph Wiggum Lambda)
+
+### Branch: `claude/echoelmusic-app-feasibility-3rtwL`
+### Mode: Sandbox-Claude (Linux) — compile-verify via `testflight.yml` compile_check, dispatched from sandbox
+
+### What shipped (all CI-verified green, signing-safe — no upload)
+- **C2 — EchoelmusicWidgets** (`com.echoelmusic.app.widgets`): WidgetKit live-bio glance, reads App Group via Foundation-only `BioFeedbackManager`.
+- **C5 — EchoelmusicWatch** (`com.echoelmusic.app.watchkitapp`): watchOS companion mirroring HR/HRV/coherence (display-only per 4–5 s HR latency rule).
+- **C-arch** — `scratchpads/SPEC_ECOSYSTEM_TARGETS.md`: execution-ready per-target diffs for Widgets→Watch→Mac(Catalyst)→Vision→TV→NotifSvc→Clip. Decided **macOS = Mac Catalyst first**.
+- **C1-CI** — extended `compile_check` to build the Widget + Watch schemes no-signing (owner-approved CI change). Per-target green/red.
+- **C3 + C6** — embedded both extensions into the app; app compiles with both embedded.
+
+### Key discoveries
+- **Workflow mechanics:** `build_only=true` alone skips ALL compile; the real compile gate is the `compile_check` job, gated on `skip_compile_check=false`. Correct dispatch: `{platform:ios, build_only:true, skip_compile_check:false}`.
+- **Sandbox network:** raw Actions logs live on `*.blob.core.windows.net` (blocked). Route diagnostics through the **annotation channel** (api.github.com) — `::warning`/`::error` are readable via `/check-runs/{id}/annotations`.
+- **SDKROOT bug (root cause of red runs):** XcodeGen's `platform:` key did NOT set SDKROOT here, so Widget + Watch defaulted to **macOS-only destinations**. Fixed via explicit `SDKROOT`+`SUPPORTED_PLATFORMS` per target. The widget (C2) was silently mis-configured and would have failed at embed — CI verification caught it.
+
+### Cross-cutting gap found (NOT yet wired) — Cycle CX
+`BioFeedbackPublisher.start(publishingFrom:)` is **never called** in `EchoelmusicApp.swift`, and nothing reloads `WidgetCenter`. Until wired, widget/watch show "No session yet". Touches the app archive → do CI-verified, not blind.
+
+### Next (gated)
+- **TestFlight upload** of the embedded build (`build_only=false`) — outward-facing, awaiting explicit user go; verifies `…app.widgets` + `…app.watchkitapp` provisioning.
+- Then CX wiring, then visionOS/tvOS/Catalyst per spec.
+
+### Token
+PAT rotated + stored in gitignored `.claude/settings.local.json` this session (login `vibrationalforce`).
+
+---
+
 ## 2026-05-12 — Phase 1: BeatTab UI piecewise restore (Ralph Wiggum Lambda)
 
 ### Branch: `claude/echoelmusic-deep-audit-6efQv` (pushed for the first time this session)
