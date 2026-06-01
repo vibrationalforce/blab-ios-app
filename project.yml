@@ -217,6 +217,50 @@ targets:
         SUPPORTS_MACCATALYST: YES
     dependencies: []
 
+  # ===========================================================================
+  # EchoelmusicWidgets — WidgetKit Extension (glanceable live vitals)
+  # ===========================================================================
+  # Cycle C2 of the Apple-ecosystem loop. Dependency is intentionally OFF the
+  # main app (not embedded yet) so the app archive cannot build/sign it — the
+  # signing-safe pattern (PLAN_ECOSYSTEM_LOOP.md §0.2). Compile-verify in
+  # isolation via the EchoelmusicWidgets scheme. TO SHIP (cycle C3): confirm
+  # com.echoelmusic.app.widgets has an App-Group provisioning profile, then add
+  #   dependencies:
+  #     - target: EchoelmusicWidgets
+  # to the Echoelmusic target above and archive embeds + signs it.
+  EchoelmusicWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/EchoelmusicWidgets
+        type: group
+        excludes:
+          - "**/*.md"
+      # Foundation-only App-Group bridge for live vitals (shared with the app +
+      # AUv3). Compiled into the widget module — no app-framework import.
+      - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
+    info:
+      path: Resources/EchoelmusicWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Echoel Bio
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: EchoelmusicWidgets.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.widgets
+        INFOPLIST_FILE: Resources/EchoelmusicWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        SKIP_INSTALL: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+    dependencies: []
+
 # =============================================================================
 # SCHEMES
 # =============================================================================
@@ -236,4 +280,16 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  # Isolated compile-verification scheme for the Widget extension (cycle C2).
+  # Lets CI `build_only` prove the widget compiles WITHOUT embedding it in the
+  # app archive, so the green TestFlight pipeline is never bet on a blind embed.
+  EchoelmusicWidgets:
+    build:
+      targets:
+        EchoelmusicWidgets: all
+    run:
+      config: Debug
+    analyze:
+      config: Debug
 
