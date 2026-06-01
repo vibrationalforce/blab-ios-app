@@ -34,6 +34,16 @@ Read this FIRST when continuing work on Echoelmusic.
 - **C6b — watch companion embed (proper):** needs `WKCompanionAppBundleIdentifier` + Embed-Watch-Content phase, not a bare `- target` dependency. Watch target + scheme stay compile-verified meanwhile.
 - visionOS / tvOS / Mac-Catalyst per `SPEC_ECOSYSTEM_TARGETS.md`.
 
+### Update — CI cert-race ROOT FIXED + watch C6b attempted/blocked (later 2026-06-01)
+- **C6b watch embed attempted twice (bare + WKCompanionAppBundleIdentifier) → both export with ZERO distribution methods** ("Unknown Distribution Error" / "expected one {}"). Root is the generated Embed-Watch-Content phase under XcodeGen+Xcode26 — needs **local Xcode** to inspect (Linux sandbox can't). Reverted to shippable app+widget; logged BLOCKED. Companion key + compile-verified watch target retained.
+- **CI cert-race ROOT FIXED (verified):** removed `setup_signing` from the iOS job and proved iOS still ships green **without** it — **build 1461, ASC state=VALID**. Distribution signing is entirely `xcodebuild -allowProvisioningUpdates` + ASC API key. Also neutralized the destructive "revoke ALL dev certs" in `Fastfile:setup_signing_certs` (was a parallel-job race) → now idempotent reuse-or-create.
+- **Latest shippable:** app + widget (CX live bio), build 1461.
+
+### Still open (deliberate)
+- 🟡 **CI matrix collapse** — 5 near-identical platform jobs (~900 lines) → one matrix/composite action. Organizational refactor (not a root bug); high blast radius on the green pipeline → its own scoped, verified effort.
+- 🟢 `project.yml` settingGroups safe subset · add AUv3 to compile_check build list.
+- 🟢 Feature: visionOS/tvOS surfaces · RTMP (HaishinKit).
+
 ### Token
 PAT rotated + stored in gitignored `.claude/settings.local.json` this session (login `vibrationalforce`).
 
