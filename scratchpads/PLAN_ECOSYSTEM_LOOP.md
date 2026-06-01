@@ -47,6 +47,12 @@ surface most naturally lives in the ecosystem:
 
 ## 2 · Loop backlog (ordered — one cycle each)
 
+> **Execution-ready diffs per target:** `scratchpads/SPEC_ECOSYSTEM_TARGETS.md` (exact
+> `project.yml` blocks, entitlements, Info.plists, source lists — each follow cycle is pure
+> execution). **Cross-cutting prerequisite (Cycle CX):** the app's `BioFeedbackPublisher` is
+> dormant (never started) and nothing reloads `WidgetCenter` — wire both before any glance
+> *content* cycle, else widget/watch show "No session yet".
+
 Ordered by *value ÷ signing-risk*. Earliest cycles are zero new-signing (compile-only or
 content), so the green pipeline is never bet on a blind embed.
 
