@@ -158,6 +158,11 @@ targets:
       # compile_check; signing/provisioning of com.echoelmusic.app.widgets is
       # verified by the next full archive (build_only=false).
       - target: EchoelmusicWidgets
+      # watchOS companion — compile-verified green (compile_check on 7c2af59:
+      # EchoelmusicWatch builds for watchOS). Embedded as the app's Watch
+      # content. Signing/provisioning of com.echoelmusic.app.watchkitapp is
+      # verified by the next full archive (build_only=false).
+      - target: EchoelmusicWatch
       # AUv3 extension is COMPILE-VERIFIED green (probe/auv3-compile run #1431,
       # 2026-05-31): it builds + embeds with its own DSP closure + BioFeedbackManager.
       # Kept DISABLED here so the app archive does not build/sign it (signing is
