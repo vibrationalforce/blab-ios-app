@@ -262,11 +262,11 @@ jobs:
               echo "## $scheme — compile OK" >> $GITHUB_STEP_SUMMARY
             fi
           }
-          # Simulator generic destinations: always present on the runner, no
-          # signing/provisioning needed — the canonical "does it compile" check
-          # for app-extension + watchOS-app schemes.
-          compile_scheme EchoelmusicWidgets "generic/platform=iOS Simulator"
-          compile_scheme EchoelmusicWatch "generic/platform=watchOS Simulator"
+          # Device generic destinations (no simulator runtime needed, no
+          # signing with CODE_SIGNING_ALLOWED=NO) — same destination class the
+          # main Echoelmusic compile proves works on this runner.
+          compile_scheme EchoelmusicWidgets "generic/platform=iOS"
+          compile_scheme EchoelmusicWatch "generic/platform=watchOS"
           set -eo pipefail
           [ $FAILED -eq 0 ]
 

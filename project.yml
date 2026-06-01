@@ -256,6 +256,11 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        # Explicit SDKROOT/SUPPORTED_PLATFORMS — XcodeGen's `platform:` alone
+        # does not set these here, so without them the target defaults to macOS
+        # (matches the main Echoelmusic target's pattern).
+        SDKROOT: iphoneos
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SKIP_INSTALL: YES
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
@@ -296,6 +301,11 @@ targets:
         INFOPLIST_FILE: Resources/EchoelmusicWatch/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         WATCHOS_DEPLOYMENT_TARGET: "10.0"
+        # Explicit SDKROOT/SUPPORTED_PLATFORMS — without these XcodeGen's
+        # `platform: watchOS` still leaves the target defaulting to macOS.
+        SDKROOT: watchos
+        SUPPORTED_PLATFORMS: "watchos watchsimulator"
+        TARGETED_DEVICE_FAMILY: "4"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
     dependencies: []
