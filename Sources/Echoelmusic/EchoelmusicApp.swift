@@ -18,6 +18,7 @@ struct EchoelmusicApp: App {
     #endif
     @State private var bioVoice: BioReactiveSynthVoice
     @State private var bioEvents: BioEventPublisher
+    @State private var bioFeedback: BioFeedbackPublisher
     #if canImport(CoreMIDI)
     @State private var midiInput: MIDIInput
     @State private var midiPub: MIDIBusPublisher
@@ -48,6 +49,7 @@ struct EchoelmusicApp: App {
         #endif
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
+        _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
         #if canImport(CoreMIDI)
         let midi = MIDIInput()
         _midiInput = State(wrappedValue: midi)
@@ -124,6 +126,10 @@ struct EchoelmusicApp: App {
                 #endif
                 bioVoice.start(subscribing: bus)
                 bioEvents.start(on: bus)
+                // Mirror live vitals into the shared App Group (~1 Hz, off the
+                // audio thread) so the Widget + Watch glance surfaces show real
+                // data instead of "No session yet", and nudge WidgetKit.
+                bioFeedback.start(publishingFrom: bus)
                 #if canImport(CoreMIDI)
                 midiPub.start(publishing: bus)
                 #endif
@@ -151,9 +157,11 @@ struct EchoelmusicApp: App {
                 case .active:
                     if oldPhase == .background {
                         audioEngine.start()
+                        bioFeedback.start(publishingFrom: bus)
                         log.log(.info, category: .system, "App active — audio resumed")
                     }
                 case .background:
+                    bioFeedback.stop()
                     log.log(.info, category: .system, "App backgrounded")
                 case .inactive:
                     break

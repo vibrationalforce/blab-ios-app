@@ -13,6 +13,9 @@
 import Foundation
 #if canImport(Observation)
 import Observation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 @MainActor
 @Observable
@@ -21,6 +24,9 @@ public final class BioFeedbackPublisher {
     @ObservationIgnored public let manager: BioFeedbackManager
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private let loop = PollingLoop()
+    // Throttle widget reloads — WidgetKit budgets refreshes, so nudge at most
+    // once every 10 s even though we publish vitals at ~1 Hz.
+    @ObservationIgnored private var lastWidgetReload: Date = .distantPast
 
     public init(manager: BioFeedbackManager = BioFeedbackManager()) {
         self.manager = manager
@@ -37,9 +43,20 @@ public final class BioFeedbackPublisher {
                 coherence: frame.coherence,
                 timestamp: frame.timestamp
             ))
+            self.reloadWidgetsIfDue()
         }
     }
 
     public func stop() { loop.stop() }
+
+    /// Nudge WidgetKit to refresh the bio glance, no more than once per 10 s.
+    private func reloadWidgetsIfDue() {
+        #if canImport(WidgetKit)
+        let now = Date()
+        guard now.timeIntervalSince(lastWidgetReload) >= 10 else { return }
+        lastWidgetReload = now
+        WidgetCenter.shared.reloadTimelines(ofKind: "EchoelBioWidget")
+        #endif
+    }
 }
 #endif
