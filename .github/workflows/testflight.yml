@@ -331,9 +331,11 @@ jobs:
         with:
           version: '2.42.0'
 
-      - name: "Generate Project"
+      - name: "Install Fastlane & Generate Project"
         run: |
-          # fastlane removed from the iOS job (setup_signing gone; upload is pure xcodebuild) — saves ~1-2 min
+          # fastlane is needed again to revoke stale dev certs before archive
+          # (Apple dev-cert limit management — see Setup Signing Certificates).
+          gem install fastlane:2.225.0 -N --no-document
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
           xcodegen generate --spec project.yml
@@ -359,14 +361,25 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
           echo "Fresh keychain ready"
 
-      # NOTE (CI root fix): the former "Setup Signing Certificates" step
-      # (fastlane ios setup_signing) is removed. It revoked ALL development
-      # certificates every run and created a *development* cert — but the
-      # Archive step below signs for *distribution* via xcodebuild
-      # -allowProvisioningUpdates + the ASC API key, which manages the
-      # distribution cert/profile itself (the dev cert was vestigial, proven by
-      # the pre-existing SIGNING_FALLBACK path). Revoking all certs while the
-      # per-platform jobs run in parallel was a real race / destructive op.
+      - name: "Setup Signing Certificates"
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Revoke stale dev certs so -allowProvisioningUpdates can create fresh
+          # per-target (app/widgets/auv3) dev profiles under Apple's dev-cert
+          # limit. Removing this earlier caused certs to accumulate across runs →
+          # archive failed finding extension dev profiles. Safe here: single iOS
+          # job per dispatch (no parallel job to race the revocation).
+          set +eo pipefail
+          fastlane ios setup_signing 2>&1 | tee /tmp/signing.log
+          RESULT=${PIPESTATUS[0]}
+          set -eo pipefail
+          if [ $RESULT -ne 0 ]; then
+            echo "::warning title=Signing setup non-zero::falling back to xcodebuild automatic signing"
+          fi
 
       - name: "Archive"
         env:

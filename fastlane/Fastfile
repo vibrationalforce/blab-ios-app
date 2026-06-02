@@ -73,23 +73,45 @@ def upload_to_testflight_with_retry(api_key, changelog, ipa_path: nil, max_retri
 end
 
 # =============================================================================
-# SIGNING HELPER — reuse-or-create a cert (NON-destructive)
+# SIGNING HELPER — revoke stale dev certs (clear Apple's limit), then create
 # =============================================================================
-# NOTE: distribution archiving in CI is done by `xcodebuild
-# -allowProvisioningUpdates` + the ASC API key, which manages the
-# distribution cert/profile itself. This helper only provisions a *development*
-# cert for any platform job that still calls it. It MUST NOT revoke certs:
-# the former "revoke ALL development certificates" step was a destructive race
-# when platform jobs run in parallel (each revoking the others' fresh certs).
-# `cert` reuses an existing certificate when available and only creates one if
-# needed — idempotent and concurrency-safe.
+# Ephemeral CI + a fresh keychain each run means a NEW Apple Development cert is
+# requested every run; without cleanup these accumulate and hit Apple's dev-cert
+# limit, after which `xcodebuild -allowProvisioningUpdates` can no longer create
+# the per-target dev profiles (archive fails: "couldn't find iOS App Development
+# provisioning profiles matching com.echoelmusic.app.{widgets,auv3}").
+# So we revoke stale dev certs first, then create a fresh one.
+#
+# RACE NOTE: revoking ALL dev certs is only safe when ONE archive job runs at a
+# time. Our dispatches are single-platform (platform=ios) → no parallel job to
+# race with. If a multi-platform (platform=all) run is ever used, serialize the
+# platform jobs (needs: chain) or switch to `match`/a stored P12 instead.
 
 def setup_signing_certs(cert_platform: "ios")
   api_key = setup_api_key
   keychain_path = "#{ENV['HOME']}/Library/Keychains/build.keychain-db"
   keychain_password = ""
 
-  UI.message("Provisioning Development certificate (reuse-or-create) for platform: #{cert_platform}...")
+  UI.message("Revoking stale development certificates (clear Apple dev-cert limit)...")
+  begin
+    token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key: ENV["ASC_KEY_CONTENT"]
+    )
+    Spaceship::ConnectAPI.token = token
+    dev_certs = Spaceship::ConnectAPI::Certificate.all.select { |c|
+      t = c.certificate_type
+      t == "DEVELOPMENT" || t == "IOS_DEVELOPMENT" || t == "MAC_APP_DEVELOPMENT"
+    }
+    UI.message("Found #{dev_certs.count} development certificate(s), revoking...")
+    dev_certs.each { |c| c.delete! }
+    UI.success("Revoked #{dev_certs.count} development certificate(s)")
+  rescue => e
+    UI.important("Cert revocation warning (continuing): #{e.message}")
+  end
+
+  UI.message("Creating fresh Development certificate for platform: #{cert_platform}...")
   cert(
     development: true,
     api_key: api_key,
@@ -98,7 +120,7 @@ def setup_signing_certs(cert_platform: "ios")
     keychain_password: keychain_password,
     platform: cert_platform
   )
-  UI.success("#{cert_platform} Development certificate available in keychain")
+  UI.success("#{cert_platform} Development certificate installed in keychain")
 end
 
 # =============================================================================
