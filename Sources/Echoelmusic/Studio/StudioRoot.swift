@@ -28,13 +28,24 @@ struct StudioRoot: View {
                     .tabItem { Label("Well", systemImage: "heart.fill") }
             }
         }
-        #if DEBUG
-        // Dev convenience: auto-start the demo so the bus is live in the
-        // simulator/Xcode. Release requires an explicit tap on the source tag.
         .task {
+            #if DEBUG
+            // Dev: demo on immediately so the bus is live in Simulator/Xcode.
             demoSource.start(publishing: bus)
+            #else
+            // Release / TestFlight: give real sensors (HealthKit / Polar H10) a
+            // few seconds to produce a frame; if none arrives, auto-start the
+            // clearly-labeled "Demo" source so EVERY tester experiences the
+            // bio-reactive instrument without paired hardware. BioSimulator
+            // publishes source=.fallback (always labeled "Demo") and defers the
+            // moment a real source connects — so this never masks real data.
+            try? await Task.sleep(for: .seconds(4))
+            let live = bus.latestBio
+            if live == nil || live?.source == .fallback {
+                demoSource.start(publishing: bus)
+            }
+            #endif
         }
-        #endif
     }
 }
 #endif
