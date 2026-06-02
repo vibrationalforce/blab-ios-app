@@ -12,6 +12,14 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
+> **CURRENT SHIPPING STATE (2026-06-01):** TestFlight **build 1469 VALID** — app +
+> **EchoelmusicWidgets** (live bio glance) + **AUv3 plugin** embedded, all driven
+> by live bio via the `BioFeedbackPublisher` → App Group bridge (CX). iOS CI path
+> is fully `xcodebuild` (fastlane retired; cert-race fixed). Camera rPPG is
+> **dormant/Planned** (see `scratchpads/SPEC_CAMERA_PIPELINE.md` — camera is ONE
+> shared input fanning out to bio/video/visuals/RTMP/spatial). Watch companion is
+> compile-verified but **not embedded** (export blocked — needs local Xcode).
+
 > The "12 tools" are a taxonomy over the real modules. E.g. *EchoelSynth* is the
 > group {EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelPolyDDSP, SamplerVoice}.
 > There is no `EchoelSynth` type.
@@ -66,9 +74,9 @@ acceptance line.
 ### 6. EchoelBio — `LIVE`
 - **Code:** `Core/EngineBus.swift` (`BioSampleFrame`), `Bio/HealthKitBioPublisher.swift`, `Bio/PolarH10BioPublisher.swift`, `Bio/BioSimulator.swift`, `Bio/EchoelBioEngine.swift`, `Bio/BioEventPublisher.swift`
 - **Protected DSP triad (read-only, do not simplify):** `Bio/BioEventGraph.swift`, `Bio/HilbertSensorMapper.swift`, `Bio/BioSignalDeconvolver.swift`
-- **Live:** HealthKit + Polar H10 (BLE direct, 0x2A37 + RR→RMSSD) + Demo → `bioFrames`; breath/motion onset events via BioEventGraph.
-- **Roadmap:** face tracking (ARKit), raw PPG/ECG waveform → real `.heartbeat` events (Polar PMD service).
-- **TestFlight acceptance:** `BioStripView` shows live HR/HRV/Br/Coh; Demo source works on Simulator (HealthKit/BLE need device).
+- **Live:** HealthKit + Polar H10 (BLE direct, 0x2A37 + RR→RMSSD) + Demo → `bioFrames`; breath/motion onset events via BioEventGraph. **CX (shipped):** `Core/BioFeedbackPublisher.swift` mirrors vitals to App Group `group.com.echoelmusic` (~1 Hz) + nudges WidgetKit → drives the Widget & Watch glance.
+- **Roadmap:** **camera rPPG (`Video/CameraAnalyzer.swift` exists but dormant — not wired to the bus, only via deprecated `BioSourceManager`)**; face tracking (ARKit); raw PPG/ECG waveform → real `.heartbeat` events (Polar PMD service). Oura via **HealthKit** (no Oura SDK — see decisions).
+- **TestFlight acceptance:** `BioStripView` shows live HR/HRV/Br/Coh; Demo source works on Simulator (HealthKit/BLE need device). Widget shows the same vitals (build 1469).
 
 ### 7. EchoelVis — `PARTIAL`
 - **Code:** `Video/Shaders/VisualRendererKernels.metal`, `Video/Shaders/ChromaKey.metal`, `Views/MetalBioView.swift`, `Views/BioVisualRenderer.swift`
@@ -102,6 +110,25 @@ acceptance line.
 
 ---
 
+## Ecosystem surfaces (the instrument extended across Apple platforms)
+
+| Surface | Bundle | Status | Notes |
+|---|---|---|---|
+| **AUv3 plugin** | `…app.auv3` | `LIVE` (shipped build 1467/1469) | Generator AU — Echoel-as-plugin in Logic/GarageBand/AUM. SDKROOT fixed (was macOS-only); embedded + signed via `xcodebuild -allowProvisioningUpdates`. |
+| **Widgets** | `…app.widgets` | `LIVE` (shipped 1454→1469) | WidgetKit live bio glance, reads App Group via `BioFeedbackManager`. |
+| **watchOS** | `…app.watchkitapp` | `COMPILE-VERIFIED, not embedded` | Bio glance; embed export-blocked (needs `WKCompanionAppBundleIdentifier` + Embed-Watch-Content phase verified in local Xcode). |
+| **macOS (Catalyst)** | `com.echoelmusic.app` | `ROADMAP` (decided path) | Catalyst-first; native AppKit deferred. See `SPEC_ECOSYSTEM_TARGETS.md`. |
+| **visionOS / tvOS** | `com.echoelmusic.app` | `ROADMAP` | Immersive / big-screen output. Separate-platform archive lanes (now cert-race-free). |
+| **App Clip / Notification Service** | `…app.clip` / `…notification-service` | `ROADMAP` | Per `SPEC_ECOSYSTEM_TARGETS.md`. |
+
+**Orientation (the Fahrplan):** THIS file is the spine — code-grounded status,
+sequenced by value ÷ signing-risk. The **website mirrors** it (architecture.html /
+tools.html), never the other way round ("if the website disagrees, the code wins").
+Companion plans: `SPEC_ECOSYSTEM_TARGETS.md` (surfaces), `SPEC_CAMERA_PIPELINE.md`
+(camera fan-out), `decisions.csv` (SDK doctrine, Oura-via-HealthKit, RTP-MIDI+Link).
+
+---
+
 ## TestFlight build #1 — acceptance scope (the LIVE/PARTIAL set)
 
 Ship only what is `LIVE` or the `LIVE` part of `PARTIAL`. Build #1 = a working
@@ -123,7 +150,7 @@ Ship only what is `LIVE` or the `LIVE` part of `PARTIAL`. Build #1 = a working
 - **Info.plist source:** XcodeGen generates it from `project.yml` `info.properties` — keep it synced with `Resources/iOS/Info.plist`.
 - **Entitlements:** HealthKit + App Group `group.com.echoelmusic` only. iCloud/CloudKit **disabled** (no code uses it; it blocks provisioning until the container is registered).
 - **Signing (CI):** automatic, via App Store Connect API key secrets `APP_STORE_CONNECT_KEY_ID / ISSUER_ID / PRIVATE_KEY` + `APPLE_TEAM_ID`, `-allowProvisioningUpdates`. If archive succeeds but upload fails → check these secrets first (key created Dec may be expired).
-- **AUv3 extension:** target dependency currently disabled in `project.yml`; re-enable only **after** the main app archives green and `com.echoelmusic.app.auv3` provisioning is confirmed.
+- **AUv3 extension:** ✅ ENABLED + SHIPPED (build 1467/1469). Compile-verified via the `EchoelmusicAUv3` scheme in `compile_check`; signed/uploaded via `-allowProvisioningUpdates`. (Widget likewise embedded + shipped. Watch dependency kept OFF — export-blocked.)
 
 ---
 
