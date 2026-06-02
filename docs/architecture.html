@@ -167,7 +167,7 @@
                 <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)            <b>CONSUMERS</b>
   HealthKit / Apple Watch  ─┐
   Polar H10  (BLE direct)  ─┤
-  iPhone camera  (rPPG)    ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
+  iPhone camera (rPPG·planned)─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
   Demo (DEBUG)             ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
         │                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
         ▼ BioSourceManager (confidence fusion)                                          │
@@ -351,7 +351,7 @@
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
                 <div class="data-row"><div class="k">EchoelSeq <span class="tag">LIVE</span></div><div class="v">PatternEngine · BeatPlayer</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
-                <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · PolarH10BioPublisher · CameraAnalyzer · BioSourceManager</div></div>
+                <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher · PolarH10BioPublisher · BioSimulator (live sources). <code>CameraAnalyzer</code> · <code>BioSourceManager</code> present but <strong>not yet wired to the bus</strong> — camera rPPG <span class="tag">Planned</span></div></div>
                 <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView · BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal</div></div>
                 <div class="data-row"><div class="k">EchoelVid <span class="tag">LIVE</span></div><div class="v">CameraCapture · ShortContentRenderer (NLE/ProRes/RTMP roadmap)</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
@@ -370,7 +370,7 @@
                             <li>EngineBus + 3 SPSC topics</li>
                             <li>MIDI 2.0 + MPE (pitch/slide/air)</li>
                             <li>Bio-DSP triad</li>
-                            <li>HealthKit + Polar H10 + camera rPPG</li>
+                            <li>HealthKit + Polar H10 (camera rPPG planned)</li>
                             <li>DDSP / Cellular / Modal synthesis</li>
                             <li>Convolution reverb · 4-band EQ · LUFS</li>
                             <li>AudioEngine + 30s RetroCapture</li>
