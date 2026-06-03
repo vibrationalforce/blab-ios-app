@@ -120,3 +120,26 @@ Architectural and strategic decisions with context and rationale.
 - **Expected outcome:** Faster session starts, no repeated discovery of known facts
 - **Review date:** 2026-05-17
 - **Reviewed 2026-04-17:** Confirmed working well. memory/ files (decisions.md, user.md, preferences.md, people.md) restored full context at session start. System working as intended.
+
+---
+
+### 2026-06-01/02 Apple-ecosystem ship + honesty pass (session)
+- **Decision:** Ship the focused bio-reactive instrument across 3 Apple surfaces (app + Widget + AUv3) on TestFlight (build 1477), make the website/App-Store metadata honestly mirror the code, and establish FEATURE_MATRIX as the single roadmap. Hold device-bound and decision-gated work (camera, watch embed, CI-matrix, RTMP/Link) rather than blind-build.
+- **Reasoning:** Sandbox can verify compile/sign/upload but NOT runtime. Highest integrity = ship what's CI-verifiable, be honest about what isn't, and not overclaim. User wants present+future safe.
+- **Key sub-decisions:**
+  - **SDK doctrine:** speak open standards, depend on almost nothing. Ableton Extensions deferred; Oura via HealthKit (no SDK); RTP-MIDI + Link = Tier-1 next.
+  - **Camera = ONE shared input** (CameraHub fan-out: bio/video/visual/RTMP/spatial); modes mutually exclusive. See SPEC_CAMERA_PIPELINE.md.
+  - **macOS = Mac Catalyst first** (native AppKit deferred).
+  - **Website mirrors code**, FEATURE_MATRIX is the Fahrplan.
+  - **Release auto-demo:** so TestFlight testers without hardware see live bio-reactivity.
+- **Lesson logged (correction):** removing the fastlane dev-cert revoke caused dev-cert accumulation → Apple cert-limit → extension archives failed. The revoke was load-bearing (limit mgmt), not just a race; restored it (race-safe for single-platform dispatch).
+- **Expected outcome:** A genuinely tester-usable TestFlight build + a clean, honest public face + a documented App Store submission checklist. Next: on-device verification.
+- **Review date:** 2026-07-02
+
+---
+
+### 2026-06-02 Camera rPPG + App-Store metadata honesty
+- **Decision:** Mark camera rPPG Planned (dormant in code), and brand-clean App Store metadata (en-US + de-DE) — drop wellness/meditation/16K/"Super Intelligence AI"/100+ overclaims. Other 10 locales flagged, not blind-translated.
+- **Reasoning:** Misleading metadata fails App Review (§2.3) and violates the brand rule; honest copy that matches the shipped LIVE set is safer and on-brand.
+- **Expected outcome:** Review-safe primary-market metadata; remaining locales + screenshots + privacy labels are the documented submission blockers.
+- **Review date:** 2026-07-02
