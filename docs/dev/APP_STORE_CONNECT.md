@@ -32,10 +32,10 @@ single `com.echoelmusic.app` ID so one purchase unlocks iOS / macOS / tvOS / vis
 
 | ASC display name | Bundle ID | Role | Tuist (`Project.swift`) | CI (`project.yml`) |
 |---|---|---|---|---|
-| Echoelmusic | `com.echoelmusic.app` | Main app (iOS + universal) | ✅ declared | ✅ **builds in CI** |
-| Echoelmusic AUv3 | `com.echoelmusic.app.auv3` | Audio Unit v3 extension (embedded) | ✅ declared | ✅ defined, dependency **disabled** |
-| Echoelmusic Widgets | `com.echoelmusic.app.widgets` | WidgetKit extension | ✅ declared | ❌ **not in CI spec** |
-| Echoelmusic watchOS | `com.echoelmusic.app.watchkitapp` | watchOS companion | ✅ declared | ❌ **not in CI spec** |
+| Echoelmusic | `com.echoelmusic.app` | Main app (iOS + universal) | ✅ declared | ✅ **builds + ships** (build 1477) |
+| Echoelmusic AUv3 | `com.echoelmusic.app.auv3` | Audio Unit v3 extension (embedded) | ✅ declared | ✅ **embedded + ships** (1467+) |
+| Echoelmusic Widgets | `com.echoelmusic.app.widgets` | WidgetKit extension | ✅ declared | ✅ **embedded + ships** (1454+) |
+| Echoelmusic watchOS | `com.echoelmusic.app.watchkitapp` | watchOS companion | ✅ declared | ⚠️ compile-verified, **embed blocked** (local Xcode) |
 | Echoelmusic Clip | `com.echoelmusic.app.clip` | App Clip | ❌ | ❌ ASC-registered, **target deferred** |
 | Echoelmusic Notification Service | `com.echoelmusic.app.notification-service` | Notification Service extension | ❌ | ❌ ASC-registered, **target deferred** |
 
