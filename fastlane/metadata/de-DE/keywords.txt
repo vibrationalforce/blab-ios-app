@@ -1,1 +1,1 @@
-Biofeedback,Video Editor,KI Musik,HRV,Meditation,Synthesizer,Spatial Audio,16K,Kreativ,Instrumente
+Biofeedback,HRV,bio-reaktiv,Herzfrequenz,Synthesizer,Beatmaker,Musik,MPE,OSC,AUv3
