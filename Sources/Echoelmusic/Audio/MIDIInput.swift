@@ -66,9 +66,28 @@ final class MIDIInput {
             return
         }
 
+        // Enable RTP-MIDI (Apple network MIDI) BEFORE connecting sources, so the
+        // network session shows up as a CoreMIDI source and gets connected below.
+        enableNetworkMIDI()
+
         // Connect to all existing sources
         connectAllSources()
-        log.log(.info, category: .system, "MIDI: Input ready (MIDI 2.0 + MPE)")
+        log.log(.info, category: .system, "MIDI: Input ready (MIDI 2.0 + MPE + network)")
+    }
+
+    /// Turn on Apple network MIDI (RTP-MIDI, RFC 6295) via CoreMIDI's built-in
+    /// session — a Tier-1 open standard, no external dependency. The device then
+    /// advertises `_apple-midi._udp` (declared in Info.plist NSBonjourServices)
+    /// and accepts wireless MIDI from a Mac's network session, rtpMIDI, etc.
+    /// Connecting peers are picked up by `connectAllSources()` + the MIDI
+    /// setup-changed notification. iOS-only API.
+    private func enableNetworkMIDI() {
+        #if os(iOS)
+        let session = MIDINetworkSession.default()
+        session.isEnabled = true
+        session.connectionPolicy = .anyone
+        log.log(.info, category: .system, "MIDI: network session enabled (RTP-MIDI)")
+        #endif
     }
 
     private func connectAllSources() {

@@ -73,6 +73,7 @@
 		<string>_artnet._udp</string>
 		<string>_osc._udp</string>
 		<string>_midi._udp</string>
+		<string>_apple-midi._udp</string>
 		<string>_echoelmusic._tcp</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
