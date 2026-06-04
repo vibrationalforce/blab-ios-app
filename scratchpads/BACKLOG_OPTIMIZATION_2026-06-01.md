@@ -32,3 +32,16 @@ Risk tiers: 🟢 safe/CI-verifiable · 🟡 touches the green ship pipeline (nee
 ## Notes / corrections
 - Audit "committed live PAT" = FALSE ALARM: `.claude/settings.local.json` is gitignored AND never tracked by git. (Rotate post-session anyway — pasted in chat.)
 - 5 routines in `.claude/routines/` are manual "paste into claude.ai" prompts — none wired to a workflow/hook. Wiring them (or at least routine-01 PR-review + routine-04 CI-watchdog) to Actions would automate the documented multi-agent ops.
+
+---
+
+## 🔴 CRITICAL FINDING (2026-06-03): the test suite is NOT run by any green CI
+- **`quick-test.yml`** (Linux `swift build`/`swift test`) — **fails at "Build (Linux)"** on every run (539–543): the iOS-framework-heavy package cannot build on Linux. `swift test` never executes.
+- **`ci.yml`** (macOS `xcodebuild test -scheme Echoelmusic`) — **green, but runs ZERO tests**: `project.yml` defines **no unit-test target**, so the scheme's `test:` action has no testables. The 1000+ tests in `Tests/EchoelmusicTests/` are orphaned — compiled/run by nothing.
+- **Impact:** "build stability" cannot actually be verified by CI today. Compile_check (app schemes) is the only working gate; correctness is unverified.
+- **Fix (needs a macOS/Xcode session — host wiring is fiddly to do blind):**
+  1. Add an `EchoelmusicCoreTests` `bundle.unit-test` target to `project.yml` with `TEST_HOST` = the app (or refactor the testable core into the SPM library so logic tests need no host), sources a **curated, currently-compiling** subset (legacy tests likely drifted vs deprecated code).
+  2. Add it to the `Echoelmusic` scheme `test.targets` so `ci.yml` actually runs it.
+  3. Start with `Tests/EchoelmusicCoreTests/MIDIFileExporterTests.swift` (added, isolated, current) — prove one test runs green, then migrate good legacy tests.
+- **Added this session (compile-verified, byte-logic hand-verified, NOT yet test-run):**
+  `Sources/Echoelmusic/Sequencer/MIDIFileExporter.swift` (SMF Type-0 export — EchoelSeq "beat → any DAW" roadmap) + its ready test. Wire the target to actually run it.
