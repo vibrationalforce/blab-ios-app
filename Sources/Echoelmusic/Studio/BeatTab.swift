@@ -13,9 +13,6 @@
 #if canImport(SwiftUI)
 import SwiftUI
 import Foundation
-#if canImport(UIKit)
-import UIKit
-#endif
 
 @MainActor
 struct BeatTab: View {
@@ -46,7 +43,7 @@ struct BeatTab: View {
         .background(Color.black)
         #if canImport(UIKit)
         .sheet(item: $exportedMIDI) { file in
-            ShareSheet(items: [file.url])
+            ShareSheet(url: file.url)
         }
         #endif
     }
@@ -244,19 +241,9 @@ struct BeatTab: View {
 }
 
 /// Identifiable wrapper so the exported .mid URL can drive `.sheet(item:)`.
+/// (Reuses the existing `ShareSheet(url:)` from MomentCaptureView.swift.)
 private struct ExportedMIDIFile: Identifiable {
     let id = UUID()
     let url: URL
 }
-
-#if canImport(UIKit)
-/// Minimal bridge to the iOS share sheet (UIActivityViewController).
-private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
-}
-#endif
 #endif
