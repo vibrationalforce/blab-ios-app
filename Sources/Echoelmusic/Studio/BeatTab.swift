@@ -12,11 +12,18 @@
 
 #if canImport(SwiftUI)
 import SwiftUI
+import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @MainActor
 struct BeatTab: View {
 
     @Environment(BeatPlayer.self) private var beatPlayer
+
+    /// Holds the exported .mid file URL while the iOS share sheet is presented.
+    @State private var exportedMIDI: ExportedMIDIFile?
 
     private let columnsPerGroup = 4
     private let groupCount = 4
@@ -37,6 +44,11 @@ struct BeatTab: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
+        #if canImport(UIKit)
+        .sheet(item: $exportedMIDI) { file in
+            ShareSheet(items: [file.url])
+        }
+        #endif
     }
 
     // MARK: - Transport
@@ -94,6 +106,37 @@ struct BeatTab: View {
                     )
             }
             .buttonStyle(.plain)
+
+            // Export the current pattern as a Standard MIDI File (.mid) and open
+            // the iOS share sheet — "take your beat to any DAW". Pure data path
+            // (no audio engine, no permission): grid + tempo → MIDIFileExporter.
+            Button {
+                exportMIDI(player: player)
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 16))
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(0.08))
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Export pattern as MIDI file")
+        }
+    }
+
+    // MARK: - MIDI export
+
+    private func exportMIDI(player: BeatPlayer) {
+        let data = MIDIFileExporter.export(steps: player.pattern.steps, tempo: player.pattern.tempo)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("EchoelBeat.mid")
+        do {
+            try data.write(to: url, options: .atomic)
+            exportedMIDI = ExportedMIDIFile(url: url)
+        } catch {
+            log.log(.warning, category: .system, "MIDI export failed: \(error.localizedDescription)")
         }
     }
 
@@ -199,4 +242,21 @@ struct BeatTab: View {
         .accessibilityLabel("Pad \(BeatPlayer.trackNames[track])")
     }
 }
+
+/// Identifiable wrapper so the exported .mid URL can drive `.sheet(item:)`.
+private struct ExportedMIDIFile: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+#if canImport(UIKit)
+/// Minimal bridge to the iOS share sheet (UIActivityViewController).
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+#endif
 #endif
