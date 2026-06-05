@@ -81,6 +81,9 @@ public final class CameraRPPGBioPublisher {
             return
         }
 
+        // Finger-on-lens PPG needs the back-camera torch to illuminate the
+        // fingertip — without it there is no red-channel pulse signal.
+        enableTorch(true)
         analyzer.startPulseDetection()
         isRunning = true
 
@@ -109,10 +112,26 @@ public final class CameraRPPGBioPublisher {
     public func stop() {
         publishTask?.cancel()
         publishTask = nil
+        enableTorch(false)
         capture.stop()
         capture.onFrame = nil
         analyzer.stopPulseDetection()
         isRunning = false
+    }
+
+    /// Drive the back-camera torch for finger PPG illumination (half brightness).
+    private func enableTorch(_ on: Bool) {
+        #if !os(macOS)
+        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
+        do {
+            try device.lockForConfiguration()
+            device.torchMode = on ? .on : .off
+            if on { try? device.setTorchModeOn(level: 0.5) }
+            device.unlockForConfiguration()
+        } catch {
+            log.log(.warning, category: .biofeedback, "Torch control failed: \(error.localizedDescription)")
+        }
+        #endif
     }
 }
 #endif

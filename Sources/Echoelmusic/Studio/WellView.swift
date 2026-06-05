@@ -63,20 +63,29 @@ struct WellView: View {
     /// back lens with a fingertip) — the bio strip fills in from the camera.
     /// Runtime pulse quality is device-dependent.
     private var cameraPulseButton: some View {
-        Button {
-            if cameraRPPG.isRunning {
-                cameraRPPG.stop()
-            } else {
-                Task { await cameraRPPG.start(publishing: bus) }
+        VStack(spacing: 8) {
+            Button {
+                if cameraRPPG.isRunning {
+                    cameraRPPG.stop()
+                } else {
+                    Task { await cameraRPPG.start(publishing: bus) }
+                }
+            } label: {
+                Label(cameraRPPG.isRunning ? "Stop camera pulse" : "Measure pulse (camera)",
+                      systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "camera.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
             }
-        } label: {
-            Label(cameraRPPG.isRunning ? "Stop camera pulse" : "Measure pulse (camera)",
-                  systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "camera.fill")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+            .buttonStyle(.bordered)
+            .tint(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.accent)
+
+            if cameraRPPG.isRunning {
+                Text("Cover the **rear camera + flash** with a fingertip and hold still — the pulse locks in ~15 s.")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(EchoelTheme.dim)
+            }
         }
-        .buttonStyle(.bordered)
-        .tint(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.accent)
     }
     #endif
 
