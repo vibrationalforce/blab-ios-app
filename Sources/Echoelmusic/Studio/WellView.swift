@@ -80,28 +80,46 @@ struct WellView: View {
             .tint(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.accent)
 
             if cameraRPPG.isRunning {
-                Text("Cover the **rear camera + flash** with a fingertip and hold still — the pulse locks in ~15 s.")
+                Text("Cover the **rear camera + flash** with a fingertip and hold still.")
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(EchoelTheme.dim)
-
-                // Live signal feedback so positioning is not a black box.
-                HStack(spacing: 10) {
-                    Label(cameraRPPG.fingerDetected ? "Finger detected" : "Place fingertip",
-                          systemImage: cameraRPPG.fingerDetected ? "checkmark.circle.fill" : "circle.dashed")
-                        .foregroundStyle(cameraRPPG.fingerDetected ? EchoelTheme.accent : EchoelTheme.dim)
-                    ProgressView(value: cameraRPPG.signalQuality)
-                        .tint(EchoelTheme.accent)
-                        .frame(width: 80)
-                    if cameraRPPG.detectedBPM > 0 {
-                        Text("\(Int(cameraRPPG.detectedBPM)) bpm")
-                            .monospacedDigit()
-                            .foregroundStyle(EchoelTheme.text)
-                    }
-                }
-                .font(.caption)
+                measurementControl
             }
         }
+    }
+
+    /// Measurement control: a status light (Leuchte) + a lock-progress bar
+    /// (Ladebalken) so the user can see acquisition advance to a confident read.
+    private var measurementControl: some View {
+        let locked = cameraRPPG.isLocked
+        let lightColor: Color = !cameraRPPG.fingerDetected ? EchoelTheme.dim
+            : (locked ? EchoelTheme.accent : Color.orange)
+        let statusText = !cameraRPPG.fingerDetected ? "Place fingertip"
+            : (locked ? "Locked" : "Acquiring…")
+        return VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(lightColor)
+                    .frame(width: 14, height: 14)
+                    .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
+                Text(statusText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+                if cameraRPPG.detectedBPM > 0 {
+                    Text("\(Int(cameraRPPG.detectedBPM)) bpm")
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(EchoelTheme.text)
+                }
+            }
+            ProgressView(value: locked ? 1 : cameraRPPG.confidence)
+                .tint(locked ? EchoelTheme.accent : Color.orange)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
     #endif
 

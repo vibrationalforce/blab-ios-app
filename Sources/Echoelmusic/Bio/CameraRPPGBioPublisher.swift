@@ -33,7 +33,10 @@ public final class CameraRPPGBioPublisher {
     // position-sensitive). Updated ~3×/s while running.
     public private(set) var fingerDetected = false
     public private(set) var signalQuality: Double = 0   // 0...1
+    public private(set) var confidence: Double = 0      // 0...1 — pulse-lock progress
     public private(set) var detectedBPM: Double = 0
+    /// True once a confident pulse is locked (matches the bus-publish gate).
+    public var isLocked: Bool { detectedBPM > 0 && confidence >= 0.4 }
 
     @ObservationIgnored private let capture = CameraCapture()
     @ObservationIgnored private let analyzer = CameraAnalyzer()
@@ -101,6 +104,7 @@ public final class CameraRPPGBioPublisher {
                 // Live status (~3 Hz) so the UI guides positioning.
                 self.fingerDetected = self.analyzer.isFingerDetected
                 self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)
+                self.confidence = min(max(self.analyzer.bpmConfidence, 0), 1)
                 self.detectedBPM = self.analyzer.estimatedBPM
                 // Publish a confident pulse to the bus at ~1 Hz.
                 tick += 1
@@ -132,6 +136,7 @@ public final class CameraRPPGBioPublisher {
         isRunning = false
         fingerDetected = false
         signalQuality = 0
+        confidence = 0
         detectedBPM = 0
     }
 
