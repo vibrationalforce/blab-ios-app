@@ -38,6 +38,8 @@ struct BeatTab: View {
             transportRow(player: beatPlayer)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
+            patternToolsRow(player: beatPlayer)
+                .padding(.horizontal, 16)
             stepGrid(player: beatPlayer)
                 .padding(.horizontal, 12)
             padRow
@@ -139,6 +141,59 @@ struct BeatTab: View {
             exportedMIDI = ExportedMIDIFile(url: url)
         } catch {
             log.log(.warning, category: .system, "MIDI export failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Pattern tools
+
+    @ViewBuilder
+    private func patternToolsRow(player: BeatPlayer) -> some View {
+        HStack(spacing: 8) {
+            toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
+            toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func toolButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .fill(EchoelTheme.fill)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Fill the grid with a musical-ish random pattern (denser on quarter beats).
+    private func randomize(player: BeatPlayer) {
+        for t in 0..<PatternEngine.trackCount {
+            for s in 0..<PatternEngine.stepCount {
+                let onBeat = (s % 4 == 0)
+                let probability = onBeat ? 0.55 : 0.22
+                player.pattern.setStep(track: t, step: s, on: Double.random(in: 0...1) < probability)
+            }
+        }
+    }
+
+    /// Rotate every track one step to the right (wraps around).
+    private func shiftRight(player: BeatPlayer) {
+        let old = player.pattern.steps
+        let n = PatternEngine.stepCount
+        guard n > 0 else { return }
+        for t in 0..<PatternEngine.trackCount where t < old.count {
+            for s in 0..<n {
+                player.pattern.setStep(track: t, step: s, on: old[t][(s - 1 + n) % n])
+            }
         }
     }
 
