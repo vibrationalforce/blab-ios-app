@@ -114,12 +114,40 @@ struct WellView: View {
                         .foregroundStyle(EchoelTheme.text)
                 }
             }
+            pulseWaveform
             ProgressView(value: locked ? 1 : cameraRPPG.confidence)
                 .tint(locked ? EchoelTheme.accent : Color.orange)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    /// Live pulse waveform ("Stimmungsbild") — the bandpass-filtered signal in
+    /// real time. Flat line = no signal reaching the sensor; a clear wave = pulse.
+    private var pulseWaveform: some View {
+        Canvas { ctx, size in
+            // baseline
+            var base = Path()
+            base.move(to: CGPoint(x: 0, y: size.height / 2))
+            base.addLine(to: CGPoint(x: size.width, y: size.height / 2))
+            ctx.stroke(base, with: .color(EchoelTheme.border), lineWidth: 1)
+            // waveform
+            let w = cameraRPPG.waveform
+            guard w.count > 1 else { return }
+            let dx = size.width / CGFloat(w.count - 1)
+            let amp = size.height / 2 - 3
+            var path = Path()
+            for (i, v) in w.enumerated() {
+                let x = CGFloat(i) * dx
+                let y = size.height / 2 - CGFloat(v) * amp
+                if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            ctx.stroke(path, with: .color(EchoelTheme.accent), lineWidth: 2)
+        }
+        .frame(height: 52)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.35)))
     }
     #endif
 

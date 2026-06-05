@@ -48,6 +48,16 @@ final class CameraAnalyzer {
     /// Frame counter for debugging
     private var frameCount: Int = 0
 
+    /// Recent bandpass-filtered pulse signal, normalized to ~[-1,1], for a live
+    /// waveform ("Stimmungsbild"). Empty until samples exist; flat = no signal.
+    var recentWaveform: [Float] {
+        let n = Swift.min(filteredRedSignal.count, 90)   // ~6 s at 15 Hz
+        guard n > 1 else { return [] }
+        let slice = Array(filteredRedSignal.suffix(n))
+        let maxAbs = Swift.max(slice.map { Swift.abs($0) }.max() ?? 1, 0.0001)
+        return slice.map { $0 / maxAbs }
+    }
+
     // MARK: - Filter Modulation Output
 
     /// Normalized modulation value (0–1) from camera analysis

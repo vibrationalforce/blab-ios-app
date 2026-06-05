@@ -35,8 +35,12 @@ public final class CameraRPPGBioPublisher {
     public private(set) var signalQuality: Double = 0   // 0...1
     public private(set) var confidence: Double = 0      // 0...1 — pulse-lock progress
     public private(set) var detectedBPM: Double = 0
-    /// True once a confident pulse is locked (matches the bus-publish gate).
-    public var isLocked: Bool { detectedBPM > 0 && confidence >= 0.4 }
+    /// Live bandpass-filtered pulse waveform (~[-1,1]) for the "Stimmungsbild".
+    public private(set) var waveform: [Float] = []
+    /// Lock threshold — also the bus-publish gate.
+    static let lockThreshold = 0.35
+    /// True once a confident pulse is locked.
+    public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
 
     @ObservationIgnored private let capture = CameraCapture()
     @ObservationIgnored private let analyzer = CameraAnalyzer()
@@ -99,18 +103,19 @@ public final class CameraRPPGBioPublisher {
         publishTask = Task { @MainActor [weak self] in
             var tick = 0
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(330))
+                try? await Task.sleep(for: .milliseconds(100))   // ~10 Hz: live feel
                 guard let self, self.isRunning else { break }
-                // Live status (~3 Hz) so the UI guides positioning.
+                // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
                 self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)
                 self.confidence = min(max(self.analyzer.bpmConfidence, 0), 1)
                 self.detectedBPM = self.analyzer.estimatedBPM
-                // Publish a confident pulse to the bus at ~1 Hz.
+                self.waveform = self.analyzer.recentWaveform
+                // Publish a confident pulse to the bus at ~1 Hz (every 10th tick).
                 tick += 1
-                guard tick % 3 == 0, let bus = self.bus else { continue }
+                guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
-                guard bpm > 0, self.analyzer.bpmConfidence >= 0.4 else { continue }
+                guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else { continue }
                 let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
                 bus.publish(bio: BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
@@ -138,6 +143,7 @@ public final class CameraRPPGBioPublisher {
         signalQuality = 0
         confidence = 0
         detectedBPM = 0
+        waveform = []
     }
 
     /// Drive the back-camera torch for finger PPG illumination (half brightness).
