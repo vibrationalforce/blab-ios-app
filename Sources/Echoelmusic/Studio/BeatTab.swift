@@ -22,6 +22,11 @@ struct BeatTab: View {
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
     @State private var exportedMIDI: ExportedMIDIFile?
 
+    /// Size-class-adaptive metrics (iPhone compact ↔ iPad regular) so the grid,
+    /// pads and controls scale and stay visible on every device.
+    @Environment(\.horizontalSizeClass) private var hSize
+    private var m: EchoelTheme.Metrics { .of(hSize) }
+
     private let columnsPerGroup = 4
     private let groupCount = 4
 
@@ -29,7 +34,7 @@ struct BeatTab: View {
         // Cycle 3 restoration: full BeatTab UI — transport + step grid + pads.
         // Pads trigger \`beatPlayer.playPad(track)\` which fires the matching
         // SamplerVoice (lock-free trigger counter on the audio thread).
-        VStack(spacing: 16) {
+        VStack(spacing: m.bodySpacing) {
             transportRow(player: beatPlayer)
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
@@ -40,7 +45,7 @@ struct BeatTab: View {
                 .padding(.bottom, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background(EchoelTheme.bg)
         #if canImport(UIKit)
         .sheet(item: $exportedMIDI) { file in
             ShareSheet(url: file.url)
@@ -62,11 +67,11 @@ struct BeatTab: View {
             } label: {
                 Image(systemName: player.pattern.isPlaying ? "stop.fill" : "play.fill")
                     .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(.white)
+                    .frame(width: m.controlSize, height: m.controlSize)
+                    .foregroundStyle(EchoelTheme.bg)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(player.pattern.isPlaying ? Color.red.opacity(0.85) : Color.green.opacity(0.85))
+                        RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(player.pattern.isPlaying ? EchoelTheme.danger : EchoelTheme.accent)
                     )
             }
             .buttonStyle(.plain)
@@ -85,7 +90,7 @@ struct BeatTab: View {
                     )
                     Text("\(Int(player.pattern.tempo)) BPM")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(EchoelTheme.text)
                         .frame(width: 80, alignment: .trailing)
                 }
             }
@@ -95,11 +100,11 @@ struct BeatTab: View {
             } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 16))
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: m.controlSize, height: m.controlSize)
+                    .foregroundStyle(EchoelTheme.text)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.08))
+                        RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(EchoelTheme.fill)
                     )
             }
             .buttonStyle(.plain)
@@ -112,11 +117,11 @@ struct BeatTab: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 16))
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: m.controlSize, height: m.controlSize)
+                    .foregroundStyle(EchoelTheme.text)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.white.opacity(0.08))
+                        RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(EchoelTheme.fill)
                     )
             }
             .buttonStyle(.plain)
@@ -153,8 +158,8 @@ struct BeatTab: View {
         HStack(spacing: 4) {
             Text(BeatPlayer.trackNames[track].prefix(4))
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.6))
-                .frame(width: 36, alignment: .leading)
+                .foregroundStyle(EchoelTheme.dim)
+                .frame(width: m.trackLabelWidth, alignment: .leading)
 
             ForEach(0..<groupCount, id: \.self) { group in
                 HStack(spacing: 3) {
@@ -181,9 +186,9 @@ struct BeatTab: View {
                 .fill(cellFill(isOn: isOn, isCurrent: isCurrent))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(Color.white.opacity(isCurrent ? 0.55 : 0.08), lineWidth: 1)
+                        .strokeBorder(isCurrent ? EchoelTheme.accent.opacity(0.7) : EchoelTheme.border, lineWidth: 1)
                 )
-                .frame(height: 28)
+                .frame(height: m.stepCellHeight)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Track \(BeatPlayer.trackNames[track]) step \(step + 1)")
@@ -192,17 +197,17 @@ struct BeatTab: View {
 
     private func cellFill(isOn: Bool, isCurrent: Bool) -> Color {
         switch (isOn, isCurrent) {
-        case (true, true):   return Color.green.opacity(0.85)
-        case (true, false):  return Color.green.opacity(0.55)
-        case (false, true):  return Color.white.opacity(0.18)
-        case (false, false): return Color.white.opacity(0.06)
+        case (true, true):   return EchoelTheme.accent
+        case (true, false):  return EchoelTheme.accent.opacity(0.6)
+        case (false, true):  return EchoelTheme.text.opacity(0.18)
+        case (false, false): return EchoelTheme.fill
         }
     }
 
     // MARK: - Drum pads
 
     private var padRow: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: m.padColumns)
         return LazyVGrid(columns: columns, spacing: 8) {
             ForEach(0..<PatternEngine.trackCount, id: \.self) { track in
                 pad(track: track)
@@ -218,21 +223,21 @@ struct BeatTab: View {
             VStack(spacing: 4) {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(EchoelTheme.accent.opacity(0.7))
                 Text(BeatPlayer.trackNames[track])
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(EchoelTheme.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            .frame(maxWidth: .infinity, minHeight: 56)
+            .frame(maxWidth: .infinity, minHeight: m.padHeight)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(0.08))
+                RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(EchoelTheme.fill)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
