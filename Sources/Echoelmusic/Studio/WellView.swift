@@ -84,6 +84,22 @@ struct WellView: View {
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(EchoelTheme.dim)
+
+                // Live signal feedback so positioning is not a black box.
+                HStack(spacing: 10) {
+                    Label(cameraRPPG.fingerDetected ? "Finger detected" : "Place fingertip",
+                          systemImage: cameraRPPG.fingerDetected ? "checkmark.circle.fill" : "circle.dashed")
+                        .foregroundStyle(cameraRPPG.fingerDetected ? EchoelTheme.accent : EchoelTheme.dim)
+                    ProgressView(value: cameraRPPG.signalQuality)
+                        .tint(EchoelTheme.accent)
+                        .frame(width: 80)
+                    if cameraRPPG.detectedBPM > 0 {
+                        Text("\(Int(cameraRPPG.detectedBPM)) bpm")
+                            .monospacedDigit()
+                            .foregroundStyle(EchoelTheme.text)
+                    }
+                }
+                .font(.caption)
             }
         }
     }

@@ -29,6 +29,12 @@ public final class CameraRPPGBioPublisher {
 
     public private(set) var isRunning = false
 
+    // Live status for the UI so the user can position correctly (rPPG is
+    // position-sensitive). Updated ~3×/s while running.
+    public private(set) var fingerDetected = false
+    public private(set) var signalQuality: Double = 0   // 0...1
+    public private(set) var detectedBPM: Double = 0
+
     @ObservationIgnored private let capture = CameraCapture()
     @ObservationIgnored private let analyzer = CameraAnalyzer()
     @ObservationIgnored private weak var bus: EngineBus?
@@ -88,20 +94,27 @@ public final class CameraRPPGBioPublisher {
         isRunning = true
 
         publishTask = Task { @MainActor [weak self] in
+            var tick = 0
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard let self, self.isRunning, let bus = self.bus else { break }
+                try? await Task.sleep(for: .milliseconds(330))
+                guard let self, self.isRunning else { break }
+                // Live status (~3 Hz) so the UI guides positioning.
+                self.fingerDetected = self.analyzer.isFingerDetected
+                self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)
+                self.detectedBPM = self.analyzer.estimatedBPM
+                // Publish a confident pulse to the bus at ~1 Hz.
+                tick += 1
+                guard tick % 3 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
                 guard bpm > 0, self.analyzer.bpmConfidence >= 0.4 else { continue }
                 let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
-                let quality = Float(min(max(self.analyzer.signalQuality, 0), 1))
                 bus.publish(bio: BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
                     hrvNormalized: hrv,
                     breathRate: 0,
                     breathPhase: 0,
-                    coherence: quality,
+                    coherence: Float(self.signalQuality),
                     motionEnergy: 0,
                     source: .cameraPPG
                 ))
@@ -117,6 +130,9 @@ public final class CameraRPPGBioPublisher {
         capture.onFrame = nil
         analyzer.stopPulseDetection()
         isRunning = false
+        fingerDetected = false
+        signalQuality = 0
+        detectedBPM = 0
     }
 
     /// Drive the back-camera torch for finger PPG illumination (half brightness).
