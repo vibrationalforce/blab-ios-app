@@ -3,24 +3,24 @@
 //  Echoelmusic — Bio
 //
 //  Wires the dormant camera rPPG path into the live EngineBus: drives
-//  CameraCapture → CameraAnalyzer (finger-on-lens photoplethysmography) and
-//  publishes a BioSampleFrame(source: .cameraPPG) at ~1 Hz when a confident
-//  pulse is detected. Opt-in (camera + torch), so it is started explicitly by
-//  the UI, never auto-run.
+//  CameraCapture → CameraAnalyzer (photoplethysmography) and publishes a
+//  BioSampleFrame(source: .cameraPPG) at ~1 Hz when a confident pulse is
+//  detected. Opt-in (started explicitly by the UI), never auto-run.
 //
-//  Concurrency: CameraCapture (@unchecked Sendable) delivers CVPixelBuffers on
-//  its own capture queue and drives CameraAnalyzer there — mirroring the
-//  established pattern in CameraCapture (nonisolated(unsafe) onFrame). The 1 Hz
-//  publish loop reads the analyzer's latest scalar results on the main actor;
-//  those are atomic-width numeric reads of a continuously-updated estimate
-//  (display/publish values), hence the nonisolated(unsafe) annotation.
+//  Concurrency (mirrors the proven BioSourceManager pattern):
+//  CameraCapture delivers CVPixelBuffers on its capture queue; we average the
+//  center region to 3 Sendable Floats THERE, then hop to the main actor to feed
+//  the @MainActor CameraAnalyzer (CVPixelBuffer is non-Sendable, so it never
+//  crosses actors). EngineBus.publish(bio:) is nonisolated, so the 1 Hz loop can
+//  publish directly.
 //
-//  RUNTIME NOTE: pulse detection can only be verified on a real device (camera,
-//  torch, a finger/face). This file is compile-verified; behaviour is device-checked.
+//  RUNTIME NOTE: actual pulse detection needs a real device (camera + a finger
+//  or face, ideally the torch). Compile-verified here; behaviour device-checked.
 //
 
 #if canImport(AVFoundation) && canImport(Observation)
 import Foundation
+import AVFoundation
 import Observation
 
 @MainActor
@@ -29,8 +29,8 @@ public final class CameraRPPGBioPublisher {
 
     public private(set) var isRunning = false
 
-    @ObservationIgnored nonisolated(unsafe) private let capture = CameraCapture()
-    @ObservationIgnored nonisolated(unsafe) private let analyzer = CameraAnalyzer()
+    @ObservationIgnored private let capture = CameraCapture()
+    @ObservationIgnored private let analyzer = CameraAnalyzer()
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var publishTask: Task<Void, Never>?
 
@@ -41,11 +41,36 @@ public final class CameraRPPGBioPublisher {
     public func start(publishing bus: EngineBus) async {
         guard !isRunning else { return }
         self.bus = bus
-        analyzer.startPulseDetection()
 
         let analyzer = self.analyzer
-        capture.onFrame = { pixelBuffer in
-            analyzer.analyzePixelBuffer(pixelBuffer)
+        capture.onFrame = { [weak analyzer] pixelBuffer in
+            // Average the center region on the capture queue → 3 Sendable Floats.
+            CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+            defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+            let width = CVPixelBufferGetWidth(pixelBuffer)
+            let height = CVPixelBufferGetHeight(pixelBuffer)
+            guard let base = CVPixelBufferGetBaseAddress(pixelBuffer) else { return }
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+            let regionX = width / 4, regionY = height / 4
+            let regionW = width / 2, regionH = height / 2
+            var totalR: Float = 0, totalG: Float = 0, totalB: Float = 0, count: Float = 0
+            for y in stride(from: regionY, to: regionY + regionH, by: 8) {
+                let rowPtr = base.advanced(by: y * bytesPerRow)
+                for x in stride(from: regionX, to: regionX + regionW, by: 8) {
+                    let pixel = rowPtr.advanced(by: x * 4)
+                    totalB += Float(pixel.load(fromByteOffset: 0, as: UInt8.self))
+                    totalG += Float(pixel.load(fromByteOffset: 1, as: UInt8.self))
+                    totalR += Float(pixel.load(fromByteOffset: 2, as: UInt8.self))
+                    count += 1
+                }
+            }
+            guard count > 0 else { return }
+            let avgR = totalR / count / 255.0
+            let avgG = totalG / count / 255.0
+            let avgB = totalB / count / 255.0
+            Task { @MainActor [weak analyzer] in
+                analyzer?.processExtractedRGB(avgR: avgR, avgG: avgG, avgB: avgB)
+            }
         }
 
         do {
@@ -53,11 +78,12 @@ public final class CameraRPPGBioPublisher {
         } catch {
             log.log(.warning, category: .biofeedback, "Camera rPPG failed to start: \(error.localizedDescription)")
             capture.onFrame = nil
-            analyzer.stopPulseDetection()
             return
         }
 
+        analyzer.startPulseDetection()
         isRunning = true
+
         publishTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
