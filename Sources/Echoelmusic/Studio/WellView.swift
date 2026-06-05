@@ -14,6 +14,9 @@ import SwiftUI
 struct WellView: View {
 
     @Environment(EngineBus.self) private var bus
+    #if canImport(AVFoundation)
+    @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
+    #endif
 
     @State private var breathsPerMin: Double = 6
     @State private var inhaling = false
@@ -29,6 +32,9 @@ struct WellView: View {
                 readoutRow
                 pacer
                 immersiveButton
+                #if canImport(AVFoundation)
+                cameraPulseButton
+                #endif
                 evidenceNote
             }
             .padding(20)
@@ -51,6 +57,28 @@ struct WellView: View {
         .buttonStyle(.bordered)
         .tint(.green)
     }
+
+    #if canImport(AVFoundation)
+    /// Opt-in camera rPPG. Point the front camera at your face (or cover the
+    /// back lens with a fingertip) — the bio strip fills in from the camera.
+    /// Runtime pulse quality is device-dependent.
+    private var cameraPulseButton: some View {
+        Button {
+            if cameraRPPG.isRunning {
+                cameraRPPG.stop()
+            } else {
+                Task { await cameraRPPG.start(publishing: bus) }
+            }
+        } label: {
+            Label(cameraRPPG.isRunning ? "Stop camera pulse" : "Measure pulse (camera)",
+                  systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "camera.fill")
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.bordered)
+        .tint(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.accent)
+    }
+    #endif
 
     // MARK: Coherence headline
 

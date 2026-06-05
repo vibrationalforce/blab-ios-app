@@ -19,6 +19,10 @@ struct EchoelmusicApp: App {
     @State private var bioVoice: BioReactiveSynthVoice
     @State private var bioEvents: BioEventPublisher
     @State private var bioFeedback: BioFeedbackPublisher
+    #if canImport(AVFoundation)
+    // Opt-in camera rPPG bio source — started explicitly from WellView, never auto-run.
+    @State private var cameraRPPG = CameraRPPGBioPublisher()
+    #endif
     #if canImport(CoreMIDI)
     @State private var midiInput: MIDIInput
     @State private var midiPub: MIDIBusPublisher
@@ -83,6 +87,9 @@ struct EchoelmusicApp: App {
             .environment(bus)
             .environment(bioVoice)
             .environment(bioEvents)
+            #if canImport(AVFoundation)
+            .environment(cameraRPPG)
+            #endif
             #if canImport(CoreMIDI)
             .environment(midiPub)
             #endif
