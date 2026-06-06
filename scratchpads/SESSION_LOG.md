@@ -28,9 +28,15 @@ Read this FIRST when continuing work on Echoelmusic.
 - `decisions.csv`: ADM-OSC bridge ACTIVE (code-complete; **hardware verification** vs a real FletcherMachine/OSC monitor pending a demo with Roman).
 - `scratchpads/SPEC_ADM_OSC_BRIDGE.md`: full spec (namespace, mapping, ADMOSCSender sketch, test plan, validation path).
 
+### Addendum — Camera LOCKED + universal BLE HR + honest Oura (same day)
+- **🎉 Camera rPPG LOCKS on device** (owner screenshot, build 1515): "Locked · 70 bpm" with a clean live waveform; source tag = PPG. The long-standing camera blocker is RESOLVED. Marked LIVE on the website.
+- **Universal BLE Heart Rate source:** the "Polar" client already used the standard HR Service (0x180D/0x2A37) — only a `name.contains("Polar")` filter made it exclusive. Removed it → connects to ANY standard HR device (Polar/Wahoo/Garmin/CooSpo straps, watches in HR-broadcast). Added `connectedDeviceName`; bio strip shows the real device ("Polar H10"/"TICKR"…). Injected `PolarH10BioPublisher` into the strip's environment.
+- **Oura — the honest truth (verified):** Oura Ring (incl. Ring 4) exposes NO real-time third-party BLE (pairs only with the Oura app; API is next-morning cadence). Oura itself tells users to pair a BLE HR Service device for live HR. So Oura → Echoel only via **Apple Health** (delayed, not beat-to-beat). "Vermeide Latenzen" + Oura is physically impossible; for low latency use camera/BLE/Watch. Stated plainly on Architecture + FAQ.
+- **CI:** compile-check 1516 on 6a19ecb → [end-state]; TestFlight upload auto-dispatched on green.
+
 ### Open / pending
-- **Camera rPPG lock** (build 1512): torch works, but pulse confidence stays 0 — awaiting owner's "flach/wackelt/lockt" device feedback to pick signal-path vs threshold fix.
 - **ADM-OSC hardware test:** point at a FletcherMachine or `python-osc`/Protokol monitor to confirm `/adm/obj/1/…` on the wire.
+- **Multi-BLE arbitration:** current client grabs the first HR advertiser; if owner runs several straps at once, add a picker (low priority).
 
 ---
 
