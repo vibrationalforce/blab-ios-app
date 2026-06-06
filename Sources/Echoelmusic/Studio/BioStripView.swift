@@ -21,6 +21,9 @@ struct BioStripView: View {
     @Environment(BioReactiveSynthVoice.self) private var voice
     @Environment(BioEventPublisher.self) private var events
     @Environment(BioSimulator.self) private var demoSource
+    #if canImport(CoreBluetooth)
+    @Environment(PolarH10BioPublisher.self) private var ble
+    #endif
     #if canImport(CoreMIDI)
     @Environment(MIDIBusPublisher.self) private var midi
     #endif
@@ -175,6 +178,13 @@ struct BioStripView: View {
     /// Real sensor frames win; otherwise reflect demo state with a tap hint.
     private var sourceText: String {
         if let bio = bus.latestBio, bio.source != .fallback {
+            #if canImport(CoreBluetooth)
+            // Show the actual connected device (e.g. "Polar H10", "TICKR")
+            // instead of the generic "BLE" so the user sees what's live.
+            if bio.source == .ble, !ble.connectedDeviceName.isEmpty {
+                return ble.connectedDeviceName
+            }
+            #endif
             return sourceLabel(bio.source)
         }
         return demoSource.isRunning ? "Demo" : "Demo ▷"

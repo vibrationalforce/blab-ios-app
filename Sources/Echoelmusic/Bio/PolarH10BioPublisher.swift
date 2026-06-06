@@ -2,17 +2,22 @@
 //  PolarH10BioPublisher.swift
 //  Echoelmusic
 //
-//  Direct CoreBluetooth connection to Polar H10 (and compatible BLE
-//  HR-service devices). No SDK dependency. Subscribes to the standard
-//  BLE Heart Rate Measurement characteristic (0x2A37 on service
-//  0x180D), parses HR and RR-intervals, computes a normalized RMSSD
-//  HRV, and publishes BioSampleFrame onto EngineBus at 1 Hz with
-//  source = .ble.
+//  Universal low-latency BLE heart-rate source. Connects to ANY device
+//  exposing the standard Bluetooth SIG Heart Rate Service (0x180D) with
+//  the Heart Rate Measurement characteristic (0x2A37): Polar H10/H9/OH1/
+//  Verity, Wahoo TICKR, Garmin/CooSpo/Magene/Decathlon chest straps,
+//  and smartwatches in HR-broadcast mode. No SDK dependency.
 //
-//  Polar H10 is HRV ground-truth per Sensors 2026 (Pearson r > 0.99
-//  vs. gold-standard ECG). This publisher exists so other bio sources
-//  (Oura ring, Apple Watch HealthKit) can be cross-checked against
-//  it on the same EngineBus.
+//  Parses HR + RR-intervals, computes a normalized RMSSD HRV, publishes
+//  BioSampleFrame at 1 Hz with source = .ble, AND emits a discrete
+//  heartbeat bioEvent per RR-interval for beat-accurate low-latency sync.
+//
+//  NOTE on rings/watches without a BLE HR Service: the Oura Ring (incl.
+//  Ring 4) pairs only with the Oura app and exposes NO real-time BLE to
+//  third parties — its data reaches Echoel via Apple Health (delayed, not
+//  beat-to-beat). For latency-free live use, pair a standard BLE HR
+//  device here, use the Apple Watch, or the camera (rPPG). Polar H10 is
+//  HRV ground-truth (Sensors 2026, Pearson r > 0.99 vs. ECG).
 //
 
 #if canImport(CoreBluetooth)
@@ -38,6 +43,10 @@ public final class PolarH10BioPublisher: NSObject {
     public private(set) var state: ConnectionState = .idle
 
     public private(set) var isPublishing = false
+
+    /// Name of the connected BLE HR device (e.g. "Polar H10", "TICKR"),
+    /// for an honest UI label. Empty until a device connects.
+    public private(set) var connectedDeviceName: String = ""
 
     @ObservationIgnored
     private weak var bus: EngineBus?
@@ -88,6 +97,7 @@ public final class PolarH10BioPublisher: NSObject {
         }
         state = .idle
         isPublishing = false
+        connectedDeviceName = ""
     }
 
     // MARK: - Publish loop
@@ -199,17 +209,20 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
         advertisementData: [String: Any],
         rssi RSSI: NSNumber
     ) {
-        let name = peripheral.name ?? ""
-        guard name.contains("Polar") else { return }
+        // The scan already filters by the HR Service UUID, so every device
+        // discovered here advertises standard heart rate — accept the first,
+        // whatever the brand (Polar, Wahoo, Garmin, generic strap, watch).
+        let name = peripheral.name ?? "BLE HR"
         Task { @MainActor [weak self] in
-            self?.handleDiscovered(peripheral, on: central)
+            self?.handleDiscovered(peripheral, named: name, on: central)
         }
     }
 
     @MainActor
-    private func handleDiscovered(_ peripheral: CBPeripheral, on central: CBCentralManager) {
+    private func handleDiscovered(_ peripheral: CBPeripheral, named name: String, on central: CBCentralManager) {
         guard self.peripheral == nil else { return }
         self.peripheral = peripheral
+        self.connectedDeviceName = name
         peripheral.delegate = self
         central.stopScan()
         state = .connecting
@@ -230,6 +243,7 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
     ) {
         Task { @MainActor [weak self] in
             self?.state = .disconnected
+            self?.connectedDeviceName = ""
             self?.publishTask?.cancel()
         }
     }

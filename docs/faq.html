@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.12.0',K='echoel-nuke';try{
+    (function(){var V='10.12.1',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -101,7 +101,11 @@
             </div>
             <div class="faq-item">
                 <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Do I need special hardware?</div>
-                <div class="faq-answer">For basic use, just your iPhone or iPad. Bio-reactive features work with your <strong>iPhone's front camera</strong> (face tracking for pulse and expression) or an <strong>Apple Watch / Bluetooth heart rate monitor</strong> for deeper biometric data. For lighting, Echoelmusic controls smart home lights, DMX fixtures, and Art-Net networks — from your living room to the stage. For MIDI, any class-compliant controller connects instantly.</div>
+                <div class="faq-answer">No — just your iPhone. The <strong>camera pulse</strong> works with no extra hardware: cover the rear camera + flash with a fingertip and Echoel reads your heartbeat (photoplethysmography) in real time. For the lowest latency and HRV ground-truth, pair a <strong>standard Bluetooth heart-rate device</strong> (Polar, Wahoo, Garmin/CooSpo straps, or a watch in HR-broadcast mode). An <strong>Apple Watch</strong> works via Apple Health (slightly higher latency). For MIDI, any class-compliant controller connects instantly.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">Does it work with my Oura Ring or smartwatch?</div>
+                <div class="faq-answer"><strong>Yes, via Apple Health</strong> — enable your device's Apple Health sync (Oura, Garmin, Fitbit, Apple Watch, etc.) and Echoel reads heart rate and HRV from there. One honest caveat about latency: the <strong>Oura Ring (incl. Ring&nbsp;4) exposes no real-time Bluetooth to third-party apps</strong> — it pairs only with the Oura app, and its data reaches Echoel through Apple Health with a delay (not beat-to-beat). For a <strong>latency-free live experience</strong>, use the camera pulse or a standard Bluetooth heart-rate device — which is exactly what Oura itself recommends for live heart rate.</div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What are the EchoelTools?</div>

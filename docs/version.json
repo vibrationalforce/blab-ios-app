@@ -1,5 +1,5 @@
 {
-  "version": "10.12.0",
+  "version": "10.12.1",
   "build": "2026-06-06",
   "features": {
     "monochromeDesign": true,
@@ -30,6 +30,7 @@
     "arWorlds": true
   },
   "changelog": [
+    "v10.12.1: Universal Bluetooth heart-rate support — the BLE client now connects to ANY standard Heart Rate Service device (Polar, Wahoo, Garmin/CooSpo/Magene straps, watches in broadcast mode), not just Polar. Camera rPPG marked LIVE (locks on device). Honest Oura/smartwatch FAQ: Oura has no real-time third-party BLE — it arrives via Apple Health (delayed); for latency-free live use the camera or a BLE strap. Corrected the camera-pulse description to finger-on-rear-lens rPPG.",
     "v10.12.0: New social share preview — renamed OG image to og-cover.png (forces WhatsApp/Facebook/iMessage to drop the old cached green 'Quantum' card and refetch the current grayscale-on-black CI). Cache version bumped so browsers reload.",
     "v10.12.0: Immersive / ADM-OSC — Echoel now streams the body as an audio object (breath→azimuth, coherence→distance, HRV→elevation, motion→gain) over the open ADM-OSC standard into object-based renderers (Adamson FletcherMachine, L-ISA, d&b Soundscape). Documented on Architecture + Tools; opt-in from the Sync tab. No vendor SDK.",
     "v10.12.0: Honesty fix — replaced the Vision Pro FAQ overclaim ('quantum light spaces', photon particles, eye-gaze, 8 immersive modes as if shipped) with the accurate immersive story (ADM-OSC object source today; dedicated Vision Pro app on the roadmap).",

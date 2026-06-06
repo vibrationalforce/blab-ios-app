@@ -90,6 +90,9 @@ struct EchoelmusicApp: App {
             .environment(bus)
             .environment(bioVoice)
             .environment(bioEvents)
+            #if canImport(CoreBluetooth)
+            .environment(polarH10)
+            #endif
             #if canImport(AVFoundation)
             .environment(cameraRPPG)
             #endif

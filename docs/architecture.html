@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.12.0',K='echoel-nuke';try{
+    (function(){var V='10.12.1',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -160,8 +160,8 @@
                 <p>One chain runs the whole instrument. Sensors are fused into a normalized bio frame, published on the bus, and consumed in parallel by the synth voice, the OSC sender and the event detector. Performer input (MIDI/MPE) joins on its own topic and takes priority over bio for note gating.</p>
                 <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)            <b>CONSUMERS</b>
   HealthKit / Apple Watch  ─┐
-  Polar H10  (BLE direct)  ─┤
-  iPhone camera (rPPG·planned)─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
+  BLE Heart Rate (direct)  ─┤
+  iPhone camera (rPPG)        ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
   Demo (DEBUG)             ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
         │                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
         ▼ BioSourceManager (confidence fusion)                                          │
@@ -198,8 +198,8 @@
             <section id="bio">
                 <h2>Bio Capture &amp; Fusion <span class="tag">LIVE</span></h2>
                 <p>Several sources can feed the bus at once; <code>BioSourceManager</code> merges them into one <code>BioSnapshot</code> by confidence, so the highest-quality available signal wins.</p>
-                <div class="data-row"><div class="k">HealthKit</div><div class="v"><code>EchoelBioEngine</code> derives heart rate, RMSSD-normalized HRV, breath rate (iOS&nbsp;17+) and coherence; <code>HealthKitBioPublisher</code> polls it every 500&nbsp;ms and publishes a frame. Apple Watch HR carries 4–5&nbsp;s latency, so it isn't used for beat-accurate sync.</div></div>
-                <div class="data-row"><div class="k">Polar H10</div><div class="v"><code>PolarH10BioPublisher</code> — BLE directly (CoreBluetooth, no SDK) to the Heart Rate service (<code>0x180D</code>/<code>0x2A37</code>). Parses RR intervals (1/1024&nbsp;s), emits one discrete <code>.heartbeat</code> per beat, and computes RMSSD over a 30-interval window. Lowest latency — beats are timed, not averaged.</div></div>
+                <div class="data-row"><div class="k">HealthKit</div><div class="v"><code>EchoelBioEngine</code> derives heart rate, RMSSD-normalized HRV, breath rate (iOS&nbsp;17+) and coherence; <code>HealthKitBioPublisher</code> polls it every 500&nbsp;ms and publishes a frame. This is the catch-all for <strong>Apple&nbsp;Watch and any device that writes to Apple&nbsp;Health</strong> — including the <strong>Oura&nbsp;Ring</strong> (any gen, incl. Ring&nbsp;4) via Oura's Health sync. Watch HR carries 4–5&nbsp;s latency and ring data is delayed/aggregated, so neither is used for beat-accurate sync — for that, use a BLE strap or the camera.</div></div>
+                <div class="data-row"><div class="k">BLE Heart Rate</div><div class="v"><code>PolarH10BioPublisher</code> connects over BLE (CoreBluetooth, no SDK) to <strong>any device exposing the standard Heart Rate service</strong> (<code>0x180D</code>/<code>0x2A37</code>) — Polar, Wahoo, Garmin/CooSpo/Magene straps, watches in HR-broadcast mode. Parses RR intervals (1/1024&nbsp;s), emits one discrete <code>.heartbeat</code> per beat, computes RMSSD over a 30-interval window. <strong>Lowest latency</strong> — beats are timed, not averaged. (The Oura Ring exposes no real-time BLE to third parties, so it arrives via Apple&nbsp;Health instead.)</div></div>
                 <div class="data-row"><div class="k">Camera (rPPG)</div><div class="v"><code>CameraCapture</code> + <code>CameraAnalyzer</code> — finger-on-lens photoplethysmography: red-channel extraction, 0.7–4&nbsp;Hz 2nd-order Butterworth bandpass (42–240&nbsp;BPM), peak detection with IQR outlier rejection, RMSSD and a confidence score.</div></div>
                 <div class="data-row"><div class="k">Fusion / Demo</div><div class="v"><code>BioSourceManager</code> confidence priority (Watch &gt; camera &gt; daily &gt; fallback) with decay. <code>BioSimulator</code> provides a walking demo signal in DEBUG builds only and defers the moment a real source appears.</div></div>
             </section>
@@ -346,7 +346,7 @@
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
                 <div class="data-row"><div class="k">EchoelSeq <span class="tag">LIVE</span></div><div class="v">PatternEngine · BeatPlayer</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
-                <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher · PolarH10BioPublisher · BioSimulator (live sources). <code>CameraAnalyzer</code> · <code>BioSourceManager</code> present but <strong>not yet wired to the bus</strong> — camera rPPG <span class="tag">Planned</span></div></div>
+                <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher (Watch / Oura via Health) · PolarH10BioPublisher (any BLE Heart Rate device) · CameraRPPGBioPublisher (finger-on-lens rPPG, live) · BioSimulator. ADM-OSC object output via <code>ADMOSCSender</code>.</div></div>
                 <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView · BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal</div></div>
                 <div class="data-row"><div class="k">EchoelVid <span class="tag">LIVE</span></div><div class="v">CameraCapture · ShortContentRenderer (NLE/ProRes/RTMP roadmap)</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
@@ -365,7 +365,7 @@
                             <li>EngineBus + 3 SPSC topics</li>
                             <li>MIDI 2.0 + MPE (pitch/slide/air)</li>
                             <li>Bio-DSP triad</li>
-                            <li>HealthKit + Polar H10 (camera rPPG planned)</li>
+                            <li>HealthKit (Watch/Oura) + BLE Heart Rate + camera rPPG</li>
                             <li>DDSP / Cellular / Modal synthesis</li>
                             <li>Convolution reverb · 4-band EQ · LUFS</li>
                             <li>AudioEngine + 30s RetroCapture</li>
