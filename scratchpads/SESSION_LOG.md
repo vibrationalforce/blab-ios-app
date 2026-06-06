@@ -6,6 +6,34 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-06 — ADM-OSC immersive bridge + social-share refresh
+
+### Branch: `claude/echoelmusic-app-feasibility-3rtwL`
+### Trigger: owner met Roman (Pyko/Adamson); "OsC" → build the bridge + update website; fix the old green "Quantum" link-preview.
+
+### What shipped
+- **ADM-OSC bridge (`Sources/Echoelmusic/Sync/ADMOSCSender.swift`)** — streams the body as an audio OBJECT over the open ADM-OSC standard (Audio Definition Model over OSC) into object-based renderers (Adamson FletcherMachine, L-ISA, d&b Soundscape). Mapping: breath→azimuth (−180…180°), coherence→distance (0…1), HRV→elevation (0…60°), motion→gain (0.3…1). `/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/adm/obj/{n}/gain`. Reuses `OSCSender.encode` → **zero new dependency**. Opt-in; ~20 Hz when active.
+- **Pure kernel `ADMOSCSender.admMessages(for:object:)`** unit-tested (`Tests/EchoelmusicTests/ADMOSCSenderTests.swift`): namespace, mapping correctness, range-clamp safety, OSC float encoding, lifecycle.
+- **Sync-tab UI** (`ModulationView`): "Send to immersive rig" toggle + host/port/object-index; off by default, fields locked while active.
+- **App wiring** (`EchoelmusicApp`): `@State admOSC` + `.environment`, no auto-start.
+- **Social share fixed:** the old green "Quantum" card was WhatsApp/FB **per-URL caching**. Renamed `og-image.png`→`og-cover.png` (busts every platform's cache), updated all 14 meta refs, bumped cache-guardian + `version.json` to 10.12.0 (forces browser reload). Current OG is the grayscale-on-black CI (verified by viewing the PNG).
+- **Website honesty:** replaced the Vision Pro FAQ overclaim ("quantum light spaces / photon particles / eye-gaze / 8 modes" as if shipped) with the accurate immersive story (ADM-OSC object source today; Vision Pro app roadmap). Documented ADM-OSC on Architecture + Tools.
+
+### CI
+- **Compile-Check 1514 GREEN** (Preflight + Compile Check success) on 7dbcf49 — ADM-OSC code + tests compile.
+- **TestFlight 1515** dispatched on f7ca660 (build_only=false) — [see end-state].
+
+### Memory
+- `memory/people.md`: Roman — Pyko/Adamson contact + opportunity.
+- `decisions.csv`: ADM-OSC bridge ACTIVE (code-complete; **hardware verification** vs a real FletcherMachine/OSC monitor pending a demo with Roman).
+- `scratchpads/SPEC_ADM_OSC_BRIDGE.md`: full spec (namespace, mapping, ADMOSCSender sketch, test plan, validation path).
+
+### Open / pending
+- **Camera rPPG lock** (build 1512): torch works, but pulse confidence stays 0 — awaiting owner's "flach/wackelt/lockt" device feedback to pick signal-path vs threshold fix.
+- **ADM-OSC hardware test:** point at a FletcherMachine or `python-osc`/Protokol monitor to confirm `/adm/obj/1/…` on the wire.
+
+---
+
 ## 2026-06-01 — Apple-ecosystem loop: Widget + Watch shipped & CI-verified (Ralph Wiggum Lambda)
 
 ### Branch: `claude/echoelmusic-app-feasibility-3rtwL`
