@@ -12,11 +12,17 @@ struct ModulationView: View {
 
     @Environment(ModulationEngine.self) private var engine
     @Environment(EngineBus.self) private var bus
+    #if canImport(Network)
+    @Environment(ADMOSCSender.self) private var admOSC
+    #endif
 
     var body: some View {
         @Bindable var engine = engine
         NavigationStack {
             List {
+                #if canImport(Network)
+                admOSCSection
+                #endif
                 Section {
                     if engine.matrix.routes.isEmpty {
                         Text("No routes yet. Add one to let a biofeedback signal modulate a parameter.")
@@ -60,6 +66,62 @@ struct ModulationView: View {
             }
         }
     }
+
+    #if canImport(Network)
+    /// Opt-in ADM-OSC bridge: stream the body as an audio object's position +
+    /// gain into an immersive renderer (Adamson FletcherMachine, L-ISA, d&b
+    /// Soundscape, …). Open standard, no pairing — just host:port + object index.
+    @ViewBuilder
+    private var admOSCSection: some View {
+        @Bindable var admOSC = admOSC
+        Section {
+            Toggle(isOn: Binding(
+                get: { admOSC.isActive },
+                set: { on in
+                    if on { admOSC.start(subscribing: bus) } else { admOSC.stop() }
+                }
+            )) {
+                Label("Send to immersive rig", systemImage: "circle.grid.cross.fill")
+            }
+
+            HStack {
+                Text("Host").foregroundStyle(.secondary)
+                Spacer()
+                TextField("127.0.0.1", text: $admOSC.host)
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .disabled(admOSC.isActive)
+            }
+            HStack {
+                Text("Port").foregroundStyle(.secondary)
+                Spacer()
+                TextField("9000", value: $admOSC.port, format: .number.grouping(.never))
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .disabled(admOSC.isActive)
+            }
+            Stepper(value: $admOSC.objectIndex, in: 1...128) {
+                HStack {
+                    Text("Object").foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(admOSC.objectIndex)").font(.callout.monospaced())
+                }
+            }
+            .disabled(admOSC.isActive)
+        } header: {
+            Text("Immersive (ADM-OSC)")
+        } footer: {
+            Text("Streams the body as an object's position + gain over ADM-OSC (breath→azimuth, coherence→distance, HRV→elevation, motion→gain). Stop to change host/port.")
+        }
+    }
+    #endif
 
     private func addRoute() {
         let destKey = engine.registeredDestinations.first ?? ModDestinationKey.tempo

@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.11.2',K='echoel-nuke';try{
+    (function(){var V='10.12.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -26,7 +26,7 @@
     <meta property="og:title" content="Echoelmusic — Architecture (Developer Reference)">
     <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, MPE, the DSP triad, synthesis, AUv3, visuals, OSC, concurrency and performance.">
     <meta property="og:url" content="https://echoelmusic.com/architecture.html">
-    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:locale" content="en_US">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Echoelmusic — Architecture">
     <meta name="twitter:description" content="The bio-reactive signal chain from sensor to sound. A precise developer reference.">
-    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
@@ -280,6 +280,7 @@
             <section id="osc">
                 <h2>EchoelSync &mdash; OSC API <span class="tag">LIVE</span></h2>
                 <p><code>OSCSender</code> mirrors the bio frame out over UDP (Network.framework), so any visual or audio tool on the network can react to the body. OSC 1.0, big-endian 32-bit floats, ~100&nbsp;ms cadence (sent only when the frame changes). Default target <code>localhost:8000</code>; target latency &lt;5&nbsp;ms on LAN. Works with Resolume, TouchDesigner, MadMapper, Sonic Pi and TidalCycles. Ableton&nbsp;Link sync is <span class="tag">ROADMAP</span>.</p>
+                <p>An opt-in <code>ADMOSCSender</code> additionally streams the body as an audio <strong>object</strong> over <strong>ADM-OSC</strong> (the open Audio-Definition-Model-over-OSC standard): breath&nbsp;&rarr;&nbsp;azimuth, coherence&nbsp;&rarr;&nbsp;distance, HRV&nbsp;&rarr;&nbsp;elevation, motion&nbsp;&rarr;&nbsp;gain on <code>/adm/obj/{n}/&hellip;</code>. This makes Echoel a bio-reactive object source for object-based renderers (Adamson&nbsp;FletcherMachine, L-ISA, d&amp;b&nbsp;Soundscape) &mdash; open standard, no vendor SDK. Configured from the Sync tab; off by default. <span class="tag">NEW</span></p>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/bpm</code></div><div class="v">float [40–200]</div></div>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/hrv</code></div><div class="v">float [0–1]</div></div>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/breath/rate</code></div><div class="v">float [4–30]</div></div>

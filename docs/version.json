@@ -1,6 +1,6 @@
 {
-  "version": "10.11.2",
-  "build": "2026-05-29",
+  "version": "10.12.0",
+  "build": "2026-06-06",
   "features": {
     "monochromeDesign": true,
     "pureBlackBackground": true,
@@ -30,6 +30,9 @@
     "arWorlds": true
   },
   "changelog": [
+    "v10.12.0: New social share preview — renamed OG image to og-cover.png (forces WhatsApp/Facebook/iMessage to drop the old cached green 'Quantum' card and refetch the current grayscale-on-black CI). Cache version bumped so browsers reload.",
+    "v10.12.0: Immersive / ADM-OSC — Echoel now streams the body as an audio object (breath→azimuth, coherence→distance, HRV→elevation, motion→gain) over the open ADM-OSC standard into object-based renderers (Adamson FletcherMachine, L-ISA, d&b Soundscape). Documented on Architecture + Tools; opt-in from the Sync tab. No vendor SDK.",
+    "v10.12.0: Honesty fix — replaced the Vision Pro FAQ overclaim ('quantum light spaces', photon particles, eye-gaze, 8 immersive modes as if shipped) with the accurate immersive story (ADM-OSC object source today; dedicated Vision Pro app on the roadmap).",
     "v10.11.0: Concept framing per direction — describe the MAXIMUM vision with a clear 'concept in development' disclaimer and an invite for interested users + developers to get in touch by email. Homepage Concept section, site-wide footer disclaimer, and App Store en-US/de-DE description + release notes now lead with the concept disclaimer + contact.",
     "v10.11.0: TestFlight readiness — clean-URL pages so App Store privacy_url (/privacy) and support_url (/support) resolve (were 404 on GitHub Pages); fixed release-notes email to echoel@tropicaldrones.com; added a Beta/early-access section to the homepage (iOS 18 + iPhone, request access, feedback).",
     "v10.11.0: Replaced the term 'binaural' with 'head-tracked spatial audio' (avoids the purged pseudoscience term; clearer).",

@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.11.2',K='echoel-nuke';try{
+    (function(){var V='10.12.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -30,7 +30,7 @@
     <meta property="og:description" content="Your heartbeat becomes music. Your breath becomes visuals. Your movement becomes light — for installation, event, cinema, theater, performance, and live broadcast. Coming soon to all Apple devices.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://echoelmusic.com">
-    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -41,7 +41,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Echoelmusic by Echoel — Create from Within">
     <meta name="twitter:description" content="Your heartbeat becomes music. Your breath becomes visuals. Your movement becomes light — for installation, event, cinema, theater, performance, and live broadcast. Coming soon to all Apple devices.">
-    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
 
     <!-- Apple -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -81,7 +81,7 @@
           "name": "Echoelmusic",
           "url": "https://echoelmusic.com",
           "founder": {"@type": "Person", "name": "Echoel"},
-          "logo": {"@type": "ImageObject", "url": "https://echoelmusic.com/og-image.png"},
+          "logo": {"@type": "ImageObject", "url": "https://echoelmusic.com/og-cover.png"},
           "sameAs": [
             "https://instagram.com/echoelmusic",
             "https://tiktok.com/@echoelmusic",

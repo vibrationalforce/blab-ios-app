@@ -29,6 +29,9 @@ struct EchoelmusicApp: App {
     #endif
     #if canImport(Network)
     @State private var osc: OSCSender
+    /// Opt-in ADM-OSC bridge (immersive object positioning). Off by default;
+    /// started from the Sync tab. Not auto-run — most users have no renderer.
+    @State private var admOSC = ADMOSCSender()
     #endif
     @State private var modulationEngine: ModulationEngine
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -95,6 +98,7 @@ struct EchoelmusicApp: App {
             #endif
             #if canImport(Network)
             .environment(osc)
+            .environment(admOSC)
             #endif
             .environment(modulationEngine)
             .task {

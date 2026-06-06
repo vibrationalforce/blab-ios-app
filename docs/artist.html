@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.11.2',K='echoel-nuke';try{
+    (function(){var V='10.12.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -30,7 +30,7 @@
     <meta property="og:description" content="Music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Hamburg. Creator of Echoelmusic.">
     <meta property="og:type" content="profile">
     <meta property="og:url" content="https://echoelmusic.com/artist.html">
-    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:locale" content="en_US">
@@ -38,7 +38,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Echoel — Music Producer &amp; Sound Artist">
     <meta name="twitter:description" content="Music producer, sound artist and inventor of walk-in vibrating water, light and sound installations. Hamburg.">
-    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
 
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">

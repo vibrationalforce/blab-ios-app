@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.11.2',K='echoel-nuke';try{
+    (function(){var V='10.12.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -26,7 +26,7 @@
     <meta property="og:title" content="EchoelToolkit - Unified Creative Tools">
     <meta property="og:description" content="12 unified Echoel* tools for synthesis, effects, mixing, sequencing, MIDI, biometrics, visuals, video, lighting, stage, networking, and AI. All connected via EchoelCreativeWorkspace.">
     <meta property="og:url" content="https://echoelmusic.com/tools.html">
-    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:locale" content="en_US">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="EchoelToolkit - Unified Creative Tools">
     <meta name="twitter:description" content="12 unified Echoel* tools. Fewer tools, more power. All connected via EchoelCreativeWorkspace.">
-    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
@@ -431,7 +431,11 @@
                 <div class="capability-list">
                     <div class="capability">
                         <h4>OSC (Open Sound Control)</h4>
-                        <p>Full OSC 1.0 protocol over UDP. Bidirectional communication with DAWs, VJ software, game engines, and custom applications. Send and receive bio-reactive data, audio parameters, and control messages. Target latency &lt;5ms on LAN.</p>
+                        <p>OSC 1.0 over UDP. Streams the live bio frame (heart, HRV, breath, coherence, motion) plus discrete bio events to DAWs, VJ software, game engines and custom apps. Default target localhost:8000; target latency &lt;5ms on LAN. Works with Resolume, TouchDesigner, MadMapper, Sonic Pi and TidalCycles.</p>
+                    </div>
+                    <div class="capability">
+                        <h4>ADM-OSC (Immersive / object-based)</h4>
+                        <p>Streams the body as an audio <strong>object</strong> over the open ADM-OSC standard &mdash; breath&rarr;azimuth, coherence&rarr;distance, HRV&rarr;elevation, motion&rarr;gain on <code>/adm/obj/{n}/&hellip;</code>. Makes Echoel a bio-reactive object source for object-based renderers such as Adamson FletcherMachine, L-ISA and d&amp;b Soundscape. Open standard, no vendor SDK. Opt-in from the Sync tab.</p>
                     </div>
                     <div class="capability">
                         <h4>Ableton Link <span class="tag">Planned</span></h4>

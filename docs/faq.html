@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.11.2',K='echoel-nuke';try{
+    (function(){var V='10.12.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -26,7 +26,7 @@
     <meta property="og:title" content="FAQ — Echoelmusic">
     <meta property="og:description" content="Frequently asked questions about Echoelmusic bio-reactive audio-visual platform.">
     <meta property="og:url" content="https://echoelmusic.com/faq.html">
-    <meta property="og:image" content="https://echoelmusic.com/og-image.png">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:locale" content="en_US">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="FAQ — Echoelmusic">
     <meta name="twitter:description" content="Frequently asked questions about Echoelmusic bio-reactive audio-visual platform.">
-    <meta name="twitter:image" content="https://echoelmusic.com/og-image.png">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
@@ -212,8 +212,8 @@
                 <div class="faq-answer">Yes — <strong>EchoelNet</strong> provides OSC (Open Sound Control) for bidirectional communication with DAWs, VJ software, and custom applications, plus Ableton Link for tempo and phase sync across all devices on the same network.</div>
             </div>
             <div class="faq-item">
-                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What immersive features are available on Vision Pro?</div>
-                <div class="faq-answer">Full 360&deg; immersive quantum light spaces with RealityKit, spatial tap and drag gestures, floating photon particles, bio-coherence panels, eye gaze tracking for audio-visual control, and 8 immersive modes from mixed reality to volumetric and passthrough. Also: Siri Shortcuts, iOS widgets, Live Activities on Dynamic Island, and watchOS complications.</div>
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">What about immersive and spatial setups?</div>
+                <div class="faq-answer">Echoel is iPhone-first today. For immersive and spatial work it acts as a <strong>bio-reactive object source</strong>: the body (breath, coherence, HRV, motion) drives an audio object's position and gain over <strong>ADM-OSC</strong> &mdash; the open Audio Definition Model over Open Sound Control standard &mdash; into object-based renderers such as Adamson FletcherMachine, L-ISA and d&amp;b Soundscape. No vendor SDK; open standards only. A dedicated Vision Pro app, on-device immersive scenes and other Apple platforms are on the roadmap, not yet shipped &mdash; see the <a href="architecture.html">Architecture</a> page for what is live today versus planned.</div>
             </div>
         </div>
 
