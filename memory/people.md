@@ -30,3 +30,14 @@ Key contributors, collaborators, and contacts.
 - **Status:** Networking contact; integration is roadmap (ADM-OSC out is a small, additive
   layer on the already-live OSCSender). No commitment yet.
 - **Refs:** adamson.ai · adamson-fletcher-machine.com · github.com/immersive-audio-live/ADM-OSC
+
+### Johannes Bollmann ("Bolle")
+- **Context:** Event-venue (Veranstaltungsort) & trade-fair (Messe) sales; writes for *Amazonas* magazine.
+- **Asset:** Free access to Panasonic high-end servers/projection gear (normally ~€30,000) —
+  hardware muscle for immersive installations / EchoelStage demos.
+- **Opportunity:** Venue + Messe distribution channel and projection hardware for immersive shows.
+
+### Felix Deufel — Grapes GmbH
+- **Context:** Old friend of Echoel; immersive-media pioneer. Grapes' immersive work is "already everywhere."
+- **Relevance:** Immersive media-production network; potential collaboration / reference site for the
+  immersive-multidimensional (EchoelStage) direction.
