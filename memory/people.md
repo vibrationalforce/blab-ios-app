@@ -17,4 +17,16 @@ Key contributors, collaborators, and contacts.
 
 ## External Contacts
 
-_Add collaborators, testers, domain experts as encountered._
+### Roman — Pyko / Adamson (adamson.ai)
+- **Met:** 2026-06-06 (in person, via Michael)
+- **Org:** Adamson Systems Engineering — maker of the **FletcherMachine** (object-based
+  immersive/spatial audio rendering processor; Stage Unit 3U + Traveller; up to 128×128 I/O).
+- **Why it matters:** FletcherMachine speaks **ADM-OSC** (open Audio-Definition-Model-over-OSC
+  standard for object positioning) + MIDI + PosiStageNet/RTTrPM. This is a zero-SDK,
+  open-standard bridge — exactly Echoel's "speak standards, depend on nothing" doctrine.
+- **Opportunity:** Echoel as a **bio-reactive object source** for immersive rigs — body
+  (HR/HRV/breath/motion) drives object position/gain over ADM-OSC into FletcherMachine.
+  Anchors the "EchoelStage" roadmap (Installation/Event/Cinema/Theater/Live Broadcast).
+- **Status:** Networking contact; integration is roadmap (ADM-OSC out is a small, additive
+  layer on the already-live OSCSender). No commitment yet.
+- **Refs:** adamson.ai · adamson-fletcher-machine.com · github.com/immersive-audio-live/ADM-OSC
