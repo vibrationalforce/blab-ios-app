@@ -84,6 +84,10 @@ struct WellView: View {
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(EchoelTheme.dim)
+                Text("Camera pulse is motion-sensitive — movement and bass vibration disrupt the optical signal. For loud or active performance, pair a Bluetooth heart-rate strap (Polar, Wahoo, any standard HR device).")
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(EchoelTheme.dim)
                 measurementControl
             }
         }
