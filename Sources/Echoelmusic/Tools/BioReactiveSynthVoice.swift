@@ -10,9 +10,12 @@
 //  every bio change is now audible: heart rate drives vibrato, HRV
 //  drives brightness, coherence drives harmonicity, etc.
 //
-//  Default state is silent. User must call playNote() (UI: play
-//  toggle on BioStripView) to open the envelope. releaseNote() closes
-//  it; ambient release tail fades over ~2s.
+//  Default state is SILENT and DISARMED. Nothing sounds on launch — not
+//  even when a bio source (incl. the auto-demo) is streaming. The user
+//  must arm the voice (UI: play toggle on BioStripView) before the breath
+//  drives the envelope. An external MIDI/MPE note always plays (explicit
+//  performer action) regardless of arm state. releaseNote() closes the
+//  envelope; ambient release tail fades over ~2s.
 //
 //  Threading: applyBioReactive() runs on MainActor (10 Hz). The
 //  AVAudioSourceNode render closure runs on the audio thread
@@ -48,9 +51,16 @@ public final class BioReactiveSynthVoice {
     /// released (silent / fading).
     public private(set) var isPlayingNote = false
 
+    /// Master arm switch for bio-driven sound. DEFAULT FALSE: until the
+    /// user arms the voice (play toggle), bio/breath events never open the
+    /// envelope, so the instrument is silent on launch even while the demo
+    /// bio source streams. An external MIDI/MPE note bypasses this (explicit
+    /// performer action always sounds).
+    public private(set) var isArmed = false
+
     /// When true, breath inhale/exhale onsets from the bus drive the
-    /// envelope (the synth breathes with you) whenever no external
-    /// controller note is held. Toggle off for pure manual play.
+    /// envelope (the synth breathes with you) whenever the voice is armed
+    /// and no external controller note is held. Toggle off for pure manual play.
     public var breathPlayEnabled = true
 
     // MARK: - Bus subscription state
@@ -121,6 +131,19 @@ public final class BioReactiveSynthVoice {
         isPlayingNote = false
     }
 
+    /// Arm the bio-reactive voice and give immediate audible feedback. Once
+    /// armed, breath onsets (if `breathPlayEnabled`) drive the envelope.
+    public func arm() {
+        isArmed = true
+        playNote()
+    }
+
+    /// Disarm and silence the voice (closes the envelope; bio events ignored).
+    public func disarm() {
+        isArmed = false
+        releaseNote()
+    }
+
     /// Standard A440 equal temperament: midi 69 = 440 Hz.
     public nonisolated static func frequency(forMIDINote note: UInt8) -> Float {
         440 * powf(2, (Float(note) - 69) / 12)
@@ -180,7 +203,9 @@ public final class BioReactiveSynthVoice {
         guard let event = bus.latestBioEvent else { return }
         guard event.timestamp != lastBioEventTimestamp else { return }
         lastBioEventTimestamp = event.timestamp
-        guard breathPlayEnabled, !heldByController else { return }
+        // Silent until the user arms the voice — this is what stops a tone
+        // from appearing on launch while the demo bio source streams.
+        guard isArmed, breathPlayEnabled, !heldByController else { return }
 
         switch event.kind {
         case .breathInhaleOnset:

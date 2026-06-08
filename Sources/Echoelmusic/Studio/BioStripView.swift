@@ -135,22 +135,22 @@ struct BioStripView: View {
 
     private var playButton: some View {
         Button {
-            if voice.isPlayingNote {
-                voice.releaseNote()
+            if voice.isArmed {
+                voice.disarm()
             } else {
-                voice.playNote()
+                voice.arm()
             }
         } label: {
-            Image(systemName: voice.isPlayingNote ? "stop.fill" : "play.fill")
+            Image(systemName: voice.isArmed ? "stop.fill" : "play.fill")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(voice.isPlayingNote ? Color.white : Color.secondary)
+                .foregroundStyle(voice.isArmed ? Color.white : Color.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(voice.isPlayingNote ? Color.white.opacity(0.18) : Color.white.opacity(0.05))
+                .background(voice.isArmed ? Color.white.opacity(0.18) : Color.white.opacity(0.05))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(voice.isPlayingNote ? "Stop bio-reactive voice" : "Play bio-reactive voice")
+        .accessibilityLabel(voice.isArmed ? "Stop bio-reactive voice" : "Play bio-reactive voice")
     }
 
     // MARK: - Source tag
