@@ -38,6 +38,18 @@ Read this FIRST when continuing work on Echoelmusic.
 - **ADM-OSC hardware test:** point at a FletcherMachine or `python-osc`/Protokol monitor to confirm `/adm/obj/1/…` on the wire.
 - **Multi-BLE arbitration:** current client grabs the first HR advertiser; if owner runs several straps at once, add a picker (low priority).
 
+### Addendum 2 — phantom-tone fix + state-of-the-art deep research (2026-06-08)
+- **5-agent deep research** synthesized → `scratchpads/STRATEGY_STATE_OF_THE_ART_2026-06-06.md` (synthesis/control/immersive/show/bio; doctrine-first adoption roadmap; next win = native Art-Net/sACN). Contacts logged: Johannes Bollmann (Panasonic servers/Messe), Felix Deufel/Grapes/ZiMMT.
+- **Website perf (v10.12.2):** removed nav `backdrop-filter: blur` (scroll repaint → judder) and killed the double page-reload (cache-guardian + SW both reloaded → flicker); SW now updates silently. OG image cache-busted earlier (og-cover.png).
+- **🐞 PHANTOM TONE FIXED:** `BioReactiveSynthVoice` had `breathPlayEnabled=true`, so breath onsets from the auto-demo opened the envelope on launch — "a tone from nowhere." Added a master **arm switch (default OFF)**; bio/breath only sound once armed via the strip play toggle (now arm/disarm). MIDI/MPE still always plays. Silent on launch.
+- **Camera under loud music:** physics (rPPG motion-sensitive), not a bug — added honest in-app guidance + BLE-strap recommendation; no risky DSP change.
+- **Oura:** no real-time third-party BLE (verified) — only via Apple Health, delayed; documented on FAQ/architecture.
+- **Shipped:** builds 1515/1518/1521 VALID across this work; tone-fix build dispatched.
+
+### Next cycle
+- **EchoelBeat polish** (owner: "noch etwas roh") — the sampler/sequencer instrument layer.
+- Then native **Art-Net** light output (top doctrine-win from the roadmap).
+
 ---
 
 ## 2026-06-01 — Apple-ecosystem loop: Widget + Watch shipped & CI-verified (Ralph Wiggum Lambda)
