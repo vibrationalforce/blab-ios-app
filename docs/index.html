@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.12.1',K='echoel-nuke';try{
+    (function(){var V='10.12.2',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -158,12 +158,12 @@
             position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
             padding: 0 24px;
             background: rgba(0,0,0,0);
-            backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
-            transition: background 0.4s, backdrop-filter 0.4s;
+            transition: background 0.3s ease, border-color 0.3s ease;
+            border-bottom: 1px solid transparent;
         }
         .nav.scrolled {
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2);
+            background: rgba(0,0,0,0.92);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         .nav-bar {
             max-width: var(--max-w); margin: 0 auto; height: 64px;
@@ -1013,18 +1013,14 @@
     })();
 
     if ('serviceWorker' in navigator) {
+        // Silent update: a new service worker installs in the background and takes
+        // over on the next navigation. We deliberately do NOT call location.reload()
+        // here — auto-reloading mid-session caused a visible flicker, and the
+        // cache-guardian (top of page, with a 60s sessionStorage dedupe) is the
+        // single source of forced refreshes when version.json advances.
         navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function(reg) {
-            reg.addEventListener('updatefound', function() {
-                var newWorker = reg.installing;
-                if (newWorker) { newWorker.addEventListener('statechange', function() {
-                    if (newWorker.state === 'activated') { window.location.reload(); }
-                }); }
-            });
-            setInterval(function() { reg.update(); }, 30000);
+            setInterval(function() { reg.update(); }, 300000); // check every 5 min, no reload
         }).catch(function(e) { console.warn('[SW] Registration failed:', e); });
-        navigator.serviceWorker.addEventListener('message', function(e) {
-            if (e.data && e.data.type === 'SW_UPDATED') { window.location.reload(); }
-        });
     }
     </script>
 </body>
