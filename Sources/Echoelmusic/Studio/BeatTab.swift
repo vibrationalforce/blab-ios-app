@@ -49,6 +49,8 @@ struct BeatTab: View {
                 .padding(.horizontal, 16)
             stepGrid(player: beatPlayer)
                 .padding(.horizontal, 12)
+            hintRow
+                .padding(.horizontal, 16)
             padRow
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
@@ -166,14 +168,19 @@ struct BeatTab: View {
 
     @ViewBuilder
     private func patternToolsRow(player: BeatPlayer) -> some View {
-        HStack(spacing: 8) {
-            toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
-            toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
-            Spacer(minLength: 8)
-            HStack(spacing: 6) {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
+                toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
+                Spacer(minLength: 0)
+            }
+            // Swing on its own full-width row so the slider is always visible
+            // (it was being clipped off-screen when crammed next to the buttons).
+            HStack(spacing: 8) {
                 Text("Swing")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(EchoelTheme.dim)
+                    .frame(width: 44, alignment: .leading)
                 Slider(
                     value: Binding(
                         get: { player.pattern.swing },
@@ -181,14 +188,23 @@ struct BeatTab: View {
                     ),
                     in: 0...0.5
                 )
-                .frame(width: 110)
                 .tint(EchoelTheme.accent)
                 Text("\(Int(player.pattern.swing * 200))%")
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                     .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 34, alignment: .trailing)
+                    .frame(width: 40, alignment: .trailing)
             }
         }
+    }
+
+    /// Discoverability hint — the accent (double-tap) and sample-load
+    /// (long-press) affordances are otherwise invisible.
+    private var hintRow: some View {
+        Text("Tap a step: off → on → accent  ·  Long-press a pad to load a sample")
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(EchoelTheme.dim)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .multilineTextAlignment(.center)
     }
 
     private func toolButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -285,11 +301,12 @@ struct BeatTab: View {
                     RoundedRectangle(cornerRadius: 4)
                         .strokeBorder(isCurrent ? EchoelTheme.accent.opacity(0.7) : EchoelTheme.border, lineWidth: 1)
                 )
-                // A small bar marks an accented (louder) hit.
+                // A bright bar marks an accented (louder) hit — clearly
+                // distinct from a normal on-step at a glance.
                 .overlay(alignment: .top) {
                     if isAccent {
-                        Capsule().fill(Color.white.opacity(0.9))
-                            .frame(width: 10, height: 2).padding(.top, 2)
+                        Capsule().fill(Color.white)
+                            .frame(width: 16, height: 3).padding(.top, 3)
                     }
                 }
                 .frame(height: m.stepCellHeight)
