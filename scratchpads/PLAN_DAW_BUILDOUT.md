@@ -18,7 +18,7 @@ Order = value ÷ risk, biased to "make the instrument feel pro + fully controlla
 - A4 **Synth (DDSP) patch UI**: expose the existing ADSR/brightness/harmonicity/reverb as a real editor (the engine already has them) → "own Instrument" #1.
 
 ### Phase B — Composition surfaces (the DAW core)
-- B1 **Piano roll** for a melodic instrument lane (DDSP): note add/move/resize/velocity, snap, scroll/zoom. Drives the synth via the existing controllerEvents path.
+- B1 ✅ **Piano roll v1** (`Studio/PianoRollView.swift`): pitch×16-step grid (2 octaves + octave shift) drives the live DDSP synth via controllerEvents on the SHARED PatternEngine clock (`pattern.onTick`); opens from the Tools tab; releases on stop/close. Next (B1.1): note length/legato, velocity per note, polyphony, scroll/zoom, snap.
 - B2 **Clip View** (session/launchpad): pattern + piano-roll clips as launchable cells; per-track clip slots; quantized launch.
 - B3 **Arrangement / timeline**: arrange clips on a tempo timeline; loop region; playhead; basic automation lane (reuse ModulationMatrix for param automation).
 - B4 **Mixer**: per-track level/pan/mute/solo + sends + master (EchoelMix); metering exists.
