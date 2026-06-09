@@ -1,0 +1,156 @@
+//
+//  ArtNetSender.swift
+//  Echoelmusic — EchoelSync / EchoelLux
+//
+//  Native Art-Net (ArtDMX) output over UDP — the open, royalty-free lighting
+//  control standard (DMX-512 over IP, port 6454). No SDK, no dependency: builds
+//  the ArtDMX packet by hand and sends it via Network.framework, the same way
+//  OSCSender/ADMOSCSender stream bio out. Makes the body drive stage lighting:
+//  a bio-reactive fixture (dimmer + RGB) that breathes with you.
+//
+//  Doctrine fit: Art-Net is a documented wire protocol (Artistic Licence) —
+//  exactly the "speak open standards, depend on nothing" lane. sACN/E1.31 is a
+//  natural follow-up (same idea, multicast).
+//
+//  SAFETY (CLAUDE.md / W3C WCAG): max 3 Hz flash. Bio is a slow signal and we
+//  send smoothed continuous values (no strobing), so the dimmer fades rather
+//  than flashes — within the epilepsy limit by construction.
+//
+//  ArtDMX packet (Art-Net 4):
+//    "Art-Net\0" (8) · OpCode 0x5000 LE (2) · ProtVer 14 BE (2) · Sequence (1)
+//    · Physical (1) · SubUni (1) · Net (1) · LengthHi/Lo BE (2) · Data[Length]
+//
+
+#if canImport(Network)
+import Foundation
+import Network
+#if canImport(Observation)
+import Observation
+#endif
+
+@MainActor
+@Observable
+public final class ArtNetSender {
+
+    /// Art-Net node host. Unicast to the node's IP is most reliable; limited
+    /// broadcast (255.255.255.255) reaches every node on the LAN.
+    public var host: String
+
+    /// Art-Net port is fixed at 6454 by the standard, but kept configurable.
+    public var port: UInt16
+
+    /// 15-bit Art-Net port address (Net<<8 | SubUni). Universe 0 by default.
+    public var universe: Int
+
+    public private(set) var isActive = false
+    public private(set) var lastSentTimestamp: TimeInterval = 0
+
+    @ObservationIgnored private weak var bus: EngineBus?
+    @ObservationIgnored private var connection: NWConnection?
+    @ObservationIgnored private let loop = PollingLoop()
+    @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
+    @ObservationIgnored private var sequence: UInt8 = 1
+
+    public init(host: String = "255.255.255.255", port: UInt16 = 6454, universe: Int = 0) {
+        self.host = host
+        self.port = port
+        self.universe = max(0, universe)
+    }
+
+    public func start(subscribing bus: EngineBus) {
+        guard !isActive else { return }
+        self.bus = bus
+        connect()
+        isActive = true
+        loop.start(interval: .milliseconds(33)) { [weak self] in   // ~30 Hz, smooth fades
+            guard let self, let bus = self.bus else { return }
+            self.sendIfFresh(from: bus)
+        }
+    }
+
+    public func stop() {
+        loop.stop()
+        connection?.cancel()
+        connection = nil
+        isActive = false
+    }
+
+    // MARK: - Connection
+
+    private func connect() {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return }
+        // Allow sending to a broadcast address (255.255.255.255) as well as unicast.
+        let params = NWParameters.udp
+        params.allowLocalEndpointReuse = true
+        let endpoint = NWEndpoint.hostPort(host: .init(host), port: nwPort)
+        let conn = NWConnection(to: endpoint, using: params)
+        conn.start(queue: .main)
+        self.connection = conn
+    }
+
+    // MARK: - Subscriber tick
+
+    private func sendIfFresh(from bus: EngineBus) {
+        guard let frame = bus.latestBio else { return }
+        guard frame.timestamp != lastFrameTimestamp else { return }
+        lastFrameTimestamp = frame.timestamp
+        let channels = Self.dmxChannels(for: frame)
+        let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
+        sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled
+        send(packet)
+        lastSentTimestamp = CFAbsoluteTimeGetCurrent()
+    }
+
+    private func send(_ data: Data) {
+        guard let conn = connection else { return }
+        conn.send(content: data, completion: .contentProcessed { _ in })
+    }
+
+    // MARK: - Pure kernels (testable without a socket)
+
+    /// Maps a bio frame to a 4-channel fixture: dimmer + R + G + B (0...255).
+    /// Smooth, continuous values — no strobing (epilepsy-safe by construction).
+    ///   ch1 dimmer = 0.3 + 0.7·coherence (always lit, brighter when coherent)
+    ///   ch2 R = heart rate (normalized)   — energy
+    ///   ch3 G = HRV                        — calm/variability
+    ///   ch4 B = breath phase              — breathing motion
+    public static func dmxChannels(for f: BioSampleFrame) -> [UInt8] {
+        let hrNorm = clampUnit((f.heartRateBPM - 40) / 160)
+        let dimmer = clampUnit(0.3 + 0.7 * f.coherence)
+        return [
+            byte(dimmer),
+            byte(hrNorm),
+            byte(clampUnit(f.hrvNormalized)),
+            byte(clampUnit(f.breathPhase))
+        ]
+    }
+
+    /// Builds one ArtDMX packet. `channels` is padded to an even length in
+    /// [2, 512] as the spec requires.
+    public static func artDMXPacket(universe: Int, sequence: UInt8, channels: [UInt8]) -> Data {
+        var dmx = channels
+        if dmx.count < 2 { dmx += Array(repeating: 0, count: 2 - dmx.count) }
+        if dmx.count > 512 { dmx = Array(dmx.prefix(512)) }
+        if dmx.count % 2 != 0 { dmx.append(0) }          // length must be even
+        let length = dmx.count
+        let uni = max(0, universe)
+
+        var data = Data()
+        data.append(contentsOf: Array("Art-Net".utf8))   // 7 bytes
+        data.append(0)                                    // null terminator → 8
+        data.append(contentsOf: [0x00, 0x50])             // OpCode OpOutput/ArtDMX (0x5000), little-endian
+        data.append(contentsOf: [0x00, 0x0E])             // ProtVer 14, big-endian
+        data.append(sequence)                             // Sequence
+        data.append(0x00)                                 // Physical
+        data.append(UInt8(uni & 0xFF))                    // SubUni (low byte)
+        data.append(UInt8((uni >> 8) & 0x7F))             // Net (high 7 bits)
+        data.append(UInt8((length >> 8) & 0xFF))          // LengthHi
+        data.append(UInt8(length & 0xFF))                 // LengthLo
+        data.append(contentsOf: dmx)                      // DMX data
+        return data
+    }
+
+    private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x, 0), 1) }
+    private static func byte(_ unit: Float) -> UInt8 { UInt8(clampUnit(unit) * 255) }
+}
+#endif

@@ -32,6 +32,9 @@ struct EchoelmusicApp: App {
     /// Opt-in ADM-OSC bridge (immersive object positioning). Off by default;
     /// started from the Sync tab. Not auto-run — most users have no renderer.
     @State private var admOSC = ADMOSCSender()
+    /// Opt-in Art-Net light output (EchoelLux). Off by default; started from
+    /// the Sync tab. Not auto-run — most users have no lighting rig.
+    @State private var artNet = ArtNetSender()
     #endif
     @State private var modulationEngine: ModulationEngine
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -102,6 +105,7 @@ struct EchoelmusicApp: App {
             #if canImport(Network)
             .environment(osc)
             .environment(admOSC)
+            .environment(artNet)
             #endif
             .environment(modulationEngine)
             .task {

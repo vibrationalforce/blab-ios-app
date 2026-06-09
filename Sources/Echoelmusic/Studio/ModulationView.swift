@@ -14,6 +14,7 @@ struct ModulationView: View {
     @Environment(EngineBus.self) private var bus
     #if canImport(Network)
     @Environment(ADMOSCSender.self) private var admOSC
+    @Environment(ArtNetSender.self) private var artNet
     #endif
 
     var body: some View {
@@ -22,6 +23,7 @@ struct ModulationView: View {
             List {
                 #if canImport(Network)
                 admOSCSection
+                artNetSection
                 #endif
                 Section {
                     if engine.matrix.routes.isEmpty {
@@ -119,6 +121,49 @@ struct ModulationView: View {
             Text("Immersive (ADM-OSC)")
         } footer: {
             Text("Streams the body as an object's position + gain over ADM-OSC (breath→azimuth, coherence→distance, HRV→elevation, motion→gain). Stop to change host/port.")
+        }
+    }
+
+    /// Opt-in Art-Net light output (EchoelLux): stream the body to a DMX-over-IP
+    /// lighting rig (dimmer + RGB), open standard, no SDK. Smooth fades — no
+    /// strobing (epilepsy-safe).
+    @ViewBuilder
+    private var artNetSection: some View {
+        @Bindable var artNet = artNet
+        Section {
+            Toggle(isOn: Binding(
+                get: { artNet.isActive },
+                set: { on in
+                    if on { artNet.start(subscribing: bus) } else { artNet.stop() }
+                }
+            )) {
+                Label("Send to lighting rig", systemImage: "lightbulb.fill")
+            }
+
+            HStack {
+                Text("Host").foregroundStyle(.secondary)
+                Spacer()
+                TextField("255.255.255.255", text: $artNet.host)
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .disabled(artNet.isActive)
+            }
+            Stepper(value: $artNet.universe, in: 0...32767) {
+                HStack {
+                    Text("Universe").foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(artNet.universe)").font(.callout.monospaced())
+                }
+            }
+            .disabled(artNet.isActive)
+        } header: {
+            Text("Lighting (Art-Net)")
+        } footer: {
+            Text("Streams the body to a DMX-over-IP rig on port 6454 — dimmer←coherence, R←heart rate, G←HRV, B←breath. Unicast to your node's IP, or broadcast (255.255.255.255). Stop to change host/universe.")
         }
     }
     #endif
