@@ -21,6 +21,11 @@ import UniformTypeIdentifiers
 struct BeatTab: View {
 
     @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(EngineBus.self) private var bus
+
+    /// Melodic piano-roll lane (drives the DDSP synth on the shared clock).
+    @State private var pianoRoll = PianoRollModel()
+    @State private var showPianoRoll = false
 
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
     @State private var exportedMIDI: ExportedMIDIFile?
@@ -78,6 +83,9 @@ struct BeatTab: View {
         #endif
         .sheet(item: $padEdit) { target in
             PadSoundEditor(track: target.id, player: beatPlayer)
+        }
+        .sheet(isPresented: $showPianoRoll) {
+            PianoRollView(pattern: beatPlayer.pattern, bus: bus, model: pianoRoll)
         }
     }
 
@@ -178,6 +186,7 @@ struct BeatTab: View {
             HStack(spacing: 8) {
                 toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
                 toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
+                toolButton("Piano", icon: "pianokeys") { showPianoRoll = true }
                 Spacer(minLength: 0)
             }
             // Swing on its own full-width row so the slider is always visible

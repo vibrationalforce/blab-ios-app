@@ -64,6 +64,11 @@ public final class PatternEngine {
     /// Wire this to `SamplerVoice.trigger(track:)` once SamplerVoice exists.
     public var onStep: ((_ track: Int, _ step: Int) -> Void)?
 
+    /// Invoked once per step boundary (after drum cells), regardless of content.
+    /// A second consumer on the SAME clock — used by the piano roll / melody lane
+    /// so drums and melody share one transport (no two-timer drift).
+    public var onTick: ((_ step: Int) -> Void)?
+
     // MARK: - Internal
 
     // nonisolated(unsafe) so the deinit (which is nonisolated by default)
@@ -191,6 +196,7 @@ public final class PatternEngine {
                 onStep?(track, step)
             }
         }
+        onTick?(step)
         currentStep = (step + 1) % PatternEngine.stepCount
 
         guard isPlaying else { return }
