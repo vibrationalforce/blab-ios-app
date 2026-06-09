@@ -35,6 +35,7 @@ struct EchoelmusicApp: App {
     /// Opt-in Art-Net light output (EchoelLux). Off by default; started from
     /// the Sync tab. Not auto-run — most users have no lighting rig.
     @State private var artNet = ArtNetSender()
+    @State private var sacn = SACNSender()
     #endif
     @State private var modulationEngine: ModulationEngine
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -106,6 +107,7 @@ struct EchoelmusicApp: App {
             .environment(osc)
             .environment(admOSC)
             .environment(artNet)
+            .environment(sacn)
             #endif
             .environment(modulationEngine)
             .task {

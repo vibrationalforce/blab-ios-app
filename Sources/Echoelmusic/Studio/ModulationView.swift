@@ -15,6 +15,7 @@ struct ModulationView: View {
     #if canImport(Network)
     @Environment(ADMOSCSender.self) private var admOSC
     @Environment(ArtNetSender.self) private var artNet
+    @Environment(SACNSender.self) private var sacn
     #endif
 
     var body: some View {
@@ -24,6 +25,7 @@ struct ModulationView: View {
                 #if canImport(Network)
                 admOSCSection
                 artNetSection
+                sacnSection
                 #endif
                 Section {
                     if engine.matrix.routes.isEmpty {
@@ -164,6 +166,54 @@ struct ModulationView: View {
             Text("Lighting (Art-Net)")
         } footer: {
             Text("Streams the body to a DMX-over-IP rig on port 6454 — dimmer←coherence, R←heart rate, G←HRV, B←breath. Unicast to your node's IP, or broadcast (255.255.255.255). Stop to change host/universe.")
+        }
+    }
+
+    /// Opt-in sACN / E1.31 light output — the second open lighting standard, for
+    /// large rigs. Shipped as UNICAST (iOS gates multicast behind a special
+    /// entitlement); tap "Use multicast group" to target 239.255.x.x if granted.
+    @ViewBuilder
+    private var sacnSection: some View {
+        @Bindable var sacn = sacn
+        Section {
+            Toggle(isOn: Binding(
+                get: { sacn.isActive },
+                set: { on in
+                    if on { sacn.start(subscribing: bus) } else { sacn.stop() }
+                }
+            )) {
+                Label("Send to sACN rig", systemImage: "light.panel.fill")
+            }
+
+            HStack {
+                Text("Host").foregroundStyle(.secondary)
+                Spacer()
+                TextField("192.168.1.100", text: $sacn.host)
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .disabled(sacn.isActive)
+            }
+            Stepper(value: $sacn.universe, in: 1...63999) {
+                HStack {
+                    Text("Universe").foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(sacn.universe)").font(.callout.monospaced())
+                }
+            }
+            .disabled(sacn.isActive)
+            Button("Use multicast group (239.255.x.x)") {
+                sacn.host = SACNSender.multicastHost(universe: sacn.universe)
+            }
+            .font(.caption)
+            .disabled(sacn.isActive)
+        } header: {
+            Text("Lighting (sACN / E1.31)")
+        } footer: {
+            Text("Streams the body over E1.31 on port 5568 — same fixture mapping as Art-Net. Unicast to your receiver's IP (works on iOS). Multicast is the spec default but needs Apple's multicast entitlement. Stop to change host/universe.")
         }
     }
     #endif

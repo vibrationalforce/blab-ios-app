@@ -63,9 +63,6 @@ public final class OSCSender {
     @ObservationIgnored
     private var lastFrameTimestamp: TimeInterval = -1
 
-    @ObservationIgnored
-    private var lastEventTimestamp: TimeInterval = -1
-
     public init(host: String = "localhost", port: UInt16 = 8000) {
         self.host = host
         self.port = port
@@ -79,7 +76,7 @@ public final class OSCSender {
         loop.start(interval: .milliseconds(100)) { [weak self] in
             guard let self, let bus = self.bus else { return }
             self.sendIfFresh(from: bus)
-            self.sendEventIfFresh(from: bus)
+            self.drainAndSendEvents(from: bus)
         }
     }
 
@@ -116,12 +113,21 @@ public final class OSCSender {
     /// audio-thread consumer for that SPSC queue. At the 100 ms tick cadence,
     /// events closer together than 100 ms collapse to the most recent — fine
     /// for heartbeat/breath/motion rates; a return channel can tighten this later.
-    private func sendEventIfFresh(from bus: EngineBus) {
-        guard let event = bus.latestBioEvent else { return }
-        guard event.timestamp != lastEventTimestamp else { return }
-        lastEventTimestamp = event.timestamp
-        send(event: event)
-        lastSentTimestamp = CFAbsoluteTimeGetCurrent()
+    /// Drains the `bioEvents` SPSC queue and sends EVERY discrete event at full
+    /// resolution — so PolarH10 per-RR `.heartbeat` events (and breath/motion
+    /// onsets) reach external tools with correct timing instead of being lost to
+    /// the single-slot snapshot between 100 ms ticks (audit 2026-06-09, defect 2/5).
+    /// OSCSender is the SOLE consumer of this queue; producers enqueue on the
+    /// main actor, so this main-run-loop drain is serialized and SPSC-safe. The
+    /// synth's breath path reads the independent `latestBioEvent` snapshot and is
+    /// unaffected.
+    private func drainAndSendEvents(from bus: EngineBus) {
+        var sentAny = false
+        while let event = bus.bioEvents.dequeue() {
+            send(event: event)
+            sentAny = true
+        }
+        if sentAny { lastSentTimestamp = CFAbsoluteTimeGetCurrent() }
     }
 
     private func send(event: BioEvent) {

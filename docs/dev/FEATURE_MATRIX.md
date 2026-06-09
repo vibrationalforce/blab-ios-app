@@ -100,11 +100,11 @@ acceptance line.
 - **Roadmap:** the CameraHub fan-out (`SPEC_CAMERA_PIPELINE.md`) so one capture serves rPPG + video + visuals; H.264/HEVC short-form record, NLE, ProRes.
 - **TestFlight:** out of scope — video capture/edit is not wired today.
 
-### 9. EchoelLux — `LIVE` (partial)
-- **Code:** `Sync/ArtNetSender.swift` (+ `Tests/EchoelmusicTests/ArtNetSenderTests.swift`)
-- **Live (build 1543):** native **Art-Net** (ArtDMX over UDP 6454, zero dependency, built by hand on Network.framework). Bio→DMX: dimmer←coherence, R←heart rate, G←HRV, B←breath. Smooth fades, no strobing (WCAG 3 Hz epilepsy-safe by construction). Opt-in from the Sync tab (host/universe). Pure packet + mapping kernels unit-tested.
-- **Roadmap:** sACN/E1.31 (multicast, high universe counts), fixture profiles, cue lists, HomeKit. `NSLocalNetworkUsageDescription` + Bonjour `_artnet._udp` declared.
-- **TestFlight acceptance:** an Art-Net node / OSC-DMX monitor receives `/Art-Net` ArtDMX on universe 0 while a bio source streams.
+### 9. EchoelLux — `LIVE`
+- **Code:** `Sync/ArtNetSender.swift`, `Sync/SACNSender.swift` (+ `ArtNetSenderTests`, `SACNSenderTests`)
+- **Live:** native **Art-Net** (ArtDMX/UDP 6454, build 1543) **+ sACN / E1.31** (Data Packet/UDP 5568, **unicast** — iOS gates multicast behind the special entitlement; `multicastHost(universe:)` ready for when granted). Both zero-dependency, hand-built on Network.framework, sharing the bio→DMX mapping: dimmer←coherence, R←heart rate, G←HRV, B←breath. Smooth fades, no strobing (WCAG 3 Hz safe by construction). Opt-in from the Sync tab (host/universe per standard). Packet + mapping kernels unit-tested. Verification recipe: `scratchpads/SPEC_LIGHT_OSC_VERIFICATION.md`.
+- **Roadmap:** sACN multicast (entitlement), fixture profiles, cue lists, HomeKit.
+- **TestFlight acceptance:** an Art-Net node and/or an sACN receiver (sACNView/QLC+) shows the bio-reactive fixture move.
 
 ### 10. EchoelStage — `ROADMAP`
 - **Code:** none. **Vision:** external displays, projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay.
@@ -113,8 +113,9 @@ acceptance line.
 ### 11. EchoelNet — `LIVE` (partial)
 - **Code:** `Sync/OSCSender.swift`, `Sync/ADMOSCSender.swift`, `Sync/MIDIBusPublisher.swift`
 - **Live:** OSC 1.0 over UDP — 6 continuous `/echoelmusic/bio/*` + 6 discrete `/echoelmusic/bio/event/*` + `/echoelmusic/mod/*` (modulation), default `localhost:8000`. **ADM-OSC** immersive object output (`/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/gain`, bio→object) into FletcherMachine/L-ISA/d&b — opt-in from the Sync tab. MIDI 2.0/MPE in.
+- **Beat-sync (audit fix 2026-06-09):** OSCSender now DRAINS the `bioEvents` SPSC queue (sole consumer) → every PolarH10 per-RR `.heartbeat` (+ breath/motion) event is sent at full resolution, no longer lost to the 100 ms snapshot. The synth's breath path still uses the independent `latestBioEvent` snapshot.
 - **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, RTP-MIDI, ADM-OSC native-protocol fallback lane.
-- **TestFlight acceptance:** OSC frames reach a LAN receiver; ADM-OSC `/adm/obj/1/*` visible on an OSC monitor.
+- **TestFlight acceptance:** OSC frames reach a LAN receiver; ADM-OSC `/adm/obj/1/*` visible on an OSC monitor; heartbeat events arrive per-beat.
 
 ### 12. EchoelAI — `ROADMAP`
 - **Code:** none. **Vision:** on-device CoreML, stem separation. Private, no cloud.
