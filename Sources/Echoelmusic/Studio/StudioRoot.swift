@@ -13,7 +13,6 @@ struct StudioRoot: View {
     var body: some View {
         VStack(spacing: 0) {
             BioStripView()
-                .environment(demoSource)
             TabView {
                 BeatTab()
                     .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
@@ -28,6 +27,9 @@ struct StudioRoot: View {
                     .tabItem { Label("Well", systemImage: "heart.fill") }
             }
         }
+        // Demo source available to the whole subtree (was scoped to the strip
+        // alone) so any tab can read it without a missing-environment crash.
+        .environment(demoSource)
         .task {
             #if DEBUG
             // Dev: demo on immediately so the bus is live in Simulator/Xcode.

@@ -12,13 +12,22 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
-> **CURRENT SHIPPING STATE (2026-06-01):** TestFlight **build 1469 VALID** — app +
-> **EchoelmusicWidgets** (live bio glance) + **AUv3 plugin** embedded, all driven
-> by live bio via the `BioFeedbackPublisher` → App Group bridge (CX). iOS CI path
-> is fully `xcodebuild` (fastlane retired; cert-race fixed). Camera rPPG is
-> **dormant/Planned** (see `scratchpads/SPEC_CAMERA_PIPELINE.md` — camera is ONE
-> shared input fanning out to bio/video/visuals/RTMP/spatial). Watch companion is
-> compile-verified but **not embedded** (export blocked — needs local Xcode).
+> **CURRENT SHIPPING STATE (2026-06-09):** TestFlight **build 1535 VALID** — app +
+> **EchoelmusicWidgets** (live bio glance) + **AUv3 plugin** embedded, driven by
+> live bio via `BioFeedbackPublisher` → App Group (CX). New since 1469:
+> **camera rPPG is LIVE** (finger-on-lens, locks on device); **BLE source is
+> universal** (any standard Heart Rate Service device, not just Polar);
+> **ADM-OSC** immersive object output (Sync tab); EchoelBeat gained
+> **velocity/accent + swing + per-pad sample import (Files)**; **launch is
+> guaranteed silent** (bio voice emits zero until first user trigger). Audited
+> 2026-06-09 (`scratchpads/ARCHITECTURE_AUDIT_2026-06-09.md`). Watch companion
+> compile-verified, not embedded (export blocked — needs local Xcode).
+>
+> **Architecture correction (audit):** the EngineBus bio path runs over the
+> `@MainActor latestBio` **snapshot** (10 Hz), NOT the SPSC queue. The lock-free
+> SPSCQueue is load-bearing only for `controllerEvents` (MIDI). `bioFrames`/
+> `bioEvents` queues are present but **not drained** (reserved). RTMP/video/
+> multitrack are **absent** (no wired code), not shipping — see each tool below.
 
 > The "12 tools" are a taxonomy over the real modules. E.g. *EchoelSynth* is the
 > group {EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelPolyDDSP, SamplerVoice}.
@@ -30,11 +39,11 @@ acceptance line.
 
 | Module | File | Notes |
 |---|---|---|
-| EngineBus | `Sources/Echoelmusic/Core/EngineBus.swift` | `@MainActor @Observable` control plane + lock-free `SPSCQueue` data plane. 3 topics: `bioFrames` / `controllerEvents` / `bioEvents`. Modules produce/consume here, never couple directly. |
-| SPSCQueue | `Sources/Echoelmusic/Core/SPSCQueue.swift` | Lock-free single-producer/single-consumer ring; audio-thread safe. |
-| AudioEngine | `Sources/Echoelmusic/Audio/AudioEngine.swift` | `AVAudioEngine` master bus. Attach source nodes **before** `start()`. |
+| EngineBus | `Sources/Echoelmusic/Core/EngineBus.swift` | `@MainActor @Observable` control plane (snapshots) + lock-free `SPSCQueue`. 3 topics: `bioFrames` / `controllerEvents` / `bioEvents`. **Audit truth:** bio flows over the `latestBio`/`latestBioEvent` snapshots (10 Hz poll); the SPSC queue is actually drained only for `controllerEvents` (MIDI). `bioFrames`/`bioEvents` queues are reserved/undrained. Modules produce/consume via the bus, never couple directly. |
+| SPSCQueue | `Sources/Echoelmusic/Core/SPSCQueue.swift` | Lock-free single-producer/single-consumer ring; audio-thread safe. Live use: `controllerEvents`. |
+| AudioEngine | `Sources/Echoelmusic/Audio/AudioEngine.swift` | `AVAudioEngine` master bus. Graph: source nodes → masterMixer → **AutoMixChain (EQ→gain)** → mainMixer → output. Attach source nodes **before** `start()`. |
 | Store / Logger | `Core/EchoelStore.swift`, `Core/ProfessionalLogger.swift` (`EchoelLogger`) | Persistence; `os_log` wrapper (never `print`). |
-| ModulationMatrix | `Core/ModulationMatrix.swift` | Freely-routable bio→parameter mapping. Per-route `live` (real-time) or `hold(value,drift)` (capture, rigid or lightly modulated). Pure `Codable` value types + deterministic `evaluate(frame)`. **Dormant v0** — tested, not yet wired to audio/UI. |
+| ModulationMatrix | `Core/ModulationMatrix.swift`, `Core/ModulationEngine.swift` | Freely-routable bio→parameter mapping. Per-route `live` or `hold(value,drift)`. **LIVE (wired):** `ModulationEngine.start(subscribing:)` runs; `tempo` destination registered; edited in the Sync tab (`ModulationView`); outputs tapped to OSC `/echoelmusic/mod/*`. |
 
 ---
 
@@ -59,10 +68,10 @@ acceptance line.
 - **TestFlight acceptance:** SingleExport writes a valid −14 LUFS WAV/AAC.
 
 ### 4. EchoelSeq — `LIVE`
-- **Code:** `Sequencer/PatternEngine.swift`, `Sequencer/BeatPlayer.swift`, `Sequencer/SamplerVoice.swift`
-- **Live:** 8 tracks × 16 steps, 30–300 BPM, 16th-note clock (`step = (60/BPM)/4 s`), on/off steps.
-- **Roadmap:** per-step velocity/probability, automation, Euclidean / polyrhythm.
-- **TestFlight acceptance:** `BeatTab` plays a pattern at the set BPM; play/stop responds.
+- **Code:** `Sequencer/PatternEngine.swift`, `Sequencer/BeatPlayer.swift`, `Sequencer/SamplerVoice.swift`, `Sequencer/MIDIFileExporter.swift`, `scripts/generate_drums.py`
+- **Live:** 8 tracks × 16 steps, 30–300 BPM; **velocity/accent** (tap cycles off→on→accent, gain 0.82/1.0); **swing** (self-rescheduling 16th clock, off-beat delay, tempo-preserving); **per-pad custom sample import** from Files (security-scoped bookmark, persists); upgraded procedural default drum kit; randomize/shift; SMF Type-0 MIDI export.
+- **Roadmap:** per-step probability, automation lanes, Euclidean / polyrhythm.
+- **TestFlight acceptance:** `BeatTab` plays a pattern at the set BPM; accent louder; swing audible; a loaded sample replaces a pad and survives relaunch.
 
 ### 5. EchoelMIDI — `LIVE`
 - **Code:** `Audio/MIDIInput.swift`, `Sync/MIDIBusPublisher.swift` → `EngineBus.controllerEvents`
@@ -74,35 +83,36 @@ acceptance line.
 ### 6. EchoelBio — `LIVE`
 - **Code:** `Core/EngineBus.swift` (`BioSampleFrame`), `Bio/HealthKitBioPublisher.swift`, `Bio/PolarH10BioPublisher.swift`, `Bio/BioSimulator.swift`, `Bio/EchoelBioEngine.swift`, `Bio/BioEventPublisher.swift`
 - **Protected DSP triad (read-only, do not simplify):** `Bio/BioEventGraph.swift`, `Bio/HilbertSensorMapper.swift`, `Bio/BioSignalDeconvolver.swift`
-- **Live:** HealthKit + Polar H10 (BLE direct, 0x2A37 + RR→RMSSD) + Demo → `bioFrames`; breath/motion onset events via BioEventGraph. **CX (shipped):** `Core/BioFeedbackPublisher.swift` mirrors vitals to App Group `group.com.echoelmusic` (~1 Hz) + nudges WidgetKit → drives the Widget & Watch glance.
-- **Roadmap:** **camera rPPG (`Video/CameraAnalyzer.swift` exists but dormant — not wired to the bus, only via deprecated `BioSourceManager`)**; face tracking (ARKit); raw PPG/ECG waveform → real `.heartbeat` events (Polar PMD service). Oura via **HealthKit** (no Oura SDK — see decisions).
-- **TestFlight acceptance:** `BioStripView` shows live HR/HRV/Br/Coh; Demo source works on Simulator (HealthKit/BLE need device). Widget shows the same vitals (build 1469).
+- **Live:** **Universal BLE Heart Rate** (`PolarH10BioPublisher` connects to ANY standard 0x180D/0x2A37 device — Polar/Wahoo/Garmin/CooSpo straps, watches in broadcast; RR→RMSSD; shows device name) + HealthKit (Apple Watch + **Oura via Apple Health**) + **camera rPPG (`Bio/CameraRPPGBioPublisher.swift` → `Video/CameraAnalyzer.swift`, finger-on-lens + torch, locks on device, live waveform)** + Demo → bus snapshot; breath/motion onset events via BioEventGraph. **CX:** `Core/BioFeedbackPublisher.swift` mirrors vitals to App Group (~1 Hz) → Widget/Watch glance.
+- **Honest limits:** Oura exposes no real-time third-party BLE (only via Apple Health, delayed). Camera rPPG is motion-sensitive (use a BLE strap for loud/active performance). PolarH10 per-RR `.heartbeat` events are published but currently have no working sink (snapshot loses sub-100 ms beats) — beat-sync cycle will drain `bioEvents`.
+- **Roadmap:** face tracking (ARKit); raw PPG/ECG waveform; EEG band-power (LSL).
+- **TestFlight acceptance:** `BioStripView` shows live HR/HRV/Br/Coh; camera pulse locks (PPG); BLE strap shows its name; Demo works on Simulator; Widget mirrors vitals.
 
 ### 7. EchoelVis — `PARTIAL`
-- **Code:** `Video/Shaders/VisualRendererKernels.metal`, `Video/Shaders/ChromaKey.metal`, `Views/MetalBioView.swift`, `Views/BioVisualRenderer.swift`
-- **Live:** Metal render at 120 fps, 5 visual modes, 6-pass chroma key.
-- **Roadmap:** generative & AR worlds, Hilbert-map display, flow field, kaleidoscope, nebula.
-- **TestFlight acceptance:** a Metal visual renders without GPU validation errors at ≥60 fps.
+- **Code (live):** `Studio/BioVisualView.swift` — reachable from Well (fullScreenCover), reads `EngineBus`.
+- **Code (dormant):** `Views/MetalBioView.swift`, `Views/BioVisualRenderer.swift`, `Video/Shaders/*.metal` — only referenced by the deprecated `MomentCaptureView`, NOT in the main flow.
+- **Live:** the Well immersive visual (BioVisualView) responds to coherence/bio.
+- **Roadmap:** wire the Metal renderer (120 fps modes, chroma key, Hilbert-map) into the live flow; generative/AR worlds.
+- **TestFlight acceptance:** Well → Immersive visual presents and reacts to bio.
 
-### 8. EchoelVid — `PARTIAL`
-- **Code:** `Video/CameraCapture.swift`, `Video/CameraAnalyzer.swift`, `Video/ShortContentRenderer.swift`
-- **Live:** camera capture; short-form H.264 MP4 720×1280 (9:16), 30 fps, 15/30/60 s.
-- **Roadmap:** NLE editor, multi-cam, H.265/ProRes, 1080p/4K, LUT color grading, RTMP streaming.
-- **TestFlight acceptance:** records a valid short-form MP4 to the photo library (needs `NSPhotoLibraryAddUsageDescription` — present).
+### 8. EchoelVid — `ROADMAP`
+- **Code:** `Video/CameraCapture.swift` (used ONLY by camera rPPG), `Video/CameraAnalyzer.swift` (rPPG). **Audit:** `CameraSession` / `VideoRecorder` / `ClipTrimmer` = 0 instantiations; `ShortContentRenderer` not wired. **No video recording/editing is shipping.**
+- **Roadmap:** the CameraHub fan-out (`SPEC_CAMERA_PIPELINE.md`) so one capture serves rPPG + video + visuals; H.264/HEVC short-form record, NLE, ProRes.
+- **TestFlight:** out of scope — video capture/edit is not wired today.
 
-### 9. EchoelLux — `ROADMAP`
-- **Code:** none. **Vision:** DMX-512, Art-Net 4 (UDP 6454), HomeKit, fixture profiles, cue lists.
-- **TestFlight:** out of scope for build #1. (`NSLocalNetworkUsageDescription` + Bonjour `_artnet._udp` already declared for the future.)
+### 9. EchoelLux — `ROADMAP` (next cycle)
+- **Code:** none yet. **Plan (top doctrine-win, per 2026-06-06 roadmap):** native **Art-Net** + **sACN** over UDP in Swift (zero dependency), bio→DMX with the 3 Hz WCAG flash cap. `NSLocalNetworkUsageDescription` + Bonjour `_artnet._udp` already declared.
+- **TestFlight:** the planned next feature build.
 
 ### 10. EchoelStage — `ROADMAP`
 - **Code:** none. **Vision:** external displays, projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay.
 - **TestFlight:** out of scope for build #1.
 
-### 11. EchoelNet — `PARTIAL`
-- **Code:** `Sync/OSCSender.swift` (EchoelSync)
-- **Live:** OSC 1.0 over UDP, big-endian floats, ~100 ms cadence, 6 continuous bio addresses `/echoelmusic/bio/*` + 6 discrete bio-event addresses `/echoelmusic/bio/event/*` (heartbeat/breath/motion/coherence/eeg, args `[confidence, aux]`), default `localhost:8000`.
-- **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, OSC for controller events.
-- **TestFlight acceptance:** OSC frames reach a LAN receiver (Resolume/TouchDesigner/Sonic Pi).
+### 11. EchoelNet — `LIVE` (partial)
+- **Code:** `Sync/OSCSender.swift`, `Sync/ADMOSCSender.swift`, `Sync/MIDIBusPublisher.swift`
+- **Live:** OSC 1.0 over UDP — 6 continuous `/echoelmusic/bio/*` + 6 discrete `/echoelmusic/bio/event/*` + `/echoelmusic/mod/*` (modulation), default `localhost:8000`. **ADM-OSC** immersive object output (`/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/gain`, bio→object) into FletcherMachine/L-ISA/d&b — opt-in from the Sync tab. MIDI 2.0/MPE in.
+- **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, RTP-MIDI, ADM-OSC native-protocol fallback lane.
+- **TestFlight acceptance:** OSC frames reach a LAN receiver; ADM-OSC `/adm/obj/1/*` visible on an OSC monitor.
 
 ### 12. EchoelAI — `ROADMAP`
 - **Code:** none. **Vision:** on-device CoreML, stem separation. Private, no cloud.
@@ -134,16 +144,15 @@ Companion plans: `SPEC_ECOSYSTEM_TARGETS.md` (surfaces), `SPEC_CAMERA_PIPELINE.m
 Ship only what is `LIVE` or the `LIVE` part of `PARTIAL`. Build #1 = a working
 **bio-reactive performance instrument** on iPhone / iOS 18:
 
-1. Synth is audible and bio-modulated (EchoelSynth).
-2. Beat sequencer plays (EchoelSeq).
-3. Bio strip shows live HR/HRV/coherence (EchoelBio) — Demo source on Simulator.
+1. Synth is audible and bio-modulated (EchoelSynth) — silent until armed.
+2. Beat sequencer plays with velocity/accent + swing; pads load custom samples (EchoelSeq).
+3. Bio strip shows live HR/HRV/coherence; camera pulse locks; BLE strap shows name (EchoelBio).
 4. MPE controller plays the synth (EchoelMIDI).
-5. OSC streams bio out over UDP (EchoelNet).
-6. Export writes a −14 LUFS WAV/AAC (EchoelMix/FX).
-7. A Metal visual renders ≥60 fps (EchoelVis).
-8. Short-form MP4 records (EchoelVid).
+5. OSC + ADM-OSC stream bio/object out over UDP (EchoelNet).
+6. Modulation matrix routes bio→tempo (Sync tab).
+7. Well immersive visual reacts to bio (EchoelVis, BioVisualView).
 
-`EchoelLux`, `EchoelStage`, `EchoelAI` and all `Roadmap` rows are **not** in build #1.
+**Not wired / not shipping** (corrected by the 2026-06-09 audit): multitrack audio export, short-form MP4 video recording, advanced Metal visual modes, RTMP streaming, lighting. `EchoelLux` (Art-Net) is the planned next cycle; `EchoelStage`, `EchoelAI`, and all `Roadmap` rows remain out.
 
 ### Build/signing config of record (verify before each TestFlight run)
 - **Target:** iOS 18, iPhone. `project.yml` + `Resources/iOS/Info.plist` + `Package.swift` all iOS 18. `MARKETING_VERSION 10.0.0`.

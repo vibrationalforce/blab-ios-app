@@ -21,16 +21,18 @@ Capabilities (all routed through one typed bus): **Beat Maker** (16-step × 8-tr
 
 ## CURRENT STATE
 
-- **Branch:** `claude/echoelmusic-audit-testflight-x0MN0` (Foundation → Bio-Reactive Vision → TestFlight; prior cycles auto-merged to `main`, branch tracks `main` + current session work)
+- **Branch:** `claude/echoelmusic-app-feasibility-3rtwL` (current dev branch; prior cycles auto-merged to `main`)
 - **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
-- **Positioning:** "The first bio-reactive performance instrument. What Loopy Pro, Bitwig, and TouchDesigner together cannot do." (`scratchpads/STRATEGY_2026-05-18.md`)
-- **Architecture:** `EngineBus` (hybrid `@MainActor @Observable` control plane + lock-free SPSCQueue data plane) routes 3 topics — `bioFrames` / `controllerEvents` / `bioEvents`. Modules are bus producers/consumers, never directly coupled.
-- **Live pipeline:** HealthKit + Polar H10 (BLE direct) + Demo → bioFrames → BioReactiveSynthVoice (EchoelDDSP, audible, breath-triggered envelope) + OSCSender (`/echoelmusic/bio/*` UDP out). CoreMIDI MPE → controllerEvents → synth notes (performer priority). BioEventGraph → bioEvents (breath/motion onsets).
+- **Positioning:** "The first bio-reactive performance instrument" — and, per the 2026-06-06 deep-research roadmap, the **bio-reactive object source for accessible immersive multidimensional media art** (open standards: ADM-OSC, MIDI 2.0, OSC, BLE HRS; no SDK lock-in). See `scratchpads/STRATEGY_STATE_OF_THE_ART_2026-06-06.md`.
+- **Architecture (audited 2026-06-09 — `scratchpads/ARCHITECTURE_AUDIT_2026-06-09.md`):** `EngineBus` = `@MainActor @Observable` control plane (snapshots) + lock-free `SPSCQueue`. 3 topics — `bioFrames` / `controllerEvents` / `bioEvents`. **Bio flows over the `latestBio`/`latestBioEvent` snapshot (10 Hz poll); the SPSC queue is drained only for `controllerEvents` (MIDI).** `bioFrames`/`bioEvents` queues are reserved/undrained (snapshot is the correct path for slow bio). Modules couple only via the bus.
+- **Live pipeline:** HealthKit + **universal BLE Heart Rate** (any 0x180D device) + **camera rPPG (live, locks on device)** + Demo → bio snapshot → BioReactiveSynthVoice (EchoelDDSP; **silent until user-armed**) + OSCSender (`/echoelmusic/bio/*`) + **ADMOSCSender** (`/adm/obj/{n}/*` immersive object out). CoreMIDI MPE → controllerEvents → synth notes (performer priority). BioEventGraph → breath/motion onsets. ModulationEngine wired (bio→tempo). EchoelBeat: velocity/accent + swing + per-pad sample import.
 - **Protected DSP triad (READ-ONLY, now implemented):** BioSignalDeconvolver (detrend·notch·validity), HilbertSensorMapper (1D→2D Hilbert curve), BioEventGraph (heartbeat/breath/motion detectors). Pure value types, SKILL.md contracts under `.claude/skills/`.
 - **SDK:** iOS 18 deployment floor (Package.swift + project.yml + Resources/iOS/Info.plist synced). Xcode 26.2 in `testflight.yml`. App Group `group.com.echoelmusic`.
 - **Root view:** `Studio/StudioRoot.swift` — Tools / Works / Sync / Well + live `BioStripView` (HR·HRV·Br·Coh, synth-frame count, MIDI/OSC/event activity dots, play toggle).
 - **✅ TESTFLIGHT PIPELINE: GREEN (verified 2026-05-30).** Prior "deploy blocker" note is resolved — `testflight.yml` runs #1404–#1407 on `main` all succeeded across every platform (iOS upload + Summary), preflight confirms App Store Connect secrets are present and valid. Dispatch + poll from the sandbox via `bash scripts/check-testflight.sh dispatch` (token in gitignored `.claude/settings.local.json`). Push the feature branch's newer work (bio synth / OSC / Polar) to TestFlight with a full `build_only=false` run once a branch verification run is green.
-- **Files:** ~64 Swift + 2 Metal | new test suites: EngineBus, PolarH10, BioSignalDeconvolver, BioEventGraph, OSCSender | **Swift 100%**
+- **Latest ship:** TestFlight **build 1535 VALID** (2026-06-09) — app + Widget + AUv3, camera rPPG live, universal BLE, ADM-OSC, EchoelBeat velocity/swing/sample-import, guaranteed launch silence.
+- **Absent (not wired — do not claim as shipping):** RTMP/streaming, video capture/edit, multitrack audio, lighting/Art-Net (next cycle). See `docs/dev/FEATURE_MATRIX.md`.
+- **Files:** ~66 Swift + 2 Metal | **Swift 100%**
 
 ---
 
@@ -80,14 +82,18 @@ Deprecated from main flow (kept compilable, not initialized):
 Protected (do not modify without explicit user approval):
   BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver.
 
-### Studio Tabs
+### Studio Tabs (actual, as shipped — `StudioRoot.swift`)
 
-| Tab | Content |
-|------|---------|
-| Beat | 8 drum pads · 16-step sequencer · tempo · play/stop |
-| Record | Mic level meter · REC · track list (Beat + Mic) · master volume |
-| Video | Camera preview · REC · front/back toggle · trim slider |
-| Share | RTMP URL+key · bitrate · start/stop stream · export WAV/MP4 |
+Always-on `BioStripView` above a 4-tab `TabView`:
+
+| Tab | View | Content |
+|------|------|---------|
+| Tools | `BeatTab` | 8 pads · 16-step sequencer · tempo · **velocity/accent · swing · per-pad sample import** · randomize/shift · MIDI export |
+| Works | `WorksView` | Bio-session recorder (HR/HRV/coherence averages) + history |
+| Sync | `ModulationView` | Modulation matrix (bio→param routes) + **ADM-OSC** immersive config |
+| Well | `WellView` | Coherence headline · breath pacer · **camera rPPG** · immersive visual |
+
+*(The earlier Beat/Record/Video/Share plan was superseded; Record/Video/Share = ROADMAP, not wired.)*
 
 ---
 
