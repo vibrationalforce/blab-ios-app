@@ -29,6 +29,9 @@ struct BeatTab: View {
     @State private var importerPresented = false
     @State private var importTrack = 0
 
+    /// Drives the per-pad sound (envelope) editor sheet.
+    @State private var padEdit: PadEditTarget?
+
     /// Size-class-adaptive metrics (iPhone compact ↔ iPad regular) so the grid,
     /// pads and controls scale and stay visible on every device.
     @Environment(\.horizontalSizeClass) private var hSize
@@ -73,6 +76,9 @@ struct BeatTab: View {
             }
         }
         #endif
+        .sheet(item: $padEdit) { target in
+            PadSoundEditor(track: target.id, player: beatPlayer)
+        }
     }
 
     // MARK: - Transport
@@ -388,11 +394,17 @@ struct BeatTab: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
+            Button { beatPlayer.preview(track) } label: {
+                Label("Preview", systemImage: "play.circle")
+            }
             Button {
                 importTrack = track
                 importerPresented = true
             } label: {
                 Label("Load sample…", systemImage: "folder")
+            }
+            Button { padEdit = PadEditTarget(id: track) } label: {
+                Label("Edit sound…", systemImage: "slider.horizontal.3")
             }
             if isCustom {
                 Button(role: .destructive) {
@@ -411,5 +423,95 @@ struct BeatTab: View {
 private struct ExportedMIDIFile: Identifiable {
     let id = UUID()
     let url: URL
+}
+
+/// Identifiable wrapper (the track index) to drive the sound-editor `.sheet(item:)`.
+private struct PadEditTarget: Identifiable { let id: Int }
+
+/// Per-pad sound (amp-envelope) editor: Level / Attack / Length + live Preview.
+/// Edits apply live and persist (BeatPlayer.setShape). Full user control over
+/// each pad's sound shaping — the sampler-instrument step toward the DAW.
+@MainActor
+private struct PadSoundEditor: View {
+    let track: Int
+    let player: BeatPlayer
+    @Environment(\.dismiss) private var dismiss
+    @State private var shape: BeatPlayer.PadShape
+
+    init(track: Int, player: BeatPlayer) {
+        self.track = track
+        self.player = player
+        _shape = State(initialValue: player.shapes.indices.contains(track) ? player.shapes[track] : .init())
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Button {
+                        player.preview(track)
+                    } label: {
+                        Label("Preview", systemImage: "play.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(EchoelTheme.accent)
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("Level") {
+                    slider($shape.level, range: 0...2, display: String(format: "%.2f×", shape.level))
+                }
+                Section("Attack") {
+                    slider($shape.attackMs, range: 0...200, display: "\(Int(shape.attackMs)) ms")
+                }
+                Section {
+                    slider($shape.lengthMs, range: 0...2000,
+                           display: shape.lengthMs <= 0 ? "full" : "\(Int(shape.lengthMs)) ms")
+                } header: {
+                    Text("Length")
+                } footer: {
+                    Text("0 = play the full sample. Higher = tighten the hit (with an anti-click release).")
+                }
+            }
+            .navigationTitle(label)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Reset") {
+                        shape = .init()
+                        player.setShape(track: track, shape)
+                    }
+                }
+            }
+            .onChange(of: shape) { _, newValue in
+                player.setShape(track: track, newValue)
+            }
+        }
+    }
+
+    private var label: String {
+        let name = player.sampleLabels.indices.contains(track) ? player.sampleLabels[track] : "Pad"
+        return "\(BeatPlayer.trackNames[track]) · \(name)"
+    }
+
+    @ViewBuilder
+    private func slider(_ value: Binding<Float>, range: ClosedRange<Float>, display: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Spacer()
+                Text(display)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range)
+                .tint(EchoelTheme.accent)
+        }
+    }
 }
 #endif

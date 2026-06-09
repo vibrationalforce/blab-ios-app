@@ -135,6 +135,18 @@ public final class SamplerVoice: @unchecked Sendable {
         renderState.requestSilence()
     }
 
+    /// Set the per-pad amp envelope. `level` is a gain multiplier (1.0 = unity);
+    /// `attackMs` fades the hit in; `lengthMs` caps playback length (0 = full
+    /// sample) with an automatic anti-click release. Main-thread only.
+    public func configureShape(level: Float, attackMs: Float, lengthMs: Float) {
+        let sr = Float(Self.sampleRate)
+        renderState.configureShape(
+            level: level,
+            attackFrames: Int(max(0, attackMs) * 0.001 * sr),
+            lengthFrames: Int(max(0, lengthMs) * 0.001 * sr)
+        )
+    }
+
     // MARK: - Source node
 
     private func makeSourceNode() -> AVAudioSourceNode {
@@ -185,6 +197,11 @@ private final class RenderState: @unchecked Sendable {
     private var triggerGain: Float = 1.0
     private var silenceRequested: Bool = false
 
+    // Per-pad amp-envelope shape (main-thread set, audio-thread read; atomic-width).
+    private var level: Float = 1.0        // base gain multiplier
+    private var attackFrames: Int = 0     // fade-in length
+    private var lengthFrames: Int = 0     // 0 = play full sample; >0 = cap length
+
     /// Main thread, before audio engine start.
     func installBuffer(_ samples: [Float]) {
         sampleBuffer = samples
@@ -205,6 +222,13 @@ private final class RenderState: @unchecked Sendable {
     /// Main thread.
     func requestSilence() {
         silenceRequested = true
+    }
+
+    /// Main thread. Set the per-pad amp-envelope shape.
+    func configureShape(level: Float, attackFrames: Int, lengthFrames: Int) {
+        self.level = max(0, level)
+        self.attackFrames = max(0, attackFrames)
+        self.lengthFrames = max(0, lengthFrames)
     }
 
     /// Audio thread. Writes `frameCount` mono float32 samples into the first
@@ -235,7 +259,9 @@ private final class RenderState: @unchecked Sendable {
             return
         }
 
-        let remaining = sampleBuffer.count - position
+        // Effective playback end: capped by the per-pad length (0 = full sample).
+        let playEnd = lengthFrames > 0 ? min(sampleBuffer.count, lengthFrames) : sampleBuffer.count
+        let remaining = playEnd - position
         let toCopy = min(frameCount, max(0, remaining))
 
         if toCopy > 0 {
@@ -244,10 +270,22 @@ private final class RenderState: @unchecked Sendable {
                     memcpy(buf, base.advanced(by: position), toCopy * MemoryLayout<Float>.size)
                 }
             }
-            // Apply per-trigger gain (velocity/accent). No allocation; a tight
-            // multiply over the copied region is audio-thread-safe.
-            if currentGain != 1.0 {
-                for i in 0..<toCopy { buf[i] *= currentGain }
+            // Per-sample amp envelope: base gain (level × velocity), linear attack
+            // fade-in, and a release fade before the length cap (anti-click).
+            // Arithmetic only — audio-thread-safe.
+            let rel = lengthFrames > 0 ? min(512, max(64, lengthFrames / 8)) : 0
+            let base = currentGain * level
+            for i in 0..<toCopy {
+                let p = position + i
+                var amp = base
+                if attackFrames > 0 && p < attackFrames {
+                    amp *= Float(p) / Float(attackFrames)
+                }
+                if rel > 0 {
+                    let tailStart = playEnd - rel
+                    if p >= tailStart { amp *= Float(playEnd - p) / Float(rel) }
+                }
+                buf[i] *= amp
             }
             position += toCopy
         }
@@ -256,7 +294,7 @@ private final class RenderState: @unchecked Sendable {
             memset(buf.advanced(by: toCopy), 0, (frameCount - toCopy) * MemoryLayout<Float>.size)
         }
 
-        if position >= sampleBuffer.count {
+        if position >= playEnd {
             isPlaying = false
         }
     }

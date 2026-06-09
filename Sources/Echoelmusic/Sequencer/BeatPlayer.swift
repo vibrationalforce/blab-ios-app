@@ -21,12 +21,22 @@ public final class BeatPlayer {
         "Clap", "Perc",  "Bass",      "LeadFX"
     ]
 
+    /// Per-pad amp-envelope shape (user-editable sound design).
+    public struct PadShape: Codable, Sendable, Equatable {
+        public var level: Float = 1.0     // gain multiplier (0…2)
+        public var attackMs: Float = 0     // fade-in (0…200)
+        public var lengthMs: Float = 0     // 0 = full sample; >0 caps length (20…2000)
+    }
+
     public let pattern: PatternEngine
     public let voices: [SamplerVoice]
 
     /// Per-track display label: the role name (Kick/Snare/…) by default, or the
     /// imported sample's filename once the user loads a custom sample.
     public private(set) var sampleLabels: [String]
+
+    /// Per-track amp-envelope shapes (Level/Attack/Length), persisted.
+    public private(set) var shapes: [PadShape]
 
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private var attachedSourceNodes: [AVAudioSourceNode] = []
@@ -35,6 +45,40 @@ public final class BeatPlayer {
         self.pattern = PatternEngine()
         self.voices = Self.trackNames.map { _ in SamplerVoice() }
         self.sampleLabels = Self.trackNames
+        self.shapes = Self.trackNames.map { _ in PadShape() }
+    }
+
+    private static func shapeKey(_ track: Int) -> String { "echoel.beat.shape.\(track)" }
+
+    /// Apply a track's shape to its voice (audio thread reads it on next render).
+    private func applyShape(_ track: Int) {
+        guard voices.indices.contains(track) else { return }
+        let s = shapes[track]
+        voices[track].configureShape(level: s.level, attackMs: s.attackMs, lengthMs: s.lengthMs)
+    }
+
+    /// Update a pad's sound shape, apply it live, and persist it.
+    public func setShape(track: Int, _ shape: PadShape) {
+        guard shapes.indices.contains(track) else { return }
+        shapes[track] = shape
+        applyShape(track)
+        if let data = try? JSONEncoder().encode(shape) {
+            UserDefaults.standard.set(data, forKey: Self.shapeKey(track))
+        }
+    }
+
+    /// Audition a pad (one-shot), e.g. from the sound editor's Preview button.
+    public func preview(_ track: Int) { playPad(track) }
+
+    /// Restore persisted shapes and apply them. Called after samples load.
+    private func restoreShapes() {
+        for i in Self.trackNames.indices {
+            if let data = UserDefaults.standard.data(forKey: Self.shapeKey(i)),
+               let s = try? JSONDecoder().decode(PadShape.self, from: data) {
+                shapes[i] = s
+            }
+            applyShape(i)
+        }
     }
 
     /// True when track `i` is playing a user-imported sample (not the default).
@@ -75,6 +119,7 @@ public final class BeatPlayer {
             }
         }
         restoreCustomSamples()
+        restoreShapes()
     }
 
     /// Re-loads any user-imported samples saved as security-scoped bookmarks on
