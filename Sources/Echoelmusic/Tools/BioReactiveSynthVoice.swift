@@ -100,6 +100,15 @@ public final class BioReactiveSynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var scratchBuffer: [Float]
 
+    /// Hard launch-silence guarantee: the render block emits PURE ZERO until the
+    /// user triggers the voice for the first time (arm / MIDI note). This makes
+    /// "nothing sounds on app open" true at the audio-thread level, independent
+    /// of envelope state — set once on the first `playNote`, never reset, so it
+    /// never cuts a release tail. Bool is atomic-width; written on the main
+    /// thread, read on the audio thread.
+    @ObservationIgnored
+    nonisolated(unsafe) private var hasEverSounded = false
+
     public init() {
         self.synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
         self.scratchBuffer = Array(repeating: 0, count: Self.maxBlockFrames)
@@ -121,6 +130,7 @@ public final class BioReactiveSynthVoice {
     /// `playNote` while already playing retriggers — monophonic,
     /// last-note-wins.
     public func playNote(frequency: Float? = nil) {
+        hasEverSounded = true
         synth.noteOn(frequency: frequency)
         isPlayingNote = true
     }
@@ -280,6 +290,12 @@ public final class BioReactiveSynthVoice {
         frameCount: Int,
         audioBufferList: UnsafeMutablePointer<AudioBufferList>
     ) {
+        // Launch-silence guarantee: never emit anything until the first
+        // user-initiated trigger. Pure zero out of this node on app open.
+        guard hasEverSounded else {
+            Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
+            return
+        }
         let count = min(frameCount, Self.maxBlockFrames)
         synth.render(buffer: &scratchBuffer, frameCount: count, stereo: false)
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
