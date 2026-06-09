@@ -1980,3 +1980,8 @@ forbids restructuring/new deps). Did NOT fabricate infrastructure.
   revisit when multiple destinations exist.
 - Reusing the Metal `BioVisualRenderer` — coupled to deprecated SoundscapeEngine;
   built a clean SwiftUI Canvas visual instead.
+
+### Addendum 3 — EchoelBeat made visible + EchoelLux shipped (2026-06-09)
+- Owner on 1538: launch silent (confirmed), but couldn't SEE accent/swing/sample-import. Root cause = discoverability/layout (swing slider clipped off-screen; accent double-tap + tiny marker; sample-import is a long-press context menu). Fix (build 1543): swing on its own full-width row, brighter/larger accent marker, hint line under the grid.
+- **EchoelLux shipped (build 1543):** native Art-Net (ArtDMX/UDP 6454, zero dependency), bio→DMX (dimmer←coherence, R←HR, G←HRV, B←breath), epilepsy-safe fades, opt-in Sync tab, unit-tested kernels. First 'absent' roadmap area now real. Next: sACN.
+

@@ -30,8 +30,8 @@ Capabilities (all routed through one typed bus): **Beat Maker** (16-step × 8-tr
 - **SDK:** iOS 18 deployment floor (Package.swift + project.yml + Resources/iOS/Info.plist synced). Xcode 26.2 in `testflight.yml`. App Group `group.com.echoelmusic`.
 - **Root view:** `Studio/StudioRoot.swift` — Tools / Works / Sync / Well + live `BioStripView` (HR·HRV·Br·Coh, synth-frame count, MIDI/OSC/event activity dots, play toggle).
 - **✅ TESTFLIGHT PIPELINE: GREEN (verified 2026-05-30).** Prior "deploy blocker" note is resolved — `testflight.yml` runs #1404–#1407 on `main` all succeeded across every platform (iOS upload + Summary), preflight confirms App Store Connect secrets are present and valid. Dispatch + poll from the sandbox via `bash scripts/check-testflight.sh dispatch` (token in gitignored `.claude/settings.local.json`). Push the feature branch's newer work (bio synth / OSC / Polar) to TestFlight with a full `build_only=false` run once a branch verification run is green.
-- **Latest ship:** TestFlight **build 1535 VALID** (2026-06-09) — app + Widget + AUv3, camera rPPG live, universal BLE, ADM-OSC, EchoelBeat velocity/swing/sample-import, guaranteed launch silence.
-- **Absent (not wired — do not claim as shipping):** RTMP/streaming, video capture/edit, multitrack audio, lighting/Art-Net (next cycle). See `docs/dev/FEATURE_MATRIX.md`.
+- **Latest ship:** TestFlight **build 1543 VALID** (2026-06-09) — app + Widget + AUv3, camera rPPG live, universal BLE, ADM-OSC, **EchoelLux native Art-Net light output**, EchoelBeat velocity/swing/sample-import (now visible/discoverable), guaranteed launch silence.
+- **Absent (not wired — do not claim as shipping):** RTMP/streaming, video capture/edit, multitrack audio, sACN (Art-Net is live; sACN next). See `docs/dev/FEATURE_MATRIX.md`.
 - **Files:** ~66 Swift + 2 Metal | **Swift 100%**
 
 ---

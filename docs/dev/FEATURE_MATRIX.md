@@ -100,9 +100,11 @@ acceptance line.
 - **Roadmap:** the CameraHub fan-out (`SPEC_CAMERA_PIPELINE.md`) so one capture serves rPPG + video + visuals; H.264/HEVC short-form record, NLE, ProRes.
 - **TestFlight:** out of scope — video capture/edit is not wired today.
 
-### 9. EchoelLux — `ROADMAP` (next cycle)
-- **Code:** none yet. **Plan (top doctrine-win, per 2026-06-06 roadmap):** native **Art-Net** + **sACN** over UDP in Swift (zero dependency), bio→DMX with the 3 Hz WCAG flash cap. `NSLocalNetworkUsageDescription` + Bonjour `_artnet._udp` already declared.
-- **TestFlight:** the planned next feature build.
+### 9. EchoelLux — `LIVE` (partial)
+- **Code:** `Sync/ArtNetSender.swift` (+ `Tests/EchoelmusicTests/ArtNetSenderTests.swift`)
+- **Live (build 1543):** native **Art-Net** (ArtDMX over UDP 6454, zero dependency, built by hand on Network.framework). Bio→DMX: dimmer←coherence, R←heart rate, G←HRV, B←breath. Smooth fades, no strobing (WCAG 3 Hz epilepsy-safe by construction). Opt-in from the Sync tab (host/universe). Pure packet + mapping kernels unit-tested.
+- **Roadmap:** sACN/E1.31 (multicast, high universe counts), fixture profiles, cue lists, HomeKit. `NSLocalNetworkUsageDescription` + Bonjour `_artnet._udp` declared.
+- **TestFlight acceptance:** an Art-Net node / OSC-DMX monitor receives `/Art-Net` ArtDMX on universe 0 while a bio source streams.
 
 ### 10. EchoelStage — `ROADMAP`
 - **Code:** none. **Vision:** external displays, projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay.
