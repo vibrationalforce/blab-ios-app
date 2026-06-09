@@ -122,10 +122,11 @@ public final class SamplerVoice: @unchecked Sendable {
     }
 
     /// Triggers playback from the start. Safe to call from the main thread.
-    /// Lock-free: bumps an aligned UInt32 counter; the render block sees the
-    /// change on its next callback.
-    public func fire() {
-        renderState.requestTrigger()
+    /// Lock-free: stores the gain, then bumps an aligned UInt32 counter; the
+    /// render block sees the change on its next callback. `gain` (0...1) scales
+    /// the hit for velocity/accent (default 1.0 = full).
+    public func fire(gain: Float = 1.0) {
+        renderState.requestTrigger(gain: gain)
     }
 
     /// Stops playback on the next render block. Buffer stays loaded; a
@@ -177,9 +178,11 @@ private final class RenderState: @unchecked Sendable {
     private var position: Int = 0
     private var isPlaying: Bool = false
     private var lastSeenTrigger: UInt32 = 0
+    private var currentGain: Float = 1.0
 
-    // Main-thread → audio-thread signal flags. UInt32 is atomic-width.
+    // Main-thread → audio-thread signal flags. UInt32/Float are atomic-width.
     private var triggerCount: UInt32 = 0
+    private var triggerGain: Float = 1.0
     private var silenceRequested: Bool = false
 
     /// Main thread, before audio engine start.
@@ -192,8 +195,10 @@ private final class RenderState: @unchecked Sendable {
         silenceRequested = false
     }
 
-    /// Main thread.
-    func requestTrigger() {
+    /// Main thread. Set gain BEFORE bumping the counter so the audio thread
+    /// reads a consistent gain when it observes the new trigger.
+    func requestTrigger(gain: Float = 1.0) {
+        triggerGain = gain
         triggerCount &+= 1
     }
 
@@ -217,6 +222,7 @@ private final class RenderState: @unchecked Sendable {
             position = 0
             isPlaying = true
             silenceRequested = false
+            currentGain = triggerGain
         }
 
         if silenceRequested {
@@ -237,6 +243,11 @@ private final class RenderState: @unchecked Sendable {
                 if let base = ptr.baseAddress {
                     memcpy(buf, base.advanced(by: position), toCopy * MemoryLayout<Float>.size)
                 }
+            }
+            // Apply per-trigger gain (velocity/accent). No allocation; a tight
+            // multiply over the copied region is audio-thread-safe.
+            if currentGain != 1.0 {
+                for i in 0..<toCopy { buf[i] *= currentGain }
             }
             position += toCopy
         }

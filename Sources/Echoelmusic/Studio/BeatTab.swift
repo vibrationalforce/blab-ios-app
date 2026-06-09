@@ -169,7 +169,25 @@ struct BeatTab: View {
         HStack(spacing: 8) {
             toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
             toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                Text("Swing")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                Slider(
+                    value: Binding(
+                        get: { player.pattern.swing },
+                        set: { player.pattern.setSwing($0) }
+                    ),
+                    in: 0...0.5
+                )
+                .frame(width: 110)
+                .tint(EchoelTheme.accent)
+                Text("\(Int(player.pattern.swing * 200))%")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 34, alignment: .trailing)
+            }
         }
     }
 
@@ -198,19 +216,24 @@ struct BeatTab: View {
             for s in 0..<PatternEngine.stepCount {
                 let onBeat = (s % 4 == 0)
                 let probability = onBeat ? 0.55 : 0.22
-                player.pattern.setStep(track: t, step: s, on: Double.random(in: 0...1) < probability)
+                let on = Double.random(in: 0...1) < probability
+                player.pattern.setStep(track: t, step: s, on: on)
+                // Accent downbeats sometimes for groove; clear accents on off cells.
+                player.pattern.setAccent(track: t, step: s, on: on && onBeat && Double.random(in: 0...1) < 0.5)
             }
         }
     }
 
-    /// Rotate every track one step to the right (wraps around).
+    /// Rotate every track one step to the right (wraps around), steps + accents.
     private func shiftRight(player: BeatPlayer) {
         let old = player.pattern.steps
+        let oldAccents = player.pattern.accents
         let n = PatternEngine.stepCount
         guard n > 0 else { return }
         for t in 0..<PatternEngine.trackCount where t < old.count {
             for s in 0..<n {
                 player.pattern.setStep(track: t, step: s, on: old[t][(s - 1 + n) % n])
+                player.pattern.setAccent(track: t, step: s, on: oldAccents[t][(s - 1 + n) % n])
             }
         }
     }
@@ -251,27 +274,52 @@ struct BeatTab: View {
     @ViewBuilder
     private func stepCell(track: Int, step: Int, player: BeatPlayer) -> some View {
         let isOn = player.pattern.steps[track][step]
+        let isAccent = isOn && player.pattern.accents[track][step]
         let isCurrent = player.pattern.isPlaying && player.pattern.currentStep == step
         Button {
-            player.pattern.toggleStep(track: track, step: step)
+            cycleCell(track: track, step: step, player: player)
         } label: {
             RoundedRectangle(cornerRadius: 4)
-                .fill(cellFill(isOn: isOn, isCurrent: isCurrent))
+                .fill(cellFill(isOn: isOn, isAccent: isAccent, isCurrent: isCurrent))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
                         .strokeBorder(isCurrent ? EchoelTheme.accent.opacity(0.7) : EchoelTheme.border, lineWidth: 1)
                 )
+                // A small bar marks an accented (louder) hit.
+                .overlay(alignment: .top) {
+                    if isAccent {
+                        Capsule().fill(Color.white.opacity(0.9))
+                            .frame(width: 10, height: 2).padding(.top, 2)
+                    }
+                }
                 .frame(height: m.stepCellHeight)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Track \(BeatPlayer.trackNames[track]) step \(step + 1)")
-        .accessibilityValue(isOn ? "on" : "off")
+        .accessibilityValue(isAccent ? "accent" : (isOn ? "on" : "off"))
     }
 
-    private func cellFill(isOn: Bool, isCurrent: Bool) -> Color {
+    /// Tap cycles a cell: off → on → accent → off. Keeps the grid editable with
+    /// a single gesture while exposing velocity (accent = louder hit).
+    private func cycleCell(track: Int, step: Int, player: BeatPlayer) {
+        let on = player.pattern.steps[track][step]
+        let accent = player.pattern.accents[track][step]
+        if !on {
+            player.pattern.setStep(track: track, step: step, on: true)
+            player.pattern.setAccent(track: track, step: step, on: false)
+        } else if !accent {
+            player.pattern.setAccent(track: track, step: step, on: true)
+        } else {
+            player.pattern.setStep(track: track, step: step, on: false)
+            player.pattern.setAccent(track: track, step: step, on: false)
+        }
+    }
+
+    private func cellFill(isOn: Bool, isAccent: Bool, isCurrent: Bool) -> Color {
+        if isAccent { return isCurrent ? .white : EchoelTheme.accent }
         switch (isOn, isCurrent) {
         case (true, true):   return EchoelTheme.accent
-        case (true, false):  return EchoelTheme.accent.opacity(0.6)
+        case (true, false):  return EchoelTheme.accent.opacity(0.55)
         case (false, true):  return EchoelTheme.text.opacity(0.18)
         case (false, false): return EchoelTheme.fill
         }

@@ -138,9 +138,9 @@ public final class BeatPlayer {
             engine.attachSourceNode(voice.sourceNode)
             attachedSourceNodes.append(voice.sourceNode)
         }
-        pattern.onStep = { [weak self] track, _ in
+        pattern.onStep = { [weak self] track, step in
             guard let self, self.voices.indices.contains(track) else { return }
-            self.voices[track].fire()
+            self.voices[track].fire(gain: self.pattern.velocity(track: track, step: step))
         }
     }
 

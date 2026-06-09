@@ -38,6 +38,13 @@ public final class PatternEngine {
     /// 8 tracks × 16 steps. `steps[track][step] == true` means the cell triggers.
     public private(set) var steps: [[Bool]]
 
+    /// Accent grid, parallel to `steps`. An accented active cell hits louder.
+    public private(set) var accents: [[Bool]]
+
+    /// Velocity (gain) for a non-accented vs accented hit.
+    public static let normalVelocity: Float = 0.82
+    public static let accentVelocity: Float = 1.0
+
     /// Transport state. `true` while the timer is running.
     public private(set) var isPlaying: Bool = false
 
@@ -46,6 +53,10 @@ public final class PatternEngine {
 
     /// Beats per minute, clamped to [`minTempo`, `maxTempo`].
     public private(set) var tempo: Double = PatternEngine.defaultTempo
+
+    /// Swing amount [0...0.5]. Lengthens the gap before off-beat (odd) 16ths,
+    /// shortening the following gap so overall tempo is preserved. 0 = straight.
+    public private(set) var swing: Double = 0
 
     // MARK: - Step-trigger callback
 
@@ -64,6 +75,10 @@ public final class PatternEngine {
 
     public init() {
         self.steps = Array(
+            repeating: Array(repeating: false, count: PatternEngine.stepCount),
+            count: PatternEngine.trackCount
+        )
+        self.accents = Array(
             repeating: Array(repeating: false, count: PatternEngine.stepCount),
             count: PatternEngine.trackCount
         )
@@ -92,11 +107,39 @@ public final class PatternEngine {
         steps[track][step] = on
     }
 
-    /// Turn every cell off without changing transport state.
+    /// Toggle the accent flag on a cell. Out-of-range is a silent no-op.
+    public func toggleAccent(track: Int, step: Int) {
+        guard track >= 0, track < PatternEngine.trackCount else { return }
+        guard step >= 0, step < PatternEngine.stepCount else { return }
+        accents[track][step].toggle()
+    }
+
+    /// Set the accent flag on a cell explicitly. Out-of-range is a silent no-op.
+    public func setAccent(track: Int, step: Int, on: Bool) {
+        guard track >= 0, track < PatternEngine.trackCount else { return }
+        guard step >= 0, step < PatternEngine.stepCount else { return }
+        accents[track][step] = on
+    }
+
+    /// Velocity (gain) for a cell: accent → loud, active → normal, off → 0.
+    public func velocity(track: Int, step: Int) -> Float {
+        guard track >= 0, track < PatternEngine.trackCount,
+              step >= 0, step < PatternEngine.stepCount,
+              steps[track][step] else { return 0 }
+        return accents[track][step] ? PatternEngine.accentVelocity : PatternEngine.normalVelocity
+    }
+
+    /// Set the swing amount, clamped to [0, 0.5].
+    public func setSwing(_ amount: Double) {
+        swing = Swift.min(Swift.max(amount, 0), 0.5)
+    }
+
+    /// Turn every cell off (steps + accents) without changing transport state.
     public func clear() {
         for t in 0..<PatternEngine.trackCount {
             for s in 0..<PatternEngine.stepCount {
                 steps[t][s] = false
+                accents[t][s] = false
             }
         }
     }
@@ -109,7 +152,7 @@ public final class PatternEngine {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
         guard clamped != tempo else { return }
         tempo = clamped
-        if isPlaying { restartTimer() }
+        // The next scheduled tick reads `tempo` fresh, so no restart needed.
     }
 
     /// Start the timer from step 0. Idempotent: calling while playing is a no-op.
@@ -117,7 +160,7 @@ public final class PatternEngine {
         guard !isPlaying else { return }
         isPlaying = true
         currentStep = 0
-        startTimer()
+        scheduleTick(after: 60.0 / tempo / 4.0)
     }
 
     /// Stop the timer and reset `currentStep` to 0. Safe to call while stopped.
@@ -128,30 +171,17 @@ public final class PatternEngine {
         isPlaying = false
     }
 
-    // MARK: - Timer
+    // MARK: - Timer (self-rescheduling, swing-aware)
 
-    /// Duration of one 16th note at the current tempo.
-    private var stepIntervalSeconds: TimeInterval {
-        // 60 sec/min / BPM = beat duration; / 4 = 16th-note duration
-        60.0 / tempo / 4.0
-    }
-
-    private func startTimer() {
+    /// Schedules one non-repeating tick. Re-armed by `advance()` so each gap
+    /// can carry a different (swing) duration.
+    private func scheduleTick(after interval: TimeInterval) {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(
-            withTimeInterval: stepIntervalSeconds,
-            repeats: true
-        ) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.advance()
             }
         }
-    }
-
-    private func restartTimer() {
-        timer?.invalidate()
-        timer = nil
-        if isPlaying { startTimer() }
     }
 
     private func advance() {
@@ -161,6 +191,15 @@ public final class PatternEngine {
                 onStep?(track, step)
             }
         }
-        currentStep = (currentStep + 1) % PatternEngine.stepCount
+        currentStep = (step + 1) % PatternEngine.stepCount
+
+        guard isPlaying else { return }
+        // Gap to the NEXT step. Swing lengthens the gap that follows a downbeat
+        // (even step), delaying the off-beat; the following gap shortens to keep
+        // each beat-pair the same total length (tempo preserved).
+        let base = 60.0 / tempo / 4.0
+        let s = Swift.min(Swift.max(swing, 0), 0.5)
+        let interval = (step % 2 == 0) ? base * (1 + s) : base * (1 - s)
+        scheduleTick(after: interval)
     }
 }
