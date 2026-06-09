@@ -13,6 +13,9 @@
 #if canImport(SwiftUI)
 import SwiftUI
 import Foundation
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
 
 @MainActor
 struct BeatTab: View {
@@ -21,6 +24,10 @@ struct BeatTab: View {
 
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
     @State private var exportedMIDI: ExportedMIDIFile?
+
+    /// Drives the per-pad sample importer (Files browser).
+    @State private var importerPresented = false
+    @State private var importTrack = 0
 
     /// Size-class-adaptive metrics (iPhone compact ↔ iPad regular) so the grid,
     /// pads and controls scale and stay visible on every device.
@@ -51,6 +58,17 @@ struct BeatTab: View {
         #if canImport(UIKit)
         .sheet(item: $exportedMIDI) { file in
             ShareSheet(url: file.url)
+        }
+        #endif
+        #if canImport(UniformTypeIdentifiers)
+        .fileImporter(
+            isPresented: $importerPresented,
+            allowedContentTypes: [.audio],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                beatPlayer.importSample(track: importTrack, from: url)
+            }
         }
         #endif
     }
@@ -272,11 +290,12 @@ struct BeatTab: View {
 
     @ViewBuilder
     private func pad(track: Int) -> some View {
+        let isCustom = beatPlayer.isCustom(track)
         Button {
             beatPlayer.playPad(track)
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: "circle.fill")
+                Image(systemName: isCustom ? "waveform" : "circle.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(EchoelTheme.accent.opacity(0.7))
                 Text(BeatPlayer.trackNames[track])
@@ -284,6 +303,13 @@ struct BeatTab: View {
                     .foregroundStyle(EchoelTheme.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                if isCustom {
+                    Text(beatPlayer.sampleLabels[track])
+                        .font(.system(size: 8))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
             }
             .frame(maxWidth: .infinity, minHeight: m.padHeight)
             .background(
@@ -292,11 +318,26 @@ struct BeatTab: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1)
+                    .strokeBorder(isCustom ? EchoelTheme.accent.opacity(0.5) : EchoelTheme.border, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Pad \(BeatPlayer.trackNames[track])")
+        .contextMenu {
+            Button {
+                importTrack = track
+                importerPresented = true
+            } label: {
+                Label("Load sample…", systemImage: "folder")
+            }
+            if isCustom {
+                Button(role: .destructive) {
+                    beatPlayer.resetSample(track: track)
+                } label: {
+                    Label("Reset to default", systemImage: "arrow.uturn.backward")
+                }
+            }
+        }
+        .accessibilityLabel("Pad \(BeatPlayer.trackNames[track])\(isCustom ? ", custom sample \(beatPlayer.sampleLabels[track])" : ""). Long press to load a sample.")
     }
 }
 

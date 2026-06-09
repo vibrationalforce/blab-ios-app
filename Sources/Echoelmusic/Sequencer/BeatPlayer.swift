@@ -24,13 +24,25 @@ public final class BeatPlayer {
     public let pattern: PatternEngine
     public let voices: [SamplerVoice]
 
+    /// Per-track display label: the role name (Kick/Snare/…) by default, or the
+    /// imported sample's filename once the user loads a custom sample.
+    public private(set) var sampleLabels: [String]
+
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private var attachedSourceNodes: [AVAudioSourceNode] = []
 
     public init() {
         self.pattern = PatternEngine()
         self.voices = Self.trackNames.map { _ in SamplerVoice() }
+        self.sampleLabels = Self.trackNames
     }
+
+    /// True when track `i` is playing a user-imported sample (not the default).
+    public func isCustom(_ track: Int) -> Bool {
+        sampleLabels.indices.contains(track) && sampleLabels[track] != Self.trackNames[track]
+    }
+
+    private static func bookmarkKey(_ track: Int) -> String { "echoel.beat.sample.bookmark.\(track)" }
 
     /// Resource bundle for the drum WAVs. `Bundle.module` exists only when
     /// built via SwiftPM (`SWIFT_PACKAGE` is defined). The XcodeGen-built
@@ -62,6 +74,59 @@ public final class BeatPlayer {
                 log.log(.error, category: .audio, "BeatPlayer: failed to load \(name).wav: \(error)")
             }
         }
+        restoreCustomSamples()
+    }
+
+    /// Re-loads any user-imported samples saved as security-scoped bookmarks on
+    /// a previous launch, so custom pads persist across app restarts.
+    private func restoreCustomSamples() {
+        for i in Self.trackNames.indices {
+            guard let data = UserDefaults.standard.data(forKey: Self.bookmarkKey(i)) else { continue }
+            var stale = false
+            guard let url = try? URL(
+                resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale
+            ) else { continue }
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            if (try? voices[i].loadSample(from: url)) != nil {
+                sampleLabels[i] = url.deletingPathExtension().lastPathComponent
+            }
+        }
+    }
+
+    /// Imports a user-chosen audio file into track `track` (from the Files
+    /// browser). Handles security-scoped access, loads the sample, and persists
+    /// a bookmark so it survives relaunch. Returns true on success.
+    @discardableResult
+    public func importSample(track: Int, from url: URL) -> Bool {
+        guard voices.indices.contains(track) else { return false }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            try voices[track].loadSample(from: url)
+            if let data = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                UserDefaults.standard.set(data, forKey: Self.bookmarkKey(track))
+            }
+            sampleLabels[track] = url.deletingPathExtension().lastPathComponent
+            return true
+        } catch {
+            log.log(.error, category: .audio, "BeatPlayer: import failed for track \(track): \(error)")
+            return false
+        }
+    }
+
+    /// Restores track `track` to its built-in default sample and clears the
+    /// saved bookmark.
+    public func resetSample(track: Int) {
+        guard voices.indices.contains(track) else { return }
+        UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
+        let name = Self.trackNames[track]
+        let bundle = Self.resourceBundle
+        if let url = bundle.url(forResource: name, withExtension: "wav", subdirectory: "Drums")
+            ?? bundle.url(forResource: name, withExtension: "wav") {
+            try? voices[track].loadSample(from: url)
+        }
+        sampleLabels[track] = name
     }
 
     /// Attaches all 8 source nodes to the engine and wires the pattern
