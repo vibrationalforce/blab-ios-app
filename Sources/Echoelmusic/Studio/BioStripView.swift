@@ -31,6 +31,8 @@ struct BioStripView: View {
     @Environment(OSCSender.self) private var osc
     #endif
 
+    @State private var showingFX = false
+
     var body: some View {
         HStack(spacing: 10) {
             metric(label: "HR",  value: hrString,        unit: "bpm")
@@ -44,6 +46,7 @@ struct BioStripView: View {
             eventDot
             midiDot
             oscDot
+            fxButton
             playButton
             sourceTag
         }
@@ -58,6 +61,29 @@ struct BioStripView: View {
                 .fill(Color.white.opacity(0.08))
                 .frame(height: 1)
         }
+        .sheet(isPresented: $showingFX) {
+            EchoelFXView(voice: voice)
+        }
+    }
+
+    // MARK: - FX panel button
+
+    /// Opens the EchoelFX insert-chain control surface. Highlights when the
+    /// chain is active so the strip honestly reflects whether FX are engaged.
+    private var fxButton: some View {
+        Button {
+            showingFX = true
+        } label: {
+            Text("FX")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(voice.isFXEnabled ? Color.black : Color.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(voice.isFXEnabled ? EchoelTheme.accent : Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(voice.isFXEnabled ? "FX panel (FX active)" : "FX panel")
     }
 
     // MARK: - Metric cells
