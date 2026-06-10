@@ -1007,23 +1007,28 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     private var scaledBufferL: [Float]
     private var scaledBufferR: [Float]
 
-    /// Initialize polyphonic DDSP
+    /// Initialize polyphonic DDSP.
+    ///
+    /// - Parameter frameSize: parameter-update frame size forwarded to each
+    ///   voice (default 192 = 250 Hz at 48 kHz). Does not cap the render block
+    ///   length — scratch buffers are sized for the largest plausible block.
     public init(
         maxVoices: Int = 8,
         harmonicCount: Int = 64,
-        sampleRate: Float = 48000.0
+        sampleRate: Float = 48000.0,
+        frameSize: Int = 192
     ) {
         self.maxVoices = maxVoices
         self.sampleRate = sampleRate
 
         self.voices = (0..<maxVoices).map { _ in
-            EchoelDDSP(harmonicCount: harmonicCount, sampleRate: sampleRate)
+            EchoelDDSP(harmonicCount: harmonicCount, sampleRate: sampleRate, frameSize: frameSize)
         }
         self.voiceNotes = [Int](repeating: -1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
         self.voicePans = [Float](repeating: 0, count: maxVoices)
 
-        let maxFrameSize = 2048
+        let maxFrameSize = 4096
         self.voiceBuffer = [Float](repeating: 0, count: maxFrameSize)
         self.mixBufferL = [Float](repeating: 0, count: maxFrameSize)
         self.mixBufferR = [Float](repeating: 0, count: maxFrameSize)

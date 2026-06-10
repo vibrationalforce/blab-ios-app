@@ -17,6 +17,8 @@ struct EchoelmusicApp: App {
     @State private var polarH10: PolarH10BioPublisher
     #endif
     @State private var bioVoice: BioReactiveSynthVoice
+    /// Polyphonic note instrument driven directly by the piano roll.
+    @State private var polyVoice: PolySynthVoice
     @State private var bioEvents: BioEventPublisher
     @State private var bioFeedback: BioFeedbackPublisher
     #if canImport(AVFoundation)
@@ -59,6 +61,7 @@ struct EchoelmusicApp: App {
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
+        _polyVoice = State(wrappedValue: PolySynthVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
         #if canImport(CoreMIDI)
@@ -93,6 +96,7 @@ struct EchoelmusicApp: App {
             .environment(beatPlayer)
             .environment(bus)
             .environment(bioVoice)
+            .environment(polyVoice)
             .environment(bioEvents)
             #if canImport(CoreBluetooth)
             .environment(polarH10)
@@ -128,6 +132,7 @@ struct EchoelmusicApp: App {
                 log.log(.info, category: .system, "STARTUP [3/5] Attaching beat voices to audio engine...")
                 beatPlayer.attach(to: audioEngine)
                 bioVoice.attach(to: audioEngine)
+                polyVoice.attach(to: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [4/5] Starting audio engine...")
                 audioEngine.start()
@@ -145,6 +150,7 @@ struct EchoelmusicApp: App {
                 polarH10.start(publishing: bus)
                 #endif
                 bioVoice.start(subscribing: bus)
+                polyVoice.start(subscribing: bus)
                 bioEvents.start(on: bus)
                 // Mirror live vitals into the shared App Group (~1 Hz, off the
                 // audio thread) so the Widget + Watch glance surfaces show real

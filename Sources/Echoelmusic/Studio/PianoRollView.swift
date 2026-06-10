@@ -3,128 +3,155 @@ import SwiftUI
 import Foundation
 
 // PianoRollView.swift
-// Echoel — melodic step lane (piano roll) that drives the live DDSP synth voice
-// via EngineBus.controllerEvents. Shares the ONE PatternEngine clock with the
-// drum grid (via pattern.onTick), so drums + melody play on the same transport
-// — no second-timer drift. v1 = 16 step-cells × pitch rows (each active cell is
-// a hit, monophonic last-note-wins, matching the bio synth voice). Note-length /
-// polyphony are later refinements (see PLAN_DAW_BUILDOUT.md B1).
+// Echoel — polyphonic melodic piano roll driving the live PolySynthVoice.
 //
-// User control: the body still modulates the synth's timbre (bio is a modulation
-// source); the piano roll decides the notes. Nothing plays until the user adds
-// notes and presses play.
+// A real roll, not a step grid: notes have a pitch, a start step, a length in
+// steps (legato/sustain across boundaries), and a per-note velocity. Editing is
+// tap-to-place / drag-to-stretch on a scrollable, zoomable canvas; the selected
+// note gets a velocity + length inspector. Notes drive PolySynthVoice directly
+// (chords), and note-offs fire at note END (length), scheduled on the ONE shared
+// PatternEngine clock via `pattern.onTick` — drums + melody stay on one transport.
 
-/// Editable melodic pattern + its trigger logic (publishes note events to the bus).
+/// Editable polyphonic melodic pattern + its trigger logic.
 @MainActor
 @Observable
 public final class PianoRollModel {
 
     public static let stepCount = 16
-    /// Two octaves + root (C..C two octaves up).
-    public static let rowCount = 25
+    /// Lowest displayed pitch (C2) and how many semitone rows are shown (→ C6).
+    public static let lowPitch = 36
+    public static let pitchCount = 49
+    public static var highPitch: Int { lowPitch + pitchCount - 1 }
 
-    /// `notes[row][step]` — row 0 = root (lowest), increasing semitone upward.
-    public private(set) var notes: [[Bool]]
+    /// All notes in the pattern (absolute MIDI pitch).
+    public private(set) var notes: [Note] = []
 
-    /// MIDI note of row 0 (default C3 = 48 → range C3…C5).
-    public var rootNote: Int = 48
+    @ObservationIgnored private weak var voice: PolySynthVoice?
+    /// Notes currently sounding → so we can fire their note-off at end step.
+    @ObservationIgnored private var active: [UUID: Note] = [:]
 
-    @ObservationIgnored private weak var bus: EngineBus?
-    @ObservationIgnored private var lastNote: UInt8?
+    public init() {}
 
-    public init() {
-        self.notes = Array(
-            repeating: Array(repeating: false, count: PianoRollModel.stepCount),
-            count: PianoRollModel.rowCount
+    // MARK: - Editing
+
+    /// The note (if any) sounding at `pitch` during `step`.
+    public func note(atPitch pitch: Int, step: Int) -> Note? {
+        notes.first { $0.pitch == pitch && $0.covers(step: step) }
+    }
+
+    /// Add a note, clamping its length so it never crosses the loop boundary.
+    @discardableResult
+    public func add(pitch: Int, startStep: Int, lengthSteps: Int = 1, velocity: Float = 0.8) -> Note {
+        let maxLen = max(1, Self.stepCount - startStep)
+        let note = Note(
+            pitch: pitch, startStep: startStep,
+            lengthSteps: min(max(1, lengthSteps), maxLen), velocity: velocity
         )
+        notes.append(note)
+        return note
     }
 
-    public func toggle(row: Int, step: Int) {
-        guard notes.indices.contains(row), notes[row].indices.contains(step) else { return }
-        notes[row][step].toggle()
+    public func remove(id: UUID) { notes.removeAll { $0.id == id } }
+
+    public func setLength(id: UUID, lengthSteps: Int) {
+        guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
+        let maxLen = max(1, Self.stepCount - notes[i].startStep)
+        notes[i].lengthSteps = min(max(1, lengthSteps), maxLen)
     }
 
-    public func clear() {
-        for r in notes.indices { for s in notes[r].indices { notes[r][s] = false } }
+    public func setVelocity(id: UUID, _ velocity: Float) {
+        guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
+        notes[i].velocity = min(max(velocity, 0), 1)
     }
 
-    /// Wire to the shared clock. Each tick triggers the highest active note for
-    /// that step (mono), or releases on a rest.
-    public func start(pattern: PatternEngine, bus: EngineBus) {
-        self.bus = bus
+    public func clear() { notes.removeAll() }
+
+    /// Replace all notes (used when launching a melody clip).
+    public func load(_ newNotes: [Note]) { notes = newNotes }
+
+    // MARK: - Transport (shared clock)
+
+    public func start(pattern: PatternEngine, voice: PolySynthVoice) {
+        self.voice = voice
         pattern.onTick = { [weak self] step in self?.trigger(step) }
     }
 
-    /// Unwire from the clock and release any held note.
     public func stop(pattern: PatternEngine) {
         pattern.onTick = nil
         allNotesOff()
     }
 
     public func allNotesOff() {
-        if let prev = lastNote { sendNote(.noteOff, prev); lastNote = nil }
+        for note in active.values { voice?.noteOff(pitch: note.pitch) }
+        active.removeAll()
+        voice?.allNotesOff()
     }
 
-    // MARK: - Trigger
-
+    /// Each tick: release notes ending now, then start notes beginning now.
+    /// `endStep % stepCount` so a note ending on the bar line releases at the
+    /// loop wrap (step 0), giving correct sustain + retrigger.
     private func trigger(_ step: Int) {
-        guard let row = highestActiveRow(at: step) else {
-            allNotesOff()
-            return
+        for (id, note) in active where note.endStep % Self.stepCount == step {
+            voice?.noteOff(pitch: note.pitch)
+            active[id] = nil
         }
-        let midi = UInt8(min(127, max(0, rootNote + row)))
-        if let prev = lastNote, prev != midi { sendNote(.noteOff, prev) }
-        sendNote(.noteOn, midi)
-        lastNote = midi
-    }
-
-    private func highestActiveRow(at step: Int) -> Int? {
-        for row in stride(from: PianoRollModel.rowCount - 1, through: 0, by: -1) {
-            if notes[row][step] { return row }
+        for note in notes where note.startStep == step {
+            voice?.noteOn(pitch: note.pitch, velocity: note.velocity)
+            active[note.id] = note
         }
-        return nil
     }
 
-    private func sendNote(_ kind: ControllerEvent.Kind, _ note: UInt8) {
-        bus?.publish(controller: ControllerEvent(
-            timestamp: CFAbsoluteTimeGetCurrent(),
-            kind: kind, channel: 1, note: note, value: 0, auxCC: 0
-        ))
-    }
+    // MARK: - Labels
 
-    /// Note name (C, C#, …) for a row, for the keyboard labels.
-    public func name(forRow row: Int) -> String {
+    public func name(forPitch pitch: Int) -> String {
         let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-        let midi = rootNote + row
-        let octave = midi / 12 - 1
-        return "\(names[((midi % 12) + 12) % 12])\(octave)"
+        let octave = pitch / 12 - 1
+        return "\(names[((pitch % 12) + 12) % 12])\(octave)"
     }
 
-    /// True for black keys (sharps) — for row tinting.
-    public func isSharp(row: Int) -> Bool {
-        let pc = ((rootNote + row) % 12 + 12) % 12
-        return [1, 3, 6, 8, 10].contains(pc)
+    public func isSharp(pitch: Int) -> Bool {
+        [1, 3, 6, 8, 10].contains(((pitch % 12) + 12) % 12)
     }
+
+    public func isC(pitch: Int) -> Bool { ((pitch % 12) + 12) % 12 == 0 }
 }
 
-/// Piano-roll editor surface. Presented from the Tools tab; drives the live synth.
+/// Drag anchor captured at the start of a create/select gesture.
+private struct RollDragAnchor { let pitch: Int; let startStep: Int }
+
+/// Piano-roll editor surface. Presented from the Tools tab; drives the synth.
 @MainActor
 struct PianoRollView: View {
 
     let pattern: PatternEngine
-    let bus: EngineBus
+    let voice: PolySynthVoice
     @Bindable var model: PianoRollModel
     @Environment(\.dismiss) private var dismiss
 
-    private let columnsPerGroup = 4
+    @State private var selectedID: UUID?
+    @State private var drawLength: Int = 1
+    @State private var stepW: CGFloat = 26
+    @State private var rowH: CGFloat = 22
+
+    // Live drag state
+    @State private var anchor: RollDragAnchor?
+    @State private var dragStep: Int?
+
+    private let gutterW: CGFloat = 42
+    private let minStepW: CGFloat = 16
+    private let maxStepW: CGFloat = 56
+    private let minRowH: CGFloat = 14
+    private let maxRowH: CGFloat = 34
+
+    private var canvasW: CGFloat { stepW * CGFloat(PianoRollModel.stepCount) }
+    private var canvasH: CGFloat { rowH * CGFloat(PianoRollModel.pitchCount) }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 8) {
-                transport
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                grid
+                transport.padding(.horizontal, 16).padding(.top, 8)
+                inspector.padding(.horizontal, 16)
+                rollScroller
             }
             .background(EchoelTheme.bg)
             .navigationTitle("Piano Roll")
@@ -132,19 +159,17 @@ struct PianoRollView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Clear") { model.clear() }
+                    Button("Clear") { model.clear(); selectedID = nil }
                 }
             }
-            .onAppear { model.start(pattern: pattern, bus: bus) }
+            .onAppear { model.start(pattern: pattern, voice: voice) }
             .onDisappear { model.stop(pattern: pattern) }
         }
     }
 
-    // MARK: Transport (shared clock with the drum grid)
+    // MARK: - Transport + tools
 
     private var transport: some View {
         HStack(spacing: 12) {
@@ -161,73 +186,224 @@ struct PianoRollView: View {
             }
             .buttonStyle(.plain)
 
-            Stepper(value: $model.rootNote, in: 24...72, step: 12) {
-                Text("Octave \(model.rootNote / 12 - 1)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(EchoelTheme.text)
+            // Draw length (steps a new tapped note spans).
+            Picker("Length", selection: $drawLength) {
+                Text("1").tag(1); Text("2").tag(2); Text("4").tag(4)
             }
+            .pickerStyle(.segmented)
+            .frame(width: 120)
+
             Spacer(minLength: 0)
-            Text("Shares the beat transport · tempo \(Int(pattern.tempo)) BPM")
-                .font(.caption2)
-                .foregroundStyle(EchoelTheme.dim)
+            zoomButton(systemName: "minus.magnifyingglass") { zoom(-1) }
+            zoomButton(systemName: "plus.magnifyingglass") { zoom(1) }
         }
     }
 
-    // MARK: Grid (high pitch on top)
-
-    private var grid: some View {
-        ScrollView {
-            LazyVStack(spacing: 2) {
-                ForEach(stride(from: PianoRollModel.rowCount - 1, through: 0, by: -1).map { $0 }, id: \.self) { row in
-                    rowView(row)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 16)
-        }
-    }
-
-    @ViewBuilder
-    private func rowView(_ row: Int) -> some View {
-        HStack(spacing: 3) {
-            Text(model.name(forRow: row))
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(model.isSharp(row: row) ? EchoelTheme.dim : EchoelTheme.text)
-                .frame(width: 34, alignment: .leading)
-            ForEach(0..<(PianoRollModel.stepCount / columnsPerGroup), id: \.self) { group in
-                HStack(spacing: 2) {
-                    ForEach(0..<columnsPerGroup, id: \.self) { col in
-                        let step = group * columnsPerGroup + col
-                        cell(row: row, step: step)
-                    }
-                }
-                if group < PianoRollModel.stepCount / columnsPerGroup - 1 {
-                    Spacer().frame(width: 5)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func cell(row: Int, step: Int) -> some View {
-        let on = model.notes[row][step]
-        let isCurrent = pattern.isPlaying && pattern.currentStep == step
-        Button { model.toggle(row: row, step: step) } label: {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(fill(on: on, isCurrent: isCurrent, sharp: model.isSharp(row: row)))
-                .overlay(RoundedRectangle(cornerRadius: 3)
-                    .strokeBorder(isCurrent ? EchoelTheme.accent.opacity(0.7) : EchoelTheme.border, lineWidth: 1))
-                .frame(height: 18)
+    private func zoomButton(systemName: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(EchoelTheme.text)
+                .frame(width: 34, height: 34)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(model.name(forRow: row)) step \(step + 1)")
-        .accessibilityValue(on ? "on" : "off")
     }
 
-    private func fill(on: Bool, isCurrent: Bool, sharp: Bool) -> Color {
-        if on { return isCurrent ? .white : EchoelTheme.accent }
-        if isCurrent { return EchoelTheme.text.opacity(0.18) }
-        return sharp ? Color.white.opacity(0.03) : EchoelTheme.fill
+    private func zoom(_ direction: Int) {
+        let f: CGFloat = direction > 0 ? 1.2 : 1 / 1.2
+        stepW = min(max(stepW * f, minStepW), maxStepW)
+        rowH = min(max(rowH * f, minRowH), maxRowH)
+    }
+
+    // MARK: - Selected-note inspector
+
+    @ViewBuilder
+    private var inspector: some View {
+        if let id = selectedID, let note = model.notes.first(where: { $0.id == id }) {
+            HStack(spacing: 12) {
+                Text(model.name(forPitch: note.pitch))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 46, alignment: .leading)
+
+                Text("Len").font(.caption2).foregroundStyle(EchoelTheme.dim)
+                Stepper(value: Binding(
+                    get: { note.lengthSteps },
+                    set: { model.setLength(id: id, lengthSteps: $0) }
+                ), in: 1...PianoRollModel.stepCount) {
+                    Text("\(note.lengthSteps)")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(EchoelTheme.text)
+                }
+                .frame(width: 110)
+
+                Text("Vel").font(.caption2).foregroundStyle(EchoelTheme.dim)
+                Slider(value: Binding(
+                    get: { Double(note.velocity) },
+                    set: { model.setVelocity(id: id, Float($0)) }
+                ), in: 0...1)
+
+                Button {
+                    model.remove(id: id); selectedID = nil
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(EchoelTheme.danger)
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(height: 30)
+        } else {
+            Text("Tap to add a note · drag to stretch · tap a note to edit")
+                .font(.caption2)
+                .foregroundStyle(EchoelTheme.dim)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 30)
+        }
+    }
+
+    // MARK: - Scrollable roll (pinned pitch gutter + horizontally-scrolling canvas)
+
+    private var rollScroller: some View {
+        ScrollView(.vertical) {
+            HStack(spacing: 0, alignment: .top) {
+                gutter
+                ScrollView(.horizontal, showsIndicators: true) {
+                    canvas
+                }
+            }
+        }
+    }
+
+    private var gutter: some View {
+        VStack(spacing: 0) {
+            ForEach(rowsTopDown, id: \.self) { pitch in
+                Text(model.isC(pitch: pitch) ? model.name(forPitch: pitch) : "")
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .frame(width: gutterW, height: rowH, alignment: .trailing)
+                    .padding(.trailing, 3)
+                    .background(model.isSharp(pitch: pitch)
+                        ? Color.white.opacity(0.02) : EchoelTheme.fill)
+                    .overlay(Rectangle().frame(height: 0.5)
+                        .foregroundStyle(EchoelTheme.border), alignment: .bottom)
+            }
+        }
+        .frame(width: gutterW)
+    }
+
+    private var canvas: some View {
+        ZStack(alignment: .topLeading) {
+            gridBackground
+            ForEach(model.notes) { note in noteRect(note) }
+            if pattern.isPlaying { playhead }
+        }
+        .frame(width: canvasW, height: canvasH, alignment: .topLeading)
+        .contentShape(Rectangle())
+        .coordinateSpace(name: "roll")
+        .gesture(canvasDrag)
+    }
+
+    private var gridBackground: some View {
+        Canvas { ctx, size in
+            // Row stripes (sharps darker).
+            for (i, pitch) in rowsTopDown.enumerated() {
+                let y = CGFloat(i) * rowH
+                let rect = CGRect(x: 0, y: y, width: size.width, height: rowH)
+                let shade = model.isSharp(pitch: pitch) ? 0.03 : 0.06
+                ctx.fill(Path(rect), with: .color(EchoelTheme.text.opacity(shade)))
+                if model.isC(pitch: pitch) {
+                    ctx.stroke(Path(CGRect(x: 0, y: y, width: size.width, height: 0.5)),
+                               with: .color(EchoelTheme.border), lineWidth: 0.5)
+                }
+            }
+            // Bar/beat lines every 4 steps.
+            for step in 0...PianoRollModel.stepCount {
+                let x = CGFloat(step) * stepW
+                let strong = step % 4 == 0
+                ctx.stroke(Path { p in p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: size.height)) },
+                           with: .color(EchoelTheme.text.opacity(strong ? 0.16 : 0.06)),
+                           lineWidth: strong ? 1 : 0.5)
+            }
+        }
+        .frame(width: canvasW, height: canvasH)
+    }
+
+    private func noteRect(_ note: Note) -> some View {
+        let x = CGFloat(note.startStep) * stepW
+        let w = CGFloat(note.lengthSteps) * stepW
+        let y = yForPitch(note.pitch)
+        let selected = note.id == selectedID
+        return RoundedRectangle(cornerRadius: 3)
+            .fill(EchoelTheme.accent.opacity(0.35 + 0.6 * Double(note.velocity)))
+            .overlay(RoundedRectangle(cornerRadius: 3)
+                .strokeBorder(selected ? Color.white : EchoelTheme.accent, lineWidth: selected ? 1.5 : 0.5))
+            .frame(width: max(4, w - 2), height: max(6, rowH - 2))
+            .offset(x: x + 1, y: y + 1)
+    }
+
+    private var playhead: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.5))
+            .frame(width: 1.5, height: canvasH)
+            .offset(x: CGFloat(pattern.currentStep) * stepW)
+    }
+
+    // MARK: - Geometry helpers
+
+    /// Pitches from highest (top) to lowest (bottom) for top-down layout.
+    private var rowsTopDown: [Int] {
+        Array(stride(from: PianoRollModel.highPitch, through: PianoRollModel.lowPitch, by: -1))
+    }
+
+    private func yForPitch(_ pitch: Int) -> CGFloat {
+        CGFloat(PianoRollModel.highPitch - pitch) * rowH
+    }
+
+    private func pitch(atY y: CGFloat) -> Int {
+        let row = Int(y / rowH)
+        return min(max(PianoRollModel.highPitch - row, PianoRollModel.lowPitch), PianoRollModel.highPitch)
+    }
+
+    private func step(atX x: CGFloat) -> Int {
+        min(max(Int(x / stepW), 0), PianoRollModel.stepCount - 1)
+    }
+
+    // MARK: - Gesture
+
+    private var canvasDrag: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("roll"))
+            .onChanged { value in
+                if anchor == nil {
+                    anchor = RollDragAnchor(
+                        pitch: pitch(atY: value.startLocation.y),
+                        startStep: step(atX: value.startLocation.x)
+                    )
+                }
+                dragStep = step(atX: value.location.x)
+            }
+            .onEnded { value in
+                defer { anchor = nil; dragStep = nil }
+                guard let anchor else { return }
+                let endStep = step(atX: value.location.x)
+                let s0 = min(anchor.startStep, endStep)
+                let s1 = max(anchor.startStep, endStep)
+                let span = s1 - s0 + 1
+                if span <= 1 {
+                    if let existing = model.note(atPitch: anchor.pitch, step: s0) {
+                        selectedID = existing.id
+                    } else {
+                        let note = model.add(pitch: anchor.pitch, startStep: s0,
+                                             lengthSteps: drawLength)
+                        selectedID = note.id
+                    }
+                } else {
+                    let note = model.add(pitch: anchor.pitch, startStep: s0, lengthSteps: span)
+                    selectedID = note.id
+                }
+            }
     }
 }
 #endif

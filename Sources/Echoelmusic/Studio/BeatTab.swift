@@ -22,6 +22,7 @@ struct BeatTab: View {
 
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(EngineBus.self) private var bus
+    @Environment(PolySynthVoice.self) private var polyVoice
 
     /// Melodic piano-roll lane (drives the DDSP synth on the shared clock).
     @State private var pianoRoll = PianoRollModel()
@@ -85,7 +86,7 @@ struct BeatTab: View {
             PadSoundEditor(track: target.id, player: beatPlayer)
         }
         .sheet(isPresented: $showPianoRoll) {
-            PianoRollView(pattern: beatPlayer.pattern, bus: bus, model: pianoRoll)
+            PianoRollView(pattern: beatPlayer.pattern, voice: polyVoice, model: pianoRoll)
         }
     }
 
