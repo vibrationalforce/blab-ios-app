@@ -265,7 +265,7 @@ struct PianoRollView: View {
 
     private var rollScroller: some View {
         ScrollView(.vertical) {
-            HStack(spacing: 0, alignment: .top) {
+            HStack(alignment: .top, spacing: 0) {
                 gutter
                 ScrollView(.horizontal, showsIndicators: true) {
                     canvas
