@@ -1985,3 +1985,39 @@ forbids restructuring/new deps). Did NOT fabricate infrastructure.
 - Owner on 1538: launch silent (confirmed), but couldn't SEE accent/swing/sample-import. Root cause = discoverability/layout (swing slider clipped off-screen; accent double-tap + tiny marker; sample-import is a long-press context menu). Fix (build 1543): swing on its own full-width row, brighter/larger accent marker, hint line under the grid.
 - **EchoelLux shipped (build 1543):** native Art-Net (ArtDMX/UDP 6454, zero dependency), bio→DMX (dimmer←coherence, R←HR, G←HRV, B←breath), epilepsy-safe fades, opt-in Sync tab, unit-tested kernels. First 'absent' roadmap area now real. Next: sACN.
 
+
+### Addendum 4 — DAW deepening: polyphony · piano roll · clips · patch editor · hybrid drums (2026-06-10)
+Branch `claude/piano-roll-clip-view-wozlie`. Big multi-feature build (user approved
+full scope: all features, polyphony, hybrid sample+synth drums). NO Swift toolchain
+in this sandbox (Ubuntu) — relied on pattern-matching + audio-thread & concurrency
+sub-agent reviews (both PASS, no critical/high); CI on macOS is the real verifier.
+
+Discovered `EchoelPolyDDSP` already existed (full voice pool + stealing + stereo
+tanh-limited render) — so polyphony was a wrapper, not a rewrite. Also fixed a
+pre-existing test break: `EchoelPolyDDSP` init was missing the `frameSize:` param
+the tests already used.
+
+Shipped (one commit per workstream):
+- Foundation: `Note` (shared by roll/clips/MIDI export), `AppGroupStore` (Codable
+  JSON in group.com.echoelmusic, App-Support fallback).
+- Polyphony: `PolySynthVoice` wraps EchoelPolyDDSP behind one stereo source node,
+  driven DIRECTLY by the piano roll (chords) so it never contends with
+  BioReactiveSynthVoice for the single-consumer controllerEvents queue. bio
+  modulation gated OFF by default so designed patches stay stable.
+- Deep piano roll: `PianoRollModel` [[Bool]]→[Note]; polyphonic length-aware
+  note-off scheduling on the shared onTick clock; scroll/zoom canvas + drag-create
+  + velocity/length inspector. Wired to transport app-wide at startup.
+- Patch editor (A4): `SynthPatch` (Codable, Accelerate-guarded capture/apply),
+  `PatchStore` (factory + user patches, App-Group JSON), `PatchEditorView` (live
+  edit, presets, press-to-preview). 'Sound' button in BeatTab.
+- Hybrid drums: `DrumSynthVoice` (EchoelModalBank), BeatPlayer per-pad PadMode
+  (sample/synth/blend) + DrumSynthParams; PadSoundEditor source selector.
+- Sample browser: BeatPlayer.previewVoice + audition/assign; `SampleBrowserView`
+  with click-to-preview, opened from the pad editor.
+- Clips (B2): `Clip`/`ClipStore`, `PatternEngine.load`, new 'Clips' tab
+  (`ClipView`) capture/launch; `MIDIFileExporter.export(notes:tempo:)`.
+
+Tests added: NoteTests, SynthPatchTests, DrumSynthTests, ClipTests (+ PatternLoad).
+
+GATED ON CI / DEVICE: confirm macOS build green (couldn't compile here); musicality
+tuning of poly synth + modal drums needs device ear.
