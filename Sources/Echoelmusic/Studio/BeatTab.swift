@@ -453,12 +453,34 @@ private struct PadSoundEditor: View {
     let player: BeatPlayer
     @Environment(\.dismiss) private var dismiss
     @State private var shape: BeatPlayer.PadShape
+    @State private var sourceKind: SourceKind
+    @State private var blend: Float
+    @State private var synth: DrumSynthParams
+
+    enum SourceKind: String, CaseIterable { case sample = "Sample", synth = "Synth", blend = "Blend" }
 
     init(track: Int, player: BeatPlayer) {
         self.track = track
         self.player = player
         _shape = State(initialValue: player.shapes.indices.contains(track) ? player.shapes[track] : .init())
+        let mode = player.modes.indices.contains(track) ? player.modes[track] : .sample
+        switch mode {
+        case .sample: _sourceKind = State(initialValue: .sample); _blend = State(initialValue: 0.5)
+        case .synth: _sourceKind = State(initialValue: .synth); _blend = State(initialValue: 0.5)
+        case .blend(let b): _sourceKind = State(initialValue: .blend); _blend = State(initialValue: b)
+        }
+        _synth = State(initialValue: player.synthParams.indices.contains(track) ? player.synthParams[track] : .init())
     }
+
+    private var currentMode: BeatPlayer.PadMode {
+        switch sourceKind {
+        case .sample: return .sample
+        case .synth: return .synth
+        case .blend: return .blend(blend)
+        }
+    }
+
+    private var materials: [String] { EchoelModalBank.MaterialPreset.allCases.map { $0.rawValue } }
 
     var body: some View {
         NavigationStack {
@@ -475,19 +497,44 @@ private struct PadSoundEditor: View {
                     .listRowBackground(Color.clear)
                 }
 
-                Section("Level") {
-                    slider($shape.level, range: 0...2, display: String(format: "%.2f×", shape.level))
+                Section("Source") {
+                    Picker("Source", selection: $sourceKind) {
+                        ForEach(SourceKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    if sourceKind == .blend {
+                        slider($blend, range: 0...1, display: "\(Int(blend * 100))% synth")
+                    }
                 }
-                Section("Attack") {
-                    slider($shape.attackMs, range: 0...200, display: "\(Int(shape.attackMs)) ms")
+
+                if sourceKind != .synth {
+                    Section("Sample · Level") {
+                        slider($shape.level, range: 0...2, display: String(format: "%.2f×", shape.level))
+                    }
+                    Section("Sample · Attack") {
+                        slider($shape.attackMs, range: 0...200, display: "\(Int(shape.attackMs)) ms")
+                    }
+                    Section {
+                        slider($shape.lengthMs, range: 0...2000,
+                               display: shape.lengthMs <= 0 ? "full" : "\(Int(shape.lengthMs)) ms")
+                    } header: {
+                        Text("Sample · Length")
+                    } footer: {
+                        Text("0 = play the full sample. Higher = tighten the hit (with an anti-click release).")
+                    }
                 }
-                Section {
-                    slider($shape.lengthMs, range: 0...2000,
-                           display: shape.lengthMs <= 0 ? "full" : "\(Int(shape.lengthMs)) ms")
-                } header: {
-                    Text("Length")
-                } footer: {
-                    Text("0 = play the full sample. Higher = tighten the hit (with an anti-click release).")
+
+                if sourceKind != .sample {
+                    Section("Synth · Modal") {
+                        Picker("Material", selection: $synth.material) {
+                            ForEach(materials, id: \.self) { Text($0).tag($0) }
+                        }
+                        slider($synth.frequency, range: 30...400, display: "\(Int(synth.frequency)) Hz")
+                        slider($synth.damping, range: 0...1, display: String(format: "%.2f", synth.damping))
+                        slider($synth.brightness, range: 0...1, display: String(format: "%.2f", synth.brightness))
+                        slider($synth.strikePosition, range: 0...1, display: String(format: "%.2f", synth.strikePosition))
+                        slider($synth.level, range: 0...2, display: String(format: "%.2f×", synth.level))
+                    }
                 }
             }
             .navigationTitle(label)
@@ -508,6 +555,9 @@ private struct PadSoundEditor: View {
             .onChange(of: shape) { _, newValue in
                 player.setShape(track: track, newValue)
             }
+            .onChange(of: sourceKind) { _, _ in player.setMode(track: track, currentMode) }
+            .onChange(of: blend) { _, _ in player.setMode(track: track, currentMode) }
+            .onChange(of: synth) { _, newValue in player.setSynthParams(track: track, newValue) }
         }
     }
 

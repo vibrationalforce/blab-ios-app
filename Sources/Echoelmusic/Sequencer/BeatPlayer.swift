@@ -28,8 +28,18 @@ public final class BeatPlayer {
         public var lengthMs: Float = 0     // 0 = full sample; >0 caps length (20…2000)
     }
 
+    /// How a pad produces sound: the loaded sample, the synth (modal) voice, or
+    /// a blend of the two (`blend` in 0…1 — 0 = all sample, 1 = all synth).
+    public enum PadMode: Codable, Sendable, Equatable {
+        case sample
+        case synth
+        case blend(Float)
+    }
+
     public let pattern: PatternEngine
     public let voices: [SamplerVoice]
+    /// Parallel synthesized-drum voices (EchoelModalBank), one per pad.
+    public let synthVoices: [DrumSynthVoice]
 
     /// Per-track display label: the role name (Kick/Snare/…) by default, or the
     /// imported sample's filename once the user loads a custom sample.
@@ -38,17 +48,28 @@ public final class BeatPlayer {
     /// Per-track amp-envelope shapes (Level/Attack/Length), persisted.
     public private(set) var shapes: [PadShape]
 
+    /// Per-track sound source (sample / synth / blend), persisted.
+    public private(set) var modes: [PadMode]
+
+    /// Per-track synth (modal) drum params, persisted.
+    public private(set) var synthParams: [DrumSynthParams]
+
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private var attachedSourceNodes: [AVAudioSourceNode] = []
 
     public init() {
         self.pattern = PatternEngine()
         self.voices = Self.trackNames.map { _ in SamplerVoice() }
+        self.synthVoices = Self.trackNames.map { _ in DrumSynthVoice() }
         self.sampleLabels = Self.trackNames
         self.shapes = Self.trackNames.map { _ in PadShape() }
+        self.modes = Self.trackNames.map { _ in .sample }
+        self.synthParams = Self.trackNames.map { _ in DrumSynthParams() }
     }
 
     private static func shapeKey(_ track: Int) -> String { "echoel.beat.shape.\(track)" }
+    private static func modeKey(_ track: Int) -> String { "echoel.beat.mode.\(track)" }
+    private static func synthKey(_ track: Int) -> String { "echoel.beat.synth.\(track)" }
 
     /// Apply a track's shape to its voice (audio thread reads it on next render).
     private func applyShape(_ track: Int) {
@@ -70,6 +91,31 @@ public final class BeatPlayer {
     /// Audition a pad (one-shot), e.g. from the sound editor's Preview button.
     public func preview(_ track: Int) { playPad(track) }
 
+    /// Apply a track's synth params to its synth voice. Main-thread only.
+    private func applySynth(_ track: Int) {
+        guard synthVoices.indices.contains(track) else { return }
+        synthVoices[track].configure(synthParams[track])
+    }
+
+    /// Set a pad's sound source (sample / synth / blend) and persist it.
+    public func setMode(track: Int, _ mode: PadMode) {
+        guard modes.indices.contains(track) else { return }
+        modes[track] = mode
+        if let data = try? JSONEncoder().encode(mode) {
+            UserDefaults.standard.set(data, forKey: Self.modeKey(track))
+        }
+    }
+
+    /// Update a pad's synth params, apply them live, and persist.
+    public func setSynthParams(track: Int, _ params: DrumSynthParams) {
+        guard synthParams.indices.contains(track) else { return }
+        synthParams[track] = params
+        applySynth(track)
+        if let data = try? JSONEncoder().encode(params) {
+            UserDefaults.standard.set(data, forKey: Self.synthKey(track))
+        }
+    }
+
     /// Restore persisted shapes and apply them. Called after samples load.
     private func restoreShapes() {
         for i in Self.trackNames.indices {
@@ -78,6 +124,36 @@ public final class BeatPlayer {
                 shapes[i] = s
             }
             applyShape(i)
+        }
+    }
+
+    /// Restore persisted modes + synth params and apply them. Called after load.
+    private func restoreModesAndSynth() {
+        for i in Self.trackNames.indices {
+            if let data = UserDefaults.standard.data(forKey: Self.modeKey(i)),
+               let m = try? JSONDecoder().decode(PadMode.self, from: data) {
+                modes[i] = m
+            }
+            if let data = UserDefaults.standard.data(forKey: Self.synthKey(i)),
+               let p = try? JSONDecoder().decode(DrumSynthParams.self, from: data) {
+                synthParams[i] = p
+            }
+            applySynth(i)
+        }
+    }
+
+    /// Trigger a pad through its current sound source (sample / synth / blend).
+    private func trigger(track: Int, gain: Float) {
+        guard voices.indices.contains(track) else { return }
+        switch modes[track] {
+        case .sample:
+            voices[track].fire(gain: gain)
+        case .synth:
+            synthVoices[track].fire(gain: gain)
+        case .blend(let b):
+            let bb = min(max(b, 0), 1)
+            voices[track].fire(gain: gain * (1 - bb))
+            synthVoices[track].fire(gain: gain * bb)
         }
     }
 
@@ -120,6 +196,7 @@ public final class BeatPlayer {
         }
         restoreCustomSamples()
         restoreShapes()
+        restoreModesAndSynth()
     }
 
     /// Re-loads any user-imported samples saved as security-scoped bookmarks on
@@ -183,9 +260,13 @@ public final class BeatPlayer {
             engine.attachSourceNode(voice.sourceNode)
             attachedSourceNodes.append(voice.sourceNode)
         }
+        for synth in synthVoices {
+            engine.attachSourceNode(synth.sourceNode)
+            attachedSourceNodes.append(synth.sourceNode)
+        }
         pattern.onStep = { [weak self] track, step in
-            guard let self, self.voices.indices.contains(track) else { return }
-            self.voices[track].fire(gain: self.pattern.velocity(track: track, step: step))
+            guard let self else { return }
+            self.trigger(track: track, gain: self.pattern.velocity(track: track, step: step))
         }
     }
 
@@ -200,10 +281,10 @@ public final class BeatPlayer {
         audioEngine = nil
     }
 
-    /// Manually fires one voice — used by drum-pad taps in BeatTab.
+    /// Manually fires one pad — used by drum-pad taps in BeatTab. Routes through
+    /// the pad's current sound source (sample / synth / blend).
     public func playPad(_ track: Int) {
-        guard voices.indices.contains(track) else { return }
-        voices[track].fire()
+        trigger(track: track, gain: 1.0)
     }
 }
 #endif
