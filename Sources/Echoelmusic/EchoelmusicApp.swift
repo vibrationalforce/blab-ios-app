@@ -167,6 +167,7 @@ struct EchoelmusicApp: App {
                 // wide, so clips can launch melodies even when the roll sheet is
                 // closed. (Melody uses pattern.onTick; drums use onStep.)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice)
+                if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
                 bioEvents.start(on: bus)
                 // Mirror live vitals into the shared App Group (~1 Hz, off the
                 // audio thread) so the Widget + Watch glance surfaces show real

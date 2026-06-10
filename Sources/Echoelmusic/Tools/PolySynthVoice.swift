@@ -46,6 +46,12 @@ public final class PolySynthVoice {
     /// Number of voices currently sounding (for UI display).
     public var activeVoiceCount: Int { poly.activeVoiceCount }
 
+    /// When false (default) the designed patch fully defines the timbre and bio
+    /// never modulates it — so "your own instrument" sounds stable. Enable to let
+    /// the body modulate the polyphonic voice too. (BioReactiveSynthVoice remains
+    /// the always-bio-reactive breath instrument.)
+    public var bioModulationEnabled = false
+
     // MARK: - Bus subscription state
 
     public private(set) var isSubscribed = false
@@ -146,6 +152,7 @@ public final class PolySynthVoice {
     }
 
     private func applyLatestIfFresh(from bus: EngineBus) {
+        guard bioModulationEnabled else { return }
         guard let frame = bus.latestBio else { return }
         guard frame.timestamp != lastTimestamp else { return }
         lastTimestamp = frame.timestamp
