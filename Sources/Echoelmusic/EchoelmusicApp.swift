@@ -40,6 +40,8 @@ struct EchoelmusicApp: App {
     @State private var sacn = SACNSender()
     #endif
     @State private var modulationEngine: ModulationEngine
+    /// Library of user + factory synth sounds for the patch editor.
+    @State private var patchStore: PatchStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -73,6 +75,7 @@ struct EchoelmusicApp: App {
         _osc = State(wrappedValue: OSCSender())
         #endif
         _modulationEngine = State(wrappedValue: ModulationEngine())
+        _patchStore = State(wrappedValue: PatchStore())
 
         _ = MemoryPressureHandler.shared
         log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
@@ -114,6 +117,7 @@ struct EchoelmusicApp: App {
             .environment(sacn)
             #endif
             .environment(modulationEngine)
+            .environment(patchStore)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine

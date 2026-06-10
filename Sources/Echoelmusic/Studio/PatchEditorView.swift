@@ -1,0 +1,191 @@
+#if canImport(SwiftUI)
+import SwiftUI
+
+// PatchEditorView.swift
+// Echoel — the DDSP sound editor: shape the polyphonic synth's envelope, tone,
+// filter, space and vibrato, then save it as your own instrument. Live: every
+// change is applied to PolySynthVoice immediately so you hear it as you tune.
+
+@MainActor
+struct PatchEditorView: View {
+
+    @Environment(PolySynthVoice.self) private var voice
+    @Environment(PatchStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var patch: SynthPatch
+    @State private var showSaveAs = false
+    @State private var saveAsName = ""
+
+    init(initial: SynthPatch) { _patch = State(initialValue: initial) }
+
+    private var isFactory: Bool { store.isFactory(patch) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    presetBar
+                    previewKeys
+                    section("Envelope") {
+                        slider("Attack", $patch.attack, 0.005...3, unit: "s")
+                        slider("Decay", $patch.decay, 0.01...2, unit: "s")
+                        slider("Sustain", $patch.sustain, 0...1)
+                        slider("Release", $patch.release, 0.1...5, unit: "s")
+                    }
+                    section("Tone") {
+                        slider("Harmonicity", $patch.harmonicity, 0.3...1)
+                        slider("Brightness", $patch.brightness, 0...1)
+                        slider("Noise", $patch.noiseLevel, 0...0.3)
+                        picker("Shape", selection: $patch.spectralShape,
+                               options: EchoelDDSP.SpectralShape.allCases.map { $0.rawValue })
+                        picker("Noise color", selection: $patch.noiseColor,
+                               options: EchoelDDSP.NoiseColor.allCases.map { $0.rawValue })
+                    }
+                    section("Filter") {
+                        slider("Cutoff", $patch.filterCutoff, 60...12000, unit: "Hz", decimals: 0)
+                        slider("Resonance", $patch.filterResonance, 0...0.95)
+                        slider("LFO → Filter", $patch.lfoToFilterDepth, 0...1)
+                        slider("LFO rate", $patch.filterLFORate, 0.01...10, unit: "Hz")
+                    }
+                    section("Space") {
+                        slider("Reverb", $patch.reverbMix, 0...1)
+                        slider("Reverb decay", $patch.reverbDecay, 0.1...5, unit: "s")
+                    }
+                    section("Vibrato") {
+                        slider("Rate", $patch.vibratoRate, 0...10, unit: "Hz")
+                        slider("Depth", $patch.vibratoDepth, 0...1)
+                    }
+                }
+                .padding(16)
+            }
+            .background(EchoelTheme.bg)
+            .navigationTitle("Sound")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
+            .onAppear { voice.apply(patch) }
+            .onChange(of: patch) { _, new in voice.apply(new) }
+            .alert("Save as", isPresented: $showSaveAs) {
+                TextField("Name", text: $saveAsName)
+                Button("Save") {
+                    let saved = store.saveAs(patch, name: saveAsName.isEmpty ? "My Sound" : saveAsName)
+                    patch = saved
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+        }
+    }
+
+    // MARK: - Preset bar
+
+    private var presetBar: some View {
+        HStack(spacing: 8) {
+            Menu {
+                ForEach(store.patches) { p in
+                    Button(p.name) { patch = p }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(patch.name).font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "chevron.down").font(.system(size: 10))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12).frame(height: 34)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+
+            Spacer(minLength: 0)
+
+            if !isFactory {
+                toolButton("Save") { store.save(patch) }
+            }
+            toolButton("Save as…") { saveAsName = patch.name + " copy"; showSaveAs = true }
+            if !isFactory {
+                toolButton("Delete", danger: true) {
+                    store.delete(id: patch.id)
+                    patch = store.patches.first ?? SynthPatch(name: "Custom")
+                }
+            }
+        }
+    }
+
+    private func toolButton(_ title: String, danger: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(danger ? EchoelTheme.danger : EchoelTheme.text)
+                .padding(.horizontal, 10).frame(height: 34)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Preview keys (press-and-hold to audition the sound)
+
+    private var previewKeys: some View {
+        HStack(spacing: 3) {
+            ForEach([60, 62, 64, 65, 67, 69, 71, 72], id: \.self) { midi in
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(EchoelTheme.fill)
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    .frame(height: 44)
+                    .contentShape(Rectangle())
+                    .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                        if pressing { voice.noteOn(pitch: midi, velocity: 0.8) }
+                        else { voice.noteOff(pitch: midi) }
+                    }, perform: {})
+            }
+        }
+    }
+
+    // MARK: - Building blocks
+
+    @ViewBuilder
+    private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(EchoelTheme.dim)
+            VStack(spacing: 8) { content() }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        }
+    }
+
+    private func slider(_ label: String, _ value: Binding<Float>, _ range: ClosedRange<Float>,
+                        unit: String = "", decimals: Int = 2) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(EchoelTheme.dim)
+                .frame(width: 96, alignment: .leading)
+            Slider(value: value, in: range).tint(EchoelTheme.accent)
+            Text(String(format: "%.\(decimals)f", value.wrappedValue) + (unit.isEmpty ? "" : " \(unit)"))
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(EchoelTheme.dim)
+                .frame(width: 60, alignment: .trailing)
+        }
+    }
+
+    private func picker(_ label: String, selection: Binding<String>, options: [String]) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(EchoelTheme.dim)
+                .frame(width: 96, alignment: .leading)
+            Picker(label, selection: selection) {
+                ForEach(options, id: \.self) { Text($0.capitalized).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .tint(EchoelTheme.text)
+            Spacer(minLength: 0)
+        }
+    }
+}
+#endif

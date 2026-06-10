@@ -27,6 +27,8 @@ struct BeatTab: View {
     /// Melodic piano-roll lane (drives the DDSP synth on the shared clock).
     @State private var pianoRoll = PianoRollModel()
     @State private var showPianoRoll = false
+    @State private var showPatchEditor = false
+    @Environment(PatchStore.self) private var patchStore
 
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
     @State private var exportedMIDI: ExportedMIDIFile?
@@ -87,6 +89,9 @@ struct BeatTab: View {
         }
         .sheet(isPresented: $showPianoRoll) {
             PianoRollView(pattern: beatPlayer.pattern, voice: polyVoice, model: pianoRoll)
+        }
+        .sheet(isPresented: $showPatchEditor) {
+            PatchEditorView(initial: patchStore.patches.first ?? SynthPatch(name: "Custom"))
         }
     }
 
@@ -188,6 +193,7 @@ struct BeatTab: View {
                 toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
                 toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
                 toolButton("Piano", icon: "pianokeys") { showPianoRoll = true }
+                toolButton("Sound", icon: "slider.horizontal.3") { showPatchEditor = true }
                 Spacer(minLength: 0)
             }
             // Swing on its own full-width row so the slider is always visible

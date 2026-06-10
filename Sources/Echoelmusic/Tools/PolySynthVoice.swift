@@ -119,6 +119,13 @@ public final class PolySynthVoice {
         440 * powf(2, (Float(note) - 69) / 12)
     }
 
+    // MARK: - Patch recall
+
+    /// Recall a sound: fan the patch's timbre params across every voice.
+    public func apply(_ patch: SynthPatch) {
+        poly.forEachVoice { patch.apply(to: $0) }
+    }
+
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
 
     /// Begin polling `bus.latestBio` at 10 Hz and fanning bio modulation across

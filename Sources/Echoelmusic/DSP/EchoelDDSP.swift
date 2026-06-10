@@ -1137,6 +1137,15 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         )
     }
 
+    // MARK: - Bulk voice configuration
+
+    /// Apply a configuration block to every voice — used to recall a SynthPatch
+    /// across the whole pool. Voice frequency/amplitude (per-note) are left to
+    /// the note path; the block should only touch shared timbre params.
+    public func forEachVoice(_ body: (EchoelDDSP) -> Void) {
+        for voice in voices { body(voice) }
+    }
+
     // MARK: - Spectral Morphing
 
     /// Set spectral shape for all voices
