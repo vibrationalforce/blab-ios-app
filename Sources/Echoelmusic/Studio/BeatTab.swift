@@ -456,6 +456,7 @@ private struct PadSoundEditor: View {
     @State private var sourceKind: SourceKind
     @State private var blend: Float
     @State private var synth: DrumSynthParams
+    @State private var showBrowser = false
 
     enum SourceKind: String, CaseIterable { case sample = "Sample", synth = "Synth", blend = "Blend" }
 
@@ -508,6 +509,14 @@ private struct PadSoundEditor: View {
                 }
 
                 if sourceKind != .synth {
+                    Section("Sample") {
+                        Button {
+                            showBrowser = true
+                        } label: {
+                            Label("Browse samples…", systemImage: "folder")
+                                .foregroundStyle(EchoelTheme.accent)
+                        }
+                    }
                     Section("Sample · Level") {
                         slider($shape.level, range: 0...2, display: String(format: "%.2f×", shape.level))
                     }
@@ -558,6 +567,9 @@ private struct PadSoundEditor: View {
             .onChange(of: sourceKind) { _, _ in player.setMode(track: track, currentMode) }
             .onChange(of: blend) { _, _ in player.setMode(track: track, currentMode) }
             .onChange(of: synth) { _, newValue in player.setSynthParams(track: track, newValue) }
+            .sheet(isPresented: $showBrowser) {
+                SampleBrowserView(track: track).environment(player)
+            }
         }
     }
 

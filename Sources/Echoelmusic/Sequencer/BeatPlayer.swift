@@ -40,6 +40,9 @@ public final class BeatPlayer {
     public let voices: [SamplerVoice]
     /// Parallel synthesized-drum voices (EchoelModalBank), one per pad.
     public let synthVoices: [DrumSynthVoice]
+    /// Dedicated voice for auditioning samples in the browser (does not disturb
+    /// the kit — auditions play here, not on a pad).
+    public let previewVoice: SamplerVoice
 
     /// Per-track display label: the role name (Kick/Snare/…) by default, or the
     /// imported sample's filename once the user loads a custom sample.
@@ -61,6 +64,7 @@ public final class BeatPlayer {
         self.pattern = PatternEngine()
         self.voices = Self.trackNames.map { _ in SamplerVoice() }
         self.synthVoices = Self.trackNames.map { _ in DrumSynthVoice() }
+        self.previewVoice = SamplerVoice()
         self.sampleLabels = Self.trackNames
         self.shapes = Self.trackNames.map { _ in PadShape() }
         self.modes = Self.trackNames.map { _ in .sample }
@@ -264,6 +268,8 @@ public final class BeatPlayer {
             engine.attachSourceNode(synth.sourceNode)
             attachedSourceNodes.append(synth.sourceNode)
         }
+        engine.attachSourceNode(previewVoice.sourceNode)
+        attachedSourceNodes.append(previewVoice.sourceNode)
         pattern.onStep = { [weak self] track, step in
             guard let self else { return }
             self.trigger(track: track, gain: self.pattern.velocity(track: track, step: step))
@@ -285,6 +291,40 @@ public final class BeatPlayer {
     /// the pad's current sound source (sample / synth / blend).
     public func playPad(_ track: Int) {
         trigger(track: track, gain: 1.0)
+    }
+
+    // MARK: - Sample browser support
+
+    /// The built-in drum samples available to assign to any pad.
+    public static let bundledSampleNames: [String] = trackNames
+
+    /// URL for a built-in sample WAV by name (e.g. "Kick").
+    public static func bundledSampleURL(_ name: String) -> URL? {
+        let bundle = resourceBundle
+        return bundle.url(forResource: name, withExtension: "wav", subdirectory: "Drums")
+            ?? bundle.url(forResource: name, withExtension: "wav")
+    }
+
+    /// Audition a built-in sample on the preview voice (does not touch the kit).
+    public func auditionBundled(_ name: String) {
+        guard let url = Self.bundledSampleURL(name) else { return }
+        if (try? previewVoice.loadSample(from: url)) != nil { previewVoice.fire() }
+    }
+
+    /// Audition an external file on the preview voice (security-scoped).
+    public func audition(url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        if (try? previewVoice.loadSample(from: url)) != nil { previewVoice.fire() }
+    }
+
+    /// Assign a built-in sample to a pad (clears any custom bookmark).
+    public func assignBundled(track: Int, name: String) {
+        guard voices.indices.contains(track), let url = Self.bundledSampleURL(name) else { return }
+        UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
+        if (try? voices[track].loadSample(from: url)) != nil {
+            sampleLabels[track] = name
+        }
     }
 }
 #endif
