@@ -55,11 +55,16 @@ acceptance line.
 - **Roadmap:** EchoelBeat, breakbeat chopper, spectral morph.
 - **TestFlight acceptance:** tapping play on `BioStripView` opens the envelope and produces sound; bio frames audibly modulate timbre.
 
-### 2. EchoelFX — `PARTIAL`
-- **Code:** `DSP/EchoelSVFilter.swift`, `DSP/EchoelLFO.swift`, `EchoelConvolution` (reverb, in EchoelDDSP), `Audio/AutoMixChain.swift`, `DSP/EchoelVDSPKit.swift`
-- **Live:** convolution reverb (HRV-reactive), 4-band EQ + LUFS auto-gain (−14 LUFS, 4 presets), LFO-swept SVF, soft `tanh` saturation.
-- **Roadmap:** delay, chorus/flanger/phaser/tremolo, dedicated compressor/limiter, analog (VCA/Opto/FET/VariMu/Tube) emulations.
-- **TestFlight acceptance:** export path applies AutoMix to −14 LUFS without clipping.
+### 2. EchoelFX — `PARTIAL` (deepened 2026-06-10)
+- **Code:** `DSP/EchoelDelayLine.swift`, `DSP/EchoelDelay.swift`, `DSP/EchoelModFX.swift`, `DSP/EchoelDynamics.swift`, `DSP/EchoelFXChain.swift` (insert chain), `DSP/EchoelSVFilter.swift`, `DSP/EchoelLFO.swift`, `EchoelConvolution` (reverb, in EchoelDDSP), `Audio/AutoMixChain.swift`, `DSP/EchoelVDSPKit.swift` · UI: `Studio/EchoelFXView.swift`
+- **Live:** **insert FX chain** on the bio-synth voice (modulation → delay → dynamics → safety limiter), driven from the `FX` panel (BioStripView):
+  - **Delay** — fractional delay line (linear + allpass interpolation), digital / **tape** (wow+flutter+saturation) / **ping-pong**, one-pole feedback tone, stability-clamped feedback.
+  - **Modulation** — chorus, flanger (feedback), phaser (cascaded allpass), tremolo / auto-pan.
+  - **Dynamics** — soft-knee compressor + brick-wall limiter (hard ceiling guarantee).
+  - convolution reverb (HRV-reactive), 4-band EQ + LUFS auto-gain (−14 LUFS, 4 presets), LFO-swept SVF, soft `tanh` saturation.
+  - Audio-thread-safe (no alloc/locks in render; `audio-thread-reviewer`-audited); gated by `fxEnabled` (default off → bit-identical to prior builds until engaged). 37 unit tests.
+- **Roadmap:** analog (VCA/Opto/FET/VariMu/Tube) emulations, spatial/Atmos 3D panning, stereo synth voice (FX run mono today), AUv3-wrapped FX, ring-mod / vibrato.
+- **TestFlight acceptance:** FX panel toggles the insert chain audibly on the synth; delay/chorus/flanger/phaser/tremolo/comp/limiter each change the sound; export path applies AutoMix to −14 LUFS without clipping.
 
 ### 3. EchoelMix — `PARTIAL`
 - **Code:** `Audio/AudioEngine.swift`, `Audio/AutoMixChain.swift`, `Audio/SingleExport.swift`, `Audio/RetroCapture.swift`, `MicrophoneManager.swift`
