@@ -17,6 +17,9 @@ struct StudioRoot: View {
                 BeatTab()
                     .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
 
+                ClipView()
+                    .tabItem { Label("Clips", systemImage: "square.grid.3x3.fill") }
+
                 WorksView()
                     .tabItem { Label("Works", systemImage: "waveform") }
 

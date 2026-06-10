@@ -42,6 +42,10 @@ struct EchoelmusicApp: App {
     @State private var modulationEngine: ModulationEngine
     /// Library of user + factory synth sounds for the patch editor.
     @State private var patchStore: PatchStore
+    /// Shared melodic piano-roll pattern (edited in Tools, captured into Clips).
+    @State private var pianoRoll: PianoRollModel
+    /// Session clips (launchable drum + melody cells).
+    @State private var clipStore: ClipStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -76,6 +80,8 @@ struct EchoelmusicApp: App {
         #endif
         _modulationEngine = State(wrappedValue: ModulationEngine())
         _patchStore = State(wrappedValue: PatchStore())
+        _pianoRoll = State(wrappedValue: PianoRollModel())
+        _clipStore = State(wrappedValue: ClipStore())
 
         _ = MemoryPressureHandler.shared
         log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
@@ -118,6 +124,8 @@ struct EchoelmusicApp: App {
             #endif
             .environment(modulationEngine)
             .environment(patchStore)
+            .environment(pianoRoll)
+            .environment(clipStore)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
@@ -155,6 +163,10 @@ struct EchoelmusicApp: App {
                 #endif
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
+                // Wire the melodic piano roll to the shared transport once, app-
+                // wide, so clips can launch melodies even when the roll sheet is
+                // closed. (Melody uses pattern.onTick; drums use onStep.)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice)
                 bioEvents.start(on: bus)
                 // Mirror live vitals into the shared App Group (~1 Hz, off the
                 // audio thread) so the Widget + Watch glance surfaces show real

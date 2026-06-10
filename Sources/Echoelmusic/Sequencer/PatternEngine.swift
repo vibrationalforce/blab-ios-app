@@ -139,6 +139,19 @@ public final class PatternEngine {
         swing = Swift.min(Swift.max(amount, 0), 0.5)
     }
 
+    /// Replace the whole grid (steps + accents), e.g. when launching a clip.
+    /// Mismatched dimensions are ignored per-track so a bad clip can't crash.
+    public func load(steps newSteps: [[Bool]], accents newAccents: [[Bool]]) {
+        guard newSteps.count == PatternEngine.trackCount,
+              newAccents.count == PatternEngine.trackCount else { return }
+        for t in 0..<PatternEngine.trackCount {
+            guard newSteps[t].count == PatternEngine.stepCount,
+                  newAccents[t].count == PatternEngine.stepCount else { continue }
+            steps[t] = newSteps[t]
+            accents[t] = newAccents[t]
+        }
+    }
+
     /// Turn every cell off (steps + accents) without changing transport state.
     public func clear() {
         for t in 0..<PatternEngine.trackCount {

@@ -22,10 +22,10 @@ struct BeatTab: View {
 
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(EngineBus.self) private var bus
-    @Environment(PolySynthVoice.self) private var polyVoice
 
     /// Melodic piano-roll lane (drives the DDSP synth on the shared clock).
-    @State private var pianoRoll = PianoRollModel()
+    /// App-scoped so the Clips tab can capture/launch the same pattern.
+    @Environment(PianoRollModel.self) private var pianoRoll
     @State private var showPianoRoll = false
     @State private var showPatchEditor = false
     @Environment(PatchStore.self) private var patchStore
@@ -88,7 +88,7 @@ struct BeatTab: View {
             PadSoundEditor(track: target.id, player: beatPlayer)
         }
         .sheet(isPresented: $showPianoRoll) {
-            PianoRollView(pattern: beatPlayer.pattern, voice: polyVoice, model: pianoRoll)
+            PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: patchStore.patches.first ?? SynthPatch(name: "Custom"))

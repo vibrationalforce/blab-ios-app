@@ -79,6 +79,53 @@ public enum MIDIFileExporter {
         return data
     }
 
+    /// Build a Type-0 SMF for a piano-roll melody (channel 1). Each note uses
+    /// its real start, length (→ duration) and velocity.
+    public static func export(notes: [Note], tempo: Double) -> Data {
+        var track = Data()
+
+        let clampedTempo = Swift.min(Swift.max(tempo, 1), 1000)
+        let usPerQuarter = UInt32(60_000_000.0 / clampedTempo)
+        track.append(contentsOf: [0x00, 0xFF, 0x51, 0x03])
+        track.append(UInt8((usPerQuarter >> 16) & 0xFF))
+        track.append(UInt8((usPerQuarter >> 8) & 0xFF))
+        track.append(UInt8(usPerQuarter & 0xFF))
+
+        struct Ev { let tick: Int; let on: Bool; let note: UInt8; let vel: UInt8 }
+        var events: [Ev] = []
+        for n in notes {
+            let onTick = n.startStep * ticksPerStep
+            let offTick = (n.startStep + n.lengthSteps) * ticksPerStep
+            let note = UInt8(Swift.min(127, Swift.max(0, n.pitch)))
+            let vel = UInt8(Swift.min(127, Swift.max(1, Int(n.velocity * 127))))
+            events.append(Ev(tick: onTick, on: true, note: note, vel: vel))
+            events.append(Ev(tick: offTick, on: false, note: note, vel: 0))
+        }
+        events.sort { $0.tick != $1.tick ? $0.tick < $1.tick : (!$0.on && $1.on) }
+
+        var lastTick = 0
+        for ev in events {
+            track.append(contentsOf: vlq(ev.tick - lastTick))
+            lastTick = ev.tick
+            track.append(ev.on ? 0x90 : 0x80) // channel 1
+            track.append(ev.note)
+            track.append(ev.on ? ev.vel : 0)
+        }
+
+        track.append(contentsOf: [0x00, 0xFF, 0x2F, 0x00])
+
+        var data = Data()
+        data.append(contentsOf: Array("MThd".utf8))
+        data.append(contentsOf: be32(6))
+        data.append(contentsOf: be16(0))
+        data.append(contentsOf: be16(1))
+        data.append(contentsOf: be16(ticksPerQuarter))
+        data.append(contentsOf: Array("MTrk".utf8))
+        data.append(contentsOf: be32(UInt32(track.count)))
+        data.append(track)
+        return data
+    }
+
     // MARK: - Byte helpers (internal → reachable via @testable)
 
     /// MIDI variable-length quantity (7 bits/byte, high bit = continuation).

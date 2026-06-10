@@ -124,7 +124,6 @@ private struct RollDragAnchor { let pitch: Int; let startStep: Int }
 struct PianoRollView: View {
 
     let pattern: PatternEngine
-    let voice: PolySynthVoice
     @Bindable var model: PianoRollModel
     @Environment(\.dismiss) private var dismiss
 
@@ -164,8 +163,6 @@ struct PianoRollView: View {
                     Button("Clear") { model.clear(); selectedID = nil }
                 }
             }
-            .onAppear { model.start(pattern: pattern, voice: voice) }
-            .onDisappear { model.stop(pattern: pattern) }
         }
     }
 
