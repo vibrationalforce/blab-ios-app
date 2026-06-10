@@ -44,6 +44,11 @@ public final class BioReactiveSynthVoice {
     @ObservationIgnored
     nonisolated public let synth: EchoelDDSP
 
+    /// Insert FX chain (delay / modulation / dynamics) applied to this voice's
+    /// output on the audio thread. Inert until `setFXEnabled(true)`.
+    @ObservationIgnored
+    nonisolated public let fxChain: EchoelFXChain
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -109,9 +114,28 @@ public final class BioReactiveSynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var hasEverSounded = false
 
+    /// Master FX gate. DEFAULT FALSE → the FX chain is fully inert (true bypass,
+    /// zero cost in the render block) until the user enables it, so existing
+    /// builds sound bit-identical. Atomic-width Bool: written on the main thread,
+    /// read on the audio thread (same contract as `hasEverSounded`).
+    @ObservationIgnored
+    nonisolated(unsafe) private var fxEnabled = false
+
+    /// Observable mirror of `fxEnabled` for SwiftUI binding.
+    public private(set) var isFXEnabled = false
+
     public init() {
         self.synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
+        self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchBuffer = Array(repeating: 0, count: Self.maxBlockFrames)
+    }
+
+    /// Enable or bypass the insert FX chain. Updates both the audio-thread gate
+    /// and the observable mirror. Individual stages are toggled directly on
+    /// `fxChain` (e.g. `fxChain.delayEnabled = true`).
+    public func setFXEnabled(_ on: Bool) {
+        fxEnabled = on
+        isFXEnabled = on
     }
 
     // MARK: - Audio engine attachment
@@ -298,6 +322,10 @@ public final class BioReactiveSynthVoice {
         }
         let count = min(frameCount, Self.maxBlockFrames)
         synth.render(buffer: &scratchBuffer, frameCount: count, stereo: false)
+        // Insert FX (mono, in place). Gated so it is a true no-op until enabled.
+        if fxEnabled {
+            fxChain.processBufferMono(&scratchBuffer, frameCount: count)
+        }
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         guard abl.count > 0, let raw = abl[0].mData else { return }
         let dst = raw.assumingMemoryBound(to: Float.self)

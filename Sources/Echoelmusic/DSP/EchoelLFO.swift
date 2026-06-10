@@ -31,6 +31,11 @@ public final class EchoelLFO: @unchecked Sendable {
     private var sampleRate: Float
     private var sAndHValue: Float = 0  // Sample & Hold current value
 
+    /// Inline xorshift32 RNG state for Sample & Hold. Replaces `Float.random`,
+    /// which pulls from the system RNG (a syscall) and is NOT audio-thread safe.
+    /// This keeps `next()` real-time safe even when driven from a render block.
+    private var rngState: UInt32 = 0x2545_F491
+
     // MARK: - Init
 
     public init(sampleRate: Float = 48000) {
@@ -46,8 +51,8 @@ public final class EchoelLFO: @unchecked Sendable {
         phase += rate / sampleRate
         if phase >= 1.0 {
             phase -= 1.0
-            // Update S&H on phase reset
-            sAndHValue = Float.random(in: -1...1)
+            // Update S&H on phase reset — audio-thread-safe inline PRNG.
+            sAndHValue = nextRandom()
         }
 
         let raw: Float
@@ -88,5 +93,17 @@ public final class EchoelLFO: @unchecked Sendable {
     public func reset() {
         phase = 0
         sAndHValue = 0
+        rngState = 0x2545_F491
+    }
+
+    /// Inline xorshift32 — audio-thread safe (no syscall). Returns [-1, 1].
+    @inline(__always)
+    private func nextRandom() -> Float {
+        var x = rngState
+        x ^= x << 13
+        x ^= x >> 17
+        x ^= x << 5
+        rngState = x
+        return Float(x) / Float(UInt32.max) * 2.0 - 1.0
     }
 }

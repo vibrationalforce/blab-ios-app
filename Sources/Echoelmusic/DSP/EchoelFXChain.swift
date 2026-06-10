@@ -68,6 +68,18 @@ public final class EchoelFXChain: @unchecked Sendable {
         }
     }
 
+    /// Process a mono buffer in place — the chain runs with both channels fed
+    /// the same sample and the left result is taken back. Used by mono source
+    /// nodes (e.g. the bio synth voice). Audio-thread safe.
+    public func processBufferMono(_ buf: inout [Float], frameCount: Int) {
+        let n = Swift.min(frameCount, buf.count)
+        for i in 0..<n {
+            let x = buf[i]
+            let (l, _) = processStereo(x, x)
+            buf[i] = l
+        }
+    }
+
     // MARK: - Reset
 
     public func reset() {

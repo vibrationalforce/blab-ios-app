@@ -51,6 +51,30 @@ final class EchoelFXChainTests: XCTestCase {
         }
     }
 
+    func testProcessBufferMonoBypassIsPassthrough() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.limiterEnabled = false // all stages off
+        var buf = (0..<256).map { sinf(Float($0) * 0.11) }
+        let original = buf
+        fx.processBufferMono(&buf, frameCount: buf.count)
+        for i in 0..<buf.count {
+            XCTAssertEqual(buf[i], original[i], accuracy: 1e-6)
+        }
+    }
+
+    func testProcessBufferMonoDelayProducesTail() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.delayEnabled = true; fx.limiterEnabled = false
+        fx.delay.mix = 1.0; fx.delay.feedback = 0.0; fx.delay.timeSeconds = 0.005 // 240 samples
+        var buf = [Float](repeating: 0, count: 512)
+        buf[0] = 1.0
+        fx.processBufferMono(&buf, frameCount: buf.count)
+        // The dry input was 1 only at index 0; a wet echo must appear later.
+        var laterPeak: Float = 0
+        for i in 100..<buf.count { laterPeak = Swift.max(laterPeak, abs(buf[i])) }
+        XCTAssertGreaterThan(laterPeak, 0.5)
+    }
+
     func testResetClearsDelayTail() {
         let fx = EchoelFXChain(sampleRate: sr)
         fx.delayEnabled = true; fx.limiterEnabled = false
