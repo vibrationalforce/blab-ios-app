@@ -1,0 +1,70 @@
+// EchoelLoudnessMeterTests.swift
+// Echoelmusic — BS.1770 K-weighted loudness meter.
+//
+// Assertions are calibration-robust (relative laws), since exact absolute LUFS
+// depends on the offset/coefficients and cannot be locally compiled here.
+
+import XCTest
+@testable import Echoelmusic
+
+final class EchoelLoudnessMeterTests: XCTestCase {
+
+    private let sr: Float = 48000
+
+    private func sine(_ freq: Float, _ amp: Float, _ count: Int) -> [Float] {
+        (0..<count).map { amp * sinf(2 * Float.pi * freq * Float($0) / sr) }
+    }
+
+    func testSilenceReadsFloor() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        m.process([Float](repeating: 0, count: 24000), frameCount: 24000)
+        XCTAssertEqual(m.momentaryLUFS, EchoelLoudnessMeter.floorLUFS, accuracy: 0.01)
+        XCTAssertEqual(m.shortTermLUFS, EchoelLoudnessMeter.floorLUFS, accuracy: 0.01)
+    }
+
+    func testDoublingAmplitudeAddsSixLU() {
+        let quiet = EchoelLoudnessMeter(sampleRate: sr)
+        let loud = EchoelLoudnessMeter(sampleRate: sr)
+        let n = 48000 // 1 s — fills the 400 ms momentary window
+        quiet.process(sine(1000, 0.25, n), frameCount: n)
+        loud.process(sine(1000, 0.50, n), frameCount: n)
+        let delta = loud.momentaryLUFS - quiet.momentaryLUFS
+        XCTAssertEqual(delta, 6.02, accuracy: 0.4) // 10*log10(4)
+    }
+
+    func testKWeightingAttenuatesLowFrequencies() {
+        let mid = EchoelLoudnessMeter(sampleRate: sr)
+        let low = EchoelLoudnessMeter(sampleRate: sr)
+        let n = 48000
+        mid.process(sine(1000, 0.5, n), frameCount: n)
+        low.process(sine(30, 0.5, n), frameCount: n)
+        // The RLB high-pass should make 30 Hz read clearly quieter than 1 kHz.
+        XCTAssertGreaterThan(mid.momentaryLUFS, low.momentaryLUFS + 2.0)
+    }
+
+    func testMomentaryInPlausibleRange() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        let n = 48000
+        m.process(sine(1000, 1.0, n), frameCount: n)
+        XCTAssertGreaterThan(m.momentaryLUFS, -12)
+        XCTAssertLessThan(m.momentaryLUFS, 2)
+    }
+
+    func testStereoIsLouderThanMonoSameAmplitude() {
+        // Two equal channels sum to +3 LU vs one channel at the same amplitude.
+        let mono = EchoelLoudnessMeter(sampleRate: sr)
+        let stereo = EchoelLoudnessMeter(sampleRate: sr)
+        let n = 48000
+        let s = sine(1000, 0.5, n)
+        mono.process(s, frameCount: n)
+        stereo.processStereo(left: s, right: s, frameCount: n)
+        XCTAssertEqual(stereo.momentaryLUFS - mono.momentaryLUFS, 3.01, accuracy: 0.4)
+    }
+
+    func testResetReturnsToFloor() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        m.process(sine(1000, 0.5, 24000), frameCount: 24000)
+        m.reset()
+        XCTAssertEqual(m.momentaryLUFS, EchoelLoudnessMeter.floorLUFS, accuracy: 0.01)
+    }
+}
