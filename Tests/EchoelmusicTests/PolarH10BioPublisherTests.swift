@@ -9,6 +9,24 @@ final class PolarH10BioPublisherTests: XCTestCase {
     // Canonical BLE spec test vector: HR = 65 bpm (uint8), no RR.
     //   flags = 0x00 (uint8 HR, no energy, no RR)
     //   hr    = 0x41 (65)
+    // MARK: - rmssdMs (true HRV in milliseconds)
+
+    func testRMSSD_fewerThanTwoIntervals_returnsZero() {
+        XCTAssertEqual(PolarH10BioPublisher.rmssdMs(fromRRSeconds: []), 0, accuracy: 1e-9)
+        XCTAssertEqual(PolarH10BioPublisher.rmssdMs(fromRRSeconds: [0.85]), 0, accuracy: 1e-9)
+    }
+
+    func testRMSSD_knownVector() {
+        // RR (s): 1.0, 0.5, 1.5 → successive diffs (ms): -500, +1000.
+        // RMSSD = sqrt((500^2 + 1000^2) / 2) = sqrt(625000) ≈ 790.5694 ms.
+        let v = PolarH10BioPublisher.rmssdMs(fromRRSeconds: [1.0, 0.5, 1.5])
+        XCTAssertEqual(v, 790.569415, accuracy: 1e-4)
+    }
+
+    func testRMSSD_constantIntervals_isZero() {
+        XCTAssertEqual(PolarH10BioPublisher.rmssdMs(fromRRSeconds: [0.8, 0.8, 0.8, 0.8]), 0, accuracy: 1e-9)
+    }
+
     func testParse_uint8HR_noRR() {
         let data = Data([0x00, 0x41])
         let parsed = PolarH10BioPublisher.parseHRMeasurement(data)

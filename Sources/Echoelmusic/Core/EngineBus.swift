@@ -38,6 +38,13 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// HRV (rMSSD) normalized to [0..1].
     public let hrvNormalized: Float
 
+    /// Raw HRV as RMSSD in **milliseconds** — the un-normalized, instrument-grade
+    /// value for display, logging, and OSC. `0` means the source does not provide
+    /// a real RMSSD (e.g. HealthKit, which exposes SDNN only); UI should then fall
+    /// back to `hrvNormalized`. Never synthesize an inaccurate ms from the
+    /// normalized value for a real sensor.
+    public let hrvRMSSDms: Float
+
     /// Breathing rate in breaths/min. Range [4..30].
     public let breathRate: Float
 
@@ -61,7 +68,8 @@ public struct BioSampleFrame: Sendable, Equatable {
         breathPhase: Float,
         coherence: Float,
         motionEnergy: Float,
-        source: BioSource
+        source: BioSource,
+        hrvRMSSDms: Float = 0
     ) {
         self.timestamp = timestamp
         self.heartRateBPM = heartRateBPM
@@ -71,6 +79,7 @@ public struct BioSampleFrame: Sendable, Equatable {
         self.coherence = coherence
         self.motionEnergy = motionEnergy
         self.source = source
+        self.hrvRMSSDms = hrvRMSSDms
     }
 }
 

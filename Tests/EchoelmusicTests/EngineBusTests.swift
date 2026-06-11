@@ -136,6 +136,22 @@ final class EngineBusTests: XCTestCase {
         XCTAssertEqual(bus.bioEvents.count, 0)
     }
 
+    // MARK: - hrvRMSSDms field
+
+    func testBioFrame_hrvRMSSDms_defaultsToZero() {
+        let f = Self.makeBioFrame()
+        XCTAssertEqual(f.hrvRMSSDms, 0, accuracy: 1e-9)
+    }
+
+    func testBioFrame_hrvRMSSDms_roundTrips() {
+        let f = BioSampleFrame(
+            timestamp: 0, heartRateBPM: 60, hrvNormalized: 0.42, breathRate: 6,
+            breathPhase: 0, coherence: 0.5, motionEnergy: 0, source: .ble,
+            hrvRMSSDms: 42.7
+        )
+        XCTAssertEqual(f.hrvRMSSDms, 42.7, accuracy: 1e-4)
+    }
+
     // MARK: - Helpers
 
     private static func makeBioFrame(timestamp: TimeInterval = 0) -> BioSampleFrame {

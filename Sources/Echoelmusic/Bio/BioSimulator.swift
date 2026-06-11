@@ -83,7 +83,10 @@ public final class BioSimulator {
             breathPhase: breathPhase,
             coherence: coherence,
             motionEnergy: 0,
-            source: .fallback
+            source: .fallback,
+            // Synthetic but plausible RMSSD (ms) for the labeled Demo source so
+            // the precise HRV readout has something believable to show.
+            hrvRMSSDms: hrvNormalized * 120
         )
     }
 

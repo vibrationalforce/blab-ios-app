@@ -161,6 +161,12 @@ public final class OSCSender {
     private func send(frame: BioSampleFrame) {
         send(address: "/echoelmusic/bio/heart/bpm",    floats: [frame.heartRateBPM])
         send(address: "/echoelmusic/bio/heart/hrv",    floats: [frame.hrvNormalized])
+        // Precise un-normalized RMSSD (ms) for instrument-grade external tools
+        // (TouchDesigner / Resolume / Max). Only sent when the source provides
+        // a real value (>0) so consumers never read a synthesized number.
+        if frame.hrvRMSSDms > 0 {
+            send(address: "/echoelmusic/bio/heart/rmssd", floats: [frame.hrvRMSSDms])
+        }
         send(address: "/echoelmusic/bio/breath/rate",  floats: [frame.breathRate])
         send(address: "/echoelmusic/bio/breath/phase", floats: [frame.breathPhase])
         send(address: "/echoelmusic/bio/coherence",    floats: [frame.coherence])

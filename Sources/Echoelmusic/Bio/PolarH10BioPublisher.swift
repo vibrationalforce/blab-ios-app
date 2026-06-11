@@ -116,7 +116,8 @@ public final class PolarH10BioPublisher: NSObject {
                         breathPhase: 0,
                         coherence: 0,
                         motionEnergy: 0,
-                        source: .ble
+                        source: .ble,
+                        hrvRMSSDms: Float(self.computeRMSSDms())
                     ))
                 }
                 try? await Task.sleep(for: .seconds(1))
@@ -124,15 +125,28 @@ public final class PolarH10BioPublisher: NSObject {
         }
     }
 
-    private func computeRMSSDNormalized() -> Double {
-        guard rrIntervals.count >= 2 else { return 0.5 }
+    /// True RMSSD in milliseconds from successive RR-interval differences.
+    /// `rr` are RR intervals in **seconds**. Returns 0 with fewer than two
+    /// intervals — callers treat 0 as "unknown" and never display it.
+    /// Pure + static so it is unit-testable without a live device.
+    static func rmssdMs(fromRRSeconds rr: [Double]) -> Double {
+        guard rr.count >= 2 else { return 0 }
         var sumSquaredDiffs = 0.0
-        for i in 1..<rrIntervals.count {
-            let d = (rrIntervals[i] - rrIntervals[i - 1]) * 1000.0
+        for i in 1..<rr.count {
+            let d = (rr[i] - rr[i - 1]) * 1000.0
             sumSquaredDiffs += d * d
         }
-        let rmssdMS = sqrt(sumSquaredDiffs / Double(rrIntervals.count - 1))
-        return min(max(rmssdMS / 100.0, 0.0), 1.0)
+        return (sumSquaredDiffs / Double(rr.count - 1)).squareRoot()
+    }
+
+    /// Instance convenience over the live `rrIntervals` buffer.
+    func computeRMSSDms() -> Double { Self.rmssdMs(fromRRSeconds: rrIntervals) }
+
+    private func computeRMSSDNormalized() -> Double {
+        guard rrIntervals.count >= 2 else { return 0.5 }
+        // DSP normalization unchanged (÷100) to avoid altering the synth's
+        // brightness response; the raw ms above is the precise display value.
+        return min(max(computeRMSSDms() / 100.0, 0.0), 1.0)
     }
 
     // MARK: - BLE Heart Rate Measurement parsing (testable kernel)

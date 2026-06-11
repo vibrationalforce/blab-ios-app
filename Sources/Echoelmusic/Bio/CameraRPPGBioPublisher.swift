@@ -116,6 +116,7 @@ public final class CameraRPPGBioPublisher {
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
                 guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else { continue }
+                let rmssdMs = Float(self.analyzer.rmssd)
                 let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
                 bus.publish(bio: BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
@@ -125,7 +126,8 @@ public final class CameraRPPGBioPublisher {
                     breathPhase: 0,
                     coherence: Float(self.signalQuality),
                     motionEnergy: 0,
-                    source: .cameraPPG
+                    source: .cameraPPG,
+                    hrvRMSSDms: rmssdMs
                 ))
             }
         }
