@@ -130,7 +130,7 @@ public struct BioNormalizer: Sendable {
         self.windowSamples = Swift.max(1, windowSamples)
         self.sigmaFloor = Swift.max(1e-9, sigmaFloor)
         self.squashGain = squashGain
-        self.emaAlpha = clamp01(emaAlpha)
+        self.emaAlpha = Self.clamp01(emaAlpha)
         self.stats = RollingStats(capacity: self.windowSamples)
     }
 
