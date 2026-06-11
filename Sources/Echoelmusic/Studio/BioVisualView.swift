@@ -14,6 +14,9 @@ struct BioVisualView: View {
 
     @Environment(EngineBus.self) private var bus
     @Environment(\.dismiss) private var dismiss
+    /// Honor Reduce Motion: when on, the pulse frequency drops to 0 (a still
+    /// frame) instead of animating — see `render`.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -41,7 +44,9 @@ struct BioVisualView: View {
         let breath = Double(bio?.breathPhase ?? 0.5)
 
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let pulseHz = min(max(Double(hr) / 60.0, 0.5), 2.0)   // ≤3 Hz, smooth
+        // ≤2 Hz smooth (well under the 3 Hz WCAG limit); 0 under Reduce Motion.
+        let pulseHz = FlashGuard.safeFrequency(min(max(Double(hr) / 60.0, 0.5), 2.0),
+                                               reduceMotion: reduceMotion)
         let hue = 0.0 + coherence * 0.45                       // red → cyan
         let base = Double(min(size.width, size.height)) * 0.12
         let ringCount = 5 + Int(hrv * 4)                       // 5…9
