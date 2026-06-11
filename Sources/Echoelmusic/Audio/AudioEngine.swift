@@ -200,10 +200,11 @@ public final class AudioEngine {
                 // Peak / true-peak / LUFS — meters are confined to this thread;
                 // only the resulting Floats cross to the poll timer via pointers.
                 let n = Int(frameLength)
-                // Typed as immutable so the mutable→immutable pointer conversion
-                // happens at the binding (a bare ternary would infer the mutable
-                // type and fail to convert at the call site).
-                let right: UnsafePointer<Float>? = stereo ? channelData[1] : nil
+                // Explicit UnsafePointer(_:) conversion: Swift's implicit
+                // mutable→immutable pointer conversion only fires at function
+                // argument positions, NOT in a let binding or ternary branch, so
+                // construct the immutable pointer directly.
+                let right: UnsafePointer<Float>? = stereo ? UnsafePointer(channelData[1]) : nil
                 meter.processStereo(left: channelData[0], right: right, frameCount: n)
                 loudness.processStereo(left: channelData[0], right: right, frameCount: n)
                 peakPtr.pointee = meter.peakDb
