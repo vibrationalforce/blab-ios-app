@@ -166,6 +166,8 @@ public final class OSCSender {
         // a real value (>0) so consumers never read a synthesized number.
         if frame.hrvRMSSDms > 0 {
             send(address: "/echoelmusic/bio/heart/rmssd", floats: [frame.hrvRMSSDms])
+            send(address: "/echoelmusic/bio/heart/sdnn",  floats: [frame.hrvSDNNms])
+            send(address: "/echoelmusic/bio/heart/pnn50", floats: [frame.hrvPNN50])
         }
         send(address: "/echoelmusic/bio/breath/rate",  floats: [frame.breathRate])
         send(address: "/echoelmusic/bio/breath/phase", floats: [frame.breathPhase])

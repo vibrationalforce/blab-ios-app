@@ -84,9 +84,11 @@ public final class BioSimulator {
             coherence: coherence,
             motionEnergy: 0,
             source: .fallback,
-            // Synthetic but plausible RMSSD (ms) for the labeled Demo source so
-            // the precise HRV readout has something believable to show.
-            hrvRMSSDms: hrvNormalized * 120
+            // Synthetic but plausible HRV metrics for the labeled Demo source so
+            // the precise readouts have believable values to show.
+            hrvRMSSDms: hrvNormalized * 120,
+            hrvSDNNms: hrvNormalized * 90,
+            hrvPNN50: hrvNormalized * 40
         )
     }
 

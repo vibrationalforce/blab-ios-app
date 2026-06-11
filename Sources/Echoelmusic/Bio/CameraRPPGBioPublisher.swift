@@ -118,6 +118,8 @@ public final class CameraRPPGBioPublisher {
                 guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else { continue }
                 let rmssdMs = Float(self.analyzer.rmssd)
                 let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
+                // analyzer.rrIntervals are already in milliseconds.
+                let rrMs = self.analyzer.rrIntervals
                 bus.publish(bio: BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
@@ -127,7 +129,9 @@ public final class CameraRPPGBioPublisher {
                     coherence: Float(self.signalQuality),
                     motionEnergy: 0,
                     source: .cameraPPG,
-                    hrvRMSSDms: rmssdMs
+                    hrvRMSSDms: rmssdMs,
+                    hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
+                    hrvPNN50: Float(HRVMetrics.pnn50(rrMs: rrMs))
                 ))
             }
         }

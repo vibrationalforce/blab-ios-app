@@ -30,6 +30,7 @@ struct WellView: View {
             VStack(spacing: 28) {
                 coherenceHeadline
                 readoutRow
+                if showHRVDetail { hrvDetailRow }
                 pacer
                 immersiveButton
                 #if canImport(AVFoundation)
@@ -180,6 +181,19 @@ struct WellView: View {
             readout("HR", hrString, "bpm")
             readout("HRV", hrvString, hrvUnit)
             readout("Breath", breathString, "/min")
+        }
+    }
+
+    // MARK: HRV detail (time-domain suite, shown only with a real sensor)
+
+    /// True only when a real sensor is supplying instrument-grade HRV (ms).
+    private var showHRVDetail: Bool { (bus.latestBio?.hrvRMSSDms ?? 0) > 0 }
+
+    private var hrvDetailRow: some View {
+        HStack(spacing: 12) {
+            readout("RMSSD", String(format: "%.1f", bus.latestBio?.hrvRMSSDms ?? 0), "ms")
+            readout("SDNN", String(format: "%.1f", bus.latestBio?.hrvSDNNms ?? 0), "ms")
+            readout("pNN50", String(format: "%.1f", bus.latestBio?.hrvPNN50 ?? 0), "%")
         }
     }
 

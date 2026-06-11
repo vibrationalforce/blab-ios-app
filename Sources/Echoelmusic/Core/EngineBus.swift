@@ -45,6 +45,15 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// normalized value for a real sensor.
     public let hrvRMSSDms: Float
 
+    /// SDNN in **milliseconds** — standard deviation of NN intervals (overall
+    /// variability). `0` = not available from this source.
+    public let hrvSDNNms: Float
+
+    /// pNN50 as a **percentage** [0…100] — successive |RR differences| > 50 ms.
+    /// `0` may mean "not available" or a genuine 0 %; pair with `hrvRMSSDms > 0`
+    /// to know a real sensor is present.
+    public let hrvPNN50: Float
+
     /// Breathing rate in breaths/min. Range [4..30].
     public let breathRate: Float
 
@@ -69,7 +78,9 @@ public struct BioSampleFrame: Sendable, Equatable {
         coherence: Float,
         motionEnergy: Float,
         source: BioSource,
-        hrvRMSSDms: Float = 0
+        hrvRMSSDms: Float = 0,
+        hrvSDNNms: Float = 0,
+        hrvPNN50: Float = 0
     ) {
         self.timestamp = timestamp
         self.heartRateBPM = heartRateBPM
@@ -80,6 +91,8 @@ public struct BioSampleFrame: Sendable, Equatable {
         self.motionEnergy = motionEnergy
         self.source = source
         self.hrvRMSSDms = hrvRMSSDms
+        self.hrvSDNNms = hrvSDNNms
+        self.hrvPNN50 = hrvPNN50
     }
 }
 
