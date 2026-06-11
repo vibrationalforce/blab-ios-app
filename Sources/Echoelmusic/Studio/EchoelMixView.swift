@@ -46,20 +46,40 @@ struct EchoelMixView: View {
 
     private var meteringSection: some View {
         Section {
-            HStack(spacing: 18) {
-                readout("PEAK", dbString(audio.masterPeakDb), tint: .primary)
-                readout("TRUE-PK", dbString(audio.masterTruePeakDb),
+            // EBU R128 loudness: Momentary (400 ms) · Short-term (3 s) ·
+            // Integrated (gated, whole take).
+            HStack(spacing: 14) {
+                readout("M LUFS", lufsString(audio.masterLUFS), tint: .primary)
+                readout("S LUFS", lufsString(audio.masterLUFSShortTerm), tint: .primary)
+                readout("I LUFS", lufsString(audio.masterLUFSIntegrated), tint: EchoelTheme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Loudness range + inter-sample true-peak (now) + true-peak max-hold.
+            HStack(spacing: 14) {
+                readout("LRA LU", luString(audio.masterLRA), tint: .primary)
+                readout("TP dBTP", dbString(audio.masterTruePeakDb),
                         tint: audio.masterTruePeakDb > -1.0 ? EchoelTheme.danger : .primary)
-                readout("LUFS-M", lufsString(audio.masterLUFS), tint: .primary)
+                readout("TP MAX", dbString(audio.masterTruePeakMaxDb),
+                        tint: audio.masterTruePeakMaxDb > -1.0 ? EchoelTheme.danger : .primary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             levelBar(audio.masterLevel)
             levelBar(audio.masterLevelR)
+
+            Button {
+                audio.resetMastering()
+            } label: {
+                Label("Reset integration", systemImage: "arrow.counterclockwise")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
         } header: {
-            Text("Master")
+            Text("Master · EBU R128")
         } footer: {
-            Text("Sample peak (dBFS), inter-sample true-peak (dBTP), and momentary loudness (LUFS, BS.1770 K-weighted). True-peak turns red above −1 dBTP — back off the master to avoid inter-sample clipping.")
+            Text("Momentary (400 ms), Short-term (3 s) and gated Integrated loudness in LUFS (ITU-R BS.1770-4 K-weighting); Loudness Range (LRA) in LU; inter-sample true-peak and its max-hold in dBTP. True-peak turns red above −1 dBTP — back off the master to avoid inter-sample clipping. Reset clears the integration and peak-hold for a fresh take. Streaming targets: −14 LUFS (Spotify/YouTube), −16 LUFS (Apple/podcast).")
         }
     }
 
@@ -158,6 +178,11 @@ struct EchoelMixView: View {
     private func lufsString(_ lufs: Float) -> String {
         guard lufs > EchoelLoudnessMeter.floorLUFS + 0.5 else { return "−∞" }
         return String(format: "%.1f", lufs)
+    }
+
+    /// Loudness Range in LU (always finite, ≥ 0).
+    private func luString(_ lu: Float) -> String {
+        String(format: "%.1f", max(0, lu))
     }
 
     private func timeString(_ seconds: Double) -> String {

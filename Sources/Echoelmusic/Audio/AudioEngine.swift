@@ -23,6 +23,12 @@ public final class AudioEngine {
     var masterPeakDb: Float = EchoelMeter.floorDb
     var masterTruePeakDb: Float = EchoelMeter.floorDb
     var masterLUFS: Float = EchoelLoudnessMeter.floorLUFS
+    /// Full EBU R128 set: short-term (3 s) + max-hold true-peak (dBTP) + gated
+    /// integrated loudness (LUFS) + loudness range (LU). Published from the tap.
+    var masterLUFSShortTerm: Float = EchoelLoudnessMeter.floorLUFS
+    var masterTruePeakMaxDb: Float = EchoelMeter.floorDb
+    var masterLUFSIntegrated: Float = EchoelLoudnessMeter.floorLUFS
+    var masterLRA: Float = 0
 
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterL = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterR = UnsafeMutablePointer<Float>.allocate(capacity: 1)
@@ -32,6 +38,13 @@ public final class AudioEngine {
     @ObservationIgnored nonisolated(unsafe) private let _peakDb = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private let _truePeakDb = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private let _lufs = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    @ObservationIgnored nonisolated(unsafe) private let _lufsS = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    @ObservationIgnored nonisolated(unsafe) private let _tpMax = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    @ObservationIgnored nonisolated(unsafe) private let _lufsI = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    @ObservationIgnored nonisolated(unsafe) private let _lra = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    /// MainActor sets true to request a loudness/peak reset; the tap performs the
+    /// reset on its own thread (meters are tap-confined) and clears the flag.
+    @ObservationIgnored nonisolated(unsafe) private let _resetMeters = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private var meterPollTimer: Timer?
 
     /// Master meters. Confined to the tap thread (only ever touched inside the
@@ -78,6 +91,11 @@ public final class AudioEngine {
         _peakDb.initialize(to: EchoelMeter.floorDb)
         _truePeakDb.initialize(to: EchoelMeter.floorDb)
         _lufs.initialize(to: EchoelLoudnessMeter.floorLUFS)
+        _lufsS.initialize(to: EchoelLoudnessMeter.floorLUFS)
+        _tpMax.initialize(to: EchoelMeter.floorDb)
+        _lufsI.initialize(to: EchoelLoudnessMeter.floorLUFS)
+        _lra.initialize(to: 0)
+        _resetMeters.initialize(to: false)
 
         // Interruption / route-change handlers are cheap closure storage with no
         // audio I/O — safe to wire at init.
@@ -179,12 +197,23 @@ public final class AudioEngine {
             let peakPtr = _peakDb
             let tpPtr = _truePeakDb
             let lufsPtr = _lufs
+            let lufsSPtr = _lufsS
+            let tpMaxPtr = _tpMax
+            let lufsIPtr = _lufsI
+            let lraPtr = _lra
+            let resetPtr = _resetMeters
             let meter = masterMeter
             let loudness = loudnessMeter
             masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, _ in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = UInt(buffer.frameLength)
                 guard frameLength > 0 else { return }
+                // Honor a pending reset on this (the meter-owning) thread.
+                if resetPtr.pointee {
+                    resetPtr.pointee = false
+                    meter.reset()
+                    loudness.reset()
+                }
                 var rmsL: Float = 0
                 vDSP_rmsqv(channelData[0], 1, &rmsL, vDSP_Length(frameLength))
                 var rmsR: Float = 0
@@ -210,6 +239,10 @@ public final class AudioEngine {
                 peakPtr.pointee = meter.peakDb
                 tpPtr.pointee = meter.truePeakDb
                 lufsPtr.pointee = loudness.momentaryLUFS
+                lufsSPtr.pointee = loudness.shortTermLUFS
+                tpMaxPtr.pointee = meter.truePeakMaxDb
+                lufsIPtr.pointee = loudness.integratedLUFS
+                lraPtr.pointee = loudness.loudnessRange
             }
         }
         log.audio("Master AVAudioEngine graph: playerNode -> masterMixer -> mainMixer -> outputNode -> hardware")
@@ -252,6 +285,10 @@ public final class AudioEngine {
         let peakPtr = _peakDb
         let tpPtr = _truePeakDb
         let lufsPtr = _lufs
+        let lufsSPtr = _lufsS
+        let tpMaxPtr = _tpMax
+        let lufsIPtr = _lufsI
+        let lraPtr = _lra
         meterPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -263,8 +300,19 @@ public final class AudioEngine {
                 self.masterPeakDb = peakPtr.pointee
                 self.masterTruePeakDb = tpPtr.pointee
                 self.masterLUFS = lufsPtr.pointee
+                self.masterLUFSShortTerm = lufsSPtr.pointee
+                self.masterTruePeakMaxDb = tpMaxPtr.pointee
+                self.masterLUFSIntegrated = lufsIPtr.pointee
+                self.masterLRA = lraPtr.pointee
             }
         }
+    }
+
+    /// Reset the EBU R128 integration (integrated LUFS, LRA) and the true-peak
+    /// max-hold — e.g. at the start of a measurement / take. The actual reset
+    /// runs on the meter-owning tap thread; this just raises the request flag.
+    func resetMastering() {
+        _resetMeters.pointee = true
     }
 
     private var currentOutputDescription: String {
@@ -289,6 +337,16 @@ public final class AudioEngine {
         _truePeakDb.deallocate()
         _lufs.deinitialize(count: 1)
         _lufs.deallocate()
+        _lufsS.deinitialize(count: 1)
+        _lufsS.deallocate()
+        _tpMax.deinitialize(count: 1)
+        _tpMax.deallocate()
+        _lufsI.deinitialize(count: 1)
+        _lufsI.deallocate()
+        _lra.deinitialize(count: 1)
+        _lra.deallocate()
+        _resetMeters.deinitialize(count: 1)
+        _resetMeters.deallocate()
     }
 
     func stop() {
