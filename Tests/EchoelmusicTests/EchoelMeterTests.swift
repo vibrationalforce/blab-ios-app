@@ -96,5 +96,18 @@ final class EchoelMeterTests: XCTestCase {
         m.reset()
         XCTAssertEqual(m.peakDb, EchoelMeter.floorDb, accuracy: 0.01)
         XCTAssertEqual(m.truePeakDb, EchoelMeter.floorDb, accuracy: 0.01)
+        XCTAssertEqual(m.truePeakMaxDb, EchoelMeter.floorDb, accuracy: 0.01)
+    }
+
+    func testTruePeakMaxHold_doesNotDecay() {
+        let m = EchoelMeter()
+        m.holdDecay = 0.5 // make the regular held value decay quickly
+        m.process([Float](repeating: 1.0, count: 1024), frameCount: 1024) // full scale
+        let maxAfterLoud = m.truePeakMaxDb
+        XCTAssertGreaterThan(maxAfterLoud, -1.0) // ~0 dBFS
+        for _ in 0..<20 { m.process([Float](repeating: 0, count: 512), frameCount: 512) }
+        // Max-hold is unchanged; the regular true-peak has decayed well below it.
+        XCTAssertEqual(m.truePeakMaxDb, maxAfterLoud, accuracy: 0.01)
+        XCTAssertLessThan(m.truePeakDb, m.truePeakMaxDb - 6.0)
     }
 }

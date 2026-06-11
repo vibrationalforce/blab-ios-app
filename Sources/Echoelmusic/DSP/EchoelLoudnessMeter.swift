@@ -1,21 +1,34 @@
 import Foundation
 
-/// ITU-R BS.1770 loudness meter — K-weighted, gated mean-square loudness in LUFS.
-/// Provides momentary (400 ms) and short-term (3 s) loudness over sliding
-/// windows. Audio-thread safe: ring buffers are pre-allocated at init, the
-/// per-sample path does only filtering and O(1) running-sum updates.
+/// ITU-R BS.1770-4 / EBU R128 loudness meter — K-weighted, gated.
+/// Provides the full professional set:
+///   • Momentary (400 ms) and Short-term (3 s) sliding-window loudness, LUFS
+///   • Integrated (gated, whole-program) loudness, LUFS
+///   • Loudness Range (LRA, EBU TECH 3342), LU
+///
+/// Audio-thread safe: every buffer (ring buffers, running sums) is pre-allocated
+/// at init; the per-sample path does only filtering and O(1) running-sum updates.
+/// Integrated/LRA use bounded **loudness histograms** (libebur128 technique) so
+/// memory is constant regardless of measurement length, and they are recomputed
+/// only at the gating-block cadence (100 ms / 1 s), not per sample.
 ///
 /// K-weighting coefficients are the canonical 48 kHz set (stage-1 high-shelf +
 /// stage-2 RLB high-pass). The app runs at 48 kHz; at other rates this is a
 /// close approximation (coefficients are not re-derived per rate).
 ///
-/// Reference: ITU-R BS.1770-4; EBU R128.
+/// Reference: ITU-R BS.1770-4; EBU R128; EBU TECH 3341/3342.
 public final class EchoelLoudnessMeter: @unchecked Sendable {
 
     public static let floorLUFS: Float = -120
 
     public private(set) var momentaryLUFS: Float = floorLUFS
     public private(set) var shortTermLUFS: Float = floorLUFS
+    /// Gated integrated loudness over the whole measurement (since the last
+    /// `reset()`), LUFS. Equals `floorLUFS` until enough gated blocks exist.
+    public private(set) var integratedLUFS: Float = floorLUFS
+    /// Loudness Range (LRA) in LU — P95 − P10 of the gated short-term
+    /// distribution (EBU TECH 3342). `0` until enough data exists.
+    public private(set) var loudnessRange: Float = 0
 
     // MARK: - K-weighting biquads (per channel)
 
@@ -35,6 +48,20 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
     private var mSum: Double = 0
     private var sSum: Double = 0
 
+    // MARK: - Gating histograms (bounded memory)
+
+    /// 0.1 LU bins spanning the absolute gate floor up to +10 LUFS.
+    private static let histMinLUFS: Float = -70.0
+    private static let histBinWidth: Float = 0.1
+    private static let histBinCount = 801          // −70.0 … +10.0
+    private var integratedHist: [Int]              // 400 ms blocks @ 100 ms hop
+    private var lraHist: [Int]                     // 3 s short-term @ 1 s hop
+    private let hopLen: Int                         // 100 ms in samples
+    private let lraHopLen: Int                      // 1 s in samples
+    private var hopRemaining: Int
+    private var lraRemaining: Int
+    private var totalSamples: Int = 0
+
     private static let offsetLUFS: Float = -0.691  // BS.1770 absolute offset
 
     public init(sampleRate: Float = 48000) {
@@ -42,6 +69,12 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
         self.sLen = Swift.max(1, Int(3.0 * sampleRate))
         self.mRing = [Float](repeating: 0, count: mLen)
         self.sRing = [Float](repeating: 0, count: sLen)
+        self.integratedHist = [Int](repeating: 0, count: Self.histBinCount)
+        self.lraHist = [Int](repeating: 0, count: Self.histBinCount)
+        self.hopLen = Swift.max(1, Int(0.1 * sampleRate))
+        self.lraHopLen = Swift.max(1, Int(1.0 * sampleRate))
+        self.hopRemaining = hopLen
+        self.lraRemaining = lraHopLen
     }
 
     // MARK: - Process
@@ -55,6 +88,7 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
             accumulate(Double(y * y))
         }
         updateReadings()
+        tickGating(n)
     }
 
     /// Measure a stereo pair — sum of K-weighted channel powers (L,R weight 1.0).
@@ -67,6 +101,7 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
             accumulate(Double(yl * yl + yr * yr))
         }
         updateReadings()
+        tickGating(n)
     }
 
     /// Measure a stereo pair from raw channel pointers — no allocation, for use
@@ -82,6 +117,7 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
             accumulate(Double(yl * yl + yr * yr))
         }
         updateReadings()
+        tickGating(n)
     }
 
     public func reset() {
@@ -89,8 +125,14 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
         for i in 0..<mLen { mRing[i] = 0 }
         for i in 0..<sLen { sRing[i] = 0 }
         mIdx = 0; sIdx = 0; mSum = 0; sSum = 0
+        for i in 0..<Self.histBinCount { integratedHist[i] = 0; lraHist[i] = 0 }
+        hopRemaining = hopLen
+        lraRemaining = lraHopLen
+        totalSamples = 0
         momentaryLUFS = Self.floorLUFS
         shortTermLUFS = Self.floorLUFS
+        integratedLUFS = Self.floorLUFS
+        loudnessRange = 0
     }
 
     // MARK: - Internals
@@ -107,6 +149,97 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
     private func updateReadings() {
         momentaryLUFS = loudness(meanSquare: mSum / Double(mLen))
         shortTermLUFS = loudness(meanSquare: sSum / Double(sLen))
+    }
+
+    /// Advance the gating clocks; at each 100 ms boundary record a 400 ms block
+    /// into the integrated histogram, and at each 1 s boundary record a 3 s
+    /// short-term value into the LRA histogram, then recompute the gated metrics.
+    @inline(__always)
+    private func tickGating(_ n: Int) {
+        totalSamples += n
+        hopRemaining -= n
+        if hopRemaining <= 0 {
+            hopRemaining += hopLen
+            if totalSamples >= mLen {           // 400 ms window is full
+                addToHist(&integratedHist, momentaryLUFS)
+                recomputeIntegrated()
+            }
+        }
+        lraRemaining -= n
+        if lraRemaining <= 0 {
+            lraRemaining += lraHopLen
+            if totalSamples >= sLen {           // 3 s window is full
+                addToHist(&lraHist, shortTermLUFS)
+                recomputeLRA()
+            }
+        }
+    }
+
+    @inline(__always)
+    private func addToHist(_ hist: inout [Int], _ loudnessLUFS: Float) {
+        // Below the absolute gate (−70 LUFS) or non-finite → not counted.
+        guard loudnessLUFS.isFinite, loudnessLUFS > Self.histMinLUFS else { return }
+        var idx = Int((loudnessLUFS - Self.histMinLUFS) / Self.histBinWidth)
+        if idx < 0 { idx = 0 }
+        if idx >= Self.histBinCount { idx = Self.histBinCount - 1 }
+        hist[idx] += 1
+    }
+
+    @inline(__always)
+    private func binCenter(_ i: Int) -> Float {
+        Self.histMinLUFS + (Float(i) + 0.5) * Self.histBinWidth
+    }
+
+    /// K-weighted mean-square (energy) corresponding to a loudness value.
+    @inline(__always)
+    private func energy(_ loudnessLUFS: Float) -> Double {
+        pow(10.0, (Double(loudnessLUFS) + 0.691) / 10.0)
+    }
+
+    /// Two-pass gated integrated loudness (absolute −70 LUFS, then relative
+    /// −10 LU below the ungated mean), per BS.1770-4.
+    private func recomputeIntegrated() {
+        var sumE = 0.0; var n = 0
+        for i in 0..<Self.histBinCount where integratedHist[i] > 0 {
+            sumE += energy(binCenter(i)) * Double(integratedHist[i]); n += integratedHist[i]
+        }
+        guard n > 0 else { integratedLUFS = Self.floorLUFS; return }
+        let relGate = loudness(meanSquare: sumE / Double(n)) - 10.0
+        var sumE2 = 0.0; var n2 = 0
+        for i in 0..<Self.histBinCount where integratedHist[i] > 0 && binCenter(i) >= relGate {
+            sumE2 += energy(binCenter(i)) * Double(integratedHist[i]); n2 += integratedHist[i]
+        }
+        integratedLUFS = n2 > 0 ? loudness(meanSquare: sumE2 / Double(n2)) : Self.floorLUFS
+    }
+
+    /// Loudness Range = P95 − P10 of the gated short-term distribution
+    /// (absolute −70 LUFS, relative −20 LU below the ungated mean), EBU TECH 3342.
+    private func recomputeLRA() {
+        var sumE = 0.0; var n = 0
+        for i in 0..<Self.histBinCount where lraHist[i] > 0 {
+            sumE += energy(binCenter(i)) * Double(lraHist[i]); n += lraHist[i]
+        }
+        guard n > 0 else { loudnessRange = 0; return }
+        let relGate = loudness(meanSquare: sumE / Double(n)) - 20.0
+
+        var total = 0
+        for i in 0..<Self.histBinCount where lraHist[i] > 0 && binCenter(i) >= relGate {
+            total += lraHist[i]
+        }
+        guard total > 0 else { loudnessRange = 0; return }
+
+        let p10Target = Swift.max(1, Int((Double(total) * 0.10).rounded(.up)))
+        let p95Target = Swift.max(1, Int((Double(total) * 0.95).rounded(.up)))
+        var cum = 0
+        var p10 = Self.floorLUFS
+        var p95 = Self.floorLUFS
+        var got10 = false
+        for i in 0..<Self.histBinCount where lraHist[i] > 0 && binCenter(i) >= relGate {
+            cum += lraHist[i]
+            if !got10 && cum >= p10Target { p10 = binCenter(i); got10 = true }
+            if cum >= p95Target { p95 = binCenter(i); break }
+        }
+        loudnessRange = Swift.max(0, p95 - p10)
     }
 
     @inline(__always)

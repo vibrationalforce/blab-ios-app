@@ -84,4 +84,44 @@ final class EchoelLoudnessMeterTests: XCTestCase {
         m.reset()
         XCTAssertEqual(m.momentaryLUFS, EchoelLoudnessMeter.floorLUFS, accuracy: 0.01)
     }
+
+    // MARK: - Integrated / LRA (EBU R128)
+
+    /// Feed a steady tone in 100 ms chunks so the gating clocks fire repeatedly.
+    private func feedSteady(_ m: EchoelLoudnessMeter, seconds: Int, amp: Float = 0.5) {
+        let chunk = Int(0.1 * sr)
+        let tone = sine(1000, amp, chunk)
+        for _ in 0..<(seconds * 10) { m.process(tone, frameCount: chunk) }
+    }
+
+    func testIntegrated_steadyTone_approxMomentary() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        feedSteady(m, seconds: 6)
+        XCTAssertGreaterThan(m.integratedLUFS, EchoelLoudnessMeter.floorLUFS + 1)
+        // Integrated (gated mean of 400 ms blocks) ≈ momentary for a steady tone.
+        XCTAssertEqual(m.integratedLUFS, m.momentaryLUFS, accuracy: 1.0)
+    }
+
+    func testLRA_steadyTone_isSmall() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        feedSteady(m, seconds: 8)
+        XCTAssertGreaterThanOrEqual(m.loudnessRange, 0)
+        XCTAssertLessThan(m.loudnessRange, 1.0) // no dynamics → ~0 LU
+    }
+
+    func testReset_clearsIntegratedAndLRA() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        feedSteady(m, seconds: 6)
+        m.reset()
+        XCTAssertEqual(m.integratedLUFS, EchoelLoudnessMeter.floorLUFS, accuracy: 0.01)
+        XCTAssertEqual(m.loudnessRange, 0, accuracy: 0.01)
+    }
+
+    func testIntegrated_silence_staysAtFloor() {
+        let m = EchoelLoudnessMeter(sampleRate: sr)
+        let silence = [Float](repeating: 0, count: Int(0.1 * sr))
+        for _ in 0..<60 { m.process(silence, frameCount: silence.count) }
+        XCTAssertEqual(m.integratedLUFS, EchoelLoudnessMeter.floorLUFS, accuracy: 0.01)
+        XCTAssertEqual(m.loudnessRange, 0, accuracy: 0.01)
+    }
 }

@@ -18,6 +18,9 @@ public final class EchoelMeter: @unchecked Sendable {
     public private(set) var rmsDb: Float = floorDb
     /// Held true-peak (inter-sample) level in dBTP.
     public private(set) var truePeakDb: Float = floorDb
+    /// Max-hold true-peak (dBTP) — the highest inter-sample peak since the last
+    /// `reset()`, never decays. Pro mastering reference for "did it ever clip".
+    public private(set) var truePeakMaxDb: Float = floorDb
 
     /// Per-call hold decay (linear multiplier applied to the held peak before
     /// taking the max with the new block). 1.0 = infinite hold.
@@ -25,6 +28,7 @@ public final class EchoelMeter: @unchecked Sendable {
 
     private var heldPeak: Float = 0
     private var heldTruePeak: Float = 0
+    private var maxTruePeak: Float = 0
 
     // Cubic interpolation history (last three input samples).
     private var z1: Float = 0
@@ -77,7 +81,8 @@ public final class EchoelMeter: @unchecked Sendable {
 
     public func reset() {
         peakDb = Self.floorDb; rmsDb = Self.floorDb; truePeakDb = Self.floorDb
-        heldPeak = 0; heldTruePeak = 0
+        truePeakMaxDb = Self.floorDb
+        heldPeak = 0; heldTruePeak = 0; maxTruePeak = 0
         z1 = 0; z2 = 0; z3 = 0
     }
 
@@ -110,8 +115,10 @@ public final class EchoelMeter: @unchecked Sendable {
     private func commit(peak: Float, rms: Float, truePeak: Float) {
         heldPeak = Swift.max(peak, heldPeak * holdDecay)
         heldTruePeak = Swift.max(truePeak, heldTruePeak * holdDecay)
+        maxTruePeak = Swift.max(maxTruePeak, truePeak)
         peakDb = Self.db(heldPeak)
         truePeakDb = Self.db(heldTruePeak)
+        truePeakMaxDb = Self.db(maxTruePeak)
         rmsDb = Self.db(rms)
     }
 
