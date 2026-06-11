@@ -50,6 +50,9 @@ struct EchoelmusicApp: App {
     /// Eyes-free haptic feedback (transport pulse). Off until armed in the Well tab.
     @State private var haptics = HapticController()
     #endif
+    /// App-wide selection (cohesion layer). Injected now; consumed by the
+    /// contextual inspector in a later cycle — no behavior change yet.
+    @State private var selection = Selection()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -133,6 +136,7 @@ struct EchoelmusicApp: App {
             #if canImport(CoreHaptics)
             .environment(haptics)
             #endif
+            .environment(selection)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
