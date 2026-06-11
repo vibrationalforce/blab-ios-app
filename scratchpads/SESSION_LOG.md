@@ -31,8 +31,26 @@ Read this FIRST when continuing work on Echoelmusic.
 ### Method
 - No Swift toolchain in the remote Linux sandbox → CI (macOS) is the build-green gate. Each cycle: careful self-review + hand-computed test expectations, commit, push, poll the GitHub Actions run to completion before stacking the next cycle. TestFlight via PAT `workflow_dispatch` (MCP integration lacks the scope → 403).
 
+### Continuation — Phase M complete, Phase H complete, Phase D started (same session)
+- **M.4** per-route smoothing (τ) in `ModulationEngine` — one-pole via `BioNormalizer.alpha`, seeded at first value, pruned on remove/disable. `2df4262`, CI green. **Phase M complete.**
+- **H.2** `HapticEngine` (`Studio/HapticEngine.swift`) — CoreHaptics player, `playsHapticsOnly`, capability-gated, `setAllowHapticsAndSystemSoundsDuringRecording`. `#if canImport(CoreHaptics)` + `@available`. `47fed24`.
+- **H.3** `HapticController` — non-availability coordinator (engine as AnyObject behind `if #available`), pure step→cue gate, OFF by default. `09ac9ca`.
+- **H.4** wired into app — `.environment(haptics)`, StudioRoot fires `tapBeat` on `pattern.currentStep` `.onChange` (never touches BeatPlayer.onStep), Well-tab toggle. Double-gated. `8986bcf`. **Phase H feel complete.**
+- **H.5** `FlashGuard` (WCAG 2.3.1 primitive: 3 Hz cap, general-flash detector, slew) + Reduce-Motion in `BioVisualView`. `0e6072d`. **Phase H complete.**
+- **D.1** `Selection` (`Studio/Selection.swift`) — app-wide single source of truth + `SelectionTarget` taxonomy; injected, not yet consumed. `2c168d1`. **Cohesion foundation.**
+- **Phase M UI** — surfaced curve/τ/HRV-trust in `RouteRow` (Sync tab); the whole Phase M was dormant (no UI). `99e0195`.
+- **TestFlight Build #3 (`99e0195`) SUCCESS** (run 27372245977): Archive ✅ · Upload ✅ · ASC-landed ✅. All session work on-device for validation.
+
+Total: 11 atomic CI-verified cycles, ~90 tests, protected DSP untouched, everything off-by-default. Auto-merged to `main`.
+
+### Device-validation checklist (the compile-only work)
+- Well → "Haptic pulse (eyes-free)" on → play sequencer → feel quarter pulses (strong downbeat).
+- Well → Immersive visual + iOS Reduce Motion on → rings hold still (FlashGuard).
+- Sync → a route → Curve (Lin/Exp/Log/S) · Smooth(s) · Require HRV-trusted source.
+
 ### Next
-- Phase M.4 (optional): per-route `BioNormalizer` smoothing (τ) wired into `ModulationEngine` (stateful). Then Phase H.2 (CoreHaptics engine wiring the `BioHaptics` kernel), Phase D (EchoelDocument/Transport/Selection cohesion).
+- **D.2/D.3** the Selection inspector (bottom-sheet) — owner chose "build it"; shape with device feedback.
+- Then Phase T (adaptive `TimelineCanvas`) and Phase F (RTMP/video/multitrack/collaboration).
 - Consider (owner-gated): enable `testflight.yml` compile_check before Archive for fail-fast stability.
 
 ---
