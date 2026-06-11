@@ -81,6 +81,29 @@ public final class EchoelMeter: @unchecked Sendable {
         z1 = 0; z2 = 0; z3 = 0
     }
 
+    /// Measure a stereo pair from raw channel pointers — no allocation, for use
+    /// inside an `AVAudioEngine` tap callback. `right` may be nil for mono (the
+    /// left channel is then used for both sides). Channels are linked: the louder
+    /// side drives the meter.
+    public func processStereo(left: UnsafePointer<Float>, right: UnsafePointer<Float>?, frameCount n: Int) {
+        guard n > 0 else { return }
+        var peak: Float = 0
+        var sumSq: Float = 0
+        var tp: Float = 0
+        for i in 0..<n {
+            let l = left[i]
+            let r = right?[i] ?? l
+            let a = Swift.max(abs(l), abs(r))
+            if a > peak { peak = a }
+            sumSq += (l * l + r * r) * 0.5
+            let inter = Swift.max(interSampleMax(z3, z2, z1, l), interSampleMax(z3, z2, z1, r))
+            if inter > tp { tp = inter }
+            z3 = z2; z2 = z1; z1 = a
+        }
+        if peak > tp { tp = peak }
+        commit(peak: peak, rms: sqrtf(sumSq / Float(n)), truePeak: tp)
+    }
+
     // MARK: - Helpers
 
     @inline(__always)
@@ -93,14 +116,14 @@ public final class EchoelMeter: @unchecked Sendable {
     }
 
     /// Max |Catmull-Rom| at t ∈ {0.25, 0.5, 0.75} between p1 and p2.
+    /// Fully unrolled — no array literal — so it is allocation-free on the
+    /// audio thread (called twice per sample from the stereo path).
     @inline(__always)
     private func interSampleMax(_ p0: Float, _ p1: Float, _ p2: Float, _ p3: Float) -> Float {
-        var m: Float = 0
-        for t in [Float(0.25), 0.5, 0.75] {
-            let v = abs(catmullRom(p0, p1, p2, p3, t))
-            if v > m { m = v }
-        }
-        return m
+        let a = abs(catmullRom(p0, p1, p2, p3, 0.25))
+        let b = abs(catmullRom(p0, p1, p2, p3, 0.5))
+        let c = abs(catmullRom(p0, p1, p2, p3, 0.75))
+        return Swift.max(a, Swift.max(b, c))
     }
 
     @inline(__always)

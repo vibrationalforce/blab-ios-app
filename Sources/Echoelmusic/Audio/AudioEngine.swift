@@ -18,12 +18,34 @@ public final class AudioEngine {
     var masterLevel: Float = 0.0
     var masterLevelR: Float = 0.0
 
+    /// Held master sample-peak / true-peak in dBFS / dBTP, and momentary
+    /// loudness in LUFS — published from the master tap (EchoelMix metering).
+    var masterPeakDb: Float = EchoelMeter.floorDb
+    var masterTruePeakDb: Float = EchoelMeter.floorDb
+    var masterLUFS: Float = EchoelLoudnessMeter.floorLUFS
+
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterL = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterR = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    /// Master metering published values (dB / LUFS). Written ONLY from the tap
+    /// thread, read ONLY from the poll timer — single-Float cross-thread handoff,
+    /// matching the `_rawMeter*` pattern (no shared multi-word state).
+    @ObservationIgnored nonisolated(unsafe) private let _peakDb = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    @ObservationIgnored nonisolated(unsafe) private let _truePeakDb = UnsafeMutablePointer<Float>.allocate(capacity: 1)
+    @ObservationIgnored nonisolated(unsafe) private let _lufs = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private var meterPollTimer: Timer?
+
+    /// Master meters. Confined to the tap thread (only ever touched inside the
+    /// master tap callback); cross-thread output flows via `_peakDb`/`_lufs`.
+    @ObservationIgnored nonisolated(unsafe) private let masterMeter = EchoelMeter()
+    /// Re-created in `prepareGraph` with the real tap sample rate so the BS.1770
+    /// window lengths / K-weighting match the hardware rate.
+    @ObservationIgnored nonisolated(unsafe) private var loudnessMeter = EchoelLoudnessMeter()
 
     /// Retroactive capture — always-recording ring buffer + on-demand disk writer.
     let retroCapture = RetroCapture()
+
+    /// Microphone-over-beats multitrack recorder (EchoelMix REC).
+    let multiTrackRecorder = MultiTrackRecorder()
 
     /// Master mastering chain — EQ + compression + limiting + auto-LUFS.
     let autoMixChain = AutoMixChain()
@@ -53,6 +75,9 @@ public final class AudioEngine {
         self.microphoneManager = microphoneManager
         _rawMeterL.initialize(to: 0)
         _rawMeterR.initialize(to: 0)
+        _peakDb.initialize(to: EchoelMeter.floorDb)
+        _truePeakDb.initialize(to: EchoelMeter.floorDb)
+        _lufs.initialize(to: EchoelLoudnessMeter.floorLUFS)
 
         // Interruption / route-change handlers are cheap closure storage with no
         // audio I/O — safe to wire at init.
@@ -145,8 +170,17 @@ public final class AudioEngine {
 
         let meterFormat = masterMixer.outputFormat(forBus: 0)
         if meterFormat.sampleRate > 0 && meterFormat.channelCount > 0 {
+            // Match the loudness windows to the real hardware rate. Safe to
+            // reassign here: the meter has no tap yet, so it is untouched by any
+            // other thread until installTap below.
+            loudnessMeter = EchoelLoudnessMeter(sampleRate: Float(meterFormat.sampleRate))
             let ptrL = _rawMeterL
             let ptrR = _rawMeterR
+            let peakPtr = _peakDb
+            let tpPtr = _truePeakDb
+            let lufsPtr = _lufs
+            let meter = masterMeter
+            let loudness = loudnessMeter
             masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, _ in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = UInt(buffer.frameLength)
@@ -154,13 +188,27 @@ public final class AudioEngine {
                 var rmsL: Float = 0
                 vDSP_rmsqv(channelData[0], 1, &rmsL, vDSP_Length(frameLength))
                 var rmsR: Float = 0
-                if buffer.format.channelCount > 1 {
+                let stereo = buffer.format.channelCount > 1
+                if stereo {
                     vDSP_rmsqv(channelData[1], 1, &rmsR, vDSP_Length(frameLength))
                 } else { rmsR = rmsL }
                 let scaledL = rmsL.isNaN ? Float(0) : Swift.min(rmsL * 3.0, 1.0)
                 let scaledR = rmsR.isNaN ? Float(0) : Swift.min(rmsR * 3.0, 1.0)
                 ptrL.pointee = scaledL
                 ptrR.pointee = scaledR
+
+                // Peak / true-peak / LUFS — meters are confined to this thread;
+                // only the resulting Floats cross to the poll timer via pointers.
+                let n = Int(frameLength)
+                // Typed as immutable so the mutable→immutable pointer conversion
+                // happens at the binding (a bare ternary would infer the mutable
+                // type and fail to convert at the call site).
+                let right: UnsafePointer<Float>? = stereo ? channelData[1] : nil
+                meter.processStereo(left: channelData[0], right: right, frameCount: n)
+                loudness.processStereo(left: channelData[0], right: right, frameCount: n)
+                peakPtr.pointee = meter.peakDb
+                tpPtr.pointee = meter.truePeakDb
+                lufsPtr.pointee = loudness.momentaryLUFS
             }
         }
         log.audio("Master AVAudioEngine graph: playerNode -> masterMixer -> mainMixer -> outputNode -> hardware")
@@ -190,6 +238,7 @@ public final class AudioEngine {
         if inputMonitoringEnabled { microphoneManager.startRecording() }
         startMeterPollTimer()
         retroCapture.install(on: masterEngine)
+        multiTrackRecorder.prepareForRecording(engine: masterEngine)
         autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }
         isRunning = true
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
@@ -199,12 +248,20 @@ public final class AudioEngine {
         meterPollTimer?.invalidate()
         let ptrL = _rawMeterL
         let ptrR = _rawMeterR
+        let peakPtr = _peakDb
+        let tpPtr = _truePeakDb
+        let lufsPtr = _lufs
         meterPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let decayCoeff: Float = 0.92
                 self.masterLevel = Swift.max(ptrL.pointee, self.masterLevel * decayCoeff)
                 self.masterLevelR = Swift.max(ptrR.pointee, self.masterLevelR * decayCoeff)
+                // Peak / LUFS already carry their own hold/windowing in the meter;
+                // publish them straight through.
+                self.masterPeakDb = peakPtr.pointee
+                self.masterTruePeakDb = tpPtr.pointee
+                self.masterLUFS = lufsPtr.pointee
             }
         }
     }
@@ -225,6 +282,12 @@ public final class AudioEngine {
         _rawMeterL.deallocate()
         _rawMeterR.deinitialize(count: 1)
         _rawMeterR.deallocate()
+        _peakDb.deinitialize(count: 1)
+        _peakDb.deallocate()
+        _truePeakDb.deinitialize(count: 1)
+        _truePeakDb.deallocate()
+        _lufs.deinitialize(count: 1)
+        _lufs.deallocate()
     }
 
     func stop() {

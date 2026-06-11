@@ -69,6 +69,21 @@ public final class EchoelLoudnessMeter: @unchecked Sendable {
         updateReadings()
     }
 
+    /// Measure a stereo pair from raw channel pointers — no allocation, for use
+    /// inside an `AVAudioEngine` tap callback. `right` may be nil for mono (the
+    /// left channel is then used for both sides).
+    public func processStereo(left: UnsafePointer<Float>, right: UnsafePointer<Float>?, frameCount n: Int) {
+        guard n > 0 else { return }
+        for i in 0..<n {
+            let l = left[i]
+            let r = right?[i] ?? l
+            let yl = kL2.process(kL1.process(l))
+            let yr = kR2.process(kR1.process(r))
+            accumulate(Double(yl * yl + yr * yr))
+        }
+        updateReadings()
+    }
+
     public func reset() {
         kL1.reset(); kL2.reset(); kR1.reset(); kR2.reset()
         for i in 0..<mLen { mRing[i] = 0 }

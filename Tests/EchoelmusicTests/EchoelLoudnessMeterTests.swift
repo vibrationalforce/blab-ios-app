@@ -61,6 +61,23 @@ final class EchoelLoudnessMeterTests: XCTestCase {
         XCTAssertEqual(stereo.momentaryLUFS - mono.momentaryLUFS, 3.01, accuracy: 0.4)
     }
 
+    func testPointerOverloadMatchesArrayPath() {
+        let n = 48000
+        let l = sine(1000, 0.5, n)
+        let r = sine(1000, 0.35, n)
+        let mArray = EchoelLoudnessMeter(sampleRate: sr)
+        mArray.processStereo(left: l, right: r, frameCount: n)
+        let mPtr = EchoelLoudnessMeter(sampleRate: sr)
+        l.withUnsafeBufferPointer { lp in
+            r.withUnsafeBufferPointer { rp in
+                guard let lb = lp.baseAddress, let rb = rp.baseAddress else { return XCTFail("no base") }
+                mPtr.processStereo(left: lb, right: rb, frameCount: n)
+            }
+        }
+        XCTAssertEqual(mPtr.momentaryLUFS, mArray.momentaryLUFS, accuracy: 0.05)
+        XCTAssertEqual(mPtr.shortTermLUFS, mArray.shortTermLUFS, accuracy: 0.05)
+    }
+
     func testResetReturnsToFloor() {
         let m = EchoelLoudnessMeter(sampleRate: sr)
         m.process(sine(1000, 0.5, 24000), frameCount: 24000)

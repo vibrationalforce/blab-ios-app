@@ -57,6 +57,39 @@ final class EchoelMeterTests: XCTestCase {
         XCTAssertEqual(m.peakDb, -6.0, accuracy: 0.2)      // louder side drives peak
     }
 
+    func testPointerOverloadMatchesArrayPath() {
+        var left = [Float](repeating: 0, count: 1024)
+        var right = [Float](repeating: 0, count: 1024)
+        for i in 0..<left.count {
+            left[i] = 0.4 * sinf(Float(i) * 0.2)
+            right[i] = 0.6 * sinf(Float(i) * 0.27 + 0.5)
+        }
+        let mArray = EchoelMeter()
+        mArray.processStereo(left: left, right: right, frameCount: left.count)
+        let mPtr = EchoelMeter()
+        left.withUnsafeBufferPointer { lp in
+            right.withUnsafeBufferPointer { rp in
+                guard let lb = lp.baseAddress, let rb = rp.baseAddress else { return XCTFail("no base") }
+                mPtr.processStereo(left: lb, right: rb, frameCount: left.count)
+            }
+        }
+        XCTAssertEqual(mPtr.peakDb, mArray.peakDb, accuracy: 0.01)
+        XCTAssertEqual(mPtr.truePeakDb, mArray.truePeakDb, accuracy: 0.01)
+        XCTAssertEqual(mPtr.rmsDb, mArray.rmsDb, accuracy: 0.01)
+    }
+
+    func testPointerOverloadMonoUsesLeftForBoth() {
+        var buf = [Float](repeating: 0, count: 512)
+        for i in 0..<buf.count { buf[i] = 0.5 * sinf(Float(i) * 0.3) }
+        let m = EchoelMeter()
+        buf.withUnsafeBufferPointer { bp in
+            guard let b = bp.baseAddress else { return XCTFail("no base") }
+            m.processStereo(left: b, right: nil, frameCount: buf.count)
+        }
+        XCTAssertGreaterThan(m.peakDb, EchoelMeter.floorDb)
+        XCTAssertGreaterThanOrEqual(m.truePeakDb, m.peakDb - 0.01)
+    }
+
     func testResetReturnsToFloor() {
         let m = EchoelMeter()
         m.process([Float](repeating: 1.0, count: 256), frameCount: 256)
