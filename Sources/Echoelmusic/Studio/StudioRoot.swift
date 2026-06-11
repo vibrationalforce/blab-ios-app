@@ -5,6 +5,10 @@ import SwiftUI
 struct StudioRoot: View {
 
     @Environment(EngineBus.self) private var bus
+    #if canImport(CoreHaptics)
+    @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(HapticController.self) private var haptics
+    #endif
 
     /// Opt-in demo bio source (labeled "Demo"). Owned here, toggled from the
     /// bio strip's source tag so the instrument is playable without hardware.
@@ -33,6 +37,14 @@ struct StudioRoot: View {
         // Demo source available to the whole subtree (was scoped to the strip
         // alone) so any tab can read it without a missing-environment crash.
         .environment(demoSource)
+        #if canImport(CoreHaptics)
+        // Eyes-free transport pulse: fire a haptic tap on quarter-note steps
+        // (no-op unless armed in Well). Observes the shared transport's step —
+        // never touches the audio-trigger closure (BeatPlayer owns onStep).
+        .onChange(of: beatPlayer.pattern.currentStep) { _, step in
+            haptics.tapBeat(step: step)
+        }
+        #endif
         .task {
             #if DEBUG
             // Dev: demo on immediately so the bus is live in Simulator/Xcode.

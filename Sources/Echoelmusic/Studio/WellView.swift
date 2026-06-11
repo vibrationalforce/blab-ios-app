@@ -17,6 +17,9 @@ struct WellView: View {
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
+    #if canImport(CoreHaptics)
+    @Environment(HapticController.self) private var haptics
+    #endif
 
     @State private var breathsPerMin: Double = 6
     @State private var inhaling = false
@@ -33,6 +36,9 @@ struct WellView: View {
                 if showHRVDetail { hrvDetailRow }
                 pacer
                 immersiveButton
+                #if canImport(CoreHaptics)
+                hapticsToggle
+                #endif
                 #if canImport(AVFoundation)
                 cameraPulseButton
                 #endif
@@ -46,6 +52,19 @@ struct WellView: View {
         .fullScreenCover(isPresented: $showVisual) { BioVisualView() }
         #endif
     }
+
+    #if canImport(CoreHaptics)
+    /// Arms the eyes-free haptic transport pulse (off by default). A quarter-note
+    /// tap you can feel without watching the screen — strong on the down-beat.
+    private var hapticsToggle: some View {
+        Toggle(isOn: Binding(get: { haptics.isEnabled },
+                             set: { haptics.isEnabled = $0 })) {
+            Label("Haptic pulse (eyes-free)", systemImage: "hand.tap.fill")
+        }
+        .tint(EchoelTheme.accent)
+        .padding(.horizontal, 4)
+    }
+    #endif
 
     private var immersiveButton: some View {
         Button {

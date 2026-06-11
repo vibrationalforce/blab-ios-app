@@ -46,6 +46,10 @@ struct EchoelmusicApp: App {
     @State private var pianoRoll: PianoRollModel
     /// Session clips (launchable drum + melody cells).
     @State private var clipStore: ClipStore
+    #if canImport(CoreHaptics)
+    /// Eyes-free haptic feedback (transport pulse). Off until armed in the Well tab.
+    @State private var haptics = HapticController()
+    #endif
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -126,6 +130,9 @@ struct EchoelmusicApp: App {
             .environment(patchStore)
             .environment(pianoRoll)
             .environment(clipStore)
+            #if canImport(CoreHaptics)
+            .environment(haptics)
+            #endif
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
