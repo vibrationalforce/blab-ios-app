@@ -6,6 +6,29 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-11 — Deep research (bio/UX/arch/a11y) + Phase M mapping spine
+
+### Branch: `claude/piano-roll-clip-view-wozlie`
+### Trigger: owner — "connect the dots of the whole vision" → deep-research the 4 focus areas, then Ultraeffective Loop Mode (build until done).
+
+### Research
+- 5 parallel deep-research agents (HRV physiology · sonification mapping · unified DAW/VJ architecture · adaptive touch editing · accessibility/future-Apple) + 1 codebase-map agent, cross-verified.
+- Output: `scratchpads/RESEARCH_BIO_UX_2026-06-11.md` — cited report (Teil A) + file-grounded staged rebuild plan (Teil B: Phase M→H→D→T→F). Commit `33cacc6`.
+- Key verified findings: RMSSD only real-time-valid from a BLE ECG strap (Watch/rPPG = estimate); LF/HF ≠ sympathovagal balance; coherence = 0.1 Hz peak-feature (not a state); resonance breathing 6 bpm; cohesion = shared transport+selection not the container; Liquid Glass conflict dissolves (Glass only on control layer); Core Haptics = eyes-free channel (0 code today).
+
+### What shipped (Phase M — the bio→parameter mapping spine; protected DSP untouched)
+- **`BioNormalizer`** (`Bio/BioNormalizer.swift`) — rolling z-score (σ-floor) → tanh squash → EMA + accept/confidence gate; `ResponseCurve` (linear/exp/log/S). Pure Foundation value type, 20 tests. Commit `095a2a2`, CI green.
+- **Per-route `ResponseCurve`** in `ModulationMatrix` — applied after invert, before depth; `.linear` default = byte-identical; backward-compatible Codable. +7 tests. Commit `2d8d303`, CI green.
+- **HRV-trust source gate** — `ModRoute.requiresTrustedSource` + `BioSource.providesTrustedHRV` (BLE only); HRV routes go silent on weak sources. +6 tests. Commit `b8f4763`, CI pending→.
+
+### Method
+- No Swift toolchain in the remote Linux sandbox → CI (macOS) is the build-green gate. Each cycle: careful self-review + hand-computed test expectations, commit, push, poll the GitHub Actions run to completion before stacking the next cycle.
+
+### Next
+- Phase M.4 (optional): per-route `BioNormalizer` smoothing (τ) wired into `ModulationEngine` (stateful). Then Phase H (Core Haptics eyes-free layer), Phase D (EchoelDocument/Transport/Selection cohesion).
+
+---
+
 ## 2026-06-06 — ADM-OSC immersive bridge + social-share refresh
 
 ### Branch: `claude/echoelmusic-app-feasibility-3rtwL`
