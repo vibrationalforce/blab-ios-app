@@ -2057,3 +2057,38 @@ EchoelRecorderTests (idle/engineNotReady/idempotent-stop).
 
 TestFlight #1570 (build_only=false) dispatched on 51743e9 = FX + Mix combined.
 GATED ON DEVICE: FX sound-design tuning + LUFS/meter calibration need the owner's ears.
+
+
+### Addendum 6 — Pro-level precision pass (2026-06-11)
+Branch `claude/piano-roll-clip-view-wozlie`. User directive: "alles auf höchstem
+Level, mehrere Stellen nach dem Komma (wichtig für Biofeedback), an Reaper/Ableton/
+Bitwig/Loopy Pro · DaVinci/OBS/Resolume/TouchDesigner orientieren, keine
+rudimentären/ungenauen Tools, keine Architektur-/Verknüpfungsfehler."
+
+Four verified pro cycles (each through the strict iOS-archive build_only gate +
+specialist reviews; all uploaded to TestFlight):
+1. Bio precision — real RMSSD in ms carried through the bus (was computed then
+   discarded with inconsistent /200 vs /100 normalization); coherence 3 dp, HR/
+   breath 1 dp, fractional tempo (120.00 BPM); OSC /bio/heart/rmssd. DSP
+   normalization deliberately unchanged (no silent synth regression).
+2. EchoelMix EBU R128 — gated Integrated LUFS + LRA (libebur128 bounded
+   histograms) + Short-term + true-peak max-hold + reset (tap-confined via flag).
+   dsp-reviewer: standards-correct.
+3. EchoelLux 16-bit DMX — Art-Net + sACN coarse/fine channel pairs (65536 steps),
+   per-rig 8/16-bit picker. Pure testable kernel.
+4. HRV suite — shared HRVMetrics kernel (ms-based): RMSSD + SDNN + pNN50; Polar
+   (s→ms) + camera (ms) both use it; OSC sdnn/pnn50; WellView HRV detail row.
+
+Process: confirmed macOS swift-build is NOT a reliable gate for iOS pointer
+strictness (an UnsafeMutablePointer->UnsafePointer in a let/ternary passed macOS
+CI but failed Xcode 26.2 archive; fixed with explicit UnsafePointer(_:)). Also
+hit + cleared two infra flakes: poisoned DerivedData cache and dev-cert
+proliferation from rapid repeat TestFlight runs. TestFlight concurrency group is
+ios+ref with cancel-in-progress:false, so a build_only gate queues behind (not
+cancels) an in-flight upload.
+
+DEFERRED (proposed next): #2 FX tempo-sync (cross-module tempo coupling — own
+careful cycle), #3 mixer dB-gain/pan/mute-solo, HRV LF/HF frequency-domain (needs
+RR resampling + spectral DSP), #7 EchoelVis Metal + visual-OSC, unify HRV
+normalization (device-tuned). GATED ON DEVICE: LUFS/meter calibration vs
+reference, HRV realism with Polar/camera, FX sound design, 16-bit fade smoothness.
