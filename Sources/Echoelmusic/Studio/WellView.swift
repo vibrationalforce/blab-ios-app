@@ -178,7 +178,7 @@ struct WellView: View {
     private var readoutRow: some View {
         HStack(spacing: 12) {
             readout("HR", hrString, "bpm")
-            readout("HRV", hrvString, nil)
+            readout("HRV", hrvString, hrvUnit)
             readout("Breath", breathString, "/min")
         }
     }
@@ -246,7 +246,7 @@ struct WellView: View {
 
     private var coherenceString: String {
         guard let v = bus.latestBio?.coherence else { return "—" }
-        return String(format: "%.2f", v)
+        return String(format: "%.3f", v)
     }
 
     private var coherenceCaption: String {
@@ -260,17 +260,25 @@ struct WellView: View {
 
     private var hrString: String {
         guard let v = bus.latestBio?.heartRateBPM else { return "—" }
-        return String(format: "%.0f", v)
+        return String(format: "%.1f", v)
     }
 
+    /// Prefer the true RMSSD in ms (instrument-grade); fall back to the
+    /// normalized [0..1] value when the source has no real ms (e.g. HealthKit).
     private var hrvString: String {
-        guard let v = bus.latestBio?.hrvNormalized else { return "—" }
-        return String(format: "%.2f", v)
+        guard let bio = bus.latestBio else { return "—" }
+        if bio.hrvRMSSDms > 0 { return String(format: "%.1f", bio.hrvRMSSDms) }
+        return String(format: "%.3f", bio.hrvNormalized)
+    }
+
+    private var hrvUnit: String? {
+        guard let bio = bus.latestBio else { return nil }
+        return bio.hrvRMSSDms > 0 ? "ms" : nil
     }
 
     private var breathString: String {
         guard let v = bus.latestBio?.breathRate else { return "—" }
-        return String(format: "%.0f", v)
+        return String(format: "%.1f", v)
     }
 }
 #endif

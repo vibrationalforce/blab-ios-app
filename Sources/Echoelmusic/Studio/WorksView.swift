@@ -66,7 +66,7 @@ struct WorksView: View {
 
     private func liveMetric(_ label: String, _ value: Float?) -> some View {
         VStack(spacing: 1) {
-            Text(value.map { String(format: "%.2f", $0) } ?? "—")
+            Text(value.map { String(format: "%.3f", $0) } ?? "—")
                 .font(.callout.monospacedDigit().weight(.semibold))
             Text(label).font(.caption2).foregroundStyle(.secondary)
         }
@@ -89,10 +89,10 @@ private struct SessionRow: View {
                 Text(durationString).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
             }
             HStack(spacing: 14) {
-                stat("HR", String(format: "%.0f", summary.avgHeartRate))
-                stat("HRV", String(format: "%.2f", summary.avgHRV))
-                stat("Coh", String(format: "%.2f", summary.avgCoherence))
-                stat("Peak", String(format: "%.2f", summary.peakCoherence))
+                stat("HR", String(format: "%.1f", summary.avgHeartRate))
+                stat("HRV", String(format: "%.3f", summary.avgHRV))
+                stat("Coh", String(format: "%.3f", summary.avgCoherence))
+                stat("Peak", String(format: "%.3f", summary.peakCoherence))
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)

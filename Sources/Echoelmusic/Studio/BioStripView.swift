@@ -42,7 +42,7 @@ struct BioStripView: View {
         HStack(spacing: 10) {
             metric(label: "HR",  value: hrString,        unit: "bpm")
             divider
-            metric(label: "HRV", value: hrvString,       unit: nil)
+            metric(label: "HRV", value: hrvString,       unit: hrvUnit)
             divider
             metric(label: "Br",  value: breathString,    unit: "/min")
             divider
@@ -265,22 +265,30 @@ struct BioStripView: View {
 
     private var hrString: String {
         guard let v = bus.latestBio?.heartRateBPM else { return "—" }
-        return String(format: "%.0f", v)
+        return String(format: "%.1f", v)
     }
 
+    /// True RMSSD in ms when the source provides it; otherwise the normalized
+    /// [0..1] value at higher precision.
     private var hrvString: String {
-        guard let v = bus.latestBio?.hrvNormalized else { return "—" }
-        return String(format: "%.2f", v)
+        guard let bio = bus.latestBio else { return "—" }
+        if bio.hrvRMSSDms > 0 { return String(format: "%.1f", bio.hrvRMSSDms) }
+        return String(format: "%.3f", bio.hrvNormalized)
+    }
+
+    private var hrvUnit: String? {
+        guard let bio = bus.latestBio, bio.hrvRMSSDms > 0 else { return nil }
+        return "ms"
     }
 
     private var breathString: String {
         guard let v = bus.latestBio?.breathRate else { return "—" }
-        return String(format: "%.0f", v)
+        return String(format: "%.1f", v)
     }
 
     private var coherenceString: String {
         guard let v = bus.latestBio?.coherence else { return "—" }
-        return String(format: "%.2f", v)
+        return String(format: "%.3f", v)
     }
 
     private func sourceLabel(_ source: BioSource) -> String {

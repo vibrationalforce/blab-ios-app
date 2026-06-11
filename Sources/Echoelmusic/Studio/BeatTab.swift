@@ -138,10 +138,10 @@ struct BeatTab: View {
                         ),
                         in: PatternEngine.minTempo...PatternEngine.maxTempo
                     )
-                    Text("\(Int(player.pattern.tempo)) BPM")
+                    Text(String(format: "%.2f BPM", player.pattern.tempo))
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundStyle(EchoelTheme.text)
-                        .frame(width: 80, alignment: .trailing)
+                        .frame(width: 96, alignment: .trailing)
                 }
             }
 
