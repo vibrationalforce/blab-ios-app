@@ -162,10 +162,15 @@ struct ModulationView: View {
                 }
             }
             .disabled(artNet.isActive)
+            Picker("Resolution", selection: $artNet.resolution) {
+                ForEach(ArtNetSender.DMXResolution.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .disabled(artNet.isActive)
         } header: {
             Text("Lighting (Art-Net)")
         } footer: {
-            Text("Streams the body to a DMX-over-IP rig on port 6454 — dimmer←coherence, R←heart rate, G←HRV, B←breath. Unicast to your node's IP, or broadcast (255.255.255.255). Stop to change host/universe.")
+            Text("Streams the body to a DMX-over-IP rig on port 6454 — dimmer←coherence, R←heart rate, G←HRV, B←breath. 16-bit sends coarse+fine channel pairs (8 ch, click-free fades); 8-bit is 4 single channels. Unicast to your node's IP, or broadcast (255.255.255.255). Stop to change settings.")
         }
     }
 
@@ -205,6 +210,11 @@ struct ModulationView: View {
                 }
             }
             .disabled(sacn.isActive)
+            Picker("Resolution", selection: $sacn.resolution) {
+                ForEach(ArtNetSender.DMXResolution.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .disabled(sacn.isActive)
             Button("Use multicast group (239.255.x.x)") {
                 sacn.host = SACNSender.multicastHost(universe: sacn.universe)
             }
@@ -213,7 +223,7 @@ struct ModulationView: View {
         } header: {
             Text("Lighting (sACN / E1.31)")
         } footer: {
-            Text("Streams the body over E1.31 on port 5568 — same fixture mapping as Art-Net. Unicast to your receiver's IP (works on iOS). Multicast is the spec default but needs Apple's multicast entitlement. Stop to change host/universe.")
+            Text("Streams the body over E1.31 on port 5568 — same fixture mapping/resolution as Art-Net. Unicast to your receiver's IP (works on iOS). Multicast is the spec default but needs Apple's multicast entitlement. Stop to change settings.")
         }
     }
     #endif

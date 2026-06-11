@@ -44,6 +44,10 @@ public final class SACNSender {
     /// 1-based E1.31 universe (1…63999). 0 is invalid in sACN.
     public var universe: Int
 
+    /// DMX value resolution (shared with Art-Net): 16-bit coarse/fine pairs by
+    /// default for professional precision, 8-bit for legacy fixtures.
+    public var resolution: ArtNetSender.DMXResolution = .sixteenBit
+
     public private(set) var isActive = false
     public private(set) var lastSentTimestamp: TimeInterval = 0
 
@@ -100,7 +104,7 @@ public final class SACNSender {
         guard let frame = bus.latestBio else { return }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
-        let channels = ArtNetSender.dmxChannels(for: frame)
+        let channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)

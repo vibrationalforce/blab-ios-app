@@ -42,6 +42,16 @@ public final class ArtNetSender {
     /// 15-bit Art-Net port address (Net<<8 | SubUni). Universe 0 by default.
     public var universe: Int
 
+    /// DMX value resolution per parameter. 16-bit uses paired coarse/fine
+    /// channels (65 536 steps) for smooth, professional fades; 8-bit (256 steps)
+    /// is the legacy mode for simple fixtures. Defaults to 16-bit precision.
+    public var resolution: DMXResolution = .sixteenBit
+
+    public enum DMXResolution: String, Sendable, CaseIterable {
+        case eightBit  = "8-bit"
+        case sixteenBit = "16-bit"
+    }
+
     public private(set) var isActive = false
     public private(set) var lastSentTimestamp: TimeInterval = 0
 
@@ -94,7 +104,7 @@ public final class ArtNetSender {
         guard let frame = bus.latestBio else { return }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
-        let channels = Self.dmxChannels(for: frame)
+        let channels = Self.dmxChannels(for: frame, resolution: resolution)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
         sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled
         send(packet)
@@ -125,6 +135,24 @@ public final class ArtNetSender {
         ]
     }
 
+    /// 16-bit fixture mapping: each of the four parameters becomes a
+    /// coarse(MSB)+fine(LSB) channel pair (8 channels total, 65 536 steps each),
+    /// the professional standard for click-free dimmer/colour fades.
+    /// Channel order: dimmer(hi,lo) · R(hi,lo) · G(hi,lo) · B(hi,lo).
+    public static func dmxChannels16(for f: BioSampleFrame) -> [UInt8] {
+        let hrNorm = clampUnit((f.heartRateBPM - 40) / 160)
+        let dimmer = clampUnit(0.3 + 0.7 * f.coherence)
+        return word(dimmer) + word(hrNorm) + word(clampUnit(f.hrvNormalized)) + word(clampUnit(f.breathPhase))
+    }
+
+    /// Resolution-dispatched mapping used by the live sender (and sACN).
+    public static func dmxChannels(for f: BioSampleFrame, resolution: DMXResolution) -> [UInt8] {
+        switch resolution {
+        case .eightBit:  return dmxChannels(for: f)
+        case .sixteenBit: return dmxChannels16(for: f)
+        }
+    }
+
     /// Builds one ArtDMX packet. `channels` is padded to an even length in
     /// [2, 512] as the spec requires.
     public static func artDMXPacket(universe: Int, sequence: UInt8, channels: [UInt8]) -> Data {
@@ -152,5 +180,11 @@ public final class ArtNetSender {
 
     private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x, 0), 1) }
     private static func byte(_ unit: Float) -> UInt8 { UInt8(clampUnit(unit) * 255) }
+
+    /// A unit value as a 16-bit coarse(MSB)+fine(LSB) DMX channel pair.
+    private static func word(_ unit: Float) -> [UInt8] {
+        let v = UInt16(clampUnit(unit) * 65535)
+        return [UInt8(v >> 8), UInt8(v & 0xFF)]
+    }
 }
 #endif

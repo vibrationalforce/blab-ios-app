@@ -82,6 +82,45 @@ final class ArtNetSenderTests: XCTestCase {
         XCTAssertEqual(wild.count, 4)  // all UInt8, no crash/overflow
     }
 
+    // MARK: - 16-bit (coarse/fine) mapping
+
+    func testDmxChannels16_eightChannels() {
+        let ch = ArtNetSender.dmxChannels16(for: frame())
+        XCTAssertEqual(ch.count, 8, "four params × coarse+fine pairs")
+    }
+
+    func testDmxChannels16_fullScaleBreathIsMaxWord() {
+        // breathPhase 1.0 → blue pair (channels 6,7) = 0xFFFF.
+        let ch = ArtNetSender.dmxChannels16(for: frame(breathPhase: 1))
+        XCTAssertEqual(ch[6], 0xFF, "coarse/MSB")
+        XCTAssertEqual(ch[7], 0xFF, "fine/LSB")
+    }
+
+    func testDmxChannels16_zeroBreathIsZeroWord() {
+        let ch = ArtNetSender.dmxChannels16(for: frame(breathPhase: 0))
+        XCTAssertEqual(ch[6], 0x00)
+        XCTAssertEqual(ch[7], 0x00)
+    }
+
+    func testDmxChannels16_msbBeforeLsb_halfScale() {
+        // hrvNormalized 0.5 → green pair (channels 4,5) ≈ 0x7FFF → MSB 0x7F.
+        let ch = ArtNetSender.dmxChannels16(for: frame(hrv: 0.5))
+        XCTAssertEqual(Int(ch[4]), 0x7F, accuracy: 1, "coarse byte ≈ half scale")
+    }
+
+    func testDmxChannels16_finerThan8bit() {
+        // Two close HRV values that collapse to the SAME 8-bit byte must differ
+        // in the 16-bit representation — the whole point of the precision upgrade.
+        let a = ArtNetSender.dmxChannels16(for: frame(hrv: 0.5000))
+        let b = ArtNetSender.dmxChannels16(for: frame(hrv: 0.5010))
+        XCTAssertNotEqual([a[4], a[5]], [b[4], b[5]], "16-bit resolves a step 8-bit can't")
+    }
+
+    func testResolutionDispatch_channelCounts() {
+        XCTAssertEqual(ArtNetSender.dmxChannels(for: frame(), resolution: .eightBit).count, 4)
+        XCTAssertEqual(ArtNetSender.dmxChannels(for: frame(), resolution: .sixteenBit).count, 8)
+    }
+
     // MARK: - Lifecycle
 
     @MainActor
