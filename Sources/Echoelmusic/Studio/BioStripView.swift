@@ -31,7 +31,12 @@ struct BioStripView: View {
     @Environment(OSCSender.self) private var osc
     #endif
 
+    #if canImport(AVFoundation)
+    @Environment(AudioEngine.self) private var audio
+    #endif
+
     @State private var showingFX = false
+    @State private var showingMix = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -47,6 +52,7 @@ struct BioStripView: View {
             midiDot
             oscDot
             fxButton
+            mixButton
             playButton
             sourceTag
         }
@@ -64,6 +70,37 @@ struct BioStripView: View {
         .sheet(isPresented: $showingFX) {
             EchoelFXView(voice: voice)
         }
+        #if canImport(AVFoundation)
+        .sheet(isPresented: $showingMix) {
+            EchoelMixView()
+        }
+        #endif
+    }
+
+    // MARK: - Mix panel button
+
+    /// Opens the EchoelMix surface (master metering + recorder). Highlights
+    /// red while a take is recording so the strip reflects live capture.
+    @ViewBuilder
+    private var mixButton: some View {
+        #if canImport(AVFoundation)
+        let recording = audio.multiTrackRecorder.isRecording
+        Button {
+            showingMix = true
+        } label: {
+            Text("Mix")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(recording ? Color.white : Color.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(recording ? Color(red: 0.90, green: 0.30, blue: 0.30) : Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(recording ? "Mix panel (recording)" : "Mix panel")
+        #else
+        EmptyView()
+        #endif
     }
 
     // MARK: - FX panel button
