@@ -43,7 +43,8 @@ struct BeatTab: View {
     /// Size-class-adaptive metrics (iPhone compact ↔ iPad regular) so the grid,
     /// pads and controls scale and stay visible on every device.
     @Environment(\.horizontalSizeClass) private var hSize
-    private var m: EchoelTheme.Metrics { .of(hSize) }
+    @Environment(\.verticalSizeClass) private var vSize
+    private var m: EchoelTheme.Metrics { .of(hSize, vSize) }
 
     private let columnsPerGroup = 4
     private let groupCount = 4
@@ -52,22 +53,29 @@ struct BeatTab: View {
         // Cycle 3 restoration: full BeatTab UI — transport + step grid + pads.
         // Pads trigger \`beatPlayer.playPad(track)\` which fires the matching
         // SamplerVoice (lock-free trigger counter on the audio thread).
-        VStack(spacing: m.bodySpacing) {
-            transportRow(player: beatPlayer)
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-            patternToolsRow(player: beatPlayer)
-                .padding(.horizontal, 16)
-            stepGrid(player: beatPlayer)
-                .padding(.horizontal, 12)
-            hintRow
-                .padding(.horizontal, 16)
-            padRow
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+        // Scrollable so the full instrument (transport · grid · pads) is always
+        // reachable in landscape / compact height, and never clips on small
+        // devices. In portrait the content fits, so bouncing is suppressed.
+        ScrollView {
+            VStack(spacing: m.bodySpacing) {
+                transportRow(player: beatPlayer)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                patternToolsRow(player: beatPlayer)
+                    .padding(.horizontal, 16)
+                stepGrid(player: beatPlayer)
+                    .padding(.horizontal, 12)
+                hintRow
+                    .padding(.horizontal, 16)
+                padRow
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+            }
+            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(EchoelTheme.bg)
+        .scrollBounceBehavior(.basedOnSize)
         #if canImport(UIKit)
         .sheet(item: $exportedMIDI) { file in
             ShareSheet(url: file.url)

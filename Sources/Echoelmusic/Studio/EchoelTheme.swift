@@ -37,15 +37,22 @@ enum EchoelTheme {
         let padColumns: Int
         let bodySpacing: CGFloat
 
-        static func of(_ sizeClass: UserInterfaceSizeClass?) -> Metrics {
-            let regular = (sizeClass == .regular)
+        /// - Parameters:
+        ///   - h: horizontal size class (`.regular` = iPad / large → bigger set).
+        ///   - v: vertical size class. `.compact` on a phone means **landscape**,
+        ///        where vertical room is scarce — tighten heights/spacing and
+        ///        lay the pads out in a single wide row to use the width.
+        static func of(_ h: UserInterfaceSizeClass?, _ v: UserInterfaceSizeClass? = nil) -> Metrics {
+            let regular = (h == .regular)
+            // Compact height on a non-iPad device = landscape phone.
+            let landscapePhone = (v == .compact && !regular)
             return Metrics(
-                stepCellHeight:  regular ? 44 : 30,
+                stepCellHeight:  regular ? 44 : (landscapePhone ? 24 : 30),
                 trackLabelWidth: regular ? 56 : 38,
-                controlSize:     regular ? 56 : 44,
-                padHeight:       regular ? 96 : 64,
-                padColumns:      regular ? 8  : 4,
-                bodySpacing:     regular ? 22 : 14
+                controlSize:     regular ? 56 : (landscapePhone ? 38 : 44),
+                padHeight:       regular ? 96 : (landscapePhone ? 50 : 64),
+                padColumns:      regular ? 8  : (landscapePhone ? 8  : 4),
+                bodySpacing:     regular ? 22 : (landscapePhone ? 8  : 14)
             )
         }
     }
