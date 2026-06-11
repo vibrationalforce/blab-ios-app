@@ -115,6 +115,59 @@ final class ModulationMatrixTests: XCTestCase {
         if case .hold(_, let d) = held.mode { XCTAssertEqual(d, 1) } else { XCTFail() }
     }
 
+    // MARK: - output: response curve
+
+    func testOutput_linearCurveIsIdentity_backwardCompatible() {
+        // Default curve is .linear → unchanged from pre-curve behavior.
+        let r = ModRoute(source: .coherence, destination: dest("x"))
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.7)), 0.7, accuracy: 1e-6)
+    }
+
+    func testOutput_exponentialCurveShapesResponse() {
+        // coh 0.5 → exp (x²) 0.25.
+        let r = ModRoute(source: .coherence, destination: dest("x"), curve: .exponential)
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.5)), 0.25, accuracy: 1e-6)
+    }
+
+    func testOutput_logarithmicCurveShapesResponse() {
+        // coh 0.25 → log (√x) 0.5.
+        let r = ModRoute(source: .coherence, destination: dest("x"), curve: .logarithmic)
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.25)), 0.5, accuracy: 1e-6)
+    }
+
+    func testOutput_curveAppliedAfterInvert() {
+        // coh 0.2 → invert 0.8 → exp 0.64.
+        let r = ModRoute(source: .coherence, destination: dest("x"), invert: true, curve: .exponential)
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.2)), 0.64, accuracy: 1e-6)
+    }
+
+    func testOutput_curveThenDepth() {
+        // coh 0.5 → exp 0.25 → depth 0.5 → 0.125.
+        let r = ModRoute(source: .coherence, destination: dest("x"), depth: 0.5, curve: .exponential)
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.5)), 0.125, accuracy: 1e-6)
+    }
+
+    // MARK: - Codable backward compatibility (curve)
+
+    func testRoute_codableRoundTripPreservesCurve() throws {
+        let r = ModRoute(source: .hrv, destination: dest("x"), curve: .sCurve)
+        let back = try JSONDecoder().decode(ModRoute.self, from: JSONEncoder().encode(r))
+        XCTAssertEqual(back.curve, .sCurve)
+    }
+
+    func testRoute_decodesWithoutCurveKey_defaultsLinear() throws {
+        // Simulate persisted v1 data that predates the `curve` field.
+        let r = ModRoute(source: .coherence, destination: dest("x"), curve: .exponential)
+        let data = try JSONEncoder().encode(r)
+        guard var obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return XCTFail("route did not encode to a JSON object")
+        }
+        obj.removeValue(forKey: "curve")
+        let stripped = try JSONSerialization.data(withJSONObject: obj)
+        let back = try JSONDecoder().decode(ModRoute.self, from: stripped)
+        XCTAssertEqual(back.curve, .linear)
+    }
+
     // MARK: - evaluate: aggregation
 
     func testEvaluate_routesToTheirDestinations() {

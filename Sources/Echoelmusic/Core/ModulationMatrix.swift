@@ -99,10 +99,15 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
     public var mode: ModMode
     /// Output amount, [0..1]. Scales the final normalized value.
     public var depth: Float
-    /// Invert the response (1 - value) before depth is applied.
+    /// Invert the response (1 - value) before the curve and depth are applied.
     public var invert: Bool
     /// Whether this route currently contributes output.
     public var enabled: Bool
+    /// Response shaping applied to the [0..1] value (after invert, before
+    /// depth) — pick `.logarithmic` for pitch-like targets, `.exponential`
+    /// for loudness-like ones (research §A2). Defaults to `.linear` (identity)
+    /// so existing routes and persisted data behave exactly as before.
+    public var curve: ResponseCurve
 
     public init(
         id: UUID = UUID(),
@@ -111,7 +116,8 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         mode: ModMode = .live,
         depth: Float = 1.0,
         invert: Bool = false,
-        enabled: Bool = true
+        enabled: Bool = true,
+        curve: ResponseCurve = .linear
     ) {
         self.id = id
         self.source = source
@@ -120,6 +126,25 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         self.depth = depth
         self.invert = invert
         self.enabled = enabled
+        self.curve = curve
+    }
+
+    // Custom Codable so older persisted routes (no `curve` key) still decode,
+    // defaulting to `.linear`. encode(to:) stays synthesized.
+    private enum CodingKeys: String, CodingKey {
+        case id, source, destination, mode, depth, invert, enabled, curve
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        source = try c.decode(ModSource.self, forKey: .source)
+        destination = try c.decode(ModDestination.self, forKey: .destination)
+        mode = try c.decode(ModMode.self, forKey: .mode)
+        depth = try c.decode(Float.self, forKey: .depth)
+        invert = try c.decode(Bool.self, forKey: .invert)
+        enabled = try c.decode(Bool.self, forKey: .enabled)
+        curve = try c.decodeIfPresent(ResponseCurve.self, forKey: .curve) ?? .linear
     }
 
     /// Returns a copy of this route latched to the source's current value
@@ -164,7 +189,8 @@ public struct ModulationMatrix: Codable, Sendable, Equatable {
             base = clamp01(held + drift * (live - 0.5) * 2)
         }
 
-        let shaped = route.invert ? (1 - base) : base
+        let inverted = route.invert ? (1 - base) : base
+        let shaped = route.curve.apply(inverted)
         return clamp01(shaped * clamp01(route.depth))
     }
 
