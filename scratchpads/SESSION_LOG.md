@@ -19,13 +19,21 @@ Read this FIRST when continuing work on Echoelmusic.
 ### What shipped (Phase M — the bio→parameter mapping spine; protected DSP untouched)
 - **`BioNormalizer`** (`Bio/BioNormalizer.swift`) — rolling z-score (σ-floor) → tanh squash → EMA + accept/confidence gate; `ResponseCurve` (linear/exp/log/S). Pure Foundation value type, 20 tests. Commit `095a2a2`, CI green.
 - **Per-route `ResponseCurve`** in `ModulationMatrix` — applied after invert, before depth; `.linear` default = byte-identical; backward-compatible Codable. +7 tests. Commit `2d8d303`, CI green.
-- **HRV-trust source gate** — `ModRoute.requiresTrustedSource` + `BioSource.providesTrustedHRV` (BLE only); HRV routes go silent on weak sources. +6 tests. Commit `b8f4763`, CI pending→.
+- **HRV-trust source gate** — `ModRoute.requiresTrustedSource` + `BioSource.providesTrustedHRV` (BLE only); HRV routes go silent on weak sources. +6 tests. Commit `b8f4763`, CI green.
+- **`BioHaptics`** (`Studio/BioHaptics.swift`) — pure bio→haptic-cue mapping kernel (eyes-free transport/beat/breath feedback), CoreHaptics-independent value types. Commit `fc11d58`, CI green. (Engine wiring = Phase H.2, deferred.)
+
+### TestFlight ship (Ralph Wiggum Lambda)
+- Dispatched `testflight.yml` (`build_only=false`) on this branch.
+- **Build #1 (`fc11d58`) FAILED** — Archive step, ~44 s: `BioNormalizer.init` called bare `clamp01(emaAlpha)` in instance context; Swift 6 Release/WMO app archive rejects the static-on-instance (SwiftPM/`ci.yml` had tolerated it). **Process gap noted:** `ci.yml` (SwiftPM) does not catch app-target Swift 6 strictness; `testflight.yml`'s `compile_check` job is skipped by default → enabling it would fail-fast in ~2 min instead of in Archive (owner-gated CI change, not done).
+- **Fix `e585d92`** — one line, `Self.clamp01`. Other 3 session files audited clean (`BioHaptics` = pure Foundation).
+- **Build #2 (`e585d92`) SUCCESS** (run 27366928782): Archive ✅ · Export & Upload to TestFlight ✅ · **Verify build landed in App Store Connect ✅** · Preflight/Summary ✅. FeatureMatrix LIVE/PARTIAL set is on TestFlight (next build after 1543 VALID).
 
 ### Method
-- No Swift toolchain in the remote Linux sandbox → CI (macOS) is the build-green gate. Each cycle: careful self-review + hand-computed test expectations, commit, push, poll the GitHub Actions run to completion before stacking the next cycle.
+- No Swift toolchain in the remote Linux sandbox → CI (macOS) is the build-green gate. Each cycle: careful self-review + hand-computed test expectations, commit, push, poll the GitHub Actions run to completion before stacking the next cycle. TestFlight via PAT `workflow_dispatch` (MCP integration lacks the scope → 403).
 
 ### Next
-- Phase M.4 (optional): per-route `BioNormalizer` smoothing (τ) wired into `ModulationEngine` (stateful). Then Phase H (Core Haptics eyes-free layer), Phase D (EchoelDocument/Transport/Selection cohesion).
+- Phase M.4 (optional): per-route `BioNormalizer` smoothing (τ) wired into `ModulationEngine` (stateful). Then Phase H.2 (CoreHaptics engine wiring the `BioHaptics` kernel), Phase D (EchoelDocument/Transport/Selection cohesion).
+- Consider (owner-gated): enable `testflight.yml` compile_check before Archive for fail-fast stability.
 
 ---
 
