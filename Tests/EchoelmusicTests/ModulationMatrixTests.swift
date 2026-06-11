@@ -222,6 +222,36 @@ final class ModulationMatrixTests: XCTestCase {
         XCTAssertFalse(back.requiresTrustedSource)
     }
 
+    // MARK: - smoothingTau (engine-side; pure matrix is unaffected)
+
+    func testOutput_ignoresSmoothingTau() {
+        // Smoothing is applied by ModulationEngine, not the pure matrix output.
+        let r = ModRoute(source: .coherence, destination: dest("x"), smoothingTau: 2.0)
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.5)), 0.5, accuracy: 1e-6)
+    }
+
+    func testRoute_smoothingTauClampedNonNegative() {
+        XCTAssertEqual(ModRoute(source: .hrv, destination: dest("x"), smoothingTau: -3).smoothingTau, 0)
+    }
+
+    func testRoute_codableRoundTripPreservesSmoothingTau() throws {
+        let r = ModRoute(source: .hrv, destination: dest("x"), smoothingTau: 0.35)
+        let back = try JSONDecoder().decode(ModRoute.self, from: JSONEncoder().encode(r))
+        XCTAssertEqual(back.smoothingTau, 0.35, accuracy: 1e-6)
+    }
+
+    func testRoute_decodesWithoutSmoothingKey_defaultsZero() throws {
+        let r = ModRoute(source: .hrv, destination: dest("x"), smoothingTau: 0.5)
+        let data = try JSONEncoder().encode(r)
+        guard var obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return XCTFail("route did not encode to a JSON object")
+        }
+        obj.removeValue(forKey: "smoothingTau")
+        let stripped = try JSONSerialization.data(withJSONObject: obj)
+        let back = try JSONDecoder().decode(ModRoute.self, from: stripped)
+        XCTAssertEqual(back.smoothingTau, 0)
+    }
+
     // MARK: - evaluate: aggregation
 
     func testEvaluate_routesToTheirDestinations() {

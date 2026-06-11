@@ -65,6 +65,72 @@ final class ModulationEngineTests: XCTestCase {
         XCTAssertEqual(got, 0.6, accuracy: 1e-6)
     }
 
+    // MARK: - per-route smoothing (M.4)
+
+    private func smoothedRoute(_ source: ModSource, _ key: String, tau: Float) -> ModRoute {
+        ModRoute(source: source, destination: ModDestination(key), smoothingTau: tau)
+    }
+
+    func testApply_smoothingZero_isInstant() {
+        // Default tau 0 → output jumps to the raw value (unchanged behavior).
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "x")]))
+        var got: Float = -1
+        engine.register("x") { got = $0 }
+        engine.apply(frame(coh: 1.0, ts: 0)); XCTAssertEqual(got, 1.0, accuracy: 1e-6)
+        engine.apply(frame(coh: 0.0, ts: 1)); XCTAssertEqual(got, 0.0, accuracy: 1e-6)
+    }
+
+    func testApply_smoothing_seedsAtFirstValue_noStartupRamp() {
+        // First sample emits the raw value (no ramp up from 0).
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [smoothedRoute(.coherence, "x", tau: 0.5)]))
+        var got: Float = -1
+        engine.register("x") { got = $0 }
+        engine.apply(frame(coh: 0.7, ts: 0))
+        XCTAssertEqual(got, 0.7, accuracy: 1e-6)
+    }
+
+    func testApply_smoothing_rampsTowardTarget() {
+        // tau 0.2 s, dt 0.1 s → alpha = 0.1/0.3 = 1/3.
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [smoothedRoute(.coherence, "x", tau: 0.2)]))
+        var got: Float = -1
+        engine.register("x") { got = $0 }
+        engine.apply(frame(coh: 1.0, ts: 0))          // seed at 1.0
+        XCTAssertEqual(got, 1.0, accuracy: 1e-4)
+        engine.apply(frame(coh: 0.0, ts: 1))          // (2/3)*1.0
+        XCTAssertEqual(got, 0.666667, accuracy: 1e-4)
+        engine.apply(frame(coh: 0.0, ts: 2))          // (2/3)*0.6667
+        XCTAssertEqual(got, 0.444444, accuracy: 1e-4)
+    }
+
+    func testApply_disablingRoute_prunesAndReseedsSmoothing() {
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [smoothedRoute(.coherence, "x", tau: 0.2)]))
+        var got: Float = -1
+        engine.register("x") { got = $0 }
+        engine.apply(frame(coh: 1.0, ts: 0))          // seed 1.0
+        XCTAssertEqual(got, 1.0, accuracy: 1e-4)
+
+        engine.matrix.routes[0].enabled = false
+        engine.apply(frame(coh: 1.0, ts: 1))          // route off → handler not called, got unchanged
+        XCTAssertEqual(got, 1.0, accuracy: 1e-4)
+
+        engine.matrix.routes[0].enabled = true
+        engine.apply(frame(coh: 0.3, ts: 2))          // re-seeds (pruned) → emits raw, no ramp from old 1.0
+        XCTAssertEqual(got, 0.3, accuracy: 1e-4)
+    }
+
+    func testApply_smoothedRouteToZeroDecays_notInstant() {
+        // A smoothed route does not snap to 0 in one tick.
+        let plain = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "x")]))
+        let smooth = ModulationEngine(matrix: ModulationMatrix(routes: [smoothedRoute(.coherence, "x", tau: 0.5)]))
+        var p: Float = -1, s: Float = -1
+        plain.register("x") { p = $0 }; smooth.register("x") { s = $0 }
+        plain.apply(frame(coh: 1.0, ts: 0)); smooth.apply(frame(coh: 1.0, ts: 0))
+        plain.apply(frame(coh: 0.0, ts: 1)); smooth.apply(frame(coh: 0.0, ts: 1))
+        XCTAssertEqual(p, 0.0, accuracy: 1e-6)         // instant
+        XCTAssertGreaterThan(s, 0.0)                    // still decaying
+        XCTAssertLessThan(s, 1.0)
+    }
+
     // MARK: - registry
 
     func testRegister_replacesAndUnregisters() {

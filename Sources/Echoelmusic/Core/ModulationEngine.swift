@@ -65,6 +65,18 @@ public final class ModulationEngine {
     @ObservationIgnored
     private let storageKey = "modulationMatrix.v1"
 
+    /// Per-route one-pole smoothing state (last emitted value), keyed by route
+    /// id. Only routes with `smoothingTau > 0` keep an entry. Seeded at a
+    /// route's first value (no startup ramp), pruned when a route is removed
+    /// or disabled, cleared on `stop()`.
+    @ObservationIgnored
+    private var routeSmoothing: [UUID: Float] = [:]
+
+    /// Control-plane tick spacing in seconds (matches the 100 ms polling loop).
+    /// Used as `dt` for the smoothing time constant.
+    @ObservationIgnored
+    private static let tickSeconds: Float = 0.1
+
     public init(matrix: ModulationMatrix = ModulationMatrix(), defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.matrix = matrix
@@ -119,6 +131,7 @@ public final class ModulationEngine {
     public func stop() {
         loop.stop()
         isActive = false
+        routeSmoothing.removeAll() // a fresh start re-seeds smoothing, no stale ramp
     }
 
     // MARK: - Tick
@@ -134,12 +147,42 @@ public final class ModulationEngine {
         apply(frame)
     }
 
-    /// Pure-ish apply: evaluate the matrix for `frame` and forward outputs to
-    /// handlers. Exposed for tests (call directly without the polling Task).
+    /// Evaluate the matrix for `frame`, apply per-route smoothing, aggregate per
+    /// destination, and forward outputs to handlers. Exposed for tests (call
+    /// directly without the polling Task).
+    ///
+    /// Behavior is identical to the pure `matrix.evaluate(frame)` for routes
+    /// with `smoothingTau == 0`; routes with `smoothingTau > 0` are one-pole
+    /// low-passed across ticks (seeded at their first value, so no startup ramp).
     public func apply(_ frame: BioSampleFrame) {
-        let outputs = matrix.evaluate(frame)
-        guard !outputs.isEmpty else { return }
-        for (destination, value) in outputs {
+        var result: [ModDestination: Float] = [:]
+        var active = Set<UUID>()
+
+        for route in matrix.routes where route.enabled {
+            active.insert(route.id)
+            let raw = ModulationMatrix.output(for: route, frame: frame)
+
+            var value = raw
+            if route.smoothingTau > 0 {
+                let alpha = BioNormalizer.alpha(tauSeconds: route.smoothingTau, dtSeconds: Self.tickSeconds)
+                let prev = routeSmoothing[route.id] ?? raw // seed at first value
+                value = alpha * raw + (1 - alpha) * prev
+                routeSmoothing[route.id] = value
+            }
+
+            guard value > 0 else { continue } // matches evaluate(): skip zero
+            result[route.destination, default: 0] =
+                ModulationMatrix.clamp01((result[route.destination] ?? 0) + value)
+        }
+
+        // Drop smoothing state for routes that were removed or disabled.
+        // Skipped entirely when nothing is smoothed (the common, zero-cost path).
+        if !routeSmoothing.isEmpty {
+            routeSmoothing = routeSmoothing.filter { active.contains($0.key) }
+        }
+
+        guard !result.isEmpty else { return }
+        for (destination, value) in result {
             destinations[destination.key]?(value)
             outputTap?(destination, value)
         }

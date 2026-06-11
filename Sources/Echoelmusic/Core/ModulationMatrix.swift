@@ -114,6 +114,12 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
     /// sources instead of modulating off an unreliable estimate (research §A1).
     /// Defaults to `false`: existing routes never gate.
     public var requiresTrustedSource: Bool
+    /// One-pole smoothing time constant in seconds, applied by the stateful
+    /// `ModulationEngine` to this route's output (NOT by the pure matrix). 0 =
+    /// no smoothing (instant). Use ~0.1–0.3 s for fast targets (filter/bright),
+    /// ~0.5–2 s for slow ones (coherence/HRV) to avoid zipper/jumps (research
+    /// §A2). Defaults to `0`: existing routes are unsmoothed exactly as before.
+    public var smoothingTau: Float
 
     public init(
         id: UUID = UUID(),
@@ -124,7 +130,8 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         invert: Bool = false,
         enabled: Bool = true,
         curve: ResponseCurve = .linear,
-        requiresTrustedSource: Bool = false
+        requiresTrustedSource: Bool = false,
+        smoothingTau: Float = 0
     ) {
         self.id = id
         self.source = source
@@ -135,12 +142,13 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         self.enabled = enabled
         self.curve = curve
         self.requiresTrustedSource = requiresTrustedSource
+        self.smoothingTau = Swift.max(0, smoothingTau)
     }
 
     // Custom Codable so older persisted routes (missing newer keys) still
     // decode with safe defaults. encode(to:) stays synthesized.
     private enum CodingKeys: String, CodingKey {
-        case id, source, destination, mode, depth, invert, enabled, curve, requiresTrustedSource
+        case id, source, destination, mode, depth, invert, enabled, curve, requiresTrustedSource, smoothingTau
     }
 
     public init(from decoder: Decoder) throws {
@@ -154,6 +162,7 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         enabled = try c.decode(Bool.self, forKey: .enabled)
         curve = try c.decodeIfPresent(ResponseCurve.self, forKey: .curve) ?? .linear
         requiresTrustedSource = try c.decodeIfPresent(Bool.self, forKey: .requiresTrustedSource) ?? false
+        smoothingTau = try c.decodeIfPresent(Float.self, forKey: .smoothingTau) ?? 0
     }
 
     /// Returns a copy of this route latched to the source's current value
