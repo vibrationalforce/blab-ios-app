@@ -108,6 +108,12 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
     /// for loudness-like ones (research §A2). Defaults to `.linear` (identity)
     /// so existing routes and persisted data behave exactly as before.
     public var curve: ResponseCurve
+    /// When true, this route only contributes when the bio frame's source is
+    /// trustworthy for HRV (a BLE chest strap — `BioSource.providesTrustedHRV`).
+    /// Set it on HRV-driven routes so they go silent on wrist/camera/Watch
+    /// sources instead of modulating off an unreliable estimate (research §A1).
+    /// Defaults to `false`: existing routes never gate.
+    public var requiresTrustedSource: Bool
 
     public init(
         id: UUID = UUID(),
@@ -117,7 +123,8 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         depth: Float = 1.0,
         invert: Bool = false,
         enabled: Bool = true,
-        curve: ResponseCurve = .linear
+        curve: ResponseCurve = .linear,
+        requiresTrustedSource: Bool = false
     ) {
         self.id = id
         self.source = source
@@ -127,12 +134,13 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         self.invert = invert
         self.enabled = enabled
         self.curve = curve
+        self.requiresTrustedSource = requiresTrustedSource
     }
 
-    // Custom Codable so older persisted routes (no `curve` key) still decode,
-    // defaulting to `.linear`. encode(to:) stays synthesized.
+    // Custom Codable so older persisted routes (missing newer keys) still
+    // decode with safe defaults. encode(to:) stays synthesized.
     private enum CodingKeys: String, CodingKey {
-        case id, source, destination, mode, depth, invert, enabled, curve
+        case id, source, destination, mode, depth, invert, enabled, curve, requiresTrustedSource
     }
 
     public init(from decoder: Decoder) throws {
@@ -145,6 +153,7 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         invert = try c.decode(Bool.self, forKey: .invert)
         enabled = try c.decode(Bool.self, forKey: .enabled)
         curve = try c.decodeIfPresent(ResponseCurve.self, forKey: .curve) ?? .linear
+        requiresTrustedSource = try c.decodeIfPresent(Bool.self, forKey: .requiresTrustedSource) ?? false
     }
 
     /// Returns a copy of this route latched to the source's current value
@@ -177,6 +186,8 @@ public struct ModulationMatrix: Codable, Sendable, Equatable {
     /// Disabled routes return 0. Deterministic and side-effect free.
     public static func output(for route: ModRoute, frame: BioSampleFrame) -> Float {
         guard route.enabled else { return 0 }
+        // HRV-trust gate: a strap-only route stays silent on weak sources.
+        if route.requiresTrustedSource && !frame.source.providesTrustedHRV { return 0 }
 
         let live = route.source.normalizedValue(from: frame)
         let base: Float

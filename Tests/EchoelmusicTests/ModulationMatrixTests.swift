@@ -6,12 +6,13 @@ final class ModulationMatrixTests: XCTestCase {
     // A bio frame with controllable fields.
     private func frame(
         hr: Float = 120, hrv: Float = 0.5, br: Float = 12,
-        phase: Float = 0.5, coh: Float = 0.5, motion: Float = 0.5
+        phase: Float = 0.5, coh: Float = 0.5, motion: Float = 0.5,
+        src: BioSource = .fallback
     ) -> BioSampleFrame {
         BioSampleFrame(
             timestamp: 0, heartRateBPM: hr, hrvNormalized: hrv,
             breathRate: br, breathPhase: phase, coherence: coh,
-            motionEnergy: motion, source: .fallback
+            motionEnergy: motion, source: src
         )
     }
 
@@ -147,6 +148,41 @@ final class ModulationMatrixTests: XCTestCase {
         XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(coh: 0.5)), 0.125, accuracy: 1e-6)
     }
 
+    // MARK: - HRV-trust source gate
+
+    func testBioSource_onlyBLEProvidesTrustedHRV() {
+        XCTAssertTrue(BioSource.ble.providesTrustedHRV)
+        for s: BioSource in [.fallback, .healthKit, .oura, .watch, .cameraPPG] {
+            XCTAssertFalse(s.providesTrustedHRV, "\(s) must not be trusted for HRV")
+        }
+    }
+
+    func testOutput_trustedGate_passesOnBLE() {
+        let r = ModRoute(source: .hrv, destination: dest("x"), requiresTrustedSource: true)
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(hrv: 0.8, src: .ble)), 0.8, accuracy: 1e-6)
+    }
+
+    func testOutput_trustedGate_silentOnWeakSources() {
+        let r = ModRoute(source: .hrv, destination: dest("x"), requiresTrustedSource: true)
+        for s: BioSource in [.fallback, .healthKit, .oura, .watch, .cameraPPG] {
+            XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(hrv: 0.8, src: s)), 0, "\(s) must gate to 0")
+        }
+    }
+
+    func testOutput_noTrustRequirement_passesOnWeakSource_backwardCompatible() {
+        // Default requiresTrustedSource == false → unchanged behavior.
+        let r = ModRoute(source: .hrv, destination: dest("x"))
+        XCTAssertEqual(ModulationMatrix.output(for: r, frame: frame(hrv: 0.8, src: .cameraPPG)), 0.8, accuracy: 1e-6)
+    }
+
+    func testEvaluate_trustedRouteDropsOutOnWeakSource() {
+        let m = ModulationMatrix(routes: [
+            ModRoute(source: .hrv, destination: dest("brightness"), requiresTrustedSource: true)
+        ])
+        XCTAssertNil(m.evaluate(frame(hrv: 0.9, src: .watch))[dest("brightness")])
+        XCTAssertEqual(m.evaluate(frame(hrv: 0.9, src: .ble))[dest("brightness")] ?? -1, 0.9, accuracy: 1e-6)
+    }
+
     // MARK: - Codable backward compatibility (curve)
 
     func testRoute_codableRoundTripPreservesCurve() throws {
@@ -166,6 +202,24 @@ final class ModulationMatrixTests: XCTestCase {
         let stripped = try JSONSerialization.data(withJSONObject: obj)
         let back = try JSONDecoder().decode(ModRoute.self, from: stripped)
         XCTAssertEqual(back.curve, .linear)
+    }
+
+    func testRoute_codableRoundTripPreservesTrustFlag() throws {
+        let r = ModRoute(source: .hrv, destination: dest("x"), requiresTrustedSource: true)
+        let back = try JSONDecoder().decode(ModRoute.self, from: JSONEncoder().encode(r))
+        XCTAssertTrue(back.requiresTrustedSource)
+    }
+
+    func testRoute_decodesWithoutTrustKey_defaultsFalse() throws {
+        let r = ModRoute(source: .hrv, destination: dest("x"), requiresTrustedSource: true)
+        let data = try JSONEncoder().encode(r)
+        guard var obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return XCTFail("route did not encode to a JSON object")
+        }
+        obj.removeValue(forKey: "requiresTrustedSource")
+        let stripped = try JSONSerialization.data(withJSONObject: obj)
+        let back = try JSONDecoder().decode(ModRoute.self, from: stripped)
+        XCTAssertFalse(back.requiresTrustedSource)
     }
 
     // MARK: - evaluate: aggregation

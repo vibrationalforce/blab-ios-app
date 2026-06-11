@@ -104,6 +104,14 @@ public enum BioSource: UInt8, Sendable, Equatable {
     case ble = 3
     case watch = 4
     case cameraPPG = 5
+
+    /// Whether this source delivers beat-to-beat RR intervals accurate enough
+    /// for time-domain HRV (RMSSD). Only a BLE Heart-Rate-Service chest strap
+    /// (0x180D, e.g. Polar H10) qualifies: wrist/camera PPG smooths or gaps the
+    /// RR series and Apple Watch carries ~4–5 s latency, so their "HRV" is an
+    /// estimate, not a measurement (research §A1). Consumers gate HRV-driven
+    /// modulation on this so a strap-only route stays silent on weak sources.
+    public var providesTrustedHRV: Bool { self == .ble }
 }
 
 // MARK: - External controller event (MPE + air dimensions)
