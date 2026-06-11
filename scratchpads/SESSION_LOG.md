@@ -2021,3 +2021,39 @@ Tests added: NoteTests, SynthPatchTests, DrumSynthTests, ClipTests (+ PatternLoa
 
 GATED ON CI / DEVICE: confirm macOS build green (couldn't compile here); musicality
 tuning of poly synth + modal drums needs device ear.
+
+
+### Addendum 5 — EchoelFX + EchoelMix tool tracks (2026-06-11)
+Branch `claude/piano-roll-clip-view-wozlie`. Built two website tool tracks end-to-end.
+No Swift toolchain in sandbox → pattern-match + specialist sub-agent reviews
+(audio-thread, ui-state, dsp); macOS CI is the verifier. 12+ green CI runs this session.
+
+**EchoelFX (shipped to TestFlight earlier this session):**
+- Delay (Digital/Tape/Ping-Pong), Chorus/Flanger/Phaser/Tremolo, Compressor/Limiter,
+  `EchoelFXChain` wired into the synth render (gated, default OFF), `EchoelFXView`
+  panel + 'FX' button in BioStrip. LFO realtime-allocation mine defused pre-merge.
+
+**EchoelMix (this cycle, all green):**
+- `EchoelMeter` (peak/RMS/true-peak via 4× Catmull-Rom inter-sample) + alloc-free
+  pointer overload. `EchoelLoudnessMeter` (BS.1770 K-weighted momentary/short-term
+  LUFS, pre-allocated rings) + pointer overload.
+- `MultiTrackRecorder` (mic→.caf over beats, permission flow, 1 Hz timer). Audit
+  caught a dealloc-while-recording use-after-free → fixed: deinit clears gate +
+  removes tap via nonisolated(unsafe) weak node ref BEFORE freeing pointers.
+- AudioEngine master-tap wiring: meters are TAP-THREAD-CONFINED; cross-thread
+  handoff to the 60 Hz MainActor poll is via single-Float pointers
+  (_peakDb/_truePeakDb/_lufs), mirroring the accepted _rawMeterL/R pattern. No
+  multi-word shared state. LoudnessMeter re-created with the real tap sample rate.
+- `EchoelMixView` (metering readouts + L/R bars + REC/stop/takes) + 'Mix' button.
+
+**Audit blockers found AND fixed before merge (audio-thread-reviewer):**
+1. CRITICAL: `[Float]` array literal inside EchoelMeter.interSampleMax ran per
+   sample on the render thread → heap alloc. Unrolled to 3 scalar evals.
+2. Pointer-conversion compile error: stereo right-channel local needed explicit
+   `UnsafePointer<Float>?` type annotation.
+
+Tests added: EchoelMeterTests + EchoelLoudnessMeterTests pointer-parity/mono,
+EchoelRecorderTests (idle/engineNotReady/idempotent-stop).
+
+TestFlight #1570 (build_only=false) dispatched on 51743e9 = FX + Mix combined.
+GATED ON DEVICE: FX sound-design tuning + LUFS/meter calibration need the owner's ears.
