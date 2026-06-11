@@ -296,8 +296,34 @@ private struct RouteRow: View {
 
             Toggle("Invert", isOn: $route.invert)
                 .font(.caption)
+
+            // Response shaping: log for pitch-like targets, exp for loudness-like
+            // (perceptual scaling, research §A2).
+            Picker("Curve", selection: $route.curve) {
+                ForEach(ResponseCurve.allCases, id: \.self) { Text(curveLabel($0)).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .font(.caption)
+
+            // One-pole smoothing applied by the engine: ~0.1–0.3 s for fast
+            // targets, ~0.5–2 s for slow (coherence/HRV) to kill zipper/jumps.
+            labeledSlider("Smooth (s)", value: $route.smoothingTau, range: 0...2)
+
+            // Only contribute when the source is HRV-trustworthy (a BLE chest
+            // strap) — set this on HRV-driven routes (research §A1).
+            Toggle("Require HRV-trusted source", isOn: $route.requiresTrustedSource)
+                .font(.caption)
         }
         .padding(.vertical, 6)
+    }
+
+    private func curveLabel(_ curve: ResponseCurve) -> String {
+        switch curve {
+        case .linear:      return "Lin"
+        case .exponential: return "Exp"
+        case .logarithmic: return "Log"
+        case .sCurve:      return "S"
+        }
     }
 
     // MARK: Mode handling
