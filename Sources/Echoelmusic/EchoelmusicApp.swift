@@ -42,25 +42,12 @@ struct EchoelmusicApp: App {
     @State private var modulationEngine: ModulationEngine
     /// Library of user + factory synth sounds for the patch editor.
     @State private var patchStore: PatchStore
-    /// Shared melodic piano-roll pattern (edited in Tools, captured into Clips).
+    /// Shared melodic piano-roll pattern — the body-generated melody.
     @State private var pianoRoll: PianoRollModel
-    /// Session clips (launchable drum + melody cells).
-    @State private var clipStore: ClipStore
-    /// Linear song timeline (the Arrange view) + its bar-chaining play engine.
-    @State private var arrangementStore: ArrangementStore
-    @State private var arranger = ArrangementPlayer()
-    /// Bar-quantized Session clip launching (snap to next bar while playing).
-    @State private var launchQuantizer = LaunchQuantizer()
-    /// Shared tab selection so the app can drive navigation in code (e.g. jump
-    /// to Tools after "Edit clip"), not just on a tab tap.
-    @State private var navigator = StudioNavigator()
     #if canImport(CoreHaptics)
-    /// Eyes-free haptic feedback (transport pulse). Off until armed in the Well tab.
+    /// Eyes-free haptic feedback (transport pulse). Off until armed.
     @State private var haptics = HapticController()
     #endif
-    /// App-wide selection (cohesion layer). Injected now; consumed by the
-    /// contextual inspector in a later cycle — no behavior change yet.
-    @State private var selection = Selection()
     /// Artist · key · Kammerton — the persisted identity stamped on session names
     /// and export filenames.
     @State private var sessionContext = SessionContext()
@@ -106,8 +93,6 @@ struct EchoelmusicApp: App {
         _modulationEngine = State(wrappedValue: ModulationEngine())
         _patchStore = State(wrappedValue: PatchStore())
         _pianoRoll = State(wrappedValue: PianoRollModel())
-        _clipStore = State(wrappedValue: ClipStore())
-        _arrangementStore = State(wrappedValue: ArrangementStore())
 
         _ = MemoryPressureHandler.shared
         log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
@@ -151,15 +136,9 @@ struct EchoelmusicApp: App {
             .environment(modulationEngine)
             .environment(patchStore)
             .environment(pianoRoll)
-            .environment(clipStore)
-            .environment(arrangementStore)
-            .environment(arranger)
-            .environment(launchQuantizer)
-            .environment(navigator)
             #if canImport(CoreHaptics)
             .environment(haptics)
             #endif
-            .environment(selection)
             .environment(sessionContext)
             .environment(loopExporter)
             .environment(projectStore)
