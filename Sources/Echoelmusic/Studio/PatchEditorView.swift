@@ -17,7 +17,14 @@ struct PatchEditorView: View {
     @State private var showSaveAs = false
     @State private var saveAsName = ""
 
-    init(initial: SynthPatch) { _patch = State(initialValue: initial) }
+    /// Reports the live patch back to the host (so the one-window studio can keep
+    /// the current sound for project save). Optional — defaults to a no-op.
+    private let onApply: (SynthPatch) -> Void
+
+    init(initial: SynthPatch, onApply: @escaping (SynthPatch) -> Void = { _ in }) {
+        _patch = State(initialValue: initial)
+        self.onApply = onApply
+    }
 
     private var isFactory: Bool { store.isFactory(patch) }
 
@@ -67,8 +74,8 @@ struct PatchEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
-            .onAppear { voice.apply(patch) }
-            .onChange(of: patch) { _, new in voice.apply(new) }
+            .onAppear { voice.apply(patch); onApply(patch) }
+            .onChange(of: patch) { _, new in voice.apply(new); onApply(new) }
             .alert("Save as", isPresented: $showSaveAs) {
                 TextField("Name", text: $saveAsName)
                 Button("Save") {

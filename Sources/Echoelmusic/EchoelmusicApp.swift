@@ -64,6 +64,13 @@ struct EchoelmusicApp: App {
     /// Artist · key · Kammerton — the persisted identity stamped on session names
     /// and export filenames.
     @State private var sessionContext = SessionContext()
+    /// Loop → .wav export (live-capture) and the saved-projects library — the one
+    /// window's output + persistence.
+    @State private var loopExporter = LoopExporter()
+    @State private var projectStore = ProjectStore()
+    /// Clearly-labeled "Demo" bio source so every user hears the instrument
+    /// without paired hardware (owned here now the single window is the root).
+    @State private var demoSource = BioSimulator()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -118,7 +125,7 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        StudioRoot()
+        EchoelStudioView()
             .environment(audioEngine)
             .environment(store)
             .environment(beatPlayer)
@@ -154,6 +161,9 @@ struct EchoelmusicApp: App {
             #endif
             .environment(selection)
             .environment(sessionContext)
+            .environment(loopExporter)
+            .environment(projectStore)
+            .environment(demoSource)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
@@ -221,6 +231,19 @@ struct EchoelmusicApp: App {
                 // Stream every active modulation output out as /echoelmusic/mod/<key>.
                 modulationEngine.outputTap = { [weak osc] destination, value in
                     osc?.sendModulation(key: destination.key, value: value)
+                }
+                #endif
+
+                // Demo bio source so every user hears the instrument without
+                // paired hardware (migrated from StudioRoot when the single window
+                // became the root).
+                #if DEBUG
+                demoSource.start(publishing: bus)
+                #else
+                try? await Task.sleep(for: .seconds(4))
+                let live = bus.latestBio
+                if live == nil || live?.source == .fallback {
+                    demoSource.start(publishing: bus)
                 }
                 #endif
             }
