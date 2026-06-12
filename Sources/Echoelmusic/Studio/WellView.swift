@@ -23,6 +23,8 @@ struct WellView: View {
 
     @State private var breathsPerMin: Double = 6
     @State private var inhaling = false
+    /// Tapped bio metric to explain (nil = no sheet).
+    @State private var infoMetric: BioMetric?
     /// Shared with StudioRoot: reveals the pro tabs (Sessions + Connect).
     @AppStorage("echoel.advancedMode") private var advancedMode = false
 
@@ -49,6 +51,7 @@ struct WellView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.black)
+        .sheet(item: $infoMetric) { BioMetricInfoView(metric: $0) }
     }
 
     /// Reveals the pro surfaces (Sessions recorder + Connect: OSC/ADM-OSC/
@@ -194,15 +197,19 @@ struct WellView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 12)
+        .contentShape(Rectangle())
+        .onTapGesture { infoMetric = .coherence }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to learn what coherence means")
     }
 
     // MARK: Readouts
 
     private var readoutRow: some View {
         HStack(spacing: 12) {
-            readout("HR", hrString, "bpm")
-            readout("HRV", hrvString, hrvUnit)
-            readout("Breath", breathString, "/min")
+            readout("HR", hrString, "bpm", .heartRate)
+            readout("HRV", hrvString, hrvUnit, .hrv)
+            readout("Breath", breathString, "/min", .breath)
         }
     }
 
@@ -213,13 +220,14 @@ struct WellView: View {
 
     private var hrvDetailRow: some View {
         HStack(spacing: 12) {
-            readout("RMSSD", String(format: "%.1f", bus.latestBio?.hrvRMSSDms ?? 0), "ms")
-            readout("SDNN", String(format: "%.1f", bus.latestBio?.hrvSDNNms ?? 0), "ms")
-            readout("pNN50", String(format: "%.1f", bus.latestBio?.hrvPNN50 ?? 0), "%")
+            readout("RMSSD", String(format: "%.1f", bus.latestBio?.hrvRMSSDms ?? 0), "ms", .rmssd)
+            readout("SDNN", String(format: "%.1f", bus.latestBio?.hrvSDNNms ?? 0), "ms", .sdnn)
+            readout("pNN50", String(format: "%.1f", bus.latestBio?.hrvPNN50 ?? 0), "%", .pnn50)
         }
     }
 
-    private func readout(_ label: String, _ value: String, _ unit: String?) -> some View {
+    private func readout(_ label: String, _ value: String, _ unit: String?,
+                         _ metric: BioMetric) -> some View {
         VStack(spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value).font(.title3.monospacedDigit().weight(.semibold))
@@ -231,6 +239,11 @@ struct WellView: View {
         .padding(.vertical, 12)
         .background(Color.white.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
+        .onTapGesture { infoMetric = metric }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(metric.title): \(value) \(unit ?? "")")
+        .accessibilityHint("Double tap to learn what \(metric.title) means")
     }
 
     // MARK: Breath pacer
