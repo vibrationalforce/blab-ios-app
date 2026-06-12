@@ -57,9 +57,7 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Echoelmusic can save your bio-reactive performance sessions (heart rate, HRV) to HealthKit for your own records.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Echoelmusic uses your camera for face tracking to control audio parameters with your facial expressions.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Echoelmusic uses TrueDepth camera for face tracking to map your expressions to audio-visual parameters.</string>
+	<string>Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth MIDI controllers and audio devices for professional music creation.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
@@ -76,16 +74,6 @@
 		<string>_apple-midi._udp</string>
 		<string>_echoelmusic._tcp</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Echoelmusic uses your location to discover nearby DMX lighting fixtures and network audio devices.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Echoelmusic uses your location to discover nearby DMX lighting fixtures and network audio devices.</string>
-	<key>NSMotionUsageDescription</key>
-	<string>Echoelmusic uses motion data for gesture-based audio control and spatial audio head tracking.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Echoelmusic can save visualizations, session screenshots, and captured photos to your photo library.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Echoelmusic can save generated art, captured photos, and recorded video to your photo library.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIRequiresFullScreen</key>

@@ -54,75 +54,11 @@
             </array>
         </dict>
 
-        <!-- User ID (for account management) -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeUserID</string>
-
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <true/>
-
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-            </array>
-        </dict>
-
-        <!-- Device ID (for synchronization) -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeDeviceID</string>
-
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <true/>
-
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-            </array>
-        </dict>
-
-        <!-- Product Interaction (usage analytics - opt-in only) -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
-
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
-                <string>NSPrivacyCollectedDataTypePurposeProductPersonalization</string>
-            </array>
-        </dict>
-
-        <!-- Performance Data (crash reports) -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypePerformanceData</string>
-
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
-            </array>
-        </dict>
+        <!-- Note: the app collects no UserID, DeviceID, analytics (Product
+             Interaction) or crash/Performance data — there are no accounts, no
+             analytics SDKs and no crash reporters. Bio/Health and Audio are used
+             only for on-device app functionality, not linked to identity, not
+             tracked. -->
     </array>
 
     <!-- ============================= -->
