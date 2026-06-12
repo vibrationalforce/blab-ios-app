@@ -216,6 +216,12 @@ public final class BeatPlayer {
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             if (try? voices[i].loadSample(from: url)) != nil {
                 sampleLabels[i] = url.deletingPathExtension().lastPathComponent
+                // Refresh a stale bookmark so the sample keeps loading on future
+                // launches instead of silently disappearing.
+                if stale,
+                   let fresh = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                    UserDefaults.standard.set(fresh, forKey: Self.bookmarkKey(i))
+                }
             }
         }
     }

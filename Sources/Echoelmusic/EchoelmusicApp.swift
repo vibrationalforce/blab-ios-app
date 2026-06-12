@@ -200,9 +200,10 @@ struct EchoelmusicApp: App {
                 #if canImport(CoreMIDI)
                 midiPub.start(publishing: bus)
                 #endif
-                #if canImport(Network)
-                osc.start(subscribing: bus)
-                #endif
+                // OSC bio streaming is OPT-IN (privacy): the user enables it from
+                // the Connect tab. It does NOT auto-start, so no biometric data
+                // leaves the process without an explicit toggle — matching the
+                // ADM-OSC / Art-Net / sACN senders.
 
                 // Modulation routing: wire real destinations, then go live.
                 // Default matrix is empty → nothing is applied until the user

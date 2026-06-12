@@ -13,6 +13,7 @@ struct ModulationView: View {
     @Environment(ModulationEngine.self) private var engine
     @Environment(EngineBus.self) private var bus
     #if canImport(Network)
+    @Environment(OSCSender.self) private var osc
     @Environment(ADMOSCSender.self) private var admOSC
     @Environment(ArtNetSender.self) private var artNet
     @Environment(SACNSender.self) private var sacn
@@ -23,6 +24,7 @@ struct ModulationView: View {
         NavigationStack {
             List {
                 #if canImport(Network)
+                oscSection
                 admOSCSection
                 artNetSection
                 sacnSection
@@ -76,6 +78,47 @@ struct ModulationView: View {
     /// gain into an immersive renderer (Adamson FletcherMachine, L-ISA, d&b
     /// Soundscape, …). Open standard, no pairing — just host:port + object index.
     @ViewBuilder
+    private var oscSection: some View {
+        @Bindable var osc = osc
+        return Section {
+            Toggle(isOn: Binding(
+                get: { osc.isActive },
+                set: { on in
+                    if on { osc.start(subscribing: bus) } else { osc.stop() }
+                }
+            )) {
+                Label("Stream bio over OSC", systemImage: "dot.radiowaves.left.and.right")
+            }
+            HStack {
+                Text("Host").foregroundStyle(.secondary)
+                Spacer()
+                TextField("localhost", text: $osc.host)
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .disabled(osc.isActive)
+            }
+            HStack {
+                Text("Port").foregroundStyle(.secondary)
+                Spacer()
+                TextField("8000", value: $osc.port, format: .number.grouping(.never))
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .disabled(osc.isActive)
+            }
+        } header: {
+            Text("Bio Data (OSC)")
+        } footer: {
+            Text("Off by default. When on, your live heart rate, HRV, breath and coherence are sent over OSC (UDP) to the address above — for your own software (Max, TouchDesigner, a DAW). Nothing is sent until you turn this on.")
+        }
+    }
+
     private var admOSCSection: some View {
         @Bindable var admOSC = admOSC
         Section {
