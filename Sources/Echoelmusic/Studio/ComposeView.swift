@@ -24,6 +24,7 @@ struct ComposeView: View {
     @State private var scale: Scale = .dorian
     @State private var mode: ComposerMode = .studioLocked
     @State private var lockedBPM: Double = 124
+    @State private var fxCharacter: FXCharacter = .auto
     @State private var lastNoteCount: Int?
 
     private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -38,6 +39,7 @@ struct ComposeView: View {
                     bioReadout
                     styleSection
                     keySection
+                    fxSection
                     modeSection
                     sessionSection
                     generateSection
@@ -172,6 +174,27 @@ struct ComposeView: View {
         }
     }
 
+    // MARK: - FX character
+
+    private var fxSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("Effects")
+            Picker("FX", selection: $fxCharacter) {
+                ForEach(FXCharacter.allCases) { Text($0.displayName).tag($0) }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.accent)
+            .labelsHidden()
+            .accessibilityLabel("Effect character")
+            Text(fxCharacter.blurb)
+                .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+        }
+        // Re-stamp the chosen character onto the live take immediately, so the
+        // producer can audition Underwater / Telephone / … without regenerating.
+        .onChange(of: fxCharacter) { _, _ in
+            fxCharacter.apply(to: synth.fxChain, bpm: beatPlayer.pattern.tempo, genre: style)
+        }
+    }
+
     // MARK: - Mode
 
     private var modeSection: some View {
@@ -283,9 +306,10 @@ struct ComposeView: View {
         // Give the voice the genre's timbre so the take sounds like its reference
         // (dub chord wash / trap bell / calm pad), not the generic synth.
         synth.apply(style.synthPatch)
-        // …and the genre's signature space (long dub delay, vapor chorus, psy
-        // roll), tempo-synced to the take so the echo locks to the grid.
-        style.fxPreset.apply(to: synth.fxChain, bpm: composition.suggestedTempo)
+        // …and the take's effect space: the chosen FX character (Underwater,
+        // Telephone, …) or, on Auto, the genre's signature space (dub delay,
+        // vapor chorus, psy roll) — tempo-synced so the echo locks to the grid.
+        fxCharacter.apply(to: synth.fxChain, bpm: composition.suggestedTempo, genre: style)
         pianoRoll.load(composition.notes)
         // Studio mode brings a heartbeat-seeded beat; Flow stays ambient (the
         // grid is empty, which clears any prior beat).

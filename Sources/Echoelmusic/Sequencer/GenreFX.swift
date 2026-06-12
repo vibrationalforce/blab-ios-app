@@ -19,6 +19,12 @@ import Foundation
 /// phaser. Resolved against a BPM at apply time.
 public struct GenreFXPreset: Sendable, Equatable {
 
+    // Filter — tone colour (underwater low-pass, telephone band-pass, lo-fi).
+    public var filterEnabled: Bool
+    public var filterMode: EchoelSVFilter.Mode
+    public var filterCutoff: Float
+    public var filterResonance: Float
+
     // Delay — the defining space (dub, psy, Berlin-school sequencer echo).
     public var delayEnabled: Bool
     public var delayMode: EchoelDelay.Mode
@@ -44,6 +50,10 @@ public struct GenreFXPreset: Sendable, Equatable {
     public var phaserMix: Float
 
     public init(
+        filterEnabled: Bool = false,
+        filterMode: EchoelSVFilter.Mode = .lowpass,
+        filterCutoff: Float = 20_000,
+        filterResonance: Float = 0.2,
         delayEnabled: Bool = false,
         delayMode: EchoelDelay.Mode = .digital,
         delaySync: TempoSyncOption = TempoSyncOption(.quarter),
@@ -62,6 +72,10 @@ public struct GenreFXPreset: Sendable, Equatable {
         phaserDepth: Float = 0.6,
         phaserMix: Float = 0.4
     ) {
+        self.filterEnabled = filterEnabled
+        self.filterMode = filterMode
+        self.filterCutoff = filterCutoff
+        self.filterResonance = filterResonance
         self.delayEnabled = delayEnabled
         self.delayMode = delayMode
         self.delaySync = delaySync
@@ -89,6 +103,9 @@ public struct GenreFXPreset: Sendable, Equatable {
     /// `bpm`. Safe to call from the main actor; the chain reads are audio-thread
     /// atomic-width scalars.
     public func apply(to chain: EchoelFXChain, bpm: Double) {
+        chain.filterEnabled = filterEnabled
+        chain.setFilter(mode: filterMode, cutoff: filterCutoff, resonance: filterResonance)
+
         chain.delayEnabled = delayEnabled
         chain.delay.mode = delayMode
         chain.delay.timeSeconds = delaySync.clampedSeconds(bpm: bpm, in: 0.001...Self.maxDelaySeconds)
@@ -202,5 +219,99 @@ public extension MusicStyle {
                 delayMix: 0.24, delayFeedback: 0.30, delayTone: 0.35, delaySpread: 0.3,
                 chorusEnabled: true, chorusRate: 0.2, chorusDepth: 0.4, chorusMix: 0.3)
         }
+    }
+}
+
+/// A hand-built production effect *character* the producer can stamp on a take
+/// while making loops/samples/tracks — independent of genre. `.auto` defers to
+/// the genre's own `fxPreset`; the others impose a strong, recognisable colour
+/// (the muffled "Underwater", a "Telephone" band-pass, tape "Cassette", dusty
+/// "Vinyl", wide "Dream", barking "Megaphone").
+public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
+    case auto
+    case underwater
+    case telephone
+    case cassette
+    case vinyl
+    case dream
+    case megaphone
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .auto:       return "Auto (genre)"
+        case .underwater: return "Underwater"
+        case .telephone:  return "Telephone"
+        case .cassette:   return "Cassette"
+        case .vinyl:      return "Vinyl"
+        case .dream:      return "Dream"
+        case .megaphone:  return "Megaphone"
+        }
+    }
+
+    /// One-line description for the picker.
+    public var blurb: String {
+        switch self {
+        case .auto:       return "Use the genre's own effect space"
+        case .underwater: return "Submerged: deep low-pass + watery chorus + tape wobble"
+        case .telephone:  return "Narrow band-pass — old-phone / lo-fi vocal"
+        case .cassette:   return "Warm tape: gentle low-pass + wow & flutter"
+        case .vinyl:      return "Dusty record: softened highs, subtle width"
+        case .dream:      return "Wide and bright: lush chorus + long ping-pong"
+        case .megaphone:  return "Barking band-pass + saturated slap"
+        }
+    }
+
+    /// The effect preset for this character. `nil` for `.auto` — the caller
+    /// should fall back to the genre's `fxPreset`.
+    public var preset: GenreFXPreset? {
+        switch self {
+        case .auto:
+            return nil
+        case .underwater:
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .lowpass, filterCutoff: 650, filterResonance: 0.35,
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.quarter),
+                delayMix: 0.35, delayFeedback: 0.45, delayTone: 0.20, delaySpread: 0.45,
+                delayWow: 0.6, delayDrive: 0.2,
+                chorusEnabled: true, chorusRate: 0.22, chorusDepth: 0.8, chorusMix: 0.5)
+        case .telephone:
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .bandpass, filterCutoff: 1500, filterResonance: 0.45,
+                delayEnabled: false)
+        case .cassette:
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .lowpass, filterCutoff: 7000, filterResonance: 0.18,
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.16, delayFeedback: 0.30, delayTone: 0.45, delaySpread: 0.25,
+                delayWow: 0.45, delayDrive: 0.25)
+        case .vinyl:
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .lowpass, filterCutoff: 5500, filterResonance: 0.15,
+                delayEnabled: false,
+                chorusEnabled: true, chorusRate: 0.2, chorusDepth: 0.3, chorusMix: 0.22)
+        case .dream:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .pingPong,
+                delaySync: TempoSyncOption(.quarter, .dotted),
+                delayMix: 0.40, delayFeedback: 0.45, delayTone: 0.82, delaySpread: 0.6,
+                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.7, chorusMix: 0.5)
+        case .megaphone:
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .bandpass, filterCutoff: 1800, filterResonance: 0.55,
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.sixteenth),
+                delayMix: 0.14, delayFeedback: 0.22, delayTone: 0.6, delaySpread: 0.15,
+                delayDrive: 0.5)
+        }
+    }
+
+    /// Apply this character to a live chain at `bpm`. For `.auto`, applies the
+    /// supplied `genre`'s preset instead.
+    public func apply(to chain: EchoelFXChain, bpm: Double, genre: MusicStyle) {
+        (preset ?? genre.fxPreset).apply(to: chain, bpm: bpm)
     }
 }
