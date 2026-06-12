@@ -74,13 +74,13 @@ struct ModulationView: View {
     }
 
     #if canImport(Network)
-    /// Opt-in ADM-OSC bridge: stream the body as an audio object's position +
-    /// gain into an immersive renderer (Adamson FletcherMachine, L-ISA, d&b
-    /// Soundscape, …). Open standard, no pairing — just host:port + object index.
+    /// Opt-in OSC bio stream: send live HR/HRV/breath/coherence over OSC (UDP) to
+    /// the user's own software. Off by default — nothing leaves the device until
+    /// the user turns it on.
     @ViewBuilder
     private var oscSection: some View {
         @Bindable var osc = osc
-        return Section {
+        Section {
             Toggle(isOn: Binding(
                 get: { osc.isActive },
                 set: { on in
@@ -119,6 +119,10 @@ struct ModulationView: View {
         }
     }
 
+    /// Opt-in ADM-OSC bridge: stream the body as an audio object's position +
+    /// gain into an immersive renderer (Adamson FletcherMachine, L-ISA, d&b
+    /// Soundscape, …). Open standard, no pairing — just host:port + object index.
+    @ViewBuilder
     private var admOSCSection: some View {
         @Bindable var admOSC = admOSC
         Section {
