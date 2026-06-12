@@ -51,6 +51,9 @@ struct EchoelmusicApp: App {
     @State private var arranger = ArrangementPlayer()
     /// Bar-quantized Session clip launching (snap to next bar while playing).
     @State private var launchQuantizer = LaunchQuantizer()
+    /// Shared tab selection so the app can drive navigation in code (e.g. jump
+    /// to Tools after "Edit clip"), not just on a tab tap.
+    @State private var navigator = StudioNavigator()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed in the Well tab.
     @State private var haptics = HapticController()
@@ -142,6 +145,7 @@ struct EchoelmusicApp: App {
             .environment(arrangementStore)
             .environment(arranger)
             .environment(launchQuantizer)
+            .environment(navigator)
             #if canImport(CoreHaptics)
             .environment(haptics)
             #endif

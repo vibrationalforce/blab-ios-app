@@ -9,6 +9,7 @@ struct StudioRoot: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(ArrangementPlayer.self) private var arranger
     @Environment(LaunchQuantizer.self) private var quantizer
+    @Environment(StudioNavigator.self) private var navigator
     #if canImport(CoreHaptics)
     @Environment(HapticController.self) private var haptics
     #endif
@@ -18,23 +19,29 @@ struct StudioRoot: View {
     @State private var demoSource = BioSimulator()
 
     var body: some View {
-        VStack(spacing: 0) {
+        @Bindable var navigator = navigator
+        return VStack(spacing: 0) {
             BioStripView()
-            TabView {
+            TabView(selection: $navigator.selected) {
                 BeatTab()
                     .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
+                    .tag(StudioNavigator.Tab.tools)
 
                 ClipsTab()
                     .tabItem { Label("Clips", systemImage: "square.grid.3x3.fill") }
+                    .tag(StudioNavigator.Tab.clips)
 
                 WorksView()
                     .tabItem { Label("Works", systemImage: "waveform") }
+                    .tag(StudioNavigator.Tab.works)
 
                 ModulationView()
                     .tabItem { Label("Sync", systemImage: "link") }
+                    .tag(StudioNavigator.Tab.sync)
 
                 WellView()
                     .tabItem { Label("Well", systemImage: "heart.fill") }
+                    .tag(StudioNavigator.Tab.well)
             }
         }
         // Demo source available to the whole subtree (was scoped to the strip

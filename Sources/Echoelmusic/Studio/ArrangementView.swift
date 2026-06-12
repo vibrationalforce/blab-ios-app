@@ -18,6 +18,7 @@ struct ArrangementView: View {
     @Environment(ClipStore.self) private var clips
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
+    @Environment(StudioNavigator.self) private var navigator
 
     @State private var selectedID: UUID?
     @State private var renameTarget: UUID?
@@ -287,11 +288,13 @@ struct ArrangementView: View {
         )
     }
 
-    /// Load the section's clip into the live transport so the Tools tab edits it.
+    /// Load the section's clip into the live transport and jump to the Tools tab,
+    /// so the user lands on the editor where the change is visible.
     private func editClip(_ section: ArrangementSection) {
         guard let id = section.clipID, let clip = clips.clip(id: id) else { return }
         if let d = clip.drums { beatPlayer.pattern.load(steps: d.steps, accents: d.accents) }
         pianoRoll.load(clip.melody?.notes ?? [])
+        navigator.editInTools()
     }
 }
 #endif
