@@ -229,6 +229,7 @@ public extension MusicStyle {
 /// "Vinyl", wide "Dream", barking "Megaphone").
 public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     case auto
+    case clean
     case underwater
     case telephone
     case cassette
@@ -241,6 +242,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     public var displayName: String {
         switch self {
         case .auto:       return "Auto (genre)"
+        case .clean:      return "Clean (dry)"
         case .underwater: return "Underwater"
         case .telephone:  return "Telephone"
         case .cassette:   return "Cassette"
@@ -254,6 +256,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     public var blurb: String {
         switch self {
         case .auto:       return "Use the genre's own effect space"
+        case .clean:      return "No effects — reset to a dry signal"
         case .underwater: return "Submerged: deep low-pass + watery chorus + tape wobble"
         case .telephone:  return "Narrow band-pass — old-phone / lo-fi vocal"
         case .cassette:   return "Warm tape: gentle low-pass + wow & flutter"
@@ -269,6 +272,11 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .auto:
             return nil
+        case .clean:
+            // Everything off — a dry reset. The safety limiter (not touched by
+            // a preset) stays on.
+            return GenreFXPreset(filterEnabled: false, delayEnabled: false,
+                                 chorusEnabled: false, phaserEnabled: false)
         case .underwater:
             return GenreFXPreset(
                 filterEnabled: true, filterMode: .lowpass, filterCutoff: 650, filterResonance: 0.35,

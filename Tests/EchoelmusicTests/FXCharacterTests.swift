@@ -82,6 +82,20 @@ final class FXCharacterTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(seen.count, 5)
     }
 
+    func testCleanResetsAStampedChainToDry() {
+        let chain = EchoelFXChain()
+        // Stamp Underwater (filter + delay + chorus all ON)…
+        FXCharacter.underwater.apply(to: chain, bpm: 120, genre: .dubTechno)
+        XCTAssertTrue(chain.filterEnabled && chain.delayEnabled && chain.chorusEnabled)
+        // …then Clean must switch every effect off, keeping only the safety limiter.
+        FXCharacter.clean.apply(to: chain, bpm: 120, genre: .dubTechno)
+        XCTAssertFalse(chain.filterEnabled)
+        XCTAssertFalse(chain.delayEnabled)
+        XCTAssertFalse(chain.chorusEnabled)
+        XCTAssertFalse(chain.phaserEnabled)
+        XCTAssertTrue(chain.limiterEnabled, "the safety limiter is never disabled by a character")
+    }
+
     func testEveryCharacterHasNameAndBlurb() {
         for c in FXCharacter.allCases {
             XCTAssertFalse(c.displayName.isEmpty, "\(c) name")
