@@ -69,11 +69,17 @@ One toggle switches them. Both are recordable/exportable.
 - **G3 — Transport modes + Generate UI:** Studio(lock BPM picker, default 75) vs Flow(sync-free)
   toggle; "Generate loop" / "Regenerate" / "Generate piece" actions; key picker. Lives in a new
   "Compose" surface (or BeatTab section) — NOT a 6th tab.
-- **G4 — Prompt sound design:** pure `SoundPrompt.parse(text) -> patch deltas` over a curated
-  vocabulary (warm/bright/dark/soft/metallic/airy/punchy/glassy/deep/percussive/lush/thin…) →
-  applies to SynthPatch params (brightness, harmonicity, noise, cutoff/res, attack/release,
-  reverb). On-device, offline, deterministic, privacy-first; optional Claude-API NL later.
-  Output saved via PatchStore. + a prompt TextField with example chips.
+- **G4 — Prompt sound design (OWNER DECISION 2026-06-12: smartest INDEPENDENT variant — offline,
+  free, private; WITH suggestions + a LARGE preset database. No API.):**
+  - `SoundPrompt.parse(text) -> patch deltas` over a rich curated vocabulary
+    (warm/bright/dark/soft/metallic/airy/punchy/glassy/deep/percussive/lush/thin/hollow/wide/
+    gritty/clean/evolving/plucky/pad/lead/drone…) + intensity modifiers (very/slightly/super)
+    + combinable terms, applied to SynthPatch params (brightness, harmonicity, noise, cutoff/res,
+    attack/release, reverb, vibrato). On-device, deterministic. NO network, NO LLM.
+  - **Suggestions:** the app proposes prompts/keywords (chips) + "did you mean / try also".
+  - **Large factory preset database:** a sizeable curated `SynthPatch` library (genre/mood-tagged),
+    browsable + searchable, seedable as starting points for prompts. Persisted via PatchStore.
+  - Optional future LLM remains explicitly OUT per owner (independence/privacy).
 - **G5 — Export quality:** SingleExport presets {44.1 kHz/16-bit (stream), 48 kHz/24-bit (DAW),
   96 kHz/24-bit (master)} for WAV + keep AAC; expose MIDI export of the generated melody/drums.
 - **G6 — Meditation mode polish:** sync-free ambient continuity, breath-pacer integration, Works-tab
