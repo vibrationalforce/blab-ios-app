@@ -18,30 +18,45 @@ struct StudioRoot: View {
     /// bio strip's source tag so the instrument is playable without hardware.
     @State private var demoSource = BioSimulator()
 
+    /// Reduced-by-default surface: first-time users see only the core USP —
+    /// heartbeat → music → meditate/export. Pro tabs (Sessions + Connect) are
+    /// revealed by the "Advanced tools" toggle in the Meditate tab. Nothing is
+    /// removed; the depth is one switch away.
+    @AppStorage("echoel.advancedMode") private var advancedMode = false
+
     var body: some View {
         @Bindable var navigator = navigator
         return VStack(spacing: 0) {
             BioStripView()
             TabView(selection: $navigator.selected) {
                 BeatTab()
-                    .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
+                    .tabItem { Label("Create", systemImage: "waveform.path.ecg") }
                     .tag(StudioNavigator.Tab.tools)
 
+                WellView()
+                    .tabItem { Label("Meditate", systemImage: "heart.fill") }
+                    .tag(StudioNavigator.Tab.well)
+
                 ClipsTab()
-                    .tabItem { Label("Clips", systemImage: "square.grid.3x3.fill") }
+                    .tabItem { Label("Songs", systemImage: "square.grid.3x3.fill") }
                     .tag(StudioNavigator.Tab.clips)
 
-                WorksView()
-                    .tabItem { Label("Works", systemImage: "waveform") }
-                    .tag(StudioNavigator.Tab.works)
+                if advancedMode {
+                    WorksView()
+                        .tabItem { Label("Sessions", systemImage: "waveform") }
+                        .tag(StudioNavigator.Tab.works)
 
-                ModulationView()
-                    .tabItem { Label("Sync", systemImage: "link") }
-                    .tag(StudioNavigator.Tab.sync)
-
-                WellView()
-                    .tabItem { Label("Well", systemImage: "heart.fill") }
-                    .tag(StudioNavigator.Tab.well)
+                    ModulationView()
+                        .tabItem { Label("Connect", systemImage: "link") }
+                        .tag(StudioNavigator.Tab.sync)
+                }
+            }
+            // If advanced is switched off while on a pro tab, fall back to Create
+            // so the selection never points at a hidden tab (blank screen).
+            .onChange(of: advancedMode) { _, isOn in
+                if !isOn, navigator.selected == .works || navigator.selected == .sync {
+                    navigator.selected = .tools
+                }
             }
         }
         // Demo source available to the whole subtree (was scoped to the strip

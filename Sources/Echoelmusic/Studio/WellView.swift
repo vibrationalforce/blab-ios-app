@@ -24,6 +24,8 @@ struct WellView: View {
     @State private var breathsPerMin: Double = 6
     @State private var inhaling = false
     @State private var showVisual = false
+    /// Shared with StudioRoot: reveals the pro tabs (Sessions + Connect).
+    @AppStorage("echoel.advancedMode") private var advancedMode = false
 
     /// Seconds per half-breath (inhale or exhale) at the chosen rate.
     private var halfCycle: Double { 30.0 / max(breathsPerMin, 1) }
@@ -42,6 +44,7 @@ struct WellView: View {
                 #if canImport(AVFoundation)
                 cameraPulseButton
                 #endif
+                advancedToggle
                 evidenceNote
             }
             .padding(20)
@@ -51,6 +54,22 @@ struct WellView: View {
         #if os(iOS)
         .fullScreenCover(isPresented: $showVisual) { BioVisualView() }
         #endif
+    }
+
+    /// Reveals the pro surfaces (Sessions recorder + Connect: OSC/ADM-OSC/
+    /// lighting). Off by default so first-time users see only the core —
+    /// heartbeat → music → meditate/export — and aren't overwhelmed.
+    private var advancedToggle: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $advancedMode) {
+                Label("Advanced tools", systemImage: "slider.horizontal.3")
+            }
+            .tint(EchoelTheme.accent)
+            Text("Adds Sessions + Connect (OSC, immersive audio, stage lighting) for pro and installation use.")
+                .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+        }
+        .padding(.horizontal, 4)
+        .accessibilityHint("Shows or hides professional routing and recording tabs")
     }
 
     #if canImport(CoreHaptics)
