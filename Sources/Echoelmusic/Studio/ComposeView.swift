@@ -15,6 +15,7 @@ struct ComposeView: View {
     @Environment(EngineBus.self) private var bus
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(PolySynthVoice.self) private var synth
     @Environment(\.dismiss) private var dismiss
 
     @State private var style: MusicStyle = .dubTechno
@@ -241,6 +242,9 @@ struct ComposeView: View {
             seed: UInt64.random(in: UInt64.min...UInt64.max)
         )
         let composition = BioComposer.compose(input)
+        // Give the voice the genre's timbre so the take sounds like its reference
+        // (dub chord wash / trap bell / calm pad), not the generic synth.
+        synth.apply(style.synthPatch)
         pianoRoll.load(composition.notes)
         // Studio mode brings a heartbeat-seeded beat; Flow stays ambient (the
         // grid is empty, which clears any prior beat).
