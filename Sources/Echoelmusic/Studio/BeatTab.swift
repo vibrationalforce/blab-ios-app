@@ -37,6 +37,11 @@ struct BeatTab: View {
     @State private var loopBars: LoopBarLength = .four
     /// Tight = dead on the grid; Humanized = subtle timing/velocity variation.
     @State private var humanized = false
+    /// Progressive disclosure: Beginners keep the essentials (pads · sequencer ·
+    /// play · Generate · export); the deeper editing tools (Randomize / Shift /
+    /// Piano roll / Patch editor) appear from Producer up.
+    @AppStorage("echoel.skillLevel") private var skillLevelRaw = SkillLevel.beginner.rawValue
+    private var skillLevel: SkillLevel { SkillLevel(rawValue: skillLevelRaw) ?? .beginner }
 
     /// Drives the per-pad sample importer (Files browser).
     @State private var importerPresented = false
@@ -68,8 +73,10 @@ struct BeatTab: View {
                     .padding(.top, 16)
                 composeButton
                     .padding(.horizontal, 16)
-                patternToolsRow(player: beatPlayer)
-                    .padding(.horizontal, 16)
+                if skillLevel >= .producer {
+                    patternToolsRow(player: beatPlayer)
+                        .padding(.horizontal, 16)
+                }
                 stepGrid(player: beatPlayer)
                     .padding(.horizontal, 12)
                 hintRow
