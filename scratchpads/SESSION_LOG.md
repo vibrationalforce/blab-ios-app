@@ -53,6 +53,10 @@ Total: 11 atomic CI-verified cycles, ~90 tests, protected DSP untouched, everyth
 - Then Phase T (adaptive `TimelineCanvas`) and Phase F (RTMP/video/multitrack/collaboration).
 - Consider (owner-gated): enable `testflight.yml` compile_check before Archive for fail-fast stability.
 
+### Continuation — piano-roll DAW plan verification + test gap-fill (same branch)
+- Audited the "Echoel DAW Deepening" plan (`plans/1-b1-1-piano-roll-delegated-dove.md`) against the tree: **all 7 workstreams (Note/AppGroupStore · PolySynthVoice · deep piano roll · patch editor · synth drums · sample browser · clips) are implemented, wired, and reachable** — `PolySynthVoice` attached pre-`start()`, the four new views reachable from BeatTab, ClipView's 5th tab capture/launch round-trips pattern+roll.
+- **Only real gap:** the plan's verification listed `PolySynthVoiceTests` which was missing (render-level poly is in `DSPTests`; the MainActor wrapper had none). Added it (`Tests/EchoelmusicTests/PolySynthVoiceTests.swift`): allocation, polyphony-cap with oldest-voice steal, per-pitch note-off, velocity clamp, A440 map, patch fan-out, bio-opt-in default. Written against the verified real API. `528372a`, **CI green** (run completed success).
+
 ---
 
 ## 2026-06-06 — ADM-OSC immersive bridge + social-share refresh
