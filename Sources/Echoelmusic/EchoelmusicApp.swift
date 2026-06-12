@@ -49,6 +49,8 @@ struct EchoelmusicApp: App {
     /// Linear song timeline (the Arrange view) + its bar-chaining play engine.
     @State private var arrangementStore: ArrangementStore
     @State private var arranger = ArrangementPlayer()
+    /// Bar-quantized Session clip launching (snap to next bar while playing).
+    @State private var launchQuantizer = LaunchQuantizer()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed in the Well tab.
     @State private var haptics = HapticController()
@@ -139,6 +141,7 @@ struct EchoelmusicApp: App {
             .environment(clipStore)
             .environment(arrangementStore)
             .environment(arranger)
+            .environment(launchQuantizer)
             #if canImport(CoreHaptics)
             .environment(haptics)
             #endif

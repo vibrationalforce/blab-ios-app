@@ -13,6 +13,7 @@ struct ClipView: View {
     @Environment(BeatPlayer.self) private var player
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(ClipStore.self) private var store
+    @Environment(LaunchQuantizer.self) private var quantizer
 
     @State private var renameTarget: Int?
     @State private var renameText = ""
@@ -77,9 +78,14 @@ struct ClipView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(EchoelTheme.text)
             Spacer(minLength: 0)
-            Text("Capture current pattern · tap a clip to launch")
-                .font(.caption2)
-                .foregroundStyle(EchoelTheme.dim)
+            Button { quantizer.quantizeEnabled.toggle() } label: {
+                Label("Quantize", systemImage: quantizer.quantizeEnabled ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(quantizer.quantizeEnabled ? EchoelTheme.accent : EchoelTheme.dim)
+                    .padding(.horizontal, 10).frame(height: 30)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -96,16 +102,17 @@ struct ClipView: View {
 
     private func filledCell(_ index: Int, _ clip: Clip) -> some View {
         let color = palette[clip.colorIndex % palette.count]
+        let isQueued = quantizer.pendingClipID == clip.id
         return Button {
             launch(clip)
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "play.fill").font(.system(size: 11))
+                    Image(systemName: isQueued ? "clock.fill" : "play.fill").font(.system(size: 11))
                     Text(clip.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                     Spacer(minLength: 0)
                 }
-                .foregroundStyle(EchoelTheme.text)
+                .foregroundStyle(isQueued ? EchoelTheme.accent : EchoelTheme.text)
                 HStack(spacing: 8) {
                     if clip.drums != nil {
                         Label("Beat", systemImage: "square.grid.3x3.fill")
@@ -120,7 +127,8 @@ struct ClipView: View {
             .padding(12)
             .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(color.opacity(0.35)))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(color, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(isQueued ? EchoelTheme.accent : color, lineWidth: isQueued ? 2 : 1))
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -163,9 +171,9 @@ struct ClipView: View {
     }
 
     private func launch(_ clip: Clip) {
-        if let d = clip.drums { player.pattern.load(steps: d.steps, accents: d.accents) }
-        if let m = clip.melody { pianoRoll.load(m.notes) }
-        if !player.pattern.isPlaying { player.pattern.play() }
+        // Bar-quantized while playing (queued until the next bar); immediate when
+        // stopped. The quantizer owns the load + transport start.
+        quantizer.request(clip, pattern: player.pattern, pianoRoll: pianoRoll)
     }
 }
 #endif

@@ -8,6 +8,7 @@ struct StudioRoot: View {
     // Always available: drives the arrangement engine off the shared transport.
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(ArrangementPlayer.self) private var arranger
+    @Environment(LaunchQuantizer.self) private var quantizer
     #if canImport(CoreHaptics)
     @Environment(HapticController.self) private var haptics
     #endif
@@ -44,6 +45,10 @@ struct StudioRoot: View {
         // playing; observes the step (never touches BeatPlayer's onStep closure).
         .onChange(of: beatPlayer.pattern.currentStep) { _, step in
             arranger.transportStep(step)
+        }
+        // Bar-quantized Session launches: fire any queued clip on the bar wrap.
+        .onChange(of: beatPlayer.pattern.currentStep) { _, step in
+            quantizer.transportStep(step)
         }
         #if canImport(CoreHaptics)
         // Eyes-free transport pulse: fire a haptic tap on quarter-note steps
