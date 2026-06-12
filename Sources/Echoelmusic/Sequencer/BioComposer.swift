@@ -42,11 +42,21 @@ public struct SeededRNG: Sendable {
 
 public struct BioComposition: Equatable, Sendable {
     public var notes: [Note]
+    /// 8 tracks × 16 steps drum grid (kick/snare/hat seeded from the heartbeat).
+    /// All-false in Flow mode, which stays ambient (melody only).
+    public var drumSteps: [[Bool]]
+    public var drumAccents: [[Bool]]
     public var suggestedTempo: Double
-    public init(notes: [Note], suggestedTempo: Double) {
+
+    public init(notes: [Note], drumSteps: [[Bool]], drumAccents: [[Bool]], suggestedTempo: Double) {
         self.notes = notes
+        self.drumSteps = drumSteps
+        self.drumAccents = drumAccents
         self.suggestedTempo = suggestedTempo
     }
+
+    /// Whether the take carries any drum hits.
+    public var hasDrums: Bool { drumSteps.contains { $0.contains(true) } }
 }
 
 public enum BioComposer {
@@ -156,6 +166,62 @@ public enum BioComposer {
             degree = min(14, max(-7, degree + dir * leap))
         }
 
-        return BioComposition(notes: notes, suggestedTempo: tempo(for: input))
+        // Rhythm: a heartbeat-seeded beat in Studio mode; Flow stays ambient.
+        let (drumSteps, drumAccents) = input.mode == .studioLocked
+            ? composeRhythm(calm: calm, energy: energy, rng: &rng)
+            : (Self.emptyGrid(), Self.emptyGrid())
+
+        return BioComposition(
+            notes: notes,
+            drumSteps: drumSteps,
+            drumAccents: drumAccents,
+            suggestedTempo: tempo(for: input)
+        )
+    }
+
+    public static let trackCount = 8
+
+    private static func emptyGrid() -> [[Bool]] {
+        Array(repeating: Array(repeating: false, count: stepCount), count: trackCount)
+    }
+
+    /// Heartbeat → beat. Track 0 = kick (the pulse), 1 = snare (backbeat),
+    /// 2 = hi-hat (subdivision density from energy/calm). Deterministic from the
+    /// shared RNG; a little seeded syncopation when energetic.
+    private static func composeRhythm(
+        calm: Float, energy: Float, rng: inout SeededRNG
+    ) -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+
+        // Kick: 2-on-the-bar when calm, 4-on-the-floor when energetic.
+        if energy > 0.55 {
+            for s in [0, 4, 8, 12] { steps[0][s] = true }
+        } else {
+            for s in [0, 8] { steps[0][s] = true }
+        }
+        accents[0][0] = true   // downbeat accent
+
+        // Snare backbeat on 2 and 4 once there's some energy.
+        if energy > 0.3 {
+            steps[1][4] = true; steps[1][12] = true
+            accents[1][4] = true; accents[1][12] = true
+        }
+
+        // Hi-hat subdivision: calm → quarters, busy → 8ths/16ths.
+        let drive = min(max(0.5 * energy + 0.5 * (1 - calm), 0), 1)
+        let hatEvery = drive > 0.66 ? 1 : (drive > 0.33 ? 2 : 4)
+        var s = 0
+        while s < stepCount {
+            steps[2][s] = true
+            s += hatEvery
+        }
+
+        // Seeded syncopated kick when energetic (taste, not noise).
+        if energy > 0.55, rng.unit() < 0.5 {
+            steps[0][14] = true
+        }
+
+        return (steps, accents)
     }
 }

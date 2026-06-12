@@ -189,6 +189,9 @@ struct ComposeView: View {
         )
         let composition = BioComposer.compose(input)
         pianoRoll.load(composition.notes)
+        // Studio mode brings a heartbeat-seeded beat; Flow stays ambient (the
+        // grid is empty, which clears any prior beat).
+        beatPlayer.pattern.load(steps: composition.drumSteps, accents: composition.drumAccents)
         beatPlayer.pattern.setTempo(composition.suggestedTempo)
         lastNoteCount = composition.notes.count
         if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }

@@ -84,6 +84,39 @@ final class BioComposerTests: XCTestCase {
                        "Flow tempo is clamped to a musical ceiling")
     }
 
+    func testStudioModeGeneratesABeatFlowDoesNot() {
+        let studio = BioComposer.compose(input(hr: 90, mode: .studioLocked))
+        XCTAssertTrue(studio.hasDrums, "Studio mode brings a heartbeat beat")
+        XCTAssertTrue(studio.drumSteps[0][0], "kick on the downbeat")
+
+        let flow = BioComposer.compose(input(hr: 90, mode: .flowFree))
+        XCTAssertFalse(flow.hasDrums, "Flow mode stays ambient (melody only)")
+    }
+
+    func testDrumGridDimensions() {
+        let comp = BioComposer.compose(input(hr: 100, mode: .studioLocked))
+        XCTAssertEqual(comp.drumSteps.count, 8)
+        XCTAssertEqual(comp.drumAccents.count, 8)
+        XCTAssertTrue(comp.drumSteps.allSatisfy { $0.count == 16 })
+        XCTAssertTrue(comp.drumAccents.allSatisfy { $0.count == 16 })
+    }
+
+    func testHigherEnergyGivesDenserHats() {
+        // hi-hat is track 2; more energy → more subdivisions
+        let calm = BioComposer.compose(input(coherence: 0.95, hr: 55, mode: .studioLocked))
+        let busy = BioComposer.compose(input(coherence: 0.05, hr: 125, mode: .studioLocked))
+        let calmHats = calm.drumSteps[2].filter { $0 }.count
+        let busyHats = busy.drumSteps[2].filter { $0 }.count
+        XCTAssertGreaterThan(busyHats, calmHats, "busier body → denser hi-hats")
+    }
+
+    func testFourOnTheFloorWhenEnergetic() {
+        let busy = BioComposer.compose(input(coherence: 0.1, hr: 125, mode: .studioLocked))
+        for s in [0, 4, 8, 12] {
+            XCTAssertTrue(busy.drumSteps[0][s], "four-on-the-floor kick at step \(s)")
+        }
+    }
+
     func testSeededRNGIsDeterministic() {
         var a = SeededRNG(seed: 99)
         var b = SeededRNG(seed: 99)
