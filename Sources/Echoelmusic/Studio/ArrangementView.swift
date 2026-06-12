@@ -90,6 +90,7 @@ struct ArrangementView: View {
             }
             .buttonStyle(.plain)
             .disabled(store.isEmpty)
+            .accessibilityLabel(SequencerA11y.arrangementTransportLabel(isPlaying: player.isPlaying, isEmpty: store.isEmpty))
 
             Text("Song")
                 .font(.system(size: 15, weight: .semibold))
@@ -108,6 +109,7 @@ struct ArrangementView: View {
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(SequencerA11y.loopLabel(player.loopEnabled))
 
             Button { addSection() } label: {
                 Label("Add", systemImage: "plus")
@@ -118,6 +120,7 @@ struct ArrangementView: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Add section to song")
         }
     }
 
@@ -173,6 +176,17 @@ struct ArrangementView: View {
                 .strokeBorder(isSelected ? EchoelTheme.accent : color, lineWidth: isSelected ? 2 : 1))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(SequencerA11y.sectionLabel(
+            name: section.name,
+            clipName: clipName,
+            lengthBars: section.lengthBars,
+            position: index + 1,
+            total: store.sections.count,
+            isPlaying: isPlayhead
+        ))
+        .accessibilityHint(SequencerA11y.sectionHint)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Inspector
@@ -186,6 +200,7 @@ struct ArrangementView: View {
                 Button { renameText = section.name; renameTarget = section.id } label: {
                     Image(systemName: "pencil").foregroundStyle(EchoelTheme.dim)
                 }.buttonStyle(.plain)
+                .accessibilityLabel("Rename section")
             }
 
             // Clip assignment
@@ -203,6 +218,8 @@ struct ArrangementView: View {
                     let name = section.clipID.flatMap { clips.clip(id: $0)?.name } ?? "gap"
                     Text(name).font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.accent)
                 }
+                .accessibilityLabel("Section clip")
+                .accessibilityValue(section.clipID.flatMap { clips.clip(id: $0)?.name } ?? "silent gap")
             }
 
             // Length
@@ -215,14 +232,18 @@ struct ArrangementView: View {
                             set: { store.setLength(id: section.id, bars: $0) }
                         ), in: 1...32)
                     .font(.system(size: 12)).foregroundStyle(EchoelTheme.text).fixedSize()
+                    .accessibilityLabel("Section length in bars")
+                    .accessibilityValue(SequencerA11y.bars(section.lengthBars))
             }
 
             // Order + edit + delete
             HStack(spacing: 10) {
                 iconButton("chevron.left") { store.move(at: index, by: -1) }
                     .disabled(index == 0)
+                    .accessibilityLabel("Move section earlier")
                 iconButton("chevron.right") { store.move(at: index, by: 1) }
                     .disabled(index >= store.sections.count - 1)
+                    .accessibilityLabel("Move section later")
                 Button { editClip(section) } label: {
                     Label("Edit clip", systemImage: "slider.horizontal.3")
                         .font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
@@ -237,6 +258,7 @@ struct ArrangementView: View {
                 } label: {
                     Image(systemName: "trash").foregroundStyle(EchoelTheme.danger)
                 }.buttonStyle(.plain)
+                .accessibilityLabel("Delete section")
             }
         }
         .padding(16)

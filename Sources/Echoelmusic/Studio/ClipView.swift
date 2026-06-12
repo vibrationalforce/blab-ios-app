@@ -73,6 +73,7 @@ struct ClipView: View {
                         .fill(player.pattern.isPlaying ? EchoelTheme.danger : EchoelTheme.accent))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(player.pattern.isPlaying ? "Stop transport" : "Play transport")
 
             Text("Clips")
                 .font(.system(size: 15, weight: .semibold))
@@ -86,6 +87,8 @@ struct ClipView: View {
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Quantize launches to the bar")
+            .accessibilityValue(SequencerA11y.quantizeValue(quantizer.quantizeEnabled))
         }
     }
 
@@ -131,6 +134,17 @@ struct ClipView: View {
                 .strokeBorder(isQueued ? EchoelTheme.accent : color, lineWidth: isQueued ? 2 : 1))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(SequencerA11y.clipLabel(
+            name: clip.name,
+            hasDrums: clip.drums != nil,
+            noteCount: clip.melody?.notes.count ?? 0,
+            isQueued: isQueued
+        ))
+        .accessibilityHint(SequencerA11y.clipHint(
+            isPlaying: player.pattern.isPlaying,
+            quantizeEnabled: quantizer.quantizeEnabled
+        ))
         .contextMenu {
             Button { launch(clip) } label: { Label("Launch", systemImage: "play") }
             Button { capture(index) } label: { Label("Recapture", systemImage: "arrow.clockwise") }
@@ -154,6 +168,8 @@ struct ClipView: View {
                 .strokeBorder(EchoelTheme.border, style: StrokeStyle(lineWidth: 1, dash: [4])))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Empty clip slot \(index + 1)")
+        .accessibilityHint("Double tap to capture the current pattern and melody")
     }
 
     // MARK: - Capture / launch

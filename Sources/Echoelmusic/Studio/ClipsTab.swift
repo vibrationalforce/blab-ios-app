@@ -24,6 +24,7 @@ struct ClipsTab: View {
                 ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .accessibilityLabel("Clips view mode: Session grid or song Arrangement")
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 6)
