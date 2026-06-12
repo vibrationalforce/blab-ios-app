@@ -188,7 +188,7 @@ public enum BioComposer {
         Array(repeating: Array(repeating: false, count: stepCount), count: trackCount)
     }
 
-    // MARK: - Dub Techno (Echochord / Basic Channel / Moritz von Oswald)
+    // MARK: - Dub Techno (deep dub chords · tape echo · sub-bass)
 
     /// Steady 4/4 kick, offbeat ticks, a deep sub on 1 & 3, a soft backbeat and a
     /// little seeded perc. Hypnotic and spacious — the genre's signature.
@@ -250,7 +250,7 @@ public enum BioComposer {
         return notes
     }
 
-    // MARK: - Trap (808 Mafia / Southside / Metro Boomin)
+    // MARK: - Trap (booming 808 sub-bass · crisp hats · dark melody)
 
     /// Syncopated 808 kick, half-time snare/clap on beat 3, rolling 16th hats and
     /// the open-hat lift into the loop. The 808 sub mirrors the kick.

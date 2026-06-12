@@ -6,13 +6,16 @@
 // rest are non-beat layers you finish in your DAW.
 //
 //   Beat-driven:
-//     • Dub Techno — Echochord · Basic Channel · Moritz von Oswald
-//     • Trap       — 808 Mafia · Southside · Metro Boomin
+//     • Dub Techno — deep dub chords, tape echo, sub-bass
+//     • Trap       — booming 808 sub-bass, crisp hats, dark melody
 //   Non-beat harmonic material (pads · chords · leads · arps · FX):
 //     • Vaporwave · 80s Synth-Pop · Disco · Synthwave · Early Synth (Berlin
 //       School) · Futuristic · Sci-Fi · Psytrance · Esoteric Meditation
 //   Bio-ambient:
 //     • Self-Observation — no drums, breath-paced, sync-free
+//
+// Genre subtitles are descriptive sound characters only — no artist, label, or
+// film names anywhere user-facing (App Store-safe, no implied endorsement).
 //
 // A style fixes what makes a genre recognisable (tempo window, scale, whether it
 // is beat-driven, default transport, and — for the harmonic genres — a chord
@@ -82,20 +85,21 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// The sound lineage, shown as a subtitle so the reference is explicit.
+    /// A short sound-character subtitle. Purely descriptive — no artist, label,
+    /// or film names (App Store-safe, no implied endorsement).
     public var lineage: String {
         switch self {
-        case .dubTechno:          return "Echochord · Basic Channel · Moritz von Oswald"
-        case .trap:               return "808 Mafia · Southside · Metro Boomin"
+        case .dubTechno:          return "Deep dub chords · tape echo · sub-bass"
+        case .trap:               return "Booming 808 sub-bass · crisp hats · dark melody"
         case .vaporwave:          return "Slowed · dreamy · nostalgic maj7 pads"
         case .eighties:           return "Bright analog keys · gated-reverb era"
         case .disco:              return "Lush string stabs · four-on-the-floor era"
-        case .synthwave:          return "Neon arpeggios · Carpenter / Kavinsky"
-        case .earlySynth:         return "Berlin School · Tangerine Dream / Klaus Schulze"
+        case .synthwave:          return "Neon arpeggios · retro-future drive"
+        case .earlySynth:         return "Berlin School · sequenced analog pulses"
         case .futuristic:         return "Clean, shimmering, wide suspended chords"
-        case .sciFi:              return "Eerie atmospheres · Blade Runner mood"
+        case .sciFi:              return "Eerie atmospheres · deep-space mood"
         case .psytrance:          return "Rolling minor arpeggio · Goa lineage"
-        case .esotericMeditation: return "Steve Roach · drone · ethereal pads"
+        case .esotericMeditation: return "Drone · ethereal pads · deep ambient"
         case .selfObservation:    return "Ambient · breath-paced · sync-free"
         }
     }

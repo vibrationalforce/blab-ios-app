@@ -43,6 +43,20 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
+    /// Subtitles must stay descriptive — no real artist / label / film names
+    /// (App Store-safe, no implied endorsement).
+    func testNoArtistNamesInSubtitles() {
+        let banned = ["moritz", "oswald", "echochord", "basic channel", "808 mafia",
+                      "southside", "metro boomin", "carpenter", "kavinsky",
+                      "tangerine", "klaus schulze", "blade runner", "steve roach"]
+        for style in MusicStyle.allCases {
+            let text = (style.displayName + " " + style.lineage).lowercased()
+            for name in banned {
+                XCTAssertFalse(text.contains(name), "\(style) subtitle must not name an artist (\(name))")
+            }
+        }
+    }
+
     func testDefaultTempoIsInsideTheWindow() {
         for style in MusicStyle.allCases {
             XCTAssertTrue(style.tempoRange.contains(style.defaultTempo),
