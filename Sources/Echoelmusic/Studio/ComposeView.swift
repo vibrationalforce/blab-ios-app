@@ -26,6 +26,10 @@ struct ComposeView: View {
     @State private var lockedBPM: Double = 124
     @State private var fxCharacter: FXCharacter = .auto
     @State private var lastNoteCount: Int?
+    /// Progressive disclosure: Beginners get the simplest path (Sound → Key →
+    /// Generate); Producers+ also see the Effects character and Session details.
+    @AppStorage("echoel.skillLevel") private var skillLevelRaw = SkillLevel.beginner.rawValue
+    private var skillLevel: SkillLevel { SkillLevel(rawValue: skillLevelRaw) ?? .beginner }
 
     private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -39,9 +43,14 @@ struct ComposeView: View {
                     bioReadout
                     styleSection
                     keySection
-                    fxSection
                     modeSection
-                    sessionSection
+                    // Producer+ depth: hand-pick the effect character and stamp
+                    // the session/export name. Beginners stay on the essentials
+                    // (genre auto-FX + default naming still apply under the hood).
+                    if skillLevel >= .producer {
+                        fxSection
+                        sessionSection
+                    }
                     generateSection
                 }
                 .padding(16)
