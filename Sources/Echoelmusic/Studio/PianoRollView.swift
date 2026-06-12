@@ -64,7 +64,10 @@ public final class PianoRollModel {
         notes[i].velocity = min(max(velocity, 0), 1)
     }
 
-    public func clear() { notes.removeAll() }
+    public func clear() {
+        notes.removeAll()
+        allNotesOff()   // release anything sounding so clearing never hangs a note
+    }
 
     /// Replace all notes (used when launching a melody clip).
     public func load(_ newNotes: [Note]) { notes = newNotes }

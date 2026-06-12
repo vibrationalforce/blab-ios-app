@@ -201,7 +201,7 @@ struct BeatTab: View {
                 toolButton("Randomize", icon: "dice.fill") { randomize(player: player) }
                 toolButton("Shift", icon: "arrow.right.to.line") { shiftRight(player: player) }
                 toolButton("Piano", icon: "pianokeys") { showPianoRoll = true }
-                toolButton("Sound", icon: "slider.horizontal.3") { showPatchEditor = true }
+                toolButton("Synth", icon: "slider.horizontal.3") { showPatchEditor = true }
                 Spacer(minLength: 0)
             }
             // Swing on its own full-width row so the slider is always visible
@@ -227,8 +227,9 @@ struct BeatTab: View {
         }
     }
 
-    /// Discoverability hint — the accent (double-tap) and sample-load
-    /// (long-press) affordances are otherwise invisible.
+    /// Discoverability hint — the accent (a step cycles off → on → accent on
+    /// each tap) and sample-load (long-press a pad) affordances are otherwise
+    /// invisible.
     private var hintRow: some View {
         Text("Tap a step: off → on → accent  ·  Long-press a pad to load a sample")
             .font(.system(size: 10, weight: .medium))

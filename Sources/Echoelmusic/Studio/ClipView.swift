@@ -32,9 +32,21 @@ struct ClipView: View {
         Color(red: 0.45, green: 0.40, blue: 0.45)
     ]
 
+    private var allEmpty: Bool { store.slots.allSatisfy { $0 == nil } }
+
     var body: some View {
         VStack(spacing: 0) {
             header.padding(16)
+            if allEmpty {
+                Text("Make a beat or melody in Tools, then tap a slot here to save it as a clip. Tap a saved clip to launch it.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 4)
+                    .accessibilityHint("Capture clips from the Tools tab")
+            }
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(0..<ClipStore.slotCount, id: \.self) { i in cell(i) }
