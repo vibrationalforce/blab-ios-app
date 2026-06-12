@@ -53,6 +53,19 @@ Total: 11 atomic CI-verified cycles, ~90 tests, protected DSP untouched, everyth
 - Then Phase T (adaptive `TimelineCanvas`) and Phase F (RTMP/video/multitrack/collaboration).
 - Consider (owner-gated): enable `testflight.yml` compile_check before Archive for fail-fast stability.
 
+### Continuation — bio-generative instrument (G1–G5a) + USP reduction + TestFlight
+Owner directive: bio computes sound/melody/rhythm/tempo; BPM-lock (75) for Ableton/FL handoff + sync-free for meditation; set key; prompt sound-design (chosen: OFFLINE smart + suggestions + large preset DB, no API); multi-quality WAV export. Then: "reduce the iPhone TestFlight to the USP × broad-audience intersection." Plan: `scratchpads/PLAN_BIO_GENERATIVE_2026-06-12.md`. Strategy: `STRATEGY_USP_2026-06-12.md` (4 cited research streams: bio-music incumbents are wellness/consumption not instrument; real-time-bio→instrument+open-output = white space; iOS indies win one-paradigm-deep, NO video/RTMP, one-time price).
+- **G1** `MusicalKey`+`Scale` (10 scales, in-key snap, degree→MIDI). `4ad5d15`.
+- **G2** `BioComposer` — bio→in-key melody+tempo, SplitMix64-seeded (reproducible), studioLocked/flowFree. `a39b298`.
+- **G2b** bio rhythm — heartbeat beat in Studio, ambient (no drums) in Flow. `707687b`.
+- **G3** `ComposeView` — "Generate from Body" in Create: key picker, mode, BPM-lock, live bio readout, audible (roll→PolySynthVoice). `6abf434`.
+- **G5a** melody MIDI export (menu: Beat/Melody) → FL/Ableton. `1c3e7d9`.
+- **G4a** `SoundPrompt` — offline 24-descriptor prompt→SynthPatch, intensities, suggestions. `fd6646e`.
+- **G4b** `PatchLibrary` — 25 tagged factory presets, 8 categories, search. `ff9d227`.
+- **R1 USP REDUCTION** — Simple-by-default: 3 core tabs (Create/Meditate/Songs); pro tabs (Sessions/Connect=OSC/ADM/Art-Net/sACN) behind "Advanced tools" toggle in Meditate. Clearer labels. Nothing deleted. `bf0c3cc`. → **TestFlight dispatched** (run 27425421779, full, branch).
+- Method unchanged: pure seeded kernels + hand-checked tests, CI-green per commit. ~50 new tests this batch.
+- OPEN: G4c (prompt UI + preset browser in Create), G5b (WAV qualities 44.1/16·48/24·96/24 — careful, TestFlight-verify), G6 (meditation polish), G7 (AUv3 → runs in FL Studio Mobile), website reposition.
+
 ### Continuation — navigation & usability pass ("produzieren soll sich einfach anfühlen")
 - Ran a thorough Studio nav/usability/bug audit (Explore agent, file:line map of all 5 tabs + sheets + transport model). **Verified its claims** — its "P0 #1" (ArrangementPlayer.stop missing allNotesOff) was WRONG; stop() already calls `pianoRoll?.allNotesOff()`. Real wins were flow + clarity, not crashes (codebase is force-unwrap-free, well-injected).
 - **`StudioNavigator`** (`Studio/StudioNavigator.swift`) — shared @Observable tab selection bound to the TabView. Fixes the disjointed production loop: "Edit clip" in Arrangement loaded the clip silently with NO tab change (looked like nothing happened); now it loads AND jumps to the Tools editor. 3 tests. `eb6c841`.
