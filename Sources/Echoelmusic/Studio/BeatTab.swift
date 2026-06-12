@@ -523,7 +523,7 @@ struct BeatTab: View {
 }
 
 /// Identifiable wrapper so the exported .mid URL can drive `.sheet(item:)`.
-/// (Reuses the existing `ShareSheet(url:)` from MomentCaptureView.swift.)
+/// (Uses the shared `ShareSheet(url:)` in Studio/ShareSheet.swift.)
 private struct ExportedMIDIFile: Identifiable {
     let id = UUID()
     let url: URL
