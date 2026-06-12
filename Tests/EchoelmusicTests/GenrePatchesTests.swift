@@ -10,16 +10,17 @@ import XCTest
 
 final class GenrePatchesTests: XCTestCase {
 
-    private let known: [MusicStyle: String] = [
-        .dubTechno: "Dub Chord",
-        .trap: "Trap Bell",
-        .selfObservation: "Calm Pad"
-    ]
-
     func testEveryStyleNamesItsPatch() {
         for style in MusicStyle.allCases {
-            XCTAssertEqual(style.synthPatch.name, known[style])
+            XCTAssertFalse(style.synthPatch.name.isEmpty, "\(style) patch needs a name")
         }
+    }
+
+    func testPatchNamesAndIDsAreUnique() {
+        let names = MusicStyle.allCases.map { $0.synthPatch.name }
+        XCTAssertEqual(Set(names).count, names.count, "every genre patch needs a distinct name")
+        let ids = MusicStyle.allCases.map { $0.synthPatch.id }
+        XCTAssertEqual(Set(ids).count, ids.count, "every genre patch needs a distinct stable id")
     }
 
     func testEnumRawValuesAreValid() {

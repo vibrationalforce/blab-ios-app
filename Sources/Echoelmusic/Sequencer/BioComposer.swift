@@ -166,6 +166,14 @@ public enum BioComposer {
                                   breathPhase: input.breathPhase,
                                   breathDepth: input.breathDepth, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
+        default:
+            // The non-beat harmonic genres: pads/chords/arps + an optional lead,
+            // the starting material for a professional production. No drums.
+            notes = composeHarmonic(key: input.key, profile: input.style.harmonicProfile,
+                                    calm: calm, busy: busy,
+                                    breathPhase: input.breathPhase,
+                                    breathDepth: input.breathDepth, rng: &rng)
+            (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         }
 
         return BioComposition(
@@ -361,6 +369,73 @@ public enum BioComposer {
             let dir = rng.unit() < inhaleBias ? 1 : -1
             let leap = calm > 0.5 ? 1 : 1 + Int(rng.unit() * 2)
             degree = min(14, max(-7, degree + dir * leap))
+        }
+        return notes
+    }
+
+    // MARK: - Harmonic genres (pads · chords · arps · leads — no drums)
+
+    /// The starting material for a professional production: a chord progression
+    /// voiced as a sustained pad or a rising arpeggio, plus an optional lead line.
+    /// All in-key, all inside the bar, exportable as MIDI. Genre character comes
+    /// from the `HarmonicProfile`; the body animates density and velocity.
+    private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
+                                        calm: Float, busy: Float,
+                                        breathPhase: Float, breathDepth: Float,
+                                        rng: inout SeededRNG) -> [Note] {
+        var notes: [Note] = []
+        let prog = profile.progression.isEmpty ? [0] : profile.progression
+        let sectionLen = max(1, stepCount / prog.count)
+        let padVelocity = clamp01(0.40 + 0.25 * breathDepth)
+
+        for (idx, rootDegree) in prog.enumerated() {
+            let secStart = idx * sectionLen
+            let secEnd = (idx == prog.count - 1) ? stepCount : min(stepCount, secStart + sectionLen)
+            guard secEnd > secStart else { continue }
+
+            if profile.arpeggiated {
+                // Rise through the chord across the section; busier → faster.
+                let arpStep = busy > 0.5 ? 1 : 2
+                var s = secStart
+                var t = 0
+                while s < secEnd {
+                    let tone = profile.chordTones[t % profile.chordTones.count]
+                    let pitch = key.degree(rootDegree + tone, octave: profile.padOctave)
+                    let length = max(1, min(arpStep, secEnd - s))
+                    notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: s,
+                                      lengthSteps: length, velocity: padVelocity))
+                    s += arpStep
+                    t += 1
+                }
+            } else {
+                // Sustained pad: every chord tone holds for the whole section.
+                for tone in profile.chordTones {
+                    let pitch = key.degree(rootDegree + tone, octave: profile.padOctave)
+                    notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: secStart,
+                                      lengthSteps: secEnd - secStart, velocity: padVelocity))
+                }
+            }
+        }
+
+        // Optional lead line on top.
+        if profile.leadDensity > 0 {
+            let count = max(1, Int((profile.leadDensity * (3 + busy * 4)).rounded()))
+            let inhaleBias: Float = breathPhase < 0.5 ? 0.65 : 0.35
+            var degree = 0
+            var lastStart = -1
+            for i in 0..<count {
+                let start = i * stepCount / count
+                let startStep = min(stepCount - 1, max(start, lastStart + 1))
+                lastStart = startStep
+                let pitch = key.degree(degree, octave: profile.leadOctave)
+                let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
+                let velocity = clamp01(0.50 + 0.30 * breathDepth)
+                notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
+                                  lengthSteps: length, velocity: velocity))
+                let dir = rng.unit() < inhaleBias ? 1 : -1
+                let leap = 1 + Int(rng.unit() * 2)
+                degree = min(14, max(-7, degree + dir * leap))
+            }
         }
         return notes
     }

@@ -95,6 +95,23 @@ final class BioComposerTests: XCTestCase {
         XCTAssertFalse(comp.hasDrums, "self-observation stays ambient — melody only")
     }
 
+    func testOnlyBeatGenresCarryDrums() {
+        for style in MusicStyle.allCases {
+            let comp = BioComposer.compose(input(hr: 100, style: style))
+            XCTAssertEqual(comp.hasDrums, style.isBeatDriven,
+                           "\(style): drums present iff the genre is beat-driven")
+        }
+    }
+
+    func testHarmonicGenresProduceLayeredMaterial() {
+        // A pad/chord genre yields several simultaneous notes (a chord), not a
+        // single line — that's the production starting material.
+        let comp = BioComposer.compose(input(hr: 80, style: .vaporwave, mode: .studioLocked))
+        XCTAssertGreaterThanOrEqual(comp.notes.count, 4, "vaporwave voices a full chord")
+        let onDownbeat = comp.notes.filter { $0.startStep == 0 }
+        XCTAssertGreaterThanOrEqual(onDownbeat.count, 2, "chord tones stack on the same step")
+    }
+
     func testDubTechnoIsFourOnTheFloor() {
         // Kick on every quarter, regardless of energy — the dub pulse.
         for hr in [Float(55), 90, 125] {

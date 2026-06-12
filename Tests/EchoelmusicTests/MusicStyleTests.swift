@@ -8,9 +8,32 @@ import XCTest
 
 final class MusicStyleTests: XCTestCase {
 
-    func testExactlyThreeStyles() {
-        XCTAssertEqual(MusicStyle.allCases.count, 3)
-        XCTAssertEqual(Set(MusicStyle.allCases), [.dubTechno, .trap, .selfObservation])
+    func testStyleRoster() {
+        XCTAssertEqual(MusicStyle.allCases.count, 12)
+        // The requested genres are all present.
+        let required: Set<MusicStyle> = [
+            .dubTechno, .trap, .vaporwave, .eighties, .disco, .synthwave,
+            .earlySynth, .futuristic, .sciFi, .psytrance, .esotericMeditation, .selfObservation
+        ]
+        XCTAssertTrue(required.isSubset(of: Set(MusicStyle.allCases)))
+    }
+
+    func testOnlyTwoStylesAreBeatDriven() {
+        let beat = MusicStyle.allCases.filter { $0.isBeatDriven }
+        XCTAssertEqual(Set(beat), [.dubTechno, .trap],
+                       "all genres except Dub Techno and Trap are non-beat material")
+    }
+
+    func testEveryHarmonicGenreVoicesAChord() {
+        // Non-beat, non-self genres must produce a usable chord (>= 1 tone) and a
+        // valid progression.
+        for style in MusicStyle.allCases where !style.isBeatDriven && style != .selfObservation {
+            let p = style.harmonicProfile
+            XCTAssertFalse(p.chordTones.isEmpty, "\(style) needs chord tones")
+            XCTAssertFalse(p.progression.isEmpty, "\(style) needs a progression")
+            XCTAssertGreaterThanOrEqual(p.leadDensity, 0)
+            XCTAssertLessThanOrEqual(p.leadDensity, 1)
+        }
     }
 
     func testEveryStyleHasTitleAndLineage() {
