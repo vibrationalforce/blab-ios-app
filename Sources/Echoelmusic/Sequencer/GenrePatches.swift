@@ -29,79 +29,85 @@ public extension MusicStyle {
     /// The synth voice sound this genre is generated through. Applied to the
     /// polyphonic voice on Generate so the take sounds like its reference.
     var synthPatch: SynthPatch {
+        // Sound-design philosophy (2026-06-12, "make it beautiful"): warm, clean,
+        // spacious — built for production-ready loops, not harsh demos. Universal
+        // rules: zero noise (it reads as cheap/hiss), Natural/Dark spectral shapes
+        // (Metallic/Hollow sound digital), brightness kept moderate, gentle filter
+        // resonance, generous reverb for professional space, softer attacks so
+        // pads bloom instead of click. Each genre keeps its character, cleaner.
         switch self {
         case .dubTechno:
             return patch("D1", "Dub Chord",
-                a: 0.04, d: 0.6, s: 0.30, r: 2.5,
-                harm: 0.85, hl: 0.70, bright: 0.18, noise: 0.02, color: "Pink", shape: "Dark",
-                cutoff: 800, res: 0.12, lfoAmt: 0.20, lfoRate: 0.15, lfoDepth: 0.35,
-                revMix: 0.50, revDecay: 4.0, vibRate: 0, vibDepth: 0)
+                a: 0.06, d: 0.9, s: 0.45, r: 3.8,
+                harm: 0.93, hl: 0.72, bright: 0.16, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 720, res: 0.10, lfoAmt: 0.18, lfoRate: 0.12, lfoDepth: 0.30,
+                revMix: 0.58, revDecay: 5.5, vibRate: 0, vibDepth: 0)
         case .trap:
-            return patch("D2", "Trap Bell",
-                a: 0.005, d: 1.2, s: 0.15, r: 1.5,
-                harm: 0.60, hl: 0.75, bright: 0.70, noise: 0.0, color: "Pink", shape: "Bell",
-                cutoff: 5000, res: 0.12, lfoAmt: 0.10, lfoRate: 0.20, lfoDepth: 0.20,
-                revMix: 0.40, revDecay: 2.8, vibRate: 4, vibDepth: 0.10)
+            return patch("D2", "Trap Keys",
+                a: 0.01, d: 1.0, s: 0.30, r: 2.4,
+                harm: 0.90, hl: 0.74, bright: 0.42, noise: 0.0, color: "Pink", shape: "Bell",
+                cutoff: 3200, res: 0.10, lfoAmt: 0.08, lfoRate: 0.18, lfoDepth: 0.18,
+                revMix: 0.52, revDecay: 3.6, vibRate: 4, vibDepth: 0.07)
         case .vaporwave:
             return patch("D4", "Vapor Pad",
-                a: 0.6, d: 1.2, s: 0.80, r: 3.5,
-                harm: 0.85, hl: 0.80, bright: 0.30, noise: 0.01, color: "Pink", shape: "Natural",
-                cutoff: 1500, res: 0.10, lfoAmt: 0.15, lfoRate: 0.10, lfoDepth: 0.30,
-                revMix: 0.55, revDecay: 4.5, vibRate: 0, vibDepth: 0)
+                a: 0.8, d: 1.6, s: 0.88, r: 4.5,
+                harm: 0.92, hl: 0.80, bright: 0.26, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 1500, res: 0.08, lfoAmt: 0.14, lfoRate: 0.08, lfoDepth: 0.30,
+                revMix: 0.62, revDecay: 5.5, vibRate: 0, vibDepth: 0)
         case .eighties:
             return patch("D5", "Neon Keys",
-                a: 0.02, d: 0.4, s: 0.70, r: 1.2,
-                harm: 0.92, hl: 0.80, bright: 0.60, noise: 0.0, color: "Pink", shape: "Bright",
-                cutoff: 4500, res: 0.18, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
-                revMix: 0.35, revDecay: 2.0, vibRate: 5, vibDepth: 0.12)
+                a: 0.04, d: 0.6, s: 0.78, r: 2.2,
+                harm: 0.93, hl: 0.78, bright: 0.48, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3200, res: 0.12, lfoAmt: 0.10, lfoRate: 0.22, lfoDepth: 0.18,
+                revMix: 0.48, revDecay: 3.2, vibRate: 4.5, vibDepth: 0.08)
         case .disco:
-            return patch("D6", "String Stab",
-                a: 0.04, d: 0.5, s: 0.60, r: 1.0,
-                harm: 0.90, hl: 0.82, bright: 0.55, noise: 0.0, color: "Pink", shape: "Bright",
-                cutoff: 4000, res: 0.20, lfoAmt: 0.12, lfoRate: 0.30, lfoDepth: 0.25,
-                revMix: 0.30, revDecay: 1.8, vibRate: 5.5, vibDepth: 0.10)
+            return patch("D6", "Velvet Strings",
+                a: 0.10, d: 0.8, s: 0.72, r: 2.0,
+                harm: 0.92, hl: 0.80, bright: 0.42, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 2800, res: 0.12, lfoAmt: 0.10, lfoRate: 0.24, lfoDepth: 0.22,
+                revMix: 0.46, revDecay: 3.0, vibRate: 5, vibDepth: 0.07)
         case .synthwave:
             return patch("D7", "Neon Lead",
-                a: 0.01, d: 0.3, s: 0.65, r: 0.8,
-                harm: 0.95, hl: 0.80, bright: 0.72, noise: 0.0, color: "Pink", shape: "Bright",
-                cutoff: 5000, res: 0.25, lfoAmt: 0.20, lfoRate: 0.20, lfoDepth: 0.30,
-                revMix: 0.30, revDecay: 2.2, vibRate: 5, vibDepth: 0.15)
+                a: 0.02, d: 0.5, s: 0.72, r: 1.8,
+                harm: 0.94, hl: 0.78, bright: 0.56, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3600, res: 0.16, lfoAmt: 0.18, lfoRate: 0.18, lfoDepth: 0.28,
+                revMix: 0.44, revDecay: 3.4, vibRate: 4.5, vibDepth: 0.10)
         case .earlySynth:
             return patch("D8", "Berlin Seq",
-                a: 0.005, d: 0.35, s: 0.40, r: 0.6,
-                harm: 0.90, hl: 0.78, bright: 0.50, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 2600, res: 0.30, lfoAmt: 0.35, lfoRate: 0.50, lfoDepth: 0.50,
-                revMix: 0.35, revDecay: 2.5, vibRate: 0, vibDepth: 0)
+                a: 0.02, d: 0.5, s: 0.55, r: 1.6,
+                harm: 0.92, hl: 0.76, bright: 0.40, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 2200, res: 0.18, lfoAmt: 0.30, lfoRate: 0.45, lfoDepth: 0.45,
+                revMix: 0.46, revDecay: 3.6, vibRate: 0, vibDepth: 0)
         case .futuristic:
             return patch("D9", "Crystal Air",
-                a: 0.05, d: 0.8, s: 0.60, r: 2.5,
-                harm: 0.70, hl: 0.78, bright: 0.80, noise: 0.0, color: "Pink", shape: "Bright",
-                cutoff: 6000, res: 0.12, lfoAmt: 0.12, lfoRate: 0.15, lfoDepth: 0.25,
-                revMix: 0.50, revDecay: 3.8, vibRate: 0, vibDepth: 0)
+                a: 0.10, d: 1.0, s: 0.70, r: 3.2,
+                harm: 0.88, hl: 0.78, bright: 0.58, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3800, res: 0.10, lfoAmt: 0.12, lfoRate: 0.12, lfoDepth: 0.22,
+                revMix: 0.58, revDecay: 4.8, vibRate: 0, vibDepth: 0)
         case .sciFi:
             return patch("DA", "Nebula",
-                a: 0.3, d: 1.0, s: 0.70, r: 3.0,
-                harm: 0.65, hl: 0.80, bright: 0.40, noise: 0.03, color: "Violet", shape: "Metallic",
-                cutoff: 2200, res: 0.18, lfoAmt: 0.25, lfoRate: 0.12, lfoDepth: 0.45,
-                revMix: 0.55, revDecay: 5.0, vibRate: 0, vibDepth: 0)
+                a: 0.5, d: 1.4, s: 0.78, r: 4.0,
+                harm: 0.86, hl: 0.80, bright: 0.34, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 1900, res: 0.12, lfoAmt: 0.22, lfoRate: 0.10, lfoDepth: 0.40,
+                revMix: 0.62, revDecay: 6.0, vibRate: 0, vibDepth: 0)
         case .psytrance:
-            return patch("DB", "Psy Roll",
-                a: 0.005, d: 0.2, s: 0.50, r: 0.4,
-                harm: 0.95, hl: 0.80, bright: 0.70, noise: 0.0, color: "Pink", shape: "Bright",
-                cutoff: 4800, res: 0.35, lfoAmt: 0.30, lfoRate: 0.60, lfoDepth: 0.50,
-                revMix: 0.25, revDecay: 1.5, vibRate: 0, vibDepth: 0)
+            return patch("DB", "Psy Pluck",
+                a: 0.01, d: 0.4, s: 0.55, r: 1.0,
+                harm: 0.94, hl: 0.78, bright: 0.56, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3400, res: 0.22, lfoAmt: 0.26, lfoRate: 0.55, lfoDepth: 0.45,
+                revMix: 0.40, revDecay: 2.6, vibRate: 0, vibDepth: 0)
         case .esotericMeditation:
-            return patch("DC", "Esoteric Drone",
-                a: 1.2, d: 1.5, s: 0.90, r: 5.0,
-                harm: 0.80, hl: 0.85, bright: 0.20, noise: 0.02, color: "Pink", shape: "Dark",
-                cutoff: 1000, res: 0.07, lfoAmt: 0.10, lfoRate: 0.06, lfoDepth: 0.40,
-                revMix: 0.60, revDecay: 6.0, vibRate: 0, vibDepth: 0)
+            return patch("DC", "Deep Drone",
+                a: 1.4, d: 1.8, s: 0.92, r: 6.0,
+                harm: 0.90, hl: 0.84, bright: 0.18, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 950, res: 0.06, lfoAmt: 0.10, lfoRate: 0.05, lfoDepth: 0.35,
+                revMix: 0.66, revDecay: 7.0, vibRate: 0, vibDepth: 0)
         case .selfObservation:
             return patch("D3", "Calm Pad",
-                a: 0.8, d: 1.0, s: 0.85, r: 3.5,
-                harm: 0.90, hl: 0.80, bright: 0.22, noise: 0.015, color: "Pink", shape: "Natural",
-                cutoff: 1200, res: 0.08, lfoAmt: 0.12, lfoRate: 0.10, lfoDepth: 0.30,
-                revMix: 0.50, revDecay: 4.5, vibRate: 0, vibDepth: 0)
+                a: 1.0, d: 1.3, s: 0.88, r: 4.2,
+                harm: 0.92, hl: 0.80, bright: 0.22, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 1300, res: 0.07, lfoAmt: 0.12, lfoRate: 0.08, lfoDepth: 0.30,
+                revMix: 0.58, revDecay: 5.5, vibRate: 0, vibDepth: 0)
         }
     }
 
