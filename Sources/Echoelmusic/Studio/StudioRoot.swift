@@ -18,11 +18,12 @@ struct StudioRoot: View {
     /// bio strip's source tag so the instrument is playable without hardware.
     @State private var demoSource = BioSimulator()
 
-    /// Reduced-by-default surface: first-time users see only the core USP —
-    /// heartbeat → music → meditate/export. Pro tabs (Sessions + Connect) are
-    /// revealed by the "Advanced tools" toggle in the Meditate tab. Nothing is
-    /// removed; the depth is one switch away.
-    @AppStorage("echoel.advancedMode") private var advancedMode = false
+    /// Reduced-by-default surface for every skill level: Beginners see only the
+    /// core USP — heartbeat → music → meditate/export; Producers add Songs; Pros
+    /// add Sessions + Connect. Nothing is removed; depth is one picker away (set
+    /// in the Meditate tab). Stored as a raw string; decoded to `SkillLevel`.
+    @AppStorage("echoel.skillLevel") private var skillLevelRaw = SkillLevel.beginner.rawValue
+    private var skillLevel: SkillLevel { SkillLevel(rawValue: skillLevelRaw) ?? .beginner }
 
     var body: some View {
         @Bindable var navigator = navigator
@@ -37,11 +38,13 @@ struct StudioRoot: View {
                     .tabItem { Label("Meditate", systemImage: "heart.fill") }
                     .tag(StudioNavigator.Tab.well)
 
-                ClipsTab()
-                    .tabItem { Label("Songs", systemImage: "square.grid.3x3.fill") }
-                    .tag(StudioNavigator.Tab.clips)
+                if skillLevel.showsSongs {
+                    ClipsTab()
+                        .tabItem { Label("Songs", systemImage: "square.grid.3x3.fill") }
+                        .tag(StudioNavigator.Tab.clips)
+                }
 
-                if advancedMode {
+                if skillLevel.showsProTabs {
                     WorksView()
                         .tabItem { Label("Sessions", systemImage: "waveform") }
                         .tag(StudioNavigator.Tab.works)
@@ -51,12 +54,13 @@ struct StudioRoot: View {
                         .tag(StudioNavigator.Tab.sync)
                 }
             }
-            // If advanced is switched off while on a pro tab, fall back to Create
-            // so the selection never points at a hidden tab (blank screen).
-            .onChange(of: advancedMode) { _, isOn in
-                if !isOn, navigator.selected == .works || navigator.selected == .sync {
-                    navigator.selected = .tools
-                }
+            // If the level drops while on a now-hidden tab, fall back to Create so
+            // the selection never points at a hidden tab (blank screen).
+            .onChange(of: skillLevelRaw) { _, _ in
+                let s = skillLevel
+                let onHiddenSongs = navigator.selected == .clips && !s.showsSongs
+                let onHiddenPro = (navigator.selected == .works || navigator.selected == .sync) && !s.showsProTabs
+                if onHiddenSongs || onHiddenPro { navigator.selected = .tools }
             }
         }
         // Demo source available to the whole subtree (was scoped to the strip

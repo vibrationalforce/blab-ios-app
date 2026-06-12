@@ -25,8 +25,10 @@ struct WellView: View {
     @State private var inhaling = false
     /// Tapped bio metric to explain (nil = no sheet).
     @State private var infoMetric: BioMetric?
-    /// Shared with StudioRoot: reveals the pro tabs (Sessions + Connect).
-    @AppStorage("echoel.advancedMode") private var advancedMode = false
+    /// Shared with StudioRoot: how much of the studio is on screen (Beginner →
+    /// Producer → Pro). Stored raw; decoded to `SkillLevel`.
+    @AppStorage("echoel.skillLevel") private var skillLevelRaw = SkillLevel.beginner.rawValue
+    private var skillLevel: SkillLevel { SkillLevel(rawValue: skillLevelRaw) ?? .beginner }
 
     /// Seconds per half-breath (inhale or exhale) at the chosen rate.
     private var halfCycle: Double { 30.0 / max(breathsPerMin, 1) }
@@ -44,7 +46,7 @@ struct WellView: View {
                 #if canImport(AVFoundation)
                 cameraPulseButton
                 #endif
-                advancedToggle
+                skillLevelControl
                 evidenceNote
             }
             .padding(20)
@@ -54,20 +56,23 @@ struct WellView: View {
         .sheet(item: $infoMetric) { BioMetricInfoView(metric: $0) }
     }
 
-    /// Reveals the pro surfaces (Sessions recorder + Connect: OSC/ADM-OSC/
-    /// lighting). Off by default so first-time users see only the core —
-    /// heartbeat → music → meditate/export — and aren't overwhelmed.
-    private var advancedToggle: some View {
+    /// Progressive disclosure for every skill level. Beginner shows only the core
+    /// (Create + Meditate); Producer adds Songs; Pro adds Sessions + Connect.
+    /// Nothing is removed — depth is one tap away, so the app fits noob to pro.
+    private var skillLevelControl: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Toggle(isOn: $advancedMode) {
-                Label("Advanced tools", systemImage: "slider.horizontal.3")
+            Label("Skill level", systemImage: "slider.horizontal.3")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(EchoelTheme.text)
+            Picker("Skill level", selection: $skillLevelRaw) {
+                ForEach(SkillLevel.allCases) { Text($0.displayName).tag($0.rawValue) }
             }
-            .tint(EchoelTheme.accent)
-            Text("Adds Sessions + Connect (OSC, immersive audio, stage lighting) for pro and installation use.")
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Skill level — reveals more tools as you grow")
+            Text(skillLevel.blurb)
                 .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
         }
         .padding(.horizontal, 4)
-        .accessibilityHint("Shows or hides professional routing and recording tabs")
     }
 
     #if canImport(CoreHaptics)
