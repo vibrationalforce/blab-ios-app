@@ -385,6 +385,9 @@ public enum BioComposer {
                                         rng: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
         let prog = profile.progression.isEmpty ? [0] : profile.progression
+        // Guard chord tones symmetrically with the progression (a public
+        // HarmonicProfile could be built with empty tones → div-by-zero in the arp).
+        let tones = profile.chordTones.isEmpty ? [0] : profile.chordTones
         let sectionLen = max(1, stepCount / prog.count)
         let padVelocity = clamp01(0.40 + 0.25 * breathDepth)
 
@@ -399,7 +402,7 @@ public enum BioComposer {
                 var s = secStart
                 var t = 0
                 while s < secEnd {
-                    let tone = profile.chordTones[t % profile.chordTones.count]
+                    let tone = tones[t % tones.count]
                     let pitch = key.degree(rootDegree + tone, octave: profile.padOctave)
                     let length = max(1, min(arpStep, secEnd - s))
                     notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: s,
@@ -409,7 +412,7 @@ public enum BioComposer {
                 }
             } else {
                 // Sustained pad: every chord tone holds for the whole section.
-                for tone in profile.chordTones {
+                for tone in tones {
                     let pitch = key.degree(rootDegree + tone, octave: profile.padOctave)
                     notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: secStart,
                                       lengthSteps: secEnd - secStart, velocity: padVelocity))
