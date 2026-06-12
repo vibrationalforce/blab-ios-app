@@ -10,7 +10,8 @@ final class EchoelFXChainTests: XCTestCase {
 
     func testFullBypassIsExactPassthrough() {
         let fx = EchoelFXChain(sampleRate: sr)
-        // Disable every stage, including the default-on limiter.
+        // Disable every stage, including the default-on saturation + limiter.
+        fx.saturationEnabled = false
         fx.chorusEnabled = false; fx.flangerEnabled = false; fx.phaserEnabled = false
         fx.tremoloEnabled = false; fx.delayEnabled = false; fx.compressorEnabled = false
         fx.limiterEnabled = false
@@ -53,7 +54,7 @@ final class EchoelFXChainTests: XCTestCase {
 
     func testProcessBufferMonoBypassIsPassthrough() {
         let fx = EchoelFXChain(sampleRate: sr)
-        fx.limiterEnabled = false // all stages off
+        fx.saturationEnabled = false; fx.limiterEnabled = false // all stages off
         var buf = (0..<256).map { sinf(Float($0) * 0.11) }
         let original = buf
         fx.processBufferMono(&buf, frameCount: buf.count)
@@ -73,6 +74,36 @@ final class EchoelFXChainTests: XCTestCase {
         var laterPeak: Float = 0
         for i in 100..<buf.count { laterPeak = Swift.max(laterPeak, abs(buf[i])) }
         XCTAssertGreaterThan(laterPeak, 0.5)
+    }
+
+    func testSaturationAddsHarmonicBodyAndStaysBounded() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        // Isolate saturation: every other stage off.
+        fx.chorusEnabled = false; fx.flangerEnabled = false; fx.phaserEnabled = false
+        fx.tremoloEnabled = false; fx.delayEnabled = false; fx.compressorEnabled = false
+        fx.limiterEnabled = false
+        fx.saturationEnabled = true
+        fx.saturationDrive = 0.6
+
+        var changed = false
+        for i in 0..<2048 {
+            let x = 0.8 * sinf(Float(i) * 0.07)
+            let (l, r) = fx.processStereo(x, x)
+            XCTAssertTrue(l.isFinite && r.isFinite)
+            XCTAssertLessThanOrEqual(abs(l), 1.0)   // soft-clipped, never above unity
+            if abs(l - x) > 1e-4 { changed = true }  // it actually shapes the tone
+            XCTAssertEqual(l, r, accuracy: 1e-6)      // symmetric L/R
+        }
+        XCTAssertTrue(changed, "saturation should reshape the signal, not pass it through")
+    }
+
+    func testSaturationOfSilenceIsSilence() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.limiterEnabled = false
+        fx.saturationEnabled = true
+        let (l, r) = fx.processStereo(0, 0)
+        XCTAssertEqual(l, 0, accuracy: 1e-6)
+        XCTAssertEqual(r, 0, accuracy: 1e-6)
     }
 
     func testResetClearsDelayTail() {

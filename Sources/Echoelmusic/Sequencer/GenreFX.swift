@@ -49,6 +49,11 @@ public struct GenreFXPreset: Sendable, Equatable {
     public var phaserDepth: Float
     public var phaserMix: Float
 
+    // Saturation — analog warmth. The additive synth is a clean sine stack; a
+    // little drive gives it harmonic body so a take sounds professional, not
+    // thin and digital. 0 disables (a truly dry "Clean").
+    public var saturation: Float
+
     public init(
         filterEnabled: Bool = false,
         filterMode: EchoelSVFilter.Mode = .lowpass,
@@ -70,7 +75,8 @@ public struct GenreFXPreset: Sendable, Equatable {
         phaserEnabled: Bool = false,
         phaserRate: Float = 0.2,
         phaserDepth: Float = 0.6,
-        phaserMix: Float = 0.4
+        phaserMix: Float = 0.4,
+        saturation: Float = 0.30
     ) {
         self.filterEnabled = filterEnabled
         self.filterMode = filterMode
@@ -93,6 +99,7 @@ public struct GenreFXPreset: Sendable, Equatable {
         self.phaserRate = phaserRate
         self.phaserDepth = phaserDepth
         self.phaserMix = phaserMix
+        self.saturation = saturation
     }
 
     /// Delay-line capacity in the chain (EchoelDelay default). The synced time is
@@ -125,6 +132,9 @@ public struct GenreFXPreset: Sendable, Equatable {
         chain.phaser.rate = phaserRate
         chain.phaser.depth = phaserDepth
         chain.phaser.mix = phaserMix
+
+        chain.saturationEnabled = saturation > 0
+        chain.saturationDrive = saturation
     }
 }
 
@@ -273,10 +283,11 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .auto:
             return nil
         case .clean:
-            // Everything off — a dry reset. The safety limiter (not touched by
-            // a preset) stays on.
+            // Everything off — a dry reset, including saturation. The safety
+            // limiter (not touched by a preset) stays on.
             return GenreFXPreset(filterEnabled: false, delayEnabled: false,
-                                 chorusEnabled: false, phaserEnabled: false)
+                                 chorusEnabled: false, phaserEnabled: false,
+                                 saturation: 0)
         case .underwater:
             return GenreFXPreset(
                 filterEnabled: true, filterMode: .lowpass, filterCutoff: 650, filterResonance: 0.35,
@@ -313,7 +324,8 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
                 delayEnabled: true, delayMode: .tape,
                 delaySync: TempoSyncOption(.sixteenth),
                 delayMix: 0.14, delayFeedback: 0.22, delayTone: 0.6, delaySpread: 0.15,
-                delayDrive: 0.5)
+                delayDrive: 0.5,
+                saturation: 0.55)
         }
     }
 

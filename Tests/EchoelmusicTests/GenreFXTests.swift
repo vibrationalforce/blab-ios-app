@@ -23,7 +23,8 @@ final class GenreFXTests: XCTestCase {
                                ("delayTone", fx.delayTone), ("delaySpread", fx.delaySpread),
                                ("delayWow", fx.delayWow), ("delayDrive", fx.delayDrive),
                                ("chorusDepth", fx.chorusDepth), ("chorusMix", fx.chorusMix),
-                               ("phaserDepth", fx.phaserDepth), ("phaserMix", fx.phaserMix)] {
+                               ("phaserDepth", fx.phaserDepth), ("phaserMix", fx.phaserMix),
+                               ("saturation", fx.saturation)] {
                 XCTAssertTrue((0...1).contains(v), "\(style).\(label) = \(v) out of 0...1")
             }
             // Feedback must stay below self-oscillation.
@@ -79,6 +80,15 @@ final class GenreFXTests: XCTestCase {
         XCTAssertTrue(chain.chorusEnabled, "vaporwave should wash a chorus")
         XCTAssertFalse(chain.phaserEnabled, "vaporwave has no phaser; stale flag must clear")
         XCTAssertEqual(chain.delay.mode, .tape, "vaporwave uses tape echo")
+    }
+
+    func testApplyEnablesAnalogWarmth() {
+        // Every genre carries some saturation, so applying it must arm the
+        // chain's warmth stage (the additive source needs harmonic body).
+        let chain = EchoelFXChain()
+        MusicStyle.vaporwave.fxPreset.apply(to: chain, bpm: 90)
+        XCTAssertTrue(chain.saturationEnabled, "a genre take should be warm, not sterile")
+        XCTAssertGreaterThan(chain.saturationDrive, 0)
     }
 
     func testLimiterStaysEnabledAfterApply() {

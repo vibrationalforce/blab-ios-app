@@ -93,6 +93,7 @@ final class FXCharacterTests: XCTestCase {
         XCTAssertFalse(chain.delayEnabled)
         XCTAssertFalse(chain.chorusEnabled)
         XCTAssertFalse(chain.phaserEnabled)
+        XCTAssertFalse(chain.saturationEnabled, "Clean is truly dry — no warmth drive either")
         XCTAssertTrue(chain.limiterEnabled, "the safety limiter is never disabled by a character")
     }
 
@@ -125,6 +126,7 @@ final class FXChainFilterStageTests: XCTestCase {
     func testBypassedFilterIsTransparent() {
         // With the filter (and every other stage) off, output equals input.
         let chain = EchoelFXChain()
+        chain.saturationEnabled = false
         chain.limiterEnabled = false
         let (l, r) = chain.processStereo(0.5, -0.3)
         XCTAssertEqual(l, 0.5, accuracy: 1e-6)
@@ -135,6 +137,7 @@ final class FXChainFilterStageTests: XCTestCase {
         // A low-pass passes DC (0 Hz) at unity — sanity that the stage is wired
         // and stable, not silent.
         let chain = EchoelFXChain()
+        chain.saturationEnabled = false
         chain.limiterEnabled = false
         chain.filterEnabled = true
         chain.setFilter(mode: .lowpass, cutoff: 800, resonance: 0.2)
