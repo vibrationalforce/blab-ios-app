@@ -1,15 +1,21 @@
 #if canImport(AVFoundation)
 import AVFoundation
 import Accelerate
+import AudioToolbox
 import Observation
 
 /// Transparent mastering chain inserted between masterMixer and mainMixerNode.
 /// Makes any improv session sound release-ready without user intervention.
 ///
-/// Graph after install: masterMixer → EQ → gainNode → mainMixerNode
+/// Graph after install: masterMixer → EQ → gainNode → limiter → mainMixerNode
+///
+/// The final stage is an always-on Apple PeakLimiter brick-wall: it stays
+/// engaged even when the tonal chain is bypassed, so summed voices (8 drums +
+/// bio synth + poly + sampler) can never hard-clip the output into harsh
+/// digital distortion. Transparent at normal levels — it only catches peaks.
 ///
 /// Controls:
-/// - isEnabled: bypass entire chain
+/// - isEnabled: bypass the tonal chain (EQ); the safety limiter remains on
 /// - targetLUFS: auto-gain target (-14 streaming, -9 club, -23 broadcast)
 /// - preset: tonal character (balanced / warm / bright / transparent)
 @MainActor @Observable
@@ -37,6 +43,17 @@ final class AutoMixChain {
 
     @ObservationIgnored private let eq      = AVAudioUnitEQ(numberOfBands: 4)
     @ObservationIgnored private let gainNode = AVAudioMixerNode()
+    /// Always-on brick-wall safety limiter (Apple PeakLimiter) — the final
+    /// stage, prevents the summed master from clipping into harsh distortion.
+    @ObservationIgnored private let limiter: AVAudioUnitEffect = {
+        var desc = AudioComponentDescription()
+        desc.componentType = kAudioUnitType_Effect
+        desc.componentSubType = kAudioUnitSubType_PeakLimiter
+        desc.componentManufacturer = kAudioUnitManufacturer_Apple
+        desc.componentFlags = 0
+        desc.componentFlagsMask = 0
+        return AVAudioUnitEffect(audioComponentDescription: desc)
+    }()
 
     // MARK: - LUFS meter (via metering timer reading masterLevel RMS)
     @ObservationIgnored private var masterLevelRef: (() -> Float)?
@@ -54,14 +71,16 @@ final class AutoMixChain {
     ) {
         engine.attach(eq)
         engine.attach(gainNode)
+        engine.attach(limiter)
 
         engine.connect(source,   to: eq,       format: format)
         engine.connect(eq,       to: gainNode, format: format)
-        engine.connect(gainNode, to: destination, format: format)
+        engine.connect(gainNode, to: limiter,  format: format)
+        engine.connect(limiter,  to: destination, format: format)
 
         configureEQ()
         isInstalled = true
-        log.audio("AutoMixChain inserted — EQ → gainNode → mainMixer")
+        log.audio("AutoMixChain inserted — EQ → gainNode → limiter → mainMixer")
     }
 
     /// Provide a closure that returns the current master RMS (0-1 linear).
