@@ -2210,3 +2210,38 @@ iOS-archive arg-order strictness); then genre-matched sample kits.
 TestFlight: reduced-USP build still archive+signing-verified, blocked only by
 Apple's daily upload limit — re-dispatch (build_only=false, no code change) after
 the window resets (~2026-06-13).
+
+---
+
+## 2026-06-12 — Sound quality: analog saturation stage (commit a1bb277)
+
+**User feedback:** "Klingt zu dünne, digital, Noise und nicht musikalisch." The
+warmed patches (b6b0308) + drum-free loops were not enough; the additive engine
+itself (a clean sum of sines) reads as thin/digital regardless of voicing.
+
+**Root cause:** EchoelFXChain had filter/chorus/delay/comp/limiter but NO
+saturation. Pro pads always run through tube/tape saturation — it adds harmonic
+density (fills thinness), even-harmonic warmth (kills the sterile digital
+character), and gentle compression (glue). Missing entirely.
+
+**Fix (3 files + tests):**
+- `EchoelFXChain.swift`: new saturation stage after the filter — asymmetric tanh
+  (small DC bias, removed after) for tube even-harmonics, drive + parallel
+  wet/dry mix. Default ON (drive 0.30) so every voice has body. Audio-thread
+  safe: pure `tanhf` + arithmetic, no alloc/locks.
+- `GenreFX.swift`: `GenreFXPreset.saturation` (default 0.30) written on apply();
+  `.clean` → 0 (truly dry), `.megaphone` → 0.55 (drives harder).
+- Tests: EchoelFXChainTests (reshape-but-bound, silence→silence, bypass now
+  isolates saturation), GenreFXTests (warmth on after apply, range incl
+  saturation), FXCharacterTests (Clean off, filter-stage tests isolate sat).
+
+**Deploy status:** b6b0308 FULL deploy FAILED only on Apple's daily upload-limit
+(`exportArchive Validation failed. Upload limit reached`) — the iOS archive
+COMPILED + SIGNED clean. So the code is fine; upload window resets ~2026-06-13.
+a1bb277 dispatched as build_only=true (compile-check, no upload). Next full
+deploy (build_only=false) once the upload window reopens — that build will carry
+warm patches + drum-free + analog saturation, the full answer to the feedback.
+
+**NEXT:** if still not rich enough, consider per-voice unison/detune in
+EchoelDDSP (analog movement) and richer chord voicings; but saturation +
+warm patches + lush genre FX is the coherent first engine-level pass.
