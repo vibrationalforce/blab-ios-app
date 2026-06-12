@@ -17,10 +17,11 @@ struct ComposeView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(\.dismiss) private var dismiss
 
+    @State private var style: MusicStyle = .dubTechno
     @State private var rootIndex = 0
-    @State private var scale: Scale = .minor
+    @State private var scale: Scale = .dorian
     @State private var mode: ComposerMode = .studioLocked
-    @State private var lockedBPM: Double = 75
+    @State private var lockedBPM: Double = 124
     @State private var lastNoteCount: Int?
 
     private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -33,11 +34,13 @@ struct ComposeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     bioReadout
+                    styleSection
                     keySection
                     modeSection
                     generateSection
                 }
                 .padding(16)
+                .onChange(of: style) { _, newStyle in applyStyle(newStyle) }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -93,6 +96,55 @@ struct ComposeView: View {
         }
     }
 
+    // MARK: - Style (the primary choice — which sound world)
+
+    private var styleSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("Sound")
+            VStack(spacing: 8) {
+                ForEach(MusicStyle.allCases) { s in
+                    styleRow(s)
+                }
+            }
+        }
+    }
+
+    private func styleRow(_ s: MusicStyle) -> some View {
+        let selected = (s == style)
+        return Button { style = s } label: {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundStyle(selected ? EchoelTheme.accent : EchoelTheme.dim)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(s.displayName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                    Text(s.lineage)
+                        .font(.system(size: 11))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .fill(selected ? EchoelTheme.accent.opacity(0.12) : EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .stroke(selected ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(s.displayName), \(s.lineage)")
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+    }
+
+    /// Adopt a style's musical defaults (scale, transport, tempo) so each genre
+    /// lands in the right place; the user can still tweak below.
+    private func applyStyle(_ s: MusicStyle) {
+        scale = s.scale
+        mode = s.defaultMode
+        lockedBPM = s.defaultTempo
+    }
+
     // MARK: - Key
 
     private var keySection: some View {
@@ -133,7 +185,7 @@ struct ComposeView: View {
                 HStack {
                     Text("Lock BPM").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
                     Spacer()
-                    Stepper("\(Int(lockedBPM)) BPM", value: $lockedBPM, in: 40...200, step: 1)
+                    Stepper("\(Int(lockedBPM)) BPM", value: $lockedBPM, in: style.tempoRange, step: 1)
                         .fixedSize().font(.system(size: 12)).foregroundStyle(EchoelTheme.text)
                         .accessibilityValue("\(Int(lockedBPM)) BPM")
                 }
@@ -183,6 +235,7 @@ struct ComposeView: View {
             breathPhase: frame?.breathPhase ?? 0,
             breathDepth: 0.5,
             key: key,
+            style: style,
             mode: mode,
             lockedTempo: lockedBPM,
             seed: UInt64.random(in: UInt64.min...UInt64.max)

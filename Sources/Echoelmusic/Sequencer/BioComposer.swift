@@ -1,14 +1,18 @@
 // BioComposer.swift
-// Echoel — the generative core: biodata → an in-key melody + a suggested tempo.
-// "Sounds, melody, rhythm and tempo are computed from the biodata." This kernel
-// is the melody+tempo half (rhythm follows in a sibling step). It is PURE and
-// SEEDED — same inputs + seed produce the same music — so it is fully unit-tested
-// without any clock or audio, and a performer can reproduce a take.
+// Echoel — the generative core: biodata → music, in one of two curated genres
+// (Dub Techno / Trap) or a sync-free ambient mode for self-observation. There is
+// NO generic beat-maker: every take sounds like its genre because the patterns
+// are hand-shaped after the reference artists, and the biodata only animates the
+// detail inside that frame.
 //
-// Musical mappings (deliberately musical, not random noise):
-//   heart rate  → tempo (and rhythmic energy)
-//   coherence   → calm: fewer, longer, stepwise notes (high) vs busier leaps (low)
-//   breath phase→ melodic direction (inhale rises, exhale falls)
+// The kernel is PURE and SEEDED — same inputs + seed produce the same music — so
+// it is fully unit-tested without any clock or audio, and a performer can
+// reproduce a take.
+//
+// Bio mappings (deliberately musical, not random noise):
+//   heart rate  → tempo (clamped into the style's BPM window) + rhythmic energy
+//   coherence   → calm: more space, fewer hits (high) vs busier, denser (low)
+//   breath phase→ melodic direction in the ambient mode (inhale rises, exhale falls)
 //   breath depth→ velocity
 // Every pitch is produced via MusicalKey.degree(...), so output is always in key.
 
@@ -16,7 +20,7 @@ import Foundation
 
 /// Transport intent for a generated take.
 public enum ComposerMode: String, Codable, Sendable {
-    case studioLocked   // fixed BPM (e.g. 75) for DAW handoff
+    case studioLocked   // fixed BPM (e.g. 124 dub, 140 trap) for DAW handoff
     case flowFree       // tempo follows the heart, for meditation
 }
 
@@ -42,8 +46,8 @@ public struct SeededRNG: Sendable {
 
 public struct BioComposition: Equatable, Sendable {
     public var notes: [Note]
-    /// 8 tracks × 16 steps drum grid (kick/snare/hat seeded from the heartbeat).
-    /// All-false in Flow mode, which stays ambient (melody only).
+    /// 8 tracks × 16 steps drum grid, shaped to the genre. All-false in the
+    /// ambient self-observation style (melody only).
     public var drumSteps: [[Bool]]
     public var drumAccents: [[Bool]]
     public var suggestedTempo: Double
@@ -62,6 +66,13 @@ public struct BioComposition: Equatable, Sendable {
 public enum BioComposer {
 
     public static let stepCount = 16   // one bar loop, matches PatternEngine/PianoRoll
+    public static let trackCount = 8
+
+    /// Drum-grid track indices — must match `BeatPlayer.trackNames`.
+    private enum Track {
+        static let kick = 0, snare = 1, closedHat = 2, openHat = 3
+        static let clap = 4, perc = 5, bass = 6, leadFX = 7
+    }
 
     public struct Input: Sendable {
         public var heartRateBPM: Float
@@ -70,6 +81,7 @@ public enum BioComposer {
         public var breathPhase: Float       // 0…1 (0 = inhale start)
         public var breathDepth: Float       // 0…1
         public var key: MusicalKey
+        public var style: MusicStyle
         public var mode: ComposerMode
         public var lockedTempo: Double      // used when mode == .studioLocked
         public var seed: UInt64
@@ -80,9 +92,10 @@ public enum BioComposer {
             coherence: Float = 0.5,
             breathPhase: Float = 0,
             breathDepth: Float = 0.5,
-            key: MusicalKey = MusicalKey(root: 0, scale: .minor),
+            key: MusicalKey = MusicalKey(root: 0, scale: .dorian),
+            style: MusicStyle = .dubTechno,
             mode: ComposerMode = .studioLocked,
-            lockedTempo: Double = 75,
+            lockedTempo: Double = 124,
             seed: UInt64 = 0x5EED
         ) {
             self.heartRateBPM = heartRateBPM
@@ -91,6 +104,7 @@ public enum BioComposer {
             self.breathPhase = breathPhase
             self.breathDepth = breathDepth
             self.key = key
+            self.style = style
             self.mode = mode
             self.lockedTempo = lockedTempo
             self.seed = seed
@@ -113,63 +127,46 @@ public enum BioComposer {
         ))
     }
 
-    /// Tempo a take should run at: fixed in Studio mode, heart-following in Flow.
+    /// Tempo a take should run at: clamped into the style's window in Studio mode,
+    /// heart-following in Flow.
     public static func tempo(for input: Input) -> Double {
         switch input.mode {
         case .studioLocked:
-            return min(max(input.lockedTempo, 30), 300)
+            let r = input.style.tempoRange
+            return min(max(input.lockedTempo, r.lowerBound), r.upperBound)
         case .flowFree:
             return min(max(Double(input.heartRateBPM), 40), 160)
         }
     }
 
-    /// Generate an in-key melody + suggested tempo from a bio snapshot.
+    /// Generate music from a bio snapshot, in the requested genre.
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
 
         let calm = clamp01(input.coherence)
         let energy = clamp01((input.heartRateBPM - 50) / 70)   // 50…120 bpm → 0…1
-        let density = 0.5 * (1 - calm) + 0.5 * energy          // 0…1
-        let noteCount = 2 + Int((density * 6).rounded())       // 2…8
+        let busy = clamp01(0.5 * (1 - calm) + 0.5 * energy)
 
-        // Inhale (phase < 0.5) biases the line upward; exhale downward.
-        let inhaleBias: Float = input.breathPhase < 0.5 ? 0.7 : 0.3
-        let octave = 4
+        let notes: [Note]
+        let drumSteps: [[Bool]]
+        let drumAccents: [[Bool]]
 
-        var notes: [Note] = []
-        var degree = 0
-        var lastStart = -1
-        for i in 0..<noteCount {
-            let start = i * Self.stepCount / noteCount
-            // Guarantee strictly increasing, in-bar positions.
-            let startStep = min(Self.stepCount - 1, max(start, lastStart + 1))
-            lastStart = startStep
-
-            let pitch = input.key.degree(degree, octave: octave)
-
-            // Calmer → longer, more legato; busier → shorter.
-            let gap = Float(Self.stepCount) / Float(noteCount)
-            let lenF = gap * (0.5 + 0.5 * calm)
-            let length = max(1, min(Int(lenF.rounded()), Self.stepCount - startStep))
-
-            // Velocity from breath depth, accent on the downbeat.
-            let accent: Float = (startStep % 8 == 0) ? 0.15 : 0
-            let velocity = clamp01(0.55 + 0.3 * input.breathDepth + accent)
-
-            let id = Self.nextUUID(&rng)
-            notes.append(Note(id: id, pitch: pitch, startStep: startStep,
-                              lengthSteps: length, velocity: velocity))
-
-            // Advance the contour: direction from breath, step size from calm.
-            let dir = rng.unit() < inhaleBias ? 1 : -1
-            let leap = calm > 0.5 ? 1 : 1 + Int(rng.unit() * 2)   // 1 (calm) … 1–2 (busy)
-            degree = min(14, max(-7, degree + dir * leap))
+        switch input.style {
+        case .dubTechno:
+            notes = dubMelody(key: input.key, busy: busy,
+                              breathDepth: input.breathDepth, rng: &rng)
+            (drumSteps, drumAccents) = dubBeat(energy: energy, rng: &rng)
+        case .trap:
+            notes = trapMelody(key: input.key, busy: busy, calm: calm,
+                               breathPhase: input.breathPhase,
+                               breathDepth: input.breathDepth, rng: &rng)
+            (drumSteps, drumAccents) = trapBeat(energy: energy, calm: calm, rng: &rng)
+        case .selfObservation:
+            notes = ambientMelody(key: input.key, calm: calm, energy: energy,
+                                  breathPhase: input.breathPhase,
+                                  breathDepth: input.breathDepth, rng: &rng)
+            (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         }
-
-        // Rhythm: a heartbeat-seeded beat in Studio mode; Flow stays ambient.
-        let (drumSteps, drumAccents) = input.mode == .studioLocked
-            ? composeRhythm(calm: calm, energy: energy, rng: &rng)
-            : (Self.emptyGrid(), Self.emptyGrid())
 
         return BioComposition(
             notes: notes,
@@ -179,49 +176,192 @@ public enum BioComposer {
         )
     }
 
-    public static let trackCount = 8
-
     private static func emptyGrid() -> [[Bool]] {
         Array(repeating: Array(repeating: false, count: stepCount), count: trackCount)
     }
 
-    /// Heartbeat → beat. Track 0 = kick (the pulse), 1 = snare (backbeat),
-    /// 2 = hi-hat (subdivision density from energy/calm). Deterministic from the
-    /// shared RNG; a little seeded syncopation when energetic.
-    private static func composeRhythm(
-        calm: Float, energy: Float, rng: inout SeededRNG
-    ) -> (steps: [[Bool]], accents: [[Bool]]) {
+    // MARK: - Dub Techno (Echochord / Basic Channel / Moritz von Oswald)
+
+    /// Steady 4/4 kick, offbeat ticks, a deep sub on 1 & 3, a soft backbeat and a
+    /// little seeded perc. Hypnotic and spacious — the genre's signature.
+    private static func dubBeat(energy: Float, rng: inout SeededRNG)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
         var steps = emptyGrid()
         var accents = emptyGrid()
 
-        // Kick: 2-on-the-bar when calm, 4-on-the-floor when energetic.
-        if energy > 0.55 {
-            for s in [0, 4, 8, 12] { steps[0][s] = true }
-        } else {
-            for s in [0, 8] { steps[0][s] = true }
-        }
-        accents[0][0] = true   // downbeat accent
+        // 4-on-the-floor kick — the dub pulse.
+        for s in stride(from: 0, to: stepCount, by: 4) { steps[Track.kick][s] = true }
+        accents[Track.kick][0] = true
+        accents[Track.kick][8] = true
 
-        // Snare backbeat on 2 and 4 once there's some energy.
-        if energy > 0.3 {
-            steps[1][4] = true; steps[1][12] = true
-            accents[1][4] = true; accents[1][12] = true
-        }
+        // Offbeat closed-hat tick (the "tss" between the kicks).
+        for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = true }
 
-        // Hi-hat subdivision: calm → quarters, busy → 8ths/16ths.
-        let drive = min(max(0.5 * energy + 0.5 * (1 - calm), 0), 1)
-        let hatEvery = drive > 0.66 ? 1 : (drive > 0.33 ? 2 : 4)
-        var s = 0
-        while s < stepCount {
-            steps[2][s] = true
-            s += hatEvery
-        }
+        // Offbeat open-hat skank once there's drive.
+        if energy > 0.35 { steps[Track.openHat][6] = true; steps[Track.openHat][14] = true }
 
-        // Seeded syncopated kick when energetic (taste, not noise).
-        if energy > 0.55, rng.unit() < 0.5 {
-            steps[0][14] = true
+        // Soft backbeat clap on beat 4 (and 2 when energetic).
+        steps[Track.clap][12] = true
+        accents[Track.clap][12] = true
+        if energy > 0.5 { steps[Track.clap][4] = true }
+
+        // Deep dub sub on the 1 and the 3.
+        steps[Track.bass][0] = true
+        steps[Track.bass][8] = true
+
+        // A little seeded perc for movement — taste, not noise.
+        if rng.unit() < 0.6 {
+            steps[Track.perc][rng.unit() < 0.5 ? 7 : 11] = true
         }
 
         return (steps, accents)
+    }
+
+    /// Dub chord stabs: a i→IV triad move on the offbeats, soft and spacious.
+    /// Drenched in delay by the patch — here we place the harmony.
+    private static func dubMelody(key: MusicalKey, busy: Float,
+                                  breathDepth: Float, rng: inout SeededRNG) -> [Note] {
+        var notes: [Note] = []
+        let octave = 4
+        let velocity = clamp01(0.42 + 0.22 * breathDepth)
+
+        // Busy → stab on both offbeats of each half; calm → just the later one.
+        func positions(_ pair: [Int]) -> [Int] { busy > 0.5 ? pair : [pair[1]] }
+
+        func addChord(rootDegree: Int, at step: Int) {
+            let length = max(1, min(busy > 0.5 ? 2 : 3, stepCount - step))
+            for interval in [0, 2, 4] {     // root · third · fifth = an in-key triad
+                let pitch = key.degree(rootDegree + interval, octave: octave)
+                notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: step,
+                                  lengthSteps: length, velocity: velocity))
+            }
+        }
+
+        for s in positions([2, 6])  { addChord(rootDegree: 0, at: s) }   // i  (tonic)
+        for s in positions([10, 14]) { addChord(rootDegree: 3, at: s) }  // IV (subdominant)
+        return notes
+    }
+
+    // MARK: - Trap (808 Mafia / Southside / Metro Boomin)
+
+    /// Syncopated 808 kick, half-time snare/clap on beat 3, rolling 16th hats and
+    /// the open-hat lift into the loop. The 808 sub mirrors the kick.
+    private static func trapBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+
+        // 808 kick: syncopated, half-time feel. The Bass track doubles it (the 808).
+        var kickHits = [0, 6, 10]
+        if energy > 0.5 { kickHits.append(3) }
+        if rng.unit() < 0.5 { kickHits.append(11) }
+        for s in kickHits {
+            steps[Track.kick][s] = true
+            steps[Track.bass][s] = true
+        }
+        accents[Track.kick][0] = true
+
+        // Snare + clap on beat 3 (step 8) — the half-time backbeat.
+        steps[Track.snare][8] = true
+        steps[Track.clap][8] = true
+        accents[Track.snare][8] = true
+        accents[Track.clap][8] = true
+
+        // Rolling 16th hats across the whole bar.
+        for s in 0..<stepCount { steps[Track.closedHat][s] = true }
+        accents[Track.closedHat][7] = true
+        accents[Track.closedHat][15] = true
+
+        // Hat roll + open-hat lift into the loop, busier when energetic.
+        if energy > 0.6 {
+            accents[Track.closedHat][14] = true
+            steps[Track.openHat][15] = true
+        } else {
+            steps[Track.openHat][15] = true
+        }
+
+        // Sparse seeded perc.
+        if rng.unit() < 0.5 {
+            steps[Track.perc][rng.unit() < 0.5 ? 5 : 13] = true
+        }
+
+        return (steps, accents)
+    }
+
+    /// A dark, sparse bell lead up top plus a low 808 root line — both exportable
+    /// as MIDI so the body's melody lands in Ableton / FL Studio with pitch.
+    private static func trapMelody(key: MusicalKey, busy: Float, calm: Float,
+                                   breathPhase: Float, breathDepth: Float,
+                                   rng: inout SeededRNG) -> [Note] {
+        var notes: [Note] = []
+
+        // Low 808 root line on the downbeats (octave 2), long + gliding.
+        let subVel = clamp01(0.7 + 0.2 * breathDepth)
+        for s in [0, 8] {
+            let pitch = key.degree(0, octave: 2)
+            notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: s,
+                              lengthSteps: 6, velocity: subVel))
+        }
+
+        // Sparse dark bell lead up top (octave 5), harmonic-minor tension.
+        let leadOctave = 5
+        let noteCount = 3 + Int((busy * 3).rounded())   // 3…6
+        let inhaleBias: Float = breathPhase < 0.5 ? 0.65 : 0.35
+        var degree = 0
+        var lastStart = -1
+        for i in 0..<noteCount {
+            let start = i * stepCount / noteCount
+            let startStep = min(stepCount - 1, max(start, lastStart + 1))
+            lastStart = startStep
+
+            let pitch = key.degree(degree, octave: leadOctave)
+            let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
+            let velocity = clamp01(0.5 + 0.3 * breathDepth)
+            notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
+                              lengthSteps: length, velocity: velocity))
+
+            let dir = rng.unit() < inhaleBias ? 1 : -1
+            let leap = 1 + Int(rng.unit() * 2)
+            degree = min(14, max(-7, degree + dir * leap))
+        }
+        return notes
+    }
+
+    // MARK: - Self-Observation (ambient, no drums)
+
+    /// A gentle, breath-paced contour for meditation. Calmer coherence → longer,
+    /// more stepwise notes; the breath sets the rise/fall.
+    private static func ambientMelody(key: MusicalKey, calm: Float, energy: Float,
+                                      breathPhase: Float, breathDepth: Float,
+                                      rng: inout SeededRNG) -> [Note] {
+        let density = 0.5 * (1 - calm) + 0.5 * energy
+        let noteCount = 2 + Int((density * 6).rounded())       // 2…8
+        let inhaleBias: Float = breathPhase < 0.5 ? 0.7 : 0.3
+        let octave = 4
+
+        var notes: [Note] = []
+        var degree = 0
+        var lastStart = -1
+        for i in 0..<noteCount {
+            let start = i * stepCount / noteCount
+            let startStep = min(stepCount - 1, max(start, lastStart + 1))
+            lastStart = startStep
+
+            let pitch = key.degree(degree, octave: octave)
+            let gap = Float(stepCount) / Float(noteCount)
+            let lenF = gap * (0.5 + 0.5 * calm)
+            let length = max(1, min(Int(lenF.rounded()), stepCount - startStep))
+
+            let accent: Float = (startStep % 8 == 0) ? 0.15 : 0
+            let velocity = clamp01(0.55 + 0.3 * breathDepth + accent)
+
+            notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
+                              lengthSteps: length, velocity: velocity))
+
+            let dir = rng.unit() < inhaleBias ? 1 : -1
+            let leap = calm > 0.5 ? 1 : 1 + Int(rng.unit() * 2)
+            degree = min(14, max(-7, degree + dir * leap))
+        }
+        return notes
     }
 }
