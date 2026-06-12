@@ -33,6 +33,8 @@ final class FXViewModel {
         let c = voice.fxChain
         fxEnabled = voice.isFXEnabled
         // Seed mirrors from the live chain so the UI reflects current state.
+        filterEnabled = c.filterEnabled; filterMode = c.filterL.mode
+        filterCutoff = c.filterL.cutoff; filterResonance = c.filterL.resonance
         delayEnabled = c.delayEnabled; delayMode = c.delay.mode
         delayMix = c.delay.mix; delayTime = c.delay.timeSeconds
         delayFeedback = c.delay.feedback; delayTone = c.delay.tone
@@ -52,6 +54,12 @@ final class FXViewModel {
 
     // Master
     var fxEnabled: Bool { didSet { voice.setFXEnabled(fxEnabled) } }
+
+    // Filter (tone — underwater low-pass, telephone band-pass, lo-fi)
+    var filterEnabled: Bool { didSet { chain.filterEnabled = filterEnabled } }
+    var filterMode: EchoelSVFilter.Mode { didSet { chain.filterL.mode = filterMode; chain.filterR.mode = filterMode } }
+    var filterCutoff: Float { didSet { chain.filterL.cutoff = filterCutoff; chain.filterR.cutoff = filterCutoff } }
+    var filterResonance: Float { didSet { chain.filterL.resonance = filterResonance; chain.filterR.resonance = filterResonance } }
 
     // Delay
     var delayEnabled: Bool { didSet { chain.delayEnabled = delayEnabled } }
@@ -98,6 +106,35 @@ final class FXViewModel {
     // Limiter
     var limiterEnabled: Bool { didSet { chain.limiterEnabled = limiterEnabled } }
     var limiterCeiling: Float { didSet { chain.limiter.ceilingDb = limiterCeiling } }
+
+    // MARK: - Production characters
+
+    /// Stamp a one-tap production character (Underwater, Telephone, …) onto the
+    /// chain, turn the insert on, and refresh every slider so the UI reflects the
+    /// new state. `.auto` is excluded here (no genre context in the FX tool).
+    func applyCharacter(_ character: FXCharacter) {
+        // Non-auto characters carry their own preset; the genre arg is unused.
+        character.apply(to: chain, bpm: bpm, genre: .selfObservation)
+        fxEnabled = true
+        reseed()
+    }
+
+    /// Re-read every mirror from the live chain (after a character stamp). The
+    /// write-back through each `didSet` is idempotent — same values land on the
+    /// chain — so this only resynchronises the UI.
+    func reseed() {
+        let c = chain
+        filterEnabled = c.filterEnabled; filterMode = c.filterL.mode
+        filterCutoff = c.filterL.cutoff; filterResonance = c.filterL.resonance
+        delayEnabled = c.delayEnabled; delayMode = c.delay.mode
+        delayMix = c.delay.mix; delayTime = c.delay.timeSeconds
+        delayFeedback = c.delay.feedback; delayTone = c.delay.tone
+        delayWow = c.delay.wow; delayDrive = c.delay.drive
+        chorusEnabled = c.chorusEnabled; chorusRate = c.chorus.rate
+        chorusDepth = c.chorus.depth; chorusMix = c.chorus.mix
+        phaserEnabled = c.phaserEnabled; phaserRate = c.phaser.rate
+        phaserDepth = c.phaser.depth; phaserMix = c.phaser.mix
+    }
 }
 
 // MARK: - View
@@ -118,8 +155,32 @@ struct EchoelFXView: View {
                 Section {
                     Toggle("Insert FX", isOn: $vm.fxEnabled)
                         .tint(EchoelTheme.accent)
+                    Menu {
+                        ForEach(FXCharacter.allCases.filter { $0 != .auto }) { ch in
+                            Button { vm.applyCharacter(ch) } label: {
+                                Text(ch.displayName)
+                            }
+                        }
+                    } label: {
+                        Label("Stamp a character…", systemImage: "wand.and.stars")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(EchoelTheme.accent)
+                    }
+                    .accessibilityHint("Apply a production sound like Underwater or Telephone, then tweak below")
                 } footer: {
-                    Text("Applies the EchoelFX chain to the bio-synth voice: modulation → delay → dynamics. Off by default.")
+                    Text("Applies the EchoelFX chain: filter → modulation → delay → dynamics. Stamp a character (Underwater, Telephone, Cassette…) for an instant sound, then tweak. Off by default.")
+                }
+
+                effectSection("Filter", isOn: $vm.filterEnabled) {
+                    Picker("Type", selection: $vm.filterMode) {
+                        Text("Low-pass").tag(EchoelSVFilter.Mode.lowpass)
+                        Text("High-pass").tag(EchoelSVFilter.Mode.highpass)
+                        Text("Band-pass").tag(EchoelSVFilter.Mode.bandpass)
+                        Text("Notch").tag(EchoelSVFilter.Mode.notch)
+                    }
+                    .pickerStyle(.segmented)
+                    slider("Cutoff", $vm.filterCutoff, 80...18000, "%.0f Hz") { $0 }
+                    slider("Resonance", $vm.filterResonance, 0...0.95, "%.0f%%") { $0 * 100 }
                 }
 
                 effectSection("Delay", isOn: $vm.delayEnabled) {
