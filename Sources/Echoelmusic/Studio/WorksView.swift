@@ -12,6 +12,8 @@ import SwiftUI
 struct WorksView: View {
 
     @Environment(EngineBus.self) private var bus
+    @Environment(SessionContext.self) private var session
+    @Environment(BeatPlayer.self) private var beatPlayer
     @State private var recorder = SessionRecorder()
 
     var body: some View {
@@ -51,7 +53,12 @@ struct WorksView: View {
                 }
             }
             Button {
-                if recorder.isRecording { recorder.stop() } else { recorder.start(subscribing: bus) }
+                if recorder.isRecording {
+                    // Stamp the auto session name (artist · date · key · BPM · Kammerton).
+                    recorder.stop(name: session.sessionName(bpm: beatPlayer.pattern.tempo))
+                } else {
+                    recorder.start(subscribing: bus)
+                }
             } label: {
                 Label(recorder.isRecording ? "Stop" : "Record Session",
                       systemImage: recorder.isRecording ? "stop.fill" : "record.circle")
@@ -87,6 +94,12 @@ private struct SessionRow: View {
                     .font(.callout.weight(.medium))
                 Spacer()
                 Text(durationString).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+            }
+            if let name = summary.name, !name.isEmpty {
+                Text(name)
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .accessibilityLabel("Session name \(name)")
             }
             HStack(spacing: 14) {
                 stat("HR", String(format: "%.1f", summary.avgHeartRate))

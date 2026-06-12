@@ -16,6 +16,7 @@ struct ComposeView: View {
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PolySynthVoice.self) private var synth
+    @Environment(SessionContext.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     @State private var style: MusicStyle = .dubTechno
@@ -38,6 +39,7 @@ struct ComposeView: View {
                     styleSection
                     keySection
                     modeSection
+                    sessionSection
                     generateSection
                 }
                 .padding(16)
@@ -199,6 +201,40 @@ struct ComposeView: View {
         }
     }
 
+    // MARK: - Session (artist · Kammerton · auto name)
+
+    private var sessionSection: some View {
+        @Bindable var session = session
+        let bpm = beatPlayer.pattern.tempo
+        return VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("Session")
+            HStack(spacing: 10) {
+                Text("Artist").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim).frame(width: 78, alignment: .leading)
+                TextField("Echoel", text: $session.artistName)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13)).foregroundStyle(EchoelTheme.text)
+                    .submitLabel(.done)
+                    .accessibilityLabel("Artist name for session and export filenames")
+            }
+            HStack(spacing: 10) {
+                Text("Kammerton").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim).frame(width: 78, alignment: .leading)
+                Picker("Kammerton", selection: $session.a4Hz) {
+                    ForEach(TuningReference.presets, id: \.self) { hz in
+                        Text("A\(SessionNaming.trimmed(hz)) Hz").tag(hz)
+                    }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.accent)
+                .labelsHidden()
+                .accessibilityLabel("Concert pitch — A4 reference in hertz")
+                Spacer(minLength: 0)
+            }
+            Text("Saves as  \(session.sessionName(bpm: bpm))")
+                .font(.system(size: 11, design: .monospaced)).foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .accessibilityLabel("Session and export name: \(session.sessionName(bpm: bpm))")
+        }
+    }
+
     // MARK: - Generate
 
     private var generateSection: some View {
@@ -242,6 +278,8 @@ struct ComposeView: View {
             seed: UInt64.random(in: UInt64.min...UInt64.max)
         )
         let composition = BioComposer.compose(input)
+        // The session name follows what was actually generated (the key).
+        session.adopt(key: key)
         // Give the voice the genre's timbre so the take sounds like its reference
         // (dub chord wash / trap bell / calm pad), not the generic synth.
         synth.apply(style.synthPatch)

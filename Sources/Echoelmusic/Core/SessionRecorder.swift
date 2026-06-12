@@ -28,16 +28,19 @@ public struct BioSessionSummary: Codable, Sendable, Identifiable, Equatable {
     public var avgCoherence: Float
     public var peakCoherence: Float
     public var sampleCount: Int
+    /// Auto session name (artist · date · key · BPM · Kammerton) stamped at save
+    /// time. Optional so summaries persisted before this field still decode.
+    public var name: String?
 
     public init(
         id: UUID = UUID(), date: Date = Date(), durationSeconds: Int = 0,
         avgHeartRate: Float = 0, avgHRV: Float = 0, avgCoherence: Float = 0,
-        peakCoherence: Float = 0, sampleCount: Int = 0
+        peakCoherence: Float = 0, sampleCount: Int = 0, name: String? = nil
     ) {
         self.id = id; self.date = date; self.durationSeconds = durationSeconds
         self.avgHeartRate = avgHeartRate; self.avgHRV = avgHRV
         self.avgCoherence = avgCoherence; self.peakCoherence = peakCoherence
-        self.sampleCount = sampleCount
+        self.sampleCount = sampleCount; self.name = name
     }
 }
 
@@ -91,11 +94,12 @@ public final class SessionRecorder {
     /// Stops recording and, if any samples were captured, prepends the summary
     /// and persists. Returns the saved summary (nil if nothing was captured).
     @discardableResult
-    public func stop() -> BioSessionSummary? {
+    public func stop(name: String? = nil) -> BioSessionSummary? {
         guard isRecording else { return nil }
         loop.stop()
         isRecording = false
-        let summary = currentSummary()
+        var summary = currentSummary()
+        summary.name = name
         startDate = nil
         guard summary.sampleCount > 0 else { return nil }
         sessions.insert(summary, at: 0)

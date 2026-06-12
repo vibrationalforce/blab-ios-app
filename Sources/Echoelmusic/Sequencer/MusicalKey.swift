@@ -50,6 +50,22 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .chromatic:       return "Chromatic"
         }
     }
+
+    /// Short, filename-safe scale tag for session names, e.g. "m", "maj", "dor".
+    public var shortTag: String {
+        switch self {
+        case .major:           return "maj"
+        case .minor:           return "m"
+        case .dorian:          return "dor"
+        case .phrygian:        return "phr"
+        case .lydian:          return "lyd"
+        case .mixolydian:      return "mix"
+        case .pentatonicMajor: return "pentM"
+        case .pentatonicMinor: return "pentm"
+        case .harmonicMinor:   return "harm"
+        case .chromatic:       return "chr"
+        }
+    }
 }
 
 /// A musical key: a root pitch-class (0 = C … 11 = B) plus a scale.
@@ -69,6 +85,13 @@ public struct MusicalKey: Codable, Equatable, Sendable {
     /// e.g. "C Minor", "A Pentatonic Minor".
     public var name: String {
         "\(Self.noteNames[root]) \(scale.displayName)"
+    }
+
+    /// Compact, filename-safe key tag, e.g. "Cm", "Csm" (C# minor), "Amaj",
+    /// "Ador". Sharps render as "s" so the tag is safe in a share-sheet filename.
+    public var shortName: String {
+        let root = Self.noteNames[self.root].replacingOccurrences(of: "#", with: "s")
+        return root + scale.shortTag
     }
 
     /// The pitch classes (0…11) that belong to this key.

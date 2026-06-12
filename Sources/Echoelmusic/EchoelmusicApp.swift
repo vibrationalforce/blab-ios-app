@@ -61,6 +61,9 @@ struct EchoelmusicApp: App {
     /// App-wide selection (cohesion layer). Injected now; consumed by the
     /// contextual inspector in a later cycle — no behavior change yet.
     @State private var selection = Selection()
+    /// Artist · key · Kammerton — the persisted identity stamped on session names
+    /// and export filenames.
+    @State private var sessionContext = SessionContext()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -150,6 +153,7 @@ struct EchoelmusicApp: App {
             .environment(haptics)
             #endif
             .environment(selection)
+            .environment(sessionContext)
             .task {
                 // Configure audio topology BEFORE starting the engine.
                 // Hot-attaching source nodes to a running AVAudioEngine
