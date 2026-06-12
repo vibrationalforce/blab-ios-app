@@ -245,6 +245,9 @@ struct ComposeView: View {
         // Give the voice the genre's timbre so the take sounds like its reference
         // (dub chord wash / trap bell / calm pad), not the generic synth.
         synth.apply(style.synthPatch)
+        // …and the genre's signature space (long dub delay, vapor chorus, psy
+        // roll), tempo-synced to the take so the echo locks to the grid.
+        style.fxPreset.apply(to: synth.fxChain, bpm: composition.suggestedTempo)
         pianoRoll.load(composition.notes)
         // Studio mode brings a heartbeat-seeded beat; Flow stays ambient (the
         // grid is empty, which clears any prior beat).

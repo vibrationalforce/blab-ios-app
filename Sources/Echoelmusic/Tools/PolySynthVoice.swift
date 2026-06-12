@@ -40,6 +40,13 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated public let poly: EchoelPolyDDSP
 
+    /// Per-voice effects (delay / chorus / phaser / limiter). The generated
+    /// melody runs through this so a genre's signature space (e.g. the long dub
+    /// delay) is audible. Audio-thread-safe; all stages bypassed by default
+    /// except the safety limiter, so launch behaviour is unchanged.
+    @ObservationIgnored
+    nonisolated public let fxChain: EchoelFXChain
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -90,6 +97,7 @@ public final class PolySynthVoice {
 
     public init(maxVoices: Int = 6) {
         self.poly = EchoelPolyDDSP(maxVoices: maxVoices, sampleRate: Float(Self.sampleRate))
+        self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchL = Array(repeating: 0, count: Self.maxBlockFrames)
         self.scratchR = Array(repeating: 0, count: Self.maxBlockFrames)
     }
@@ -202,6 +210,9 @@ public final class PolySynthVoice {
         }
         let count = min(frameCount, Self.maxBlockFrames)
         poly.renderStereo(left: &scratchL, right: &scratchR, frameCount: count)
+        // Genre/effect colour (long dub delay, vapor chorus, …). Audio-thread
+        // safe: pre-allocated stages, no work for bypassed effects.
+        fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         guard abl.count > 0 else { return }
