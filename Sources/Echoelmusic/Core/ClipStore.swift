@@ -28,6 +28,16 @@ public final class ClipStore {
         }
     }
 
+    /// Look up a clip by its stable id (used by the Arrangement player to
+    /// resolve a section's `clipID` into content to load).
+    public func clip(id: UUID) -> Clip? {
+        slots.compactMap { $0 }.first { $0.id == id }
+    }
+
+    /// Non-empty clips, in slot order — the palette an Arrangement section picks
+    /// from.
+    public var filledClips: [Clip] { slots.compactMap { $0 } }
+
     public func setClip(at index: Int, _ clip: Clip) {
         guard slots.indices.contains(index) else { return }
         slots[index] = clip
