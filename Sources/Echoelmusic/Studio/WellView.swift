@@ -23,7 +23,6 @@ struct WellView: View {
 
     @State private var breathsPerMin: Double = 6
     @State private var inhaling = false
-    @State private var showVisual = false
     /// Shared with StudioRoot: reveals the pro tabs (Sessions + Connect).
     @AppStorage("echoel.advancedMode") private var advancedMode = false
 
@@ -37,7 +36,6 @@ struct WellView: View {
                 readoutRow
                 if showHRVDetail { hrvDetailRow }
                 pacer
-                immersiveButton
                 #if canImport(CoreHaptics)
                 hapticsToggle
                 #endif
@@ -51,9 +49,6 @@ struct WellView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.black)
-        #if os(iOS)
-        .fullScreenCover(isPresented: $showVisual) { BioVisualView() }
-        #endif
     }
 
     /// Reveals the pro surfaces (Sessions recorder + Connect: OSC/ADM-OSC/
@@ -85,17 +80,6 @@ struct WellView: View {
     }
     #endif
 
-    private var immersiveButton: some View {
-        Button {
-            showVisual = true
-        } label: {
-            Label("Immersive visual", systemImage: "circle.hexagongrid.fill")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-        }
-        .buttonStyle(.bordered)
-        .tint(.green)
-    }
 
     #if canImport(AVFoundation)
     /// Opt-in camera rPPG. Point the front camera at your face (or cover the

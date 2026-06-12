@@ -33,6 +33,7 @@ struct BeatTab: View {
 
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
     @State private var exportedMIDI: ExportedMIDIFile?
+    @State private var loopBars: LoopBarLength = .four
 
     /// Drives the per-pad sample importer (Files browser).
     @State private var importerPresented = false
@@ -191,6 +192,17 @@ struct BeatTab: View {
                     Label("Melody (MIDI)", systemImage: "music.note")
                 }
                 .disabled(pianoRoll.notes.isEmpty)
+                Divider()
+                Picker("Loop length", selection: $loopBars) {
+                    ForEach(LoopBarLength.allCases) { Text($0.label).tag($0) }
+                }
+                Button { exportBeatLoopMIDI(player: player) } label: {
+                    Label("Beat loop · \(loopBars.label)", systemImage: "repeat")
+                }
+                Button { exportMelodyLoopMIDI(player: player) } label: {
+                    Label("Melody loop · \(loopBars.label)", systemImage: "repeat.1")
+                }
+                .disabled(pianoRoll.notes.isEmpty)
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 16))
@@ -215,6 +227,20 @@ struct BeatTab: View {
     private func exportMelodyMIDI(player: BeatPlayer) {
         writeMIDI(MIDIFileExporter.export(notes: pianoRoll.notes, tempo: player.pattern.tempo),
                   name: "EchoelMelody.mid")
+    }
+
+    private func exportBeatLoopMIDI(player: BeatPlayer) {
+        let bars = loopBars.rawValue
+        let steps = LoopCutter.tile(grid: player.pattern.steps, bars: bars)
+        writeMIDI(MIDIFileExporter.export(steps: steps, tempo: player.pattern.tempo),
+                  name: "EchoelDrums_\(bars)bar.mid")
+    }
+
+    private func exportMelodyLoopMIDI(player: BeatPlayer) {
+        let bars = loopBars.rawValue
+        let notes = LoopCutter.tile(notes: pianoRoll.notes, bars: bars)
+        writeMIDI(MIDIFileExporter.export(notes: notes, tempo: player.pattern.tempo),
+                  name: "EchoelMelody_\(bars)bar.mid")
     }
 
     private func writeMIDI(_ data: Data, name: String) {
