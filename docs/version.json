@@ -1,5 +1,5 @@
 {
-  "version": "10.14.0",
+  "version": "10.15.0",
   "build": "2026-06-12",
   "features": {
     "monochromeDesign": true,
@@ -30,6 +30,7 @@
     "arWorlds": true
   },
   "changelog": [
+    "v10.15.0: Effect characters + smart file naming. One-tap production colours on any take — Underwater (deep low-pass + watery chorus + tape wobble), Telephone, Cassette, Vinyl, Dream, Megaphone, and Clean (dry reset) — plus each genre's own signature space (dub ping-pong delay, vapor chorus, psy roll), tempo-synced to the take. A stereo tone filter was added to the FX chain and is tweakable in the FX tool. Every session and exported MIDI/stem is auto-named Artist_Date_Key_BPM_Kammerton (e.g. Echoel_2026-06-12_Cm_124bpm_A440_Melody-4bar.mid) — a take lands in your DAW already labelled. Concert pitch (Kammerton) defaults to A440 and is user-changeable (432–444). On-device, private, free.",
     "v10.14.0: Tools page reduced to the essentials (505 → 261 lines). Replaced the 12 marketing 'engines' with 5 focused sections grounded in deep research + a marketing analysis: (1) The Body Is the Instrument — sensors + bio→music, explained not mystified, not medical diagnosis; (2) Bio-Driven Sound & Loops — 12 genres, synthesis engines, two-decimal BPM/Kammerton, tempo-synced FX/LFO, loop cutting 2/4/8/16/32 bars; (3) Into Your Studio — Your Way — MIDI 2.0/MPE in&out, Ableton Link, audio out, WAV/MIDI stem export, AUv3 (AUM/Cubasis/Drambo/Loopy Pro/BeatMaker/GarageBand), OSC/ADM-OSC; (4) For Everyone, Everywhere — VoiceOver-first, Music Haptics, legibility, 3 Hz ceiling, private & free; (5) Roadmap (Planned) — visuals/video/streaming/lighting/AI honestly NOT in the app today. Positioning: the most accessible way to make music; biofeedback that plays, not just measures. On-device, no cloud, free.",
     "v10.13.0: Honesty & positioning pass — the site now leads with the real USP: 'Your heartbeat makes music. Meditate or create.' Homepage hero, title, and meta rewritten around bio-generative composition (calm down / observe yourself, or lock to a BPM and export to Ableton, Logic, FL Studio). Overview lead + Video pillar corrected (video/RTMP tagged Planned, not shipping). FAQ video-NLE and RTMP overclaims rewritten to roadmap statements (OSC/ADM-OSC/Art-Net/sACN are the live outputs). Added a Safe Use warning to the Health page (no driving/machinery, no alcohol/drugs, coordinate medication with your provider). Cache + asset version bumped.",
     "v10.12.2: Performance & stability — removed the nav backdrop-filter blur (was repainting on every scroll → judder) for a solid bar; eliminated the double page-reload flicker (service worker now updates silently in the background; the cache-guardian is the single, debounced refresh path); bumped SW cache. No more flicker/stutter on scroll.",
