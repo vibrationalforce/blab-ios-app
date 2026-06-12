@@ -1,8 +1,15 @@
 # =============================================================================
 # ECHOELMUSIC - QUICK TEST WORKFLOW
 # =============================================================================
-# Runs fast tests on Linux (cheapest runner: $0.008/min)
-# Use this for everyday commits - saves ~90% vs full builds
+# Fast, platform-agnostic checks on the cheap Linux runner ($0.008/min):
+# secrets / code-quality only.
+#
+# NOTE: the Swift build + full test suite intentionally do NOT run here. Echoel
+# is an Apple-framework app (AVFoundation, Accelerate, SwiftUI, Observation,
+# CoreMIDI, Metal, HealthKit) and cannot compile on Linux. The authoritative
+# build + test gate is the macOS "Echoelmusic CI/CD Pipeline" (SwiftPM) plus the
+# iOS/AUv3 archive "Compile Check" in testflight.yml. Running `swift build` on
+# Linux only ever produces a guaranteed-red, signal-free job, so it is removed.
 # =============================================================================
 
 name: "⚡ Quick Test"
@@ -17,38 +24,6 @@ on:
       - 'Package.swift'
 
 jobs:
-  swift-test:
-    name: "🧪 Swift Tests"
-    runs-on: ubuntu-latest  # Linux = $0.008/min (10x cheaper than macOS!)
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Swift
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: '5.10'
-
-      - name: Cache Swift
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.swiftpm
-            .build
-          key: ${{ runner.os }}-swift-${{ hashFiles('Package.swift') }}
-          restore-keys: ${{ runner.os }}-swift-
-
-      - name: Swift Version
-        run: swift --version
-
-      - name: Build (Linux)
-        run: swift build
-
-      - name: Run Tests
-        run: swift test
-
-      - name: "✅ Tests Passed"
-        run: echo "All Swift tests passed!"
-
   lint:
     name: "🔍 Code Quality"
     runs-on: ubuntu-latest
@@ -65,7 +40,7 @@ jobs:
 
   summary:
     name: "📊 Test Summary"
-    needs: [swift-test, lint]
+    needs: [lint]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -74,10 +49,9 @@ jobs:
           echo "================================"
           echo "  QUICK TEST RESULTS"
           echo "================================"
-          echo "Swift:   ${{ needs.swift-test.result }}"
           echo "Lint:    ${{ needs.lint.result }}"
           echo "================================"
           echo ""
-          echo "💡 This was a QUICK test (~$0.05)"
-          echo "   For full platform builds, use:"
-          echo "   '🚀 Release All Platforms' workflow"
+          echo "💡 Platform-agnostic quick check only (~\$0.01)."
+          echo "   Swift build + tests run on macOS:"
+          echo "   'Echoelmusic CI/CD Pipeline' + testflight.yml Compile Check."
