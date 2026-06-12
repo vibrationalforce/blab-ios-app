@@ -5,8 +5,10 @@ import SwiftUI
 struct StudioRoot: View {
 
     @Environment(EngineBus.self) private var bus
-    #if canImport(CoreHaptics)
+    // Always available: drives the arrangement engine off the shared transport.
     @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(ArrangementPlayer.self) private var arranger
+    #if canImport(CoreHaptics)
     @Environment(HapticController.self) private var haptics
     #endif
 
@@ -21,7 +23,7 @@ struct StudioRoot: View {
                 BeatTab()
                     .tabItem { Label("Tools", systemImage: "square.grid.4x3.fill") }
 
-                ClipView()
+                ClipsTab()
                     .tabItem { Label("Clips", systemImage: "square.grid.3x3.fill") }
 
                 WorksView()
@@ -37,6 +39,12 @@ struct StudioRoot: View {
         // Demo source available to the whole subtree (was scoped to the strip
         // alone) so any tab can read it without a missing-environment crash.
         .environment(demoSource)
+        // Arrangement follow: feed every transport step to the song engine so it
+        // can swap clips at bar boundaries. No-op unless an arrangement is
+        // playing; observes the step (never touches BeatPlayer's onStep closure).
+        .onChange(of: beatPlayer.pattern.currentStep) { _, step in
+            arranger.transportStep(step)
+        }
         #if canImport(CoreHaptics)
         // Eyes-free transport pulse: fire a haptic tap on quarter-note steps
         // (no-op unless armed in Well). Observes the shared transport's step —

@@ -46,6 +46,9 @@ struct EchoelmusicApp: App {
     @State private var pianoRoll: PianoRollModel
     /// Session clips (launchable drum + melody cells).
     @State private var clipStore: ClipStore
+    /// Linear song timeline (the Arrange view) + its bar-chaining play engine.
+    @State private var arrangementStore: ArrangementStore
+    @State private var arranger = ArrangementPlayer()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed in the Well tab.
     @State private var haptics = HapticController()
@@ -89,6 +92,7 @@ struct EchoelmusicApp: App {
         _patchStore = State(wrappedValue: PatchStore())
         _pianoRoll = State(wrappedValue: PianoRollModel())
         _clipStore = State(wrappedValue: ClipStore())
+        _arrangementStore = State(wrappedValue: ArrangementStore())
 
         _ = MemoryPressureHandler.shared
         log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
@@ -133,6 +137,8 @@ struct EchoelmusicApp: App {
             .environment(patchStore)
             .environment(pianoRoll)
             .environment(clipStore)
+            .environment(arrangementStore)
+            .environment(arranger)
             #if canImport(CoreHaptics)
             .environment(haptics)
             #endif
