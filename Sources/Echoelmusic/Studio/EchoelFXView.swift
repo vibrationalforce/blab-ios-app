@@ -24,8 +24,12 @@ final class FXViewModel {
     @ObservationIgnored private let voice: BioReactiveSynthVoice
     @ObservationIgnored private var chain: EchoelFXChain { voice.fxChain }
 
-    init(voice: BioReactiveSynthVoice) {
+    /// Live tempo, so delay times / LFO rates can be entered as note divisions.
+    var bpm: Double
+
+    init(voice: BioReactiveSynthVoice, bpm: Double = 120) {
         self.voice = voice
+        self.bpm = bpm
         let c = voice.fxChain
         fxEnabled = voice.isFXEnabled
         // Seed mirrors from the live chain so the UI reflects current state.
@@ -104,8 +108,8 @@ struct EchoelFXView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var vm: FXViewModel
 
-    init(voice: BioReactiveSynthVoice) {
-        _vm = State(wrappedValue: FXViewModel(voice: voice))
+    init(voice: BioReactiveSynthVoice, bpm: Double = 120) {
+        _vm = State(wrappedValue: FXViewModel(voice: voice, bpm: bpm))
     }
 
     var body: some View {
@@ -126,6 +130,7 @@ struct EchoelFXView: View {
                     }
                     .pickerStyle(.segmented)
                     slider("Time", $vm.delayTime, 0.02...1.5, "%.0f ms") { $0 * 1000 }
+                    syncMenu($vm.delayTime, .seconds(0.02...1.5))
                     slider("Feedback", $vm.delayFeedback, 0...0.95, "%.0f%%") { $0 * 100 }
                     slider("Mix", $vm.delayMix, 0...1, "%.0f%%") { $0 * 100 }
                     slider("Tone", $vm.delayTone, 0...1, "%.0f%%") { $0 * 100 }
@@ -137,12 +142,14 @@ struct EchoelFXView: View {
 
                 effectSection("Chorus", isOn: $vm.chorusEnabled) {
                     slider("Rate", $vm.chorusRate, 0.05...8, "%.2f Hz") { $0 }
+                    syncMenu($vm.chorusRate, .hertz(0.05...8))
                     slider("Depth", $vm.chorusDepth, 0...1, "%.0f%%") { $0 * 100 }
                     slider("Mix", $vm.chorusMix, 0...1, "%.0f%%") { $0 * 100 }
                 }
 
                 effectSection("Flanger", isOn: $vm.flangerEnabled) {
                     slider("Rate", $vm.flangerRate, 0.05...8, "%.2f Hz") { $0 }
+                    syncMenu($vm.flangerRate, .hertz(0.05...8))
                     slider("Depth", $vm.flangerDepth, 0...1, "%.0f%%") { $0 * 100 }
                     slider("Feedback", $vm.flangerFeedback, -0.95...0.95, "%.0f%%") { $0 * 100 }
                     slider("Mix", $vm.flangerMix, 0...1, "%.0f%%") { $0 * 100 }
@@ -150,6 +157,7 @@ struct EchoelFXView: View {
 
                 effectSection("Phaser", isOn: $vm.phaserEnabled) {
                     slider("Rate", $vm.phaserRate, 0.05...8, "%.2f Hz") { $0 }
+                    syncMenu($vm.phaserRate, .hertz(0.05...8))
                     slider("Depth", $vm.phaserDepth, 0...1, "%.0f%%") { $0 * 100 }
                     slider("Feedback", $vm.phaserFeedback, 0...0.95, "%.0f%%") { $0 * 100 }
                     slider("Mix", $vm.phaserMix, 0...1, "%.0f%%") { $0 * 100 }
@@ -157,6 +165,7 @@ struct EchoelFXView: View {
 
                 effectSection("Tremolo", isOn: $vm.tremoloEnabled) {
                     slider("Rate", $vm.tremoloRate, 0.05...8, "%.2f Hz") { $0 }
+                    syncMenu($vm.tremoloRate, .hertz(0.05...8))
                     slider("Depth", $vm.tremoloDepth, 0...1, "%.0f%%") { $0 * 100 }
                     Toggle("Auto-Pan", isOn: $vm.tremoloPan).tint(EchoelTheme.accent)
                 }
@@ -202,6 +211,41 @@ struct EchoelFXView: View {
         }
         // Per-stage controls are inert until the master Insert FX gate is on.
         .disabled(!vm.fxEnabled)
+    }
+
+    /// Whether a tempo-sync menu sets an LFO rate (Hz) or a delay time (seconds).
+    private enum SyncKind {
+        case hertz(ClosedRange<Float>)
+        case seconds(ClosedRange<Float>)
+    }
+
+    /// A "Sync to tempo" menu: pick a note division and the rate/time is set from
+    /// the live BPM (the studio calculator, in the effects). Clamped to the
+    /// parameter's valid range so the audio thread never gets an out-of-range value.
+    @ViewBuilder
+    private func syncMenu(_ value: Binding<Float>, _ kind: SyncKind) -> some View {
+        Menu {
+            ForEach(TempoSyncOption.common) { opt in
+                Button {
+                    switch kind {
+                    case .hertz(let r):   value.wrappedValue = opt.clampedRate(bpm: vm.bpm, in: r)
+                    case .seconds(let r): value.wrappedValue = opt.clampedSeconds(bpm: vm.bpm, in: r)
+                    }
+                } label: {
+                    switch kind {
+                    case .hertz:
+                        Text("\(opt.label)  ·  \(Precision.two(opt.hertz(bpm: vm.bpm))) Hz")
+                    case .seconds:
+                        Text("\(opt.label)  ·  \(Precision.two(opt.milliseconds(bpm: vm.bpm))) ms")
+                    }
+                }
+            }
+        } label: {
+            Label("Sync · \(Precision.two(vm.bpm)) BPM", systemImage: "metronome")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(EchoelTheme.accent)
+        }
+        .accessibilityHint("Set this rate from a musical note division at the current tempo")
     }
 
     /// A labelled slider with a live, formatted value read-out.

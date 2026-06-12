@@ -19,6 +19,7 @@ struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
     @Environment(BioReactiveSynthVoice.self) private var voice
+    @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(BioEventPublisher.self) private var events
     @Environment(BioSimulator.self) private var demoSource
     #if canImport(CoreBluetooth)
@@ -68,7 +69,7 @@ struct BioStripView: View {
                 .frame(height: 1)
         }
         .sheet(isPresented: $showingFX) {
-            EchoelFXView(voice: voice)
+            EchoelFXView(voice: voice, bpm: beatPlayer.pattern.tempo)
         }
         #if canImport(AVFoundation)
         .sheet(isPresented: $showingMix) {
