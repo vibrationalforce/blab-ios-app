@@ -28,7 +28,8 @@ public enum MIDIFileExporter {
     ///   - steps: `steps[track][step] == true` triggers a note.
     ///   - tempo: BPM (clamped to 1...1000).
     ///   - velocity: note-on velocity, 1...127.
-    public static func export(steps: [[Bool]], tempo: Double, velocity: UInt8 = 100) -> Data {
+    public static func export(steps: [[Bool]], tempo: Double, velocity: UInt8 = 100,
+                              humanize: Humanizer = .tight, seed: UInt64 = 0) -> Data {
         var track = Data()
 
         // Tempo meta event: FF 51 03 <µs per quarter, 3 bytes big-endian>.
@@ -40,15 +41,19 @@ public enum MIDIFileExporter {
         track.append(UInt8(usPerQuarter & 0xFF))
 
         // Gather note-on/off events (channel 10 → status 0x99 / 0x89).
-        struct Ev { let tick: Int; let on: Bool; let note: UInt8 }
+        struct Ev { let tick: Int; let on: Bool; let note: UInt8; let vel: UInt8 }
         var events: [Ev] = []
         let gate = ticksPerStep / 2  // each hit lasts half a step
+        var hitIndex = 0
         for (t, row) in steps.enumerated() {
             let note = drumNotes[t % drumNotes.count]
             for (s, active) in row.enumerated() where active {
-                let onTick = s * ticksPerStep
-                events.append(Ev(tick: onTick, on: true, note: note))
-                events.append(Ev(tick: onTick + gate, on: false, note: note))
+                let (tickDelta, velScale) = humanize.jitter(index: hitIndex, seed: seed)
+                hitIndex += 1
+                let onTick = Swift.max(0, s * ticksPerStep + tickDelta)
+                let vel = UInt8(Swift.min(127, Swift.max(1, Int(Float(velocity) * velScale))))
+                events.append(Ev(tick: onTick, on: true, note: note, vel: vel))
+                events.append(Ev(tick: onTick + gate, on: false, note: note, vel: 0))
             }
         }
         // Order by tick; note-off before note-on at the same tick (off=false sorts first).
@@ -60,7 +65,7 @@ public enum MIDIFileExporter {
             lastTick = ev.tick
             track.append(ev.on ? 0x99 : 0x89)
             track.append(ev.note)
-            track.append(ev.on ? velocity : 0)
+            track.append(ev.on ? ev.vel : 0)
         }
 
         // End of track.
@@ -81,7 +86,8 @@ public enum MIDIFileExporter {
 
     /// Build a Type-0 SMF for a piano-roll melody (channel 1). Each note uses
     /// its real start, length (→ duration) and velocity.
-    public static func export(notes: [Note], tempo: Double) -> Data {
+    public static func export(notes: [Note], tempo: Double,
+                              humanize: Humanizer = .tight, seed: UInt64 = 0) -> Data {
         var track = Data()
 
         let clampedTempo = Swift.min(Swift.max(tempo, 1), 1000)
@@ -93,11 +99,13 @@ public enum MIDIFileExporter {
 
         struct Ev { let tick: Int; let on: Bool; let note: UInt8; let vel: UInt8 }
         var events: [Ev] = []
-        for n in notes {
-            let onTick = n.startStep * ticksPerStep
-            let offTick = (n.startStep + n.lengthSteps) * ticksPerStep
+        for (i, n) in notes.enumerated() {
+            let (tickDelta, velScale) = humanize.jitter(index: i, seed: seed)
+            let onTick = Swift.max(0, n.startStep * ticksPerStep + tickDelta)
+            // Preserve duration: shift the note-off with the note-on.
+            let offTick = onTick + n.lengthSteps * ticksPerStep
             let note = UInt8(Swift.min(127, Swift.max(0, n.pitch)))
-            let vel = UInt8(Swift.min(127, Swift.max(1, Int(n.velocity * 127))))
+            let vel = UInt8(Swift.min(127, Swift.max(1, Int(n.velocity * 127 * velScale))))
             events.append(Ev(tick: onTick, on: true, note: note, vel: vel))
             events.append(Ev(tick: offTick, on: false, note: note, vel: 0))
         }

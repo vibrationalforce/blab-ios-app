@@ -34,6 +34,8 @@ struct BeatTab: View {
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
     @State private var exportedMIDI: ExportedMIDIFile?
     @State private var loopBars: LoopBarLength = .four
+    /// Tight = dead on the grid; Humanized = subtle timing/velocity variation.
+    @State private var humanized = false
 
     /// Drives the per-pad sample importer (Files browser).
     @State private var importerPresented = false
@@ -193,6 +195,7 @@ struct BeatTab: View {
                 }
                 .disabled(pianoRoll.notes.isEmpty)
                 Divider()
+                Toggle(isOn: $humanized) { Label("Humanize", systemImage: "waveform.path") }
                 Picker("Loop length", selection: $loopBars) {
                     ForEach(LoopBarLength.allCases) { Text($0.label).tag($0) }
                 }
@@ -219,27 +222,35 @@ struct BeatTab: View {
 
     // MARK: - MIDI export
 
+    /// Stable seed so a humanized export is reproducible within a session.
+    private var feel: Humanizer { humanized ? .humanized : .tight }
+    private static let humanizeSeed: UInt64 = 0xEC0E1
+
     private func exportBeatMIDI(player: BeatPlayer) {
-        writeMIDI(MIDIFileExporter.export(steps: player.pattern.steps, tempo: player.pattern.tempo),
+        writeMIDI(MIDIFileExporter.export(steps: player.pattern.steps, tempo: player.pattern.tempo,
+                                          humanize: feel, seed: Self.humanizeSeed),
                   name: "EchoelDrums.mid")
     }
 
     private func exportMelodyMIDI(player: BeatPlayer) {
-        writeMIDI(MIDIFileExporter.export(notes: pianoRoll.notes, tempo: player.pattern.tempo),
+        writeMIDI(MIDIFileExporter.export(notes: pianoRoll.notes, tempo: player.pattern.tempo,
+                                          humanize: feel, seed: Self.humanizeSeed),
                   name: "EchoelMelody.mid")
     }
 
     private func exportBeatLoopMIDI(player: BeatPlayer) {
         let bars = loopBars.rawValue
         let steps = LoopCutter.tile(grid: player.pattern.steps, bars: bars)
-        writeMIDI(MIDIFileExporter.export(steps: steps, tempo: player.pattern.tempo),
+        writeMIDI(MIDIFileExporter.export(steps: steps, tempo: player.pattern.tempo,
+                                          humanize: feel, seed: Self.humanizeSeed),
                   name: "EchoelDrums_\(bars)bar.mid")
     }
 
     private func exportMelodyLoopMIDI(player: BeatPlayer) {
         let bars = loopBars.rawValue
         let notes = LoopCutter.tile(notes: pianoRoll.notes, bars: bars)
-        writeMIDI(MIDIFileExporter.export(notes: notes, tempo: player.pattern.tempo),
+        writeMIDI(MIDIFileExporter.export(notes: notes, tempo: player.pattern.tempo,
+                                          humanize: feel, seed: Self.humanizeSeed),
                   name: "EchoelMelody_\(bars)bar.mid")
     }
 
