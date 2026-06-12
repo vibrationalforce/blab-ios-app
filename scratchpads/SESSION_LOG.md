@@ -53,6 +53,10 @@ Total: 11 atomic CI-verified cycles, ~90 tests, protected DSP untouched, everyth
 - Then Phase T (adaptive `TimelineCanvas`) and Phase F (RTMP/video/multitrack/collaboration).
 - Consider (owner-gated): enable `testflight.yml` compile_check before Archive for fail-fast stability.
 
+### Continuation — bar-quantized launching + full accessibility pass
+- **Bar-quantized Session launch** (`Sequencer/LaunchQuantizer.swift`): tapping a clip while playing queues it and fires on the next bar (Ableton global-quantize, default on); stopped → immediate + starts transport. Rides the shared clock (host feeds `transportStep`), pure defer decision, 6 tests. Wired into ClipView (Quantize toggle + queued-cell clock/accent highlight), driven from StudioRoot. `c19f0ef`+`816a4d2`, CI green.
+- **Accessibility (VoiceOver) across Clips + Arrange** — the new surfaces had zero spoken identity (= unusable for blind musicians). `SequencerA11y` (pure, cross-platform String builders, 11 tests) → applied across ClipView cells/transport/quantize, ArrangementView blocks/transport/loop/add + every icon-only inspector control (rename/clip/length/reorder/delete), ClipsTab mode picker. Labels carry identity+content+position+live state; .isSelected trait; hints reflect quantize. `2b123f5`+`7c09d42`, CI green.
+
 ### Continuation — Edit & Arrangement View (linear song timeline)
 - Owner: "Edit- und Arrangement View". Built the song-mode complement to the Session grid: a linear timeline that CHAINS Session clips over bars. 3 CI-green commits, stable loop.
 - **Model** (`Sequencer/Arrangement.swift`): `Arrangement`/`ArrangementSection` (Codable, App-Group JSON) + `ArrangementCursor` — a pure, deterministic bar-advance play-head (section chaining, loop-vs-finish, stale-index recovery); no clock/audio → fully unit-testable. `ArrangementStore` (`Core/`, add/remove/move/resize/rename/assign-clip). 11 tests. `e59740d`.
