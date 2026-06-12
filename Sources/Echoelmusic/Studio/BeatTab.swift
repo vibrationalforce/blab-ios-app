@@ -209,7 +209,7 @@ struct BeatTab: View {
 
     private func exportBeatMIDI(player: BeatPlayer) {
         writeMIDI(MIDIFileExporter.export(steps: player.pattern.steps, tempo: player.pattern.tempo),
-                  name: "EchoelBeat.mid")
+                  name: "EchoelDrums.mid")
     }
 
     private func exportMelodyMIDI(player: BeatPlayer) {

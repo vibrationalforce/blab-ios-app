@@ -2175,3 +2175,38 @@ careful cycle), #3 mixer dB-gain/pan/mute-solo, HRV LF/HF frequency-domain (need
 RR resampling + spectral DSP), #7 EchoelVis Metal + visual-OSC, unify HRV
 normalization (device-tuned). GATED ON DEVICE: LUFS/meter calibration vs
 reference, HRV realism with Polar/camera, FX sound design, 16-bit fade smoothness.
+
+---
+
+## Session 2026-06-12 (cont.) — Website honesty + genre refocus (Dub Techno · Trap)
+
+**Website honesty pass (commit ee4dc00):** led the site with the real USP
+("Your heartbeat makes music. Meditate or create."). Fixed CRITICAL overclaims:
+faq.html video-NLE + RTMP rewritten to roadmap (OSC/ADM-OSC/Art-Net/sACN named
+as the LIVE outputs); overview lead/subtitle + Video pillar tagged Planned;
+index title/meta/hero/OG/Twitter rewritten around bio-generative composition +
+DAW export. Added Safe-Use warning to health.html (no driving/machinery, no
+alcohol/drugs, coordinate medication). FEATURE_MATRIX: composer under EchoelSeq,
+EchoelAI -> PARTIAL. Cache-bust v10.9->v10.13, SW + guardian + version.json 10.13.0.
+No `<img>` tags (alt-text non-issue), 0 banned terms.
+
+**Genre refocus (commit 4ee8589):** owner direction — NO generic EchoelBeat; the
+body generates in exactly two curated sound worlds + a sync-free ambient mode:
+- `MusicStyle` (NEW): dubTechno (Echochord/Basic Channel/Moritz von Oswald),
+  trap (808 Mafia/Southside/Metro Boomin), selfObservation. Fixes tempo window,
+  scale, beat-driven flag, default transport per genre.
+- `BioComposer` now style-dispatched: Dub = 4/4 + offbeat ticks + deep sub +
+  i->IV chord stabs; Trap = syncopated 808 (Bass mirrors kick) + half-time
+  snare/clap on beat 3 + rolling 16th hats + open-hat lift + dark harmonic-minor
+  bell over a low 808 root line; Self-Obs = no drums, breath-paced. Tempo locks
+  into the style window. Pure/seeded, fully unit-tested (MusicStyleTests +
+  rewritten BioComposerTests). ComposeView leads with the genre choice.
+
+NEXT (logged in decisions.csv): genre SOUND-DESIGN patches auto-applied on
+generate (dub: long reverb/delay chord; trap: sub-808 + bright bell) so it SOUNDS
+like the genre — careful SynthPatch arg-order, TestFlight-verify (macOS CI misses
+iOS-archive arg-order strictness); then genre-matched sample kits.
+
+TestFlight: reduced-USP build still archive+signing-verified, blocked only by
+Apple's daily upload limit — re-dispatch (build_only=false, no code change) after
+the window resets (~2026-06-13).
