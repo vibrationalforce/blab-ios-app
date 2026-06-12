@@ -1,6 +1,6 @@
 {
-  "version": "10.12.2",
-  "build": "2026-06-06",
+  "version": "10.13.0",
+  "build": "2026-06-12",
   "features": {
     "monochromeDesign": true,
     "pureBlackBackground": true,
@@ -30,6 +30,7 @@
     "arWorlds": true
   },
   "changelog": [
+    "v10.13.0: Honesty & positioning pass — the site now leads with the real USP: 'Your heartbeat makes music. Meditate or create.' Homepage hero, title, and meta rewritten around bio-generative composition (calm down / observe yourself, or lock to a BPM and export to Ableton, Logic, FL Studio). Overview lead + Video pillar corrected (video/RTMP tagged Planned, not shipping). FAQ video-NLE and RTMP overclaims rewritten to roadmap statements (OSC/ADM-OSC/Art-Net/sACN are the live outputs). Added a Safe Use warning to the Health page (no driving/machinery, no alcohol/drugs, coordinate medication with your provider). Cache + asset version bumped.",
     "v10.12.2: Performance & stability — removed the nav backdrop-filter blur (was repainting on every scroll → judder) for a solid bar; eliminated the double page-reload flicker (service worker now updates silently in the background; the cache-guardian is the single, debounced refresh path); bumped SW cache. No more flicker/stutter on scroll.",
     "v10.12.1: Universal Bluetooth heart-rate support — the BLE client now connects to ANY standard Heart Rate Service device (Polar, Wahoo, Garmin/CooSpo/Magene straps, watches in broadcast mode), not just Polar. Camera rPPG marked LIVE (locks on device). Honest Oura/smartwatch FAQ: Oura has no real-time third-party BLE — it arrives via Apple Health (delayed); for latency-free live use the camera or a BLE strap. Corrected the camera-pulse description to finger-on-rear-lens rPPG.",
     "v10.12.0: New social share preview — renamed OG image to og-cover.png (forces WhatsApp/Facebook/iMessage to drop the old cached green 'Quantum' card and refetch the current grayscale-on-black CI). Cache version bumped so browsers reload.",

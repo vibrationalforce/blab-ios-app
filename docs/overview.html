@@ -11,7 +11,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
     <script>
-    (function(){var V='10.12.2',K='echoel-nuke';try{
+    (function(){var V='10.13.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -41,7 +41,7 @@
     <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
     <link rel="canonical" href="https://echoelmusic.com/overview.html">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Overview","item":"https://echoelmusic.com/overview.html"}]}</script>
-    <link rel="stylesheet" href="shared.css?v=10.9">
+    <link rel="stylesheet" href="shared.css?v=10.13">
     <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
 
@@ -117,11 +117,11 @@
         <div class="subpage subpage--wider">
             <div class="subpage-hero">
                 <h1>Complete Overview</h1>
-                <p class="subtitle">Echoelmusic — physical computing and biofeedback for art. One signal chain — your body — drives sound, visuals, video, and light for installation, event, cinema, theater, performance, and live broadcast.</p>
+                <p class="subtitle">Echoelmusic — physical computing and biofeedback for music. One signal chain — your body — composes sound in real time, ready to export to your DAW. The wider vision (visuals, video, light, broadcast) is in active development.</p>
                 <span class="status-badge">App — Coming Soon</span>
             </div>
 
-            <p class="lead"><strong>Your heartbeat, breath, and movement drive sound, visuals, video, and light in real time.</strong> Make beats, record video, stream live — and stage immersive, multidimensional work for installation, event, cinema, theater, and performance. What Loopy Pro, Bitwig, and TouchDesigner together cannot do.</p>
+            <p class="lead"><strong>Your heartbeat, breath, and movement compose music in real time.</strong> Generate a loop or a whole piece from your body — to calm down and observe yourself, or to lock to a BPM and export to Ableton, Logic, or FL Studio for your track. Bio-reactive synthesis, generative composition, and open-standards output (MIDI, OSC, ADM-OSC, Art-Net) ship today; video, live broadcast, and the wider immersive vision are in active development.</p>
 
             <nav class="ov-toc" aria-label="On this page">
                 <a href="#pillars">Pillars</a>
@@ -143,7 +143,7 @@
                 <div class="pillars">
                     <div class="pillar"><h4>Beat Maker</h4><p>16-step &times; 8-track sequencer + sampler. Make beats from scratch.</p></div>
                     <div class="pillar"><h4>Multi-track Recorder <span class="tag">Planned</span></h4><p>Record mic over beats with sample-accurate sync.</p></div>
-                    <div class="pillar"><h4>Video Capture &amp; Trim</h4><p>Camera capture and short-form clips. ProRes recording planned.</p></div>
+                    <div class="pillar"><h4>Video Capture &amp; Trim <span class="tag">Planned</span></h4><p>Camera capture and short-form clips. ProRes recording planned.</p></div>
                     <div class="pillar"><h4>RTMP Live Stream <span class="tag">Planned</span></h4><p>Stream to YouTube, Twitch, Facebook or any custom RTMP.</p></div>
                 </div>
             </section>
@@ -151,8 +151,8 @@
             <!-- ENGINES -->
             <section id="engines">
                 <h2>The 12 Engines</h2>
-                <p>Every tool talks to every other tool through one creative workspace — biology in, art out. Full capability breakdown on the <a href="tools.html">Tools</a>
-                <a href="architecture.html">Architecture</a> page.</p>
+                <p>Every tool talks to every other tool through one creative workspace — biology in, art out. Full capability breakdown on the <a href="tools.html">Tools</a> and
+                <a href="architecture.html">Architecture</a> pages.</p>
                 <div class="engine-grid">
                     <div class="engine-item"><h4>EchoelSynth</h4><p>DDSP, modal, cellular, sampler, EchoelBeat, breakbeat chopper, spectral morph.</p></div>
                     <div class="engine-item"><h4>EchoelFX</h4><p>EQ, dynamics, reverb, delay, modulation, drive, mastering + analog emulations.</p></div>
@@ -304,6 +304,6 @@
         </div>
     </footer>
 
-    <script src="shared.js?v=10.9"></script>
+    <script src="shared.js?v=10.13"></script>
 </body>
 </html>

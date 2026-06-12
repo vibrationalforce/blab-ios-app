@@ -12,6 +12,19 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
+> **UPDATE (2026-06-12) — USP focus + bio-generative composer:** the iPhone app
+> is now **Simple-by-default**, reduced to the USP × broad-audience intersection
+> — *"your heartbeat makes music: to calm down or for your track."* First-time
+> users see only 3 core tabs (**Create · Meditate · Songs**); the pro/installation
+> surfaces (Sessions recorder + Connect = OSC/ADM-OSC/Art-Net/sACN) are hidden
+> behind an **Advanced tools** toggle (nothing removed). New: the **bio-generative
+> composer** ("Generate from Body" — key selection, Studio/BPM-lock vs Flow/
+> sync-free, on-device prompt sound-design, 25-preset library; see EchoelSeq #4 +
+> EchoelAI #12). **TestFlight status: archive + signing verified; upload pending**
+> (Apple daily upload limit hit during build verification — re-dispatch after ~24 h,
+> no code change). **Still NOT shipping (do not claim):** video capture/edit, RTMP/
+> live-streaming, multitrack, waveform editing.
+>
 > **CURRENT SHIPPING STATE (2026-06-09):** TestFlight **build 1535 VALID** — app +
 > **EchoelmusicWidgets** (live bio glance) + **AUv3 plugin** embedded, driven by
 > live bio via `BioFeedbackPublisher` → App Group (CX). New since 1469:
@@ -75,8 +88,10 @@ acceptance line.
 ### 4. EchoelSeq — `LIVE`
 - **Code:** `Sequencer/PatternEngine.swift`, `Sequencer/BeatPlayer.swift`, `Sequencer/SamplerVoice.swift`, `Sequencer/MIDIFileExporter.swift`, `scripts/generate_drums.py`
 - **Live:** 8 tracks × 16 steps, 30–300 BPM; **velocity/accent** (tap cycles off→on→accent, gain 0.82/1.0); **swing** (self-rescheduling 16th clock, off-beat delay, tempo-preserving); **per-pad custom sample import** from Files (security-scoped bookmark, persists); upgraded procedural default drum kit; randomize/shift; SMF Type-0 MIDI export.
-- **Roadmap:** per-step probability, automation lanes, Euclidean / polyrhythm.
-- **TestFlight acceptance:** `BeatTab` plays a pattern at the set BPM; accent louder; swing audible; a loaded sample replaces a pad and survives relaunch.
+- **Polyphonic piano roll + session clips + linear Arrangement** (`Studio/PianoRollView.swift`, `Sequencer/Clip.swift`, `Sequencer/Arrangement.swift`, `Sequencer/ArrangementPlayer.swift`): per-note length/velocity roll → `PolySynthVoice`; capture takes into a launchable Session grid; chain clips over bars on a song timeline; **bar-quantized launching** (`Sequencer/LaunchQuantizer.swift`).
+- **Bio-generative composer (NEW — "your heartbeat composes"):** `Sequencer/MusicalKey.swift` (set your own key/scale, 10 scales) + `Sequencer/BioComposer.swift` (bio → in-key melody + heartbeat rhythm + tempo, SplitMix64-seeded → reproducible), surfaced as **"Generate from Body"** (`Studio/ComposeView.swift`). Two modes: **Studio** (BPM-locked, e.g. 75, for Ableton/FL handoff) and **Flow** (sync-free, follows the heart, ambient — for meditation). Generated **melody exports as MIDI** (real durations + velocity). *Status: built + archive-verified; pending TestFlight upload (Apple daily upload limit hit 2026-06-12).*
+- **Roadmap:** per-step probability, automation lanes, Euclidean / polyrhythm; multi-bar generated "pieces" via the arrangement.
+- **TestFlight acceptance:** `BeatTab` plays a pattern at the set BPM; accent louder; swing audible; a loaded sample replaces a pad and survives relaunch; **"Generate from Body" writes an in-key melody from live bio and plays it; Studio locks to 75 BPM, Flow follows the heart.**
 
 ### 5. EchoelMIDI — `LIVE`
 - **Code:** `Audio/MIDIInput.swift`, `Sync/MIDIBusPublisher.swift` → `EngineBus.controllerEvents`
@@ -122,9 +137,11 @@ acceptance line.
 - **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, RTP-MIDI, ADM-OSC native-protocol fallback lane.
 - **TestFlight acceptance:** OSC frames reach a LAN receiver; ADM-OSC `/adm/obj/1/*` visible on an OSC monitor; heartbeat events arrive per-beat.
 
-### 12. EchoelAI — `ROADMAP`
-- **Code:** none. **Vision:** on-device CoreML, stem separation. Private, no cloud.
-- **TestFlight:** out of scope for build #1.
+### 12. EchoelAI — `PARTIAL` (on-device generative, no cloud)
+- **Code:** `Sequencer/BioComposer.swift` (deterministic bio→music generation), `DSP/SoundPrompt.swift` (semantic prompt→sound-design), `DSP/PatchLibrary.swift` (25-preset library).
+- **Live:** **generative, not "AI" hype** — `BioComposer` turns biodata into an in-key melody + heartbeat rhythm + tempo (seeded → reproducible). **Prompt-based sound design** (`SoundPrompt`): a curated 24-descriptor vocabulary + intensity modifiers maps natural words ("warm lush pad", "bright glassy pluck") onto `SynthPatch` params — **fully on-device, deterministic, offline, private** (owner decision 2026-06-12: smartest *independent* variant + suggestions + a large preset DB; **no API, no LLM, no cloud**). `PatchLibrary` = 25 tagged factory presets across 8 categories as prompt starting points.
+- **Roadmap:** on-device CoreML timbre transfer, stem separation; optional (opt-in) natural-language expansion — still local-first.
+- **TestFlight acceptance:** a prompt ("warm lush pad") audibly shapes the synth; the preset library browses; generated melodies are in the chosen key.
 
 ---
 

@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.12.2',K='echoel-nuke';try{
+    (function(){var V='10.13.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -21,13 +21,13 @@
     Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
     </script>
 
-    <title>Echoelmusic by Echoel — Your Body Creates Music, Visuals &amp; Light</title>
-    <meta name="description" content="Physical computing and biofeedback for art: your heartbeat, breath, and movement become music, visuals, film, and light — for installation, event, cinema, theater, performance, and live broadcast. Unified Echoel* tools: synthesis, effects, mixing, sequencing, MIDI, biometrics, visuals, lighting, networking, and AI. Coming soon to all Apple devices. — Echoel">
+    <title>Echoelmusic by Echoel — Your Heartbeat Makes Music</title>
+    <meta name="description" content="Physical computing and biofeedback for music: your heartbeat, breath, and movement compose music in real time — to calm down and observe yourself, or to export to Ableton, Logic, and FL Studio for your track. On-device bio-reactive synthesis, generative composition, MIDI/OSC/ADM-OSC, and open-standards output. The wider vision — visuals, light, and live broadcast — is in active development. Coming soon to Apple devices. — Echoel">
     <meta name="theme-color" content="#000000">
 
     <!-- Open Graph -->
-    <meta property="og:title" content="Echoelmusic by Echoel — Create from Within">
-    <meta property="og:description" content="Your heartbeat becomes music. Your breath becomes visuals. Your movement becomes light — for installation, event, cinema, theater, performance, and live broadcast. Coming soon to all Apple devices.">
+    <meta property="og:title" content="Echoelmusic by Echoel — Your Heartbeat Makes Music">
+    <meta property="og:description" content="Your heartbeat, breath, and movement compose music in real time — to calm down and observe yourself, or to lock to a BPM and export to Ableton, Logic, and FL Studio for your track. Coming soon to Apple devices.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://echoelmusic.com">
     <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
@@ -39,8 +39,8 @@
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Echoelmusic by Echoel — Create from Within">
-    <meta name="twitter:description" content="Your heartbeat becomes music. Your breath becomes visuals. Your movement becomes light — for installation, event, cinema, theater, performance, and live broadcast. Coming soon to all Apple devices.">
+    <meta name="twitter:title" content="Echoelmusic by Echoel — Your Heartbeat Makes Music">
+    <meta name="twitter:description" content="Your heartbeat, breath, and movement compose music in real time — to calm down and observe yourself, or to lock to a BPM and export to Ableton, Logic, and FL Studio for your track. Coming soon to Apple devices.">
     <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
 
     <!-- Apple -->
@@ -637,10 +637,10 @@
                     <span class="h1-line h1-within">Within</span>
                 </h1>
 
-                <p class="hero-claim">Your body composes. You create.</p>
+                <p class="hero-claim">Your heartbeat makes music. Meditate or create.</p>
 
                 <p class="hero-sub">
-                    Heartbeat, breath, and movement become <strong>music</strong>, <strong>visuals</strong>, <strong>film</strong>, and <strong>light</strong> — for <strong>installation</strong>, <strong>event</strong>, <strong>cinema</strong>, <strong>theater</strong>, <strong>performance</strong>, and <strong>live broadcast</strong>.
+                    Your heartbeat, breath, and movement compose <strong>music</strong> in real time — to <strong>calm down and observe yourself</strong>, or to <strong>export to Ableton, Logic, and FL Studio</strong> for your track. The wider vision — visuals, light, and live broadcast for installation, cinema, theater, and performance — is in active development.
                 </p>
 
                 <p class="hero-category">
