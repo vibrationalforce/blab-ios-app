@@ -28,6 +28,7 @@ struct BeatTab: View {
     @Environment(PianoRollModel.self) private var pianoRoll
     @State private var showPianoRoll = false
     @State private var showPatchEditor = false
+    @State private var showCompose = false
     @Environment(PatchStore.self) private var patchStore
 
     /// Holds the exported .mid file URL while the iOS share sheet is presented.
@@ -61,6 +62,8 @@ struct BeatTab: View {
                 transportRow(player: beatPlayer)
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
+                composeButton
+                    .padding(.horizontal, 16)
                 patternToolsRow(player: beatPlayer)
                     .padding(.horizontal, 16)
                 stepGrid(player: beatPlayer)
@@ -101,6 +104,23 @@ struct BeatTab: View {
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: patchStore.patches.first ?? SynthPatch(name: "Custom"))
         }
+        .sheet(isPresented: $showCompose) {
+            ComposeView()
+        }
+    }
+
+    /// Headline feature: generate an in-key melody from the live biodata.
+    private var composeButton: some View {
+        Button { showCompose = true } label: {
+            Label("Generate from Body", systemImage: "waveform.path.ecg")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity).frame(height: 40)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Generate music from your body")
+        .accessibilityHint("Opens the composer: your heartbeat writes an in-key melody")
     }
 
     // MARK: - Transport

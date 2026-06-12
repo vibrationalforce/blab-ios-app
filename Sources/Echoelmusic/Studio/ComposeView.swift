@@ -1,0 +1,197 @@
+#if canImport(SwiftUI)
+import SwiftUI
+
+// ComposeView.swift
+// Echoel — "your heartbeat composes". Pick a key, choose Studio (BPM-locked, for
+// DAW handoff) or Flow (sync-free, follows the heart for meditation), then
+// Generate: the live bio snapshot drives BioComposer to write an in-key melody
+// into the shared piano roll and set the tempo. The melody is audible
+// immediately because the roll is wired app-wide to PolySynthVoice via the
+// transport's onTick — so Generate + play = sound.
+
+@MainActor
+struct ComposeView: View {
+
+    @Environment(EngineBus.self) private var bus
+    @Environment(PianoRollModel.self) private var pianoRoll
+    @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var rootIndex = 0
+    @State private var scale: Scale = .minor
+    @State private var mode: ComposerMode = .studioLocked
+    @State private var lockedBPM: Double = 75
+    @State private var lastNoteCount: Int?
+
+    private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+    private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    bioReadout
+                    keySection
+                    modeSection
+                    generateSection
+                }
+                .padding(16)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(EchoelTheme.bg)
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack {
+            Text("Compose from Body")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(EchoelTheme.text)
+            Spacer()
+            Button("Done") { dismiss() }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(EchoelTheme.accent)
+        }
+        .padding(16)
+        .background(EchoelTheme.bg)
+    }
+
+    // MARK: - Bio readout (what's driving the music)
+
+    private var bioReadout: some View {
+        let frame = bus.latestBio
+        return HStack(spacing: 16) {
+            stat("HR", frame.map { "\(Int($0.heartRateBPM))" } ?? "—", "bpm")
+            stat("Coherence", frame.map { String(format: "%.2f", $0.coherence) } ?? "—", "")
+            stat("HRV", frame.map { String(format: "%.2f", $0.hrvNormalized) } ?? "—", "")
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(bioReadoutLabel(frame))
+    }
+
+    private func bioReadoutLabel(_ frame: BioSampleFrame?) -> String {
+        guard let frame else { return "No live bio yet — generation uses neutral defaults" }
+        return "Live: \(Int(frame.heartRateBPM)) bpm, coherence \(String(format: "%.2f", frame.coherence))"
+    }
+
+    private func stat(_ label: String, _ value: String, _ unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.system(size: 10)).foregroundStyle(EchoelTheme.dim)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value).font(.system(size: 18, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(EchoelTheme.text)
+                if !unit.isEmpty { Text(unit).font(.system(size: 9)).foregroundStyle(EchoelTheme.dim) }
+            }
+        }
+    }
+
+    // MARK: - Key
+
+    private var keySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("Key")
+            HStack(spacing: 10) {
+                Picker("Root", selection: $rootIndex) {
+                    ForEach(0..<12, id: \.self) { Text(noteNames[$0]).tag($0) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.accent)
+                .accessibilityLabel("Root note")
+
+                Picker("Scale", selection: $scale) {
+                    ForEach(Scale.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.accent)
+                .accessibilityLabel("Scale")
+                Spacer(minLength: 0)
+            }
+            Text("Generated melodies stay in \(key.name).")
+                .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+        }
+    }
+
+    // MARK: - Mode
+
+    private var modeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionTitle("Mode")
+            Picker("Mode", selection: $mode) {
+                Text("Studio (locked)").tag(ComposerMode.studioLocked)
+                Text("Flow (sync-free)").tag(ComposerMode.flowFree)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Tempo mode: Studio locked for DAW, or Flow sync-free for meditation")
+
+            if mode == .studioLocked {
+                HStack {
+                    Text("Lock BPM").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                    Spacer()
+                    Stepper("\(Int(lockedBPM)) BPM", value: $lockedBPM, in: 40...200, step: 1)
+                        .fixedSize().font(.system(size: 12)).foregroundStyle(EchoelTheme.text)
+                        .accessibilityValue("\(Int(lockedBPM)) BPM")
+                }
+                Text("Locked to \(Int(lockedBPM)) BPM — quantized, ready for Ableton / FL Studio.")
+                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+            } else {
+                Text("Tempo follows your heart — sync-free, for meditation and self-observation.")
+                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+            }
+        }
+    }
+
+    // MARK: - Generate
+
+    private var generateSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button { generate() } label: {
+                Label(lastNoteCount == nil ? "Generate from Body" : "Regenerate",
+                      systemImage: "waveform.path.ecg")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity).frame(height: 48)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Writes an in-key melody from your live biodata and plays it")
+
+            if let n = lastNoteCount {
+                Text("Generated \(n) note\(n == 1 ? "" : "s") in \(key.name). Edit it in the piano roll, then export.")
+                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+            }
+        }
+    }
+
+    private func sectionTitle(_ t: String) -> some View {
+        Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+    }
+
+    // MARK: - Action
+
+    private func generate() {
+        let frame = bus.latestBio
+        let input = BioComposer.Input(
+            heartRateBPM: frame?.heartRateBPM ?? 70,
+            hrvNormalized: frame?.hrvNormalized ?? 0.5,
+            coherence: frame?.coherence ?? 0.5,
+            breathPhase: frame?.breathPhase ?? 0,
+            breathDepth: 0.5,
+            key: key,
+            mode: mode,
+            lockedTempo: lockedBPM,
+            seed: UInt64.random(in: UInt64.min...UInt64.max)
+        )
+        let composition = BioComposer.compose(input)
+        pianoRoll.load(composition.notes)
+        beatPlayer.pattern.setTempo(composition.suggestedTempo)
+        lastNoteCount = composition.notes.count
+        if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
+    }
+}
+#endif
