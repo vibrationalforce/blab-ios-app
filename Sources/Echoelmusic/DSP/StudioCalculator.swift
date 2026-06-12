@@ -1,0 +1,123 @@
+// StudioCalculator.swift
+// Echoel — the production math behind tempo-synced effects, LFOs and loop/stem
+// cutting. Converts a tempo (BPM, two-decimal precision) into note-division
+// times in seconds / milliseconds / Hz / samples, with dotted and triplet
+// variants, at a chosen sample rate. Pure value types (Foundation only, no audio,
+// no SwiftUI) so the math is fully unit-tested and reusable from the AUv3 target.
+//
+// Reference (matches a 75.00 BPM / 44100 Hz / 4-4 session):
+//   1/4 straight = 800 ms · dotted = 1200 ms · triplet ≈ 533 ms
+//   1 bar (4 beats) = 3.2 s = 141 120 samples
+
+import Foundation
+
+/// A musical note division, as a multiple of a quarter note.
+public enum NoteDivision: String, CaseIterable, Sendable, Identifiable {
+    case whole, half, quarter, eighth, sixteenth, thirtySecond, sixtyFourth
+
+    public var id: String { rawValue }
+
+    /// Length in quarter notes (1/4 == 1).
+    public var quarters: Double {
+        switch self {
+        case .whole:        return 4
+        case .half:         return 2
+        case .quarter:      return 1
+        case .eighth:       return 0.5
+        case .sixteenth:    return 0.25
+        case .thirtySecond: return 0.125
+        case .sixtyFourth:  return 0.0625
+        }
+    }
+
+    /// Common label ("1/4", "1/8", …).
+    public var label: String {
+        switch self {
+        case .whole:        return "1/1"
+        case .half:         return "1/2"
+        case .quarter:      return "1/4"
+        case .eighth:       return "1/8"
+        case .sixteenth:    return "1/16"
+        case .thirtySecond: return "1/32"
+        case .sixtyFourth:  return "1/64"
+        }
+    }
+}
+
+/// Straight, dotted (×1.5) or triplet (×2/3) feel.
+public enum NoteModifier: String, CaseIterable, Sendable, Identifiable {
+    case straight, dotted, triplet
+    public var id: String { rawValue }
+
+    public var factor: Double {
+        switch self {
+        case .straight: return 1.0
+        case .dotted:   return 1.5
+        case .triplet:  return 2.0 / 3.0
+        }
+    }
+
+    public var label: String {
+        switch self {
+        case .straight: return "Normal"
+        case .dotted:   return "Dotted"
+        case .triplet:  return "Triplet"
+        }
+    }
+}
+
+/// Tempo-aware production calculator. `bpm` carries two-decimal precision.
+public struct StudioCalculator: Sendable, Equatable {
+    public var bpm: Double
+    public var sampleRate: Double
+    public var beatsPerBar: Int
+
+    public init(bpm: Double = 120.00, sampleRate: Double = 44_100, beatsPerBar: Int = 4) {
+        self.bpm = bpm
+        self.sampleRate = sampleRate
+        self.beatsPerBar = beatsPerBar
+    }
+
+    /// Seconds per quarter note. Guards against a zero/negative tempo.
+    public var quarterNoteSeconds: Double {
+        guard bpm > 0 else { return 0 }
+        return 60.0 / bpm
+    }
+
+    /// Duration of a division (with feel) in seconds.
+    public func seconds(_ division: NoteDivision, _ modifier: NoteModifier = .straight) -> Double {
+        quarterNoteSeconds * division.quarters * modifier.factor
+    }
+
+    /// Duration in milliseconds.
+    public func milliseconds(_ division: NoteDivision, _ modifier: NoteModifier = .straight) -> Double {
+        seconds(division, modifier) * 1000.0
+    }
+
+    /// LFO/repeat rate in Hz (cycles per second) for a division. Zero-safe.
+    public func hertz(_ division: NoteDivision, _ modifier: NoteModifier = .straight) -> Double {
+        let s = seconds(division, modifier)
+        guard s > 0 else { return 0 }
+        return 1.0 / s
+    }
+
+    /// Length in samples at the current sample rate.
+    public func samples(_ division: NoteDivision, _ modifier: NoteModifier = .straight) -> Double {
+        seconds(division, modifier) * sampleRate
+    }
+
+    /// Length of one bar in seconds.
+    public var barSeconds: Double {
+        quarterNoteSeconds * Double(beatsPerBar)
+    }
+
+    /// Length of `bars` bars in seconds — for cutting loops/stems (2, 4, 8, 16, 32…).
+    public func loopSeconds(bars: Int) -> Double {
+        barSeconds * Double(max(0, bars))
+    }
+
+    /// Length of `bars` bars in whole samples (rounded) — a sample-accurate loop length.
+    public func loopSamples(bars: Int) -> Int {
+        Int((loopSeconds(bars: bars) * sampleRate).rounded())
+    }
+}
