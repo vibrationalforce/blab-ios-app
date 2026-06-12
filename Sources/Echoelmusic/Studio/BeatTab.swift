@@ -179,11 +179,18 @@ struct BeatTab: View {
             }
             .buttonStyle(.plain)
 
-            // Export the current pattern as a Standard MIDI File (.mid) and open
-            // the iOS share sheet — "take your beat to any DAW". Pure data path
-            // (no audio engine, no permission): grid + tempo → MIDIFileExporter.
-            Button {
-                exportMIDI(player: player)
+            // Export the beat OR the generated melody as a Standard MIDI File
+            // (.mid) and open the iOS share sheet — "take it to any DAW"
+            // (Ableton / FL Studio). Pure data path (no audio engine, no
+            // permission): grid/notes + tempo → MIDIFileExporter.
+            Menu {
+                Button { exportBeatMIDI(player: player) } label: {
+                    Label("Beat (MIDI)", systemImage: "square.grid.3x3")
+                }
+                Button { exportMelodyMIDI(player: player) } label: {
+                    Label("Melody (MIDI)", systemImage: "music.note")
+                }
+                .disabled(pianoRoll.notes.isEmpty)
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 16))
@@ -194,16 +201,24 @@ struct BeatTab: View {
                             .fill(EchoelTheme.fill)
                     )
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Export pattern as MIDI file")
+            .accessibilityLabel("Export as MIDI file — beat or melody")
         }
     }
 
     // MARK: - MIDI export
 
-    private func exportMIDI(player: BeatPlayer) {
-        let data = MIDIFileExporter.export(steps: player.pattern.steps, tempo: player.pattern.tempo)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("EchoelBeat.mid")
+    private func exportBeatMIDI(player: BeatPlayer) {
+        writeMIDI(MIDIFileExporter.export(steps: player.pattern.steps, tempo: player.pattern.tempo),
+                  name: "EchoelBeat.mid")
+    }
+
+    private func exportMelodyMIDI(player: BeatPlayer) {
+        writeMIDI(MIDIFileExporter.export(notes: pianoRoll.notes, tempo: player.pattern.tempo),
+                  name: "EchoelMelody.mid")
+    }
+
+    private func writeMIDI(_ data: Data, name: String) {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         do {
             try data.write(to: url, options: .atomic)
             exportedMIDI = ExportedMIDIFile(url: url)
