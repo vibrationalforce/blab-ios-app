@@ -36,7 +36,10 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// Analog warmth. On by default — the additive source is otherwise a sterile
     /// sum of sines; saturation adds the harmonic body that sounds professional.
     public var saturationEnabled: Bool = true
-    public var chorusEnabled: Bool = false
+    /// Subtle ensemble chorus. On by default at a gentle setting (see init) so
+    /// the additive pad/lead reads as lush and wide rather than thin and centred;
+    /// the `.clean` character and the sound editor can switch it off.
+    public var chorusEnabled: Bool = true
     public var flangerEnabled: Bool = false
     public var phaserEnabled: Bool = false
     public var tremoloEnabled: Bool = false
@@ -59,6 +62,11 @@ public final class EchoelFXChain: @unchecked Sendable {
         self.filterL = EchoelSVFilter(sampleRate: sampleRate)
         self.filterR = EchoelSVFilter(sampleRate: sampleRate)
         self.chorus = EchoelChorus(sampleRate: sampleRate)
+        // Gentle default: low wet mix + modest depth + slow rate → ensemble
+        // warmth and width without an obvious "seasick" wobble.
+        self.chorus.mix = 0.22
+        self.chorus.depth = 0.35
+        self.chorus.rate = 0.45
         self.flanger = EchoelFlanger(sampleRate: sampleRate)
         self.phaser = EchoelPhaser(sampleRate: sampleRate)
         self.tremolo = EchoelTremolo(sampleRate: sampleRate)

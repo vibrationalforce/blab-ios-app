@@ -419,6 +419,49 @@ public final class EchoelConvolution: @unchecked Sendable {
         return result
     }
 
+    /// Audio-thread-safe variant of `process(_:)` — writes the wet result into a
+    /// caller-provided, pre-allocated `output` buffer instead of returning a
+    /// freshly heap-allocated `Array` every block (which violated the no-alloc
+    /// audio-thread rule and caused dropouts, especially with one reverb per voice).
+    /// `output` must have `count >= input.count`. Returns the number of valid
+    /// samples written (== min(input.count, maxInputLength)).
+    @discardableResult
+    public func process(_ input: [Float], into output: inout [Float]) -> Int {
+        var inputLength = input.count
+        if inputLength > maxInputLength { inputLength = maxInputLength }
+        guard output.count >= inputLength, inputLength > 0 else { return 0 }
+
+        let outputLength = inputLength + kernelSize - 1
+        if outputLength > outputBuffer.count {
+            for i in 0..<inputLength { output[i] = 0 }   // defensive; should not happen
+            return inputLength
+        }
+
+        outputBuffer.withUnsafeMutableBufferPointer { buf in
+            guard let ptr = buf.baseAddress else { return }
+            vDSP_vclr(ptr, 1, vDSP_Length(outputLength))
+        }
+
+        vDSP_conv(input, 1, kernel, 1, &outputBuffer, 1,
+                  vDSP_Length(outputLength), vDSP_Length(kernelSize))
+
+        // Overlap-add from previous frame
+        for i in 0..<min(overlapBuffer.count, inputLength) {
+            outputBuffer[i] += overlapBuffer[i]
+        }
+        let overlapStart = inputLength
+        for i in 0..<(kernelSize - 1) {
+            overlapBuffer[i] = (overlapStart + i < outputLength) ? outputBuffer[overlapStart + i] : 0
+        }
+
+        // Copy wet → caller buffer with NaN/Inf guard, no allocation
+        for i in 0..<inputLength {
+            let v = outputBuffer[i]
+            output[i] = v.isFinite ? v : 0
+        }
+        return inputLength
+    }
+
     // MARK: - Factory Methods
 
     /// Create a lowpass FIR filter kernel

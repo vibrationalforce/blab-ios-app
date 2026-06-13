@@ -268,6 +268,7 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Convolution reverb engine (vDSP_conv based)
     private var reverbConvolution: EchoelConvolution?
     private var reverbFrameBuffer: [Float] = []
+    private var reverbWetBuffer: [Float] = []   // pre-allocated wet output (no audio-thread alloc)
 
     // MARK: - Init
 
@@ -319,6 +320,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         // Reverb IR buffer — pre-allocate for max expected render size (2048 frames)
         // Avoids any allocation on audio thread
         self.reverbFrameBuffer = [Float](repeating: 0, count: max(frameSize, 2048))
+        self.reverbWetBuffer = [Float](repeating: 0, count: max(frameSize, 2048))
 
         // Initialize convolution reverb with a synthetic IR
         self.reverbConvolution = EchoelConvolution(kernel: EchoelDDSP.generateReverbIR(
@@ -508,6 +510,26 @@ public final class EchoelDDSP: @unchecked Sendable {
         envelopeSamples = 0
     }
 
+    /// Whether this voice is still producing sound (envelope not idle).
+    /// Used by the poly engine to keep rendering release tails instead of
+    /// cutting them off (which causes an abrupt click at every note end).
+    public var isActive: Bool { envelopeStage != .idle }
+
+    /// Prepare a freshly-allocated voice for a new note. Staggers oscillator
+    /// phases (golden-ratio spread, so partials do NOT all start in-phase and
+    /// produce an onset impulse) and clears filter + noise state left over from
+    /// the previous note. Audio-thread safe: index writes only, no allocation.
+    public func prepareForNote() {
+        let golden: Float = 0.61803398875
+        let twoPi: Float = 2.0 * .pi
+        for i in 0..<phases.count {
+            phases[i] = (Float(i) * golden).truncatingRemainder(dividingBy: 1.0) * twoPi
+            smoothedAmplitudes[i] = 0
+        }
+        for i in 0..<noiseFilterState.count { noiseFilterState[i] = 0 }
+        filter.reset()
+    }
+
     // MARK: - Audio Generation (vDSP Vectorized)
 
     /// Generate audio samples — vDSP accelerated harmonic synthesis
@@ -567,24 +589,25 @@ public final class EchoelDDSP: @unchecked Sendable {
             }
 
             // --- Multi-Band Noise (FIR-filtered via noiseMagnitudes) ---
-            // Audio-thread safe: xorshift32 PRNG, no locks/syscalls
-            let whiteNoise = nextNoiseSample()
-            var noiseSample = whiteNoise
-
-            // Multi-band spectral shaping via weighted filter bank
-            // Sum contributions from all bands using per-band one-pole filters
-            // with noiseMagnitudes as band gains. Each band tracks its own state,
-            // creating a proper spectral envelope rather than cycling a single band.
-            noiseSample = 0
-            for band in 0..<noiseBandCount {
-                // Pre-computed alpha coefficients — no exp() on audio thread
-                let alpha = noiseFilterAlphas[band]
-                let filtered = whiteNoise * (1.0 - alpha) + noiseFilterState[band] * alpha
-                noiseFilterState[band] = filtered
-                noiseSample += filtered * noiseMagnitudes[band]
+            // Audio-thread safe: xorshift32 PRNG, no locks/syscalls.
+            // Only compute when noise audibly contributes — when noiseLevel is
+            // effectively zero (the common case for tonal patches) the 65-band
+            // bank would otherwise add a faint correlated hiss bed and burn CPU.
+            var noiseSample: Float = 0
+            if noiseLevel > 0.0005 {
+                let whiteNoise = nextNoiseSample()
+                // Multi-band spectral shaping via weighted filter bank: each band
+                // tracks its own one-pole state, forming a spectral envelope.
+                for band in 0..<noiseBandCount {
+                    // Pre-computed alpha coefficients — no exp() on audio thread
+                    let alpha = noiseFilterAlphas[band]
+                    let filtered = whiteNoise * (1.0 - alpha) + noiseFilterState[band] * alpha
+                    noiseFilterState[band] = filtered
+                    noiseSample += filtered * noiseMagnitudes[band]
+                }
+                // Normalize by band count to prevent amplitude explosion
+                noiseSample /= Float(noiseBandCount)
             }
-            // Normalize by band count to prevent amplitude explosion
-            noiseSample /= Float(noiseBandCount)
 
             // Mix harmonic + noise based on harmonicity
             let mixed = harmonicSample * harmonicity + noiseSample * noiseLevel * (1.0 - harmonicity)
@@ -626,11 +649,11 @@ public final class EchoelDDSP: @unchecked Sendable {
                 for i in 0..<monoCount {
                     reverbFrameBuffer[i] = (buffer[i * 2] + buffer[i * 2 + 1]) * 0.5
                 }
-                let wet = conv.process(reverbFrameBuffer)
+                let wetN = conv.process(reverbFrameBuffer, into: &reverbWetBuffer)
                 let dry = 1.0 - reverbMix
                 let wetGain = reverbMix
                 for i in 0..<monoCount {
-                    let wetSample = i < wet.count ? wet[i] : 0
+                    let wetSample = i < wetN ? reverbWetBuffer[i] : 0
                     buffer[i * 2] = buffer[i * 2] * dry + wetSample * wetGain
                     buffer[i * 2 + 1] = buffer[i * 2 + 1] * dry + wetSample * wetGain
                 }
@@ -640,11 +663,11 @@ public final class EchoelDDSP: @unchecked Sendable {
                 for i in 0..<frameCount {
                     reverbFrameBuffer[i] = buffer[i]
                 }
-                let wet = conv.process(reverbFrameBuffer)
+                let wetN = conv.process(reverbFrameBuffer, into: &reverbWetBuffer)
                 let dry = 1.0 - reverbMix
                 let wetGain = reverbMix
                 for i in 0..<frameCount {
-                    let wetSample = i < wet.count ? wet[i] : 0
+                    let wetSample = i < wetN ? reverbWetBuffer[i] : 0
                     buffer[i] = buffer[i] * dry + wetSample * wetGain
                 }
             }
@@ -1057,6 +1080,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             voicePans[voiceIdx] = 0
         }
 
+        voices[voiceIdx].prepareForNote()   // staggered phases + clean filter/noise state → no onset click
         voices[voiceIdx].amplitude = velocity
         voices[voiceIdx].noteOn(frequency: freq)
         applyBioToVoice(voiceIdx)
@@ -1083,7 +1107,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     // MARK: - Voice Allocation
 
     private func allocateVoice() -> Int {
-        // Find free voice
+        // Prefer a truly silent voice (free slot AND envelope idle) so we never
+        // cut off a still-audible release tail.
+        for i in 0..<maxVoices where voiceNotes[i] < 0 && !voices[i].isActive {
+            return i
+        }
+        // Next, any free slot (note released but tail may still be ringing).
         if let freeIdx = voiceNotes.firstIndex(of: -1) {
             return freeIdx
         }
@@ -1173,7 +1202,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         memset(&mixBufferR, 0, frameCount * MemoryLayout<Float>.size)
 
         for i in 0..<maxVoices {
-            guard voiceNotes[i] >= 0 else { continue }
+            // Render any voice still producing sound — held notes AND release
+            // tails of notes already noteOff'd (voiceNotes == -1 but still ringing).
+            guard voiceNotes[i] >= 0 || voices[i].isActive else { continue }
 
             // Render voice mono
             memset(&voiceBuffer, 0, frameCount * MemoryLayout<Float>.size)
@@ -1203,12 +1234,14 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             if !mixBufferR[i].isFinite { mixBufferR[i] = 0 }
         }
 
-        // Soft-limiter: tanh saturation to prevent digital clipping
-        // With N voices at amplitude 0.8, the sum can exceed 1.0 significantly.
-        // tanh(x) ≈ x for small values, smoothly saturates at ±1 for large values.
-        // Gain compensation: normalize by active voice count to keep headroom.
-        let activeCount = Float(max(1, voiceNotes.reduce(0) { $0 + ($1 >= 0 ? 1 : 0) }))
-        let gainComp = 1.0 / sqrt(activeCount)  // sqrt scaling preserves perceived loudness
+        // Soft-limiter: tanh saturation to prevent digital clipping.
+        // Fixed headroom gain (NOT voice-count-dependent): a per-block 1/sqrt(N)
+        // made the master level jump every time a note started or stopped
+        // (audible pumping on chord/arp changes). A constant headroom keeps the
+        // level stable and lets the tanh below gently catch peaks on dense chords.
+        // 0.6 ≈ the old gain for a typical 3-note chord, so chords stay level
+        // while single notes simply stop being disproportionately loud.
+        let gainComp: Float = 0.6
         for i in 0..<frameCount {
             let scaledL = mixBufferL[i] * gainComp
             let scaledR = mixBufferR[i] * gainComp
