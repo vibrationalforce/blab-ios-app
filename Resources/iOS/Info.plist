@@ -54,8 +54,6 @@
 	<string>Echoelmusic uses your microphone to capture audio for bio-reactive processing and voice-to-music transformation.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Echoelmusic uses heart rate and HRV data to create personalized bio-reactive audio experiences that respond to your body.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Echoelmusic can save your bio-reactive performance sessions (heart rate, HRV) to HealthKit for your own records.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
