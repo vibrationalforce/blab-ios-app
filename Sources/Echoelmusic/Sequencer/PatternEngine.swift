@@ -193,13 +193,22 @@ public final class PatternEngine {
 
     /// Schedules one non-repeating tick. Re-armed by `advance()` so each gap
     /// can carry a different (swing) duration.
+    ///
+    /// IMPORTANT: the timer is added to the main run loop in `.common` mode, not
+    /// the default mode `Timer.scheduledTimer` uses. The studio lives inside a
+    /// `ScrollView`; while the run loop is in UI-tracking mode a `.default` timer
+    /// is starved and never fires — which silenced the generated loop (the synth
+    /// itself was fine: a direct note played, but no timer tick triggered the
+    /// melody). `.common` fires across tracking + default modes.
     private func scheduleTick(after interval: TimeInterval) {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+        let t = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.advance()
             }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     private func advance() {
