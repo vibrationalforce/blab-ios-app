@@ -461,18 +461,36 @@ jobs:
           PLIST
 
           echo "=== Exporting & Uploading directly to TestFlight ==="
-          set +eo pipefail
-          xcodebuild -exportArchive \
-            -archivePath ./build/Echoelmusic.xcarchive \
-            -exportPath ./build \
-            -exportOptionsPlist /tmp/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyPath "$API_KEY_PATH" \
-            2>&1 | tee /tmp/export.log
-          RESULT=${PIPESTATUS[0]}
-          set -eo pipefail
+          # The App Store Connect API that -allowProvisioningUpdates calls to mint the
+          # distribution profile intermittently returns an empty/garbled response
+          # ("No profiles for '...' were found" / "data couldn't be read because it
+          # isn't in the correct format"), failing an otherwise-valid archive. This is
+          # transient Apple-side flakiness, so retry that SPECIFIC case a few times.
+          # Real errors (compile, upload-limit, auth) don't match and fail fast.
+          RESULT=1
+          for attempt in 1 2 3 4; do
+            echo "--- export/upload attempt $attempt/4 ---"
+            set +eo pipefail
+            xcodebuild -exportArchive \
+              -archivePath ./build/Echoelmusic.xcarchive \
+              -exportPath ./build \
+              -exportOptionsPlist /tmp/ExportOptions.plist \
+              -allowProvisioningUpdates \
+              -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+              -authenticationKeyID "$ASC_KEY_ID" \
+              -authenticationKeyPath "$API_KEY_PATH" \
+              2>&1 | tee /tmp/export.log
+            RESULT=${PIPESTATUS[0]}
+            set -eo pipefail
+            [ $RESULT -eq 0 ] && break
+            if grep -qE "No profiles for|couldn't be read because it isn.t in the correct format" /tmp/export.log; then
+              echo "::warning title=Transient export retry::ASC profile error on attempt $attempt — retrying in 20s"
+              sleep 20
+            else
+              echo "Non-transient export failure — not retrying."
+              break
+            fi
+          done
 
           if [ $RESULT -ne 0 ]; then
             echo "=== EXPORT/UPLOAD FAILED (exit $RESULT) ==="
