@@ -119,17 +119,25 @@ struct EchoelStudioView: View {
                 if cameraRPPG.isRunning {
                     cameraRPPG.stop()
                 } else {
-                    Task { await cameraRPPG.start(publishing: bus) }
+                    // Start the body-driven music the instant biofeedback begins —
+                    // a pure musical experience, no extra step. Camera starts, then
+                    // a loop is generated from the live signal and plays.
+                    Task {
+                        await cameraRPPG.start(publishing: bus)
+                        try? await Task.sleep(for: .seconds(2))   // let the pulse lock
+                        generate()
+                    }
                 }
             } label: {
-                Label(cameraRPPG.isRunning ? "Stop camera pulse" : "Measure pulse (camera)",
-                      systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "camera.fill")
+                Label(cameraRPPG.isRunning ? "Stop" : "Start — Create From Within",
+                      systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "waveform.path.ecg")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.text)
                     .frame(maxWidth: .infinity).frame(height: 44)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
             }
             .buttonStyle(.plain)
+            .accessibilityHint("Starts camera biofeedback and immediately plays a loop generated from your pulse")
 
             if cameraRPPG.isRunning {
                 Text("Cover the **rear camera + flash** with a fingertip and hold still.")
