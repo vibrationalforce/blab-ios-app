@@ -2309,3 +2309,29 @@ durch CI-Cert-Rotation + manuelles Revoke). Retrys halfen.
 EchoelDDSP (analoge Wärme/Bewegung) + akustische/modale Instrumente
 (EchoelModalBank) als wählbare Engine. Audio-Thread → erst nach Bestätigung,
 isoliert deployen. Siehe PLAN_SYNTHESIS_EXPANSION.md.
+
+---
+
+## 2026-06-13 (cont.) — Ton-Ursache GEFUNDEN + Auto-Start mit Biofeedback
+
+**Durchbruch via User-Test:** In 1690 klang der Test-Ton (direkter synth.noteOn),
+aber Generate nicht → Bug NICHT im Synth/Ausgang, sondern im Transport-Timer.
+
+**ECHTE Ursache (commit 6dfe55f):** EchoelStudioView lebt in einer ScrollView;
+PatternEngine's `Timer.scheduledTimer` läuft im `.default`-Modus, der im
+ScrollView-Tracking ausgehungert wird → Melodie-Uhr tickte nie. Fix:
+`Timer` + `RunLoop.main.add(t, forMode: .common)`. Repariert Wiedergabe + Export.
+
+**Weitere Commits:**
+- a8c2bc9: Drums raus + schöne konsonante Komposition (Bass + 7th + Akkordton-Lead)
+- 6dfe55f: Timer-Fix + UI vereinfacht (Test-Ton raus, Tempo=Auto-aus-Herzschlag+Slider)
+- 4ea1eed: "Start — Create From Within" — Kamera-Biofeedback startet → Musik sofort
+
+**Compile-Check #1695 (build_only) = SUCCESS** — alles strikt-iOS verifiziert.
+
+**HARTER BLOCKER:** Apple Upload-Limit. Heute 4 Uploads durch (1683/1684/1690/1691),
+Quote erschöpft. 1694 (Timer-Fix) archiviert+signiert sauber, nur Upload abgewiesen.
+→ NÄCHSTER UPLOAD-VERSUCH wenn Fenster offen (~24h). Auto-Retry zugesagt.
+
+**OFFEN für nächsten Slot:** 1 sauberer Upload mit allem. Danach User-Höreindruck →
+dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTHESIS_EXPANSION.md).
