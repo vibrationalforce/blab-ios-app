@@ -18,6 +18,9 @@ struct EchoelStudioView: View {
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
+    #if canImport(AVFoundation)
+    @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
+    #endif
 
     @State private var style: MusicStyle = .vaporwave
     @State private var rootIndex = 0
@@ -48,6 +51,9 @@ struct EchoelStudioView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     generateSection
+                    #if canImport(AVFoundation)
+                    cameraSection
+                    #endif
                     soundSection
                     effectsSection
                     exportSection
@@ -99,6 +105,94 @@ struct EchoelStudioView: View {
             }
         }
     }
+
+    // MARK: - Camera pulse (rPPG biofeedback + control display)
+
+    #if canImport(AVFoundation)
+    /// Opt-in camera rPPG. Cover the rear lens + flash with a fingertip; the bio
+    /// strip fills from the optical pulse. Restores the live control display —
+    /// status light, lock-progress bar, detected BPM and the real-time waveform —
+    /// so acquisition is visible, not a black box.
+    private var cameraSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("Pulse (camera)")
+            Button {
+                if cameraRPPG.isRunning {
+                    cameraRPPG.stop()
+                } else {
+                    Task { await cameraRPPG.start(publishing: bus) }
+                }
+            } label: {
+                Label(cameraRPPG.isRunning ? "Stop camera pulse" : "Measure pulse (camera)",
+                      systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "camera.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            }
+            .buttonStyle(.plain)
+
+            if cameraRPPG.isRunning {
+                Text("Cover the **rear camera + flash** with a fingertip and hold still.")
+                    .font(.caption).foregroundStyle(EchoelTheme.dim)
+                measurementControl
+            }
+        }
+    }
+
+    /// Status light + lock-progress bar + live waveform — the acquisition readout.
+    private var measurementControl: some View {
+        let locked = cameraRPPG.isLocked
+        let lightColor: Color = !cameraRPPG.fingerDetected ? EchoelTheme.dim
+            : (locked ? EchoelTheme.accent : Color.orange)
+        let statusText = !cameraRPPG.fingerDetected ? "Place fingertip"
+            : (locked ? "Locked" : "Acquiring…")
+        return VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(lightColor)
+                    .frame(width: 14, height: 14)
+                    .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
+                Text(statusText).font(.caption.weight(.semibold)).foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+                if cameraRPPG.detectedBPM > 0 {
+                    Text("\(Int(cameraRPPG.detectedBPM)) bpm")
+                        .font(.caption.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(EchoelTheme.text)
+                }
+            }
+            pulseWaveform
+            ProgressView(value: locked ? 1 : cameraRPPG.confidence)
+                .tint(locked ? EchoelTheme.accent : Color.orange)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    /// Live bandpass-filtered pulse waveform. Flat = no signal; clear wave = pulse.
+    private var pulseWaveform: some View {
+        Canvas { ctx, size in
+            var base = Path()
+            base.move(to: CGPoint(x: 0, y: size.height / 2))
+            base.addLine(to: CGPoint(x: size.width, y: size.height / 2))
+            ctx.stroke(base, with: .color(EchoelTheme.border), lineWidth: 1)
+            let w = cameraRPPG.waveform
+            guard w.count > 1 else { return }
+            let dx = size.width / CGFloat(w.count - 1)
+            let amp = size.height / 2 - 3
+            var path = Path()
+            for (i, v) in w.enumerated() {
+                let x = CGFloat(i) * dx
+                let y = size.height / 2 - CGFloat(v) * amp
+                if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            ctx.stroke(path, with: .color(EchoelTheme.accent), lineWidth: 2)
+        }
+        .frame(height: 52).frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.35)))
+    }
+    #endif
 
     // MARK: - Sound (genre · key · BPM)
 
