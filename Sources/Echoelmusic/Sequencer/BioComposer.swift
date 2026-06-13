@@ -379,6 +379,12 @@ public enum BioComposer {
     /// voiced as a sustained pad or a rising arpeggio, plus an optional lead line.
     /// All in-key, all inside the bar, exportable as MIDI. Genre character comes
     /// from the `HarmonicProfile`; the body animates density and velocity.
+    /// Humanize a velocity by ±5% so repeated notes/chords breathe instead of
+    /// sounding mechanically identical. Deterministic given the seed.
+    private static func hVel(_ v: Float, _ rng: inout SeededRNG) -> Float {
+        clamp01(v + (rng.unit() - 0.5) * 0.10)
+    }
+
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
@@ -392,6 +398,12 @@ public enum BioComposer {
         let padVelocity = clamp01(0.34 + 0.22 * breathDepth)
         let bassVelocity = clamp01(padVelocity + 0.14)
 
+        // Voice-leading state: the average MIDI pitch of the previous pad voicing.
+        // Each chord is shifted by whole octaves to sit closest to it — pitch
+        // classes never change (so it stays perfectly in-key), but the chords
+        // stop leaping in parallel and instead move smoothly, like a real player.
+        var prevPadCenter: Float? = nil
+
         for (idx, rootDegree) in prog.enumerated() {
             let secStart = idx * sectionLen
             let secEnd = (idx == prog.count - 1) ? stepCount : min(stepCount, secStart + sectionLen)
@@ -404,28 +416,44 @@ public enum BioComposer {
             let bassOct = max(0, profile.padOctave - 1)
             notes.append(Note(id: nextUUID(&rng),
                               pitch: key.degree(rootDegree, octave: bassOct),
-                              startStep: secStart, lengthSteps: len, velocity: bassVelocity))
+                              startStep: secStart, lengthSteps: len, velocity: hVel(bassVelocity, &rng)))
 
-            // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines)
-            //    sustained for the section, or a gentle arpeggio when asked.
+            // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
+            //    voice-led into the previous chord's register, then sustained for
+            //    the section or gently arpeggiated.
+            var basePitches: [Int] = []
+            for tone in tones { basePitches.append(key.degree(rootDegree + tone, octave: profile.padOctave)) }
+            var shift = 0
+            if let center = prevPadCenter, !basePitches.isEmpty {
+                let avg = Float(basePitches.reduce(0, +)) / Float(basePitches.count)
+                var best = Float.greatestFiniteMagnitude
+                for cand in [-12, 0, 12] {
+                    let d = abs((avg + Float(cand)) - center)
+                    if d < best { best = d; shift = cand }
+                }
+            }
+            let voiced = basePitches.map { $0 + shift }
+            if !voiced.isEmpty {
+                prevPadCenter = Float(voiced.reduce(0, +)) / Float(voiced.count)
+            }
+
             if profile.arpeggiated {
                 let arpStep = busy > 0.5 ? 1 : 2
                 var s = secStart
                 var t = 0
                 while s < secEnd {
-                    let tone = tones[t % tones.count]
                     let length = max(1, min(arpStep, secEnd - s))
                     notes.append(Note(id: nextUUID(&rng),
-                                      pitch: key.degree(rootDegree + tone, octave: profile.padOctave),
-                                      startStep: s, lengthSteps: length, velocity: padVelocity))
+                                      pitch: voiced[t % voiced.count],
+                                      startStep: s, lengthSteps: length, velocity: hVel(padVelocity, &rng)))
                     s += arpStep
                     t += 1
                 }
             } else {
-                for tone in tones {
+                for pitch in voiced {
                     notes.append(Note(id: nextUUID(&rng),
-                                      pitch: key.degree(rootDegree + tone, octave: profile.padOctave),
-                                      startStep: secStart, lengthSteps: len, velocity: padVelocity))
+                                      pitch: pitch,
+                                      startStep: secStart, lengthSteps: len, velocity: hVel(padVelocity, &rng)))
                 }
             }
         }
@@ -449,7 +477,7 @@ public enum BioComposer {
                 let chordTone = tones[((toneIdx % tones.count) + tones.count) % tones.count]
                 let pitch = key.degree(chordRoot + chordTone, octave: profile.leadOctave)
                 let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
-                let velocity = clamp01(0.46 + 0.30 * breathDepth)
+                let velocity = hVel(0.46 + 0.30 * breathDepth, &rng)
                 notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
                                   lengthSteps: length, velocity: velocity))
                 // Small, singable steps through the chord; inhale biases upward.
