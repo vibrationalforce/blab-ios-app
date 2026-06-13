@@ -142,7 +142,7 @@
                 <a href="#synth">Synthesis</a>
                 <a href="#fx">Effects</a>
                 <a href="#audio">Audio</a>
-                <a href="#seq">Sequencer</a>
+                <a href="#seq">Composition</a>
                 <a href="#plugin">AUv3 plugin</a>
                 <a href="#visuals">Visuals &amp; video</a>
                 <a href="#ui">Studio UI</a>
@@ -237,16 +237,17 @@
             <!-- AUDIO -->
             <section id="audio">
                 <h2>Audio Foundation <span class="tag">LIVE</span></h2>
-                <div class="data-row"><div class="k">AudioEngine</div><div class="v">Master <code>AVAudioEngine</code> with a stereo mixer bus at 48&nbsp;kHz. Hosts the synth source node, sampler voices and the mix/export chain. A single <code>.start()</code> after all voices are attached avoids a hot-attach crash.</div></div>
+                <div class="data-row"><div class="k">AudioEngine</div><div class="v">Master <code>AVAudioEngine</code> with a stereo mixer bus at 48&nbsp;kHz. Hosts the synth source node, bio-reactive voices and the mix/export chain. A single <code>.start()</code> after all voices are attached avoids a hot-attach crash.</div></div>
                 <div class="data-row"><div class="k">AudioConfiguration</div><div class="v">48&nbsp;kHz preferred; buffer presets 128 / 256 / 512 frames (2.67 / 5.3 / 10.7&nbsp;ms); <code>playAndRecord</code> session with Bluetooth; real-time thread priority.</div></div>
                 <div class="data-row"><div class="k">Capture &amp; export</div><div class="v"><code>MicrophoneManager</code> (1024-pt FFT), <code>RetroCapture</code> (30&nbsp;s stereo 48&nbsp;kHz pre-roll ring buffer → .caf), <code>SingleExport</code> (LUFS-normalized WAV/AAC). <code>MultiTrackRecorder</code> is a skeleton. <span class="tag">ROADMAP</span></div></div>
             </section>
 
-            <!-- SEQUENCER -->
+            <!-- GENERATIVE COMPOSITION -->
             <section id="seq">
-                <h2>Sequencer &amp; Sampler <span class="tag">LIVE</span></h2>
-                <div class="data-row"><div class="k">PatternEngine</div><div class="v"><strong>8 tracks × 16 steps</strong>, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s). Steps are on/off today; per-step velocity/probability, automation and Euclidean/polyrhythm are <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">SamplerVoice</div><div class="v">One-shot WAV on an <code>AVAudioSourceNode</code>, fired lock-free via an atomic trigger counter (no allocation on the audio thread). <code>BeatPlayer</code> drives 8 voices from 8 factory drum samples (kick, snare, clap, hats, bass, perc, lead-FX).</div></div>
+                <h2>Generative Composition <span class="tag">LIVE</span></h2>
+                <p>Echoelmusic is <strong>drum-free</strong> by design. Your biometrics compose harmonic and melodic loops in any key and BPM, which you render to .wav and MIDI for your DAW.</p>
+                <div class="data-row"><div class="k">GenerativeEngine</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity, automation and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Voice triggering</div><div class="v">Notes are fired lock-free via an atomic trigger counter (no allocation on the audio thread) into the bio-reactive synth voices. A drum/sampler track and a step sequencer are <span class="tag">ROADMAP</span>, not in the app today.</div></div>
             </section>
 
             <!-- AUv3 -->
@@ -260,12 +261,12 @@
 
             <!-- VISUALS & VIDEO -->
             <section id="visuals">
-                <h2>Visuals &amp; Video <span class="tag">LIVE</span></h2>
-                <p>A Metal renderer (<code>MetalBioView</code> / <code>BioVisualRenderer</code>) runs at <strong>120&nbsp;fps</strong>. Coherence drives complexity and palette; heart rate adds a pulse.</p>
-                <div class="data-row"><div class="k">Visual modes (5)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (64 procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars — all in <code>VisualRendererKernels.metal</code>.</div></div>
-                <div class="data-row"><div class="k">Chroma key</div><div class="v">A 6-pass GPU pipeline (<code>ChromaKey.metal</code>): HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays.</div></div>
-                <div class="data-row"><div class="k">Video export</div><div class="v"><code>ShortContentRenderer</code> — 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay, 15 / 30 / 60&nbsp;s; audio re-encoded to AAC.</div></div>
-                <div class="data-row"><div class="k">Roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds; NLE editing, ProRes, multi-cam, colour grading, RTMP streaming (v1.1). <span class="tag">ROADMAP</span></div></div>
+                <h2>Visuals &amp; Video <span class="tag">ROADMAP</span></h2>
+                <p>Visuals and video are the wider vision &mdash; in active development, not in the app today. The design: a Metal renderer (<code>MetalBioView</code> / <code>BioVisualRenderer</code>) targeting <strong>120&nbsp;fps</strong>, where coherence drives complexity and palette and heart rate adds a pulse.</p>
+                <div class="data-row"><div class="k">Visual modes (planned)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars. <span class="tag">ROADMAP</span></div></div>
+                <div class="data-row"><div class="k">Chroma key (planned)</div><div class="v">A 6-pass GPU pipeline: HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays. <span class="tag">ROADMAP</span></div></div>
+                <div class="data-row"><div class="k">Video export (planned)</div><div class="v">Short-form 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay. <span class="tag">ROADMAP</span></div></div>
+                <div class="data-row"><div class="k">Further roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds; NLE editing, ProRes, multi-cam, colour grading, RTMP streaming (v1.1). <span class="tag">ROADMAP</span></div></div>
             </section>
 
             <!-- STUDIO UI -->
@@ -273,7 +274,7 @@
                 <h2>Studio UI &amp; App Wiring <span class="tag">LIVE</span></h2>
                 <p><code>EchoelmusicApp</code> (<code>@main</code>) builds the graph in order — <code>MicrophoneManager → AudioEngine → EchoelStore → BeatPlayer → EngineBus</code>, then the bio publishers (HealthKit, Polar&nbsp;H10), the <code>BioReactiveSynthVoice</code>, the <code>BioEventPublisher</code>, MIDI (CoreMIDI), and the OSC sender — configures audio <em>before</em> the UI, then mounts the studio. SwiftUI observes EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
                 <div class="data-row"><div class="k">BioStripView</div><div class="v">Always-on readout: <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
-                <div class="data-row"><div class="k">Studio views</div><div class="v">Perform (scene grid), Mix (voice + AutoMix + signal status), Share (short-form export), Export (WAV/AAC), Settings (bio source), and a 60-second camera-pulse measurement.</div></div>
+                <div class="data-row"><div class="k">Studio views</div><div class="v">Perform (scene grid), Mix (voice + AutoMix + signal status), Export (WAV/AAC + MIDI), Settings (bio source), and a 60-second camera-pulse measurement. Short-form video export is <span class="tag">ROADMAP</span>.</div></div>
             </section>
 
             <!-- OSC API -->
@@ -295,8 +296,8 @@
                 <div class="data-row"><div class="k">Audio <span class="tag">LIVE</span></div><div class="v">48&nbsp;kHz / 32-bit float internal; buffers 128 / 256 / 512. Export WAV + AAC/M4A at −14&nbsp;LUFS; 30&nbsp;s CAF pre-roll. FLAC / ALAC + stem export <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Spatial audio</div><div class="v">Stereo with HRV-reactive spatial reverb character <span class="tag">LIVE</span>; 3D object panning, Dolby&nbsp;Atmos, head-tracked spatial audio (AirPods), 5.1 / 7.1.4 &amp; ambisonics <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI&nbsp;2.0 + MPE input <span class="tag">LIVE</span>; Standard MIDI File (.mid) I/O and MIDI output <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">Video</div><div class="v">H.264 MP4 720×1280 short-form (15/30/60&nbsp;s) <span class="tag">LIVE</span>; H.265/HEVC, ProRes 422/4444, 1080p/4K, LUT grading <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">Metal 120&nbsp;fps + 6-pass chroma key <span class="tag">LIVE</span>; projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Video</div><div class="v">H.264 MP4 720×1280 short-form (15/30/60&nbsp;s); H.265/HEVC, ProRes 422/4444, 1080p/4K, LUT grading &mdash; all <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">Metal 120&nbsp;fps + 6-pass chroma key; projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay &mdash; all <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Lighting / streaming</div><div class="v">DMX-512, Art-Net&nbsp;4 (UDP 6454), HomeKit; RTMP/RTMPS (HaishinKit) to YouTube/Twitch/Facebook <span class="tag">ROADMAP</span>.</div></div>
             </section>
 
@@ -341,14 +342,14 @@
             <section id="map">
                 <h2>Module Map</h2>
                 <p>How the product surface (the 12 <a href="tools.html">Echoel engines</a>) maps onto real source modules:</p>
-                <div class="data-row"><div class="k">EchoelSynth <span class="tag">LIVE</span></div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank · SamplerVoice</div></div>
+                <div class="data-row"><div class="k">EchoelSynth <span class="tag">LIVE</span></div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank</div></div>
+                <div class="data-row"><div class="k">EchoelGen <span class="tag">LIVE</span></div><div class="v">Bio-driven drum-free generative composition — harmonic &amp; melodic loops in any key and BPM → .wav / MIDI export</div></div>
                 <div class="data-row"><div class="k">EchoelFX <span class="tag">LIVE</span></div><div class="v">EchoelVDSPKit · EchoelSVFilter · EchoelLFO · AutoMixChain · DDSP convolution reverb</div></div>
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
-                <div class="data-row"><div class="k">EchoelSeq <span class="tag">LIVE</span></div><div class="v">PatternEngine · BeatPlayer</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
                 <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher (Watch / Oura via Health) · PolarH10BioPublisher (any BLE Heart Rate device) · CameraRPPGBioPublisher (finger-on-lens rPPG, live) · BioSimulator. ADM-OSC object output via <code>ADMOSCSender</code>.</div></div>
-                <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView · BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal</div></div>
-                <div class="data-row"><div class="k">EchoelVid <span class="tag">LIVE</span></div><div class="v">CameraCapture · ShortContentRenderer (NLE/ProRes/RTMP roadmap)</div></div>
+                <div class="data-row"><div class="k">EchoelVis <span class="tag">ROADMAP</span></div><div class="v">MetalBioView · BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal — designed, not in the app today</div></div>
+                <div class="data-row"><div class="k">EchoelVid <span class="tag">ROADMAP</span></div><div class="v">CameraCapture · ShortContentRenderer (NLE/ProRes/RTMP) — designed, not in the app today</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
                 <div class="data-row"><div class="k">EchoelLux / EchoelStage / EchoelAI <span class="tag">ROADMAP</span></div><div class="v">DMX-512 / Art-Net / HomeKit lighting · external displays / projection · on-device CoreML &amp; stems — designed, not yet implemented.</div></div>
                 <div class="data-row"><div class="k">Bridge <span class="tag">LIVE</span></div><div class="v">EngineBus · SPSCQueue · BioReactiveSynthVoice (the bio→sound bridge)</div></div>
@@ -369,20 +370,22 @@
                             <li>DDSP / Cellular / Modal synthesis</li>
                             <li>Convolution reverb · 4-band EQ · LUFS</li>
                             <li>AudioEngine + 30s RetroCapture</li>
-                            <li>PatternEngine + SamplerVoice (8 drums)</li>
+                            <li>Drum-free generative composition (any key/BPM)</li>
                             <li>AUv3 generator plugin (8 params)</li>
-                            <li>5 Metal visual modes @120fps + chroma key</li>
-                            <li>Short-form MP4 + WAV/AAC export</li>
-                            <li>OSC out (EchoelSync)</li>
+                            <li>WAV/AAC + MIDI export</li>
+                            <li>OSC + ADM-OSC out (EchoelSync)</li>
                         </ul>
                     </div>
                     <div>
                         <h3>On the roadmap</h3>
                         <ul>
                             <li>MPE channel pressure + zone detection</li>
-                            <li>Sequencer automation / Euclidean / polyrhythm</li>
+                            <li>Step sequencer / drum &amp; sampler track</li>
+                            <li>Generative automation / Euclidean / polyrhythm</li>
                             <li>Multi-track recorder</li>
                             <li>Delay / modulation / compressor / limiter</li>
+                            <li>Metal visuals @120fps + chroma key</li>
+                            <li>Short-form MP4 video export</li>
                             <li>Video NLE + ProRes + colour grading</li>
                             <li>RTMP streaming (HaishinKit, v1.1)</li>
                             <li>EchoelLux — DMX-512 / Art-Net / HomeKit</li>
