@@ -29,9 +29,6 @@ struct EchoelStudioView: View {
     @State private var lockedBPM: Double = 90
     @State private var fxCharacter: FXCharacter = .auto
     @State private var loopBars: LoopBarLength = .four
-    /// Off by default — the focus is tight harmonic loops to produce with, not
-    /// beats. Only the beat-driven genres add drums when this is on.
-    @State private var drumsEnabled = false
     @State private var currentPatch = SynthPatch(name: "Init")
     @State private var lastNoteCount: Int?
 
@@ -307,11 +304,6 @@ struct EchoelStudioView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(beatPlayer.pattern.isPlaying ? "Stop" : "Play")
                 Spacer(minLength: 0)
-                Toggle(isOn: $drumsEnabled) {
-                    Text("Drums").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
-                }
-                .toggleStyle(.switch).tint(EchoelTheme.accent).fixedSize()
-                .accessibilityHint("Add a beat to the loop. Off keeps a clean harmonic loop.")
             }
 
             Button { Task { await exportWav() } } label: {
@@ -427,13 +419,12 @@ struct EchoelStudioView: View {
         synth.apply(currentPatch)
         fxCharacter.apply(to: synth.fxChain, bpm: composition.suggestedTempo, genre: style)
         pianoRoll.load(composition.notes)
-        // Drum-free by default — tight harmonic loop for production. When drums
-        // are off (or the genre is non-beat) the grid is cleared so only the
-        // pad/chord/lead loop plays.
-        let keepDrums = drumsEnabled
-        let drums = keepDrums ? composition.drumSteps : composition.drumSteps.map { $0.map { _ in false } }
-        let accents = keepDrums ? composition.drumAccents : composition.drumAccents.map { $0.map { _ in false } }
-        beatPlayer.pattern.load(steps: drums, accents: accents)
+        // Drum-free, always — Echoel generates beautiful harmonic/melodic loops to
+        // produce with, never beats. The pattern transport still runs (it clocks
+        // the melody via onTick) but every drum cell is cleared so no percussion
+        // ever sounds.
+        let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
+        beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
         beatPlayer.pattern.setTempo(composition.suggestedTempo)
         session.adopt(key: key)
         lastNoteCount = composition.notes.count

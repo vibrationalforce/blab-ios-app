@@ -387,57 +387,74 @@ public enum BioComposer {
         let prog = profile.progression.isEmpty ? [0] : profile.progression
         // Guard chord tones symmetrically with the progression (a public
         // HarmonicProfile could be built with empty tones → div-by-zero in the arp).
-        let tones = profile.chordTones.isEmpty ? [0] : profile.chordTones
+        let tones = profile.chordTones.isEmpty ? [0, 2, 4] : profile.chordTones
         let sectionLen = max(1, stepCount / prog.count)
-        let padVelocity = clamp01(0.40 + 0.25 * breathDepth)
+        let padVelocity = clamp01(0.34 + 0.22 * breathDepth)
+        let bassVelocity = clamp01(padVelocity + 0.14)
 
         for (idx, rootDegree) in prog.enumerated() {
             let secStart = idx * sectionLen
             let secEnd = (idx == prog.count - 1) ? stepCount : min(stepCount, secStart + sectionLen)
             guard secEnd > secStart else { continue }
+            let len = secEnd - secStart
 
+            // 1) Bass foundation — a sustained root an octave below the pad. Gives
+            //    every chord a defined low end so the loop reads full and produced,
+            //    never thin or floating. Slightly stronger so it grounds the harmony.
+            let bassOct = max(0, profile.padOctave - 1)
+            notes.append(Note(id: nextUUID(&rng),
+                              pitch: key.degree(rootDegree, octave: bassOct),
+                              startStep: secStart, lengthSteps: len, velocity: bassVelocity))
+
+            // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines)
+            //    sustained for the section, or a gentle arpeggio when asked.
             if profile.arpeggiated {
-                // Rise through the chord across the section; busier → faster.
                 let arpStep = busy > 0.5 ? 1 : 2
                 var s = secStart
                 var t = 0
                 while s < secEnd {
                     let tone = tones[t % tones.count]
-                    let pitch = key.degree(rootDegree + tone, octave: profile.padOctave)
                     let length = max(1, min(arpStep, secEnd - s))
-                    notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: s,
-                                      lengthSteps: length, velocity: padVelocity))
+                    notes.append(Note(id: nextUUID(&rng),
+                                      pitch: key.degree(rootDegree + tone, octave: profile.padOctave),
+                                      startStep: s, lengthSteps: length, velocity: padVelocity))
                     s += arpStep
                     t += 1
                 }
             } else {
-                // Sustained pad: every chord tone holds for the whole section.
                 for tone in tones {
-                    let pitch = key.degree(rootDegree + tone, octave: profile.padOctave)
-                    notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: secStart,
-                                      lengthSteps: secEnd - secStart, velocity: padVelocity))
+                    notes.append(Note(id: nextUUID(&rng),
+                                      pitch: key.degree(rootDegree + tone, octave: profile.padOctave),
+                                      startStep: secStart, lengthSteps: len, velocity: padVelocity))
                 }
             }
         }
 
-        // Optional lead line on top.
+        // 3) Lead melody — ALWAYS consonant: every note is a chord tone of the
+        //    chord sounding at that step, so it can never clash (no weird/aimless
+        //    intervals). Density, contour and rhythm are animated by the body —
+        //    inhale lifts the line, a busier signal adds notes — so every take
+        //    surprises while staying musical. (Replaces the old free-wandering
+        //    scale-degree lead that could drift out of the harmony.)
         if profile.leadDensity > 0 {
-            let count = max(1, Int((profile.leadDensity * (3 + busy * 4)).rounded()))
-            let inhaleBias: Float = breathPhase < 0.5 ? 0.65 : 0.35
-            var degree = 0
+            let count = max(2, Int((profile.leadDensity * (4 + busy * 4)).rounded()))
             var lastStart = -1
+            var toneIdx = breathPhase < 0.5 ? 0 : 1   // inhale low → exhale higher
             for i in 0..<count {
                 let start = i * stepCount / count
                 let startStep = min(stepCount - 1, max(start, lastStart + 1))
                 lastStart = startStep
-                let pitch = key.degree(degree, octave: profile.leadOctave)
+                let section = min(prog.count - 1, startStep / sectionLen)
+                let chordRoot = prog[section]
+                let chordTone = tones[((toneIdx % tones.count) + tones.count) % tones.count]
+                let pitch = key.degree(chordRoot + chordTone, octave: profile.leadOctave)
                 let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
-                let velocity = clamp01(0.50 + 0.30 * breathDepth)
+                let velocity = clamp01(0.46 + 0.30 * breathDepth)
                 notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
                                   lengthSteps: length, velocity: velocity))
-                let dir = rng.unit() < inhaleBias ? 1 : -1
-                let leap = 1 + Int(rng.unit() * 2)
-                degree = min(14, max(-7, degree + dir * leap))
+                // Small, singable steps through the chord; inhale biases upward.
+                let up = rng.unit() < (breathPhase < 0.5 ? 0.62 : 0.40)
+                toneIdx += up ? 1 : -1
             }
         }
         return notes

@@ -45,7 +45,7 @@ public extension MusicStyle {
         case .trap:
             return patch("D2", "Trap Keys",
                 a: 0.01, d: 1.0, s: 0.30, r: 2.4,
-                harm: 0.90, hl: 0.74, bright: 0.42, noise: 0.0, color: "Pink", shape: "Bell",
+                harm: 0.90, hl: 0.74, bright: 0.42, noise: 0.0, color: "Pink", shape: "Natural",
                 cutoff: 3200, res: 0.10, lfoAmt: 0.08, lfoRate: 0.18, lfoDepth: 0.18,
                 revMix: 0.52, revDecay: 3.6, vibRate: 4, vibDepth: 0.07)
         case .vaporwave:

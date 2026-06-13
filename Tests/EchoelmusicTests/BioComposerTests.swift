@@ -112,6 +112,33 @@ final class BioComposerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(onDownbeat.count, 2, "chord tones stack on the same step")
     }
 
+    func testHarmonicGenresHaveABassFoundation() {
+        // Every harmonic genre now anchors each chord with a bass root an octave
+        // below the pad, so the loop reads full, never thin/floating.
+        for style in [MusicStyle.vaporwave, .eighties, .disco, .synthwave,
+                      .earlySynth, .futuristic, .sciFi, .psytrance] {
+            let comp = BioComposer.compose(input(hr: 72, style: style, mode: .studioLocked))
+            let profile = style.harmonicProfile
+            // The lowest note must sit at or below the pad octave's root (the bass).
+            let padRoot = MusicalKey(root: 0, scale: .minor).degree(0, octave: profile.padOctave)
+            let lowest = comp.notes.map { $0.pitch }.min() ?? Int.max
+            XCTAssertLessThan(lowest, padRoot, "\(style) needs a bass note below the pad")
+        }
+    }
+
+    func testHarmonicLeadStaysInKey() {
+        // The lead is built from chord tones only — so every generated note is in
+        // key (no weird/aimless intervals), across many seeds.
+        let key = MusicalKey(root: 3, scale: .minor)
+        for seed in UInt64(1)...UInt64(40) {
+            let comp = BioComposer.compose(input(hr: 96, seed: seed, key: key,
+                                                 style: .synthwave, mode: .studioLocked))
+            for note in comp.notes {
+                XCTAssertTrue(key.contains(note.pitch), "every note must be consonant/in-key")
+            }
+        }
+    }
+
     func testDubTechnoIsFourOnTheFloor() {
         // Kick on every quarter, regardless of energy — the dub pulse.
         for hr in [Float(55), 90, 125] {
