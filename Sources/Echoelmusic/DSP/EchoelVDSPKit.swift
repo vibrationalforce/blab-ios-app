@@ -462,6 +462,14 @@ public final class EchoelConvolution: @unchecked Sendable {
         return inputLength
     }
 
+    /// Clear streaming state (overlap + output) so a reused convolution does not
+    /// bleed the previous note's reverb tail into the next note assigned to a
+    /// recycled voice. Audio-thread safe: index writes only, no allocation.
+    public func reset() {
+        for i in 0..<overlapBuffer.count { overlapBuffer[i] = 0 }
+        for i in 0..<outputBuffer.count { outputBuffer[i] = 0 }
+    }
+
     // MARK: - Factory Methods
 
     /// Create a lowpass FIR filter kernel

@@ -57,7 +57,9 @@ public final class PolySynthVoice {
     /// never modulates it — so "your own instrument" sounds stable. Enable to let
     /// the body modulate the polyphonic voice too. (BioReactiveSynthVoice remains
     /// the always-bio-reactive breath instrument.)
-    public var bioModulationEnabled = false
+    public var bioModulationEnabled = false {
+        didSet { poly.bioModulationEnabled = bioModulationEnabled }
+    }
 
     // MARK: - Bus subscription state
 

@@ -317,15 +317,18 @@ public final class EchoelDDSP: @unchecked Sendable {
         self.morphSourceAmplitudes = [Float](repeating: 0, count: harmonicCount)
         self.morphTargetAmplitudes = [Float](repeating: 0, count: harmonicCount)
 
-        // Reverb IR buffer — pre-allocate for max expected render size (2048 frames)
-        // Avoids any allocation on audio thread
-        self.reverbFrameBuffer = [Float](repeating: 0, count: max(frameSize, 2048))
-        self.reverbWetBuffer = [Float](repeating: 0, count: max(frameSize, 2048))
+        // Reverb IR buffers — pre-allocate for the max render block the poly engine
+        // can deliver (4096). Sized at 2048 before, so blocks 2049–4096 silently
+        // skipped the reverb → audible wet-tail dropouts as host block size varied.
+        let reverbCap = max(frameSize, 4096)
+        self.reverbFrameBuffer = [Float](repeating: 0, count: reverbCap)
+        self.reverbWetBuffer = [Float](repeating: 0, count: reverbCap)
 
-        // Initialize convolution reverb with a synthetic IR
+        // Initialize convolution reverb with a synthetic IR. maxInputLength must
+        // match the buffer cap or the convolution truncates large blocks.
         self.reverbConvolution = EchoelConvolution(kernel: EchoelDDSP.generateReverbIR(
             decay: 1.5, sampleRate: sampleRate, length: 4096
-        ))
+        ), maxInputLength: reverbCap)
 
         // Initialize with natural spectral envelope
         updateSpectralEnvelope()
@@ -528,6 +531,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         }
         for i in 0..<noiseFilterState.count { noiseFilterState[i] = 0 }
         filter.reset()
+        reverbConvolution?.reset()   // drop the previous note's reverb tail on this recycled voice
     }
 
     // MARK: - Audio Generation (vDSP Vectorized)
@@ -1014,6 +1018,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     // MARK: - Shared Bio-Reactive State
 
+    /// When false (default) bio never touches the voices at note-on, so each note
+    /// keeps its patch timbre and its played velocity. Set true (mirrors
+    /// PolySynthVoice.bioModulationEnabled) to let bio shape new notes immediately.
+    public var bioModulationEnabled: Bool = false
     private var bioCoherence: Float = 0.5
     private var bioHRV: Float = 0.5
     private var bioHeartRate: Float = 0.5
@@ -1083,7 +1091,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         voices[voiceIdx].prepareForNote()   // staggered phases + clean filter/noise state → no onset click
         voices[voiceIdx].amplitude = velocity
         voices[voiceIdx].noteOn(frequency: freq)
-        applyBioToVoice(voiceIdx)
+        // Only let bio overwrite the note's velocity/timbre when bio modulation is
+        // actually on. Previously unconditional → every note collapsed to a neutral
+        // ~0.45 amplitude and lost its patch character and velocity sensitivity.
+        if bioModulationEnabled { applyBioToVoice(voiceIdx) }
     }
 
     /// MIDI note off
@@ -1239,9 +1250,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // made the master level jump every time a note started or stopped
         // (audible pumping on chord/arp changes). A constant headroom keeps the
         // level stable and lets the tanh below gently catch peaks on dense chords.
-        // 0.6 ≈ the old gain for a typical 3-note chord, so chords stay level
-        // while single notes simply stop being disproportionately loud.
-        let gainComp: Float = 0.6
+        // 0.45 leaves enough headroom that the tanh below stays near-linear for
+        // typical chords (acting as a safety brick-wall, not a tone-colouring
+        // stage) so it doesn't double-saturate with the FX chain's saturation.
+        let gainComp: Float = 0.45
         for i in 0..<frameCount {
             let scaledL = mixBufferL[i] * gainComp
             let scaledR = mixBufferR[i] * gainComp

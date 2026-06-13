@@ -30,7 +30,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         velocity: Float = 0.8
     ) {
         self.id = id
-        self.pitch = pitch
+        self.pitch = min(max(pitch, 0), 127)   // defensive: keep MIDI in range
         self.startStep = startStep
         self.lengthSteps = max(1, lengthSteps)
         self.velocity = min(max(velocity, 0), 1)

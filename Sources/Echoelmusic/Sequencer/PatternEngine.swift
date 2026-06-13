@@ -69,6 +69,11 @@ public final class PatternEngine {
     /// so drums and melody share one transport (no two-timer drift).
     public var onTick: ((_ step: Int) -> Void)?
 
+    /// Called whenever the transport stops, so the consumer can flush held notes
+    /// (release every sounding voice). Centralised here so NO caller can forget
+    /// to silence notes on stop and leave a drone ringing.
+    public var onStop: (() -> Void)?
+
     // MARK: - Internal
 
     // nonisolated(unsafe) so the deinit (which is nonisolated by default)
@@ -170,7 +175,14 @@ public final class PatternEngine {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
         guard clamped != tempo else { return }
         tempo = clamped
-        // The next scheduled tick reads `tempo` fresh, so no restart needed.
+        // Re-arm at the new rate if playing, otherwise the already-scheduled tick
+        // would still fire at the OLD interval (one lagged step after a tempo
+        // change / regenerate). scheduleTick invalidates the old timer first.
+        if isPlaying {
+            let base = 60.0 / tempo / 4.0
+            let s = Swift.min(Swift.max(swing, 0), 0.5)
+            scheduleTick(after: (currentStep % 2 == 0) ? base * (1 + s) : base * (1 - s))
+        }
     }
 
     /// Start the timer from step 0. Idempotent: calling while playing is a no-op.
@@ -187,6 +199,7 @@ public final class PatternEngine {
         timer = nil
         currentStep = 0
         isPlaying = false
+        onStop?()   // flush held notes so nothing drones after stop
     }
 
     // MARK: - Timer (self-rescheduling, swing-aware)

@@ -69,14 +69,21 @@ public final class PianoRollModel {
         allNotesOff()   // release anything sounding so clearing never hangs a note
     }
 
-    /// Replace all notes (used when launching a melody clip).
-    public func load(_ newNotes: [Note]) { notes = newNotes }
+    /// Replace all notes (used when launching a melody clip). Flush any notes
+    /// currently sounding first, otherwise regenerating mid-playback leaves the
+    /// old notes' entries in `active` → stuck/lingering notes.
+    public func load(_ newNotes: [Note]) {
+        allNotesOff()
+        notes = newNotes
+    }
 
     // MARK: - Transport (shared clock)
 
     public func start(pattern: PatternEngine, voice: PolySynthVoice) {
         self.voice = voice
         pattern.onTick = { [weak self] step in self?.trigger(step) }
+        // Any stop (from any view) flushes held notes — no caller can forget.
+        pattern.onStop = { [weak self] in self?.allNotesOff() }
     }
 
     public func stop(pattern: PatternEngine) {
@@ -94,9 +101,14 @@ public final class PianoRollModel {
     /// `endStep % stepCount` so a note ending on the bar line releases at the
     /// loop wrap (step 0), giving correct sustain + retrigger.
     private func trigger(_ step: Int) {
-        for (id, note) in active where note.endStep % Self.stepCount == step {
+        // Release notes ending now. The engine's noteOff(pitch:) releases EVERY
+        // voice of that pitch, so when two notes share a pitch (voice-leading can
+        // produce this) we must only release a pitch once no surviving note still
+        // holds it — otherwise a short note would cut off a sustained same-pitch one.
+        let ending = active.filter { $0.value.endStep % Self.stepCount == step }
+        for id in ending.keys { active[id] = nil }
+        for note in ending.values where !active.values.contains(where: { $0.pitch == note.pitch }) {
             voice?.noteOff(pitch: note.pitch)
-            active[id] = nil
         }
         for note in notes where note.startStep == step {
             voice?.noteOn(pitch: note.pitch, velocity: note.velocity)
