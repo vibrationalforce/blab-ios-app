@@ -67,7 +67,10 @@ public struct AppGroupStore: Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(value) else { return false }
         do {
-            try data.write(to: url, options: .atomic)
+            // .completeFileProtection — the App Group container is shared with the
+            // AUv3/widget/watch processes; encrypt at rest so session/bio/state
+            // files are unreadable while the device is locked.
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
             return true
         } catch {
             return false

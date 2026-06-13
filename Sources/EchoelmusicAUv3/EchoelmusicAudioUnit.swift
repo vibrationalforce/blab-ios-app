@@ -284,7 +284,12 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
             let params = [coherenceParam, hrvParam, heartRateParam, breathPhaseParam,
                           baseFreqParam, textureAmountParam, reverbMixParam, masterGainParam]
             for p in params.compactMap({ $0 }) {
-                if let v = s[p.identifier] as? Float { p.value = v }
+                // fullState is host/preset-file controlled (third-party documents).
+                // Reject non-finite values and clamp to each param's range so a
+                // malformed preset can't inject NaN/huge gain into the render block.
+                if let v = s[p.identifier] as? Float, v.isFinite {
+                    p.value = min(max(v, p.minValue), p.maxValue)
+                }
             }
         }
     }

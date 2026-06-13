@@ -12,6 +12,8 @@ struct OnboardingView: View {
     /// Retained for binding parity with EchoelmusicApp; unused in v10.
     @Binding var shouldAutoPlay: Bool
     @State private var currentPage = 0
+    /// Gates the Start button — the user must acknowledge the safety notice.
+    @State private var acknowledgedSafety = false
 
     var body: some View {
         ZStack {
@@ -44,12 +46,12 @@ struct OnboardingView: View {
                 .font(.system(size: 32, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Make Beats.")
+            Text("Your heartbeat makes music.")
                 .font(.system(size: 17))
                 .foregroundStyle(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
 
-            Text("A 16-step, 8-track sequencer in your pocket. Tap pads to play, toggle steps to build patterns.")
+            Text("Bio-reactive, drum-free generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
                 .font(.system(size: 15))
                 .foregroundStyle(.white.opacity(0.35))
                 .multilineTextAlignment(.center)
@@ -70,18 +72,18 @@ struct OnboardingView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.white.opacity(0.3))
 
-            Text("Coming in v1.1")
+            Text("The wider vision")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
 
             VStack(alignment: .leading, spacing: 12) {
-                row(symbol: "mic.fill", text: "Record vocals over your beats")
-                row(symbol: "video.fill", text: "Capture and trim video clips")
-                row(symbol: "antenna.radiowaves.left.and.right", text: "Live stream to RTMP destinations")
+                row(symbol: "sparkles", text: "Living visuals that move with your body")
+                row(symbol: "lightbulb.fill", text: "Light & stage — DMX / Art-Net")
+                row(symbol: "antenna.radiowaves.left.and.right", text: "Capture, edit & live broadcast")
             }
             .padding(.horizontal, 40)
 
-            Text("This first release ships the beat maker. The rest is in active development.")
+            Text("This release is the bio-reactive instrument. Visuals, light, video and broadcast are in active development.")
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.25))
                 .multilineTextAlignment(.center)
@@ -106,11 +108,32 @@ struct OnboardingView: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Tap a pad to play. Toggle steps to build a pattern. Hit play.")
+            Text("Breathe, lock a key and BPM, and let your body compose. Export to your DAW.")
                 .font(.system(size: 15))
                 .foregroundStyle(.white.opacity(0.4))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
+
+            // Required safety & privacy notice.
+            VStack(alignment: .leading, spacing: 8) {
+                safetyRow("heart.text.square", "For self-observation, not medical diagnosis.")
+                safetyRow("car", "Not while driving or operating machinery.")
+                safetyRow("exclamationmark.triangle", "Not under the influence of alcohol or drugs.")
+                safetyRow("cross.case", "Coordinate any therapeutic use with your provider.")
+                safetyRow("eye", "Visuals are capped at a safe 3 Hz flash rate.")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal, 32)
+
+            Toggle(isOn: $acknowledgedSafety) {
+                Text("I understand")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .tint(.white)
+            .padding(.horizontal, 32)
 
             Spacer()
 
@@ -128,9 +151,11 @@ struct OnboardingView: View {
                 .padding(.vertical, 14)
                 .background(.white, in: RoundedRectangle(cornerRadius: 12))
             }
+            .disabled(!acknowledgedSafety)
+            .opacity(acknowledgedSafety ? 1 : 0.4)
             .padding(.horizontal, 40)
         }
-        .padding(.bottom, 60)
+        .padding(.bottom, 40)
     }
 
     // MARK: - Helpers
@@ -145,6 +170,19 @@ struct OnboardingView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.white.opacity(0.6))
             Spacer()
+        }
+    }
+
+    private func safetyRow(_ symbol: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 11))
+                .frame(width: 16)
+                .foregroundStyle(.white.opacity(0.45))
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.5))
+            Spacer(minLength: 0)
         }
     }
 
