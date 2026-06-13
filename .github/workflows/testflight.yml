@@ -486,17 +486,18 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
             # Signing diagnostics — surface why "No profiles found" / signing failed.
             # These run only on the failure path; a successful export never reaches here.
-            echo "### Signing diagnostics" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "--- distribution/signing identities in keychain ---" >> $GITHUB_STEP_SUMMARY
-            security find-identity -v -p codesigning 2>&1 | head -30 >> $GITHUB_STEP_SUMMARY || true
-            echo "--- installed provisioning profiles ---" >> $GITHUB_STEP_SUMMARY
-            ls -la "$HOME/Library/MobileDevice/Provisioning Profiles" 2>&1 | head -30 >> $GITHUB_STEP_SUMMARY || true
-            echo "--- fastlane setup_signing log (tail) ---" >> $GITHUB_STEP_SUMMARY
-            tail -60 /tmp/signing.log 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "(no /tmp/signing.log)" >> $GITHUB_STEP_SUMMARY
-            echo "--- archive.log provisioning/signing lines ---" >> $GITHUB_STEP_SUMMARY
-            { grep -iE "provision|signing|certificate|com\.echoelmusic|profile|No profiles" /tmp/archive.log | tail -40 || true; } >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Emit to stdout (readable via the Actions logs API) AND the step summary.
+            {
+              echo "### Signing diagnostics"
+              echo "--- distribution/signing identities in keychain ---"
+              security find-identity -v -p codesigning 2>&1 | head -30 || true
+              echo "--- installed provisioning profiles ---"
+              ls -la "$HOME/Library/MobileDevice/Provisioning Profiles" 2>&1 | head -30 || true
+              echo "--- fastlane setup_signing log (tail) ---"
+              tail -60 /tmp/signing.log 2>/dev/null || echo "(no /tmp/signing.log)"
+              echo "--- archive.log provisioning/signing lines ---"
+              grep -iE "provision|signing|certificate|com\.echoelmusic|profile|No profiles" /tmp/archive.log | tail -40 || true
+            } 2>&1 | tee -a $GITHUB_STEP_SUMMARY
             exit 1
           fi
           echo "=== EXPORT & UPLOAD SUCCESSFUL ==="
