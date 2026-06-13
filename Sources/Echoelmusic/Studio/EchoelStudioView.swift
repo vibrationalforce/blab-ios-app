@@ -103,7 +103,39 @@ struct EchoelStudioView: View {
                     Text("\(n) notes · \(key.name)").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
                 }
             }
+
+            // Audio diagnostic — proves where sound dies. "Test tone" plays one
+            // note straight through the synth → output, bypassing the composer
+            // and transport. The status line shows the live engine/voice/bio
+            // state so a silent build is debuggable without a Mac.
+            HStack(spacing: 10) {
+                Button { playTestTone() } label: {
+                    Label("Test tone", systemImage: "speaker.wave.2.fill")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                        .padding(.horizontal, 10).frame(height: 34)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Plays a single note directly through the synth to test audio output")
+                Text(diagnosticLine)
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(EchoelTheme.dim)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+            }
         }
+    }
+
+    private var diagnosticLine: String {
+        let eng = audioEngine.isRunning ? "on" : "off"
+        let src = bus.latestBio.map { _ in "live" } ?? "—"
+        return "engine \(eng) · voices \(synth.activeVoiceCount) · bio \(src)"
+    }
+
+    /// Plays one sustained note straight through PolySynthVoice → output, with no
+    /// composer / transport / piano-roll in the path. Decisive audio test.
+    private func playTestTone() {
+        synth.noteOn(pitch: 69, velocity: 0.9)   // A4
+        Task { try? await Task.sleep(for: .seconds(1.2)); synth.noteOff(pitch: 69) }
     }
 
     // MARK: - Camera pulse (rPPG biofeedback + control display)
