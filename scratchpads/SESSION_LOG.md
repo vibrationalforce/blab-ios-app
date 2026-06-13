@@ -2245,3 +2245,36 @@ warm patches + drum-free + analog saturation, the full answer to the feedback.
 **NEXT:** if still not rich enough, consider per-voice unison/detune in
 EchoelDDSP (analog movement) and richer chord voicings; but saturation +
 warm patches + lush genre FX is the coherent first engine-level pass.
+
+---
+
+## 2026-06-13 — KRITISCH: stiller Launch + totes Biofeedback gefixt (commit 233ff4a)
+
+**User (TestFlight 1683):** "Ich höre gar nichts und Biofeedback scheint auch
+nicht mehr zu funktionieren."
+
+**Root cause (gefunden, nicht geraten):** Die Launch-`.task` in EchoelmusicApp
+hat `await store.loadProducts()` (StoreKit-Netzwerk) UND
+`await healthBio.start()` (HealthKit-Berechtigungsdialog) VOR dem Start von
+Synth + Demo-Bio ausgeführt. Auf echtem Gerät kann jeder dieser awaits
+hängen/suspendieren → alles danach (polyVoice.start, pianoRoll.start,
+demoSource.start) läuft nie → kein Ton, kein Bio. Zusätzlich war die Demo-Quelle
+im Release hinter einem 4s-Gate, das sensorlose Geräte mit leerem Strip ließ.
+
+**Fix:** Kern-Instrument (Audio + polyVoice + pianoRoll-Transport + Demo-Bio)
+startet ZUERST, ohne awaitende Abhängigkeit davor. Demo-Bio läuft IMMER beim
+Launch (echte Sensoren gewinnen weiterhin: BioSimulator weicht non-fallback
+Frames; Strip zeigt echte Quelle). StoreKit + HealthKit laufen jetzt in
+detached best-effort `Task {}` — ein Hang dort kann den Ton nie mehr abwürgen.
+
+**Deploy:** 233ff4a als full deploy dispatched (build_only=false, compile-gate an).
+
+## Roadmap (User 2026-06-13, "erst hören, dann entscheiden"):
+Synthese-Erweiterung NACH bestätigtem hörbarem Build:
+1. Akustische Instrumente (physical-modeling: EchoelModalBank existiert bereits
+   — Saite/Glocke/Membran; als spielbare Voices anbinden).
+2. Verschiedene Klang-Synthese-Modelle (additiv DDSP / modal / cellular) als
+   wählbare Engine pro Sound.
+3. Unison/Detune pro Stimme in EchoelDDSP für analoge Bewegung.
+4. Vollere Akkord-Voicings (7ths/9ths, Oktav-Spreizung, Bassnote) im BioComposer.
+Siehe scratchpads/PLAN_SYNTHESIS_EXPANSION.md.
