@@ -2278,3 +2278,34 @@ Synthese-Erweiterung NACH bestätigtem hörbarem Build:
 3. Unison/Detune pro Stimme in EchoelDDSP für analoge Bewegung.
 4. Vollere Akkord-Voicings (7ths/9ths, Oktav-Spreizung, Bassnote) im BioComposer.
 Siehe scratchpads/PLAN_SYNTHESIS_EXPANSION.md.
+
+---
+
+## 2026-06-13 — Ton läuft! Fokus: schöne, drum-freie generative Musik
+
+**User:** Ton kommt (Build 1690, Test-Ton bestätigt). Neue Mission: "Drums
+komplett raus. Ästhetischer Weg, Biofeedback → schöne Musik. Keine komischen
+Sounds. Überrasche mich jedes Mal, produktionsreif." Rewrite erlaubt für guten Sound.
+
+**Ralph-Zyklus (commit a8c2bc9) — Musikalischer Kern statt Full-Rewrite:**
+(Audio-Fundament läuft endlich → nicht wegwerfen; den MUSIK-Kern neu geschrieben.)
+- Drums komplett entfernt (Toggle weg, Generate cleart Drum-Grid; Transport
+  taktet nur noch die Melodie via onTick).
+- composeHarmonic neu: Bass-Fundament (Oktave unter Pad) + 7th-Chord-Pad +
+  **Lead nur aus Akkordtönen** → kann nie dissonant/komisch klingen; Atem/HR
+  animieren Dichte/Kontur → überraschend, aber immer konsonant.
+- Trap-Patch Bell→Natural (Bell = clangy/inharmonisch). Kein Genre nutzt mehr
+  Bell/Metallic/Hollow.
+- Tests: Bass-Fundament je Genre, Lead bleibt über viele Seeds in-key.
+
+**Diagnose-Erkenntnis:** 1683/1685 still, 1690 mit Launch-Fix macht Ton →
+StoreKit/HealthKit-Block + One-Window-Pfad waren die Ursache. Test-Ton-Button
++ Status-Zeile bleiben als Diagnose drin.
+
+**Pipeline heute:** mehrere Blocker (Upload-Limit; Zertifikats-/Profil-Desync
+durch CI-Cert-Rotation + manuelles Revoke). Retrys halfen.
+
+**NÄCHSTER ZYKLUS (nach Bestätigung "klingt schön"):** Unison/Detune in
+EchoelDDSP (analoge Wärme/Bewegung) + akustische/modale Instrumente
+(EchoelModalBank) als wählbare Engine. Audio-Thread → erst nach Bestätigung,
+isoliert deployen. Siehe PLAN_SYNTHESIS_EXPANSION.md.
