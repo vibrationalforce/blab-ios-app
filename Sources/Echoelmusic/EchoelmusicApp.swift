@@ -144,87 +144,78 @@ struct EchoelmusicApp: App {
             .environment(projectStore)
             .environment(demoSource)
             .task {
-                // Configure audio topology BEFORE starting the engine.
-                // Hot-attaching source nodes to a running AVAudioEngine
-                // causes pause/restart cycles that have crashed at launch
-                // (build 1363). Attaching first keeps masterEngine stopped
-                // until all 8 voices are wired, then a single .start().
+                // ── ESSENTIALS FIRST ─────────────────────────────────────────
+                // The core instrument (audio + melodic synth + demo bio) must
+                // start with NO awaiting dependency in front of it. Previously
+                // `await store.loadProducts()` (StoreKit network) and
+                // `await healthBio.start()` (HealthKit permission dialog) sat
+                // AHEAD of the synth/demo start — if either stalled, the app
+                // launched SILENT with a dead bio strip. They now run as
+                // detached, best-effort tasks (bottom) so they can never block
+                // the core path.
                 //
-                // All AVAudioSession/AVAudioEngine work runs HERE (post-UI), never
-                // in App.init(): prepareGraph() builds the session + master graph.
-                log.log(.info, category: .system, "STARTUP [1/5] Preparing audio session + master graph...")
+                // Audio topology is built BEFORE the engine starts: hot-attaching
+                // source nodes to a running AVAudioEngine has crashed at launch
+                // (build 1363). Attach all voices first, then a single .start().
+                log.log(.info, category: .system, "STARTUP [1/4] Audio session + master graph...")
                 audioEngine.prepareGraph()
-
-                log.log(.info, category: .system, "STARTUP [2/5] Loading drum samples...")
                 beatPlayer.loadDefaultSamples()
 
-                log.log(.info, category: .system, "STARTUP [3/5] Attaching beat voices to audio engine...")
+                log.log(.info, category: .system, "STARTUP [2/4] Attaching voices...")
                 beatPlayer.attach(to: audioEngine)
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
 
-                log.log(.info, category: .system, "STARTUP [4/5] Starting audio engine...")
+                log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 audioEngine.start()
 
-                log.log(.info, category: .system, "STARTUP [5/5] Loading store products...")
-                await store.loadProducts()
-                await store.updateSubscriptionStatus()
-
-                log.log(.info, category: .system, "STARTUP COMPLETE — Echoel Studio ready")
-
-                #if canImport(HealthKit)
-                await healthBio.start(publishing: bus)
-                #endif
-                #if canImport(CoreBluetooth)
-                polarH10.start(publishing: bus)
-                #endif
+                // The melodic instrument + shared transport — the core sound path.
+                // Melody plays via pattern.onTick → polyVoice; drums via onStep.
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
-                // Wire the melodic piano roll to the shared transport once, app-
-                // wide, so clips can launch melodies even when the roll sheet is
-                // closed. (Melody uses pattern.onTick; drums use onStep.)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
-                bioEvents.start(on: bus)
-                // Mirror live vitals into the shared App Group (~1 Hz, off the
-                // audio thread) so the Widget + Watch glance surfaces show real
-                // data instead of "No session yet", and nudge WidgetKit.
-                bioFeedback.start(publishingFrom: bus)
-                #if canImport(CoreMIDI)
-                midiPub.start(publishing: bus)
-                #endif
-                // OSC bio streaming is OPT-IN (privacy): the user enables it from
-                // the Connect tab. It does NOT auto-start, so no biometric data
-                // leaves the process without an explicit toggle — matching the
-                // ADM-OSC / Art-Net / sACN senders.
 
-                // Modulation routing: wire real destinations, then go live.
-                // Default matrix is empty → nothing is applied until the user
-                // adds a route, so this is a zero-behavior-change wiring.
-                // Tempo handler scales the [0..1] modulation into [30..300] BPM.
+                // Bio essentials. The demo source ALWAYS runs so the body readout
+                // and "Generate from Body" are alive on any device; real sensors
+                // override it (BioSimulator defers to non-fallback frames, and the
+                // strip shows the real source whenever one is publishing).
+                bioEvents.start(on: bus)
+                bioFeedback.start(publishingFrom: bus)
+                demoSource.start(publishing: bus)
+
+                // Modulation routing: empty matrix → no behaviour change until the
+                // user adds a route. Tempo handler scales [0..1] into [30..300] BPM.
                 modulationEngine.register(ModDestinationKey.tempo) { [weak beatPlayer] value in
                     beatPlayer?.pattern.setTempo(30 + Double(value) * 270)
                 }
                 modulationEngine.start(subscribing: bus)
                 #if canImport(Network)
-                // Stream every active modulation output out as /echoelmusic/mod/<key>.
                 modulationEngine.outputTap = { [weak osc] destination, value in
                     osc?.sendModulation(key: destination.key, value: value)
                 }
+                // OSC bio streaming stays OPT-IN (privacy): enabled from the UI,
+                // never auto-started — no biometric data leaves without a toggle.
+                #endif
+                #if canImport(CoreBluetooth)
+                polarH10.start(publishing: bus)
+                #endif
+                #if canImport(CoreMIDI)
+                midiPub.start(publishing: bus)
                 #endif
 
-                // Demo bio source so every user hears the instrument without
-                // paired hardware (migrated from StudioRoot when the single window
-                // became the root).
-                #if DEBUG
-                demoSource.start(publishing: bus)
-                #else
-                try? await Task.sleep(for: .seconds(4))
-                let live = bus.latestBio
-                if live == nil || live?.source == .fallback {
-                    demoSource.start(publishing: bus)
-                }
+                log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
+
+                // ── BEST-EFFORT, NON-BLOCKING ────────────────────────────────
+                // These await (HealthKit permission dialog, StoreKit network) and
+                // run OFF the launch path so a hang here can never silence the app.
+                #if canImport(HealthKit)
+                Task { await healthBio.start(publishing: bus) }
                 #endif
+                Task {
+                    await store.loadProducts()
+                    await store.updateSubscriptionStatus()
+                }
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {
