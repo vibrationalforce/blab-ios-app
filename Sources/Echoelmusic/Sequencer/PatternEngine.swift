@@ -76,10 +76,13 @@ public final class PatternEngine {
 
     // MARK: - Internal
 
-    // nonisolated(unsafe) so the deinit (which is nonisolated by default)
-    // can call .invalidate() on a non-Sendable Timer. Same pattern as
-    // AudioEngine.meterPollTimer.
-    @ObservationIgnored nonisolated(unsafe) private var timer: Timer?
+    // A DispatchSourceTimer on a dedicated high-priority queue. It fires on time
+    // regardless of the main run loop's state — UI scrolling/layout no longer
+    // starve or jitter the beat the way they did with a RunLoop.main Timer. The
+    // (light) note trigger still hops to the main actor. nonisolated(unsafe) so
+    // the nonisolated deinit can cancel it; the source is only mutated on the main actor.
+    @ObservationIgnored nonisolated(unsafe) private var timer: DispatchSourceTimer?
+    @ObservationIgnored private let tickQueue = DispatchQueue(label: "com.echoelmusic.pattern-clock", qos: .userInteractive)
 
     // MARK: - Init
 
@@ -95,10 +98,10 @@ public final class PatternEngine {
     }
 
     deinit {
-        // Timer holds a strong reference to its closure; invalidating breaks
-        // the cycle. deinit runs on whatever actor releases the last ref —
-        // Timer.invalidate is thread-safe.
-        timer?.invalidate()
+        // Cancel the timer source so its handler closure is released (breaks the
+        // retain cycle). DispatchSourceTimer.cancel() is thread-safe, so it's safe
+        // from the nonisolated deinit.
+        timer?.cancel()
     }
 
     // MARK: - Pattern editing
@@ -195,7 +198,7 @@ public final class PatternEngine {
 
     /// Stop the timer and reset `currentStep` to 0. Safe to call while stopped.
     public func stop() {
-        timer?.invalidate()
+        timer?.cancel()
         timer = nil
         currentStep = 0
         isPlaying = false
@@ -204,23 +207,24 @@ public final class PatternEngine {
 
     // MARK: - Timer (self-rescheduling, swing-aware)
 
-    /// Schedules one non-repeating tick. Re-armed by `advance()` so each gap
+    /// Schedules one tick after `interval`. Re-armed by `advance()` so each gap
     /// can carry a different (swing) duration.
     ///
-    /// IMPORTANT: the timer is added to the main run loop in `.common` mode, not
-    /// the default mode `Timer.scheduledTimer` uses. The studio lives inside a
-    /// `ScrollView`; while the run loop is in UI-tracking mode a `.default` timer
-    /// is starved and never fires — which silenced the generated loop (the synth
-    /// itself was fine: a direct note played, but no timer tick triggered the
-    /// melody). `.common` fires across tracking + default modes.
+    /// Uses a DispatchSourceTimer on a dedicated user-interactive queue with zero
+    /// leeway: it fires precisely on time and is immune to main-run-loop state
+    /// (UI scrolling no longer starves it — the reason the old Timer needed
+    /// `.common` mode). The handler hops to the main actor to mutate model/UI/
+    /// synth state, matching the engine's @MainActor isolation.
     private func scheduleTick(after interval: TimeInterval) {
-        timer?.invalidate()
-        let t = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.advance()
+        timer?.cancel()
+        let t = DispatchSource.makeTimerSource(queue: tickQueue)
+        t.schedule(deadline: .now() + interval, leeway: .nanoseconds(0))
+        t.setEventHandler { [weak self] in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.advance() }
             }
         }
-        RunLoop.main.add(t, forMode: .common)
+        t.resume()
         timer = t
     }
 
