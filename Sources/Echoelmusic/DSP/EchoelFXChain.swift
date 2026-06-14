@@ -3,7 +3,7 @@ import Foundation
 /// Ordered, audio-thread-safe composition of the EchoelFX processors — the unit
 /// the render block, UI, and (later) AUv3 wrapper drive. Signal flow:
 ///
-///   in → filter → saturation → chorus → flanger → phaser → tremolo → delay → reverb → compressor → limiter → out
+///   in → filter → saturation → chorus → flanger → phaser → tremolo → delay → compressor → limiter → out
 ///
 /// The filter sits first so its colour (muffled "underwater" low-pass, telephone
 /// band-pass) shapes the source before the echoes and modulation inherit it.
@@ -27,7 +27,6 @@ public final class EchoelFXChain: @unchecked Sendable {
     public let phaser: EchoelPhaser
     public let tremolo: EchoelTremolo
     public let delay: EchoelDelay
-    public let reverb: EchoelReverb
     public let compressor: EchoelCompressor
     public let limiter: EchoelLimiter
 
@@ -45,10 +44,6 @@ public final class EchoelFXChain: @unchecked Sendable {
     public var phaserEnabled: Bool = false
     public var tremoloEnabled: Bool = false
     public var delayEnabled: Bool = false
-    /// Lush stereo bus reverb. On by default at a tasteful send — this is the
-    /// shared space for the whole mix (replaces the old per-voice mono reverb),
-    /// the single biggest "thin & dry" → "wide & produced" upgrade.
-    public var reverbEnabled: Bool = true
     public var compressorEnabled: Bool = false
     public var limiterEnabled: Bool = true
 
@@ -69,14 +64,13 @@ public final class EchoelFXChain: @unchecked Sendable {
         self.chorus = EchoelChorus(sampleRate: sampleRate)
         // Gentle default: low wet mix + modest depth + slow rate → ensemble
         // warmth and width without an obvious "seasick" wobble.
-        self.chorus.mix = 0.26
-        self.chorus.depth = 0.40
+        self.chorus.mix = 0.22
+        self.chorus.depth = 0.35
         self.chorus.rate = 0.45
         self.flanger = EchoelFlanger(sampleRate: sampleRate)
         self.phaser = EchoelPhaser(sampleRate: sampleRate)
         self.tremolo = EchoelTremolo(sampleRate: sampleRate)
         self.delay = EchoelDelay(sampleRate: sampleRate)
-        self.reverb = EchoelReverb(sampleRate: sampleRate)
         self.compressor = EchoelCompressor(sampleRate: sampleRate)
         self.limiter = EchoelLimiter(sampleRate: sampleRate)
     }
@@ -101,7 +95,6 @@ public final class EchoelFXChain: @unchecked Sendable {
         if phaserEnabled     { (l, r) = phaser.processStereo(l, r) }
         if tremoloEnabled    { (l, r) = tremolo.processStereo(l, r) }
         if delayEnabled      { (l, r) = delay.processStereo(l, r) }
-        if reverbEnabled     { (l, r) = reverb.processStereo(l, r) }
         if compressorEnabled { (l, r) = compressor.processStereo(l, r) }
         if limiterEnabled    { (l, r) = limiter.processStereo(l, r) }
         return (l, r)
@@ -164,7 +157,6 @@ public final class EchoelFXChain: @unchecked Sendable {
         phaser.reset()
         tremolo.reset()
         delay.reset()
-        reverb.reset()
         compressor.reset()
         limiter.reset()
     }

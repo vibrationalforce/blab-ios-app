@@ -102,10 +102,6 @@ public final class PolySynthVoice {
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchL = Array(repeating: 0, count: Self.maxBlockFrames)
         self.scratchR = Array(repeating: 0, count: Self.maxBlockFrames)
-        // Space comes from ONE lush stereo bus reverb (fxChain.reverb), not the
-        // per-voice mono convolution — wider, cohesive, and far cheaper than N
-        // reverbs. Zero the voices' own reverb so they don't double up.
-        poly.forEachVoice { $0.reverbMix = 0 }
     }
 
     // MARK: - Audio engine attachment
@@ -141,14 +137,9 @@ public final class PolySynthVoice {
 
     // MARK: - Patch recall
 
-    /// Recall a sound: fan the patch's timbre params across every voice, then
-    /// route the patch's reverb amount to the shared stereo bus reverb (and keep
-    /// the per-voice convolution silent so space stays wide and singular).
+    /// Recall a sound: fan the patch's timbre params across every voice.
     public func apply(_ patch: SynthPatch) {
-        poly.forEachVoice { patch.apply(to: $0); $0.reverbMix = 0 }
-        // Map the patch reverb to the bus: amount → wet mix, decay → tail length.
-        fxChain.reverb.mix = min(0.42, max(0, patch.reverbMix))
-        fxChain.reverb.roomSize = min(0.92, max(0.45, 0.45 + patch.reverbDecay * 0.13))
+        poly.forEachVoice { patch.apply(to: $0) }
     }
 
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
