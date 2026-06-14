@@ -1080,19 +1080,29 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     // MARK: - Note Control
 
+    /// Per-voice static detune (cents). Each voice sits a few cents off concert
+    /// pitch so a chord beats and shimmers like an analog poly-synth instead of a
+    /// mathematically-perfect (and lifeless) sine stack. ±10 cents is musically
+    /// transparent but audibly "wide & warm".
+    private static let detuneCents: [Float] = [0, 7, -7, 4, -4, 10, -10, 5]
+
     /// MIDI note on
     public func noteOn(note: Int, velocity: Float = 1.0) {
-        let freq = 440.0 * pow(2.0, Float(note - 69) / 12.0)
+        let baseFreq = 440.0 * pow(2.0, Float(note - 69) / 12.0)
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
         ageCounter += 1
         voiceAges[voiceIdx] = ageCounter
 
-        // Spread panning across active voices
+        // Analog detune for width/beating (free — just offsets the frequency).
+        let cents = Self.detuneCents[voiceIdx % Self.detuneCents.count]
+        let freq = baseFreq * pow(2.0, cents / 1200.0)
+
+        // Spread panning across active voices (wider field for richer chords).
         let activeCount = voiceNotes.reduce(0) { $0 + ($1 >= 0 ? 1 : 0) }
         if activeCount > 1, maxVoices > 1 {
-            let panSpread: Float = 0.6
+            let panSpread: Float = 0.72
             let normalized = Float(voiceIdx) / Float(maxVoices - 1)
             voicePans[voiceIdx] = (normalized * 2.0 - 1.0) * panSpread
         } else {
