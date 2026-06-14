@@ -36,6 +36,7 @@ struct EchoelStudioView: View {
 
     // Sheets / dialogs
     @State private var showSoundDesign = false
+    @State private var showPianoRoll = false
     @State private var showOpen = false
     @State private var showSaveDialog = false
     @State private var saveName = ""
@@ -65,6 +66,9 @@ struct EchoelStudioView: View {
         .onChange(of: style) { _, s in applyStyle(s) }
         .sheet(isPresented: $showSoundDesign) {
             PatchEditorView(initial: currentPatch) { currentPatch = $0 }
+        }
+        .sheet(isPresented: $showPianoRoll) {
+            PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         }
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
@@ -102,6 +106,16 @@ struct EchoelStudioView: View {
                     Text("\(n) notes · \(key.name)").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
                 }
             }
+
+            // Open the polyphonic piano roll to see and edit the generated notes.
+            Button { showPianoRoll = true } label: {
+                Label("Edit in piano roll", systemImage: "pianokeys")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the piano roll to view and edit the generated notes")
         }
     }
 
@@ -300,6 +314,18 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             .disabled(isExporting)
             .accessibilityHint("Records one loop and exports a WAV to share")
+
+            // MIDI hand-off to a DAW: the generated/edited melody with real note
+            // durations + velocities. The producer-facing half of the export promise.
+            Button { exportMidi() } label: {
+                Label("Export MIDI", systemImage: "pianokeys.inverse")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            }
+            .buttonStyle(.plain)
+            .disabled(pianoRoll.notes.isEmpty)
+            .accessibilityHint("Exports the melody as a .mid file to open in your DAW")
         }
     }
 
@@ -420,6 +446,20 @@ struct EchoelStudioView: View {
     private func exportWav() async {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
             share = ExportedFile(url: url)
+        }
+    }
+
+    private func exportMidi() {
+        guard !pianoRoll.notes.isEmpty else { return }
+        let data = MIDIFileExporter.export(notes: pianoRoll.notes, tempo: beatPlayer.pattern.tempo)
+        let base = session.sessionName(bpm: beatPlayer.pattern.tempo)
+            .replacingOccurrences(of: "/", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(base).mid")
+        do {
+            try data.write(to: url, options: .atomic)
+            share = ExportedFile(url: url)
+        } catch {
+            // Non-fatal: a failed temp write simply yields no share sheet.
         }
     }
 

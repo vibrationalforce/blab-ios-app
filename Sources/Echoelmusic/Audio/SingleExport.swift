@@ -249,7 +249,9 @@ final class SingleExport {
     // MARK: - Output URL
 
     private func makeOutputURL(sourceURL: URL) throws -> URL {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw ExportError.noDocumentsDirectory
+        }
         let exports = docs.appendingPathComponent("Exports", isDirectory: true)
         try FileManager.default.createDirectory(at: exports, withIntermediateDirectories: true)
 
@@ -261,13 +263,14 @@ final class SingleExport {
     // MARK: - Errors
 
     enum ExportError: LocalizedError {
-        case noAudioTrack, cannotReadSource, emptyAudio
+        case noAudioTrack, cannotReadSource, emptyAudio, noDocumentsDirectory
 
         var errorDescription: String? {
             switch self {
             case .noAudioTrack:    return "No audio track found in recording"
             case .cannotReadSource: return "Cannot read source recording"
             case .emptyAudio:      return "Recording appears to be silent"
+            case .noDocumentsDirectory: return "Cannot locate the documents directory"
             }
         }
     }

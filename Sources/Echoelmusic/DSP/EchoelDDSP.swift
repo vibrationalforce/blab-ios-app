@@ -256,6 +256,10 @@ public final class EchoelDDSP: @unchecked Sendable {
 
     /// Envelope level at start of release (for smooth release from any stage)
     private var releaseStartLevel: Float = 0
+    /// Envelope level at start of attack — a fast retrigger while a previous note
+    /// is still in release would otherwise jump from a non-zero level to 0 and
+    /// click. Ramping the attack FROM this level keeps the onset continuous.
+    private var attackStartLevel: Float = 0
 
     private enum EnvelopeStage {
         case idle, attack, decay, sustain, release
@@ -365,9 +369,11 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Update reverb IR when decay time changes
     public func updateReverbDecay(_ newDecay: Float) {
         reverbDecay = newDecay
+        // Match the buffer cap (max(frameSize, 4096)) or the convolution truncates
+        // larger host blocks → wet-tail dropouts (same fix as the init path).
         reverbConvolution = EchoelConvolution(kernel: EchoelDDSP.generateReverbIR(
             decay: newDecay, sampleRate: sampleRate, length: 4096
-        ))
+        ), maxInputLength: max(reverbFrameBuffer.count, 4096))
     }
 
     // MARK: - Spectral Envelope
@@ -502,6 +508,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         if let f = frequency {
             self.frequency = f
         }
+        attackStartLevel = envelopeValue   // ramp from current level → no retrigger click
         envelopeStage = .attack
         envelopeSamples = 0
     }
@@ -696,7 +703,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         case .attack:
             let attackSamples = max(1, Int(attack * sampleRate))
             let progress = min(1.0, Float(envelopeSamples) / Float(attackSamples))
-            envelopeValue = applyCurve(progress, from: 0, to: 1.0)
+            envelopeValue = applyCurve(progress, from: attackStartLevel, to: 1.0)
             if envelopeSamples >= attackSamples {
                 envelopeStage = .decay
                 envelopeSamples = 0
@@ -823,7 +830,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         // 5. HRV → Reverb + spatial character
         //    Low HRV = dry, tense, close | High HRV = spacious, open, lush
         reverbMix = 0.20 + hrvVariability * 0.35  // 0.20 → 0.55 (floor raised for meditation)
-        reverbDecay = 1.0 + hrvVariability * 3.0  // 1s → 4s decay
+        // Note: reverb DECAY is intentionally NOT bio-modulated here — rebuilding
+        // the convolution IR allocates and would click the tail if done per bio
+        // frame. The spacious/dry HRV character comes from reverbMix above; decay
+        // is set once via updateReverbDecay(). (Was a dead assignment before.)
 
         // 6. Coherence → Noise (low coherence = texture/tension, high = clean)
         noiseLevel = 0.01 + (1.0 - coherence) * 0.12  // 0.01 → 0.13
@@ -978,6 +988,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         envelopeValue = 0
         envelopeSamples = 0
         releaseStartLevel = 0
+        attackStartLevel = 0
         morphTarget = nil
         morphPosition = 0
     }

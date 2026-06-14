@@ -80,45 +80,67 @@ public final class SamplerVoice: @unchecked Sendable {
     /// - Throws: `AVAudioFile` errors or `SamplerVoiceError.unsupportedFormat`.
     public func loadSample(from url: URL) throws {
         let file = try AVAudioFile(forReading: url)
-        let frameCap = AVAudioFrameCount(min(Int(file.length), Self.maxSampleFrames))
-        guard frameCap > 0 else {
+        let srcFormat = file.processingFormat
+        guard srcFormat.sampleRate > 0, file.length > 0 else {
             throw SamplerVoiceError.unsupportedFormat
         }
-        guard let pcm = AVAudioPCMBuffer(
-            pcmFormat: file.processingFormat,
-            frameCapacity: frameCap
-        ) else {
+
+        // Read up to ~2s of SOURCE audio (the buffer is later capped at
+        // maxSampleFrames of TARGET-rate audio after conversion).
+        let maxSrcFrames = max(1, Int(srcFormat.sampleRate * 2.05))
+        let frameCap = AVAudioFrameCount(min(Int(file.length), maxSrcFrames))
+        guard let pcm = AVAudioPCMBuffer(pcmFormat: srcFormat, frameCapacity: frameCap) else {
             throw SamplerVoiceError.unsupportedFormat
         }
         try file.read(into: pcm, frameCount: frameCap)
 
-        let frames = Int(pcm.frameLength)
-        var mono = [Float](repeating: 0, count: frames)
-        if let ch = pcm.floatChannelData {
-            let channelCount = Int(pcm.format.channelCount)
-            let scale: Float = channelCount > 1 ? 1.0 / Float(channelCount) : 1.0
-            for c in 0..<channelCount {
-                let src = ch[c]
-                for i in 0..<frames {
-                    mono[i] += src[i] * scale
-                }
-            }
-        } else if let ch = pcm.int16ChannelData {
-            let channelCount = Int(pcm.format.channelCount)
-            let scale: Float = (channelCount > 1 ? 1.0 / Float(channelCount) : 1.0) / Float(Int16.max)
-            for c in 0..<channelCount {
-                let src = ch[c]
-                for i in 0..<frames {
-                    mono[i] += Float(src[i]) * scale
-                }
-            }
-        } else {
-            throw SamplerVoiceError.unsupportedFormat
+        // Convert to mono float32 at the node's fixed 44.1 kHz. Without this a
+        // 48 kHz WAV played ~8.8% flat — the node format is constant 44.1 kHz.
+        var mono = try Self.resampleToMono(pcm, targetRate: Self.sampleRate)
+        if mono.count > Self.maxSampleFrames {
+            mono = Array(mono[0..<Self.maxSampleFrames])
         }
 
         renderState.installBuffer(mono)
         isLoaded = true
         sourceURL = url
+    }
+
+    /// Down-mixes + sample-rate-converts a PCM buffer to mono float32 at
+    /// `targetRate`, returning the raw samples. Uses `AVAudioConverter`, which
+    /// handles both channel down-mix and resampling. Main thread, load-time only.
+    private static func resampleToMono(_ src: AVAudioPCMBuffer, targetRate: Double) throws -> [Float] {
+        // Fast path: already mono at the target rate — copy directly.
+        if src.format.sampleRate == targetRate, src.format.channelCount == 1,
+           let ch = src.floatChannelData {
+            return Array(UnsafeBufferPointer(start: ch[0], count: Int(src.frameLength)))
+        }
+
+        guard let targetFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32, sampleRate: targetRate,
+            channels: 1, interleaved: false
+        ), let converter = AVAudioConverter(from: src.format, to: targetFormat) else {
+            throw SamplerVoiceError.unsupportedFormat
+        }
+
+        let ratio = targetRate / src.format.sampleRate
+        let outCapacity = AVAudioFrameCount(Double(src.frameLength) * ratio) + 2048
+        guard let out = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: outCapacity) else {
+            throw SamplerVoiceError.unsupportedFormat
+        }
+
+        var supplied = false
+        var convError: NSError?
+        let status = converter.convert(to: out, error: &convError) { _, outStatus in
+            if supplied { outStatus.pointee = .noDataNow; return nil }
+            supplied = true
+            outStatus.pointee = .haveData
+            return src
+        }
+        if status == .error { throw convError ?? SamplerVoiceError.unsupportedFormat }
+
+        guard let ch = out.floatChannelData else { throw SamplerVoiceError.unsupportedFormat }
+        return Array(UnsafeBufferPointer(start: ch[0], count: Int(out.frameLength)))
     }
 
     /// Triggers playback from the start. Safe to call from the main thread.

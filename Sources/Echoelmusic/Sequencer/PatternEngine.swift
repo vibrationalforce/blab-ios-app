@@ -229,6 +229,11 @@ public final class PatternEngine {
     }
 
     private func advance() {
+        // A timer block already dispatched to main can arrive AFTER stop()/setTempo
+        // cancelled the source. Bail before firing so no ghost step/note sounds
+        // once the transport is stopped (the spurious step-0 hit after Stop).
+        guard isPlaying else { return }
+
         let step = currentStep
         for track in 0..<PatternEngine.trackCount {
             if steps[track][step] {
@@ -238,7 +243,6 @@ public final class PatternEngine {
         onTick?(step)
         currentStep = (step + 1) % PatternEngine.stepCount
 
-        guard isPlaying else { return }
         // Gap to the NEXT step. Swing lengthens the gap that follows a downbeat
         // (even step), delaying the off-beat; the following gap shortens to keep
         // each beat-pair the same total length (tempo preserved).
