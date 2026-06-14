@@ -3,12 +3,9 @@
 //  Echoelmusic
 //
 //  Thin readout strip showing the latest BioSampleFrame published to
-//  EngineBus. Lives at the top of StudioRoot so the bus is visibly
-//  active across all tabs.
-//
-//  Honors master prompt §UI: solid dark background, legible numbers
-//  first, source label tells the truth (Oura / HealthKit / fallback /
-//  none). No glow, no glassmorphism, no decorative charts.
+//  EngineBus — the body's live numbers (HR / HRV / breath / coherence) plus a
+//  source tag. Deliberately minimal: legible numbers first, no extra controls
+//  (transport, FX and panels live on the main screen, not here).
 //
 
 #if canImport(SwiftUI)
@@ -18,26 +15,7 @@ import SwiftUI
 struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
-    @Environment(BioReactiveSynthVoice.self) private var voice
-    @Environment(BeatPlayer.self) private var beatPlayer
-    @Environment(BioEventPublisher.self) private var events
     @Environment(BioSimulator.self) private var demoSource
-    #if canImport(CoreBluetooth)
-    @Environment(PolarH10BioPublisher.self) private var ble
-    #endif
-    #if canImport(CoreMIDI)
-    @Environment(MIDIBusPublisher.self) private var midi
-    #endif
-    #if canImport(Network)
-    @Environment(OSCSender.self) private var osc
-    #endif
-
-    #if canImport(AVFoundation)
-    @Environment(AudioEngine.self) private var audio
-    #endif
-
-    @State private var showingFX = false
-    @State private var showingMix = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -49,12 +27,6 @@ struct BioStripView: View {
             divider
             metric(label: "Coh", value: coherenceString, unit: nil)
             Spacer(minLength: 4)
-            eventDot
-            midiDot
-            oscDot
-            fxButton
-            mixButton
-            playButton
             sourceTag
         }
         .lineLimit(1)
@@ -68,60 +40,6 @@ struct BioStripView: View {
                 .fill(Color.white.opacity(0.08))
                 .frame(height: 1)
         }
-        .sheet(isPresented: $showingFX) {
-            EchoelFXView(voice: voice, bpm: beatPlayer.pattern.tempo)
-        }
-        #if canImport(AVFoundation)
-        .sheet(isPresented: $showingMix) {
-            EchoelMixView()
-        }
-        #endif
-    }
-
-    // MARK: - Mix panel button
-
-    /// Opens the EchoelMix surface (master metering + recorder). Highlights
-    /// red while a take is recording so the strip reflects live capture.
-    @ViewBuilder
-    private var mixButton: some View {
-        #if canImport(AVFoundation)
-        let recording = audio.multiTrackRecorder.isRecording
-        Button {
-            showingMix = true
-        } label: {
-            Text("Mix")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(recording ? Color.white : Color.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(recording ? Color(red: 0.90, green: 0.30, blue: 0.30) : Color.white.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(recording ? "Mix panel (recording)" : "Mix panel")
-        #else
-        EmptyView()
-        #endif
-    }
-
-    // MARK: - FX panel button
-
-    /// Opens the EchoelFX insert-chain control surface. Highlights when the
-    /// chain is active so the strip honestly reflects whether FX are engaged.
-    private var fxButton: some View {
-        Button {
-            showingFX = true
-        } label: {
-            Text("FX")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(voice.isFXEnabled ? Color.black : Color.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(voice.isFXEnabled ? EchoelTheme.accent : Color.white.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(voice.isFXEnabled ? "FX panel (FX active)" : "FX panel")
     }
 
     // MARK: - Metric cells
@@ -145,83 +63,11 @@ struct BioStripView: View {
             .frame(width: 1, height: 10)
     }
 
-    // MARK: - MIDI activity indicator
-
-    /// Small dot that brightens for ~1 s after a MIDI controller event
-    /// arrives on the bus. Honest "no controller connected" otherwise.
-    @ViewBuilder
-    private var midiDot: some View {
-        #if canImport(CoreMIDI)
-        let now = CFAbsoluteTimeGetCurrent()
-        let fresh = midi.lastEventTimestamp > 0 && (now - midi.lastEventTimestamp) < 1.0
-        Circle()
-            .fill(fresh ? Color.green : Color.white.opacity(0.15))
-            .frame(width: 6, height: 6)
-            .accessibilityLabel(fresh ? "MIDI active" : "MIDI idle")
-        #else
-        EmptyView()
-        #endif
-    }
-
-    // MARK: - Discrete bio-event indicator
-
-    /// Amber dot — brightens for ~1 s after BioEventGraph publishes a
-    /// discrete event (breath onset / motion peak) onto the bus.
-    @ViewBuilder
-    private var eventDot: some View {
-        let now = CFAbsoluteTimeGetCurrent()
-        let fresh = events.lastEventTimestamp > 0 && (now - events.lastEventTimestamp) < 1.0
-        Circle()
-            .fill(fresh ? Color.orange : Color.white.opacity(0.15))
-            .frame(width: 6, height: 6)
-            .accessibilityLabel(fresh ? "Bio event detected" : "No recent bio event")
-    }
-
-    // MARK: - OSC activity indicator
-
-    /// Blue dot — bright while OSC is sending bus updates outbound,
-    /// dim white when the sender is idle / not yet started.
-    @ViewBuilder
-    private var oscDot: some View {
-        #if canImport(Network)
-        let now = CFAbsoluteTimeGetCurrent()
-        let fresh = osc.isActive && osc.lastSentTimestamp > 0 && (now - osc.lastSentTimestamp) < 1.0
-        Circle()
-            .fill(fresh ? Color.blue : Color.white.opacity(0.15))
-            .frame(width: 6, height: 6)
-            .accessibilityLabel(fresh ? "OSC streaming" : "OSC idle")
-        #else
-        EmptyView()
-        #endif
-    }
-
-    // MARK: - Play toggle
-
-    private var playButton: some View {
-        Button {
-            if voice.isArmed {
-                voice.disarm()
-            } else {
-                voice.arm()
-            }
-        } label: {
-            Image(systemName: voice.isArmed ? "stop.fill" : "play.fill")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(voice.isArmed ? Color.white : Color.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(voice.isArmed ? Color.white.opacity(0.18) : Color.white.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(voice.isArmed ? "Stop bio-reactive voice" : "Play bio-reactive voice")
-    }
-
     // MARK: - Source tag
 
-    /// Tappable source tag. Shows the live source label; when no real sensor
-    /// is connected, tapping starts/stops the explicit "Demo" source so the
-    /// instrument is playable without hardware.
+    /// Tappable source tag. Shows the live source label; when no real sensor is
+    /// publishing, tapping starts/stops the explicit "Demo" source so the
+    /// instrument is always playable without hardware.
     private var sourceTag: some View {
         Button {
             toggleDemo()
@@ -242,13 +88,6 @@ struct BioStripView: View {
     /// Real sensor frames win; otherwise reflect demo state with a tap hint.
     private var sourceText: String {
         if let bio = bus.latestBio, bio.source != .fallback {
-            #if canImport(CoreBluetooth)
-            // Show the actual connected device (e.g. "Polar H10", "TICKR")
-            // instead of the generic "BLE" so the user sees what's live.
-            if bio.source == .ble, !ble.connectedDeviceName.isEmpty {
-                return ble.connectedDeviceName
-            }
-            #endif
             return sourceLabel(bio.source)
         }
         return demoSource.isRunning ? "Demo" : "Demo ▷"

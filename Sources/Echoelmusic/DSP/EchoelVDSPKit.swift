@@ -347,20 +347,27 @@ public final class EchoelRealFFT: @unchecked Sendable {
 public final class EchoelConvolution: @unchecked Sendable {
 
     private let kernelSize: Int
-    private var kernel: [Float]
-    private var overlapBuffer: [Float]
-    /// Pre-allocated output buffer — avoids heap allocation on every process() call
+    private var kernel: [Float]                // IR, reversed for vDSP_conv
+    /// Last (kernelSize-1) input samples — the streaming history (overlap-save).
+    private var inputHistory: [Float]
+    /// Pre-allocated [history ++ input] scratch, sized so vDSP_conv NEVER reads
+    /// past the end: it reads `inputLength + kernelSize - 1` samples, and this
+    /// buffer holds exactly `maxInputLength + kernelSize - 1`.
+    private var convScratch: [Float]
+    /// Pre-allocated output buffer — avoids heap allocation on every process() call.
     private var outputBuffer: [Float]
     private var maxInputLength: Int
 
     /// Initialize with FIR kernel
     public init(kernel: [Float], maxInputLength: Int = 2048) {
-        self.kernelSize = kernel.count
-        // Reverse kernel for vDSP_conv (it uses correlation, not convolution)
+        self.kernelSize = max(1, kernel.count)
+        // Reverse kernel for vDSP_conv (it correlates; reversed kernel → convolution).
         self.kernel = kernel.reversed()
-        self.overlapBuffer = [Float](repeating: 0, count: kernelSize - 1)
-        self.maxInputLength = maxInputLength
-        self.outputBuffer = [Float](repeating: 0, count: maxInputLength + kernel.count - 1)
+        self.maxInputLength = max(1, maxInputLength)
+        let hist = max(0, self.kernelSize - 1)
+        self.inputHistory = [Float](repeating: 0, count: hist)
+        self.convScratch = [Float](repeating: 0, count: self.maxInputLength + hist)
+        self.outputBuffer = [Float](repeating: 0, count: self.maxInputLength + hist)
     }
 
     /// Update kernel coefficients
@@ -369,92 +376,61 @@ public final class EchoelConvolution: @unchecked Sendable {
         kernel = newKernel.reversed()
     }
 
-    /// Apply convolution to input buffer (overlap-add for streaming)
-    /// - Note: Input size must not exceed maxInputLength passed at init.
-    ///   If it does, input is truncated to avoid heap allocation on audio thread.
-    public func process(_ input: [Float]) -> [Float] {
-        var inputLength = input.count
-        let safeInput: [Float]
-
-        // Clamp to pre-allocated size — NEVER allocate on audio thread
-        if inputLength > maxInputLength {
-            inputLength = maxInputLength
-            safeInput = Array(input.prefix(maxInputLength))
-        } else {
-            safeInput = input
-        }
-
-        let outputLength = inputLength + kernelSize - 1
-
-        if outputLength > outputBuffer.count {
-            // Should not happen with clamped input — defensive only
-            return Array(repeating: 0, count: inputLength)
-        } else {
-            // Zero only the portion we'll use
-            outputBuffer.withUnsafeMutableBufferPointer { buf in
-                guard let ptr = buf.baseAddress else { return }
-                vDSP_vclr(ptr, 1, vDSP_Length(outputLength))
+    /// Core overlap-save convolution: builds `convScratch = [history ++ input]`,
+    /// convolves to produce exactly `inputLength` correctly-aligned output samples
+    /// in `outputBuffer`, then refreshes the history. vDSP_conv reads
+    /// `convScratch[0 ... inputLength + kernelSize - 2]`, always within bounds.
+    /// Audio-thread safe: memcpy-style index writes only, no allocation.
+    private func convolve(_ input: [Float], _ inputLength: Int) {
+        let hist = kernelSize - 1
+        convScratch.withUnsafeMutableBufferPointer { dst in
+            guard let d = dst.baseAddress else { return }
+            if hist > 0 {
+                inputHistory.withUnsafeBufferPointer { h in
+                    if let hb = h.baseAddress { d.update(from: hb, count: hist) }
+                }
+            }
+            input.withUnsafeBufferPointer { s in
+                if let sb = s.baseAddress { (d + hist).update(from: sb, count: inputLength) }
             }
         }
-
-        vDSP_conv(safeInput, 1, kernel, 1, &outputBuffer, 1,
-                  vDSP_Length(outputLength), vDSP_Length(kernelSize))
-
-        // Apply overlap from previous frame
-        for i in 0..<min(overlapBuffer.count, inputLength) {
-            outputBuffer[i] += overlapBuffer[i]
+        // N = inputLength outputs; P = kernelSize. Reads convScratch up to
+        // index inputLength + kernelSize - 2 (< convScratch.count). Safe.
+        vDSP_conv(convScratch, 1, kernel, 1, &outputBuffer, 1,
+                  vDSP_Length(inputLength), vDSP_Length(kernelSize))
+        // New history = the last (kernelSize-1) samples of the stream, i.e. the
+        // tail of convScratch ([history ++ input]).
+        if hist > 0 {
+            inputHistory.withUnsafeMutableBufferPointer { dst in
+                guard let d = dst.baseAddress else { return }
+                convScratch.withUnsafeBufferPointer { src in
+                    guard let s = src.baseAddress else { return }
+                    d.update(from: s + inputLength, count: hist)
+                }
+            }
         }
+    }
 
-        // Save overlap for next frame
-        let overlapStart = inputLength
-        for i in 0..<(kernelSize - 1) {
-            overlapBuffer[i] = (overlapStart + i < outputLength) ? outputBuffer[overlapStart + i] : 0
-        }
-
-        // NaN/Inf guard — convolution can propagate NaN input
+    /// Apply convolution to an input buffer (allocating result — non-audio-thread
+    /// callers only). Input is clamped to `maxInputLength` to keep bounds-safe.
+    public func process(_ input: [Float]) -> [Float] {
+        let inputLength = Swift.min(input.count, maxInputLength)
+        guard inputLength > 0 else { return [] }
+        convolve(input, inputLength)
         var result = Array(outputBuffer.prefix(inputLength))
-        for i in 0..<result.count where !result[i].isFinite {
-            result[i] = 0
-        }
+        for i in 0..<result.count where !result[i].isFinite { result[i] = 0 }
         return result
     }
 
     /// Audio-thread-safe variant of `process(_:)` — writes the wet result into a
-    /// caller-provided, pre-allocated `output` buffer instead of returning a
-    /// freshly heap-allocated `Array` every block (which violated the no-alloc
-    /// audio-thread rule and caused dropouts, especially with one reverb per voice).
-    /// `output` must have `count >= input.count`. Returns the number of valid
-    /// samples written (== min(input.count, maxInputLength)).
+    /// caller-provided, pre-allocated `output` buffer (no allocation). `output`
+    /// must have `count >= min(input.count, maxInputLength)`. Returns the number
+    /// of valid samples written.
     @discardableResult
     public func process(_ input: [Float], into output: inout [Float]) -> Int {
-        var inputLength = input.count
-        if inputLength > maxInputLength { inputLength = maxInputLength }
-        guard output.count >= inputLength, inputLength > 0 else { return 0 }
-
-        let outputLength = inputLength + kernelSize - 1
-        if outputLength > outputBuffer.count {
-            for i in 0..<inputLength { output[i] = 0 }   // defensive; should not happen
-            return inputLength
-        }
-
-        outputBuffer.withUnsafeMutableBufferPointer { buf in
-            guard let ptr = buf.baseAddress else { return }
-            vDSP_vclr(ptr, 1, vDSP_Length(outputLength))
-        }
-
-        vDSP_conv(input, 1, kernel, 1, &outputBuffer, 1,
-                  vDSP_Length(outputLength), vDSP_Length(kernelSize))
-
-        // Overlap-add from previous frame
-        for i in 0..<min(overlapBuffer.count, inputLength) {
-            outputBuffer[i] += overlapBuffer[i]
-        }
-        let overlapStart = inputLength
-        for i in 0..<(kernelSize - 1) {
-            overlapBuffer[i] = (overlapStart + i < outputLength) ? outputBuffer[overlapStart + i] : 0
-        }
-
-        // Copy wet → caller buffer with NaN/Inf guard, no allocation
+        let inputLength = Swift.min(input.count, maxInputLength)
+        guard inputLength > 0, output.count >= inputLength else { return 0 }
+        convolve(input, inputLength)
         for i in 0..<inputLength {
             let v = outputBuffer[i]
             output[i] = v.isFinite ? v : 0
@@ -462,12 +438,13 @@ public final class EchoelConvolution: @unchecked Sendable {
         return inputLength
     }
 
-    /// Clear streaming state (overlap + output) so a reused convolution does not
-    /// bleed the previous note's reverb tail into the next note assigned to a
-    /// recycled voice. Audio-thread safe: index writes only, no allocation.
+    /// Clear streaming state so a reused convolution does not bleed the previous
+    /// note's reverb tail into the next note assigned to a recycled voice.
+    /// Audio-thread safe: index writes only, no allocation.
     public func reset() {
-        for i in 0..<overlapBuffer.count { overlapBuffer[i] = 0 }
+        for i in 0..<inputHistory.count { inputHistory[i] = 0 }
         for i in 0..<outputBuffer.count { outputBuffer[i] = 0 }
+        for i in 0..<convScratch.count { convScratch[i] = 0 }
     }
 
     // MARK: - Factory Methods

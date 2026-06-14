@@ -190,19 +190,10 @@ struct EchoelmusicApp: App {
                     beatPlayer?.pattern.setTempo(30 + Double(value) * 270)
                 }
                 modulationEngine.start(subscribing: bus)
-                #if canImport(Network)
-                modulationEngine.outputTap = { [weak osc] destination, value in
-                    osc?.sendModulation(key: destination.key, value: value)
-                }
-                // OSC bio streaming stays OPT-IN (privacy): enabled from the UI,
-                // never auto-started — no biometric data leaves without a toggle.
-                #endif
-                #if canImport(CoreBluetooth)
-                polarH10.start(publishing: bus)
-                #endif
-                #if canImport(CoreMIDI)
-                midiPub.start(publishing: bus)
-                #endif
+                // Non-essential I/O (BLE straps, external MIDI, OSC out) is NOT
+                // auto-started — the essential instrument is camera/Demo bio →
+                // generate → play → export. These remain available but opt-in,
+                // so launch stays lean and triggers no extra permission prompts.
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
 
