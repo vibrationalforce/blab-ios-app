@@ -18,16 +18,16 @@
     "offlineMode": true,
     "selfHostedFonts": true,
     "custom404Page": true,
-    "hreflangSupport": true,
+    "hreflangSupport": false,
     "breadcrumbStructuredData": true,
     "faqStructuredData": true,
     "faqKeyboardAccessibility": true,
-    "wcag22AAA": true,
-    "12UnifiedTools": true,
-    "3Editions": true,
-    "8Personas": true,
-    "generativeWorlds": true,
-    "arWorlds": true
+    "wcag22AAA": false,
+    "12UnifiedTools": false,
+    "3Editions": false,
+    "8Personas": false,
+    "generativeWorlds": false,
+    "arWorlds": false
   },
   "changelog": [
     "v10.15.0: Effect characters + smart file naming. One-tap production colours on any take — Underwater (deep low-pass + watery chorus + tape wobble), Telephone, Cassette, Vinyl, Dream, Megaphone, and Clean (dry reset) — plus each genre's own signature space (dub ping-pong delay, vapor chorus, psy roll), tempo-synced to the take. A stereo tone filter was added to the FX chain and is tweakable in the FX tool. Every session and exported MIDI/stem is auto-named Artist_Date_Key_BPM_Kammerton (e.g. Echoel_2026-06-12_Cm_124bpm_A440_Melody-4bar.mid) — a take lands in your DAW already labelled. Concert pitch (Kammerton) defaults to A440 and is user-changeable (432–444). On-device, private, free.",
