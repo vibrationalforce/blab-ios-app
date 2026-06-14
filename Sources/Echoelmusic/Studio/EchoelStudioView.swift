@@ -35,13 +35,11 @@ struct EchoelStudioView: View {
     @State private var lastNoteCount: Int?
 
     // Sheets / dialogs
-    @State private var showSoundDesign = false
     @State private var showOpen = false
     @State private var showSaveDialog = false
     @State private var saveName = ""
     @State private var share: ExportedFile?
 
-    private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
     var body: some View {
@@ -53,8 +51,7 @@ struct EchoelStudioView: View {
                     #if canImport(AVFoundation)
                     cameraSection
                     #endif
-                    soundSection
-                    effectsSection
+                    genreSection
                     exportSection
                     projectSection
                 }
@@ -63,9 +60,6 @@ struct EchoelStudioView: View {
         }
         .background(EchoelTheme.bg)
         .onChange(of: style) { _, s in applyStyle(s) }
-        .sheet(isPresented: $showSoundDesign) {
-            PatchEditorView(initial: currentPatch) { currentPatch = $0 }
-        }
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
         .alert("Save project", isPresented: $showSaveDialog) {
@@ -80,29 +74,16 @@ struct EchoelStudioView: View {
     // MARK: - Generate
 
     private var generateSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button { generate() } label: {
-                Label(lastNoteCount == nil ? "Generate from Body" : "Regenerate",
-                      systemImage: "waveform.path.ecg")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity).frame(height: 52)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Writes an in-key loop from your live biodata and plays it")
-
-            HStack(spacing: 14) {
-                let frame = bus.latestBio
-                stat("HR", frame.map { "\(Int($0.heartRateBPM))" } ?? "—")
-                stat("HRV", frame.map { String(format: "%.2f", $0.hrvNormalized) } ?? "—")
-                stat("Coh", frame.map { String(format: "%.2f", $0.coherence) } ?? "—")
-                if let n = lastNoteCount {
-                    Spacer(minLength: 0)
-                    Text("\(n) notes · \(key.name)").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
-                }
-            }
+        Button { generate() } label: {
+            Label(lastNoteCount == nil ? "Generate from Body" : "Regenerate",
+                  systemImage: "waveform.path.ecg")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity).frame(height: 52)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
         }
+        .buttonStyle(.plain)
+        .accessibilityHint("Writes an in-key loop from your live biodata and plays it")
     }
 
     // MARK: - Camera pulse (rPPG biofeedback + control display)
@@ -201,70 +182,16 @@ struct EchoelStudioView: View {
     }
     #endif
 
-    // MARK: - Sound (genre · key · BPM)
+    // MARK: - Sound (genre only — tempo follows the heartbeat, key/FX preset)
 
-    private var soundSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private var genreSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
             sectionTitle("Sound")
             Picker("Genre", selection: $style) {
                 ForEach(MusicStyle.allCases) { Text($0.displayName).tag($0) }
             }
             .pickerStyle(.menu).tint(EchoelTheme.accent)
             Text(style.lineage).font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
-
-            HStack(spacing: 10) {
-                Picker("Root", selection: $rootIndex) {
-                    ForEach(0..<12, id: \.self) { Text(noteNames[$0]).tag($0) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.accent).accessibilityLabel("Root note")
-                Picker("Scale", selection: $scale) {
-                    ForEach(Scale.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.accent).accessibilityLabel("Scale")
-                Spacer(minLength: 0)
-            }
-
-            // Tempo, the intelligent way: by default it follows the heartbeat
-            // (the body sets the pulse). Flip Auto off to dial a fixed BPM on a
-            // big touch slider.
-            Toggle(isOn: $autoTempo) {
-                Text("Tempo from heartbeat").font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(EchoelTheme.text)
-            }
-            .tint(EchoelTheme.accent)
-            if !autoTempo {
-                HStack(spacing: 12) {
-                    Slider(value: $lockedBPM, in: style.tempoRange, step: 1).tint(EchoelTheme.accent)
-                        .accessibilityLabel("Tempo in BPM")
-                    Text("\(Int(lockedBPM)) BPM")
-                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(EchoelTheme.text).frame(width: 78, alignment: .trailing)
-                }
-            }
-        }
-    }
-
-    // MARK: - Effects (character + sound design)
-
-    private var effectsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Sound character & EFx")
-            Picker("Effect", selection: $fxCharacter) {
-                ForEach(FXCharacter.allCases) { Text($0.displayName).tag($0) }
-            }
-            .pickerStyle(.menu).tint(EchoelTheme.accent)
-            .onChange(of: fxCharacter) { _, _ in
-                fxCharacter.apply(to: synth.fxChain, bpm: beatPlayer.pattern.tempo, genre: style)
-            }
-            Text(fxCharacter.blurb).font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
-
-            Button { showSoundDesign = true } label: {
-                Label("Sound design", systemImage: "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -272,23 +199,15 @@ struct EchoelStudioView: View {
 
     private var exportSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Loop → .wav")
-            HStack(spacing: 10) {
-                Picker("Loop", selection: $loopBars) {
-                    ForEach(LoopBarLength.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.accent).accessibilityLabel("Loop length")
-
-                Button { togglePlay() } label: {
-                    Image(systemName: beatPlayer.pattern.isPlaying ? "stop.fill" : "play.fill")
-                        .font(.system(size: 16)).foregroundStyle(EchoelTheme.text)
-                        .frame(width: 44, height: 44)
-                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(beatPlayer.pattern.isPlaying ? "Stop" : "Play")
-                Spacer(minLength: 0)
+            Button { togglePlay() } label: {
+                Label(beatPlayer.pattern.isPlaying ? "Stop" : "Play",
+                      systemImage: beatPlayer.pattern.isPlaying ? "stop.fill" : "play.fill")
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(beatPlayer.pattern.isPlaying ? "Stop" : "Play")
 
             Button { Task { await exportWav() } } label: {
                 Label(exportLabel, systemImage: exportIcon)
@@ -365,13 +284,6 @@ struct EchoelStudioView: View {
 
     private func sectionTitle(_ t: String) -> some View {
         Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
-    }
-
-    private func stat(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 3) {
-            Text(label).font(.system(size: 10)).foregroundStyle(EchoelTheme.dim)
-            Text(value).font(.system(size: 12, weight: .semibold, design: .monospaced)).foregroundStyle(EchoelTheme.text)
-        }
     }
 
     private func applyStyle(_ s: MusicStyle) {
