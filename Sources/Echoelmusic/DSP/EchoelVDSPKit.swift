@@ -370,10 +370,21 @@ public final class EchoelConvolution: @unchecked Sendable {
         self.outputBuffer = [Float](repeating: 0, count: self.maxInputLength + hist)
     }
 
-    /// Update kernel coefficients
+    /// Update kernel coefficients IN PLACE — writes the reversed taps into the
+    /// existing `kernel` storage without reseating the array reference, so a
+    /// concurrent audio-thread reader (vDSP_conv) never sees a freed/reallocated
+    /// buffer or a torn pointer. Worst case is one render block of mixed old/new
+    /// taps (inaudible) — the same benign tradeoff used for the Float params.
+    /// This is what makes live reverb-decay changes safe while audio is running.
     public func setKernel(_ newKernel: [Float]) {
         guard newKernel.count == kernelSize else { return }
-        kernel = newKernel.reversed()
+        let n = kernelSize
+        kernel.withUnsafeMutableBufferPointer { dst in
+            newKernel.withUnsafeBufferPointer { src in
+                guard let d = dst.baseAddress, let s = src.baseAddress else { return }
+                for i in 0..<n { d[i] = s[n - 1 - i] }   // reversed, in place
+            }
+        }
     }
 
     /// Core overlap-save convolution: builds `convScratch = [history ++ input]`,

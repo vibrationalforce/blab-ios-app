@@ -366,14 +366,25 @@ public final class EchoelDDSP: @unchecked Sendable {
         return ir
     }
 
-    /// Update reverb IR when decay time changes
+    /// Update reverb IR when decay time changes.
+    ///
+    /// CRITICAL: this is called from the control plane (main thread) while the
+    /// audio render thread may be dereferencing `reverbConvolution`. We MUST NOT
+    /// reseat the object reference here — doing so raced the render thread's ARC
+    /// retain/release and crashed on device (EXC_BAD_ACCESS) on the first
+    /// Generate. Instead we update the existing convolution's kernel IN PLACE
+    /// (length is always 4096, so `setKernel` never reallocates). The object the
+    /// audio thread holds is never swapped.
     public func updateReverbDecay(_ newDecay: Float) {
         reverbDecay = newDecay
-        // Match the buffer cap (max(frameSize, 4096)) or the convolution truncates
-        // larger host blocks → wet-tail dropouts (same fix as the init path).
-        reverbConvolution = EchoelConvolution(kernel: EchoelDDSP.generateReverbIR(
-            decay: newDecay, sampleRate: sampleRate, length: 4096
-        ), maxInputLength: max(reverbFrameBuffer.count, 4096))
+        let ir = EchoelDDSP.generateReverbIR(decay: newDecay, sampleRate: sampleRate, length: 4096)
+        if let conv = reverbConvolution {
+            conv.setKernel(ir)                 // in place — no reference reseat
+        } else {
+            // First-time allocation only (before audio is running): safe to create.
+            reverbConvolution = EchoelConvolution(kernel: ir,
+                                                  maxInputLength: max(reverbFrameBuffer.count, 4096))
+        }
     }
 
     // MARK: - Spectral Envelope
