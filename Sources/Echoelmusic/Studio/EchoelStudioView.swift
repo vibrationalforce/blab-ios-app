@@ -329,10 +329,18 @@ struct EchoelStudioView: View {
     /// evolves. Uses wrapping arithmetic so it can never overflow-trap.
     private func bioSeed(_ f: BioSampleFrame?) -> UInt64 {
         guard let f = f else { return UInt64.random(in: UInt64.min...UInt64.max) }
-        let hr  = UInt64((max(0, min(300, f.heartRateBPM)) * 100).rounded())
-        let hrv = UInt64((max(0, min(1, f.hrvNormalized)) * 100_000).rounded())
-        let coh = UInt64((max(0, min(1, f.coherence)) * 100_000).rounded())
-        let br  = UInt64((max(0, min(1, f.breathPhase)) * 100_000).rounded())
+        // NaN/Inf must be dropped to 0 BEFORE clamping: a clamp via max/min passes
+        // NaN through unchanged, and UInt64(Float.nan) TRAPS. rPPG/BLE sources can
+        // legitimately emit NaN (dropped lock, upstream divide-by-zero), so guard
+        // every component with .isFinite (false for both NaN and ±Inf).
+        func comp(_ v: Float, _ hi: Float, _ scale: Float) -> UInt64 {
+            let safe = v.isFinite ? v : 0
+            return UInt64((Swift.max(0, Swift.min(hi, safe)) * scale).rounded())
+        }
+        let hr  = comp(f.heartRateBPM, 300, 100)
+        let hrv = comp(f.hrvNormalized, 1, 100_000)
+        let coh = comp(f.coherence, 1, 100_000)
+        let br  = comp(f.breathPhase, 1, 100_000)
         var s: UInt64 = 0x9E3779B97F4A7C15
         s = (s ^ hr)  &* 0xC2B2AE3D27D4EB4F
         s = (s ^ hrv) &* 0x165667B19E3779F9
@@ -343,11 +351,19 @@ struct EchoelStudioView: View {
 
     private func generate() {
         let frame = bus.latestBio
+        // Finite-guard every bio value before it reaches the composer: a NaN/Inf
+        // (possible from rPPG/BLE) would otherwise survive clamp01 and trap an
+        // Int(nan) conversion deep in BioComposer. fin(_:_:) substitutes a neutral
+        // default for any non-finite reading.
+        func fin(_ v: Float?, _ d: Float) -> Float {
+            guard let v, v.isFinite else { return d }
+            return v
+        }
         let input = BioComposer.Input(
-            heartRateBPM: frame?.heartRateBPM ?? 70,
-            hrvNormalized: frame?.hrvNormalized ?? 0.5,
-            coherence: frame?.coherence ?? 0.5,
-            breathPhase: frame?.breathPhase ?? 0,
+            heartRateBPM: fin(frame?.heartRateBPM, 70),
+            hrvNormalized: fin(frame?.hrvNormalized, 0.5),
+            coherence: fin(frame?.coherence, 0.5),
+            breathPhase: fin(frame?.breathPhase, 0),
             breathDepth: 0.5,
             key: key,
             style: style,
