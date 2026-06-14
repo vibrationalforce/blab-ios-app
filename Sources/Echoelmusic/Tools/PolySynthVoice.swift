@@ -146,12 +146,9 @@ public final class PolySynthVoice {
     /// the per-voice convolution silent so space stays wide and singular).
     public func apply(_ patch: SynthPatch) {
         poly.forEachVoice { patch.apply(to: $0); $0.reverbMix = 0 }
-        // Map the patch reverb to the bus reverb. The patch values (0.4–0.66) were
-        // tuned for the old mono convolution; a stereo Freeverb is far more
-        // enveloping, so scale into a tasteful "produced" wet range (~0.18–0.30)
-        // instead of washing the mix out. Decay → tail length (roomSize).
-        fxChain.reverb.mix = min(0.30, max(0, patch.reverbMix * 0.5))
-        fxChain.reverb.roomSize = min(0.92, max(0.5, 0.5 + patch.reverbDecay * 0.06))
+        // Map the patch reverb to the bus: amount → wet mix, decay → tail length.
+        fxChain.reverb.mix = min(0.42, max(0, patch.reverbMix))
+        fxChain.reverb.roomSize = min(0.92, max(0.45, 0.45 + patch.reverbDecay * 0.13))
     }
 
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
