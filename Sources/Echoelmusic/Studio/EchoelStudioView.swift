@@ -2,10 +2,13 @@
 import SwiftUI
 
 // EchoelStudioView.swift
-// Echoel — the whole app in ONE window: biofeedback → loop → .wav.
-// Generate from the body, set Tonart / BPM / sound character, design the sound,
-// shape the effects, save/open projects, and export a .wav to send. No tabs, no
-// detours — the single screen does everything.
+// Echoel — ONE button, then sliders.
+//
+// "Start — Create from Within" begins the biofeedback (camera pulse, or the demo
+// source where no camera exists). From the live HRV / heart / breath an individual,
+// seeded algorithm composes music that keeps evolving from the body while it runs.
+// The remaining controls are sliders that shape the sound in real time. Export the
+// loop to a .wav, save/open projects. No other buttons, no detours.
 
 @MainActor
 struct EchoelStudioView: View {
@@ -18,21 +21,32 @@ struct EchoelStudioView: View {
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
+    @Environment(BioSimulator.self) private var demoSource
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
 
+    // The single live-state flag: biofeedback running or not.
+    @State private var running = false
+
+    // Sound sliders — all normalized 0…1, so they can never index or scale out of range.
+    @State private var soundBlend: Double = 0.0   // sweeps the genres
+    @State private var brightness: Double = 0.5
+    @State private var space: Double = 0.4
+    @State private var movement: Double = 0.3
+
+    // Derived / persisted musical state (no direct UI — set by sliders + bio).
     @State private var style: MusicStyle = .vaporwave
     @State private var rootIndex = 0
     @State private var scale: Scale = .minor
-    @State private var mode: ComposerMode = .studioLocked
-    /// Tempo follows the heartbeat by default (the body sets the pulse).
-    @State private var autoTempo = true
-    @State private var lockedBPM: Double = 90
     @State private var fxCharacter: FXCharacter = .auto
     @State private var loopBars: LoopBarLength = .four
     @State private var currentPatch = SynthPatch(name: "Init")
     @State private var lastNoteCount: Int?
+
+    // Background evolution + bio acquisition.
+    @State private var evolveTask: Task<Void, Never>?
+    @State private var startTask: Task<Void, Never>?
 
     // Sheets / dialogs
     @State private var showOpen = false
@@ -46,20 +60,19 @@ struct EchoelStudioView: View {
         VStack(spacing: 0) {
             BioStripView()
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    generateSection
+                VStack(alignment: .leading, spacing: 20) {
+                    startButton
                     #if canImport(AVFoundation)
-                    cameraSection
+                    if running { measurementControl }
                     #endif
-                    genreSection
-                    exportSection
-                    projectSection
+                    soundControls
+                    utilityRow
                 }
                 .padding(16)
             }
         }
         .background(EchoelTheme.bg)
-        .onChange(of: style) { _, s in applyStyle(s) }
+        .onDisappear { stopEverything() }
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
         .alert("Save project", isPresented: $showSaveDialog) {
@@ -71,86 +84,129 @@ struct EchoelStudioView: View {
         }
     }
 
-    // MARK: - Generate
+    // MARK: - The one button
 
-    private var generateSection: some View {
-        Button { generate() } label: {
-            Label(lastNoteCount == nil ? "Generate from Body" : "Regenerate",
-                  systemImage: "waveform.path.ecg")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity).frame(height: 52)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
+    private var startButton: some View {
+        Button { toggleBiofeedback() } label: {
+            Label(running ? "Stop" : "Start — Create from Within",
+                  systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(running ? EchoelTheme.text : .black)
+                .frame(maxWidth: .infinity).frame(height: 56)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(running ? EchoelTheme.fill : EchoelTheme.accent))
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Writes an in-key loop from your live biodata and plays it")
+        .accessibilityHint("Starts biofeedback; your body composes and plays music. Tap again to stop.")
     }
 
-    // MARK: - Camera pulse (rPPG biofeedback + control display)
+    // MARK: - Sound sliders (shape the music in real time)
 
-    #if canImport(AVFoundation)
-    /// Opt-in camera rPPG. Cover the rear lens + flash with a fingertip; the bio
-    /// strip fills from the optical pulse. Restores the live control display —
-    /// status light, lock-progress bar, detected BPM and the real-time waveform —
-    /// so acquisition is visible, not a black box.
-    private var cameraSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Pulse (camera)")
-            Button {
-                if cameraRPPG.isRunning {
-                    cameraRPPG.stop()
-                } else {
-                    // Start the body-driven music the instant biofeedback begins —
-                    // a pure musical experience, no extra step. Camera starts, then
-                    // a loop is generated from the live signal and plays.
-                    Task {
-                        await cameraRPPG.start(publishing: bus)
-                        try? await Task.sleep(for: .seconds(2))   // let the pulse lock
-                        generate()
-                    }
-                }
-            } label: {
-                Label(cameraRPPG.isRunning ? "Stop" : "Start — Create From Within",
-                      systemImage: cameraRPPG.isRunning ? "stop.circle.fill" : "waveform.path.ecg")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(cameraRPPG.isRunning ? EchoelTheme.danger : EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+    private var soundControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionTitle("Shape the sound")
+
+            slider("Sound", value: $soundBlend, caption: style.displayName) { _ in
+                applySoundBlend()
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Starts camera biofeedback and immediately plays a loop generated from your pulse")
+            slider("Brightness", value: $brightness) { _ in applySoundLive() }
+            slider("Space", value: $space) { _ in applySoundLive() }
+            slider("Movement", value: $movement) { _ in applySoundLive() }
 
-            if cameraRPPG.isRunning {
-                Text("Cover the **rear camera + flash** with a fingertip and hold still.")
-                    .font(.caption).foregroundStyle(EchoelTheme.dim)
-                measurementControl
+            if running {
+                Text("Music is arising from your live signal — move the sliders to shape it.")
+                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
             }
         }
     }
 
-    /// Status light + lock-progress bar + live waveform — the acquisition readout.
+    private func slider(_ label: String, value: Binding<Double>, caption: String? = nil,
+                        onChange: @escaping (Double) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label).font(.system(size: 13, weight: .medium)).foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+                if let caption {
+                    Text(caption).font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                }
+            }
+            Slider(value: value, in: 0...1)
+                .tint(EchoelTheme.accent)
+                .onChange(of: value.wrappedValue) { _, v in onChange(v) }
+                .accessibilityLabel(label)
+        }
+    }
+
+    // MARK: - Utilities (export · projects)
+
+    private var utilityRow: some View {
+        VStack(spacing: 10) {
+            Button { Task { await exportWav() } } label: {
+                Label(exportLabel, systemImage: exportIcon)
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(.black)
+                    .frame(maxWidth: .infinity).frame(height: 48)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .fill(isExporting ? EchoelTheme.dim : EchoelTheme.accent))
+            }
+            .buttonStyle(.plain)
+            .disabled(isExporting || lastNoteCount == nil)
+            .accessibilityHint("Records one loop and exports a WAV to share")
+
+            HStack(spacing: 10) {
+                Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
+                    Label("Save", systemImage: "tray.and.arrow.down")
+                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                        .frame(maxWidth: .infinity).frame(height: 44)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                }
+                .buttonStyle(.plain)
+                .disabled(lastNoteCount == nil)
+                Button { showOpen = true } label: {
+                    Label("Open", systemImage: "tray.and.arrow.up")
+                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                        .frame(maxWidth: .infinity).frame(height: 44)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                }
+                .buttonStyle(.plain)
+                .disabled(projects.projects.isEmpty)
+            }
+        }
+    }
+
+    private var isExporting: Bool {
+        exporter.status == .capturing || exporter.status == .rendering
+    }
+    private var exportLabel: String {
+        switch exporter.status {
+        case .capturing: return "Capturing loop…"
+        case .rendering: return "Writing .wav…"
+        default:         return "Export .wav & send"
+        }
+    }
+    private var exportIcon: String { isExporting ? "hourglass" : "square.and.arrow.up" }
+
+    // MARK: - Camera pulse readout (visible acquisition feedback)
+
+    #if canImport(AVFoundation)
     private var measurementControl: some View {
         let locked = cameraRPPG.isLocked
         let lightColor: Color = !cameraRPPG.fingerDetected ? EchoelTheme.dim
             : (locked ? EchoelTheme.accent : Color.orange)
-        let statusText = !cameraRPPG.fingerDetected ? "Place fingertip"
+        let statusText = !cameraRPPG.fingerDetected ? "Cover the rear camera + flash"
             : (locked ? "Locked" : "Acquiring…")
         return VStack(spacing: 8) {
             HStack(spacing: 10) {
-                Circle()
-                    .fill(lightColor)
-                    .frame(width: 14, height: 14)
+                Circle().fill(lightColor).frame(width: 14, height: 14)
                     .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
                 Text(statusText).font(.caption.weight(.semibold)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
                 if cameraRPPG.detectedBPM > 0 {
                     Text("\(Int(cameraRPPG.detectedBPM)) bpm")
-                        .font(.caption.weight(.semibold)).monospacedDigit()
-                        .foregroundStyle(EchoelTheme.text)
+                        .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(EchoelTheme.text)
                 }
             }
             pulseWaveform
-            ProgressView(value: locked ? 1 : cameraRPPG.confidence)
+            ProgressView(value: locked ? 1 : min(max(cameraRPPG.confidence, 0), 1))
                 .tint(locked ? EchoelTheme.accent : Color.orange)
         }
         .padding(12)
@@ -158,7 +214,6 @@ struct EchoelStudioView: View {
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
-    /// Live bandpass-filtered pulse waveform. Flat = no signal; clear wave = pulse.
     private var pulseWaveform: some View {
         Canvas { ctx, size in
             var base = Path()
@@ -182,79 +237,7 @@ struct EchoelStudioView: View {
     }
     #endif
 
-    // MARK: - Sound (genre only — tempo follows the heartbeat, key/FX preset)
-
-    private var genreSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            sectionTitle("Sound")
-            Picker("Genre", selection: $style) {
-                ForEach(MusicStyle.allCases) { Text($0.displayName).tag($0) }
-            }
-            .pickerStyle(.menu).tint(EchoelTheme.accent)
-            Text(style.lineage).font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
-        }
-    }
-
-    // MARK: - Loop + export
-
-    private var exportSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button { togglePlay() } label: {
-                Label(beatPlayer.pattern.isPlaying ? "Stop" : "Play",
-                      systemImage: beatPlayer.pattern.isPlaying ? "stop.fill" : "play.fill")
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(beatPlayer.pattern.isPlaying ? "Stop" : "Play")
-
-            Button { Task { await exportWav() } } label: {
-                Label(exportLabel, systemImage: exportIcon)
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(.black)
-                    .frame(maxWidth: .infinity).frame(height: 48)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(isExporting ? EchoelTheme.dim : EchoelTheme.accent))
-            }
-            .buttonStyle(.plain)
-            .disabled(isExporting)
-            .accessibilityHint("Records one loop and exports a WAV to share")
-        }
-    }
-
-    private var isExporting: Bool {
-        exporter.status == .capturing || exporter.status == .rendering
-    }
-    private var exportLabel: String {
-        switch exporter.status {
-        case .capturing: return "Capturing loop…"
-        case .rendering: return "Writing .wav…"
-        default:         return "Export .wav & send"
-        }
-    }
-    private var exportIcon: String { isExporting ? "hourglass" : "square.and.arrow.up" }
-
-    // MARK: - Projects
-
-    private var projectSection: some View {
-        HStack(spacing: 10) {
-            Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
-                Label("Save", systemImage: "tray.and.arrow.down")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-            }
-            .buttonStyle(.plain)
-            Button { showOpen = true } label: {
-                Label("Open", systemImage: "tray.and.arrow.up")
-                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-            }
-            .buttonStyle(.plain)
-            .disabled(projects.projects.isEmpty)
-        }
-    }
+    // MARK: - Open projects sheet
 
     private var openSheet: some View {
         NavigationStack {
@@ -280,26 +263,86 @@ struct EchoelStudioView: View {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Biofeedback lifecycle
 
-    private func sectionTitle(_ t: String) -> some View {
-        Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+    private func toggleBiofeedback() {
+        if running { stopEverything() } else { startBiofeedback() }
     }
 
-    private func applyStyle(_ s: MusicStyle) {
-        scale = s.scale
-        lockedBPM = s.defaultTempo
+    private func startBiofeedback() {
+        running = true
+        startTask?.cancel()
+        startTask = Task { @MainActor in
+            await startBioSource()
+            guard running, !Task.isCancelled else { return }
+            generate()
+            startEvolving()
+        }
     }
 
-    private func togglePlay() {
-        if beatPlayer.pattern.isPlaying { beatPlayer.pattern.stop() } else { beatPlayer.pattern.play() }
+    private func stopEverything() {
+        running = false
+        startTask?.cancel(); startTask = nil
+        evolveTask?.cancel(); evolveTask = nil
+        beatPlayer.pattern.stop()
+        stopBioSource()
+    }
+
+    /// Begin publishing a bio signal. Camera rPPG on devices that have it (cover
+    /// the lens), otherwise the deterministic demo source so the instrument always
+    /// plays. Failures are swallowed — generation falls back to neutral defaults.
+    private func startBioSource() async {
+        #if canImport(AVFoundation)
+        await cameraRPPG.start(publishing: bus)
+        try? await Task.sleep(for: .seconds(2))   // let the optical pulse lock
+        #else
+        demoSource.start(publishing: bus)
+        try? await Task.sleep(for: .seconds(1))
+        #endif
+    }
+
+    private func stopBioSource() {
+        #if canImport(AVFoundation)
+        cameraRPPG.stop()
+        #endif
+        demoSource.stop()
+    }
+
+    /// Gentle continuous evolution: every ~12 s, recompose from the *current* body
+    /// state while the transport keeps running (no restart) — music that keeps
+    /// arising from the live HRV.
+    private func startEvolving() {
+        evolveTask?.cancel()
+        evolveTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(12))
+                guard running, !Task.isCancelled else { break }
+                generate()
+            }
+        }
+    }
+
+    // MARK: - The individual algorithm: bio → music
+
+    /// A stable-but-individual seed derived from the live body. The same body state
+    /// yields the same musical signature; as HRV/heart/breath drift, the music
+    /// evolves. Uses wrapping arithmetic so it can never overflow-trap.
+    private func bioSeed(_ f: BioSampleFrame?) -> UInt64 {
+        guard let f = f else { return UInt64.random(in: UInt64.min...UInt64.max) }
+        let hr  = UInt64((max(0, min(300, f.heartRateBPM)) * 100).rounded())
+        let hrv = UInt64((max(0, min(1, f.hrvNormalized)) * 100_000).rounded())
+        let coh = UInt64((max(0, min(1, f.coherence)) * 100_000).rounded())
+        let br  = UInt64((max(0, min(1, f.breathPhase)) * 100_000).rounded())
+        var s: UInt64 = 0x9E3779B97F4A7C15
+        s = (s ^ hr)  &* 0xC2B2AE3D27D4EB4F
+        s = (s ^ hrv) &* 0x165667B19E3779F9
+        s = (s ^ coh) &* 0x27D4EB2F165667C5
+        s = (s ^ br)  &+ 0x9E3779B97F4A7C15
+        return s == 0 ? 1 : s
     }
 
     private func generate() {
         let frame = bus.latestBio
-        // Intelligent tempo: Auto follows the heartbeat (flow), otherwise lock to
-        // the slider's BPM.
-        mode = autoTempo ? .flowFree : .studioLocked
         let input = BioComposer.Input(
             heartRateBPM: frame?.heartRateBPM ?? 70,
             hrvNormalized: frame?.hrvNormalized ?? 0.5,
@@ -308,19 +351,16 @@ struct EchoelStudioView: View {
             breathDepth: 0.5,
             key: key,
             style: style,
-            mode: mode,
-            lockedTempo: lockedBPM,
-            seed: UInt64.random(in: UInt64.min...UInt64.max)
+            mode: .flowFree,          // tempo always follows the body
+            lockedTempo: 90,
+            seed: bioSeed(frame)
         )
         let composition = BioComposer.compose(input)
-        currentPatch = style.synthPatch
+        currentPatch = currentSoundPatch()
         synth.apply(currentPatch)
         fxCharacter.apply(to: synth.fxChain, bpm: composition.suggestedTempo, genre: style)
         pianoRoll.load(composition.notes)
-        // Drum-free, always — Echoel generates beautiful harmonic/melodic loops to
-        // produce with, never beats. The pattern transport still runs (it clocks
-        // the melody via onTick) but every drum cell is cleared so no percussion
-        // ever sounds.
+        // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
         beatPlayer.pattern.setTempo(composition.suggestedTempo)
@@ -328,6 +368,41 @@ struct EchoelStudioView: View {
         lastNoteCount = composition.notes.count
         if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
     }
+
+    /// Build the synth patch from the chosen genre, overridden by the live sliders.
+    /// All inputs are clamped, so this can never produce an out-of-range value.
+    private func currentSoundPatch() -> SynthPatch {
+        var p = style.synthPatch
+        p.brightness = Float(min(max(brightness, 0), 1))
+        p.reverbMix = Float(min(max(space, 0), 1))
+        let mv = Float(min(max(movement, 0), 1))
+        p.vibratoDepth = mv * 0.5
+        p.lfoToFilterDepth = mv
+        return p
+    }
+
+    /// Live sound change (Brightness/Space/Movement) — apply to the running synth
+    /// without recomposing. Safe to call at any time; reverb updates in place.
+    private func applySoundLive() {
+        currentPatch = currentSoundPatch()
+        synth.apply(currentPatch)
+    }
+
+    /// The Sound slider sweeps the genres. Pick the style by index, then recompose
+    /// if we're running so the change is heard immediately.
+    private func applySoundBlend() {
+        let all = MusicStyle.allCases
+        guard !all.isEmpty else { return }
+        let idx = min(all.count - 1, max(0, Int((soundBlend * Double(all.count - 1)).rounded())))
+        let newStyle = all[idx]
+        if newStyle != style {
+            style = newStyle
+            scale = newStyle.scale
+        }
+        if running { generate() } else { applySoundLive() }
+    }
+
+    // MARK: - Export / projects
 
     private func exportWav() async {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
@@ -340,7 +415,7 @@ struct EchoelStudioView: View {
         let project = Project(
             name: name,
             styleRaw: style.rawValue, keyRoot: rootIndex, scaleRaw: scale.rawValue,
-            bpm: beatPlayer.pattern.tempo, modeRaw: mode.rawValue,
+            bpm: beatPlayer.pattern.tempo, modeRaw: ComposerMode.flowFree.rawValue,
             fxCharacterRaw: fxCharacter.rawValue, loopBars: loopBars.rawValue,
             a4Hz: session.a4Hz, artist: session.artistName,
             patch: currentPatch, notes: pianoRoll.notes,
@@ -353,12 +428,16 @@ struct EchoelStudioView: View {
         style = p.style
         rootIndex = p.keyRoot
         scale = p.scale
-        mode = p.mode
-        autoTempo = (p.mode == .flowFree)
-        lockedBPM = p.bpm
         fxCharacter = p.fxCharacter
         loopBars = LoopBarLength(rawValue: p.loopBars) ?? .four
         currentPatch = p.patch
+        // Reflect the patch back into the sliders so the UI matches the sound.
+        brightness = Double(min(max(p.patch.brightness, 0), 1))
+        space = Double(min(max(p.patch.reverbMix, 0), 1))
+        movement = Double(min(max(p.patch.lfoToFilterDepth, 0), 1))
+        if let i = MusicStyle.allCases.firstIndex(of: p.style), MusicStyle.allCases.count > 1 {
+            soundBlend = Double(i) / Double(MusicStyle.allCases.count - 1)
+        }
         session.adopt(key: p.key)
         synth.apply(p.patch)
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: p.style)
@@ -366,6 +445,12 @@ struct EchoelStudioView: View {
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
         lastNoteCount = p.notes.count
+    }
+
+    // MARK: - Helpers
+
+    private func sectionTitle(_ t: String) -> some View {
+        Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
     }
 }
 
