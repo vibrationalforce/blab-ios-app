@@ -97,6 +97,9 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var hasEverSounded = false
 
+    /// One-time guard so the first-render diagnostic breadcrumbs fire only once.
+    nonisolated(unsafe) private static var renderTraced = false
+
     public init(maxVoices: Int = 6) {
         self.poly = EchoelPolyDDSP(maxVoices: maxVoices, sampleRate: Float(Self.sampleRate))
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
@@ -211,10 +214,16 @@ public final class PolySynthVoice {
             return
         }
         let count = min(frameCount, Self.maxBlockFrames)
+        // One-time diagnostic breadcrumbs (first audible block only) to localize
+        // any first-render crash to the poly engine vs. the FX chain.
+        let firstBlock = !Self.renderTraced
+        if firstBlock { EchoelCrashLog.breadcrumb("render#1: begin frames=\(count)") }
         poly.renderStereo(left: &scratchL, right: &scratchR, frameCount: count)
+        if firstBlock { EchoelCrashLog.breadcrumb("render#1: poly done") }
         // Genre/effect colour (long dub delay, vapor chorus, …). Audio-thread
         // safe: pre-allocated stages, no work for bypassed effects.
         fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
+        if firstBlock { Self.renderTraced = true; EchoelCrashLog.breadcrumb("render#1: fx done") }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         guard abl.count > 0 else { return }

@@ -269,7 +269,17 @@ public final class EchoelDDSP: @unchecked Sendable {
     private var morphSourceAmplitudes: [Float]
     private var morphTargetAmplitudes: [Float]
 
-    /// Convolution reverb engine (vDSP_conv based)
+    /// Convolution reverb engine (vDSP_conv based).
+    ///
+    /// DISABLED by default: note triggering runs on the pattern's TIMER thread
+    /// (`noteOn → prepareForNote`), which mutated this convolution's internal Swift
+    /// arrays (`reset()`) while the AUDIO render thread was concurrently inside
+    /// `process(...)` touching the same arrays → copy-on-write refcount race →
+    /// heap corruption → EXC_BAD_ACCESS on the first note (device only). The
+    /// convolution is not audio-thread/control-thread safe under this design, so
+    /// it stays off until it is driven by a lock-free command queue. Spatial
+    /// character is provided by the (Float-param-only, race-free) EchoelFXChain.
+    nonisolated(unsafe) static var useConvolutionReverb = false
     private var reverbConvolution: EchoelConvolution?
     private var reverbFrameBuffer: [Float] = []
     private var reverbWetBuffer: [Float] = []   // pre-allocated wet output (no audio-thread alloc)
@@ -549,7 +559,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         }
         for i in 0..<noiseFilterState.count { noiseFilterState[i] = 0 }
         filter.reset()
-        reverbConvolution?.reset()   // drop the previous note's reverb tail on this recycled voice
+        // NOTE: reverbConvolution.reset() removed — prepareForNote runs on the
+        // note-trigger (timer) thread; mutating the convolution's arrays here
+        // raced the audio thread's process() → crash. Reverb is disabled
+        // (see useConvolutionReverb) until it is fed by a lock-free queue.
     }
 
     // MARK: - Audio Generation (vDSP Vectorized)
@@ -662,7 +675,8 @@ public final class EchoelDDSP: @unchecked Sendable {
         }
 
         // --- Convolution Reverb (post-render, block-based) ---
-        if reverbMix > 0, let conv = reverbConvolution {
+        // Gated OFF: not thread-safe vs. the timer-thread note path (see decl).
+        if Self.useConvolutionReverb, reverbMix > 0, let conv = reverbConvolution {
             if stereo {
                 // Extract mono mix for reverb input
                 let monoCount = frameCount
