@@ -50,6 +50,13 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     }
 
     private func configureSession() throws {
+        // CRITICAL: do NOT let the capture session touch the app's AVAudioSession.
+        // It defaults to true, which reconfigures/deactivates the shared audio
+        // session out from under the running AVAudioEngine → render-thread crash
+        // the instant the camera starts (the classic "camera kills audio" device
+        // crash). We capture video only, so it never needs to manage audio.
+        session.automaticallyConfiguresApplicationAudioSession = false
+
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
