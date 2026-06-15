@@ -234,6 +234,9 @@ final class SingleExport {
                 AVLinearPCMBitDepthKey: 24,
                 AVLinearPCMIsFloatKey: false,
                 AVLinearPCMIsBigEndianKey: false,
+                // AVAssetWriterInput requires ALL four AVLinearPCM* keys when any is
+                // present; omitting this throws NSInvalidArgumentException at init.
+                AVLinearPCMIsNonInterleaved: false,
             ]
         case .aac:
             return [
