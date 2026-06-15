@@ -20,7 +20,14 @@ enum EchoelTheme {
     static let dim     = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.55) // --dim
     static let border  = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.10) // subtle
     static let fill    = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.06) // --glass-ish
-    static let accent  = Color(red: 0.30, green: 0.85, blue: 0.55)            // bio-green
+    // CI rule (mirrors echoelmusic.com): the site is MONOCHROME — every primary
+    // action is off-white fill + black label (`.btn-primary { background: var(--text) }`).
+    // So in-app PRIMARY buttons fill with `.text`, NOT `.accent`. The bio-green
+    // `accent` is reserved for the body's live signal (HR/coherence, active/playing
+    // state, sliders that shape bio-driven sound) — never as page chrome. Using
+    // green as a hero fill is what made the UI read as a generic generated app.
+    static let accent  = Color(red: 0.30, green: 0.85, blue: 0.55)            // bio-green (signal only)
+    static let onPrimary = Color.black                                         // label on a `.text`-filled button
     static let danger  = Color(red: 0.90, green: 0.30, blue: 0.30)
 
     // MARK: Radii (≤ 12 per CLAUDE.md UI constraints)

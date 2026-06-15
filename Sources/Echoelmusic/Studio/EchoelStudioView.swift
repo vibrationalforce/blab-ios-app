@@ -91,13 +91,15 @@ struct EchoelStudioView: View {
 
     private var startButton: some View {
         Button { toggleBiofeedback() } label: {
-            Label(running ? "Stop" : "Start — Create from Within",
+            Label(running ? "Stop" : "Create from Within",
                   systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
                 .frame(maxWidth: .infinity).frame(height: 56)
+                // Website CI: primary action = off-white fill, black label (.btn-primary).
+                // Green is reserved for live bio signal, not chrome. Stop = neutral fill.
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .fill(running ? EchoelTheme.fill : EchoelTheme.accent))
+                    .fill(running ? EchoelTheme.fill : EchoelTheme.text))
         }
         .buttonStyle(.plain)
         .accessibilityHint("Starts biofeedback; your body composes and plays music. Tap again to stop.")
@@ -148,8 +150,9 @@ struct EchoelStudioView: View {
                 Label(exportLabel, systemImage: exportIcon)
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(.black)
                     .frame(maxWidth: .infinity).frame(height: 48)
+                    // Website CI primary action (off-white fill, black label).
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(isExporting ? EchoelTheme.dim : EchoelTheme.accent))
+                        .fill(isExporting ? EchoelTheme.dim : EchoelTheme.text))
             }
             .buttonStyle(.plain)
             .disabled(isExporting || lastNoteCount == nil)

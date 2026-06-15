@@ -280,7 +280,8 @@ struct ComposeView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity).frame(height: 48)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
+                    // Website CI primary action (off-white fill, black label).
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
             }
             .buttonStyle(.plain)
             .accessibilityHint("Writes an in-key melody from your live biodata and plays it")
