@@ -11,9 +11,11 @@ import Foundation
 
 /// Loop/stem length in bars, for cutting an export.
 public enum LoopBarLength: Int, CaseIterable, Identifiable, Sendable {
-    case two = 2, four = 4, eight = 8, sixteen = 16, thirtyTwo = 32
+    case one = 1, two = 2, four = 4, eight = 8, sixteen = 16, thirtyTwo = 32
     public var id: Int { rawValue }
-    public var label: String { "\(rawValue) bars" }
+    public var label: String { rawValue == 1 ? "1 bar" : "\(rawValue) bars" }
+    /// Compact label for a segmented control (Takt count).
+    public var shortLabel: String { "\(rawValue)" }
 }
 
 public enum LoopCutter {

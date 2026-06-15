@@ -145,6 +145,7 @@ struct EchoelStudioView: View {
 
     private var utilityRow: some View {
         VStack(spacing: 10) {
+            loopLengthSelector
             Button { Task { await exportWav() } } label: {
                 Label(exportLabel, systemImage: exportIcon)
                     .font(EchoelTheme.font(15, .semibold)).foregroundStyle(.black)
@@ -220,14 +221,32 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// Loop length in bars (Takt). The capture is bar-aligned — it plays from the
+    /// downbeat and records exactly this many whole bars — so the .wav is a clean,
+    /// seamless loop. Disabled mid-capture so the length can't change underfoot.
+    private var loopLengthSelector: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Loop length (Takt)")
+                .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Picker("Loop length", selection: $loopBars) {
+                ForEach(LoopBarLength.allCases) { len in
+                    Text(len.shortLabel).tag(len)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(isExporting)
+            .accessibilityLabel("Loop length in bars")
+        }
+    }
+
     private var isExporting: Bool {
         exporter.status == .capturing || exporter.status == .rendering
     }
     private var exportLabel: String {
         switch exporter.status {
-        case .capturing: return "Capturing loop…"
+        case .capturing: return "Recording loop…"
         case .rendering: return "Writing .wav…"
-        default:         return "Export .wav & send"
+        default:         return "Record \(loopBars.label) → send"
         }
     }
     private var exportIcon: String { isExporting ? "hourglass" : "square.and.arrow.up" }
