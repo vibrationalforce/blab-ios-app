@@ -63,6 +63,7 @@ struct EchoelmusicApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        EchoelCrashLog.begin()   // diagnostics first: capture any crash from here on
         log.log(.info, category: .system, "APP INIT [start] — constructing engines (no audio I/O here)")
         let mic = MicrophoneManager()
         let audio = AudioEngine(microphoneManager: mic)

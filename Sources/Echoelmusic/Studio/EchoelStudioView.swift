@@ -53,6 +53,7 @@ struct EchoelStudioView: View {
     @State private var showSaveDialog = false
     @State private var saveName = ""
     @State private var share: ExportedFile?
+    @State private var diagnostics: DiagReport?
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
@@ -72,9 +73,11 @@ struct EchoelStudioView: View {
             }
         }
         .background(EchoelTheme.bg)
+        .onAppear { surfacePriorCrashIfAny() }
         .onDisappear { stopEverything() }
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
+        .sheet(item: $diagnostics) { report in diagnosticsSheet(report.text) }
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -169,6 +172,48 @@ struct EchoelStudioView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(projects.projects.isEmpty)
+            }
+
+            Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
+                Text("Diagnostics").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
+        }
+    }
+
+    // MARK: - Diagnostics
+
+    /// On launch, if the previous run reached biofeedback start (or recorded a
+    /// crash) but the app is back at square one, it almost certainly crashed —
+    /// surface the log so it can be shared in one tap.
+    private func surfacePriorCrashIfAny() {
+        guard diagnostics == nil else { return }
+        let prev = EchoelCrashLog.previousSession
+        guard prev.contains("Start tapped") || prev.contains("CRASH") else { return }
+        diagnostics = DiagReport(text: prev)
+    }
+
+    private func diagnosticsSheet(_ text: String) -> some View {
+        NavigationStack {
+            ScrollView {
+                Text(text.isEmpty ? "No diagnostics recorded." : text)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding(12)
+            }
+            .navigationTitle("Diagnostics")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    ShareLink(item: text) { Text("Share") }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { diagnostics = nil }
+                }
             }
         }
     }
@@ -270,6 +315,7 @@ struct EchoelStudioView: View {
     }
 
     private func startBiofeedback() {
+        EchoelCrashLog.breadcrumb("Start tapped")
         running = true
         startTask?.cancel()
         startTask = Task { @MainActor in
@@ -293,9 +339,12 @@ struct EchoelStudioView: View {
     /// plays. Failures are swallowed — generation falls back to neutral defaults.
     private func startBioSource() async {
         #if canImport(AVFoundation)
+        EchoelCrashLog.breadcrumb("camera starting")
         await cameraRPPG.start(publishing: bus)
+        EchoelCrashLog.breadcrumb("camera started (running=\(cameraRPPG.isRunning))")
         try? await Task.sleep(for: .seconds(2))   // let the optical pulse lock
         #else
+        EchoelCrashLog.breadcrumb("demo source starting")
         demoSource.start(publishing: bus)
         try? await Task.sleep(for: .seconds(1))
         #endif
@@ -371,10 +420,14 @@ struct EchoelStudioView: View {
             lockedTempo: 90,
             seed: bioSeed(frame)
         )
+        EchoelCrashLog.breadcrumb("generate: compose begin")
         let composition = BioComposer.compose(input)
+        EchoelCrashLog.breadcrumb("generate: composed \(composition.notes.count) notes")
         currentPatch = currentSoundPatch()
         synth.apply(currentPatch)
+        EchoelCrashLog.breadcrumb("generate: synth.apply done")
         fxCharacter.apply(to: synth.fxChain, bpm: composition.suggestedTempo, genre: style)
+        EchoelCrashLog.breadcrumb("generate: fx.apply done")
         pianoRoll.load(composition.notes)
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
@@ -383,6 +436,7 @@ struct EchoelStudioView: View {
         session.adopt(key: key)
         lastNoteCount = composition.notes.count
         if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
+        EchoelCrashLog.breadcrumb("generate: playing")
     }
 
     /// Build the synth patch from the chosen genre, overridden by the live sliders.
@@ -474,5 +528,11 @@ struct EchoelStudioView: View {
 private struct ExportedFile: Identifiable {
     let id = UUID()
     let url: URL
+}
+
+/// Identifiable wrapper so the diagnostics sheet can present the log text.
+private struct DiagReport: Identifiable {
+    let id = UUID()
+    let text: String
 }
 #endif
