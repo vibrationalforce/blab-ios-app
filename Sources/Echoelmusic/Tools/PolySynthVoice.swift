@@ -47,6 +47,13 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated public let fxChain: EchoelFXChain
 
+    /// Lock-free note-event queue: produced on the control thread (noteOn/Off),
+    /// consumed (applied to `poly`) on the audio thread in the render block, so
+    /// voice-state mutation never races the render. SPSC: one producer (main), one
+    /// consumer (audio).
+    @ObservationIgnored
+    nonisolated private let noteCommands = SPSCQueue<NoteCommand>(capacity: 128)
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -100,6 +107,7 @@ public final class PolySynthVoice {
     /// One-time guards so diagnostic breadcrumbs fire only once.
     nonisolated(unsafe) private static var renderTraced = false
     nonisolated(unsafe) private static var renderEntered = false
+    nonisolated(unsafe) private static var drainTraced = false
     nonisolated(unsafe) fileprivate static var noteTraced = false
 
     public init(maxVoices: Int = 6) {
@@ -123,24 +131,28 @@ public final class PolySynthVoice {
     public func noteOn(pitch: Int, velocity: Float = 0.8) {
         if !Self.noteTraced {
             Self.noteTraced = true
-            EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 begin pitch=\(pitch)")
-            hasEverSounded = true
-            poly.noteOn(note: pitch, velocity: min(max(velocity, 0), 1))
-            EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 end")
-            return
+            EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 enqueue pitch=\(pitch)")
         }
-        hasEverSounded = true
-        poly.noteOn(note: pitch, velocity: min(max(velocity, 0), 1))
+        // Enqueue only — the AUDIO thread applies it (drains in the render block).
+        // This is the fix for the first-note crash: previously noteOn mutated the
+        // poly engine's voice arrays (phases/envelope/filter) on the MAIN thread
+        // while the audio thread was rendering those same Swift arrays →
+        // copy-on-write refcount race → heap corruption → EXC_BAD_ACCESS. Routing
+        // note events through a lock-free SPSC queue means ALL voice-state
+        // mutation happens on the one audio thread, never racing the render.
+        _ = noteCommands.tryEnqueue(
+            NoteCommand(kind: .on, pitch: Int32(pitch), velocity: min(max(velocity, 0), 1))
+        )
     }
 
     /// Release a sounding note (no-op if that pitch isn't held).
     public func noteOff(pitch: Int) {
-        poly.noteOff(note: pitch)
+        _ = noteCommands.tryEnqueue(NoteCommand(kind: .off, pitch: Int32(pitch), velocity: 0))
     }
 
     /// Release every held note (release tails fade naturally).
     public func allNotesOff() {
-        poly.allNotesOff()
+        _ = noteCommands.tryEnqueue(NoteCommand(kind: .allOff, pitch: 0, velocity: 0))
     }
 
     /// Standard A440 equal temperament: midi 69 = 440 Hz.
@@ -219,6 +231,25 @@ public final class PolySynthVoice {
         frameCount: Int,
         audioBufferList: UnsafeMutablePointer<AudioBufferList>
     ) {
+        // Drain note commands HERE (audio thread) so all voice mutation is on this
+        // one thread — never racing the render. Must run before the silence guard
+        // so the first note both flips hasEverSounded and is applied atomically wrt
+        // rendering.
+        while let cmd = noteCommands.dequeue() {
+            switch cmd.kind {
+            case .on:
+                hasEverSounded = true
+                poly.noteOn(note: Int(cmd.pitch), velocity: cmd.velocity)
+            case .off:
+                poly.noteOff(note: Int(cmd.pitch))
+            case .allOff:
+                poly.allNotesOff()
+            }
+            if !Self.drainTraced {
+                Self.drainTraced = true
+                EchoelCrashLog.breadcrumb("render: drained first cmd kind=\(cmd.kind.rawValue)")
+            }
+        }
         if !Self.renderEntered {
             Self.renderEntered = true
             EchoelCrashLog.breadcrumb("render entered (sounded=\(hasEverSounded))")
@@ -283,4 +314,13 @@ public final class PolySynthVoice {
 private final class WeakBox<T: AnyObject>: @unchecked Sendable {
     weak var value: T?
     init(_ value: T) { self.value = value }
+}
+
+/// A note event passed from the control thread to the audio thread via a
+/// lock-free queue. Trivial value type (no ARC) → safe to hand across threads.
+private struct NoteCommand: Sendable {
+    enum Kind: UInt8 { case on, off, allOff }
+    let kind: Kind
+    let pitch: Int32
+    let velocity: Float
 }
