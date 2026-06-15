@@ -54,6 +54,15 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private let noteCommands = SPSCQueue<NoteCommand>(capacity: 128)
 
+    /// Lock-free patch-recall queue, drained on the audio thread (same discipline
+    /// as noteCommands). `apply(_:)` previously ran `patch.apply(to:)` on the MAIN
+    /// thread, which (via brightness/spectralShape didSet → updateSpectralEnvelope)
+    /// rewrote each voice's `harmonicAmplitudes` array while the audio thread read
+    /// it → the same cross-thread array race as the note bug. Applying on the audio
+    /// thread removes it. SPSC: one producer (main), one consumer (audio).
+    @ObservationIgnored
+    nonisolated(unsafe) private let patchCommands = SPSCQueue<SynthPatch>(capacity: 8)
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -162,9 +171,11 @@ public final class PolySynthVoice {
 
     // MARK: - Patch recall
 
-    /// Recall a sound: fan the patch's timbre params across every voice.
+    /// Recall a sound: enqueue the patch; the audio thread fans it across every
+    /// voice in its render drain (so the spectral-envelope array rewrite never
+    /// races the render).
     public func apply(_ patch: SynthPatch) {
-        poly.forEachVoice { patch.apply(to: $0) }
+        _ = patchCommands.tryEnqueue(patch)
     }
 
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
@@ -231,6 +242,12 @@ public final class PolySynthVoice {
         frameCount: Int,
         audioBufferList: UnsafeMutablePointer<AudioBufferList>
     ) {
+        // Apply any pending patch recall FIRST (audio thread) so the timbre is set
+        // before the notes that follow render — and so the spectral-envelope array
+        // write happens on this thread, not racing the render.
+        while let patch = patchCommands.dequeue() {
+            poly.forEachVoice { patch.apply(to: $0) }
+        }
         // Drain note commands HERE (audio thread) so all voice mutation is on this
         // one thread — never racing the render. Must run before the silence guard
         // so the first note both flips hasEverSounded and is applied atomically wrt
