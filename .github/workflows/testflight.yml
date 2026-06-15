@@ -520,6 +520,25 @@ jobs:
           fi
           echo "=== EXPORT & UPLOAD SUCCESSFUL ==="
 
+      - name: "Symbolicate crash offsets on runner (atos)"
+        if: always()
+        run: |
+          set +e
+          DW=$(find build/Echoelmusic.xcarchive/dSYMs -path "*DWARF/Echoelmusic" -type f | head -1)
+          APP=$(find build/Echoelmusic.xcarchive/Products -name Echoelmusic -type f | head -1)
+          echo "DWARF=$DW"; echo "APP=$APP"
+          echo "## Symbolicated crash offsets" >> $GITHUB_STEP_SUMMARY
+          for off in 482936 771160 1065944; do
+            hex=$(printf '0x%x' $((0x100000000 + off)))
+            echo "===== offset $off ($hex) ====="
+            for OBJ in "$DW" "$APP"; do
+              [ -z "$OBJ" ] && continue
+              s=$(atos -o "$OBJ" -arch arm64 -l 0x100000000 $hex 2>&1)
+              echo "  [$(basename "$OBJ")] $s"
+              echo "- off $off via $(basename "$OBJ"): \`$s\`" >> $GITHUB_STEP_SUMMARY
+            done
+          done
+
       - name: "Upload dSYMs (offline symbolication)"
         if: always()
         uses: actions/upload-artifact@v4
