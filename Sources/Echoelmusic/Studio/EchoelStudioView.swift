@@ -42,6 +42,9 @@ struct EchoelStudioView: View {
     @State private var loopBars: LoopBarLength = .four
     @State private var currentPatch = SynthPatch(name: "Init")
     @State private var lastNoteCount: Int?
+    /// Ever-advancing evolution counter folded into every seed so the composition
+    /// keeps developing and never repeats, even when the body holds steady.
+    @State private var evolution: UInt64 = 0
 
     // Background evolution + bio acquisition.
     @State private var evolveTask: Task<Void, Never>?
@@ -434,6 +437,13 @@ struct EchoelStudioView: View {
             guard let v, v.isFinite else { return d }
             return v
         }
+        // The body sets the CHARACTER (density, tempo, contour) via the Input fields;
+        // the seed picks the specific notes. Fold an advancing nonce into the bio seed
+        // so each take is a fresh individual variation — the music keeps evolving and
+        // never repeats, even when the readings hold steady — while the body's
+        // signature still dominates the feel.
+        evolution &+= 1
+        let evolvingSeed = bioSeed(frame) ^ (evolution &* 0x9E3779B97F4A7C15)
         let input = BioComposer.Input(
             heartRateBPM: fin(frame?.heartRateBPM, 70),
             hrvNormalized: fin(frame?.hrvNormalized, 0.5),
@@ -444,7 +454,7 @@ struct EchoelStudioView: View {
             style: style,
             mode: .flowFree,          // tempo always follows the body
             lockedTempo: 90,
-            seed: bioSeed(frame)
+            seed: evolvingSeed
         )
         let composition = BioComposer.compose(input)
         currentPatch = currentSoundPatch()
