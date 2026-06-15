@@ -13,9 +13,31 @@ import Foundation
 import Darwin
 #endif
 
-/// Pre-encoded marker so the signal handler does NOT allocate (malloc may be
-/// locked mid-crash). Built once at load.
+/// Pre-encoded markers so the signal handler does NOT allocate (malloc may be
+/// locked mid-crash). Built once at load. One per fatal signal so the surfaced
+/// log distinguishes a bad-memory-access/heap fault (SIGSEGV/SIGBUS) from a
+/// Swift runtime trap (SIGTRAP/SIGILL — precondition/force-unwrap/overflow) or
+/// an abort (SIGABRT) — the single most useful datum for diagnosing the cause.
 private let echoelCrashMarker: [UInt8] = Array("CRASH (signal caught) — see breadcrumbs above\n".utf8)
+private let echoelCrashSEGV: [UInt8] = Array("CRASH SIGSEGV (bad memory access / heap) — see breadcrumbs above\n".utf8)
+private let echoelCrashBUS: [UInt8]  = Array("CRASH SIGBUS (bad memory access) — see breadcrumbs above\n".utf8)
+private let echoelCrashTRAP: [UInt8] = Array("CRASH SIGTRAP (Swift trap: precondition/force-unwrap/overflow) — see breadcrumbs above\n".utf8)
+private let echoelCrashILL: [UInt8]  = Array("CRASH SIGILL (illegal instruction / Swift trap) — see breadcrumbs above\n".utf8)
+private let echoelCrashABRT: [UInt8] = Array("CRASH SIGABRT (abort) — see breadcrumbs above\n".utf8)
+private let echoelCrashFPE: [UInt8]  = Array("CRASH SIGFPE (arithmetic) — see breadcrumbs above\n".utf8)
+
+/// Allocation-free: pick the pre-encoded marker for a received signal.
+private func echoelCrashMarker(for sig: Int32) -> [UInt8] {
+    switch sig {
+    case SIGSEGV: return echoelCrashSEGV
+    case SIGBUS:  return echoelCrashBUS
+    case SIGTRAP: return echoelCrashTRAP
+    case SIGILL:  return echoelCrashILL
+    case SIGABRT: return echoelCrashABRT
+    case SIGFPE:  return echoelCrashFPE
+    default:      return echoelCrashMarker
+    }
+}
 
 enum EchoelCrashLog {
 
@@ -66,7 +88,7 @@ enum EchoelCrashLog {
         let fatal: [Int32] = [SIGABRT, SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGTRAP]
         for sig in fatal {
             signal(sig) { received in
-                echoelCrashMarker.withUnsafeBufferPointer {
+                echoelCrashMarker(for: received).withUnsafeBufferPointer {
                     if let base = $0.baseAddress { _ = write(EchoelCrashLog.fd, base, $0.count) }
                 }
                 signal(received, SIG_DFL)

@@ -117,6 +117,7 @@ public final class PolySynthVoice {
     nonisolated(unsafe) private static var renderTraced = false
     nonisolated(unsafe) private static var renderEntered = false
     nonisolated(unsafe) private static var drainTraced = false
+    nonisolated(unsafe) private static var drainExitTraced = false
     nonisolated(unsafe) fileprivate static var noteTraced = false
 
     public init(maxVoices: Int = 6) {
@@ -266,6 +267,10 @@ public final class PolySynthVoice {
                 Self.drainTraced = true
                 EchoelCrashLog.breadcrumb("render: drained first cmd kind=\(cmd.kind.rawValue)")
             }
+        }
+        if !Self.drainExitTraced {
+            Self.drainExitTraced = true
+            EchoelCrashLog.breadcrumb("render: note-drain exited sounded=\(hasEverSounded)")
         }
         if !Self.renderEntered {
             Self.renderEntered = true
