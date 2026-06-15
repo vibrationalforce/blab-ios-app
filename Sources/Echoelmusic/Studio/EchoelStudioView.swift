@@ -93,7 +93,7 @@ struct EchoelStudioView: View {
         Button { toggleBiofeedback() } label: {
             Label(running ? "Stop" : "Create from Within",
                   systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
-                .font(.system(size: 17, weight: .semibold))
+                .font(EchoelTheme.font(17, .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
                 .frame(maxWidth: .infinity).frame(height: 56)
                 // Website CI: primary action = off-white fill, black label (.btn-primary).
@@ -120,7 +120,7 @@ struct EchoelStudioView: View {
 
             if running {
                 Text("Music is arising from your live signal — move the sliders to shape it.")
-                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
         }
     }
@@ -129,10 +129,10 @@ struct EchoelStudioView: View {
                         onChange: @escaping (Double) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(label).font(.system(size: 13, weight: .medium)).foregroundStyle(EchoelTheme.text)
+                Text(label).font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
                 if let caption {
-                    Text(caption).font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                    Text(caption).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
             }
             Slider(value: value, in: 0...1)
@@ -148,7 +148,7 @@ struct EchoelStudioView: View {
         VStack(spacing: 10) {
             Button { Task { await exportWav() } } label: {
                 Label(exportLabel, systemImage: exportIcon)
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(.black)
+                    .font(EchoelTheme.font(15, .semibold)).foregroundStyle(.black)
                     .frame(maxWidth: .infinity).frame(height: 48)
                     // Website CI primary action (off-white fill, black label).
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -161,7 +161,7 @@ struct EchoelStudioView: View {
             HStack(spacing: 10) {
                 Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
                     Label("Save", systemImage: "tray.and.arrow.down")
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                         .frame(maxWidth: .infinity).frame(height: 44)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 }
@@ -169,7 +169,7 @@ struct EchoelStudioView: View {
                 .disabled(lastNoteCount == nil)
                 Button { showOpen = true } label: {
                     Label("Open", systemImage: "tray.and.arrow.up")
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                         .frame(maxWidth: .infinity).frame(height: 44)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 }
@@ -178,7 +178,7 @@ struct EchoelStudioView: View {
             }
 
             Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
-                Text("Diagnostics").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
@@ -529,7 +529,7 @@ struct EchoelStudioView: View {
     // MARK: - Helpers
 
     private func sectionTitle(_ t: String) -> some View {
-        Text(t).font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.text)
+        Text(t).font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
     }
 }
 

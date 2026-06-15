@@ -67,6 +67,10 @@ targets:
       - path: Sources/Echoelmusic/Resources/Assets.xcassets
       - path: Resources/PrivacyInfo.xcprivacy
         type: file
+      # Brand font Atkinson Hyperlegible (mirrors echoelmusic.com). The .ttf files
+      # are converted from the website's .woff2; registered via UIAppFonts below.
+      - path: Resources/Fonts
+        type: group
     info:
       path: Resources/iOS/Info.plist
       properties:
@@ -121,6 +125,12 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UIUserInterfaceStyle: Dark
+        # Brand font (mirrors echoelmusic.com). Files live in Resources/Fonts,
+        # added to the app resources above. Keep in sync with Resources/iOS/Info.plist.
+        UIAppFonts:
+          - AtkinsonHyperlegible-Regular.ttf
+          - AtkinsonHyperlegible-Bold.ttf
+          - AtkinsonHyperlegible-Italic.ttf
         UIRequiresFullScreen: false
         UIStatusBarHidden: true
         UIViewControllerBasedStatusBarAppearance: false

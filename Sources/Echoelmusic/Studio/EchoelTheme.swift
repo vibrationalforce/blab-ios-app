@@ -34,6 +34,22 @@ enum EchoelTheme {
     static let radius:      CGFloat = 8
     static let radiusLarge: CGFloat = 12
 
+    // MARK: Brand typography — Atkinson Hyperlegible (mirrors echoelmusic.com)
+    // The site uses this accessibility-first typeface; the app now bundles it
+    // (Resources/Fonts + UIAppFonts). Atkinson ships Regular / Bold / Italic only,
+    // so map any heavy weight onto the Bold face (custom fonts don't synthesize a
+    // weight from the family — the correct face must be named explicitly). Falls
+    // back to the system font automatically if the resource is ever missing.
+    static let fontFamily = "Atkinson Hyperlegible"
+    static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        let face: String
+        switch weight {
+        case .semibold, .bold, .heavy, .black: face = "AtkinsonHyperlegible-Bold"
+        default:                                face = "AtkinsonHyperlegible-Regular"
+        }
+        return .custom(face, size: size)
+    }
+
     // MARK: Size-class-adaptive metrics — so everything is visible on all devices
     /// Pass `horizontalSizeClass`; `.regular` (iPad / large) gets the bigger set.
     struct Metrics {
