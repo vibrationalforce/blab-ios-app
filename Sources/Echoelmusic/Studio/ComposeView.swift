@@ -96,7 +96,10 @@ struct ComposeView: View {
 
     private func bioReadoutLabel(_ frame: BioSampleFrame?) -> String {
         guard let frame else { return "No live bio yet — generation uses neutral defaults" }
-        return "Live: \(Int(frame.heartRateBPM)) bpm, coherence \(String(format: "%.2f", frame.coherence))"
+        // Int(Float) traps on NaN/Inf (a sensor can briefly emit one); format the
+        // BPM defensively so a bad reading never crashes the label.
+        let bpm = frame.heartRateBPM.isFinite ? Int(frame.heartRateBPM) : 0
+        return "Live: \(bpm) bpm, coherence \(String(format: "%.2f", frame.coherence))"
     }
 
     private func stat(_ label: String, _ value: String, _ unit: String) -> some View {

@@ -245,7 +245,9 @@ struct EchoelStudioView: View {
                     .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
                 Text(statusText).font(.caption.weight(.semibold)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
-                if cameraRPPG.detectedBPM > 0 {
+                if cameraRPPG.detectedBPM > 0, cameraRPPG.detectedBPM.isFinite {
+                    // .isFinite guard: Int(Float) traps on NaN/+Inf, which an rPPG
+                    // BPM can briefly be before lock (upstream divide-by-zero).
                     Text("\(Int(cameraRPPG.detectedBPM)) bpm")
                         .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(EchoelTheme.text)
                 }
@@ -272,7 +274,11 @@ struct EchoelStudioView: View {
             var path = Path()
             for (i, v) in w.enumerated() {
                 let x = CGFloat(i) * dx
-                let y = size.height / 2 - CGFloat(v) * amp
+                // A NaN/Inf sample (rPPG can emit one before lock) would feed a NaN
+                // point to CoreGraphics → hard crash. Clamp non-finite to the centre
+                // line and bound the sample so the path is always drawable.
+                let sample = v.isFinite ? CGFloat(min(max(v, -1), 1)) : 0
+                let y = size.height / 2 - sample * amp
                 if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
             }
             ctx.stroke(path, with: .color(EchoelTheme.accent), lineWidth: 2)

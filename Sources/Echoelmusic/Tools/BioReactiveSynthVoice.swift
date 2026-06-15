@@ -17,13 +17,14 @@
 //  performer action) regardless of arm state. releaseNote() closes the
 //  envelope; ambient release tail fades over ~2s.
 //
-//  Threading: applyBioReactive() runs on MainActor (10 Hz). The
-//  AVAudioSourceNode render closure runs on the audio thread
-//  (sub-millisecond). Both touch EchoelDDSP simultaneously — same
-//  pattern SoundscapeEngine uses. Properties are Float-width
-//  (atomic on Apple platforms), so worst case is one render block
-//  reads slightly-stale params. Acceptable for v1; a future cycle
-//  can introduce snapshot double-buffering if needed.
+//  Threading: the 10 Hz MainActor poll no longer mutates the synth directly.
+//  It enqueues bio parameters onto a lock-free SPSC queue; the audio-thread
+//  render block drains the queue and calls synth.applyBioReactive(...) itself.
+//  This keeps ALL synth state mutation (including the spectral-envelope array
+//  rewrite inside applyBioReactive) on the one audio thread, so it never races
+//  the render's read of those arrays — the same SPSC discipline PolySynthVoice
+//  uses for notes/patches. Scalar note/frequency control (playNote/releaseNote/
+//  pitch bend) remains Float-width-atomic and is tolerated as before.
 //
 
 #if canImport(Observation)
@@ -87,6 +88,15 @@ public final class BioReactiveSynthVoice {
 
     @ObservationIgnored
     private let loop = PollingLoop()
+
+    /// Lock-free bio-modulation queue: produced on the MainActor 10 Hz poll,
+    /// consumed (applied to `synth`) on the audio thread in the render block.
+    /// Bio modulation rewrites the synth's spectral-envelope arrays; doing that
+    /// on the audio thread (not the MainActor poll) keeps it from racing the
+    /// render's read of those same arrays. Same discipline PolySynthVoice uses
+    /// for notes/patches. SPSC: one producer (main), one consumer (audio).
+    @ObservationIgnored
+    nonisolated(unsafe) private let bioCommands = SPSCQueue<BioParams>(capacity: 8)
 
     @ObservationIgnored
     private var lastTimestamp: TimeInterval = -1
@@ -266,15 +276,21 @@ public final class BioReactiveSynthVoice {
         framesApplied &+= 1
 
         let hrNormalized = clampUnit((frame.heartRateBPM - 40) / 160)
-        synth.applyBioReactive(
+        // Hand the parameters to the AUDIO thread instead of mutating the synth
+        // here. Previously this ran `synth.applyBioReactive(...)` on the MainActor
+        // poll, which rewrote the synth's spectral-envelope Swift arrays while the
+        // audio thread read them in render() — a cross-thread array data race (the
+        // same class fixed for notes/patches in PolySynthVoice). The render block
+        // drains this queue and applies it on the one audio thread.
+        _ = bioCommands.tryEnqueue(BioParams(
             coherence: clampUnit(frame.coherence),
-            hrvVariability: clampUnit(frame.hrvNormalized),
+            hrv: clampUnit(frame.hrvNormalized),
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),
             breathDepth: 0.5,
-            lfHfRatio: 0.5,
+            lfHf: 0.5,
             coherenceTrend: 0
-        )
+        ))
     }
 
     private func clampUnit(_ x: Float) -> Float {
@@ -314,6 +330,24 @@ public final class BioReactiveSynthVoice {
         frameCount: Int,
         audioBufferList: UnsafeMutablePointer<AudioBufferList>
     ) {
+        // Apply any pending bio modulation HERE (audio thread) so the synth's
+        // spectral-envelope array rewrite happens on this one thread and never
+        // races the render's read below. Drain to the latest queued frame; the
+        // queue is empty in most blocks (params update at ~10 Hz), so this is a
+        // cheap check. Runs even while silent so the timbre is current when armed.
+        var latestBio: BioParams?
+        while let p = bioCommands.dequeue() { latestBio = p }
+        if let p = latestBio {
+            synth.applyBioReactive(
+                coherence: p.coherence,
+                hrvVariability: p.hrv,
+                heartRate: p.heartRate,
+                breathPhase: p.breathPhase,
+                breathDepth: p.breathDepth,
+                lfHfRatio: p.lfHf,
+                coherenceTrend: p.coherenceTrend
+            )
+        }
         // Launch-silence guarantee: never emit anything until the first
         // user-initiated trigger. Pure zero out of this node on app open.
         guard hasEverSounded else {
@@ -355,4 +389,18 @@ public final class BioReactiveSynthVoice {
 private final class WeakBox<T: AnyObject>: @unchecked Sendable {
     weak var value: T?
     init(_ value: T) { self.value = value }
+}
+
+/// Bio-modulation parameters handed from the MainActor poll to the audio thread
+/// via a lock-free queue. Trivial value type (no ARC, no heap) → safe to cross
+/// threads. Applying it on the audio thread keeps the synth's spectral-array
+/// rewrite off the main thread, so it never races render()'s read of that array.
+private struct BioParams: Sendable {
+    let coherence: Float
+    let hrv: Float
+    let heartRate: Float
+    let breathPhase: Float
+    let breathDepth: Float
+    let lfHf: Float
+    let coherenceTrend: Float
 }
