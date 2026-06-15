@@ -26,6 +26,14 @@ private let echoelCrashILL: [UInt8]  = Array("CRASH SIGILL (illegal instruction 
 private let echoelCrashABRT: [UInt8] = Array("CRASH SIGABRT (abort) — see breadcrumbs above\n".utf8)
 private let echoelCrashFPE: [UInt8]  = Array("CRASH SIGFPE (arithmetic) — see breadcrumbs above\n".utf8)
 
+/// Pre-allocated backtrace frame buffer so the signal handler can capture a
+/// stack trace WITHOUT allocating (malloc may be locked mid-crash). 64 frames
+/// is plenty for our call depth. `backtrace_symbols_fd` writes symbol names
+/// straight to the fd (no malloc), so the crash log names the faulting function
+/// even for a SIGTRAP — no dSYM or Xcode needed to read it.
+private nonisolated(unsafe) var echoelBacktraceBuffer =
+    [UnsafeMutableRawPointer?](repeating: nil, count: 64)
+
 /// Allocation-free: pick the pre-encoded marker for a received signal.
 private func echoelCrashMarker(for sig: Int32) -> [UInt8] {
     switch sig {
@@ -91,6 +99,11 @@ enum EchoelCrashLog {
                 echoelCrashMarker(for: received).withUnsafeBufferPointer {
                     if let base = $0.baseAddress { _ = write(EchoelCrashLog.fd, base, $0.count) }
                 }
+                // Async-signal-safe stack trace: backtrace() fills a pre-allocated
+                // buffer, backtrace_symbols_fd() writes the symbol names directly to
+                // the fd with no malloc. Pins the faulting function for a SIGTRAP.
+                let frames = backtrace(&echoelBacktraceBuffer, Int32(echoelBacktraceBuffer.count))
+                backtrace_symbols_fd(&echoelBacktraceBuffer, frames, EchoelCrashLog.fd)
                 signal(received, SIG_DFL)
                 raise(received)
             }
