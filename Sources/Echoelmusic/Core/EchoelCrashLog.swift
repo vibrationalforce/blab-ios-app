@@ -34,6 +34,16 @@ private let echoelCrashFPE: [UInt8]  = Array("CRASH SIGFPE (arithmetic) — see 
 private nonisolated(unsafe) var echoelBacktraceBuffer =
     [UnsafeMutableRawPointer?](repeating: nil, count: 64)
 
+/// Pre-allocated buffer + markers for capturing the crashing thread/queue name.
+/// libdispatch names its worker threads after the queue label, so this pins
+/// WHICH queue a MainActor-isolation trap (dispatch_assert_queue) fired on.
+/// All async-signal-safe: pthread_getname_np fills a fixed buffer, write() emits
+/// the pre-encoded prefix/newline. No allocation.
+private nonisolated(unsafe) let echoelThreadNameBuf =
+    UnsafeMutablePointer<CChar>.allocate(capacity: 80)
+private let echoelThreadPrefix: [UInt8] = Array("crash thread/queue: ".utf8)
+private let echoelNewlineByte: [UInt8] = [0x0a]
+
 /// Allocation-free: pick the pre-encoded marker for a received signal.
 private func echoelCrashMarker(for sig: Int32) -> [UInt8] {
     switch sig {
@@ -98,6 +108,18 @@ enum EchoelCrashLog {
             signal(sig) { received in
                 echoelCrashMarker(for: received).withUnsafeBufferPointer {
                     if let base = $0.baseAddress { _ = write(EchoelCrashLog.fd, base, $0.count) }
+                }
+                // Crashing thread/queue name (pins which queue a MainActor-isolation
+                // trap fired on). Async-signal-safe: fixed buffer + raw writes.
+                if pthread_getname_np(pthread_self(), echoelThreadNameBuf, 80) == 0,
+                   strlen(echoelThreadNameBuf) > 0 {
+                    echoelThreadPrefix.withUnsafeBufferPointer {
+                        if let b = $0.baseAddress { _ = write(EchoelCrashLog.fd, b, $0.count) }
+                    }
+                    _ = write(EchoelCrashLog.fd, echoelThreadNameBuf, strlen(echoelThreadNameBuf))
+                    echoelNewlineByte.withUnsafeBufferPointer {
+                        if let b = $0.baseAddress { _ = write(EchoelCrashLog.fd, b, 1) }
+                    }
                 }
                 // Async-signal-safe stack trace: backtrace() fills a pre-allocated
                 // buffer, backtrace_symbols_fd() writes the symbol names directly to
