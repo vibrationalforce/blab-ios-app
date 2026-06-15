@@ -15,7 +15,6 @@ import SwiftUI
 struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
-    @Environment(BioSimulator.self) private var demoSource
 
     var body: some View {
         HStack(spacing: 10) {
@@ -65,40 +64,31 @@ struct BioStripView: View {
 
     // MARK: - Source tag
 
-    /// Tappable source tag. Shows the live source label; when no real sensor is
-    /// publishing, tapping starts/stops the explicit "Demo" source so the
-    /// instrument is always playable without hardware.
+    /// Non-interactive source tag. Shows the live sensor label (green = a real
+    /// body signal is publishing) or "No signal" — no synthetic demo source.
     private var sourceTag: some View {
-        Button {
-            toggleDemo()
-        } label: {
-            Text(sourceText)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(demoSource.isRunning ? Color.green.opacity(0.22) : Color.white.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .foregroundStyle(demoSource.isRunning ? Color.green : Color.secondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Bio source: \(sourceText). Tap to toggle demo source.")
+        Text(sourceText)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(hasLiveSignal ? Color.green.opacity(0.22) : Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .foregroundStyle(hasLiveSignal ? Color.green : Color.secondary)
+            .accessibilityLabel("Bio source: \(sourceText)")
     }
 
-    /// Real sensor frames win; otherwise reflect demo state with a tap hint.
+    /// A real sensor (camera PPG / HealthKit / BLE / Watch / Oura) is publishing.
+    private var hasLiveSignal: Bool {
+        if let bio = bus.latestBio, bio.source != .fallback { return true }
+        return false
+    }
+
     private var sourceText: String {
         if let bio = bus.latestBio, bio.source != .fallback {
             return sourceLabel(bio.source)
         }
-        return demoSource.isRunning ? "Demo" : "Demo ▷"
-    }
-
-    private func toggleDemo() {
-        if demoSource.isRunning {
-            demoSource.stop()
-        } else {
-            demoSource.start(publishing: bus)
-        }
+        return "No signal"
     }
 
     // MARK: - Formatting
@@ -138,7 +128,7 @@ struct BioStripView: View {
         case .ble:        return "BLE"
         case .watch:      return "Watch"
         case .cameraPPG:  return "PPG"
-        case .fallback:   return "Demo"
+        case .fallback:   return "—"
         }
     }
 }

@@ -177,13 +177,12 @@ struct EchoelmusicApp: App {
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
 
-                // Bio essentials. The demo source ALWAYS runs so the body readout
-                // and "Generate from Body" are alive on any device; real sensors
-                // override it (BioSimulator defers to non-fallback frames, and the
-                // strip shows the real source whenever one is publishing).
+                // Bio essentials. The body's REAL signal drives everything — camera
+                // rPPG (started when the user taps Create from Within), HealthKit, or
+                // a BLE strap. No synthetic demo source: with no sensor the composer
+                // uses neutral physiological defaults, and the strip reads "No signal".
                 bioEvents.start(on: bus)
                 bioFeedback.start(publishingFrom: bus)
-                demoSource.start(publishing: bus)
 
                 // Modulation routing: empty matrix → no behaviour change until the
                 // user adds a route. Tempo handler scales [0..1] into [30..300] BPM.

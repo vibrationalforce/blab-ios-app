@@ -21,7 +21,6 @@ struct EchoelStudioView: View {
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
-    @Environment(BioSimulator.self) private var demoSource
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
@@ -353,8 +352,8 @@ struct EchoelStudioView: View {
         EchoelCrashLog.breadcrumb("camera started (running=\(cameraRPPG.isRunning))")
         try? await Task.sleep(for: .seconds(2))   // let the optical pulse lock
         #else
-        EchoelCrashLog.breadcrumb("demo source starting")
-        demoSource.start(publishing: bus)
+        // No camera on this platform and no synthetic demo source — the composer
+        // falls back to neutral physiological defaults so the instrument still plays.
         try? await Task.sleep(for: .seconds(1))
         #endif
     }
@@ -363,7 +362,6 @@ struct EchoelStudioView: View {
         #if canImport(AVFoundation)
         cameraRPPG.stop()
         #endif
-        demoSource.stop()
     }
 
     /// Gentle continuous evolution: every ~12 s, recompose from the *current* body

@@ -143,9 +143,23 @@ public enum BioComposer {
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
 
-        let calm = clamp01(input.coherence)
-        let energy = clamp01((input.heartRateBPM - 50) / 70)   // 50…120 bpm → 0…1
-        let busy = clamp01(0.5 * (1 - calm) + 0.5 * energy)
+        // ── Physiological → musical state (autonomic-balance model) ───────────
+        // The body is read as an autonomic state, not four loose dials:
+        //   • coherence (`calm`) = HRV resonance near 0.1 Hz → an ordered,
+        //     parasympathetic state. High ⇒ space, repetition, consonance.
+        //   • hrvNormalized (`vagal`) = vagal tone (RMSSD-derived). High ⇒ relaxed;
+        //     LOW ⇒ sympathetic ("fight/flight") load, which lifts musical energy.
+        //   • heart rate (`energy`) = cardiac drive → rhythmic energy + tempo.
+        // `arousal` (sympathetic activation) rises with a fast heart AND low HRV —
+        // the textbook stress signature (↑HR, ↓HRV) — so the take gets busier/denser
+        // when the body is activated and opens up when it settles. Previously
+        // hrvNormalized was collected but never reached the composition; this threads
+        // it in so the music genuinely tracks autonomic balance, not just heart rate.
+        let calm    = clamp01(input.coherence)
+        let vagal   = clamp01(input.hrvNormalized)
+        let energy  = clamp01((input.heartRateBPM - 50) / 70)   // 50…120 bpm → 0…1
+        let arousal = clamp01(0.55 * energy + 0.45 * (1 - vagal))
+        let busy    = clamp01(0.6 * arousal + 0.4 * (1 - calm))
 
         let notes: [Note]
         let drumSteps: [[Bool]]
@@ -162,7 +176,7 @@ public enum BioComposer {
                                breathDepth: input.breathDepth, rng: &rng)
             (drumSteps, drumAccents) = trapBeat(energy: energy, calm: calm, rng: &rng)
         case .selfObservation:
-            notes = ambientMelody(key: input.key, calm: calm, energy: energy,
+            notes = ambientMelody(key: input.key, calm: calm, busy: busy,
                                   breathPhase: input.breathPhase,
                                   breathDepth: input.breathDepth, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
@@ -339,10 +353,13 @@ public enum BioComposer {
 
     /// A gentle, breath-paced contour for meditation. Calmer coherence → longer,
     /// more stepwise notes; the breath sets the rise/fall.
-    private static func ambientMelody(key: MusicalKey, calm: Float, energy: Float,
+    private static func ambientMelody(key: MusicalKey, calm: Float, busy: Float,
                                       breathPhase: Float, breathDepth: Float,
                                       rng: inout SeededRNG) -> [Note] {
-        let density = 0.5 * (1 - calm) + 0.5 * energy
+        // Density follows the autonomic state (`busy` already folds in heart rate,
+        // vagal tone/HRV and coherence) — so in meditation the line thins as the
+        // body settles and fills out under sympathetic load. clamp01 keeps 2…8.
+        let density = clamp01(busy)
         let noteCount = 2 + Int((density * 6).rounded())       // 2…8
         let inhaleBias: Float = breathPhase < 0.5 ? 0.7 : 0.3
         let octave = 4
