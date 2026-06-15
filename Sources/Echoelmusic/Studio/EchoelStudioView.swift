@@ -429,14 +429,10 @@ struct EchoelStudioView: View {
             lockedTempo: 90,
             seed: bioSeed(frame)
         )
-        EchoelCrashLog.breadcrumb("generate: compose begin")
         let composition = BioComposer.compose(input)
-        EchoelCrashLog.breadcrumb("generate: composed \(composition.notes.count) notes")
         currentPatch = currentSoundPatch()
         synth.apply(currentPatch)
-        EchoelCrashLog.breadcrumb("generate: synth.apply done")
         fxCharacter.apply(to: synth.fxChain, bpm: composition.suggestedTempo, genre: style)
-        EchoelCrashLog.breadcrumb("generate: fx.apply done")
         pianoRoll.load(composition.notes)
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
@@ -445,7 +441,7 @@ struct EchoelStudioView: View {
         session.adopt(key: key)
         lastNoteCount = composition.notes.count
         if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
-        EchoelCrashLog.breadcrumb("generate: playing")
+        EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing")
     }
 
     /// Build the synth patch from the chosen genre, overridden by the live sliders.
@@ -474,10 +470,14 @@ struct EchoelStudioView: View {
         guard !all.isEmpty else { return }
         let idx = min(all.count - 1, max(0, Int((soundBlend * Double(all.count - 1)).rounded())))
         let newStyle = all[idx]
-        if newStyle != style {
-            style = newStyle
-            scale = newStyle.scale
-        }
+        // The Sound slider sweeps in genre STEPS. A continuous drag fires onChange
+        // ~100×/sec; recomposing on every tick (full compose + synth/fx reapply +
+        // pattern reload) floods the audio graph and main thread until the watchdog
+        // kills the app. Only act when the genre actually crosses a boundary — within
+        // one genre's band the drag is a no-op.
+        guard newStyle != style else { return }
+        style = newStyle
+        scale = newStyle.scale
         if running { generate() } else { applySoundLive() }
     }
 
