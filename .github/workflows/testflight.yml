@@ -520,6 +520,15 @@ jobs:
           fi
           echo "=== EXPORT & UPLOAD SUCCESSFUL ==="
 
+      - name: "Upload dSYMs (offline symbolication)"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsyms
+          path: build/Echoelmusic.xcarchive/dSYMs/**
+          if-no-files-found: warn
+          retention-days: 5
+
       - name: "Verify build landed in App Store Connect"
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
