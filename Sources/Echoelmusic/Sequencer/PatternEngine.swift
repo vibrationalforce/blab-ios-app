@@ -215,14 +215,21 @@ public final class PatternEngine {
     /// (UI scrolling no longer starves it — the reason the old Timer needed
     /// `.common` mode). The handler hops to the main actor to mutate model/UI/
     /// synth state, matching the engine's @MainActor isolation.
+    ///
+    /// iOS 18 / Swift 6 NOTE: the handler MUST NOT use `MainActor.assumeIsolated`.
+    /// The timer fires on a background dispatch worker, and the strict Swift-6
+    /// executor check turns `assumeIsolated` into a `dispatch_assert_queue` that
+    /// HARD-TRAPS (SIGTRAP) when it isn't literally on the main queue — even when
+    /// nested inside `DispatchQueue.main.async`. Hopping via `Task { @MainActor }`
+    /// enqueues onto the main actor cleanly with no executor assertion. Steps are
+    /// ~150 ms apart at typical tempi, so the main actor (serial) runs them in
+    /// order; there is no reordering hazard at this spacing.
     private func scheduleTick(after interval: TimeInterval) {
         timer?.cancel()
         let t = DispatchSource.makeTimerSource(queue: tickQueue)
         t.schedule(deadline: .now() + interval, leeway: .nanoseconds(0))
         t.setEventHandler { [weak self] in
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.advance() }
-            }
+            Task { @MainActor in self?.advance() }
         }
         t.resume()
         timer = t
