@@ -18,9 +18,10 @@ import Observation
 /// **Timing model:** 4/4 time, 16 steps per bar = 4 sixteenth-notes per beat.
 /// Step duration = (60 / BPM) / 4 seconds. At 120 BPM, that's 125 ms.
 ///
-/// **Concurrency:** `@MainActor`. The timer fires on the main run loop and
-/// calls `advance()` via `MainActor.assumeIsolated` — same pattern as
-/// `AudioEngine.startMeterPollTimer`.
+/// **Concurrency:** `@MainActor`. A DispatchSourceTimer fires on the **main
+/// queue** and calls `advance()` via `MainActor.assumeIsolated` — same pattern as
+/// `AudioEngine.startMeterPollTimer`. The timer must NOT run on a background queue:
+/// the Swift-6 executor check would trap (see `scheduleTick`).
 @MainActor
 @Observable
 public final class PatternEngine {
@@ -76,13 +77,15 @@ public final class PatternEngine {
 
     // MARK: - Internal
 
-    // A DispatchSourceTimer on a dedicated high-priority queue. It fires on time
-    // regardless of the main run loop's state — UI scrolling/layout no longer
-    // starve or jitter the beat the way they did with a RunLoop.main Timer. The
-    // (light) note trigger still hops to the main actor. nonisolated(unsafe) so
-    // the nonisolated deinit can cancel it; the source is only mutated on the main actor.
+    // A DispatchSourceTimer that fires ON THE MAIN QUEUE. A DispatchSource (vs a
+    // RunLoop Timer) still fires while the run loop is in tracking mode — UI
+    // scrolling no longer needs `.common` mode to keep the beat — but by targeting
+    // the main queue the handler runs on the main thread, where the engine's
+    // @MainActor work (model/UI/synth mutation) is valid WITHOUT any cross-thread
+    // executor hop. See scheduleTick for why a background queue is fatal here.
+    // nonisolated(unsafe) so the nonisolated deinit can cancel it; the source is
+    // only mutated on the main actor.
     @ObservationIgnored nonisolated(unsafe) private var timer: DispatchSourceTimer?
-    @ObservationIgnored private let tickQueue = DispatchQueue(label: "com.echoelmusic.pattern-clock", qos: .userInteractive)
 
     // MARK: - Init
 
@@ -210,32 +213,43 @@ public final class PatternEngine {
     /// Schedules one tick after `interval`. Re-armed by `advance()` so each gap
     /// can carry a different (swing) duration.
     ///
-    /// Uses a DispatchSourceTimer on a dedicated user-interactive queue with zero
-    /// leeway: it fires precisely on time and is immune to main-run-loop state
-    /// (UI scrolling no longer starves it — the reason the old Timer needed
-    /// `.common` mode). The handler hops to the main actor to mutate model/UI/
-    /// synth state, matching the engine's @MainActor isolation.
+    /// Uses a DispatchSourceTimer **on the main queue** with zero leeway: it fires
+    /// precisely on time and, unlike a RunLoop Timer, keeps firing while the run
+    /// loop is in tracking mode (UI scrolling no longer starves it — the reason
+    /// the old Timer needed `.common` mode). The handler runs on the main thread,
+    /// so `MainActor.assumeIsolated` recovers the static isolation needed to mutate
+    /// model/UI/synth state — exactly the proven `AudioEngine.startMeterPollTimer`
+    /// pattern.
     ///
-    /// iOS 18 / Swift 6 NOTE: the handler MUST NOT use `MainActor.assumeIsolated`.
-    /// The timer fires on a background dispatch worker, and the strict Swift-6
-    /// executor check turns `assumeIsolated` into a `dispatch_assert_queue` that
-    /// HARD-TRAPS (SIGTRAP) when it isn't literally on the main queue — even when
-    /// nested inside `DispatchQueue.main.async`. Hopping via `Task { @MainActor }`
-    /// enqueues onto the main actor cleanly with no executor assertion. Steps are
-    /// ~150 ms apart at typical tempi, so the main actor (serial) runs them in
-    /// order; there is no reordering hazard at this spacing.
+    /// iOS 18 / Swift 6 NOTE — DO NOT move this timer to a background queue.
+    /// Both `MainActor.assumeIsolated` AND `Task { @MainActor in }` HARD-TRAP
+    /// (`dispatch_assert_queue_fail` → SIGTRAP) when the handler runs on a
+    /// background dispatch worker under the strict Swift-6 executor: the runtime's
+    /// isolation check asserts it is literally on the main queue and aborts when it
+    /// isn't. (Builds 1769/1777 crashed exactly here — first with `assumeIsolated`,
+    /// then with `Task`.) The only crash-safe options from a non-main thread are
+    /// `DispatchQueue.main.async { … }` or, as here, firing on `.main` directly.
     private func scheduleTick(after interval: TimeInterval) {
         timer?.cancel()
-        let t = DispatchSource.makeTimerSource(queue: tickQueue)
+        let t = DispatchSource.makeTimerSource(queue: .main)
         t.schedule(deadline: .now() + interval, leeway: .nanoseconds(0))
         t.setEventHandler { [weak self] in
-            Task { @MainActor in self?.advance() }
+            MainActor.assumeIsolated { self?.advance() }
         }
         t.resume()
         timer = t
     }
 
+    // DIAG (temporary): one-shot breadcrumb confirming the first tick fired on the
+    // main thread without the Swift-6 executor trap. Remove once build 1777's
+    // beat-clock SIGTRAP is confirmed resolved on device.
+    @ObservationIgnored private var didLogFirstTick = false
+
     private func advance() {
+        if !didLogFirstTick {
+            didLogFirstTick = true
+            EchoelCrashLog.breadcrumb("pattern: first tick OK (main-queue timer)")
+        }
         // A timer block already dispatched to main can arrive AFTER stop()/setTempo
         // cancelled the source. Bail before firing so no ghost step/note sounds
         // once the transport is stopped (the spurious step-0 hit after Stop).
