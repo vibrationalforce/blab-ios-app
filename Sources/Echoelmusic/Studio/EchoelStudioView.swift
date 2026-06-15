@@ -107,24 +107,99 @@ struct EchoelStudioView: View {
         .accessibilityHint("Starts biofeedback; your body composes and plays music. Tap again to stop.")
     }
 
-    // MARK: - Sound sliders (shape the music in real time)
+    // MARK: - Sound controls (one morph pad + genre + fine sliders)
 
     private var soundControls: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionTitle("Shape the sound")
 
+            // The genre sweep stays a slim slider — it picks the style, not timbre.
             slider("Sound", value: $soundBlend, caption: style.displayName) { _ in
                 applySoundBlend()
             }
-            slider("Brightness", value: $brightness) { _ in applySoundLive() }
-            slider("Space", value: $space) { _ in applySoundLive() }
-            slider("Movement", value: $movement) { _ in applySoundLive() }
+
+            soundPad
+
+            // Precise per-parameter editing stays available, demoted to an expert
+            // disclosure (a pad trades readout precision for expressivity).
+            DisclosureGroup("Fine controls") {
+                VStack(alignment: .leading, spacing: 12) {
+                    slider("Brightness", value: $brightness) { _ in applySoundLive() }
+                    slider("Space", value: $space) { _ in applySoundLive() }
+                    slider("Movement", value: $movement) { _ in applySoundLive() }
+                }
+                .padding(.top, 10)
+            }
+            .font(EchoelTheme.font(13, .medium))
+            .tint(EchoelTheme.dim)
+            .foregroundStyle(EchoelTheme.text)
 
             if running {
-                Text("Music is arising from your live signal — move the sliders to shape it.")
+                Text("Music is arising from your live signal — move the pad to shape it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
         }
+    }
+
+    /// One 2D morph pad replacing the timbre sliders. X = tone (dark → bright),
+    /// Y = space & motion (intimate/still → open/moving). Two markers: the WHITE dot
+    /// is your hand (the sound you set); the GREEN dot is your live body
+    /// (coherence → X, HRV → Y) — so physiology and sound read in one place.
+    /// Bottom-left = warm, still, intimate (most meditative); top-right = bright,
+    /// spacious, moving. Mapping uses existing EchoelDDSP params — no new DSP.
+    private var soundPad: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Tone → Space").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+                Text("dark·still → bright·open").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+            GeometryReader { geo in
+                let w = Swift.max(geo.size.width, 1)
+                let h = Swift.max(geo.size.height, 1)
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .fill(EchoelTheme.fill)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    // Live body marker (green) — coherence→X, HRV→Y. Display only.
+                    if let p = bioPadPoint {
+                        Circle().fill(EchoelTheme.accent.opacity(0.9))
+                            .frame(width: 14, height: 14)
+                            .position(x: p.x * w, y: (1 - p.y) * h)
+                            .accessibilityHidden(true)
+                    }
+                    // Sound marker (white) — your current setting.
+                    Circle().fill(EchoelTheme.text)
+                        .frame(width: 22, height: 22)
+                        .position(x: CGFloat(brightness) * w, y: (1 - CGFloat(space)) * h)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { v in
+                            let x = Swift.min(Swift.max(v.location.x / w, 0), 1)
+                            let y = Swift.min(Swift.max(1 - v.location.y / h, 0), 1)
+                            brightness = Double(x)
+                            space = Double(y)
+                            movement = Double(y)
+                            applySoundLive()
+                        }
+                )
+            }
+            .frame(height: 200)
+            .accessibilityElement()
+            .accessibilityLabel("Sound morph pad. Horizontal sets tone, vertical sets space and motion.")
+        }
+    }
+
+    /// Live body position on the pad (coherence → X, HRV → Y); nil with no signal.
+    private var bioPadPoint: CGPoint? {
+        guard let bio = bus.latestBio else { return nil }
+        let x = CGFloat(Swift.min(Swift.max(bio.coherence.isFinite ? bio.coherence : 0.5, 0), 1))
+        let y = CGFloat(Swift.min(Swift.max(bio.hrvNormalized.isFinite ? bio.hrvNormalized : 0.5, 0), 1))
+        return CGPoint(x: x, y: y)
     }
 
     private func slider(_ label: String, value: Binding<Double>, caption: String? = nil,
