@@ -97,8 +97,10 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var hasEverSounded = false
 
-    /// One-time guard so the first-render diagnostic breadcrumbs fire only once.
+    /// One-time guards so diagnostic breadcrumbs fire only once.
     nonisolated(unsafe) private static var renderTraced = false
+    nonisolated(unsafe) private static var renderEntered = false
+    nonisolated(unsafe) fileprivate static var noteTraced = false
 
     public init(maxVoices: Int = 6) {
         self.poly = EchoelPolyDDSP(maxVoices: maxVoices, sampleRate: Float(Self.sampleRate))
@@ -119,6 +121,14 @@ public final class PolySynthVoice {
 
     /// Sound a note. `pitch` is a MIDI note number, `velocity` is [0...1].
     public func noteOn(pitch: Int, velocity: Float = 0.8) {
+        if !Self.noteTraced {
+            Self.noteTraced = true
+            EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 begin pitch=\(pitch)")
+            hasEverSounded = true
+            poly.noteOn(note: pitch, velocity: min(max(velocity, 0), 1))
+            EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 end")
+            return
+        }
         hasEverSounded = true
         poly.noteOn(note: pitch, velocity: min(max(velocity, 0), 1))
     }
@@ -209,6 +219,10 @@ public final class PolySynthVoice {
         frameCount: Int,
         audioBufferList: UnsafeMutablePointer<AudioBufferList>
     ) {
+        if !Self.renderEntered {
+            Self.renderEntered = true
+            EchoelCrashLog.breadcrumb("render entered (sounded=\(hasEverSounded))")
+        }
         guard hasEverSounded else {
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return

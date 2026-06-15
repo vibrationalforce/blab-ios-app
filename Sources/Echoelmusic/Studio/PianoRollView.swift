@@ -100,7 +100,12 @@ public final class PianoRollModel {
     /// Each tick: release notes ending now, then start notes beginning now.
     /// `endStep % stepCount` so a note ending on the bar line releases at the
     /// loop wrap (step 0), giving correct sustain + retrigger.
+    nonisolated(unsafe) private static var triggerTraced = false
     private func trigger(_ step: Int) {
+        if !Self.triggerTraced {
+            Self.triggerTraced = true
+            EchoelCrashLog.breadcrumb("trigger#1 step=\(step) notes=\(notes.count)")
+        }
         // Release notes ending now. The engine's noteOff(pitch:) releases EVERY
         // voice of that pitch, so when two notes share a pitch (voice-leading can
         // produce this) we must only release a pitch once no surviving note still
