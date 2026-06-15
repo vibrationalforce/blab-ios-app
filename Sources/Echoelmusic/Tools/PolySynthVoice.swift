@@ -52,7 +52,7 @@ public final class PolySynthVoice {
     /// voice-state mutation never races the render. SPSC: one producer (main), one
     /// consumer (audio).
     @ObservationIgnored
-    nonisolated private let noteCommands = SPSCQueue<NoteCommand>(capacity: 128)
+    nonisolated(unsafe) private let noteCommands = SPSCQueue<NoteCommand>(capacity: 128)
 
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
