@@ -184,29 +184,11 @@ struct EchoelStudioView: View {
 
     private var kammertonRow: some View {
         @Bindable var session = session
-        // Concert pitch A4 — number-pad entry, exact to 0.01 Hz (380–500). Standard
-        // is 440.00; the saved preference persists. Common references one tap away.
-        return VStack(alignment: .leading, spacing: 6) {
-            ParamControl(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
-                         onChange: { synth.setTuning(a4Hz: session.a4Hz) },
-                         onCommit: { recomposeIfRunning() })
-            HStack(spacing: 6) {
-                ForEach(TuningReference.presets, id: \.self) { hz in
-                    Button("\(Int(hz))") {
-                        session.a4Hz = hz
-                        synth.setTuning(a4Hz: hz)
-                        recomposeIfRunning()
-                    }
-                    .font(EchoelTheme.font(11, .medium))
-                    .foregroundStyle(abs(session.a4Hz - hz) < 0.005 ? .black : EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 28)
-                    .background(RoundedRectangle(cornerRadius: 6)
-                        .fill(abs(session.a4Hz - hz) < 0.005 ? EchoelTheme.text : EchoelTheme.fill))
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Set concert pitch A\(Int(hz)) hertz")
-                }
-            }
-        }
+        // Concert pitch A4 — number-pad entry only, exact to 0.01 Hz (380–500).
+        // Standard 440.00; the saved preference persists. (Slider + chips removed
+        // to save space.)
+        return DecimalField(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
+                            onCommit: { synth.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
     }
 
     private var tempoRow: some View {
@@ -230,7 +212,6 @@ struct EchoelStudioView: View {
 
     private var soundPanel: some View {
         panel("Sound & texture", "Shape the timbre — exact to 0.01", isExpanded: $showSound) {
-            soundPad
             presetRow
             randomizeButton
 
@@ -375,67 +356,6 @@ struct EchoelStudioView: View {
     /// refresh the live timbre so the change is reflected when playback begins.
     private func recomposeIfRunning() {
         if running { generate() } else { applySoundLive() }
-    }
-
-    /// One 2D morph pad replacing the timbre sliders. X = tone (dark → bright),
-    /// Y = space & motion (intimate/still → open/moving). Two markers: the WHITE dot
-    /// is your hand (the sound you set); the GREEN dot is your live body
-    /// (coherence → X, HRV → Y) — so physiology and sound read in one place.
-    /// Bottom-left = warm, still, intimate (most meditative); top-right = bright,
-    /// spacious, moving. Mapping uses existing EchoelDDSP params — no new DSP.
-    private var soundPad: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Tone → Space").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
-                Spacer(minLength: 0)
-                Text("dark·still → bright·open").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            }
-            GeometryReader { geo in
-                let w = Swift.max(geo.size.width, 1)
-                let h = Swift.max(geo.size.height, 1)
-                ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(EchoelTheme.fill)
-                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
-                    // Live body marker (green) — coherence→X, HRV→Y. Display only.
-                    if let p = bioPadPoint {
-                        Circle().fill(EchoelTheme.accent.opacity(0.9))
-                            .frame(width: 14, height: 14)
-                            .position(x: p.x * w, y: (1 - p.y) * h)
-                            .accessibilityHidden(true)
-                    }
-                    // Sound marker (white) — your current setting.
-                    Circle().fill(EchoelTheme.text)
-                        .frame(width: 22, height: 22)
-                        .position(x: CGFloat(currentPatch.brightness) * w,
-                                  y: (1 - CGFloat(currentPatch.reverbMix)) * h)
-                        .accessibilityHidden(true)
-                }
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { v in
-                            let x = Swift.min(Swift.max(v.location.x / w, 0), 1)
-                            let y = Swift.min(Swift.max(1 - v.location.y / h, 0), 1)
-                            currentPatch.brightness = Float(x)
-                            currentPatch.reverbMix = Float(y)
-                            applySoundLive()
-                        }
-                )
-            }
-            .frame(height: 200)
-            .accessibilityElement()
-            .accessibilityLabel("Sound morph pad. Horizontal sets tone, vertical sets space and motion.")
-        }
-    }
-
-    /// Live body position on the pad (coherence → X, HRV → Y); nil with no signal.
-    private var bioPadPoint: CGPoint? {
-        guard let bio = bus.latestBio else { return nil }
-        let x = CGFloat(Swift.min(Swift.max(bio.coherence.isFinite ? bio.coherence : 0.5, 0), 1))
-        let y = CGFloat(Swift.min(Swift.max(bio.hrvNormalized.isFinite ? bio.hrvNormalized : 0.5, 0), 1))
-        return CGPoint(x: x, y: y)
     }
 
     // MARK: - Utilities (export · projects)
@@ -1074,6 +994,64 @@ private struct RotaryKnob<V: BinaryFloatingPoint>: View where V.Stride: BinaryFl
             value = V(Swift.min(Swift.max(d, Double(range.lowerBound)), Double(range.upperBound)))
         }
         syncText()
+        onCommit()
+    }
+}
+
+/// A compact label + 2-decimal numeric entry field — no slider, no drag — for
+/// values that only need exact typed input (e.g. Kammerton). Commits on Return or
+/// focus loss; clamps to range; accepts comma or dot.
+private struct DecimalField<V: BinaryFloatingPoint>: View {
+    let label: String
+    @Binding var value: V
+    let range: ClosedRange<V>
+    var unit: String = ""
+    var onCommit: () -> Void = {}
+
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label).font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Spacer(minLength: 0)
+            TextField("", text: $text)
+                .multilineTextAlignment(.trailing)
+                .font(EchoelTheme.font(13).monospacedDigit())
+                .foregroundStyle(EchoelTheme.text)
+                .textFieldStyle(.plain)
+                .frame(width: 86)
+                .focused($focused)
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer(); Button("Done") { focused = false }
+                    }
+                }
+                #endif
+                .onSubmit(commit)
+                .onChange(of: focused) { _, f in if !f { commit() } }
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .accessibilityLabel("\(label) value")
+            if !unit.isEmpty {
+                Text(unit).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+        }
+        .onAppear { sync() }
+        .onChange(of: value) { _, _ in if !focused { sync() } }
+    }
+
+    private func sync() { text = String(format: "%.2f", Double(value)) }
+
+    private func commit() {
+        let c = text.replacingOccurrences(of: ",", with: ".")
+        if let d = Double(c) {
+            value = V(Swift.min(Swift.max(d, Double(range.lowerBound)), Double(range.upperBound)))
+        }
+        sync()
         onCommit()
     }
 }
