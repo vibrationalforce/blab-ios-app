@@ -40,6 +40,7 @@ struct EchoelStudioView: View {
     // Collapsible control-panel state ("aufklappen") + timbre preset.
     @State private var showComposition = true
     @State private var showSound = true
+    @State private var showEffects = false
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @State private var presetIndex = -1
 
@@ -127,6 +128,7 @@ struct EchoelStudioView: View {
         VStack(alignment: .leading, spacing: 12) {
             compositionPanel
             soundPanel
+            effectsPanel
             if running {
                 Text("The music is arising from your live signal — every control shapes it as it plays.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -315,6 +317,30 @@ struct EchoelStudioView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Picks a new sound character and timbre for variety")
+    }
+
+    // MARK: Panel 3 — Effects (production character)
+
+    private var effectsPanel: some View {
+        panel("Effects", "Production character", isExpanded: $showEffects) {
+            labeledRow("Character") {
+                Picker("Effect", selection: $fxCharacter) {
+                    ForEach(FXCharacter.allCases) { c in Text(c.displayName).tag(c) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: fxCharacter) { _, _ in applyFX() }
+                .accessibilityLabel("Effect character")
+            }
+            Text(fxCharacter.blurb)
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Stamp the chosen effect character on the live FX chain (independent of genre).
+    private func applyFX() {
+        let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : beatPlayer.pattern.tempo
+        fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
     }
 
     // MARK: Panel chrome

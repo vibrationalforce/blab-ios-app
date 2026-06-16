@@ -246,6 +246,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     case vinyl
     case dream
     case megaphone
+    case blurry
 
     public var id: String { rawValue }
 
@@ -259,6 +260,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .vinyl:      return "Vinyl"
         case .dream:      return "Dream"
         case .megaphone:  return "Megaphone"
+        case .blurry:     return "Blurry"
         }
     }
 
@@ -273,6 +275,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .vinyl:      return "Dusty record: softened highs, subtle width"
         case .dream:      return "Wide and bright: lush chorus + long ping-pong"
         case .megaphone:  return "Barking band-pass + saturated slap"
+        case .blurry:     return "Soft-focus wash: low-pass + deep chorus + smeared echo"
         }
     }
 
@@ -326,6 +329,14 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
                 delayMix: 0.14, delayFeedback: 0.22, delayTone: 0.6, delaySpread: 0.15,
                 delayDrive: 0.5,
                 saturation: 0.55)
+        case .blurry:
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .lowpass, filterCutoff: 2200, filterResonance: 0.20,
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.30, delayFeedback: 0.50, delayTone: 0.35, delaySpread: 0.55,
+                delayWow: 0.55, delayDrive: 0.15,
+                chorusEnabled: true, chorusRate: 0.45, chorusDepth: 0.9, chorusMix: 0.6)
         }
     }
 
