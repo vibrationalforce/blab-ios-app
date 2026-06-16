@@ -1,0 +1,43 @@
+name: "Deploy on Tag"
+
+# Token-free deploy: pushing a tag like `deploy-2026-06-16` triggers a full
+# TestFlight build; a tag containing `dryrun` (e.g. `deploy-dryrun-1`) triggers a
+# build_only run (compile/sign, NO upload) for verifying this wrapper without
+# burning the daily TestFlight upload quota.
+#
+# How it works: workflow_dispatch is the documented EXCEPTION to GitHub's
+# recursion guard, so the built-in GITHUB_TOKEN is allowed to dispatch
+# testflight.yml — no personal access token is needed anywhere. Whoever can push
+# a tag can ship.
+on:
+  push:
+    tags:
+      - 'deploy-*'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: deploy-on-tag
+  cancel-in-progress: false
+
+jobs:
+  dispatch-testflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Dispatch TestFlight for this tag"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$TAG" == *dryrun* ]]; then BUILD_ONLY=true; else BUILD_ONLY=false; fi
+          echo "Tag '$TAG' -> dispatching testflight.yml (platform=ios, build_only=$BUILD_ONLY) at ref $TAG"
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/actions/workflows/testflight.yml/dispatches" \
+            -d "{\"ref\":\"${TAG}\",\"inputs\":{\"platform\":\"ios\",\"build_only\":\"${BUILD_ONLY}\",\"clean_build\":\"false\",\"skip_tests\":\"true\",\"skip_compile_check\":\"true\"}}"
+          echo "Dispatched. Watch: https://github.com/${REPO}/actions/workflows/testflight.yml"
