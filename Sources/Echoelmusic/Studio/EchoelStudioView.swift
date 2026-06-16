@@ -81,6 +81,10 @@ struct EchoelStudioView: View {
     @State private var share: ExportedFile?
     @State private var diagnostics: DiagReport?
 
+    // Tools — open the (previously unreachable) editors as sheets.
+    @State private var showPianoRoll = false
+    @State private var showPatchEditor = false
+
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
     var body: some View {
@@ -94,6 +98,7 @@ struct EchoelStudioView: View {
                     #endif
                     soundControls
                     utilityRow
+                    toolsRow
                 }
                 .padding(16)
             }
@@ -111,6 +116,15 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
         .sheet(item: $diagnostics) { report in diagnosticsSheet(report.text) }
+        .sheet(isPresented: $showPianoRoll) {
+            PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
+        }
+        .sheet(isPresented: $showPatchEditor) {
+            PatchEditorView(initial: currentPatch) { p in
+                currentPatch = p
+                synth.apply(p)   // editor changes hit the live voice immediately
+            }
+        }
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -118,6 +132,24 @@ struct EchoelStudioView: View {
         } message: {
             Text("Saves the current sound, key, tempo and generated loop.")
         }
+    }
+
+    // MARK: - Tools (deep editors)
+
+    /// Opens the deeper editors — a real piano roll, the synth patch editor, and the
+    /// sample browser — without cluttering the one-button flow.
+    private var toolsRow: some View {
+        Menu {
+            Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
+            Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
+        } label: {
+            Label("Tools", systemImage: "slider.horizontal.3")
+                .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                .frame(maxWidth: .infinity).frame(height: 44)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .accessibilityLabel("Open tools")
     }
 
     // MARK: - The one button
