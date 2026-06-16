@@ -416,23 +416,6 @@ struct EchoelStudioView: View {
         return CGPoint(x: x, y: y)
     }
 
-    private func slider(_ label: String, value: Binding<Double>, caption: String? = nil,
-                        onChange: @escaping (Double) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(label).font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
-                Spacer(minLength: 0)
-                if let caption {
-                    Text(caption).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                }
-            }
-            Slider(value: value, in: 0...1)
-                .tint(EchoelTheme.accent)
-                .onChange(of: value.wrappedValue) { _, v in onChange(v) }
-                .accessibilityLabel(label)
-        }
-    }
-
     // MARK: - Utilities (export · projects)
 
     private var utilityRow: some View {
@@ -813,9 +796,6 @@ struct EchoelStudioView: View {
 
     // MARK: - Helpers
 
-    private func sectionTitle(_ t: String) -> some View {
-        Text(t).font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
-    }
 }
 
 /// Identifiable wrapper so the share sheet can present an exported file URL.
