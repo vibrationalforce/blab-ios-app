@@ -7,7 +7,7 @@
 import Foundation
 
 /// A tempo-synced rate choice: a note division + feel, resolved against a BPM.
-public struct TempoSyncOption: Identifiable, Sendable, Equatable {
+public struct TempoSyncOption: Identifiable, Sendable, Equatable, Hashable {
     public let division: NoteDivision
     public let modifier: NoteModifier
 

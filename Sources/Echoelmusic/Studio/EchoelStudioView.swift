@@ -47,6 +47,10 @@ struct EchoelStudioView: View {
     @State private var showSound = true
     @State private var showEffects = false
 
+    /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
+    /// re-applied after genre/character FX so the pick is never clobbered.
+    @State private var delaySync = TempoSyncOption(.eighth, .dotted)
+
     /// Continuous mood/character controls that shape the composition (blend with bio).
     @State private var mood = MoodProfile()
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
@@ -409,13 +413,31 @@ struct EchoelStudioView: View {
             Text(fxCharacter.blurb)
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            labeledRow("Delay") {
+                Picker("Delay note", selection: $delaySync) {
+                    ForEach(TempoSyncOption.common) { opt in Text(opt.label).tag(opt) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: delaySync) { _, _ in applyDelaySync(bpm: currentTempo) }
+                .accessibilityLabel("Delay note value")
+            }
         }
     }
 
+    /// Current effective tempo (locked BPM or the body-driven pattern tempo).
+    private var currentTempo: Double { lockBPM ? min(max(lockedBPM, 40), 240) : beatPlayer.pattern.tempo }
+
     /// Stamp the chosen effect character on the live FX chain (independent of genre).
     private func applyFX() {
-        let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : beatPlayer.pattern.tempo
-        fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
+        fxCharacter.apply(to: synth.fxChain, bpm: currentTempo, genre: style)
+        applyDelaySync(bpm: currentTempo)
+    }
+
+    /// Re-apply the user's tempo-synced delay note value on top of the genre/character
+    /// FX (which also set delay time), so the chosen division is never clobbered.
+    private func applyDelaySync(bpm: Double) {
+        synth.fxChain.delay.timeSeconds = delaySync.clampedSeconds(bpm: bpm, in: 0.001...2.0)
+        synth.fxChain.delayEnabled = true
     }
 
     // MARK: Panel chrome
@@ -821,6 +843,7 @@ struct EchoelStudioView: View {
         // Locked tempo wins for tight loops; otherwise the body sets the pace.
         let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
+        applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
         pianoRoll.load(composition.notes)
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
