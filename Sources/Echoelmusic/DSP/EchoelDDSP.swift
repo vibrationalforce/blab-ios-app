@@ -228,6 +228,12 @@ public final class EchoelDDSP: @unchecked Sendable {
     private var smoothedHarmonicity: Float = -1
     private var smoothedNoiseLevel: Float = -1
 
+    /// Per-sample-smoothed master gain. `amplitude` is driven in block-size steps —
+    /// by a new note's velocity and (when bio modulation is on) the 10 Hz bio frame
+    /// amplitude pulse — so reading it straight per-sample steps the output level and
+    /// crackles. One-pole smoothed each sample (~10 ms glide). -1 = seed on first use.
+    private var smoothedGain: Float = -1
+
     /// Anti-alias weighting scratch — smoothedAmplitudes with a raised-cosine
     /// taper applied to partials approaching Nyquist (avoids the harsh "pop" of
     /// partials hard-cutting in/out as f0 or vibrato sweeps them past Nyquist).
@@ -686,8 +692,12 @@ public final class EchoelDDSP: @unchecked Sendable {
             // Mix harmonic + noise based on the smoothed harmonicity
             let mixed = harmonicSample * smoothedHarmonicity + noiseSample * smoothedNoiseLevel * (1.0 - smoothedHarmonicity)
 
-            // Apply envelope and gain
-            var sample = mixed * amplitude * envelopeValue
+            // Apply envelope and gain. Per-sample smooth the master gain so a new
+            // note's velocity and the 10 Hz bio amplitude pulse glide in instead of
+            // stepping the level (crackle). Seed on first sample to avoid a ramp-up.
+            if smoothedGain < 0 { smoothedGain = amplitude }
+            smoothedGain += 0.01 * (amplitude - smoothedGain)
+            var sample = mixed * smoothedGain * envelopeValue
 
             // --- Resonant Filter (SVF) ---
             // LFO modulates filter cutoff around the base cutoff
