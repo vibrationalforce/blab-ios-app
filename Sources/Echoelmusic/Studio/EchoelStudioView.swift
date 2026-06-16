@@ -322,7 +322,7 @@ struct EchoelStudioView: View {
     /// scrollable stack of expandable sections.
     private func panel<Content: View>(_ title: String, _ subtitle: String,
                                       isExpanded: Binding<Bool>,
-                                      @ViewBuilder content: () -> Content) -> some View {
+                                      @ViewBuilder content: @escaping () -> Content) -> some View {
         DisclosureGroup(isExpanded: isExpanded) {
             VStack(alignment: .leading, spacing: 14) { content() }
                 .padding(.top, 12)
