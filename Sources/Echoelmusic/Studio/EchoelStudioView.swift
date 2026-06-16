@@ -28,11 +28,9 @@ struct EchoelStudioView: View {
     // The single live-state flag: biofeedback running or not.
     @State private var running = false
 
-    // Sound sliders — all normalized 0…1, so they can never index or scale out of range.
-    @State private var soundBlend: Double = 0.0   // sweeps the genres
-    @State private var brightness: Double = 0.5
-    @State private var space: Double = 0.4
-    @State private var movement: Double = 0.2   // gentle by default — keeps the low end from wobbling
+    // The live, fully-editable timbre is `currentPatch` (single source of truth).
+    // Every control below — XY pad, sliders and 2-decimal numeric fields — reads and
+    // writes its fields directly, so any value can be dialed OR typed exactly.
 
     // Optional locked tempo for tight, DAW-ready loops. When off, the tempo follows
     // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
@@ -88,7 +86,10 @@ struct EchoelStudioView: View {
             }
         }
         .background(EchoelTheme.bg)
-        .onAppear { surfacePriorCrashIfAny() }
+        .onAppear {
+            currentPatch = style.synthPatch   // controls reflect a real sound from the start
+            surfacePriorCrashIfAny()
+        }
         .onDisappear { stopEverything() }
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
@@ -152,6 +153,8 @@ struct EchoelStudioView: View {
             .pickerStyle(.menu).tint(EchoelTheme.text)
             .onChange(of: style) { _, s in
                 scale = s.scale
+                presetIndex = -1
+                currentPatch = s.synthPatch   // load the genre's timbre as a starting point
                 recomposeIfRunning()
             }
             .accessibilityLabel("Genre")
@@ -181,18 +184,27 @@ struct EchoelStudioView: View {
 
     private var kammertonRow: some View {
         @Bindable var session = session
-        return labeledRow("Kammerton") {
-            Picker("Kammerton", selection: $session.a4Hz) {
+        // Concert pitch, exact to 0.01 Hz (380–500). Common references one tap away.
+        return VStack(alignment: .leading, spacing: 6) {
+            ParamControl(label: "Kammerton", value: $session.a4Hz, range: 380...500, unit: "Hz",
+                         onChange: { synth.setTuning(a4Hz: session.a4Hz) },
+                         onCommit: { recomposeIfRunning() })
+            HStack(spacing: 6) {
                 ForEach(TuningReference.presets, id: \.self) { hz in
-                    Text("A\(Int(hz)) Hz").tag(hz)
+                    Button("\(Int(hz))") {
+                        session.a4Hz = hz
+                        synth.setTuning(a4Hz: hz)
+                        recomposeIfRunning()
+                    }
+                    .font(EchoelTheme.font(11, .medium))
+                    .foregroundStyle(abs(session.a4Hz - hz) < 0.005 ? .black : EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 28)
+                    .background(RoundedRectangle(cornerRadius: 6)
+                        .fill(abs(session.a4Hz - hz) < 0.005 ? EchoelTheme.text : EchoelTheme.fill))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Set concert pitch A\(Int(hz)) hertz")
                 }
             }
-            .pickerStyle(.menu).tint(EchoelTheme.text)
-            .onChange(of: session.a4Hz) { _, hz in
-                synth.setTuning(a4Hz: hz)
-                recomposeIfRunning()
-            }
-            .accessibilityLabel("Concert pitch")
         }
     }
 
@@ -206,15 +218,9 @@ struct EchoelStudioView: View {
             .accessibilityHint("When on, the loop runs at exactly the set tempo instead of following your heart")
 
             if lockBPM {
-                HStack {
-                    Text("Tempo").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
-                    Spacer(minLength: 0)
-                    Text("\(Int(lockedBPM)) BPM").font(EchoelTheme.font(12)).monospacedDigit().foregroundStyle(EchoelTheme.dim)
-                }
-                Slider(value: $lockedBPM, in: 40...200, step: 1)
-                    .tint(EchoelTheme.accent)
-                    .onChange(of: lockedBPM) { _, _ in recomposeIfRunning() }
-                    .accessibilityLabel("Locked tempo in beats per minute")
+                ParamControl(label: "Tempo", value: $lockedBPM, range: 40...240, unit: "BPM",
+                             onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM) } },
+                             onCommit: { recomposeIfRunning() })
             }
         }
     }
@@ -222,14 +228,50 @@ struct EchoelStudioView: View {
     // MARK: Panel 2 — Sound & texture (XY pad · preset · sliders · randomize)
 
     private var soundPanel: some View {
-        panel("Sound & texture", "Shape the timbre", isExpanded: $showSound) {
+        panel("Sound & texture", "Shape the timbre — exact to 0.01", isExpanded: $showSound) {
             soundPad
             presetRow
-            slider("Brightness", value: $brightness) { _ in applySoundLive() }
-            slider("Space", value: $space) { _ in applySoundLive() }
-            slider("Movement", value: $movement) { _ in applySoundLive() }
             randomizeButton
+
+            groupHeader("Tone")
+            param("Brightness", $currentPatch.brightness, 0...1)
+            param("Harmonicity", $currentPatch.harmonicity, 0...1)
+            param("Harmonic level", $currentPatch.harmonicLevel, 0...1)
+            param("Noise", $currentPatch.noiseLevel, 0...1)
+
+            groupHeader("Filter")
+            param("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
+            param("Resonance", $currentPatch.filterResonance, 0...1)
+            param("LFO → filter", $currentPatch.lfoToFilterDepth, 0...1)
+            param("Filter LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
+            param("Filter LFO depth", $currentPatch.filterLFODepth, 0...1)
+
+            groupHeader("Envelope")
+            param("Attack", $currentPatch.attack, 0...5, unit: "s")
+            param("Decay", $currentPatch.decay, 0...5, unit: "s")
+            param("Sustain", $currentPatch.sustain, 0...1)
+            param("Release", $currentPatch.release, 0...10, unit: "s")
+
+            groupHeader("Space & vibrato")
+            param("Reverb mix", $currentPatch.reverbMix, 0...1)
+            param("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
+            param("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
+            param("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
         }
+    }
+
+    /// A precise parameter row bound to a live patch field: slider + a 2-decimal
+    /// numeric field. `applySoundLive` runs continuously so edits are heard at once.
+    private func param(_ label: String, _ value: Binding<Float>,
+                       _ range: ClosedRange<Float>, unit: String = "") -> some View {
+        ParamControl(label: label, value: value, range: range, unit: unit,
+                     onChange: { applySoundLive() })
+    }
+
+    private func groupHeader(_ t: String) -> some View {
+        Text(t).font(EchoelTheme.font(11, .semibold)).foregroundStyle(EchoelTheme.dim)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
     }
 
     private var presetRow: some View {
@@ -241,18 +283,25 @@ struct EchoelStudioView: View {
                 }
             }
             .pickerStyle(.menu).tint(EchoelTheme.text)
-            .onChange(of: presetIndex) { _, _ in applySoundLive() }
+            .onChange(of: presetIndex) { _, i in
+                currentPatch = (i >= 0 && i < SynthPatch.factory.count) ? SynthPatch.factory[i] : style.synthPatch
+                applySoundLive()
+            }
             .accessibilityLabel("Timbre character preset")
         }
     }
 
     private var randomizeButton: some View {
         Button {
-            // Fresh timbre colour: a random character preset + a new pad position.
-            presetIndex = Int.random(in: 0..<SynthPatch.factory.count)
-            brightness = Double.random(in: 0.25...0.85)
-            space = Double.random(in: 0.2...0.7)
-            movement = Double.random(in: 0.05...0.4)
+            // Fresh timbre colour: start from a random character, then jitter a few
+            // expressive fields so each press genuinely differs. (Don't touch
+            // presetIndex — that would retrigger the picker's loader and clobber this.)
+            var p = SynthPatch.factory.randomElement() ?? currentPatch
+            p.brightness = Float.random(in: 0.25...0.85)
+            p.reverbMix = Float.random(in: 0.2...0.7)
+            p.filterCutoff = Float.random(in: 400...6000)
+            p.filterResonance = Float.random(in: 0...0.5)
+            currentPatch = p
             applySoundLive()
         } label: {
             Label("Randomize timbre", systemImage: "dice")
@@ -337,7 +386,8 @@ struct EchoelStudioView: View {
                     // Sound marker (white) — your current setting.
                     Circle().fill(EchoelTheme.text)
                         .frame(width: 22, height: 22)
-                        .position(x: CGFloat(brightness) * w, y: (1 - CGFloat(space)) * h)
+                        .position(x: CGFloat(currentPatch.brightness) * w,
+                                  y: (1 - CGFloat(currentPatch.reverbMix)) * h)
                         .accessibilityHidden(true)
                 }
                 .contentShape(Rectangle())
@@ -346,9 +396,8 @@ struct EchoelStudioView: View {
                         .onChanged { v in
                             let x = Swift.min(Swift.max(v.location.x / w, 0), 1)
                             let y = Swift.min(Swift.max(1 - v.location.y / h, 0), 1)
-                            brightness = Double(x)
-                            space = Double(y)
-                            movement = Double(y)
+                            currentPatch.brightness = Float(x)
+                            currentPatch.reverbMix = Float(y)
                             applySoundLive()
                         }
                 )
@@ -697,12 +746,11 @@ struct EchoelStudioView: View {
             seed: evolvingSeed
         )
         let composition = BioComposer.compose(input)
-        // Honor the user's Kammerton (concert pitch) on the next notes.
+        // Honor the user's Kammerton (concert pitch) + live timbre on the next notes.
         synth.setTuning(a4Hz: session.a4Hz)
-        currentPatch = currentSoundPatch()
         synth.apply(currentPatch)
         // Locked tempo wins for tight loops; otherwise the body sets the pace.
-        let tempo = lockBPM ? min(max(lockedBPM, 40), 200) : composition.suggestedTempo
+        let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         pianoRoll.load(composition.notes)
         // Drum-free: clear every cell; the transport only clocks the melody.
@@ -715,48 +763,11 @@ struct EchoelStudioView: View {
         EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing")
     }
 
-    /// Build the synth patch from the chosen genre, overridden by the live sliders.
-    /// All inputs are clamped, so this can never produce an out-of-range value.
-    private func currentSoundPatch() -> SynthPatch {
-        // Timbre base: a chosen character preset, else the genre's own patch. The
-        // preset gives sound-design variety independent of the musical genre.
-        var p = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
-            ? SynthPatch.factory[presetIndex]
-            : style.synthPatch
-        p.brightness = Float(min(max(brightness, 0), 1))
-        p.reverbMix = Float(min(max(space, 0), 1))
-        let mv = Float(min(max(movement, 0), 1))
-        // Gentler than before: pitch vibrato on a sustained sub makes the low end
-        // wobble ("restless bass"). Keep vibrato subtle and lean on the filter LFO
-        // for movement instead, which colours timbre without detuning the bass.
-        p.vibratoDepth = mv * 0.25
-        p.lfoToFilterDepth = mv * 0.7
-        return p
-    }
-
-    /// Live sound change (Brightness/Space/Movement) — apply to the running synth
-    /// without recomposing. Safe to call at any time; reverb updates in place.
+    /// Apply the live timbre (`currentPatch`) to the running synth without
+    /// recomposing. Safe to call at any time; the audio thread fans the patch
+    /// across every voice in its render drain.
     private func applySoundLive() {
-        currentPatch = currentSoundPatch()
         synth.apply(currentPatch)
-    }
-
-    /// The Sound slider sweeps the genres. Pick the style by index, then recompose
-    /// if we're running so the change is heard immediately.
-    private func applySoundBlend() {
-        let all = MusicStyle.allCases
-        guard !all.isEmpty else { return }
-        let idx = min(all.count - 1, max(0, Int((soundBlend * Double(all.count - 1)).rounded())))
-        let newStyle = all[idx]
-        // The Sound slider sweeps in genre STEPS. A continuous drag fires onChange
-        // ~100×/sec; recomposing on every tick (full compose + synth/fx reapply +
-        // pattern reload) floods the audio graph and main thread until the watchdog
-        // kills the app. Only act when the genre actually crosses a boundary — within
-        // one genre's band the drag is a no-op.
-        guard newStyle != style else { return }
-        style = newStyle
-        scale = newStyle.scale
-        if running { generate() } else { applySoundLive() }
     }
 
     // MARK: - Export / projects
@@ -787,15 +798,11 @@ struct EchoelStudioView: View {
         scale = p.scale
         fxCharacter = p.fxCharacter
         loopBars = LoopBarLength(rawValue: p.loopBars) ?? .four
-        currentPatch = p.patch
-        // Reflect the patch back into the sliders so the UI matches the sound.
-        brightness = Double(min(max(p.patch.brightness, 0), 1))
-        space = Double(min(max(p.patch.reverbMix, 0), 1))
-        movement = Double(min(max(p.patch.lfoToFilterDepth, 0), 1))
-        if let i = MusicStyle.allCases.firstIndex(of: p.style), MusicStyle.allCases.count > 1 {
-            soundBlend = Double(i) / Double(MusicStyle.allCases.count - 1)
-        }
+        currentPatch = p.patch          // every control reads this, so the UI matches
+        presetIndex = -1                // a saved patch is "custom", not a factory preset
         session.adopt(key: p.key)
+        session.a4Hz = p.a4Hz
+        synth.setTuning(a4Hz: p.a4Hz)
         synth.apply(p.patch)
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: p.style)
         pianoRoll.load(p.notes)
@@ -821,5 +828,74 @@ private struct ExportedFile: Identifiable {
 private struct DiagReport: Identifiable {
     let id = UUID()
     let text: String
+}
+
+/// A precise parameter control: a label, a slider for feel, and a numeric field you
+/// can type into — so any value is settable by dragging OR entered exactly to two
+/// decimals. Generic over Float (patch fields) and Double (tempo/tuning). `onChange`
+/// fires continuously (cheap live updates); `onCommit` fires once on release/submit
+/// (use it for heavy work like recomposition).
+private struct ParamControl<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatingPoint {
+    let label: String
+    @Binding var value: V
+    let range: ClosedRange<V>
+    var unit: String = ""
+    var onChange: () -> Void = {}
+    var onCommit: () -> Void = {}
+
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(label).font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+                TextField("", text: $text)
+                    .multilineTextAlignment(.trailing)
+                    .font(EchoelTheme.font(13).monospacedDigit())
+                    .foregroundStyle(EchoelTheme.text)
+                    .textFieldStyle(.plain)
+                    .frame(width: 78)
+                    .focused($focused)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    .submitLabel(.done)
+                    #endif
+                    .onSubmit(commitText)
+                    .onChange(of: focused) { _, f in if !f { commitText() } }
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    .accessibilityLabel("\(label) value")
+                if !unit.isEmpty {
+                    Text(unit).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .frame(width: 30, alignment: .leading)
+                }
+            }
+            Slider(value: $value, in: range) { editing in
+                if !editing { syncText(); onCommit() }
+            }
+            .tint(EchoelTheme.accent)
+            .onChange(of: value) { _, _ in
+                if !focused { syncText() }
+                onChange()
+            }
+            .accessibilityLabel(label)
+        }
+        .onAppear { syncText() }
+    }
+
+    private func syncText() { text = String(format: "%.2f", Double(value)) }
+
+    /// Parse the typed value (accepting comma or dot), clamp to range, write back.
+    private func commitText() {
+        let cleaned = text.replacingOccurrences(of: ",", with: ".")
+        if let d = Double(cleaned) {
+            value = V(min(max(d, Double(range.lowerBound)), Double(range.upperBound)))
+        }
+        syncText()
+        onCommit()
+    }
 }
 #endif
