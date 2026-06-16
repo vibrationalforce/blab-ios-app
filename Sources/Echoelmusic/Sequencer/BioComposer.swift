@@ -44,6 +44,26 @@ public struct SeededRNG: Sendable {
     }
 }
 
+/// Continuous "mood"/character controls that shape the composition independently of
+/// genre — they blend with each other and with the body. All 0…1. Neutral defaults
+/// keep existing behaviour. (See `composeHarmonic`/`ambientMelody` for the mapping.)
+public struct MoodProfile: Sendable, Equatable {
+    public var liveliness: Float   // 0 sparse/still … 1 busy/active (density)
+    public var darkness: Float     // 0 bright/high register … 1 dark/low register
+    public var tension: Float      // 0 friendly/consonant … 1 scary/dissonant
+    public var romance: Float      // 0 plain triads … 1 lush 7th-chord warmth
+    public var weird: Float        // 0 predictable steps … 1 odd leaps + chromaticism
+
+    public init(liveliness: Float = 0.5, darkness: Float = 0.5, tension: Float = 0.0,
+                romance: Float = 0.3, weird: Float = 0.0) {
+        self.liveliness = liveliness
+        self.darkness = darkness
+        self.tension = tension
+        self.romance = romance
+        self.weird = weird
+    }
+}
+
 public struct BioComposition: Equatable, Sendable {
     public var notes: [Note]
     /// 8 tracks × 16 steps drum grid, shaped to the genre. All-false in the
@@ -84,6 +104,7 @@ public enum BioComposer {
         public var style: MusicStyle
         public var mode: ComposerMode
         public var lockedTempo: Double      // used when mode == .studioLocked
+        public var mood: MoodProfile
         public var seed: UInt64
 
         public init(
@@ -96,6 +117,7 @@ public enum BioComposer {
             style: MusicStyle = .dubTechno,
             mode: ComposerMode = .studioLocked,
             lockedTempo: Double = 124,
+            mood: MoodProfile = MoodProfile(),
             seed: UInt64 = 0x5EED
         ) {
             self.heartRateBPM = heartRateBPM
@@ -107,6 +129,7 @@ public enum BioComposer {
             self.style = style
             self.mode = mode
             self.lockedTempo = lockedTempo
+            self.mood = mood
             self.seed = seed
         }
     }
@@ -178,7 +201,7 @@ public enum BioComposer {
         case .selfObservation:
             notes = ambientMelody(key: input.key, calm: calm, busy: busy,
                                   breathPhase: input.breathPhase,
-                                  breathDepth: input.breathDepth, rng: &rng)
+                                  breathDepth: input.breathDepth, mood: input.mood, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         default:
             // The non-beat harmonic genres: pads/chords/arps + an optional lead,
@@ -186,7 +209,7 @@ public enum BioComposer {
             notes = composeHarmonic(key: input.key, profile: input.style.harmonicProfile,
                                     calm: calm, busy: busy,
                                     breathPhase: input.breathPhase,
-                                    breathDepth: input.breathDepth, rng: &rng)
+                                    breathDepth: input.breathDepth, mood: input.mood, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         }
 
@@ -355,14 +378,14 @@ public enum BioComposer {
     /// more stepwise notes; the breath sets the rise/fall.
     private static func ambientMelody(key: MusicalKey, calm: Float, busy: Float,
                                       breathPhase: Float, breathDepth: Float,
-                                      rng: inout SeededRNG) -> [Note] {
+                                      mood: MoodProfile, rng: inout SeededRNG) -> [Note] {
         // Density follows the autonomic state (`busy` already folds in heart rate,
-        // vagal tone/HRV and coherence) — so in meditation the line thins as the
-        // body settles and fills out under sympathetic load. clamp01 keeps 2…8.
-        let density = clamp01(busy)
+        // vagal tone/HRV and coherence), scaled by the user's liveliness. clamp01
+        // keeps the count in range. Darkness drops the line an octave.
+        let density = clamp01(busy * (0.6 + 0.8 * clamp01(mood.liveliness)))
         let noteCount = 2 + Int((density * 6).rounded())       // 2…8
         let inhaleBias: Float = breathPhase < 0.5 ? 0.7 : 0.3
-        let octave = 4
+        let octave = 4 + (mood.darkness > 0.6 ? -1 : 0)
 
         var notes: [Note] = []
         var degree = 0
@@ -405,12 +428,16 @@ public enum BioComposer {
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
-                                        rng: inout SeededRNG) -> [Note] {
+                                        mood: MoodProfile, rng: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
         let prog = profile.progression.isEmpty ? [0] : profile.progression
         // Guard chord tones symmetrically with the progression (a public
         // HarmonicProfile could be built with empty tones → div-by-zero in the arp).
-        let tones = profile.chordTones.isEmpty ? [0, 2, 4] : profile.chordTones
+        // Romance adds the 7th for lush chords; darkness drops the whole voicing an
+        // octave. (Mood blends on top of the genre profile.)
+        var tones = profile.chordTones.isEmpty ? [0, 2, 4] : profile.chordTones
+        if mood.romance > 0.5, !tones.contains(6) { tones.append(6) }
+        let octShift = mood.darkness > 0.6 ? -1 : 0
         let sectionLen = max(1, stepCount / prog.count)
         let padVelocity = clamp01(0.34 + 0.22 * breathDepth)
         let bassVelocity = clamp01(padVelocity + 0.14)
@@ -430,7 +457,7 @@ public enum BioComposer {
             // 1) Bass foundation — a sustained root an octave below the pad. Gives
             //    every chord a defined low end so the loop reads full and produced,
             //    never thin or floating. Slightly stronger so it grounds the harmony.
-            let bassOct = max(0, profile.padOctave - 1)
+            let bassOct = max(0, profile.padOctave - 1 + octShift)
             notes.append(Note(id: nextUUID(&rng),
                               pitch: key.degree(rootDegree, octave: bassOct),
                               startStep: secStart, lengthSteps: len, velocity: hVel(bassVelocity, &rng)))
@@ -439,7 +466,7 @@ public enum BioComposer {
             //    voice-led into the previous chord's register, then sustained for
             //    the section or gently arpeggiated.
             var basePitches: [Int] = []
-            for tone in tones { basePitches.append(key.degree(rootDegree + tone, octave: profile.padOctave)) }
+            for tone in tones { basePitches.append(key.degree(rootDegree + tone, octave: profile.padOctave + octShift)) }
             var shift = 0
             if let center = prevPadCenter, !basePitches.isEmpty {
                 let avg = Float(basePitches.reduce(0, +)) / Float(basePitches.count)
@@ -482,7 +509,9 @@ public enum BioComposer {
         //    surprises while staying musical. (Replaces the old free-wandering
         //    scale-degree lead that could drift out of the harmony.)
         if profile.leadDensity > 0 {
-            let count = max(2, Int((profile.leadDensity * (4 + busy * 4)).rounded()))
+            // Liveliness scales how many lead notes; darkness drops the register.
+            let lively = 0.6 + 0.8 * clamp01(mood.liveliness)
+            let count = max(2, Int((profile.leadDensity * (4 + busy * 4) * lively).rounded()))
             var lastStart = -1
             var toneIdx = breathPhase < 0.5 ? 0 : 1   // inhale low → exhale higher
             for i in 0..<count {
@@ -492,14 +521,22 @@ public enum BioComposer {
                 let section = min(prog.count - 1, startStep / sectionLen)
                 let chordRoot = prog[section]
                 let chordTone = tones[((toneIdx % tones.count) + tones.count) % tones.count]
-                let pitch = key.degree(chordRoot + chordTone, octave: profile.leadOctave)
+                var pitch = key.degree(chordRoot + chordTone, octave: profile.leadOctave + octShift)
+                // Tension (friendly→scary): occasionally bend a lead note a semitone
+                // out of the chord for dissonance — scaled by tension so "friendly"
+                // stays fully consonant.
+                if mood.tension > 0, rng.unit() < clamp01(mood.tension) * 0.45 {
+                    pitch += rng.unit() < 0.5 ? 1 : -1
+                }
                 let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
                 let velocity = hVel(0.46 + 0.30 * breathDepth, &rng)
-                notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
-                                  lengthSteps: length, velocity: velocity))
-                // Small, singable steps through the chord; inhale biases upward.
+                notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch)),
+                                  startStep: startStep, lengthSteps: length, velocity: velocity))
+                // Steps through the chord; inhale biases upward. Weird widens the
+                // leap from a single step to two or three (odd, surprising motion).
                 let up = rng.unit() < (breathPhase < 0.5 ? 0.62 : 0.40)
-                toneIdx += up ? 1 : -1
+                let leap = (rng.unit() < clamp01(mood.weird)) ? (1 + Int(rng.unit() * 2)) : 1
+                toneIdx += (up ? 1 : -1) * leap
             }
         }
         return notes

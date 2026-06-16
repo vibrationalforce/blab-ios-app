@@ -39,8 +39,12 @@ struct EchoelStudioView: View {
 
     // Collapsible control-panel state ("aufklappen") + timbre preset.
     @State private var showComposition = true
+    @State private var showMood = false
     @State private var showSound = true
     @State private var showEffects = false
+
+    /// Continuous mood/character controls that shape the composition (blend with bio).
+    @State private var mood = MoodProfile()
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @State private var presetIndex = -1
 
@@ -127,6 +131,7 @@ struct EchoelStudioView: View {
     private var soundControls: some View {
         VStack(alignment: .leading, spacing: 12) {
             compositionPanel
+            moodPanel
             soundPanel
             effectsPanel
             if running {
@@ -208,6 +213,29 @@ struct EchoelStudioView: View {
                              onCommit: { recomposeIfRunning() })
             }
         }
+    }
+
+    // MARK: Panel — Mood (character of the composition)
+
+    private var moodPanel: some View {
+        panel("Mood", "Character of the composition", isExpanded: $showMood) {
+            LazyVGrid(columns: knobCols, spacing: 16) {
+                moodKnob("Liveliness", $mood.liveliness)
+                moodKnob("Darkness", $mood.darkness)
+                moodKnob("Tension", $mood.tension)
+                moodKnob("Romance", $mood.romance)
+                moodKnob("Weird", $mood.weird)
+            }
+            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · bright ↔ dark · lush 7ths (romance) · odd leaps (weird). Blends with your live signal.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// A mood knob recomposes on release (it changes the notes, not the timbre).
+    private func moodKnob(_ label: String, _ value: Binding<Float>) -> some View {
+        RotaryKnob(label: label, value: value, range: 0...1,
+                   onCommit: { recomposeIfRunning() })
     }
 
     // MARK: Panel 2 — Sound & texture (XY pad · preset · sliders · randomize)
@@ -717,6 +745,7 @@ struct EchoelStudioView: View {
             style: style,
             mode: .flowFree,          // tempo always follows the body
             lockedTempo: 90,
+            mood: mood,
             seed: evolvingSeed
         )
         let composition = BioComposer.compose(input)
