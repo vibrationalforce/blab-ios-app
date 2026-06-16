@@ -234,18 +234,25 @@ struct EchoelStudioView: View {
             presetRow
             randomizeButton
 
+            // A deliberate MIX: knobs for the perceptual timbre dials, sliders for
+            // the time-based envelope, pickers for character — every one also exact
+            // by typed entry.
             groupHeader("Tone")
-            param("Brightness", $currentPatch.brightness, 0...1)
-            param("Harmonicity", $currentPatch.harmonicity, 0...1)
-            param("Harmonic level", $currentPatch.harmonicLevel, 0...1)
-            param("Noise", $currentPatch.noiseLevel, 0...1)
+            LazyVGrid(columns: knobCols, spacing: 16) {
+                knob("Brightness", $currentPatch.brightness, 0...1)
+                knob("Harmonics", $currentPatch.harmonicity, 0...1)
+                knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
+                knob("Noise", $currentPatch.noiseLevel, 0...1)
+            }
 
             groupHeader("Filter")
-            param("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
-            param("Resonance", $currentPatch.filterResonance, 0...1)
-            param("LFO → filter", $currentPatch.lfoToFilterDepth, 0...1)
-            param("Filter LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
-            param("Filter LFO depth", $currentPatch.filterLFODepth, 0...1)
+            LazyVGrid(columns: knobCols, spacing: 16) {
+                knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
+                knob("Resonance", $currentPatch.filterResonance, 0...1)
+                knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1)
+                knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
+                knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
+            }
 
             groupHeader("Envelope")
             param("Attack", $currentPatch.attack, 0...5, unit: "s")
@@ -254,11 +261,18 @@ struct EchoelStudioView: View {
             param("Release", $currentPatch.release, 0...10, unit: "s")
 
             groupHeader("Space & vibrato")
-            param("Reverb mix", $currentPatch.reverbMix, 0...1)
-            param("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
-            param("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
-            param("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
+            LazyVGrid(columns: knobCols, spacing: 16) {
+                knob("Reverb mix", $currentPatch.reverbMix, 0...1)
+                knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
+                knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
+                knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
+            }
         }
+    }
+
+    /// Two-column grid for knob rows.
+    private var knobCols: [GridItem] {
+        [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
     }
 
     /// A precise parameter row bound to a live patch field: slider + a 2-decimal
@@ -267,6 +281,13 @@ struct EchoelStudioView: View {
                        _ range: ClosedRange<Float>, unit: String = "") -> some View {
         ParamControl(label: label, value: value, range: range, unit: unit,
                      onChange: { applySoundLive() })
+    }
+
+    /// A rotary knob bound to a live patch field; same live-apply contract as `param`.
+    private func knob(_ label: String, _ value: Binding<Float>,
+                      _ range: ClosedRange<Float>, unit: String = "") -> some View {
+        RotaryKnob(label: label, value: value, range: range, unit: unit,
+                   onChange: { applySoundLive() })
     }
 
     private func groupHeader(_ t: String) -> some View {
@@ -897,6 +918,114 @@ private struct ParamControl<V: BinaryFloatingPoint>: View where V.Stride: Binary
         let cleaned = text.replacingOccurrences(of: ",", with: ".")
         if let d = Double(cleaned) {
             value = V(min(max(d, Double(range.lowerBound)), Double(range.upperBound)))
+        }
+        syncText()
+        onCommit()
+    }
+}
+
+/// A rotary knob ("Rädchen") with an exact numeric centre you can type into — feel
+/// by dragging vertically, precision by typing to two decimals. Same generic +
+/// onChange/onCommit contract as ParamControl; the dial sweeps 270°. VoiceOver
+/// reads the real value and is adjustable by swipe.
+private struct RotaryKnob<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatingPoint {
+    let label: String
+    @Binding var value: V
+    let range: ClosedRange<V>
+    var unit: String = ""
+    var onChange: () -> Void = {}
+    var onCommit: () -> Void = {}
+
+    @State private var text = ""
+    @State private var dragStart: V?
+    @FocusState private var focused: Bool
+
+    private var frac: Double {
+        let lo = Double(range.lowerBound), hi = Double(range.upperBound)
+        guard hi > lo else { return 0 }
+        return Swift.min(Swift.max((Double(value) - lo) / (hi - lo), 0), 1)
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle().fill(EchoelTheme.fill)
+                Circle().trim(from: 0, to: 0.75)
+                    .stroke(EchoelTheme.border, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                Circle().trim(from: 0, to: 0.75 * frac)
+                    .stroke(EchoelTheme.accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                TextField("", text: $text)
+                    .multilineTextAlignment(.center)
+                    .font(EchoelTheme.font(12).monospacedDigit())
+                    .foregroundStyle(EchoelTheme.text)
+                    .textFieldStyle(.plain)
+                    .frame(width: 48)
+                    .focused($focused)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer(); Button("Done") { focused = false }
+                        }
+                    }
+                    #endif
+                    .onSubmit(commitText)
+                    .onChange(of: focused) { _, f in if !f { commitText() } }
+            }
+            .frame(width: 68, height: 68)
+            .contentShape(Circle())
+            .gesture(
+                DragGesture(minimumDistance: 4)
+                    .onChanged { g in
+                        let start = dragStart ?? value
+                        if dragStart == nil { dragStart = value }
+                        let span = Double(range.upperBound - range.lowerBound)
+                        let nv = Double(start) + (Double(-g.translation.height) / 160.0) * span
+                        value = V(Swift.min(Swift.max(nv, Double(range.lowerBound)), Double(range.upperBound)))
+                        if !focused { syncText() }
+                        onChange()
+                    }
+                    .onEnded { _ in dragStart = nil; onCommit() }
+            )
+            Text(label).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1).minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity)
+        .onAppear { syncText() }
+        .onChange(of: value) { _, _ in if !focused { syncText() } }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(accessibleValue)
+        .accessibilityAdjustableAction { dir in
+            let span = Double(range.upperBound - range.lowerBound)
+            let step = span / 50
+            switch dir {
+            case .increment: value = V(Swift.min(Double(value) + step, Double(range.upperBound)))
+            case .decrement: value = V(Swift.max(Double(value) - step, Double(range.lowerBound)))
+            @unknown default: break
+            }
+            syncText(); onChange(); onCommit()
+        }
+    }
+
+    private var accessibleValue: String {
+        let n = String(format: "%.2f", Double(value))
+        switch unit {
+        case "Hz":  return "\(n) hertz"
+        case "s":   return "\(n) seconds"
+        case "":    return n
+        default:    return "\(n) \(unit)"
+        }
+    }
+
+    private func syncText() { text = String(format: "%.2f", Double(value)) }
+
+    private func commitText() {
+        let cleaned = text.replacingOccurrences(of: ",", with: ".")
+        if let d = Double(cleaned) {
+            value = V(Swift.min(Swift.max(d, Double(range.lowerBound)), Double(range.upperBound)))
         }
         syncText()
         onCommit()
