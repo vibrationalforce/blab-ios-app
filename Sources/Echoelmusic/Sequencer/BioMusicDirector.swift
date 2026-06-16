@@ -32,6 +32,27 @@ public struct BioStateSummary: Sendable, Equatable {
     }
 }
 
+/// Plain-English, on-device explanation of how the live body is shaping the music
+/// right now — simple but precise technical language. Deterministic, no LLM, so it
+/// works on iOS 18+ (not gated to the on-device model). Surfaced to the user as
+/// "EchoelAI" narration of the bio→sound process.
+public enum BioExplanation {
+    public static func text(for f: BioSampleFrame, tempo: Double) -> String {
+        let s = BioStateSummary(from: f)
+        let hr = Int(f.heartRateBPM.rounded())
+        let bpm = Int(tempo.rounded())
+        let pace = s.arousal == "low" ? "calm" : (s.arousal == "high" ? "driving" : "flowing")
+        let tone: String
+        switch s.steadiness {
+        case "steady and coherent": tone = "high coherence opens the filter for a brighter, fuller tone"
+        case "restless":            tone = "an unsteady signal keeps the filter lower for a darker, softer tone"
+        default:                    tone = "moderate coherence holds a balanced tone"
+        }
+        let space = s.arousal == "low" ? "a wide hall reverb" : "a tighter room space"
+        return "EchoelAI — heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo; \(tone); \(s.breath) breathing places it in \(space). Each bar re-seeds from your live signal, so it never repeats."
+    }
+}
+
 /// The model's (or fallback's) suggestion — plain, Sendable, engine-facing.
 public struct MusicDirectionResult: Sendable, Equatable {
     public let genre: String

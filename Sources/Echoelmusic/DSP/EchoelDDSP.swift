@@ -221,6 +221,13 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// -1 = uninitialised (seed it to the first target so there's no startup sweep).
     private var smoothedCutoff: Float = -1
 
+    /// Per-sample-smoothed harmonic/noise blend. `harmonicity` and `noiseLevel` are
+    /// driven in block-size steps by bio frames (coherence→harmonicity) and slider
+    /// drags; feeding the steps straight into the mix audibly zippers the timbre.
+    /// One-pole smoothed each sample. -1 = seed on first use (no startup glide).
+    private var smoothedHarmonicity: Float = -1
+    private var smoothedNoiseLevel: Float = -1
+
     /// Anti-alias weighting scratch — smoothedAmplitudes with a raised-cosine
     /// taper applied to partials approaching Nyquist (avoids the harsh "pop" of
     /// partials hard-cutting in/out as f0 or vibrato sweeps them past Nyquist).
@@ -670,8 +677,14 @@ public final class EchoelDDSP: @unchecked Sendable {
                 noiseSample /= Float(noiseBandCount)
             }
 
-            // Mix harmonic + noise based on harmonicity
-            let mixed = harmonicSample * harmonicity + noiseSample * noiseLevel * (1.0 - harmonicity)
+            // One-pole smooth the harmonic/noise blend so bio/slider steps glide
+            // instead of zippering. Seed on first sample to avoid a startup ramp.
+            if smoothedHarmonicity < 0 { smoothedHarmonicity = harmonicity }
+            if smoothedNoiseLevel < 0 { smoothedNoiseLevel = noiseLevel }
+            smoothedHarmonicity += 0.01 * (harmonicity - smoothedHarmonicity)
+            smoothedNoiseLevel  += 0.01 * (noiseLevel  - smoothedNoiseLevel)
+            // Mix harmonic + noise based on the smoothed harmonicity
+            let mixed = harmonicSample * smoothedHarmonicity + noiseSample * smoothedNoiseLevel * (1.0 - smoothedHarmonicity)
 
             // Apply envelope and gain
             var sample = mixed * amplitude * envelopeValue

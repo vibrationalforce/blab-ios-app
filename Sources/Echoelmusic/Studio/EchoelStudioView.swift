@@ -66,6 +66,10 @@ struct EchoelStudioView: View {
     /// keeps developing and never repeats, even when the body holds steady.
     @State private var evolution: UInt64 = 0
 
+    /// EchoelAI's plain-English narration of how the live body is shaping the sound,
+    /// refreshed each time the composition re-seeds. Deterministic, on-device.
+    @State private var aiExplanation = ""
+
     // Background evolution + bio acquisition.
     @State private var evolveTask: Task<Void, Never>?
     @State private var startTask: Task<Void, Never>?
@@ -143,8 +147,11 @@ struct EchoelStudioView: View {
             soundPanel
             effectsPanel
             if running {
-                Text("The music is arising from your live signal — every control shapes it as it plays.")
+                Text(aiExplanation.isEmpty
+                     ? "The music is arising from your live signal — every control shapes it as it plays."
+                     : aiExplanation)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .animation(.easeInOut(duration: 0.3), value: aiExplanation)
             }
         }
     }
@@ -706,7 +713,12 @@ struct EchoelStudioView: View {
         evolveTask?.cancel()
         evolveTask = Task { @MainActor in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(12))
+                // Re-seed roughly every ~2 bars at the current tempo (not a flat 12 s)
+                // so the music keeps hugging the live body and feels far less loop-y.
+                // Clamped 4…8 s so it never churns too fast or drifts too static.
+                let beats = 8.0  // two 4/4 bars
+                let barSpan = min(8.0, max(4.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
+                try? await Task.sleep(for: .seconds(barSpan))
                 guard running, !Task.isCancelled else { break }
                 generate()
             }
@@ -784,6 +796,8 @@ struct EchoelStudioView: View {
         beatPlayer.pattern.setTempo(tempo)
         session.adopt(key: key)
         lastNoteCount = composition.notes.count
+        // EchoelAI narrates the live bio→sound mapping in plain technical English.
+        if let frame { aiExplanation = BioExplanation.text(for: frame, tempo: tempo) }
         if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
         EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing")
     }
