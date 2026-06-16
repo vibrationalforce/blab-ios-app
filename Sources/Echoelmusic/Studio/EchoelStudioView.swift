@@ -455,6 +455,17 @@ struct EchoelStudioView: View {
             .disabled(isExporting || lastNoteCount == nil)
             .accessibilityHint("Records one loop and exports a WAV to share")
 
+            Button { exportMIDI() } label: {
+                Label("Send .mid (for your DAW)", systemImage: "pianokeys")
+                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(lastNoteCount == nil)
+            .accessibilityHint("Exports the generated melody as a MIDI file to open in any DAW")
+
             HStack(spacing: 10) {
                 Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
                     Label("Save", systemImage: "tray.and.arrow.down")
@@ -780,6 +791,22 @@ struct EchoelStudioView: View {
     private func exportWav() async {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
             share = ExportedFile(url: url)
+        }
+    }
+
+    /// Export the generated melody as a standard MIDI file (in-key notes, real
+    /// tempo) so it opens with pitch + timing in any DAW. Engine already exists
+    /// (MIDIFileExporter); this writes it to a temp file and opens the share sheet.
+    private func exportMIDI() {
+        guard !pianoRoll.notes.isEmpty else { return }
+        let data = MIDIFileExporter.export(notes: pianoRoll.notes, tempo: beatPlayer.pattern.tempo)
+        let stem = session.sessionName(bpm: beatPlayer.pattern.tempo)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(stem).mid")
+        do {
+            try data.write(to: url, options: .atomic)
+            share = ExportedFile(url: url)
+        } catch {
+            EchoelCrashLog.breadcrumb("MIDI export failed: \(error.localizedDescription)")
         }
     }
 
