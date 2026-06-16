@@ -24,7 +24,9 @@ final class GenreFXTests: XCTestCase {
                                ("delayWow", fx.delayWow), ("delayDrive", fx.delayDrive),
                                ("chorusDepth", fx.chorusDepth), ("chorusMix", fx.chorusMix),
                                ("phaserDepth", fx.phaserDepth), ("phaserMix", fx.phaserMix),
-                               ("saturation", fx.saturation)] {
+                               ("saturation", fx.saturation),
+                               ("reverbMix", fx.reverbMix), ("reverbRoom", fx.reverbRoom),
+                               ("reverbDamping", fx.reverbDamping)] {
                 XCTAssertTrue((0...1).contains(v), "\(style).\(label) = \(v) out of 0...1")
             }
             // Feedback must stay below self-oscillation.
