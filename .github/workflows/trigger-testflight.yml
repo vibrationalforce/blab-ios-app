@@ -8,15 +8,10 @@
 name: Trigger TestFlight
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'Sources/**'
-      - 'Tests/**'
-      - 'Package.swift'
-      - 'project.yml'
-      - 'fastlane/**'
+  # DISABLED 2026-06-16: auto-uploading TestFlight on every main update drained
+  # Apple's daily upload quota. Deploy intentionally via `git push origin HEAD:deploy`
+  # (deploy-on-tag.yml). Left as manual-only so it can still be run on purpose.
+  workflow_dispatch:
 
 permissions:
   actions: write
