@@ -69,7 +69,8 @@ public final class PianoRollModel {
 
     public func clear() {
         notes.removeAll()
-        allNotesOff()   // release anything sounding so clearing never hangs a note
+        pendingNotes = nil   // else a staged bar would resurrect what was just cleared
+        allNotesOff()        // release anything sounding so clearing never hangs a note
     }
 
     /// Replace all notes (used when launching a melody clip). Flush any notes
