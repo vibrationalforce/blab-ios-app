@@ -102,6 +102,72 @@ public extension MusicStyle {
                 harm: 0.90, hl: 0.84, bright: 0.18, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 950, res: 0.06, lfoAmt: 0.10, lfoRate: 0.05, lfoDepth: 0.35,
                 revMix: 0.66, revDecay: 7.0, vibRate: 0, vibDepth: 0)
+        case .classical:
+            return patch("E1", "Chamber Strings",
+                a: 0.25, d: 1.0, s: 0.80, r: 3.0,
+                harm: 0.90, hl: 0.82, bright: 0.34, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 2600, res: 0.08, lfoAmt: 0.06, lfoRate: 0.10, lfoDepth: 0.15,
+                revMix: 0.50, revDecay: 3.8, vibRate: 0, vibDepth: 0)
+        case .jazz:
+            return patch("E2", "Warm Rhodes",
+                a: 0.02, d: 0.9, s: 0.60, r: 1.8,
+                harm: 0.90, hl: 0.78, bright: 0.40, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3000, res: 0.10, lfoAmt: 0.08, lfoRate: 0.20, lfoDepth: 0.20,
+                revMix: 0.40, revDecay: 2.6, vibRate: 4, vibDepth: 0.06)
+        case .klezmer:
+            return patch("E3", "Clarinet Reed",
+                a: 0.04, d: 0.5, s: 0.70, r: 1.4,
+                harm: 0.92, hl: 0.80, bright: 0.50, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3400, res: 0.12, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
+                revMix: 0.38, revDecay: 2.4, vibRate: 5.5, vibDepth: 0.12)
+        case .oriental:
+            return patch("E4", "Reed Strings",
+                a: 0.08, d: 0.8, s: 0.72, r: 2.2,
+                harm: 0.90, hl: 0.80, bright: 0.46, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3000, res: 0.12, lfoAmt: 0.10, lfoRate: 0.20, lfoDepth: 0.25,
+                revMix: 0.46, revDecay: 3.2, vibRate: 5, vibDepth: 0.10)
+        case .punk:
+            return patch("E5", "Buzz Saw",
+                a: 0.005, d: 0.3, s: 0.60, r: 0.6,
+                harm: 0.95, hl: 0.80, bright: 0.62, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 4200, res: 0.22, lfoAmt: 0.05, lfoRate: 0.20, lfoDepth: 0.10,
+                revMix: 0.22, revDecay: 1.2, vibRate: 0, vibDepth: 0)
+        case .rocknroll:
+            return patch("E6", "Twang",
+                a: 0.008, d: 0.4, s: 0.50, r: 0.9,
+                harm: 0.93, hl: 0.78, bright: 0.58, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3800, res: 0.18, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                revMix: 0.30, revDecay: 1.6, vibRate: 0, vibDepth: 0)
+        case .rock:
+            return patch("E7", "Driven Lead",
+                a: 0.006, d: 0.4, s: 0.60, r: 1.0,
+                harm: 0.94, hl: 0.80, bright: 0.56, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3600, res: 0.20, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                revMix: 0.30, revDecay: 1.8, vibRate: 0, vibDepth: 0)
+        case .ska:
+            return patch("E8", "Skank Organ",
+                a: 0.004, d: 0.25, s: 0.40, r: 0.5,
+                harm: 0.92, hl: 0.78, bright: 0.54, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3400, res: 0.16, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                revMix: 0.28, revDecay: 1.4, vibRate: 0, vibDepth: 0)
+        case .rocksteady:
+            return patch("E9", "Warm Organ",
+                a: 0.02, d: 0.5, s: 0.70, r: 1.4,
+                harm: 0.90, hl: 0.80, bright: 0.40, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 2600, res: 0.10, lfoAmt: 0.08, lfoRate: 0.18, lfoDepth: 0.18,
+                revMix: 0.36, revDecay: 2.2, vibRate: 4, vibDepth: 0.06)
+        case .heavyMetal:
+            return patch("EA", "Metal Rig",
+                a: 0.004, d: 0.4, s: 0.55, r: 0.8,
+                harm: 0.95, hl: 0.82, bright: 0.50, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 3000, res: 0.24, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                revMix: 0.26, revDecay: 1.6, vibRate: 0, vibDepth: 0)
+        case .doom:
+            return patch("EB", "Doom Wall",
+                a: 0.02, d: 1.2, s: 0.70, r: 3.0,
+                harm: 0.90, hl: 0.84, bright: 0.28, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 1400, res: 0.18, lfoAmt: 0.10, lfoRate: 0.08, lfoDepth: 0.30,
+                revMix: 0.50, revDecay: 4.5, vibRate: 0, vibDepth: 0)
         case .selfObservation:
             return patch("D3", "Calm Pad",
                 a: 1.0, d: 1.3, s: 0.88, r: 4.2,

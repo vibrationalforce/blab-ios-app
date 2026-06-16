@@ -221,6 +221,66 @@ public extension MusicStyle {
                 delaySync: TempoSyncOption(.half),
                 delayMix: 0.40, delayFeedback: 0.45, delayTone: 0.30, delaySpread: 0.4,
                 chorusEnabled: true, chorusRate: 0.15, chorusDepth: 0.5, chorusMix: 0.35)
+        case .classical:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.quarter),
+                delayMix: 0.20, delayFeedback: 0.25, delayTone: 0.45, delaySpread: 0.30)
+        case .jazz:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.16, delayFeedback: 0.20, delayTone: 0.55, delaySpread: 0.25,
+                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.3, chorusMix: 0.20)
+        case .klezmer:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.18, delayFeedback: 0.22, delayTone: 0.60, delaySpread: 0.30)
+        case .oriental:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.quarter),
+                delayMix: 0.30, delayFeedback: 0.40, delayTone: 0.40, delaySpread: 0.40,
+                delayWow: 0.40, delayDrive: 0.15)
+        case .punk:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.sixteenth),
+                delayMix: 0.10, delayFeedback: 0.12, delayTone: 0.60, delaySpread: 0.15)
+        case .rocknroll:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.18, delayFeedback: 0.20, delayTone: 0.55, delaySpread: 0.20,
+                delayWow: 0.30, delayDrive: 0.20)
+        case .rock:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth, .dotted),
+                delayMix: 0.20, delayFeedback: 0.26, delayTone: 0.55, delaySpread: 0.35)
+        case .ska:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.sixteenth),
+                delayMix: 0.12, delayFeedback: 0.14, delayTone: 0.60, delaySpread: 0.20)
+        case .rocksteady:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.20, delayFeedback: 0.28, delayTone: 0.45, delaySpread: 0.25,
+                delayWow: 0.35, delayDrive: 0.10)
+        case .heavyMetal:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.sixteenth),
+                delayMix: 0.12, delayFeedback: 0.18, delayTone: 0.50, delaySpread: 0.20)
+        case .doom:
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.half),
+                delayMix: 0.40, delayFeedback: 0.50, delayTone: 0.30, delaySpread: 0.40,
+                delayWow: 0.40, delayDrive: 0.30)
         case .selfObservation:
             // Subtle and clean — a calm quarter-note space, gentle width.
             return GenreFXPreset(

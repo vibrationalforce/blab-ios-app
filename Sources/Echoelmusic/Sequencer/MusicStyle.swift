@@ -63,6 +63,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     case sciFi
     case psytrance
     case esotericMeditation
+    case classical
+    case jazz
+    case klezmer
+    case oriental
+    case punk
+    case rocknroll
+    case rock
+    case ska
+    case rocksteady
+    case heavyMetal
+    case doom
     case selfObservation
 
     public var id: String { rawValue }
@@ -81,6 +92,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .sciFi:              return "Sci-Fi"
         case .psytrance:          return "Psytrance"
         case .esotericMeditation: return "Esoteric Meditation"
+        case .classical:          return "Classical"
+        case .jazz:               return "Jazz"
+        case .klezmer:            return "Klezmer"
+        case .oriental:           return "Oriental"
+        case .punk:               return "Punk"
+        case .rocknroll:          return "Rock 'n' Roll"
+        case .rock:               return "Rock"
+        case .ska:                return "Ska"
+        case .rocksteady:         return "Rocksteady"
+        case .heavyMetal:         return "Heavy Metal"
+        case .doom:               return "Doom"
         case .selfObservation:    return "Self-Observation"
         }
     }
@@ -100,6 +122,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .sciFi:              return "Eerie atmospheres · deep-space mood"
         case .psytrance:          return "Rolling minor arpeggio · Goa lineage"
         case .esotericMeditation: return "Drone · ethereal pads · deep ambient"
+        case .classical:          return "Chamber strings · clean counterpoint"
+        case .jazz:               return "Warm Rhodes · seventh chords"
+        case .klezmer:            return "Reedy clarinet · ornamented minor"
+        case .oriental:           return "Modal phrygian · reed & strings"
+        case .punk:               return "Fast power chords · raw drive"
+        case .rocknroll:          return "Twangy mixolydian · boogie"
+        case .rock:               return "Driven power chords · anthemic"
+        case .ska:                return "Bright offbeat skank"
+        case .rocksteady:         return "Mellow offbeat · warm organ"
+        case .heavyMetal:         return "Dark phrygian · low power chords"
+        case .doom:               return "Crushing slow · downtuned drone"
         case .selfObservation:    return "Ambient · breath-paced · sync-free"
         }
     }
@@ -118,6 +151,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .sciFi:              return 70...90
         case .psytrance:          return 140...150
         case .esotericMeditation: return 50...70
+        case .classical:          return 60...110
+        case .jazz:               return 80...150
+        case .klezmer:            return 90...170
+        case .oriental:           return 80...140
+        case .punk:               return 160...210
+        case .rocknroll:          return 140...185
+        case .rock:               return 110...155
+        case .ska:                return 120...165
+        case .rocksteady:         return 80...110
+        case .heavyMetal:         return 130...185
+        case .doom:               return 50...80
         case .selfObservation:    return 50...100
         }
     }
@@ -136,6 +180,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .sciFi:              return 80
         case .psytrance:          return 145
         case .esotericMeditation: return 60
+        case .classical:          return 84
+        case .jazz:               return 112
+        case .klezmer:            return 128
+        case .oriental:           return 104
+        case .punk:               return 185
+        case .rocknroll:          return 162
+        case .rock:               return 132
+        case .ska:                return 142
+        case .rocksteady:         return 95
+        case .heavyMetal:         return 160
+        case .doom:               return 62
         case .selfObservation:    return 70
         }
     }
@@ -154,6 +209,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .sciFi:              return .phrygian
         case .psytrance:          return .phrygian
         case .esotericMeditation: return .lydian
+        case .classical:          return .major
+        case .jazz:               return .dorian
+        case .klezmer:            return .harmonicMinor
+        case .oriental:           return .phrygian
+        case .punk:               return .major
+        case .rocknroll:          return .mixolydian
+        case .rock:               return .minor
+        case .ska:                return .major
+        case .rocksteady:         return .major
+        case .heavyMetal:         return .phrygian
+        case .doom:               return .phrygian
         case .selfObservation:    return .minor
         }
     }
@@ -195,6 +261,39 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .esotericMeditation:
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4, 6],
                                    padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
+        case .classical:
+            return HarmonicProfile(progression: [0, 3, 4, 0], chordTones: [0, 2, 4],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.45)
+        case .jazz:
+            return HarmonicProfile(progression: [0, 3, 5, 1], chordTones: [0, 2, 4, 6],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.6)
+        case .klezmer:
+            return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.7)
+        case .oriental:
+            return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.7)
+        case .punk:
+            return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 4],
+                                   padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.4)
+        case .rocknroll:
+            return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
+        case .rock:
+            return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
+        case .ska:
+            return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: true, leadDensity: 0.5)
+        case .rocksteady:
+            return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.4)
+        case .heavyMetal:
+            return HarmonicProfile(progression: [0, 1, 0], chordTones: [0, 4],
+                                   padOctave: 2, leadOctave: 4, arpeggiated: false, leadDensity: 0.5)
+        case .doom:
+            return HarmonicProfile(progression: [0], chordTones: [0, 4],
+                                   padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.2)
         case .dubTechno, .trap, .selfObservation:
             return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.3)
