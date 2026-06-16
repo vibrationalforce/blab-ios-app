@@ -63,6 +63,13 @@ public struct GenreFXPreset: Sendable, Equatable {
     public var harmonizerVoice2: Bool
     public var harmonizerMix: Float
 
+    // Reverb — real algorithmic room/hall space. The additive source has no
+    // reverb of its own, so this is where a take gets its "produced" depth.
+    public var reverbEnabled: Bool
+    public var reverbMix: Float
+    public var reverbRoom: Float
+    public var reverbDamping: Float
+
     public init(
         filterEnabled: Bool = false,
         filterMode: EchoelSVFilter.Mode = .lowpass,
@@ -90,7 +97,11 @@ public struct GenreFXPreset: Sendable, Equatable {
         harmonizerInterval1: Float = 4,
         harmonizerInterval2: Float = 7,
         harmonizerVoice2: Bool = true,
-        harmonizerMix: Float = 0.5
+        harmonizerMix: Float = 0.5,
+        reverbEnabled: Bool = false,
+        reverbMix: Float = 0.0,
+        reverbRoom: Float = 0.72,
+        reverbDamping: Float = 0.5
     ) {
         self.filterEnabled = filterEnabled
         self.filterMode = filterMode
@@ -119,6 +130,10 @@ public struct GenreFXPreset: Sendable, Equatable {
         self.harmonizerInterval2 = harmonizerInterval2
         self.harmonizerVoice2 = harmonizerVoice2
         self.harmonizerMix = harmonizerMix
+        self.reverbEnabled = reverbEnabled
+        self.reverbMix = reverbMix
+        self.reverbRoom = reverbRoom
+        self.reverbDamping = reverbDamping
     }
 
     /// Delay-line capacity in the chain (EchoelDelay default). The synced time is
@@ -160,6 +175,11 @@ public struct GenreFXPreset: Sendable, Equatable {
         chain.harmonizer.interval2 = harmonizerInterval2
         chain.harmonizer.voice2Enabled = harmonizerVoice2
         chain.harmonizer.mix = harmonizerMix
+
+        chain.reverbEnabled = reverbEnabled
+        chain.reverb.mix = reverbMix
+        chain.reverb.roomSize = reverbRoom
+        chain.reverb.damping = reverbDamping
     }
 }
 
@@ -176,7 +196,8 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .pingPong,
                 delaySync: TempoSyncOption(.quarter, .dotted),
                 delayMix: 0.42, delayFeedback: 0.58, delayTone: 0.22, delaySpread: 0.45,
-                chorusEnabled: true, chorusRate: 0.35, chorusDepth: 0.5, chorusMix: 0.4)
+                chorusEnabled: true, chorusRate: 0.35, chorusDepth: 0.5, chorusMix: 0.4,
+                reverbEnabled: true, reverbMix: 0.22, reverbRoom: 0.82, reverbDamping: 0.60)
         case .trap:
             // Mostly dry; just a short triplet slap for depth.
             return GenreFXPreset(
@@ -190,28 +211,32 @@ public extension MusicStyle {
                 delaySync: TempoSyncOption(.quarter),
                 delayMix: 0.36, delayFeedback: 0.42, delayTone: 0.34, delaySpread: 0.4,
                 delayWow: 0.5, delayDrive: 0.2,
-                chorusEnabled: true, chorusRate: 0.28, chorusDepth: 0.7, chorusMix: 0.5)
+                chorusEnabled: true, chorusRate: 0.28, chorusDepth: 0.7, chorusMix: 0.5,
+                reverbEnabled: true, reverbMix: 0.28, reverbRoom: 0.80, reverbDamping: 0.50)
         case .eighties:
             // Big chorus, bright dotted-eighth delay.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.eighth, .dotted),
                 delayMix: 0.24, delayFeedback: 0.28, delayTone: 0.62, delaySpread: 0.35,
-                chorusEnabled: true, chorusRate: 0.6, chorusDepth: 0.7, chorusMix: 0.5)
+                chorusEnabled: true, chorusRate: 0.6, chorusDepth: 0.7, chorusMix: 0.5,
+                reverbEnabled: true, reverbMix: 0.16, reverbRoom: 0.70, reverbDamping: 0.45)
         case .disco:
             // Light chorus, short tight delay.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth),
                 delayMix: 0.15, delayFeedback: 0.16, delayTone: 0.6, delaySpread: 0.25,
-                chorusEnabled: true, chorusRate: 0.5, chorusDepth: 0.4, chorusMix: 0.3)
+                chorusEnabled: true, chorusRate: 0.5, chorusDepth: 0.4, chorusMix: 0.3,
+                reverbEnabled: true, reverbMix: 0.12, reverbRoom: 0.65, reverbDamping: 0.45)
         case .synthwave:
             // Wide ping-pong dotted-eighth + chorus — neon-night drive.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .pingPong,
                 delaySync: TempoSyncOption(.eighth, .dotted),
                 delayMix: 0.30, delayFeedback: 0.38, delayTone: 0.62, delaySpread: 0.55,
-                chorusEnabled: true, chorusRate: 0.4, chorusDepth: 0.6, chorusMix: 0.4)
+                chorusEnabled: true, chorusRate: 0.4, chorusDepth: 0.6, chorusMix: 0.4,
+                reverbEnabled: true, reverbMix: 0.18, reverbRoom: 0.74, reverbDamping: 0.40)
         case .earlySynth:
             // Berlin-school sequencer echo: ping-pong straight eighths.
             return GenreFXPreset(
@@ -224,7 +249,8 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.quarter, .dotted),
                 delayMix: 0.40, delayFeedback: 0.42, delayTone: 0.82, delaySpread: 0.5,
-                chorusEnabled: true, chorusRate: 0.25, chorusDepth: 0.5, chorusMix: 0.3)
+                chorusEnabled: true, chorusRate: 0.25, chorusDepth: 0.5, chorusMix: 0.3,
+                reverbEnabled: true, reverbMix: 0.26, reverbRoom: 0.82, reverbDamping: 0.35)
         case .sciFi:
             // Slow phaser sweep over a long, dark tape delay — deep space.
             return GenreFXPreset(
@@ -232,7 +258,8 @@ public extension MusicStyle {
                 delaySync: TempoSyncOption(.half),
                 delayMix: 0.45, delayFeedback: 0.50, delayTone: 0.4, delaySpread: 0.5,
                 delayWow: 0.4, delayDrive: 0.15,
-                phaserEnabled: true, phaserRate: 0.12, phaserDepth: 0.7, phaserMix: 0.5)
+                phaserEnabled: true, phaserRate: 0.12, phaserDepth: 0.7, phaserMix: 0.5,
+                reverbEnabled: true, reverbMix: 0.30, reverbRoom: 0.86, reverbDamping: 0.50)
         case .psytrance:
             // The psy roll: fast ping-pong sixteenth echo.
             return GenreFXPreset(
@@ -245,14 +272,16 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.half),
                 delayMix: 0.40, delayFeedback: 0.45, delayTone: 0.30, delaySpread: 0.4,
-                chorusEnabled: true, chorusRate: 0.15, chorusDepth: 0.5, chorusMix: 0.35)
+                chorusEnabled: true, chorusRate: 0.15, chorusDepth: 0.5, chorusMix: 0.35,
+                reverbEnabled: true, reverbMix: 0.34, reverbRoom: 0.88, reverbDamping: 0.60)
         case .classical:
             // Pristine — almost no drive, so the chamber tone stays clean.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.quarter),
                 delayMix: 0.20, delayFeedback: 0.25, delayTone: 0.45, delaySpread: 0.30,
-                saturation: 0.10)
+                saturation: 0.10,
+                reverbEnabled: true, reverbMix: 0.26, reverbRoom: 0.82, reverbDamping: 0.45)
         case .jazz:
             // Warm but clean — a touch of tube glue on the Rhodes.
             return GenreFXPreset(
@@ -271,7 +300,8 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .tape,
                 delaySync: TempoSyncOption(.quarter),
                 delayMix: 0.30, delayFeedback: 0.40, delayTone: 0.40, delaySpread: 0.40,
-                delayWow: 0.40, delayDrive: 0.15)
+                delayWow: 0.40, delayDrive: 0.15,
+                reverbEnabled: true, reverbMix: 0.20, reverbRoom: 0.76, reverbDamping: 0.50)
         case .punk:
             // Raw and driven — heavy saturation for buzzsaw bite.
             return GenreFXPreset(
@@ -318,14 +348,16 @@ public extension MusicStyle {
                 delaySync: TempoSyncOption(.half),
                 delayMix: 0.40, delayFeedback: 0.50, delayTone: 0.30, delaySpread: 0.40,
                 delayWow: 0.40, delayDrive: 0.30,
-                saturation: 0.55)
+                saturation: 0.55,
+                reverbEnabled: true, reverbMix: 0.24, reverbRoom: 0.86, reverbDamping: 0.62)
         case .selfObservation:
             // Subtle and clean — a calm quarter-note space, gentle width.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.quarter),
                 delayMix: 0.24, delayFeedback: 0.30, delayTone: 0.35, delaySpread: 0.3,
-                chorusEnabled: true, chorusRate: 0.2, chorusDepth: 0.4, chorusMix: 0.3)
+                chorusEnabled: true, chorusRate: 0.2, chorusDepth: 0.4, chorusMix: 0.3,
+                reverbEnabled: true, reverbMix: 0.30, reverbRoom: 0.84, reverbDamping: 0.55)
         }
     }
 }
@@ -421,7 +453,8 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
                 delayEnabled: true, delayMode: .pingPong,
                 delaySync: TempoSyncOption(.quarter, .dotted),
                 delayMix: 0.40, delayFeedback: 0.45, delayTone: 0.82, delaySpread: 0.6,
-                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.7, chorusMix: 0.5)
+                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.7, chorusMix: 0.5,
+                reverbEnabled: true, reverbMix: 0.32, reverbRoom: 0.86, reverbDamping: 0.40)
         case .megaphone:
             return GenreFXPreset(
                 filterEnabled: true, filterMode: .bandpass, filterCutoff: 1800, filterResonance: 0.55,
