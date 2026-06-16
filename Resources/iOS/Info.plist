@@ -57,11 +57,11 @@
 		<string>bluetooth-peripheral</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Echoelmusic uses your microphone to capture audio for bio-reactive processing and voice-to-music transformation.</string>
+	<string>Echoel uses the microphone to turn live audio into sound, processed on your device. Audio is not recorded or sent anywhere unless you export it yourself.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Echoelmusic uses heart rate and HRV data to create personalized bio-reactive audio experiences that respond to your body.</string>
+	<string>Echoel reads heart rate and HRV to drive sound, image and light in real time. This data stays on your device and is used only for creative control — never for diagnosis.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Echoelmusic uses HealthKit to read your heart rate and HRV for bio-reactive music. It does not write data to Health.</string>
+	<string>Echoel reads heart rate and HRV on your device for creative control only; it does not write any data to Apple Health.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
