@@ -6,6 +6,34 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-16 — SHIPPED build 1855: deep composition overhaul + crackle-free realtime
+
+### Branch: `claude/piano-roll-clip-view-wozlie`
+### Trigger: owner — "Erarbeite die ultimative Experience" (composition felt hakelig, repetitive — "immer derselbe Tonwechsel" — and un-virtuosic) → then "Knacksfreie realtime performance".
+
+### Shipped (build 1855, deploy run #1855; dryrun compile-checks #1852–1854 green)
+Six compile-verified cycles, all stacked on the debounce fix (8175d35):
+- **Seamless bar-boundary morph** (`PianoRollView.loadAtBoundary` + step==0 swap; `EchoelStudioView.generate` uses it while playing) — a live re-seed no longer cuts held notes mid-bar (dominant "hakelig" source). `clear()` now also resets `pendingNotes`.
+- **Continuous bio hug** — `synth.bioModulationEnabled = true` on start (was silently off); dynamic depth from coherence (was flat 0.5). Timbre breathes at 10 Hz between re-seeds.
+- **Harmonic variety** (`BioComposer.composeHarmonic`) — seed-rotated progression, mood.weird borrowed chord (ii/V/vi), tension-scaled turnaround cadence (→V), seed-varied lead opening; `dubMelody` seeded 2nd chord (was hardcoded i→IV); `trapMelody`/`ambientMelody` seeded opening degree. Fixes "immer derselbe Tonwechsel". All in-key via key.degree.
+- **Phrasing/dynamics** — phrase-arc velocity + downbeat accents + busy/calm articulation across all three lead generators.
+- **Ornamentation** — grace-note runs (gated by liveliness/busy) + octave register-climax at phrase peak; 8-voice polyphony (was 6) so chords don't steal voices.
+- **Crackle-free realtime** (`EchoelDDSP`) — `smoothedGain` per-sample one-pole on the master gain: kills the 10 Hz bio amplitude-pulse zipper + per-note velocity click (amplitude was read per-sample but stepped at 10 Hz; cutoff/harmonicity/noise were already smoothed, gain wasn't).
+
+### Verification
+- Every cycle pushed to `deploy-dryrun` (real Compile Check) → green before stacking the next.
+- `code-reviewer` agent on composer+roll+studio (caught the `clear()` pendingNotes bug, fixed); `audio-thread-reviewer` on the gain smoothing (clean, launch-silence intact).
+- Added `testHarmonicTakesVaryAcrossSeeds` + `testDubSecondChordVariesAcrossSeeds`.
+
+### Website / memory
+- `docs/brainstorming.html` → "Current TestFlight build: 1855"; `version.json` → 10.16.5 + changelog; `sw.js` cache → v10.16.5.
+
+### Next (owner-prioritised: "Komposition fertig zuerst, Bio danach")
+- Bio-Acceptance v1: harden ALL heart sources — camera rPPG + Apple Watch + Demo, AND BLE chest strap (owner has one) — reconnect/dropout/lock-loss.
+- Optional: surface Warmth/Complexity character sliders (mood axes already exist in composer).
+
+---
+
 ## 2026-06-16 — SHIPPED build 1837 VALID + honest website state
 
 ### Branch: `claude/piano-roll-clip-view-wozlie`
