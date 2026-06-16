@@ -49,7 +49,7 @@ public enum BioExplanation {
         default:                    tone = "moderate coherence holds a balanced tone"
         }
         let space = s.arousal == "low" ? "a wide hall reverb" : "a tighter room space"
-        return "EchoelAI — heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo; \(tone); \(s.breath) breathing places it in \(space). Each bar re-seeds from your live signal, so it never repeats."
+        return "EchoelAI — heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo; \(tone); \(s.breath) breathing places it in \(space). Each phrase re-seeds the chords, opening pitch and dynamics from your live signal and morphs in at the bar line, so it never repeats and never cuts."
     }
 }
 
