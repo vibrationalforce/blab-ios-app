@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.14.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Brainstorming — What's Live & What's Next for Echoel</title>
+    <meta name="description" content="An honest, always-current view of what Echoel testers get in TestFlight today, plus a brainstorming list of future directions with real market potential across the Apple ecosystem. Ideas, not promises.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Brainstorming — What's Live & What's Next for Echoel">
+    <meta property="og:description" content="What testers can expect in TestFlight today, and a curated brainstorming of high-potential Apple-ecosystem directions. Ideas, not promises.">
+    <meta property="og:url" content="https://echoelmusic.com/brainstorming.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Brainstorming — What's Live & What's Next for Echoel">
+    <meta name="twitter:description" content="What's live in TestFlight now, and where Echoel could go next across the Apple ecosystem. Ideas, not promises.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/brainstorming.html">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Brainstorming","item":"https://echoelmusic.com/brainstorming.html"}]}</script>
+    <link rel="stylesheet" href="shared.css?v=10.14">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+
+    <style>
+        .tool-section { margin-bottom: 48px; }
+        .tool-header { margin-bottom: 20px; }
+        .tool-header h2 {
+            font-size: clamp(22px, 4vw, 30px); font-weight: 700;
+            letter-spacing: -1px; margin-bottom: 4px; line-height: 1.1;
+        }
+        .tool-header .tagline { color: var(--dim); font-style: italic; line-height: 1.6; }
+        .bs-badge {
+            display: inline-block; font-size: 11px; font-weight: 700;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            padding: 2px 8px; border-radius: 6px; vertical-align: middle;
+            margin-left: 8px; border: 1px solid var(--border);
+        }
+        .bs-badge--live { color: #0a0; border-color: #0a0; }
+        .bs-badge--idea { color: var(--dim); }
+        .bs-note {
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 16px 18px; margin: 8px 0 28px; color: var(--dim); line-height: 1.6;
+        }
+        .idea-list { display: grid; gap: 2px; }
+        .idea { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
+        .idea h4 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .idea .why { color: var(--dim); line-height: 1.6; }
+        .idea .why strong { color: var(--text); font-weight: 700; }
+        .group-head {
+            font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--dim);
+            margin: 28px 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="overview.html">Overview</a>
+                <a href="tools.html">Tools</a>
+                <a href="brainstorming.html">Brainstorming</a>
+                <a href="architecture.html">Architecture</a>
+                <a href="faq.html">FAQ</a>
+                <a href="artist.html">Artist</a>
+                <a href="support.html">Support</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+            <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+            <a href="brainstorming.html">Brainstorming</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="faq.html">FAQ</a>
+            <a href="artist.html">Artist</a>
+            <a href="support.html">Support</a>
+        </nav>
+    </div>
+
+    <main id="main">
+        <div class="subpage subpage--wider">
+            <div class="subpage-hero">
+                <h1>Brainstorming</h1>
+                <p class="subtitle">What you actually get in TestFlight today &mdash; and where Echoel could go next. Ideas, not promises.</p>
+            </div>
+
+            <div class="bs-note">
+                <strong>How to read this page.</strong> The first section is the <strong>honest current state</strong>: what a TestFlight tester can expect right now. The second is a <strong>brainstorming</strong> of future directions chosen for real market potential in the Apple ecosystem &mdash; these are exploration, not commitments. We keep this page current rather than over-promise.
+            </div>
+
+            <!-- LIVE NOW -->
+            <div class="tool-section" id="live">
+                <div class="tool-header">
+                    <h2>In TestFlight now <span class="bs-badge bs-badge--live">Live</span></h2>
+                    <p class="tagline">The body as controller &mdash; sound, composition and pro I/O, on-device.</p>
+                </div>
+                <div class="capability-list">
+                    <div class="capability"><h4>Bio input</h4><p>iPhone camera (rPPG), Apple Watch &amp; HealthKit, and universal Bluetooth heart-rate straps (0x180D). HR / HRV / coherence computed on device. A clearly-labelled Demo source means it always plays without hardware.</p></div>
+                    <div class="capability"><h4>Bio-reactive synthesis</h4><p>Additive DDSP plus modal, cellular and sampler engines &mdash; silent until you arm it. Heart rate, HRV, breath and coherence drive tempo, brightness, harmonicity and texture.</p></div>
+                    <div class="capability"><h4>Composition</h4><p>Pick a genre and key; your body generates in-key material you keep editing in a real piano roll. Many genres (Dub Techno, Trap, Vaporwave, Synthwave, Classical, Jazz, Klezmer, Oriental, Punk, Rock, Ska, Heavy Metal, Doom, Deep Ambient&hellip;). Concert pitch (A4) set exactly to the cent; optional BPM lock for tight loops.</p></div>
+                    <div class="capability"><h4>Character controls</h4><p>Liveliness, Darkness, Tension, Romance and Weird shape the composition alongside the bio signal &mdash; with precise dials and exact numeric entry for every parameter.</p></div>
+                    <div class="capability"><h4>Beats</h4><p>16-step, 8-track beat maker and sampler with velocity, accent, swing and per-pad sample import.</p></div>
+                    <div class="capability"><h4>Effects</h4><p>Reverb (Room/Hall), delay, chorus, flanger, phaser, tremolo, saturation and a harmonizer &mdash; plus stampable production characters (Underwater, Telephone, Cassette, Vinyl, Dream, Blurry&hellip;).</p></div>
+                    <div class="capability"><h4>Keep what you played</h4><p>Retroactive loop capture from an always-on buffer; export audio (WAV) and MIDI (.mid) for your DAW.</p></div>
+                    <div class="capability"><h4>Pro connectivity</h4><p>AUv3 plugin, MIDI / MPE in and out, OSC output, ADM-OSC immersive object output, and native Art-Net light output for installations and stage.</p></div>
+                    <div class="capability"><h4>Siri &amp; Shortcuts</h4><p>Start a session, stop, or keep the last loop by voice or automation.</p></div>
+                    <div class="capability"><h4>Private &amp; accessible</h4><p>Everything on-device &mdash; no account, no ads, no tracking. Designed accessibility-first (VoiceOver, large legible readouts, 3&nbsp;Hz flash cap). For music and self-observation, not medical diagnosis.</p></div>
+                </div>
+                <p class="tool-overview" style="margin-top:16px;color:var(--dim);"><em>Not yet shipping (deliberately not promised):</em> live RTMP streaming, video capture/editing, multitrack audio recording, sACN lighting, the standalone Apple&nbsp;Watch app, App&nbsp;Clip, and the on-device&nbsp;AI / audio-analysis features listed below.</p>
+            </div>
+            <hr class="tool-divider">
+
+            <!-- BRAINSTORMING -->
+            <div class="tool-section" id="ideas">
+                <div class="tool-header">
+                    <h2>Brainstorming &mdash; future directions <span class="bs-badge bs-badge--idea">Idea</span></h2>
+                    <p class="tagline">Apple-ecosystem expansions chosen for real market potential. Validated as directions, not committed as features.</p>
+                </div>
+
+                <div class="group-head">Plays to Apple's strengths now</div>
+                <div class="idea-list">
+                    <div class="idea"><h4>Deeper AUv3 as the wedge</h4><p class="why">A fully MPE-expressive bio-modulation plugin that lives inside Logic, AUM, Cubasis and Ableton. <strong>Why:</strong> producers already pay for plugins, and &ldquo;a biometric modulation source&rdquo; has no direct competitor &mdash; the cheapest path into a paying pro audience.</p></div>
+                    <div class="idea"><h4>Standalone Apple Watch capture</h4><p class="why">On-wrist HR/HRV streaming with an Extended Runtime session, so you can perform with the watch and leave the phone in your pocket. <strong>Why:</strong> the watch is the natural bio sensor; unlocks fitness-music crossover and hands-free performance.</p></div>
+                    <div class="idea"><h4>Foundation Models &mdash; on-device &ldquo;band director&rdquo;</h4><p class="why">An on-device model that turns your live bio-state into arrangement choices (genre, key, mood, effects). <strong>Why:</strong> generative music is a hot category; on-device + biometric is a genuinely differentiated angle &mdash; and it never leaves the device, which is our promise.</p></div>
+                    <div class="idea"><h4>Music Understanding &mdash; jam with your library</h4><p class="why">Analyse an imported track's key, tempo and structure, then generate bio-reactive material in key with it. <strong>Why:</strong> &ldquo;play along with any song using your heartbeat&rdquo; is broadly appealing and very shareable.</p></div>
+                    <div class="idea"><h4>Widgets &amp; Live Activities</h4><p class="why">Glanceable coherence/HR, and a Live Activity during a session. <strong>Why:</strong> low-cost retention and daily re-engagement.</p></div>
+                    <div class="idea"><h4>Focus filters &amp; automations</h4><p class="why">Tie sessions to Focus modes and Shortcuts automations. <strong>Why:</strong> meets users where their routines already are; deepens the Siri integration that's already live.</p></div>
+                </div>
+
+                <div class="group-head">Bigger bets &mdash; premium &amp; immersive</div>
+                <div class="idea-list">
+                    <div class="idea"><h4>visionOS immersive bio-space</h4><p class="why">A spatial, bio-reactive audio-visual environment on Vision Pro (the ADM-OSC immersive object output is already in place). <strong>Why:</strong> premium immersive art has few credible competitors and a high price ceiling.</p></div>
+                    <div class="idea"><h4>Apple TV / large-screen installation mode</h4><p class="why">Bio-reactive visuals for galleries, venues, retail and events. <strong>Why:</strong> installations and events are a real B2B revenue line, not just consumer downloads.</p></div>
+                    <div class="idea"><h4>HomeKit / Matter lighting</h4><p class="why">Drive smart home lights from your bio signal (beyond pro Art-Net/DMX). <strong>Why:</strong> consumer smart-home crossover &mdash; &ldquo;your home breathes with you&rdquo; &mdash; broadens reach beyond musicians.</p></div>
+                    <div class="idea"><h4>AirPods head-tracking as a controller</h4><p class="why">Use head motion and AirPods spatial data as an expressive input. <strong>Why:</strong> a novel, hands-free control surface unique to Apple hardware.</p></div>
+                    <div class="idea"><h4>SharePlay group bio-jam</h4><p class="why">A shared session over FaceTime where each participant's body adds a layer (each device on-device). <strong>Why:</strong> social, viral, and demos beautifully.</p></div>
+                </div>
+
+                <div class="group-head">Reach, discovery &amp; monetization</div>
+                <div class="idea-list">
+                    <div class="idea"><h4>App Clip at installations</h4><p class="why">Scan a code at an installation or show to instantly play the bio-instrument &mdash; no install. <strong>Why:</strong> turns physical presence into a viral discovery funnel.</p></div>
+                    <div class="idea"><h4>One-time Pro unlock (StoreKit 2)</h4><p class="why">Keep the core free; unlock pro export, immersive output and advanced AI once, no subscription. <strong>Why:</strong> revenue that respects the &ldquo;no lock-in&rdquo; brand and converts pros.</p></div>
+                    <div class="idea"><h4>Accessibility-first music creation</h4><p class="why">Make music with your heartbeat and Switch Control / eye-tracking when hands aren't an option. <strong>Why:</strong> a genuinely underserved audience, strong PR and grant potential, and on-brand.</p></div>
+                    <div class="idea"><h4>Education (STEAM)</h4><p class="why">Biofeedback + music as a classroom tool. <strong>Why:</strong> a durable institutional market with its own funding.</p></div>
+                    <div class="idea"><h4>Deeper DAW handoff</h4><p class="why">Stem export, richer MIDI, Ableton Link. <strong>Why:</strong> the more it fits real producer workflows, the stickier it gets.</p></div>
+                </div>
+
+                <div class="group-head">Platforms &amp; compatibility &mdash; &ldquo;Everything wires&rdquo;</div>
+                <div class="bs-note">
+                    <strong>The principle.</strong> Echoel doesn't have to look or work identically on every device. It speaks <strong>open standards</strong> &mdash; MIDI&nbsp;2.0/MPE, OSC, ADM-OSC, Bluetooth Heart Rate, Art-Net/DMX &mdash; so any hardware can wire into the same bio-reactive core, each in the form that fits it. The iPhone build in TestFlight is the <strong>stable anchor</strong>; everything below is an open construction site &mdash; documented directions, not commitments.
+                </div>
+                <div class="idea-list">
+                    <div class="idea"><h4>Apple &mdash; one core, many surfaces <span class="bs-badge bs-badge--live">Anchor</span></h4><p class="why">iPhone today; iPad, Mac, Apple&nbsp;Watch, Apple&nbsp;TV and Vision&nbsp;Pro as adaptive surfaces of the same engine. <strong>Why:</strong> the anchor platform &mdash; ship stable here first, expand by surface.</p></div>
+                    <div class="idea"><h4>Android client</h4><p class="why">A native client speaking the same open standards (Health Connect for bio, BLE straps, OSC/MIDI out). <strong>Why:</strong> the largest device base; reachable precisely because we avoid SDK lock-in.</p></div>
+                    <div class="idea"><h4>Windows &amp; Linux desktop</h4><p class="why">A standalone / plugin build for producers and installations; Linux for embedded and gallery rigs. <strong>Why:</strong> desktop is where DAW work and permanent installations live.</p></div>
+                    <div class="idea"><h4>Adaptive WebApp</h4><p class="why">A zero-install browser entry using Web&nbsp;Bluetooth, Web&nbsp;MIDI and Web&nbsp;Audio for instant try-and-create on any OS. <strong>Why:</strong> the lowest-friction funnel &mdash; share a link, the body makes music.</p></div>
+                    <div class="idea"><h4>XR / VR</h4><p class="why">Immersive bio-space &mdash; visionOS first, OpenXR for broader headsets. <strong>Why:</strong> the most expressive home for bio-reactive audio-visual art.</p></div>
+                    <div class="idea"><h4>AI computers &amp; edge devices</h4><p class="why">The bio&rarr;music core as an embeddable engine for new on-device-AI hardware and smart rooms. <strong>Why:</strong> &ldquo;everything wires&rdquo; &mdash; the instrument is the standard, the hardware is interchangeable.</p></div>
+                </div>
+
+                <p class="tool-overview" style="margin-top:24px;">Have a direction we should add? <a href="support.html">Tell us</a> &mdash; this page evolves with valid, market-worthy ideas.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic &middot; Concept in development</span>
+        <div class="footer-links">
+            <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+            <a href="brainstorming.html">Brainstorming</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="faq.html">FAQ</a>
+            <a href="artist.html">Artist</a>
+            <a href="support.html">Support</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+    <script src="shared.js?v=10.14"></script>
+</body>
+</html>

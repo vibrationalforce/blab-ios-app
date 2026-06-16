@@ -150,3 +150,9 @@ Architectural and strategic decisions with context and rationale.
 - **Actions:** Rewrote en-US + de-DE App Store descriptions and release notes to the real shipped feature set (no 16K/1000fps/100+ AI/worldwide collaboration); cleaned Android full_description; renamed in-app genre label "Esoteric Meditation" → "Deep Ambient" (only banned term that shipped in-app); website persona "Therapists & Coaches" → "Facilitators & Educators"; Flow-mode copy drops "meditation".
 - **Note:** Supersedes/completes the 2026-06-02 metadata-honesty decision (descriptions had regressed to overclaims).
 - **Review date:** 2026-07-16
+
+### 2026-06-16 Brainstorming hub + "Everything wires" cross-platform stance
+- **Decision:** Add a website Brainstorming menu item that cleanly separates the **honest current TestFlight set** ("In TestFlight now") from **future directions** chosen for real market potential (ideas, not promises). Document cross-platform reach — Apple surfaces (iPhone anchor → iPad/Mac/Watch/TV/Vision), Android, Windows, Linux, adaptive WebApp, XR/VR, AI/edge — as **open construction sites**.
+- **Principle ("Everything wires"):** Echoel need not be identical on every device; it wires into any hardware via **open standards** (MIDI 2.0/MPE, OSC, ADM-OSC, BLE Heart Rate, Art-Net/DMX), no SDK lock-in. The **iPhone TestFlight build is the stable anchor**, shipped first; other platforms expand from the same core.
+- **Done:** docs/brainstorming.html (+ site-wide nav, sitemap, version.json 10.16.0). Keep current: move items Idea→Live as they ship; never over-promise.
+- **Review date:** 2026-07-16
