@@ -214,6 +214,11 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Smoothed amplitudes (to avoid clicks)
     private var smoothedAmplitudes: [Float]
 
+    /// Anti-alias weighting scratch — smoothedAmplitudes with a raised-cosine
+    /// taper applied to partials approaching Nyquist (avoids the harsh "pop" of
+    /// partials hard-cutting in/out as f0 or vibrato sweeps them past Nyquist).
+    private var aaWeights: [Float]
+
     /// vDSP scratch buffers for vectorized harmonic generation
     private var vdspPhaseIncrements: [Float]
     private var vdspSinBuffer: [Float]
@@ -307,6 +312,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         self.noiseMagnitudes = [Float](repeating: 0, count: noiseBandCount)
         self.phases = [Float](repeating: 0, count: harmonicCount)
         self.smoothedAmplitudes = [Float](repeating: 0, count: harmonicCount)
+        self.aaWeights = [Float](repeating: 0, count: harmonicCount)
 
         // vDSP scratch buffers
         self.vdspPhaseIncrements = [Float](repeating: 0, count: harmonicCount)
@@ -602,15 +608,28 @@ public final class EchoelDDSP: @unchecked Sendable {
             var harmonicSample: Float = 0
             var activeCount = 0
 
+            // Anti-alias band: partials between aaStart and Nyquist fade out via a
+            // smoothstep instead of vanishing instantly — kills the spectral "edge"
+            // click when pitch/vibrato sweeps a partial past Nyquist. Pure
+            // arithmetic, audio-thread safe (no trig: smoothstep 3t²-2t³).
+            let aaStart = nyquist * 0.85
+            let aaRange = nyquist - aaStart   // > 0 (nyquist > 0)
             for i in 0..<harmonicCount {
                 let partialFreq = currentFreq * Float(i + 1)
-                if partialFreq > nyquist { break }
+                if partialFreq >= nyquist { break }
                 activeCount = i + 1
 
                 let phaseInc = partialFreq * twoPiOverSR
                 phases[i] += phaseInc
                 if phases[i] > 2.0 * .pi { phases[i] -= 2.0 * .pi }
                 vdspPhaseIncrements[i] = phases[i]
+
+                var taper: Float = 1.0
+                if partialFreq > aaStart {
+                    let t = (partialFreq - aaStart) / aaRange      // 0..1 toward Nyquist
+                    taper = 1.0 - (t * t * (3.0 - 2.0 * t))        // smoothstep 1→0
+                }
+                aaWeights[i] = smoothedAmplitudes[i] * taper
             }
 
             // Bulk sine computation via vForce (Accelerate)
@@ -618,8 +637,8 @@ public final class EchoelDDSP: @unchecked Sendable {
                 var count = Int32(activeCount)
                 vvsinf(&vdspSinBuffer, &vdspPhaseIncrements, &count)
 
-                // Weighted sum: harmonicSample = sum(sin[i] * smoothedAmplitudes[i])
-                vDSP_dotpr(vdspSinBuffer, 1, smoothedAmplitudes, 1,
+                // Weighted sum: harmonicSample = sum(sin[i] * aaWeights[i])
+                vDSP_dotpr(vdspSinBuffer, 1, aaWeights, 1,
                            &harmonicSample, vDSP_Length(activeCount))
             }
 
