@@ -156,3 +156,9 @@ Architectural and strategic decisions with context and rationale.
 - **Principle ("Everything wires"):** Echoel need not be identical on every device; it wires into any hardware via **open standards** (MIDI 2.0/MPE, OSC, ADM-OSC, BLE Heart Rate, Art-Net/DMX), no SDK lock-in. The **iPhone TestFlight build is the stable anchor**, shipped first; other platforms expand from the same core.
 - **Done:** docs/brainstorming.html (+ site-wide nav, sitemap, version.json 10.16.0). Keep current: move items Idea→Live as they ship; never over-promise.
 - **Review date:** 2026-07-16
+
+### 2026-06-16 Deploy workflow learned & proven (token-free branch push)
+- **Token-free deploy:** `git push origin HEAD:deploy` triggers `deploy-on-tag.yml`, which dispatches `testflight.yml` via the built-in `GITHUB_TOKEN` (workflow_dispatch is the recursion-guard exception). `git push origin HEAD:deploy-dryrun` = build_only archive check (no upload, no quota). Proven by run #1833 (deploy-dryrun = SUCCESS). Sandbox git proxy rejects TAG pushes → we use BRANCH triggers. Personal PAT no longer needed (and the chat-exposed one was revoked).
+- **Archive is stricter than SwiftPM CI:** App Intents passed `ci.yml` but failed the Xcode archive — `static var` AppIntent requirements are Swift-6 "global shared mutable state"; must be `static let`. Always pre-verify risky builds with the dryrun before a real deploy.
+- **Apple daily upload cap:** exhausted today because `Auto-Merge Claude Branch` auto-merges to `main` and auto-uploads on every feature push. Build is good; only Apple's "wait 1 day" blocks the upload. Pause auto-deploy-on-merge before the next intended deploy.
+- **Log access in sandbox:** raw Actions logs live on a blob host NOT in the network allowlist (403). Use `mcp__github__get_job_logs` (server-side) to read CI failures.
