@@ -76,6 +76,8 @@ struct EchoelStudioView: View {
 
     // Background evolution + bio acquisition.
     @State private var evolveTask: Task<Void, Never>?
+    /// Debounce handle that coalesces rapid recompose requests (see scheduleGenerate).
+    @State private var regenTask: Task<Void, Never>?
     @State private var startTask: Task<Void, Never>?
 
     // Sheets / dialogs
@@ -475,10 +477,24 @@ struct EchoelStudioView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Recompose now if playing (key/tuning/tempo affect the notes); otherwise just
+    /// Recompose if playing (key/tuning/tempo affect the notes); otherwise just
     /// refresh the live timbre so the change is reflected when playback begins.
+    /// Debounced: one genre tap cascades through several @State changes
+    /// (style→scale→preset→patch), each firing onChange — without coalescing that
+    /// regenerated the whole pattern 2–4× within milliseconds → audible stutter.
     private func recomposeIfRunning() {
-        if running { generate() } else { applySoundLive() }
+        if running { scheduleGenerate() } else { applySoundLive() }
+    }
+
+    /// Coalesce rapid recompose requests into a single `generate()` after a short
+    /// quiet window, so a cascade of control changes reloads the pattern just once.
+    private func scheduleGenerate() {
+        regenTask?.cancel()
+        regenTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(140))
+            guard !Task.isCancelled, running else { return }
+            generate()
+        }
     }
 
     // MARK: - Utilities (export · projects)
@@ -734,6 +750,7 @@ struct EchoelStudioView: View {
         running = false
         startTask?.cancel(); startTask = nil
         evolveTask?.cancel(); evolveTask = nil
+        regenTask?.cancel(); regenTask = nil
         beatPlayer.pattern.stop()
         stopBioSource()
     }
