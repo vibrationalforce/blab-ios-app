@@ -39,6 +39,14 @@ struct EchoelStudioView: View {
     @State private var lockBPM = false
     @State private var lockedBPM: Double = 70
 
+    // Collapsible control-panel state ("aufklappen") + timbre preset.
+    @State private var showComposition = true
+    @State private var showSound = true
+    /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
+    @State private var presetIndex = -1
+
+    private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+
     // Derived / persisted musical state (no direct UI — set by sliders + bio).
     @State private var style: MusicStyle = .vaporwave
     @State private var rootIndex = 0
@@ -115,35 +123,187 @@ struct EchoelStudioView: View {
     // MARK: - Sound controls (one morph pad + genre + fine sliders)
 
     private var soundControls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionTitle("Shape the sound")
-
-            // The genre sweep stays a slim slider — it picks the style, not timbre.
-            slider("Sound", value: $soundBlend, caption: style.displayName) { _ in
-                applySoundBlend()
-            }
-
-            soundPad
-
-            // Precise per-parameter editing stays available, demoted to an expert
-            // disclosure (a pad trades readout precision for expressivity).
-            DisclosureGroup("Fine controls") {
-                VStack(alignment: .leading, spacing: 12) {
-                    slider("Brightness", value: $brightness) { _ in applySoundLive() }
-                    slider("Space", value: $space) { _ in applySoundLive() }
-                    slider("Movement", value: $movement) { _ in applySoundLive() }
-                }
-                .padding(.top, 10)
-            }
-            .font(EchoelTheme.font(13, .medium))
-            .tint(EchoelTheme.dim)
-            .foregroundStyle(EchoelTheme.text)
-
+        VStack(alignment: .leading, spacing: 12) {
+            compositionPanel
+            soundPanel
             if running {
-                Text("Music is arising from your live signal — move the pad to shape it.")
+                Text("The music is arising from your live signal — every control shapes it as it plays.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
         }
+    }
+
+    // MARK: Panel 1 — Composition (genre · key · tuning · tempo)
+
+    private var compositionPanel: some View {
+        panel("Composition", "Genre · key · tuning · tempo", isExpanded: $showComposition) {
+            genrePicker
+            tonartRow
+            kammertonRow
+            tempoRow
+        }
+    }
+
+    private var genrePicker: some View {
+        labeledRow("Genre") {
+            Picker("Genre", selection: $style) {
+                ForEach(MusicStyle.allCases) { s in Text(s.displayName).tag(s) }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .onChange(of: style) { _, s in
+                scale = s.scale
+                recomposeIfRunning()
+            }
+            .accessibilityLabel("Genre")
+        }
+    }
+
+    private var tonartRow: some View {
+        HStack(spacing: 12) {
+            labeledRow("Key") {
+                Picker("Key", selection: $rootIndex) {
+                    ForEach(0..<12, id: \.self) { i in Text(Self.noteNames[i]).tag(i) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: rootIndex) { _, _ in recomposeIfRunning() }
+                .accessibilityLabel("Key root")
+            }
+            labeledRow("Scale") {
+                Picker("Scale", selection: $scale) {
+                    ForEach(Scale.allCases, id: \.self) { sc in Text(sc.displayName).tag(sc) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: scale) { _, _ in recomposeIfRunning() }
+                .accessibilityLabel("Scale")
+            }
+        }
+    }
+
+    private var kammertonRow: some View {
+        @Bindable var session = session
+        return labeledRow("Kammerton") {
+            Picker("Kammerton", selection: $session.a4Hz) {
+                ForEach(TuningReference.presets, id: \.self) { hz in
+                    Text("A\(Int(hz)) Hz").tag(hz)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .onChange(of: session.a4Hz) { _, hz in
+                synth.setTuning(a4Hz: hz)
+                recomposeIfRunning()
+            }
+            .accessibilityLabel("Concert pitch")
+        }
+    }
+
+    private var tempoRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $lockBPM) {
+                Text("Lock BPM (tight loops)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            .onChange(of: lockBPM) { _, _ in recomposeIfRunning() }
+            .accessibilityHint("When on, the loop runs at exactly the set tempo instead of following your heart")
+
+            if lockBPM {
+                HStack {
+                    Text("Tempo").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    Spacer(minLength: 0)
+                    Text("\(Int(lockedBPM)) BPM").font(EchoelTheme.font(12)).monospacedDigit().foregroundStyle(EchoelTheme.dim)
+                }
+                Slider(value: $lockedBPM, in: 40...200, step: 1)
+                    .tint(EchoelTheme.accent)
+                    .onChange(of: lockedBPM) { _, _ in recomposeIfRunning() }
+                    .accessibilityLabel("Locked tempo in beats per minute")
+            }
+        }
+    }
+
+    // MARK: Panel 2 — Sound & texture (XY pad · preset · sliders · randomize)
+
+    private var soundPanel: some View {
+        panel("Sound & texture", "Shape the timbre", isExpanded: $showSound) {
+            soundPad
+            presetRow
+            slider("Brightness", value: $brightness) { _ in applySoundLive() }
+            slider("Space", value: $space) { _ in applySoundLive() }
+            slider("Movement", value: $movement) { _ in applySoundLive() }
+            randomizeButton
+        }
+    }
+
+    private var presetRow: some View {
+        labeledRow("Character") {
+            Picker("Character", selection: $presetIndex) {
+                Text("Genre default").tag(-1)
+                ForEach(SynthPatch.factory.indices, id: \.self) { i in
+                    Text(SynthPatch.factory[i].name).tag(i)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .onChange(of: presetIndex) { _, _ in applySoundLive() }
+            .accessibilityLabel("Timbre character preset")
+        }
+    }
+
+    private var randomizeButton: some View {
+        Button {
+            // Fresh timbre colour: a random character preset + a new pad position.
+            presetIndex = Int.random(in: 0..<SynthPatch.factory.count)
+            brightness = Double.random(in: 0.25...0.85)
+            space = Double.random(in: 0.2...0.7)
+            movement = Double.random(in: 0.05...0.4)
+            applySoundLive()
+        } label: {
+            Label("Randomize timbre", systemImage: "dice")
+                .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
+                .frame(maxWidth: .infinity).frame(height: 40)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Picks a new sound character and timbre for variety")
+    }
+
+    // MARK: Panel chrome
+
+    /// A collapsible, accessibility-first panel ("aufklappen"): a titled
+    /// DisclosureGroup wrapped as a bordered card so the whole window is one
+    /// scrollable stack of expandable sections.
+    private func panel<Content: View>(_ title: String, _ subtitle: String,
+                                      isExpanded: Binding<Bool>,
+                                      @ViewBuilder content: () -> Content) -> some View {
+        DisclosureGroup(isExpanded: isExpanded) {
+            VStack(alignment: .leading, spacing: 14) { content() }
+                .padding(.top, 12)
+        } label: {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                Text(subtitle).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+        }
+        .tint(EchoelTheme.dim)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
+    }
+
+    /// A label-above-control row (forms: labels above inputs — per UI rules).
+    private func labeledRow<Content: View>(_ label: String,
+                                           @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.dim)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Recompose now if playing (key/tuning/tempo affect the notes); otherwise just
+    /// refresh the live timbre so the change is reflected when playback begins.
+    private func recomposeIfRunning() {
+        if running { generate() } else { applySoundLive() }
     }
 
     /// One 2D morph pad replacing the timbre sliders. X = tone (dark → bright),
@@ -558,7 +718,11 @@ struct EchoelStudioView: View {
     /// Build the synth patch from the chosen genre, overridden by the live sliders.
     /// All inputs are clamped, so this can never produce an out-of-range value.
     private func currentSoundPatch() -> SynthPatch {
-        var p = style.synthPatch
+        // Timbre base: a chosen character preset, else the genre's own patch. The
+        // preset gives sound-design variety independent of the musical genre.
+        var p = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
+            ? SynthPatch.factory[presetIndex]
+            : style.synthPatch
         p.brightness = Float(min(max(brightness, 0), 1))
         p.reverbMix = Float(min(max(space, 0), 1))
         let mv = Float(min(max(movement, 0), 1))
