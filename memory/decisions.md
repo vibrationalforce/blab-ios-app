@@ -162,3 +162,11 @@ Architectural and strategic decisions with context and rationale.
 - **Archive is stricter than SwiftPM CI:** App Intents passed `ci.yml` but failed the Xcode archive — `static var` AppIntent requirements are Swift-6 "global shared mutable state"; must be `static let`. Always pre-verify risky builds with the dryrun before a real deploy.
 - **Apple daily upload cap:** exhausted today because `Auto-Merge Claude Branch` auto-merges to `main` and auto-uploads on every feature push. Build is good; only Apple's "wait 1 day" blocks the upload. Pause auto-deploy-on-merge before the next intended deploy.
 - **Log access in sandbox:** raw Actions logs live on a blob host NOT in the network allowlist (403). Use `mcp__github__get_job_logs` (server-side) to read CI failures.
+
+### 2026-06-16 SHIPPED — TestFlight build 1837 VALID (token-free deploy proven)
+- **Result:** `git push origin HEAD:deploy` → run #1837: Preflight ✅, iOS Archive ✅, Export & Upload ✅, ASC poll `build_number=1837 id=ef72d8fc-c191-43c1-ba41-e810536e0c73 state=VALID uploaded=2026-06-16T07:11:42-07:00`. Dispatched by `github-actions[bot]` via `GITHUB_TOKEN` — no PAT.
+- **Why it worked this time:** the daily upload cap had reset, and the two quota-burning auto-upload triggers were disabled first (`auto-merge-claude.yml` Trigger-TestFlight → `if: false`; `trigger-testflight.yml` → `workflow_dispatch` only), so the fresh daily quota went to our intentional build.
+- **This build carries:** algorithmic reverb (Room/Hall), harmonizer, per-genre saturation, anti-aliased DDSP, polyphonic synth + deep piano roll, patch editor, hybrid sample+synth drums, sample browser, Siri/Shortcuts intents, on-device bio-music director (iOS 26-gated) + fallback, precise read-only Health/privacy strings, brand-clean copy.
+- **Standing ship path:** optional `HEAD:deploy-dryrun` (archive-only, no quota) to pre-verify, then `HEAD:deploy` for the real upload. Keep auto-upload-on-merge OFF.
+- **Local note:** Swift is NOT installed in the remote sandbox — cannot `swift build`/`swift test` here; rely on `ci.yml` + the Release archive (deploy-dryrun) as the real compile gate.
+- **Review date:** 2026-09-16

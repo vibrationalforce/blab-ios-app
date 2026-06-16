@@ -6,6 +6,32 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-16 — SHIPPED build 1837 VALID + honest website state
+
+### Branch: `claude/piano-roll-clip-view-wozlie`
+### Trigger: owner — "Deploy now" → ship the sanitized version, keep the site current, propose next.
+
+### Shipped
+- **TestFlight build 1837 VALID** via the token-free pipeline: `git push origin HEAD:deploy` → `deploy-on-tag.yml` → `GITHUB_TOKEN` dispatches `testflight.yml`. Run #1837: Preflight ✅, iOS Archive ✅, Export & Upload ✅, ASC `state=VALID`. No PAT.
+- Carries: algorithmic reverb (Room/Hall), harmonizer, per-genre saturation, anti-aliased DDSP, polyphony + deep piano roll, patch editor, hybrid sample+synth drums, sample browser, Siri/Shortcuts, on-device bio-music director (iOS 26-gated) + fallback, precise read-only Health/privacy strings, brand-clean copy.
+
+### Quota-burner fixes (so the daily cap isn't wasted)
+- `auto-merge-claude.yml` "Trigger TestFlight" → `if: false` (kept auto-merge-to-main).
+- `trigger-testflight.yml` → `workflow_dispatch:` only (was push:main auto-upload).
+
+### Website / memory
+- `docs/brainstorming.html`: added "Current TestFlight build: 1837 (2026-06-16)". `version.json` → 10.16.1 + changelog. `sw.js` cache → v10.16.1.
+- Recorded ship to `memory/decisions.md` + `decisions.csv`.
+
+### Key learnings
+- **Swift NOT installed in the remote sandbox** — cannot `swift build`/`swift test` locally; the real compile gates are `ci.yml` (SwiftPM) + the Release **archive** (deploy-dryrun). Treat blind Swift edits with caution; pre-verify with `HEAD:deploy-dryrun`.
+- The big DAW-deepening plan (polyphony, deep piano roll, patch editor, synth drums, sample browser) was already implemented/merged; the app uses a single "ONE button, then sliders" `EchoelStudioView`, not a multi-tab StudioRoot — so the planned clip/session grid was intentionally NOT forced in (the `Project`/`ProjectStore` library already captures+relaunches full takes).
+
+### Next (proposed)
+- Sound polish + stem export · SwiftUI bio-visual shaders (WWDC26) · Apple Watch Extended-Runtime capture. Each pre-verified via deploy-dryrun.
+
+---
+
 ## 2026-06-11 — Deep research (bio/UX/arch/a11y) + Phase M mapping spine
 
 ### Branch: `claude/piano-roll-clip-view-wozlie`
