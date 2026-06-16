@@ -378,6 +378,8 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     case megaphone
     case blurry
     case harmonizer
+    case room
+    case hall
 
     public var id: String { rawValue }
 
@@ -393,6 +395,8 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .megaphone:  return "Megaphone"
         case .blurry:     return "Blurry"
         case .harmonizer: return "Harmonizer"
+        case .room:       return "Room"
+        case .hall:       return "Hall"
         }
     }
 
@@ -409,6 +413,8 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .megaphone:  return "Barking band-pass + saturated slap"
         case .blurry:     return "Soft-focus wash: low-pass + deep chorus + smeared echo"
         case .harmonizer: return "Adds harmony voices: a third + fifth above the melody"
+        case .room:       return "Tight, natural room — adds depth without washing out"
+        case .hall:       return "Large, lush concert hall — long, bright reverb tail"
         }
     }
 
@@ -480,6 +486,19 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
                 harmonizerEnabled: true,
                 harmonizerInterval1: 4, harmonizerInterval2: 7,
                 harmonizerVoice2: true, harmonizerMix: 0.55)
+        case .room:
+            // A tight, natural space — short tail, gentle warmth, no delay wash.
+            return GenreFXPreset(
+                saturation: 0.22,
+                reverbEnabled: true, reverbMix: 0.24, reverbRoom: 0.45, reverbDamping: 0.55)
+        case .hall:
+            // A large, bright concert hall — long tail over a soft quarter delay.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.quarter),
+                delayMix: 0.18, delayFeedback: 0.30, delayTone: 0.6, delaySpread: 0.5,
+                saturation: 0.20,
+                reverbEnabled: true, reverbMix: 0.38, reverbRoom: 0.90, reverbDamping: 0.30)
         }
     }
 
