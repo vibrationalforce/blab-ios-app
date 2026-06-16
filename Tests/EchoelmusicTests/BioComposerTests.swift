@@ -139,6 +139,36 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    func testHarmonicTakesVaryAcrossSeeds() {
+        // Regression for "immer derselbe Tonwechsel": across many seeds a harmonic
+        // genre must produce more than one distinct opening pitch set — the seed now
+        // drives chord rotation + lead opening, not just velocity humanization.
+        let key = MusicalKey(root: 0, scale: .minor)
+        var openings = Set<Int>()
+        for seed in UInt64(1)...UInt64(30) {
+            let comp = BioComposer.compose(
+                input(hr: 80, seed: seed, key: key, style: .synthwave, mode: .studioLocked))
+            // The highest note on the first downbeat = the take's opening colour.
+            let firstStep = comp.notes.filter { $0.startStep == 0 }.map { $0.pitch }
+            if let top = firstStep.max() { openings.insert(top) }
+        }
+        XCTAssertGreaterThan(openings.count, 1, "harmonic takes must not all open identically")
+    }
+
+    func testDubSecondChordVariesAcrossSeeds() {
+        // Dub's second-half move was hardcoded i→IV; it now varies by seed while the
+        // first half stays anchored on the tonic.
+        var seconds = Set<Int>()
+        for seed in UInt64(1)...UInt64(30) {
+            let comp = BioComposer.compose(
+                input(coherence: 0.05, hr: 70, seed: seed, style: .dubTechno))
+            // Lowest pitch in the second half (steps 8…15) = that chord's root region.
+            let secondHalf = comp.notes.filter { $0.startStep >= 8 }.map { $0.pitch }
+            if let root = secondHalf.min() { seconds.insert(root) }
+        }
+        XCTAssertGreaterThan(seconds.count, 1, "dub's second chord must vary across seeds")
+    }
+
     func testDubTechnoIsFourOnTheFloor() {
         // Kick on every quarter, regardless of energy — the dub pulse.
         for hr in [Float(55), 90, 125] {

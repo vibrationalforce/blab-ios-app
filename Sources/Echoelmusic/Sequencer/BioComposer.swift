@@ -282,8 +282,12 @@ public enum BioComposer {
             }
         }
 
-        for s in positions([2, 6])  { addChord(rootDegree: 0, at: s) }   // i  (tonic)
-        for s in positions([10, 14]) { addChord(rootDegree: 3, at: s) }  // IV (subdominant)
+        // The first half anchors on the tonic; the second half moves to a seeded
+        // in-key chord (IV / VI / v / VII) so it isn't forever the same i→IV stab.
+        let secondDegrees = [3, 5, 4, 6]
+        let second = secondDegrees[Int(rng.next() % UInt64(secondDegrees.count))]
+        for s in positions([2, 6])  { addChord(rootDegree: 0, at: s) }        // i (tonic)
+        for s in positions([10, 14]) { addChord(rootDegree: second, at: s) }  // seeded move
         return notes
     }
 
@@ -352,7 +356,9 @@ public enum BioComposer {
         let leadOctave = 5
         let noteCount = 3 + Int((busy * 3).rounded())   // 3…6
         let inhaleBias: Float = breathPhase < 0.5 ? 0.65 : 0.35
-        var degree = 0
+        // Seeded opening degree (was always 0) so the dark bell line doesn't open on
+        // the same note every take.
+        var degree = Int(rng.next() % 3)
         var lastStart = -1
         for i in 0..<noteCount {
             let start = i * stepCount / noteCount
@@ -361,7 +367,11 @@ public enum BioComposer {
 
             let pitch = key.degree(degree, octave: leadOctave)
             let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
-            let velocity = clamp01(0.5 + 0.3 * breathDepth)
+            // Phrase arc + downbeat accent for dynamics (not a flat velocity).
+            let pos = noteCount > 1 ? Float(i) / Float(noteCount - 1) : 0
+            let arc = clamp01(1 - abs(pos - 0.6) * 1.4)
+            let metric: Float = (startStep % 4 == 0) ? 0.1 : 0
+            let velocity = clamp01(0.42 + 0.3 * breathDepth + 0.16 * arc + metric)
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
                               lengthSteps: length, velocity: velocity))
 
@@ -388,7 +398,9 @@ public enum BioComposer {
         let octave = 4 + (mood.darkness > 0.6 ? -1 : 0)
 
         var notes: [Note] = []
-        var degree = 0
+        // Seeded opening degree (was always 0) so the breath line doesn't always
+        // start on the tonic — gentle variety without breaking the calm character.
+        var degree = Int(rng.next() % 3)
         var lastStart = -1
         for i in 0..<noteCount {
             let start = i * stepCount / noteCount
@@ -400,8 +412,11 @@ public enum BioComposer {
             let lenF = gap * (0.5 + 0.5 * calm)
             let length = max(1, min(Int(lenF.rounded()), stepCount - startStep))
 
+            // Gentle phrase arc on top of the downbeat accent for breathing dynamics.
+            let pos = noteCount > 1 ? Float(i) / Float(noteCount - 1) : 0
+            let arc = clamp01(1 - abs(pos - 0.5) * 1.2)
             let accent: Float = (startStep % 8 == 0) ? 0.15 : 0
-            let velocity = clamp01(0.55 + 0.3 * breathDepth + accent)
+            let velocity = clamp01(0.5 + 0.28 * breathDepth + 0.12 * arc + accent)
 
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
                               lengthSteps: length, velocity: velocity))
@@ -430,7 +445,31 @@ public enum BioComposer {
                                         breathPhase: Float, breathDepth: Float,
                                         mood: MoodProfile, rng: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
-        let prog = profile.progression.isEmpty ? [0] : profile.progression
+        // Seed-vary the harmony so a re-seed never replays the identical chord move
+        // ("immer derselbe Tonwechsel"). The genre profile sets the vocabulary; the
+        // seed rotates the progression and, for adventurous moods, borrows an in-key
+        // secondary chord (ii/V/vi) and adds a turnaround so the loop resolves. Every
+        // degree still resolves through MusicalKey.degree → always perfectly in key.
+        var prog = profile.progression.isEmpty ? [0] : profile.progression
+        if prog.count > 1 {
+            let rot = Int(rng.next() % UInt64(prog.count))
+            prog = Array((prog + prog)[rot..<rot + prog.count])
+        }
+        // Adventurous (weird) moods splice a borrowed secondary chord before the last
+        // chord, so the phrase gets a fresh harmonic colour it didn't have before.
+        if rng.unit() < clamp01(mood.weird) * 0.6 {
+            let candidates = [4, 5, 1].filter { !prog.contains($0) }   // V, vi, ii
+            if !candidates.isEmpty {
+                let extra = candidates[Int(rng.next() % UInt64(candidates.count))]
+                prog.insert(extra, at: max(0, prog.count - 1))
+            }
+        }
+        // Turnaround cadence: on multi-chord takes, end on the dominant (V) some of
+        // the time so the loop pulls back to the tonic at the wrap (V→i), instead of
+        // always closing on the same chord. Seeded + tension-scaled so it varies.
+        if prog.count > 1, prog.last != 4, rng.unit() < 0.35 + 0.4 * clamp01(mood.tension) {
+            prog[prog.count - 1] = 4
+        }
         // Guard chord tones symmetrically with the progression (a public
         // HarmonicProfile could be built with empty tones → div-by-zero in the arp).
         // Romance adds the 7th for lush chords; darkness drops the whole voicing an
@@ -513,7 +552,11 @@ public enum BioComposer {
             let lively = 0.6 + 0.8 * clamp01(mood.liveliness)
             let count = max(2, Int((profile.leadDensity * (4 + busy * 4) * lively).rounded()))
             var lastStart = -1
-            var toneIdx = breathPhase < 0.5 ? 0 : 1   // inhale low → exhale higher
+            // Seed-vary the opening tone so the lead doesn't always begin on the same
+            // pitch (a big part of "it's the same tune again"). Breath still biases
+            // low on inhale / higher on exhale; the seed adds the individual offset.
+            var toneIdx = (breathPhase < 0.5 ? 0 : 1)
+                + Int(rng.next() % UInt64(max(1, tones.count)))
             for i in 0..<count {
                 let start = i * stepCount / count
                 let startStep = min(stepCount - 1, max(start, lastStart + 1))
@@ -528,8 +571,16 @@ public enum BioComposer {
                 if mood.tension > 0, rng.unit() < clamp01(mood.tension) * 0.45 {
                     pitch += rng.unit() < 0.5 ? 1 : -1
                 }
-                let length = max(1, min(calm > 0.5 ? 3 : 2, stepCount - startStep))
-                let velocity = hVel(0.46 + 0.30 * breathDepth, &rng)
+                // Phrasing: a phrase arc (swell to ~⅔, ease off) + a metric accent on
+                // the beat give the line real dynamics instead of a flat velocity —
+                // the first layer of "virtuosity". Articulation shortens busy notes.
+                let pos = count > 1 ? Float(i) / Float(count - 1) : 0
+                let arc = clamp01(1 - abs(pos - 0.66) * 1.4)        // 0…1 hump
+                let metric: Float = (startStep % 4 == 0) ? 0.12 : 0
+                let baseLen = calm > 0.5 ? 3 : 2
+                let length = max(1, min(busy > 0.6 ? max(1, baseLen - 1) : baseLen,
+                                        stepCount - startStep))
+                let velocity = hVel(0.34 + 0.26 * breathDepth + 0.20 * arc + metric, &rng)
                 notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch)),
                                   startStep: startStep, lengthSteps: length, velocity: velocity))
                 // Steps through the chord; inhale biases upward. Weird widens the
