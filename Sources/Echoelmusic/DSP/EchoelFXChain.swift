@@ -22,6 +22,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// / "telephone" / lo-fi characters.
     public let filterL: EchoelSVFilter
     public let filterR: EchoelSVFilter
+    public let harmonizer: EchoelHarmonizer
     public let chorus: EchoelChorus
     public let flanger: EchoelFlanger
     public let phaser: EchoelPhaser
@@ -36,6 +37,9 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// Analog warmth. On by default — the additive source is otherwise a sterile
     /// sum of sines; saturation adds the harmonic body that sounds professional.
     public var saturationEnabled: Bool = true
+    /// Pitch-shift harmony voices. Off by default — a character effect surfaced
+    /// via the Effects picker (`.harmonizer`).
+    public var harmonizerEnabled: Bool = false
     /// Subtle ensemble chorus. On by default at a gentle setting (see init) so
     /// the additive pad/lead reads as lush and wide rather than thin and centred;
     /// the `.clean` character and the sound editor can switch it off.
@@ -61,6 +65,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public init(sampleRate: Float = 48000) {
         self.filterL = EchoelSVFilter(sampleRate: sampleRate)
         self.filterR = EchoelSVFilter(sampleRate: sampleRate)
+        self.harmonizer = EchoelHarmonizer(sampleRate: sampleRate)
         self.chorus = EchoelChorus(sampleRate: sampleRate)
         // Gentle default: low wet mix + modest depth + slow rate → ensemble
         // warmth and width without an obvious "seasick" wobble.
@@ -90,6 +95,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         var r = inR
         if filterEnabled     { l = filterL.process(l); r = filterR.process(r) }
         if saturationEnabled { (l, r) = saturate(l, r) }
+        if harmonizerEnabled { (l, r) = harmonizer.processStereo(l, r) }
         if chorusEnabled     { (l, r) = chorus.processStereo(l, r) }
         if flangerEnabled    { (l, r) = flanger.processStereo(l, r) }
         if phaserEnabled     { (l, r) = phaser.processStereo(l, r) }
@@ -152,6 +158,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public func reset() {
         filterL.reset()
         filterR.reset()
+        harmonizer.reset()
         chorus.reset()
         flanger.reset()
         phaser.reset()

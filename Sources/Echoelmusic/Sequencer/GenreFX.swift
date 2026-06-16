@@ -54,6 +54,15 @@ public struct GenreFXPreset: Sendable, Equatable {
     // thin and digital. 0 disables (a truly dry "Clean").
     public var saturation: Float
 
+    // Harmonizer — pitch-shifted harmony voices. Off in every genre preset; the
+    // `.harmonizer` character turns it on. Carried here so every preset apply
+    // explicitly settles the harmonizer state (no sticky-on when switching).
+    public var harmonizerEnabled: Bool
+    public var harmonizerInterval1: Float
+    public var harmonizerInterval2: Float
+    public var harmonizerVoice2: Bool
+    public var harmonizerMix: Float
+
     public init(
         filterEnabled: Bool = false,
         filterMode: EchoelSVFilter.Mode = .lowpass,
@@ -76,7 +85,12 @@ public struct GenreFXPreset: Sendable, Equatable {
         phaserRate: Float = 0.2,
         phaserDepth: Float = 0.6,
         phaserMix: Float = 0.4,
-        saturation: Float = 0.30
+        saturation: Float = 0.30,
+        harmonizerEnabled: Bool = false,
+        harmonizerInterval1: Float = 4,
+        harmonizerInterval2: Float = 7,
+        harmonizerVoice2: Bool = true,
+        harmonizerMix: Float = 0.5
     ) {
         self.filterEnabled = filterEnabled
         self.filterMode = filterMode
@@ -100,6 +114,11 @@ public struct GenreFXPreset: Sendable, Equatable {
         self.phaserDepth = phaserDepth
         self.phaserMix = phaserMix
         self.saturation = saturation
+        self.harmonizerEnabled = harmonizerEnabled
+        self.harmonizerInterval1 = harmonizerInterval1
+        self.harmonizerInterval2 = harmonizerInterval2
+        self.harmonizerVoice2 = harmonizerVoice2
+        self.harmonizerMix = harmonizerMix
     }
 
     /// Delay-line capacity in the chain (EchoelDelay default). The synced time is
@@ -135,6 +154,12 @@ public struct GenreFXPreset: Sendable, Equatable {
 
         chain.saturationEnabled = saturation > 0
         chain.saturationDrive = saturation
+
+        chain.harmonizerEnabled = harmonizerEnabled
+        chain.harmonizer.interval1 = harmonizerInterval1
+        chain.harmonizer.interval2 = harmonizerInterval2
+        chain.harmonizer.voice2Enabled = harmonizerVoice2
+        chain.harmonizer.mix = harmonizerMix
     }
 }
 
@@ -307,6 +332,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     case dream
     case megaphone
     case blurry
+    case harmonizer
 
     public var id: String { rawValue }
 
@@ -321,6 +347,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .dream:      return "Dream"
         case .megaphone:  return "Megaphone"
         case .blurry:     return "Blurry"
+        case .harmonizer: return "Harmonizer"
         }
     }
 
@@ -336,6 +363,7 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .dream:      return "Wide and bright: lush chorus + long ping-pong"
         case .megaphone:  return "Barking band-pass + saturated slap"
         case .blurry:     return "Soft-focus wash: low-pass + deep chorus + smeared echo"
+        case .harmonizer: return "Adds harmony voices: a third + fifth above the melody"
         }
     }
 
@@ -397,6 +425,15 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
                 delayMix: 0.30, delayFeedback: 0.50, delayTone: 0.35, delaySpread: 0.55,
                 delayWow: 0.55, delayDrive: 0.15,
                 chorusEnabled: true, chorusRate: 0.45, chorusDepth: 0.9, chorusMix: 0.6)
+        case .harmonizer:
+            // Stacked third + fifth over a lightly-driven dry tone, with a touch
+            // of chorus to glue the harmony voices into an ensemble.
+            return GenreFXPreset(
+                chorusEnabled: true, chorusRate: 0.3, chorusDepth: 0.4, chorusMix: 0.25,
+                saturation: 0.25,
+                harmonizerEnabled: true,
+                harmonizerInterval1: 4, harmonizerInterval2: 7,
+                harmonizerVoice2: true, harmonizerMix: 0.55)
         }
     }
 
