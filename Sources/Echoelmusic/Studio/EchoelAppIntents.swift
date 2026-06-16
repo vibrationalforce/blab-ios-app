@@ -36,10 +36,10 @@ enum EchoelIntentInbox {
 }
 
 struct StartEchoelSessionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Start Echoel Session"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Start Echoel Session"
+    static let description = IntentDescription(
         "Start a bio-reactive session — your body begins making music.")
-    static var openAppWhenRun: Bool = true
+    static let openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
         EchoelIntentInbox.post(.start)
@@ -48,9 +48,9 @@ struct StartEchoelSessionIntent: AppIntent {
 }
 
 struct StopEchoelSessionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Stop Echoel Session"
-    static var description = IntentDescription("Stop the current bio-reactive session.")
-    static var openAppWhenRun: Bool = true
+    static let title: LocalizedStringResource = "Stop Echoel Session"
+    static let description = IntentDescription("Stop the current bio-reactive session.")
+    static let openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
         EchoelIntentInbox.post(.stop)
@@ -59,10 +59,10 @@ struct StopEchoelSessionIntent: AppIntent {
 }
 
 struct KeepLastLoopIntent: AppIntent {
-    static var title: LocalizedStringResource = "Keep Last Loop"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Keep Last Loop"
+    static let description = IntentDescription(
         "Capture the loop you just played from the always-on buffer.")
-    static var openAppWhenRun: Bool = true
+    static let openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
         EchoelIntentInbox.post(.keepLoop)
