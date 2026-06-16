@@ -1,54 +1,38 @@
-Echoelmusic - Bio-Reactive Audio-Visual Platform
+Echoel - Bio-Reactive Performance Instrument
 
-Transform your heartbeat into music. Your breath into rhythm. Your emotions into art.
-
-Echoelmusic is the world's first bio-reactive audio-visual platform that transforms your body's signals into immersive musical experiences. Using real-time biometric data from Health Connect, combined with advanced spatial audio and stunning visuals, Echoelmusic creates a deeply personal connection between your physiology and sound.
+Your heartbeat becomes tempo. Your breath shapes the space. Echoel turns your body's signals into sound, image and light in real time — the body as controller.
 
 KEY FEATURES
 
-🎵 Bio-Reactive Audio Engine
-• Heart Rate → Tempo, intensity, and energy
-• HRV (Heart Rate Variability) → Reverb, spatial width, harmony complexity
-• Coherence Level → Melodic beauty and harmonic richness
-• Breathing Rate → Rhythm and pacing
+Bio-Reactive Audio Engine
+• Heart rate → tempo, intensity, vibrato
+• HRV → brightness, spatial width, harmonic complexity
+• Coherence → harmonicity and texture
+• Breathing → envelope and pacing
 
-🎧 Spatial Audio Excellence
-• 6 Spatial Modes: Stereo, 3D, 4D Orbital, Binaural, Ambisonics, AFA
-• Professional HRTF rendering for immersive experiences
-• Bio-reactive sound positioning
+Sound Design
+• Bio-reactive synthesis (additive DDSP, modal, cellular, sampler)
+• Design and save your own patches
+• Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer
 
-🎹 Professional Music Creation
-• MIDI 2.0 + MPE support for expressive control
-• 50+ DSP effects including bio-reactive processors
-• EchoelBeat synthesis engine
-• AI-powered chord and melody generation
-• Multi-track recording and export
-• USB MIDI controller support
+Composition & Beats
+• Genre + key generation you keep editing in a real piano roll
+• Concert pitch (A4) set exactly to the cent; optional BPM lock
+• 16-step, 8-track beat maker and sampler
 
-💡 Hardware Integration
-• DMX/Art-Net lighting integration
-• Bluetooth MIDI controller support
-• USB audio interface support
-• Ableton Push 3 LED control
+Connect
+• MIDI / MPE in and out
+• OSC and ADM-OSC immersive object output
+• DMX / Art-Net lighting integration
 
-🧘 Wellness & Meditation
-• Guided breathing exercises with haptic feedback
-• HRV coherence training
-• Meditation modes with spatial audio
-• Session tracking and progress analytics
-• Health Connect integration
+Privacy
+• Your biometrics stay on your device. No ads, no tracking.
 
-⚡ Low-Latency Performance
-• Google Oboe audio engine
-• AAudio/OpenSL ES support
-• Professional-grade latency
+Echoel is in active development. Feedback welcome: echoel@tropicaldrones.com
 
-Whether you're a musician seeking new forms of expression, a wellness enthusiast exploring biofeedback, or an artist creating immersive experiences - Echoelmusic transforms the invisible rhythms of your body into beautiful sound and light.
-
-Your heartbeat has never sounded so good.
+This is not a medical device. Biofeedback features are for creative and self-observation purposes only — not for diagnosis or treatment.
 
 Permissions:
-• Microphone: For voice input and audio processing
-• Bluetooth: For MIDI controllers and wearables
-• Health Connect: For heart rate and HRV data
-• Internet: For cloud sync (optional)
+• Microphone: voice input and audio processing
+• Bluetooth: MIDI controllers and heart-rate sensors
+• Health Connect: heart rate and HRV data

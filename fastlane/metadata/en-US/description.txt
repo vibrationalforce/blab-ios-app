@@ -1,103 +1,53 @@
-CONCEPT - IN DEVELOPMENT
-Echoelmusic is currently a concept in active development. This describes the full vision; some features are live today and many are still on the roadmap. Interested users, developers and collaborators are warmly welcome — get in touch: echoel@tropicaldrones.com
+Echoel is a bio-reactive performance instrument. Your heart rate, heart-rate variability and breath drive sound, image and light in real time — the body becomes the controller.
 
-———
-
-Find Your Sound. Shape Your Space. Focus Your Flow.
-
-Bio-Reactive, Immersive, Multi-Platform — Human expression, worldwide collaboration, education and wellbeing in one comprehensive ecosystem.
-
-Your heartbeat becomes tempo. Your breathing shapes the space. Your coherence drives real-time creative response. Connect Apple Watch and transform biometrics into music, video, and light.
+Built for performance, installation, content and studio work — on iPhone, and as an AUv3 plugin inside your DAW.
 
 
-SUPER INTELLIGENCE
+THE BODY AS CONTROLLER
 
-VIDEO AI
-Professional video editing powered by on-device machine learning. 16K resolution. 1000fps capture. 100+ AI effects. One-tap editing that understands your content.
+Connect Apple Watch, a Bluetooth heart-rate strap, or use the iPhone camera (rPPG) to read your pulse:
 
-- Auto color correction and stabilization
-- AI background removal and replacement
-- Style transfer and creative effects
-- Bio-reactive visual generation
-- Export to any format, any platform
+- Heart rate shapes tempo and vibrato
+- HRV and coherence shape brightness, harmonicity and texture
+- Breath shapes the amplitude envelope and space
+- Motion drives onsets and dynamics
 
-MUSIC AI
-Genetic synthesis where sounds evolve, mutate, and breed. Plant a seed, grow a sound. Biometric composition that responds to your body in real-time.
-
-- 30+ AI-generated music styles
-- Orchestral scoring engine
-- Bio-reactive audio synthesis
-- Beat-synced visual generation
-
-ART AI
-Geometric patterns, frequency-driven visualizations, neural network patterns. 30+ visualization styles that respond to your coherence and creativity.
+No two takes are the same.
 
 
-BIO-REACTIVE CREATION
+CREATE
 
-Connect your Apple Watch for real-time biometrics:
-
-- Heart Rate becomes Tempo and Intensity
-- HRV Coherence shapes Effects and Textures
-- Breathing controls Space and Atmosphere
-- Movement drives Visual Dynamics
-
-No presets. No loops. Just you - transformed into art.
-
-
-100+ INSTRUMENTS
-
-Orchestral: Strings, Brass, Woodwinds, Choir, Piano, Harp
-World: Sitar, Erhu, Koto, Shakuhachi, Oud, Kalimba, Djembe
-Synthesizers: FM, Wavetable, Granular, Genetic SoundDNA
-Touch: Chord Pad, Drum Pad, Melody XY, Keyboard
-
-Every instrument responds to your biometrics.
+- Bio-reactive synthesis engine (additive DDSP, modal, cellular, sampler) — vDSP-accelerated, no external dependencies
+- Design and save your own patches
+- Composition: pick a genre and a key; generate in-key material you keep editing in a real piano roll
+- Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
+- 16-step, 8-track beat maker and sampler with velocity, accent, swing and per-pad sample import
+- Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer and more
+- Retroactive capture: keep the loop you just played
+- Export audio (WAV) and MIDI (.mid) for your DAW
 
 
-60+ STUDIO EFFECTS
+CONNECT
 
-Professional audio processing inspired by legendary analog hardware. Classic British console compression, vintage American tube EQ, optical limiters, transformer saturation. Reverbs, delays, modulation, distortion - all studio-grade, all native.
-
-
-LASER AND DMX
-
-Control professional lighting directly from your biometrics. Art-Net and DMX integration for live performances, installations, and immersive experiences.
-
-
-WORLDWIDE COLLABORATION
-
-Create together across continents. Zero-latency sync. Unlimited participants. Biometric group coherence — synchronized creative expression in real time.
+- AUv3 plugin for Logic, AUM and other hosts
+- MIDI / MPE in and out
+- OSC output for live rigs and visuals
+- ADM-OSC immersive object output
+- Art-Net native light output for installations and stage
 
 
-EVERY APPLE DEVICE
+PRIVACY
 
-iPhone, iPad, Mac, Apple Watch, Apple TV, Vision Pro
-
-One ecosystem. Seamless sync. Your creative space, everywhere.
+Your biometrics stay on your device. No accounts required, no ads, no tracking. What you create is yours.
 
 
-ACCESSIBILITY - FOR EVERYONE
+ACCESSIBILITY
 
-WCAG 2.2 AAA certified. VoiceOver, Voice Control, Switch Control, Eye Tracking, 6 color blind modes, 20+ accessibility profiles.
-
-Creativity has no prerequisites.
+Designed accessibility-first: VoiceOver, large legible bio readouts, exact numeric entry for every parameter, and a 3 Hz visual flash cap for photosensitive safety.
 
 
-38 LANGUAGES
+Echoel is in active development — more is on the way. Feedback and collaboration welcome: echoel@tropicaldrones.com
 
-EN, DE, ES, FR, JA, ZH, KO, PT, IT, RU, AR, HI, NL, SV, DA, NO, PL, TR and 20 more. Auto-detects your system language.
-
-Your language. Your experience.
-
-
-YOUR CREATIONS BELONG TO YOU
-
-We claim no rights to your music, videos, or art. What you create is yours to use, share, and publish however you choose.
-
-Free for Apple. No subscription. No ads. Biometrics stay on your device.
-
-
-This is not a medical device. Biofeedback features are for creative and self-observation purposes only.
+This is not a medical device. Biofeedback features are for creative and self-observation purposes only — not for diagnosis or treatment.
 
 echoelmusic.com

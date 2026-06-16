@@ -10,7 +10,7 @@
 //     • Trap       — booming 808 sub-bass, crisp hats, dark melody
 //   Non-beat harmonic material (pads · chords · leads · arps · FX):
 //     • Vaporwave · 80s Synth-Pop · Disco · Synthwave · Early Synth (Berlin
-//       School) · Futuristic · Sci-Fi · Psytrance · Esoteric Meditation
+//       School) · Futuristic · Sci-Fi · Psytrance · Deep Ambient
 //   Bio-ambient:
 //     • Self-Observation — no drums, breath-paced, sync-free
 //
@@ -91,7 +91,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return "Futuristic"
         case .sciFi:              return "Sci-Fi"
         case .psytrance:          return "Psytrance"
-        case .esotericMeditation: return "Esoteric Meditation"
+        case .esotericMeditation: return "Deep Ambient"
         case .classical:          return "Classical"
         case .jazz:               return "Jazz"
         case .klezmer:            return "Klezmer"

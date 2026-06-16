@@ -217,7 +217,7 @@ struct ComposeView: View {
                 Text("Flow (sync-free)").tag(ComposerMode.flowFree)
             }
             .pickerStyle(.segmented)
-            .accessibilityLabel("Tempo mode: Studio locked for DAW, or Flow sync-free for meditation")
+            .accessibilityLabel("Tempo mode: Studio locked for DAW, or Flow sync-free for ambient self-observation")
 
             if mode == .studioLocked {
                 HStack {
@@ -230,7 +230,7 @@ struct ComposeView: View {
                 Text("Locked to \(Int(lockedBPM)) BPM — quantized, ready for Ableton / FL Studio.")
                     .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
             } else {
-                Text("Tempo follows your heart — sync-free, for meditation and self-observation.")
+                Text("Tempo follows your heart — sync-free, for ambient self-observation.")
                     .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
             }
         }

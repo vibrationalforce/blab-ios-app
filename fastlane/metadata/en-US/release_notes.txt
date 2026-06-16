@@ -1,44 +1,24 @@
-CONCEPT BUILD - IN DEVELOPMENT
-Echoelmusic is an early concept. This build runs the live core; the full vision is in the App Store description. Feedback, collaboration and developers welcome: echoel@tropicaldrones.com
+Echoel is in active development. Feedback and collaborators welcome: echoel@tropicaldrones.com
 
-Version 1.2.0 - Phase 10000 ULTIMATE MODE
+New in this build
 
-BETA - FREE FOR A LIMITED TIME
-We'd love to hear your feedback! Help us shape the future of bio-reactive music.
-Contact: echoel@tropicaldrones.com
+Composition
+- Many new genres (Classical, Jazz, Klezmer, Oriental, Punk, Rock 'n' Roll, Rock, Ska, Rocksteady, Heavy Metal, Doom, Deep Ambient and more)
+- Character controls: Liveliness, Darkness, Tension, Romance, Weird
+- Concert pitch (A4) set exactly to the cent; key selection and optional BPM lock
 
-MAJOR NEW FEATURES
+Sound
+- New algorithmic reverb (Room/Hall) for real depth per genre
+- Harmonizer effect: third and fifth harmony voices above the melody
+- Per-genre saturation — from clean classical to high-gain metal
+- Anti-aliasing smoothing for cleaner high notes and vibrato
 
-Cinematic Orchestral Scoring Engine
-- 27 articulation types (legato, spiccato, col legno, flutter tongue)
-- Full orchestra with 8 sections and accurate stage positioning
-- Disney/Pixar-inspired film scoring with leitmotifs
+Workflow
+- Retroactive capture of the loop you just played
+- MIDI file export (.mid) for your DAW
+- Precise controls and numeric entry for every parameter
 
-Professional Streaming Engine
-- Complete RTMP handshake implementation
-- 8K UHD streaming support
-- Multi-platform streaming (YouTube, Twitch, TikTok)
+Improvements
+- Stability and audio quality polished throughout
 
-Body Expression Engine
-- Polyvagal Theory integration (Porges 1995)
-- FACS facial expression analysis (Ekman & Friesen 1978)
-- Mind-body state integration
-
-Bio-Reactive Collaboration
-- Unlimited participants per session
-- Real-time worldwide collaboration
-- 8 broadcasting platforms supported
-
-ENHANCEMENTS
-- 74+ curated engine presets
-- 53 DSP plugins with EchoelCore framework
-- Enterprise-grade security (AES-256)
-- 12-language localization
-- WCAG 2.2 AAA accessibility
-
-FIXES
-- Improved stability across all platforms
-- Optimized memory usage
-- Enhanced bio-reactive response time
-
-Your heartbeat has never sounded so good.
+This is not a medical device. Biofeedback is for creative and self-observation purposes only.

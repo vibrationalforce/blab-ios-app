@@ -143,3 +143,10 @@ Architectural and strategic decisions with context and rationale.
 - **Reasoning:** Misleading metadata fails App Review (§2.3) and violates the brand rule; honest copy that matches the shipped LIVE set is safer and on-brand.
 - **Expected outcome:** Review-safe primary-market metadata; remaining locales + screenshots + privacy labels are the documented submission blockers.
 - **Review date:** 2026-07-02
+
+### 2026-06-16 Echoel = bio-reactive INSTRUMENT, not wellness (compliance + brand)
+- **Decision:** Resolve the "wellness vs instrument" framing conflict (session Layer-4 addendum vs CLAUDE.md) in favor of the **artistic/performance instrument** identity. Achieve App Store §5.1.3 compliance by removing medical/diagnostic, false-feature, and esoteric claims — not by adopting a "wellness" label.
+- **Reasoning:** Wellness framing commoditizes Echoel against thousands of meditation apps and contradicts the checked-in brand. The differentiated, defensible position is "the body as controller / first bio-reactive performance instrument." 5.1.3 is about avoiding clinical claims, which we do regardless of the marketing label.
+- **Actions:** Rewrote en-US + de-DE App Store descriptions and release notes to the real shipped feature set (no 16K/1000fps/100+ AI/worldwide collaboration); cleaned Android full_description; renamed in-app genre label "Esoteric Meditation" → "Deep Ambient" (only banned term that shipped in-app); website persona "Therapists & Coaches" → "Facilitators & Educators"; Flow-mode copy drops "meditation".
+- **Note:** Supersedes/completes the 2026-06-02 metadata-honesty decision (descriptions had regressed to overclaims).
+- **Review date:** 2026-07-16

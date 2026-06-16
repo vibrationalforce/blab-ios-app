@@ -1,44 +1,24 @@
-KONZEPT-BUILD - IN ENTWICKLUNG
-Echoelmusic ist ein frühes Konzept. Dieser Build enthält den Live-Kern; die vollständige Vision steht in der Beschreibung. Feedback, Mitwirkende und Entwickler willkommen: echoel@tropicaldrones.com
+Echoel ist in aktiver Entwicklung. Feedback und Mitwirkende willkommen: echoel@tropicaldrones.com
 
-Version 1.2.0 - Phase 10000 ULTIMATE MODE
+Neu in diesem Build
 
-BETA - KOSTENLOS FÜR BEGRENZTE ZEIT
-Wir freuen uns über Dein Feedback! Hilf uns, die Zukunft bio-reaktiver Musik zu gestalten.
-Kontakt: echoel@tropicaldrones.com
+Komposition
+- Viele neue Genres (u. a. Classical, Jazz, Klezmer, Oriental, Punk, Rock 'n' Roll, Rock, Ska, Rocksteady, Heavy Metal, Doom, Deep Ambient)
+- Charakter-Regler: Liveliness, Darkness, Tension, Romance, Weird
+- Kammerton (A4) exakt auf den Cent einstellbar; Tonart und optionaler BPM-Lock
 
-WICHTIGE NEUE FUNKTIONEN
+Klang
+- Neuer algorithmischer Reverb (Raum/Halle) für echte Tiefe pro Genre
+- Harmonizer-Effekt: Terz- und Quint-Stimmen über der Melodie
+- Per-Genre-Sättigung — von klarem Klassik-Klang bis High-Gain-Metal
+- Anti-Aliasing-Glättung für sauberere hohe Töne und Vibrato
 
-Cinematic Orchestral Scoring Engine
-- 27 Artikulationstypen (Legato, Spiccato, Col Legno, Flatterzunge)
-- Volles Orchester mit 8 Sektionen und akkurater Bühnenpositionierung
-- Disney/Pixar-inspiriertes Filmscoring mit Leitmotiven
+Workflow
+- Rückwirkendes Aufnehmen des zuletzt gespielten Loops
+- MIDI-Datei-Export (.mid) für die DAW
+- Präzise Regler und numerische Eingabe für jeden Parameter
 
-Professionelle Streaming-Engine
-- Vollständige RTMP-Handshake-Implementierung
-- 8K UHD Streaming-Unterstützung
-- Multi-Plattform-Streaming (YouTube, Twitch, TikTok)
+Verbesserungen
+- Stabilität und Audio-Qualität durchgehend optimiert
 
-Body Expression Engine
-- Polyvagaltheorie-Integration (Porges 1995)
-- FACS Gesichtsausdrucksanalyse (Ekman & Friesen 1978)
-- Geist-Körper-Zustandsintegration
-
-Bio-Reaktive Zusammenarbeit
-- Unbegrenzte Teilnehmer pro Sitzung
-- Weltweite Echtzeit-Zusammenarbeit
-- 8 Übertragungsplattformen unterstützt
-
-VERBESSERUNGEN
-- 74+ kuratierte Engine-Presets
-- 53 DSP-Plugins mit EchoelCore-Framework
-- Enterprise-Sicherheit (AES-256)
-- 12-Sprachen-Lokalisierung
-- WCAG 2.2 AAA Barrierefreiheit
-
-FEHLERBEHEBUNGEN
-- Verbesserte Stabilität auf allen Plattformen
-- Optimierter Speicherverbrauch
-- Verbesserte bio-reaktive Reaktionszeit
-
-Dein Herzschlag klang noch nie so gut.
+Dies ist kein medizinisches Gerät. Biofeedback dient ausschließlich kreativen und Selbstbeobachtungs-Zwecken.

@@ -1,103 +1,53 @@
-KONZEPT - IN ENTWICKLUNG
-Echoelmusic ist derzeit ein Konzept in aktiver Entwicklung. Hier wird die vollständige Vision beschrieben; einige Funktionen sind bereits live, viele weitere sind geplant. Interessierte, Entwickler und Mitwirkende sind herzlich eingeladen — meldet euch: echoel@tropicaldrones.com
+Echoel ist ein bio-reaktives Performance-Instrument. Dein Herzschlag, Deine Herzratenvariabilität und Dein Atem steuern Klang, Bild und Licht in Echtzeit — der Körper wird zum Controller.
 
-———
-
-Finde Deinen Sound. Spüre Deine Seele. Fokussiere Deinen Geist.
-
-Bio-Reaktiv, Immersiv, Multidimensional - Menschlicher Ausdruck, weltweite Zusammenarbeit, Bildung und Wohlbefinden in einem umfassenden Ökosystem.
-
-Dein Herzschlag wird zum Tempo. Dein Atem formt den Raum. Deine Kohärenz schaltet neue Dimensionen frei. Verbinde die Apple Watch und verwandle Biometrie in Musik, Video und Licht.
+Gebaut für Performance, Installation, Content und Studioarbeit — auf dem iPhone und als AUv3-Plugin in Deiner DAW.
 
 
-SUPER INTELLIGENCE
+DER KÖRPER ALS CONTROLLER
 
-VIDEO AI
-Professionelle Videobearbeitung mit quantenbasierter Intelligenz. 16K Auflösung. 1000fps Aufnahme. 100+ KI-Effekte. One-Tap-Editing, das Deinen Content versteht.
+Verbinde die Apple Watch, einen Bluetooth-Herzfrequenzgurt oder nutze die iPhone-Kamera (rPPG), um Deinen Puls zu lesen:
 
-- Automatische Farbkorrektur und Stabilisierung
-- KI-Hintergrundentfernung und -ersetzung
-- Stiltransfer und kreative Effekte
-- Bio-reaktive visuelle Generierung
-- Export in jedes Format, jede Plattform
+- Herzfrequenz formt Tempo und Vibrato
+- HRV und Kohärenz formen Brillanz, Harmonizität und Textur
+- Atem formt die Hüllkurve und den Raum
+- Bewegung treibt Onsets und Dynamik
 
-MUSIK AI
-Genetische Synthese, bei der Sounds sich entwickeln, mutieren und kreuzen. Pflanze einen Samen, züchte einen Sound. Biometrische Komposition, die in Echtzeit auf Deinen Körper reagiert.
-
-- 30+ KI-generierte Musikstile
-- Orchestrale Scoring-Engine
-- Bio-reaktive Audio-Synthese
-- Beat-synchronisierte visuelle Generierung
-
-ART AI
-Heilige Geometrie, Quantenwellenfunktionen, neuronale Netzwerkmuster. 30+ Visualisierungsstile, die auf Deine Kohärenz und Kreativität reagieren.
+Keine zwei Takes sind gleich.
 
 
-BIO-REAKTIVE KREATION
+ERSCHAFFEN
 
-Verbinde Deine Apple Watch für Echtzeit-Biometrie:
-
-- Herzfrequenz wird zu Tempo und Intensität
-- HRV-Kohärenz formt Effekte und Texturen
-- Atmung steuert Raum und Atmosphäre
-- Bewegung treibt visuelle Dynamik an
-
-Keine Presets. Keine Loops. Nur Du - verwandelt in Kunst.
-
-
-100+ INSTRUMENTE
-
-Orchester: Streicher, Blechbläser, Holzbläser, Chor, Klavier, Harfe
-Welt: Sitar, Erhu, Koto, Shakuhachi, Oud, Kalimba, Djembe
-Synthesizer: FM, Wavetable, Granular, Genetic SoundDNA
-Touch: Chord Pad, Drum Pad, Melody XY, Keyboard
-
-Jedes Instrument reagiert auf Deine Biometrie.
+- Bio-reaktive Synthese-Engine (additives DDSP, modal, zellular, Sampler) — vDSP-beschleunigt, ohne externe Abhängigkeiten
+- Eigene Patches gestalten und speichern
+- Komposition: Genre und Tonart wählen; Dein Körper erzeugt tonart-konformes Material, das Du in einer echten Piano-Roll weiter bearbeitest
+- Kammerton (A4) exakt auf den Cent einstellbar; BPM für tighte Loops sperren oder sync-frei bleiben
+- 16-Step-, 8-Spur-Beat-Maker und Sampler mit Velocity, Akzent, Swing und Sample-Import pro Pad
+- Effekte: Reverb, Delay, Chorus, Flanger, Phaser, Tremolo, Sättigung, Harmonizer und mehr
+- Rückwirkendes Aufnehmen: Behalte den Loop, den Du gerade gespielt hast
+- Export als Audio (WAV) und MIDI (.mid) für Deine DAW
 
 
-60+ STUDIO-EFFEKTE
+VERBINDEN
 
-Professionelle Audioverarbeitung inspiriert von legendärer analoger Hardware. Klassische britische Konsolenkompression, amerikanischer Vintage-Röhren-EQ, optische Limiter, Transformer-Sättigung. Reverbs, Delays, Modulation, Verzerrung - alles Studio-Qualität, alles nativ.
-
-
-LASER UND DMX
-
-Steuere professionelle Beleuchtung direkt über Deine Biometrie. Art-Net und DMX-Integration für Live-Performances, Installationen und immersive Erlebnisse.
-
-
-WELTWEITE ZUSAMMENARBEIT
-
-Erschaffe gemeinsam über Kontinente hinweg. Synchronisierung ohne Latenz. Unbegrenzte Teilnehmer. Biometrische Gruppenkohärenz - wenn Herzen sich synchronisieren, entsteht etwas.
+- AUv3-Plugin für Logic, AUM und andere Hosts
+- MIDI / MPE Ein- und Ausgang
+- OSC-Ausgabe für Live-Rigs und Visuals
+- ADM-OSC immersive Objekt-Ausgabe
+- Natives Art-Net-Lichtsignal für Installationen und Bühne
 
 
-JEDES APPLE-GERÄT
+PRIVATSPHÄRE
 
-iPhone, iPad, Mac, Apple Watch, Apple TV, Vision Pro
-
-Ein Ökosystem. Nahtlose Synchronisation. Dein kreativer Raum, überall.
+Deine Biometrie bleibt auf Deinem Gerät. Keine Konten nötig, keine Werbung, kein Tracking. Was Du erschaffst, gehört Dir.
 
 
-BARRIEREFREIHEIT - FÜR ALLE
+BARRIEREFREIHEIT
 
-WCAG 2.2 AAA zertifiziert. VoiceOver, Sprachsteuerung, Schaltersteuerung, Eye Tracking, 6 Farbenblindheitsmodi, 20+ Barrierefreiheitsprofile.
-
-Kreativität kennt keine Voraussetzungen.
+Accessibility-first entwickelt: VoiceOver, große, gut lesbare Bio-Anzeigen, exakte numerische Eingabe für jeden Parameter und eine 3-Hz-Begrenzung der Bildblitzrate für photosensitive Sicherheit.
 
 
-38 SPRACHEN
+Echoel ist in aktiver Entwicklung — mehr folgt. Feedback und Zusammenarbeit willkommen: echoel@tropicaldrones.com
 
-EN, DE, ES, FR, JA, ZH, KO, PT, IT, RU, AR, HI, NL, SV, DA, NO, PL, TR und 20 weitere. Erkennt automatisch Deine Systemsprache.
-
-Deine Sprache. Dein Erlebnis.
-
-
-DEINE KREATIONEN GEHÖREN DIR
-
-Wir beanspruchen keine Rechte an Deiner Musik, Deinen Videos oder Deiner Kunst. Was Du erschaffst, gehört Dir - zum Nutzen, Teilen und Veröffentlichen, wie Du es möchtest.
-
-Kostenlos für Apple. Kein Abo. Keine Werbung. Biometrie bleibt auf Deinem Gerät.
-
-
-Dies ist kein medizinisches Gerät. Biofeedback-Funktionen dienen ausschließlich kreativen und Selbstbeobachtungs-Zwecken.
+Dies ist kein medizinisches Gerät. Biofeedback-Funktionen dienen ausschließlich kreativen und Selbstbeobachtungs-Zwecken — nicht der Diagnose oder Behandlung.
 
 echoelmusic.com
