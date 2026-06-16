@@ -28,6 +28,10 @@ struct EchoelStudioView: View {
     // The single live-state flag: biofeedback running or not.
     @State private var running = false
 
+    /// Drives Siri/Shortcuts intent consumption (start/stop/keep loop) when the
+    /// app becomes active after an intent opens it.
+    @Environment(\.scenePhase) private var scenePhase
+
     // The live, fully-editable timbre is `currentPatch` (single source of truth).
     // Every control below — XY pad, sliders and 2-decimal numeric fields — reads and
     // writes its fields directly, so any value can be dialed OR typed exactly.
@@ -94,6 +98,10 @@ struct EchoelStudioView: View {
         .onAppear {
             currentPatch = style.synthPatch   // controls reflect a real sound from the start
             surfacePriorCrashIfAny()
+            handlePendingIntent()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { handlePendingIntent() }
         }
         .onDisappear { stopEverything() }
         .sheet(isPresented: $showOpen) { openSheet }
@@ -633,6 +641,20 @@ struct EchoelStudioView: View {
 
     private func toggleBiofeedback() {
         if running { stopEverything() } else { startBiofeedback() }
+    }
+
+    /// Consume a Siri/Shortcuts request deposited by an App Intent, routing it to
+    /// the same handlers the on-screen buttons use. Read-once, so it fires exactly
+    /// once per request; unknown/absent actions are a no-op.
+    private func handlePendingIntent() {
+        #if canImport(AppIntents)
+        guard let action = EchoelIntentInbox.take() else { return }
+        switch action {
+        case .start:    if !running { startBiofeedback() }
+        case .stop:     if running { stopEverything() }
+        case .keepLoop: Task { await keepLastLoop() }
+        }
+        #endif
     }
 
     private func startBiofeedback() {
