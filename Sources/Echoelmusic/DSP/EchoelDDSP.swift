@@ -214,6 +214,13 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Smoothed amplitudes (to avoid clicks)
     private var smoothedAmplitudes: [Float]
 
+    /// Per-sample-smoothed filter cutoff. The base cutoff is driven in block-size
+    /// jumps by `applyBioReactive` (coherence → cutoff) and the LFO; feeding those
+    /// steps straight into the SVF injects energy into its integrators → audible
+    /// zipper/buzz. We one-pole smooth toward the modulated target each sample.
+    /// -1 = uninitialised (seed it to the first target so there's no startup sweep).
+    private var smoothedCutoff: Float = -1
+
     /// Anti-alias weighting scratch — smoothedAmplitudes with a raised-cosine
     /// taper applied to partials approaching Nyquist (avoids the harsh "pop" of
     /// partials hard-cutting in/out as f0 or vibrato sweeps them past Nyquist).
@@ -672,8 +679,12 @@ public final class EchoelDDSP: @unchecked Sendable {
             // --- Resonant Filter (SVF) ---
             // LFO modulates filter cutoff around the base cutoff
             let lfoMod = filterLFO.next()  // [-depth, +depth]
-            let modulatedCutoff = filterCutoff * (1.0 + lfoMod * lfoToFilterDepth)
-            filter.cutoff = max(20, min(modulatedCutoff, 18000))
+            let modulatedCutoff = max(20, min(filterCutoff * (1.0 + lfoMod * lfoToFilterDepth), 18000))
+            // One-pole smooth the target so bio/LFO cutoff steps don't zipper the SVF.
+            // Seed on first sample to avoid a startup sweep. coeff ~0.01 ≈ a few-ms glide.
+            if smoothedCutoff < 0 { smoothedCutoff = modulatedCutoff }
+            smoothedCutoff += 0.01 * (modulatedCutoff - smoothedCutoff)
+            filter.cutoff = smoothedCutoff
             sample = filter.process(sample)
 
             // --- Isochronic Brainwave Entrainment ---
