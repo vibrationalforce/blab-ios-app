@@ -184,9 +184,10 @@ struct EchoelStudioView: View {
 
     private var kammertonRow: some View {
         @Bindable var session = session
-        // Concert pitch, exact to 0.01 Hz (380–500). Common references one tap away.
+        // Concert pitch A4 — number-pad entry, exact to 0.01 Hz (380–500). Standard
+        // is 440.00; the saved preference persists. Common references one tap away.
         return VStack(alignment: .leading, spacing: 6) {
-            ParamControl(label: "Kammerton", value: $session.a4Hz, range: 380...500, unit: "Hz",
+            ParamControl(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
                          onChange: { synth.setTuning(a4Hz: session.a4Hz) },
                          onCommit: { recomposeIfRunning() })
             HStack(spacing: 6) {
@@ -841,6 +842,14 @@ private struct ParamControl<V: BinaryFloatingPoint>: View where V.Stride: Binary
                     #if os(iOS)
                     .keyboardType(.decimalPad)
                     .submitLabel(.done)
+                    .toolbar {
+                        // The decimal pad has no return key — give it a Done button so
+                        // the value can always be confirmed and the pad dismissed.
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") { focused = false }
+                        }
+                    }
                     #endif
                     .onSubmit(commitText)
                     .onChange(of: focused) { _, f in if !f { commitText() } }
@@ -862,8 +871,23 @@ private struct ParamControl<V: BinaryFloatingPoint>: View where V.Stride: Binary
                 onChange()
             }
             .accessibilityLabel(label)
+            // VoiceOver reads the real value + unit (e.g. "Cutoff, 2200.00 hertz"),
+            // not the default range-percentage — and stays adjustable by swipe.
+            .accessibilityValue(accessibleValue)
         }
         .onAppear { syncText() }
+    }
+
+    /// Spoken value: the two-decimal number plus a spelled-out unit.
+    private var accessibleValue: String {
+        let n = String(format: "%.2f", Double(value))
+        switch unit {
+        case "Hz":  return "\(n) hertz"
+        case "s":   return "\(n) seconds"
+        case "BPM": return "\(n) beats per minute"
+        case "":    return n
+        default:    return "\(n) \(unit)"
+        }
     }
 
     private func syncText() { text = String(format: "%.2f", Double(value)) }
