@@ -247,16 +247,20 @@ public extension MusicStyle {
                 delayMix: 0.40, delayFeedback: 0.45, delayTone: 0.30, delaySpread: 0.4,
                 chorusEnabled: true, chorusRate: 0.15, chorusDepth: 0.5, chorusMix: 0.35)
         case .classical:
+            // Pristine — almost no drive, so the chamber tone stays clean.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.quarter),
-                delayMix: 0.20, delayFeedback: 0.25, delayTone: 0.45, delaySpread: 0.30)
+                delayMix: 0.20, delayFeedback: 0.25, delayTone: 0.45, delaySpread: 0.30,
+                saturation: 0.10)
         case .jazz:
+            // Warm but clean — a touch of tube glue on the Rhodes.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.eighth),
                 delayMix: 0.16, delayFeedback: 0.20, delayTone: 0.55, delaySpread: 0.25,
-                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.3, chorusMix: 0.20)
+                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.3, chorusMix: 0.20,
+                saturation: 0.20)
         case .klezmer:
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
@@ -269,26 +273,31 @@ public extension MusicStyle {
                 delayMix: 0.30, delayFeedback: 0.40, delayTone: 0.40, delaySpread: 0.40,
                 delayWow: 0.40, delayDrive: 0.15)
         case .punk:
+            // Raw and driven — heavy saturation for buzzsaw bite.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth),
-                delayMix: 0.10, delayFeedback: 0.12, delayTone: 0.60, delaySpread: 0.15)
+                delayMix: 0.10, delayFeedback: 0.12, delayTone: 0.60, delaySpread: 0.15,
+                saturation: 0.60)
         case .rocknroll:
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
                 delaySync: TempoSyncOption(.eighth),
                 delayMix: 0.18, delayFeedback: 0.20, delayTone: 0.55, delaySpread: 0.20,
-                delayWow: 0.30, delayDrive: 0.20)
+                delayWow: 0.30, delayDrive: 0.20,
+                saturation: 0.45)
         case .rock:
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.eighth, .dotted),
-                delayMix: 0.20, delayFeedback: 0.26, delayTone: 0.55, delaySpread: 0.35)
+                delayMix: 0.20, delayFeedback: 0.26, delayTone: 0.55, delaySpread: 0.35,
+                saturation: 0.50)
         case .ska:
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth),
-                delayMix: 0.12, delayFeedback: 0.14, delayTone: 0.60, delaySpread: 0.20)
+                delayMix: 0.12, delayFeedback: 0.14, delayTone: 0.60, delaySpread: 0.20,
+                saturation: 0.32)
         case .rocksteady:
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
@@ -296,16 +305,20 @@ public extension MusicStyle {
                 delayMix: 0.20, delayFeedback: 0.28, delayTone: 0.45, delaySpread: 0.25,
                 delayWow: 0.35, delayDrive: 0.10)
         case .heavyMetal:
+            // High-gain rig — the most driven preset.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth),
-                delayMix: 0.12, delayFeedback: 0.18, delayTone: 0.50, delaySpread: 0.20)
+                delayMix: 0.12, delayFeedback: 0.18, delayTone: 0.50, delaySpread: 0.20,
+                saturation: 0.68)
         case .doom:
+            // Thick, slow wall of drive.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
                 delaySync: TempoSyncOption(.half),
                 delayMix: 0.40, delayFeedback: 0.50, delayTone: 0.30, delaySpread: 0.40,
-                delayWow: 0.40, delayDrive: 0.30)
+                delayWow: 0.40, delayDrive: 0.30,
+                saturation: 0.55)
         case .selfObservation:
             // Subtle and clean — a calm quarter-note space, gentle width.
             return GenreFXPreset(
