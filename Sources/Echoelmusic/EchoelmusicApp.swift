@@ -80,7 +80,9 @@ struct EchoelmusicApp: App {
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
-        _polyVoice = State(wrappedValue: PolySynthVoice())
+        // 8 voices: a 4-note chord + bass + lead leaves headroom so the composer's
+        // richer harmony no longer steals voices mid-chord (a perceived stutter).
+        _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 8))
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
         #if canImport(CoreMIDI)

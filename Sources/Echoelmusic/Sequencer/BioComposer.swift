@@ -581,8 +581,29 @@ public enum BioComposer {
                 let length = max(1, min(busy > 0.6 ? max(1, baseLen - 1) : baseLen,
                                         stepCount - startStep))
                 let velocity = hVel(0.34 + 0.26 * breathDepth + 0.20 * arc + metric, &rng)
-                notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch)),
-                                  startStep: startStep, lengthSteps: length, velocity: velocity))
+                // At the phrase peak a lively line occasionally leaps up an octave for
+                // a register climax (same pitch class → still in key), resolving down
+                // after — a tension/release arc instead of a flat tessitura.
+                let lift = (arc > 0.7 && rng.unit() < 0.4 * clamp01(mood.liveliness)) ? 12 : 0
+                // Ornamentation: a busy/lively line splits a note into a quick grace
+                // run — a neighbouring chord tone leading into the main note — for
+                // virtuosic motion. Only when there's room (len ≥ 2) so nothing
+                // overruns the bar. Both pitches are chord tones → always consonant.
+                var mainStart = startStep
+                var mainLen = length
+                let ornamentP = clamp01(mood.liveliness) * 0.5 + busy * 0.2
+                if length >= 2, startStep + 1 < stepCount, rng.unit() < ornamentP {
+                    let gIdx = toneIdx + (rng.unit() < 0.5 ? 1 : -1)
+                    let gTone = tones[((gIdx % tones.count) + tones.count) % tones.count]
+                    let gPitch = key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift) + lift
+                    notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, gPitch)),
+                                      startStep: startStep, lengthSteps: 1,
+                                      velocity: hVel(velocity * 0.7, &rng)))
+                    mainStart = startStep + 1
+                    mainLen = max(1, length - 1)
+                }
+                notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch + lift)),
+                                  startStep: mainStart, lengthSteps: mainLen, velocity: velocity))
                 // Steps through the chord; inhale biases upward. Weird widens the
                 // leap from a single step to two or three (odd, surprising motion).
                 let up = rng.unit() < (breathPhase < 0.5 ? 0.62 : 0.40)
