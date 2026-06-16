@@ -36,12 +36,24 @@ jobs:
           REF: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          if [[ "$REF" == *dryrun* ]]; then BUILD_ONLY=true; else BUILD_ONLY=false; fi
-          echo "Ref '$REF' -> dispatching testflight.yml (platform=ios, build_only=$BUILD_ONLY)"
+          # dryrun → compile-only verification: run the Compile Check job
+          # (xcodebuild build, iOS device SDK, no signing) and SKIP the archive/upload
+          # jobs. That means skip_compile_check=false AND build_only=true.
+          #   (build_only=true gates OUT every archive job; the separate Compile Check
+          #    job is the real compile gate — disabling it made the dryrun a no-op that
+          #    finished in ~20s without ever building. This restores a true dryrun.)
+          # deploy → full archive + upload; the archive itself compiles, so skip the
+          #          separate compile job (skip_compile_check=true) and build_only=false.
+          if [[ "$REF" == *dryrun* ]]; then
+            BUILD_ONLY=true;  SKIP_CC=false
+          else
+            BUILD_ONLY=false; SKIP_CC=true
+          fi
+          echo "Ref '$REF' -> dispatching testflight.yml (platform=ios, build_only=$BUILD_ONLY, skip_compile_check=$SKIP_CC)"
           curl -fsS -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/${REPO}/actions/workflows/testflight.yml/dispatches" \
-            -d "{\"ref\":\"${REF}\",\"inputs\":{\"platform\":\"ios\",\"build_only\":\"${BUILD_ONLY}\",\"clean_build\":\"false\",\"skip_tests\":\"true\",\"skip_compile_check\":\"true\"}}"
+            -d "{\"ref\":\"${REF}\",\"inputs\":{\"platform\":\"ios\",\"build_only\":\"${BUILD_ONLY}\",\"clean_build\":\"false\",\"skip_tests\":\"true\",\"skip_compile_check\":\"${SKIP_CC}\"}}"
           echo "Dispatched. Watch: https://github.com/${REPO}/actions/workflows/testflight.yml"
