@@ -20,6 +20,11 @@ struct EchoelMixView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AudioEngine.self) private var audio
 
+    /// True while an async start/stop is in flight, so the Record button can't be
+    /// double-tapped into overlapping start/stop calls (which left the recorder
+    /// flag and engine inconsistent — a stuck-looking button).
+    @State private var transitioning = false
+
     private var recorder: MultiTrackRecorder { audio.multiTrackRecorder }
 
     var body: some View {
@@ -130,6 +135,7 @@ struct EchoelMixView: View {
                 .foregroundStyle(recorder.isRecording ? EchoelTheme.danger : EchoelTheme.text)
             }
             .buttonStyle(.plain)
+            .disabled(transitioning)
 
             if let error = recorder.lastError {
                 Text(errorString(error))
@@ -161,8 +167,13 @@ struct EchoelMixView: View {
     // MARK: - Actions
 
     private func toggleRecording() {
+        guard !transitioning else { return }
         if recorder.isRecording {
-            Task { _ = await recorder.stopRecording() }
+            transitioning = true
+            Task {
+                defer { transitioning = false }
+                _ = await recorder.stopRecording()
+            }
         } else {
             recorder.startRecording()
         }
