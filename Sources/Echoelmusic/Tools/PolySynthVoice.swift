@@ -170,6 +170,13 @@ public final class PolySynthVoice {
         440 * powf(2, (Float(note) - 69) / 12)
     }
 
+    /// Set the concert pitch (Kammerton) the voices tune to. A4 in Hz, clamped to
+    /// a musical range so a stray value can't detune into inaudibility. Takes effect
+    /// on the next note (and is safe to call while a loop plays).
+    public func setTuning(a4Hz: Double) {
+        poly.a4Hz = Float(min(max(a4Hz, 380), 500))
+    }
+
     // MARK: - Patch recall
 
     /// Recall a sound: enqueue the patch; the audio thread fans it across every

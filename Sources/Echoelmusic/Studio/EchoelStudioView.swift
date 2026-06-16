@@ -32,7 +32,12 @@ struct EchoelStudioView: View {
     @State private var soundBlend: Double = 0.0   // sweeps the genres
     @State private var brightness: Double = 0.5
     @State private var space: Double = 0.4
-    @State private var movement: Double = 0.3
+    @State private var movement: Double = 0.2   // gentle by default — keeps the low end from wobbling
+
+    // Optional locked tempo for tight, DAW-ready loops. When off, the tempo follows
+    // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
+    @State private var lockBPM = false
+    @State private var lockedBPM: Double = 70
 
     // Derived / persisted musical state (no direct UI — set by sliders + bio).
     @State private var style: MusicStyle = .vaporwave
@@ -532,14 +537,18 @@ struct EchoelStudioView: View {
             seed: evolvingSeed
         )
         let composition = BioComposer.compose(input)
+        // Honor the user's Kammerton (concert pitch) on the next notes.
+        synth.setTuning(a4Hz: session.a4Hz)
         currentPatch = currentSoundPatch()
         synth.apply(currentPatch)
-        fxCharacter.apply(to: synth.fxChain, bpm: composition.suggestedTempo, genre: style)
+        // Locked tempo wins for tight loops; otherwise the body sets the pace.
+        let tempo = lockBPM ? min(max(lockedBPM, 40), 200) : composition.suggestedTempo
+        fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         pianoRoll.load(composition.notes)
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
-        beatPlayer.pattern.setTempo(composition.suggestedTempo)
+        beatPlayer.pattern.setTempo(tempo)
         session.adopt(key: key)
         lastNoteCount = composition.notes.count
         if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
@@ -553,8 +562,11 @@ struct EchoelStudioView: View {
         p.brightness = Float(min(max(brightness, 0), 1))
         p.reverbMix = Float(min(max(space, 0), 1))
         let mv = Float(min(max(movement, 0), 1))
-        p.vibratoDepth = mv * 0.5
-        p.lfoToFilterDepth = mv
+        // Gentler than before: pitch vibrato on a sustained sub makes the low end
+        // wobble ("restless bass"). Keep vibrato subtle and lean on the filter LFO
+        // for movement instead, which colours timbre without detuning the bass.
+        p.vibratoDepth = mv * 0.25
+        p.lfoToFilterDepth = mv * 0.7
         return p
     }
 

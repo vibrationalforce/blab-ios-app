@@ -1040,6 +1040,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     public let maxVoices: Int
     public let sampleRate: Float
 
+    /// Concert pitch (Kammerton) reference for MIDI→Hz, A4 in Hz. Default 440.
+    /// Written from the main actor when the user changes tuning and read on the
+    /// audio thread in `noteOn`; an aligned `Float` word write/read is atomic, so
+    /// retuning a held loop is safe without a queue. Clamped by the setter caller.
+    public var a4Hz: Float = 440
+
     // MARK: - Voices
 
     private var voices: [EchoelDDSP]
@@ -1107,7 +1113,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     /// MIDI note on
     public func noteOn(note: Int, velocity: Float = 1.0) {
-        let freq = 440.0 * pow(2.0, Float(note - 69) / 12.0)
+        let freq = a4Hz * pow(2.0, Float(note - 69) / 12.0)
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
