@@ -1,5 +1,5 @@
 {
-  "version": "10.16.3",
+  "version": "10.16.4",
   "build": "2026-06-16",
   "features": {
     "monochromeDesign": true,
@@ -30,6 +30,7 @@
     "arWorlds": false
   },
   "changelog": [
+    "v10.16.4: TestFlight builds 1846–1848 — depth + clarity. New Tools menu surfaces two deep editors that were already built but unreachable: a real Piano Roll (per-note length/velocity, scroll/zoom) and a Sound Editor (DDSP patch editor with presets, wired to the live voice). Added a tempo-synced delay note-value picker (1/4…1/16, dotted & triplet — studio-calculator style) that survives re-seeds. EchoelAI now narrates the live body→sound mapping in plain technical English (on-device, iOS 18+). Synthesis is smoother (per-sample harmonic/noise blend) and re-seeds ~every 2 bars tied to tempo so it feels less loop-y. On-device, private, free.",
     "v10.16.3: TestFlight build 1842 VALID — deeper anti-scratch pass. The resonant filter cutoff is now smoothed per audio sample, so the heart-/breath-driven and LFO filter sweeps glide instead of stepping (removes the last zipper/buzz on top of build 1840's filter-stability and denormal fixes). Verified by a real compile dry-run before upload. On-device, private, free.",
     "v10.16.2: TestFlight build 1840 — quality pass. Audio: the resonant filter is now bounded to its stable range (was self-oscillating into a scratchy high whine) with minimum damping, and the reverb + delay feedback paths flush denormals (no more crackle on tails) — noticeably smoother, cleaner sound. UI: the number pad now shows a single Done (was up to five stacked Done buttons); a failed export no longer leaves the Record button stuck; the piano-roll 'Clear' moved out of the cancel slot to an explicit trash button so it can't be hit by accident; the mix Record button is guarded against double-tap. Also fixed the deploy dry-run, which had been silently skipping the build (it now truly compile-checks before every ship). On-device, private, free.",
     "v10.16.1: Shipped to TestFlight — build 1837 VALID in App Store Connect (iOS 18+, iPhone, 2026-06-16). First build via the token-free deploy pipeline (push the deploy branch → GitHub Actions dispatches the signed TestFlight upload, no personal access token anywhere). Brainstorming page now states the current TestFlight build so testers always know exactly what's live. This build carries the new algorithmic reverb (Room/Hall), harmonizer, per-genre saturation, anti-aliased DDSP, Siri/Shortcuts, and the precise read-only Health/privacy strings.",
