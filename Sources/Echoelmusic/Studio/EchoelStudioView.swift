@@ -455,6 +455,18 @@ struct EchoelStudioView: View {
             .disabled(isExporting || lastNoteCount == nil)
             .accessibilityHint("Records one loop and exports a WAV to share")
 
+            Button { Task { await keepLastLoop() } } label: {
+                Label(isExporting ? exportLabel : "Keep last \(loopBars.label) (just played)",
+                      systemImage: "clock.arrow.circlepath")
+                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(isExporting || lastNoteCount == nil)
+            .accessibilityHint("Keeps the last bars you just heard as a WAV loop, without replaying them")
+
             Button { exportMIDI() } label: {
                 Label("Send .mid (for your DAW)", systemImage: "pianokeys")
                     .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
@@ -790,6 +802,13 @@ struct EchoelStudioView: View {
 
     private func exportWav() async {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
+            share = ExportedFile(url: url)
+        }
+    }
+
+    /// Retroactive "keep that" — export the last few bars already heard, no replay.
+    private func keepLastLoop() async {
+        if let url = await exporter.exportRecentLoop(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
             share = ExportedFile(url: url)
         }
     }

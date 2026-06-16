@@ -253,6 +253,51 @@ final class RetroCapture {
         return out
     }
 
+    // MARK: - Retroactive snapshot to file ("keep what just played")
+
+    /// Write the most recent `seconds` of the always-on ring buffer to a temp CAF —
+    /// WITHOUT touching the live transport or starting a recording. This is the
+    /// retroactive "die Stelle war gut → behalten" path: grab exactly what was just
+    /// heard (already including reverb/delay tails). Returns the file URL, or nil.
+    func captureRecent(seconds: Double) -> URL? {
+        let frames = min(max(Int(seconds * 48000), 0), ringCapacity)
+        guard frames > 0 else { return nil }
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 2) else {
+            log.log(.error, category: .audio, "RetroCapture.captureRecent: cannot create format")
+            return nil
+        }
+        do {
+            let url = try makeRecordingURL()
+            let file = try AVAudioFile(forWriting: url, settings: format.settings,
+                                       commonFormat: .pcmFormatFloat32, interleaved: false)
+            let endFrame = Int(ringWriteFrame.pointee)
+            let startFrame = max(0, endFrame - frames)
+            let chunkSize = 8192
+            var written = 0
+            while written < frames {
+                let n = min(chunkSize, frames - written)
+                guard let buf = AVAudioPCMBuffer(pcmFormat: format,
+                                                 frameCapacity: AVAudioFrameCount(n)) else { written += n; continue }
+                buf.frameLength = AVAudioFrameCount(n)
+                guard let ch0 = buf.floatChannelData?[0], let ch1 = buf.floatChannelData?[1] else {
+                    written += n; continue
+                }
+                for f in 0..<n {
+                    let src = ((startFrame + written + f) % ringCapacity) * 2
+                    ch0[f] = ring[src]
+                    ch1[f] = ring[src + 1]
+                }
+                try file.write(from: buf)
+                written += n
+            }
+            log.log(.info, category: .audio, "RetroCapture.captureRecent — \(frames) frames → \(url.lastPathComponent)")
+            return url
+        } catch {
+            log.log(.error, category: .audio, "RetroCapture.captureRecent failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeRecordingURL() throws -> URL {

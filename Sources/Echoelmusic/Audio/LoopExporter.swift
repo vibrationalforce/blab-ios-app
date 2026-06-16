@@ -70,5 +70,40 @@ public final class LoopExporter {
         }
     }
 
+    /// Retroactive capture — "die Stelle war gut → behalten": keep the last `bars`
+    /// of what ALREADY played from the always-on ring buffer (no transport restart),
+    /// then normalise + write a .wav. The cut is exactly `bars` long, so it loops at
+    /// tempo. Returns the file URL on success.
+    @discardableResult
+    public func exportRecentLoop(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int) async -> URL? {
+        guard status != .capturing, status != .rendering else { return nil }
+
+        let bpm = beatPlayer.pattern.tempo
+        let seconds = StudioCalculator(bpm: bpm).loopSeconds(bars: max(1, bars))
+        guard seconds > 0 else { status = .failed("Invalid loop length"); return nil }
+
+        // 1. Snapshot exactly the last `seconds` of master output (already played).
+        status = .capturing
+        guard let cafURL = engine.retroCapture.captureRecent(seconds: seconds) else {
+            status = .failed("Nothing to capture yet")
+            return nil
+        }
+
+        // 2. Normalise + write a lossless .wav (same path as the planned export).
+        status = .rendering
+        engine.singleExport.reset()
+        engine.singleExport.outputFormat = .wav
+        engine.singleExport.targetLUFS = -14
+        await engine.singleExport.export(sourceURL: cafURL)
+
+        if let url = engine.singleExport.exportState.exportedURL {
+            status = .done(url)
+            return url
+        } else {
+            status = .failed("Export failed")
+            return nil
+        }
+    }
+
     public func reset() { status = .idle }
 }
