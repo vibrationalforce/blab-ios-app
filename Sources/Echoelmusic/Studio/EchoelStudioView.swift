@@ -741,6 +741,10 @@ struct EchoelStudioView: View {
         startTask = Task { @MainActor in
             await startBioSource()
             guard running, !Task.isCancelled else { return }
+            // Let the body continuously modulate the polyphonic timbre at 10 Hz
+            // between re-seeds — the sound hugs the live heartbeat/HRV in realtime
+            // instead of staying static until the next ~6 s recompose.
+            synth.bioModulationEnabled = true
             generate()
             startEvolving()
         }
@@ -840,12 +844,17 @@ struct EchoelStudioView: View {
         // signature still dominates the feel.
         evolution &+= 1
         let evolvingSeed = bioSeed(frame) ^ (evolution &* 0x9E3779B97F4A7C15)
+        // Dynamic depth from the body (was a flat 0.5, which left velocity dead):
+        // a calm, coherent state breathes fuller/louder, an aroused one lighter, so
+        // dynamics actually track the live signal instead of sitting constant.
+        let liveCoh = fin(frame?.coherence, 0.5)
+        let dynamicDepth = min(1, max(0.2, 0.3 + 0.5 * liveCoh))
         let input = BioComposer.Input(
             heartRateBPM: fin(frame?.heartRateBPM, 70),
             hrvNormalized: fin(frame?.hrvNormalized, 0.5),
-            coherence: fin(frame?.coherence, 0.5),
+            coherence: liveCoh,
             breathPhase: fin(frame?.breathPhase, 0),
-            breathDepth: 0.5,
+            breathDepth: dynamicDepth,
             key: key,
             style: style,
             mode: .flowFree,          // tempo always follows the body
@@ -861,7 +870,15 @@ struct EchoelStudioView: View {
         let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
-        pianoRoll.load(composition.notes)
+        // While the transport is already playing (live evolution), stage the new
+        // notes and swap them in at the next loop boundary so a held note is never
+        // cut mid-bar (no click). On the first generate (not yet playing) load now
+        // so notes are present before playback starts.
+        if running, beatPlayer.pattern.isPlaying {
+            pianoRoll.loadAtBoundary(composition.notes)
+        } else {
+            pianoRoll.load(composition.notes)
+        }
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)

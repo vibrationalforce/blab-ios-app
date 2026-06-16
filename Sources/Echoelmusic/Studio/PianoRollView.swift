@@ -29,6 +29,9 @@ public final class PianoRollModel {
     @ObservationIgnored private weak var voice: PolySynthVoice?
     /// Notes currently sounding → so we can fire their note-off at end step.
     @ObservationIgnored private var active: [UUID: Note] = [:]
+    /// Staged next pattern, swapped in seamlessly at the loop boundary (step 0)
+    /// so a live re-seed never cuts a sustaining note mid-bar (no click/gap).
+    @ObservationIgnored private var pendingNotes: [Note]?
 
     public init() {}
 
@@ -74,7 +77,16 @@ public final class PianoRollModel {
     /// old notes' entries in `active` → stuck/lingering notes.
     public func load(_ newNotes: [Note]) {
         allNotesOff()
+        pendingNotes = nil
         notes = newNotes
+    }
+
+    /// Stage a new pattern to swap in seamlessly at the next loop boundary.
+    /// Unlike `load`, this does NOT cut sounding notes — held notes ring to their
+    /// natural end and the new bar layers in on the downbeat (step 0). This is the
+    /// path the live evolution uses while playing, so re-seeding never clicks.
+    public func loadAtBoundary(_ newNotes: [Note]) {
+        pendingNotes = newNotes
     }
 
     // MARK: - Transport (shared clock)
@@ -88,6 +100,7 @@ public final class PianoRollModel {
 
     public func stop(pattern: PatternEngine) {
         pattern.onTick = nil
+        pendingNotes = nil
         allNotesOff()
     }
 
@@ -105,6 +118,14 @@ public final class PianoRollModel {
         if !Self.triggerTraced {
             Self.triggerTraced = true
             EchoelCrashLog.breadcrumb("trigger#1 step=\(step) notes=\(notes.count)")
+        }
+        // Seamless morph: at the loop boundary, swap in the staged pattern WITHOUT
+        // an allNotesOff cut. Sustaining notes from the previous bar keep their
+        // entries in `active` and release naturally at their own endStep below; the
+        // new pattern's notes start via the normal startStep==step path. No gap.
+        if step == 0, let pending = pendingNotes {
+            notes = pending
+            pendingNotes = nil
         }
         // Release notes ending now. The engine's noteOff(pitch:) releases EVERY
         // voice of that pitch, so when two notes share a pitch (voice-leading can
