@@ -51,15 +51,20 @@ public final class EchoelSVFilter: @unchecked Sendable {
     // MARK: - Coefficient Update
 
     private func updateCoefficients() {
-        // Chamberlin SVF coefficient
-        // f = 2 * sin(π * cutoff / sampleRate)
-        // Clamp to prevent instability at high frequencies
-        let normalizedCutoff = min(cutoff / sampleRate, 0.45)
+        // Chamberlin SVF coefficient: f = 2 * sin(π * cutoff / sampleRate).
+        // The Chamberlin topology is only numerically stable while cutoff ≤ SR/6
+        // (Hal Chamberlin, 1985). Above that the two integrators accumulate energy
+        // and self-oscillate into a harsh, scratchy high-pitched whine — the worst
+        // audible artifact in the synth. Clamp the normalized cutoff to 1/6, where
+        // f reaches its safe maximum of 2·sin(π/6) = 1.0. (Was 0.45 ≈ SR/2 → f≈1.95,
+        // right at the blow-up boundary.)
+        let normalizedCutoff = min(cutoff / sampleRate, 1.0 / 6.0)
         f = 2.0 * sinf(Float.pi * normalizedCutoff)
 
-        // q = 1/resonance (damping factor)
-        // Clamp resonance to prevent division by zero and instability
-        let clampedRes = max(0.01, min(resonance, 0.99))
+        // q is the damping factor (1 - resonance). Keep a minimum damping of 0.05 so
+        // the resonant peak can't run away into near-self-oscillation ringing (the
+        // other harshness source); 0.95 stays expressive without screaming.
+        let clampedRes = max(0.01, min(resonance, 0.95))
         q = 1.0 - clampedRes
     }
 

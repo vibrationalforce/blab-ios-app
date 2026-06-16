@@ -801,6 +801,10 @@ struct EchoelStudioView: View {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
             share = ExportedFile(url: url)
         }
+        // Always return to idle: a failed/empty export must never leave the button
+        // stuck on "Recording…/Writing…" (a "hanging button"). On success the URL is
+        // already captured above, so resetting the status here is safe.
+        exporter.reset()
     }
 
     /// Retroactive "keep that" — export the last few bars already heard, no replay.
@@ -808,6 +812,7 @@ struct EchoelStudioView: View {
         if let url = await exporter.exportRecentLoop(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
             share = ExportedFile(url: url)
         }
+        exporter.reset()
     }
 
     /// Export the generated melody as a standard MIDI file (in-key notes, real
@@ -909,9 +914,15 @@ private struct ParamControl<V: BinaryFloatingPoint>: View where V.Stride: Binary
                     .toolbar {
                         // The decimal pad has no return key — give it a Done button so
                         // the value can always be confirmed and the pad dismissed.
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("Done") { focused = false }
+                        // Gate on `focused`: SwiftUI merges every keyboard-toolbar item
+                        // in the view tree into one accessory bar, so without this each
+                        // visible numeric field would stack its own Done (the "5 Done
+                        // buttons" bug). Only the focused field contributes — one Done.
+                        if focused {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("Done") { focused = false }
+                            }
                         }
                     }
                     #endif
@@ -1009,8 +1020,11 @@ private struct RotaryKnob<V: BinaryFloatingPoint>: View where V.Stride: BinaryFl
                     #if os(iOS)
                     .keyboardType(.decimalPad)
                     .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer(); Button("Done") { focused = false }
+                        // Only the focused field emits a Done — see ParamControl note.
+                        if focused {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer(); Button("Done") { focused = false }
+                            }
                         }
                     }
                     #endif
@@ -1102,8 +1116,11 @@ private struct DecimalField<V: BinaryFloatingPoint>: View {
                 #if os(iOS)
                 .keyboardType(.decimalPad)
                 .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer(); Button("Done") { focused = false }
+                    // Only the focused field emits a Done — see ParamControl note.
+                    if focused {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer(); Button("Done") { focused = false }
+                        }
                     }
                 }
                 #endif

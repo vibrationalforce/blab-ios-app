@@ -112,9 +112,11 @@ public final class EchoelDelay: @unchecked Sendable {
         }
 
         // One-pole low-pass damping in the feedback path ("tone").
+        // + tiny DC keeps the decaying state out of the denormal range (crackle on
+        // the delay tail when input goes silent); 1e-20 is inaudible.
         let g = toneCoefficient()
-        lpL += g * (rawFbL - lpL)
-        lpR += g * (rawFbR - lpR)
+        lpL += g * (rawFbL - lpL) + 1.0e-20
+        lpR += g * (rawFbR - lpR) + 1.0e-20
 
         var wL = inL + lpL * fb
         var wR = inR + lpR * fb

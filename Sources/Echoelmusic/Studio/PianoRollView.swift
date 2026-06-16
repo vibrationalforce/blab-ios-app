@@ -177,11 +177,12 @@ struct PianoRollView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            // One dismiss control only — a single "Done". "Clear" used to sit in the
+            // cancellation slot, where it read as "Cancel/back" but silently destroyed
+            // every note; it now lives in the transport row as an explicit destructive
+            // button (see `transport`).
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Clear") { model.clear(); selectedID = nil }
-                }
             }
         }
     }
@@ -211,6 +212,16 @@ struct PianoRollView: View {
             .frame(width: 120)
 
             Spacer(minLength: 0)
+            Button(role: .destructive) { model.clear(); selectedID = nil } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.danger)
+                    .frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Clear all notes")
             zoomButton(systemName: "minus.magnifyingglass") { zoom(-1) }
             zoomButton(systemName: "plus.magnifyingglass") { zoom(1) }
         }

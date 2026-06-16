@@ -138,7 +138,10 @@ public final class EchoelReverb: @unchecked Sendable {
     @inline(__always)
     private func comb(_ input: Float, buf: inout [Float], idx: inout Int, store: inout Float) -> Float {
         let output = buf[idx]
-        store = output * combDamp2 + store * combDamp1
+        // + tiny DC keeps the decaying feedback state out of the denormal range
+        // (< ~1e-38), where each sample would trigger a CPU stall → audible crackle
+        // on the reverb tail. 1e-20 is inaudible (steady-state DC ≈ 1e-19).
+        store = output * combDamp2 + store * combDamp1 + 1.0e-20
         buf[idx] = input + store * combFeedback
         idx += 1
         if idx >= buf.count { idx = 0 }
