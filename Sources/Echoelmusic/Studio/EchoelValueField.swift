@@ -31,8 +31,8 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     var onCommit: () -> Void = {}
 
     // The value box and label grow with Dynamic Type / app zoom. Wide enough for a
-    // 4-decimal value with a large integer part (e.g. "18000.0000").
-    @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 116
+    // 4-decimal value with a large integer part plus its unit (e.g. "18000.0000 Hz").
+    @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
 
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -44,23 +44,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     @State private var accumulator: Double = 0
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Text(label)
-                .font(EchoelTheme.font(13, .medium))
+                .font(EchoelTheme.font(14, .medium))
                 .foregroundStyle(EchoelTheme.text)
                 .lineLimit(1).minimumScaleFactor(0.7)
             Spacer(minLength: 8)
             valueBox
-            // The value TYPE, always shown after the number (Hz, s, BPM, …). Physical
-            // units read clearly; dimensionless 0–1 values carry their meaning in the
-            // label. Fixed width so values line up in a column.
-            Text(unitLabel)
-                .font(EchoelTheme.font(12, .medium))
-                .foregroundStyle(EchoelTheme.dim)
-                .lineLimit(1)
-                .frame(width: 34, alignment: .leading)
-                .accessibilityHidden(true)
         }
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
         .onAppear { syncText() }
         .onChange(of: value) { _, _ in if !focused { syncText() } }
@@ -81,27 +73,41 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     }
 
     private var valueBox: some View {
+        // Number + unit read as ONE cohesive field (e.g. "440.0000  Hz"), trailing-
+        // aligned so values line up in a column. Website CI: solid fill, 1px muted
+        // border, 8px radius; bio-green only on focus (the live-edit state).
         ZStack {
-            TextField("", text: $text)
-                .multilineTextAlignment(.trailing)
-                .font(EchoelTheme.font(15).monospacedDigit())
-                .foregroundStyle(focused ? EchoelTheme.accent : EchoelTheme.text)
-                .textFieldStyle(.plain)
-                .focused($focused)
-                #if os(iOS)
-                .keyboardType(.decimalPad)
-                .toolbar {
-                    // Gate on `focused` so only the active field contributes one Done
-                    // to the shared keyboard accessory (avoids the stacked-Done bug).
-                    if focused {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer(); Button("Done") { focused = false }
+            HStack(spacing: 5) {
+                TextField("", text: $text)
+                    .multilineTextAlignment(.trailing)
+                    .font(EchoelTheme.font(17).monospacedDigit())
+                    .foregroundStyle(focused ? EchoelTheme.accent : EchoelTheme.text)
+                    .textFieldStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .focused($focused)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    .toolbar {
+                        // Gate on `focused` so only the active field contributes one Done
+                        // to the shared keyboard accessory (avoids the stacked-Done bug).
+                        if focused {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer(); Button("Done") { focused = false }
+                            }
                         }
                     }
+                    #endif
+                    .onSubmit(commitText)
+                    .onChange(of: focused) { _, f in if !f { commitText() } }
+
+                if !unitLabel.isEmpty {
+                    Text(unitLabel)
+                        .font(EchoelTheme.font(13, .medium))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .lineLimit(1)
+                        .accessibilityHidden(true)
                 }
-                #endif
-                .onSubmit(commitText)
-                .onChange(of: focused) { _, f in if !f { commitText() } }
+            }
 
             // While not editing, a transparent layer turns the value into a scrubber:
             // drag = velocity-sensitive adjust, tap = start typing. Removed when
@@ -113,9 +119,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             }
         }
         .frame(width: valueWidth)
-        .padding(.horizontal, 8).padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.fill))
-        .overlay(RoundedRectangle(cornerRadius: 6)
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
             .strokeBorder(focused ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
     }
 
