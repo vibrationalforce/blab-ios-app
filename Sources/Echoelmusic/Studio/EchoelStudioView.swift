@@ -305,13 +305,11 @@ struct EchoelStudioView: View {
 
     private var moodPanel: some View {
         panel("Mood", "Character of the composition", isExpanded: $showMood) {
-            LazyVGrid(columns: knobCols, spacing: 16) {
-                moodKnob("Liveliness", $mood.liveliness)
-                moodKnob("Darkness", $mood.darkness)
-                moodKnob("Tension", $mood.tension)
-                moodKnob("Romance", $mood.romance)
-                moodKnob("Weird", $mood.weird)
-            }
+            moodKnob("Liveliness", $mood.liveliness)
+            moodKnob("Darkness", $mood.darkness)
+            moodKnob("Tension", $mood.tension)
+            moodKnob("Romance", $mood.romance)
+            moodKnob("Weird", $mood.weird)
             Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · bright ↔ dark · lush 7ths (romance) · odd leaps (weird). Blends with your live signal.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
