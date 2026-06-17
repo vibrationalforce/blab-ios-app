@@ -2458,3 +2458,16 @@ Quote erschöpft. 1694 (Timer-Fix) archiviert+signiert sauber, nur Upload abgewi
 
 **OFFEN für nächsten Slot:** 1 sauberer Upload mit allem. Danach User-Höreindruck →
 dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTHESIS_EXPANSION.md).
+
+## 2026-06-17 — Flow/realtime + MIDI OUT cycles (branch claude/piano-roll-clip-view-wozlie)
+- **Click fix (build 1883):** prepareForNote() hard-reset gated on !isActive — reused/stolen
+  ringing voices now GLIDE (no mid-tail click). Dry-run 1882 GREEN; deploy 1883 ARCHIVE GREEN
+  but Apple upload BLOCKED ("Upload limit reached, wait 1 day" — daily quota, not code).
+- **MIDI/MPE OUT (new):** MIDIOutput.swift — CoreMIDI virtual source 'Echoelmusic' (UMP/MIDI 1.0)
+  + send to all destinations; standard + MPE modes; mirrors PianoRollModel.trigger; Tools toggles.
+  Concurrency-reviewed; dry-run 1884 main-app compile GREEN.
+- **Apple upload quota = 1/day.** Plan: batch verified cycles, ONE deploy upload per window.
+- **New founder directives logged:** arrangement+video in one view (PLAN_ARRANGEMENT_VIDEO_ONE_VIEW.md);
+  all hardware supported (open-standards checklist). Style count already 23; MoodProfile already 5
+  (liveliness/darkness/tension/romance/weird). EchoelAI = BioMusicDirector + OnDeviceModelGate.
+- **Next cycles (order):** more Mood/Character params -> AI director -> Clip/Song arrangement model -> video.
