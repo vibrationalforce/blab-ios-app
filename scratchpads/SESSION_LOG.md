@@ -2483,3 +2483,15 @@ dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTH
   BeatPlayer has PadShape/PadMode/PadConfig persisted in UserDefaults; add start/end/reverse/pitch to
   PadShape (Codable, defaulted for migration) + setShape plumbing → SamplerVoice.configurePlayback.
 - Then: folder+waveform browser → One-Shot Sample Player → EchoelBreak slicer.
+
+### 2026-06-17 (cont.) — BATCH UPLOADED: TestFlight build 1889 VALID
+- Deploy 1889 (sha 8e1b201) SUCCESS — Apple upload window reopened; ONE upload carries:
+  click-free voice glide, MIDI/MPE OUT (virtual source), 8 character params (Virtuosity/
+  Syncopation/Humanize), EchoelBeat-pro sampler engine (start/end/reverse/pitch), salvage
+  cycles 1+2 (Clip/Arrangement/stores/ArrangementPlayer/LaunchQuantizer + tests).
+- Salvage cycle 3 (SessionRecorder + tests) pushed to dry-run (8edd023).
+- Deep scan confirmed: no hidden RTMP/video/EEG (greenfield); no unmerged feature branches.
+- Charter logged (CHARTER_HIGHEST_LEVEL.md): interop > clone; quality bars; reality tiering.
+- Website bumped to v10.20.0 / build 1889.
+- NEXT: one-view UI cycle (Clips grid + Arrangement timeline, EchoelTheme/EchoelValueField)
+  hosting LaunchQuantizer/ArrangementPlayer on onTick; then SequencerAccessibility; sampler UI.
