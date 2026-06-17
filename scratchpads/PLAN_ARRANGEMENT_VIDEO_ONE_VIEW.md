@@ -83,3 +83,39 @@ Echoelbreak für breakbeats auf meister jungle level."
 All of the above is bounded AVFoundation + Accelerate on iPhone, fits the lock-free SamplerVoice
 pattern; warp is offline (no realtime cost). No new external dependency. Sequence into the
 Ralph loop after Mood/Character + AI director; reuse the same one-view philosophy.
+
+---
+## One-Shot Sample Player + "recover synths" finding — 2026-06-17
+
+Founder: beats/breaks stay SAMPLE-BASED; has many one-shot samples → wants a
+dedicated Sample Player; recover other synthesizers from histories; the extensive
+Echoel tools were never properly accessible/immersive/pro in TestFlight.
+
+### History finding (honest, from git --diff-filter=D over all history)
+Deleted files were CONSOLIDATIONS, not lost synths: ClipEngine, SoundscapeEngine,
+GenrePatches (→ PatchLibrary), SoundDesignView (→ PatchEditorView), SoundscapeView.
+No distinct deleted synth engine to revive. The synthesis power ALREADY EXISTS and
+is under-exposed:
+- EchoelDDSP — additive/harmonic (DDSP), 35+ params, the main melodic voice.
+- EchoelCellular — cellular-automata evolving texture.
+- EchoelModalBank — physical/modal (drum/bell/string/membrane materials).
+- EchoelHarmonizer, EchoelFXChain, EchoelReverb/Delay/ModFX/Dynamics/SVFilter.
+→ TASK is EXPOSE (selectable instrument + accessible pro editor), not resurrect.
+
+### One-Shot Sample Player (new instrument) cycles
+A. **OneShotSamplePlayer voice** — reuse SamplerVoice (lock-free); a bank of
+   one-shots playable from a pad grid / keyboard, pitch-mapped (rate) across keys.
+B. **Folder library + waveform preview** (shared with EchoelBeat-pro cycle 2):
+   security-scoped folder, list, downsample waveform, audition.
+C. Per-slot: start/end/reverse/gain/pitch/ADSR (shared sampler params).
+D. Bio hooks: velocity/filter/pitch from the body (optional), MPE-out aware.
+
+### Instrument selector (accessibility/pro exposure)
+E. A single "Instrument" picker on the one view choosing the melodic engine:
+   DDSP (additive) · Cellular · Modal · Sample Player — all feeding the same
+   PolySynthVoice slot + patch editor. Makes the existing engines discoverable.
+
+### Sequence (revised, calm/steady — uploads batched):
+Mood/Character → AI director → EchoelBeat-pro sampler params (A/C foundation) →
+folder+waveform browser (B) → One-Shot Sample Player (A,D) → instrument selector (E)
+→ EchoelBreak slicer → arrangement model → video.
