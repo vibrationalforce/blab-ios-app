@@ -34,8 +34,17 @@ public final class SubBassVoice {
 
     /// User-pushable sub level [0...1]. Default 0 — the sub is silent until the
     /// performer pushes the "Sub / Bass" slider, so launch and first play are
-    /// unchanged. Read on the audio thread (Float-atomic on Apple).
-    public var subGain: Float = 0
+    /// unchanged. MainActor-isolated (UI binding); the audio thread reads its
+    /// nonisolated mirror `_subGain` instead (a MainActor property can't be read
+    /// from the nonisolated render block — same bridge as PolySynthVoice's params).
+    public var subGain: Float = 0 {
+        didSet { _subGain = min(max(subGain, 0), 1) }
+    }
+
+    /// Audio-thread-readable mirror of `subGain`. Written on MainActor (didSet),
+    /// read on the audio thread. Float-atomic width on Apple → no torn reads.
+    @ObservationIgnored
+    nonisolated(unsafe) private var _subGain: Float = 0
 
     @ObservationIgnored
     nonisolated(unsafe) private var a4Hz: Float = 440
@@ -161,7 +170,7 @@ public final class SubBassVoice {
         for frame in 0..<frameCount {
             currentFreq += freqGlide * (targetFreq - currentFreq)
             env += envCoeff * (gateTarget - env)
-            smoothedGain += gainCoeff * (subGain - smoothedGain)
+            smoothedGain += gainCoeff * (_subGain - smoothedGain)
             // Flush the decaying one-poles' denormal tails (matches reverb/delay).
             if env < 1e-15 { env = 0 }
             if smoothedGain < 1e-15 { smoothedGain = 0 }
