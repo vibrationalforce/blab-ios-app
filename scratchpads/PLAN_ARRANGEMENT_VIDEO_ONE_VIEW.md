@@ -50,3 +50,36 @@ drives both. The EngineBus stays the spine; this is ONE view, not new tabs
 - Audio thread untouched (video/arrangement = control plane).
 - Apple TestFlight upload quota = 1/day → batch verified cycles, one upload/window.
 - No new top-level dirs beyond Sequencer/Stream/Studio/Video (Video already mapped).
+
+---
+## EchoelBeat (pro sampler) + EchoelBreak (breakbeat/jungle) — 2026-06-17 directive
+
+Founder: "Echoelbeat aber optimiert samplebasiert mit samples vorhören im
+ordnerverzeichnis und FL Studio / Ableton Level sample Manipulation.
+Echoelbreak für breakbeats auf meister jungle level."
+
+### Today (code truth)
+- SamplerVoice = one-shot mono WAV, **gain only**. No rate/pitch/start-end/reverse/slice/warp.
+- SampleBrowserView = bundled list + Files import + click-to-preview. No folder-tree browse, no waveform.
+- Hybrid sample+synth drums (modal) + PadSoundEditor (envelope). No time-stretch (no AVAudioUnitTimePitch).
+
+### EchoelBeat-pro cycles (each compile-verified, lock-free render)
+1. Sampler params per pad: **start/end trim, reverse, gain, pitch (playback rate), fades** —
+   all index/rate math in the existing lock-free RenderState (no malloc).
+2. **Folder browser + waveform preview**: security-scoped folder pick, list audio files,
+   draw a downsampled waveform, audition on the preview voice (extend SampleBrowserView).
+3. **Velocity layers / round-robin** per pad; choke groups (hi-hat).
+4. **Warp / time-stretch to project BPM**: OFFLINE render via AVAudioUnitTimePitch (or a
+   phase-vocoder) into the pad buffer at load — zero audio-thread cost, tempo-locked.
+
+### EchoelBreak cycles (jungle/breakbeat)
+5. **Transient slicer**: detect onsets in a loaded break (vDSP energy/flux), auto-slice into
+   hits, map slices across pads/steps. Manual slice add/move.
+6. **Slice sequencer**: re-order slices on the step grid; per-slice reverse/pitch/retrigger/stutter.
+7. **Break warp**: stretch the whole break to BPM (reuse cycle 4) so any break locks to the project.
+8. Jungle toolkit: ghost-snare rolls, amen-style chops presets, half-time/double-time, swing.
+
+### Feasibility = GREEN
+All of the above is bounded AVFoundation + Accelerate on iPhone, fits the lock-free SamplerVoice
+pattern; warp is offline (no realtime cost). No new external dependency. Sequence into the
+Ralph loop after Mood/Character + AI director; reuse the same one-view philosophy.
