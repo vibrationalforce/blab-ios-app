@@ -80,6 +80,8 @@ struct EchoelStudioView: View {
     /// Debounce handle that coalesces rapid recompose requests (see scheduleGenerate).
     @State private var regenTask: Task<Void, Never>?
     @State private var startTask: Task<Void, Never>?
+    /// Non-blocking watcher that re-seeds once the rPPG pulse first locks (see snapToLockWhenReady).
+    @State private var lockSnapTask: Task<Void, Never>?
 
     // Sheets / dialogs
     @State private var showOpen = false
@@ -767,15 +769,40 @@ struct EchoelStudioView: View {
         running = true
         startTask?.cancel()
         startTask = Task { @MainActor in
+            // Start the camera/bio source publishing, but DO NOT block on a pulse
+            // lock — sound must begin immediately. We compose now from whatever bio
+            // is available (neutral defaults if none) and snap to the real heartbeat
+            // the instant the lock arrives (see snapToLockWhenReady()).
             await startBioSource()
             guard running, !Task.isCancelled else { return }
             // Let the body continuously modulate the polyphonic timbre at 10 Hz
             // between re-seeds — the sound hugs the live heartbeat/HRV in realtime
             // instead of staying static until the next ~6 s recompose.
             synth.bioModulationEnabled = true
-            generate()
+            generate()              // immediate first sound — no lock-wait stall
             startEvolving()
+            snapToLockWhenReady()   // non-blocking re-seed once the heartbeat locks
         }
+    }
+
+    /// Non-blocking watcher: poll for the first rPPG pulse lock, then recompose ONCE
+    /// from the real heartbeat. This preserves "seed from the live body" without ever
+    /// delaying the first sound. Times out quietly if no finger is on the lens.
+    private func snapToLockWhenReady() {
+        #if canImport(AVFoundation)
+        lockSnapTask?.cancel()
+        lockSnapTask = Task { @MainActor in
+            let start = Date()
+            while !cameraRPPG.isLocked {
+                guard running, !Task.isCancelled else { return }
+                if Date().timeIntervalSince(start) > 8 { return }   // no lock → keep current take
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            guard running, !Task.isCancelled else { return }
+            EchoelCrashLog.breadcrumb("rPPG locked → snap re-seed bpm=\(Int(cameraRPPG.detectedBPM))")
+            generate()   // re-seed harmony from the actual heartbeat
+        }
+        #endif
     }
 
     private func stopEverything() {
@@ -783,6 +810,7 @@ struct EchoelStudioView: View {
         startTask?.cancel(); startTask = nil
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil
+        lockSnapTask?.cancel(); lockSnapTask = nil
         beatPlayer.pattern.stop()
         stopBioSource()
     }
@@ -795,26 +823,12 @@ struct EchoelStudioView: View {
         EchoelCrashLog.breadcrumb("camera starting")
         await cameraRPPG.start(publishing: bus)
         EchoelCrashLog.breadcrumb("camera started (running=\(cameraRPPG.isRunning))")
-        // Wait for a real pulse LOCK before the first composition so the opening
-        // take is seeded from the actual heartbeat — not a neutral default — which
-        // delivers the "hug the body from the first moment" feel (a flat 2 s wait
-        // was usually too short for an rPPG lock, so the first re-seeds were generic).
-        // But never stall when there's no finger on the lens: bail early once it's
-        // clear no finger is present, and hard-cap the wait, so the instrument always
-        // starts (then falls back to neutral and adapts live as soon as it locks).
-        let start = Date()
-        while !cameraRPPG.isLocked {
-            guard running, !Task.isCancelled else { return }
-            let elapsed = Date().timeIntervalSince(start)
-            if elapsed > 8 { break }                                   // hard cap
-            if elapsed > 2.5 && !cameraRPPG.fingerDetected { break }   // no finger → start now
-            try? await Task.sleep(for: .milliseconds(150))
-        }
-        EchoelCrashLog.breadcrumb("rPPG lock=\(cameraRPPG.isLocked) bpm=\(Int(cameraRPPG.detectedBPM))")
+        // Returns as soon as the camera is publishing — NO lock-wait here. Sound
+        // starts immediately (composed from neutral defaults if no pulse yet) and
+        // snapToLockWhenReady() re-seeds from the real heartbeat the moment it locks.
         #else
         // No camera on this platform and no synthetic demo source — the composer
         // falls back to neutral physiological defaults so the instrument still plays.
-        try? await Task.sleep(for: .seconds(1))
         #endif
     }
 
