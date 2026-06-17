@@ -169,6 +169,16 @@ public final class SamplerVoice: @unchecked Sendable {
         )
     }
 
+    /// Set per-pad playback: region trim (`start`/`end` as 0…1 of the sample),
+    /// `reverse`, and `pitchSemitones` (−24…+24, realised as a playback-rate
+    /// change with linear interpolation). Main-thread only. FL/Ableton-style
+    /// one-shot shaping with zero audio-thread allocation.
+    public func configurePlayback(start: Float = 0, end: Float = 1,
+                                  reverse: Bool = false, pitchSemitones: Float = 0) {
+        let rate = powf(2.0, max(-24, min(24, pitchSemitones)) / 12.0)
+        renderState.configurePlayback(startFrac: start, endFrac: end, reverse: reverse, rate: rate)
+    }
+
     // MARK: - Source node
 
     private func makeSourceNode() -> AVAudioSourceNode {
@@ -209,7 +219,8 @@ private final class RenderState: @unchecked Sendable {
     private var sampleBuffer: [Float] = []
 
     // Audio-thread state (only the audio thread mutates these after install).
-    private var position: Int = 0
+    private var posF: Float = 0           // fractional playback cursor (rate/reverse aware)
+    private var playedOut: Int = 0        // output frames since trigger (for attack fade)
     private var isPlaying: Bool = false
     private var lastSeenTrigger: UInt32 = 0
     private var currentGain: Float = 1.0
@@ -224,10 +235,19 @@ private final class RenderState: @unchecked Sendable {
     private var attackFrames: Int = 0     // fade-in length
     private var lengthFrames: Int = 0     // 0 = play full sample; >0 = cap length
 
+    // Per-pad playback: region (start/end as 0…1 of the buffer), direction, rate.
+    // FL/Ableton-style: trim the hit, reverse it, pitch it (rate). Atomic-width
+    // scalars set on the main thread, read on the audio thread.
+    private var startFrac: Float = 0      // region start (0…1)
+    private var endFrac: Float = 1        // region end (0…1)
+    private var reverse: Bool = false     // play the region backwards
+    private var rate: Float = 1.0         // playback speed = pitch (0.25…4, 1 = original)
+
     /// Main thread, before audio engine start.
     func installBuffer(_ samples: [Float]) {
         sampleBuffer = samples
-        position = 0
+        posF = 0
+        playedOut = 0
         isPlaying = false
         triggerCount = 0
         lastSeenTrigger = 0
@@ -253,6 +273,17 @@ private final class RenderState: @unchecked Sendable {
         self.lengthFrames = max(0, lengthFrames)
     }
 
+    /// Main thread. Set the per-pad playback region, direction and rate (pitch).
+    /// `startFrac`/`endFrac` are 0…1 of the loaded sample; `rate` is the playback
+    /// speed (and thus pitch), clamped to a musical 0.25…4 range.
+    func configurePlayback(startFrac: Float, endFrac: Float, reverse: Bool, rate: Float) {
+        let s = Swift.min(Swift.max(startFrac, 0), 0.999)
+        self.startFrac = s
+        self.endFrac = Swift.min(Swift.max(endFrac, s + 0.001), 1)
+        self.reverse = reverse
+        self.rate = Swift.min(Swift.max(rate, 0.25), 4)
+    }
+
     /// Audio thread. Writes `frameCount` mono float32 samples into the first
     /// channel of `audioBufferList`. Zero allocation, no locks.
     func render(frameCount: Int, audioBufferList: UnsafeMutablePointer<AudioBufferList>) {
@@ -261,14 +292,24 @@ private final class RenderState: @unchecked Sendable {
         let buf = raw.assumingMemoryBound(to: Float.self)
         let byteCount = frameCount * MemoryLayout<Float>.size
 
+        let count = sampleBuffer.count
+
+        // Playback region from the 0…1 fractions, clamped to a valid [start,end).
+        var playStart = Int(startFrac * Float(count))
+        var playEnd = Int(endFrac * Float(count))
+        playStart = Swift.max(0, Swift.min(playStart, Swift.max(0, count - 1)))
+        playEnd = Swift.max(playStart + 1, Swift.min(playEnd, count))
+        if lengthFrames > 0 { playEnd = Swift.min(playEnd, playStart + lengthFrames) }
+
         // Detect new triggers since the last render block.
         let current = triggerCount
         if current != lastSeenTrigger {
             lastSeenTrigger = current
-            position = 0
             isPlaying = true
             silenceRequested = false
             currentGain = triggerGain
+            posF = reverse ? Float(playEnd - 1) : Float(playStart)   // start at the right edge
+            playedOut = 0
         }
 
         if silenceRequested {
@@ -276,54 +317,57 @@ private final class RenderState: @unchecked Sendable {
             silenceRequested = false
         }
 
-        if !isPlaying || sampleBuffer.isEmpty {
+        if !isPlaying || count == 0 || playEnd <= playStart {
             memset(buf, 0, byteCount)
             return
         }
 
-        // Effective playback end: capped by the per-pad length (0 = full sample).
-        let playEnd = lengthFrames > 0 ? min(sampleBuffer.count, lengthFrames) : sampleBuffer.count
-        let remaining = playEnd - position
-        let toCopy = min(frameCount, max(0, remaining))
+        // Per-sample resampled playback: advance a fractional cursor by ±rate and
+        // linearly interpolate. Direction = reverse. Amp envelope: base gain
+        // (level × velocity), linear attack fade-in, release fade at the region
+        // edge in the direction of travel (anti-click). Arithmetic + pointer reads
+        // only — no allocation, no locks: audio-thread-safe.
+        let step: Float = Swift.max(0.001, rate) * (reverse ? -1 : 1)
+        let regionLen = playEnd - playStart
+        let rel = Swift.min(512, Swift.max(64, regionLen / 8))
+        let base = currentGain * level
+        let startF = Float(playStart)
+        let endF = Float(playEnd)
 
-        if toCopy > 0 {
-            sampleBuffer.withUnsafeBufferPointer { ptr in
-                if let base = ptr.baseAddress {
-                    memcpy(buf, base.advanced(by: position), toCopy * MemoryLayout<Float>.size)
-                }
-            }
-            // Per-sample amp envelope: base gain (level × velocity), linear attack
-            // fade-in, and a release fade before the length cap (anti-click).
-            // Arithmetic only — audio-thread-safe.
-            let rel = lengthFrames > 0 ? min(512, max(64, lengthFrames / 8)) : 0
-            let base = currentGain * level
-            for i in 0..<toCopy {
-                let p = position + i
+        var produced = 0
+        sampleBuffer.withUnsafeBufferPointer { ptr in
+            guard let b = ptr.baseAddress else { return }
+            while produced < frameCount {
+                let i0 = Int(posF)
+                if posF < startF || posF >= endF || i0 < 0 || i0 >= count { break }
+                let frac = posF - Float(i0)
+                let s0 = b[i0]
+                let s1 = (i0 + 1 < count) ? b[i0 + 1] : s0
                 var amp = base
-                if attackFrames > 0 && p < attackFrames {
-                    amp *= Float(p) / Float(attackFrames)
+                if attackFrames > 0 && playedOut < attackFrames {
+                    amp *= Float(playedOut) / Float(attackFrames)
                 }
-                if rel > 0 {
-                    let tailStart = playEnd - rel
-                    if p >= tailStart { amp *= Float(playEnd - p) / Float(rel) }
-                }
-                buf[i] *= amp
+                let distEnd = reverse ? (posF - startF) : (endF - posF)
+                if distEnd < Float(rel) { amp *= Swift.max(0, distEnd) / Float(rel) }
+                var v = (s0 + (s1 - s0) * frac) * amp
+                if v > -1e-15 && v < 1e-15 { v = 0 }   // flush denormals (edge ramps)
+                buf[produced] = v
+                posF += step
+                produced += 1
+                playedOut += 1
             }
-            position += toCopy
         }
 
-        if toCopy < frameCount {
-            memset(buf.advanced(by: toCopy), 0, (frameCount - toCopy) * MemoryLayout<Float>.size)
+        if produced < frameCount {
+            memset(buf.advanced(by: produced), 0, (frameCount - produced) * MemoryLayout<Float>.size)
         }
 
-        if position >= playEnd {
-            isPlaying = false
-        }
+        if posF < startF || posF >= endF { isPlaying = false }
     }
 
     // Test-only inspection.
     var debugIsPlaying: Bool { isPlaying }
-    var debugPosition: Int { position }
+    var debugPosition: Int { Int(posF) }
     var debugBufferCount: Int { sampleBuffer.count }
 }
 

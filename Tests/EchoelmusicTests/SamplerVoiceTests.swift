@@ -92,6 +92,43 @@ final class SamplerVoiceTests: XCTestCase {
         XCTAssertGreaterThan(rms, 0.05, "RMS of rendered tone block should be audible")
     }
 
+    func testConfigurePlayback_higherPitch_advancesFaster() throws {
+        // Pitch up an octave (rate 2×) → the cursor should advance ~2× as fast.
+        let url = try makeTempWav(seconds: 0.5, frequency: 440)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let voice = SamplerVoice()
+        try voice.loadSample(from: url)
+
+        let frames = 256
+        let (out, abl) = makeOutputBuffer(frameCount: frames)
+        defer { destroyOutputBuffer(out: out, abl: abl) }
+        voice.configurePlayback(start: 0, end: 1, reverse: false, pitchSemitones: 12)
+        voice.fire()
+        voice._testRender(frameCount: frames, audioBufferList: abl)
+        // At 2× rate the cursor covers ~2× the frames (allow tolerance for rounding).
+        XCTAssertGreaterThan(voice._testPosition, Int(Double(frames) * 1.8))
+    }
+
+    func testConfigurePlayback_reverse_producesAudio() throws {
+        let url = try makeTempWav(seconds: 0.5, frequency: 440)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let voice = SamplerVoice()
+        try voice.loadSample(from: url)
+
+        let frames = 256
+        let (out, abl) = makeOutputBuffer(frameCount: frames)
+        defer { destroyOutputBuffer(out: out, abl: abl) }
+        voice.configurePlayback(start: 0, end: 1, reverse: true, pitchSemitones: 0)
+        voice.fire()
+        voice._testRender(frameCount: frames, audioBufferList: abl)
+
+        var rms: Float = 0
+        for i in 0..<frames { rms += out[i] * out[i] }
+        rms = (rms / Float(frames)).squareRoot()
+        XCTAssertGreaterThan(rms, 0.05, "reverse playback should still be audible")
+        XCTAssertTrue(voice._testIsPlaying, "reverse playback should be active mid-sample")
+    }
+
     func testRender_pastSampleEnd_returnsToSilence() throws {
         // Very short sample — guaranteed to finish in one big block.
         let url = try makeTempWav(seconds: 0.01, frequency: 1000)  // 441 frames
