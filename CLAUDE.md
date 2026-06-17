@@ -260,6 +260,8 @@ Priority: Build errors → Test failures → Crash code → Task → Cleanup
 | vDSP overlapping accesses | Copy inputs to temp vars before `vDSP_DFT_Execute` |
 | `self` before `super.init()` | Move setup AFTER `super.init()` |
 | `inout` + escaping closure | Copy to local var first |
+| `@MainActor` property read from a `nonisolated` audio-render block ("main actor-isolated property X can not be referenced from a nonisolated context") | Keep the public `@MainActor` prop for the UI, add an `@ObservationIgnored nonisolated(unsafe)` mirror written in its `didSet`; the render reads the mirror (see SubBassVoice.audioSubGain / PolySynthVoice params) |
+| `@Observable` class: a manual stored prop named `_foo` ("invalid redeclaration of '_foo'" / "ambiguous use of '_foo'") | The macro generates `_foo` as `foo`'s backing — never name your own field `_<name>`; use a non-underscore name (e.g. `audioFoo`) |
 
 ### Logger Usage (Global `log` is EchoelLogger instance)
 

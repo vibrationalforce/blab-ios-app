@@ -91,6 +91,8 @@ struct EchoelStudioView: View {
     // Tools — open the (previously unreachable) editors as sheets.
     @State private var showPianoRoll = false
     @State private var showPatchEditor = false
+    @State private var showVisual = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
@@ -132,6 +134,17 @@ struct EchoelStudioView: View {
                 synth.apply(p)   // editor changes hit the live voice immediately
             }
         }
+        #if canImport(MetalKit) && canImport(UIKit)
+        .fullScreenCover(isPresented: $showVisual) {
+            ZStack(alignment: .topTrailing) {
+                MetalBioView(reduceMotion: reduceMotion).ignoresSafeArea()
+                Button { showVisual = false } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2).foregroundStyle(.white.opacity(0.6)).padding()
+                }
+            }
+        }
+        #endif
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -149,6 +162,9 @@ struct EchoelStudioView: View {
         Menu {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
             Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
+            #if canImport(MetalKit) && canImport(UIKit)
+            Button { showVisual = true } label: { Label("Immersive Visual", systemImage: "sparkles") }
+            #endif
         } label: {
             Label("Tools", systemImage: "slider.horizontal.3")
                 .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
