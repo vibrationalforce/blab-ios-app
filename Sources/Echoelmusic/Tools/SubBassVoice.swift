@@ -38,13 +38,14 @@ public final class SubBassVoice {
     /// nonisolated mirror `_subGain` instead (a MainActor property can't be read
     /// from the nonisolated render block — same bridge as PolySynthVoice's params).
     public var subGain: Float = 0 {
-        didSet { _subGain = min(max(subGain, 0), 1) }
+        didSet { audioSubGain = min(max(subGain, 0), 1) }
     }
 
     /// Audio-thread-readable mirror of `subGain`. Written on MainActor (didSet),
     /// read on the audio thread. Float-atomic width on Apple → no torn reads.
+    /// NB: not named `_subGain` — that collides with the @Observable macro's backing.
     @ObservationIgnored
-    nonisolated(unsafe) private var _subGain: Float = 0
+    nonisolated(unsafe) private var audioSubGain: Float = 0
 
     @ObservationIgnored
     nonisolated(unsafe) private var a4Hz: Float = 440
@@ -170,7 +171,7 @@ public final class SubBassVoice {
         for frame in 0..<frameCount {
             currentFreq += freqGlide * (targetFreq - currentFreq)
             env += envCoeff * (gateTarget - env)
-            smoothedGain += gainCoeff * (_subGain - smoothedGain)
+            smoothedGain += gainCoeff * (audioSubGain - smoothedGain)
             // Flush the decaying one-poles' denormal tails (matches reverb/delay).
             if env < 1e-15 { env = 0 }
             if smoothedGain < 1e-15 { smoothedGain = 0 }
