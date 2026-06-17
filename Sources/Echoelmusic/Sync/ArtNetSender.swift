@@ -60,6 +60,9 @@ public final class ArtNetSender {
     @ObservationIgnored private let loop = PollingLoop()
     @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
     @ObservationIgnored private var sequence: UInt8 = 1
+    /// Last dimmer (luminance) value actually sent, for the flash slew-limiter.
+    /// -1 = none yet. Reset on stop so a restart doesn't slew from a stale value.
+    @ObservationIgnored private var lastDimmer: Float = -1
 
     public init(host: String = "255.255.255.255", port: UInt16 = 6454, universe: Int = 0) {
         self.host = host
@@ -83,6 +86,7 @@ public final class ArtNetSender {
         connection?.cancel()
         connection = nil
         isActive = false
+        lastDimmer = -1
     }
 
     // MARK: - Connection
@@ -104,7 +108,17 @@ public final class ArtNetSender {
         guard let frame = bus.latestBio else { return }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
-        let channels = Self.dmxChannels(for: frame, resolution: resolution)
+        // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer
+        // (luminance) channel so even a pathological input jump can never strobe
+        // the lights. Bio is already slow, but this makes WCAG ≤3 Hz a guarantee,
+        // not an assumption. ~0.08/tick at 30 Hz → full fade ≥0.4 s (~1.2 Hz max).
+        let target = Self.dimmerUnit(for: frame)
+        let limited = lastDimmer < 0
+            ? target
+            : Float(FlashGuard.limitedLuminance(from: Double(lastDimmer), to: Double(target), maxDelta: 0.08))
+        lastDimmer = limited
+        var channels = Self.dmxChannels(for: frame, resolution: resolution)
+        Self.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
         sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled
         send(packet)
@@ -176,6 +190,27 @@ public final class ArtNetSender {
         data.append(UInt8(length & 0xFF))                 // LengthLo
         data.append(contentsOf: dmx)                      // DMX data
         return data
+    }
+
+    /// The dimmer (luminance) unit value a frame maps to — must match the
+    /// `dmxChannels*` builders (0.3 + 0.7·coherence). Exposed for the slew path
+    /// and tests.
+    static func dimmerUnit(for f: BioSampleFrame) -> Float { clampUnit(0.3 + 0.7 * f.coherence) }
+
+    /// Overwrites the dimmer channel(s) of an already-built DMX array with a
+    /// (slew-limited) value. ch0 for 8-bit; ch0..1 (coarse/fine) for 16-bit.
+    /// Leaves the colour channels (R/G/B) untouched.
+    static func applyDimmer(_ channels: inout [UInt8], resolution: DMXResolution, dimmer: Float) {
+        switch resolution {
+        case .eightBit:
+            guard channels.count >= 1 else { return }
+            channels[0] = byte(dimmer)
+        case .sixteenBit:
+            guard channels.count >= 2 else { return }
+            let w = word(dimmer)
+            channels[0] = w[0]
+            channels[1] = w[1]
+        }
     }
 
     private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x, 0), 1) }

@@ -131,5 +131,39 @@ final class ArtNetSenderTests: XCTestCase {
         XCTAssertEqual(s.universe, 0)
         XCTAssertFalse(s.isActive)
     }
+
+    // MARK: - Flash safety: dimmer slew-limit (physical-fixture strobe guard)
+
+    func testDimmerUnit_matchesBuilderMapping() {
+        // 0.3 + 0.7·coherence, the same luminance the channel builders use.
+        XCTAssertEqual(ArtNetSender.dimmerUnit(for: frame(coherence: 0)), 0.3, accuracy: 1e-6)
+        XCTAssertEqual(ArtNetSender.dimmerUnit(for: frame(coherence: 1)), 1.0, accuracy: 1e-6)
+    }
+
+    func testApplyDimmer_overwritesLuminanceLeavesColour() {
+        // 8-bit: ch0 = dimmer; colour channels (1..3) untouched.
+        var ch = ArtNetSender.dmxChannels(for: frame(coherence: 1))   // dimmer byte ≈ 255
+        let colourBefore = Array(ch[1...3])
+        ArtNetSender.applyDimmer(&ch, resolution: .eightBit, dimmer: 0.0)
+        XCTAssertEqual(Int(ch[0]), 0, "dimmer overwritten")
+        XCTAssertEqual(Array(ch[1...3]), colourBefore, "colour channels unchanged")
+    }
+
+    func testApplyDimmer_16bit_writesCoarseAndFine() {
+        var ch = ArtNetSender.dmxChannels16(for: frame(coherence: 1))
+        ArtNetSender.applyDimmer(&ch, resolution: .sixteenBit, dimmer: 1.0)
+        XCTAssertEqual(ch[0], 0xFF, "coarse")
+        XCTAssertEqual(ch[1], 0xFF, "fine")
+    }
+
+    func testFlashGuard_slewCapsLuminanceStep() {
+        // A 0→1 jump must be capped per step so physical lights can't strobe.
+        let stepped = FlashGuard.limitedLuminance(from: 0.0, to: 1.0, maxDelta: 0.08)
+        XCTAssertEqual(stepped, 0.08, accuracy: 1e-9)
+        // Reaching full from dark takes many steps (≥ ~12 → ≥0.4 s at 30 Hz → <3 Hz).
+        var v = 0.0, steps = 0
+        while v < 1.0 - 1e-9 && steps < 1000 { v = FlashGuard.limitedLuminance(from: v, to: 1.0, maxDelta: 0.08); steps += 1 }
+        XCTAssertGreaterThanOrEqual(steps, 12)
+    }
 }
 #endif
