@@ -60,7 +60,12 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// Breath phase, [0..1]. 0 = exhale start, 0.5 = inhale start.
     public let breathPhase: Float
 
-    /// Coherence score, [0..1]. Derived from HRV spectrum.
+    /// Coherence score, [0..1]. Real frequency-domain HRV coherence
+    /// (`HRVCoherence`, Lomb–Scargle / Welch over the RR series) on sources that
+    /// deliver beat-to-beat RR — BLE/Polar (`.ble`) and camera (`.cameraPPG`).
+    /// `0` where the source has no real RR (HealthKit gives averaged HR + SDNN
+    /// only). The demo/`.fallback` source carries a simulated value. Treat `0`
+    /// as "not available", not as "incoherent".
     public let coherence: Float
 
     /// Motion energy, [0..1]. Aggregate from CoreMotion.

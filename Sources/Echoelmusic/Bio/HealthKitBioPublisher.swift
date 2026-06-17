@@ -81,7 +81,13 @@ public final class HealthKitBioPublisher {
             hrvNormalized: Float(snap.hrvNormalized),
             breathRate: Float(snap.breathRate),
             breathPhase: Float(snap.breathPhase),
-            coherence: Float(snap.coherence),
+            // HealthKit exposes averaged HR + SDNN, NOT beat-to-beat RR intervals,
+            // so there is no trustworthy frequency-domain coherence to publish here
+            // (the engine's legacy inverse-variance estimate is not a real spectral
+            // coherence). Honest 0 = "not available from this source"; consistent
+            // with BioSource.providesTrustedHRV == false for .healthKit. Real
+            // coherence comes from the BLE/Polar and camera RR paths (HRVCoherence).
+            coherence: 0,
             motionEnergy: 0,
             source: .healthKit
         ))

@@ -120,13 +120,20 @@ public final class CameraRPPGBioPublisher {
                 let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
                 // analyzer.rrIntervals are already in milliseconds.
                 let rrMs = self.analyzer.rrIntervals
+                // Real frequency-domain coherence from the camera RR series — the
+                // SAME metric as the BLE path (HRVCoherence), not the signal-quality
+                // value this used to mislabel as "coherence". rPPG RR is lower-trust
+                // than a chest strap (BioSource.providesTrustedHRV is false for
+                // .cameraPPG), so consumers still gate on the source; the field is now
+                // at least semantically correct. 0 until enough beats/power.
+                let coherence = HRVCoherence.compute(rrMs: rrMs, blend: 1.0)
                 bus.publish(bio: BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
                     hrvNormalized: hrv,
                     breathRate: 0,
                     breathPhase: 0,
-                    coherence: Float(self.signalQuality),
+                    coherence: coherence.valid ? coherence.coherence : 0,
                     motionEnergy: 0,
                     source: .cameraPPG,
                     hrvRMSSDms: rmssdMs,
