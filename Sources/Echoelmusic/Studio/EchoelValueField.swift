@@ -2,17 +2,17 @@
 //  EchoelValueField.swift
 //  Echoelmusic — Studio
 //
-//  The one control: a NUMERIC VALUE, no slider, no knob. It saves space (a value is
-//  smaller than a dial) and reads science-first (the number is the truth). Interaction:
-//   • Drag the value left/right to scrub — **velocity-sensitive granularity**: a fast
-//     flick jumps in big leaps, a slow drag steps exactly on the 0.01 grid (precise to
-//     the second decimal). One control covers both coarse and fine.
+//  The one control: a NUMERIC VALUE, no permanent slider/knob (saves space, reads
+//  science-first). Interaction is a direct VERTICAL FADER:
+//   • Press the value and drag UP/DOWN — a transparent vertical slider appears to the
+//     left as a position reference (touch-sensitive, musical for filter sweeps). Full
+//     range crosses in ~one short drag, so it's fast, not stiff.
+//   • Pull sideways while dragging for FINE mode (precise to the decimal grid).
 //   • Tap the value to type an exact number (decimal pad; accepts comma or dot).
 //   • VoiceOver: adjustable by swipe, speaks the real value + unit.
 //
-//  Everything scales with Dynamic Type / the app zoom (see EchoelTheme.font's
-//  relativeTo and the studio's pinch-to-zoom), so it stays legible for every pair of
-//  eyes. Pure UI — no audio-thread involvement.
+//  Everything scales with Dynamic Type / the app zoom (EchoelTheme.font relativeTo +
+//  the studio pinch-zoom). Website CI tokens only. Pure UI — no audio-thread work.
 //
 
 #if canImport(SwiftUI)
@@ -24,24 +24,25 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     @Binding var value: V
     let range: ClosedRange<V>
     var unit: String = ""
-    /// Decimal places shown and the fine-scrub grid (default 4 → exact to 0.0001).
-    /// A finer grid also means smoother parameter sweeps while scrubbing.
+    /// Decimals shown and the snap grid (default 4 → exact to 0.0001).
     var decimals: Int = 4
     var onChange: () -> Void = {}
     var onCommit: () -> Void = {}
 
-    // The value box and label grow with Dynamic Type / app zoom. Wide enough for a
-    // 4-decimal value with a large integer part plus its unit (e.g. "18000.0000 Hz").
+    // The value box + label grow with Dynamic Type / app zoom. Wide enough for a
+    // 4-decimal value with a large integer part plus its unit ("18000.0000 Hz").
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
 
     @State private var text = ""
     @FocusState private var focused: Bool
 
-    // Scrub state — fractional accumulator so slow drags land on the 0.01 grid.
+    // Vertical-fader drag state (incremental, so toggling fine mode never jumps).
     @State private var scrubbing = false
-    @State private var lastX: CGFloat = 0
-    @State private var lastTime = Date()
-    @State private var accumulator: Double = 0
+    @State private var lastY: CGFloat = 0
+
+    /// Drag distance (points) that covers the FULL range at normal speed — small, so
+    /// the fader feels fast/direct (the old velocity-scrub felt stiff).
+    private let fullRangePoints: Double = 200
 
     var body: some View {
         HStack(spacing: 12) {
@@ -73,15 +74,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     }
 
     private var valueBox: some View {
-        // Number + unit read as ONE cohesive field (e.g. "440.0000  Hz"), trailing-
-        // aligned so values line up in a column. Website CI: solid fill, 1px muted
-        // border, 8px radius; bio-green only on focus (the live-edit state).
+        // Number + unit read as ONE cohesive field ("440.0000  Hz"), trailing-aligned
+        // so values line up in a column. Website CI: solid fill, 1px muted border, 8px
+        // radius; bio-green only while editing/scrubbing.
         ZStack {
             HStack(spacing: 5) {
                 TextField("", text: $text)
                     .multilineTextAlignment(.trailing)
                     .font(EchoelTheme.font(17).monospacedDigit())
-                    .foregroundStyle(focused ? EchoelTheme.accent : EchoelTheme.text)
+                    .foregroundStyle(focused || scrubbing ? EchoelTheme.accent : EchoelTheme.text)
                     .textFieldStyle(.plain)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .focused($focused)
@@ -109,9 +110,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 }
             }
 
-            // While not editing, a transparent layer turns the value into a scrubber:
-            // drag = velocity-sensitive adjust, tap = start typing. Removed when
-            // focused so the TextField receives touches for editing.
+            // While not editing, a transparent layer turns the value into a vertical
+            // fader: drag = adjust, tap = type. Removed when focused so the TextField
+            // receives touches for editing.
             if !focused {
                 Rectangle().fill(Color.clear).contentShape(Rectangle())
                     .gesture(scrubGesture)
@@ -122,47 +123,60 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         .padding(.horizontal, 12).padding(.vertical, 9)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-            .strokeBorder(focused ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+            .strokeBorder(focused || scrubbing ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+        // The transparent orientation slider floats just left of the box while dragging.
+        .overlay(alignment: .leading) {
+            if scrubbing { faderOverlay.offset(x: -22) }
+        }
+        .animation(.easeOut(duration: 0.12), value: scrubbing)
+    }
+
+    /// The transient vertical slider shown on press — a position reference to orient by.
+    private var faderOverlay: some View {
+        let h: CGFloat = 180
+        let thumb: CGFloat = 13
+        return ZStack(alignment: .bottom) {
+            Capsule().fill(EchoelTheme.fill.opacity(0.85))
+                .overlay(Capsule().strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .frame(width: 6, height: h)
+            Capsule().fill(EchoelTheme.accent.opacity(0.35))
+                .frame(width: 6, height: max(thumb, h * frac))
+            Circle().fill(EchoelTheme.accent)
+                .frame(width: thumb, height: thumb)
+                .offset(y: -(h - thumb) * frac)
+        }
+        .frame(width: thumb, height: h)
+        .allowsHitTesting(false)
+    }
+
+    /// Current value as a 0…1 fraction of the range (for the fader fill/thumb).
+    private var frac: CGFloat {
+        let lo = Double(range.lowerBound), hi = Double(range.upperBound)
+        guard hi > lo else { return 0 }
+        return CGFloat(Swift.min(Swift.max((Double(value) - lo) / (hi - lo), 0), 1))
     }
 
     private var scrubGesture: some Gesture {
-        DragGesture(minimumDistance: 2)
+        DragGesture(minimumDistance: 1)
             .onChanged { g in
-                let now = Date()
                 if !scrubbing {
-                    scrubbing = true; lastX = g.translation.width; lastTime = now; accumulator = 0
+                    scrubbing = true
+                    lastY = g.translation.height   // anchor; no jump on the first move
                     return
                 }
-                let dx = Double(g.translation.width - lastX)          // points since last event
-                let dt = Swift.max(now.timeIntervalSince(lastTime), 1.0 / 240.0)
-                lastX = g.translation.width; lastTime = now
-                let speed = abs(dx) / dt                              // points / second
-
-                let fine = pow(10.0, -Double(decimals))              // 0.01 → precise
                 let span = Double(range.upperBound - range.lowerBound)
-                let coarse = Swift.max(span / 260.0, fine)           // fast → cross range in ~260 pt
-                // Blend fine↔coarse by drag speed (≈80 pt/s = fine, ≈1300 pt/s = coarse).
-                let t = smoothstep(80, 1300, speed)
-                let perPoint = fine + (coarse - fine) * t
-
-                accumulator += dx * perPoint
-                // Emit whole `fine`-sized increments so a slow drag lands on the grid.
-                let steps = (accumulator / fine).rounded(.towardZero)
-                if steps != 0 {
-                    accumulator -= steps * fine
-                    apply(Double(value) + steps * fine)
+                let dyStep = Double(lastY - g.translation.height)        // up = increase
+                lastY = g.translation.height
+                // Pull sideways (>80 pt) for FINE mode — precise without losing speed.
+                let fine = abs(g.translation.width) > 80 ? 0.22 : 1.0
+                let delta = (dyStep / fullRangePoints) * span * fine
+                if delta != 0 {
+                    apply(Double(value) + delta)
                     if !focused { syncText() }
                     onChange()
                 }
             }
             .onEnded { _ in scrubbing = false; onCommit() }
-    }
-
-    /// Smooth 0→1 ramp between edges (Hermite); clamps outside.
-    private func smoothstep(_ a: Double, _ b: Double, _ x: Double) -> Double {
-        guard b > a else { return x >= b ? 1 : 0 }
-        let t = Swift.min(Swift.max((x - a) / (b - a), 0), 1)
-        return t * t * (3 - 2 * t)
     }
 
     private func apply(_ raw: Double) {
@@ -183,8 +197,8 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         }
     }
 
-    /// The unit suffix shown after the value (Hz, s, BPM, …). Empty for
-    /// dimensionless values, whose meaning is carried by the label.
+    /// The unit suffix shown after the value (Hz, s, BPM, …). Empty for dimensionless
+    /// values, whose meaning is carried by the label.
     private var unitLabel: String { unit }
 
     private var numberString: String { String(format: "%.\(decimals)f", Double(value)) }
