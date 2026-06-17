@@ -767,7 +767,22 @@ struct EchoelStudioView: View {
         EchoelCrashLog.breadcrumb("camera starting")
         await cameraRPPG.start(publishing: bus)
         EchoelCrashLog.breadcrumb("camera started (running=\(cameraRPPG.isRunning))")
-        try? await Task.sleep(for: .seconds(2))   // let the optical pulse lock
+        // Wait for a real pulse LOCK before the first composition so the opening
+        // take is seeded from the actual heartbeat — not a neutral default — which
+        // delivers the "hug the body from the first moment" feel (a flat 2 s wait
+        // was usually too short for an rPPG lock, so the first re-seeds were generic).
+        // But never stall when there's no finger on the lens: bail early once it's
+        // clear no finger is present, and hard-cap the wait, so the instrument always
+        // starts (then falls back to neutral and adapts live as soon as it locks).
+        let start = Date()
+        while !cameraRPPG.isLocked {
+            guard running, !Task.isCancelled else { return }
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed > 8 { break }                                   // hard cap
+            if elapsed > 2.5 && !cameraRPPG.fingerDetected { break }   // no finger → start now
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+        EchoelCrashLog.breadcrumb("rPPG lock=\(cameraRPPG.isLocked) bpm=\(Int(cameraRPPG.detectedBPM))")
         #else
         // No camera on this platform and no synthetic demo source — the composer
         // falls back to neutral physiological defaults so the instrument still plays.
