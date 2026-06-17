@@ -6,6 +6,29 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-17 — SHIPPED build 1867: sub-bass/LFE + Metal bio-visual + first-launch sound fix
+
+### Branch: `claude/piano-roll-clip-view-wozlie`
+### Trigger: owner — multidimensional pivot ("tools flow into one", immersive 360 + multidimensional sound + bass for vibration/LFE) → then regression report: "Ich sehe keine Änderungen aber es kommt auch kein Sound mehr" (confirmed: works on 2nd open).
+
+### Three dimensions shipped on the ONE instrument (build 1867, deploy run #1867):
+- **VIBRATION** — `Tools/SubBassVoice.swift` (NEW): mono `@MainActor @Observable` voice, own `AVAudioSourceNode` (1ch), SPSC SubCommand queue, octave-down bass double, pushable `subGain` (default 0 → launch-silent). Swift6 fix: audio thread reads `nonisolated(unsafe) audioSubGain` mirror written in `didSet` (NOT `_subGain` — collides with @Observable macro backing). Wired in EchoelmusicApp (attach before start) + EchoelStudioView (RotaryKnob "Sub / Bass (felt)"); pianoRoll fires sub on bass-register notes.
+- **VISUAL** — `Views/MetalBioView.swift` (NEW): MTKView + own MTLCommandQueue + runtime-compiled MSL (clear-color pulse fallback if compile fails). HR→ring pulse ≤2Hz (WCAG), coherence→hue, breath→spread; reads `bus.freshBio()` only; honours Reduce Motion. Reachable via Tools menu → fullScreenCover. The GPU foundation mapping/video/broadcast overlay will reuse.
+- **FIX (regression)** — first-launch silence: `startBioSource()` was BLOCKING up to 2.5–8s waiting for an rPPG pulse lock before generate()/sound (commit 0609dcc). Now non-blocking: compose immediately from neutral defaults; new `snapToLockWhenReady()` (own `lockSnapTask`) re-seeds ONCE when the heartbeat first locks. Sound is instant on first open.
+
+### Verification (real gate = testflight.yml runs, NOT the deploy-on-tag wrapper)
+- dryrun #1863 (98c32dd) green after 2 sub-bass compile fails (#1860 isolation, #1862 _subGain collision); #1865 (26d9710 Metal) green; deploy #1864 (sub-bass) VALID; **deploy #1867 (24d4b63 = all three) Archive+Upload success**.
+
+### Website / memory
+- `brainstorming.html` → build 1867; `version.json` → 10.17.0 + changelog; `sw.js` → v10.17.0.
+
+### Tooling carousels reviewed (17 tools across "top Claude tools" + "Fable 5 OS/Jarvis")
+- Verdict: all dev/agent/web/agency tooling, NONE embeddable as Echoel features. The two patterns that matter (SKILL.md skill-architecture + markdown long-term memory) we ALREADY run (`.claude/skills/` + `memory/`+`scratchpads/`+`decisions.csv`). Only **claude-video** worth adopting (analyze device screen-recordings for QA). Does not change the roadmap.
+
+### Next cycle (agreed track order, stable-first): Live Clip session grid → RTMP broadcast (HaishinKit) → AUv3 instrument → video editing. (Mapping already live; Metal visual foundation now laid.)
+
+---
+
 ## 2026-06-16 — SHIPPED build 1857: Bio-Acceptance v1 (freshness window + BLE auto-reconnect)
 
 ### Branch: `claude/piano-roll-clip-view-wozlie`
