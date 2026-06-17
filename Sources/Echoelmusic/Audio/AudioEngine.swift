@@ -18,6 +18,28 @@ public final class AudioEngine {
     var masterLevel: Float = 0.0
     var masterLevelR: Float = 0.0
 
+    /// Self-healing: set when the engine could not be (re)started after exhausting
+    /// automatic recovery, so the UI can offer a "tap to retry" affordance instead
+    /// of silently showing "stopped". Cleared on a successful start.
+    var degraded: Bool = false
+    /// Last audio failure reason (for the degraded affordance / diagnostics).
+    var lastAudioError: String?
+
+    // MARK: - Self-healing recovery state (MainActor-confined)
+
+    /// De-bounce guard so overlapping recovery triggers (route flap + config
+    /// change firing together) don't schedule competing `start()` calls.
+    @ObservationIgnored private var isRecovering = false
+    /// Consecutive failed recovery attempts; capped so a permanently-bad route
+    /// can't spin forever. Reset to 0 on any successful start.
+    @ObservationIgnored private var recoveryAttempts = 0
+    @ObservationIgnored private static let maxRecoveryAttempts = 3
+    /// Token for the AVAudioEngineConfigurationChange observer (registered once).
+    /// `nonisolated(unsafe)` so the nonisolated `deinit` can remove it; written only
+    /// on the MainActor (prepareGraph) and `NotificationCenter.removeObserver` is
+    /// safe from any thread.
+    @ObservationIgnored nonisolated(unsafe) private var configChangeObserver: NSObjectProtocol?
+
     /// Held master sample-peak / true-peak in dBFS / dBTP, and momentary
     /// loudness in LUFS — published from the master tap (EchoelMix metering).
     var masterPeakDb: Float = EchoelMeter.floorDb
@@ -118,9 +140,7 @@ public final class AudioEngine {
             self.masterEngine.pause()
             self.isRunning = false
             log.audio("Audio route lost — restarting on new output...")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.start()
-            }
+            self.recoverEngine(reason: "route lost")
         }
 
         // IMPORTANT: audio-session activation and AVAudioEngine graph construction
@@ -147,7 +167,72 @@ public final class AudioEngine {
         }
         AudioConfiguration.setAudioThreadPriority()
         setupMasterEngine()
+        registerConfigurationChangeWatchdog()
         log.audio("AudioEngine graph prepared — master output wired to hardware")
+    }
+
+    /// Self-healing watchdog: AVAudioEngine posts `.AVAudioEngineConfigurationChange`
+    /// when the OS rebuilds the I/O graph (AirPods/BT connect or disconnect, hardware
+    /// sample-rate switch, media-services rebuild). Without observing it the engine
+    /// frequently stops and stays SILENT until relaunch. The notification can arrive
+    /// on any thread, so hop to the MainActor and route through the de-bounced
+    /// `recoverEngine`. Registered once (prepareGraph is idempotent).
+    private func registerConfigurationChangeWatchdog() {
+        guard configChangeObserver == nil else { return }
+        configChangeObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: masterEngine,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Only act if the OS actually stopped us; a healthy engine that
+                // simply re-mapped its output needs no restart.
+                guard !self.masterEngine.isRunning, self.isRunning || self.degraded else {
+                    // Engine still running OR we were intentionally stopped — clear
+                    // any stale recovery counter and do nothing.
+                    if self.masterEngine.isRunning { self.recoveryAttempts = 0 }
+                    return
+                }
+                self.recoverEngine(reason: "engine configuration changed")
+            }
+        }
+    }
+
+    /// De-bounced, capped automatic restart used by route-loss and configuration
+    /// changes. Control plane only — never touches the render block. On success the
+    /// attempt counter resets and `degraded` clears; after `maxRecoveryAttempts`
+    /// consecutive failures it surfaces `degraded` so the UI can offer a manual retry.
+    private func recoverEngine(reason: String) {
+        guard !isRecovering else { return }
+        guard recoveryAttempts < Self.maxRecoveryAttempts else {
+            degraded = true
+            lastAudioError = "Audio stopped (\(reason)) and auto-recovery gave up."
+            log.audio("Self-heal: giving up after \(recoveryAttempts) attempts (\(reason))", level: .error)
+            return
+        }
+        isRecovering = true
+        recoveryAttempts += 1
+        let attempt = recoveryAttempts
+        log.audio("Self-heal: recovery attempt \(attempt) (\(reason))")
+        // Small settle delay lets the OS finish the route/format transition before
+        // we restart, avoiding a restart onto a half-built graph. MainActor Task so
+        // the restart stays on the control plane (never the render thread).
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self else { return }
+            self.isRecovering = false
+            self.start()
+            if self.masterEngine.isRunning {
+                self.recoveryAttempts = 0
+                self.degraded = false
+                self.lastAudioError = nil
+                log.audio("Self-heal: engine recovered (\(reason))")
+            } else {
+                // start() failed (it sets degraded/lastAudioError); try again until cap.
+                self.recoverEngine(reason: reason)
+            }
+        }
     }
 
     private func setupMasterEngine() {
@@ -265,6 +350,10 @@ public final class AudioEngine {
                     log.audio("Master AVAudioEngine started after session reconfiguration")
                 } catch {
                     log.audio("CRITICAL: Master engine start failed after retry: \(error)", level: .error)
+                    // Surface to the UI rather than silently showing "stopped".
+                    degraded = true
+                    lastAudioError = "Audio engine could not start: \(error.localizedDescription)"
+                    isRunning = false
                     return
                 }
             }
@@ -275,6 +364,10 @@ public final class AudioEngine {
         multiTrackRecorder.prepareForRecording(engine: masterEngine)
         autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }
         isRunning = true
+        // A clean start clears any prior degraded state and the recovery counter.
+        degraded = false
+        lastAudioError = nil
+        recoveryAttempts = 0
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }
 
@@ -327,6 +420,7 @@ public final class AudioEngine {
 
     deinit {
         meterPollTimer?.invalidate()
+        if let configChangeObserver { NotificationCenter.default.removeObserver(configChangeObserver) }
         _rawMeterL.deinitialize(count: 1)
         _rawMeterL.deallocate()
         _rawMeterR.deinitialize(count: 1)
