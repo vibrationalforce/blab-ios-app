@@ -102,6 +102,13 @@ struct EchoelStudioView: View {
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
+    /// The instrument's current tonic frequency (Hz) at the chosen Kammerton — fed to
+    /// the immersive visual, which transposes it up into visible light. Tonic taken in
+    /// the octave around C4 so the colour tracks the key + concert pitch.
+    private var currentToneHz: Double {
+        session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0) / 12.0)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             BioStripView()
@@ -146,7 +153,7 @@ struct EchoelStudioView: View {
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             ZStack(alignment: .topTrailing) {
-                MetalBioView(reduceMotion: reduceMotion).ignoresSafeArea()
+                MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz).ignoresSafeArea()
                 Button { showVisual = false } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2).foregroundStyle(.white.opacity(0.6)).padding()
@@ -320,28 +327,25 @@ struct EchoelStudioView: View {
     // MARK: Panel 2 — Sound & texture (preset · scrubbable values · randomize)
 
     private var soundPanel: some View {
-        panel("Sound & texture", "Shape the timbre — exact to 0.01", isExpanded: $showSound) {
+        panel("Sound & texture", "Shape the timbre — exact to 0.0001", isExpanded: $showSound) {
             presetRow
             randomizeButton
 
-            // Every parameter is a scrubbable numeric value (drag = fast/coarse or
-            // slow/fine to 0.01; tap = type exact). Pickers for character. No sliders.
+            // Every parameter is a scrubbable numeric value, one per row with its unit
+            // shown after it (drag = fast/coarse or slow/fine to 0.0001; tap = type
+            // exact). Pickers for character. No sliders.
             groupHeader("Tone")
-            LazyVGrid(columns: knobCols, spacing: 16) {
-                knob("Brightness", $currentPatch.brightness, 0...1)
-                knob("Harmonics", $currentPatch.harmonicity, 0...1)
-                knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
-                knob("Noise", $currentPatch.noiseLevel, 0...1)
-            }
+            knob("Brightness", $currentPatch.brightness, 0...1)
+            knob("Harmonics", $currentPatch.harmonicity, 0...1)
+            knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
+            knob("Noise", $currentPatch.noiseLevel, 0...1)
 
             groupHeader("Filter")
-            LazyVGrid(columns: knobCols, spacing: 16) {
-                knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
-                knob("Resonance", $currentPatch.filterResonance, 0...1)
-                knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1)
-                knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
-                knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
-            }
+            knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
+            knob("Resonance", $currentPatch.filterResonance, 0...1)
+            knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1)
+            knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
+            knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
 
             groupHeader("Envelope")
             param("Attack", $currentPatch.attack, 0...5, unit: "s")
@@ -350,12 +354,10 @@ struct EchoelStudioView: View {
             param("Release", $currentPatch.release, 0...10, unit: "s")
 
             groupHeader("Space & vibrato")
-            LazyVGrid(columns: knobCols, spacing: 16) {
-                knob("Reverb mix", $currentPatch.reverbMix, 0...1)
-                knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
-                knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
-                knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
-            }
+            knob("Reverb mix", $currentPatch.reverbMix, 0...1)
+            knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
+            knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
+            knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
 
             // The "Vibration" dimension: a dedicated sub-octave bass you can push to
             // FEEL the body's bass (sub / headphones / haptics). Silent at 0.
@@ -368,11 +370,6 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    /// Two-column grid for knob rows.
-    private var knobCols: [GridItem] {
-        [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
     }
 
     /// A precise parameter row bound to a live patch field: a scrubbable numeric

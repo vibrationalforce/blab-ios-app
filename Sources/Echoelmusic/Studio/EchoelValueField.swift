@@ -24,13 +24,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     @Binding var value: V
     let range: ClosedRange<V>
     var unit: String = ""
-    /// Decimal places shown and the fine-scrub grid (default 2 → exact to 0.01).
-    var decimals: Int = 2
+    /// Decimal places shown and the fine-scrub grid (default 4 → exact to 0.0001).
+    /// A finer grid also means smoother parameter sweeps while scrubbing.
+    var decimals: Int = 4
     var onChange: () -> Void = {}
     var onCommit: () -> Void = {}
 
-    // The value box and label grow with Dynamic Type / app zoom.
-    @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 92
+    // The value box and label grow with Dynamic Type / app zoom. Wide enough for a
+    // 4-decimal value with a large integer part (e.g. "18000.0000").
+    @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 116
 
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -49,9 +51,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 .lineLimit(1).minimumScaleFactor(0.7)
             Spacer(minLength: 8)
             valueBox
-            if !unit.isEmpty {
-                Text(unit).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            }
+            // The value TYPE, always shown after the number (Hz, s, BPM, …). Physical
+            // units read clearly; dimensionless 0–1 values carry their meaning in the
+            // label. Fixed width so values line up in a column.
+            Text(unitLabel)
+                .font(EchoelTheme.font(12, .medium))
+                .foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1)
+                .frame(width: 34, alignment: .leading)
+                .accessibilityHidden(true)
         }
         .contentShape(Rectangle())
         .onAppear { syncText() }
@@ -168,6 +176,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         default:    return "\(n) \(unit)"
         }
     }
+
+    /// The unit suffix shown after the value (Hz, s, BPM, …). Empty for
+    /// dimensionless values, whose meaning is carried by the label.
+    private var unitLabel: String { unit }
 
     private var numberString: String { String(format: "%.\(decimals)f", Double(value)) }
 

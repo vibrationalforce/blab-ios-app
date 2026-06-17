@@ -26,13 +26,16 @@ import MetalKit
 import simd
 
 /// Bio uniforms handed to the fragment shader. Layout must match `Uniforms` in the
-/// MSL source below (5 contiguous floats).
+/// MSL source below (6 contiguous floats).
 private struct BioUniforms {
     var time: Float = 0
     var hr: Float = 60
     var coherence: Float = 0.5
     var breath: Float = 0.5
     var aspect: Float = 1
+    /// The currently sounding musical fundamental (Hz). The shader transposes it up
+    /// by whole octaves into visible light and renders its physically TRUE colour.
+    var toneHz: Float = 261.63
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -41,6 +44,9 @@ struct MetalBioView: UIViewRepresentable {
 
     @Environment(EngineBus.self) private var bus
     var reduceMotion: Bool = false
+    /// The instrument's current fundamental (Hz) — its colour is the physical
+    /// octave-transposition of this pitch into visible light.
+    var toneHz: Double = 261.63
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -69,6 +75,7 @@ struct MetalBioView: UIViewRepresentable {
             hr: bio?.heartRateBPM ?? 60,
             coherence: bio?.coherence ?? 0.5,
             breath: bio?.breathPhase ?? 0.5,
+            toneHz: toneHz,
             reduceMotion: reduceMotion
         )
     }
@@ -99,10 +106,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         pipeline = try? device.makeRenderPipelineState(descriptor: desc)
     }
 
-    func update(hr: Float, coherence: Float, breath: Float, reduceMotion: Bool) {
+    func update(hr: Float, coherence: Float, breath: Float, toneHz: Double, reduceMotion: Bool) {
         uniforms.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         uniforms.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         uniforms.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
+        let t = Float(toneHz)
+        uniforms.toneHz = min(max(t.isFinite ? t : 261.63, 20), 20000)
         self.reduceMotion = reduceMotion
     }
 
@@ -148,7 +157,33 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     using namespace metal;
 
     struct VOut { float4 pos [[position]]; float2 uv; };
-    struct Uniforms { float time; float hr; float coherence; float breath; float aspect; };
+    struct Uniforms { float time; float hr; float coherence; float breath; float aspect; float toneHz; };
+
+    // Map a light wavelength (nm) to linear-ish RGB (Bruton's classic approximation),
+    // with an intensity roll-off near the limits of human vision.
+    float3 wavelengthToRGB(float wl) {
+        float3 c = float3(0.0);
+        if      (wl < 440.0) { c = float3(-(wl - 440.0) / 60.0, 0.0, 1.0); }
+        else if (wl < 490.0) { c = float3(0.0, (wl - 440.0) / 50.0, 1.0); }
+        else if (wl < 510.0) { c = float3(0.0, 1.0, -(wl - 510.0) / 20.0); }
+        else if (wl < 580.0) { c = float3((wl - 510.0) / 70.0, 1.0, 0.0); }
+        else if (wl < 645.0) { c = float3(1.0, -(wl - 645.0) / 65.0, 0.0); }
+        else                 { c = float3(1.0, 0.0, 0.0); }
+        float f = 1.0;
+        if      (wl < 420.0) f = 0.3 + 0.7 * (wl - 380.0) / 40.0;
+        else if (wl > 700.0) f = 0.3 + 0.7 * (780.0 - wl) / 80.0;
+        return clamp(c, 0.0, 1.0) * clamp(f, 0.0, 1.0);
+    }
+
+    // Physically transpose an audible tone up by WHOLE octaves into visible light,
+    // then return its true colour. c = 2.998e17 nm/s, so wavelength = c / f_light.
+    float3 toneColour(float toneHz) {
+        float f = max(toneHz, 1.0);
+        float n = round(log2(5.4e14 / f));         // octaves up to ~555 nm (green centre)
+        float fLight = f * exp2(n);                 // now in the ~400–790 THz visible band
+        float wl = 2.998e17 / fLight;              // nanometres
+        return wavelengthToRGB(clamp(wl, 380.0, 780.0));
+    }
 
     // Full-screen triangle generated from the vertex id — no vertex buffer needed.
     vertex VOut echoel_bio_vertex(uint vid [[vertex_id]]) {
@@ -173,9 +208,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float spread = 0.85 + u.breath * 0.35;
         float field = rings * smoothstep(0.62 * spread, 0.0, d);
 
-        // Coherence → hue (red → cyan), via a compact HSV-ish ramp.
-        float hue = u.coherence * 0.45;
-        float3 col = clamp(abs(fract(hue + float3(0.0, 0.6667, 0.3333)) * 6.0 - 3.0) - 1.0, 0.0, 1.0);
+        // Colour = the heard tone transposed into light (physically correct), so the
+        // pitch you hear is the colour you see. Coherence lifts the saturation/glow.
+        float3 col = toneColour(u.toneHz);
+        col = mix(col, col * 1.15 + 0.05, u.coherence);
         return float4(col * field, 1.0);
     }
     """
