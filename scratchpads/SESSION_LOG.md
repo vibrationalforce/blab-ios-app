@@ -6,6 +6,24 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-17 — SHIPPED build 1871: numbers-only scrubbable controls + pinch-to-zoom
+
+### Trigger: owner — "Ich möchte keine slider und Knöpfe mehr sondern nur noch die Zahlen Werte ... schnell hoher Weitsprung und langsam auf die zweite kommastelle genau ... wichtig dass man reinzoomen kann, weil nicht alle so gute Augen haben."
+
+### Shipped (deploy run #1871; dryrun #1870 Compile green on main app target):
+- **NEW `Studio/EchoelValueField.swift`** — the one control: a numeric value, no slider/knob. Velocity-sensitive scrub (fast drag = coarse `span/260`/pt, slow = fine 0.01/pt via smoothstep(80,1300, speed)); fractional accumulator snaps slow drags onto the 0.01 grid. Tap = type (decimal pad, comma/dot). VoiceOver adjustable. `@ScaledMetric(relativeTo:.body)` width so it grows with zoom.
+- **Converted** EchoelStudioView (tone/filter/envelope/space/sub/tempo/Kammerton/mood — `param`/`knob`/`moodKnob` helpers now build EchoelValueField), PatchEditorView (`slider` helper body swapped, signature kept), PianoRollView velocity. **Removed** dead `RotaryKnob`/`ParamControl`/`DecimalField` (~270 lines).
+- **Deferred:** EchoelFXView's `slider` has a display/format transform (shows mapped %/Hz) — needs a display-transform param on EchoelValueField; next cycle.
+- **ZOOM:** `EchoelTheme.font` now `.custom(face,size:,relativeTo:.body)` → whole UI scales with system text size. Plus `StudioZoom` ViewModifier: pinch (MagnifyGesture) on the studio sets a persisted `@AppStorage("ui.zoomStep")` mapped to a DynamicTypeSize ladder (large…accessibility5); `step<0` = follow system until the user explicitly zooms (first pinch seeds from current system size).
+
+### Verification: concurrency reasoning clean; deploy-dryrun #1870 "Compile (iOS device SDK)" = success (the gate). No audio-thread involvement (pure UI).
+
+### Website: brainstorming build 1871; version.json 10.18.0; sw.js v10.18.0.
+
+### Next: EchoelFXView display-mapped values → EchoelValueField; then Live Clip cycle.
+
+---
+
 ## 2026-06-17 — SHIPPED build 1867: sub-bass/LFE + Metal bio-visual + first-launch sound fix
 
 ### Branch: `claude/piano-roll-clip-view-wozlie`
