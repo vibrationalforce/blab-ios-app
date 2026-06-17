@@ -2521,3 +2521,31 @@ dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTH
   (2) resonance breath pacer (~6/min, safe ramps, contraindications); (3) safety gaps
   (FlashGuard over Art-Net, entrainment inline seizure/driving warning, loud-onset fade,
   relabel displayed 'coherence' as creative self-regulation indicator until metric is live everywhere).
+
+### 2026-06-17 (cont.) — Bio-coherence batch + safety SHIPPED to TestFlight (deploy 59c10ef)
+- Founder Q resolved end-to-end: the systole/diastole→HRV-coherence chain is now REAL, measured,
+  visible, and safe — and honestly graded (oxytocin/'stronger than a hug' stays OUT of copy).
+- 8 cycles, all dry-run GREEN (#1892-1898), batched into ONE TestFlight upload:
+  1892 HRVCoherence (Lomb-Scargle + Welch + blend fader, calibration-sine tested)
+  1893 real coherence on BLE/Polar trusted-RR path (1-min window, fader property)
+  1894 honest coherence on every source (camera real, HealthKit honest 0, EngineBus doc)
+  1895 BreathPacer (resonance ~6/min, bounded, no holds, contraindications, eased)
+  1896 BreathGuideView UI + honest BioStrip coherence ("—" not "0.000")
+  1897 BioMetricInfo salvaged (the "app as a school" tap-to-explain layer)
+  1898 Art-Net dimmer slew-limit (physical-light strobe guarantee via FlashGuard)
+- Safety CLOSED, surface-by-surface verified: Art-Net slew (new), Metal ≤2.5Hz+ReduceMotion
+  (verified), Canvas FlashGuard (verified), loud-onset (0.5s attack, already), pacer (built safe),
+  entrainment (dormant, can't fire), coherence display (honest). No more safety code = no slop.
+- Homepage v10.21.0 LIVE: honest "Coherence — the science, measured not mystified" section +
+  fixed the stale inline cache-guardian version (was 10.14.0 → reload loop) synced to 10.21.0.
+- Vision-gate logged: video/Video-AI/broadcast/collab (WWDC2026/382 = Apple Intelligence, not
+  video) — video stays ROADMAP, broadcast oscillation resolved, realtime-worldwide = North Star.
+  Music-science decision: theory as encoded rules + linked OER (not bundled, CC BY-SA) + on-device
+  AI explainer; physics (octave→colour) yes, Akasha/planetary-tones/healing NO.
+- REDISCOVERED (already in code, stable): EchoelAI = OnDeviceModelGate + BioMusicDirector
+  (privacy-correct on-device LLM = chatbot foundation); SkillLevel beginner/producer/pro
+  (progressive-disclosure = the "role flexibility + simplicity" foundation, pull through next).
+- NEXT (founder-chosen): SkillLevel pulled through the whole EchoelStudioView (keep skill tiers);
+  candidates after: BioMetricInfo tap-wiring into BioStrip, Echoel-AI chatbot, "Learn"/OER layer.
+- NOTE: only THIS session's transcript exists on disk; no pre-restart Claude history to mine —
+  durable record = git(incl deleted)+changelog(to v5.0.0)+memory/+decisions.csv+inspiration.csv.
