@@ -92,3 +92,30 @@ feature, it's PIPELINE. When unsure: WATCH with a review date beats premature ad
 
 _Update this ledger + `inspiration.csv` whenever new inspo arrives. Run the gate
 before adopting anything. PRODUCT adoptions also get a `decisions.csv` row._
+
+## 2026-06-17 — Video / Video-AI / broadcast / collab gate (founder ask + WWDC2026/382)
+
+Founder: re-introduce the full "biofeedback meets composition/production/video cut/
+visual light/performance/live broadcast/collab + realtime worldwide" vision; asks about
+video capture, automatic white balance, "Video AI"; shared WWDC2026/382. Gate result —
+resolve the standing Live-Broadcast oscillation (gap #1) and do NOT re-open breadth.
+
+- **WWDC2026/382 is NOT a video session** — it's "Inside Apple Intelligence and Xcode"
+  (Foundation Models, Core AI, MLX, App Intents, Xcode 27). Relevant to the AI half only.
+- **Foundation Models / Core AI (on-device) → WATCH.** AI is an *enabler*, not one of the
+  five dimensions. On-device+private fits the brand. Adopt into product ONLY after a real
+  on-device latency/availability probe (same gate as CoreML/RAVE). No AGI/super-AI copy.
+- **MLX → REJECT (in-app).** Mac/distributed; at most asset-gen pipeline.
+- **Video capture + auto white balance → ROADMAP-WATCH.** Feasible (rPPG CameraCapture
+  already coexists with audio via `automaticallyConfiguresApplicationAudioSession=false`),
+  but it's the exact pillar that slopped. Adopt only AFTER bio-core depth and only as a
+  *bio-reactive* camera (coherence-driven grade/visual), never a generic recorder clone.
+- **Live broadcast (RTMP/SRT) → WATCH.** Stop oscillating: stays ROADMAP, HaishinKit is the
+  sole sanctioned dep, build only after core + open-standard out-pillars are complete.
+- **Realtime worldwide collab → NORTH STAR.** Physics-bounded; honest-feasible is async/loop
+  or OSC/MIDI-over-LAN, not "realtime worldwide". Never product copy.
+
+Highest-value move: NOT a new pillar. Finish bio-core *depth* — wire the just-landed
+HRVCoherence + BreathPacer into the one EchoelStudioView and the existing live dimensions
+(Sound/Light/Space/Vibration already consume the bus). Breadth comes one bio-reactive
+pillar at a time, on the stable bus, after the core loop is visible on device.
