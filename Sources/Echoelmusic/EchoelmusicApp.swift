@@ -19,6 +19,7 @@ struct EchoelmusicApp: App {
     @State private var bioVoice: BioReactiveSynthVoice
     /// Polyphonic note instrument driven directly by the piano roll.
     @State private var polyVoice: PolySynthVoice
+    @State private var subBass: SubBassVoice
     @State private var bioEvents: BioEventPublisher
     @State private var bioFeedback: BioFeedbackPublisher
     #if canImport(AVFoundation)
@@ -83,6 +84,7 @@ struct EchoelmusicApp: App {
         // 8 voices: a 4-note chord + bass + lead leaves headroom so the composer's
         // richer harmony no longer steals voices mid-chord (a perceived stutter).
         _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 8))
+        _subBass = State(wrappedValue: SubBassVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
         #if canImport(CoreMIDI)
@@ -120,6 +122,7 @@ struct EchoelmusicApp: App {
             .environment(bus)
             .environment(bioVoice)
             .environment(polyVoice)
+            .environment(subBass)
             .environment(bioEvents)
             #if canImport(CoreBluetooth)
             .environment(polarH10)
@@ -168,6 +171,7 @@ struct EchoelmusicApp: App {
                 beatPlayer.attach(to: audioEngine)
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
+                subBass.attach(to: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 audioEngine.start()
@@ -176,7 +180,7 @@ struct EchoelmusicApp: App {
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
 
                 // Bio essentials. The body's REAL signal drives everything — camera

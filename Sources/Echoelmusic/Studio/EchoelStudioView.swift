@@ -18,6 +18,7 @@ struct EchoelStudioView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(PolySynthVoice.self) private var synth
+    @Environment(SubBassVoice.self) private var subBass
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
@@ -248,7 +249,7 @@ struct EchoelStudioView: View {
         // Standard 440.00; the saved preference persists. (Slider + chips removed
         // to save space.)
         return DecimalField(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
-                            onCommit: { synth.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
+                            onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
     }
 
     private var tempoRow: some View {
@@ -331,6 +332,17 @@ struct EchoelStudioView: View {
                 knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
                 knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
             }
+
+            // The "Vibration" dimension: a dedicated sub-octave bass you can push to
+            // FEEL the body's bass (sub / headphones / haptics). Silent at 0.
+            groupHeader("Sub / Bass (felt)")
+            RotaryKnob(label: "Sub level", value: Binding(
+                get: { subBass.subGain },
+                set: { subBass.subGain = min(max($0, 0), 1) }
+            ), range: Float(0)...Float(1))
+            Text("Reinforces the bass an octave below — feel it on a sub, in headphones, or as haptics.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -884,6 +896,7 @@ struct EchoelStudioView: View {
         let composition = BioComposer.compose(input)
         // Honor the user's Kammerton (concert pitch) + live timbre on the next notes.
         synth.setTuning(a4Hz: session.a4Hz)
+        subBass.setTuning(a4Hz: session.a4Hz)
         synth.apply(currentPatch)
         // Locked tempo wins for tight loops; otherwise the body sets the pace.
         let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
@@ -978,6 +991,7 @@ struct EchoelStudioView: View {
         session.adopt(key: p.key)
         session.a4Hz = p.a4Hz
         synth.setTuning(a4Hz: p.a4Hz)
+        subBass.setTuning(a4Hz: p.a4Hz)
         synth.apply(p.patch)
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: p.style)
         pianoRoll.load(p.notes)

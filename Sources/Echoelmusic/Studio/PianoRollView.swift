@@ -27,6 +27,9 @@ public final class PianoRollModel {
     public private(set) var notes: [Note] = []
 
     @ObservationIgnored private weak var voice: PolySynthVoice?
+    /// Optional sub-bass voice — the lowest notes of each take also drive this an
+    /// octave down so the bass can be FELT (sub/headphones/haptics). nil = no sub.
+    @ObservationIgnored private weak var subVoice: SubBassVoice?
     /// Notes currently sounding → so we can fire their note-off at end step.
     @ObservationIgnored private var active: [UUID: Note] = [:]
     /// Staged next pattern, swapped in seamlessly at the loop boundary (step 0)
@@ -92,8 +95,9 @@ public final class PianoRollModel {
 
     // MARK: - Transport (shared clock)
 
-    public func start(pattern: PatternEngine, voice: PolySynthVoice) {
+    public func start(pattern: PatternEngine, voice: PolySynthVoice, subVoice: SubBassVoice? = nil) {
         self.voice = voice
+        self.subVoice = subVoice
         pattern.onTick = { [weak self] step in self?.trigger(step) }
         // Any stop (from any view) flushes held notes — no caller can forget.
         pattern.onStop = { [weak self] in self?.allNotesOff() }
@@ -109,6 +113,7 @@ public final class PianoRollModel {
         for note in active.values { voice?.noteOff(pitch: note.pitch) }
         active.removeAll()
         voice?.allNotesOff()
+        subVoice?.allNotesOff()
     }
 
     /// Each tick: release notes ending now, then start notes beginning now.
@@ -132,14 +137,20 @@ public final class PianoRollModel {
         // voice of that pitch, so when two notes share a pitch (voice-leading can
         // produce this) we must only release a pitch once no surviving note still
         // holds it — otherwise a short note would cut off a sustained same-pitch one.
+        // Bass register = within a major third of the take's lowest note. Those
+        // notes also drive the sub-bass voice an octave down (the "felt" dimension),
+        // adapting per take regardless of the genre's octave.
+        let bassCeiling = (notes.map { $0.pitch }.min() ?? 0) + 4
         let ending = active.filter { $0.value.endStep % Self.stepCount == step }
         for id in ending.keys { active[id] = nil }
         for note in ending.values where !active.values.contains(where: { $0.pitch == note.pitch }) {
             voice?.noteOff(pitch: note.pitch)
+            if note.pitch <= bassCeiling { subVoice?.noteOff(pitch: note.pitch - 12) }
         }
         for note in notes where note.startStep == step {
             voice?.noteOn(pitch: note.pitch, velocity: note.velocity)
             active[note.id] = note
+            if note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
         }
     }
 
