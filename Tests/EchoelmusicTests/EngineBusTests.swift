@@ -152,6 +152,29 @@ final class EngineBusTests: XCTestCase {
         XCTAssertEqual(f.hrvRMSSDms, 42.7, accuracy: 1e-4)
     }
 
+    // MARK: - Freshness window (Bio-Acceptance v1)
+
+    func testFreshBio_nilWhenNoFrame() {
+        XCTAssertNil(EngineBus().freshBio())
+    }
+
+    func testFreshBio_returnsRecentFrame() async {
+        let bus = EngineBus()
+        bus.publish(bio: Self.makeBioFrame(timestamp: CFAbsoluteTimeGetCurrent()))
+        await Task.yield()
+        XCTAssertNotNil(bus.freshBio(maxAge: 5), "a frame stamped now must be fresh")
+    }
+
+    func testFreshBio_expiresStaleFrame() async {
+        let bus = EngineBus()
+        // A frame stamped well in the past (e.g. a dropped strap's last reading).
+        bus.publish(bio: Self.makeBioFrame(timestamp: CFAbsoluteTimeGetCurrent() - 100))
+        await Task.yield()
+        XCTAssertNil(bus.freshBio(maxAge: 5), "a stale frame must not read as live")
+        // latestBio still holds it (raw snapshot), only the freshness view expires.
+        XCTAssertNotNil(bus.latestBio)
+    }
+
     // MARK: - Helpers
 
     private static func makeBioFrame(timestamp: TimeInterval = 0) -> BioSampleFrame {

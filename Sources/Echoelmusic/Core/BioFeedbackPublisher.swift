@@ -35,7 +35,9 @@ public final class BioFeedbackPublisher {
     public func start(publishingFrom bus: EngineBus) {
         self.bus = bus
         loop.start(interval: .seconds(1)) { [weak self] in
-            guard let self, let frame = self.bus?.latestBio else { return }
+            // Only forward FRESH vitals to the widget/AUv3 — don't keep pushing a
+            // frozen frame to the lock-screen glance after the source has dropped.
+            guard let self, let frame = self.bus?.freshBio() else { return }
             self.manager.publish(BioVitals(
                 heartRateBPM: frame.heartRateBPM,
                 hrvNormalized: frame.hrvNormalized,

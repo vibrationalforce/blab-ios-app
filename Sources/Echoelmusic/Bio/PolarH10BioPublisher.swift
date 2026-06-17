@@ -95,6 +95,9 @@ public final class PolarH10BioPublisher: NSObject {
         if let central, central.state == .poweredOn {
             central.stopScan()
         }
+        peripheral = nil          // else a restart's rediscovery is blocked by the guard
+        latestHR = 0
+        rrIntervals.removeAll()
         state = .idle
         isPublishing = false
         connectedDeviceName = ""
@@ -232,7 +235,10 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
 
     public nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor [weak self] in
-            self?.state = .connected
+            // Ignore a connect that lands after stop() — otherwise state desyncs to
+            // .connected after the user already stopped.
+            guard let self, self.isPublishing else { return }
+            self.state = .connected
             peripheral.discoverServices([Self.hrServiceUUID])
         }
     }
@@ -243,9 +249,22 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
         error: Error?
     ) {
         Task { @MainActor [weak self] in
-            self?.state = .disconnected
-            self?.connectedDeviceName = ""
-            self?.publishTask?.cancel()
+            guard let self else { return }
+            // Flush the publish loop + stale beat history so a frozen HR is never
+            // re-emitted and a reconnect doesn't compute RMSSD across the gap.
+            self.publishTask?.cancel()
+            self.latestHR = 0
+            self.rrIntervals.removeAll()
+            // Auto-reconnect while the user still wants a signal: connect(_:) waits
+            // indefinitely and fires didConnect when the strap powers on / returns
+            // to range. Keep `peripheral` set so the discover guard blocks duplicates.
+            if self.isPublishing, let p = self.peripheral {
+                self.state = .connecting
+                self.central?.connect(p)
+            } else {
+                self.state = .disconnected
+                self.connectedDeviceName = ""
+            }
         }
     }
 }
@@ -267,7 +286,7 @@ extension PolarH10BioPublisher: CBPeripheralDelegate {
         error: Error?
     ) {
         Task { @MainActor [weak self] in
-            guard let self,
+            guard let self, self.isPublishing,
                   let char = service.characteristics?.first(where: { $0.uuid == Self.hrMeasurementUUID })
             else { return }
             peripheral.setNotifyValue(true, for: char)

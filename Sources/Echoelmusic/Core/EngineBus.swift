@@ -213,6 +213,22 @@ public final class EngineBus {
 
     public private(set) var latestBio: BioSampleFrame?
 
+    /// The freshest bio frame, but only if it arrived within `maxAge` seconds of
+    /// now — else `nil`. `BioSampleFrame.timestamp` is on the
+    /// `timeIntervalSinceReferenceDate` clock (CFAbsoluteTimeGetCurrent), shared by
+    /// every publisher (BLE, rPPG, HealthKit, Demo), so the comparison is valid
+    /// across sources. This is the single guard that stops a frozen reading — a
+    /// dropped BLE strap, a lifted finger, a stalled Watch — from being treated as a
+    /// live body signal (music kept playing on a dead HR, the strip stayed green).
+    /// Default 5 s tolerates HealthKit's ~4–5 s Watch latency; pass a tighter window
+    /// (e.g. 3 s) for low-latency BLE/rPPG UI.
+    public func freshBio(maxAge: TimeInterval = 5) -> BioSampleFrame? {
+        guard let f = latestBio,
+              CFAbsoluteTimeGetCurrent() - f.timestamp <= maxAge,
+              CFAbsoluteTimeGetCurrent() - f.timestamp >= -1 else { return nil }
+        return f
+    }
+
     public private(set) var latestControllerEvent: ControllerEvent?
 
     public private(set) var latestBioEvent: BioEvent?

@@ -828,7 +828,11 @@ struct EchoelStudioView: View {
     }
 
     private func generate() {
-        let frame = bus.latestBio
+        // Only compose from a FRESH frame: if the live source has dropped (strap out
+        // of range, finger lifted, Watch stalled) the last reading expires and the
+        // composer falls back to neutral physiological defaults instead of evolving
+        // forever off a frozen heart rate.
+        let frame = bus.freshBio()
         // Finite-guard every bio value before it reaches the composer: a NaN/Inf
         // (possible from rPPG/BLE) would otherwise survive clamp01 and trap an
         // Int(nan) conversion deep in BioComposer. fin(_:_:) substitutes a neutral

@@ -78,14 +78,16 @@ struct BioStripView: View {
             .accessibilityLabel("Bio source: \(sourceText)")
     }
 
-    /// A real sensor (camera PPG / HealthKit / BLE / Watch / Oura) is publishing.
+    /// A real sensor (camera PPG / HealthKit / BLE / Watch / Oura) is publishing
+    /// FRESH frames. A frozen reading (dropped strap, lifted finger, stalled Watch)
+    /// expires after the freshness window, so the strip stops claiming a live body.
     private var hasLiveSignal: Bool {
-        if let bio = bus.latestBio, bio.source != .fallback { return true }
+        if let bio = bus.freshBio(), bio.source != .fallback { return true }
         return false
     }
 
     private var sourceText: String {
-        if let bio = bus.latestBio, bio.source != .fallback {
+        if let bio = bus.freshBio(), bio.source != .fallback {
             return sourceLabel(bio.source)
         }
         return "No signal"
