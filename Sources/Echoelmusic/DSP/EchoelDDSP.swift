@@ -576,7 +576,15 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// phases (golden-ratio spread, so partials do NOT all start in-phase and
     /// produce an onset impulse) and clears filter + noise state left over from
     /// the previous note. Audio-thread safe: index writes only, no allocation.
-    public func prepareForNote() {
+    ///
+    /// `hardReset` must be `false` when the voice is **still ringing** (a stolen
+    /// note or a released-but-not-yet-silent tail being reused). Zeroing the
+    /// amplitude smoothers / filter / phases mid-tail produces an audible click
+    /// — instead we keep phases and let `noteOn`'s envelope ramp-from-current and
+    /// the per-sample smoothers glide the old sound into the new one. Only a
+    /// truly idle voice gets the clean staggered restart.
+    public func prepareForNote(hardReset: Bool = true) {
+        guard hardReset else { return }
         let golden: Float = 0.61803398875
         let twoPi: Float = 2.0 * .pi
         for i in 0..<phases.count {
@@ -1183,7 +1191,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             voicePans[voiceIdx] = 0
         }
 
-        voices[voiceIdx].prepareForNote()   // staggered phases + clean filter/noise state → no onset click
+        // Idle voice → clean staggered restart; reused/stolen ringing voice →
+        // glide (no hard reset) so we never click mid-tail.
+        voices[voiceIdx].prepareForNote(hardReset: !voices[voiceIdx].isActive)
         voices[voiceIdx].amplitude = velocity
         voices[voiceIdx].noteOn(frequency: freq)
         // Only let bio overwrite the note's velocity/timbre when bio modulation is
