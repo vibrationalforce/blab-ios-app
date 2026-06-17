@@ -2495,3 +2495,29 @@ dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTH
 - Website bumped to v10.20.0 / build 1889.
 - NEXT: one-view UI cycle (Clips grid + Arrangement timeline, EchoelTheme/EchoelValueField)
   hosting LaunchQuantizer/ArrangementPlayer on onTick; then SequencerAccessibility; sampler UI.
+
+### 2026-06-17 (cont.) — Bio-coherence: audit + REAL spectral metric (cycle, dry-run #1892)
+- Founder Q: is the systole/diastole/sinus-node->HRV-coherence chain physically correct
+  ('wie Raumfahrt'), with optimal frequency-band windowing, max evidence, guaranteed no harm,
+  oxytocin/'stronger than a hug' defensible?
+- bio-safety-reviewer audit (HONEST): RMSSD/SDNN math correct; honest providesTrustedHRV gate good;
+  BUT 'coherence' was inverse-variance (anti-HRV) in EchoelBioEngine, =signalQuality in CameraRPPG;
+  NO FFT/LF-HF anywhere; HealthKit RMSSD fabricated from averaged HR; NO breath pacer/WellView exists.
+  Sound mapping direction correct (calmer->warmer/consonant/cleaner). Safety scaffolding strong
+  (FlashGuard 3Hz, brick-wall limiter, launch silence, gated onboarding) but gaps: FlashGuard not
+  proven over Metal+Art-Net lights, entrainment lacks inline warning, no loud-onset fade.
+  Oxytocin/hug framing = unsupported comparative health claim = FORBIDDEN (absent from repo; keep out).
+- Founder decision: build BOTH spectral methods, blend by FADER; 'app as a school' = always show info.
+- BUILT (cycle): Bio/HRVCoherence.swift (pure) + HRVCoherenceTests.swift.
+  Lomb-Scargle (irregular RR tachogram, no interp; astrophysics method; rigorous default) + Welch
+  (4Hz resample, mean-removed, Hann, fs*Sum(w^2) PSD norm); blend fader 0=Welch..1=Lomb.
+  Task-Force bands; coherence = +/-0.015Hz peak-band / total (HeartMath/Lehrer); LF/HF exposed.
+  CoherenceReading.headline + .lesson (factual, non-medical) for the school layer.
+  Calibration-sine tests: 0.1Hz->LF peak, 0.25Hz->HF peak (exact grid pts), blend endpoints/midpoint.
+- DSP-reviewed: Lomb tau/power formula, Welch interp bounds/Hann/PSD, band edges, compile-soundness
+  all verified; 11 tests will pass. Does NOT touch Rausch triad.
+- Committed 4b0f0f6, pushed feature + deploy-dryrun -> testflight #1892 compiling.
+- NEXT cycles: (1) wire HRVCoherence into Polar/BLE trusted-RR path (publish real coherence);
+  (2) resonance breath pacer (~6/min, safe ramps, contraindications); (3) safety gaps
+  (FlashGuard over Art-Net, entrainment inline seizure/driving warning, loud-onset fade,
+  relabel displayed 'coherence' as creative self-regulation indicator until metric is live everywhere).
