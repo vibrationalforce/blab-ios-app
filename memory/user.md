@@ -7,7 +7,7 @@
 - **App:** Echoelmusic (Apple ID: 6757957358, Bundle: com.echoelmusic.*)
 
 ## Project Vision
-Bio-reactive creative performance platform. Physiological data drives real-time music, visuals, and lighting. 12 interconnected EchoelTools with 120Hz bio loop.
+The multidimensional production instrument: ONE unified instrument (single EchoelStudioView — one button, then sliders) where the body plays sound, space (ADM-OSC), light (Art-Net/sACN) and vibration (sub-bass/haptics) in real time, over open standards. (The old "12 EchoelTools" is an internal taxonomy over real modules, not separate tools — see FEATURE_MATRIX.)
 
 ## Technical Background
 - Swift/SwiftUI primary (85% of codebase)
