@@ -16,18 +16,22 @@ struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
 
+    /// Tapped metric → its plain-language explanation sheet ("app as a school").
+    @State private var explain: BioMetric?
+
     var body: some View {
         HStack(spacing: 10) {
-            metric(label: "HR",  value: hrString,        unit: "bpm")
+            metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
             divider
-            metric(label: "HRV", value: hrvString,       unit: hrvUnit)
+            metricButton(label: "HRV", value: hrvString,       unit: hrvUnit, metric: .hrv)
             divider
-            metric(label: "Br",  value: breathString,    unit: "/min")
+            metricButton(label: "Br",  value: breathString,    unit: "/min",  metric: .breath)
             divider
-            metric(label: "Coh", value: coherenceString, unit: nil)
+            metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
             Spacer(minLength: 4)
             sourceTag
         }
+        .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
         .lineLimit(1)
         .font(.system(size: 12, weight: .medium, design: .monospaced))
         .padding(.horizontal, 12)
@@ -42,6 +46,18 @@ struct BioStripView: View {
     }
 
     // MARK: - Metric cells
+
+    /// A metric cell you can tap to learn what it means. Plain button style keeps
+    /// the compact strip look; carries an explicit VoiceOver label + hint.
+    private func metricButton(label: String, value: String, unit: String?, metric m: BioMetric) -> some View {
+        Button { explain = m } label: {
+            metric(label: label, value: value, unit: unit)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(m.title), \(value)\(unit.map { " " + $0 } ?? "")")
+        .accessibilityHint("Double tap to learn what this means")
+    }
 
     private func metric(label: String, value: String, unit: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
