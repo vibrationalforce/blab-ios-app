@@ -1,8 +1,8 @@
 // ClipStore.swift
 // Echoel — the session grid of launchable clips. Holds a fixed set of slots,
 // persisted as JSON in the App Group. Capture/launch wiring (snapshotting the
-// live PatternEngine + PianoRollModel) lives in ClipView, which has those
-// engines in the environment; the store is pure data.
+// live PatternEngine + PianoRollModel) lives in the one-view Clips panel, which
+// has those engines in the environment; the store is pure data.
 
 import Foundation
 import Observation
