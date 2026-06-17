@@ -30,6 +30,9 @@ struct EchoelmusicApp: App {
     @State private var midiInput: MIDIInput
     @State private var midiPub: MIDIBusPublisher
     #endif
+    /// Live MIDI / MPE OUT — publishes the body-generated take as a virtual
+    /// "Echoelmusic" source for a DAW to record. Off by default; armed from Sync.
+    @State private var midiOut = MIDIOutput()
     #if canImport(Network)
     @State private var osc: OSCSender
     /// Opt-in ADM-OSC bridge (immersive object positioning). Off by default;
@@ -142,6 +145,7 @@ struct EchoelmusicApp: App {
             .environment(modulationEngine)
             .environment(patchStore)
             .environment(pianoRoll)
+            .environment(midiOut)
             #if canImport(CoreHaptics)
             .environment(haptics)
             #endif
@@ -180,7 +184,7 @@ struct EchoelmusicApp: App {
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
 
                 // Bio essentials. The body's REAL signal drives everything — camera

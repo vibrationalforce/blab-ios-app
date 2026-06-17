@@ -17,6 +17,7 @@ struct EchoelStudioView: View {
     @Environment(AudioEngine.self) private var audioEngine
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
+    @Environment(MIDIOutput.self) private var midiOut
     @Environment(PolySynthVoice.self) private var synth
     @Environment(SubBassVoice.self) private var subBass
     @Environment(SessionContext.self) private var session
@@ -190,12 +191,19 @@ struct EchoelStudioView: View {
     /// Opens the deeper editors — a real piano roll, the synth patch editor, and the
     /// sample browser — without cluttering the one-button flow.
     private var toolsRow: some View {
-        Menu {
+        @Bindable var midiOut = midiOut
+        return Menu {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
             Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
             #if canImport(MetalKit) && canImport(UIKit)
             Button { showVisual = true } label: { Label("Immersive Visual", systemImage: "sparkles") }
             #endif
+            Divider()
+            // Live MIDI / MPE OUT — the body's take streams to a virtual
+            // "Echoelmusic" source any DAW can record. Off by default.
+            Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
+            Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
+                .disabled(!midiOut.enabled)
         } label: {
             Label("Tools", systemImage: "slider.horizontal.3")
                 .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)

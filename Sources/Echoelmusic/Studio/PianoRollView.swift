@@ -30,6 +30,10 @@ public final class PianoRollModel {
     /// Optional sub-bass voice — the lowest notes of each take also drive this an
     /// octave down so the bass can be FELT (sub/headphones/haptics). nil = no sub.
     @ObservationIgnored private weak var subVoice: SubBassVoice?
+    /// Optional live MIDI/MPE OUT — mirrors every note the synth plays to the
+    /// virtual "Echoelmusic" source so a DAW records the body's take in real time.
+    /// nil or disabled = silent (no-op); never affects the audio path.
+    @ObservationIgnored private weak var midiOut: MIDIOutput?
     /// Notes currently sounding → so we can fire their note-off at end step.
     @ObservationIgnored private var active: [UUID: Note] = [:]
     /// Staged next pattern, swapped in seamlessly at the loop boundary (step 0)
@@ -95,9 +99,11 @@ public final class PianoRollModel {
 
     // MARK: - Transport (shared clock)
 
-    public func start(pattern: PatternEngine, voice: PolySynthVoice, subVoice: SubBassVoice? = nil) {
+    public func start(pattern: PatternEngine, voice: PolySynthVoice,
+                      subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil) {
         self.voice = voice
         self.subVoice = subVoice
+        self.midiOut = midiOut
         pattern.onTick = { [weak self] step in self?.trigger(step) }
         // Any stop (from any view) flushes held notes — no caller can forget.
         pattern.onStop = { [weak self] in self?.allNotesOff() }
@@ -114,6 +120,7 @@ public final class PianoRollModel {
         active.removeAll()
         voice?.allNotesOff()
         subVoice?.allNotesOff()
+        midiOut?.allNotesOff()
     }
 
     /// Each tick: release notes ending now, then start notes beginning now.
@@ -145,10 +152,12 @@ public final class PianoRollModel {
         for id in ending.keys { active[id] = nil }
         for note in ending.values where !active.values.contains(where: { $0.pitch == note.pitch }) {
             voice?.noteOff(pitch: note.pitch)
+            midiOut?.noteOff(pitch: note.pitch)
             if note.pitch <= bassCeiling { subVoice?.noteOff(pitch: note.pitch - 12) }
         }
         for note in notes where note.startStep == step {
             voice?.noteOn(pitch: note.pitch, velocity: note.velocity)
+            midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity)
             active[note.id] = note
             if note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
         }
