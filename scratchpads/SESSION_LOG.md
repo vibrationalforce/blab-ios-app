@@ -2471,3 +2471,15 @@ dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTH
   all hardware supported (open-standards checklist). Style count already 23; MoodProfile already 5
   (liveliness/darkness/tension/romance/weird). EchoelAI = BioMusicDirector + OnDeviceModelGate.
 - **Next cycles (order):** more Mood/Character params -> AI director -> Clip/Song arrangement model -> video.
+
+### 2026-06-17 (cont.) — Character + Sampler-engine cycles
+- **1885 Character params GREEN** (Virtuosity/Syncopation/Humanize in MoodProfile → lead gen + UI).
+- **1886 Sampler engine** (SamplerVoice start/end/reverse/pitch, lock-free, interpolated; configurePlayback API;
+  audio-thread-reviewed; tests added) — pushed to dry-run, compiling.
+- VERIFIED-GREEN this session (batched for ONE Apple upload when quota window reopens):
+  click-fix (1882), MIDI/MPE OUT (1884), Character (1885), Sampler engine (1886, confirming).
+- NEXT cycle: wire sampler params into the pad-edit UI. NOTE: there is NO `PadSoundEditor` symbol —
+  pad shape is edited via a view calling BeatPlayer.setShape/configure (find it in BeatTab/Studio).
+  BeatPlayer has PadShape/PadMode/PadConfig persisted in UserDefaults; add start/end/reverse/pitch to
+  PadShape (Codable, defaulted for migration) + setShape plumbing → SamplerVoice.configurePlayback.
+- Then: folder+waveform browser → One-Shot Sample Player → EchoelBreak slicer.
