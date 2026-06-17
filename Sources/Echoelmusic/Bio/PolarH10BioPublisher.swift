@@ -48,6 +48,12 @@ public final class PolarH10BioPublisher: NSObject {
     /// for an honest UI label. Empty until a device connects.
     public private(set) var connectedDeviceName: String = ""
 
+    /// Cross-fade for the published HRV coherence: 0 = Welch (resampled,
+    /// Hann-windowed periodogram), 1 = Lomb–Scargle (direct estimate from the
+    /// irregular RR series). Lomb–Scargle is the rigorous default for short
+    /// beat-to-beat windows; a UI fader can bind this end-to-end.
+    public var coherenceBlend: Double = 1.0
+
     @ObservationIgnored
     private weak var bus: EngineBus?
 
@@ -66,8 +72,11 @@ public final class PolarH10BioPublisher: NSObject {
     @ObservationIgnored
     private var rrIntervals: [Double] = []
 
+    // ~1 min of beats: long enough for a 0.04 Hz (LF) spectral resolution so
+    // HRVCoherence can resolve the ~0.1 Hz resonance peak, the HRV-standard
+    // short-term window. Also bounds the RMSSD/SDNN window.
     @ObservationIgnored
-    private let maxRRIntervals = 30
+    private let maxRRIntervals = 64
 
     @ObservationIgnored
     private static let hrServiceUUID = CBUUID(string: "180D")
@@ -113,13 +122,17 @@ public final class PolarH10BioPublisher: NSObject {
                 if self.latestHR > 0 {
                     let rrMs = self.rrIntervals.map { $0 * 1000.0 }   // s → ms
                     let rmssd = HRVMetrics.rmssd(rrMs: rrMs)
+                    // Real frequency-domain coherence from the trusted beat-to-beat
+                    // RR series (BLE is the only source for which this is valid).
+                    // 0 until enough beats / power for a spectrum.
+                    let reading = HRVCoherence.compute(rrMs: rrMs, blend: self.coherenceBlend)
                     bus.publish(bio: BioSampleFrame(
                         timestamp: CFAbsoluteTimeGetCurrent(),
                         heartRateBPM: Float(self.latestHR),
                         hrvNormalized: Float(Swift.min(Swift.max(rmssd / 100.0, 0), 1)),
                         breathRate: 0,
                         breathPhase: 0,
-                        coherence: 0,
+                        coherence: reading.valid ? reading.coherence : 0,
                         motionEnergy: 0,
                         source: .ble,
                         hrvRMSSDms: Float(rmssd),
