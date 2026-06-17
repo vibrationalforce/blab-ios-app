@@ -1,0 +1,14 @@
+date,source,type,idea,pillar,verdict,rationale,review_date
+2026-06-17,claude-video (bradautomates),tool,FFmpeg frames + Whisper so the agent can analyze video,Pipeline,ADOPT-PIPELINE,Analyze device screen-recordings for QA + promo reels; not embeddable in iOS,2026-09-17
+2026-06-17,Skill architecture (SKILL.md),pattern,Load-on-demand skill folders,Data,ALREADY-ADOPTED,We run .claude/skills/ with protected-triad contracts + reviewer fleet,2026-09-17
+2026-06-17,Markdown long-term memory (Obsidian-vault),pattern,Plain-markdown graph as durable memory,Data,ALREADY-ADOPTED,We run memory/ + scratchpads/ + decisions.csv,2026-09-17
+2026-06-17,graphify/open-design/impeccable/design-extract,tool,Knowledge graph + design tooling,Pipeline,WATCH,Only touch docs/ marketing site; optional polish not product,2026-09-17
+2026-06-17,Local voice (Whisper STT + Kokoro TTS),tool,100% local voice command center,Data,WATCH,iOS equivalent is Siri/App Intents already wired (EchoelIntentInbox),2026-09-17
+2026-06-17,caveman/codeburn/career-ops/browser-harness,tool,Terse output / cost tracker / job search / self-healing Playwright,Pipeline,REJECT,Terse risks rigor / pure ops / irrelevant / redundant with Playwright MCP,2026-12-17
+2026-06-17,VAULT HUD + reskin-per-client,pattern,Personal AI dashboard + agency reskin,n/a,REJECT,Agency play; Echoel is one consumer app not a per-client fork,2026-12-17
+2026-06-17,BAM (Imaginando),benchmark,DAW + reactive visuals integrated app,Sound+Visual,BENCHMARK,Confirms integrated DAW+visuals direction; drove Metal bio-visual; not a dependency,2026-09-17
+2026-06-17,Deep research: multidimensional positioning,research,Own 'multidimensional' as a category,Positioning,ADOPT-PRODUCT,MPE freed the term; Dolby/Apple own spatial; logged in decisions.csv; drove 5-dimension site + sub-bass,2026-09-17
+2026-06,Claude for Creative Work MCP connectors,ecosystem,Ableton/Resolume/Blender/Adobe agent connectors,Pipeline,PIPELINE-COMPLEMENTARY,Agent controllers; Echoel is the live bio source feeding them; not embeddable in iOS,2026-09-17
+2026-06,Remotion,tool,Programmatic video render on CI,Pipeline,ADOPT-PIPELINE,Promo reels on CI; remotion-best-practices skill installed,2026-09-17
+2026-06,Playwright/gstack/agent-browser,tool,E2E + visual QA of docs/site,Pipeline,ADOPT-PIPELINE,Docs/site end-to-end + visual QA,2026-09-17
+2026-06,Superpowers,tool,Dev shell helpers,Pipeline,WATCH,Minor dev convenience,2026-09-17
