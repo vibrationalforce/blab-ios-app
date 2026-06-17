@@ -845,7 +845,7 @@ struct EchoelStudioView: View {
             }
             guard running, !Task.isCancelled else { return }
             EchoelCrashLog.breadcrumb("rPPG locked → snap re-seed bpm=\(Int(cameraRPPG.detectedBPM))")
-            generate()   // re-seed harmony from the actual heartbeat
+            scheduleGenerate()   // re-seed (debounced so it coalesces with the evolve tick)
         }
         #endif
     }
@@ -897,7 +897,7 @@ struct EchoelStudioView: View {
                 let barSpan = min(8.0, max(4.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
                 try? await Task.sleep(for: .seconds(barSpan))
                 guard running, !Task.isCancelled else { break }
-                generate()
+                scheduleGenerate()   // debounced — coalesces with any lock-snap/onChange recompose
             }
         }
     }
