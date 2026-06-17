@@ -53,14 +53,21 @@ public struct MoodProfile: Sendable, Equatable {
     public var tension: Float      // 0 friendly/consonant … 1 scary/dissonant
     public var romance: Float      // 0 plain triads … 1 lush 7th-chord warmth
     public var weird: Float        // 0 predictable steps … 1 odd leaps + chromaticism
+    public var virtuosity: Float   // 0 plain line … 1 grace runs + octave climaxes
+    public var syncopation: Float  // 0 on-the-beat … 1 pushed off-beat placement
+    public var humanize: Float     // 0 machine-exact velocity … 1 loose/expressive
 
     public init(liveliness: Float = 0.5, darkness: Float = 0.5, tension: Float = 0.0,
-                romance: Float = 0.3, weird: Float = 0.0) {
+                romance: Float = 0.3, weird: Float = 0.0,
+                virtuosity: Float = 0.3, syncopation: Float = 0.15, humanize: Float = 0.25) {
         self.liveliness = liveliness
         self.darkness = darkness
         self.tension = tension
         self.romance = romance
         self.weird = weird
+        self.virtuosity = virtuosity
+        self.syncopation = syncopation
+        self.humanize = humanize
     }
 }
 
@@ -559,7 +566,14 @@ public enum BioComposer {
                 + Int(rng.next() % UInt64(max(1, tones.count)))
             for i in 0..<count {
                 let start = i * stepCount / count
-                let startStep = min(stepCount - 1, max(start, lastStart + 1))
+                var startStep = min(stepCount - 1, max(start, lastStart + 1))
+                // Syncopation: push an on-beat note onto the following off-beat (still
+                // inside the bar, after the previous note) for groove that isn't locked
+                // to the downbeat. Scaled so 0 = dead-on-grid.
+                if startStep % 2 == 0, startStep + 1 < stepCount,
+                   rng.unit() < clamp01(mood.syncopation) * 0.6 {
+                    startStep += 1
+                }
                 lastStart = startStep
                 let section = min(prog.count - 1, startStep / sectionLen)
                 let chordRoot = prog[section]
@@ -580,18 +594,22 @@ public enum BioComposer {
                 let baseLen = calm > 0.5 ? 3 : 2
                 let length = max(1, min(busy > 0.6 ? max(1, baseLen - 1) : baseLen,
                                         stepCount - startStep))
-                let velocity = hVel(0.34 + 0.26 * breathDepth + 0.20 * arc + metric, &rng)
-                // At the phrase peak a lively line occasionally leaps up an octave for
-                // a register climax (same pitch class → still in key), resolving down
+                // Humanize: extra expressive velocity spread on top of the baseline
+                // jitter — 0 = tight/uniform, 1 = loose/played-by-hand.
+                let velBase = 0.34 + 0.26 * breathDepth + 0.20 * arc + metric
+                let velocity = clamp01(hVel(velBase, &rng) + (rng.unit() - 0.5) * clamp01(mood.humanize) * 0.3)
+                // At the phrase peak a virtuosic/lively line leaps up an octave for a
+                // register climax (same pitch class → still in key), resolving down
                 // after — a tension/release arc instead of a flat tessitura.
-                let lift = (arc > 0.7 && rng.unit() < 0.4 * clamp01(mood.liveliness)) ? 12 : 0
-                // Ornamentation: a busy/lively line splits a note into a quick grace
+                let liftP = (0.25 + 0.45 * clamp01(mood.virtuosity)) * (0.4 + 0.6 * clamp01(mood.liveliness))
+                let lift = (arc > 0.7 && rng.unit() < liftP) ? 12 : 0
+                // Ornamentation: a virtuosic line splits a note into a quick grace
                 // run — a neighbouring chord tone leading into the main note — for
                 // virtuosic motion. Only when there's room (len ≥ 2) so nothing
                 // overruns the bar. Both pitches are chord tones → always consonant.
                 var mainStart = startStep
                 var mainLen = length
-                let ornamentP = clamp01(mood.liveliness) * 0.5 + busy * 0.2
+                let ornamentP = clamp01(mood.liveliness) * 0.35 + busy * 0.15 + clamp01(mood.virtuosity) * 0.5
                 if length >= 2, startStep + 1 < stepCount, rng.unit() < ornamentP {
                     let gIdx = toneIdx + (rng.unit() < 0.5 ? 1 : -1)
                     let gTone = tones[((gIdx % tones.count) + tones.count) % tones.count]
