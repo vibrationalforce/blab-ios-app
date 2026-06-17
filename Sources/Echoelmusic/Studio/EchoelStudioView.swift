@@ -83,6 +83,10 @@ struct EchoelStudioView: View {
     @State private var startTask: Task<Void, Never>?
     /// Non-blocking watcher that re-seeds once the rPPG pulse first locks (see snapToLockWhenReady).
     @State private var lockSnapTask: Task<Void, Never>?
+    /// When the last take was composed — the floor for automatic re-seeds.
+    @State private var lastSeedAt: Date = .distantPast
+    /// Minimum seconds between AUTOMATIC re-seeds (evolve/lock). User edits bypass it.
+    private let minAutoSeedGap: TimeInterval = 3.5
 
     // Sheets / dialogs
     @State private var showOpen = false
@@ -574,10 +578,21 @@ struct EchoelStudioView: View {
 
     /// Coalesce rapid recompose requests into a single `generate()` after a short
     /// quiet window, so a cascade of control changes reloads the pattern just once.
-    private func scheduleGenerate() {
+    ///
+    /// `auto` re-seeds (the evolve loop and the lock-snap) are additionally
+    /// RATE-LIMITED to one per `minAutoSeedGap`: the music can never re-seed faster
+    /// than a musical phrase, no matter how many automatic triggers fire. A user
+    /// edit (`auto: false`) stays instant (140 ms). This makes a re-seed "flood"
+    /// structurally impossible rather than merely unlikely.
+    private func scheduleGenerate(auto: Bool = false) {
         regenTask?.cancel()
+        var delay = 0.140
+        if auto {
+            let since = Date().timeIntervalSince(lastSeedAt)
+            if since < minAutoSeedGap { delay = max(delay, minAutoSeedGap - since) }
+        }
         regenTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(140))
+            try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, running else { return }
             generate()
         }
@@ -856,7 +871,7 @@ struct EchoelStudioView: View {
             }
             guard running, !Task.isCancelled else { return }
             EchoelCrashLog.breadcrumb("rPPG locked → snap re-seed bpm=\(Int(cameraRPPG.detectedBPM))")
-            scheduleGenerate()   // re-seed (debounced so it coalesces with the evolve tick)
+            scheduleGenerate(auto: true)   // re-seed (rate-limited; coalesces with the evolve tick)
         }
         #endif
     }
@@ -908,7 +923,7 @@ struct EchoelStudioView: View {
                 let barSpan = min(8.0, max(4.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
                 try? await Task.sleep(for: .seconds(barSpan))
                 guard running, !Task.isCancelled else { break }
-                scheduleGenerate()   // debounced — coalesces with any lock-snap/onChange recompose
+                scheduleGenerate(auto: true)   // rate-limited — coalesces with any lock-snap/onChange recompose
             }
         }
     }
@@ -941,6 +956,7 @@ struct EchoelStudioView: View {
     }
 
     private func generate() {
+        lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
         // Only compose from a FRESH frame: if the live source has dropped (strap out
         // of range, finger lifted, Watch stalled) the last reading expires and the
         // composer falls back to neutral physiological defaults instead of evolving
