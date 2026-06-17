@@ -119,3 +119,21 @@ Highest-value move: NOT a new pillar. Finish bio-core *depth* — wire the just-
 HRVCoherence + BreathPacer into the one EchoelStudioView and the existing live dimensions
 (Sound/Light/Space/Vibration already consume the bus). Breadth comes one bio-reactive
 pillar at a time, on the stable bus, after the core loop is visible on device.
+
+## 2026-06-17 — Homepage optimization + Blackbox/community-platform direction
+
+Founder: "optimize the entire homepage" (ref unitycodetechno.com — blocked 403, could
+not view) + note that Blackbox App's job-placement direction is close to a planned idea,
+but for Echoel it's about development/science/art/health/learning, not jobs.
+
+- **Community/collaboration/learning platform → NORTH STAR (parked).** A people+projects+
+  learning matching layer is a major pivot beyond "the instrument." Gate: build the
+  instrument's traction + audience first; do not graft a platform onto the product site
+  now. Most that belongs on the homepage later is a small "collaborate / learn" teaser —
+  never as a shipping claim. Logged; awaiting founder go/no-go before any scope.
+- **Homepage optimization = in-scope polish**, but the live site is already well-built
+  (SEO/OG/structured-data/own CI/Atkinson/16 subpages, honest "concept in development").
+  Not broken → "optimize" needs a direction. Reference unreachable (403); need screenshots
+  or a specific focus (design refresh / copy / performance / IA / science angle).
+- Opportunity now: the homepage's science angle can be strengthened HONESTLY — real
+  frequency-domain HRV coherence (HRVCoherence) + a resonance breath guide just landed.
