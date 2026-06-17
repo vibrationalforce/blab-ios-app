@@ -99,6 +99,7 @@ struct EchoelStudioView: View {
     @State private var showPianoRoll = false
     @State private var showPatchEditor = false
     @State private var showVisual = false
+    @State private var showBreath = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Persisted in-app zoom level (index into StudioZoom.ladder). `-1` = follow the
@@ -181,6 +182,7 @@ struct EchoelStudioView: View {
             }
         }
         #endif
+        .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -199,6 +201,7 @@ struct EchoelStudioView: View {
         return Menu {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
             Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
+            Button { showBreath = true } label: { Label("Breathing Guide", systemImage: "wind") }
             #if canImport(MetalKit) && canImport(UIKit)
             Button { showVisual = true } label: { Label("Immersive Visual", systemImage: "sparkles") }
             #endif

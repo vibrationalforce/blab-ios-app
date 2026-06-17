@@ -62,6 +62,9 @@ struct EchoelmusicApp: App {
     /// Clearly-labeled "Demo" bio source so every user hears the instrument
     /// without paired hardware (owned here now the single window is the root).
     @State private var demoSource = BioSimulator()
+
+    // Resonance-breathing guide (the active half of the coherence loop).
+    @State private var breathPacer = BreathPacer()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -153,6 +156,7 @@ struct EchoelmusicApp: App {
             .environment(loopExporter)
             .environment(projectStore)
             .environment(demoSource)
+            .environment(breathPacer)
             .task {
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must

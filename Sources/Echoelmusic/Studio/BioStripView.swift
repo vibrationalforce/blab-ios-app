@@ -118,9 +118,13 @@ struct BioStripView: View {
         return String(format: "%.1f", v)
     }
 
+    /// Coherence is real only on sources with beat-to-beat RR (BLE / camera);
+    /// HealthKit publishes 0 ("not available"). Show a measured value only for a
+    /// FRESH frame whose coherence is > 0 — otherwise "—" (never "0.000", which
+    /// would read as "incoherent" rather than "not yet / not available").
     private var coherenceString: String {
-        guard let v = bus.latestBio?.coherence else { return "—" }
-        return String(format: "%.3f", v)
+        guard let bio = bus.freshBio(), bio.coherence > 0 else { return "—" }
+        return String(format: "%.2f", bio.coherence)
     }
 
     private func sourceLabel(_ source: BioSource) -> String {
