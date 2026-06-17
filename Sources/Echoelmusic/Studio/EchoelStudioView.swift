@@ -96,6 +96,10 @@ struct EchoelStudioView: View {
     @State private var showVisual = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Persisted in-app zoom level (index into StudioZoom.ladder). `-1` = follow the
+    /// system text size; once the user pinch-zooms it becomes an explicit level.
+    @AppStorage("ui.zoomStep") private var zoomStep: Int = -1
+
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
     var body: some View {
@@ -114,6 +118,9 @@ struct EchoelStudioView: View {
                 .padding(16)
             }
         }
+        // Pinch anywhere to zoom the whole interface (persists); honours the system
+        // text size until the user explicitly zooms. For users who need larger text.
+        .modifier(StudioZoom(step: $zoomStep))
         .background(EchoelTheme.bg)
         .onAppear {
             currentPatch = style.synthPatch   // controls reflect a real sound from the start
@@ -266,8 +273,8 @@ struct EchoelStudioView: View {
         // Concert pitch A4 — number-pad entry only, exact to 0.01 Hz (380–500).
         // Standard 440.00; the saved preference persists. (Slider + chips removed
         // to save space.)
-        return DecimalField(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
-                            onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
+        return EchoelValueField(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
+                                onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
     }
 
     private var tempoRow: some View {
@@ -280,9 +287,9 @@ struct EchoelStudioView: View {
             .accessibilityHint("When on, the loop runs at exactly the set tempo instead of following your heart")
 
             if lockBPM {
-                ParamControl(label: "Tempo", value: $lockedBPM, range: 40...240, unit: "BPM",
-                             onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM) } },
-                             onCommit: { recomposeIfRunning() })
+                EchoelValueField(label: "Tempo", value: $lockedBPM, range: 40...240, unit: "BPM",
+                                 onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM) } },
+                                 onCommit: { recomposeIfRunning() })
             }
         }
     }
@@ -304,22 +311,21 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// A mood knob recomposes on release (it changes the notes, not the timbre).
+    /// A mood value recomposes on release (it changes the notes, not the timbre).
     private func moodKnob(_ label: String, _ value: Binding<Float>) -> some View {
-        RotaryKnob(label: label, value: value, range: 0...1,
-                   onCommit: { recomposeIfRunning() })
+        EchoelValueField(label: label, value: value, range: 0...1,
+                         onCommit: { recomposeIfRunning() })
     }
 
-    // MARK: Panel 2 — Sound & texture (XY pad · preset · sliders · randomize)
+    // MARK: Panel 2 — Sound & texture (preset · scrubbable values · randomize)
 
     private var soundPanel: some View {
         panel("Sound & texture", "Shape the timbre — exact to 0.01", isExpanded: $showSound) {
             presetRow
             randomizeButton
 
-            // A deliberate MIX: knobs for the perceptual timbre dials, sliders for
-            // the time-based envelope, pickers for character — every one also exact
-            // by typed entry.
+            // Every parameter is a scrubbable numeric value (drag = fast/coarse or
+            // slow/fine to 0.01; tap = type exact). Pickers for character. No sliders.
             groupHeader("Tone")
             LazyVGrid(columns: knobCols, spacing: 16) {
                 knob("Brightness", $currentPatch.brightness, 0...1)
@@ -354,7 +360,7 @@ struct EchoelStudioView: View {
             // The "Vibration" dimension: a dedicated sub-octave bass you can push to
             // FEEL the body's bass (sub / headphones / haptics). Silent at 0.
             groupHeader("Sub / Bass (felt)")
-            RotaryKnob(label: "Sub level", value: Binding(
+            EchoelValueField(label: "Sub level", value: Binding(
                 get: { subBass.subGain },
                 set: { subBass.subGain = min(max($0, 0), 1) }
             ), range: Float(0)...Float(1))
@@ -369,19 +375,19 @@ struct EchoelStudioView: View {
         [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
     }
 
-    /// A precise parameter row bound to a live patch field: slider + a 2-decimal
-    /// numeric field. `applySoundLive` runs continuously so edits are heard at once.
+    /// A precise parameter row bound to a live patch field: a scrubbable numeric
+    /// value (no slider). `applySoundLive` runs continuously so edits are heard at once.
     private func param(_ label: String, _ value: Binding<Float>,
                        _ range: ClosedRange<Float>, unit: String = "") -> some View {
-        ParamControl(label: label, value: value, range: range, unit: unit,
-                     onChange: { applySoundLive() })
+        EchoelValueField(label: label, value: value, range: range, unit: unit,
+                         onChange: { applySoundLive() })
     }
 
-    /// A rotary knob bound to a live patch field; same live-apply contract as `param`.
+    /// Alias kept for call-site readability; same scrubbable numeric value as `param`.
     private func knob(_ label: String, _ value: Binding<Float>,
                       _ range: ClosedRange<Float>, unit: String = "") -> some View {
-        RotaryKnob(label: label, value: value, range: range, unit: unit,
-                   onChange: { applySoundLive() })
+        EchoelValueField(label: label, value: value, range: range, unit: unit,
+                         onChange: { applySoundLive() })
     }
 
     private func groupHeader(_ t: String) -> some View {
@@ -1046,273 +1052,45 @@ private struct DiagReport: Identifiable {
     let text: String
 }
 
-/// A precise parameter control: a label, a slider for feel, and a numeric field you
-/// can type into — so any value is settable by dragging OR entered exactly to two
-/// decimals. Generic over Float (patch fields) and Double (tempo/tuning). `onChange`
-/// fires continuously (cheap live updates); `onCommit` fires once on release/submit
-/// (use it for heavy work like recomposition).
-private struct ParamControl<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatingPoint {
-    let label: String
-    @Binding var value: V
-    let range: ClosedRange<V>
-    var unit: String = ""
-    var onChange: () -> Void = {}
-    var onCommit: () -> Void = {}
+/// App-wide pinch-to-zoom for legibility. Scales the entire interface by driving
+/// Dynamic Type (so the bundled Atkinson font, laid out `relativeTo: .body`, and the
+/// `@ScaledMetric` widths all grow together). `step < 0` means "follow the system
+/// text size"; the first pinch seeds an explicit level from the current system size,
+/// then it persists. Pinch is a 2-finger gesture, so it never blocks 1-finger scroll.
+private struct StudioZoom: ViewModifier {
+    @Binding var step: Int
+    @Environment(\.dynamicTypeSize) private var systemSize
+    @State private var pinchBase: Int?
 
-    @State private var text = ""
-    @FocusState private var focused: Bool
+    static let ladder: [DynamicTypeSize] = [
+        .large, .xLarge, .xxLarge, .xxxLarge,
+        .accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5
+    ]
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Text(label).font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
-                Spacer(minLength: 0)
-                TextField("", text: $text)
-                    .multilineTextAlignment(.trailing)
-                    .font(EchoelTheme.font(13).monospacedDigit())
-                    .foregroundStyle(EchoelTheme.text)
-                    .textFieldStyle(.plain)
-                    .frame(width: 78)
-                    .focused($focused)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    .submitLabel(.done)
-                    .toolbar {
-                        // The decimal pad has no return key — give it a Done button so
-                        // the value can always be confirmed and the pad dismissed.
-                        // Gate on `focused`: SwiftUI merges every keyboard-toolbar item
-                        // in the view tree into one accessory bar, so without this each
-                        // visible numeric field would stack its own Done (the "5 Done
-                        // buttons" bug). Only the focused field contributes — one Done.
-                        if focused {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer()
-                                Button("Done") { focused = false }
-                            }
-                        }
-                    }
-                    #endif
-                    .onSubmit(commitText)
-                    .onChange(of: focused) { _, f in if !f { commitText() } }
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
-                    .accessibilityLabel("\(label) value")
-                if !unit.isEmpty {
-                    Text(unit).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                        .frame(width: 30, alignment: .leading)
+    private static func systemIndex(_ s: DynamicTypeSize) -> Int {
+        ladder.firstIndex(of: s) ?? 0
+    }
+
+    func body(content: Content) -> some View {
+        Group {
+            if step >= 0 {
+                content.dynamicTypeSize(Self.ladder[Swift.min(Swift.max(step, 0), Self.ladder.count - 1)])
+            } else {
+                content   // follow the system text size until the user zooms
+            }
+        }
+        .gesture(
+            MagnifyGesture(minimumScaleDelta: 0.05)
+                .onChanged { v in
+                    if pinchBase == nil { pinchBase = step >= 0 ? step : Self.systemIndex(systemSize) }
+                    let base = pinchBase ?? 0
+                    // Each ~doubling of the pinch moves a couple of ladder steps.
+                    let delta = Int((log2(Swift.max(v.magnification, 0.2)) * 2.5).rounded())
+                    step = Swift.min(Swift.max(base + delta, 0), Self.ladder.count - 1)
                 }
-            }
-            Slider(value: $value, in: range) { editing in
-                if !editing { syncText(); onCommit() }
-            }
-            .tint(EchoelTheme.accent)
-            .onChange(of: value) { _, _ in
-                if !focused { syncText() }
-                onChange()
-            }
-            .accessibilityLabel(label)
-            // VoiceOver reads the real value + unit (e.g. "Cutoff, 2200.00 hertz"),
-            // not the default range-percentage — and stays adjustable by swipe.
-            .accessibilityValue(accessibleValue)
-        }
-        .onAppear { syncText() }
-    }
-
-    /// Spoken value: the two-decimal number plus a spelled-out unit.
-    private var accessibleValue: String {
-        let n = String(format: "%.2f", Double(value))
-        switch unit {
-        case "Hz":  return "\(n) hertz"
-        case "s":   return "\(n) seconds"
-        case "BPM": return "\(n) beats per minute"
-        case "":    return n
-        default:    return "\(n) \(unit)"
-        }
-    }
-
-    private func syncText() { text = String(format: "%.2f", Double(value)) }
-
-    /// Parse the typed value (accepting comma or dot), clamp to range, write back.
-    private func commitText() {
-        let cleaned = text.replacingOccurrences(of: ",", with: ".")
-        if let d = Double(cleaned) {
-            value = V(min(max(d, Double(range.lowerBound)), Double(range.upperBound)))
-        }
-        syncText()
-        onCommit()
+                .onEnded { _ in pinchBase = nil }
+        )
     }
 }
 
-/// A rotary knob ("Rädchen") with an exact numeric centre you can type into — feel
-/// by dragging vertically, precision by typing to two decimals. Same generic +
-/// onChange/onCommit contract as ParamControl; the dial sweeps 270°. VoiceOver
-/// reads the real value and is adjustable by swipe.
-private struct RotaryKnob<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloatingPoint {
-    let label: String
-    @Binding var value: V
-    let range: ClosedRange<V>
-    var unit: String = ""
-    var onChange: () -> Void = {}
-    var onCommit: () -> Void = {}
-
-    @State private var text = ""
-    @State private var dragStart: V?
-    @FocusState private var focused: Bool
-
-    private var frac: Double {
-        let lo = Double(range.lowerBound), hi = Double(range.upperBound)
-        guard hi > lo else { return 0 }
-        return Swift.min(Swift.max((Double(value) - lo) / (hi - lo), 0), 1)
-    }
-
-    var body: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                Circle().fill(EchoelTheme.fill)
-                Circle().trim(from: 0, to: 0.75)
-                    .stroke(EchoelTheme.border, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                    .rotationEffect(.degrees(135))
-                Circle().trim(from: 0, to: 0.75 * frac)
-                    .stroke(EchoelTheme.accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                    .rotationEffect(.degrees(135))
-                TextField("", text: $text)
-                    .multilineTextAlignment(.center)
-                    .font(EchoelTheme.font(12).monospacedDigit())
-                    .foregroundStyle(EchoelTheme.text)
-                    .textFieldStyle(.plain)
-                    .frame(width: 48)
-                    .focused($focused)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    .toolbar {
-                        // Only the focused field emits a Done — see ParamControl note.
-                        if focused {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer(); Button("Done") { focused = false }
-                            }
-                        }
-                    }
-                    #endif
-                    .onSubmit(commitText)
-                    .onChange(of: focused) { _, f in if !f { commitText() } }
-            }
-            .frame(width: 68, height: 68)
-            .contentShape(Circle())
-            .gesture(
-                DragGesture(minimumDistance: 4)
-                    .onChanged { g in
-                        let start = dragStart ?? value
-                        if dragStart == nil { dragStart = value }
-                        let span = Double(range.upperBound - range.lowerBound)
-                        let nv = Double(start) + (Double(-g.translation.height) / 160.0) * span
-                        value = V(Swift.min(Swift.max(nv, Double(range.lowerBound)), Double(range.upperBound)))
-                        if !focused { syncText() }
-                        onChange()
-                    }
-                    .onEnded { _ in dragStart = nil; onCommit() }
-            )
-            Text(label).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .lineLimit(1).minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity)
-        .onAppear { syncText() }
-        .onChange(of: value) { _, _ in if !focused { syncText() } }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
-        .accessibilityValue(accessibleValue)
-        .accessibilityAdjustableAction { dir in
-            let span = Double(range.upperBound - range.lowerBound)
-            let step = span / 50
-            switch dir {
-            case .increment: value = V(Swift.min(Double(value) + step, Double(range.upperBound)))
-            case .decrement: value = V(Swift.max(Double(value) - step, Double(range.lowerBound)))
-            @unknown default: break
-            }
-            syncText(); onChange(); onCommit()
-        }
-    }
-
-    private var accessibleValue: String {
-        let n = String(format: "%.2f", Double(value))
-        switch unit {
-        case "Hz":  return "\(n) hertz"
-        case "s":   return "\(n) seconds"
-        case "":    return n
-        default:    return "\(n) \(unit)"
-        }
-    }
-
-    private func syncText() { text = String(format: "%.2f", Double(value)) }
-
-    private func commitText() {
-        let cleaned = text.replacingOccurrences(of: ",", with: ".")
-        if let d = Double(cleaned) {
-            value = V(Swift.min(Swift.max(d, Double(range.lowerBound)), Double(range.upperBound)))
-        }
-        syncText()
-        onCommit()
-    }
-}
-
-/// A compact label + 2-decimal numeric entry field — no slider, no drag — for
-/// values that only need exact typed input (e.g. Kammerton). Commits on Return or
-/// focus loss; clamps to range; accepts comma or dot.
-private struct DecimalField<V: BinaryFloatingPoint>: View {
-    let label: String
-    @Binding var value: V
-    let range: ClosedRange<V>
-    var unit: String = ""
-    var onCommit: () -> Void = {}
-
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(label).font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
-            Spacer(minLength: 0)
-            TextField("", text: $text)
-                .multilineTextAlignment(.trailing)
-                .font(EchoelTheme.font(13).monospacedDigit())
-                .foregroundStyle(EchoelTheme.text)
-                .textFieldStyle(.plain)
-                .frame(width: 86)
-                .focused($focused)
-                #if os(iOS)
-                .keyboardType(.decimalPad)
-                .toolbar {
-                    // Only the focused field emits a Done — see ParamControl note.
-                    if focused {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer(); Button("Done") { focused = false }
-                        }
-                    }
-                }
-                #endif
-                .onSubmit(commit)
-                .onChange(of: focused) { _, f in if !f { commit() } }
-                .padding(.horizontal, 8).padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
-                .accessibilityLabel("\(label) value")
-            if !unit.isEmpty {
-                Text(unit).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            }
-        }
-        .onAppear { sync() }
-        .onChange(of: value) { _, _ in if !focused { sync() } }
-    }
-
-    private func sync() { text = String(format: "%.2f", Double(value)) }
-
-    private func commit() {
-        let c = text.replacingOccurrences(of: ",", with: ".")
-        if let d = Double(c) {
-            value = V(Swift.min(Swift.max(d, Double(range.lowerBound)), Double(range.upperBound)))
-        }
-        sync()
-        onCommit()
-    }
-}
 #endif

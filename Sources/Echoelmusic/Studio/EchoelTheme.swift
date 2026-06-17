@@ -47,7 +47,10 @@ enum EchoelTheme {
         case .semibold, .bold, .heavy, .black: face = "AtkinsonHyperlegible-Bold"
         default:                                face = "AtkinsonHyperlegible-Regular"
         }
-        return .custom(face, size: size)
+        // `relativeTo: .body` makes the bundled custom font scale with Dynamic Type
+        // AND with the app's pinch-to-zoom (`.dynamicTypeSize(...)`), so the whole
+        // interface grows for users who need larger text — accessibility-first.
+        return .custom(face, size: size, relativeTo: .body)
     }
 
     // MARK: Size-class-adaptive metrics — so everything is visible on all devices

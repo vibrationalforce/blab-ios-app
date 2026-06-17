@@ -300,11 +300,10 @@ struct PianoRollView: View {
                 }
                 .frame(width: 110)
 
-                Text("Vel").font(.caption2).foregroundStyle(EchoelTheme.dim)
-                Slider(value: Binding(
-                    get: { Double(note.velocity) },
-                    set: { model.setVelocity(id: id, Float($0)) }
-                ), in: 0...1)
+                EchoelValueField(label: "Vel", value: Binding(
+                    get: { note.velocity },
+                    set: { model.setVelocity(id: id, $0) }
+                ), range: Float(0)...Float(1))
 
                 Button {
                     model.remove(id: id); selectedID = nil

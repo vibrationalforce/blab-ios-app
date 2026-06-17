@@ -165,19 +165,11 @@ struct PatchEditorView: View {
         }
     }
 
+    /// Scrubbable numeric value (no slider). Signature preserved so call sites are
+    /// unchanged; `decimals` flows through to the field's fine-scrub grid.
     private func slider(_ label: String, _ value: Binding<Float>, _ range: ClosedRange<Float>,
                         unit: String = "", decimals: Int = 2) -> some View {
-        HStack(spacing: 8) {
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundStyle(EchoelTheme.dim)
-                .frame(width: 96, alignment: .leading)
-            Slider(value: value, in: range).tint(EchoelTheme.accent)
-            Text(String(format: "%.\(decimals)f", value.wrappedValue) + (unit.isEmpty ? "" : " \(unit)"))
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(EchoelTheme.dim)
-                .frame(width: 60, alignment: .trailing)
-        }
+        EchoelValueField(label: label, value: value, range: range, unit: unit, decimals: decimals)
     }
 
     private func picker(_ label: String, selection: Binding<String>, options: [String]) -> some View {
