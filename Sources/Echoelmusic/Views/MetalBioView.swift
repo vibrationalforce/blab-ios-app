@@ -36,6 +36,10 @@ private struct BioUniforms {
     /// The currently sounding musical fundamental (Hz). The shader transposes it up
     /// by whole octaves into visible light and renders its physically TRUE colour.
     var toneHz: Float = 261.63
+    var intensity: Float = 1.0
+    var ringDensity: Float = 40
+    var motion: Float = 1.0
+    var spread: Float = 1.0
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -47,6 +51,11 @@ struct MetalBioView: UIViewRepresentable {
     /// The instrument's current fundamental (Hz) — its colour is the physical
     /// octave-transposition of this pitch into visible light.
     var toneHz: Double = 261.63
+    // User look controls (all clamped in the renderer; motion is flash-capped).
+    var intensity: Float = 1.0
+    var ringDensity: Float = 40
+    var motion: Float = 1.0
+    var spread: Float = 1.0
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -76,6 +85,7 @@ struct MetalBioView: UIViewRepresentable {
             coherence: bio?.coherence ?? 0.5,
             breath: bio?.breathPhase ?? 0.5,
             toneHz: toneHz,
+            intensity: intensity, ringDensity: ringDensity, motion: motion, spread: spread,
             reduceMotion: reduceMotion
         )
     }
@@ -106,12 +116,18 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         pipeline = try? device.makeRenderPipelineState(descriptor: desc)
     }
 
-    func update(hr: Float, coherence: Float, breath: Float, toneHz: Double, reduceMotion: Bool) {
+    func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
+                intensity: Float, ringDensity: Float, motion: Float, spread: Float,
+                reduceMotion: Bool) {
         uniforms.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         uniforms.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         uniforms.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
         let t = Float(toneHz)
         uniforms.toneHz = min(max(t.isFinite ? t : 261.63, 20), 20000)
+        uniforms.intensity = min(max(intensity.isFinite ? intensity : 1, 0), 1.5)
+        uniforms.ringDensity = min(max(ringDensity.isFinite ? ringDensity : 40, 4), 120)
+        uniforms.motion = min(max(motion.isFinite ? motion : 1, 0), 1.5)
+        uniforms.spread = min(max(spread.isFinite ? spread : 1, 0.4), 1.6)
         self.reduceMotion = reduceMotion
     }
 
@@ -157,7 +173,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     using namespace metal;
 
     struct VOut { float4 pos [[position]]; float2 uv; };
-    struct Uniforms { float time; float hr; float coherence; float breath; float aspect; float toneHz; };
+    struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
+                      float toneHz; float intensity; float ringDensity; float motion; float spread; };
 
     // Map a light wavelength (nm) to linear-ish RGB (Bruton's classic approximation),
     // with an intensity roll-off near the limits of human vision.
@@ -201,17 +218,22 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float2 c = float2(0.5 * u.aspect, 0.5);
         float d = distance(uv, c);
 
-        // Heart rate → ring pulse, clamped to <= 2 Hz (WCAG flash safety).
+        // Heart rate → ring pulse. The temporal frequency is pulseHz × motion, hard-
+        // capped at 2.5 Hz so the user's Motion control can NEVER breach the 3 Hz WCAG
+        // flash limit (CLAUDE.md safety rule).
         float pulseHz = clamp(u.hr / 60.0, 0.5, 2.0);
-        float rings = 0.5 + 0.5 * sin(d * 40.0 - u.time * pulseHz * 6.2831853);
-        // Breath → how far the field spreads from the centre.
-        float spread = 0.85 + u.breath * 0.35;
+        float flashHz = min(pulseHz * u.motion, 2.5);
+        float density = clamp(u.ringDensity, 4.0, 120.0);
+        float rings = 0.5 + 0.5 * sin(d * density - u.time * flashHz * 6.2831853);
+        // Breath → how far the field spreads from the centre (× user Spread).
+        float spread = (0.85 + u.breath * 0.35) * clamp(u.spread, 0.4, 1.6);
         float field = rings * smoothstep(0.62 * spread, 0.0, d);
 
         // Colour = the heard tone transposed into light (physically correct), so the
         // pitch you hear is the colour you see. Coherence lifts the saturation/glow.
         float3 col = toneColour(u.toneHz);
         col = mix(col, col * 1.15 + 0.05, u.coherence);
+        col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
         return float4(col * field, 1.0);
     }
     """

@@ -100,13 +100,26 @@ struct EchoelStudioView: View {
     /// system text size; once the user pinch-zooms it becomes an explicit level.
     @AppStorage("ui.zoomStep") private var zoomStep: Int = -1
 
+    // Transpose — shift the whole take in semitones (octave steps stay in-key).
+    @State private var transposeSemitones: Float = 0
+    @State private var showTranspose = false
+
+    // Immersive-visual controls (also persisted feel). All clamped so the WCAG flash
+    // ceiling (≤3 Hz) can never be exceeded — see MetalBioView.
+    @State private var visualIntensity: Float = 1.0
+    @State private var visualDetail: Float = 40       // ring density
+    @State private var visualMotion: Float = 1.0      // animation speed (flash-clamped)
+    @State private var visualSpread: Float = 1.0
+    @State private var showVisualSettings = false
+
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
-    /// The instrument's current tonic frequency (Hz) at the chosen Kammerton — fed to
-    /// the immersive visual, which transposes it up into visible light. Tonic taken in
-    /// the octave around C4 so the colour tracks the key + concert pitch.
+    /// The instrument's current tonic frequency (Hz) at the chosen Kammerton, shifted
+    /// by the global transpose — fed to the immersive visual, which transposes it up
+    /// into visible light, so the colour tracks key + concert pitch + transpose.
     private var currentToneHz: Double {
-        session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0) / 12.0)
+        let semis = Double(Int(transposeSemitones.rounded()))
+        return session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0 + semis) / 12.0)
     }
 
     var body: some View {
@@ -153,7 +166,9 @@ struct EchoelStudioView: View {
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             ZStack(alignment: .topTrailing) {
-                MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz).ignoresSafeArea()
+                MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
+                             intensity: visualIntensity, ringDensity: visualDetail,
+                             motion: visualMotion, spread: visualSpread).ignoresSafeArea()
                 Button { showVisual = false } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title2).foregroundStyle(.white.opacity(0.6)).padding()
@@ -214,9 +229,11 @@ struct EchoelStudioView: View {
     private var soundControls: some View {
         VStack(alignment: .leading, spacing: 12) {
             compositionPanel
+            transposePanel
             moodPanel
             soundPanel
             effectsPanel
+            visualPanel
             if running {
                 Text(aiExplanation.isEmpty
                      ? "The music is arising from your live signal — every control shapes it as it plays."
@@ -298,6 +315,33 @@ struct EchoelStudioView: View {
                                  onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM) } },
                                  onCommit: { recomposeIfRunning() })
             }
+        }
+    }
+
+    // MARK: Panel — Transpose (shift the whole take)
+
+    private var transposePanel: some View {
+        panel("Transpose", "Shift the whole take · ±24 semitones", isExpanded: $showTranspose) {
+            EchoelValueField(label: "Transpose", value: $transposeSemitones,
+                             range: -24...24, unit: "st", decimals: 0,
+                             onCommit: { recomposeIfRunning() })
+            Text("Octave steps (±12 / ±24) stay in key; other amounts shift the whole take to a new key. The sub-bass and the immersive colour follow automatically.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: Panel — Visual (immersive sound→light)
+
+    private var visualPanel: some View {
+        panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+            EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5)
+            EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0)
+            EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5)
+            EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5)
+            Text("The colour is the heard tone transposed into visible light (physically correct). Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -933,14 +977,22 @@ struct EchoelStudioView: View {
         let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
+        // Global transpose: shift every generated pitch by the user's semitones at the
+        // single point where all notes exist as one array (main actor, not the audio
+        // thread). The sub-bass follows automatically — it derives from note.pitch-12
+        // in the trigger — so synth + sub stay locked an octave apart. Clamp to MIDI.
+        let semis = Int(transposeSemitones.rounded())
+        let notes: [Note] = semis == 0 ? composition.notes : composition.notes.map {
+            var n = $0; n.pitch = min(127, max(0, n.pitch + semis)); return n
+        }
         // While the transport is already playing (live evolution), stage the new
         // notes and swap them in at the next loop boundary so a held note is never
         // cut mid-bar (no click). On the first generate (not yet playing) load now
         // so notes are present before playback starts.
         if running, beatPlayer.pattern.isPlaying {
-            pianoRoll.loadAtBoundary(composition.notes)
+            pianoRoll.loadAtBoundary(notes)
         } else {
-            pianoRoll.load(composition.notes)
+            pianoRoll.load(notes)
         }
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
