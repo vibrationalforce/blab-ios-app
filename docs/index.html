@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.14.0',K='echoel-nuke';try{
+    (function(){var V='10.21.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
@@ -746,6 +746,33 @@
                     <p>Stream it. Film it. Light up a room. From living room to festival stage.</p>
                 </div>
             </div>
+        </div>
+
+        <!-- ========== SCIENCE / COHERENCE ========== -->
+        <div id="science" class="section">
+            <div class="section-label reveal">Coherence</div>
+            <h2 class="section-title reveal">The science, measured &mdash; not mystified</h2>
+            <p class="section-sub reveal">Biofeedback as a real signal you can see. Shown, never promised.</p>
+
+            <div class="persona-grid reveal reveal-stagger">
+                <div class="persona-card">
+                    <h3>Measured</h3>
+                    <p>RMSSD, SDNN and pNN50 from your beat-to-beat intervals &mdash; the standard time-domain HRV metrics, computed the same way for every sensor.</p>
+                </div>
+                <div class="persona-card">
+                    <h3>Frequency-domain coherence</h3>
+                    <p>A real spectrum of your heartbeat (Lomb&ndash;Scargle / Welch) read in the standard HRV bands. Coherence is the share of power gathered in the ~0.1&nbsp;Hz resonance peak &mdash; a number, not a vibe.</p>
+                </div>
+                <div class="persona-card">
+                    <h3>Resonance breathing</h3>
+                    <p>An optional guide paces slow breathing near 6&nbsp;breaths/min (~0.1&nbsp;Hz). Slow paced breathing is shown to raise vagally-mediated HRV (Lehrer &amp; Gevirtz). The guide never forces a pace and never asks you to hold your breath.</p>
+                </div>
+                <div class="persona-card">
+                    <h3>Honest limits</h3>
+                    <p>A chest strap (e.g. Polar&nbsp;H10) is ground truth; wrist and camera readings are estimates. This is for self-observation &mdash; not medical diagnosis, and no &ldquo;healing frequencies&rdquo;.</p>
+                </div>
+            </div>
+            <p class="section-sub reveal" style="margin-top:28px;">The body is a measured signal here &mdash; the math runs on device, in private. <a href="health.html" style="color:var(--text); border-bottom:1px solid var(--border);">How we treat health data &rarr;</a></p>
         </div>
 
         <!-- ========== FEATURES (BENTO) ========== -->
