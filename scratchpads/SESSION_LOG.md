@@ -6,6 +6,34 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-16 — SHIPPED build 1857: Bio-Acceptance v1 (freshness window + BLE auto-reconnect)
+
+### Branch: `claude/piano-roll-clip-view-wozlie`
+### Trigger: owner — "Weiter optimieren" → next gated priority: biofeedback must be solid for ALL heart sources (rPPG + Watch + Demo + BLE strap) before arrangement/clips/video.
+
+### Grounded in a read-only audit of all 5 bio sources (PolarH10/universal BLE, CameraRPPG, HealthKit, BioSimulator, shared math). Headline defect: `EngineBus.latestBio` was never timestamp-checked → a frozen frame read as "live" everywhere (music evolved off dead HR, strip stayed green, widget pushed stale vitals).
+
+### Shipped (build 1857, deploy run #1857; dryrun #1856 green)
+- **Freshness window (fixes ALL sources at once)** — new `EngineBus.freshBio(maxAge:5)` returns the latest frame only if within the age window. Wired into `BioStripView.hasLiveSignal/sourceText`, `EchoelStudioView.generate()` (frame = freshBio → neutral fallback when stale), and `BioFeedbackPublisher` (widget/AUv3). Raw `latestBio` retained for display.
+- **BLE auto-reconnect** (`PolarH10BioPublisher.didDisconnectPeripheral`) — was permanent give-up; now `self.central?.connect(p)` retries until the strap returns; clears latestHR/rrIntervals so no stale HR / cross-gap RMSSD.
+- **stop()/restart cleanup** — clears peripheral/latestHR/rrIntervals so rediscovery works; **stop-during-connect guards** on didConnect + didDiscoverCharacteristics (`isPublishing`).
+- 3 new `EngineBusTests` freshness tests.
+
+### Verification
+- `general-purpose` robustness audit (ranked fixes); `concurrency-reviewer` on the BLE changes → **0 issues** (correct actor hopping, no Sendable violation, no retain cycle, no runaway reconnect). The flagged BLE-parser "off-by-one" was a FALSE positive (`idx+1 < endIndex` ≡ `idx+2 <= endIndex`).
+- deploy-dryrun #1856 compiled green before ship.
+
+### Website / memory
+- `brainstorming.html` → build 1857; `version.json` → 10.16.6 + changelog; `sw.js` → v10.16.6.
+
+### Next (remaining Bio-Acceptance, lower value÷risk)
+- Fix #4: distinguish BLE `.unauthorized` from powered-off (deep-link to Settings).
+- Fix #5: surface rPPG/HealthKit start-failure to the studio (no silent "Acquiring…" forever).
+- UI: periodic tick so BioStrip flips to "No signal" without waiting for the next render.
+- Optional: Warmth/Complexity character sliders (mood axes already in composer).
+
+---
+
 ## 2026-06-16 — SHIPPED build 1855: deep composition overhaul + crackle-free realtime
 
 ### Branch: `claude/piano-roll-clip-view-wozlie`
