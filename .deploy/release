@@ -1,3 +1,3 @@
-build: 2026-06-18 #4
+build: 2026-06-18 v10.22.0 (consolidation series open)
 branch: claude/piano-roll-clip-view-wozlie
-includes: per-sample frequency glide on voice reuse (click-free stealing, no pitch jumps)
+includes: audio voice-fix + freq-glide + rPPG fixes; version bump for visibility
