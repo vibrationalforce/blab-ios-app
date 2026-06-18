@@ -1038,7 +1038,13 @@ struct EchoelStudioView: View {
         // Dynamic depth from the body (was a flat 0.5, which left velocity dead):
         // a calm, coherent state breathes fuller/louder, an aroused one lighter, so
         // dynamics actually track the live signal instead of sitting constant.
-        let liveCoh = fin(frame?.coherence, 0.5)
+        // A coherence of exactly 0 means "no coherence data" — HealthKit never
+        // measures it, and the camera path reports 0 until enough beats accrue. The
+        // composer reads coherence as calmness, so a literal 0 would be misread as
+        // "maximally incoherent" and pin the arrangement to a sparse, frozen take
+        // (the 8-min "stuck at 6 notes" after a pulse episode). Treat 0 as neutral.
+        let rawCoh = fin(frame?.coherence, 0.5)
+        let liveCoh = rawCoh > 0 ? rawCoh : 0.5
         let dynamicDepth = min(1, max(0.2, 0.3 + 0.5 * liveCoh))
         let input = BioComposer.Input(
             heartRateBPM: fin(frame?.heartRateBPM, 70),
