@@ -648,6 +648,12 @@ struct EchoelStudioView: View {
         if auto {
             let since = Date().timeIntervalSince(lastSeedAt)
             if since < minAutoSeedGap { delay = max(delay, minAutoSeedGap - since) }
+            // Claim the anti-flood floor at SCHEDULE time, not only when generate()
+            // runs: several auto triggers can fire within one window (lock-snap +
+            // evolve tick land together the moment a pulse locks). Advancing the
+            // floor to this reseed's run time makes the next auto trigger compute a
+            // full gap and collapse into it — no rapid burst of re-seeds.
+            lastSeedAt = Date().addingTimeInterval(delay)
         }
         regenTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(delay))
