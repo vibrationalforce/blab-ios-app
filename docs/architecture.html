@@ -220,7 +220,7 @@
             <section id="synth">
                 <h2>Synthesis Engines <span class="tag">LIVE</span></h2>
                 <p>All synthesis is Accelerate/vDSP-vectorized and audio-thread-safe (pre-allocated buffers, no allocation in the render path). Each engine exposes the same bio-reactive mapping surface.</p>
-                <div class="data-row"><div class="k">EchoelDDSP</div><div class="v">Harmonic-plus-noise — 64 partials (<code>vvsinf</code>/<code>vDSP_dotpr</code>) + 65-band FIR noise. 5 noise colours (white/pink/brown/blue/violet), 8 spectral shapes (natural, bright, dark, formant, metallic, hollow, bell, flat), ADSR (linear/exp/log), timbre transfer (violin, flute, trumpet, cello, clarinet, oboe), convolution reverb.</div></div>
+                <div class="data-row"><div class="k">EchoelDDSP</div><div class="v">Harmonic-plus-noise — 64 partials (<code>vvsinf</code>/<code>vDSP_dotpr</code>) + 65-band FIR noise. 5 noise colors (white/pink/brown/blue/violet), 8 spectral shapes (natural, bright, dark, formant, metallic, hollow, bell, flat), ADSR (linear/exp/log), timbre transfer (violin, flute, trumpet, cello, clarinet, oboe), convolution reverb.</div></div>
                 <div class="data-row"><div class="k">EchoelCellular</div><div class="v">Cellular-automata synthesis — 8 rules (30, 90, 110, 150, 184, 60, 105, 73), 4 modes (wavetable, additive, FM, spectral-2D / Game of Life), 5 seed patterns.</div></div>
                 <div class="data-row"><div class="k">EchoelModalBank</div><div class="v">Physical modal resonator — 8 materials (bell, plate, bar, string, glass, drum, gong, custom); stiffness (inharmonicity), damping, size, brightness, strike position/velocity; impulse or continuous (bowed/breath) excitation.</div></div>
                 <div class="data-row"><div class="k">Toolkit</div><div class="v"><code>EchoelVDSPKit</code> (DFT, real FFT with 5 windows, FIR convolution, biquad cascade / parametric EQ, decimator, spectral analyzer), <code>EchoelSVFilter</code> (Chamberlin LP/HP/BP/notch), <code>EchoelLFO</code> (5 waveforms, 0.01–20&nbsp;Hz), <code>EchoelEntrainment</code> (isochronic Delta&nbsp;2 / Theta&nbsp;6 / Alpha&nbsp;10 / Beta&nbsp;20 / Gamma&nbsp;40&nbsp;Hz).</div></div>
@@ -268,7 +268,7 @@
                 <div class="data-row"><div class="k">Visual modes (planned)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Chroma key (planned)</div><div class="v">A 6-pass GPU pipeline: HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Video export (planned)</div><div class="v">Short-form 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay. <span class="tag">ROADMAP</span></div></div>
-                <div class="data-row"><div class="k">Further roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds; NLE editing, ProRes, multi-cam, colour grading, RTMP streaming (v1.1). <span class="tag">ROADMAP</span></div></div>
+                <div class="data-row"><div class="k">Further roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds; NLE editing, ProRes, multi-cam, color grading, RTMP streaming (v1.1). <span class="tag">ROADMAP</span></div></div>
             </section>
 
             <!-- STUDIO UI -->
@@ -388,7 +388,7 @@
                             <li>Delay / modulation / compressor / limiter</li>
                             <li>Metal visuals @120fps + chroma key</li>
                             <li>Short-form MP4 video export</li>
-                            <li>Video NLE + ProRes + colour grading</li>
+                            <li>Video NLE + ProRes + color grading</li>
                             <li>RTMP streaming (HaishinKit, v1.1)</li>
                             <li>EchoelLux — DMX-512 / Art-Net / HomeKit</li>
                             <li>EchoelStage — displays / projection</li>
