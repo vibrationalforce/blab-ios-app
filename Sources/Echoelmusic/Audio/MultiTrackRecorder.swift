@@ -36,6 +36,11 @@ public final class MultiTrackRecorder {
     /// Last error surfaced by `startRecording()`, for UI feedback.
     public private(set) var lastError: MultiTrackRecorderError?
 
+    /// Round-trip latency measured at the moment the last take started, so the
+    /// mix stage can align the recording to the beat (correct for whatever route
+    /// is connected — wired, USB, or Bluetooth). Zero on macOS (HAL).
+    public private(set) var lastCompensation: LatencyCompensation = .init()
+
     // MARK: - Internal
 
     @ObservationIgnored private weak var engine: AVAudioEngine?
@@ -150,6 +155,11 @@ public final class MultiTrackRecorder {
             isActive.pointee = true
             isRecording = true
             recordingSeconds = 0
+            // Capture the live round-trip latency for this route so the take can
+            // be aligned to the beat later (Bluetooth ≈ 150–250 ms, wired ≈ low).
+            #if !os(macOS)
+            lastCompensation = LatencyCompensation.current()
+            #endif
 
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 Task { @MainActor [weak self] in self?.recordingSeconds += 1 }
