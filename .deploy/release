@@ -1,3 +1,3 @@
-build: 2026-06-18 v10.25.0 (Quantum Feuerwehr — audio-thread safety pass)
+build: 2026-06-18 v10.26.0 (rPPG diagnostic — reveal red level)
 branch: claude/piano-roll-clip-view-wozlie
-includes: fix tuningCents heap-corruption race (crash); remove file-I/O breadcrumbs from render block (dropout); re-apply microtonal retune on project open
+includes: rPPG breadcrumb now logs R + brightness so a device log shows whether finger=no is positioning/torch (R low) or threshold (R high)
