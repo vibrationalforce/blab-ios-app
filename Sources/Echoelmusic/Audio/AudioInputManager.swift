@@ -81,13 +81,16 @@ public enum AudioInputClassifier {
     }
 }
 
-#if canImport(AVFoundation) && !os(macOS)
+#if canImport(AVFoundation)
 import AVFoundation
+#endif
 import Observation
 
-/// Live input enumeration + selection over `AVAudioSession`. The session is
-/// already configured `.playAndRecord` with Bluetooth allowed (AudioConfiguration);
-/// this only chooses which available input is preferred.
+/// Live input enumeration + selection. On iOS/tvOS/watchOS/visionOS this reads
+/// `AVAudioSession` (already configured `.playAndRecord` with Bluetooth allowed in
+/// AudioConfiguration) and only chooses which available input is preferred. On
+/// macOS the system manages the input device, so the list is empty (the UI then
+/// shows "managed by the system") — cross-platform so the UI needs no guards.
 @MainActor
 @Observable
 public final class AudioInputManager {
@@ -101,6 +104,7 @@ public final class AudioInputManager {
 
     /// Re-read the available inputs and the current selection.
     public func refresh() {
+        #if canImport(AVFoundation) && !os(macOS)
         let session = AVAudioSession.sharedInstance()
         let ports = session.availableInputs ?? []
         available = ports.map { port in
@@ -110,10 +114,15 @@ public final class AudioInputManager {
                                   kind: c.kind, latency: c.latency)
         }
         selectedID = session.preferredInput?.uid ?? session.currentRoute.inputs.first?.uid
+        #else
+        available = []   // macOS: input device is system-managed (HAL)
+        selectedID = nil
+        #endif
     }
 
     /// Prefer the input with the given UID. No-op if it is no longer available.
     public func select(_ id: String) {
+        #if canImport(AVFoundation) && !os(macOS)
         let session = AVAudioSession.sharedInstance()
         guard let port = (session.availableInputs ?? []).first(where: { $0.uid == id }) else {
             log.audio("Input \(id) no longer available", level: .warning)
@@ -126,10 +135,12 @@ public final class AudioInputManager {
         } catch {
             log.audio("setPreferredInput failed: \(error.localizedDescription)", level: .error)
         }
+        #endif
     }
 
     /// Clear the preferred input (let the system pick the default route).
     public func useSystemDefault() {
+        #if canImport(AVFoundation) && !os(macOS)
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setPreferredInput(nil)
@@ -137,6 +148,6 @@ public final class AudioInputManager {
         } catch {
             log.audio("clearing preferred input failed: \(error.localizedDescription)", level: .error)
         }
+        #endif
     }
 }
-#endif

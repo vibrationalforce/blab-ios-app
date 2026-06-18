@@ -50,6 +50,8 @@ struct EchoelmusicApp: App {
     @State private var pianoRoll: PianoRollModel
     /// Session grid of launchable clips (drum pattern + melody snapshots).
     @State private var clipStore = ClipStore()
+    /// Selectable recording inputs (mic / interface / Bluetooth) with latency notes.
+    @State private var audioInputs = AudioInputManager()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed.
     @State private var haptics = HapticController()
@@ -151,6 +153,7 @@ struct EchoelmusicApp: App {
             .environment(patchStore)
             .environment(pianoRoll)
             .environment(clipStore)
+            .environment(audioInputs)
             .environment(midiOut)
             #if canImport(CoreHaptics)
             .environment(haptics)
