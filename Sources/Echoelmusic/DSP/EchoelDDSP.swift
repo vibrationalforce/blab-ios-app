@@ -1125,13 +1125,19 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     /// Per-pitch-class (0=C…11=B) cent deviation from 12-TET, applied at noteOn so
     /// a take can play in just intonation, a maqām, etc. All zeros = 12-TET =
-    /// identical playback (the default). Set on the trigger thread via the parent.
+    /// identical playback (the default). Written from the main actor; read on the
+    /// audio thread in `noteOn`. Kept as a fixed 12-element buffer and mutated
+    /// **in place** (never reseated) so the audio-thread read never races an ARC
+    /// retain/release on the backing storage — same discipline as `a4Hz`. A torn
+    /// read at worst detunes a single note-on by one frame; no heap corruption.
     private var tuningCents: [Float] = Array(repeating: 0, count: 12)
 
     /// Install a 12-entry pitch-class retune table (no-op if not exactly 12).
+    /// In-place element copy — does not swap the array reference, so it is safe to
+    /// call while the audio thread is reading `tuningCents` in `noteOn`.
     public func setTuningCents(_ cents: [Float]) {
         guard cents.count == 12 else { return }
-        tuningCents = cents
+        for i in 0..<12 { tuningCents[i] = cents[i] }
     }
 
     // MARK: - Voices
