@@ -212,8 +212,13 @@ public final class EchoelBioEngine {
     private func startHeartRateQuery(healthStore: HKHealthStore) {
         guard let hrType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return }
 
+        // Look back an hour, not 60 s: the Apple Watch writes resting HR to HealthKit
+        // only sporadically (minutes apart), so a 60 s window usually returns NOTHING
+        // on start and the wrist appears dead. The anchored query takes the most
+        // recent sample (processHeartRateSamples uses .last) and then live-updates as
+        // new samples sync — so the latest known HR surfaces immediately.
         let predicate = HKQuery.predicateForSamples(
-            withStart: Date().addingTimeInterval(-60),
+            withStart: Date().addingTimeInterval(-3600),
             end: nil,
             options: .strictStartDate
         )
@@ -295,7 +300,9 @@ public final class EchoelBioEngine {
     private nonisolated func processHeartRateSamples(_ samples: [HKSample]?) {
         guard let quantitySamples = samples as? [HKQuantitySample], !quantitySamples.isEmpty else { return }
 
-        guard let latestSample = quantitySamples.last else { return }
+        // Newest by date — anchored-query results aren't guaranteed date-sorted, and
+        // the widened (1 h) window can return several samples, so .last could be stale.
+        guard let latestSample = quantitySamples.max(by: { $0.endDate < $1.endDate }) else { return }
         let bpm = latestSample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
 
         // Guard against invalid HR values

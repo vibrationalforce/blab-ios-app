@@ -1021,11 +1021,12 @@ struct EchoelStudioView: View {
 
     private func generate() {
         lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
-        // Only compose from a FRESH frame: if the live source has dropped (strap out
-        // of range, finger lifted, Watch stalled) the last reading expires and the
-        // composer falls back to neutral physiological defaults instead of evolving
-        // forever off a frozen heart rate.
-        let frame = bus.freshBio()
+        // Compose from a USABLE frame, judged per source: a lifted finger or dropped
+        // strap (camera/BLE) expires in seconds, but Apple Watch / HealthKit HR is
+        // latent and sporadic, so a resting reading from up to ~90 s ago still counts
+        // as the live body (otherwise the wrist never drives the music). A truly
+        // stalled source still expires → neutral physiological defaults.
+        let frame = bus.usableBio()
         // Finite-guard every bio value before it reaches the composer: a NaN/Inf
         // (possible from rPPG/BLE) would otherwise survive clamp01 and trap an
         // Int(nan) conversion deep in BioComposer. fin(_:_:) substitutes a neutral

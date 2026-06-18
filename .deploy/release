@@ -1,3 +1,3 @@
-build: 2026-06-18 v10.28.0 (rPPG finger threshold — data-backed)
+build: 2026-06-18 v10.29.0 (Watch/HealthKit biofeedback actually felt)
 branch: claude/piano-roll-clip-view-wozlie
-includes: lower finger-on-lens red floor 0.4 -> 0.28 (device log showed a clean fingertip at R~0.35 blocked by the over-tight floor; ratio gates still guard against false positives) so the pulse actually locks
+includes: per-source freshness (Watch/HealthKit HR usable ~90s, camera/BLE 6s) so wrist HR drives the composer instead of being discarded at 5s; HealthKit HR fetch widened 60s->1h + newest-sample pick so a reading actually arrives

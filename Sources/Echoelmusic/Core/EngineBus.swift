@@ -117,6 +117,23 @@ public enum BioSource: UInt8, Sendable, Equatable {
     /// estimate, not a measurement (research §A1). Consumers gate HRV-driven
     /// modulation on this so a strap-only route stays silent on weak sources.
     public var providesTrustedHRV: Bool { self == .ble }
+
+    /// How long a reading from this source stays musically usable. Live optical/
+    /// electrical sources (BLE strap, camera rPPG) expire fast — a lifted finger or
+    /// a dropped strap must NOT keep driving sound off a frozen value. But Apple
+    /// Watch / HealthKit HR is latent AND sporadic (Apple writes resting HR only
+    /// every few minutes); a reading from a minute ago is still your current heart
+    /// rate, so a 5 s gate discards it and the wrist never "feels" connected. Give
+    /// each source a window matched to how it actually arrives. Staleness is still
+    /// enforced — a truly stalled Watch eventually expires.
+    public var freshnessWindow: TimeInterval {
+        switch self {
+        case .ble, .cameraPPG: return 6      // live, near beat-to-beat
+        case .watch, .healthKit: return 90   // latent + sporadic, valid at rest
+        case .oura: return 600               // periodic readiness/HRV
+        case .fallback: return 5
+        }
+    }
 }
 
 // MARK: - External controller event (MPE + air dimensions)
@@ -231,6 +248,19 @@ public final class EngineBus {
         guard let f = latestBio,
               CFAbsoluteTimeGetCurrent() - f.timestamp <= maxAge,
               CFAbsoluteTimeGetCurrent() - f.timestamp >= -1 else { return nil }
+        return f
+    }
+
+    /// The freshest frame still within ITS OWN source's usefulness window — the
+    /// "is there a usable body signal right now?" question the composer asks. A
+    /// camera/BLE reading expires in 6 s (live), a Watch/HealthKit reading stays
+    /// usable for 90 s (latent + sporadic, but valid at rest), so wrist HR actually
+    /// drives the music instead of being discarded the instant it's a few seconds
+    /// old. Still guards against a frozen/stalled source (each window is finite).
+    public func usableBio() -> BioSampleFrame? {
+        guard let f = latestBio else { return nil }
+        let age = CFAbsoluteTimeGetCurrent() - f.timestamp
+        guard age <= f.source.freshnessWindow, age >= -1 else { return nil }
         return f
     }
 
