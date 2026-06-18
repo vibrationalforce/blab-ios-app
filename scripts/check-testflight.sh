@@ -27,23 +27,29 @@ set -euo pipefail
 OWNER="vibrationalforce"
 REPO="Echoelmusic"
 WORKFLOW="testflight.yml"
-BRANCH="claude/echoelmusic-audit-testflight-x0MN0"
+# Default to the current branch so a fresh container/session deploys the work in
+# front of it, not a stale hard-coded branch. Override with DEPLOY_BRANCH=...
+BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
 
 SETTINGS_FILE=".claude/settings.local.json"
 
 # ---------------------------------------------------------------------------
-# Token resolution — read from .claude/settings.local.json (gitignored).
+# Token resolution. The remote Claude container is EPHEMERAL and
+# .claude/settings.local.json is gitignored, so a token pasted there does NOT
+# survive a container rebuild ("worked until just now"). For a durable setup,
+# set GH_DISPATCH_TOKEN (or GITHUB_TOKEN) as an environment SECRET in the
+# Claude Code web environment config — that persists across containers. We try,
+# in order: env secret → the gitignored settings file.
 # ---------------------------------------------------------------------------
-if [[ ! -f "$SETTINGS_FILE" ]]; then
-  echo "ERROR: $SETTINGS_FILE not found." >&2
-  echo "       Create it per CLAUDE.md §\"GitHub API Access\":" >&2
-  echo '       { "github": { "token": "ghp_..." } }' >&2
-  exit 1
+TOKEN="${GH_DISPATCH_TOKEN:-${GITHUB_TOKEN:-${GH_TOKEN:-}}}"
+if [[ -z "$TOKEN" && -f "$SETTINGS_FILE" ]]; then
+  TOKEN=$(jq -r '.github.token // empty' "$SETTINGS_FILE")
 fi
-
-TOKEN=$(jq -r '.github.token // empty' "$SETTINGS_FILE")
 if [[ -z "$TOKEN" ]]; then
-  echo "ERROR: .github.token missing or empty in $SETTINGS_FILE" >&2
+  echo "ERROR: no GitHub token (needs 'actions:write' + 'repo' scope)." >&2
+  echo "  Durable fix: set GH_DISPATCH_TOKEN as an environment secret in the" >&2
+  echo "  Claude Code web environment config (survives container rebuilds)." >&2
+  echo "  Quick fix: put it in $SETTINGS_FILE → { \"github\": { \"token\": \"ghp_...\" } }" >&2
   exit 1
 fi
 
@@ -59,10 +65,14 @@ api() {
 # Sub-command: dispatch
 # ---------------------------------------------------------------------------
 if [[ "${1:-}" == "dispatch" ]]; then
-  echo "Dispatching $WORKFLOW (platform=ios, build_only=true) on $BRANCH..."
+  # `dispatch`        → real TestFlight upload (build_only=false)
+  # `dispatch dryrun` → compile-only check   (build_only=true)
+  BUILD_ONLY="false"; [[ "${2:-}" == "dryrun" ]] && BUILD_ONLY="true"
+  PLATFORM="${3:-ios}"
+  echo "Dispatching $WORKFLOW (platform=$PLATFORM, build_only=$BUILD_ONLY) on $BRANCH..."
   api -X POST \
     "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/$WORKFLOW/dispatches" \
-    -d "{\"ref\":\"$BRANCH\",\"inputs\":{\"platform\":\"ios\",\"build_only\":\"true\"}}"
+    -d "{\"ref\":\"$BRANCH\",\"inputs\":{\"platform\":\"$PLATFORM\",\"build_only\":\"$BUILD_ONLY\"}}"
   echo "Dispatched. Run \`bash $0\` in 30 seconds to see status."
   exit 0
 fi
