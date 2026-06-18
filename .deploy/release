@@ -1,3 +1,3 @@
-build: 2026-06-18 v10.27.0 (Feuerwehr — composer wedge fixes)
+build: 2026-06-18 v10.28.0 (rPPG finger threshold — data-backed)
 branch: claude/piano-roll-clip-view-wozlie
-includes: coherence=0 no longer pins the arrangement to 6 sparse notes (HealthKit/camera "no data" → neutral); anti-flood floor claimed at schedule time so a pulse lock no longer triggers a reseed burst
+includes: lower finger-on-lens red floor 0.4 -> 0.28 (device log showed a clean fingertip at R~0.35 blocked by the over-tight floor; ratio gates still guard against false positives) so the pulse actually locks

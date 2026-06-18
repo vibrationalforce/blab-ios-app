@@ -294,8 +294,13 @@ final class CameraAnalyzer {
                 "rPPG frame \(frameCount): R=\(String(format:"%.2f",avgR)) G=\(String(format:"%.2f",avgG)) B=\(String(format:"%.2f",avgB)) finger=\(isFingerDetected) pulse=\(isPulseDetecting) bpm=\(Int(estimatedBPM))")
         }
 
-        // Finger detection: high red dominance when finger covers lens + torch on
-        let isFingerFrame = avgR > 0.4 && avgR > avgG * 1.2 && avgR > avgB * 1.3
+        // Finger detection: red DOMINANCE (ratios) is the real signature of a
+        // finger over a torch-lit lens; the absolute red floor only rejects a dark
+        // frame. Device logs showed a clean fingertip sitting at R≈0.35 (dim, torch
+        // 0.6) — red-dominant and ratio-passing, but blocked by an over-tight 0.4
+        // floor so the pulse never locked. Lower the floor to 0.28; the 1.2×/1.3×
+        // ratio gates still keep a non-red scene out.
+        let isFingerFrame = avgR > 0.28 && avgR > avgG * 1.2 && avgR > avgB * 1.3
 
         fingerDetectionBuffer.append(isFingerFrame)
         if fingerDetectionBuffer.count > fingerDetectionWindow {
