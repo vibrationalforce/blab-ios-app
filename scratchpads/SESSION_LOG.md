@@ -2586,3 +2586,27 @@ ENV NOTE: this remote container has NO local Swift toolchain — `swift build` s
 xcodebuild build-for-testing + tests) is authoritative. Build-guard.sh --quick runs locally (pure bash).
 NEXT candidates: surface Clips more prominently than a menu item (top-level button?); quantize-to-bar
 launch via existing LaunchQuantizer; verify deep PianoRollView UX on device; SkillLevel pull-through.
+
+### 2026-06-18 (cont.) — PLA unblock + Quantum Feuerwehr audio-thread safety pass
+PIPELINE UNBLOCK: builds 1913-1917 all FAILED at Archive (signing), NOT code — Apple
+published a new Program License Agreement; until the Account Holder accepted it, fastlane
+`cert` + provisioning were blocked ("PLA Update available"). Compile Check passed every run.
+User accepted PLA -> re-trigger -> run 1918 (v10.24.0) archived + uploaded + verified. Fixed.
+SHIPPED v10.24.0 (build 1918): full studio-setup persistence via @AppStorage (genre/key/scale/
+tempo-lock+BPM/FX/loop-length/timbre preset) survives relaunch; in-app build label in Tools menu
+("Echoel <ver> (<build>)") so the running build self-identifies (answers "did the new version land?").
+QUANTUM FEUERWEHR (3 parallel audits: audio-thread / concurrency / code-review):
+- FIRE 1 CRITICAL (crash): EchoelPolyDDSP.setTuningCents reseated the tuningCents Swift array on
+  the main actor while the audio thread read it in noteOn (drained in PolySynthVoice render block)
+  -> cross-thread ARC/CoW race -> heap corruption. FIX: in-place per-element copy (mirrors a4Hz).
+- FIRE 2 HIGH (dropout): renderOnAudioThread called EchoelCrashLog.breadcrumb x6 — breadcrumb does
+  Array(utf8) alloc + write() syscall, both forbidden on audio thread. Were scaffolding for the
+  (now-resolved) first-note crash; signal handlers still capture render crashes. FIX: removed all
+  6 + 4 render-only trace flags; kept the control-thread enqueue breadcrumb.
+- FIRE 3 MEDIUM (detune): open(_:) restored key/scale but relied on onChange(of:rootIndex) to push
+  the retune table; same-root opens skipped it. FIX: explicit applyTuning() at end of open(_:).
+- Concurrency audit: CLEAN (all @AppStorage types raw-backed; all @Environment injected; @MainActor ok).
+SHIPPED v10.25.0: the three fixes. Build guard green each commit.
+NEXT candidates (consolidation plan): BioModulation spine (heartbeat->params one routing layer);
+LatencyCompensation in the live mix; BioVisualParams -> Metal. Render-path BEHAVIORAL audio changes
+still gated on user ear-confirm of build 1913/1918 (clicks/phase jumps). Safety fixes (this pass) not gated.
