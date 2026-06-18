@@ -1,3 +1,3 @@
-build: 2026-06-18 v10.23.0
+build: 2026-06-18 v10.24.0
 branch: claude/piano-roll-clip-view-wozlie
-includes: microtonal tone-system picker wired to synth (12 world tunings; default 12-TET no-op)
+includes: studio setup (genre/key/scale) now persists across relaunch; in-app build/version label in Tools menu

@@ -60,10 +60,21 @@ struct EchoelStudioView: View {
 
     private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
 
-    // Derived / persisted musical state (no direct UI — set by sliders + bio).
-    @State private var style: MusicStyle = .vaporwave
-    @State private var rootIndex = 0
-    @State private var scale: Scale = .minor
+    /// "10.24.0 (1920)" — marketing version + build, read from the bundle so the
+    /// running app reports exactly which TestFlight build it is.
+    static var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
+    }
+
+    // Derived / persisted musical state. Genre, key and scale survive relaunch so
+    // the studio reopens on the setup you left it in (MusicStyle / Scale are
+    // String-backed enums → @AppStorage stores the rawValue directly).
+    @AppStorage("studio.genre") private var style: MusicStyle = .vaporwave
+    @AppStorage("studio.rootIndex") private var rootIndex = 0
+    @AppStorage("studio.scale") private var scale: Scale = .minor
     /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
     /// Persisted so a chosen world tuning survives relaunch.
     @AppStorage("toneSystemID") private var tuningID = "edo12"
@@ -221,6 +232,9 @@ struct EchoelStudioView: View {
             Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
             Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
                 .disabled(!midiOut.enabled)
+            Divider()
+            // Self-identifying build — confirms at a glance which TestFlight build is running.
+            Text("Echoel \(Self.appVersionString)").font(EchoelTheme.font(11))
         } label: {
             Label("Tools", systemImage: "slider.horizontal.3")
                 .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
