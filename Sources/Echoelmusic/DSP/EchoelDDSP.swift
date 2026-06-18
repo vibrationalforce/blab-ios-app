@@ -1242,6 +1242,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             }
         }
         voices[oldestIdx].noteOff()
+        // Clear the stolen slot's note tag so a later noteOff(note:) for the OLD
+        // pitch can't re-release this voice after it's been reassigned (would cut
+        // a freshly-attacked note → click).
+        voiceNotes[oldestIdx] = -1
         return oldestIdx
     }
 

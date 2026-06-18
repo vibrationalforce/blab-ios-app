@@ -120,7 +120,7 @@ public final class PolySynthVoice {
     nonisolated(unsafe) private static var drainExitTraced = false
     nonisolated(unsafe) fileprivate static var noteTraced = false
 
-    public init(maxVoices: Int = 6) {
+    public init(maxVoices: Int = 12) {
         self.poly = EchoelPolyDDSP(maxVoices: maxVoices, sampleRate: Float(Self.sampleRate))
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchL = Array(repeating: 0, count: Self.maxBlockFrames)

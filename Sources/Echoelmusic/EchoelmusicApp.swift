@@ -91,9 +91,11 @@ struct EchoelmusicApp: App {
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
-        // 8 voices: a 4-note chord + bass + lead leaves headroom so the composer's
-        // richer harmony no longer steals voices mid-chord (a perceived stutter).
-        _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 8))
+        // 12 voices: the composer emits up to ~12 notes/bar and the 2 s release
+        // tails keep voices ringing across the bar, so 8 was oversubscribed →
+        // constant voice-stealing caused clicks, instant pitch changes and tanh
+        // level swings (device report: "Lautstärke-/Phasensprünge, Knacksen").
+        _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 12))
         _subBass = State(wrappedValue: SubBassVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
