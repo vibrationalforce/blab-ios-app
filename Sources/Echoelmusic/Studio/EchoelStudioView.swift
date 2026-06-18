@@ -1166,6 +1166,10 @@ struct EchoelStudioView: View {
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
         lastNoteCount = p.notes.count
+        // Re-push the microtonal retune for the restored root. onChange(of:rootIndex)
+        // won't fire if the opened key matches the current one, so do it explicitly
+        // — otherwise a non-12-TET system would play against the previous root.
+        applyTuning()
     }
 
     // MARK: - Helpers
