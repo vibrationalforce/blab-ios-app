@@ -43,12 +43,13 @@ on:
         required: false
         default: true
         type: boolean
-  # Tokenless deploy: pushing a tag like `deploy-ios-<n>` triggers an iOS
+  # Tokenless deploy: bumping `.deploy/release` on any branch triggers an iOS
   # TestFlight upload. App Store Connect credentials live as GitHub repo secrets
-  # (CI-side), so no local token is needed — a `git push` of the tag is enough.
+  # (CI-side), so no local token is needed — a `git push` is enough. Path-filtered
+  # so ordinary code pushes never deploy; only an explicit `.deploy/release` bump.
   push:
-    tags:
-      - 'deploy-ios-*'
+    paths:
+      - '.deploy/release'
 
 concurrency:
   group: testflight-${{ github.event.inputs.platform }}-${{ github.ref }}

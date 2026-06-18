@@ -1,0 +1,3 @@
+build: 2026-06-18 #1
+branch: claude/piano-roll-clip-view-wozlie
+includes: clips, tone-systems, input-selection, latency-compensation
