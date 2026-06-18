@@ -2631,3 +2631,26 @@ SHIPPED v10.26.0 (rPPG diagnostic) + v10.27.0 (composer wedge fixes). Build guar
 NOTE: BioModulation spine map is READY (BioModulation.swift + BioVisualParams.swift pure cores;
 ModulationEngine has register/outputTap; matrix EMPTY by default). Minimal wiring = 1 bridge file
 + 1 app-startup call + bind visual params into MetalBioView. Queued behind the composer fires.
+
+### 2026-06-18 (cont.) — rPPG lock threshold + Watch/HealthKit "felt" + ketamine note
+DEVICE LOG (10.26.0 diagnostic) was decisive: finger ON lens but R=0.33-0.38, bright=0.18,
+ratio gates (1.2x/1.3x) PASS, only the absolute avgR>0.4 floor blocked detection -> finger=no,
+never locked. FIX v10.28.0: lower finger red floor 0.4->0.28 in CameraAnalyzer.processExtractedRGB
+(ratio gates remain the false-positive guard). The "6 notes" that session = no-bio startup output
+(never locked), NOT the coherence wedge (which is post-lock only) — so 10.27.0 wedge fix still unverified.
+USER: "No Biofeedback feeling watch fetched" + "tie everything together cleanly" + "flat pulse maybe
+ketamine in blood (test person)". Investigated Watch/HealthKit:
+- Watch app (EchoelmusicWatch) is CONSUMER-ONLY (displays vitals from App Group). PRODUCER half
+  (on-wrist HKWorkoutSession -> live HR) was DEFERRED ("too error-prone to add blind", cycle C7). NOT built.
+- Phone HealthKit read gated twice: (1) HR query window only -60s (Watch writes resting HR sporadically
+  -> usually empty), (2) freshBio(5s) discards Watch HR which is 4-5s+ latent.
+FIX v10.29.0 (3 files): BioSource.freshnessWindow (ble/camera 6s, watch/healthKit 90s, oura 600s);
+EngineBus.usableBio() honors per-source window; generate() uses usableBio() so wrist HR drives the
+composer; HealthKit HR fetch widened 60s->1h + newest-sample-by-date pick. Honest limit told to user:
+fully-live resting wrist HR needs the deferred workout-session producer; camera rPPG is the live path.
+Ketamine note: weak peripheral pulse -> low optical amplitude -> harder rPPG; 0.28 floor + autocorr
+fallback help; framed strictly as self-observation, not diagnosis.
+SHIPPED 1922 (10.28.0) + 1923 (10.29.0), both CI green + uploaded.
+PROPOSED NEXT (awaiting user go): source ARBITRATION — prefer most-trusted LIVE source (BLE>camera>Watch)
+over last-writer-wins on bus.latestBio, so the feel never flip-flops when multiple sources publish.
+Also still queued: BioModulation spine (map ready); verify 10.27.0 coherence wedge fix once rPPG locks.
