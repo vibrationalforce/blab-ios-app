@@ -234,6 +234,14 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// crackles. One-pole smoothed each sample (~10 ms glide). -1 = seed on first use.
     private var smoothedGain: Float = -1
 
+    /// Per-sample-smoothed base frequency. When a still-ringing voice is reused
+    /// (stolen, or a released tail), `frequency` is reassigned in a single step —
+    /// an instant pitch change on a loud voice is the audible "phase jump"/click.
+    /// One-pole glided each sample so reused voices slide to the new pitch; a fresh
+    /// idle voice re-seeds this in `prepareForNote(hardReset:)` so it snaps instead.
+    /// -1 = seed on first use.
+    private var smoothedFreq: Float = -1
+
     /// Anti-alias weighting scratch — smoothedAmplitudes with a raised-cosine
     /// taper applied to partials approaching Nyquist (avoids the harsh "pop" of
     /// partials hard-cutting in/out as f0 or vibrato sweeps them past Nyquist).
@@ -592,6 +600,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             smoothedAmplitudes[i] = 0
         }
         for i in 0..<noiseFilterState.count { noiseFilterState[i] = 0 }
+        smoothedFreq = -1   // fresh idle voice snaps to pitch (no glide)
         filter.reset()
         // NOTE: reverbConvolution.reset() removed — prepareForNote runs on the
         // note-trigger (timer) thread; mutating the convolution's arrays here
@@ -614,13 +623,20 @@ public final class EchoelDDSP: @unchecked Sendable {
             // Update envelope
             updateEnvelope()
 
+            // Glide the base frequency per-sample so a stolen/reused voice doesn't
+            // jump pitch instantly (the audible "phase jump"/click on a still-loud
+            // voice). Fresh idle voices seed smoothedFreq in prepareForNote so they
+            // snap to pitch; only reused voices glide. ~2 ms one-pole.
+            if smoothedFreq < 0 { smoothedFreq = frequency }
+            smoothedFreq += 0.01 * (frequency - smoothedFreq)
+
             // Apply vibrato (bio: heart rate → vibrato rate)
-            var currentFreq = frequency
+            var currentFreq = smoothedFreq
             if vibratoRate > 0 && vibratoDepth > 0 {
                 vibratoPhase += vibratoRate / sampleRate * 2.0 * .pi
                 if vibratoPhase > 2.0 * .pi { vibratoPhase -= 2.0 * .pi }
                 let vibratoSemitones = sin(vibratoPhase) * vibratoDepth
-                currentFreq = frequency * pow(2.0, vibratoSemitones / 12.0)
+                currentFreq = smoothedFreq * pow(2.0, vibratoSemitones / 12.0)
             }
 
             // Smooth amplitude transitions (exponential smoothing)

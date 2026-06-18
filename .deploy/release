@@ -1,3 +1,3 @@
-build: 2026-06-18 #3
+build: 2026-06-18 #4
 branch: claude/piano-roll-clip-view-wozlie
-includes: rPPG confidence+hysteresis+autocorr-fallback, audio voice-stealing fix (12 voices)
+includes: per-sample frequency glide on voice reuse (click-free stealing, no pitch jumps)
