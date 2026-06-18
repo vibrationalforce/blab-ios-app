@@ -131,4 +131,41 @@ final class MicrotonalTuningTests: XCTestCase {
     func testNamed_unknownFallsBackTo12TET() {
         XCTAssertEqual(TuningSystem.named("does-not-exist").id, "edo12")
     }
+
+    // MARK: pitch-class retune table (the synth wiring) — 12-TET must be a no-op
+
+    func test12TET_pitchClassCents_allZero() {
+        let table = TuningSystem.named("edo12").pitchClassCents(root: 0)
+        XCTAssertEqual(table.count, 12)
+        for c in table { XCTAssertEqual(c, 0, accuracy: acc) }
+    }
+
+    func test24TET_pitchClassCents_allZero_supersetOf12() {
+        // 24-TET contains every 12-TET position exactly → the 12 notes don't move.
+        for c in TuningSystem.named("edo24").pitchClassCents(root: 0) {
+            XCTAssertEqual(c, 0, accuracy: acc)
+        }
+    }
+
+    func testJustMajor_retunesDiatonicTones() {
+        let t = TuningSystem.named("just-major").pitchClassCents(root: 0)
+        XCTAssertEqual(t[0], 0, accuracy: 0.1)        // tonic
+        XCTAssertEqual(t[2], 3.91, accuracy: 0.2)     // just major 2nd (9/8)
+        XCTAssertEqual(t[4], -13.69, accuracy: 0.2)   // just major 3rd (5/4) is flat
+        XCTAssertEqual(t[7], 1.96, accuracy: 0.2)     // just 5th (3/2)
+    }
+
+    func testPitchClassCents_followsRoot() {
+        // The just major-3rd deviation should sit on E (pc 4) for C, on G (pc 7) for E.
+        let cMajor = TuningSystem.named("just-major").pitchClassCents(root: 0)
+        let eMajor = TuningSystem.named("just-major").pitchClassCents(root: 4)
+        XCTAssertEqual(cMajor[4], -13.69, accuracy: 0.2)
+        XCTAssertEqual(eMajor[(4 + 4) % 12], -13.69, accuracy: 0.2)
+    }
+
+    func testNonOctaveSystem_noChromaticRetune() {
+        for c in TuningSystem.named("bohlen-pierce").pitchClassCents(root: 0) {
+            XCTAssertEqual(c, 0, accuracy: acc)
+        }
+    }
 }

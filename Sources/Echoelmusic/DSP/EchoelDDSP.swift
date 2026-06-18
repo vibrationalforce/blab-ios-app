@@ -1123,6 +1123,17 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// retuning a held loop is safe without a queue. Clamped by the setter caller.
     public var a4Hz: Float = 440
 
+    /// Per-pitch-class (0=C…11=B) cent deviation from 12-TET, applied at noteOn so
+    /// a take can play in just intonation, a maqām, etc. All zeros = 12-TET =
+    /// identical playback (the default). Set on the trigger thread via the parent.
+    private var tuningCents: [Float] = Array(repeating: 0, count: 12)
+
+    /// Install a 12-entry pitch-class retune table (no-op if not exactly 12).
+    public func setTuningCents(_ cents: [Float]) {
+        guard cents.count == 12 else { return }
+        tuningCents = cents
+    }
+
     // MARK: - Voices
 
     private var voices: [EchoelDDSP]
@@ -1190,7 +1201,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     /// MIDI note on
     public func noteOn(note: Int, velocity: Float = 1.0) {
-        let freq = a4Hz * pow(2.0, Float(note - 69) / 12.0)
+        // Per-pitch-class microtonal retune (cents → semitone fraction). Zero table
+        // = standard 12-TET, bit-identical to before.
+        let cents = tuningCents[((note % 12) + 12) % 12]
+        let freq = a4Hz * pow(2.0, (Float(note - 69) + cents / 100.0) / 12.0)
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note

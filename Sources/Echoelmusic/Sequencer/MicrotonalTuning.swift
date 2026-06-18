@@ -164,4 +164,29 @@ public extension TuningSystem {
     static func named(_ id: String) -> TuningSystem {
         library.first { $0.id == id } ?? library[0]
     }
+
+    /// Cent deviation from 12-TET for a note `semitones` above the tonic: snap that
+    /// 12-TET position to this system's nearest scale degree within the octave and
+    /// return the difference. 12-TET → 0 everywhere (identical playback). Only
+    /// meaningful for octave-period systems; non-octave systems (Bohlen–Pierce)
+    /// have no defined chromatic retune, so they return 0.
+    func centsDeviation(forSemitone semitones: Int) -> Double {
+        guard abs(periodCents - 1200) < 1, !degreesCents.isEmpty else { return 0 }
+        let s = ((semitones % 12) + 12) % 12
+        let target = Double(s) * 100.0
+        var best = 0.0
+        var bestDelta = Double.greatestFiniteMagnitude
+        for c in degreesCents where abs(c - target) < bestDelta {
+            bestDelta = abs(c - target)
+            best = c
+        }
+        return best - target
+    }
+
+    /// 12-entry cent-deviation table indexed by ABSOLUTE pitch class (0 = C … 11 = B)
+    /// for a given key-root pitch class. Feeds the synth's per-note retune so a take
+    /// in that key snaps to this system's intonation; 12-TET returns all zeros.
+    func pitchClassCents(root: Int) -> [Double] {
+        (0..<12).map { centsDeviation(forSemitone: $0 - root) }
+    }
 }

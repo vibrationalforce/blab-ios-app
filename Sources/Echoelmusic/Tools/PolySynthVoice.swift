@@ -177,6 +177,13 @@ public final class PolySynthVoice {
         poly.a4Hz = Float(min(max(a4Hz, 380), 500))
     }
 
+    /// Install a microtonal pitch-class retune table (12 entries, cents from 12-TET).
+    /// All zeros = standard equal temperament. Safe to call while a loop plays;
+    /// takes effect on the next note.
+    public func setTuningCents(_ cents: [Float]) {
+        poly.setTuningCents(cents)
+    }
+
     // MARK: - Patch recall
 
     /// Recall a sound: enqueue the patch; the audio thread fans it across every

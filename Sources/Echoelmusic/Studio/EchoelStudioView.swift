@@ -64,6 +64,9 @@ struct EchoelStudioView: View {
     @State private var style: MusicStyle = .vaporwave
     @State private var rootIndex = 0
     @State private var scale: Scale = .minor
+    /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
+    /// Persisted so a chosen world tuning survives relaunch.
+    @AppStorage("toneSystemID") private var tuningID = "edo12"
     @State private var fxCharacter: FXCharacter = .auto
     @State private var loopBars: LoopBarLength = .four
     @State private var currentPatch = SynthPatch(name: "Init")
@@ -152,6 +155,7 @@ struct EchoelStudioView: View {
         .background(EchoelTheme.bg)
         .onAppear {
             currentPatch = style.synthPatch   // controls reflect a real sound from the start
+            applyTuning()                      // 12-TET default = no-op; restores any selected system
             surfacePriorCrashIfAny()
             handlePendingIntent()
         }
@@ -272,8 +276,36 @@ struct EchoelStudioView: View {
             genrePicker
             tonartRow
             kammertonRow
+            tuningRow
             tempoRow
         }
+    }
+
+    /// Tone system — 12-TET by default; selecting just intonation, a maqām, gamelan
+    /// etc. retunes the take to that intonation in the current key. Applied live.
+    private var tuningRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            labeledRow("Tone system") {
+                Picker("Tone system", selection: $tuningID) {
+                    ForEach(TuningSystem.library) { t in Text(t.name).tag(t.id) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: tuningID) { _, _ in applyTuning() }
+                .accessibilityLabel("Tone system")
+            }
+            if tuningID != "edo12" {
+                Text("Notes are retuned to this system in the current key. Choose 12-TET for standard tuning.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Push the selected tone system's per-pitch-class retune table to the synth
+    /// (relative to the current key root). 12-TET → all zeros → identical playback.
+    private func applyTuning() {
+        let cents = TuningSystem.named(tuningID).pitchClassCents(root: rootIndex).map { Float($0) }
+        synth.setTuningCents(cents)
     }
 
     private var genrePicker: some View {
@@ -299,7 +331,7 @@ struct EchoelStudioView: View {
                     ForEach(0..<12, id: \.self) { i in Text(Self.noteNames[i]).tag(i) }
                 }
                 .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: rootIndex) { _, _ in recomposeIfRunning() }
+                .onChange(of: rootIndex) { _, _ in applyTuning(); recomposeIfRunning() }
                 .accessibilityLabel("Key root")
             }
             labeledRow("Scale") {
