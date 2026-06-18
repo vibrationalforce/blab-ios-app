@@ -258,7 +258,10 @@ final class CameraAnalyzer {
 
         // Finger is "detected" when >70% of recent frames match
         let fingerFrames = fingerDetectionBuffer.filter { $0 }.count
-        isFingerDetected = fingerFrames > (fingerDetectionWindow / 2)
+        // Hysteresis: harder to acquire (half the window) than to hold (a quarter),
+        // so a brief glare/pressure flicker doesn't drop the lock and reset confidence.
+        let needed = isFingerDetected ? (fingerDetectionWindow / 4) : (fingerDetectionWindow / 2)
+        isFingerDetected = fingerFrames > needed
 
         // Pulse detection
         if isPulseDetecting && isFingerDetected {
@@ -300,7 +303,10 @@ final class CameraAnalyzer {
         }
 
         let fingerFrames = fingerDetectionBuffer.filter { $0 }.count
-        isFingerDetected = fingerFrames > (fingerDetectionWindow / 2)
+        // Hysteresis: harder to acquire (half the window) than to hold (a quarter),
+        // so a brief glare/pressure flicker doesn't drop the lock and reset confidence.
+        let needed = isFingerDetected ? (fingerDetectionWindow / 4) : (fingerDetectionWindow / 2)
+        isFingerDetected = fingerFrames > needed
 
         // Pulse detection
         if isPulseDetecting && isFingerDetected {
@@ -471,14 +477,23 @@ final class CameraAnalyzer {
         let variance = cleanIntervals.reduce(0.0) { $0 + ($1 - avgInterval) * ($1 - avgInterval) }
             / Double(cleanIntervals.count)
         let cv = sqrt(variance) / avgInterval
-        let confidence = max(0, min(1, 1.0 - cv * 3.0))
 
-        if confidence > 0.25 {
-            estimatedBPM = estimatedBPM == 0 ? bpm : estimatedBPM * 0.80 + bpm * 0.20
-            // Faster confidence ramp (was 0.92/0.08 → very slow) so a clean signal
-            // crosses the lock threshold in a couple of seconds, not ~15.
-            bpmConfidence = bpmConfidence * 0.82 + confidence * 0.18
-        }
+        // Confidence combines within-window regularity (CV) with run-to-run BPM
+        // STABILITY. rPPG inter-beat intervals are noisier than contact PPG, so a
+        // CV-only score (1 − cv·3) stayed under the lock gate even while the BPM sat
+        // rock-steady at ~58 for minutes (device log) — confidence never rose. A BPM
+        // that agrees window-to-window is the stronger trust signal, so it can carry
+        // confidence on its own.
+        let cvConf = max(0, min(1, 1.0 - cv * 2.0))
+        let agreement = estimatedBPM > 0
+            ? max(0, 1.0 - abs(bpm - estimatedBPM) / 12.0)
+            : cvConf
+        let confidence = max(cvConf, agreement)
+
+        estimatedBPM = estimatedBPM == 0 ? bpm : estimatedBPM * 0.80 + bpm * 0.20
+        // Ramp on every valid window (no hard gate): a clean, stable pulse locks in
+        // a few seconds; brief noisy windows are smoothed by the EMA, not ignored.
+        bpmConfidence = bpmConfidence * 0.82 + confidence * 0.18
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
         if rrIntervals.count >= 3 { calculateRMSSD() }
