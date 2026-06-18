@@ -433,6 +433,11 @@ final class CameraAnalyzer {
         guard amplitude > 0.0003 else { return }
         let threshold = minAmp + amplitude * 0.55
 
+        // TRUE sample rate from timestamps (don't assume 15 Hz) for the
+        // autocorrelation fallback, so its BPM is correct regardless of frame rate.
+        let span = signalTimestamps[n - 1] - signalTimestamps[startIdx]
+        let actualRate = span > 0 ? Double(windowSize - 1) / span : effectiveSampleRate
+
         // Minimum inter-beat interval: 300ms (200 BPM max)
         let minPeakDistance = Int(effectiveSampleRate * 0.3)
 
@@ -447,7 +452,7 @@ final class CameraAnalyzer {
             }
         }
 
-        guard newPeaks.count >= 3 else { return }
+        guard newPeaks.count >= 3 else { fallbackBPM(window, rate: actualRate); return }
 
         var intervals: [Double] = []
         for j in 1..<newPeaks.count {
@@ -456,7 +461,7 @@ final class CameraAnalyzer {
             intervals.append(dt)
         }
 
-        guard intervals.count >= 2 else { return }
+        guard intervals.count >= 2 else { fallbackBPM(window, rate: actualRate); return }
 
         // IQR outlier rejection
         let sorted = intervals.sorted()
@@ -497,6 +502,18 @@ final class CameraAnalyzer {
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
         if rrIntervals.count >= 3 { calculateRMSSD() }
+    }
+
+    /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than
+    /// 3 clean peaks, the device-log "bpm=0 forever" case), recover the rate from
+    /// the window's periodicity via autocorrelation. Gated on periodicity strength
+    /// so it locks onto a real pulse, not noise.
+    private func fallbackBPM(_ window: [Float], rate: Double) {
+        guard let r = PulsePeriodEstimator.dominantBPM(window, sampleRate: rate),
+              r.strength > 0.3 else { return }
+        estimatedBPM = estimatedBPM == 0 ? r.bpm : estimatedBPM * 0.80 + r.bpm * 0.20
+        let conf = max(0, min(1, (r.strength - 0.3) / 0.5))
+        bpmConfidence = bpmConfidence * 0.82 + conf * 0.18
     }
 
     // MARK: - HRV Calculation
