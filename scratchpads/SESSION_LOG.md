@@ -2567,3 +2567,22 @@ LEGAL/PRIVACY (two reviews: general "Claude for Legal" + "claude-für-deutsches-
 - TODO (founder-only): impressum 2nd fast contact + USt-IdNr; App Store Connect privacy labels + policy URL; Project.swift stale privacy strings (config, needs OK); DPMA/EUIPO/USPTO trademark "Echoel" (cl. 9+41); HaishinKit MIT licence screen before RTMP.
 - Website fixes live only AFTER merge of this feature branch to main (GitHub Pages).
 OPEN DECISIONS for next: next Ralph cycle (voice analyzer for vocoder vs accessible-UI/SkillLevel+Settings); align Project.swift?; cache-guardian version sweep (impressum.html still 10.14.0); open PR to publish website?
+
+### 2026-06-18 (cont.) — Clips session view wired (DAW-deepening plan, B2)
+Branch: claude/piano-roll-clip-view-wozlie. Plan = scratchpads piano-roll/clips/patch/synth-drums/sample-browser.
+DISCOVERY: most of the DAW-deepening plan already shipped in prior cycles (Note, PolySynthVoice,
+Clip/ClipStore, DrumSynthVoice, PatchEditorView, SampleBrowserView, deep PianoRollView all present
++ tested). The ONE real gap = the launchable Clips UI (matches the branch name) — ClipStore had no view.
+SHIPPED (CI-green: Build&Test iOS iPhone16Pro+SE, macOS, watchOS, tvOS, visionOS all success):
+- ClipView.swift (new): 8-slot adaptive session grid. Empty cell = capture live PatternEngine
+  steps/accents + PianoRollModel notes into a Clip; filled cell tap = launch (load back into the
+  transport, immediate v1 — LaunchQuantizer/quantize-to-bar later). Context menu: launch / re-capture
+  / rename / clear. Muted slot tints (accent-green stays reserved for live bio). VoiceOver labels.
+- Wiring: @State ClipStore + .environment in EchoelmusicApp; reachable from the Tools menu as a sheet
+  (consistent with PianoRoll/SoundEditor/Breath/Visual — the one-view studio pattern, not a 5th tab).
+- Test: ClipTests.testCaptureLaunchRoundTrip — locks the capture->launch model contract ClipView uses.
+ENV NOTE: this remote container has NO local Swift toolchain — `swift build` silently no-ops
+(command not found, masked by the pipe). Verification path = push to claude/** -> ci.yml (macos-26
+xcodebuild build-for-testing + tests) is authoritative. Build-guard.sh --quick runs locally (pure bash).
+NEXT candidates: surface Clips more prominently than a menu item (top-level button?); quantize-to-bar
+launch via existing LaunchQuantizer; verify deep PianoRollView UX on device; SkillLevel pull-through.
