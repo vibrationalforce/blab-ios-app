@@ -48,3 +48,35 @@ WorksView/ModulationView/SoundscapeView` (old multi-tab paradigm — superseded 
 5. WATCH items (CloudKit sync, sessions UI, video) as their dimension is greenlit.
 
 _Principle: rebuild from the idea, clean and tested, on the stable bus — never paste old code._
+
+---
+
+## RE-EVALUATION 2026-06-18 — deleted files vs ACTUAL current tree (Echoel-fit)
+
+Reconciled every ever-deleted .swift against the working tree. **Finding: every
+worthwhile domain/engine file is already RESTORED.** What remains absent is either
+the Clips/Arrangement UI (the one real ADOPT gap) or correctly-rejected deprecated
+code superseded by the single-view + restored engines.
+
+### Already RESTORED (no action — confirmed in tree, most with tests)
+Clip · Arrangement · ArrangementPlayer · LaunchQuantizer · ClipStore · ArrangementStore
+· SessionRecorder · EchoelReverb · BioMetricInfo · SequencerAccessibility · MetalBioView.
+
+### Still absent → ADOPT (rebuild, Echoel-fit, fills matrix gap)
+| File(s) | Verdict | Effort/Risk | Note |
+|---|---|---|---|
+| `Studio/ClipsTab` + `ClipView` + `ArrangementView` + `Selection` | **ADOPT** | L / med-high | The matrix's #1 gap. Domain + tests EXIST; needs the UI + transport-step wiring into EchoelStudioView (feed `launchQuantizer.transportStep`/`arrangementPlayer.transportStep` from the pattern clock). Must be ONE-view (no new tabs), accessible (SequencerA11y ready). A focused multi-step cycle, NOT a blind one-shot. |
+| `Views/SettingsView` | **ADOPT** | S | Clean home for SkillLevel + Kammerton + safety toggles; pairs with the SkillLevel pull-through. |
+
+### Still absent → WATCH (rebuild when that dimension is greenlit)
+`Video/ShortContentRenderer` (video=roadmap) · `Views/SessionGridView`+`SessionHistoryView`
+(Works/Sessions UI; SessionRecorder already restored → Pro tier).
+
+### Still absent → REJECT (deprecated or superseded — do NOT rebuild)
+- Superseded by restored engines: `Core/ClipEngine`, `Core/SessionStore`, `Views/BioVisualRenderer` (→ MetalBioView + BioVisualParams), `Views/CameraMeasurementView` (→ live rPPG), `DSP/GenrePatches` (→ per-genre timbre in current path).
+- Superseded by the single-view paradigm: `Studio/StudioRoot`, `StudioNavigator`, `BeatTab`, `WellView`, `WorksView`, `ModulationView` (the one `EchoelStudioView` IS the chosen IA).
+- Off-vision / deprecated: `Bio/OuraRingClient` (Oura via HealthKit), `BioSourceManager`, `MotionActivityProvider`, `Core/CircadianClock`, `WeatherProvider`, `Core/SoundscapeEngine`, `Views/SoundscapeView`, `SoundDesignView`, `MasterView` (1079-LOC monolith), `MomentCapture(View)`.
+
+**Bottom line:** salvage is essentially COMPLETE. The remaining real build is the
+**Clips/Arrangement UI** (one-view, accessible) + a small **Settings** surface.
+Everything else absent is correctly out.
