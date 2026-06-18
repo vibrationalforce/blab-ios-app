@@ -43,6 +43,12 @@ on:
         required: false
         default: true
         type: boolean
+  # Tokenless deploy: pushing a tag like `deploy-ios-<n>` triggers an iOS
+  # TestFlight upload. App Store Connect credentials live as GitHub repo secrets
+  # (CI-side), so no local token is needed — a `git push` of the tag is enough.
+  push:
+    tags:
+      - 'deploy-ios-*'
 
 concurrency:
   group: testflight-${{ github.event.inputs.platform }}-${{ github.ref }}
@@ -288,7 +294,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.outputs.ready == 'true' &&
-      (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all') &&
+      ((github.event.inputs.platform || 'ios') == 'ios' || (github.event.inputs.platform || 'ios') == 'all') &&
       github.event.inputs.build_only != 'true'
     timeout-minutes: 120
 
