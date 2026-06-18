@@ -48,6 +48,12 @@ final class CameraAnalyzer {
     /// Frame counter for debugging
     private var frameCount: Int = 0
 
+    /// Throttles the expensive peak scan so it runs ~4 Hz, not every 15 Hz frame —
+    /// keeps the main actor free for the UI/tools.
+    private var peakTick: Int = 0
+    /// Counts samples since pulse start, for a fast DC-baseline warmup.
+    private var dcWarmupCount: Int = 0
+
     /// Recent bandpass-filtered pulse signal, normalized to ~[-1,1], for a live
     /// waveform ("Stimmungsbild"). Empty until samples exist; flat = no signal.
     var recentWaveform: [Float] {
@@ -335,6 +341,8 @@ final class CameraAnalyzer {
         rrIntervals.removeAll()
         bpState = BandpassState()
         dcEstimate = 0
+        dcWarmupCount = 0
+        peakTick = 0
         estimatedBPM = 0
         bpmConfidence = 0
         signalQuality = 0
@@ -344,9 +352,13 @@ final class CameraAnalyzer {
     private func processPulseSignal(avgR: Float) {
         let now = ProcessInfo.processInfo.systemUptime
 
-        // DC offset removal: slow-tracking mean (τ ≈ 6.6s at 15Hz)
-        // Removes baseline drift and respiration contamination before bandpass
-        dcEstimate = dcEstimate * 0.99 + avgR * 0.01
+        // DC offset removal. Warm up FAST for the first ~1s (τ≈0.7s) so the
+        // baseline — and thus the bandpass — settles in ~1s instead of ~6s (the
+        // main cause of a slow first lock), then track slowly (τ≈6.6s) to stay
+        // immune to respiration drift.
+        dcWarmupCount += 1
+        let dcCoeff: Float = dcWarmupCount < Int(effectiveSampleRate) ? 0.90 : 0.99
+        dcEstimate = dcEstimate * dcCoeff + avgR * (1 - dcCoeff)
         let dcRemoved = avgR - dcEstimate
 
         // Filter DC-removed signal and store alongside raw
@@ -363,8 +375,16 @@ final class CameraAnalyzer {
             peakIndices = peakIndices.compactMap { $0 > 0 ? $0 - 1 : nil }
         }
 
-        // Need at least 3 seconds of data before peak detection
-        guard rawRedSignal.count >= Int(effectiveSampleRate * 3) else { return }
+        // Need ~2s of data before the first estimate (was 3s — faster first lock).
+        guard rawRedSignal.count >= Int(effectiveSampleRate * 2) else { return }
+
+        // THROTTLE the expensive peak scan + quality update to ~4 Hz. Running the
+        // O(n) scan with its allocations every 15 Hz frame on the @MainActor was
+        // starving the UI ("tools don't work" once the finger path went live). The
+        // per-sample IIR filtering above still runs every frame, so the signal is
+        // intact — only the heavy scan is rate-limited.
+        peakTick += 1
+        guard peakTick % 4 == 0 else { return }
 
         // Peak detection uses stored filtered signal (O(n) vs previous O(n²))
         detectPeaks(timestamp: now)
@@ -455,7 +475,9 @@ final class CameraAnalyzer {
 
         if confidence > 0.25 {
             estimatedBPM = estimatedBPM == 0 ? bpm : estimatedBPM * 0.80 + bpm * 0.20
-            bpmConfidence = bpmConfidence * 0.92 + confidence * 0.08
+            // Faster confidence ramp (was 0.92/0.08 → very slow) so a clean signal
+            // crosses the lock threshold in a couple of seconds, not ~15.
+            bpmConfidence = bpmConfidence * 0.82 + confidence * 0.18
         }
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
