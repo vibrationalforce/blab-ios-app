@@ -40,8 +40,8 @@ struct EchoelStudioView: View {
 
     // Optional locked tempo for tight, DAW-ready loops. When off, the tempo follows
     // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
-    @State private var lockBPM = false
-    @State private var lockedBPM: Double = 70
+    @AppStorage("studio.lockBPM") private var lockBPM = false
+    @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
 
     // Collapsible control-panel state ("aufklappen") + timbre preset.
     @State private var showComposition = true
@@ -56,7 +56,7 @@ struct EchoelStudioView: View {
     /// Continuous mood/character controls that shape the composition (blend with bio).
     @State private var mood = MoodProfile()
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
-    @State private var presetIndex = -1
+    @AppStorage("studio.presetIndex") private var presetIndex = -1
 
     private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
 
@@ -78,8 +78,8 @@ struct EchoelStudioView: View {
     /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
     /// Persisted so a chosen world tuning survives relaunch.
     @AppStorage("toneSystemID") private var tuningID = "edo12"
-    @State private var fxCharacter: FXCharacter = .auto
-    @State private var loopBars: LoopBarLength = .four
+    @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
+    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
     @State private var currentPatch = SynthPatch(name: "Init")
     @State private var lastNoteCount: Int?
     /// Ever-advancing evolution counter folded into every seed so the composition
@@ -165,7 +165,10 @@ struct EchoelStudioView: View {
         .modifier(StudioZoom(step: $zoomStep))
         .background(EchoelTheme.bg)
         .onAppear {
-            currentPatch = style.synthPatch   // controls reflect a real sound from the start
+            // Controls reflect a real sound from the start — honor a restored timbre
+            // preset, else the genre's own patch.
+            currentPatch = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
+                ? SynthPatch.factory[presetIndex] : style.synthPatch
             applyTuning()                      // 12-TET default = no-op; restores any selected system
             surfacePriorCrashIfAny()
             handlePendingIntent()
