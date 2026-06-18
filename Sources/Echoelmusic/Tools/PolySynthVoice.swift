@@ -113,11 +113,7 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var hasEverSounded = false
 
-    /// One-time guards so diagnostic breadcrumbs fire only once.
-    nonisolated(unsafe) private static var renderTraced = false
-    nonisolated(unsafe) private static var renderEntered = false
-    nonisolated(unsafe) private static var drainTraced = false
-    nonisolated(unsafe) private static var drainExitTraced = false
+    /// One-time guard so the control-thread note breadcrumb fires only once.
     nonisolated(unsafe) fileprivate static var noteTraced = false
 
     public init(maxVoices: Int = 12) {
@@ -277,34 +273,16 @@ public final class PolySynthVoice {
             case .allOff:
                 poly.allNotesOff()
             }
-            if !Self.drainTraced {
-                Self.drainTraced = true
-                EchoelCrashLog.breadcrumb("render: drained first cmd kind=\(cmd.kind.rawValue)")
-            }
-        }
-        if !Self.drainExitTraced {
-            Self.drainExitTraced = true
-            EchoelCrashLog.breadcrumb("render: note-drain exited sounded=\(hasEverSounded)")
-        }
-        if !Self.renderEntered {
-            Self.renderEntered = true
-            EchoelCrashLog.breadcrumb("render entered (sounded=\(hasEverSounded))")
         }
         guard hasEverSounded else {
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return
         }
         let count = min(frameCount, Self.maxBlockFrames)
-        // One-time diagnostic breadcrumbs (first audible block only) to localize
-        // any first-render crash to the poly engine vs. the FX chain.
-        let firstBlock = !Self.renderTraced
-        if firstBlock { EchoelCrashLog.breadcrumb("render#1: begin frames=\(count)") }
         poly.renderStereo(left: &scratchL, right: &scratchR, frameCount: count)
-        if firstBlock { EchoelCrashLog.breadcrumb("render#1: poly done") }
         // Genre/effect colour (long dub delay, vapor chorus, …). Audio-thread
         // safe: pre-allocated stages, no work for bypassed effects.
         fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
-        if firstBlock { Self.renderTraced = true; EchoelCrashLog.breadcrumb("render#1: fx done") }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         guard abl.count > 0 else { return }
