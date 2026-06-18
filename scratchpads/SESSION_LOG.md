@@ -2610,3 +2610,24 @@ SHIPPED v10.25.0: the three fixes. Build guard green each commit.
 NEXT candidates (consolidation plan): BioModulation spine (heartbeat->params one routing layer);
 LatencyCompensation in the live mix; BioVisualParams -> Metal. Render-path BEHAVIORAL audio changes
 still gated on user ear-confirm of build 1913/1918 (clicks/phase jumps). Safety fixes (this pass) not gated.
+
+### 2026-06-18 (cont.) — Feuerwehr: rPPG confirmed working + composer wedge fixed
+DEVICE LOG (build 1918/1919) revealed two things:
+1. rPPG WORKS: once the finger seated, q ramped 0.07->0.64, conf->0.94, bpm locked 58-60.
+   Earlier "finger=no q=0.00" = positioning variance, not a regression. Shipped v10.26.0
+   diagnostic (breadcrumb now logs R + brightness) to pinpoint placement next time.
+2. REAL FIRE (composer): after a pulse lock+release the generator collapsed to "6 notes"
+   for 8 min AND burst-reseeded (~9 generate() in 6 s). Traced (general-purpose agent):
+   - Problem 1: HealthKitBioPublisher publishes coherence:0 = "not available", but BioComposer
+     reads coherence as calmness -> 0 misread as "maximally incoherent" -> busy pins high ->
+     sparse count locks. Note count is seed-independent, so a frozen frame (HealthKit @500ms,
+     or neutral) keeps it stuck at 6. FIX (EchoelStudioView.generate): coherence==0 -> neutral
+     0.5 (real coherence from BLE/camera is always >0 when valid, flows through).
+   - Problem 2: lastSeedAt (3.5s anti-flood floor) only advanced when generate() RAN, so the
+     lock-snap + evolve tick firing together each saw an expired floor -> back-to-back reseeds.
+     FIX (scheduleGenerate): claim lastSeedAt = now+delay at SCHEDULE time for auto reseeds;
+     user edits (auto:false) still instant.
+SHIPPED v10.26.0 (rPPG diagnostic) + v10.27.0 (composer wedge fixes). Build guard green each.
+NOTE: BioModulation spine map is READY (BioModulation.swift + BioVisualParams.swift pure cores;
+ModulationEngine has register/outputTap; matrix EMPTY by default). Minimal wiring = 1 bridge file
++ 1 app-startup call + bind visual params into MetalBioView. Queued behind the composer fires.
