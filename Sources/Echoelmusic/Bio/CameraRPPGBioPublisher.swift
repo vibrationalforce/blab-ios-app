@@ -95,10 +95,24 @@ public final class CameraRPPGBioPublisher {
         }
 
         // Finger-on-lens PPG needs the back-camera torch to illuminate the
-        // fingertip — without it there is no red-channel pulse signal.
-        enableTorch(true)
+        // fingertip — without it there is no red-channel pulse signal. Driven on
+        // the session's own running device for reliability.
+        capture.setTorch(true)
         analyzer.startPulseDetection()
         isRunning = true
+        EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
+
+        // Let auto-exposure settle (~2 s), then LOCK it: continuous AGC fights the
+        // tiny pulsatile brightness oscillation and flattens the PPG signal. This
+        // call was missing — the camera could never lock a stable pulse. Re-assert
+        // the torch at the same time (exposure reconfig can drop it on some devices).
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, self.isRunning else { return }
+            self.capture.lockExposure()
+            self.capture.setTorch(true)
+            EchoelCrashLog.breadcrumb("rPPG: exposure locked, torch re-asserted")
+        }
 
         publishTask = Task { @MainActor [weak self] in
             var tick = 0
@@ -113,6 +127,15 @@ public final class CameraRPPGBioPublisher {
                 self.waveform = self.analyzer.recentWaveform
                 // Publish a confident pulse to the bus at ~1 Hz (every 10th tick).
                 tick += 1
+                // Diagnostics into the breadcrumb stream (~every 2 s) so a device
+                // log reveals WHY there is no signal: finger off → torch/position;
+                // finger on but bpm 0 → exposure/signal; conf < 0.35 → still locking.
+                if tick % 20 == 0 {
+                    EchoelCrashLog.breadcrumb(String(format:
+                        "rPPG: finger=%@ q=%.2f bpm=%.0f conf=%.2f",
+                        self.fingerDetected ? "yes" : "no",
+                        self.signalQuality, self.detectedBPM, self.confidence))
+                }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
                 guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else { continue }
@@ -147,7 +170,7 @@ public final class CameraRPPGBioPublisher {
     public func stop() {
         publishTask?.cancel()
         publishTask = nil
-        enableTorch(false)
+        capture.setTorch(false)
         capture.stop()
         capture.onFrame = nil
         analyzer.stopPulseDetection()
@@ -159,19 +182,5 @@ public final class CameraRPPGBioPublisher {
         waveform = []
     }
 
-    /// Drive the back-camera torch for finger PPG illumination (half brightness).
-    private func enableTorch(_ on: Bool) {
-        #if !os(macOS)
-        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
-        do {
-            try device.lockForConfiguration()
-            device.torchMode = on ? .on : .off
-            if on { try? device.setTorchModeOn(level: 0.5) }
-            device.unlockForConfiguration()
-        } catch {
-            log.log(.warning, category: .biofeedback, "Torch control failed: \(error.localizedDescription)")
-        }
-        #endif
-    }
 }
 #endif

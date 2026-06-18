@@ -102,6 +102,36 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         session.addOutput(output)
     }
 
+    // MARK: - Torch (finger-PPG illumination)
+
+    /// Drive the torch on the SESSION's own running device (reliable), not a
+    /// separate `AVCaptureDevice.default(for:)` lookup that can race the session.
+    /// Finger-on-lens PPG has no red-channel pulse without it.
+    func setTorch(_ on: Bool) {
+        sessionQueue.async { [weak self] in
+            guard let self,
+                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
+                  device.hasTorch else {
+                log.log(.warning, category: .biofeedback, "Torch unavailable on capture device")
+                return
+            }
+            do {
+                try device.lockForConfiguration()
+                if on {
+                    let level = min(0.6, AVCaptureDevice.maxAvailableTorchLevel)
+                    try device.setTorchModeOn(level: level)
+                } else {
+                    device.torchMode = .off
+                }
+                device.unlockForConfiguration()
+                log.log(.info, category: .biofeedback,
+                        "Torch \(on ? "on" : "off"), active=\(device.isTorchActive)")
+            } catch {
+                log.log(.warning, category: .biofeedback, "Torch control failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Exposure Lock (call after ~2s for stable PPG baseline)
 
     /// Lock camera exposure to prevent auto-gain from corrupting PPG signal
