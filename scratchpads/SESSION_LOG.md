@@ -2549,3 +2549,21 @@ dann Profi-Klangfarbe: Unison/Detune + akustische/modale Instrumente (PLAN_SYNTH
   candidates after: BioMetricInfo tap-wiring into BioStrip, Echoel-AI chatbot, "Learn"/OER layer.
 - NOTE: only THIS session's transcript exists on disk; no pre-restart Claude history to mine —
   durable record = git(incl deleted)+changelog(to v5.0.0)+memory/+decisions.csv+inspiration.csv.
+
+### 2026-06-18 — Performance + flagship vocoder cores + legal/privacy reconciliation
+Branch: claude/piano-roll-clip-view-wozlie. Long Ralph-loop session, every cycle dry-run-green, batched to TestFlight.
+SHIPPED (TestFlight, 2 successful deploys):
+- rPPG "No signal" FIX (device-confirmed working): was torch off + exposure never locked. Now CameraCapture.setTorch on the session device + lockExposure ~2s after start + diagnostics breadcrumbs. Device log later confirmed finger=yes, conf->0.92.
+- rPPG PERF + faster lock: detectPeaks was O(n) every 15Hz frame on @MainActor -> starved UI ("tools don't work" once finger path went live). Throttled to ~4Hz; DC warmup fast (~1s) + 2s gate + faster confidence EMA -> lock ~8-12s (was ~20).
+NEW PURE TESTED CORES (foundations, dry-run-green; not yet wired = honest):
+- BioVisualParams (rings/cymatics/mandala, flash-safe), SequencerAccessibility (rebuilt), MusicTheoryPrimer + LearnLibrary + BioMetricInfo tap-to-learn (the "app as school"),
+- VocoderCore (voice->sound+visual+light, pitch->colour octave/Newton, flash-safe) = FLAGSHIP start,
+- FeedbackGuard (howlround duck+notch brain), BioModulation (BoundParameter universal bio-binding spine + ClockSource heartbeat-vs-BPM).
+STRATEGY (vision-gate, logged inspiration.csv + decisions.csv):
+- Stay focused bio+VOICE instrument; REJECT full DAW/NLE; ADOPT interop + the AV vocoder. North Star reframed 'inclusive immersive multimedia instrument'.
+- XR/VR 360 = visionOS roadmap; accessible UI + iPhone immersive mode = the near path. Realtime: wired=realtime, BT=150-250ms honest.
+LEGAL/PRIVACY (two reviews: general "Claude for Legal" + "claude-für-deutsches-recht"; both: shippable WITH conditions):
+- Fixed: privacy.html removed non-existent features (ARKit face-tracking/video/SharePlay-E2E) -> real surface; ONE worldwide policy (GDPR/UK + CCPA/CPRA + International + controller/Art.9 basis) in American English; impressum dead-ODR -> §36 VSBG; health.html entrainment -> creative/non-therapeutic; American-English spelling sweep across docs/*.html.
+- TODO (founder-only): impressum 2nd fast contact + USt-IdNr; App Store Connect privacy labels + policy URL; Project.swift stale privacy strings (config, needs OK); DPMA/EUIPO/USPTO trademark "Echoel" (cl. 9+41); HaishinKit MIT licence screen before RTMP.
+- Website fixes live only AFTER merge of this feature branch to main (GitHub Pages).
+OPEN DECISIONS for next: next Ralph cycle (voice analyzer for vocoder vs accessible-UI/SkillLevel+Settings); align Project.swift?; cache-guardian version sweep (impressum.html still 10.14.0); open PR to publish website?

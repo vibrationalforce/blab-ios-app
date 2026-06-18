@@ -12,6 +12,14 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
+> **UPDATE (2026-06-18) — reconciled to code (corrects stale notes below):**
+> - **EchoelVis is LIVE** — `Views/MetalBioView.swift` is the live full-screen bio visual (HR→pulse ≤2.5 Hz WCAG, coherence→hue, breath→spread, honours Reduce Motion). NOT dormant/deprecated. **EchoelSeq = 23 genres** (not 12). **sACN unicast is LIVE** beside Art-Net.
+> - **Real HRV coherence** (`Bio/HRVCoherence.swift`, Lomb-Scargle + Welch) replaced the placeholder; **resonance breath guide**, **tap-to-learn** bio metrics (`Studio/BioMetricInfo.swift` wired into BioStripView) + the "app as a school" layer (`Studio/MusicTheoryPrimer.swift`, `Studio/LearnLibrary.swift`).
+> - **rPPG hardened** (`Bio/CameraRPPGBioPublisher.swift` + `Video/CameraCapture.swift`): session-device torch + exposure lock → reliable lock; peak scan throttled off the main actor (UI no longer stalls).
+> - **New pure tested CORES, built but NOT yet wired** (do NOT claim as shipping): `Studio/BioVisualParams.swift`, `Studio/VocoderCore.swift` (the flagship audiovisual vocoder: voice→sound+visual+light, flash-safe), `Studio/FeedbackGuard.swift` (howlround duck+notch brain), `Studio/BioModulation.swift` (universal `BoundParameter` bio-binding spine + `ClockSource` heartbeat-vs-BPM-lock).
+> - **Clips/Arrangement:** domain (`Clip`/`Arrangement`/`ArrangementPlayer`/`LaunchQuantizer` + stores) + tests EXIST; the **UI is the open gap** (#1).
+> - **Legal/privacy:** ONE worldwide policy (GDPR/UK + CCPA/CPRA) in American English; `privacy.html` / `impressum.html` / `health.html` corrected to match shipped features. **~133 Swift (Sources) + 2 Metal.**
+
 > **UPDATE (2026-06-12) — USP focus + bio-generative composer:** the iPhone app
 > is now **Simple-by-default**, reduced to the USP × broad-audience intersection
 > — *"your heartbeat makes music: to calm down or for your track."* First-time

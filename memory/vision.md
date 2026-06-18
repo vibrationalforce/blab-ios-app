@@ -36,6 +36,10 @@ with **Data** (OSC / MIDI 2.0 / MPE / AUv3) as the connective layer.
 
 - **Live RTMP/SRT broadcast** — HaishinKit authorized (sole sanctioned dep), 0 code yet.
 - **Live Clip / session view** — ClipStore/ClipView partly built.
+- **AUDIOVISUAL VOCODER (flagship)** — voice+body → sound+visual+light at once; pure cores
+  built 2026-06-18 (`VocoderCore`/`FeedbackGuard`/`BioModulation`), wiring next. The unique,
+  inclusive edge (no competitor does bio/voice-driven AV vocoding). Positioning reconfirmed
+  2026-06-18: stay the focused bio+voice instrument; interop, NOT a general DAW/NLE.
 - **AUv3 instrument (hostable in Logic/AUM)** — generator scaffold exists, inactive.
 - **Video capture / edit / trim** — rPPG-only today (was cut once; re-evaluate per gate).
 - **Multichannel / 360° immersive sound, head-tracked binaural, Atmos authoring.**
@@ -83,12 +87,12 @@ if the website disagrees, the code wins.**
    (cut 06-12, re-listed 06-17). Resolve via the gate, then either build or stop claiming.
 2. **CLAUDE.md "v10 Target" diagram describes an app never built** (Beat/Record/Video/
    Share tabs); the as-built is one `EchoelStudioView`. Same file contradicts itself.
-3. **FEATURE_MATRIX is stale on the visual dimension** (cites old MetalBioView as deleted;
-   build 1867 created a new live one).
+3. **(RESOLVED 2026-06-18)** FEATURE_MATRIX reconciled to code (MetalBioView LIVE, 23 genres,
+   sACN unicast live, new vocoder/biomod cores flagged not-yet-wired).
 4. **Bus topics `bioFrames`/`bioEvents` are reserved but undrained**; bio flows over the
    snapshot (per-RR heartbeat events have no synth sink). Lock-free design partly aspirational.
 5. **North-Star concepts (auto-driving, dive-flying) have no written bridge** to the
    roadmap — intentionally, but keep them parked, not leaking into copy.
 
-_Last synthesized: 2026-06-17 (build 1867). Re-audit when the brand promise and the
+_Last synthesized: 2026-06-18. Re-audit when the brand promise and the
 shipping reality drift further than one cycle apart._

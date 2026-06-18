@@ -21,18 +21,18 @@ Capabilities (all routed through one typed bus): **Beat Maker** (16-step × 8-tr
 
 ## CURRENT STATE
 
-- **Branch:** `claude/echoelmusic-app-feasibility-3rtwL` (current dev branch; prior cycles auto-merged to `main`)
+- **Branch:** `claude/piano-roll-clip-view-wozlie` (current dev branch; prior cycles auto-merged to `main`)
 - **Mode:** RALPH WIGGUM LAMBDA — one feature/fix per cycle, build → test → ship → loop
 - **Positioning:** "The first bio-reactive performance instrument" — and, per the 2026-06-06 deep-research roadmap, the **bio-reactive object source for accessible immersive multidimensional media art** (open standards: ADM-OSC, MIDI 2.0, OSC, BLE HRS; no SDK lock-in). See `scratchpads/STRATEGY_STATE_OF_THE_ART_2026-06-06.md`.
 - **Architecture (audited 2026-06-09 — `scratchpads/ARCHITECTURE_AUDIT_2026-06-09.md`):** `EngineBus` = `@MainActor @Observable` control plane (snapshots) + lock-free `SPSCQueue`. 3 topics — `bioFrames` / `controllerEvents` / `bioEvents`. **Bio flows over the `latestBio`/`latestBioEvent` snapshot (10 Hz poll); the SPSC queue is drained only for `controllerEvents` (MIDI).** `bioFrames`/`bioEvents` queues are reserved/undrained (snapshot is the correct path for slow bio). Modules couple only via the bus.
 - **Live pipeline:** HealthKit + **universal BLE Heart Rate** (any 0x180D device) + **camera rPPG (live, locks on device)** + Demo → bio snapshot → BioReactiveSynthVoice (EchoelDDSP; **silent until user-armed**) + OSCSender (`/echoelmusic/bio/*`) + **ADMOSCSender** (`/adm/obj/{n}/*` immersive object out). CoreMIDI MPE → controllerEvents → synth notes (performer priority). BioEventGraph → breath/motion onsets. ModulationEngine wired (bio→tempo). EchoelBeat: velocity/accent + swing + per-pad sample import.
 - **Protected DSP triad (READ-ONLY, now implemented):** BioSignalDeconvolver (detrend·notch·validity), HilbertSensorMapper (1D→2D Hilbert curve), BioEventGraph (heartbeat/breath/motion detectors). Pure value types, SKILL.md contracts under `.claude/skills/`.
 - **SDK:** iOS 18 deployment floor (Package.swift + project.yml + Resources/iOS/Info.plist synced). Xcode 26.2 in `testflight.yml`. App Group `group.com.echoelmusic`.
-- **Root view:** `Studio/StudioRoot.swift` — Tools / Works / Sync / Well + live `BioStripView` (HR·HRV·Br·Coh, synth-frame count, MIDI/OSC/event activity dots, play toggle).
+- **Root view:** `Studio/EchoelStudioView.swift` — single instrument view (Compose · FX · Mix · Piano-Roll · Well) above the live `BioStripView` (HR·HRV·Br·Coh with **tap-to-learn**, MIDI/OSC/event dots, play toggle). The old `StudioRoot` Tools/Works/Sync/Well TabView is deprecated/removed (single-view IS the chosen IA).
 - **✅ TESTFLIGHT PIPELINE: GREEN (verified 2026-05-30).** Prior "deploy blocker" note is resolved — `testflight.yml` runs #1404–#1407 on `main` all succeeded across every platform (iOS upload + Summary), preflight confirms App Store Connect secrets are present and valid. Dispatch + poll from the sandbox via `bash scripts/check-testflight.sh dispatch` (token in gitignored `.claude/settings.local.json`). Push the feature branch's newer work (bio synth / OSC / Polar) to TestFlight with a full `build_only=false` run once a branch verification run is green.
-- **Latest ship:** TestFlight **build 1543 VALID** (2026-06-09) — app + Widget + AUv3, camera rPPG live, universal BLE, ADM-OSC, **EchoelLux native Art-Net light output**, EchoelBeat velocity/swing/sample-import (now visible/discoverable), guaranteed launch silence.
-- **Absent (not wired — do not claim as shipping):** RTMP/streaming, video capture/edit, multitrack audio, sACN (Art-Net is live; sACN next). See `docs/dev/FEATURE_MATRIX.md`.
-- **Files:** ~66 Swift + 2 Metal | **Swift 100%**
+- **Latest ship:** TestFlight (2026-06-18) — **rPPG fix** (session-device torch + exposure lock → reliable lock; UI unblocked, peak-scan throttled, lock ~8–12 s), **real frequency-domain HRV coherence** (Lomb-Scargle + Welch), **resonance breath guide**, **tap-to-learn** bio metrics, **Art-Net flash-safety** (slew-limited). Base build 1543 (app + Widget + AUv3, camera rPPG, universal BLE, ADM-OSC, EchoelLux Art-Net, launch silence).
+- **Absent (not wired — do not claim as shipping):** RTMP/streaming, video capture/edit, multitrack audio. **Art-Net + sACN (unicast) are live.** Clips/Arrangement domain + tests are built but the **UI is not wired**. **VocoderCore / FeedbackGuard / BioModulation / BioVisualParams** = pure tested cores built this cycle, **not yet wired** (foundations). See `docs/dev/FEATURE_MATRIX.md`.
+- **Files:** ~133 Swift (Sources) + 2 Metal | **Swift 100%**
 
 ---
 
