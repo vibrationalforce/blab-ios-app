@@ -48,6 +48,8 @@ struct EchoelmusicApp: App {
     @State private var patchStore: PatchStore
     /// Shared melodic piano-roll pattern — the body-generated melody.
     @State private var pianoRoll: PianoRollModel
+    /// Session grid of launchable clips (drum pattern + melody snapshots).
+    @State private var clipStore = ClipStore()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed.
     @State private var haptics = HapticController()
@@ -148,6 +150,7 @@ struct EchoelmusicApp: App {
             .environment(modulationEngine)
             .environment(patchStore)
             .environment(pianoRoll)
+            .environment(clipStore)
             .environment(midiOut)
             #if canImport(CoreHaptics)
             .environment(haptics)

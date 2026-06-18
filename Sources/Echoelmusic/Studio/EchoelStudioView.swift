@@ -97,6 +97,7 @@ struct EchoelStudioView: View {
 
     // Tools — open the (previously unreachable) editors as sheets.
     @State private var showPianoRoll = false
+    @State private var showClips = false
     @State private var showPatchEditor = false
     @State private var showVisual = false
     @State private var showBreath = false
@@ -163,6 +164,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showPianoRoll) {
             PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         }
+        .sheet(isPresented: $showClips) { ClipView() }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: currentPatch) { p in
                 currentPatch = p
@@ -200,6 +202,7 @@ struct EchoelStudioView: View {
         @Bindable var midiOut = midiOut
         return Menu {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
+            Button { showClips = true } label: { Label("Clips", systemImage: "square.grid.2x2") }
             Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
             Button { showBreath = true } label: { Label("Breathing Guide", systemImage: "wind") }
             #if canImport(MetalKit) && canImport(UIKit)

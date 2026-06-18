@@ -61,6 +61,34 @@ final class PatternLoadTests: XCTestCase {
         engine.load(steps: [[true]], accents: [[true]]) // wrong shape
         XCTAssertEqual(engine.steps, original, "malformed clip is ignored")
     }
+
+    /// The capture→launch round-trip ClipView performs: snapshot the live beat +
+    /// melody into a Clip, then launch it into fresh engines and get it back.
+    func testCaptureLaunchRoundTrip() {
+        let pattern = PatternEngine()
+        pattern.setStep(track: 1, step: 4, on: true)
+        pattern.setAccent(track: 1, step: 4, on: true)
+        let roll = PianoRollModel()
+        _ = roll.add(pitch: 62, startStep: 2, lengthSteps: 3, velocity: 0.6)
+
+        // capture (what ClipView.capture does)
+        let clip = Clip(
+            name: "Take",
+            drums: DrumPattern(steps: pattern.steps, accents: pattern.accents),
+            melody: MelodyClip(notes: roll.notes)
+        )
+
+        // launch into fresh engines (what ClipView.launch does)
+        let pattern2 = PatternEngine()
+        let roll2 = PianoRollModel()
+        if let d = clip.drums { pattern2.load(steps: d.steps, accents: d.accents) }
+        if let m = clip.melody { roll2.load(m.notes) }
+
+        XCTAssertEqual(pattern2.steps, pattern.steps)
+        XCTAssertEqual(pattern2.accents, pattern.accents)
+        XCTAssertEqual(roll2.notes.map { $0.pitch }, [62])
+        XCTAssertEqual(roll2.notes.first?.lengthSteps, 3)
+    }
 }
 
 #if canImport(AVFoundation) && canImport(Accelerate)
