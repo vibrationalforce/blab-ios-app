@@ -115,7 +115,7 @@
                 <li><strong>Device information:</strong> Device IDs, advertising IDs, or hardware specifications</li>
                 <li><strong>Location data:</strong> GPS coordinates, Wi-Fi networks, or IP addresses</li>
                 <li><strong>Audio recordings:</strong> Microphone input, voice data, or recorded audio</li>
-                <li><strong>Visual data:</strong> Face tracking data, camera feed, or AR session recordings</li>
+                <li><strong>Visual data:</strong> Camera frames, photos, or video</li>
                 <li><strong>Creative content:</strong> Your music, videos, or artistic creations</li>
             </ul>
         </section>
@@ -125,8 +125,8 @@
             <p>All data processing occurs locally on your device:</p>
             <p><strong>Biometric Data:</strong> Heart rate variability (HRV), heart rate, and breathing patterns from Apple Watch or HealthKit are processed in real-time on your device to influence audio, visuals, and lighting. This data never leaves your device and is not stored.</p>
             <p><strong>Audio Input:</strong> Microphone input for music production, voice synthesis, and audio analysis is processed locally. No audio is uploaded to servers or shared with third parties.</p>
-            <p><strong>Face Tracking:</strong> Facial expression tracking using Apple's ARKit and TrueDepth camera is processed on-device for bio-reactive features. Facial data is never stored or transmitted.</p>
-            <p><strong>Camera & Sensors:</strong> Camera input for video processing, motion tracking, and spatial audio positioning is handled entirely on-device with no external transmission.</p>
+            <p><strong>Camera (pulse / rPPG):</strong> When you start a camera pulse reading, the rear camera with the torch measures subtle colour changes in your fingertip to estimate heart rate (photoplethysmography). Frames are analysed in real time on-device and are never recorded, stored, or transmitted. There is no face tracking, AR, or video recording.</p>
+            <p><strong>Sensors:</strong> Bluetooth heart-rate straps and device motion are read on-device to drive the instrument. None of this is transmitted off-device, except optional OSC / Art-Net / MIDI control data you explicitly enable on your local network.</p>
         </section>
 
         <section>
@@ -145,20 +145,20 @@
         <section>
             <h2>Camera & Sensors</h2>
             <p>Echoelmusic requests camera and sensor permissions for the following features:</p>
-            <p><strong>Camera Access:</strong> Used for video recording, AR experiences, and face tracking. All processing is local. No images or video are uploaded to servers.</p>
-            <p><strong>Microphone Access:</strong> Used for audio recording, voice input, and sound analysis. All audio processing is local.</p>
-            <p><strong>Motion & Fitness:</strong> Used for spatial audio positioning and gesture control. All sensor data is processed on-device.</p>
+            <p><strong>Camera Access:</strong> Used only to estimate your pulse from a fingertip on the rear camera (rPPG). No photos or video are recorded, and nothing is uploaded. No face tracking or AR.</p>
+            <p><strong>Microphone Access:</strong> Used for voice-to-sound synthesis, pitch detection, and sound analysis. Audio is processed locally; any recording you make for export stays on your device.</p>
+            <p><strong>Motion:</strong> May optionally influence the instrument. All sensor data is processed on-device.</p>
             <p>You can deny or revoke these permissions at any time in iOS Settings. Denying permissions will disable related features but the app will continue to function.</p>
         </section>
 
         <section>
-            <h2>Collaboration Features</h2>
-            <p>If you choose to use collaboration features such as SharePlay or AirDrop to share projects with others:</p>
+            <h2>Local Network (OSC / Art-Net / MIDI)</h2>
+            <p>If you explicitly enable it, Echoel can send one-way control data over your local network or to connected gear:</p>
             <ul>
-                <li>Shared data is transmitted directly between devices using Apple's encrypted protocols</li>
-                <li>We do not see, store, or have access to shared content</li>
-                <li>You control what you share and with whom</li>
-                <li>Shared sessions use end-to-end encryption provided by Apple</li>
+                <li>OSC and ADM-OSC messages, Art-Net / sACN lighting, and MIDI you initiate</li>
+                <li>This carries control values only — no personal or health data is sent</li>
+                <li>Nothing is sent to our servers (we operate none)</li>
+                <li>You choose the target device/address; it stays on your network</li>
             </ul>
         </section>
 
@@ -178,7 +178,7 @@
         <section>
             <h2>Children's Privacy</h2>
             <p>Echoelmusic does not knowingly collect any data from anyone, including children under 13. The app is designed to function entirely offline with no data collection, making it safe for all ages.</p>
-            <p>Parents and guardians should be aware that the app uses biometric sensors (heart rate, face tracking) for creative expression. All data is processed locally and never transmitted.</p>
+            <p>Parents and guardians should be aware that the app uses biometric sensors (heart rate) for creative expression. All data is processed locally and never transmitted.</p>
         </section>
 
         <section>
