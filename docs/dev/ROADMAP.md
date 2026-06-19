@@ -67,7 +67,16 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
    Tools → **Drum Samples** (per-track). Device files now **preview-before-assign** (audition
    with ▶, then "Use"). *(Note: no manual drum-pad grid exists in the single view; samples are
    the drum-kit sounds used by generative playback. A pad grid is a separate, larger feature.)*
-4. **[Body/Apple]** **HealthKit write** (HR/HRV/breath as `HKQuantitySample`, opt-in) → "Works with Apple Health" + persistence. Low risk, clear featuring story. → audit §7.
+4. ✅ **[Body/Apple]** ~~HealthKit write~~ — DONE 2026-06-19 (v10.34.8): Tools → "Save to Apple
+   Health" (off by default) writes the HR + respiratory rate Echoel measures (camera rPPG / BLE)
+   as `HKQuantitySample`s. Non-circular (only self-measured sources), trustworthy units only (no
+   fabricated HRV), throttled/range-guarded; pure unit-tested `HealthWritePolicy` + HealthKit-guarded
+   `HealthKitWriter`. Uses the existing entitlement + `NSHealthUpdateUsageDescription` (string corrected).
+
+> **NOW is cleared** (2026-06-19): all four NOW items shipped to TestFlight (v10.34.1–v10.34.8).
+> Everything remaining below is **NEXT/LATER** and genuinely gated — each needs a new
+> Info.plist key/entitlement, a larger DSP build (voice analyzer), and/or **device-in-the-loop**
+> tuning, so they are deliberate cycles, not blind ships.
 
 ### NEXT (authorized direction, needs a deliberate cycle)
 5. **[Body/Apple]** **AccessorySetupKit** pairing flow for BLE sensors (privacy + featuring), additive next to Core Bluetooth. → audit §6.

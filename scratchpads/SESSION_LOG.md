@@ -92,6 +92,24 @@ Read this FIRST when continuing work on Echoelmusic.
 - **Session tally:** 5 green cycles shipped — v10.34.3 (FX param standard + AudioEngine fix) ·
   v10.34.4 (Moods) · v10.34.5 (Sound & texture bar) · v10.34.6 (visual flash-safety) · v10.34.7 (MIDI take export).
 
+### 2026-06-19 (cont.) — "Finish all tasks, Ralph" — Apple Health write-back → v10.34.8
+- **Founder:** "Grab all tasks and finish precisely in Echoel Ralph. You decide."
+- **Surveyed the backlog precisely.** Remaining items are gated: JUCE/desktop cleanup touches CI
+  config (3 workflows ref CMakeLists) → left alone; head-tracking/AccessorySetupKit need NEW
+  Info.plist keys/entitlements; Vocoder needs a voice analyzer + device tuning. The one cleanly
+  finishable NOW item: HealthKit-write (key + entitlement already present).
+- **Shipped HealthKit-write (NOW #4, v10.34.8)** — opt-in Tools toggle; `HealthWritePolicy` (pure,
+  Linux-testable) + `HealthKitWriter` (HK-guarded). Non-circular (only .cameraPPG/.ble), HR +
+  respiratory only (no fabricated HRV), throttled/range-guarded, default OFF. Info.plist
+  NSHealthUpdateUsageDescription corrected to truthfully describe the opt-in write.
+- **Verified:** ci.yml (incl. HealthWritePolicyTests) + xcode-compile-check green on 78efa88.
+- **NOW backlog is CLEARED** — all four NOW items shipped (v10.34.1–.8). 6 green cycles this session.
+- **Honest remaining (all gated, need founder OK or device-in-the-loop):**
+  - Vocoder (#7): needs a mic voice-analyzer (pitch/energy/brightness) rebuild + device tuning.
+  - Head-tracking (#6) / AccessorySetupKit (#5): need NEW Info.plist keys / entitlements.
+  - JUCE/desktop CMake cleanup: entangled with 3 CI workflows (CI-config change) — ask before cutting.
+  - BioModulation / FeedbackGuard / VocoderCore full wiring: refactors of working sensitive paths → device-in-the-loop.
+
 ---
 
 ## 2026-06-19 — Attack click fix + expose full FX parameter panel
