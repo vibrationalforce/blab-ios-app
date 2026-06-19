@@ -75,9 +75,12 @@ Audio Foundation (KEEP):
   EchoelDDSP (reused as synth voice) · EchoelCellular (reused as FX texture)
 ```
 
-Deprecated from main flow (kept compilable, not initialized):
-  SoundscapeEngine, ClipEngine, MomentCaptureView, BioSourceManager,
-  HealthKit/Oura/EEG/rPPG bridges, WeatherProvider, CircadianClock.
+Deprecated from main flow: the old SoundscapeEngine, ClipEngine, MomentCaptureView,
+  BioSourceManager, Oura/EEG bridges, WeatherProvider, CircadianClock files have all
+  been REMOVED in cleanup (2026-06-19 audit) — they no longer exist. (HealthKit + rPPG
+  are now LIVE, not deprecated.) The real "built but app-unwired" cores remaining are
+  test-only foundations: BioModulation, BioVisualParams, FeedbackGuard, VocoderCore,
+  LearnLibrary, CloudSync, EchoelFXView/FXViewModel.
 
 Protected (do not modify without explicit user approval):
   BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver.
@@ -123,10 +126,11 @@ Sources/Echoelmusic/
   Stream/              ← RTMPPublisher (NEW W3)
   Studio/              ← StudioRoot, BeatTab, RecordTab, VideoTab, ShareTab (NEW W1–W3)
   Core/                ← EchoelStore, SPSCQueue, ProfessionalLogger, MemoryPressureHandler,
-                          PlatformAvailability, NumericExtensions, SessionStore (KEEP)
-                       ← SoundscapeEngine, ClipEngine, WeatherProvider, CircadianClock (DEPRECATED, kept compilable)
+                          NumericExtensions, SessionStore, ClipStore, ModulationEngine (KEEP)
+                       ← (SoundscapeEngine/ClipEngine/WeatherProvider/CircadianClock/PlatformAvailability REMOVED 2026-06-19)
   Bio/                 ← BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver (PROTECTED)
-                       ← BioSourceManager, OuraRingClient, EEGSensorBridge, MotionActivityProvider (DEPRECATED)
+                       ← EchoelBioEngine + HealthKitBioPublisher + CameraRPPGBioPublisher (LIVE)
+                       ← (BioSourceManager/OuraRingClient/EEGSensorBridge/MotionActivityProvider REMOVED)
   DSP/                 ← EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit (KEEP, reused as synth voices)
   Views/               ← MomentCaptureView, MasterView, SoundscapeView, MetalBioView,
                           BioVisualRenderer, OnboardingView, SettingsView, SessionGridView,

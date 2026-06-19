@@ -2654,3 +2654,26 @@ SHIPPED 1922 (10.28.0) + 1923 (10.29.0), both CI green + uploaded.
 PROPOSED NEXT (awaiting user go): source ARBITRATION — prefer most-trusted LIVE source (BLE>camera>Watch)
 over last-writer-wins on bus.latestBio, so the feel never flip-flops when multiple sources publish.
 Also still queued: BioModulation spine (map ready); verify 10.27.0 coherence wedge fix once rPPG locks.
+
+### 2026-06-19 (cont.) — Engine direction locked + cleanup/optimize pass
+DIRECTION (founder): melodic = pure synthesis (DDSP+modal, NO samples); drums (EchoelBeat)
+= hybrid synth+sample from own library; EchoelSampler + EchoelBreak (breakbeats) later.
+"Erstmal alles aufräumen und optimieren" before new sampler features.
+Engine plan = EXCITATION→RESONATOR (reuse EchoelModalBank+EchoelDDSP, no sample libs),
+staged 1-6 (see PLAN_FLEXIBLE_NATURAL_ENGINE.md + decisions.csv). Stage 1 (acoustic
+instrument timbre characters) shipped v10.32.0.
+CLEANUP (two parallel audits, only SAFE grep-proven items applied), v10.33.0:
+- AUDIO-THREAD FIX: SynthPatch.apply(to:) runs in the render drain but called
+  updateReverbDecay→generateReverbIR (4096 Float alloc + RNG) every patch/character
+  change for a reverb gated OFF. Guarded behind useConvolutionReverb → kills the alloc.
+- Deleted dead files (0 refs): PlatformAvailability, ComposeView, EchoelMixView, BioVisualView.
+- Deleted dead funcs: applyBioReactiveLegacy, getHarmonicity, getVibratoState,
+  EchoelPolyDDSP.setSpectralShape + .loadTimbreProfile (kept EchoelDDSP.loadTimbreProfile).
+- KEPT: SampleBrowserView (future EchoelSampler), morph API, Rausch triad, all DSP/ (AUv3).
+- CLAUDE.md corrected: the "deprecated" files it listed are GONE; real test-only foundation
+  cores = BioModulation/BioVisualParams/FeedbackGuard/VocoderCore/LearnLibrary/CloudSync/FXViewModel.
+AUDIT BACKLOG (needs-approval, not done): batch 3× updateSpectralEnvelope in apply(to:);
+articulation-macro vs editable-ADSR ownership UX; timbreBlend 0.9 masks declared spectralShape
+on acoustic patches; bio-frame spectral recompute throttle. SynthPatch.init(from:) lossy
+(drops spectralShape/timbre on capture) — fix next.
+NEXT: Stage 2 (modal resonator for lead) after device-listen of Stage 1 instrument characters.
