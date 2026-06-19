@@ -147,3 +147,7 @@ credentials.json
 
 # Local metrics tracking (pi-autoresearch style)
 metrics.jsonl
+
+# Python bytecode (e.g. local workflow-script validation)
+__pycache__/
+*.pyc
