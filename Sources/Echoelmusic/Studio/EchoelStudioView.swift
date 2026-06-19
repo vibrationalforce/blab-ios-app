@@ -80,6 +80,11 @@ struct EchoelStudioView: View {
     @AppStorage("toneSystemID") private var tuningID = "edo12"
     @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
     @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
+    /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
+    /// the envelope for EVERY character (genre/preset = timbre, this = onset/dynamics).
+    /// Persisted; re-imposed whenever a character or genre loads. Drives the per-note
+    /// velocity sensitivity automatically (short attack ⇒ percussive ⇒ touch-responsive).
+    @AppStorage("studio.articulation") private var articulation: Double = 0.4
     @State private var currentPatch = SynthPatch(name: "Init")
     @State private var lastNoteCount: Int?
     /// Ever-advancing evolution counter folded into every seed so the composition
@@ -169,6 +174,7 @@ struct EchoelStudioView: View {
             // preset, else the genre's own patch.
             currentPatch = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
                 ? SynthPatch.factory[presetIndex] : style.synthPatch
+            applyArticulation()                // impose the persisted Pluck↔Pad envelope
             applyTuning()                      // 12-TET default = no-op; restores any selected system
             surfacePriorCrashIfAny()
             handlePendingIntent()
@@ -463,6 +469,17 @@ struct EchoelStudioView: View {
             knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
 
             groupHeader("Envelope")
+            // Global articulation macro — one control that shapes the ONSET for EVERY
+            // character. Not named after an instrument: the same struck onset is a
+            // glass bowl, a mallet, a plucked string or a tuba stab depending on the
+            // chosen timbre. Writes A/D/S/R below (which stay editable for fine-tuning).
+            EchoelValueField(label: "Swell ↔ Strike", value: Binding(
+                get: { Float(articulation) },
+                set: { articulation = Double(min(1, max(0, $0))) }
+            ), range: Float(0)...Float(1), onChange: { applyArticulation() })
+            Text("How each character speaks: 0 = slow swell (bowed strings, glass bowl) · 1 = struck / sharp onset (mallet, plucked, tuba stab). Sets touch response too; click-safe.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
             param("Attack", $currentPatch.attack, 0...5, unit: "s")
             param("Decay", $currentPatch.decay, 0...5, unit: "s")
             param("Sustain", $currentPatch.sustain, 0...1)
@@ -519,7 +536,7 @@ struct EchoelStudioView: View {
             .pickerStyle(.menu).tint(EchoelTheme.text)
             .onChange(of: presetIndex) { _, i in
                 currentPatch = (i >= 0 && i < SynthPatch.factory.count) ? SynthPatch.factory[i] : style.synthPatch
-                applySoundLive()
+                applyArticulation()   // character = timbre; the global macro owns the envelope
             }
             .accessibilityLabel("Timbre character preset")
         }
@@ -536,7 +553,7 @@ struct EchoelStudioView: View {
             p.filterCutoff = Float.random(in: 400...6000)
             p.filterResonance = Float.random(in: 0...0.5)
             currentPatch = p
-            applySoundLive()
+            applyArticulation()   // keep the global articulation across a timbre shuffle
         } label: {
             Label("Randomize timbre", systemImage: "dice")
                 .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
@@ -1109,6 +1126,22 @@ struct EchoelStudioView: View {
     /// across every voice in its render drain.
     private func applySoundLive() {
         synth.apply(currentPatch)
+    }
+
+    /// Impose the global Pluck↔Pad articulation onto the envelope of whatever
+    /// character is loaded, then push it live. 0 = pad (slow swell, sustained),
+    /// 1 = pluck (struck, short, dies away). Time params interpolate exponentially
+    /// (musical). Because the per-note velocity sensitivity is derived from the
+    /// attack time in the synth, a pluckier setting is automatically more touch-
+    /// responsive — the click-safe 3 ms onset floor keeps even the snappiest hit
+    /// free of knacksen.
+    private func applyArticulation() {
+        let p = Float(min(1, max(0, articulation)))
+        currentPatch.attack  = 0.005 * pow(120, 1 - p)   // 0.005 s (pluck) → 0.6 s (pad)
+        currentPatch.decay   = 0.25 + (1 - p) * 1.0      // 0.25 s (pluck) → 1.25 s (pad)
+        currentPatch.sustain = 0.8 * (1 - p)             // 0.0 (pluck) → 0.8 (pad)
+        currentPatch.release = 0.4 + (1 - p) * 2.0       // 0.4 s (pluck) → 2.4 s (pad)
+        applySoundLive()
     }
 
     // MARK: - Export / projects

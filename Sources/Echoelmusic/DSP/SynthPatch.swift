@@ -76,6 +76,16 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// survives relaunch so user patches can be told apart from built-ins).
     private static func stableID(_ s: String) -> UUID { UUID(uuidString: s) ?? UUID() }
 
+    /// Case-insensitive rawValue lookup. The DSP enums use display rawValues
+    /// ("Bright", "Pink", "Exponential") but patches store lowercase ("bright",
+    /// "pink", "exponential"); an exact `init?(rawValue:)` returned nil and the
+    /// preset's spectral shape / noise color / curve were silently dropped — every
+    /// character fell back to the synth default and sounded blander than designed.
+    private static func match<C: Collection>(_ s: String, _ all: C) -> C.Element?
+        where C.Element: RawRepresentable, C.Element.RawValue == String {
+        all.first { $0.rawValue.caseInsensitiveCompare(s) == .orderedSame }
+    }
+
     /// Built-in starting points. The first is the warm default pad.
     public static let factory: [SynthPatch] = [
         SynthPatch(id: stableID("00000000-0000-0000-0000-0000000000A1"), name: "Warm Pad"),
@@ -102,6 +112,70 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             harmonicity: 0.6, brightness: 0.8, noiseLevel: 0.0,
             spectralShape: "bell", filterCutoff: 6000, filterResonance: 0.1,
             reverbMix: 0.45, reverbDecay: 3.5
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000A5"),
+            name: "Soft Keys",
+            attack: 0.01, decay: 0.6, sustain: 0.5, release: 0.9,
+            harmonicity: 0.85, harmonicLevel: 0.75, brightness: 0.4, noiseLevel: 0.0,
+            spectralShape: "natural", filterCutoff: 3000, filterResonance: 0.12,
+            reverbMix: 0.3, reverbDecay: 1.8
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000A6"),
+            name: "Warm Strings",
+            attack: 0.18, decay: 0.8, sustain: 0.75, release: 1.8,
+            harmonicity: 0.92, harmonicLevel: 0.9, brightness: 0.45, noiseLevel: 0.0,
+            spectralShape: "natural", filterCutoff: 3500, filterResonance: 0.1,
+            reverbMix: 0.5, reverbDecay: 2.6, vibratoRate: 5, vibratoDepth: 0.1
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000A7"),
+            name: "Choir Vox",
+            attack: 0.15, decay: 0.7, sustain: 0.8, release: 1.6,
+            harmonicity: 0.8, harmonicLevel: 0.85, brightness: 0.5, noiseLevel: 0.03,
+            spectralShape: "formant", filterCutoff: 3000, filterResonance: 0.1,
+            reverbMix: 0.55, reverbDecay: 3.0, vibratoRate: 4.5, vibratoDepth: 0.12
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000A8"),
+            name: "Hollow Reed",
+            attack: 0.04, decay: 0.4, sustain: 0.6, release: 0.8,
+            harmonicity: 0.85, harmonicLevel: 0.8, brightness: 0.55, noiseLevel: 0.02,
+            spectralShape: "hollow", filterCutoff: 2800, filterResonance: 0.18,
+            reverbMix: 0.25, reverbDecay: 1.4
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000A9"),
+            name: "Metallic",
+            attack: 0.008, decay: 0.9, sustain: 0.3, release: 1.6,
+            harmonicity: 0.7, harmonicLevel: 0.85, brightness: 0.75, noiseLevel: 0.0,
+            spectralShape: "metallic", filterCutoff: 6500, filterResonance: 0.2,
+            reverbMix: 0.4, reverbDecay: 2.8
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000AA"),
+            name: "Deep Sub",
+            attack: 0.02, decay: 0.5, sustain: 0.7, release: 0.7,
+            harmonicity: 0.5, harmonicLevel: 0.55, brightness: 0.1, noiseLevel: 0.0,
+            spectralShape: "dark", filterCutoff: 800, filterResonance: 0.08,
+            reverbMix: 0.12, reverbDecay: 1.0
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000AB"),
+            name: "Vapor Lead",
+            attack: 0.03, decay: 0.5, sustain: 0.7, release: 1.4,
+            harmonicity: 0.9, harmonicLevel: 0.85, brightness: 0.65, noiseLevel: 0.01,
+            spectralShape: "bright", filterCutoff: 5000, filterResonance: 0.22,
+            reverbMix: 0.6, reverbDecay: 3.2, vibratoRate: 5.5, vibratoDepth: 0.2
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000AC"),
+            name: "Brass Tuba",
+            attack: 0.06, decay: 0.5, sustain: 0.8, release: 0.9,
+            harmonicity: 0.9, harmonicLevel: 0.9, brightness: 0.4, noiseLevel: 0.02,
+            spectralShape: "formant", filterCutoff: 2400, filterResonance: 0.12,
+            reverbMix: 0.3, reverbDecay: 1.6
         )
     ]
 }
@@ -133,14 +207,14 @@ extension SynthPatch {
         synth.decay = decay
         synth.sustain = sustain
         synth.release = release
-        if let curve = EchoelDDSP.EnvelopeCurve(rawValue: envelopeCurve) { synth.envelopeCurve = curve }
+        if let curve = SynthPatch.match(envelopeCurve, EchoelDDSP.EnvelopeCurve.allCases) { synth.envelopeCurve = curve }
 
         synth.harmonicity = harmonicity
         synth.harmonicLevel = harmonicLevel
         synth.brightness = brightness
         synth.noiseLevel = noiseLevel
-        if let color = EchoelDDSP.NoiseColor(rawValue: noiseColor) { synth.noiseColor = color }
-        if let shape = EchoelDDSP.SpectralShape(rawValue: spectralShape) { synth.spectralShape = shape }
+        if let color = SynthPatch.match(noiseColor, EchoelDDSP.NoiseColor.allCases) { synth.noiseColor = color }
+        if let shape = SynthPatch.match(spectralShape, EchoelDDSP.SpectralShape.allCases) { synth.spectralShape = shape }
 
         synth.filterCutoff = filterCutoff
         synth.filter.resonance = filterResonance

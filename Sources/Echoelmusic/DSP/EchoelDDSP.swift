@@ -822,7 +822,13 @@ public final class EchoelDDSP: @unchecked Sendable {
             envelopeValue = 0
 
         case .attack:
-            let attackSamples = max(1, Int(attack * velAttackScale * sampleRate))
+            // Click-safe onset: enforce a ~3 ms minimum attack ramp so even the
+            // snappiest pluck / hardest velocity hit fades in over enough samples to
+            // avoid a step discontinuity (knacksen). 3 ms reads as "instant" yet is a
+            // continuous micro-fade, not a 1-sample jump.
+            let minAttackSamples = Int(0.003 * sampleRate)
+            let wanted = Int(attack * velAttackScale * sampleRate)
+            let attackSamples = max(minAttackSamples, wanted)
             let progress = min(1.0, Float(envelopeSamples) / Float(attackSamples))
             envelopeValue = applyCurve(progress, from: attackStartLevel, to: 1.0)
             if envelopeSamples >= attackSamples {
