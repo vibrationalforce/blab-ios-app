@@ -1386,11 +1386,22 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
             vDSP_vsmul(voiceBuffer, 1, &lg, &scaledBufferL, 1, vDSP_Length(frameCount))
             vDSP_vsmul(voiceBuffer, 1, &rg, &scaledBufferR, 1, vDSP_Length(frameCount))
-            // Use vDSP_vadd with separate input copies to avoid Swift exclusivity violation
-            let mixL = mixBufferL
-            let mixR = mixBufferR
-            vDSP_vadd(mixL, 1, scaledBufferL, 1, &mixBufferL, 1, vDSP_Length(frameCount))
-            vDSP_vadd(mixR, 1, scaledBufferR, 1, &mixBufferR, 1, vDSP_Length(frameCount))
+            // Accumulate in-place. vDSP_vadd permits identical in/out pointers, so we
+            // pass the mix buffer's own base address as both input A and output C via
+            // withUnsafeMutableBufferPointer. This avoids the Swift exclusivity
+            // violation WITHOUT the previous `let mixL = mixBufferL` copy, which forced
+            // a copy-on-write heap allocation per voice per block on the audio thread.
+            let n = vDSP_Length(frameCount)
+            mixBufferL.withUnsafeMutableBufferPointer { mix in
+                if let base = mix.baseAddress {
+                    vDSP_vadd(base, 1, scaledBufferL, 1, base, 1, n)
+                }
+            }
+            mixBufferR.withUnsafeMutableBufferPointer { mix in
+                if let base = mix.baseAddress {
+                    vDSP_vadd(base, 1, scaledBufferR, 1, base, 1, n)
+                }
+            }
         }
 
         // NaN/Inf guard on mix buffers before copy
