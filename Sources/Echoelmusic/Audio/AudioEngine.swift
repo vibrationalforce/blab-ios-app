@@ -373,30 +373,25 @@ public final class AudioEngine {
 
     private func startMeterPollTimer() {
         meterPollTimer?.invalidate()
-        let ptrL = _rawMeterL
-        let ptrR = _rawMeterR
-        let peakPtr = _peakDb
-        let tpPtr = _truePeakDb
-        let lufsPtr = _lufs
-        let lufsSPtr = _lufsS
-        let tpMaxPtr = _tpMax
-        let lufsIPtr = _lufsI
-        let lraPtr = _lra
+        // Read the meter values through `self` (the `_*` pointers are
+        // `nonisolated(unsafe)` properties) rather than capturing non-Sendable
+        // local pointer copies into the `@Sendable` timer block — Xcode's strict
+        // concurrency flags the latter as "sending pointer risks data races".
         meterPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let decayCoeff: Float = 0.92
-                self.masterLevel = Swift.max(ptrL.pointee, self.masterLevel * decayCoeff)
-                self.masterLevelR = Swift.max(ptrR.pointee, self.masterLevelR * decayCoeff)
+                self.masterLevel = Swift.max(self._rawMeterL.pointee, self.masterLevel * decayCoeff)
+                self.masterLevelR = Swift.max(self._rawMeterR.pointee, self.masterLevelR * decayCoeff)
                 // Peak / LUFS already carry their own hold/windowing in the meter;
                 // publish them straight through.
-                self.masterPeakDb = peakPtr.pointee
-                self.masterTruePeakDb = tpPtr.pointee
-                self.masterLUFS = lufsPtr.pointee
-                self.masterLUFSShortTerm = lufsSPtr.pointee
-                self.masterTruePeakMaxDb = tpMaxPtr.pointee
-                self.masterLUFSIntegrated = lufsIPtr.pointee
-                self.masterLRA = lraPtr.pointee
+                self.masterPeakDb = self._peakDb.pointee
+                self.masterTruePeakDb = self._truePeakDb.pointee
+                self.masterLUFS = self._lufs.pointee
+                self.masterLUFSShortTerm = self._lufsS.pointee
+                self.masterTruePeakMaxDb = self._tpMax.pointee
+                self.masterLUFSIntegrated = self._lufsI.pointee
+                self.masterLRA = self._lra.pointee
             }
         }
     }
