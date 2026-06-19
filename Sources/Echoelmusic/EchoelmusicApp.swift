@@ -12,6 +12,9 @@ struct EchoelmusicApp: App {
     @State private var bus: EngineBus
     #if canImport(HealthKit)
     @State private var healthBio: HealthKitBioPublisher
+    /// Opt-in "Works with Apple Health" write-back of Echoel's own HR / respiratory
+    /// measurements (camera rPPG / BLE). Off by default.
+    @State private var healthWriter = HealthKitWriter()
     #endif
     #if canImport(CoreBluetooth)
     @State private var polarH10: PolarH10BioPublisher
@@ -142,6 +145,9 @@ struct EchoelmusicApp: App {
             #if canImport(AVFoundation)
             .environment(cameraRPPG)
             #endif
+            #if canImport(HealthKit)
+            .environment(healthWriter)
+            #endif
             #if canImport(CoreMIDI)
             .environment(midiPub)
             #endif
@@ -224,6 +230,9 @@ struct EchoelmusicApp: App {
                 // run OFF the launch path so a hang here can never silence the app.
                 #if canImport(HealthKit)
                 Task { await healthBio.start(publishing: bus) }
+                // Opt-in Health write-back: the poll loop is started always but
+                // no-ops unless the user has enabled it (near-zero cost when off).
+                healthWriter.start(reading: bus)
                 #endif
                 Task {
                     await store.loadProducts()

@@ -35,6 +35,9 @@ struct EchoelStudioView: View {
     /// app becomes active after an intent opens it.
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    #if canImport(HealthKit)
+    @Environment(HealthKitWriter.self) private var healthWriter
+    #endif
 
     // The live, fully-editable timbre is `currentPatch` (single source of truth).
     // Every control below — XY pad, sliders and 2-decimal numeric fields — reads and
@@ -274,6 +277,9 @@ struct EchoelStudioView: View {
     /// sample browser — without cluttering the one-button flow.
     private var toolsRow: some View {
         @Bindable var midiOut = midiOut
+        #if canImport(HealthKit)
+        @Bindable var healthWriter = healthWriter
+        #endif
         return Menu {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
             Button { showClips = true } label: { Label("Clips", systemImage: "square.grid.2x2") }
@@ -294,6 +300,13 @@ struct EchoelStudioView: View {
             Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
             Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
                 .disabled(!midiOut.enabled)
+            #if canImport(HealthKit)
+            Divider()
+            // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
+            // BLE) into Apple Health. Off by default; never writes HRV or echoes
+            // Apple's own data back.
+            Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
+            #endif
             Divider()
             // Self-identifying build — confirms at a glance which TestFlight build is running.
             Text("Echoel \(Self.appVersionString)").font(EchoelTheme.font(11))

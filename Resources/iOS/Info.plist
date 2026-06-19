@@ -61,7 +61,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>Echoel reads heart rate and HRV to drive sound, image and light in real time. This data stays on your device and is used only for creative control — never for diagnosis.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Echoel reads heart rate and HRV on your device for creative control only; it does not write any data to Apple Health.</string>
+	<string>If you turn on "Save to Apple Health", Echoel writes the heart rate and respiratory rate it measures (camera or Bluetooth sensor) to Apple Health. This is off by default and you can turn it off anytime.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
