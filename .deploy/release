@@ -1,3 +1,3 @@
-build: 2026-06-19 v10.34.0 (sound + community pass)
+build: 2026-06-19 v10.34.1 (sound + community pass; Xcode bundle fix)
 branch: claude/piano-roll-clip-view-wozlie
 includes: click-free attack across all characters; full FX panel (every stage incl. Saturation/Harmonizer/Reverb); FX presets — save/recall your own, 22 curated, search by name+tag, favorites+recents; community loop (in-app Submit -> GitHub issue -> triage PR -> in-app loader bundles Resources/Community); Sound/patch parity (community + favorites/recents); Drum Samples tool with preview-before-assign (audition device files before loading) + reset-to-built-in. All CI-green through b839fa9.
