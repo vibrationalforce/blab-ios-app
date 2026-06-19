@@ -8,6 +8,32 @@ Read this FIRST when continuing work on Echoelmusic.
 > (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
 > from ROADMAP §3 "NOW".
 
+### 2026-06-19 — "Wo sind noch Fehler?" (bug audit → fix, stability-first)
+Founder: full autonomy, keep Website + App on a stable foundation, find/fix remaining
+bugs + optimizations. Ran a parallel re-audit (DSP/Audio, Sequencer, Bio/Sync,
+Studio/Core) and re-verified every claim against the code (see
+`scratchpads/AUDIT_FINDINGS_2026-06-19.md`). Sequencer + Bio/Sync = clean.
+**Fixed (each its own commit, both CI gates green per batch):**
+- `fix(dsp)` `d8630b0` — removed audio-thread COW heap alloc in `EchoelPolyDDSP.render`
+  (in-place vDSP_vadd via withUnsafeMutableBufferPointer; audio-thread reviewer PASS).
+- `fix(core)` `7cbcaa5` — SPSCQueue drop-oldest kept `head` masked (CAS); was OOB
+  (`buffer[capacity]`) once head reached `mask`.
+- `fix(audio)` `656512e` — RetroCapture deinit removes the tap (weak node) before
+  deallocating the pointers the callback uses (use-after-free).
+- `fix(audio)` `039ddb7` — release the leaked `mach_thread_self()` port.
+- `perf(dsp)` `b30d598` — per-voice noise PRNG seed (decorrelate poly noise).
+- `fix(web)` `10cad00` — synced the inline cache-guardian in 14 docs/*.html to 10.21.0
+  (was 10.14.0 → forced a nuke+reload every visit).
+**False positives caught (NOT fixed):** MIDIInput pitch-bend precedence, EchoelDDSP
+phase-wrap if-vs-while, noise <-1 epsilon — all verified harmless.
+**Deferred (real, risk/scope vs. no-local-build):** MIDIInput Mirror alloc on MIDI
+thread, EchoelMeter true-peak per-channel, EchoelModalBank morph custom-restore,
+tap-callback file I/O (design), conv-reverb kernel race (latent/off), SingleExport
+CMBlockBuffer contiguity. See AUDIT_FINDINGS doc.
+**Config (founder "du entscheidest"):** kept wrangler.toml / ci_scripts / launch
+workflows — plausibly-live infra; pruning unverified-dead deploy config risks the
+website for no stability gain (priority #1 = don't break Website/App).
+
 ### 2026-06-19 — "Alles aufräumen und optimieren" (repo de-cruft, vision-aligned)
 Founder: enforce no-JUCE + clean/optimize the whole repo. Removed, in safe CI-verified chores
 (no source / build-manifest touched → product gates stay green; testflight/ci/xcode-compile-check
