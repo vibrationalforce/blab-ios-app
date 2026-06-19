@@ -23,6 +23,7 @@ struct EchoelStudioView: View {
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
+    @Environment(PatchStore.self) private var patchStore
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
@@ -63,6 +64,8 @@ struct EchoelStudioView: View {
     @State private var moodPresetName = "Custom"
     @State private var showSaveMoodAs = false
     @State private var moodAsName = ""
+    @State private var showSavePatchAs = false
+    @State private var patchSaveName = ""
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
@@ -249,6 +252,19 @@ struct EchoelStudioView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Saves the 8 mood dimensions as a named mood you can recall.")
+        }
+        .alert("Save sound", isPresented: $showSavePatchAs) {
+            TextField("Name", text: $patchSaveName)
+            Button("Save") {
+                let name = patchSaveName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                let saved = patchStore.saveAs(currentPatch, name: name)
+                currentPatch = saved
+                presetIndex = -1
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saves the current timbre as a named sound you can recall.")
         }
     }
 
@@ -662,21 +678,97 @@ struct EchoelStudioView: View {
             .padding(.top, 4)
     }
 
+    /// The sound library bar — same idiom as the Mood and FX preset bars: one Menu
+    /// for load (genre default · your saved + factory sounds, favorites first ·
+    /// community) plus a compact overflow for save/favorite/delete/submit. Wired to
+    /// the shared `PatchStore` so favorites/recents match the deep Sound Editor.
     private var presetRow: some View {
         labeledRow("Character") {
-            Picker("Character", selection: $presetIndex) {
-                Text("Genre default").tag(-1)
-                ForEach(SynthPatch.factory.indices, id: \.self) { i in
-                    Text(SynthPatch.factory[i].name).tag(i)
+            HStack(spacing: 8) {
+                Menu {
+                    Button {
+                        presetIndex = -1
+                        currentPatch = style.synthPatch
+                        applyArticulation()
+                    } label: { Text("Genre default") }
+                    Section("Sounds") {
+                        ForEach(patchStore.sortedPatches) { p in
+                            Button { applySoundPatch(p) } label: {
+                                if patchStore.isFavorite(id: p.id) {
+                                    Label(p.name, systemImage: "star.fill")
+                                } else { Text(p.name) }
+                            }
+                        }
+                    }
+                    if !CommunityLibrary.patches.isEmpty {
+                        Section("Community") {
+                            ForEach(CommunityLibrary.patches) { p in
+                                Button(p.name) { applySoundPatch(p) }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if patchStore.isFavorite(id: currentPatch.id) {
+                            Image(systemName: "star.fill").font(.system(size: 10))
+                                .foregroundStyle(EchoelTheme.accent)
+                        }
+                        Text(currentPatch.name).font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down").font(.system(size: 10))
+                    }
+                    .foregroundStyle(EchoelTheme.text)
+                    .padding(.horizontal, 12).frame(height: 34)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
                 }
+                .accessibilityLabel("Timbre character / sound preset")
+
+                Menu {
+                    Button { patchSaveName = currentPatch.name + " copy"; showSavePatchAs = true } label: {
+                        Label("Save as new sound…", systemImage: "plus")
+                    }
+                    let isFav = patchStore.isFavorite(id: currentPatch.id)
+                    Button { patchStore.toggleFavorite(id: currentPatch.id) } label: {
+                        Label(isFav ? "Unfavorite" : "Favorite", systemImage: isFav ? "star.slash" : "star")
+                    }
+                    if !patchStore.isFactory(currentPatch) {
+                        Button { patchStore.save(currentPatch) } label: {
+                            Label("Save changes", systemImage: "square.and.arrow.down")
+                        }
+                        Button(role: .destructive) {
+                            patchStore.delete(id: currentPatch.id)
+                            presetIndex = -1
+                            currentPatch = style.synthPatch
+                            applyArticulation()
+                        } label: { Label("Delete", systemImage: "trash") }
+                    }
+                    Divider()
+                    Button {
+                        if let url = currentPatch.communityIssueURL() { openURL(url) }
+                    } label: { Label("Submit to community", systemImage: "paperplane") }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(EchoelTheme.text)
+                        .frame(width: 34, height: 34)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                }
+                .accessibilityLabel("Sound actions")
             }
-            .pickerStyle(.menu).tint(EchoelTheme.text)
-            .onChange(of: presetIndex) { _, i in
-                currentPatch = (i >= 0 && i < SynthPatch.factory.count) ? SynthPatch.factory[i] : style.synthPatch
-                applyArticulation()   // character = timbre; the global macro owns the envelope
-            }
-            .accessibilityLabel("Timbre character preset")
         }
+    }
+
+    /// Load a patch from the library into the live sound. Keeps `presetIndex` in
+    /// sync (factory index, else -1 = "custom") so the persisted quick-pick and
+    /// the randomize button keep working.
+    private func applySoundPatch(_ p: SynthPatch) {
+        currentPatch = p
+        presetIndex = SynthPatch.factory.firstIndex { $0.id == p.id } ?? -1
+        patchStore.markUsed(id: p.id)
+        applyArticulation()   // character = timbre; the global macro owns the envelope
     }
 
     private var randomizeButton: some View {
