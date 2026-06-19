@@ -517,6 +517,12 @@ When generating SwiftUI views, follow clean design principles. Avoid AI-default 
 - Transitions: 100-200ms, opacity/color only
 - Bio-signal displays: legible numbers first, visualization second
 - Flash rate: max 3 Hz (W3C WCAG epilepsy compliance)
+- **Parameter rows — ONE control everywhere:** every adjustable numeric parameter (FX, synth
+  patch, mix, bio, future modules) uses `EchoelValueField` (label + value + unit, adjusted by a
+  vertical-fader drag / tap-to-type). **No raw SwiftUI `Slider`/`Stepper` for parameters.** This
+  keeps reading + interaction identical app-wide and is science-first (number, not a knob). Dimensionless
+  values show as raw decimals (e.g. `0.50`), not `%`. New parameter UI MUST use it; if it can't, raise it
+  in The Council before diverging.
 
 **SCIENCE-FIRST display:**
 - Real biometric data only — no decorative visualizations

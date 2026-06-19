@@ -255,27 +255,27 @@ struct EchoelFXView: View {
                         Text("Notch").tag(EchoelSVFilter.Mode.notch)
                     }
                     .pickerStyle(.segmented)
-                    slider("Cutoff", $vm.filterCutoff, 80...18000, "%.0f Hz") { $0 }
-                    slider("Resonance", $vm.filterResonance, 0...0.95, "%.0f%%") { $0 * 100 }
+                    field("Cutoff", $vm.filterCutoff, 80...18000, unit: "Hz", decimals: 0)
+                    field("Resonance", $vm.filterResonance, 0...0.95)
                 }
 
                 effectSection("Saturation", isOn: $vm.saturationEnabled) {
-                    slider("Drive", $vm.saturationDrive, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Mix", $vm.saturationMix, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Drive", $vm.saturationDrive, 0...1)
+                    field("Mix", $vm.saturationMix, 0...1)
                 }
 
                 effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
-                    slider("Voice 1", $vm.harmInterval1, -12...12, "%.0f st") { $0 }
+                    field("Voice 1", $vm.harmInterval1, -12...12, unit: "st", decimals: 0)
                     Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
-                    slider("Voice 2 interval", $vm.harmInterval2, -12...12, "%.0f st") { $0 }
-                    slider("Mix", $vm.harmMix, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Voice 2 interval", $vm.harmInterval2, -12...12, unit: "st", decimals: 0)
+                    field("Mix", $vm.harmMix, 0...1)
                 }
 
                 effectSection("Reverb", isOn: $vm.reverbEnabled) {
-                    slider("Size", $vm.reverbRoomSize, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Damping", $vm.reverbDamping, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Width", $vm.reverbWidth, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Mix", $vm.reverbMix, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Size", $vm.reverbRoomSize, 0...1)
+                    field("Damping", $vm.reverbDamping, 0...1)
+                    field("Width", $vm.reverbWidth, 0...1)
+                    field("Mix", $vm.reverbMix, 0...1)
                 }
 
                 effectSection("Delay", isOn: $vm.delayEnabled) {
@@ -285,55 +285,55 @@ struct EchoelFXView: View {
                         Text("Ping-Pong").tag(EchoelDelay.Mode.pingPong)
                     }
                     .pickerStyle(.segmented)
-                    slider("Time", $vm.delayTime, 0.02...1.5, "%.0f ms") { $0 * 1000 }
+                    field("Time", $vm.delayTime, 0.02...1.5, unit: "s")
                     syncMenu($vm.delayTime, .seconds(0.02...1.5))
-                    slider("Feedback", $vm.delayFeedback, 0...0.95, "%.0f%%") { $0 * 100 }
-                    slider("Mix", $vm.delayMix, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Tone", $vm.delayTone, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Feedback", $vm.delayFeedback, 0...0.95)
+                    field("Mix", $vm.delayMix, 0...1)
+                    field("Tone", $vm.delayTone, 0...1)
                     if vm.delayMode == .tape {
-                        slider("Wow/Flutter", $vm.delayWow, 0...1, "%.0f%%") { $0 * 100 }
-                        slider("Drive", $vm.delayDrive, 0...1, "%.0f%%") { $0 * 100 }
+                        field("Wow/Flutter", $vm.delayWow, 0...1)
+                        field("Drive", $vm.delayDrive, 0...1)
                     }
                 }
 
                 effectSection("Chorus", isOn: $vm.chorusEnabled) {
-                    slider("Rate", $vm.chorusRate, 0.05...8, "%.2f Hz") { $0 }
+                    field("Rate", $vm.chorusRate, 0.05...8, unit: "Hz")
                     syncMenu($vm.chorusRate, .hertz(0.05...8))
-                    slider("Depth", $vm.chorusDepth, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Mix", $vm.chorusMix, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Depth", $vm.chorusDepth, 0...1)
+                    field("Mix", $vm.chorusMix, 0...1)
                 }
 
                 effectSection("Flanger", isOn: $vm.flangerEnabled) {
-                    slider("Rate", $vm.flangerRate, 0.05...8, "%.2f Hz") { $0 }
+                    field("Rate", $vm.flangerRate, 0.05...8, unit: "Hz")
                     syncMenu($vm.flangerRate, .hertz(0.05...8))
-                    slider("Depth", $vm.flangerDepth, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Feedback", $vm.flangerFeedback, -0.95...0.95, "%.0f%%") { $0 * 100 }
-                    slider("Mix", $vm.flangerMix, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Depth", $vm.flangerDepth, 0...1)
+                    field("Feedback", $vm.flangerFeedback, -0.95...0.95)
+                    field("Mix", $vm.flangerMix, 0...1)
                 }
 
                 effectSection("Phaser", isOn: $vm.phaserEnabled) {
-                    slider("Rate", $vm.phaserRate, 0.05...8, "%.2f Hz") { $0 }
+                    field("Rate", $vm.phaserRate, 0.05...8, unit: "Hz")
                     syncMenu($vm.phaserRate, .hertz(0.05...8))
-                    slider("Depth", $vm.phaserDepth, 0...1, "%.0f%%") { $0 * 100 }
-                    slider("Feedback", $vm.phaserFeedback, 0...0.95, "%.0f%%") { $0 * 100 }
-                    slider("Mix", $vm.phaserMix, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Depth", $vm.phaserDepth, 0...1)
+                    field("Feedback", $vm.phaserFeedback, 0...0.95)
+                    field("Mix", $vm.phaserMix, 0...1)
                 }
 
                 effectSection("Tremolo", isOn: $vm.tremoloEnabled) {
-                    slider("Rate", $vm.tremoloRate, 0.05...8, "%.2f Hz") { $0 }
+                    field("Rate", $vm.tremoloRate, 0.05...8, unit: "Hz")
                     syncMenu($vm.tremoloRate, .hertz(0.05...8))
-                    slider("Depth", $vm.tremoloDepth, 0...1, "%.0f%%") { $0 * 100 }
+                    field("Depth", $vm.tremoloDepth, 0...1)
                     Toggle("Auto-Pan", isOn: $vm.tremoloPan).tint(EchoelTheme.accent)
                 }
 
                 effectSection("Compressor", isOn: $vm.compEnabled) {
-                    slider("Threshold", $vm.compThreshold, -48...0, "%.1f dB") { $0 }
-                    slider("Ratio", $vm.compRatio, 1...20, "%.1f:1") { $0 }
-                    slider("Make-up", $vm.compMakeup, 0...18, "%.1f dB") { $0 }
+                    field("Threshold", $vm.compThreshold, -48...0, unit: "dB", decimals: 1)
+                    field("Ratio", $vm.compRatio, 1...20, decimals: 1)
+                    field("Make-up", $vm.compMakeup, 0...18, unit: "dB", decimals: 1)
                 }
 
                 effectSection("Limiter", isOn: $vm.limiterEnabled) {
-                    slider("Ceiling", $vm.limiterCeiling, -12...0, "%.1f dB") { $0 }
+                    field("Ceiling", $vm.limiterCeiling, -12...0, unit: "dB", decimals: 1)
                 }
             }
             .navigationTitle("EchoelFX")
@@ -515,26 +515,18 @@ struct EchoelFXView: View {
         .accessibilityHint("Set this rate from a musical note division at the current tempo")
     }
 
-    /// A labelled slider with a live, formatted value read-out.
-    /// `display` maps the raw stored value to the number shown.
-    private func slider(
+    /// A parameter row — the app-wide standard control (`EchoelValueField`): a
+    /// labelled numeric value with its unit, adjusted by a vertical-fader drag (a
+    /// transient fader appears on press) or tap-to-type. Same component the Sound
+    /// editor uses, so every parameter across the app reads and behaves the same.
+    private func field(
         _ title: String,
         _ value: Binding<Float>,
         _ range: ClosedRange<Float>,
-        _ format: String,
-        display: @escaping (Float) -> Float
+        unit: String = "",
+        decimals: Int = 2
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(title).foregroundStyle(EchoelTheme.dim)
-                Spacer()
-                Text(String(format: format, display(value.wrappedValue)))
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(EchoelTheme.text)
-            }
-            Slider(value: value, in: range).tint(EchoelTheme.accent)
-        }
-        .padding(.vertical, 2)
+        EchoelValueField(label: title, value: value, range: range, unit: unit, decimals: decimals)
     }
 }
 #endif

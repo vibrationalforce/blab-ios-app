@@ -4,6 +4,20 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-06-19 UI standard: one parameter control (`EchoelValueField`) app-wide
+- **Decision:** Every adjustable numeric parameter across the app uses `EchoelValueField`
+  (label + value + unit, adjusted by a vertical-fader drag / tap-to-type) — **no raw SwiftUI
+  `Slider`/`Stepper` for parameters.** Dimensionless values show as raw decimals (`0.50`), not `%`.
+  Migrated the Effects panel (the last outlier, ~40 rows) off `Slider` onto `EchoelValueField`;
+  documented as a REQUIRED pattern in CLAUDE.md (UI DESIGN CONSTRAINTS).
+- **Reasoning:** Founder asked to align the Effects-section parameter design with the other
+  sections (which already used the value field) and to fix this as a long-term, app-wide standard.
+  Consistency of reading + interaction; science-first (number, not a knob); accessibility (the field
+  has VoiceOver adjustable + type-to-set).
+- **Expected outcome:** Identical parameter UX everywhere; new modules inherit it for free; any
+  divergence must go through The Council first.
+- **Review:** 2026-09-19.
+
 ### 2026-06-19 Canonical execution roadmap (`docs/dev/ROADMAP.md`)
 - **Decision:** Adopt `docs/dev/ROADMAP.md` as the single source of truth for *execution*
   (the HOW), sitting above the 20+ scattered `scratchpads/PLAN_*` / `STRATEGY_*` docs. It
