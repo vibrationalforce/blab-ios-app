@@ -143,9 +143,15 @@ public final class SPSCQueue<Element> {
 
         // Check if full
         if nextTail == Int(currentHead) & mask {
-            // Queue full - drop oldest (advance head)
+            // Queue full - drop oldest (advance head). Advance with the SAME masked
+            // scheme the consumer's dequeue() uses; a plain increment left head
+            // unmasked, so once head reached `mask` the next dequeue indexed
+            // buffer[capacity] — out of bounds. CAS from the value we just read so a
+            // concurrent dequeue (which also frees a slot) safely wins instead.
             OSAtomicIncrement64Barrier(UnsafeMutablePointer<Int64>(OpaquePointer(_droppedCount)))
-            OSAtomicIncrement64Barrier(UnsafeMutablePointer<Int64>(OpaquePointer(head)))
+            let nextHead = Int64((Int(currentHead) + 1) & mask)
+            _ = OSAtomicCompareAndSwap64Barrier(currentHead, nextHead,
+                                                UnsafeMutablePointer<Int64>(OpaquePointer(head)))
         }
 
         // Store element
