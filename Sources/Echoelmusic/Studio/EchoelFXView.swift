@@ -202,9 +202,9 @@ final class FXViewModel {
 struct EchoelFXView: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var vm: FXViewModel
-    /// The user's own saved presets (local). The curated community set is bundled
-    /// separately (next cycle).
+    /// The user's own saved presets (local). The curated community set is bundled.
     @State private var presetStore = FXPresetStore()
     @State private var showSaveSheet = false
     @State private var saveName = ""
@@ -378,16 +378,21 @@ struct EchoelFXView: View {
                         }
                     }
                     .accessibilityHint("Apply this preset to the effects chain")
-                }
-                .onDelete { offsets in
-                    let ids = offsets.map { presetStore.presets[$0].id }
-                    ids.forEach { presetStore.delete(id: $0) }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            presetStore.delete(id: preset.id)
+                        } label: { Label("Delete", systemImage: "trash") }
+                        Button {
+                            if let url = preset.communityIssueURL() { openURL(url) }
+                        } label: { Label("Submit", systemImage: "paperplane") }
+                        .tint(EchoelTheme.accent)
+                    }
                 }
             }
         } header: {
             Text("My presets").font(.system(size: 13, weight: .bold)).textCase(nil)
         } footer: {
-            Text("Your presets stay on this device.")
+            Text("Saved on this device. Swipe a preset to delete, or Submit it to the Echoel community.")
         }
 
         Section {

@@ -103,6 +103,19 @@ final class FXPresetTests: XCTestCase {
         XCTAssertTrue(lib.allSatisfy { !$0.tags.isEmpty }, "every curated preset is tagged")
     }
 
+    func testCommunityIssueURL_isWellFormed_withEmbeddedJSON() {
+        let p = FXPreset.capture(from: makeDistinctiveChain(),
+                                 fxEnabled: true, name: "My Sound", tags: ["test"])
+        guard let url = p.communityIssueURL() else { return XCTFail("nil URL") }
+        XCTAssertEqual(url.host, "github.com")
+        XCTAssertTrue(url.path.hasSuffix("/issues/new"))
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        XCTAssertTrue(items.contains { $0.name == "labels" && $0.value == "preset-submission" })
+        XCTAssertTrue(items.contains { $0.name == "title" && ($0.value?.contains("My Sound") ?? false) })
+        let body = items.first { $0.name == "body" }?.value ?? ""
+        XCTAssertTrue(body.contains("\"name\""), "preset JSON is embedded in the issue body")
+    }
+
     func testUnknownEnumRaw_fallsBackSafely() {
         var preset = FXPreset.capture(from: EchoelFXChain(), fxEnabled: true, name: "Bad")
         preset.filterModeRaw = "not-a-mode"

@@ -402,6 +402,39 @@ public extension FXPreset {
         return fromCharacters + signatures
     }()
 
+    /// A pre-filled GitHub "new issue" URL carrying this preset's JSON, for the
+    /// in-app "Submit to community" flow. Opening it drops the user into a GitHub
+    /// issue (label `preset-submission`) with the preset embedded; a maintainer (or
+    /// a triage Action) reviews and merges curated ones into the bundled library.
+    /// No backend, no auth — the repo IS the community store. Foundation-only.
+    func communityIssueURL(owner: String = "vibrationalforce",
+                           repo: String = "Echoelmusic") -> URL? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(self),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        let body = """
+        Thanks for sharing an Echoel FX preset!
+
+        **Name:** \(name)
+        **Tags:** \(tags.joined(separator: ", "))
+
+        The preset JSON is below — a maintainer will review it and, if curated, add \
+        it to the community library.
+
+        ```json
+        \(json)
+        ```
+        """
+        var comps = URLComponents(string: "https://github.com/\(owner)/\(repo)/issues/new")
+        comps?.queryItems = [
+            URLQueryItem(name: "title", value: "Preset submission: \(name)"),
+            URLQueryItem(name: "labels", value: "preset-submission"),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return comps?.url
+    }
+
     /// Build a curated preset by configuring a fresh chain, then capturing it.
     private static func make(_ name: String, _ tags: [String],
                              _ configure: (EchoelFXChain) -> Void) -> FXPreset {
