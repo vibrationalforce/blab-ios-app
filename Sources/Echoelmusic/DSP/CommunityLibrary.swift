@@ -20,9 +20,20 @@ public enum CommunityLibrary {
     /// Bundled community synth patches (`Resources/Community/patches/*.json`).
     public static let patches: [SynthPatch] = load("Community/patches", as: SynthPatch.self)
 
+    /// Resource bundle for the community JSON. `Bundle.module` exists only when
+    /// built via SwiftPM (`SWIFT_PACKAGE`); the XcodeGen target (testflight.yml)
+    /// bundles resources into the main app bundle. (Mirrors BeatPlayer.)
+    private static var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return .main
+        #endif
+    }
+
     /// Decode every `*.json` in a bundled subdirectory; skip anything that fails.
     static func load<T: Decodable>(_ subdir: String, as type: T.Type) -> [T] {
-        guard let urls = Bundle.module.urls(forResourcesWithExtension: "json", subdirectory: subdir) else {
+        guard let urls = resourceBundle.urls(forResourcesWithExtension: "json", subdirectory: subdir) else {
             return []
         }
         let decoder = JSONDecoder()
