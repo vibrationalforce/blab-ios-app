@@ -37,8 +37,12 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var saturationDrive: Float
     public var saturationMix: Float
 
-    // Harmonizer (topology only — its internal params aren't surfaced yet)
+    // Harmonizer
     public var harmonizerEnabled: Bool
+    public var harmonizerInterval1: Float
+    public var harmonizerInterval2: Float
+    public var harmonizerVoice2Enabled: Bool
+    public var harmonizerMix: Float
 
     // Chorus
     public var chorusEnabled: Bool
@@ -76,8 +80,12 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var delayWow: Float
     public var delayDrive: Float
 
-    // Reverb (topology only)
+    // Reverb
     public var reverbEnabled: Bool
+    public var reverbRoomSize: Float
+    public var reverbDamping: Float
+    public var reverbMix: Float
+    public var reverbWidth: Float
 
     // Compressor
     public var compressorEnabled: Bool
@@ -114,6 +122,10 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         saturationMix = f(.saturationMix, 0.5)
 
         harmonizerEnabled = b(.harmonizerEnabled, false)
+        harmonizerInterval1 = f(.harmonizerInterval1, 4)
+        harmonizerInterval2 = f(.harmonizerInterval2, 7)
+        harmonizerVoice2Enabled = b(.harmonizerVoice2Enabled, true)
+        harmonizerMix = f(.harmonizerMix, 0.5)
 
         chorusEnabled = b(.chorusEnabled, true)
         chorusRate = f(.chorusRate, 0.45)
@@ -147,6 +159,10 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         delayDrive = f(.delayDrive, 0)
 
         reverbEnabled = b(.reverbEnabled, false)
+        reverbRoomSize = f(.reverbRoomSize, 0.72)
+        reverbDamping = f(.reverbDamping, 0.5)
+        reverbMix = f(.reverbMix, 0.25)
+        reverbWidth = f(.reverbWidth, 1.0)
 
         compressorEnabled = b(.compressorEnabled, false)
         compThreshold = f(.compThreshold, -18)
@@ -163,14 +179,16 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         fxEnabled: Bool,
         filterEnabled: Bool, filterModeRaw: String, filterCutoff: Float, filterResonance: Float,
         saturationEnabled: Bool, saturationDrive: Float, saturationMix: Float,
-        harmonizerEnabled: Bool,
+        harmonizerEnabled: Bool, harmonizerInterval1: Float, harmonizerInterval2: Float,
+        harmonizerVoice2Enabled: Bool, harmonizerMix: Float,
         chorusEnabled: Bool, chorusRate: Float, chorusDepth: Float, chorusMix: Float,
         flangerEnabled: Bool, flangerRate: Float, flangerDepth: Float, flangerFeedback: Float, flangerMix: Float,
         phaserEnabled: Bool, phaserRate: Float, phaserDepth: Float, phaserFeedback: Float, phaserMix: Float,
         tremoloEnabled: Bool, tremoloRate: Float, tremoloDepth: Float, tremoloStereoPan: Bool,
         delayEnabled: Bool, delayModeRaw: String, delayMix: Float, delayTime: Float,
         delayFeedback: Float, delayTone: Float, delayWow: Float, delayDrive: Float,
-        reverbEnabled: Bool,
+        reverbEnabled: Bool, reverbRoomSize: Float, reverbDamping: Float,
+        reverbMix: Float, reverbWidth: Float,
         compressorEnabled: Bool, compThreshold: Float, compRatio: Float, compMakeup: Float,
         limiterEnabled: Bool, limiterCeiling: Float
     ) {
@@ -180,6 +198,8 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         self.filterCutoff = filterCutoff; self.filterResonance = filterResonance
         self.saturationEnabled = saturationEnabled; self.saturationDrive = saturationDrive; self.saturationMix = saturationMix
         self.harmonizerEnabled = harmonizerEnabled
+        self.harmonizerInterval1 = harmonizerInterval1; self.harmonizerInterval2 = harmonizerInterval2
+        self.harmonizerVoice2Enabled = harmonizerVoice2Enabled; self.harmonizerMix = harmonizerMix
         self.chorusEnabled = chorusEnabled; self.chorusRate = chorusRate; self.chorusDepth = chorusDepth; self.chorusMix = chorusMix
         self.flangerEnabled = flangerEnabled; self.flangerRate = flangerRate; self.flangerDepth = flangerDepth
         self.flangerFeedback = flangerFeedback; self.flangerMix = flangerMix
@@ -191,6 +211,8 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         self.delayTime = delayTime; self.delayFeedback = delayFeedback; self.delayTone = delayTone
         self.delayWow = delayWow; self.delayDrive = delayDrive
         self.reverbEnabled = reverbEnabled
+        self.reverbRoomSize = reverbRoomSize; self.reverbDamping = reverbDamping
+        self.reverbMix = reverbMix; self.reverbWidth = reverbWidth
         self.compressorEnabled = compressorEnabled; self.compThreshold = compThreshold
         self.compRatio = compRatio; self.compMakeup = compMakeup
         self.limiterEnabled = limiterEnabled; self.limiterCeiling = limiterCeiling
@@ -208,7 +230,7 @@ public extension FXPreset {
         tags: [String] = []
     ) -> FXPreset {
         FXPreset(
-            id: id, name: name, tags: tags, schema: 1,
+            id: id, name: name, tags: tags, schema: 2,
             fxEnabled: fxEnabled,
             filterEnabled: chain.filterEnabled,
             filterModeRaw: chain.filterL.mode.rawValue,
@@ -218,6 +240,10 @@ public extension FXPreset {
             saturationDrive: chain.saturationDrive,
             saturationMix: chain.saturationMix,
             harmonizerEnabled: chain.harmonizerEnabled,
+            harmonizerInterval1: chain.harmonizer.interval1,
+            harmonizerInterval2: chain.harmonizer.interval2,
+            harmonizerVoice2Enabled: chain.harmonizer.voice2Enabled,
+            harmonizerMix: chain.harmonizer.mix,
             chorusEnabled: chain.chorusEnabled,
             chorusRate: chain.chorus.rate,
             chorusDepth: chain.chorus.depth,
@@ -245,6 +271,10 @@ public extension FXPreset {
             delayWow: chain.delay.wow,
             delayDrive: chain.delay.drive,
             reverbEnabled: chain.reverbEnabled,
+            reverbRoomSize: chain.reverb.roomSize,
+            reverbDamping: chain.reverb.damping,
+            reverbMix: chain.reverb.mix,
+            reverbWidth: chain.reverb.width,
             compressorEnabled: chain.compressorEnabled,
             compThreshold: chain.compressor.thresholdDb,
             compRatio: chain.compressor.ratio,
@@ -267,6 +297,10 @@ public extension FXPreset {
         chain.saturationDrive = saturationDrive
         chain.saturationMix = saturationMix
         chain.harmonizerEnabled = harmonizerEnabled
+        chain.harmonizer.interval1 = harmonizerInterval1
+        chain.harmonizer.interval2 = harmonizerInterval2
+        chain.harmonizer.voice2Enabled = harmonizerVoice2Enabled
+        chain.harmonizer.mix = harmonizerMix
         chain.chorusEnabled = chorusEnabled
         chain.chorus.rate = chorusRate
         chain.chorus.depth = chorusDepth
@@ -294,6 +328,10 @@ public extension FXPreset {
         chain.delay.wow = delayWow
         chain.delay.drive = delayDrive
         chain.reverbEnabled = reverbEnabled
+        chain.reverb.roomSize = reverbRoomSize
+        chain.reverb.damping = reverbDamping
+        chain.reverb.mix = reverbMix
+        chain.reverb.width = reverbWidth
         chain.compressorEnabled = compressorEnabled
         chain.compressor.thresholdDb = compThreshold
         chain.compressor.ratio = compRatio

@@ -29,6 +29,13 @@ final class FXPresetTests: XCTestCase {
         c.compressorEnabled = true
         c.compressor.thresholdDb = -24
         c.compressor.ratio = 6
+        c.reverbEnabled = true
+        c.reverb.roomSize = 0.9
+        c.reverb.mix = 0.4
+        c.reverb.width = 0.7
+        c.harmonizerEnabled = true
+        c.harmonizer.interval1 = 3
+        c.harmonizer.mix = 0.6
         return c
     }
 
@@ -59,6 +66,13 @@ final class FXPresetTests: XCTestCase {
         XCTAssertTrue(dest.compressorEnabled)
         XCTAssertEqual(dest.compressor.thresholdDb, -24, accuracy: 1e-5)
         XCTAssertEqual(dest.compressor.ratio, 6, accuracy: 1e-5)
+        XCTAssertTrue(dest.reverbEnabled)
+        XCTAssertEqual(dest.reverb.roomSize, 0.9, accuracy: 1e-5)
+        XCTAssertEqual(dest.reverb.mix, 0.4, accuracy: 1e-5)
+        XCTAssertEqual(dest.reverb.width, 0.7, accuracy: 1e-5)
+        XCTAssertTrue(dest.harmonizerEnabled)
+        XCTAssertEqual(dest.harmonizer.interval1, 3, accuracy: 1e-5)
+        XCTAssertEqual(dest.harmonizer.mix, 0.6, accuracy: 1e-5)
     }
 
     func testJSONRoundTrip_isExact() throws {

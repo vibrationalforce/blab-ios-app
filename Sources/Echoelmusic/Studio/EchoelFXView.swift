@@ -58,6 +58,11 @@ final class FXViewModel {
         compEnabled = c.compressorEnabled; compThreshold = c.compressor.thresholdDb
         compRatio = c.compressor.ratio; compMakeup = c.compressor.makeupDb
         limiterEnabled = c.limiterEnabled; limiterCeiling = c.limiter.ceilingDb
+        saturationEnabled = c.saturationEnabled; saturationDrive = c.saturationDrive; saturationMix = c.saturationMix
+        harmonizerEnabled = c.harmonizerEnabled; harmInterval1 = c.harmonizer.interval1
+        harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
+        reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
+        reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
     }
 
     // Master
@@ -115,6 +120,25 @@ final class FXViewModel {
     var limiterEnabled: Bool { didSet { chain.limiterEnabled = limiterEnabled } }
     var limiterCeiling: Float { didSet { chain.limiter.ceilingDb = limiterCeiling } }
 
+    // Saturation (analog warmth — on by default)
+    var saturationEnabled: Bool { didSet { chain.saturationEnabled = saturationEnabled } }
+    var saturationDrive: Float { didSet { chain.saturationDrive = saturationDrive } }
+    var saturationMix: Float { didSet { chain.saturationMix = saturationMix } }
+
+    // Harmonizer (added harmony voices above the melody)
+    var harmonizerEnabled: Bool { didSet { chain.harmonizerEnabled = harmonizerEnabled } }
+    var harmInterval1: Float { didSet { chain.harmonizer.interval1 = harmInterval1 } }
+    var harmInterval2: Float { didSet { chain.harmonizer.interval2 = harmInterval2 } }
+    var harmVoice2: Bool { didSet { chain.harmonizer.voice2Enabled = harmVoice2 } }
+    var harmMix: Float { didSet { chain.harmonizer.mix = harmMix } }
+
+    // Reverb (room / hall space)
+    var reverbEnabled: Bool { didSet { chain.reverbEnabled = reverbEnabled } }
+    var reverbRoomSize: Float { didSet { chain.reverb.roomSize = reverbRoomSize } }
+    var reverbDamping: Float { didSet { chain.reverb.damping = reverbDamping } }
+    var reverbMix: Float { didSet { chain.reverb.mix = reverbMix } }
+    var reverbWidth: Float { didSet { chain.reverb.width = reverbWidth } }
+
     // MARK: - Production characters
 
     /// Stamp a one-tap production character (Underwater, Telephone, …) onto the
@@ -149,6 +173,11 @@ final class FXViewModel {
         compEnabled = c.compressorEnabled; compThreshold = c.compressor.thresholdDb
         compRatio = c.compressor.ratio; compMakeup = c.compressor.makeupDb
         limiterEnabled = c.limiterEnabled; limiterCeiling = c.limiter.ceilingDb
+        saturationEnabled = c.saturationEnabled; saturationDrive = c.saturationDrive; saturationMix = c.saturationMix
+        harmonizerEnabled = c.harmonizerEnabled; harmInterval1 = c.harmonizer.interval1
+        harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
+        reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
+        reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
     }
 
     // MARK: - Preset save / recall
@@ -223,6 +252,25 @@ struct EchoelFXView: View {
                     .pickerStyle(.segmented)
                     slider("Cutoff", $vm.filterCutoff, 80...18000, "%.0f Hz") { $0 }
                     slider("Resonance", $vm.filterResonance, 0...0.95, "%.0f%%") { $0 * 100 }
+                }
+
+                effectSection("Saturation", isOn: $vm.saturationEnabled) {
+                    slider("Drive", $vm.saturationDrive, 0...1, "%.0f%%") { $0 * 100 }
+                    slider("Mix", $vm.saturationMix, 0...1, "%.0f%%") { $0 * 100 }
+                }
+
+                effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
+                    slider("Voice 1", $vm.harmInterval1, -12...12, "%.0f st") { $0 }
+                    Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
+                    slider("Voice 2 interval", $vm.harmInterval2, -12...12, "%.0f st") { $0 }
+                    slider("Mix", $vm.harmMix, 0...1, "%.0f%%") { $0 * 100 }
+                }
+
+                effectSection("Reverb", isOn: $vm.reverbEnabled) {
+                    slider("Size", $vm.reverbRoomSize, 0...1, "%.0f%%") { $0 * 100 }
+                    slider("Damping", $vm.reverbDamping, 0...1, "%.0f%%") { $0 * 100 }
+                    slider("Width", $vm.reverbWidth, 0...1, "%.0f%%") { $0 * 100 }
+                    slider("Mix", $vm.reverbMix, 0...1, "%.0f%%") { $0 * 100 }
                 }
 
                 effectSection("Delay", isOn: $vm.delayEnabled) {
