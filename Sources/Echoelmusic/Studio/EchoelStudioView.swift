@@ -123,6 +123,9 @@ struct EchoelStudioView: View {
     @State private var showBreath = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
     @State private var showAllFX = false
+    /// Which drum track's sample browser is open (nil = closed). Identifiable
+    /// wrapper so `.sheet(item:)` can carry the track index.
+    @State private var sampleBrowserTrack: TrackRef?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Persisted in-app zoom level (index into StudioZoom.ladder). `-1` = follow the
@@ -198,6 +201,7 @@ struct EchoelStudioView: View {
                          setFXEnabled: { synth.setFXEnabled($0) })
         }
         .sheet(isPresented: $showInput) { AudioInputPickerView() }
+        .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: currentPatch) { p in
                 currentPatch = p
@@ -237,6 +241,11 @@ struct EchoelStudioView: View {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
             Button { showClips = true } label: { Label("Clips", systemImage: "square.grid.2x2") }
             Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
+            Menu {
+                ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
+                    Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
+                }
+            } label: { Label("Drum Samples", systemImage: "waveform") }
             Button { showBreath = true } label: { Label("Breathing Guide", systemImage: "wind") }
             Button { showInput = true } label: { Label("Audio Input", systemImage: "mic") }
             #if canImport(MetalKit) && canImport(UIKit)
@@ -1251,6 +1260,9 @@ private struct ExportedFile: Identifiable {
     let id = UUID()
     let url: URL
 }
+
+/// Identifiable wrapper so `.sheet(item:)` can carry a drum track index.
+private struct TrackRef: Identifiable { let id: Int }
 
 /// Identifiable wrapper so the diagnostics sheet can present the log text.
 private struct DiagReport: Identifiable {

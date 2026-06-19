@@ -59,7 +59,10 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
 ### NOW (this + next few cycles — verifiable, low risk, on-vision)
 1. **[Sound]** Push a **TestFlight build** so the founder hears the whole preset/FX/community package on device. *(DoD step; do before adding more.)*
 2. **[Sound]** **In-app community loader** — bundle `community/curated/*.json` (Resources are already `.process`-bundled) and merge into the libraries. *Deferred earlier because its failure mode is silent → ship + verify on device.*
-3. **[Sound]** Wire the orphaned `SampleBrowserView` to the beat pads (per-pad sample assign).
+3. ✅ **[Sound]** ~~Wire the orphaned `SampleBrowserView`~~ — DONE 2026-06-19: reachable via
+   Tools → **Drum Samples** (per-track). Device files now **preview-before-assign** (audition
+   with ▶, then "Use"). *(Note: no manual drum-pad grid exists in the single view; samples are
+   the drum-kit sounds used by generative playback. A pad grid is a separate, larger feature.)*
 4. **[Body/Apple]** **HealthKit write** (HR/HRV/breath as `HKQuantitySample`, opt-in) → "Works with Apple Health" + persistence. Low risk, clear featuring story. → audit §7.
 
 ### NEXT (authorized direction, needs a deliberate cycle)

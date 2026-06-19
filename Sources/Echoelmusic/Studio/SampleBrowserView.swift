@@ -17,6 +17,11 @@ struct SampleBrowserView: View {
     @Environment(BeatPlayer.self) private var player
     @Environment(\.dismiss) private var dismiss
     @State private var importerPresented = false
+    /// A file picked from the device, held so the user can audition it
+    /// repeatedly BEFORE committing it to the pad (preview-before-assign).
+    @State private var pickedURL: URL?
+
+    private var pickedName: String { pickedURL?.deletingPathExtension().lastPathComponent ?? "" }
 
     var body: some View {
         NavigationStack {
@@ -26,15 +31,45 @@ struct SampleBrowserView: View {
                         row(name)
                     }
                 }
+                if let url = pickedURL {
+                    Section("Selected from Files") {
+                        HStack(spacing: 12) {
+                            Button { player.audition(url: url) } label: {
+                                Image(systemName: "play.circle")
+                                    .font(.system(size: 20)).foregroundStyle(EchoelTheme.accent)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Preview \(pickedName)")
+
+                            Text(pickedName)
+                                .font(.system(size: 14)).foregroundStyle(EchoelTheme.text)
+                                .lineLimit(1).truncationMode(.middle)
+
+                            Spacer()
+
+                            Button {
+                                _ = player.importSample(track: track, from: url)
+                                dismiss()
+                            } label: {
+                                Text("Use").font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(EchoelTheme.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { player.audition(url: url) }
+                    }
+                }
                 Section {
                     Button {
                         importerPresented = true
                     } label: {
-                        Label("Import from Files…", systemImage: "folder")
+                        Label(pickedURL == nil ? "Import from Files…" : "Pick a different file…",
+                              systemImage: "folder")
                             .foregroundStyle(EchoelTheme.accent)
                     }
                 } footer: {
-                    Text("Imported files preview on pick, then load onto this pad.")
+                    Text("Imported files preview first — tap ▶ to audition, then Use to load it onto this pad.")
                 }
             }
             .navigationTitle("Samples · \(BeatPlayer.trackNames[track])")
@@ -51,9 +86,8 @@ struct SampleBrowserView: View {
                 allowsMultipleSelection: false
             ) { result in
                 if case .success(let urls) = result, let url = urls.first {
-                    player.audition(url: url)
-                    player.importSample(track: track, from: url)
-                    dismiss()
+                    pickedURL = url
+                    player.audition(url: url)   // immediate first preview; assign only on "Use"
                 }
             }
             #endif
