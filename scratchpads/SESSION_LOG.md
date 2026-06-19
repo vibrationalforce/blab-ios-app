@@ -20,6 +20,25 @@ Read this FIRST when continuing work on Echoelmusic.
   reconciled, website overclaims removed (agents). TestFlight **v10.34.2** triggered on the fixed code.
 - **Watch next:** confirm xcode-compile-check(dcc0ecf)=green + TestFlight v10.34.2 succeeds.
 
+### 2026-06-19 (cont.) — FX param standardization + Xcode strict-concurrency fix → v10.34.3
+- **Founder ask:** align Effects-section parameter rows with the other sections (number + label +
+  vertical value field, no sliders) — and **fix this as the permanent app-wide standard.**
+- **Did:** migrated all ~40 `EchoelFXView` rows `Slider`→`EchoelValueField` (16295af); migrated the
+  last main-app raw `Stepper` (piano-roll note-length inspector) → `EchoelValueField` decimals:0
+  (accb9fd). Now **zero raw Slider/Stepper for parameters in the main app**; only the standalone
+  AUv3 plugin target keeps a plain Slider (documented exemption — it compiles `DSP/` only, can't see
+  `EchoelValueField`). Documented the standard + scope in CLAUDE.md; logged decision (review 2026-09-19).
+- **Build fix (real Xcode blocker):** xcode-compile-check (Xcode 26.5, strict concurrency) flagged
+  `AudioEngine.swift` meter-poll timer: "sending 'lufsSPtr'/… risks data races" — non-Sendable
+  `UnsafeMutablePointer<Float>` local copies captured into the `@Sendable` Timer block. Fixed by
+  reading the already-`nonisolated(unsafe)` pointer **properties via self** inside
+  `MainActor.assumeIsolated` (c189555). **xcode-compile-check now GREEN** (full app incl. AUv3, 1m24s).
+  Note: v10.34.2 TestFlight (8b7688f) actually *succeeded* — the concurrency issue was a warning in the
+  archive but a hard error under the stricter compile-check; fixing it makes both gates green.
+- **Shipped:** `.deploy/release` → **v10.34.3** (d52283f) — TestFlight triggered, carries the FX param
+  standardization to device. ci.yml(SPM) green through 16295af; xcode-compile-check green through c189555.
+- **Watch next:** TestFlight v10.34.3 (run 27838349824) succeeds on device; xcode-compile-check(accb9fd) green.
+
 ---
 
 ## 2026-06-19 — Attack click fix + expose full FX parameter panel
