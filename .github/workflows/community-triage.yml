@@ -1,0 +1,29 @@
+name: Community Preset Triage
+
+# Turns in-app "Submit to community" issues into reviewable PRs automatically.
+# Only runs on submission issues (title prefix set by the app), so it never
+# touches normal issues. The PR review is the curation gate — nothing is merged
+# automatically.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  triage:
+    if: ${{ startsWith(github.event.issue.title, 'Preset submission:') || startsWith(github.event.issue.title, 'Patch submission:') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate submission and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: python3 .github/scripts/community_triage.py
