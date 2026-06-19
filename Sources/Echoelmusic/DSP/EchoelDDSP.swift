@@ -830,7 +830,15 @@ public final class EchoelDDSP: @unchecked Sendable {
             let wanted = Int(attack * velAttackScale * sampleRate)
             let attackSamples = max(minAttackSamples, wanted)
             let progress = min(1.0, Float(envelopeSamples) / Float(attackSamples))
-            envelopeValue = applyCurve(progress, from: attackStartLevel, to: 1.0)
+            // Click-free onset SHAPE: smoothstep (3p²−2p³). It has zero slope at BOTH
+            // ends — continuous from `attackStartLevel` at p=0 and easing into full
+            // level at p=1. The shared exponential curve (correct for decay/release)
+            // is concave: on a short/percussive attack it holds near zero then rises
+            // ~half the level in the final fraction of the window, and that end-edge
+            // is the audible "knack" on the snappier characters. velocity/patch still
+            // sets the attack TIME (attackSamples); smoothstep only fixes the shape.
+            let eased = progress * progress * (3.0 - 2.0 * progress)
+            envelopeValue = attackStartLevel + (1.0 - attackStartLevel) * eased
             if envelopeSamples >= attackSamples {
                 envelopeStage = .decay
                 envelopeSamples = 0
