@@ -213,10 +213,10 @@
             <section id="who">
                 <h2>Who it's for</h2>
                 <div class="data-row"><div class="k">Musicians &amp; Producers</div><div class="v">A full studio that responds to your body — a dimension no plugin can reach.</div></div>
-                <div class="data-row"><div class="k">DJs &amp; Performers</div><div class="v">Your pulse controls lights, your energy shapes visuals; the crowd feels you.</div></div>
-                <div class="data-row"><div class="k">Filmmakers &amp; Artists</div><div class="v">Generative art from biology. Record it, project it, stream it.</div></div>
-                <div class="data-row"><div class="k">Installations &amp; Staging</div><div class="v">Projection mapping, DMX, multi-screen — bio-reactive spaces at any scale.</div></div>
-                <div class="data-row"><div class="k">Therapists &amp; Coaches</div><div class="v">Biofeedback as creative expression. HRV coherence made audible and visible.</div></div>
+                <div class="data-row"><div class="k">DJs &amp; Performers</div><div class="v">Your pulse drives venue lights over Art-Net/sACN and a spatial-audio object over ADM-OSC; the crowd feels you.</div></div>
+                <div class="data-row"><div class="k">Filmmakers &amp; Artists</div><div class="v">Generative art from biology, driven live on device. Capture and broadcast tooling is on the roadmap.</div></div>
+                <div class="data-row"><div class="k">Installations &amp; Staging</div><div class="v">Native Art-Net &amp; sACN lighting plus ADM-OSC spatial audio — bio-reactive spaces at any scale.</div></div>
+                <div class="data-row"><div class="k">Facilitators &amp; Coaches</div><div class="v">Biofeedback as creative expression — HRV coherence made audible and visible. A creative tool, not a therapeutic device.</div></div>
                 <div class="data-row"><div class="k">Education &amp; Accessibility</div><div class="v">Music from breath and movement — creative expression without barriers.</div></div>
             </section>
 
@@ -226,8 +226,8 @@
                 <div class="data-row"><div class="k">Audio latency</div><div class="v">Real-time, low-latency engine (target &lt;10ms).</div></div>
                 <div class="data-row"><div class="k">Bio loop</div><div class="v">Real-time control loop up to 120Hz.</div></div>
                 <div class="data-row"><div class="k">MIDI</div><div class="v">Full MIDI 2.0 protocol + MPE.</div></div>
-                <div class="data-row"><div class="k">Networking</div><div class="v">OSC + ADM-OSC, live today. Ableton Link planned (target &lt;5ms on LAN).</div></div>
-                <div class="data-row"><div class="k">Visuals <span class="tag">Planned</span></div><div class="v">Metal GPU-accelerated, up to 120fps.</div></div>
+                <div class="data-row"><div class="k">Networking</div><div class="v">OSC, ADM-OSC, Art-Net &amp; sACN, live today. Ableton Link planned (target &lt;5ms on LAN).</div></div>
+                <div class="data-row"><div class="k">Visuals</div><div class="v">Metal GPU bio-renderer (heart rate to pulse, coherence to hue, breath to spread); flash rate held under 3&nbsp;Hz.</div></div>
                 <div class="data-row"><div class="k">AI <span class="tag">Planned</span></div><div class="v">On-device CoreML, Neural Engine accelerated.</div></div>
             </section>
 
@@ -237,11 +237,11 @@
                 <p>Every input and output format the platform speaks — what's available at launch, and what's planned.</p>
                 <div class="data-row"><div class="k">Audio engine</div><div class="v">48&nbsp;kHz, 32-bit float internal; buffer 128 / 256 / 512 frames (2.67 / 5.3 / 10.7&nbsp;ms).</div></div>
                 <div class="data-row"><div class="k">Audio export</div><div class="v">At launch: WAV (lossless) and AAC/M4A, LUFS-normalized to −14&nbsp;LUFS; 30&nbsp;s CAF pre-roll capture. Planned: FLAC / ALAC, stem export.</div></div>
-                <div class="data-row"><div class="k">Spatial audio</div><div class="v">At launch: stereo with HRV-reactive spatial reverb character. Planned: 3D object panning, Dolby&nbsp;Atmos / spatial-audio rendering, head-tracked rendering for AirPods, multichannel (5.1 / 7.1.4) and ambisonics.</div></div>
-                <div class="data-row"><div class="k">MIDI</div><div class="v">At launch: MIDI&nbsp;2.0 + MPE input (per-note pitch bend, slide/timbre CC74, air-CC). Planned: Standard MIDI File (.mid) import/export, MIDI output.</div></div>
+                <div class="data-row"><div class="k">Spatial audio</div><div class="v">At launch: stereo with HRV-reactive spatial reverb character, plus ADM-OSC immersive object out (breath&rarr;azimuth, coherence&rarr;distance, HRV&rarr;elevation) into object-based renderers (L-ISA, d&amp;b&nbsp;Soundscape, Adamson&nbsp;FletcherMachine). Planned: Dolby&nbsp;Atmos authoring, head-tracked binaural for AirPods, multichannel (5.1 / 7.1.4) and ambisonics.</div></div>
+                <div class="data-row"><div class="k">MIDI</div><div class="v">At launch: MIDI&nbsp;2.0 + MPE input and output (per-note pitch bend, slide/timbre CC74, air-CC); Echoel publishes a virtual CoreMIDI source any DAW can record. Standard MIDI File (.mid) export. Planned: SMF import.</div></div>
                 <div class="data-row"><div class="k">Video</div><div class="v">Planned: H.264 MP4 short-form capture, H.265/HEVC, Apple&nbsp;ProRes 422/4444, 1080p &amp; 4K, 24/25/30/60&nbsp;fps, landscape &amp; square, LUT color grading.</div></div>
                 <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">Planned: Metal GPU render, multiple visual modes, chroma key, projection mapping (warp + edge-blend), multi-screen / external-display output, NDI &amp; Syphon video-out, AirPlay.</div></div>
-                <div class="data-row"><div class="k">Lighting</div><div class="v">Planned: DMX-512 (USB / Ethernet), Art-Net&nbsp;4 (UDP 6454), HomeKit smart lighting, fixture profiles &amp; cue lists.</div></div>
+                <div class="data-row"><div class="k">Lighting</div><div class="v">At launch: native Art-Net (UDP 6454) and sACN / E1.31 unicast, zero-dependency, with flash safety. Planned: DMX-512 over USB, HomeKit smart lighting, fixture profiles &amp; cue lists.</div></div>
                 <div class="data-row"><div class="k">Networking &amp; sync</div><div class="v">At launch: OSC&nbsp;1.0 over UDP (EchoelSync) — 6 bio addresses, default localhost:8000. Planned: Ableton&nbsp;Link tempo/phase sync, bidirectional OSC.</div></div>
                 <div class="data-row"><div class="k">Streaming</div><div class="v">Planned: RTMP / RTMPS to YouTube, Twitch, Facebook and custom endpoints (HaishinKit).</div></div>
             </section>
@@ -249,7 +249,7 @@
             <!-- PRIVACY -->
             <section id="privacy">
                 <h2>Privacy</h2>
-                <p>All biometric data is processed <strong>locally on your device</strong>. No accounts, no analytics, no third-party SDKs. AI runs entirely on-device — your data never leaves your hardware. See <a href="privacy.html">Privacy</a> and <a href="security.html">Security</a> for details.</p>
+                <p>All biometric data is processed <strong>locally on your device</strong>. No accounts, no analytics, no third-party SDKs &mdash; your data never leaves your hardware. Any on-device AI on the roadmap is designed to keep that same promise. See <a href="privacy.html">Privacy</a> and <a href="security.html">Security</a> for details.</p>
             </section>
 
             <!-- SAFETY -->
@@ -260,7 +260,7 @@
                     <ul>
                         <li>Do <strong>not</strong> use brainwave-entrainment modes while operating vehicles or machinery.</li>
                         <li>Do <strong>not</strong> use under the influence of alcohol or drugs.</li>
-                        <li>For therapeutic use, coordinate any medication changes with your provider.</li>
+                        <li>Echoelmusic is not a therapeutic device; never change medication based on what you see in the app &mdash; coordinate any changes with your provider.</li>
                         <li>Visual flash rate is capped at 3&nbsp;Hz (W3C WCAG epilepsy compliance).</li>
                     </ul>
                     <p>More on the <a href="health.html">Health</a> and <a href="accessibility.html">Accessibility</a> pages.</p>
