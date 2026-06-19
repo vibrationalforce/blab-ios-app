@@ -81,6 +81,14 @@ final class FXPresetTests: XCTestCase {
         XCTAssertEqual(p.schema, 1)
     }
 
+    func testCuratedCommunity_nonEmpty_uniqueIDs_named_tagged() {
+        let lib = FXPreset.curatedCommunity
+        XCTAssertGreaterThanOrEqual(lib.count, 5, "a curated starter set ships")
+        XCTAssertEqual(Set(lib.map(\.id)).count, lib.count, "ids are unique")
+        XCTAssertFalse(lib.contains { $0.name.isEmpty }, "every preset is named")
+        XCTAssertTrue(lib.allSatisfy { !$0.tags.isEmpty }, "every curated preset is tagged")
+    }
+
     func testUnknownEnumRaw_fallsBackSafely() {
         var preset = FXPreset.capture(from: EchoelFXChain(), fxEnabled: true, name: "Bad")
         preset.filterModeRaw = "not-a-mode"

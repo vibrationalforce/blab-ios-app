@@ -301,4 +301,47 @@ public extension FXPreset {
         chain.limiterEnabled = limiterEnabled
         chain.limiter.ceilingDb = limiterCeiling
     }
+
+    // MARK: - Curated community library (bundled, founder-ranked)
+
+    /// Echoel's curated starter library: the production characters captured as
+    /// browsable, tagged presets. **Founder-curated — the array order IS the
+    /// featured order.** Bundled in the app (the safe, offline baseline); an
+    /// additive live-refresh from the repo can layer on later without changing
+    /// this model. Community submissions are merged into the repo over time.
+    ///
+    /// Computed ONCE (`static let`) so the list keeps a stable identity across
+    /// SwiftUI renders. (`.auto` needs a genre and `.clean` is the dry reset —
+    /// both excluded; they aren't "sounds".)
+    static let curatedCommunity: [FXPreset] = {
+        let featured: [FXCharacter] = [
+            .dream, .hall, .room, .cassette, .vinyl,
+            .underwater, .blurry, .telephone, .megaphone, .harmonizer
+        ]
+        return featured.map { ch in
+            let chain = EchoelFXChain()
+            ch.apply(to: chain, bpm: 120, genre: .selfObservation)
+            return FXPreset.capture(from: chain, fxEnabled: true,
+                                    name: ch.displayName, tags: ch.presetTags)
+        }
+    }()
+}
+
+private extension FXCharacter {
+    /// Curation tags for the bundled community library.
+    var presetTags: [String] {
+        switch self {
+        case .dream:      return ["lush", "wide", "ambient"]
+        case .hall:       return ["reverb", "space", "big"]
+        case .room:       return ["reverb", "natural"]
+        case .cassette:   return ["lofi", "tape", "warm"]
+        case .vinyl:      return ["lofi", "vintage"]
+        case .underwater: return ["filter", "watery", "experimental"]
+        case .blurry:     return ["soft", "wash", "ambient"]
+        case .telephone:  return ["lofi", "vocal", "filter"]
+        case .megaphone:  return ["gritty", "vocal"]
+        case .harmonizer: return ["harmony", "thick"]
+        default:          return []
+        }
+    }
 }

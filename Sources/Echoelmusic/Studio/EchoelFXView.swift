@@ -339,7 +339,26 @@ struct EchoelFXView: View {
         } header: {
             Text("My presets").font(.system(size: 13, weight: .bold)).textCase(nil)
         } footer: {
-            Text("Your presets stay on this device. Community sharing comes next.")
+            Text("Your presets stay on this device.")
+        }
+
+        Section {
+            ForEach(FXPreset.curatedCommunity) { preset in
+                Button { vm.apply(preset) } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(preset.name).foregroundStyle(EchoelTheme.text)
+                        if !preset.tags.isEmpty {
+                            Text(preset.tags.joined(separator: " · "))
+                                .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                        }
+                    }
+                }
+                .accessibilityHint("Apply this community preset to the effects chain")
+            }
+        } header: {
+            Text("Community presets").font(.system(size: 13, weight: .bold)).textCase(nil)
+        } footer: {
+            Text("Curated by Echoel. Submitting your own to the community comes next.")
         }
     }
 
