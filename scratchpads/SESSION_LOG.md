@@ -22,7 +22,9 @@ Read this FIRST when continuing work on Echoelmusic.
 - **More presets BUILT:** +6 multi-stage signature presets (Cathedral, Warm Tape Wide, Octave Lead, Dub Chamber, Crystal Shimmer, Lo-Fi Dust) via a `make()` chain-config→capture helper → 16 curated total.
 - **Submit-to-community BUILT:** `FXPreset.communityIssueURL(owner:repo:)` builds a pre-filled GitHub new-issue URL (label `preset-submission`) with the preset JSON embedded; EchoelFXView swipe action "Submit" opens it via `openURL`. No backend/auth — repo is the store. Test added.
 - **Tools audit corrected:** no `EchoelMixView` (removed in cleanup). `SampleBrowserView` exists but is orphaned (needs per-pad track context → wire from beat pads, not the global Tools menu). All other tools wired.
-- **Remaining:** create repo `preset-submission` label + an issue→PR triage Action (minimal founder effort); on-device favorites/recents; wire SampleBrowser from beat pads; then replicate the preset system to Mood / Sound & texture.
+- **Favorites/recents BUILT:** FXPresetStore now persists favorites (Set) + recents (capped 12) and exposes a pure, unit-tested `ranked()` ranking (favorites → recently-used → newest-save). EchoelFXView: star shown on row, swipe-right to ★, apply records recent. Completes the on-device personalization ranking decision (no backend).
+- **CI GREEN through 5e765e7** (params / more-presets / submit all success).
+- **Remaining:** create repo `preset-submission` label + an issue→PR triage Action (CI/outward — confirm with founder first); wire SampleBrowser from beat pads; replicate preset system to Mood / Sound & texture; (founder hint) deliberate DSP-engine cycle (physical modeling / EchoelModalBank) under dsp-reviewer.
 - **CI status:** commits 30fb65a / b915f43 / 2b785e8 all GREEN on ci.yml (push-triggered). 4b2402e + this cycle pending. (No Swift toolchain in container — CI is the verifier.)
 - **Note:** no Swift toolchain in this container — verification deferred to CI/TestFlight.
 

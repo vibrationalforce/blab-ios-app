@@ -368,9 +368,16 @@ struct EchoelFXView: View {
                 Text("No saved presets yet. Dial in a sound below, then save it.")
                     .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
             } else {
-                ForEach(presetStore.presets) { preset in
-                    Button { vm.apply(preset) } label: {
+                ForEach(presetStore.sortedPresets) { preset in
+                    Button {
+                        vm.apply(preset)
+                        presetStore.markUsed(id: preset.id)
+                    } label: {
                         HStack {
+                            if presetStore.isFavorite(id: preset.id) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.accent)
+                            }
                             Text(preset.name).foregroundStyle(EchoelTheme.text)
                             Spacer()
                             Image(systemName: "arrow.up.forward.circle")
@@ -378,6 +385,14 @@ struct EchoelFXView: View {
                         }
                     }
                     .accessibilityHint("Apply this preset to the effects chain")
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            presetStore.toggleFavorite(id: preset.id)
+                        } label: {
+                            Label(presetStore.isFavorite(id: preset.id) ? "Unstar" : "Favorite",
+                                  systemImage: presetStore.isFavorite(id: preset.id) ? "star.slash" : "star")
+                        }.tint(.yellow)
+                    }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
                             presetStore.delete(id: preset.id)
@@ -392,7 +407,7 @@ struct EchoelFXView: View {
         } header: {
             Text("My presets").font(.system(size: 13, weight: .bold)).textCase(nil)
         } footer: {
-            Text("Saved on this device. Swipe a preset to delete, or Submit it to the Echoel community.")
+            Text("Saved on this device — favorites and recently-used rise to the top. Swipe right to ★, left to Submit or Delete.")
         }
 
         Section {

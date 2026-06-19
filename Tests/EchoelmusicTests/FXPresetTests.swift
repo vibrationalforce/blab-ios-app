@@ -116,6 +116,25 @@ final class FXPresetTests: XCTestCase {
         XCTAssertTrue(body.contains("\"name\""), "preset JSON is embedded in the issue body")
     }
 
+    @MainActor
+    func testRanking_favoritesThenRecentsThenNewestSave() {
+        let a = UUID(), b = UUID(), c = UUID()
+        let chain = EchoelFXChain()
+        let presets = [
+            FXPreset.capture(from: chain, fxEnabled: true, id: a, name: "A"),
+            FXPreset.capture(from: chain, fxEnabled: true, id: b, name: "B"),
+            FXPreset.capture(from: chain, fxEnabled: true, id: c, name: "C")
+        ]
+        // No personalization → newest save first.
+        XCTAssertEqual(FXPresetStore.ranked(presets, favorites: [], recents: []).map(\.id), [c, b, a])
+        // Favorite A → A first, then newest.
+        XCTAssertEqual(FXPresetStore.ranked(presets, favorites: [a], recents: []).map(\.id), [a, c, b])
+        // Recently used B → B first, then newest.
+        XCTAssertEqual(FXPresetStore.ranked(presets, favorites: [], recents: [b]).map(\.id), [b, c, a])
+        // Favorite beats recent: A (fav) → B (recent) → C.
+        XCTAssertEqual(FXPresetStore.ranked(presets, favorites: [a], recents: [b]).map(\.id), [a, b, c])
+    }
+
     func testUnknownEnumRaw_fallsBackSafely() {
         var preset = FXPreset.capture(from: EchoelFXChain(), fxEnabled: true, name: "Bad")
         preset.filterModeRaw = "not-a-mode"
