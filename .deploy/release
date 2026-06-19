@@ -1,3 +1,3 @@
-build: 2026-06-19 v10.32.0 (flexible/natural engine — Stage 1: acoustic instrument characters)
+build: 2026-06-19 v10.33.0 (cleanup + optimize pass)
 branch: claude/piano-roll-clip-view-wozlie
-includes: 6 acoustic instrument Characters (Violin/Flute/Trumpet/Cello/Clarinet/Oboe) via the built-in timbre-transfer spectra that were unreachable from the UI; first stage of the excitation->resonator engine plan
+includes: kill audio-thread reverb-IR alloc on every sound change; remove ~820 lines of dead files + unused funcs; CLAUDE.md fact-fix. No user-facing feature change; smoother performance on character/sound switches
