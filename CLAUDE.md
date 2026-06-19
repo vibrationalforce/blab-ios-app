@@ -50,7 +50,13 @@ NEVER use "BLAB", "Vibrational Force", legacy bio-wellness/soundscape branding, 
 
 ---
 
-## ARCHITECTURE (v10 Target)
+## ARCHITECTURE (original v10 target — SUPERSEDED; see CURRENT STATE for as-built)
+
+> ⚠️ **This tree is the ORIGINAL v10 plan, NOT what shipped.** The as-built app is a
+> single `EchoelStudioView` (see "CURRENT STATE" above and "Studio sections" below) —
+> there is **no `StudioRoot` TabView**, and Record/Video/Share were never built
+> (RTMP / video capture / multitrack = roadmap). Kept here only as the audio-foundation
+> reuse map.
 
 ```
 EchoelmusicApp (@main)
@@ -85,18 +91,23 @@ Deprecated from main flow: the old SoundscapeEngine, ClipEngine, MomentCaptureVi
 Protected (do not modify without explicit user approval):
   BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver.
 
-### Studio Tabs (actual, as shipped — `StudioRoot.swift`)
+### Studio sections (actual, as shipped — `EchoelStudioView.swift`)
 
-Always-on `BioStripView` above a 4-tab `TabView`:
+**NOT a TabView.** A single instrument view: always-on `BioStripView` (HR·HRV·Br·Coh,
+tap-to-learn, MIDI/OSC/event dots, play toggle) above Picker-selected sections, a
+one-button generate flow, and a **Tools** menu for the deeper editors.
 
-| Tab | View | Content |
-|------|------|---------|
-| Tools | `BeatTab` | 8 pads · 16-step sequencer · tempo · **velocity/accent · swing · per-pad sample import** · randomize/shift · MIDI export |
-| Works | `WorksView` | Bio-session recorder (HR/HRV/coherence averages) + history |
-| Sync | `ModulationView` | Modulation matrix (bio→param routes) + **ADM-OSC** immersive config |
-| Well | `WellView` | Coherence headline · breath pacer · **camera rPPG** · immersive visual |
+| Section / Tool | Content |
+|------|---------|
+| Compose | bio-generative one-button flow (in-key melody/rhythm/tempo, 12+ genres) |
+| FX | EchoelFX chain — stamp a character + full per-stage panel; presets (save/recall, curated + community, search, favorites/recents) |
+| Mix | levels / master |
+| Piano-Roll | note editor (also a Tools sheet) |
+| Well | coherence headline · breath pacer · **camera rPPG** · immersive visual |
+| Tools (menu) | Piano Roll · Clips · Sound Editor · **Drum Samples** (preview-before-assign) · Breathing Guide · Audio Input · Immersive Visual · MIDI/MPE out |
 
-*(The earlier Beat/Record/Video/Share plan was superseded; Record/Video/Share = ROADMAP, not wired.)*
+*(The earlier `StudioRoot` Beat/Record/Video/Share AND Tools/Works/Sync/Well plans were
+both superseded; Record/Video/Share = ROADMAP, not wired.)*
 
 ---
 
@@ -124,7 +135,9 @@ Sources/Echoelmusic/
   Video/               ← CameraSession, VideoRecorder, ClipTrimmer (NEW W2)
                        ← existing CameraCapture/CameraAnalyzer kept compilable
   Stream/              ← RTMPPublisher (NEW W3)
-  Studio/              ← StudioRoot, BeatTab, RecordTab, VideoTab, ShareTab (NEW W1–W3)
+  Studio/              ← EchoelStudioView (root), EchoelFXView, PatchEditorView,
+                          SampleBrowserView, ClipView, EchoelTheme (as-built; the old
+                          StudioRoot/Beat/Record/Video/ShareTab plan was never built)
   Core/                ← EchoelStore, SPSCQueue, ProfessionalLogger, MemoryPressureHandler,
                           NumericExtensions, SessionStore, ClipStore, ModulationEngine (KEEP)
                        ← (SoundscapeEngine/ClipEngine/WeatherProvider/CircadianClock/PlatformAvailability REMOVED 2026-06-19)

@@ -103,7 +103,8 @@ Grouped by theme so nothing is lost. **Status legend:** 🟢 active input · �
 ## 5. Honesty ledger (review every session — from `vision.md` §gaps + Apple audit)
 
 - **Live Broadcast** = brand pillar, zero code, oscillates → gate, then build or stop claiming.
-- **CLAUDE.md "v10 Target" diagram** describes Beat/Record/Video/Share tabs that were never built; as-built is one `EchoelStudioView`. Reconcile CLAUDE.md in a `docs:` cycle.
+- ✅ ~~CLAUDE.md "v10 Target" diagram drift~~ — RECONCILED 2026-06-19: relabeled as superseded
+  + honest banner, "Studio sections" table now reflects the as-built single `EchoelStudioView`.
 - **Bus `bioFrames`/`bioEvents`** reserved but undrained (snapshot path is the live one).
 - **No device-to-device clock sync**; OSC is single-target (item #9).
 - **Community loader on-device verification pending** — `CommunityLibraryTests` proves the SPM
