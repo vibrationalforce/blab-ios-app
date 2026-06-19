@@ -52,6 +52,25 @@ public final class FXPresetStore {
         persist()
     }
 
+    /// Rename a saved preset (no-op on empty/whitespace name).
+    public func rename(id: UUID, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let i = presets.firstIndex(where: { $0.id == id }) else { return }
+        presets[i].name = trimmed
+        persist()
+    }
+
+    /// Duplicate a saved preset under a new id (appended as "<name> copy").
+    @discardableResult
+    public func duplicate(id: UUID) -> FXPreset? {
+        guard var copy = presets.first(where: { $0.id == id }) else { return nil }
+        copy.id = UUID()
+        copy.name += " copy"
+        presets.append(copy)
+        persist()
+        return copy
+    }
+
     public func isFavorite(id: UUID) -> Bool { favorites.contains(id) }
 
     public func toggleFavorite(id: UUID) {

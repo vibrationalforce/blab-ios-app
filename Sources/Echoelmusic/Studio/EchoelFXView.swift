@@ -208,6 +208,9 @@ struct EchoelFXView: View {
     @State private var presetStore = FXPresetStore()
     @State private var showSaveSheet = false
     @State private var saveName = ""
+    /// Preset being renamed (drives the rename alert).
+    @State private var renameTarget: FXPreset?
+    @State private var renameText = ""
     /// Live filter over preset names + tags (both My presets and Community).
     @State private var presetQuery = ""
 
@@ -354,6 +357,17 @@ struct EchoelFXView: View {
             } message: {
                 Text("Saves the full effects chain — every parameter — as your own preset.")
             }
+            .alert("Rename preset", isPresented: Binding(
+                get: { renameTarget != nil },
+                set: { if !$0 { renameTarget = nil } }
+            )) {
+                TextField("Name", text: $renameText)
+                Button("Save") {
+                    if let t = renameTarget { presetStore.rename(id: t.id, to: renameText) }
+                    renameTarget = nil
+                }
+                Button("Cancel", role: .cancel) { renameTarget = nil }
+            }
         }
     }
 
@@ -388,6 +402,18 @@ struct EchoelFXView: View {
                         }
                     }
                     .accessibilityHint("Apply this preset to the effects chain")
+                    .contextMenu {
+                        Button { renameText = preset.name; renameTarget = preset } label: {
+                            Label("Rename", systemImage: "pencil")
+                        }
+                        Button { presetStore.duplicate(id: preset.id) } label: {
+                            Label("Duplicate", systemImage: "plus.square.on.square")
+                        }
+                        Button { presetStore.toggleFavorite(id: preset.id) } label: {
+                            Label(presetStore.isFavorite(id: preset.id) ? "Unstar" : "Favorite",
+                                  systemImage: "star")
+                        }
+                    }
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         Button {
                             presetStore.toggleFavorite(id: preset.id)
