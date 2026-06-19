@@ -345,6 +345,9 @@ Run before ANY commit.
 > **No JUCE / no CMake / no C++.** Swift 100%, one external dependency (HaishinKit).
 > The old CMake/JUCE/iPlug2 desktop scaffolding (`CMakeLists.txt`, `setup*.sh`,
 > `build.yml`, `desktop_build.yml`, desktop build scripts) was removed 2026-06-19.
+> Legacy/contradictory workflows also removed 2026-06-19: `android-build.yml`,
+> `phase8000-ci.yml`, `swift.yml`, `release-all-platforms.yml` (Android is disabled;
+> these were redundant with `ci.yml`/`testflight.yml`).
 
 Android build is disabled. TestFlight needs 60min timeout (30min+ compile).
 
