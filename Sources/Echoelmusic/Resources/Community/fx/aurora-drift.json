@@ -1,0 +1,18 @@
+{
+  "id": "E0000000-0000-0000-0000-0000000000F1",
+  "name": "Aurora Drift",
+  "tags": ["ambient", "wide", "community"],
+  "schema": 2,
+  "reverbEnabled": true,
+  "reverbRoomSize": 0.92,
+  "reverbDamping": 0.25,
+  "reverbMix": 0.42,
+  "reverbWidth": 1.0,
+  "chorusEnabled": true,
+  "chorusDepth": 0.5,
+  "chorusMix": 0.3,
+  "delayEnabled": true,
+  "delayMix": 0.22,
+  "delayTime": 0.38,
+  "delayFeedback": 0.3
+}

@@ -105,6 +105,13 @@ struct PatchEditorView: View {
                         }
                     }
                 }
+                if !CommunityLibrary.patches.isEmpty {
+                    Section("Community") {
+                        ForEach(CommunityLibrary.patches) { p in
+                            Button(p.name) { patch = p }
+                        }
+                    }
+                }
             } label: {
                 HStack(spacing: 6) {
                     if store.isFavorite(id: patch.id) {

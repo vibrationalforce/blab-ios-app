@@ -399,7 +399,9 @@ public extension FXPreset {
                 c.delay.timeSeconds = 0.22; c.delay.feedback = 0.2; c.delay.mix = 0.18
             }
         ]
-        return fromCharacters + signatures
+        // Bundled community submissions (merged PRs) — appended after the
+        // built-in set; empty until the first curated JSON ships.
+        return fromCharacters + signatures + CommunityLibrary.fx
     }()
 
     /// A pre-filled GitHub "new issue" URL carrying this preset's JSON, for the

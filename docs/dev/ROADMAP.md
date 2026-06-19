@@ -58,7 +58,11 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
 
 ### NOW (this + next few cycles — verifiable, low risk, on-vision)
 1. **[Sound]** Push a **TestFlight build** so the founder hears the whole preset/FX/community package on device. *(DoD step; do before adding more.)*
-2. **[Sound]** **In-app community loader** — bundle `community/curated/*.json` (Resources are already `.process`-bundled) and merge into the libraries. *Deferred earlier because its failure mode is silent → ship + verify on device.*
+2. ✅ **[Sound]** ~~In-app community loader~~ — DONE 2026-06-19: `CommunityLibrary` loads
+   `Resources/Community/{fx,patches}/*.json` via `Bundle.module`, merged into the FX library
+   (appended) + a "Community" section in the Sound editor. Best-effort (empty on failure → no
+   regression). **CI-verified** via `CommunityLibraryTests` (a seeded `Aurora Drift` proves the
+   bundling, so a resource-flatten fails in CI, not silently on device). Triage now writes here.
 3. ✅ **[Sound]** ~~Wire the orphaned `SampleBrowserView`~~ — DONE 2026-06-19: reachable via
    Tools → **Drum Samples** (per-track). Device files now **preview-before-assign** (audition
    with ▶, then "Use"). *(Note: no manual drum-pad grid exists in the single view; samples are

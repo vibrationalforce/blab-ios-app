@@ -70,7 +70,9 @@ def main():
 
     name = str(obj.get("name", "preset"))
     slug = slugify(name)
-    rel = f"community/curated/{subdir}/{slug}.json"
+    # Write under the SwiftPM/Xcode resource root so a merged PR ships in-app
+    # (CommunityLibrary loads Resources/Community/{fx,patches}/*.json).
+    rel = f"Sources/Echoelmusic/Resources/Community/{subdir}/{slug}.json"
     os.makedirs(os.path.dirname(rel), exist_ok=True)
     with open(rel, "w") as f:
         json.dump(obj, f, indent=2, sort_keys=True)
