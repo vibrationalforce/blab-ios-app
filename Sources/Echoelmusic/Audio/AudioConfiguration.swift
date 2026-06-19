@@ -232,10 +232,16 @@ enum AudioConfiguration {
             MemoryLayout<thread_time_constraint_policy>.size / MemoryLayout<integer_t>.size
         )
 
+        // mach_thread_self() returns a send right that the caller owns and must
+        // release, otherwise every call leaks a port reference. Capture it once,
+        // use it, then deallocate.
+        let machThread = mach_thread_self()
+        defer { mach_port_deallocate(mach_task_self_, machThread) }
+
         let result = withUnsafeMutablePointer(to: &threadTimeConstraintPolicy) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(policyCount)) {
                 thread_policy_set(
-                    mach_thread_self(),
+                    machThread,
                     thread_policy_flavor_t(THREAD_TIME_CONSTRAINT_POLICY),
                     $0,
                     policyCount
