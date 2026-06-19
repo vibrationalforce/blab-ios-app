@@ -95,6 +95,18 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Global amplitude (0-1)
     public var amplitude: Float = 0.5        // Moderate — room for modulation
 
+    /// Velocity of the current note (0-1), used for touch dynamics (Anschlagdynamik).
+    /// 0 = "no velocity context" (the mono/bio voice never sets it) → no attack
+    /// scaling, behaviour unchanged. The poly engine sets the played velocity so a
+    /// harder hit snaps the onset on percussive patches. Set on the trigger thread,
+    /// read on the audio thread in the attack stage — an aligned Float, atomic-width.
+    public var noteVelocity: Float = 0
+
+    /// Per-note attack-time multiplier derived from velocity × patch percussiveness,
+    /// computed once at noteOn so the render loop just multiplies (no per-sample math).
+    /// 1 = full patch attack (default / pads); <1 = snappier onset on a hard hit.
+    private var velAttackScale: Float = 1
+
     /// Attack time (seconds)
     public var attack: Float = 0.5            // Half second — audible but smooth
 
@@ -564,6 +576,13 @@ public final class EchoelDDSP: @unchecked Sendable {
             self.frequency = f
         }
         attackStartLevel = envelopeValue   // ramp from current level → no retrigger click
+        // Anschlagdynamik: a harder hit shortens the onset, but ONLY on percussive
+        // (short-attack) patches — a pad's slow swell must stay intact. percussiveness
+        // is read from the patch's own attack time (≤0.15 s = pluck/struck). With the
+        // default noteVelocity 0 (mono/bio voice) the scale is 1 → no behaviour change.
+        let percussiveness = max(0, 1 - attack / 0.15)
+        let vel = min(1, max(0, noteVelocity))
+        velAttackScale = 1 - percussiveness * 0.7 * vel
         envelopeStage = .attack
         envelopeSamples = 0
     }
@@ -803,7 +822,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             envelopeValue = 0
 
         case .attack:
-            let attackSamples = max(1, Int(attack * sampleRate))
+            let attackSamples = max(1, Int(attack * velAttackScale * sampleRate))
             let progress = min(1.0, Float(envelopeSamples) / Float(attackSamples))
             envelopeValue = applyCurve(progress, from: attackStartLevel, to: 1.0)
             if envelopeSamples >= attackSamples {
@@ -1230,7 +1249,14 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // Idle voice → clean staggered restart; reused/stolen ringing voice →
         // glide (no hard reset) so we never click mid-tail.
         voices[voiceIdx].prepareForNote(hardReset: !voices[voiceIdx].isActive)
-        voices[voiceIdx].amplitude = velocity
+        // Anschlagdynamik (touch response): velocity sets level AND, via noteOn,
+        // the onset snap. The amplitude curve expands dynamics on percussive patches
+        // (soft → softer, hard → present) while leaving pads linear, so the dialed-in
+        // pad loudness is untouched. velocity stored for the per-note attack scale.
+        let v = min(1, max(0, velocity))
+        let percussiveness = max(0, 1 - voices[voiceIdx].attack / 0.15)
+        voices[voiceIdx].noteVelocity = v
+        voices[voiceIdx].amplitude = pow(v, 1 + percussiveness * 0.5)
         voices[voiceIdx].noteOn(frequency: freq)
         // Only let bio overwrite the note's velocity/timbre when bio modulation is
         // actually on. Previously unconditional → every note collapsed to a neutral
