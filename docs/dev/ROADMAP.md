@@ -107,6 +107,11 @@ Grouped by theme so nothing is lost. **Status legend:** 🟢 active input · �
   + honest banner, "Studio sections" table now reflects the as-built single `EchoelStudioView`.
 - **Bus `bioFrames`/`bioEvents`** reserved but undrained (snapshot path is the live one).
 - **No device-to-device clock sync**; OSC is single-target (item #9).
+- **⚠️ CI verification gap (structural):** `ci.yml` uses `swift build` (SPM), which does NOT
+  catch Xcode/Tuist-only build errors — `Bundle.module`, resource bundling, `Project.swift`
+  issues only surface in the TestFlight (XcodeGen) build. This bit v10.34.0 (Bundle.module).
+  **Rule:** SPM-only APIs MUST be `#if SWIFT_PACKAGE`-guarded (see BeatPlayer/CommunityLibrary).
+  **Consider:** add an `xcodebuild` compile-only job to CI so the Xcode path is verified pre-deploy.
 - **Community loader on-device verification pending** — `CommunityLibraryTests` proves the SPM
   bundling in CI, but the Xcode/TestFlight bundle path should be confirmed once on device.
 
