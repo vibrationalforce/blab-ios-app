@@ -26,6 +26,22 @@ struct SampleBrowserView: View {
     var body: some View {
         NavigationStack {
             List {
+                if player.isCustom(track) {
+                    Section("Current") {
+                        HStack(spacing: 12) {
+                            Text(player.sampleLabels[track])
+                                .font(.system(size: 14)).foregroundStyle(EchoelTheme.text)
+                                .lineLimit(1).truncationMode(.middle)
+                            Spacer()
+                            Button { player.resetSample(track: track) } label: {
+                                Text("Reset to \(BeatPlayer.trackNames[track])")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(EchoelTheme.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
                 Section("Built-in") {
                     ForEach(BeatPlayer.bundledSampleNames, id: \.self) { name in
                         row(name)
