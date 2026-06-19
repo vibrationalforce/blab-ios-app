@@ -134,6 +134,96 @@ public enum MIDIFileExporter {
         return data
     }
 
+    /// Build a Type-1 SMF carrying the WHOLE take: a conductor track (tempo),
+    /// a melody track (channel 1, real durations + velocity), and a drum track
+    /// (channel 10, GM percussion) — so the complete arrangement opens together
+    /// in any DAW instead of melody and beat as separate files.
+    public static func exportCombined(notes: [Note], steps: [[Bool]], tempo: Double,
+                                      velocity: UInt8 = 100,
+                                      humanize: Humanizer = .tight, seed: UInt64 = 0) -> Data {
+        // Conductor track: just the tempo map.
+        let clampedTempo = Swift.min(Swift.max(tempo, 1), 1000)
+        let usPerQuarter = UInt32(60_000_000.0 / clampedTempo)
+        let tempoMeta: [UInt8] = [0x00, 0xFF, 0x51, 0x03,
+                                  UInt8((usPerQuarter >> 16) & 0xFF),
+                                  UInt8((usPerQuarter >> 8) & 0xFF),
+                                  UInt8(usPerQuarter & 0xFF)]
+        let conductor = serializeTrack([], leadingMeta: tempoMeta)
+        let melody = serializeTrack(melodyEvents(notes, humanize: humanize, seed: seed))
+        let drums = serializeTrack(drumEvents(steps, velocity: velocity, humanize: humanize, seed: seed))
+
+        var data = Data()
+        data.append(contentsOf: Array("MThd".utf8))
+        data.append(contentsOf: be32(6))
+        data.append(contentsOf: be16(1))                 // format 1 (multi-track)
+        data.append(contentsOf: be16(3))                 // conductor + melody + drums
+        data.append(contentsOf: be16(ticksPerQuarter))   // division
+        data.append(conductor)
+        data.append(melody)
+        data.append(drums)
+        return data
+    }
+
+    // MARK: - Event building (shared by the combined exporter)
+
+    /// One absolute-tick MIDI channel event; `status` already encodes the channel
+    /// (e.g. 0x90 melody note-on, 0x99 drum note-on, 0x80/0x89 note-off).
+    private struct MIDIEvent { let tick: Int; let on: Bool; let status: UInt8; let note: UInt8; let vel: UInt8 }
+
+    private static func melodyEvents(_ notes: [Note], humanize: Humanizer, seed: UInt64) -> [MIDIEvent] {
+        var events: [MIDIEvent] = []
+        for (i, n) in notes.enumerated() {
+            let (tickDelta, velScale) = humanize.jitter(index: i, seed: seed)
+            let onTick = Swift.max(0, n.startStep * ticksPerStep + tickDelta)
+            let offTick = onTick + n.lengthSteps * ticksPerStep
+            let note = UInt8(Swift.min(127, Swift.max(0, n.pitch)))
+            let vel = UInt8(Swift.min(127, Swift.max(1, Int(n.velocity * 127 * velScale))))
+            events.append(MIDIEvent(tick: onTick, on: true, status: 0x90, note: note, vel: vel))
+            events.append(MIDIEvent(tick: offTick, on: false, status: 0x80, note: note, vel: 0))
+        }
+        return events
+    }
+
+    private static func drumEvents(_ steps: [[Bool]], velocity: UInt8, humanize: Humanizer, seed: UInt64) -> [MIDIEvent] {
+        var events: [MIDIEvent] = []
+        let gate = ticksPerStep / 2
+        var hitIndex = 0
+        for (t, row) in steps.enumerated() {
+            let note = drumNotes[t % drumNotes.count]
+            for (s, active) in row.enumerated() where active {
+                let (tickDelta, velScale) = humanize.jitter(index: hitIndex, seed: seed)
+                hitIndex += 1
+                let onTick = Swift.max(0, s * ticksPerStep + tickDelta)
+                let vel = UInt8(Swift.min(127, Swift.max(1, Int(Float(velocity) * velScale))))
+                events.append(MIDIEvent(tick: onTick, on: true, status: 0x99, note: note, vel: vel))
+                events.append(MIDIEvent(tick: onTick + gate, on: false, status: 0x89, note: note, vel: 0))
+            }
+        }
+        return events
+    }
+
+    /// Serialize absolute-tick events (+ optional leading meta) into an MTrk chunk
+    /// with a trailing End-of-Track. Note-off sorts before note-on at the same tick.
+    private static func serializeTrack(_ events: [MIDIEvent], leadingMeta: [UInt8] = []) -> Data {
+        var track = Data()
+        track.append(contentsOf: leadingMeta)
+        let sorted = events.sorted { $0.tick != $1.tick ? $0.tick < $1.tick : (!$0.on && $1.on) }
+        var lastTick = 0
+        for ev in sorted {
+            track.append(contentsOf: vlq(ev.tick - lastTick))
+            lastTick = ev.tick
+            track.append(ev.status)
+            track.append(ev.note)
+            track.append(ev.vel)
+        }
+        track.append(contentsOf: [0x00, 0xFF, 0x2F, 0x00])
+        var chunk = Data()
+        chunk.append(contentsOf: Array("MTrk".utf8))
+        chunk.append(contentsOf: be32(UInt32(track.count)))
+        chunk.append(track)
+        return chunk
+    }
+
     // MARK: - Byte helpers (internal → reachable via @testable)
 
     /// MIDI variable-length quantity (7 bits/byte, high bit = continuation).
