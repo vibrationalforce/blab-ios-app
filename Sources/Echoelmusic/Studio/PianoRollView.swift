@@ -298,16 +298,10 @@ struct PianoRollView: View {
                     .foregroundStyle(EchoelTheme.text)
                     .frame(width: 46, alignment: .leading)
 
-                Text("Len").font(.caption2).foregroundStyle(EchoelTheme.dim)
-                Stepper(value: Binding(
-                    get: { note.lengthSteps },
-                    set: { model.setLength(id: id, lengthSteps: $0) }
-                ), in: 1...PianoRollModel.stepCount) {
-                    Text("\(note.lengthSteps)")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(EchoelTheme.text)
-                }
-                .frame(width: 110)
+                EchoelValueField(label: "Len", value: Binding(
+                    get: { Float(note.lengthSteps) },
+                    set: { model.setLength(id: id, lengthSteps: Swift.max(1, Int($0.rounded()))) }
+                ), range: Float(1)...Float(PianoRollModel.stepCount), decimals: 0)
 
                 EchoelValueField(label: "Vel", value: Binding(
                     get: { note.velocity },

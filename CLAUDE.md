@@ -522,7 +522,9 @@ When generating SwiftUI views, follow clean design principles. Avoid AI-default 
   vertical-fader drag / tap-to-type). **No raw SwiftUI `Slider`/`Stepper` for parameters.** This
   keeps reading + interaction identical app-wide and is science-first (number, not a knob). Dimensionless
   values show as raw decimals (e.g. `0.50`), not `%`. New parameter UI MUST use it; if it can't, raise it
-  in The Council before diverging.
+  in The Council before diverging. **Scope:** the main `Echoelmusic` app target. The standalone
+  `EchoelmusicAUv3` plugin target is exempt (it compiles `DSP/` only and cannot see `EchoelValueField`,
+  a Studio view bound to `EchoelTheme`); its host UI may use plain controls.
 
 **SCIENCE-FIRST display:**
 - Real biometric data only — no decorative visualizations
