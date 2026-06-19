@@ -40,6 +40,9 @@ private struct BioUniforms {
     var ringDensity: Float = 40
     var motion: Float = 1.0
     var spread: Float = 1.0
+    /// Heartbeat pulse frequency (Hz), already flash-clamped by `BioVisualParams`/
+    /// `FlashGuard` on the Swift side — the single source of WCAG flash-safety truth.
+    var pulseHz: Float = 1.0
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -80,12 +83,17 @@ struct MetalBioView: UIViewRepresentable {
         // Push the freshest bio snapshot into the renderer on the main actor; the
         // draw loop reads these atomically. Stale frames expire via freshBio().
         let bio = bus.freshBio()
+        // Derive the flash-safe heartbeat pulse from the shared, unit-tested
+        // BioVisualParams so WCAG flash-safety lives in ONE place (FlashGuard),
+        // not duplicated in the shader. The look is unchanged (same hr/60 mapping).
+        let vp = BioVisualParams.from(bio, reduceMotion: reduceMotion)
         context.coordinator.update(
             hr: bio?.heartRateBPM ?? 60,
             coherence: bio?.coherence ?? 0.5,
             breath: bio?.breathPhase ?? 0.5,
             toneHz: toneHz,
             intensity: intensity, ringDensity: ringDensity, motion: motion, spread: spread,
+            pulseHz: Float(vp.pulseHz),
             reduceMotion: reduceMotion
         )
     }
@@ -118,7 +126,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
-                reduceMotion: Bool) {
+                pulseHz: Float, reduceMotion: Bool) {
         uniforms.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         uniforms.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         uniforms.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
@@ -128,6 +136,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         uniforms.ringDensity = min(max(ringDensity.isFinite ? ringDensity : 40, 4), 120)
         uniforms.motion = min(max(motion.isFinite ? motion : 1, 0), 1.5)
         uniforms.spread = min(max(spread.isFinite ? spread : 1, 0.4), 1.6)
+        // Already flash-clamped upstream (BioVisualParams/FlashGuard); guard finite
+        // and hard-cap at the WCAG ceiling as defense in depth.
+        uniforms.pulseHz = min(max(pulseHz.isFinite ? pulseHz : 1, 0), 3)
         self.reduceMotion = reduceMotion
     }
 
@@ -153,8 +164,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
         } else {
-            // Fallback: gentle clear-colour pulse from the heart rate (shader absent).
-            let pulseHz = min(max(Double(uniforms.hr) / 60.0, 0.5), 2.0)
+            // Fallback: gentle clear-colour pulse (shader absent). Same flash-safe
+            // pulse the main path uses, sourced from BioVisualParams/FlashGuard.
+            let pulseHz = Double(uniforms.pulseHz)
             let t = reduceMotion ? 0 : (CFAbsoluteTimeGetCurrent() - startTime)
             let beat = 0.15 + 0.12 * (0.5 + 0.5 * sin(2 * .pi * t * pulseHz))
             pass.colorAttachments[0].clearColor =
@@ -174,7 +186,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     struct VOut { float4 pos [[position]]; float2 uv; };
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
-                      float toneHz; float intensity; float ringDensity; float motion; float spread; };
+                      float toneHz; float intensity; float ringDensity; float motion; float spread;
+                      float pulseHz; };
 
     // Map a light wavelength (nm) to linear-ish RGB (Bruton's classic approximation),
     // with an intensity roll-off near the limits of human vision.
@@ -218,10 +231,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float2 c = float2(0.5 * u.aspect, 0.5);
         float d = distance(uv, c);
 
-        // Heart rate → ring pulse. The temporal frequency is pulseHz × motion, hard-
-        // capped at 2.5 Hz so the user's Motion control can NEVER breach the 3 Hz WCAG
-        // flash limit (CLAUDE.md safety rule).
-        float pulseHz = clamp(u.hr / 60.0, 0.5, 2.0);
+        // Heart rate → ring pulse. pulseHz arrives pre-clamped by FlashGuard (Swift
+        // side, the single source of WCAG flash-safety). The temporal frequency is
+        // pulseHz × motion, still hard-capped at 2.5 Hz so the user's Motion control
+        // can NEVER breach the 3 Hz WCAG flash limit (defense in depth, CLAUDE.md).
+        float pulseHz = clamp(u.pulseHz, 0.0, 3.0);
         float flashHz = min(pulseHz * u.motion, 2.5);
         float density = clamp(u.ringDensity, 4.0, 120.0);
         float rings = 0.5 + 0.5 * sin(d * density - u.time * flashHz * 6.2831853);
