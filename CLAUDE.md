@@ -257,7 +257,7 @@ Priority: Build errors → Test failures → Crash code → Task → Cleanup
 - **Swift 6** strict concurrency | SwiftLint enforced
 - `os_log` ONLY (never `print`) | Guard-let over if-let
 - Conventional commits | One change per commit
-- C++17 with namespace `Echoelmusic::`
+- Swift only — no C++, no JUCE, no CMake (one dependency: HaishinKit)
 - `///` for public API docs
 
 ---
@@ -337,10 +337,14 @@ Run before ANY commit.
 | Workflow | Purpose |
 |----------|---------|
 | `testflight.yml` | **PRIMARY** — TestFlight builds (ID: 225043686) |
-| `ci.yml` | Main CI (build, test, lint) |
-| `build.yml` | General build |
+| `ci.yml` | Main CI (SwiftPM build, test, lint) |
+| `xcode-compile-check.yml` | XcodeGen + `xcodebuild` compile gate (catches Xcode/AUv3-only errors) |
 | `quick-test.yml` | Fast test suite |
 | `pr-check.yml` | PR validation |
+
+> **No JUCE / no CMake / no C++.** Swift 100%, one external dependency (HaishinKit).
+> The old CMake/JUCE/iPlug2 desktop scaffolding (`CMakeLists.txt`, `setup*.sh`,
+> `build.yml`, `desktop_build.yml`, desktop build scripts) was removed 2026-06-19.
 
 Android build is disabled. TestFlight needs 60min timeout (30min+ compile).
 

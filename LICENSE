@@ -24,16 +24,14 @@ SOFTWARE.
 
 THIRD-PARTY LICENSES:
 
-1. JUCE Framework (ThirdParty/JUCE)
-   - License: GPLv3 or Commercial
-   - Website: https://juce.com
-   - Note: If using GPLv3, this project must comply with GPL terms.
-          For commercial use without GPL obligations, a JUCE license is required.
-
-2. Apple Frameworks (AVFoundation, CoreAudio, HealthKit, etc.)
+1. Apple Frameworks (AVFoundation, CoreAudio, HealthKit, etc.)
    - License: Apple SDK License Agreement
    - Usage: Permitted for apps distributed through Apple platforms
 
-3. Swift/SwiftUI
+2. Swift/SwiftUI
    - License: Apache 2.0
    - Website: https://swift.org
+
+3. HaishinKit (RTMP/RTMPS) — the project's only external dependency
+   - License: BSD-3-Clause
+   - Website: https://github.com/HaishinKit/HaishinKit.swift

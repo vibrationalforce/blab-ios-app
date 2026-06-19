@@ -549,7 +549,6 @@ let project = Project(
         "ARCHITECTURE_SCIENTIFIC.md",
         "RESEARCH_EVIDENCE.md",
         "Package.swift",
-        "CMakeLists.txt",
         ".swiftlint.yml",
         ".swiftformat"
     ],

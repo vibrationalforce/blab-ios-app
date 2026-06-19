@@ -23,7 +23,6 @@ on:
           - all
           - apple-only
           - android-only
-          - desktop-only
       upload_to_stores:
         description: 'Upload to App Stores?'
         required: true
@@ -298,64 +297,6 @@ jobs:
         run: echo "Android Automotive build successful for version $VERSION"
 
   # ===========================================================================
-  # DESKTOP PLATFORMS
-  # ===========================================================================
-
-  windows:
-    name: "🪟 Windows"
-    if: ${{ github.event.inputs.platforms == 'all' || github.event.inputs.platforms == 'desktop-only' }}
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache CMake
-        uses: actions/cache@v4
-        with:
-          path: build
-          key: ${{ runner.os }}-cmake-${{ hashFiles('CMakeLists.txt') }}
-          restore-keys: ${{ runner.os }}-cmake-
-
-      - name: Setup CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Build Windows
-        run: |
-          mkdir -p build
-          cd build
-          cmake .. -DUSE_JUCE=OFF
-          cmake --build . --config Release
-
-      - name: "✅ Windows Build Complete"
-        run: echo "Windows build successful for version ${{ env.VERSION }}"
-
-  linux:
-    name: "🐧 Linux"
-    if: ${{ github.event.inputs.platforms == 'all' || github.event.inputs.platforms == 'desktop-only' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache CMake
-        uses: actions/cache@v4
-        with:
-          path: build
-          key: ${{ runner.os }}-cmake-${{ hashFiles('CMakeLists.txt') }}
-          restore-keys: ${{ runner.os }}-cmake-
-
-      - name: Install Dependencies
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-
-      - name: Build Linux
-        run: |
-          mkdir -p build
-          cd build
-          cmake .. -DUSE_JUCE=OFF
-          cmake --build . --config Release
-
-      - name: "✅ Linux Build Complete"
-        run: echo "Linux build successful for version $VERSION"
-
-  # ===========================================================================
   # VR PLATFORMS
   # ===========================================================================
 
@@ -394,7 +335,7 @@ jobs:
 
   summary:
     name: "📊 Build Summary"
-    needs: [ios, watchos, tvos, visionos, macos, android, wear-os, android-auto, windows, linux, meta-quest]
+    needs: [ios, watchos, tvos, visionos, macos, android, wear-os, android-auto, meta-quest]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -415,10 +356,6 @@ jobs:
           echo "   Android:     ${{ needs.android.result }}"
           echo "   Wear OS:     ${{ needs.wear-os.result }}"
           echo "   Automotive:  ${{ needs.android-auto.result }}"
-          echo ""
-          echo "🖥️ DESKTOP:"
-          echo "   Windows: ${{ needs.windows.result }}"
-          echo "   Linux:   ${{ needs.linux.result }}"
           echo ""
           echo "🥽 VR:"
           echo "   Meta Quest: ${{ needs.meta-quest.result }}"

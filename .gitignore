@@ -102,9 +102,6 @@ iOSInjectionProject/
 *.swo
 *~
 
-# Third-party dependencies (users should clone these)
-ThirdParty/JUCE/
-
 # Android
 android/.gradle/
 android/app/build/
