@@ -6,6 +6,16 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-19 — Installed "The Council" skill (always-on decision gate)
+
+### Trigger: founder — "The Council Skill installieren im Repo? Soll automatisch in optimierter Form immer angewendet werden egal ob dieser oder nächster Chat"
+
+- **NEW `.claude/skills/the-council/SKILL.md`** — fast internal council of 6 fixed seats (Architect · DSP Purist · Vision-Keeper · Shipper/Ralph · Skeptic · User-Advocate). Convene for SIGNIFICANT/hard-to-reverse decisions only (architecture, scope, >1 file, audio thread / protected triad, public copy, ambiguous asks, deploy/delete/publish). Each seat = one-line position + sharpest concern; dissent surfaced; synthesize ONE next step + gate (proceed / mitigate / hold-for-founder). Optimized form = SKIP trivia, compact verdict not transcript. Composes with vision-gate + Ralph loop; never overrides founder/hard rules.
+- **Auto-apply across all chats:** appended a Council reminder to the `SessionStart` hook in `.claude/settings.json` (injected every session) + a compact "THE COUNCIL (always-on)" section in `CLAUDE.md`.
+- **Logged** to decisions.csv (review 2026-07-19).
+
+---
+
 ## 2026-06-17 — SHIPPED build 1871: numbers-only scrubbable controls + pinch-to-zoom
 
 ### Trigger: owner — "Ich möchte keine slider und Knöpfe mehr sondern nur noch die Zahlen Werte ... schnell hoher Weitsprung und langsam auf die zweite kommastelle genau ... wichtig dass man reinzoomen kann, weil nicht alle so gute Augen haben."

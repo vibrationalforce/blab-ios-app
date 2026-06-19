@@ -528,6 +528,19 @@ When generating SwiftUI views, follow clean design principles. Avoid AI-default 
 
 ---
 
+## THE COUNCIL (always-on, optimized)
+
+Before any **significant or hard-to-reverse** decision — architecture, scope
+changes, >1 file, audio-thread / protected Rausch triad, user-facing copy,
+ambiguous founder asks, or deploy/delete/publish — **convene The Council**
+(`.claude/skills/the-council/SKILL.md`). Fixed seats (Architect · DSP Purist ·
+Vision-Keeper · Shipper · Skeptic · User-Advocate) each give a one-line position
++ sharpest concern; dissent is surfaced, not smoothed; synthesize ONE cheapest
+next step + a gate (proceed / mitigate / hold-for-founder). **Skip trivial
+reversible actions** — convening on trivia is the failure mode. Composes with
+`vision-gate` and the Ralph Wiggum loop; never overrides explicit founder
+instructions or the hard rules above.
+
 ## ACTIVATION
 
 ```

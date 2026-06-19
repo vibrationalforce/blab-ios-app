@@ -139,7 +139,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '=== Echoel persistent memory (memory/) ==='; cat memory/*.md 2>/dev/null; echo; echo '=== recent session log ==='; sed -n '1,80p' scratchpads/SESSION_LOG.md 2>/dev/null"
+            "command": "echo '=== Echoel persistent memory (memory/) ==='; cat memory/*.md 2>/dev/null; echo; echo '=== recent session log ==='; sed -n '1,80p' scratchpads/SESSION_LOG.md 2>/dev/null; echo; echo '=== THE COUNCIL (always-on, optimized) ==='; echo 'Before any SIGNIFICANT or hard-to-reverse decision (architecture, scope, >1 file, audio thread / protected Rausch triad, public copy, ambiguous founder ask, deploy/delete/publish), convene The Council: invoke the the-council skill (.claude/skills/the-council/SKILL.md). Seats give one-line position + sharpest concern, dissent is surfaced, synthesize ONE next step + a gate (proceed / mitigate / hold-for-founder). SKIP trivial reversible actions — convening on trivia is the failure mode. Composes with vision-gate + the Ralph Wiggum loop.'"
           }
         ]
       }
