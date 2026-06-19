@@ -74,6 +74,12 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
 6. **[Body]** **Head-tracking** (`CMHeadphoneMotionManager`) as a new bio/modulation source on the one instrument — AirPods as sensor. → audit §5.
 7. **[Sound/flagship]** **Audiovisual Vocoder** wiring (`VocoderCore`/`FeedbackGuard`/`BioModulation` cores exist). → *PLAN_CREATIVE_EXPANSION, vision Tier-2*.
 8. **[Sound]** Replicate the preset/community pattern to **Mood** + **Sound & texture** surfaces.
+   - ✅ **Mood** — DONE 2026-06-19 (v10.34.4): `MoodPreset`/`MoodPresetStore` mirror `PatchStore`
+     (8 curated factory moods, favorites/recents, App-Group JSON, community loop with seeded
+     `Aurora Calm` + triage). Mood panel has the full preset bar. CI-verified (`MoodPresetTests`).
+   - ⬜ **Sound & texture** — the in-studio `soundPanel` still only picks `SynthPatch.factory` via
+     `@AppStorage`; wire the existing `PatchStore` (saved user patches + favorites/recents +
+     community) into the panel so it matches the deep `PatchEditorView`. Low risk (store exists).
 
 ### LATER (roadmap — gate before building; don't claim until shipping)
 9. **[Space/Light]** Multi-device installation sync (multicast/AirPlay + a shared clock; today OSC is single-target, no PTP). → audit §11–12.

@@ -38,6 +38,29 @@ Read this FIRST when continuing work on Echoelmusic.
 - **Shipped:** `.deploy/release` → **v10.34.3** (d52283f) — TestFlight triggered, carries the FX param
   standardization to device. ci.yml(SPM) green through 16295af; xcode-compile-check green through c189555.
 - **Watch next:** TestFlight v10.34.3 (run 27838349824) succeeds on device; xcode-compile-check(accb9fd) green.
+- **RESULT:** TestFlight **v10.34.3 succeeded** (run 27838349824: Archive→Upload→"landed in App Store
+  Connect" all green); xcode-compile-check(accb9fd) green. Deploy path fully healthy.
+
+### 2026-06-19 (cont.) — Saveable Moods (preset/community pattern → Mood panel) → v10.34.4
+- **Roadmap #8 (Mood half):** replicated the FX/sound preset+community pattern onto the Mood surface.
+  - `Sequencer/MoodPreset.swift` — Codable snapshot of the 8 `MoodProfile` dims + tags; capture/recall
+    symmetry; 8 curated factory moods (Calm/Dreamy/Romantic/Playful/Epic/Dark & Tense/Hypnotic/Virtuoso,
+    stable UUIDs); lenient decode; `communityIssueURL` (label `mood-submission`). In Sequencer/ (not DSP/)
+    because it references MoodProfile — keeps AUv3 self-contained. `MoodPreset.community` reuses
+    `CommunityLibrary.load` (CommunityLibrary stays clean → AUv3 unaffected).
+  - `Core/MoodPresetStore.swift` — `@MainActor @Observable`, mirrors `PatchStore` 1:1 (factory+user,
+    favorites/recents on-device ranking, App-Group JSON, isFactory guard).
+  - `EchoelStudioView` Mood panel: preset bar (load Menu + Community section + compact `…` overflow:
+    Save as / Favorite / Save changes / Delete / Submit). Identity tracked via `moodPresetID/Name`
+    so the 8 knob bindings stay on `$mood` (no refactor).
+  - Community loop: bundled `Resources/Community/moods/` + seeded `Aurora Calm`; `community_triage.py`
+    + `community-triage.yml` now accept `Mood submission:` issues.
+  - Tests: `MoodPresetTests` (round-trip, capture/recall identity, factory invariants, search, ranking,
+    community bundling).
+- **Verified:** ci.yml(SPM, incl. MoodPresetTests) green + xcode-compile-check(AUv3 incl.) green on d69cf9e.
+- **Shipped:** `.deploy/release` → **v10.34.4** (593c65b) — TestFlight triggered.
+- **Watch next:** TestFlight v10.34.4 succeeds; then ROADMAP #8 second half (wire PatchStore into the
+  in-studio Sound & texture panel) or #7 Vocoder.
 
 ---
 
