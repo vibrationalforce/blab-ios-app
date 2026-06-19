@@ -83,6 +83,15 @@ Read this FIRST when continuing work on Echoelmusic.
 - **Watch next:** v10.34.6 TestFlight; then a device-in-the-loop cycle for the heavier cores, or
   net-new low-risk value.
 
+### 2026-06-19 (cont.) — Whole-take multi-track MIDI export → v10.34.7
+- **Net-new, fully CI-testable value:** `exportMIDI` was melody-only (silently dropped the beat).
+  Added `MIDIFileExporter.exportCombined` → one SMF **Type-1** with conductor (tempo) + melody
+  (ch.1, real durations+velocity) + drums (ch.10, GM perc); wired Studio export to it. New tests:
+  Type-1 header, 3 tracks, tempo on conductor, ch.1 + ch.10 events, empty-take well-formed.
+- **Verified:** ci.yml (incl. MIDIFileExporterTests) + xcode-compile-check green on 57851c8. Shipped v10.34.7.
+- **Session tally:** 5 green cycles shipped — v10.34.3 (FX param standard + AudioEngine fix) ·
+  v10.34.4 (Moods) · v10.34.5 (Sound & texture bar) · v10.34.6 (visual flash-safety) · v10.34.7 (MIDI take export).
+
 ---
 
 ## 2026-06-19 — Attack click fix + expose full FX parameter panel
