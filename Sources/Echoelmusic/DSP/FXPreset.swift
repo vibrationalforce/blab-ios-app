@@ -397,6 +397,32 @@ public extension FXPreset {
                 c.saturationEnabled = true; c.saturationDrive = 0.5; c.saturationMix = 0.5
                 c.delayEnabled = true; c.delay.mode = .tape; c.delay.wow = 0.5
                 c.delay.timeSeconds = 0.22; c.delay.feedback = 0.2; c.delay.mix = 0.18
+            },
+            make("Slapback Room", ["slap", "room", "vocal"]) { c in
+                c.delayEnabled = true; c.delay.mode = .tape; c.delay.timeSeconds = 0.12
+                c.delay.feedback = 0.15; c.delay.mix = 0.25
+                c.reverbEnabled = true; c.reverb.roomSize = 0.5; c.reverb.mix = 0.18
+            },
+            make("Fifth Stack", ["harmony", "thick", "lead"]) { c in
+                c.harmonizerEnabled = true; c.harmonizer.interval1 = 7
+                c.harmonizer.voice2Enabled = true; c.harmonizer.interval2 = 12; c.harmonizer.mix = 0.4
+                c.chorusEnabled = true; c.chorus.mix = 0.18
+            },
+            make("Tape Wobble", ["lofi", "tape", "warble"]) { c in
+                c.saturationEnabled = true; c.saturationDrive = 0.6; c.saturationMix = 0.6
+                c.delayEnabled = true; c.delay.mode = .tape; c.delay.wow = 0.7
+                c.delay.timeSeconds = 0.3; c.delay.feedback = 0.3; c.delay.tone = 0.4; c.delay.mix = 0.25
+            },
+            make("Phaser Sweep", ["modulation", "movement"]) { c in
+                c.phaserEnabled = true; c.phaser.rate = 0.3; c.phaser.depth = 0.7
+                c.phaser.feedback = 0.5; c.phaser.mix = 0.5
+                c.tremoloEnabled = true; c.tremolo.rate = 5; c.tremolo.depth = 0.3
+            },
+            make("Dark Filter Dub", ["dub", "dark", "space"]) { c in
+                c.filterEnabled = true; c.setFilter(mode: .lowpass, cutoff: 3500, resonance: 0.15)
+                c.delayEnabled = true; c.delay.mode = .tape; c.delay.timeSeconds = 0.5
+                c.delay.feedback = 0.6; c.delay.tone = 0.35; c.delay.mix = 0.4
+                c.reverbEnabled = true; c.reverb.roomSize = 0.8; c.reverb.mix = 0.3
             }
         ]
         // Bundled community submissions (merged PRs) — appended after the
