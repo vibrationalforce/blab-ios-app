@@ -8,6 +8,18 @@ Read this FIRST when continuing work on Echoelmusic.
 > (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
 > from ROADMAP §3 "NOW".
 
+### 2026-06-19 (lead session) — deploy unblocked + CI gap closed
+- **Root-caused 2 TestFlight-only build failures** (ci.yml/SPM didn't catch them): (1) `Bundle.module`
+  in CommunityLibrary → fixed with `#if SWIFT_PACKAGE`/`.main` (mirrors BeatPlayer); (2) AUv3 target
+  compiles `DSP/` only and is meant self-contained, but `FXPreset.curatedCommunity` referenced
+  `FXCharacter` (Sequencer/) → moved curated lib to `Studio/FXCuratedLibrary.swift` (main-app only).
+- **NEW workflow `xcode-compile-check.yml`** (push-triggered macos xcodebuild, no-sign) closes the
+  SPM↔Xcode verification gap — caught the AUv3 error in ~30s. **RULE:** keep DSP/ self-contained;
+  guard SPM-only APIs with `#if SWIFT_PACKAGE`.
+- **Shipped:** rename/duplicate user presets (context menu). Repo cleanup (7 files), CLAUDE.md drift
+  reconciled, website overclaims removed (agents). TestFlight **v10.34.2** triggered on the fixed code.
+- **Watch next:** confirm xcode-compile-check(dcc0ecf)=green + TestFlight v10.34.2 succeeds.
+
 ---
 
 ## 2026-06-19 — Attack click fix + expose full FX parameter panel
