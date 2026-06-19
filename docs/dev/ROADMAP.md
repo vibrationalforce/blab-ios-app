@@ -105,8 +105,9 @@ Grouped by theme so nothing is lost. **Status legend:** 🟢 active input · �
 - **Live Broadcast** = brand pillar, zero code, oscillates → gate, then build or stop claiming.
 - **CLAUDE.md "v10 Target" diagram** describes Beat/Record/Video/Share tabs that were never built; as-built is one `EchoelStudioView`. Reconcile CLAUDE.md in a `docs:` cycle.
 - **Bus `bioFrames`/`bioEvents`** reserved but undrained (snapshot path is the live one).
-- **Community loader not yet wired** → curated JSON in repo isn't in-app until item #2 ships.
 - **No device-to-device clock sync**; OSC is single-target (item #9).
+- **Community loader on-device verification pending** — `CommunityLibraryTests` proves the SPM
+  bundling in CI, but the Xcode/TestFlight bundle path should be confirmed once on device.
 
 ---
 
