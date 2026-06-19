@@ -6,6 +6,15 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-19 — Attack click fix + expose full FX parameter panel
+
+### Trigger: founder — "Es knackt hier und da… Attack der verschiedenen Charakteristika muss optimiert werden" + "In der Effects section fehlen mir sehr viele Parameter… alle offen legen, eigene Presets speichern + mit der Community teilen"
+
+- **Attack knack (commit 30fb65a):** `EchoelDDSP.updateEnvelope` attack stage reused the *exponential* curve (concave → ~half the level rise in the final fraction of a short attack window = end-edge click on percussive characters). Switched the attack to a **smoothstep** shape (3p²−2p³, zero slope both ends); decay/release keep exponential.
+- **Expose all FX params:** A complete per-stage panel (`EchoelFXView`/`FXViewModel`) already existed but was unwired and bound to `BioReactiveSynthVoice`. Made `FXViewModel` **voice-agnostic** (takes an `EchoelFXChain` + master get/set closures); added a master FX gate to `PolySynthVoice` (default ON); wired an **"All parameters →"** button + sheet into the Effects panel driving the melody voice. Files: EchoelFXView, PolySynthVoice, EchoelStudioView, FXViewModelTests.
+- **Community presets (decided, NOT yet built):** founder wants the **GitHub repo itself** as the community backend (curated/ranked presets). Next cycle: define a Codable preset file format (`.echoelfx`), save-your-own, fetch a curated index from the repo, submit-for-curation flow. Build order: params first (this cycle) → custom presets + GitHub library next.
+- **Note:** no Swift toolchain in this container — verification deferred to CI/TestFlight.
+
 ## 2026-06-19 — Installed "The Council" skill (always-on decision gate)
 
 ### Trigger: founder — "The Council Skill installieren im Repo? Soll automatisch in optimierter Form immer angewendet werden egal ob dieser oder nächster Chat"

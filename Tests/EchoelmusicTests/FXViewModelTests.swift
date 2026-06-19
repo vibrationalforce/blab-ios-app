@@ -11,7 +11,13 @@ import XCTest
 final class FXViewModelTests: XCTestCase {
 
     private func makeVM() -> FXViewModel {
-        FXViewModel(voice: BioReactiveSynthVoice(), bpm: 120)
+        // The VM is now voice-agnostic: it drives any EchoelFXChain + a master
+        // gate. Bridge a real voice's chain/gate so the test exercises the same
+        // write-through behaviour as production.
+        let voice = BioReactiveSynthVoice()
+        return FXViewModel(chain: voice.fxChain, bpm: 120,
+                           masterEnabled: { voice.isFXEnabled },
+                           setMasterEnabled: { voice.setFXEnabled($0) })
     }
 
     func testStampingUnderwaterDrivesChainAndMirrors() {

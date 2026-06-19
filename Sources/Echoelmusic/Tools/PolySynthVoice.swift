@@ -116,6 +116,24 @@ public final class PolySynthVoice {
     /// One-time guard so the control-thread note breadcrumb fires only once.
     nonisolated(unsafe) fileprivate static var noteTraced = false
 
+    /// Master insert-FX gate. The melody always ran through `fxChain` (gentle
+    /// saturation + chorus for warmth); this lets the user bypass the WHOLE chain
+    /// from the Effects panel. Audio-thread mirror (read in the render block) +
+    /// observable mirror for the UI — same cross-thread contract as
+    /// BioReactiveSynthVoice. Default ON, so launch behaviour is unchanged.
+    @ObservationIgnored
+    nonisolated(unsafe) private var fxEnabled = true
+
+    /// Observable mirror of `fxEnabled` for SwiftUI binding.
+    public private(set) var isFXEnabled = true
+
+    /// Enable or bypass the whole insert chain. Individual stages are toggled
+    /// directly on `fxChain` (e.g. `fxChain.delayEnabled = true`).
+    public func setFXEnabled(_ on: Bool) {
+        fxEnabled = on
+        isFXEnabled = on
+    }
+
     public init(maxVoices: Int = 12) {
         self.poly = EchoelPolyDDSP(maxVoices: maxVoices, sampleRate: Float(Self.sampleRate))
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
@@ -281,8 +299,11 @@ public final class PolySynthVoice {
         let count = min(frameCount, Self.maxBlockFrames)
         poly.renderStereo(left: &scratchL, right: &scratchR, frameCount: count)
         // Genre/effect colour (long dub delay, vapor chorus, …). Audio-thread
-        // safe: pre-allocated stages, no work for bypassed effects.
-        fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
+        // safe: pre-allocated stages, no work for bypassed effects. The master gate
+        // lets the Effects panel bypass the entire chain.
+        if fxEnabled {
+            fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
+        }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         guard abl.count > 0 else { return }

@@ -121,6 +121,8 @@ struct EchoelStudioView: View {
     @State private var showPatchEditor = false
     @State private var showVisual = false
     @State private var showBreath = false
+    /// Presents the full per-stage FX panel (every parameter as a slider).
+    @State private var showAllFX = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Persisted in-app zoom level (index into StudioZoom.ladder). `-1` = follow the
@@ -190,6 +192,11 @@ struct EchoelStudioView: View {
             PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         }
         .sheet(isPresented: $showClips) { ClipView() }
+        .sheet(isPresented: $showAllFX) {
+            EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
+                         fxEnabled: { synth.isFXEnabled },
+                         setFXEnabled: { synth.setFXEnabled($0) })
+        }
         .sheet(isPresented: $showInput) { AudioInputPickerView() }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: currentPatch) { p in
@@ -588,6 +595,23 @@ struct EchoelStudioView: View {
                 .onChange(of: delaySync) { _, _ in applyDelaySync(bpm: currentTempo) }
                 .accessibilityLabel("Delay note value")
             }
+            // Full control: open every stage (filter, delay, chorus, flanger,
+            // phaser, tremolo, compressor, limiter) with all parameters as sliders.
+            Button { showAllFX = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "slider.horizontal.3")
+                    Text("All parameters").font(EchoelTheme.font(13, .semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right").font(EchoelTheme.font(12))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity).frame(height: 40)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Open the full effects chain — every parameter as a slider")
         }
     }
 

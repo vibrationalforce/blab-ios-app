@@ -21,17 +21,25 @@ import SwiftUI
 @Observable
 final class FXViewModel {
 
-    @ObservationIgnored private let voice: BioReactiveSynthVoice
-    @ObservationIgnored private var chain: EchoelFXChain { voice.fxChain }
+    /// The audio-thread FX chain this surface drives. Stored DIRECTLY (not via a
+    /// specific voice) so the same control surface works for any voice that owns an
+    /// EchoelFXChain — the bio breath voice and the polyphonic melody voice both.
+    @ObservationIgnored private let chain: EchoelFXChain
+    /// Master insert-FX gate, injected as a setter so the view-model stays
+    /// voice-agnostic (each voice exposes its own `setFXEnabled`).
+    @ObservationIgnored private let setMaster: (Bool) -> Void
 
     /// Live tempo, so delay times / LFO rates can be entered as note divisions.
     var bpm: Double
 
-    init(voice: BioReactiveSynthVoice, bpm: Double = 120) {
-        self.voice = voice
+    init(chain: EchoelFXChain, bpm: Double = 120,
+         masterEnabled: @escaping () -> Bool,
+         setMasterEnabled: @escaping (Bool) -> Void) {
+        self.chain = chain
         self.bpm = bpm
-        let c = voice.fxChain
-        fxEnabled = voice.isFXEnabled
+        self.setMaster = setMasterEnabled
+        let c = chain
+        fxEnabled = masterEnabled()
         // Seed mirrors from the live chain so the UI reflects current state.
         filterEnabled = c.filterEnabled; filterMode = c.filterL.mode
         filterCutoff = c.filterL.cutoff; filterResonance = c.filterL.resonance
@@ -53,7 +61,7 @@ final class FXViewModel {
     }
 
     // Master
-    var fxEnabled: Bool { didSet { voice.setFXEnabled(fxEnabled) } }
+    var fxEnabled: Bool { didSet { setMaster(fxEnabled) } }
 
     // Filter (tone — underwater low-pass, telephone band-pass, lo-fi)
     var filterEnabled: Bool { didSet { chain.filterEnabled = filterEnabled } }
@@ -145,8 +153,14 @@ struct EchoelFXView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var vm: FXViewModel
 
-    init(voice: BioReactiveSynthVoice, bpm: Double = 120) {
-        _vm = State(wrappedValue: FXViewModel(voice: voice, bpm: bpm))
+    /// Drive any voice's insert chain. `fxEnabled`/`setFXEnabled` bridge the
+    /// voice's master gate so the surface stays decoupled from the voice type.
+    init(chain: EchoelFXChain, bpm: Double = 120,
+         fxEnabled: @escaping () -> Bool,
+         setFXEnabled: @escaping (Bool) -> Void) {
+        _vm = State(wrappedValue: FXViewModel(chain: chain, bpm: bpm,
+                                              masterEnabled: fxEnabled,
+                                              setMasterEnabled: setFXEnabled))
     }
 
     var body: some View {
