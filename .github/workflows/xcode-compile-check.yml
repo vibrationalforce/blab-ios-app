@@ -1,0 +1,72 @@
+name: "Xcode Compile Check"
+
+# Closes the SPM-vs-Xcode verification gap: ci.yml builds via SwiftPM (`swift
+# build`), which does NOT catch Xcode/XcodeGen-only errors (e.g. `Bundle.module`,
+# resource bundling, project.yml issues). Those previously surfaced only at
+# deploy time in testflight.yml. This runs the SAME compile recipe on every push
+# that touches code/project files, compile-only (no signing, no archive, no
+# upload) — fast feedback, fail before deploy.
+
+on:
+  push:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'project.yml'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - '.github/workflows/xcode-compile-check.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: xcode-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: "Compile (iOS device SDK, no signing)"
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Show Xcode"
+        run: xcodebuild -version
+
+      - name: "Setup XcodeGen"
+        uses: ./.github/actions/setup-xcodegen
+        with:
+          version: '2.42.0'
+
+      - name: "Generate Xcode Project"
+        run: |
+          sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"PLACEHOLDER1\"/" project.yml || true
+          sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml || true
+          xcodegen generate --spec project.yml
+
+      - name: "Compile (iOS device SDK, no signing)"
+        run: |
+          set +eo pipefail
+          xcodebuild build \
+            -project Echoelmusic.xcodeproj \
+            -scheme Echoelmusic \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            -derivedDataPath ./build/DerivedData \
+            -skipPackagePluginValidation \
+            -parallelizeTargets \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            SUPPORTED_PLATFORMS=iphoneos \
+            2>&1 | tee /tmp/compile.log
+          RESULT=${PIPESTATUS[0]}
+          set -eo pipefail
+          if [ $RESULT -ne 0 ]; then
+            echo "=== XCODE COMPILE FAILED (exit $RESULT) ==="
+            grep -E ': error: ' /tmp/compile.log | head -30 || true
+            exit $RESULT
+          fi
+          echo "=== XCODE COMPILE OK ==="
