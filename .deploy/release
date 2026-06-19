@@ -1,3 +1,3 @@
-build: 2026-06-19 v10.31.0 (Swell<->Strike onset macro + click-free attack + more characters)
+build: 2026-06-19 v10.32.0 (flexible/natural engine — Stage 1: acoustic instrument characters)
 branch: claude/piano-roll-clip-view-wozlie
-includes: global "Swell <-> Strike" articulation macro (owns onset for every character; not instrument-named); click-safe 3ms min attack (no knacksen even on hard pluck); case-insensitive enum lookup so preset spectral shapes finally apply; 8 new characters incl Brass Tuba, Warm Strings, Choir Vox, Deep Sub
+includes: 6 acoustic instrument Characters (Violin/Flute/Trumpet/Cello/Clarinet/Oboe) via the built-in timbre-transfer spectra that were unreachable from the UI; first stage of the excitation->resonator engine plan

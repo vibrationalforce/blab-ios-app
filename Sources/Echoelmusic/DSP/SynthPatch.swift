@@ -46,6 +46,11 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     public var vibratoRate: Float
     public var vibratoDepth: Float
 
+    // Acoustic timbre transfer — a built-in instrument spectral profile blended over
+    // the synth's own spectrum for a naturally voiced character (violin, flute, …).
+    public var timbreProfile: String   // EchoelDDSP.InstrumentTimbre rawValue, or "" = none
+    public var timbreBlend: Float      // 0 = pure synth shape · 1 = full instrument spectrum
+
     public init(
         id: UUID = UUID(),
         name: String,
@@ -56,7 +61,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         filterCutoff: Float = 220, filterResonance: Float = 0.1, lfoToFilterDepth: Float = 0.15,
         filterLFORate: Float = 0.2, filterLFODepth: Float = 0.3,
         reverbMix: Float = 0.25, reverbDecay: Float = 2.0,
-        vibratoRate: Float = 0, vibratoDepth: Float = 0
+        vibratoRate: Float = 0, vibratoDepth: Float = 0,
+        timbreProfile: String = "", timbreBlend: Float = 0
     ) {
         self.id = id
         self.name = name
@@ -70,6 +76,7 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         self.filterLFORate = filterLFORate; self.filterLFODepth = filterLFODepth
         self.reverbMix = reverbMix; self.reverbDecay = reverbDecay
         self.vibratoRate = vibratoRate; self.vibratoDepth = vibratoDepth
+        self.timbreProfile = timbreProfile; self.timbreBlend = timbreBlend
     }
 
     /// A stable id from a fixed string (factory presets need identity that
@@ -176,6 +183,61 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             harmonicity: 0.9, harmonicLevel: 0.9, brightness: 0.4, noiseLevel: 0.02,
             spectralShape: "formant", filterCutoff: 2400, filterResonance: 0.12,
             reverbMix: 0.3, reverbDecay: 1.6
+        ),
+        // ── Acoustic instruments (timbre transfer — real per-harmonic spectra) ──
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000AD"),
+            name: "Violin",
+            attack: 0.12, decay: 0.4, sustain: 0.85, release: 0.6,
+            harmonicity: 0.95, harmonicLevel: 0.85, brightness: 0.5, noiseLevel: 0.01,
+            spectralShape: "natural", filterCutoff: 4500, filterResonance: 0.1,
+            reverbMix: 0.4, reverbDecay: 2.2, vibratoRate: 5.5, vibratoDepth: 0.15,
+            timbreProfile: "Violin", timbreBlend: 0.9
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000AE"),
+            name: "Flute",
+            attack: 0.08, decay: 0.3, sustain: 0.9, release: 0.5,
+            harmonicity: 0.97, harmonicLevel: 0.8, brightness: 0.5, noiseLevel: 0.04,
+            spectralShape: "natural", filterCutoff: 5000, filterResonance: 0.08,
+            reverbMix: 0.35, reverbDecay: 2.0, vibratoRate: 5, vibratoDepth: 0.1,
+            timbreProfile: "Flute", timbreBlend: 0.9
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000AF"),
+            name: "Trumpet",
+            attack: 0.05, decay: 0.3, sustain: 0.85, release: 0.5,
+            harmonicity: 0.95, harmonicLevel: 0.9, brightness: 0.6, noiseLevel: 0.01,
+            spectralShape: "bright", filterCutoff: 5500, filterResonance: 0.12,
+            reverbMix: 0.3, reverbDecay: 1.8, vibratoRate: 5, vibratoDepth: 0.08,
+            timbreProfile: "Trumpet", timbreBlend: 0.9
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000B0"),
+            name: "Cello",
+            attack: 0.14, decay: 0.5, sustain: 0.85, release: 0.8,
+            harmonicity: 0.95, harmonicLevel: 0.88, brightness: 0.4, noiseLevel: 0.01,
+            spectralShape: "natural", filterCutoff: 3500, filterResonance: 0.1,
+            reverbMix: 0.45, reverbDecay: 2.6, vibratoRate: 5, vibratoDepth: 0.12,
+            timbreProfile: "Cello", timbreBlend: 0.9
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000B1"),
+            name: "Clarinet",
+            attack: 0.07, decay: 0.3, sustain: 0.9, release: 0.5,
+            harmonicity: 0.96, harmonicLevel: 0.82, brightness: 0.45, noiseLevel: 0.02,
+            spectralShape: "hollow", filterCutoff: 3800, filterResonance: 0.1,
+            reverbMix: 0.3, reverbDecay: 1.8, vibratoRate: 0, vibratoDepth: 0,
+            timbreProfile: "Clarinet", timbreBlend: 0.9
+        ),
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000B2"),
+            name: "Oboe",
+            attack: 0.07, decay: 0.3, sustain: 0.88, release: 0.5,
+            harmonicity: 0.95, harmonicLevel: 0.85, brightness: 0.55, noiseLevel: 0.02,
+            spectralShape: "formant", filterCutoff: 4200, filterResonance: 0.12,
+            reverbMix: 0.32, reverbDecay: 1.9, vibratoRate: 5, vibratoDepth: 0.1,
+            timbreProfile: "Oboe", timbreBlend: 0.9
         )
     ]
 }
@@ -215,6 +277,13 @@ extension SynthPatch {
         synth.noiseLevel = noiseLevel
         if let color = SynthPatch.match(noiseColor, EchoelDDSP.NoiseColor.allCases) { synth.noiseColor = color }
         if let shape = SynthPatch.match(spectralShape, EchoelDDSP.SpectralShape.allCases) { synth.spectralShape = shape }
+        // Acoustic instrument spectrum (timbre transfer). Case-insensitive name →
+        // built-in profile; empty/unknown clears it so switching characters resets.
+        if let timbre = SynthPatch.match(timbreProfile, EchoelDDSP.InstrumentTimbre.allCases), timbreBlend > 0 {
+            synth.loadTimbreProfile(EchoelDDSP.instrumentProfile(timbre), blend: timbreBlend)
+        } else {
+            synth.clearTimbreProfile()
+        }
 
         synth.filterCutoff = filterCutoff
         synth.filter.resonance = filterResonance
