@@ -8,6 +8,26 @@ Read this FIRST when continuing work on Echoelmusic.
 > (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
 > from ROADMAP §3 "NOW".
 
+### 2026-06-19 — "Alles aufräumen und optimieren" (repo de-cruft, vision-aligned)
+Founder: enforce no-JUCE + clean/optimize the whole repo. Removed, in safe CI-verified chores
+(no source / build-manifest touched → product gates stay green; testflight/ci/xcode-compile-check
+untouched):
+- **JUCE/CMake/C++ scaffolding:** `CMakeLists.txt`, `setup_juce.sh`, `setup.sh`,
+  `scripts/build-all.sh|build-linux.sh|build-windows.bat`, workflows `build.yml`+`desktop_build.yml`,
+  the CMake jobs in `release-all-platforms.yml`; cleaned LICENSE/.gitignore/Project.swift/CLAUDE.md.
+- **Legacy/contradictory workflows:** `android-build.yml`, `phase8000-ci.yml`, `swift.yml`,
+  `release-all-platforms.yml` (Android disabled / redundant with ci + testflight).
+- **Duplicate build config:** Tuist (`Project.swift`, `Tuist/Config.swift`, `.tuist-version`) — zero
+  refs; XcodeGen `project.yml` is the sole generator (all shipping targets defined there) — and
+  `codemagic.yaml` (unused alt CI). Reconciled CLAUDE.md + APP_STORE_CONNECT.md to single-generator.
+- **Android/desktop distribution:** `skip.yml` (Skip→Android), `installers/` (AppImage/dmg/NSIS).
+- **Kept, flagged (need founder OK — deploy/CI-adjacent):** `wrangler.toml` (Cloudflare vs the active
+  GitHub-Pages `pages.yml`), `ci_scripts/` (Xcode Cloud), launch/perf workflows
+  (`benchmark`/`screenshots`/`send-push`/`trigger-testflight`). Source untouched (strong hygiene; the
+  4 tested cores are keep-by-design foundations).
+- Result: repo matches the stated identity — **Swift 100 %, one dependency (HaishinKit), iPhone-first,
+  one project generator (XcodeGen), one product pipeline.**
+
 ### 2026-06-19 (lead session) — deploy unblocked + CI gap closed
 - **Root-caused 2 TestFlight-only build failures** (ci.yml/SPM didn't catch them): (1) `Bundle.module`
   in CommunityLibrary → fixed with `#if SWIFT_PACKAGE`/`.main` (mirrors BeatPlayer); (2) AUv3 target
