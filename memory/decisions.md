@@ -4,6 +4,20 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-06-19 Canonical execution roadmap (`docs/dev/ROADMAP.md`)
+- **Decision:** Adopt `docs/dev/ROADMAP.md` as the single source of truth for *execution*
+  (the HOW), sitting above the 20+ scattered `scratchpads/PLAN_*` / `STRATEGY_*` docs. It
+  references `memory/vision.md` (the WHY) without duplicating it, indexes/subordinates the
+  scattered plans (🟢 active / 🟡 gate / ⚪ superseded), and holds ONE pragmatic Now/Next/Later
+  backlog + an honesty ledger + review cadence. Precedence: `vision.md` + `ROADMAP.md` win over
+  any stray plan.
+- **Reasoning:** Founder asked to "give the whole thing the necessary structure — pragmatic and
+  open for my vision". `vision.md` already structured the north star/tiers/principles well; the
+  missing layer was a single execution thread (the plans had scattered, partly contradictory).
+- **Expected outcome:** No more doc scatter as truth; every cycle picks from one backlog; plans
+  become inputs not authority; stale ⚪ plans get deleted in `chore:` cycles once rolled up here.
+- **Review:** 2026-07-19.
+
 ### 2026-06-17 Positioning: "The Multidimensional Production Instrument"
 - **Decision:** Reposition Echoel around ONE category-defining idea — "the multidimensional production instrument." Not a renderer competing with Dolby Atmos / Apple Spatial, but the multidimensional SOURCE: one body plays multiple real dimensions at once over open standards. Five pillars by reality: **Body** (LIVE) → **Sound** (LIVE) → **Light** Art-Net/sACN (LIVE) → **Space** ADM-OSC object out (LIVE) → **Vibration** sub-bass/LFE + Core Haptics (LIVE, shipped this cycle). Data (OSC/MIDI 2.0/MPE/AUv3) is the connective layer. Immersive 360°, multichannel render, live broadcast = roadmap.
 - **Reasoning:** Deep research — MPE *freed* the word "multidimensional" (MIDI Association renamed Multidimensional→MIDI Polyphonic Expression on 2018 adoption), so no vendor owns it as a category; Dolby/Apple own "spatial/immersive/Atmos." "Felt"/haptic music is going mainstream in 2026 (SoundShirt, Tactus, BASSpak) and aligns with Echoel's accessibility-first brand. visionOS 26/27 supports 360° but no dedicated spatial music-creation app exists → gap. The claim is earned by the open-standard output *dimensions* that already ship.

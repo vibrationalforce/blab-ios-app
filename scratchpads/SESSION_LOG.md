@@ -4,6 +4,10 @@
 This file tracks ALL code healing sessions across Claude Code contexts.
 Read this FIRST when continuing work on Echoelmusic.
 
+> **Structure (read at session start):** WHY = `memory/vision.md` · HOW = `docs/dev/ROADMAP.md`
+> (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
+> from ROADMAP §3 "NOW".
+
 ---
 
 ## 2026-06-19 — Attack click fix + expose full FX parameter panel

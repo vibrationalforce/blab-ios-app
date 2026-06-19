@@ -1,0 +1,111 @@
+# Echoel — Execution Roadmap (canonical)
+
+> **This is the single source of truth for *how we get there*.**
+> The *vision* (north star, tiers, principles) lives in [`memory/vision.md`](../../memory/vision.md)
+> and is not duplicated here. This doc indexes everything else, subordinates the
+> scattered plans under one structure, and gives one pragmatic backlog.
+>
+> Rule: if a scattered `scratchpads/PLAN_*` or `STRATEGY_*` disagrees with this
+> file or `vision.md`, **this file + vision.md win**. Plans are inputs, not truth.
+
+_Last structured: 2026-06-19. Re-confirm at each session start alongside `memory/`._
+
+---
+
+## 0. Operating rhythm (the only gate)
+
+- **Ralph Wiggum Lambda:** one change per cycle, no batching → build → test → ship → loop.
+- **Definition of Done:** `swift build`/`swift test` **CI-green** → on the feature branch →
+  TestFlight → **verified on device**. Green CI ≠ works on device (honesty rule).
+- **One paradigm:** every surface is a pillar off the same bio bus + one `EchoelStudioView`.
+  Add dimensions as controls on the one instrument — **never new tabs** (anti-pattern: breadth-first oscillation).
+- **Guardrails:** open standards / near-zero deps · science-only copy · audio-thread sanctity ·
+  accessibility-first · protected DSP triad read-only.
+
+---
+
+## 1. The five dimensions — reality status (anchor)
+
+Body → Sound → Space → Light → Vibration, with **Data** (OSC/MIDI 2.0/MPE/AUv3) as the spine.
+Full LIVE/ROADMAP/NORTH-STAR detail in [`vision.md`](../../memory/vision.md) and
+[`FEATURE_MATRIX.md`](FEATURE_MATRIX.md). One-line status:
+
+| Dimension | Status | Where |
+|---|---|---|
+| **Body** (controller) | LIVE | HealthKit + BLE 0x180D + camera rPPG + Demo → 10 Hz bus |
+| **Sound** | LIVE | DDSP/modal/cellular, FX chain, presets+community, LUFS/MIDI export |
+| **Light** | LIVE | native Art-Net + sACN (zero-dep UDP) |
+| **Space** | LIVE | ADM-OSC object out `/adm/obj/{n}/*` |
+| **Vibration** | LIVE | sub-bass/LFE voice + Core Haptics infra |
+| **Data spine** | LIVE | OSC, MIDI 2.0/MPE in, RTP-MIDI, AUv3 + Widgets |
+
+---
+
+## 2. Status snapshot — shipped this cycle (2026-06-19, branch `claude/piano-roll-clip-view-wozlie`)
+
+**Sound dimension hardened end-to-end** (all CI-green):
+- FX: attack-knack fix · every parameter exposed (incl. Saturation/Harmonizer/Reverb).
+- Presets: save/recall your own · 16 curated · search by name+tag · favorites + recents (on-device ranking).
+- **Community loop:** in-app "Submit" → GitHub issue → `community-triage` Action validates JSON & opens a PR to `community/curated/`.
+- **Sound/patch parity:** same community + favorites/recents on `SynthPatch`.
+- Apple integration: [`APPLE_INTEGRATION_NOTES.md`](../../APPLE_INTEGRATION_NOTES.md) + [repo audit](../../scratchpads/APPLE_INTEGRATION_AUDIT_2026-06-19.md).
+
+---
+
+## 3. The backlog — Now / Next / Later (pragmatic, single list)
+
+Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** first.
+
+### NOW (this + next few cycles — verifiable, low risk, on-vision)
+1. **[Sound]** Push a **TestFlight build** so the founder hears the whole preset/FX/community package on device. *(DoD step; do before adding more.)*
+2. **[Sound]** **In-app community loader** — bundle `community/curated/*.json` (Resources are already `.process`-bundled) and merge into the libraries. *Deferred earlier because its failure mode is silent → ship + verify on device.*
+3. **[Sound]** Wire the orphaned `SampleBrowserView` to the beat pads (per-pad sample assign).
+4. **[Body/Apple]** **HealthKit write** (HR/HRV/breath as `HKQuantitySample`, opt-in) → "Works with Apple Health" + persistence. Low risk, clear featuring story. → audit §7.
+
+### NEXT (authorized direction, needs a deliberate cycle)
+5. **[Body/Apple]** **AccessorySetupKit** pairing flow for BLE sensors (privacy + featuring), additive next to Core Bluetooth. → audit §6.
+6. **[Body]** **Head-tracking** (`CMHeadphoneMotionManager`) as a new bio/modulation source on the one instrument — AirPods as sensor. → audit §5.
+7. **[Sound/flagship]** **Audiovisual Vocoder** wiring (`VocoderCore`/`FeedbackGuard`/`BioModulation` cores exist). → *PLAN_CREATIVE_EXPANSION, vision Tier-2*.
+8. **[Sound]** Replicate the preset/community pattern to **Mood** + **Sound & texture** surfaces.
+
+### LATER (roadmap — gate before building; don't claim until shipping)
+9. **[Space/Light]** Multi-device installation sync (multicast/AirPlay + a shared clock; today OSC is single-target, no PTP). → audit §11–12.
+10. **[Broadcast]** Live RTMP/SRT (HaishinKit authorized, 0 code). **Oscillating pillar — resolve via vision-gate before building.** → *PLAN_W3_STREAM*.
+11. **[Sound]** Higher-order ambisonics / in-app PHASE for headphone spatial preview (ADM-OSC stays the pro path). → audit §1,3.
+12. **[Platforms]** visionOS / macOS surfaces; keep Metal shaders portable. → *PLAN_WWDC26_ADOPTION*.
+13. **[Sound/AI]** CoreML / RAVE neural latent layer — gated on an on-device latency prototype.
+
+---
+
+## 4. Scattered-plan index (subordinated, not deleted)
+
+Grouped by theme so nothing is lost. **Status legend:** 🟢 active input · 🟡 partial/needs gate · ⚪ superseded/parked.
+
+- **Vision/Strategy:** `STRATEGY_STATE_OF_THE_ART_2026-06-06` 🟢 · `STRATEGY_USP_2026-06-12` 🟢 · `PLAN_MULTIDIMENSIONAL_2026-06-17` 🟢 · `STRATEGY_TOOLS_REDUCTION_2026-06-12` 🟢 · `STRATEGY_2026-05-18` ⚪
+- **Sound/Synthesis:** `PLAN_SYNTHESIS_EXPANSION` 🟢 · `PLAN_CREATIVE_EXPANSION_2026-06-17` 🟢 · `PLAN_FLEXIBLE_NATURAL_ENGINE` 🟡 · `PLAN_BIO_GENERATIVE_2026-06-12` 🟢
+- **Ecosystem/Community:** `PLAN_ECOSYSTEM_LOOP` 🟢 (now partly shipped: triage) · `PLAN_CLOUDKIT_SYNC` 🟡 · `PLAN_MULTIPLATFORM_LINKING` 🟡
+- **DAW/Record/Video/Stream (superseded by one-instrument):** `PLAN_DAW_BUILDOUT` ⚪ · `PLAN_W2_RECORDER` ⚪ · `PLAN_W2_VIDEO` ⚪ · `PLAN_W3_STREAM` 🟡 (gate) · `PLAN_ARRANGEMENT_VIDEO_ONE_VIEW` 🟡
+- **Foundation/Build/Signing:** `PLAN_FOUNDATION_INDEX` 🟢 · `PLAN_FOUNDATION_SEQUENCE` 🟢 · `PLAN_V11_CONSOLIDATION` 🟢 · `PLAN_MULTITARGET_SIGNING` 🟢 · `PLAN_v10_TestFlight_Sprint` ⚪
+- **Apple adoption:** `PLAN_WWDC26_ADOPTION` 🟡 · `PLAN_COMPETITIVE_ROADMAP_2026-06-16` 🟢
+
+> Cleanup convention: when a ⚪ plan's last idea is captured here or shipped, it may be
+> deleted in a `chore:` cycle. Don't let the count grow past this index without re-rolling it up.
+
+---
+
+## 5. Honesty ledger (review every session — from `vision.md` §gaps + Apple audit)
+
+- **Live Broadcast** = brand pillar, zero code, oscillates → gate, then build or stop claiming.
+- **CLAUDE.md "v10 Target" diagram** describes Beat/Record/Video/Share tabs that were never built; as-built is one `EchoelStudioView`. Reconcile CLAUDE.md in a `docs:` cycle.
+- **Bus `bioFrames`/`bioEvents`** reserved but undrained (snapshot path is the live one).
+- **Community loader not yet wired** → curated JSON in repo isn't in-app until item #2 ships.
+- **No device-to-device clock sync**; OSC is single-target (item #9).
+
+---
+
+## 6. Review cadence
+
+- **Session start:** read `memory/` + this file + `SESSION_LOG.md`.
+- **Decisions:** log to `memory/decisions.md` + `decisions.csv`; default review +30 days (`./review.sh`).
+- **This roadmap:** re-roll the backlog whenever Now empties or the brand promise and shipping
+  reality drift more than one cycle apart.
