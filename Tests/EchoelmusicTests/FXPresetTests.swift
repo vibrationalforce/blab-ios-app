@@ -1,0 +1,94 @@
+// FXPresetTests.swift
+// Echoel — the shareable FX preset format. Verifies a captured chain round-trips
+// exactly through apply(), survives JSON encode/decode, and decodes leniently
+// from a partial file (forward/backward compatible).
+
+#if canImport(Accelerate)
+import XCTest
+@testable import Echoelmusic
+
+final class FXPresetTests: XCTestCase {
+
+    /// Build a chain with distinctive, non-default values across several stages.
+    private func makeDistinctiveChain() -> EchoelFXChain {
+        let c = EchoelFXChain()
+        c.filterEnabled = true
+        c.setFilter(mode: .bandpass, cutoff: 1234, resonance: 0.42)
+        c.saturationDrive = 0.7
+        c.saturationMix = 0.33
+        c.delayEnabled = true
+        c.delay.mode = .tape
+        c.delay.timeSeconds = 0.375
+        c.delay.feedback = 0.6
+        c.delay.tone = 0.25
+        c.phaserEnabled = true
+        c.phaser.rate = 1.5
+        c.phaser.depth = 0.8
+        c.tremoloEnabled = true
+        c.tremolo.stereoPan = true
+        c.compressorEnabled = true
+        c.compressor.thresholdDb = -24
+        c.compressor.ratio = 6
+        return c
+    }
+
+    func testCaptureThenApply_restoresEveryParameter() {
+        let source = makeDistinctiveChain()
+        let preset = FXPreset.capture(from: source, fxEnabled: true, name: "Test")
+
+        let dest = EchoelFXChain()
+        preset.apply(to: dest)
+
+        XCTAssertTrue(dest.filterEnabled)
+        XCTAssertEqual(dest.filterL.mode, .bandpass)
+        XCTAssertEqual(dest.filterL.cutoff, 1234, accuracy: 1e-2)
+        XCTAssertEqual(dest.filterR.cutoff, 1234, accuracy: 1e-2, "both channels set")
+        XCTAssertEqual(dest.filterL.resonance, 0.42, accuracy: 1e-5)
+        XCTAssertEqual(dest.saturationDrive, 0.7, accuracy: 1e-5)
+        XCTAssertEqual(dest.saturationMix, 0.33, accuracy: 1e-5)
+        XCTAssertTrue(dest.delayEnabled)
+        XCTAssertEqual(dest.delay.mode, .tape)
+        XCTAssertEqual(dest.delay.timeSeconds, 0.375, accuracy: 1e-5)
+        XCTAssertEqual(dest.delay.feedback, 0.6, accuracy: 1e-5)
+        XCTAssertEqual(dest.delay.tone, 0.25, accuracy: 1e-5)
+        XCTAssertTrue(dest.phaserEnabled)
+        XCTAssertEqual(dest.phaser.rate, 1.5, accuracy: 1e-5)
+        XCTAssertEqual(dest.phaser.depth, 0.8, accuracy: 1e-5)
+        XCTAssertTrue(dest.tremoloEnabled)
+        XCTAssertTrue(dest.tremolo.stereoPan)
+        XCTAssertTrue(dest.compressorEnabled)
+        XCTAssertEqual(dest.compressor.thresholdDb, -24, accuracy: 1e-5)
+        XCTAssertEqual(dest.compressor.ratio, 6, accuracy: 1e-5)
+    }
+
+    func testJSONRoundTrip_isExact() throws {
+        let preset = FXPreset.capture(from: makeDistinctiveChain(),
+                                      fxEnabled: true, name: "Vapor Wash",
+                                      tags: ["vapor", "lush"])
+        let data = try JSONEncoder().encode(preset)
+        let decoded = try JSONDecoder().decode(FXPreset.self, from: data)
+        XCTAssertEqual(decoded, preset)
+        XCTAssertEqual(decoded.tags, ["vapor", "lush"])
+    }
+
+    func testLenientDecode_fillsDefaultsForMissingFields() throws {
+        // A minimal file (only a name) must still decode to a usable preset.
+        let json = Data(#"{"name":"Sparse"}"#.utf8)
+        let p = try JSONDecoder().decode(FXPreset.self, from: json)
+        XCTAssertEqual(p.name, "Sparse")
+        XCTAssertTrue(p.limiterEnabled, "limiter defaults on (safety brick-wall)")
+        XCTAssertEqual(p.filterModeRaw, "lowpass")
+        XCTAssertEqual(p.schema, 1)
+    }
+
+    func testUnknownEnumRaw_fallsBackSafely() {
+        var preset = FXPreset.capture(from: EchoelFXChain(), fxEnabled: true, name: "Bad")
+        preset.filterModeRaw = "not-a-mode"
+        preset.delayModeRaw = "nonsense"
+        let dest = EchoelFXChain()
+        preset.apply(to: dest)
+        XCTAssertEqual(dest.filterL.mode, .lowpass, "unknown filter mode → lowpass")
+        XCTAssertEqual(dest.delay.mode, .digital, "unknown delay mode → digital")
+    }
+}
+#endif
