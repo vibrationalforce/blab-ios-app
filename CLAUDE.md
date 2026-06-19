@@ -117,7 +117,7 @@ both superseded; Record/Video/Share = ROADMAP, not wired.)*
 |---|---|
 | Apple (iPhone) | AVFoundation + Accelerate + Metal + CoreMIDI + VideoToolbox + SwiftData |
 | RTMP/RTMPS | HaishinKit (MIT, pinned exact tag) — sole external dependency |
-| Build | Tuist / XcodeGen + Fastlane (TestFlight upload) + GitHub Actions |
+| Build | XcodeGen (`project.yml`) + Fastlane (TestFlight upload) + GitHub Actions |
 | DSP | Swift (audio-thread-safe, lock-free SPSC queues) |
 
 iPhone-only for v10 MVP. iPad / Mac / Watch / Vision deferred to v1.1+.

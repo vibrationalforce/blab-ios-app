@@ -24,25 +24,23 @@ table here. Update this file whenever a target or identifier changes.
 The owner-registered ASC identifier set. Universal Purchase: all primary platforms share the
 single `com.echoelmusic.app` ID so one purchase unlocks iOS / macOS / tvOS / visionOS.
 
-> ⚠️ **Two project generators, only one builds in CI.** `Project.swift` (Tuist) declares the
-> full ecosystem; `project.yml` (XcodeGen) is what `testflight.yml` actually generates and
-> archives (`xcodegen generate --spec project.yml`). The "CI target status" column below
-> reflects `project.yml` — the ground truth for what ships. See
-> `scratchpads/PLAN_ECOSYSTEM_LOOP.md` for the per-target activation sequence.
+> ✅ **One project generator.** `project.yml` (XcodeGen) is the single source of truth —
+> `testflight.yml` runs `xcodegen generate` and archives it. The former Tuist `Project.swift`
+> (a parallel, never-CI-built generator) was **removed 2026-06-19** (no-JUCE / single-pipeline
+> cleanup). The status column below is the ground truth for what ships.
 
-| ASC display name | Bundle ID | Role | Tuist (`Project.swift`) | CI (`project.yml`) |
-|---|---|---|---|---|
-| Echoelmusic | `com.echoelmusic.app` | Main app (iOS + universal) | ✅ declared | ✅ **builds + ships** (build 1477) |
-| Echoelmusic AUv3 | `com.echoelmusic.app.auv3` | Audio Unit v3 extension (embedded) | ✅ declared | ✅ **embedded + ships** (1467+) |
-| Echoelmusic Widgets | `com.echoelmusic.app.widgets` | WidgetKit extension | ✅ declared | ✅ **embedded + ships** (1454+) |
-| Echoelmusic watchOS | `com.echoelmusic.app.watchkitapp` | watchOS companion | ✅ declared | ⚠️ compile-verified, **embed blocked** (local Xcode) |
-| Echoelmusic Clip | `com.echoelmusic.app.clip` | App Clip | ❌ | ❌ ASC-registered, **target deferred** |
-| Echoelmusic Notification Service | `com.echoelmusic.app.notification-service` | Notification Service extension | ❌ | ❌ ASC-registered, **target deferred** |
+| ASC display name | Bundle ID | Role | CI (`project.yml`) |
+|---|---|---|---|
+| Echoelmusic | `com.echoelmusic.app` | Main app (iOS + universal) | ✅ **builds + ships** |
+| Echoelmusic AUv3 | `com.echoelmusic.app.auv3` | Audio Unit v3 extension (embedded) | ✅ **embedded + ships** |
+| Echoelmusic Widgets | `com.echoelmusic.app.widgets` | WidgetKit extension | ✅ **embedded + ships** |
+| Echoelmusic watchOS | `com.echoelmusic.app.watchkitapp` | watchOS companion | ⚠️ compile-verified, **embed blocked** (local Xcode) |
+| Echoelmusic Clip | `com.echoelmusic.app.clip` | App Clip | ❌ ASC-registered, **target deferred** |
+| Echoelmusic Notification Service | `com.echoelmusic.app.notification-service` | Notification Service extension | ❌ ASC-registered, **target deferred** |
 
-> **Additional Tuist-only platforms** not yet in `project.yml`: `EchoelmusicMac` (macOS),
-> `EchoelmusicTV` (tvOS), `EchoelmusicVision` (visionOS) — all share `com.echoelmusic.app`
-> (Universal Purchase). They build under Tuist but **do not ship via the CI pipeline** until
-> ported to `project.yml`, one signing-verified cycle each.
+> **Deferred platforms** (macOS / tvOS / visionOS) were previously declared only in the removed
+> Tuist `Project.swift`. They are **not currently defined anywhere** and would be re-added to
+> `project.yml` in a dedicated, signing-verified cycle when actually built (iPhone-first for now).
 
 ### App Group
 
@@ -60,9 +58,9 @@ single `com.echoelmusic.app` ID so one purchase unlocks iOS / macOS / tvOS / vis
 - **iPhone-first MVP.** `.clip` and `.notification-service` are registered in App Store
   Connect but their Xcode targets are **intentionally deferred** to avoid build/signing risk
   this round. Add them only in a dedicated cycle with entitlements + provisioning verified.
-- **Extra target:** `Project.swift` also declares `com.echoelmusic.app.voice` (an `EchoelVoice`
-  AUv3). It is **not** in the owner's ASC bundle set above — confirm whether to register it in
-  ASC or fold it into `com.echoelmusic.app.auv3`.
+- **Former extra target:** the removed Tuist `Project.swift` also declared `com.echoelmusic.app.voice`
+  (an `EchoelVoice` AUv3), not in the owner's ASC bundle set. With Tuist gone it is no longer
+  declared; if wanted, add it to `project.yml` or fold it into `com.echoelmusic.app.auv3`.
 - **TestFlight signing** is pure App Store Connect API key (no Match). Required GitHub Actions
   secrets: `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`,
   `APP_STORE_CONNECT_PRIVATE_KEY`, `APPLE_TEAM_ID`. See `.github/workflows/testflight.yml`.
