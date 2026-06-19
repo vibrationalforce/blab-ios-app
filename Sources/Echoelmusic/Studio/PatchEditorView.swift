@@ -12,6 +12,7 @@ struct PatchEditorView: View {
     @Environment(PolySynthVoice.self) private var voice
     @Environment(PatchStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var patch: SynthPatch
     @State private var showSaveAs = false
@@ -92,11 +93,24 @@ struct PatchEditorView: View {
     private var presetBar: some View {
         HStack(spacing: 8) {
             Menu {
-                ForEach(store.patches) { p in
-                    Button(p.name) { patch = p }
+                ForEach(store.sortedPatches) { p in
+                    Button {
+                        patch = p
+                        store.markUsed(id: p.id)
+                    } label: {
+                        if store.isFavorite(id: p.id) {
+                            Label(p.name, systemImage: "star.fill")
+                        } else {
+                            Text(p.name)
+                        }
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {
+                    if store.isFavorite(id: patch.id) {
+                        Image(systemName: "star.fill").font(.system(size: 10))
+                            .foregroundStyle(EchoelTheme.accent)
+                    }
                     Text(patch.name).font(.system(size: 13, weight: .semibold))
                     Image(systemName: "chevron.down").font(.system(size: 10))
                 }
@@ -108,6 +122,12 @@ struct PatchEditorView: View {
 
             Spacer(minLength: 0)
 
+            toolButton(store.isFavorite(id: patch.id) ? "★" : "☆") {
+                store.toggleFavorite(id: patch.id)
+            }
+            toolButton("Submit") {
+                if let url = patch.communityIssueURL() { openURL(url) }
+            }
             if !isFactory {
                 toolButton("Save") { store.save(patch) }
             }

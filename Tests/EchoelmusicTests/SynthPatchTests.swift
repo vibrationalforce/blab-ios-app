@@ -19,6 +19,31 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertEqual(a, b, "factory ids must be stable across accesses/relaunches")
         XCTAssertEqual(Set(a).count, a.count, "factory ids are unique")
     }
+
+    func testCommunityIssueURL_isWellFormed_withEmbeddedJSON() {
+        let patch = SynthPatch.factory[0]
+        guard let url = patch.communityIssueURL() else { return XCTFail("nil URL") }
+        XCTAssertEqual(url.host, "github.com")
+        XCTAssertTrue(url.path.hasSuffix("/issues/new"))
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        XCTAssertTrue(items.contains { $0.name == "labels" && $0.value == "patch-submission" })
+        XCTAssertTrue(items.contains { $0.name == "title" && ($0.value?.contains(patch.name) ?? false) })
+        XCTAssertTrue((items.first { $0.name == "body" }?.value ?? "").contains("\"name\""))
+    }
+
+    @MainActor
+    func testPatchRanking_favoritesThenRecentsThenNatural() {
+        let a = SynthPatch.factory[0], b = SynthPatch.factory[1], c = SynthPatch.factory[2]
+        let patches = [a, b, c] // natural order a,b,c
+        XCTAssertEqual(PatchStore.ranked(patches, favorites: [], recents: []).map(\.id),
+                       [a.id, b.id, c.id])
+        XCTAssertEqual(PatchStore.ranked(patches, favorites: [c.id], recents: []).map(\.id),
+                       [c.id, a.id, b.id])
+        XCTAssertEqual(PatchStore.ranked(patches, favorites: [], recents: [b.id]).map(\.id),
+                       [b.id, a.id, c.id])
+        XCTAssertEqual(PatchStore.ranked(patches, favorites: [c.id], recents: [b.id]).map(\.id),
+                       [c.id, b.id, a.id])
+    }
 }
 
 #if canImport(Accelerate)

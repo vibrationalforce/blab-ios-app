@@ -12,16 +12,63 @@ public final class PatchStore {
 
     /// All patches: factory presets first, then user-saved.
     public private(set) var patches: [SynthPatch]
+    /// Ids the user has starred (factory or user — ids are stable).
+    public private(set) var favorites: Set<UUID>
+    /// Recently-recalled ids, most-recent first (capped).
+    public private(set) var recents: [UUID]
 
+    @ObservationIgnored private static let maxRecents = 12
     @ObservationIgnored private let store = AppGroupStore(subdirectory: "Patches")
     @ObservationIgnored private static let fileName = "userPatches"
+    @ObservationIgnored private static let metaName = "patchMeta"
     @ObservationIgnored private static let factoryIDs: Set<UUID> = Set(SynthPatch.factory.map { $0.id })
+
+    private struct Meta: Codable { var favorites: [UUID]; var recents: [UUID] }
 
     public init() {
         let user = store.load([SynthPatch].self, name: Self.fileName) ?? []
         // Drop any accidental factory duplicates from the user file.
         let cleanedUser = user.filter { !Self.factoryIDs.contains($0.id) }
         self.patches = SynthPatch.factory + cleanedUser
+        let meta = store.load(Meta.self, name: Self.metaName)
+        self.favorites = Set(meta?.favorites ?? [])
+        self.recents = meta?.recents ?? []
+    }
+
+    public func isFavorite(id: UUID) -> Bool { favorites.contains(id) }
+
+    public func toggleFavorite(id: UUID) {
+        if favorites.contains(id) { favorites.remove(id) } else { favorites.insert(id) }
+        persistMeta()
+    }
+
+    /// Record that a patch was recalled (drives the recents ranking).
+    public func markUsed(id: UUID) {
+        recents.removeAll { $0 == id }
+        recents.insert(id, at: 0)
+        if recents.count > Self.maxRecents { recents.removeLast(recents.count - Self.maxRecents) }
+        persistMeta()
+    }
+
+    /// Personalized order: favorites first, then most-recently-used, then the
+    /// store's natural order (factory then user). Pure on-device ranking.
+    public var sortedPatches: [SynthPatch] {
+        Self.ranked(patches, favorites: favorites, recents: recents)
+    }
+
+    /// Pure ranking (testable, no I/O).
+    static func ranked(_ patches: [SynthPatch], favorites: Set<UUID>, recents: [UUID]) -> [SynthPatch] {
+        let recentRank = Dictionary(recents.enumerated().map { ($1, $0) },
+                                    uniquingKeysWith: { first, _ in first })
+        return patches.enumerated().sorted { l, r in
+            let lf = favorites.contains(l.element.id) ? 0 : 1
+            let rf = favorites.contains(r.element.id) ? 0 : 1
+            if lf != rf { return lf < rf }                 // favorites first
+            let lr = recentRank[l.element.id] ?? Int.max
+            let rr = recentRank[r.element.id] ?? Int.max
+            if lr != rr { return lr < rr }                 // more recently used first
+            return l.offset < r.offset                      // else natural order
+        }.map { $0.element }
     }
 
     /// True for read-only built-in presets.
@@ -55,11 +102,18 @@ public final class PatchStore {
     public func delete(id: UUID) {
         guard !Self.factoryIDs.contains(id) else { return }
         patches.removeAll { $0.id == id }
+        favorites.remove(id)
+        recents.removeAll { $0 == id }
         persist()
     }
 
     private func persist() {
         let user = patches.filter { !Self.factoryIDs.contains($0.id) }
         store.save(user, name: Self.fileName)
+        persistMeta()
+    }
+
+    private func persistMeta() {
+        store.save(Meta(favorites: Array(favorites), recents: recents), name: Self.metaName)
     }
 }

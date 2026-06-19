@@ -242,6 +242,39 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     ]
 }
 
+public extension SynthPatch {
+
+    /// A pre-filled GitHub "new issue" URL carrying this patch's JSON, for the
+    /// in-app "Submit to community" flow — mirrors FXPreset.communityIssueURL.
+    /// No backend, no auth: the repo is the community store. Foundation-only.
+    func communityIssueURL(owner: String = "vibrationalforce",
+                           repo: String = "Echoelmusic") -> URL? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(self),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        let body = """
+        Thanks for sharing an Echoel sound patch!
+
+        **Name:** \(name)
+
+        The patch JSON is below — a maintainer will review it and, if curated, add \
+        it to the sound library.
+
+        ```json
+        \(json)
+        ```
+        """
+        var comps = URLComponents(string: "https://github.com/\(owner)/\(repo)/issues/new")
+        comps?.queryItems = [
+            URLQueryItem(name: "title", value: "Patch submission: \(name)"),
+            URLQueryItem(name: "labels", value: "patch-submission"),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return comps?.url
+    }
+}
+
 #if canImport(Accelerate)
 extension SynthPatch {
 
