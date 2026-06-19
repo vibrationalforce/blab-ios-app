@@ -140,8 +140,30 @@ final class FXViewModel {
         delayWow = c.delay.wow; delayDrive = c.delay.drive
         chorusEnabled = c.chorusEnabled; chorusRate = c.chorus.rate
         chorusDepth = c.chorus.depth; chorusMix = c.chorus.mix
+        flangerEnabled = c.flangerEnabled; flangerRate = c.flanger.rate
+        flangerDepth = c.flanger.depth; flangerFeedback = c.flanger.feedback; flangerMix = c.flanger.mix
         phaserEnabled = c.phaserEnabled; phaserRate = c.phaser.rate
-        phaserDepth = c.phaser.depth; phaserMix = c.phaser.mix
+        phaserDepth = c.phaser.depth; phaserFeedback = c.phaser.feedback; phaserMix = c.phaser.mix
+        tremoloEnabled = c.tremoloEnabled; tremoloRate = c.tremolo.rate
+        tremoloDepth = c.tremolo.depth; tremoloPan = c.tremolo.stereoPan
+        compEnabled = c.compressorEnabled; compThreshold = c.compressor.thresholdDb
+        compRatio = c.compressor.ratio; compMakeup = c.compressor.makeupDb
+        limiterEnabled = c.limiterEnabled; limiterCeiling = c.limiter.ceilingDb
+    }
+
+    // MARK: - Preset save / recall
+
+    /// Snapshot the live chain as a saveable/shareable preset.
+    func snapshot(name: String, tags: [String] = []) -> FXPreset {
+        FXPreset.capture(from: chain, fxEnabled: fxEnabled, name: name, tags: tags)
+    }
+
+    /// Apply a saved/community preset to the live chain, flip the master gate to
+    /// match, and refresh every UI mirror.
+    func apply(_ preset: FXPreset) {
+        preset.apply(to: chain)
+        fxEnabled = preset.fxEnabled   // didSet bridges the voice's master gate
+        reseed()
     }
 }
 
@@ -152,6 +174,11 @@ struct EchoelFXView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var vm: FXViewModel
+    /// The user's own saved presets (local). The curated community set is bundled
+    /// separately (next cycle).
+    @State private var presetStore = FXPresetStore()
+    @State private var showSaveSheet = false
+    @State private var saveName = ""
 
     /// Drive any voice's insert chain. `fxEnabled`/`setFXEnabled` bridge the
     /// voice's master gate so the surface stays decoupled from the voice type.
@@ -166,6 +193,7 @@ struct EchoelFXView: View {
     var body: some View {
         NavigationStack {
             Form {
+                presetSection
                 Section {
                     Toggle("Insert FX", isOn: $vm.fxEnabled)
                         .tint(EchoelTheme.accent)
@@ -264,6 +292,54 @@ struct EchoelFXView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .alert("Save preset", isPresented: $showSaveSheet) {
+                TextField("Name", text: $saveName)
+                Button("Save") {
+                    let trimmed = saveName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    presetStore.save(vm.snapshot(name: trimmed.isEmpty ? "My Preset" : trimmed))
+                    saveName = ""
+                }
+                Button("Cancel", role: .cancel) { saveName = "" }
+            } message: {
+                Text("Saves the full effects chain — every parameter — as your own preset.")
+            }
+        }
+    }
+
+    // MARK: - Presets (save your own / recall)
+
+    @ViewBuilder
+    private var presetSection: some View {
+        Section {
+            Button { showSaveSheet = true } label: {
+                Label("Save current sound…", systemImage: "square.and.arrow.down")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            if presetStore.presets.isEmpty {
+                Text("No saved presets yet. Dial in a sound below, then save it.")
+                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+            } else {
+                ForEach(presetStore.presets) { preset in
+                    Button { vm.apply(preset) } label: {
+                        HStack {
+                            Text(preset.name).foregroundStyle(EchoelTheme.text)
+                            Spacer()
+                            Image(systemName: "arrow.up.forward.circle")
+                                .foregroundStyle(EchoelTheme.dim)
+                        }
+                    }
+                    .accessibilityHint("Apply this preset to the effects chain")
+                }
+                .onDelete { offsets in
+                    let ids = offsets.map { presetStore.presets[$0].id }
+                    ids.forEach { presetStore.delete(id: $0) }
+                }
+            }
+        } header: {
+            Text("My presets").font(.system(size: 13, weight: .bold)).textCase(nil)
+        } footer: {
+            Text("Your presets stay on this device. Community sharing comes next.")
         }
     }
 

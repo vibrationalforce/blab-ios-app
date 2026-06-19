@@ -197,7 +197,6 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     }
 }
 
-#if canImport(Accelerate)
 public extension FXPreset {
 
     /// Snapshot the live chain into a portable preset.
@@ -303,4 +302,3 @@ public extension FXPreset {
         chain.limiter.ceilingDb = limiterCeiling
     }
 }
-#endif
