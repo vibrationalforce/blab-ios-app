@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   triage:
-    if: ${{ startsWith(github.event.issue.title, 'Preset submission:') || startsWith(github.event.issue.title, 'Patch submission:') }}
+    if: ${{ startsWith(github.event.issue.title, 'Preset submission:') || startsWith(github.event.issue.title, 'Patch submission:') || startsWith(github.event.issue.title, 'Mood submission:') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

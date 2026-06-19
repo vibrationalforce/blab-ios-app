@@ -1,0 +1,13 @@
+{
+  "id": "E0000000-0000-0000-0000-0000000000D1",
+  "name": "Aurora Calm",
+  "tags": ["ambient", "still", "community"],
+  "liveliness": 0.18,
+  "darkness": 0.5,
+  "tension": 0.0,
+  "romance": 0.5,
+  "weird": 0.1,
+  "virtuosity": 0.15,
+  "syncopation": 0.05,
+  "humanize": 0.5
+}

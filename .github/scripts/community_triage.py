@@ -47,6 +47,8 @@ def main():
         kind, subdir, required = "FX preset", "fx", ("name", "schema")
     elif title.startswith("Patch submission:"):
         kind, subdir, required = "sound patch", "patches", ("id", "name")
+    elif title.startswith("Mood submission:"):
+        kind, subdir, required = "mood", "moods", ("id", "name")
     else:
         print("not a submission issue; skipping")
         return

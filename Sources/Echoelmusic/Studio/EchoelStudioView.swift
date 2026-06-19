@@ -33,6 +33,7 @@ struct EchoelStudioView: View {
     /// Drives Siri/Shortcuts intent consumption (start/stop/keep loop) when the
     /// app becomes active after an intent opens it.
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     // The live, fully-editable timbre is `currentPatch` (single source of truth).
     // Every control below — XY pad, sliders and 2-decimal numeric fields — reads and
@@ -55,6 +56,13 @@ struct EchoelStudioView: View {
 
     /// Continuous mood/character controls that shape the composition (blend with bio).
     @State private var mood = MoodProfile()
+    /// Saved/curated moods (factory + user + community), same library pattern as FX/sound.
+    @State private var moodStore = MoodPresetStore()
+    /// Identity of the currently-loaded mood (nil = an unsaved "Custom" edit).
+    @State private var moodPresetID: UUID? = nil
+    @State private var moodPresetName = "Custom"
+    @State private var showSaveMoodAs = false
+    @State private var moodAsName = ""
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
@@ -228,6 +236,19 @@ struct EchoelStudioView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Saves the current sound, key, tempo and generated loop.")
+        }
+        .alert("Save mood", isPresented: $showSaveMoodAs) {
+            TextField("Name", text: $moodAsName)
+            Button("Save") {
+                let name = moodAsName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !name.isEmpty else { return }
+                let saved = moodStore.saveAs(moodSnapshot(name: name), name: name)
+                moodPresetID = saved.id
+                moodPresetName = saved.name
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saves the 8 mood dimensions as a named mood you can recall.")
         }
     }
 
@@ -441,6 +462,7 @@ struct EchoelStudioView: View {
 
     private var moodPanel: some View {
         panel("Mood", "Character of the composition", isExpanded: $showMood) {
+            moodPresetBar
             moodKnob("Liveliness", $mood.liveliness)
             moodKnob("Darkness", $mood.darkness)
             moodKnob("Tension", $mood.tension)
@@ -459,6 +481,105 @@ struct EchoelStudioView: View {
     private func moodKnob(_ label: String, _ value: Binding<Float>) -> some View {
         EchoelValueField(label: label, value: value, range: 0...1,
                          onCommit: { recomposeIfRunning() })
+    }
+
+    // MARK: Mood presets (same library pattern as FX / sound)
+
+    /// Load / save / favorite / share named moods — identical idiom to the sound
+    /// and FX preset bars (one library behaviour app-wide).
+    private var moodPresetBar: some View {
+        HStack(spacing: 8) {
+            Menu {
+                ForEach(moodStore.sortedMoods) { m in
+                    Button {
+                        applyMood(m)
+                    } label: {
+                        if moodStore.isFavorite(id: m.id) {
+                            Label(m.name, systemImage: "star.fill")
+                        } else {
+                            Text(m.name)
+                        }
+                    }
+                }
+                if !MoodPreset.community.isEmpty {
+                    Section("Community") {
+                        ForEach(MoodPreset.community) { m in
+                            Button(m.name) { applyMood(m) }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    if let id = moodPresetID, moodStore.isFavorite(id: id) {
+                        Image(systemName: "star.fill").font(.system(size: 10))
+                            .foregroundStyle(EchoelTheme.accent)
+                    }
+                    Text(moodPresetName).font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "chevron.down").font(.system(size: 10))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12).frame(height: 34)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .accessibilityLabel("Mood preset")
+
+            Spacer(minLength: 0)
+
+            // Management actions in one compact overflow menu so the row always fits
+            // on iPhone width (Save as… / favorite / save / submit / delete).
+            Menu {
+                Button { moodAsName = moodPresetName + " copy"; showSaveMoodAs = true } label: {
+                    Label("Save as new mood…", systemImage: "plus")
+                }
+                if let id = moodPresetID {
+                    let isFav = moodStore.isFavorite(id: id)
+                    Button { moodStore.toggleFavorite(id: id) } label: {
+                        Label(isFav ? "Unfavorite" : "Favorite", systemImage: isFav ? "star.slash" : "star")
+                    }
+                    if !moodStore.isFactory(moodSnapshot(id: id, name: moodPresetName)) {
+                        Button { moodStore.save(moodSnapshot(id: id, name: moodPresetName)) } label: {
+                            Label("Save changes", systemImage: "square.and.arrow.down")
+                        }
+                        Button(role: .destructive) {
+                            moodStore.delete(id: id)
+                            moodPresetID = nil
+                            moodPresetName = "Custom"
+                        } label: { Label("Delete", systemImage: "trash") }
+                    }
+                }
+                Divider()
+                Button {
+                    if let url = moodSnapshot(name: moodPresetName).communityIssueURL() { openURL(url) }
+                } label: { Label("Submit to community", systemImage: "paperplane") }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .accessibilityLabel("Mood actions")
+        }
+    }
+
+    /// Apply a saved mood to the live controls and recompose.
+    private func applyMood(_ preset: MoodPreset) {
+        mood = preset.profile
+        moodPresetID = preset.id
+        moodPresetName = preset.name
+        moodStore.markUsed(id: preset.id)
+        recomposeIfRunning()
+    }
+
+    /// Snapshot the live 8 mood dimensions into a named/identified preset.
+    private func moodSnapshot(id: UUID? = nil, name: String) -> MoodPreset {
+        MoodPreset(id: id ?? UUID(), name: name,
+                   liveliness: mood.liveliness, darkness: mood.darkness,
+                   tension: mood.tension, romance: mood.romance,
+                   weird: mood.weird, virtuosity: mood.virtuosity,
+                   syncopation: mood.syncopation, humanize: mood.humanize)
     }
 
     // MARK: Panel 2 — Sound & texture (preset · scrubbable values · randomize)
