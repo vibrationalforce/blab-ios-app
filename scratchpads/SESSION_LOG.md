@@ -16,6 +16,19 @@ Read this FIRST when continuing work on Echoelmusic.
 
 ---
 
+## 2026-06-19 — Adopted Corey Haines marketing skill pack (MIT) via vision-gate + Council
+
+### Trigger: founder — "Cory Haines hat 30 Plus Skills gepackt... direkt optimiert ins Repo übernehmen... Halte das CLAUDE.md aufgeräumt und klar"
+
+- Identified repo = `github.com/coreyhaines31/marketingskills` (MIT, 45 skills: ASO, copywriting, CRO, SEO, launch, pricing, social, video, PR, etc.).
+- Ran it through `vision-gate` + `the-council` (the skill just installed). Verdict: **ADOPT→PIPELINE** — markets the App Store app + `docs/` site, never in-app, never touches `Sources/`; MIT + self-contained = zero build/audio risk.
+- **Vendored** whole+functional at `.claude/skills/marketing/` (skills/ + tools/ + LICENSE + UPSTREAM_README; dropped upstream CLAUDE.md/AGENTS.md so they don't shadow Echoel). 3.9M, isolated.
+- **NEW `.claude/skills/echoel-marketing/SKILL.md`** = optimized front door: iPhone-instrument priority map (App Store/ASO + website first; revops/sales/cold-email flagged low-relevance) + HARD brand guardrails (no wellness/esoteric/overclaim, claim only what ships, accessibility-first, American English).
+- **CLAUDE.md kept tidy** per founder: ONE pointer line (folded into the Council section), not 45.
+- Logged to inspiration.csv + memory/inspiration_intake.md + decisions.csv (review 2026-09-19).
+
+---
+
 ## 2026-06-17 — SHIPPED build 1871: numbers-only scrubbable controls + pinch-to-zoom
 
 ### Trigger: owner — "Ich möchte keine slider und Knöpfe mehr sondern nur noch die Zahlen Werte ... schnell hoher Weitsprung und langsam auf die zweite kommastelle genau ... wichtig dass man reinzoomen kann, weil nicht alle so gute Augen haben."

@@ -57,6 +57,17 @@ feature, it's PIPELINE. When unsure: WATCH with a review date beats premature ad
 
 ## Ledger (running; newest first)
 
+### 2026-06-19 — Corey Haines `marketingskills` (MIT, 45 skills) → ADOPT→PIPELINE
+- Founder: adopt the marketing pack "optimized" into the repo, keep CLAUDE.md tidy.
+- **Verdict: ADOPT→PIPELINE** — it markets the App Store app + `docs/` site; it is
+  **never in-app / never touches `Sources/`**. MIT, self-contained, zero build/audio risk.
+- **Optimized form:** vendored whole + functional at `.claude/skills/marketing/`
+  (upstream LICENSE + README kept; their `CLAUDE.md`/`AGENTS.md` dropped so they don't
+  shadow Echoel). Front door = new `echoel-marketing` skill: iPhone-instrument priority
+  map (ASO/copy/CRO/site first; revops/sales/cold-email = low relevance) + HARD brand
+  guardrails (no wellness/esoteric/overclaim; claim only what ships). CLAUDE.md gets ONE
+  pointer line. `decisions.csv` 2026-06-19. Review 2026-09-19.
+
 ### 2026-06-17 — Two "top Claude tools" + "Fable 5 OS / Jarvis" carousels (17 tools)
 - **claude-video** (FFmpeg frames + Whisper) → **ADOPT→PIPELINE** — analyze device
   screen-recordings for QA + promo reels. Not in-app.

@@ -541,6 +541,12 @@ reversible actions** — convening on trivia is the failure mode. Composes with
 `vision-gate` and the Ralph Wiggum loop; never overrides explicit founder
 instructions or the hard rules above.
 
+**Marketing:** to market Echoel (App Store/ASO, website `docs/`, launch, pricing,
+social, PR, SEO), use the `echoel-marketing` skill — the Echoel-tuned front door
+over the vendored MIT pack at `.claude/skills/marketing/` (Corey Haines, 45
+skills). It enforces brand guardrails (no wellness/esoteric/overclaim, claim only
+what ships) and is **PIPELINE only — never shipped in-app, never touches `Sources/`**.
+
 ## ACTIVATION
 
 ```
