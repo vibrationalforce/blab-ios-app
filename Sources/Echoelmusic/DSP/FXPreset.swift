@@ -435,6 +435,15 @@ public extension FXPreset {
         return comps?.url
     }
 
+    /// Case-insensitive match over name + tags for the library search field.
+    /// Empty/whitespace query matches everything.
+    func matches(_ query: String) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return true }
+        if name.lowercased().contains(q) { return true }
+        return tags.contains { $0.lowercased().contains(q) }
+    }
+
     /// Build a curated preset by configuring a fresh chain, then capturing it.
     private static func make(_ name: String, _ tags: [String],
                              _ configure: (EchoelFXChain) -> Void) -> FXPreset {

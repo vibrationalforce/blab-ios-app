@@ -135,6 +135,16 @@ final class FXPresetTests: XCTestCase {
         XCTAssertEqual(FXPresetStore.ranked(presets, favorites: [a], recents: [b]).map(\.id), [a, b, c])
     }
 
+    func testMatches_nameAndTags_caseInsensitive_emptyMatchesAll() {
+        let p = FXPreset.capture(from: EchoelFXChain(), fxEnabled: true,
+                                 name: "Cathedral", tags: ["reverb", "huge"])
+        XCTAssertTrue(p.matches(""), "empty query matches everything")
+        XCTAssertTrue(p.matches("   "), "whitespace query matches everything")
+        XCTAssertTrue(p.matches("cathe"), "name substring, case-insensitive")
+        XCTAssertTrue(p.matches("REVERB"), "tag match, case-insensitive")
+        XCTAssertFalse(p.matches("telephone"), "non-match returns false")
+    }
+
     func testUnknownEnumRaw_fallsBackSafely() {
         var preset = FXPreset.capture(from: EchoelFXChain(), fxEnabled: true, name: "Bad")
         preset.filterModeRaw = "not-a-mode"

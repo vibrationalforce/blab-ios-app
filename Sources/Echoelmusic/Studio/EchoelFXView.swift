@@ -208,6 +208,8 @@ struct EchoelFXView: View {
     @State private var presetStore = FXPresetStore()
     @State private var showSaveSheet = false
     @State private var saveName = ""
+    /// Live filter over preset names + tags (both My presets and Community).
+    @State private var presetQuery = ""
 
     /// Drive any voice's insert chain. `fxEnabled`/`setFXEnabled` bridge the
     /// voice's master gate so the surface stays decoupled from the voice type.
@@ -332,6 +334,7 @@ struct EchoelFXView: View {
                 }
             }
             .navigationTitle("EchoelFX")
+            .searchable(text: $presetQuery, prompt: "Search presets & tags")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -368,7 +371,7 @@ struct EchoelFXView: View {
                 Text("No saved presets yet. Dial in a sound below, then save it.")
                     .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
             } else {
-                ForEach(presetStore.sortedPresets) { preset in
+                ForEach(presetStore.sortedPresets.filter { $0.matches(presetQuery) }) { preset in
                     Button {
                         vm.apply(preset)
                         presetStore.markUsed(id: preset.id)
@@ -411,7 +414,7 @@ struct EchoelFXView: View {
         }
 
         Section {
-            ForEach(FXPreset.curatedCommunity) { preset in
+            ForEach(FXPreset.curatedCommunity.filter { $0.matches(presetQuery) }) { preset in
                 Button { vm.apply(preset) } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(preset.name).foregroundStyle(EchoelTheme.text)
