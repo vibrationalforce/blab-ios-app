@@ -73,6 +73,11 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
 5. **[Body/Apple]** **AccessorySetupKit** pairing flow for BLE sensors (privacy + featuring), additive next to Core Bluetooth. → audit §6.
 6. **[Body]** **Head-tracking** (`CMHeadphoneMotionManager`) as a new bio/modulation source on the one instrument — AirPods as sensor. → audit §5.
 7. **[Sound/flagship]** **Audiovisual Vocoder** wiring (`VocoderCore`/`FeedbackGuard`/`BioModulation` cores exist). → *PLAN_CREATIVE_EXPANSION, vision Tier-2*.
+   - **Note (2026-06-19 audit):** these 4 cores are *unifying refactors of already-working, sensitive
+     paths* (synth bio→timbre; MetalBioView tone→light colour), not clean additions — so they need
+     **device-in-the-loop** cycles, not blind wiring. `BioVisualParams` is now **partially wired**
+     (heartbeat pulse / WCAG flash-safety via FlashGuard; v10.34.6). `VocoderCore` also needs a voice
+     analyzer (mic pitch/energy/brightness) which was removed in the soundscape refactor.
 8. **[Sound]** Replicate the preset/community pattern to **Mood** + **Sound & texture** surfaces.
    - ✅ **Mood** — DONE 2026-06-19 (v10.34.4): `MoodPreset`/`MoodPresetStore` mirror `PatchStore`
      (8 curated factory moods, favorites/recents, App-Group JSON, community loop with seeded

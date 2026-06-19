@@ -59,8 +59,29 @@ Read this FIRST when continuing work on Echoelmusic.
     community bundling).
 - **Verified:** ci.yml(SPM, incl. MoodPresetTests) green + xcode-compile-check(AUv3 incl.) green on d69cf9e.
 - **Shipped:** `.deploy/release` → **v10.34.4** (593c65b) — TestFlight triggered.
-- **Watch next:** TestFlight v10.34.4 succeeds; then ROADMAP #8 second half (wire PatchStore into the
-  in-studio Sound & texture panel) or #7 Vocoder.
+- **RESULT:** v10.34.4 (Moods) + v10.34.5 (Sound & texture bar) both **succeeded on TestFlight**.
+
+### 2026-06-19 (cont.) — Sound & texture library bar + BioVisualParams flash-safety → v10.34.5/.6
+- **ROADMAP #8 complete:** wired the shared `PatchStore` into the inline Sound & texture panel
+  (load menu: genre default · saved+factory (favorites first) · community + overflow save/fav/delete/
+  submit), matching the deep Sound Editor. Shipped v10.34.5 (✅ TestFlight).
+- **Unwired-cores audit (Explore agent):** the 4 "foundations" (VocoderCore/FeedbackGuard/
+  BioModulation/BioVisualParams) are **unifying refactors of already-working, hard-to-verify-blind
+  paths** (synth already maps bio→timbre; MetalBioView already has a signature tone→light colour),
+  NOT clean additive features. So naive wiring risks regressing working features I can't verify on a
+  device here.
+- **Chosen safe slice:** wired `BioVisualParams` into the live `MetalBioView` for the
+  flash-safety-critical heartbeat pulse only — `FlashGuard` is now the SINGLE source of WCAG-2.3.1
+  truth (removed duplicated flash math from the MSL shader). Behavior is provably identical
+  (`safeFrequency(clamp(hr/60,0.5,2))` == old shader clamp); CI-verifiable; regression-free.
+  Shipped v10.34.6.
+- **Verified:** ci.yml + xcode-compile-check green through 4507e94; v10.34.5 TestFlight succeeded.
+- **Honest status of the 4 cores:** BioVisualParams = partially wired (pulse/flash-safety only;
+  geometry/colour/pattern wiring deferred — needs on-device look review). FeedbackGuard / BioModulation /
+  VocoderCore still unwired (each is a sensitive-path refactor or needs a voice analyzer → deliberate,
+  device-in-the-loop cycles, not blind).
+- **Watch next:** v10.34.6 TestFlight; then a device-in-the-loop cycle for the heavier cores, or
+  net-new low-risk value.
 
 ---
 
