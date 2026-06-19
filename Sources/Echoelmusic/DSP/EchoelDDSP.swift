@@ -341,12 +341,17 @@ public final class EchoelDDSP: @unchecked Sendable {
         harmonicCount: Int = 64,
         noiseBandCount: Int = 65,
         sampleRate: Float = 48000.0,
-        frameSize: Int = 192
+        frameSize: Int = 192,
+        noiseSeed: UInt32 = 0x12345678
     ) {
         self.harmonicCount = max(1, harmonicCount)
         self.noiseBandCount = max(1, noiseBandCount)
         self.sampleRate = max(1, sampleRate)
         self.frameSize = max(1, frameSize)
+        // Seed the per-voice noise PRNG. xorshift32 requires a non-zero state;
+        // a distinct seed per voice decorrelates the noise across simultaneous
+        // voices (identical seeds make poly noise add coherently / comb-filter).
+        self.prngState = noiseSeed == 0 ? 0x12345678 : noiseSeed
 
         self.harmonicAmplitudes = [Float](repeating: 0, count: harmonicCount)
         self.noiseMagnitudes = [Float](repeating: 0, count: noiseBandCount)
@@ -1206,8 +1211,11 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         self.maxVoices = maxVoices
         self.sampleRate = sampleRate
 
-        self.voices = (0..<maxVoices).map { _ in
-            EchoelDDSP(harmonicCount: harmonicCount, sampleRate: sampleRate, frameSize: frameSize)
+        self.voices = (0..<maxVoices).map { index in
+            // Distinct noise seed per voice (golden-ratio step) so summed voices
+            // don't share an identical noise sequence.
+            EchoelDDSP(harmonicCount: harmonicCount, sampleRate: sampleRate, frameSize: frameSize,
+                       noiseSeed: 0x12345678 &+ UInt32(index) &* 0x9E3779B9)
         }
         self.voiceNotes = [Int](repeating: -1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
