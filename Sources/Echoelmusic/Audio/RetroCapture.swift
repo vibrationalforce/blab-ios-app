@@ -39,6 +39,11 @@ final class RetroCapture {
     private var timer: Timer?
     private var waveformTimer: Timer?
 
+    /// The node we installed the tap on. Held weakly so deinit can remove the tap
+    /// before deallocating the pointers the tap callback dereferences (use-after-free
+    /// guard). nonisolated(unsafe) so the nonisolated deinit may read it.
+    nonisolated(unsafe) private weak var tappedNode: AVAudioNode?
+
     // MARK: - Init / deinit
 
     init() {
@@ -60,6 +65,11 @@ final class RetroCapture {
     }
 
     deinit {
+        // Stop the tap callback BEFORE freeing the buffers/flags it dereferences.
+        // removeTap(onBus:) is synchronous — no callback fires after it returns — so
+        // ordering it ahead of the deallocations closes the use-after-free window.
+        isActive.pointee = false
+        tappedNode?.removeTap(onBus: 0)
         ring.deallocate()
         ringWriteFrame.deallocate()
         activeFile.deallocate()
@@ -78,6 +88,7 @@ final class RetroCapture {
         }
 
         node.removeTap(onBus: 0)    // idempotent — removes previous tap if any
+        tappedNode = node           // weak ref so deinit can remove the tap
 
         // Capture raw pointers only — never capture self on audio-thread callback
         let ringPtr   = ring
