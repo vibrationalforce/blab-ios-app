@@ -292,7 +292,11 @@ extension SynthPatch {
         synth.filterLFO.depth = filterLFODepth
 
         synth.reverbMix = reverbMix
-        synth.updateReverbDecay(reverbDecay)
+        // Convolution reverb is gated off (EchoelDDSP.useConvolutionReverb). apply(to:)
+        // runs in the audio render drain, and updateReverbDecay rebuilds a 4096-tap IR
+        // (array alloc + RNG) — a forbidden audio-thread allocation on every patch /
+        // character change, for a reverb that never renders. Only rebuild when it's live.
+        if EchoelDDSP.useConvolutionReverb { synth.updateReverbDecay(reverbDecay) }
 
         synth.vibratoRate = vibratoRate
         synth.vibratoDepth = vibratoDepth

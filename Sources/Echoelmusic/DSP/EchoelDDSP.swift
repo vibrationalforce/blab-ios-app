@@ -969,11 +969,6 @@ public final class EchoelDDSP: @unchecked Sendable {
         lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
     }
 
-    /// Legacy 3-parameter bio-reactive interface (backwards compatible)
-    public func applyBioReactiveLegacy(coherence: Float, hrvVariability: Float = 0.5, breathPhase: Float = 0.5) {
-        applyBioReactive(coherence: coherence, hrvVariability: hrvVariability, breathPhase: breathPhase)
-    }
-
     // MARK: - Timbre Transfer
 
     /// Load a timbre profile from recorded harmonic analysis of a target instrument
@@ -1087,16 +1082,6 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Get current spectral envelope for visualization
     public func getSpectralEnvelope() -> [Float] {
         return Array(smoothedAmplitudes.prefix(harmonicCount))
-    }
-
-    /// Get current harmonicity value
-    public func getHarmonicity() -> Float {
-        return harmonicity
-    }
-
-    /// Get current vibrato state for visualization
-    public func getVibratoState() -> (rate: Float, depth: Float, phase: Float) {
-        return (vibratoRate, vibratoDepth, vibratoPhase)
     }
 
     // MARK: - Reset
@@ -1361,22 +1346,6 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// the note path; the block should only touch shared timbre params.
     public func forEachVoice(_ body: (EchoelDDSP) -> Void) {
         for voice in voices { body(voice) }
-    }
-
-    // MARK: - Spectral Morphing
-
-    /// Set spectral shape for all voices
-    public func setSpectralShape(_ shape: EchoelDDSP.SpectralShape) {
-        for voice in voices {
-            voice.spectralShape = shape
-        }
-    }
-
-    /// Load timbre profile for all voices
-    public func loadTimbreProfile(_ profile: [Float], blend: Float = 1.0) {
-        for voice in voices {
-            voice.loadTimbreProfile(profile, blend: blend)
-        }
     }
 
     // MARK: - Audio Rendering
