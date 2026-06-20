@@ -579,7 +579,7 @@ struct EchoelStudioView: View {
                 }
                 Divider()
                 Button {
-                    if let url = moodSnapshot(name: moodPresetName).communityIssueURL() { openURL(url) }
+                    if let url = moodSnapshot(name: moodPresetName).communityMailtoURL() { openURL(url) }
                 } label: { Label("Submit to community", systemImage: "paperplane") }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -759,7 +759,7 @@ struct EchoelStudioView: View {
                     }
                     Divider()
                     Button {
-                        if let url = currentPatch.communityIssueURL() { openURL(url) }
+                        if let url = currentPatch.communityMailtoURL() { openURL(url) }
                     } label: { Label("Submit to community", systemImage: "paperplane") }
                 } label: {
                     Image(systemName: "ellipsis.circle")

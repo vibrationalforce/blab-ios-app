@@ -7,6 +7,9 @@ backend, no lock-in. The repo *is* the community store, and these files ship
 - `fx/*.json` — `FXPreset` JSON (effects chains) → appended to the FX library
 - `patches/*.json` — `SynthPatch` JSON (synth sounds) → "Community" in the Sound editor
 
-Submissions arrive via the app's **Submit to community** action, which opens a
-GitHub issue with the preset embedded. The `community-triage` workflow validates
-it and opens a PR adding the file here. **Merging a PR ships it** on the next build.
+Submissions arrive via the app's **Submit to community** action, which composes a
+pre-addressed email to the curator with the preset JSON embedded (no GitHub
+account or app needed — works on any device with Mail). The curator drops the
+JSON into the matching folder here and commits it; **shipping the file ships the
+preset** on the next build. (The legacy GitHub-issue path + `community-triage`
+workflow remain available but are no longer the in-app default.)

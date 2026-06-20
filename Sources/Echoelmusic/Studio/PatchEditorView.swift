@@ -133,7 +133,7 @@ struct PatchEditorView: View {
                 store.toggleFavorite(id: patch.id)
             }
             toolButton("Submit") {
-                if let url = patch.communityIssueURL() { openURL(url) }
+                if let url = patch.communityMailtoURL() { openURL(url) }
             }
             if !isFactory {
                 toolButton("Save") { store.save(patch) }

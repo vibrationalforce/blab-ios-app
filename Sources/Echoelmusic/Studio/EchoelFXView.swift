@@ -427,7 +427,7 @@ struct EchoelFXView: View {
                             presetStore.delete(id: preset.id)
                         } label: { Label("Delete", systemImage: "trash") }
                         Button {
-                            if let url = preset.communityIssueURL() { openURL(url) }
+                            if let url = preset.communityMailtoURL() { openURL(url) }
                         } label: { Label("Submit", systemImage: "paperplane") }
                         .tint(EchoelTheme.accent)
                     }

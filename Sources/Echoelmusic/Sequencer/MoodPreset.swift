@@ -157,4 +157,32 @@ public extension MoodPreset {
         ]
         return comps?.url
     }
+
+    /// A pre-addressed email carrying this mood's JSON, for the in-app "Submit to
+    /// community" flow. Composes a mail to the Echoel curator with the preset
+    /// embedded — no GitHub account or app needed, works on any device with Mail.
+    /// Curated submissions are bundled into the mood library. Foundation-only.
+    func communityMailtoURL(to address: String = "michaelterbuyken@gmail.com") -> URL? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(self),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        let body = """
+        Sharing an Echoel mood for the community library.
+
+        Name: \(name)
+
+        Mood JSON below:
+
+        \(json)
+        """
+        var comps = URLComponents()
+        comps.scheme = "mailto"
+        comps.path = address
+        comps.queryItems = [
+            URLQueryItem(name: "subject", value: "Echoel mood: \(name)"),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return comps.url
+    }
 }
