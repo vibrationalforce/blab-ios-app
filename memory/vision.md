@@ -38,8 +38,13 @@ with **Data** (OSC / MIDI 2.0 / MPE / AUv3) as the connective layer.
 - **Live Clip / session view** — ClipStore/ClipView partly built.
 - **AUDIOVISUAL VOCODER (flagship)** — voice+body → sound+visual+light at once; pure cores
   built 2026-06-18 (`VocoderCore`/`FeedbackGuard`/`BioModulation`), wiring next. The unique,
-  inclusive edge (no competitor does bio/voice-driven AV vocoding). Positioning reconfirmed
-  2026-06-18: stay the focused bio+voice instrument; interop, NOT a general DAW/NLE.
+  inclusive edge (no competitor does bio/voice-driven AV vocoding). **Positioning pivot
+  (2026-06-20, founder): Echoel now targets the FULL all-in-one professional production
+  environment — performance · broadcast · installation · content production (DAW + AUv3
+  host + video/NLE + visual mapping + spatial A/V), not only an interop object source.**
+  See `scratchpads/PLAN_PRO_PRODUCTION_SUITE.md`. (Earlier "interop, NOT a general DAW/NLE"
+  framing is superseded; the founder's call wins. We still build one Ralph cycle at a time,
+  reuse the bio core, and gate each new dependency.)
 - **AUv3 instrument (hostable in Logic/AUM)** — generator scaffold exists, inactive.
 - **Video capture / edit / trim** — rPPG-only today (was cut once; re-evaluate per gate).
 - **Multichannel / 360° immersive sound, head-tracked binaural, Atmos authoring.**
