@@ -15,6 +15,15 @@ import SwiftUI
 struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// True while a camera pulse-read is in progress but no real signal has locked
+    /// yet — the strip shows live "reading…" feedback instead of a dead "No signal".
+    var measuring: Bool = false
+    /// Whether a finger/face is covering the lens (drives the cover-camera hint).
+    var fingerOnLens: Bool = false
+    /// One-tap entry from the otherwise-dead strip: bring the body's pulse in.
+    var onStartPulse: () -> Void = {}
 
     /// Tapped metric → its plain-language explanation sheet ("app as a school").
     @State private var explain: BioMetric?
@@ -29,7 +38,7 @@ struct BioStripView: View {
             divider
             metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
             Spacer(minLength: 4)
-            sourceTag
+            sourceControl
         }
         .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
         .lineLimit(1)
@@ -78,20 +87,68 @@ struct BioStripView: View {
             .frame(width: 1, height: 10)
     }
 
-    // MARK: - Source tag
+    // MARK: - Source control (live tag · measuring · one-tap pulse entry)
 
-    /// Non-interactive source tag. Shows the live sensor label (green = a real
-    /// body signal is publishing) or "No signal" — no synthetic demo source.
-    private var sourceTag: some View {
-        Text(sourceText)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(hasLiveSignal ? Color.green.opacity(0.22) : EchoelTheme.text.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .foregroundStyle(hasLiveSignal ? Color.green : EchoelTheme.dim)
-            .accessibilityLabel("Bio source: \(sourceText)")
+    /// The right end of the strip. Three honest states, no synthetic data ever:
+    /// • a real signal is live → green source tag (HR / PPG / BLE…);
+    /// • a pulse read is in progress → live "Reading… / Cover camera" feedback;
+    /// • nothing yet → a one-tap button that brings the body in (camera rPPG),
+    ///   so the most bio-looking element is the gateway to the instrument, not a
+    ///   dead end. Only a real, fresh signal turns it green.
+    @ViewBuilder private var sourceControl: some View {
+        if hasLiveSignal {
+            liveTag
+        } else if measuring {
+            measuringTag
+        } else {
+            startPulseButton
+        }
+    }
+
+    private var liveTag: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "heart.fill").font(.system(size: 9))
+            Text(sourceText)
+        }
+        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 6).padding(.vertical, 2)
+        .background(Color.green.opacity(0.22))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .foregroundStyle(Color.green)
+        .accessibilityLabel("Bio source: \(sourceText)")
+    }
+
+    private var measuringTag: some View {
+        let amber = Color(red: 0.90, green: 0.62, blue: 0.20)
+        return HStack(spacing: 4) {
+            Image(systemName: "heart.fill").font(.system(size: 9))
+                .symbolEffect(.pulse, isActive: !reduceMotion)
+            Text(fingerOnLens ? "Reading…" : "Cover camera")
+        }
+        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 6).padding(.vertical, 2)
+        .background(amber.opacity(0.20))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .foregroundStyle(amber)
+        .accessibilityLabel(fingerOnLens ? "Reading your pulse" : "Cover the rear camera and flash to read your pulse")
+    }
+
+    /// The old dead "No signal" becomes the one-tap gateway to the live body.
+    private var startPulseButton: some View {
+        Button(action: onStartPulse) {
+            HStack(spacing: 4) {
+                Image(systemName: "heart.fill").font(.system(size: 9))
+                Text("Read pulse")
+            }
+            .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .overlay(RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
+            .foregroundStyle(EchoelTheme.dim)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Read your pulse")
+        .accessibilityHint("Starts the camera to read your heartbeat so your body drives the sound")
     }
 
     /// A real sensor (camera PPG / HealthKit / BLE / Watch / Oura) is publishing

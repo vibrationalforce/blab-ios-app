@@ -169,9 +169,21 @@ struct EchoelStudioView: View {
         return session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0 + semis) / 12.0)
     }
 
+    /// Whether the rear camera currently sees a finger/face — drives the strip's
+    /// "Cover camera" vs "Reading…" hint. False where there is no camera.
+    private var pulseFingerOnLens: Bool {
+        #if canImport(AVFoundation)
+        return cameraRPPG.fingerDetected
+        #else
+        return false
+        #endif
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            BioStripView()
+            BioStripView(measuring: running,
+                         fingerOnLens: pulseFingerOnLens,
+                         onStartPulse: { startBiofeedback() })
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     startButton
