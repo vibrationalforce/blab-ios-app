@@ -278,7 +278,7 @@ public extension SynthPatch {
     /// community" flow. Composes a mail to the Echoel curator with the patch
     /// embedded — no GitHub account or app needed, works on any device with Mail.
     /// Curated submissions are bundled into the sound library. Foundation-only.
-    func communityMailtoURL(to address: String = "michaelterbuyken@gmail.com") -> URL? {
+    func communityMailtoURL(to address: String = "echoel@tropicaldrones.com") -> URL? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(self),
