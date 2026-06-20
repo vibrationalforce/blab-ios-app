@@ -91,10 +91,10 @@ struct BioMetricInfoView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(metric.title)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(EchoelTheme.font(20, .semibold))
                         .foregroundStyle(EchoelTheme.text)
                     Text(metric.unit)
-                        .font(.system(size: 12))
+                        .font(EchoelTheme.font(12))
                         .foregroundStyle(EchoelTheme.dim)
                 }
                 Spacer()
@@ -104,18 +104,18 @@ struct BioMetricInfoView: View {
             }
 
             Text(metric.summary)
-                .font(.system(size: 15, weight: .medium))
+                .font(EchoelTheme.font(15, .medium))
                 .foregroundStyle(EchoelTheme.text)
 
             Text(metric.detail)
-                .font(.system(size: 14))
+                .font(EchoelTheme.font(14))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
 
             Divider().overlay(EchoelTheme.border)
 
             Text(BioMetric.disclaimer)
-                .font(.system(size: 12))
+                .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
 

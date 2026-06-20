@@ -40,7 +40,7 @@ struct BioStripView: View {
         .foregroundStyle(.primary)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color.white.opacity(0.08))
+                .fill(EchoelTheme.text.opacity(0.08))
                 .frame(height: 1)
         }
     }
@@ -62,11 +62,11 @@ struct BioStripView: View {
     private func metric(label: String, value: String, unit: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(EchoelTheme.dim)
             Text(value)
             if let unit {
                 Text(unit)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(EchoelTheme.dim)
             }
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -74,7 +74,7 @@ struct BioStripView: View {
 
     private var divider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.1))
+            .fill(EchoelTheme.text.opacity(0.1))
             .frame(width: 1, height: 10)
     }
 
@@ -88,9 +88,9 @@ struct BioStripView: View {
             .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(hasLiveSignal ? Color.green.opacity(0.22) : Color.white.opacity(0.08))
+            .background(hasLiveSignal ? Color.green.opacity(0.22) : EchoelTheme.text.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 4))
-            .foregroundStyle(hasLiveSignal ? Color.green : Color.secondary)
+            .foregroundStyle(hasLiveSignal ? Color.green : EchoelTheme.dim)
             .accessibilityLabel("Bio source: \(sourceText)")
     }
 

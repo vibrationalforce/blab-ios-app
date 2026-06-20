@@ -349,7 +349,7 @@ struct PianoRollView: View {
                     .frame(width: gutterW, height: rowH, alignment: .trailing)
                     .padding(.trailing, 3)
                     .background(model.isSharp(pitch: pitch)
-                        ? Color.white.opacity(0.02) : EchoelTheme.fill)
+                        ? EchoelTheme.text.opacity(0.02) : EchoelTheme.fill)
                     .overlay(Rectangle().frame(height: 0.5)
                         .foregroundStyle(EchoelTheme.border), alignment: .bottom)
             }
@@ -402,14 +402,14 @@ struct PianoRollView: View {
         return RoundedRectangle(cornerRadius: 3)
             .fill(EchoelTheme.accent.opacity(0.35 + 0.6 * Double(note.velocity)))
             .overlay(RoundedRectangle(cornerRadius: 3)
-                .strokeBorder(selected ? Color.white : EchoelTheme.accent, lineWidth: selected ? 1.5 : 0.5))
+                .strokeBorder(selected ? EchoelTheme.text : EchoelTheme.accent, lineWidth: selected ? 1.5 : 0.5))
             .frame(width: max(4, w - 2), height: max(6, rowH - 2))
             .offset(x: x + 1, y: y + 1)
     }
 
     private var playhead: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.5))
+            .fill(EchoelTheme.text.opacity(0.5))
             .frame(width: 1.5, height: canvasH)
             .offset(x: CGFloat(pattern.currentStep) * stepW)
     }

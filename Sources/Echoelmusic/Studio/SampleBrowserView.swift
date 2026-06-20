@@ -30,12 +30,12 @@ struct SampleBrowserView: View {
                     Section("Current") {
                         HStack(spacing: 12) {
                             Text(player.sampleLabels[track])
-                                .font(.system(size: 14)).foregroundStyle(EchoelTheme.text)
+                                .font(EchoelTheme.font(14)).foregroundStyle(EchoelTheme.text)
                                 .lineLimit(1).truncationMode(.middle)
                             Spacer()
                             Button { player.resetSample(track: track) } label: {
                                 Text("Reset to \(BeatPlayer.trackNames[track])")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(EchoelTheme.font(13, .semibold))
                                     .foregroundStyle(EchoelTheme.accent)
                             }
                             .buttonStyle(.plain)
@@ -58,7 +58,7 @@ struct SampleBrowserView: View {
                             .accessibilityLabel("Preview \(pickedName)")
 
                             Text(pickedName)
-                                .font(.system(size: 14)).foregroundStyle(EchoelTheme.text)
+                                .font(EchoelTheme.font(14)).foregroundStyle(EchoelTheme.text)
                                 .lineLimit(1).truncationMode(.middle)
 
                             Spacer()
@@ -67,7 +67,7 @@ struct SampleBrowserView: View {
                                 _ = player.importSample(track: track, from: url)
                                 dismiss()
                             } label: {
-                                Text("Use").font(.system(size: 13, weight: .semibold))
+                                Text("Use").font(EchoelTheme.font(13, .semibold))
                                     .foregroundStyle(EchoelTheme.accent)
                             }
                             .buttonStyle(.plain)
@@ -123,7 +123,7 @@ struct SampleBrowserView: View {
             .buttonStyle(.plain)
 
             Text(name)
-                .font(.system(size: 14))
+                .font(EchoelTheme.font(14))
                 .foregroundStyle(EchoelTheme.text)
 
             Spacer()
@@ -133,7 +133,7 @@ struct SampleBrowserView: View {
                 dismiss()
             } label: {
                 Text("Use")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(EchoelTheme.font(13, .semibold))
                     .foregroundStyle(EchoelTheme.accent)
             }
             .buttonStyle(.plain)
