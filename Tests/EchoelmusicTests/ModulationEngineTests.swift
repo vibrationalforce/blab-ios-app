@@ -37,9 +37,12 @@ final class ModulationEngineTests: XCTestCase {
     }
 
     func testApply_unregisteredDestination_isSilentlyIgnored() {
-        // Route targets a key with no handler → no crash, no effect.
+        // Route targets a key with no handler → no crash, and no OTHER handler fires.
         let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "no.handler")]))
+        var otherCalled = false
+        engine.register("some.other") { _ in otherCalled = true }
         engine.apply(frame(coh: 1.0)) // must not crash
+        XCTAssertFalse(otherCalled, "an unregistered route must not trigger unrelated handlers")
     }
 
     func testApply_multipleDestinations_eachGetsItsValue() {

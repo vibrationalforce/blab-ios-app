@@ -36,6 +36,7 @@ final class HapticControllerTests: XCTestCase {
         c.isEnabled = true
         for step in 0..<16 { c.tapBeat(step: step) }
         c.breath(phase: 0.5, coherence: 0.2)
+        XCTAssertTrue(c.isEnabled, "driving the controller must not disable it")
     }
 
     // MARK: - pure pulse gate

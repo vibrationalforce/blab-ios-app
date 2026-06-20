@@ -36,10 +36,13 @@ final class HapticEngineTests: XCTestCase {
 
     func testPattern_buildsForTransientAndContinuous() throws {
         // CHHapticPattern construction is data-only — valid without a device.
-        _ = try HapticEngine.pattern(for: BioHaptics.beat(isDownbeat: true))
-        _ = try HapticEngine.pattern(for: BioHaptics.beat(isDownbeat: false, accent: true))
-        _ = try HapticEngine.pattern(
+        let downbeat = try HapticEngine.pattern(for: BioHaptics.beat(isDownbeat: true))
+        let accent = try HapticEngine.pattern(for: BioHaptics.beat(isDownbeat: false, accent: true))
+        let breath = try HapticEngine.pattern(
             for: BioHaptics.breathPulse(breathPhase: 0.5, coherence: 0.2, duration: 0.1))
+        XCTAssertNotNil(downbeat)
+        XCTAssertNotNil(accent)
+        XCTAssertNotNil(breath)
     }
 }
 #endif

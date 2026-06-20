@@ -506,8 +506,9 @@ final class DSPCrashHardeningTests: XCTestCase {
     func testDDSP_ZeroFrameCount() {
         let ddsp = EchoelDDSP()
         var buffer = [Float](repeating: 0, count: 0)
-        // Should not crash with empty buffer
+        // Must not crash or grow the buffer with an empty render.
         ddsp.render(into: &buffer, frameCount: 0)
+        XCTAssertEqual(buffer.count, 0, "empty render must leave the buffer empty")
     }
 
     func testDDSP_SingleFrame() {
@@ -560,10 +561,9 @@ final class DSPCrashHardeningTests: XCTestCase {
             curve: .equalPower,
             isSymmetric: true
         )
-        // Division by zero guarded — should return inf or handle gracefully
+        // Division by zero must be guarded — duration is defined (not NaN), never crashes.
         let duration = region.duration(sampleRate: 0.0)
-        // Just verify no crash
-        _ = duration
+        XCTAssertFalse(duration.isNaN, "zero sample rate must be guarded, not produce NaN")
     }
 
     // MARK: - CrossfadeCurve Edge Cases
