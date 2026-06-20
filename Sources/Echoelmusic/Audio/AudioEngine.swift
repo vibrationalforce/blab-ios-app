@@ -5,7 +5,7 @@ import Combine
 import Accelerate
 import Observation
 
-/// Central audio engine for bio-reactive soundscape generation
+/// Central audio engine for bio-reactive synthesis
 @MainActor
 @Observable
 public final class AudioEngine {

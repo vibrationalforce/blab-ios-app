@@ -64,7 +64,6 @@ public enum LogCategory: String, CaseIterable, Sendable {
     case video = "Video"
     case streaming = "Streaming"
     case biofeedback = "Biofeedback"
-    case quantum = "Quantum"
     case lambda = "Lambda"
     case orchestral = "Orchestral"
     case midi = "MIDI"
@@ -86,7 +85,6 @@ public enum LogCategory: String, CaseIterable, Sendable {
     case led = "LED"
     case social = "Social"
     case science = "Science"
-    case wellness = "Wellness"
     case analytics = "Analytics"
     case ai = "AI"
     case biosync = "Biosync"
@@ -354,10 +352,6 @@ public final class EchoelLogger: @unchecked Sendable {
         self.log(level, category: .biofeedback, message, file: file, function: function, line: line)
     }
 
-    public func quantum(_ message: String, level: LogLevel = .info, file: String = #file, function: String = #function, line: Int = #line) {
-        self.log(level, category: .quantum, message, file: file, function: function, line: line)
-    }
-
     public func lambda(_ message: String, level: LogLevel = .info, file: String = #file, function: String = #function, line: Int = #line) {
         self.log(level, category: .lambda, message, file: file, function: function, line: line)
     }
@@ -420,10 +414,6 @@ public final class EchoelLogger: @unchecked Sendable {
 
     public func science(_ message: String, level: LogLevel = .info, file: String = #file, function: String = #function, line: Int = #line) {
         self.log(level, category: .science, message, file: file, function: function, line: line)
-    }
-
-    public func wellness(_ message: String, level: LogLevel = .info, file: String = #file, function: String = #function, line: Int = #line) {
-        self.log(level, category: .wellness, message, file: file, function: function, line: line)
     }
 
     public func accessibility(_ message: String, level: LogLevel = .info, file: String = #file, function: String = #function, line: Int = #line) {
