@@ -41,3 +41,10 @@ User preferences for development workflow, communication, and tooling.
 - One sanctioned dependency (**HaishinKit**, RTMP) — not strictly zero.
 - "12 EchoelTools" is a **taxonomy over real modules**, not 12 Swift types (see FEATURE_MATRIX).
 - Note: user tolerates structured ✅/🔴 status emojis in chat despite the older "no emojis" line.
+
+## Deployment (REMEMBER — confirmed by founder 2026-06-20)
+- **No GitHub token is needed to deploy.** TestFlight is wired as a TOKENLESS deploy:
+  bump `.deploy/release` (any edit) and `git push` → `testflight.yml` runs on that branch
+  using App Store Connect credentials stored as CI-side GitHub repo secrets.
+- **There is no upload limit to worry about** (founder: "es gibt kein Limit" — extra set up).
+- Do NOT block on tokens or the MCP workflow-dispatch (403). Just bump `.deploy/release`.
