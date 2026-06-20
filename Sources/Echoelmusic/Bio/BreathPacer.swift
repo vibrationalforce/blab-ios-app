@@ -32,15 +32,17 @@ import Observation
 public final class BreathPacer {
 
     // MARK: Safe bounds (breaths per minute)
+    // `nonisolated` so pure, non-MainActor models (e.g. ResonanceFinder) can read
+    // these immutable bounds without crossing actor isolation.
 
     /// Slow floor — resonance-search protocols stay at/above this; we do not
     /// push below it so the guide can never drive an unsafely slow pace.
-    public static let minRate = 5.0
-    public static let maxRate = 12.0
+    public nonisolated static let minRate = 5.0
+    public nonisolated static let maxRate = 12.0
     /// ~0.1 Hz — the canonical resonance / coherence pace.
-    public static let defaultRate = 6.0
+    public nonisolated static let defaultRate = 6.0
     /// Max pace change per second — easing so a rate change is never abrupt.
-    public static let maxRateSlewPerSec = 0.5
+    public nonisolated static let maxRateSlewPerSec = 0.5
 
     // MARK: State
 
