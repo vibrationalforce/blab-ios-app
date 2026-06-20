@@ -1125,7 +1125,7 @@ struct EchoelStudioView: View {
             ctx.stroke(path, with: .color(EchoelTheme.accent), lineWidth: 2)
         }
         .frame(height: 52).frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.35)))
+        .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.bg.opacity(0.35)))
     }
     #endif
 

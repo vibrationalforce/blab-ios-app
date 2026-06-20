@@ -17,7 +17,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            EchoelTheme.bg.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 TabView(selection: $currentPage) {
@@ -39,21 +39,21 @@ struct OnboardingView: View {
             Spacer()
 
             Image(systemName: "square.grid.4x3.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.3))
+                .font(EchoelTheme.font(48))
+                .foregroundStyle(EchoelTheme.text.opacity(0.3))
 
             Text("Echoelmusic")
-                .font(.system(size: 32, weight: .bold))
-                .foregroundStyle(.white)
+                .font(EchoelTheme.font(32, .bold))
+                .foregroundStyle(EchoelTheme.text)
 
             Text("Your heartbeat makes music.")
-                .font(.system(size: 17))
-                .foregroundStyle(.white.opacity(0.6))
+                .font(EchoelTheme.font(17))
+                .foregroundStyle(EchoelTheme.text.opacity(0.6))
                 .multilineTextAlignment(.center)
 
             Text("Bio-reactive, drum-free generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.35))
+                .font(EchoelTheme.font(15))
+                .foregroundStyle(EchoelTheme.text.opacity(0.35))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -69,12 +69,12 @@ struct OnboardingView: View {
             Spacer()
 
             Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.3))
+                .font(EchoelTheme.font(48))
+                .foregroundStyle(EchoelTheme.text.opacity(0.3))
 
             Text("The wider vision")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.white)
+                .font(EchoelTheme.font(24, .bold))
+                .foregroundStyle(EchoelTheme.text)
 
             VStack(alignment: .leading, spacing: 12) {
                 row(symbol: "sparkles", text: "Living visuals that move with your body")
@@ -84,8 +84,8 @@ struct OnboardingView: View {
             .padding(.horizontal, 40)
 
             Text("This release is the bio-reactive instrument. Visuals, light, video and broadcast are in active development.")
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.25))
+                .font(EchoelTheme.font(13))
+                .foregroundStyle(EchoelTheme.text.opacity(0.25))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -101,16 +101,16 @@ struct OnboardingView: View {
             Spacer()
 
             Image(systemName: "waveform")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.3))
+                .font(EchoelTheme.font(48))
+                .foregroundStyle(EchoelTheme.text.opacity(0.3))
 
             Text("Ready")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.white)
+                .font(EchoelTheme.font(24, .bold))
+                .foregroundStyle(EchoelTheme.text)
 
             Text("Breathe, lock a key and BPM, and let your body compose. Export to your DAW.")
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.4))
+                .font(EchoelTheme.font(15))
+                .foregroundStyle(EchoelTheme.text.opacity(0.4))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -124,15 +124,15 @@ struct OnboardingView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+            .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
             .padding(.horizontal, 32)
 
             Toggle(isOn: $acknowledgedSafety) {
                 Text("I understand")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(EchoelTheme.font(14))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.7))
             }
-            .tint(.white)
+            .tint(EchoelTheme.text)
             .padding(.horizontal, 32)
 
             Spacer()
@@ -142,14 +142,14 @@ struct OnboardingView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 13))
+                        .font(EchoelTheme.font(13))
                     Text("Start")
                 }
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.black)
+                .font(EchoelTheme.font(15, .semibold))
+                .foregroundStyle(EchoelTheme.onPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                .background(EchoelTheme.text, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
             }
             .disabled(!acknowledgedSafety)
             .opacity(acknowledgedSafety ? 1 : 0.4)
@@ -163,12 +163,12 @@ struct OnboardingView: View {
     private func row(symbol: String, text: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.system(size: 14))
+                .font(EchoelTheme.font(14))
                 .frame(width: 20)
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(EchoelTheme.text.opacity(0.5))
             Text(text)
-                .font(.system(size: 14))
-                .foregroundStyle(.white.opacity(0.6))
+                .font(EchoelTheme.font(14))
+                .foregroundStyle(EchoelTheme.text.opacity(0.6))
             Spacer()
         }
     }
@@ -176,12 +176,12 @@ struct OnboardingView: View {
     private func safetyRow(_ symbol: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol)
-                .font(.system(size: 11))
+                .font(EchoelTheme.font(11))
                 .frame(width: 16)
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(EchoelTheme.text.opacity(0.45))
             Text(text)
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.5))
+                .font(EchoelTheme.font(12))
+                .foregroundStyle(EchoelTheme.text.opacity(0.5))
             Spacer(minLength: 0)
         }
     }
@@ -191,11 +191,11 @@ struct OnboardingView: View {
             withAnimation { currentPage += 1 }
         } label: {
             Text(label)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.black)
+                .font(EchoelTheme.font(15, .semibold))
+                .foregroundStyle(EchoelTheme.onPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                .background(EchoelTheme.text, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
         }
         .padding(.horizontal, 40)
     }
