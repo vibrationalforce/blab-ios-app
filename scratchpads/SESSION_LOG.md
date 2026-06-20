@@ -8,6 +8,31 @@ Read this FIRST when continuing work on Echoelmusic.
 > (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
 > from ROADMAP §3 "NOW".
 
+### 2026-06-20 — ARCHITECTURE NORTH STAR locked + Transport pillar (cycle T1)
+Founder: "Alles sofort was Sinn macht… perfekte Architektur für langfristig
+State-of-the-Art Software… Create from within → produce professional → bring it to
+live with wings." Senior call (via The Council): NOT a big-bang reorg (highest-risk,
+weeks-red trap) — instead **parallel planning, serial CI-green execution**.
+- Ran 4 PARALLEL planning agents (read-only, collision-free), one per pillar →
+  `scratchpads/PLAN_TRANSPORT_CLOCK.md`, `PLAN_MODULARIZATION.md`,
+  `PLAN_UNIFIED_PROJECT_AND_UNDO.md`, `PLAN_ECHOELUI_DESIGN_SYSTEM.md`.
+- Consolidated into the canonical target: **`docs/dev/ARCHITECTURE_NORTH_STAR.md`**
+  (6 foundation pillars + master cycle order). Agents' key facts: DSP/ is already
+  pure → EchoelDSP is the safe first module; 8 persistence sites funnel through
+  `persist()` (the seam for autosave+undo); EchoelStudioView inlines all chrome
+  (drift risk) → extract EchoelUI; IA = "one home, depth on demand" (workspace
+  switcher + Live mode, no tab-explosion/god-view).
+- Clarified the "no C++" rule = "no PAID frameworks (JUCE)"; free Council-approved
+  C++ (Ableton Link) permitted out of the audio core. MIDI clock (Swift) ships first.
+  CLAUDE.md + decisions.csv updated.
+- **Built pillar 1, cycle T1: `Core/Transport.swift`** — the single authoritative
+  clock (bar/beat/step/ppq, tempo/swing clamp, bar-wrap, priority-ordered subscribers
+  so arrangement loads before melody triggers). ADDITIVE (nothing wired → zero
+  behaviour change), 13 tests. Caught + fixed an Xcode strict-concurrency error
+  (nonisolated time constants for the Sendable position struct). Both gates GREEN on
+  5eac90d. NOT shipped to TestFlight (internal/no UX change yet). Next: T2 = PatternEngine
+  relays into Transport (still no behaviour change), then T3/T4 consumers migrate.
+
 ### 2026-06-20 — PIVOT to all-in-one pro suite + Arrangement + bio one-tap gateway
 Founder made a **vision-level pivot** ("Voller Pivot zur All-in-One-Suite"): Echoel now
 targets the full pro production environment (DAW + AUv3 host + video/NLE + broadcast +
