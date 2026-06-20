@@ -32,6 +32,14 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     nonisolated(unsafe) private var padScratch = [Float](repeating: 0, count: 4096)
     nonisolated(unsafe) private var texScratch = [Float](repeating: 0, count: 4096)
 
+    /// Lock-free master-gain mirror for the render thread. The host sets gain via
+    /// the ObjC/KVO-backed `AUParameter.value`, which must NOT be read on the audio
+    /// thread — the value observer writes it here and the render block reads this
+    /// plain Float (atomic-width, no ObjC, no locks). Captured by the block instead
+    /// of `self` (capture a value holder, not the actor).
+    private final class GainMirror { nonisolated(unsafe) var value: Float = 0.7 }
+    private let gainMirror = GainMirror()
+
     // MARK: - Buses
 
     private var _outputBusArray: AUAudioUnitBusArray!
@@ -218,7 +226,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
             case .reverbMix:
                 self.synth.reverbMix = value
             case .masterGain:
-                break // Applied in render
+                self.gainMirror.value = value // mirror for the render thread
             }
         }
     }
@@ -341,7 +349,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     public override var internalRenderBlock: AUInternalRenderBlock {
         let synthRef = self.synth
         let textureRef = self.texture
-        let gainParam = self.masterGainParam
+        let gainBox = self.gainMirror
         let padRef = self.padScratch
         let texRef = self.texScratch
 
@@ -358,8 +366,8 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
             synthRef.render(buffer: &pad, frameCount: count)
             textureRef.render(buffer: &tex, frameCount: count)
 
-            // Mix and apply master gain
-            let gain = gainParam?.value ?? 0.7
+            // Mix and apply master gain (lock-free mirror — never read AUParameter here)
+            let gain = gainBox.value
             let ablPointer = UnsafeMutableAudioBufferListPointer(outputData)
             for buf in ablPointer {
                 guard let data = buf.mData?.assumingMemoryBound(to: Float.self) else { continue }
