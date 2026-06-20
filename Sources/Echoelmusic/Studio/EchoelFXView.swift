@@ -239,7 +239,7 @@ struct EchoelFXView: View {
                         }
                     } label: {
                         Label("Stamp a character…", systemImage: "wand.and.stars")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(EchoelTheme.font(13, .semibold))
                             .foregroundStyle(EchoelTheme.accent)
                     }
                     .accessibilityHint("Apply a production sound like Underwater or Telephone, then tweak below")
@@ -378,12 +378,12 @@ struct EchoelFXView: View {
         Section {
             Button { showSaveSheet = true } label: {
                 Label("Save current sound…", systemImage: "square.and.arrow.down")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(EchoelTheme.font(13, .semibold))
                     .foregroundStyle(EchoelTheme.accent)
             }
             if presetStore.presets.isEmpty {
                 Text("No saved presets yet. Dial in a sound below, then save it.")
-                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
             } else {
                 ForEach(presetStore.sortedPresets.filter { $0.matches(presetQuery) }) { preset in
                     Button {
@@ -434,7 +434,7 @@ struct EchoelFXView: View {
                 }
             }
         } header: {
-            Text("My presets").font(.system(size: 13, weight: .bold)).textCase(nil)
+            Text("My presets").font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
             Text("Saved on this device — favorites and recently-used rise to the top. Swipe right to ★, left to Submit or Delete.")
         }
@@ -446,14 +446,14 @@ struct EchoelFXView: View {
                         Text(preset.name).foregroundStyle(EchoelTheme.text)
                         if !preset.tags.isEmpty {
                             Text(preset.tags.joined(separator: " · "))
-                                .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         }
                     }
                 }
                 .accessibilityHint("Apply this community preset to the effects chain")
             }
         } header: {
-            Text("Community presets").font(.system(size: 13, weight: .bold)).textCase(nil)
+            Text("Community presets").font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
             Text("Curated by Echoel. Submitting your own to the community comes next.")
         }
@@ -471,7 +471,7 @@ struct EchoelFXView: View {
             content()
         } header: {
             Toggle(isOn: isOn) {
-                Text(title).font(.system(size: 13, weight: .bold))
+                Text(title).font(EchoelTheme.font(13, .bold))
             }
             .tint(EchoelTheme.accent)
             .textCase(nil)
@@ -509,7 +509,7 @@ struct EchoelFXView: View {
             }
         } label: {
             Label("Sync · \(Precision.two(vm.bpm)) BPM", systemImage: "metronome")
-                .font(.system(size: 12, weight: .semibold))
+                .font(EchoelTheme.font(12, .semibold))
                 .foregroundStyle(EchoelTheme.accent)
         }
         .accessibilityHint("Set this rate from a musical note division at the current tempo")

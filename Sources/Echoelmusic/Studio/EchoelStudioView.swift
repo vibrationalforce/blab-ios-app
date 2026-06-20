@@ -543,7 +543,7 @@ struct EchoelStudioView: View {
                         Image(systemName: "star.fill").font(.system(size: 10))
                             .foregroundStyle(EchoelTheme.accent)
                     }
-                    Text(moodPresetName).font(.system(size: 13, weight: .semibold))
+                    Text(moodPresetName).font(EchoelTheme.font(13, .semibold))
                     Image(systemName: "chevron.down").font(.system(size: 10))
                 }
                 .foregroundStyle(EchoelTheme.text)
@@ -726,7 +726,7 @@ struct EchoelStudioView: View {
                             Image(systemName: "star.fill").font(.system(size: 10))
                                 .foregroundStyle(EchoelTheme.accent)
                         }
-                        Text(currentPatch.name).font(.system(size: 13, weight: .semibold))
+                        Text(currentPatch.name).font(EchoelTheme.font(13, .semibold))
                             .lineLimit(1)
                         Image(systemName: "chevron.down").font(.system(size: 10))
                     }
