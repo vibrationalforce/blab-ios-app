@@ -368,7 +368,7 @@ struct EchoelStudioView: View {
                      ? "The music is arising from your live signal — every control shapes it as it plays."
                      : aiExplanation)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .animation(.easeInOut(duration: 0.3), value: aiExplanation)
+                    .animation(.easeInOut(duration: 0.18), value: aiExplanation)
             }
         }
     }
