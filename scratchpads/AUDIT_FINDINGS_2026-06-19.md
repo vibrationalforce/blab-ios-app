@@ -48,6 +48,34 @@ several audit claims were **false positives** and are recorded as such so we don
    multiple block; multi-segment buffer → OOB. Export path; use `lengthAtOffset` and
    guard `% 4 == 0`.
 
+## Full-app sweep #2 ("Unstimmigkeiten, Design & Code fehler")
+
+Three parallel audits — UI/design, code-quality, brand/claims. Device log reviewed: healthy
+(rPPG locks conf=1.00 bpm=65, tempo follows HR, re-seed loop nominal — no bug).
+
+**Fixed:**
+- `fix(dsp)` `2a7fb3c` — EchoelMeter true-peak: per-channel signed interpolation history
+  (was mixing rectified linked value with signed sample). Metering only.
+- `fix(audio)` `a05266a` — SingleExport walks CMBlockBuffer segments (was OOB read/write on a
+  segmented block via totalLength/4 from one pointer). Behaviour-identical for normal LPCM.
+- `chore` `c567219` — AudioEngine docstring "soundscape" → "synthesis"; removed unused
+  `.quantum`/`.wellness` LogCategory cases + their dead convenience methods (brand + dead code).
+
+**Code-quality sweep: NO REAL ISSUES** across Studio/Views/Tools/Core/Sync (force-unwraps,
+print, ObservableObject, divisions, OOB, retain cycles, dead code, dup types all clean).
+
+**Verified NOT issues:** SubBassVoice IS fully wired (App:196 attach + env + subGain control),
+so the website "Sub-bass / LFE felt" claim is accurate. Zero banned terminology in user copy.
+No raw Slider/Stepper for parameters anywhere. Env-injection chain intact. No banned UI patterns.
+
+**Deferred design-consistency items (founder design call — not blind-changed):**
+- `Views/OnboardingView.swift` (127–198) bypasses EchoelTheme (hardcoded white/black + system
+  fonts). It's a deliberate high-contrast first-run look with white CTA buttons; EchoelTheme's
+  accent is "signal-only" green and has no button-fill token, so a blind swap would change the
+  design. Re-theme only if the founder wants onboarding aligned to the app theme.
+- `Studio/EchoelStudioView.swift:1128` hardcoded `Color.black.opacity(0.35)` scrim (≠ the light
+  `EchoelTheme.fill`); likely intentional. LOW.
+
 ## Config decisions (founder: "du entscheidest" — kept, stability-first)
 
 - **wrangler.toml** — kept. Inert if unused; removing risks the website if Cloudflare
