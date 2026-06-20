@@ -118,7 +118,7 @@ struct PatchEditorView: View {
                         Image(systemName: "star.fill").font(.system(size: 10))
                             .foregroundStyle(EchoelTheme.accent)
                     }
-                    Text(patch.name).font(.system(size: 13, weight: .semibold))
+                    Text(patch.name).font(EchoelTheme.font(13, .semibold))
                     Image(systemName: "chevron.down").font(.system(size: 10))
                 }
                 .foregroundStyle(EchoelTheme.text)
@@ -151,7 +151,7 @@ struct PatchEditorView: View {
     private func toolButton(_ title: String, danger: Bool = false, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(EchoelTheme.font(12, .semibold))
                 .foregroundStyle(danger ? EchoelTheme.danger : EchoelTheme.text)
                 .padding(.horizontal, 10).frame(height: 34)
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -184,11 +184,12 @@ struct PatchEditorView: View {
     private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 11, weight: .bold))
+                .font(EchoelTheme.font(11, .bold))
                 .foregroundStyle(EchoelTheme.dim)
             VStack(spacing: 8) { content() }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
     }
 
@@ -202,7 +203,7 @@ struct PatchEditorView: View {
     private func picker(_ label: String, selection: Binding<String>, options: [String]) -> some View {
         HStack(spacing: 8) {
             Text(label)
-                .font(.system(size: 12))
+                .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.dim)
                 .frame(width: 96, alignment: .leading)
             Picker(label, selection: selection) {
