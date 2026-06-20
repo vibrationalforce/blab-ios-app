@@ -257,7 +257,11 @@ Priority: Build errors → Test failures → Crash code → Task → Cleanup
 - **Swift 6** strict concurrency | SwiftLint enforced
 - `os_log` ONLY (never `print`) | Guard-let over if-let
 - Conventional commits | One change per commit
-- Swift only — no C++, no JUCE, no CMake (one dependency: HaishinKit)
+- Swift-first; **no PAID frameworks (no JUCE), no CMake**. The original "no C++"
+  rule was really "no JUCE licence fees" — C++ is permitted ONLY for a **free,
+  well-contained, Council-approved** library kept out of the Swift audio core
+  (e.g. Ableton Link / LinkKit, which is free). Default stays Swift; deps stay
+  minimal (HaishinKit = sole shipped external dep today).
 - `///` for public API docs
 
 ---
