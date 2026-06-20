@@ -30,10 +30,15 @@ public final class EchoelMeter: @unchecked Sendable {
     private var heldTruePeak: Float = 0
     private var maxTruePeak: Float = 0
 
-    // Cubic interpolation history (last three input samples).
-    private var z1: Float = 0
-    private var z2: Float = 0
-    private var z3: Float = 0
+    // Cubic interpolation history (last three signed input samples), per channel.
+    // Each side's inter-sample curve must be interpolated from its OWN signed
+    // history; feeding one channel the linked/rectified value skews the estimate.
+    private var zL1: Float = 0
+    private var zL2: Float = 0
+    private var zL3: Float = 0
+    private var zR1: Float = 0
+    private var zR2: Float = 0
+    private var zR3: Float = 0
 
     public init() {}
 
@@ -51,9 +56,9 @@ public final class EchoelMeter: @unchecked Sendable {
             let a = abs(x)
             if a > peak { peak = a }
             sumSq += x * x
-            let inter = interSampleMax(z3, z2, z1, x)
+            let inter = interSampleMax(zL3, zL2, zL1, x)
             if inter > tp { tp = inter }
-            z3 = z2; z2 = z1; z1 = x
+            zL3 = zL2; zL2 = zL1; zL1 = x
         }
         if peak > tp { tp = peak }   // true-peak is never below sample peak
         commit(peak: peak, rms: sqrtf(sumSq / Float(n)), truePeak: tp)
@@ -71,9 +76,12 @@ public final class EchoelMeter: @unchecked Sendable {
             let a = Swift.max(abs(l), abs(r))
             if a > peak { peak = a }
             sumSq += (l * l + r * r) * 0.5
-            let inter = Swift.max(interSampleMax(z3, z2, z1, l), interSampleMax(z3, z2, z1, r))
+            let interL = interSampleMax(zL3, zL2, zL1, l)
+            let interR = interSampleMax(zR3, zR2, zR1, r)
+            let inter = Swift.max(interL, interR)
             if inter > tp { tp = inter }
-            z3 = z2; z2 = z1; z1 = a
+            zL3 = zL2; zL2 = zL1; zL1 = l
+            zR3 = zR2; zR2 = zR1; zR1 = r
         }
         if peak > tp { tp = peak }
         commit(peak: peak, rms: sqrtf(sumSq / Float(n)), truePeak: tp)
@@ -83,7 +91,7 @@ public final class EchoelMeter: @unchecked Sendable {
         peakDb = Self.floorDb; rmsDb = Self.floorDb; truePeakDb = Self.floorDb
         truePeakMaxDb = Self.floorDb
         heldPeak = 0; heldTruePeak = 0; maxTruePeak = 0
-        z1 = 0; z2 = 0; z3 = 0
+        zL1 = 0; zL2 = 0; zL3 = 0; zR1 = 0; zR2 = 0; zR3 = 0
     }
 
     /// Measure a stereo pair from raw channel pointers — no allocation, for use
@@ -101,9 +109,12 @@ public final class EchoelMeter: @unchecked Sendable {
             let a = Swift.max(abs(l), abs(r))
             if a > peak { peak = a }
             sumSq += (l * l + r * r) * 0.5
-            let inter = Swift.max(interSampleMax(z3, z2, z1, l), interSampleMax(z3, z2, z1, r))
+            let interL = interSampleMax(zL3, zL2, zL1, l)
+            let interR = interSampleMax(zR3, zR2, zR1, r)
+            let inter = Swift.max(interL, interR)
             if inter > tp { tp = inter }
-            z3 = z2; z2 = z1; z1 = a
+            zL3 = zL2; zL2 = zL1; zL1 = l
+            zR3 = zR2; zR2 = zR1; zR1 = r
         }
         if peak > tp { tp = peak }
         commit(peak: peak, rms: sqrtf(sumSq / Float(n)), truePeak: tp)
