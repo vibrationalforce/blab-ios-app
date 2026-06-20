@@ -131,6 +131,7 @@ struct EchoelStudioView: View {
     // Tools — open the (previously unreachable) editors as sheets.
     @State private var showPianoRoll = false
     @State private var showClips = false
+    @State private var showArrangement = false
     @State private var showInput = false
     @State private var showPatchEditor = false
     @State private var showVisual = false
@@ -209,6 +210,7 @@ struct EchoelStudioView: View {
             PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         }
         .sheet(isPresented: $showClips) { ClipView() }
+        .sheet(isPresented: $showArrangement) { ArrangementView() }
         .sheet(isPresented: $showAllFX) {
             EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
                          fxEnabled: { synth.isFXEnabled },
@@ -283,6 +285,7 @@ struct EchoelStudioView: View {
         return Menu {
             Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
             Button { showClips = true } label: { Label("Clips", systemImage: "square.grid.2x2") }
+            Button { showArrangement = true } label: { Label("Arrangement", systemImage: "rectangle.split.3x1") }
             Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
             Menu {
                 ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
