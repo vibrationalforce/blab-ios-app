@@ -8,6 +8,33 @@ Read this FIRST when continuing work on Echoelmusic.
 > (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
 > from ROADMAP §3 "NOW".
 
+### 2026-06-20 — PIVOT to all-in-one pro suite + Arrangement + bio one-tap gateway
+Founder made a **vision-level pivot** ("Voller Pivot zur All-in-One-Suite"): Echoel now
+targets the full pro production environment (DAW + AUv3 host + video/NLE + broadcast +
+visual mapping + spatial A/V), not only an interop object source. First wave authorized:
+Clips/Arrangement · Ableton Link · RTMP broadcast · video capture/edit.
+- Recorded the decision (mandatory — docs contradicted the new course): `memory/vision.md`
+  (old "interop, NOT a DAW" line marked superseded), `decisions.csv`, and a sequenced
+  realization plan `scratchpads/PLAN_PRO_PRODUCTION_SUITE.md` (one gated Ralph cycle each).
+- **Code finding:** Clips/Session was ALREADY wired (Tools → Clips); the real Wave-1 gap
+  was the Arrangement (built+tested domain, fully UNWIRED). Built `Studio/ArrangementView`
+  (timeline editor + transport), injected ArrangementStore+ArrangementPlayer at app root,
+  fed `transportStep` through PianoRollModel's shared onTick (advance song BEFORE the bar's
+  notes → clean section change). Tools → Arrangement. Shipped **v10.34.13** (both gates green
+  on 3d56b23). No new deps.
+- **Then a device video (founder: "was können wir wirklich verbessern?").** Honest audit:
+  the bio→sound flow IS real + good (startBiofeedback → synth.bioModulationEnabled, evolve
+  from live HRV, snap-to-lock) but was locked behind the big Record button; a browsing user
+  saw a dead "No signal" strip. Fix: the strip's right end is now a one-tap pulse gateway —
+  "Read pulse" → startBiofeedback(); "Reading…/Cover camera" live feedback (pulsing heart,
+  reduce-motion aware); green tag only on a REAL fresh signal (no demo/fake data). Camera
+  only on explicit tap; reuses the existing start path. Shipped **v10.34.14** (both gates
+  green on 4b4ad44; 2 files: BioStripView + EchoelStudioView).
+- **Open gate (founder's call):** Ableton Link is C++ (LinkKit) → violates the hard "no C++"
+  rule. Founder confirmed NO financial/licensing cost (Link is free; register w/ Ableton).
+  The gate is purely the architectural C++ exception — awaiting yes/no before integrating.
+  Next non-blocked Wave-1 item = Video foundation (AVFoundation, no dep).
+
 ### 2026-06-20 — full-app sweep + UI consistency (founder: "du entscheidest alles")
 Continuation of the stability work. Ran a full-app audit (UI/design, code-quality,
 brand/claims) + reviewed a fresh device log (healthy: rPPG conf=1.00 bpm=65, tempo
