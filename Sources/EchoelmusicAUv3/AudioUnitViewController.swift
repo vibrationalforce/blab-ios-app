@@ -128,7 +128,7 @@ struct AUv3PluginView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.top, 12)
-                Text("Bio-Reactive Soundscape")
+                Text("Bio-Reactive Instrument")
                     .font(.system(size: 11))
                     .foregroundColor(Color(white: 0.4))
 

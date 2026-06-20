@@ -26,14 +26,23 @@ What none of them have, structurally, is **biofeedback as a first-class modulati
 
 ---
 
-## Suite (four tabs, one bus)
+## Single instrument view (one screen, one bus)
 
-| Tab | Module | Status |
+The app is **one** `EchoelStudioView` — not a TabView. An always-on `BioStripView`
+(HR · HRV · Br · Coh, tap-to-learn) sits above Picker-selected sections, with a
+one-button generate flow and a **Tools** menu for the deeper editors.
+
+| Section | What it does | Status |
 |---|---|---|
-| **Tools** | Bio-reactive synth voices and pattern engines (EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit; PatternEngine + SamplerVoice for the beat lineage) | DSP exists, bus subscription cycle next |
-| **Works** | Sessions, recordings, DAW handoff (MultiTrackRecorder, RetroCapture, AutoMixChain, SingleExport) | Modules compile, integration after Tools |
-| **Sync** | OSC + MIDI + MPE + air controllers (`MIDIInput`, future `OSCSender`, MPE zone detection, CC 21-31 air dimensions) | MIDIInput parses, bus-publish wiring next |
-| **Well** | Evidence-based breath and coherence guidance (Polar H10 ground-truth, HealthKit fallback, breath pacer) | Bio publishers live, guidance UI later |
+| **Compose** | Bio-generative one-button flow (in-key melody/rhythm/tempo, 12+ genres) | Live |
+| **FX** | EchoelFX chain — stamp a character + per-stage panel; presets (save/recall, search, favorites) | Live |
+| **Mix** | Levels / master | Live |
+| **Piano-Roll** | Note editor (also a Tools sheet) | Live |
+| **Well** | Coherence headline · resonance breath pacer · camera rPPG · immersive visual | Live |
+| **Tools** (menu) | Piano Roll · Clips · Sound Editor · Drum Samples · Breathing Guide · Audio Input · Immersive Visual · MIDI/MPE out | Live |
+
+*Roadmap (built but app-unwired, or not built): RTMP streaming, video capture/edit,
+multitrack audio, Clips/Arrangement UI. See `docs/dev/FEATURE_MATRIX.md`.*
 
 ---
 
@@ -46,7 +55,7 @@ What ships today on the foundation branch:
   - `HealthKitBioPublisher` — polls `EchoelBioEngine.snapshot`, source `.healthKit`.
   - `PolarH10BioPublisher` — CoreBluetooth direct, no SDK, parses BLE HR Measurement (0x180D / 0x2A37) including RR intervals, computes RMSSD-normalized HRV, source `.ble`.
   - `BioSimulator` — DEBUG only, walks values around 72 BPM, source `.fallback`. Compiled out of Release; defers when a real source publishes.
-- **`BioStripView`** — top strip in StudioRoot showing HR / HRV / Br / Coh + source tag, reading `EngineBus.latestBio`. Honest empty state in Release ("No source" + em-dashes) before a publisher fires.
+- **`BioStripView`** — top strip in `EchoelStudioView` showing HR / HRV / Br / Coh + source tag, reading `EngineBus.latestBio`. Honest empty state in Release ("No source" + em-dashes) before a publisher fires.
 
 What is contracted but not yet implemented:
 
@@ -88,16 +97,18 @@ Sources/Echoelmusic/
   Core/          EngineBus, EchoelStore, SPSCQueue, ProfessionalLogger,
                  MemoryPressureHandler, PlatformAvailability, SessionStore
   Bio/           EchoelBioEngine (HealthKit), HealthKitBioPublisher,
-                 PolarH10BioPublisher, BioSimulator (DEBUG),
-                 BioSourceManager / MotionActivityProvider / OuraRingClient (dormant)
+                 CameraRPPGBioPublisher, PolarH10BioPublisher, BioSimulator (DEBUG),
+                 BreathPacer, ResonanceFinder, HRVCoherence, HRVMetrics,
+                 BioEventGraph / HilbertSensorMapper / BioSignalDeconvolver (protected)
   DSP/           EchoelDDSP (1237 LOC, applyBioReactive ready),
                  EchoelCellular, EchoelModalBank, EchoelVDSPKit,
                  EchoelSVFilter, EchoelLFO, EchoelEntrainment
   Audio/         AudioEngine, AudioConfiguration, MIDIInput, RetroCapture,
                  AutoMixChain, SingleExport, MultiTrackRecorder
   Sequencer/     PatternEngine, SamplerVoice, BeatPlayer
-  Video/         CameraCapture, CameraAnalyzer, ShortContentRenderer
-  Studio/        StudioRoot, BeatTab, BioStripView
+  Video/         CameraCapture, CameraAnalyzer (rPPG); ShortContentRenderer (roadmap)
+  Studio/        EchoelStudioView (root), BioStripView, EchoelFXView,
+                 PianoRollView, ClipView, BreathGuideView, EchoelTheme
   Views/         (deprecated v8/v9 surfaces, compilable but off main flow)
 Sources/EchoelmusicAUv3/
                  AUv3 Generator plugin (deferred)

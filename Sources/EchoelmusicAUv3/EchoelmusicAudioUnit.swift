@@ -3,10 +3,10 @@ import Foundation
 import AVFoundation
 import os
 
-/// AUv3 Audio Unit — Bio-Reactive Soundscape Generator
+/// AUv3 Audio Unit — Bio-Reactive Instrument (Generator)
 ///
-/// Produces ambient soundscapes from DDSP synthesis driven by
-/// bio-reactive parameters (coherence, HRV, heart rate, breath).
+/// Produces sound from DDSP synthesis driven by bio-reactive
+/// parameters (coherence, HRV, heart rate, breath).
 /// Parameters are automatable from Logic Pro, GarageBand, AUM, etc.
 ///
 /// Component: augn/echl/Echo (generator — no audio input needed)
