@@ -125,20 +125,29 @@ final class SingleExport {
 
         while let buffer = readerOutput.copyNextSampleBuffer(),
               let blockBuffer = CMSampleBufferGetDataBuffer(buffer) {
-            var lengthAtOffset = 0
+            // Walk the block by offset: only `lengthAtOffset` bytes are guaranteed
+            // contiguous at each returned pointer; `totalLength` may span multiple
+            // segments, so reading totalLength/4 from one pointer would over-read a
+            // segmented buffer. LPCM reader output is normally single-segment, so
+            // this loops once in the common case.
+            var offset = 0
             var totalLength = 0
-            var dataPointer: UnsafeMutablePointer<Int8>?
-            CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0,
-                                        lengthAtOffsetOut: &lengthAtOffset,
-                                        totalLengthOut: &totalLength,
-                                        dataPointerOut: &dataPointer)
-            guard let ptr = dataPointer else { continue }
-            let floatPtr = UnsafeRawPointer(ptr).bindMemory(to: Float.self, capacity: totalLength / 4)
-            let count = totalLength / 4
-            var rms: Float = 0
-            vDSP_measqv(floatPtr, 1, &rms, vDSP_Length(count))
-            sumOfSquares += Double(rms) * Double(count)
-            sampleCount += count
+            repeat {
+                var lengthAtOffset = 0
+                var dataPointer: UnsafeMutablePointer<Int8>?
+                CMBlockBufferGetDataPointer(blockBuffer, atOffset: offset,
+                                            lengthAtOffsetOut: &lengthAtOffset,
+                                            totalLengthOut: &totalLength,
+                                            dataPointerOut: &dataPointer)
+                guard let ptr = dataPointer, lengthAtOffset >= 4 else { break }
+                let count = lengthAtOffset / 4
+                let floatPtr = UnsafeRawPointer(ptr).bindMemory(to: Float.self, capacity: count)
+                var rms: Float = 0
+                vDSP_measqv(floatPtr, 1, &rms, vDSP_Length(count))
+                sumOfSquares += Double(rms) * Double(count)
+                sampleCount += count
+                offset += lengthAtOffset
+            } while offset < totalLength
         }
 
         guard sampleCount > 0 else { throw ExportError.emptyAudio }
@@ -193,18 +202,25 @@ final class SingleExport {
 
                     // Apply gain in-place on the PCM data
                     if let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) {
-                        var lengthAtOffset = 0
+                        // Walk segments by offset — applying gain to totalLength/4 from
+                        // a single pointer would be an out-of-bounds WRITE on a
+                        // segmented block. Loops once for the usual single-segment buffer.
+                        var offset = 0
                         var totalLength = 0
-                        var dataPointer: UnsafeMutablePointer<Int8>?
-                        CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0,
-                                                    lengthAtOffsetOut: &lengthAtOffset,
-                                                    totalLengthOut: &totalLength,
-                                                    dataPointerOut: &dataPointer)
-                        if let ptr = dataPointer {
-                            let floatPtr = UnsafeMutableRawPointer(ptr).bindMemory(to: Float.self, capacity: totalLength / 4)
+                        repeat {
+                            var lengthAtOffset = 0
+                            var dataPointer: UnsafeMutablePointer<Int8>?
+                            CMBlockBufferGetDataPointer(blockBuffer, atOffset: offset,
+                                                        lengthAtOffsetOut: &lengthAtOffset,
+                                                        totalLengthOut: &totalLength,
+                                                        dataPointerOut: &dataPointer)
+                            guard let ptr = dataPointer, lengthAtOffset >= 4 else { break }
+                            let n = lengthAtOffset / 4
+                            let floatPtr = UnsafeMutableRawPointer(ptr).bindMemory(to: Float.self, capacity: n)
                             var gain = linearGain
-                            vDSP_vsmul(floatPtr, 1, &gain, floatPtr, 1, vDSP_Length(totalLength / 4))
-                        }
+                            vDSP_vsmul(floatPtr, 1, &gain, floatPtr, 1, vDSP_Length(n))
+                            offset += lengthAtOffset
+                        } while offset < totalLength
                     }
 
                     // Update progress
