@@ -8,6 +8,21 @@ Read this FIRST when continuing work on Echoelmusic.
 > (canonical execution backlog; wins over scattered `scratchpads/PLAN_*`). Pick the next task
 > from ROADMAP §3 "NOW".
 
+### 2026-06-20 — full-app sweep + UI consistency (founder: "du entscheidest alles")
+Continuation of the stability work. Ran a full-app audit (UI/design, code-quality,
+brand/claims) + reviewed a fresh device log (healthy: rPPG conf=1.00 bpm=65, tempo
+follows HR — no bug). Code-quality sweep of Studio/Views/Tools/Core/Sync = clean.
+Fixed + shipped as **TestFlight v10.34.10** (both CI gates green on e8f98b4):
+- `fix(dsp)` EchoelMeter true-peak — per-channel signed interpolation history.
+- `fix(audio)` SingleExport — walk CMBlockBuffer segments (OOB read/write guard).
+- `chore` brand — drop legacy "soundscape" docstring + unused esoteric log categories.
+- `style(ui)` OnboardingView fully themed on EchoelTheme (was hardcoded white/black +
+  system fonts) → shares one visual language with the app + site; sparkline scrim → token.
+Founder design call ("du entscheidest"): chose to re-theme onboarding via the app's own
+design tokens (off-white text, Atkinson font, documented .text/.onPrimary button pattern)
+rather than leave the one-off look. Verified SubBassVoice IS wired (website claim accurate);
+kept deploy/CI config (wrangler/ci_scripts/launch workflows) as plausibly-live infra.
+
 ### 2026-06-19 — "Wo sind noch Fehler?" (bug audit → fix, stability-first)
 Founder: full autonomy, keep Website + App on a stable foundation, find/fix remaining
 bugs + optimizations. Ran a parallel re-audit (DSP/Audio, Sequencer, Bio/Sync,
