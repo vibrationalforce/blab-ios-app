@@ -52,15 +52,17 @@ public struct TransportPosition: Equatable, Sendable, Codable {
 public final class Transport {
 
     // MARK: - Time model (mirrors PatternEngine: 4/4, 16 steps/bar)
+    // `nonisolated` so the Sendable TransportPosition struct (and any nonisolated
+    // context) can read these immutable constants without crossing actor isolation.
 
-    public static let stepsPerBar = 16
-    public static let beatsPerBar = 4
-    public static let stepsPerBeat = stepsPerBar / beatsPerBar       // 4
-    public static let ppqResolution = 24                             // pulses per quarter
-    public static let ppqPerStep = ppqResolution / stepsPerBeat      // 6
-    public static let minTempo: Double = 30.0
-    public static let maxTempo: Double = 300.0
-    public static let defaultTempo: Double = 120.0
+    public nonisolated static let stepsPerBar = 16
+    public nonisolated static let beatsPerBar = 4
+    public nonisolated static let stepsPerBeat = stepsPerBar / beatsPerBar    // 4
+    public nonisolated static let ppqResolution = 24                          // pulses per quarter
+    public nonisolated static let ppqPerStep = ppqResolution / stepsPerBeat   // 6
+    public nonisolated static let minTempo: Double = 30.0
+    public nonisolated static let maxTempo: Double = 300.0
+    public nonisolated static let defaultTempo: Double = 120.0
 
     // MARK: - Observed control-plane state
 
