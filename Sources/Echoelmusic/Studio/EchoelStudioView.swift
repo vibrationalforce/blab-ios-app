@@ -48,6 +48,9 @@ struct EchoelStudioView: View {
     // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
     @AppStorage("studio.lockBPM") private var lockBPM = false
     @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
+    /// Tap-tempo estimator (performance staple) + the last value it produced for display.
+    @State private var tapTempo = TapTempo()
+    @State private var lastTappedBPM: Double? = nil
 
     // Collapsible control-panel state ("aufklappen") + timbre preset.
     @State private var showComposition = true
@@ -499,6 +502,7 @@ struct EchoelStudioView: View {
                                  onCommit: { recomposeIfRunning() })
             }
 
+            tapTempoRow
             metronomeRow
         }
     }
@@ -525,6 +529,36 @@ struct EchoelStudioView: View {
                     get: { Double(metronome.level) },
                     set: { metronome.level = Float($0) }),
                     range: 0...1, unit: "", decimals: 2)
+            }
+        }
+    }
+
+    /// Tap a tempo in time — the classic performance way to dial BPM by feel. Tapping
+    /// locks the BPM (so the take holds it) and steers the click; a long pause resets.
+    private var tapTempoRow: some View {
+        HStack(spacing: 12) {
+            Button {
+                if let bpm = tapTempo.tap(at: ProcessInfo.processInfo.systemUptime) {
+                    lastTappedBPM = bpm
+                    lockBPM = true
+                    lockedBPM = (bpm * 10).rounded() / 10
+                    metronome.bpm = lockedBPM
+                    if running { beatPlayer.pattern.setTempo(lockedBPM) }
+                }
+            } label: {
+                Label("Tap tempo", systemImage: "hand.tap")
+                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Tap in time to set the tempo")
+
+            if let tapped = lastTappedBPM {
+                Text("\(Int(tapped.rounded())) BPM")
+                    .font(EchoelTheme.font(13).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
+                    .frame(width: 84, alignment: .trailing)
             }
         }
     }
