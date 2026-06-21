@@ -173,16 +173,24 @@ struct BioStripView: View {
         return String(format: "%.1f", v)
     }
 
-    /// True RMSSD in ms when the source provides it; otherwise the normalized
-    /// [0..1] value at higher precision.
+    /// Physiologically plausible RMSSD window (ms). Camera rPPG's beat-to-beat
+    /// timing is noisy and can inflate RMSSD to impossible values (e.g. 500+ ms,
+    /// above the mean RR interval) — science-first, we show a real number only
+    /// inside this window and "—" otherwise, rather than print a wrong figure.
+    private static let plausibleHRVms: ClosedRange<Float> = 3...300
+
+    /// True RMSSD in ms when the source provides a plausible reading; the
+    /// normalized [0..1] value for sources that only publish that (HealthKit);
+    /// "—" when the ms reading is physiologically impossible (noisy rPPG).
     private var hrvString: String {
         guard let bio = bus.latestBio else { return "—" }
-        if bio.hrvRMSSDms > 0 { return String(format: "%.1f", bio.hrvRMSSDms) }
-        return String(format: "%.3f", bio.hrvNormalized)
+        if Self.plausibleHRVms.contains(bio.hrvRMSSDms) { return String(format: "%.1f", bio.hrvRMSSDms) }
+        if bio.hrvRMSSDms == 0 && bio.hrvNormalized > 0 { return String(format: "%.3f", bio.hrvNormalized) }
+        return "—"
     }
 
     private var hrvUnit: String? {
-        guard let bio = bus.latestBio, bio.hrvRMSSDms > 0 else { return nil }
+        guard let bio = bus.latestBio, Self.plausibleHRVms.contains(bio.hrvRMSSDms) else { return nil }
         return "ms"
     }
 

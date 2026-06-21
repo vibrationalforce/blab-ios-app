@@ -59,7 +59,7 @@ public enum BioMetric: String, CaseIterable, Identifiable, Sendable {
         case .heartRate:
             return "Beats per minute. It rises with effort, excitement or stress and falls with rest. In Echoel your heart rate sets the energy and tempo of the music."
         case .hrv:
-            return "The tiny differences in time between one heartbeat and the next. Higher variability generally reflects a relaxed, adaptable state; lower variability often goes with stress or fatigue. Echoel uses it to open or close the timbre."
+            return "The tiny differences in time between one heartbeat and the next. Higher variability generally reflects a relaxed, adaptable state; lower variability often goes with stress or fatigue. Echoel uses it to open or close the timbre. Reliable beat-to-beat HRV needs a chest strap; the camera shows it only when the reading is physiologically plausible, otherwise “—”."
         case .rmssd:
             return "Root mean square of successive differences between heartbeats — a standard short-term HRV measure that mostly reflects your parasympathetic ‘rest-and-digest’ activity. Higher values often go with a more relaxed moment."
         case .sdnn:
