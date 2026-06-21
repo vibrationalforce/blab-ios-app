@@ -107,11 +107,14 @@ The MusicalFrame (L3) drives the renderers (L4):
      instrument's channel (instrument → effect → master), Ableton-device-chain style.
      `AudioEngine` gained chain primitives (`withGraphPaused`, `attachAU`/`detachAU`,
      `connectAU`/`connectAUToMaster`); `AUv3Host` holds instrument + effect units and
-     `rewireChain()` rebuilds the path on load/unload. Effect-only (no instrument)
+     `connectChainNow()` rebuilds the path on load/unload. Effect-only (no instrument)
      stays unconnected — honest, master-FX is later. Kept off Echoel's own mix path.
-   - ⬜ Next: embed the plugin's `requestViewController` UI in an Echoel panel;
-     `fullState` save/recall; master-bus FX slot; route external MIDI-in into the
-     hosted instrument; multiple inserts per channel.
+   - ✅ **Plugin's own UI**: “Open” on a loaded instrument/effect presents the
+     plugin's native interface in an Echoel-framed sheet (`AUv3PluginUIView`
+     wraps `AUAudioUnit.requestViewController` as a `UIViewControllerRepresentable`;
+     off-main completion hops to MainActor; honest "no custom UI" fallback).
+   - ⬜ Next: `fullState` save/recall; master-bus FX slot; route external MIDI-in
+     into the hosted instrument; multiple inserts per channel.
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

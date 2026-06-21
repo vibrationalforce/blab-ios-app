@@ -180,6 +180,12 @@ public final class AUv3Host {
         sendMIDI(status: 0x90 | (channel & 0x0F), data1: pitch, data2: velocity)
     }
 
+    /// The underlying AUAudioUnit (instrument or insert effect) so the UI layer can
+    /// request the plugin's own view controller. nil when that slot is empty.
+    public func auAudioUnit(forEffect: Bool) -> AUAudioUnit? {
+        (forEffect ? effectUnit : instrumentUnit)?.auAudioUnit
+    }
+
     public func noteOff(_ pitch: UInt8, channel: UInt8 = 0) {
         sendMIDI(status: 0x80 | (channel & 0x0F), data1: pitch, data2: 0)
     }

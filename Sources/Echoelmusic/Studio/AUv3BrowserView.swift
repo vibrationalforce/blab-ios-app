@@ -15,19 +15,50 @@ struct AUv3BrowserView: View {
     @Environment(\.dismiss) private var dismiss
     var embedded = false
 
+    /// Which hosted plugin's own UI to present (instrument vs insert effect).
+    private struct PluginUIRequest: Identifiable { let id = UUID(); let title: String; let forEffect: Bool }
+    @State private var uiRequest: PluginUIRequest?
+
     var body: some View {
-        if embedded {
-            content
-        } else {
-            NavigationStack {
+        Group {
+            if embedded {
                 content
-                    .navigationTitle("Plugins (AUv3)")
-                    #if os(iOS)
-                    .navigationBarTitleDisplayMode(.inline)
-                    #endif
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-                    }
+            } else {
+                NavigationStack {
+                    content
+                        .navigationTitle("Plugins (AUv3)")
+                        #if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+                        #endif
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                        }
+                }
+            }
+        }
+        .sheet(item: $uiRequest) { req in pluginUISheet(req) }
+    }
+
+    @ViewBuilder
+    private func pluginUISheet(_ req: PluginUIRequest) -> some View {
+        NavigationStack {
+            Group {
+                #if canImport(UIKit) && canImport(AVFoundation)
+                if let au = host.auAudioUnit(forEffect: req.forEffect) {
+                    AUv3PluginUIView(audioUnit: au).ignoresSafeArea()
+                } else {
+                    Text("Plugin unavailable.").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
+                }
+                #else
+                Text("Plugin interfaces need iOS.").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
+                #endif
+            }
+            .navigationTitle(req.title)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { uiRequest = nil } }
             }
         }
     }
@@ -47,7 +78,7 @@ struct AUv3BrowserView: View {
                 if host.loaded != nil || host.loadedEffect != nil { loadedBar }
                 section("Instruments", host.instruments, icon: "pianokeys")
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Tap an instrument to load it (play it from the keyboard or your song); tap an effect to insert it on the instrument's channel (instrument → effect → master). Showing a plugin's own interface and saving its state are the next steps.")
+                Text("Tap an instrument to load it (play it from the keyboard or your song); tap an effect to insert it on the instrument's channel (instrument → effect → master). Open a loaded plugin's own interface with “Open”. Saving plugin state is the next step.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -68,6 +99,8 @@ struct AUv3BrowserView: View {
                     Text(inst.name).font(EchoelTheme.font(13, .semibold))
                         .foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Spacer(minLength: 0)
+                    Button("Open") { uiRequest = .init(title: inst.name, forEffect: false) }
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.accent)
                     Button("Unload") { host.unload() }
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                 }
@@ -77,6 +110,8 @@ struct AUv3BrowserView: View {
                     Image(systemName: "dial.medium").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
                     Text("→ \(fx.name)").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Spacer(minLength: 0)
+                    Button("Open") { uiRequest = .init(title: fx.name, forEffect: true) }
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.accent)
                     Button("Remove") { host.unloadEffect() }
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
                 }
