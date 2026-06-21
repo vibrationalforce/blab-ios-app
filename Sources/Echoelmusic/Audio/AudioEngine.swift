@@ -511,5 +511,46 @@ public final class AudioEngine {
         masterEngine.detach(sourceNode)
         log.audio("Source node detached from master engine")
     }
+
+    // MARK: - AUv3 Node Hosting
+
+    /// Attach a hosted Audio Unit (instrument/effect) into the master graph and
+    /// connect its output to the master mixer. Mirrors `attachSourceNode` — pause
+    /// while re-wiring, restart if it was running. The AU does its own rendering;
+    /// we only build the graph here (no work added to the render path).
+    func attachAUNode(_ node: AVAudioUnit) {
+        prepareGraph()
+        let wasRunning = masterEngine.isRunning
+        if wasRunning { masterEngine.pause() }
+        masterEngine.attach(node)
+        let auFormat = node.outputFormat(forBus: 0)
+        let format = (auFormat.sampleRate > 0 && auFormat.channelCount > 0)
+            ? auFormat : masterMixer.outputFormat(forBus: 0)
+        if format.sampleRate > 0, format.channelCount > 0 {
+            masterEngine.connect(node, to: masterMixer, format: format)
+            log.audio("AUv3 node attached to master engine (\(format.sampleRate)Hz, \(format.channelCount)ch)")
+        } else {
+            log.audio("Cannot attach AUv3 node — no valid audio format available", level: .error)
+            masterEngine.detach(node)
+        }
+        if wasRunning {
+            do { try masterEngine.start() }
+            catch { log.audio("Failed to restart engine after AUv3 attachment: \(error)", level: .error) }
+        }
+    }
+
+    func detachAUNode(_ node: AVAudioUnit) {
+        // Symmetric with attachAUNode: pause while re-wiring, restart if it was
+        // running, so unloading a plugin doesn't glitch the live graph.
+        let wasRunning = masterEngine.isRunning
+        if wasRunning { masterEngine.pause() }
+        masterEngine.disconnectNodeOutput(node)
+        masterEngine.detach(node)
+        if wasRunning {
+            do { try masterEngine.start() }
+            catch { log.audio("Failed to restart engine after AUv3 detach: \(error)", level: .error) }
+        }
+        log.audio("AUv3 node detached from master engine")
+    }
 }
 #endif

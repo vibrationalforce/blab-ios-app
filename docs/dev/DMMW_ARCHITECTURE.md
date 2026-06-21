@@ -90,8 +90,14 @@ The MusicalFrame (L3) drives the renderers (L4):
    - ✅ **Discovery** (`Audio/AUv3Host.swift`, Tools ▸ Plugins): lists the Audio
      Unit instruments + effects installed on the device (AVAudioUnitComponentManager),
      split/de-duped/sorted. Read-only, no graph changes — the safe first slice.
-   - ⬜ Next: instantiate one into a channel's node graph + embed its `requestViewController`
-     UI in an Echoel panel + `fullState` save/recall.
+   - ✅ **Instrument load + play**: tap an instrument → `AVAudioUnit.instantiate` →
+     `AudioEngine.attachAUNode` (connects to masterMixer; pause/attach/restart like
+     `attachSourceNode`) → play it from a preview keyboard (host-MIDI
+     `scheduleMIDIEventBlock`). User-driven, launch-silent. `HostedAUInfo` now carries
+     the component OSType codes so a unit can be re-instantiated.
+   - ⬜ Next: insert effects into a channel's insert chain; route the live bus /
+     piano-roll into the hosted instrument (not just the preview keyboard); embed the
+     plugin's `requestViewController` UI in an Echoel panel; `fullState` save/recall.
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

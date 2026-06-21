@@ -61,6 +61,8 @@ struct EchoelmusicApp: App {
     @State private var audioInputs = AudioInputManager()
     /// Universal signal router (patchbay): typed routes across all channels, persisted.
     @State private var signalRouter = SignalRouter()
+    /// AUv3 host: discovers installed plugins and loads an instrument into the graph.
+    @State private var auHost = AUv3Host()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed.
     @State private var haptics = HapticController()
@@ -190,6 +192,7 @@ struct EchoelmusicApp: App {
             .environment(arrangementPlayer)
             .environment(audioInputs)
             .environment(signalRouter)
+            .environment(auHost)
             .environment(midiOut)
             #if canImport(CoreHaptics)
             .environment(haptics)
@@ -253,6 +256,10 @@ struct EchoelmusicApp: App {
                 // nothing started, no extra permission prompts).
                 signalRouter.onChange = { applyRouting() }
                 applyRouting()   // honor any persisted routes from a previous session
+
+                // AUv3 host: wire to the live graph so a user-chosen instrument can
+                // be loaded into it. Discovery + load are user-driven (no auto-load).
+                auHost.use(engine: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
 
