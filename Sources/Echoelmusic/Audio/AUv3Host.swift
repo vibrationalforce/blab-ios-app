@@ -115,12 +115,17 @@ public final class AUv3Host {
             componentFlags: 0, componentFlagsMask: 0)
         do {
             let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
+            // Recall this plugin's saved settings (knob positions etc.) so a loaded
+            // plugin comes back exactly as you left it across sessions.
+            restoreState(unit, id: info.id)
             engine.withGraphPaused {                        // one pause cycle: attach + re-wire
                 engine.attachAU(unit)
                 if info.isInstrument {
+                    if let old = instrumentUnit, let oldInfo = loaded { saveState(old, id: oldInfo.id) }
                     if let old = instrumentUnit { engine.detachAU(old) }
                     instrumentUnit = unit
                 } else {
+                    if let old = effectUnit, let oldInfo = loadedEffect { saveState(old, id: oldInfo.id) }
                     if let old = effectUnit { engine.detachAU(old) }
                     effectUnit = unit
                 }
@@ -137,6 +142,7 @@ public final class AUv3Host {
 
     /// Remove the hosted instrument (and re-wire so any effect is left dry/unfed).
     public func unload() {
+        if let unit = instrumentUnit, let info = loaded { saveState(unit, id: info.id) }
         let unit = instrumentUnit
         instrumentUnit = nil
         loaded = nil
@@ -148,6 +154,7 @@ public final class AUv3Host {
 
     /// Remove the insert effect (instrument reconnects straight to master).
     public func unloadEffect() {
+        if let unit = effectUnit, let info = loadedEffect { saveState(unit, id: info.id) }
         let unit = effectUnit
         effectUnit = nil
         loadedEffect = nil
@@ -155,6 +162,31 @@ public final class AUv3Host {
             if let unit { engine?.detachAU(unit) }
             connectChainNow()
         }
+    }
+
+    /// Persist the live settings of whatever is currently loaded. Call when the app
+    /// backgrounds so in-session tweaks survive a relaunch.
+    public func persistState() {
+        if let u = instrumentUnit, let info = loaded { saveState(u, id: info.id) }
+        if let u = effectUnit, let info = loadedEffect { saveState(u, id: info.id) }
+    }
+
+    // MARK: - Plugin state (fullState) persistence
+
+    private func stateKey(_ id: String) -> String { "auHost.fullState." + id }
+
+    /// Snapshot a plugin's `fullState` (its complete settings) into UserDefaults,
+    /// guarded so a non-plist-encodable state can never crash the store.
+    private func saveState(_ unit: AVAudioUnit, id: String) {
+        guard let state = unit.auAudioUnit.fullState,
+              PropertyListSerialization.propertyList(state, isValidFor: .binary) else { return }
+        UserDefaults.standard.set(state, forKey: stateKey(id))
+    }
+
+    /// Recall a plugin's saved `fullState`, if any, onto a freshly-instantiated unit.
+    private func restoreState(_ unit: AVAudioUnit, id: String) {
+        guard let dict = UserDefaults.standard.dictionary(forKey: stateKey(id)) else { return }
+        unit.auAudioUnit.fullState = dict
     }
 
     /// The connect logic — MUST be called inside `withGraphPaused`. (Re)builds the

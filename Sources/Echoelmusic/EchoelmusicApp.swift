@@ -287,6 +287,7 @@ struct EchoelmusicApp: App {
                     }
                 case .background:
                     bioFeedback.stop()
+                    auHost.persistState()   // save hosted-plugin settings across relaunch
                     log.log(.info, category: .system, "App backgrounded")
                 case .inactive:
                     break

@@ -78,7 +78,7 @@ struct AUv3BrowserView: View {
                 if host.loaded != nil || host.loadedEffect != nil { loadedBar }
                 section("Instruments", host.instruments, icon: "pianokeys")
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Tap an instrument to load it (play it from the keyboard or your song); tap an effect to insert it on the instrument's channel (instrument → effect → master). Open a loaded plugin's own interface with “Open”. Saving plugin state is the next step.")
+                Text("Tap an instrument to load it (play it from the keyboard or your song); tap an effect to insert it on the instrument's channel (instrument → effect → master). Open a loaded plugin's own interface with “Open”. Settings are saved and recalled across sessions.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
