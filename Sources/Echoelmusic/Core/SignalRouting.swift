@@ -1,0 +1,292 @@
+//
+//  SignalRouting.swift
+//  Echoelmusic — Core
+//
+//  The universal, type-aware signal router (patchbay) the founder specified:
+//  "intelligentes Routing für alle Kanäle App-intern, rein und raus aus der App
+//  für alle Protokolle: MIDI, MIDI 2.0, MPE, Audio, Video, Visuals etc."
+//
+//  This is the PURE DOMAIN MODEL only — value types + deterministic graph logic,
+//  no I/O, no audio/UI wiring. It GENERALIZES what already exists rather than
+//  replacing it: EngineBus topics + voices/renderers are INTERNAL ports; the
+//  CoreMIDI / OSC / ADM-OSC / Art-Net / sACN / BLE / Camera bridges are EXTERNAL
+//  ports; `ModulationMatrix` is the control→control projection of this graph.
+//  The runtime (adapters that actually move bytes) is built in later cycles per
+//  the founder-chosen protocol priority — this layer is what they all route into.
+//
+//  "Intelligent" = type-aware connect (only compatible kinds connect, directly
+//  or through a registered converter) + auto-suggested default patches.
+//
+//  See docs/dev/DMMW_ARCHITECTURE.md.
+//
+
+import Foundation
+
+// MARK: - What flows
+
+/// The class of signal carried on an edge. Coarse on purpose — specifics
+/// (which bio field, which DMX channel) live in the port id / converter, so the
+/// graph stays small and the UI legible. `video`/`visual` are typed now but their
+/// engines are roadmap (surfaced honestly, never pretended to flow).
+public enum SignalKind: String, Codable, Sendable, CaseIterable {
+    case controlBio        // bio scalar streams (HR/HRV/coherence/breath/motion)
+    case controlMusical    // musical params (notes/chord/key/tempo/levels)
+    case controlMacro      // generic [0..1] macro / LFO / envelope
+    case note              // note on/off + per-note expression (MIDI · MPE · MIDI 2.0)
+    case controlChange     // CC / parameter messages
+    case audio             // an audio bus
+    case light             // DMX / Art-Net / sACN channels
+    case spatial           // immersive object position + gain (ADM)
+    case clock             // transport / tempo clock + transport events
+    case video             // video frames (roadmap)
+    case visual            // visual scene / params (roadmap)
+
+    /// Whether a real engine for this kind ships today (honesty for the UI).
+    public var isLive: Bool {
+        switch self {
+        case .video, .visual: return false
+        default: return true
+        }
+    }
+}
+
+// MARK: - Where it lives (protocol / location)
+
+/// The transport a port speaks. `internalBus` = app-internal; everything else is
+/// an in/out protocol adapter. `auv3`/`rtmp` are typed now, wired later.
+public enum SignalTransport: String, Codable, Sendable, CaseIterable {
+    case internalBus
+    case coreMIDI
+    case midi2
+    case mpe
+    case osc
+    case admOSC
+    case artNet
+    case sacn
+    case audioIO
+    case auv3
+    case bleHRS
+    case camera
+    case healthKit
+    case rtmp
+
+    /// True for app-internal transports (no external I/O).
+    public var isInternal: Bool { self == .internalBus }
+}
+
+// MARK: - Direction
+
+public enum PortDirection: String, Codable, Sendable {
+    case source        // can be a route's origin
+    case sink          // can be a route's destination
+    case bidirectional // both
+
+    public var canSource: Bool { self == .source || self == .bidirectional }
+    public var canSink: Bool { self == .sink || self == .bidirectional }
+}
+
+// MARK: - Port
+
+/// One routable endpoint. `id` is stable (e.g. "bus.bio", "midi.out.echoel",
+/// "artnet.universe0") so saved patches survive relaunch and device changes.
+public struct SignalPort: Codable, Sendable, Identifiable, Equatable {
+    public var id: String
+    public var name: String
+    public var kind: SignalKind
+    public var direction: PortDirection
+    public var transport: SignalTransport
+
+    public init(id: String, name: String, kind: SignalKind,
+                direction: PortDirection, transport: SignalTransport) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.direction = direction
+        self.transport = transport
+    }
+}
+
+// MARK: - Converter catalog (the "intelligent" part)
+
+/// A declared, allowed transformation between two signal kinds. The pure model
+/// only records that a converter EXISTS (so the graph can validate a cross-kind
+/// route and the UI can offer it); the runtime supplies the actual transform.
+public struct SignalConverter: Codable, Sendable, Identifiable, Equatable {
+    public var id: String          // e.g. "bio→cc", "pitch→colour", "pitch→admPos"
+    public var name: String
+    public var from: SignalKind
+    public var to: SignalKind
+
+    public init(id: String, name: String, from: SignalKind, to: SignalKind) {
+        self.id = id; self.name = name; self.from = from; self.to = to
+    }
+}
+
+/// The set of conversions this build knows how to perform. Same-kind edges are
+/// always allowed (identity) and are NOT listed here.
+public struct ConverterCatalog: Codable, Sendable, Equatable {
+    public var converters: [SignalConverter]
+    public init(converters: [SignalConverter] = []) { self.converters = converters }
+
+    /// A converter from→to, if one is registered (nil for identity/same-kind).
+    public func converter(from: SignalKind, to: SignalKind) -> SignalConverter? {
+        converters.first { $0.from == from && $0.to == to }
+    }
+
+    /// Kinds that `from` can reach: itself (identity) plus every registered target.
+    public func reachableKinds(from: SignalKind) -> Set<SignalKind> {
+        var s: Set<SignalKind> = [from]
+        for c in converters where c.from == from { s.insert(c.to) }
+        return s
+    }
+
+    /// Echoel's default conversions — the music/bio → multimedia mappings that make
+    /// the DMMW promise ("shape visuals/light/spatial by musical parameters") real.
+    public static let `default` = ConverterCatalog(converters: [
+        SignalConverter(id: "bio→cc",       name: "Bio → MIDI CC",        from: .controlBio,     to: .controlChange),
+        SignalConverter(id: "bio→light",    name: "Bio → Light",          from: .controlBio,     to: .light),
+        SignalConverter(id: "bio→spatial",  name: "Bio → Spatial object", from: .controlBio,     to: .spatial),
+        SignalConverter(id: "bio→macro",    name: "Bio → Macro",          from: .controlBio,     to: .controlMacro),
+        SignalConverter(id: "music→light",  name: "Pitch/Chord → Colour", from: .controlMusical, to: .light),
+        SignalConverter(id: "music→spatial",name: "Pitch → Position",     from: .controlMusical, to: .spatial),
+        SignalConverter(id: "music→cc",     name: "Music → MIDI CC",      from: .controlMusical, to: .controlChange),
+        SignalConverter(id: "macro→cc",     name: "Macro → MIDI CC",      from: .controlMacro,   to: .controlChange),
+        SignalConverter(id: "macro→light",  name: "Macro → Light",        from: .controlMacro,   to: .light),
+        SignalConverter(id: "macro→spatial",name: "Macro → Spatial",      from: .controlMacro,   to: .spatial)
+    ])
+}
+
+// MARK: - Route
+
+/// One source-port → sink-port connection with a transform amount and an
+/// optional named converter (nil = identity / same-kind pass-through).
+public struct SignalRoute: Codable, Sendable, Identifiable, Equatable {
+    public var id: UUID
+    public var sourcePortID: String
+    public var sinkPortID: String
+    public var enabled: Bool
+    /// Transform depth / gain, [0..1].
+    public var amount: Float
+    /// Named converter id when source/sink kinds differ; nil for same-kind edges.
+    public var converterID: String?
+
+    public init(id: UUID = UUID(), sourcePortID: String, sinkPortID: String,
+                enabled: Bool = true, amount: Float = 1.0, converterID: String? = nil) {
+        self.id = id
+        self.sourcePortID = sourcePortID
+        self.sinkPortID = sinkPortID
+        self.enabled = enabled
+        self.amount = Swift.min(1, Swift.max(0, amount.isNaN ? 1 : amount))
+        self.converterID = converterID
+    }
+}
+
+// MARK: - Graph
+
+/// The patchbay: a port inventory + the active routes + pure connection logic.
+/// `@Observable`-friendly value type; the runtime owns one and mutates it, the UI
+/// binds to it. Deterministic + side-effect free → safe to evaluate anywhere.
+public struct SignalGraph: Codable, Sendable, Equatable {
+
+    public private(set) var ports: [SignalPort]
+    public private(set) var routes: [SignalRoute]
+    public var catalog: ConverterCatalog
+
+    public init(ports: [SignalPort] = [], routes: [SignalRoute] = [],
+                catalog: ConverterCatalog = .default) {
+        self.ports = ports
+        self.routes = routes
+        self.catalog = catalog
+    }
+
+    // MARK: Inventory
+
+    public func port(_ id: String) -> SignalPort? { ports.first { $0.id == id } }
+
+    public var sources: [SignalPort] { ports.filter { $0.direction.canSource } }
+    public var sinks: [SignalPort] { ports.filter { $0.direction.canSink } }
+
+    /// Add or replace a port (by id). Used by adapters as endpoints appear
+    /// (CoreMIDI device plugged in, AUv3 instantiated, BLE strap connects).
+    public mutating func upsert(_ port: SignalPort) {
+        if let i = ports.firstIndex(where: { $0.id == port.id }) { ports[i] = port }
+        else { ports.append(port) }
+    }
+
+    /// Remove a port and any routes touching it (endpoint disappeared).
+    public mutating func removePort(_ id: String) {
+        ports.removeAll { $0.id == id }
+        routes.removeAll { $0.sourcePortID == id || $0.sinkPortID == id }
+    }
+
+    // MARK: Connection logic (pure, type-aware)
+
+    /// Why a proposed connection is/least valid — drives the UI + tests.
+    public enum ConnectionCheck: Equatable {
+        case ok(converterID: String?)      // nil = identity (same kind)
+        case unknownPort
+        case wrongDirection
+        case incompatibleKinds             // no converter from source.kind → sink.kind
+        case duplicate
+    }
+
+    /// Validate a source→sink connection without mutating.
+    public func check(sourceID: String, sinkID: String) -> ConnectionCheck {
+        guard let s = port(sourceID), let d = port(sinkID) else { return .unknownPort }
+        guard s.direction.canSource, d.direction.canSink else { return .wrongDirection }
+        if routes.contains(where: { $0.sourcePortID == sourceID && $0.sinkPortID == sinkID }) {
+            return .duplicate
+        }
+        if s.kind == d.kind { return .ok(converterID: nil) }
+        if let c = catalog.converter(from: s.kind, to: d.kind) { return .ok(converterID: c.id) }
+        return .incompatibleKinds
+    }
+
+    public func canConnect(sourceID: String, sinkID: String) -> Bool {
+        if case .ok = check(sourceID: sourceID, sinkID: sinkID) { return true }
+        return false
+    }
+
+    /// Connect if valid, picking the right converter automatically. Returns the new
+    /// route, or nil if the connection is invalid (caller can show `check` reason).
+    @discardableResult
+    public mutating func connect(sourceID: String, sinkID: String, amount: Float = 1.0) -> SignalRoute? {
+        guard case let .ok(converterID) = check(sourceID: sourceID, sinkID: sinkID) else { return nil }
+        let route = SignalRoute(sourcePortID: sourceID, sinkPortID: sinkID,
+                                amount: amount, converterID: converterID)
+        routes.append(route)
+        return route
+    }
+
+    public mutating func disconnect(_ routeID: UUID) {
+        routes.removeAll { $0.id == routeID }
+    }
+
+    public func routes(forSource id: String) -> [SignalRoute] {
+        routes.filter { $0.sourcePortID == id }
+    }
+    public func routes(forSink id: String) -> [SignalRoute] {
+        routes.filter { $0.sinkPortID == id }
+    }
+
+    // MARK: Intelligent defaults
+
+    /// Propose sensible connections that don't yet exist: every source to every
+    /// sink it is type-compatible with, EXCLUDING internal→internal echoes (those
+    /// are wired in code) and dead (non-live) kinds. The UI offers these as
+    /// one-tap "smart patches"; nothing is applied automatically.
+    public func suggestedConnections() -> [(sourceID: String, sinkID: String, converterID: String?)] {
+        var out: [(String, String, String?)] = []
+        for s in sources where s.kind.isLive {
+            for d in sinks where d.kind.isLive {
+                guard s.id != d.id else { continue }
+                // Skip purely-internal echoes; the interesting routes cross a boundary.
+                if s.transport.isInternal && d.transport.isInternal { continue }
+                if case let .ok(converterID) = check(sourceID: s.id, sinkID: d.id) {
+                    out.append((s.id, d.id, converterID))
+                }
+            }
+        }
+        return out.map { (sourceID: $0.0, sinkID: $0.1, converterID: $0.2) }
+    }
+}

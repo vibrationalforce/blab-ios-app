@@ -86,6 +86,25 @@ The MusicalFrame (L3) drives the renderers (L4):
 4. **Audio-reactive engine (E/F/G)** — analyzer → visual/light; per-stem; spatial.
 5. **AUv3 host** — channel-rack instrument/effect hosting (its own pillar).
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
+7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
+   app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·
+   Art-Net/sACN · AUv3 · Video/Visual roadmap). Founder ask 2026-06-21.
+
+## The Signal Router (universal patchbay)
+**One typed patchbay over Ports; many protocols plug in.** Generalizes — does NOT
+replace — `EngineBus` topics + voices/renderers (INTERNAL ports), the CoreMIDI / OSC /
+ADM-OSC / Art-Net / sACN / BLE / Camera bridges (EXTERNAL ports), and `ModulationMatrix`
+(the control→control projection).
+- **`SignalKind`** (what flows): controlBio · controlMusical · controlMacro · note ·
+  controlChange · audio · light · spatial · clock · (video · visual = roadmap, `isLive=false`).
+- **`SignalTransport`** (where it lives): internalBus · coreMIDI · midi2 · mpe · osc ·
+  admOSC · artNet · sacn · audioIO · auv3 · bleHRS · camera · healthKit · rtmp.
+- **`SignalPort`** (kind + direction source/sink + transport, stable id) · **`SignalRoute`**
+  (source→sink + amount + converter) · **`ConverterCatalog`** (the "intelligent" part:
+  allowed cross-kind transforms — bio→CC, pitch/chord→colour, pitch→ADM position, …).
+- **`SignalGraph`** — pure inventory + type-aware `check`/`connect`/`suggestedConnections`.
+- Status: ✅ pure core + tests (`Core/SignalRouting.swift`). ⬜ runtime adapters
+  (move bytes per protocol) + patchbay UI — built next, in founder-chosen priority.
 
 ## Guardrails
 - iPhone-first, multi-touch. Brand: claim only what ships (no dead category buttons).
