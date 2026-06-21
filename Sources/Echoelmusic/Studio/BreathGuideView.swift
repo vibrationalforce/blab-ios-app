@@ -27,6 +27,8 @@ struct BreathGuideView: View {
     /// Once the user acknowledges the hold-safety card, don't re-prompt this session.
     @State private var acknowledgedHolds = false
     @State private var showHoldWarning = false
+    /// True biofeedback: drive the ball from the camera-measured breath, not the pace.
+    @State private var followMyBreath = false
 
     var body: some View {
         ZStack {
@@ -35,13 +37,14 @@ struct BreathGuideView: View {
                 header
                 Spacer(minLength: 8)
                 breathCircle
-                Text(pacer.instruction)
+                Text(followingMeasured ? "Breathe naturally" : pacer.instruction)
                     .font(EchoelTheme.font(22, .semibold))
                     .foregroundStyle(EchoelTheme.text)
-                    .accessibilityLabel(pacer.instruction)
+                    .accessibilityLabel(followingMeasured ? "Breathe naturally" : pacer.instruction)
                 coherenceReadout
                 Spacer(minLength: 8)
                 patternControl
+                followControl
                 startStop
                 contraindications
             }
@@ -86,7 +89,7 @@ struct BreathGuideView: View {
 
     private var breathCircle: some View {
         // 0.45…1.0 of the guide ring; fixed mid-size under Reduce Motion.
-        let scale = reduceMotion ? 0.75 : (0.45 + 0.55 * pacer.guidance)
+        let scale = reduceMotion ? 0.75 : (0.45 + 0.55 * ballAmplitude)
         return ZStack {
             Circle()
                 .strokeBorder(EchoelTheme.border, lineWidth: 1)
@@ -97,13 +100,13 @@ struct BreathGuideView: View {
                 .frame(width: 220, height: 220)
                 .scaleEffect(scale)
             if reduceMotion {
-                Text("\(Int((pacer.guidance * 100).rounded()))%")
+                Text("\(Int((ballAmplitude * 100).rounded()))%")
                     .font(EchoelTheme.font(26, .bold))
                     .foregroundStyle(EchoelTheme.text)
             }
         }
         .frame(height: 250)
-        .animation(reduceMotion ? nil : .linear(duration: 0.06), value: pacer.guidance)
+        .animation(reduceMotion ? nil : .linear(duration: 0.06), value: ballAmplitude)
         .accessibilityHidden(true)
     }
 
@@ -155,6 +158,47 @@ struct BreathGuideView: View {
                 pacer.pattern = p
             }
         )
+    }
+
+    // MARK: True biofeedback — drive the ball from the measured breath
+
+    /// A fresh camera breath measurement, if the rPPG is running and its respiratory
+    /// signal is clear. CameraRPPGBioPublisher only reports breathRate > 0 when the
+    /// RSA-derived breath passes its confidence gate, so this doubles as "available".
+    private var measuredBreath: BioSampleFrame? {
+        guard let f = bus.freshBio(), f.source == .cameraPPG, f.breathRate > 0 else { return nil }
+        return f
+    }
+
+    /// True when we are actually showing the user's measured breath (toggle on AND a
+    /// clear signal present), as opposed to the paced guide.
+    private var followingMeasured: Bool { followMyBreath && measuredBreath != nil }
+
+    /// Ball amplitude [0,1]: the MEASURED breath when following, else the paced guide.
+    private var ballAmplitude: Double {
+        followingMeasured ? Double(measuredBreath?.breathPhase ?? 0.5) : pacer.guidance
+    }
+
+    private var followControl: some View {
+        VStack(spacing: 4) {
+            Toggle(isOn: $followMyBreath) {
+                Text("Follow my breath (camera)")
+                    .font(EchoelTheme.font(13))
+                    .foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            if followMyBreath && measuredBreath == nil {
+                Text("Start the camera in Well to measure your breath.")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .multilineTextAlignment(.center)
+            } else if followingMeasured {
+                Text("Following your breath — let it slow and even out.")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.accent)
+                    .multilineTextAlignment(.center)
+            }
+        }
     }
 
     // MARK: Start / Stop (holds gated behind acknowledgement)

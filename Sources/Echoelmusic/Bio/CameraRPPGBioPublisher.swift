@@ -155,12 +155,25 @@ public final class CameraRPPGBioPublisher {
                 // .cameraPPG), so consumers still gate on the source; the field is now
                 // at least semantically correct. 0 until enough beats/power.
                 let coherence = HRVCoherence.compute(rrMs: rrMs, blend: 1.0)
+
+                // Respiration from the RR series via RSA (breathing modulates HR).
+                // Replay the current RR window through a fresh estimator → the current
+                // breath amplitude (drives the ball) + rate. Pure + cheap. Reported
+                // only when the respiratory oscillation is clear (confidence gate), so
+                // breathRate > 0 signals "measured breath available" to the UI.
+                var resp = RespirationEstimator()
+                var tAcc = 0.0
+                for ms in rrMs where ms > 250 && ms < 2000 {
+                    tAcc += ms / 1000.0
+                    resp.ingest(heartRate: 60_000.0 / ms, at: tAcc)
+                }
+                let measuredBreath = resp.confidence >= 0.4
                 bus.publish(bio: BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
                     hrvNormalized: hrv,
-                    breathRate: 0,
-                    breathPhase: 0,
+                    breathRate: measuredBreath ? Float(resp.ratePerMinute) : 0,
+                    breathPhase: measuredBreath ? Float(resp.amplitude) : 0,
                     coherence: coherence.valid ? coherence.coherence : 0,
                     motionEnergy: 0,
                     source: .cameraPPG,
