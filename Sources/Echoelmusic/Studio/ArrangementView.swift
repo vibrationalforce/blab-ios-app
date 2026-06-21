@@ -21,6 +21,10 @@ struct ArrangementView: View {
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(\.dismiss) private var dismiss
 
+    /// `true` when hosted as a foreground workspace surface (WorkspaceView): drop the
+    /// sheet's NavigationStack + "Done", since the surface switcher owns the chrome.
+    var embedded = false
+
     @State private var renaming: UUID?
     @State private var renameText = ""
 
@@ -37,48 +41,56 @@ struct ArrangementView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    transportBar
-
-                    if store.isEmpty {
-                        emptyState
-                    } else {
-                        ForEach(Array(store.sections.enumerated()), id: \.element.id) { index, section in
-                            sectionRow(index, section)
-                        }
+        if embedded {
+            content
+        } else {
+            NavigationStack {
+                content
+                    .navigationTitle("Arrangement")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                     }
+            }
+        }
+    }
 
-                    Button { addSection() } label: {
-                        Label("Add section", systemImage: "plus")
-                            .font(EchoelTheme.font(13, .semibold))
-                            .foregroundStyle(EchoelTheme.text)
-                            .frame(maxWidth: .infinity).frame(height: 40)
-                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                                .strokeBorder(EchoelTheme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                transportBar
+
+                if store.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(Array(store.sections.enumerated()), id: \.element.id) { index, section in
+                        sectionRow(index, section)
                     }
-                    .buttonStyle(.plain)
-
-                    Text("Each section plays a Session clip for its bar length, then the song advances. Capture clips in Tools → Clips first.")
-                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(16)
+
+                Button { addSection() } label: {
+                    Label("Add section", systemImage: "plus")
+                        .font(EchoelTheme.font(13, .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                }
+                .buttonStyle(.plain)
+
+                Text("Each section plays a Session clip for its bar length, then the song advances. Capture clips in Tools → Clips first.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .background(EchoelTheme.bg)
-            .navigationTitle("Arrangement")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-            }
-            .alert("Rename section", isPresented: renamingBinding) {
-                TextField("Name", text: $renameText)
-                Button("Save") { commitRename() }
-                Button("Cancel", role: .cancel) { renaming = nil }
-            }
+            .padding(16)
+        }
+        .background(EchoelTheme.bg)
+        .alert("Rename section", isPresented: renamingBinding) {
+            TextField("Name", text: $renameText)
+            Button("Save") { commitRename() }
+            Button("Cancel", role: .cancel) { renaming = nil }
         }
     }
 

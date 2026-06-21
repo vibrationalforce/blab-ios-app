@@ -73,7 +73,10 @@ The MusicalFrame (L3) drives the renderers (L4):
   co-modulator, never bolted on.
 
 ## Build order (each a shippable cycle, deploy between)
-1. **IA shell** — persistent workspace bar; tools on the front (start now: tools bar). 
+1. **IA shell** ✅ — `WorkspaceView`: persistent surface switcher (Arrange · Clips ·
+   Compose), Arrangement/Clips the foreground HOME, the bio-compose instrument hosted
+   as one Compose surface. All surfaces stay mounted (ZStack+opacity) so Compose's audio
+   lifecycle is untouched. (Earlier step: front-page tools bar.)
 2. **EchoelPanel everywhere** — EFX + all surfaces on the shared panel vocabulary.
 3. **MusicalFrame on the bus** — pure, tested; publish current notes/chord/key/tempo/
    section/per-track levels. Unlocks every music→media mapping.

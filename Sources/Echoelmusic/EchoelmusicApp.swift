@@ -134,7 +134,10 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        EchoelStudioView()
+        // Workstation home: Arrangement/Clips timeline in the foreground, the
+        // bio-compose instrument (EchoelStudioView) hosted as one surface. See
+        // WorkspaceView / docs/dev/DMMW_ARCHITECTURE.md.
+        WorkspaceView()
             .environment(audioEngine)
             .environment(store)
             .environment(beatPlayer)

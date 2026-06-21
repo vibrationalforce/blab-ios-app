@@ -18,6 +18,10 @@ struct ClipView: View {
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(\.dismiss) private var dismiss
 
+    /// `true` when hosted as a foreground workspace surface (WorkspaceView): drop the
+    /// sheet's NavigationStack + "Done", since the surface switcher owns the chrome.
+    var embedded = false
+
     @State private var renaming: Int?
     @State private var renameText = ""
 
@@ -37,34 +41,42 @@ struct ClipView: View {
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(0..<ClipStore.slotCount, id: \.self) { index in
-                        slot(index)
+        if embedded {
+            content
+        } else {
+            NavigationStack {
+                content
+                    .navigationTitle("Clips")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                     }
-                }
-                .padding(16)
+            }
+        }
+    }
 
-                Text("Tap an empty cell to capture the current beat + melody. Tap a filled cell to launch it. Hold for more.")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
+    private var content: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(0..<ClipStore.slotCount, id: \.self) { index in
+                    slot(index)
+                }
             }
-            .background(EchoelTheme.bg)
-            .navigationTitle("Clips")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
-            }
-            .alert("Rename clip", isPresented: renamingBinding) {
-                TextField("Name", text: $renameText)
-                Button("Save") { commitRename() }
-                Button("Cancel", role: .cancel) { renaming = nil }
-            }
+            .padding(16)
+
+            Text("Tap an empty cell to capture the current beat + melody. Tap a filled cell to launch it. Hold for more.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+        }
+        .background(EchoelTheme.bg)
+        .alert("Rename clip", isPresented: renamingBinding) {
+            TextField("Name", text: $renameText)
+            Button("Save") { commitRename() }
+            Button("Cancel", role: .cancel) { renaming = nil }
         }
     }
 
