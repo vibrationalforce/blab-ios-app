@@ -1,0 +1,115 @@
+//
+//  RespirationEstimator.swift
+//  Echoelmusic — Bio
+//
+//  Estimates breathing from the heart-rate signal the rPPG camera already produces,
+//  via Respiratory Sinus Arrhythmia (RSA): breathing modulates heart rate — inhale
+//  speeds it up, exhale slows it down — so the instantaneous-HR series oscillates at
+//  the breathing frequency (~0.1–0.4 Hz). We band-pass that oscillation, normalize it
+//  to a [0,1] amplitude (1 = inhale peak / lungs full) for the breath ball, and read
+//  the breathing rate from its cycle length. This makes the guide TRUE biofeedback:
+//  the ball follows the body's MEASURED breath instead of a fixed metronome.
+//
+//  Pure, deterministic value type: feed instantaneous HR samples (bpm) with their
+//  timestamps via `ingest(heartRate:at:)`; read `amplitude` / `ratePerMinute` /
+//  `confidence`. Time-aware EMAs make it robust to the irregular sample spacing of an
+//  IBI stream. No allocation, no timers, no I/O — host-loop friendly.
+//
+//  This is self-observation, not a medical respiration monitor.
+//
+
+import Foundation
+
+public struct RespirationEstimator {
+
+    // MARK: Tuning (seconds)
+    /// High-pass: removes the slow HR baseline so only the respiratory swing remains.
+    private static let trendTau = 8.0
+    /// Low-pass: keeps the respiration band, drops beat-to-beat jitter.
+    private static let smoothTau = 0.8
+    /// Envelope decay used to normalize the swing to [0,1].
+    private static let envTau = 6.0
+
+    // MARK: Respiration band (breaths/min)
+    public static let minRate = 4.0
+    public static let maxRate = 30.0
+
+    // MARK: State
+    private var lastT: Double?
+    private var trend = 0.0          // slow HR baseline (EMA)
+    private var smooth = 0.0         // band-passed respiration signal
+    private var prevSmooth = 0.0
+    private var env = 0.0            // |smooth| envelope (normalization)
+    private var lastCrossT: Double?  // last upward zero-crossing time
+    private var periodEMA = 0.0      // smoothed respiration period (s)
+    private var crossingCount = 0
+
+    // MARK: Outputs
+    /// Breath amplitude [0,1] — 1 = inhale peak (lungs full). 0.5 when no clear
+    /// respiratory oscillation is present (drives the ball to mid-rest).
+    public private(set) var amplitude = 0.5
+    /// Estimated breathing rate (breaths/min); 0 until a cycle has been measured.
+    public private(set) var ratePerMinute = 0.0
+    /// How clear the respiratory oscillation is [0,1] — the UI should only trust the
+    /// measured ball above a threshold and otherwise fall back to the paced guide.
+    public private(set) var confidence = 0.0
+
+    public init() {}
+
+    /// Feed one instantaneous heart-rate sample (bpm) at time `t` (seconds).
+    /// Out-of-range or non-finite samples and time gaps are ignored safely.
+    public mutating func ingest(heartRate hr: Double, at t: Double) {
+        guard hr.isFinite, hr > 20, hr < 240, t.isFinite else { return }
+
+        guard let last = lastT else {       // first sample seeds the baseline
+            lastT = t; trend = hr; smooth = 0; prevSmooth = 0
+            return
+        }
+        let dt = t - last
+        guard dt > 0 else { return }
+        lastT = t
+        guard dt < 5 else { return }        // long gap: skip this step (keep state)
+
+        // High-pass: subtract the slow baseline.
+        let aTrend = 1 - exp(-dt / Self.trendTau)
+        trend += aTrend * (hr - trend)
+        let hp = hr - trend
+
+        // Low-pass the high-passed signal → respiration band.
+        let aSmooth = 1 - exp(-dt / Self.smoothTau)
+        prevSmooth = smooth
+        smooth += aSmooth * (hp - smooth)
+
+        // Decaying envelope of |smooth| for normalization.
+        let aEnv = 1 - exp(-dt / Self.envTau)
+        env += aEnv * (abs(smooth) - env)
+        let e = Swift.max(env, 1e-6)
+
+        // Normalized amplitude [0,1]; 0.5 with no oscillation. 1.4 ≈ peak/mean-abs
+        // of a sine, so a clean breath swings roughly the full range.
+        let norm = Swift.max(-1.0, Swift.min(1.0, smooth / (e * 1.4)))
+        amplitude = 0.5 + 0.5 * norm
+
+        // Upward zero-crossing marks one respiration cycle → rate.
+        if prevSmooth <= 0, smooth > 0 {
+            if let lc = lastCrossT {
+                let period = t - lc
+                let r = period > 0 ? 60.0 / period : 0
+                if r >= Self.minRate, r <= Self.maxRate {
+                    periodEMA = periodEMA == 0 ? period : periodEMA + 0.3 * (period - periodEMA)
+                    if periodEMA > 0 { ratePerMinute = 60.0 / periodEMA }
+                    crossingCount += 1
+                }
+            }
+            lastCrossT = t
+        }
+
+        // Confidence: meaningful swing AND a few consistent cycles seen.
+        let envConf = Swift.min(1.0, e / 1.5)                 // ~1.5 bpm RSA = decent
+        let countConf = Swift.min(1.0, Double(crossingCount) / 4.0)
+        confidence = Swift.max(0.0, Swift.min(1.0, 0.5 * envConf + 0.5 * countConf))
+    }
+
+    /// Clear all state (e.g. when the camera signal drops or a session restarts).
+    public mutating func reset() { self = RespirationEstimator() }
+}
