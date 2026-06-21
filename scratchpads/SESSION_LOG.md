@@ -2981,3 +2981,25 @@ ALL compile-gate green individually (concurrency cancels superseded runs; the ti
   run is authoritative). Deploying as a batch to TestFlight for device confirmation.
 NEXT: Art-Net light + ADM spatial driven by MusicalFrame; per-track levels → element
   reactivity; then typed-clip creation (audio/video import pipeline) and one unified transport.
+
+### 2026-06-21 (night) — "Arbeite die ganze Nacht … Produktions-/Performance-Level"
+Founder: keep working overnight to reach production + performance software level. (A new
+reference video was attached but is not retrievable in the resumed session — proceeded
+autonomously per "no questions / work all night.")
+GROUND TRUTH: the piano-roll/clips/patch/synth-drums/sample-browser DAW-deepening plan is
+fully shipped (all 11 deliverables exist). No Swift toolchain on this Linux sandbox → the
+only gates are CI (xcode-compile-check + ci.yml) on push + TestFlight via .deploy/release.
+HELD (build-green principle #1, cannot device-verify): HaishinKit binary A/V wiring (iOS-only
+dep, risks the Linux SwiftPM ci.yml build) and the master-bus FX slot (master-OUTPUT-path
+surgery — a wrong connection silences ALL audio on the next build, no one awake to catch it).
+Blind-shipping either overnight is exactly what principle #1 forbids.
+CYCLE (6e01724) — METRONOME / click track (a real production+performance gap; none existed).
+  MetronomeVoice: self-driving, audio-thread-safe click into masterMixer via the proven
+  attachSourceNode path (NO master-output surgery). Sample-counting on the audio thread →
+  rock-steady regardless of UI-timer jitter; works while the sequencer is stopped (practice
+  click); resync() aligns the downbeat on play. Mirrors the SubBassVoice threading idiom
+  exactly; launch-silent (enabled defaults off). Accented downbeat, beats-per-bar + level
+  controls in the Composition panel; bpm follows the live transport. Pure static
+  samplesPerBeat() + MetronomeVoiceTests. audio-thread-reviewer + concurrency-reviewer: clean.
+NEXT (gate-safe, additive — same low-risk lane): tap-tempo; count-in before record; then the
+  held device-verify items only with the founder awake to confirm on device.
