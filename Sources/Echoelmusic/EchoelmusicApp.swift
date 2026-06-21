@@ -23,6 +23,9 @@ struct EchoelmusicApp: App {
     /// Polyphonic note instrument driven directly by the piano roll.
     @State private var polyVoice: PolySynthVoice
     @State private var subBass: SubBassVoice
+    /// Steady click track — production/performance metronome (self-driving, silent
+    /// until armed). Synced to the transport tempo by the studio view.
+    @State private var metronome = MetronomeVoice()
     @State private var bioEvents: BioEventPublisher
     @State private var bioFeedback: BioFeedbackPublisher
     #if canImport(AVFoundation)
@@ -175,6 +178,7 @@ struct EchoelmusicApp: App {
             .environment(bioVoice)
             .environment(polyVoice)
             .environment(subBass)
+            .environment(metronome)
             .environment(bioEvents)
             #if canImport(CoreBluetooth)
             .environment(polarH10)
@@ -236,6 +240,7 @@ struct EchoelmusicApp: App {
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
                 subBass.attach(to: audioEngine)
+                metronome.attach(to: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 audioEngine.start()

@@ -20,6 +20,7 @@ struct EchoelStudioView: View {
     @Environment(MIDIOutput.self) private var midiOut
     @Environment(PolySynthVoice.self) private var synth
     @Environment(SubBassVoice.self) private var subBass
+    @Environment(MetronomeVoice.self) private var metronome
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
@@ -494,8 +495,36 @@ struct EchoelStudioView: View {
 
             if lockBPM {
                 EchoelValueField(label: "Tempo", value: $lockedBPM, range: 40...240, unit: "BPM",
-                                 onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM) } },
+                                 onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM); metronome.bpm = lockedBPM } },
                                  onCommit: { recomposeIfRunning() })
+            }
+
+            metronomeRow
+        }
+    }
+
+    /// Steady click track — a production/performance metronome. Self-driving so it
+    /// stays in time even when nothing is playing (practice click); when the take
+    /// starts it re-aligns to the downbeat. Silent until armed.
+    private var metronomeRow: some View {
+        @Bindable var metronome = metronome
+        return VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $metronome.enabled) {
+                Text("Metronome (click)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            .onChange(of: metronome.enabled) { _, on in if on { metronome.bpm = currentTempo } }
+            .accessibilityHint("A steady click at the current tempo to play in time")
+
+            if metronome.enabled {
+                EchoelValueField(label: "Beats per bar", value: Binding(
+                    get: { Double(metronome.beatsPerBar) },
+                    set: { metronome.beatsPerBar = Int($0.rounded()) }),
+                    range: 1...12, unit: "", decimals: 0)
+                EchoelValueField(label: "Click level", value: Binding(
+                    get: { Double(metronome.level) },
+                    set: { metronome.level = Float($0) }),
+                    range: 0...1, unit: "", decimals: 2)
             }
         }
     }
@@ -1439,11 +1468,14 @@ struct EchoelStudioView: View {
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
         beatPlayer.pattern.setTempo(tempo)
+        metronome.bpm = tempo   // keep the click on the live transport tempo
         session.adopt(key: key)
         lastNoteCount = composition.notes.count
         // EchoelAI narrates the live bio→sound mapping in plain technical English.
         if let frame { aiExplanation = BioExplanation.text(for: frame, tempo: tempo) }
-        if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
+        let wasPlaying = beatPlayer.pattern.isPlaying
+        if !wasPlaying { beatPlayer.pattern.play() }
+        if !wasPlaying { metronome.resync() }   // align the click's downbeat to the start
         EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing")
     }
 
