@@ -51,8 +51,12 @@ final class AUv3PluginContainerVC: UIViewController {
         // `requestViewController` calls its completion on the main thread for view
         // requests — bridge to the MainActor synchronously (no value crosses an actor
         // boundary, so it's Swift-6 clean) and do the view-hierarchy work there.
-        au.requestViewController { [weak self] childVC in
-            MainActor.assumeIsolated { self?.attach(childVC) }
+        au.requestViewController { childVC in
+            // The @Sendable completion captures only `childVC` (a value parameter);
+            // `self` is captured inside the non-Sendable assumeIsolated body, which
+            // runs synchronously on main (view requests are delivered on the main
+            // thread) — nothing non-Sendable crosses an actor boundary.
+            MainActor.assumeIsolated { [weak self] in self?.attach(childVC) }
         }
     }
 
