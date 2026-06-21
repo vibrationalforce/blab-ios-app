@@ -134,6 +134,7 @@ struct EchoelStudioView: View {
     @State private var showRouting = false
     @State private var showPlugins = false
     @State private var showLearn = false
+    @State private var showBroadcast = false
     @State private var showPatchEditor = false
     @State private var showVisual = false
     @State private var showBreath = false
@@ -231,6 +232,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showRouting) { PatchbayView() }
         .sheet(isPresented: $showPlugins) { AUv3BrowserView() }
         .sheet(isPresented: $showLearn) { LearnView() }
+        .sheet(isPresented: $showBroadcast) { BroadcastView() }
         .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: currentPatch) { p in
@@ -316,6 +318,7 @@ struct EchoelStudioView: View {
                 toolChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
                 toolChip("Plugins", "puzzlepiece.extension") { showPlugins = true }
                 toolChip("Learn", "book") { showLearn = true }
+                toolChip("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
                 #if canImport(MetalKit) && canImport(UIKit)
                 toolChip("Visual", "sparkles") { showVisual = true }
                 #endif

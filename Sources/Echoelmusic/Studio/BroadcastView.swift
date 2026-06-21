@@ -1,0 +1,110 @@
+#if canImport(SwiftUI)
+import SwiftUI
+
+// BroadcastView.swift
+// Echoel — configure + control the phone-native broadcast (RTMP/SRT). Pairs with
+// BroadcastPublisher (the rtmp.out/srt.out router sink). Honest about engine state:
+// if the streaming engine isn't in this build, it says so instead of faking "live".
+
+@MainActor
+struct BroadcastView: View {
+
+    @Environment(BroadcastPublisher.self) private var broadcast
+    @Environment(\.dismiss) private var dismiss
+    var embedded = false
+
+    var body: some View {
+        if embedded {
+            content
+        } else {
+            NavigationStack {
+                content
+                    .navigationTitle("Broadcast")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                    }
+            }
+        }
+    }
+
+    private var content: some View {
+        @Bindable var broadcast = broadcast
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Stream the live instrument straight from your phone — no laptop, no OBS. Your body, music, light and visuals go out together.")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !broadcast.engineAvailable {
+                    Text("Streaming engine not installed in this build. Destination settings are saved and will work once it ships.")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // Protocol
+                Picker("Protocol", selection: $broadcast.transport) {
+                    ForEach(BroadcastPublisher.Transport.allCases, id: \.self) { t in
+                        Text(t.displayName).tag(t)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                field("Ingest URL", text: $broadcast.url,
+                      placeholder: "rtmp://a.rtmp.youtube.com/live2")
+                secureField("Stream key", text: $broadcast.streamKey)
+
+                if !broadcast.statusMessage.isEmpty {
+                    Text(broadcast.statusMessage)
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button {
+                    broadcast.isLive ? broadcast.stop() : broadcast.start()
+                } label: {
+                    Text(broadcast.isLive ? "Stop" : "Go Live")
+                        .font(EchoelTheme.font(15, .semibold))
+                        .foregroundStyle(broadcast.isLive ? EchoelTheme.onPrimary : .black)
+                        .frame(maxWidth: .infinity).frame(height: 48)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(broadcast.isLive ? EchoelTheme.danger : EchoelTheme.text))
+                }
+                .buttonStyle(.plain)
+                .disabled(!broadcast.isConfigured)
+
+                Text("Tip: you can also turn broadcast on from the patchbay — connect a source to Broadcast (RTMP/SRT).")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+        }
+        .background(EchoelTheme.bg)
+    }
+
+    private func field(_ label: String, text: Binding<String>, placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            TextField(placeholder, text: text)
+                .font(EchoelTheme.font(14)).foregroundStyle(EchoelTheme.text)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+    }
+
+    private func secureField(_ label: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            SecureField("•••••••••••", text: text)
+                .font(EchoelTheme.font(14)).foregroundStyle(EchoelTheme.text)
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+    }
+}
+#endif
