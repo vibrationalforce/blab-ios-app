@@ -18,6 +18,7 @@ struct EchoelStudioView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(MIDIOutput.self) private var midiOut
+    @Environment(AUv3Host.self) private var auHost
     @Environment(PolySynthVoice.self) private var synth
     @Environment(SubBassVoice.self) private var subBass
     @Environment(MetronomeVoice.self) private var metronome
@@ -615,7 +616,26 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
                     .accessibilityHint("Clear the integrated loudness and peak hold")
             }
+
+            Button { panicAllNotesOff() } label: {
+                Label("Silence — all notes off", systemImage: "speaker.slash")
+                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Immediately release every sounding note on every voice")
         }
+    }
+
+    /// Performance panic — release every sounding note on every voice at once (built-in
+    /// poly + sub, any hosted AUv3 instrument, and MIDI out). Kills stuck notes live.
+    private func panicAllNotesOff() {
+        synth.allNotesOff()
+        subBass.allNotesOff()
+        auHost.allNotesOff()
+        midiOut.allNotesOff()
     }
 
     // MARK: Panel — Visual (immersive sound→light)
