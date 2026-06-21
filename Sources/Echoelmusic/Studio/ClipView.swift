@@ -113,11 +113,17 @@ struct ClipView: View {
         return Button { launch(clip) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Image(systemName: "play.fill").font(.caption2).foregroundStyle(tint)
+                    // Leading badge = the clip KIND (Audio · MIDI · Video · Visual), so
+                    // the typed timeline reads at a glance. Playable kinds also show a
+                    // play glyph; non-playable lanes don't pretend (isPlayable).
+                    Image(systemName: clip.kind.systemImage).font(.caption2).foregroundStyle(tint)
                     Text(clip.name)
                         .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
                         .lineLimit(1)
                     Spacer()
+                    if clip.kind.isPlayable {
+                        Image(systemName: "play.fill").font(.caption2).foregroundStyle(tint.opacity(0.8))
+                    }
                 }
                 Text(contentSummary(clip))
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -141,15 +147,25 @@ struct ClipView: View {
     }
 
     private func contentSummary(_ clip: Clip) -> String {
-        var parts: [String] = []
-        if let d = clip.drums, d.steps.flatMap({ $0 }).contains(true) {
-            let hits = d.steps.flatMap { $0 }.filter { $0 }.count
-            parts.append("\(hits) drum hits")
+        switch clip.kind {
+        case .midi:
+            var parts: [String] = []
+            if let d = clip.drums, d.steps.flatMap({ $0 }).contains(true) {
+                let hits = d.steps.flatMap { $0 }.filter { $0 }.count
+                parts.append("\(hits) drum hits")
+            }
+            if let m = clip.melody, !m.notes.isEmpty {
+                parts.append("\(m.notes.count) notes")
+            }
+            return parts.isEmpty ? "MIDI · empty" : "MIDI · " + parts.joined(separator: " · ")
+        case .audio, .video, .visual:
+            if let ref = clip.mediaRef, !ref.isEmpty {
+                let name = ref.split(separator: "/").last.map(String.init) ?? ref
+                return "\(clip.kind.displayName) · \(name)"
+            }
+            // Honest: these lanes are typed scaffolding until their engine ships.
+            return "\(clip.kind.displayName) · engine coming"
         }
-        if let m = clip.melody, !m.notes.isEmpty {
-            parts.append("\(m.notes.count) notes")
-        }
-        return parts.isEmpty ? "Empty" : parts.joined(separator: " · ")
     }
 
     // MARK: - Capture / launch
