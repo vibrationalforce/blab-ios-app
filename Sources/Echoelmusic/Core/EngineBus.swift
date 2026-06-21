@@ -268,6 +268,20 @@ public final class EngineBus {
 
     public private(set) var latestBioEvent: BioEvent?
 
+    // MARK: - Latest MUSICAL snapshot (DMMW: media subscribe to musical parameters)
+
+    public private(set) var latestMusical: MusicalFrame?
+
+    /// The freshest musical frame within `maxAge` seconds — the music-side mirror of
+    /// `freshBio`, so renderers (visual/light/spatial) only react to LIVE musical
+    /// state and never to a frozen frame after playback stops. Same shared clock.
+    public func freshMusical(maxAge: TimeInterval = 2) -> MusicalFrame? {
+        guard let f = latestMusical,
+              CFAbsoluteTimeGetCurrent() - f.timestamp <= maxAge,
+              CFAbsoluteTimeGetCurrent() - f.timestamp >= -1 else { return nil }
+        return f
+    }
+
     // MARK: - Lock-free queues (data plane, audio-thread consumers)
 
     @ObservationIgnored
@@ -316,6 +330,15 @@ public final class EngineBus {
         bioEvents.enqueue(event)
         Task { @MainActor [weak self] in
             self?.latestBioEvent = event
+        }
+    }
+
+    /// Publish the current musical state. Slow control-plane (UI-rate), so it only
+    /// updates the @MainActor snapshot — no lock-free queue needed (renderers read it
+    /// via `freshMusical`). Mirrors `publish(bio:)`.
+    nonisolated public func publish(musical frame: MusicalFrame) {
+        Task { @MainActor [weak self] in
+            self?.latestMusical = frame
         }
     }
 }
