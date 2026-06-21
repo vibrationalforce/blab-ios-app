@@ -130,8 +130,6 @@ struct EchoelStudioView: View {
 
     // Tools — open the (previously unreachable) editors as sheets.
     @State private var showPianoRoll = false
-    @State private var showClips = false
-    @State private var showArrangement = false
     @State private var showInput = false
     @State private var showRouting = false
     @State private var showPlugins = false
@@ -223,8 +221,6 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showPianoRoll) {
             PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         }
-        .sheet(isPresented: $showClips) { ClipView() }
-        .sheet(isPresented: $showArrangement) { ArrangementView() }
         .sheet(isPresented: $showAllFX) {
             EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
                          fxEnabled: { synth.isFXEnabled },
@@ -303,9 +299,10 @@ struct EchoelStudioView: View {
         // workspace IA (docs/dev/DMMW_ARCHITECTURE.md) — tools on the front, FL-style.
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
+                // Clips + Arrangement are the workspace's top-level surfaces (the
+                // Arrange · Clips · Compose picker) — not duplicated here, so a name
+                // means ONE thing. This bar holds only Compose's own sub-editors + tools.
                 toolChip("Piano Roll", "pianokeys") { showPianoRoll = true }
-                toolChip("Clips", "square.grid.2x2") { showClips = true }
-                toolChip("Arrangement", "rectangle.split.3x1") { showArrangement = true }
                 toolChip("Sound", "dial.medium") { showPatchEditor = true }
                 Menu {
                     ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
