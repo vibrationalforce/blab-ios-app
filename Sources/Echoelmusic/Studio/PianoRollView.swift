@@ -34,6 +34,10 @@ public final class PianoRollModel {
     /// virtual "Echoelmusic" source so a DAW records the body's take in real time.
     /// nil or disabled = silent (no-op); never affects the audio path.
     @ObservationIgnored private weak var midiOut: MIDIOutput?
+    /// Optional hosted AUv3 instrument — when the user has loaded one (Tools ▸
+    /// Plugins), the live composition plays it too (host-MIDI), so the plugin is
+    /// driven by the song, not just the preview keyboard. nil/none = no-op.
+    @ObservationIgnored private weak var auHost: AUv3Host?
     /// Optional song player — when an Arrangement is playing it advances on each
     /// bar boundary and loads the next section's clip BEFORE that bar's notes
     /// trigger. Fed from the same shared `onTick` so the song stays on one clock.
@@ -118,12 +122,14 @@ public final class PianoRollModel {
 
     public func start(pattern: PatternEngine, voice: PolySynthVoice,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
-                      arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil) {
+                      arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
+                      auHost: AUv3Host? = nil) {
         self.voice = voice
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
         self.bus = bus
+        self.auHost = auHost
         // Advance the song first (loads the next section's clip on a bar wrap),
         // THEN trigger this step's notes — so a new section plays from step 0 cleanly.
         pattern.onTick = { [weak self] step in
@@ -146,6 +152,7 @@ public final class PianoRollModel {
         voice?.allNotesOff()
         subVoice?.allNotesOff()
         midiOut?.allNotesOff()
+        auHost?.allNotesOff()
     }
 
     /// Each tick: release notes ending now, then start notes beginning now.
@@ -178,11 +185,13 @@ public final class PianoRollModel {
         for note in ending.values where !active.values.contains(where: { $0.pitch == note.pitch }) {
             voice?.noteOff(pitch: note.pitch)
             midiOut?.noteOff(pitch: note.pitch)
+            auHost?.noteOff(midiByte(note.pitch))
             if note.pitch <= bassCeiling { subVoice?.noteOff(pitch: note.pitch - 12) }
         }
         for note in notes where note.startStep == step {
             voice?.noteOn(pitch: note.pitch, velocity: note.velocity)
             midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity)
+            auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
             active[note.id] = note
             if note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
         }
@@ -195,6 +204,11 @@ public final class PianoRollModel {
             scaleName: musicalScaleName, tempoBPM: musicalTempoBPM,
             beatPhase: Double(step % 4) / 4.0))
     }
+
+    /// Clamp a roll pitch into the valid MIDI range for host-MIDI to the AU.
+    private func midiByte(_ pitch: Int) -> UInt8 { UInt8(min(127, max(0, pitch))) }
+    /// Map a 0…1 velocity to a 1…127 MIDI velocity (0 would read as note-off).
+    private func velocityByte(_ v: Float) -> UInt8 { UInt8(min(127, max(1, Int(v * 127)))) }
 
     /// Build the live musical snapshot from the notes sounding now. Pure (testable):
     /// pitch → Hz at the given concert pitch, velocity → amplitude, master = the

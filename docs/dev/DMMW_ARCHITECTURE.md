@@ -95,9 +95,13 @@ The MusicalFrame (L3) drives the renderers (L4):
      `attachSourceNode`) → play it from a preview keyboard (host-MIDI
      `scheduleMIDIEventBlock`). User-driven, launch-silent. `HostedAUInfo` now carries
      the component OSType codes so a unit can be re-instantiated.
-   - ⬜ Next: insert effects into a channel's insert chain; route the live bus /
-     piano-roll into the hosted instrument (not just the preview keyboard); embed the
-     plugin's `requestViewController` UI in an Echoel panel; `fullState` save/recall.
+   - ✅ **Live composition → hosted instrument**: the piano roll / song fans every
+     note on/off to the hosted AU (same shared MainActor `onTick` as Echoel's own
+     voices + MIDI Out), so a loaded plugin plays the composition, not just the
+     preview keys. No-op until a plugin is loaded.
+   - ⬜ Next: insert effects into a channel's insert chain; embed the plugin's
+     `requestViewController` UI in an Echoel panel; `fullState` save/recall; route
+     external MIDI-in into the hosted instrument.
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

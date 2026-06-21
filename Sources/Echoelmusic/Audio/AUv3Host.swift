@@ -131,6 +131,11 @@ public final class AUv3Host {
         sendMIDI(status: 0x80 | (channel & 0x0F), data1: pitch, data2: 0)
     }
 
+    /// Release everything on the hosted instrument (MIDI CC 123, All Notes Off).
+    public func allNotesOff(channel: UInt8 = 0) {
+        sendMIDI(status: 0xB0 | (channel & 0x0F), data1: 123, data2: 0)
+    }
+
     private func sendMIDI(status: UInt8, data1: UInt8, data2: UInt8) {
         guard let block = hostedUnit?.auAudioUnit.scheduleMIDIEventBlock else { return }
         let bytes: [UInt8] = [status, data1, data2]

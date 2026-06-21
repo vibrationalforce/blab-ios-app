@@ -233,7 +233,7 @@ struct EchoelmusicApp: App {
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
 
                 // Bio essentials. The body's REAL signal drives everything — camera
