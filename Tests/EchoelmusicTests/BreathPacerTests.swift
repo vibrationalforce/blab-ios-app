@@ -1,5 +1,5 @@
 // BreathPacerTests.swift
-// Echoelmusic — resonance-breathing guide (pure advance + safety bounds).
+// Echoelmusic — the breathing guide transport (pattern-driven advance + safety).
 
 import XCTest
 @testable import Echoelmusic
@@ -7,92 +7,89 @@ import XCTest
 @MainActor
 final class BreathPacerTests: XCTestCase {
 
-    // MARK: Safety bounds
+    // MARK: Defaults
 
-    func testTargetRate_clampedToSafeWindow() {
+    func testDefaultsToResonance_noHolds() {
         let p = BreathPacer()
-        p.targetRate = 0.1
-        XCTAssertEqual(p.targetRate, BreathPacer.minRate, accuracy: 1e-9)
-        p.targetRate = 999
-        XCTAssertEqual(p.targetRate, BreathPacer.maxRate, accuracy: 1e-9)
-        p.targetRate = 6.0
-        XCTAssertEqual(p.targetRate, 6.0, accuracy: 1e-9)
-    }
-
-    func testInhaleFraction_clamped() {
-        let p = BreathPacer()
-        p.inhaleFraction = 0.01
-        XCTAssertEqual(p.inhaleFraction, 0.3, accuracy: 1e-9)
-        p.inhaleFraction = 0.99
-        XCTAssertEqual(p.inhaleFraction, 0.6, accuracy: 1e-9)
-    }
-
-    func testNeverInstructsBreathHold() {
-        let p = BreathPacer()
-        p.start()
-        for _ in 0..<2000 {
-            p.tick(0.05)
-            XCTAssertTrue(p.instruction == "Breathe in" || p.instruction == "Breathe out")
-        }
+        XCTAssertEqual(p.pattern.id, "resonance")
+        XCTAssertFalse(p.pattern.hasHolds)
     }
 
     // MARK: Transport
 
     func testDoesNotAdvanceWhileStopped() {
         let p = BreathPacer()
+        let before = p.guidance
         p.tick(1.0)
-        XCTAssertEqual(p.phase, 0.0, accuracy: 1e-12)
+        XCTAssertEqual(p.guidance, before, accuracy: 1e-12)
     }
 
-    func testGuidanceStaysInRange() {
-        let p = BreathPacer()
-        p.start()
-        for _ in 0..<1000 {
-            p.tick(0.033)
-            XCTAssertGreaterThanOrEqual(p.guidance, 0.0)
-            XCTAssertLessThanOrEqual(p.guidance, 1.0)
+    func testGuidanceStaysInRange_acrossPatterns() {
+        for pat in BreathPattern.curated {
+            let p = BreathPacer()
+            p.pattern = pat
+            p.start()
+            for _ in 0..<1000 {
+                p.tick(0.033)
+                XCTAssertGreaterThanOrEqual(p.guidance, 0.0, pat.id)
+                XCTAssertLessThanOrEqual(p.guidance, 1.0, pat.id)
+            }
         }
     }
 
-    // MARK: Pace easing — a rate jump must not jerk the applied pace
+    // MARK: Resonance never instructs a hold
 
-    func testEffectiveRateEasesNotJumps() {
-        let p = BreathPacer()
-        p.targetRate = 6.0
-        p.reset()
-        XCTAssertEqual(p.effectiveRate, 6.0, accuracy: 1e-9)
-        p.targetRate = 12.0
+    func testResonance_neverInstructsHold() {
+        let p = BreathPacer() // resonance default
         p.start()
-        p.tick(0.1)   // max change 0.5/s * 0.1 = 0.05 bpm
-        XCTAssertLessThan(p.effectiveRate, 6.2)
-        XCTAssertGreaterThan(p.effectiveRate, 6.0)
+        for _ in 0..<2000 {
+            p.tick(0.05)
+            XCTAssertTrue(p.instruction == "Breathe in" || p.instruction == "Breathe out")
+            XCTAssertFalse(p.phaseKind.isHold)
+        }
     }
 
-    // MARK: Period — at 6 bpm one full cycle is 10 s
+    // MARK: Hold patterns DO instruct holds (the new opt-in behaviour)
 
-    func testSixBpm_completesOneCycleInTenSeconds() {
+    func testBox_instructsHoldAtSomePoint() {
         let p = BreathPacer()
-        p.targetRate = 6.0
-        p.reset()        // effectiveRate := targetRate (6.0), so the whole run is at 6 bpm
+        p.pattern = .box
         p.start()
+        var sawHold = false
+        for _ in 0..<2000 {
+            p.tick(0.05)
+            if p.instruction == "Hold" { sawHold = true; break }
+        }
+        XCTAssertTrue(sawHold, "Box breathing must reach a Hold phase")
+    }
+
+    // MARK: Period — resonance cycle is 10 s, guidance returns near start
+
+    func testResonance_completesCycleInTenSeconds() {
+        let p = BreathPacer()
+        p.reset()
+        p.start()
+        let startGuidance = p.guidance
         var t = 0.0
         while t < 10.0 { p.tick(0.01); t += 0.01 }
-        // After 10 s at 6 bpm, phase wraps once back near 0.
-        XCTAssertEqual(p.phase, 0.0, accuracy: 0.02)
+        XCTAssertEqual(p.guidance, startGuidance, accuracy: 0.03)
     }
 
-    // MARK: Pure curve
+    // MARK: Switching pattern restarts the cycle cleanly (no mid-breath jump on start)
 
-    func testGuidanceCurve_exhaleStartsFull_inhaleEndsFull() {
-        // phase 0 = exhale start → lungs full (1).
-        XCTAssertEqual(BreathPacer.guidance(phase: 0.0, inhaleFraction: 0.4), 1.0, accuracy: 1e-6)
-        // just before wrap = inhale peak → full (1).
-        XCTAssertEqual(BreathPacer.guidance(phase: 0.999, inhaleFraction: 0.4), 1.0, accuracy: 1e-2)
-        // exhale end / inhale start (phase = 1 - inhaleFraction) → empty (0).
-        XCTAssertEqual(BreathPacer.guidance(phase: 0.6, inhaleFraction: 0.4), 0.0, accuracy: 1e-6)
+    func testChangingPattern_resetsCycle() {
+        let p = BreathPacer()
+        p.start()
+        for _ in 0..<50 { p.tick(0.05) }   // advance into the cycle
+        p.pattern = .coherent              // should reset cycleTime → start of inhale
+        XCTAssertLessThan(p.guidance, 0.05, "a fresh pattern starts empty (inhale start)")
+        XCTAssertEqual(p.instruction, "Breathe in")
     }
 
-    func testContraindications_presentAndNonMedicalGuidanceShipped() {
+    // MARK: Safety copy
+
+    func testContraindications_presentForBothNoHoldAndHold() {
         XCTAssertFalse(BreathPacer.contraindications.isEmpty)
+        XCTAssertFalse(BreathPattern.holdContraindications.isEmpty)
     }
 }

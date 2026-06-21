@@ -2,13 +2,15 @@
 //  BreathGuideView.swift
 //  Echoelmusic — Studio
 //
-//  The visible "active half" of the coherence loop: a resonance-breathing guide.
-//  An expanding/contracting circle paces slow breathing (~6/min ≈ 0.1 Hz); the
-//  live coherence from the bus is shown beside it so the body closes the loop the
-//  app measures (HRVCoherence). Drives the pure BreathPacer model from a UI-rate
-//  loop (no audio-clock coupling). Flash-safe by construction: the only motion is
-//  the breath circle at ≤0.2 Hz — far under the 3 Hz WCAG limit — and it is
-//  disabled entirely under Reduce Motion (textual guidance instead).
+//  The visible "active half" of the coherence loop: a breathing guide. An
+//  expanding/contracting circle paces the chosen BreathPattern; live coherence from
+//  the bus is shown beside it so the body closes the loop the app measures
+//  (HRVCoherence). Resonance (~6/min, no holds) is the default and recommended
+//  technique; opt-in hold patterns (Box, 4-7-8) require acknowledging their
+//  contraindications first. Drives the pure BreathPacer from a UI-rate loop (no
+//  audio-clock coupling). Flash-safe by construction: the only motion is the breath
+//  circle at ≤0.2 Hz — far under the 3 Hz WCAG limit — and it is disabled entirely
+//  under Reduce Motion (textual guidance instead).
 //
 
 #if canImport(SwiftUI)
@@ -21,6 +23,10 @@ struct BreathGuideView: View {
     @Environment(EngineBus.self) private var bus
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Once the user acknowledges the hold-safety card, don't re-prompt this session.
+    @State private var acknowledgedHolds = false
+    @State private var showHoldWarning = false
 
     var body: some View {
         ZStack {
@@ -35,7 +41,7 @@ struct BreathGuideView: View {
                     .accessibilityLabel(pacer.instruction)
                 coherenceReadout
                 Spacer(minLength: 8)
-                rateControl
+                patternControl
                 startStop
                 contraindications
             }
@@ -43,6 +49,7 @@ struct BreathGuideView: View {
         }
         .task(id: pacer.isRunning) { await driveTicks() }
         .onDisappear { pacer.stop() }
+        .sheet(isPresented: $showHoldWarning) { holdWarningSheet }
     }
 
     // MARK: Tick driver (UI-rate; not the audio/pattern clock)
@@ -62,7 +69,7 @@ struct BreathGuideView: View {
 
     private var header: some View {
         HStack {
-            Text("Resonance Breathing")
+            Text("Breathing Guide")
                 .font(EchoelTheme.font(16, .semibold))
                 .foregroundStyle(EchoelTheme.text)
             Spacer()
@@ -115,43 +122,49 @@ struct BreathGuideView: View {
         }
     }
 
-    // MARK: Pace control
+    // MARK: Pattern picker (resonance default; holds opt-in)
 
-    private var rateControl: some View {
-        HStack(spacing: 16) {
-            rateButton("minus") { pacer.targetRate -= 0.5 }
-            VStack(spacing: 2) {
-                Text(String(format: "%.1f", pacer.targetRate))
-                    .font(EchoelTheme.font(18, .bold))
-                    .foregroundStyle(EchoelTheme.text)
-                Text("breaths/min")
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(EchoelTheme.dim)
+    private var patternControl: some View {
+        VStack(spacing: 8) {
+            Picker("Breathing pattern", selection: patternSelection) {
+                ForEach(BreathPattern.curated) { p in
+                    Text(p.name).tag(p.id)
+                }
             }
-            .frame(minWidth: 96)
-            rateButton("plus") { pacer.targetRate += 0.5 }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Pace \(String(format: "%.1f", pacer.targetRate)) breaths per minute")
-    }
-
-    private func rateButton(_ systemName: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.title3)
-                .foregroundStyle(EchoelTheme.text)
-                .frame(width: 48, height: 48)
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            .pickerStyle(.segmented)
+            .disabled(pacer.isRunning)   // change pattern only while stopped
+            HStack(spacing: 6) {
+                Text(pacer.pattern.evidence)
+                if pacer.pattern.hasHolds {
+                    Text("• includes holds")
+                        .foregroundStyle(EchoelTheme.accent)
+                }
+            }
+            .font(EchoelTheme.font(11))
+            .foregroundStyle(EchoelTheme.dim)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    // MARK: Start / Stop
+    private var patternSelection: Binding<String> {
+        Binding(
+            get: { pacer.pattern.id },
+            set: { newID in
+                guard let p = BreathPattern.curated.first(where: { $0.id == newID }) else { return }
+                pacer.pattern = p
+            }
+        )
+    }
+
+    // MARK: Start / Stop (holds gated behind acknowledgement)
 
     private var startStop: some View {
         Button {
             if pacer.isRunning {
                 pacer.stop()
+            } else if pacer.pattern.hasHolds && !acknowledgedHolds {
+                showHoldWarning = true       // must acknowledge hold safety first
             } else {
                 pacer.reset()
                 pacer.start()
@@ -167,11 +180,14 @@ struct BreathGuideView: View {
         }
     }
 
-    // MARK: Safety copy (shown before / during the session)
+    // MARK: Safety copy (hold patterns show the stricter card)
 
     private var contraindications: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(BreathPacer.contraindications, id: \.self) { line in
+        let lines = pacer.pattern.hasHolds
+            ? BreathPattern.holdContraindications
+            : BreathPacer.contraindications
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(lines, id: \.self) { line in
                 Text("• " + line)
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.dim)
@@ -179,6 +195,48 @@ struct BreathGuideView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Hold-safety acknowledgement (required before a hold session)
+
+    private var holdWarningSheet: some View {
+        ZStack {
+            EchoelTheme.bg.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Before breath-holds")
+                    .font(EchoelTheme.font(18, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                ForEach(BreathPattern.holdContraindications, id: \.self) { line in
+                    Text("• " + line)
+                        .font(EchoelTheme.font(13))
+                        .foregroundStyle(EchoelTheme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button {
+                    acknowledgedHolds = true
+                    showHoldWarning = false
+                    pacer.reset()
+                    pacer.start()
+                } label: {
+                    Text("I understand — start")
+                        .font(EchoelTheme.font(16, .semibold))
+                        .foregroundStyle(EchoelTheme.onPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(EchoelTheme.text))
+                }
+                Button { showHoldWarning = false } label: {
+                    Text("Cancel")
+                        .font(EchoelTheme.font(15))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                }
+            }
+            .padding(20)
+        }
     }
 }
 #endif
