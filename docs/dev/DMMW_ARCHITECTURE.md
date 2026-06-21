@@ -79,9 +79,10 @@ The MusicalFrame (L3) drives the renderers (L4):
    lifecycle is untouched. (Earlier step: front-page tools bar.)
 2. **EchoelPanel everywhere** — EFX + all surfaces on the shared panel vocabulary.
 3. **MusicalFrame on the bus** ✅ — pure type tested; the piano roll publishes the live
-   chord each tick (pitch→Hz, velocity→amplitude, key/scale/tempo context). First
-   consumer wired: a live "Music → colour" swatch via SpectralColor (Compose ▸ Visual).
-   Next consumer: the immersive MetalBioView + light.
+   chord each tick (pitch→Hz, velocity→amplitude, key/scale/tempo context). Consumers
+   wired: (a) a live "Music → colour" swatch via SpectralColor (Compose ▸ Visual); (b)
+   the immersive MetalBioView now colours from the loudest LIVE note (tracks the melody,
+   not a static tonic). Next: Art-Net light + ADM spatial driven by MusicalFrame.
 4. **Audio-reactive engine (E/F/G)** — analyzer → visual/light; per-stem; spatial.
 5. **AUv3 host** — channel-rack instrument/effect hosting (its own pillar).
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.

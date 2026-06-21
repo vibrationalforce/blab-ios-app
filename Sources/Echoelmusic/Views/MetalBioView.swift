@@ -87,11 +87,17 @@ struct MetalBioView: UIViewRepresentable {
         // BioVisualParams so WCAG flash-safety lives in ONE place (FlashGuard),
         // not duplicated in the shader. The look is unchanged (same hr/60 mapping).
         let vp = BioVisualParams.from(bio, reduceMotion: reduceMotion)
+        // Colour follows the MUSIC when it's sounding: use the loudest live note from
+        // the published MusicalFrame so the immersive visual tracks the melody, not a
+        // static tonic. Falls back to the instrument's tonic (`toneHz`) when silent.
+        let liveTone = bus.freshMusical(maxAge: 1.5)
+            .flatMap { $0.notes.max(by: { $0.amplitude < $1.amplitude })?.frequencyHz }
+            ?? toneHz
         context.coordinator.update(
             hr: bio?.heartRateBPM ?? 60,
             coherence: bio?.coherence ?? 0.5,
             breath: bio?.breathPhase ?? 0.5,
-            toneHz: toneHz,
+            toneHz: liveTone,
             intensity: intensity, ringDensity: ringDensity, motion: motion, spread: spread,
             pulseHz: Float(vp.pulseHz),
             reduceMotion: reduceMotion
