@@ -8,7 +8,7 @@
 import Foundation
 
 public enum LearnSection: String, CaseIterable, Identifiable, Sendable {
-    case body, music, safety
+    case body, music, light, safety
 
     public var id: String { rawValue }
 
@@ -16,6 +16,7 @@ public enum LearnSection: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .body:   return "Your Body"
         case .music:  return "Music Theory"
+        case .light:  return "Light & Colour"
         case .safety: return "Safety & Scope"
         }
     }
@@ -56,6 +57,16 @@ public enum LearnLibrary {
         }
     }
 
+    /// Light & colour science — straight from LightScienceTopic (cited facts, no
+    /// claim). Grounds Echoel's Light (Art-Net/sACN) + colour output in real
+    /// wavelengths; see vision-gate (inspiration.csv) for the brand line.
+    public static var lightEntries: [LearnEntry] {
+        LightScienceTopic.allCases.map {
+            LearnEntry(id: "light.\($0.rawValue)", section: .light,
+                       title: $0.title, summary: $0.summary, detail: $0.detail)
+        }
+    }
+
     /// The single safety/scope entry — reuses the shared disclaimer.
     public static var safetyEntries: [LearnEntry] {
         [LearnEntry(
@@ -72,6 +83,7 @@ public enum LearnLibrary {
         switch section {
         case .body:   return bodyEntries
         case .music:  return musicEntries
+        case .light:  return lightEntries
         case .safety: return safetyEntries
         }
     }
