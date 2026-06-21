@@ -57,6 +57,7 @@ struct EchoelStudioView: View {
     @State private var showMood = false
     @State private var showSound = true
     @State private var showEffects = false
+    @State private var showMaster = false
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -391,6 +392,7 @@ struct EchoelStudioView: View {
             moodPanel
             soundPanel
             effectsPanel
+            masterPanel
             visualPanel
             if running {
                 Text(aiExplanation.isEmpty
@@ -573,6 +575,36 @@ struct EchoelStudioView: View {
             Text("Octave steps (±12 / ±24) stay in key; other amounts shift the whole take to a new key. The sub-bass and the immersive colour follow automatically.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: Panel — Master (output level + EBU R128 loudness)
+
+    /// The mastering readout — master volume plus the live EBU R128 loudness of the
+    /// output (short-term + gated-integrated LUFS, max true-peak in dBTP, loudness
+    /// range in LU). These numbers are what producers and broadcasters master to;
+    /// they were already computed on the master tap but never shown. Reset clears the
+    /// integration + peak hold to start a fresh measurement.
+    private var masterPanel: some View {
+        panel("Master", "Output level · EBU R128 loudness", isExpanded: $showMaster) {
+            EchoelValueField(label: "Master volume", value: Binding(
+                get: { Double(audioEngine.masterVolume) },
+                set: { audioEngine.masterVolume = Float($0) }),
+                range: 0...1, unit: "", decimals: 2)
+
+            // The live numbers live in their own view so the 60 Hz meter refresh
+            // re-renders only this small grid, not the whole studio body.
+            MasterLoudnessGrid()
+
+            HStack {
+                Text("Streaming targets ≈ −14 LUFS integrated, true peak ≤ −1 dBTP.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button("Reset") { audioEngine.resetMastering() }
+                    .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                    .accessibilityHint("Clear the integrated loudness and peak hold")
+            }
         }
     }
 
