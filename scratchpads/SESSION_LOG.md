@@ -3023,3 +3023,14 @@ DEPLOY: .deploy/release → v10.34.37 (TestFlight). HELD for device verify (prin
           across built-in poly+sub, hosted AUv3 instrument, and MIDI out. Live stuck-note kill.
 Decision logged (decisions.csv): overnight production-staples direction + the two held
   device-verify items. NEXT deploy = v10.34.38 (cycles 5–6) once 37a6989 is gate-green.
+
+### 2026-06-21 (night) — ROOT CAUSE: TestFlight failing on Apple's daily upload limit
+While verifying the v10.34.37/38 deploys I found the TestFlight workflow has been FAILING at
+"Export & Upload to TestFlight" — and it is NOT our code. Archive + automatic signing + direct
+xcodebuild upload all succeed; Apple ASC rejects at validation: "Upload limit reached. The upload
+limit for your application has been reached. Please wait 1 day and try again." (exit 70). Hit by
+the rapid overnight deploy sequence (v10.34.36/37/38). The per-commit compile gate stayed GREEN
+the whole time (the real verification). ACTION: stop bumping .deploy/release this session; space
+deploys to ~one/day; a single later deploy carries ALL branch work (build number auto-increments).
+Did NOT modify testflight.yml (CI change needs founder approval). 7th cycle (9986329 stereo level
+meter) compile gate GREEN. All 7 cycles are compile-verified and pushed to the branch.
