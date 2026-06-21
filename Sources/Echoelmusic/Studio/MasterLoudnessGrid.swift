@@ -21,6 +21,12 @@ struct MasterLoudnessGrid: View {
 
     var body: some View {
         VStack(spacing: 10) {
+            // Instantaneous stereo output level (L/R) — the moving meter every mixer
+            // has, complementing the R128 numbers. Reads the published meter levels.
+            VStack(spacing: 3) {
+                levelBar(audioEngine.masterLevel)
+                levelBar(audioEngine.masterLevelR)
+            }
             HStack(spacing: 10) {
                 readout("Short-term", lufsText(audioEngine.masterLUFSShortTerm), "LUFS", EchoelTheme.text)
                 readout("Integrated", lufsText(audioEngine.masterLUFSIntegrated), "LUFS", integratedColor)
@@ -30,6 +36,20 @@ struct MasterLoudnessGrid: View {
                 readout("Range", lraText(audioEngine.masterLRA), "LU", EchoelTheme.text)
             }
         }
+    }
+
+    /// One channel's level bar — fill proportional to level, turning warning near clip.
+    private func levelBar(_ level: Float) -> some View {
+        let v = CGFloat(min(max(level, 0), 1))
+        return GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2).fill(EchoelTheme.fill)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(level > 0.9 ? EchoelTheme.danger : EchoelTheme.accent)
+                    .frame(width: geo.size.width * v)
+            }
+        }
+        .frame(height: 5)
     }
 
     /// Colour the integrated LUFS against the chosen target (over = warning).
