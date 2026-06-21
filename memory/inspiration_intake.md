@@ -148,3 +148,20 @@ but for Echoel it's about development/science/art/health/learning, not jobs.
   or a specific focus (design refresh / copy / performance / IA / science angle).
 - Opportunity now: the homepage's science angle can be strengthened HONESTLY — real
   frequency-domain HRV coherence (HRVCoherence) + a resonance breath guide just landed.
+
+## 2026-06-21 — Spectral light-therapy science review (founder document, PMC-cited)
+Founder shared a rigorous, peer-reviewed review of light→physiology (circadian ipRGC/melanopsin
+~480nm; bright-light therapy; green ~525nm analgesia; red/NIR photobiomodulation via CCO; blue
+antimicrobial; neonatal phototherapy) + empirical colour psychology (global colour–emotion
+meta-analysis 1895–2022, Yerkes-Dodson, colour-in-context).
+
+- **ADOPT→PRODUCT (narrow):** Use the WAVELENGTH SCIENCE + colour–emotion data to make Echoel's
+  **Light (Art-Net/sACN) + Visual (SpectralColor)** output scientifically accurate, and enrich the
+  **"app as a school"** tap-to-learn with cited facts. Facts + self-observation only.
+- **REJECT (hard, never re-litigate):** any **therapeutic/medical claim** (treat depression,
+  migraine, acne, pain, jaundice). FDA general-wellness red line + principles 3/4. Echoel is NOT a
+  therapy/wellness/medical product. No "light therapy mode", no benefit promise, no dosage protocol.
+- **WATCH:** circadian-aware palette (warmer/dimmer evening), strictly perceptual framing, no health claim.
+
+Highest-value adoption: a **science-grounded light/colour engine + cited LearnLibrary entries** —
+deepens the TIER-1 Light dimension with rigor, stays on the right side of the medical red line.
