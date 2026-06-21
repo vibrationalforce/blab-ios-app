@@ -15,8 +15,9 @@ struct AUv3BrowserView: View {
     @Environment(\.dismiss) private var dismiss
     var embedded = false
 
-    /// Which hosted plugin's own UI to present (instrument vs insert effect).
-    private struct PluginUIRequest: Identifiable { let id = UUID(); let title: String; let forEffect: Bool }
+    /// Which hosted plugin's own UI to present — the instrument (effectIndex nil) or
+    /// the insert effect at the given chain index.
+    private struct PluginUIRequest: Identifiable { let id = UUID(); let title: String; let effectIndex: Int? }
     @State private var uiRequest: PluginUIRequest?
 
     var body: some View {
@@ -44,7 +45,7 @@ struct AUv3BrowserView: View {
         NavigationStack {
             Group {
                 #if canImport(UIKit) && canImport(AVFoundation)
-                if let au = host.auAudioUnit(forEffect: req.forEffect) {
+                if let au = (req.effectIndex.map { host.effectAudioUnit(at: $0) } ?? host.instrumentAudioUnit()) {
                     AUv3PluginUIView(audioUnit: au).ignoresSafeArea()
                 } else {
                     Text("Plugin unavailable.").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
@@ -75,10 +76,10 @@ struct AUv3BrowserView: View {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if host.loaded != nil || host.loadedEffect != nil { loadedBar }
+                if host.loaded != nil || !host.loadedEffects.isEmpty { loadedBar }
                 section("Instruments", host.instruments, icon: "pianokeys")
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Tap an instrument to load it (play it from the keyboard or your song); tap an effect to insert it on the instrument's channel (instrument → effect → master). Open a loaded plugin's own interface with “Open”. Settings are saved and recalled across sessions.")
+                Text("Tap an instrument to load it (play it from the keyboard or your song); tap effects to build an insert chain on its channel (instrument → fx → fx → master). Open any loaded plugin's own interface with “Open”. Settings are saved and recalled across sessions.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -99,26 +100,27 @@ struct AUv3BrowserView: View {
                     Text(inst.name).font(EchoelTheme.font(13, .semibold))
                         .foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Spacer(minLength: 0)
-                    Button("Open") { uiRequest = .init(title: inst.name, forEffect: false) }
+                    Button("Open") { uiRequest = .init(title: inst.name, effectIndex: nil) }
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.accent)
                     Button("Unload") { host.unload() }
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                 }
             }
-            if let fx = host.loadedEffect {
+            // Insert-effect chain, in signal order.
+            ForEach(Array(host.loadedEffects.enumerated()), id: \.element.id) { index, fx in
                 HStack(spacing: 8) {
                     Image(systemName: "dial.medium").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
                     Text("→ \(fx.name)").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Spacer(minLength: 0)
-                    Button("Open") { uiRequest = .init(title: fx.name, forEffect: true) }
+                    Button("Open") { uiRequest = .init(title: fx.name, effectIndex: index) }
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.accent)
-                    Button("Remove") { host.unloadEffect() }
+                    Button("Remove") { host.unloadEffect(at: index) }
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
                 }
-                if host.loaded == nil {
-                    Text("Load an instrument to feed this effect.")
-                        .font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim)
-                }
+            }
+            if host.loaded == nil && !host.loadedEffects.isEmpty {
+                Text("Load an instrument to feed these effects.")
+                    .font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim)
             }
             if host.loaded != nil {
                 Toggle(isOn: $host.replaceBuiltInVoice) {
@@ -175,21 +177,23 @@ struct AUv3BrowserView: View {
 
     @ViewBuilder
     private func row(_ au: HostedAUInfo, icon: String) -> some View {
-        let isLoaded = (host.loaded == au) || (host.loadedEffect == au)
+        // Instrument is single-slot (Loaded badge); effects append to the chain, so
+        // they stay tappable (you can add more) and just highlight when in the chain.
+        let highlighted = au.isInstrument ? (host.loaded == au) : host.loadedEffects.contains(au)
         Button {
             Task { await host.load(au) }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: icon).font(.system(size: 13))
-                    .foregroundStyle(isLoaded ? EchoelTheme.accent : EchoelTheme.dim)
+                    .foregroundStyle(highlighted ? EchoelTheme.accent : EchoelTheme.dim)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(au.name).font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Text(au.manufacturer).font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim).lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if host.isLoading && !isLoaded {
+                if host.isLoading {
                     ProgressView().controlSize(.small)
-                } else if isLoaded {
+                } else if au.isInstrument && highlighted {
                     Text("Loaded").font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.accent)
                 } else {
                     Image(systemName: au.isInstrument ? "play.circle" : "plus.circle")
@@ -199,9 +203,9 @@ struct AUv3BrowserView: View {
             .frame(height: 40)
             .padding(.horizontal, 10)
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                .fill(isLoaded ? EchoelTheme.accent.opacity(0.12) : EchoelTheme.fill))
+                .fill(highlighted ? EchoelTheme.accent.opacity(0.12) : EchoelTheme.fill))
             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                .strokeBorder(isLoaded ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+                .strokeBorder(highlighted ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

@@ -103,12 +103,13 @@ The MusicalFrame (L3) drives the renderers (L4):
      when on with a plugin loaded, the song drives ONLY the plugin (the built-in
      poly + sub voices are gated off in `PianoRollModel.trigger`), no doubling.
      Note-offs always fire so toggling mid-play never sticks a note.
-   - ✅ **Effect insert (device chain)**: tap an effect → it inserts on the hosted
-     instrument's channel (instrument → effect → master), Ableton-device-chain style.
-     `AudioEngine` gained chain primitives (`withGraphPaused`, `attachAU`/`detachAU`,
-     `connectAU`/`connectAUToMaster`); `AUv3Host` holds instrument + effect units and
-     `connectChainNow()` rebuilds the path on load/unload. Effect-only (no instrument)
-     stays unconnected — honest, master-FX is later. Kept off Echoel's own mix path.
+   - ✅ **Effect insert chain (device chain)**: tap effects to build an ordered insert
+     chain on the hosted instrument's channel (instrument → fx[0] → fx[1] → … →
+     master), Ableton-device-chain style. `AudioEngine` chain primitives
+     (`withGraphPaused`, `attachAU`/`detachAU`, `connectAU`/`connectAUToMaster`);
+     `AUv3Host` holds `effectUnits: [AVAudioUnit]` and `connectChainNow()` relinks the
+     whole chain on add/remove (per-effect remove by index). Chain stays unconnected
+     until an instrument feeds it. Kept off Echoel's own mix path.
    - ✅ **Plugin's own UI**: “Open” on a loaded instrument/effect presents the
      plugin's native interface in an Echoel-framed sheet (`AUv3PluginUIView`
      wraps `AUAudioUnit.requestViewController` as a `UIViewControllerRepresentable`;
@@ -122,7 +123,7 @@ The MusicalFrame (L3) drives the renderers (L4):
      note on/off to the hosted AUv3 instrument (host-MIDI) as well as the bus; the
      built-in voice is gated off when "use plugin instead" is on. A connected MIDI
      keyboard plays the plugin.
-   - ⬜ Next: master-bus FX slot; multiple inserts per channel.
+   - ⬜ Next: master-bus FX slot.
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

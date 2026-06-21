@@ -75,15 +75,16 @@ public final class AUv3Host {
     /// True only when a loaded plugin should silence the built-in voice.
     public var suppressesBuiltInVoice: Bool { loaded != nil && replaceBuiltInVoice }
 
-    /// The effect inserted on the hosted instrument's channel (instrument → effect →
-    /// master), Ableton-device-chain style. nil = the instrument runs dry.
-    public private(set) var loadedEffect: HostedAUInfo?
+    /// The effect chain inserted on the hosted instrument's channel, in order:
+    /// instrument → fx[0] → fx[1] → … → master (Ableton-device-chain style).
+    /// Empty = the instrument runs dry.
+    public private(set) var loadedEffects: [HostedAUInfo] = []
 
     #if canImport(AVFoundation)
     /// The instantiated instrument (held so we can re-wire + send it MIDI). Not observed.
     @ObservationIgnored private var instrumentUnit: AVAudioUnit?
-    /// The instantiated insert effect on the instrument's channel.
-    @ObservationIgnored private var effectUnit: AVAudioUnit?
+    /// The instantiated insert-effect chain (parallel to `loadedEffects`).
+    @ObservationIgnored private var effectUnits: [AVAudioUnit] = []
     /// The engine we attach into. Set once at wire-up.
     @ObservationIgnored private weak var engine: AudioEngine?
     #endif
@@ -105,7 +106,6 @@ public final class AUv3Host {
     public func load(_ info: HostedAUInfo) async {
         guard let engine else { loadError = "Audio engine unavailable."; return }
         if info.isInstrument, loaded == info, instrumentUnit != nil { return }
-        if !info.isInstrument, loadedEffect == info, effectUnit != nil { return }
         isLoading = true
         loadError = nil
         let desc = AudioComponentDescription(
@@ -125,13 +125,12 @@ public final class AUv3Host {
                     if let old = instrumentUnit { engine.detachAU(old) }
                     instrumentUnit = unit
                 } else {
-                    if let old = effectUnit, let oldInfo = loadedEffect { saveState(old, id: oldInfo.id) }
-                    if let old = effectUnit { engine.detachAU(old) }
-                    effectUnit = unit
+                    // Effects APPEND to the chain (instrument → fx0 → fx1 → … → master).
+                    effectUnits.append(unit)
                 }
                 connectChainNow()
             }
-            if info.isInstrument { loaded = info } else { loadedEffect = info }
+            if info.isInstrument { loaded = info } else { loadedEffects.append(info) }
             log.audio("AUv3 \(info.isInstrument ? "instrument" : "effect") loaded: \(info.name)")
         } catch {
             loadError = "Could not load \(info.name): \(error.localizedDescription)"
@@ -140,7 +139,7 @@ public final class AUv3Host {
         isLoading = false
     }
 
-    /// Remove the hosted instrument (and re-wire so any effect is left dry/unfed).
+    /// Remove the hosted instrument (and re-wire so the effect chain is left unfed).
     public func unload() {
         if let unit = instrumentUnit, let info = loaded { saveState(unit, id: info.id) }
         let unit = instrumentUnit
@@ -152,23 +151,26 @@ public final class AUv3Host {
         }
     }
 
-    /// Remove the insert effect (instrument reconnects straight to master).
-    public func unloadEffect() {
-        if let unit = effectUnit, let info = loadedEffect { saveState(unit, id: info.id) }
-        let unit = effectUnit
-        effectUnit = nil
-        loadedEffect = nil
+    /// Remove one insert effect from the chain by index; the chain re-links around it.
+    public func unloadEffect(at index: Int) {
+        guard effectUnits.indices.contains(index) else { return }
+        let unit = effectUnits[index]
+        if loadedEffects.indices.contains(index) { saveState(unit, id: loadedEffects[index].id) }
+        effectUnits.remove(at: index)
+        if loadedEffects.indices.contains(index) { loadedEffects.remove(at: index) }
         engine?.withGraphPaused {
-            if let unit { engine?.detachAU(unit) }
+            engine?.detachAU(unit)
             connectChainNow()
         }
     }
 
-    /// Persist the live settings of whatever is currently loaded. Call when the app
-    /// backgrounds so in-session tweaks survive a relaunch.
+    /// Persist the live settings of everything currently loaded (instrument + chain).
+    /// Call when the app backgrounds so in-session tweaks survive a relaunch.
     public func persistState() {
         if let u = instrumentUnit, let info = loaded { saveState(u, id: info.id) }
-        if let u = effectUnit, let info = loadedEffect { saveState(u, id: info.id) }
+        for (i, u) in effectUnits.enumerated() where loadedEffects.indices.contains(i) {
+            saveState(u, id: loadedEffects[i].id)
+        }
     }
 
     // MARK: - Plugin state (fullState) persistence
@@ -194,15 +196,17 @@ public final class AUv3Host {
     /// drop old output connections, then rebuild.
     private func connectChainNow() {
         guard let engine else { return }
+        // Drop every node's current output, then relink in order.
         if let i = instrumentUnit { engine.disconnectAUOutput(i) }
-        if let e = effectUnit { engine.disconnectAUOutput(e) }
-        if let i = instrumentUnit, let e = effectUnit {
-            engine.connectAU(i, to: e)
-            engine.connectAUToMaster(e)
-        } else if let i = instrumentUnit {
-            engine.connectAUToMaster(i)
+        for e in effectUnits { engine.disconnectAUOutput(e) }
+        // The chain only sounds with an instrument feeding it; effects without an
+        // instrument are left unconnected (honest — master-FX is a separate slot).
+        guard var prev = instrumentUnit else { return }
+        for e in effectUnits {
+            engine.connectAU(prev, to: e)
+            prev = e
         }
-        // Effect with no instrument has no source to process → left unconnected.
+        engine.connectAUToMaster(prev)   // last node in the chain → master
     }
 
     /// Preview: play a note on the hosted instrument (user-driven keyboard).
@@ -212,10 +216,12 @@ public final class AUv3Host {
         sendMIDI(status: 0x90 | (channel & 0x0F), data1: pitch, data2: velocity)
     }
 
-    /// The underlying AUAudioUnit (instrument or insert effect) so the UI layer can
-    /// request the plugin's own view controller. nil when that slot is empty.
-    public func auAudioUnit(forEffect: Bool) -> AUAudioUnit? {
-        (forEffect ? effectUnit : instrumentUnit)?.auAudioUnit
+    /// The hosted instrument's AUAudioUnit (for its own view controller). nil if none.
+    public func instrumentAudioUnit() -> AUAudioUnit? { instrumentUnit?.auAudioUnit }
+
+    /// The AUAudioUnit of the insert effect at `index` in the chain (for its own UI).
+    public func effectAudioUnit(at index: Int) -> AUAudioUnit? {
+        effectUnits.indices.contains(index) ? effectUnits[index].auAudioUnit : nil
     }
 
     public func noteOff(_ pitch: UInt8, channel: UInt8 = 0) {
