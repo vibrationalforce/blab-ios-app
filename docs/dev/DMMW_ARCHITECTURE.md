@@ -46,6 +46,9 @@ L1  TRANSPORT / TIMELINE  One clock, one arrangement (sections/clips/patterns). 
                           by audio AND every other medium so visuals/light/video run on
                           the same musical time.  (Transport T1, ArrangementStore,
                           PatternEngine, ClipStore exist; unify under one transport.)
+                          ✅ Metronome (self-driving click, accented downbeat) + tap
+                          tempo + master EBU R128 loudness readout (LUFS/dBTP/LRA) —
+                          production/performance staples, in the Composition + Master panels.
 ```
 
 ## The AUv3 solution (FL workflow + clean hosting)

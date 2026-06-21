@@ -62,6 +62,15 @@ struct BroadcastView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                // What you're about to send out — check loudness before going live.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Output loudness").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    MasterLoudnessGrid()
+                    Text("Most platforms target ≈ −14 LUFS integrated, true peak ≤ −1 dBTP.")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 Button {
                     broadcast.isLive ? broadcast.stop() : broadcast.start()
                 } label: {
