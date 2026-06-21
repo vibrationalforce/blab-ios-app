@@ -133,6 +133,7 @@ struct EchoelStudioView: View {
     @State private var showInput = false
     @State private var showRouting = false
     @State private var showPlugins = false
+    @State private var showLearn = false
     @State private var showPatchEditor = false
     @State private var showVisual = false
     @State private var showBreath = false
@@ -229,6 +230,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showInput) { AudioInputPickerView() }
         .sheet(isPresented: $showRouting) { PatchbayView() }
         .sheet(isPresented: $showPlugins) { AUv3BrowserView() }
+        .sheet(isPresented: $showLearn) { LearnView() }
         .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: currentPatch) { p in
@@ -313,6 +315,7 @@ struct EchoelStudioView: View {
                 toolChip("Audio In", "mic") { showInput = true }
                 toolChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
                 toolChip("Plugins", "puzzlepiece.extension") { showPlugins = true }
+                toolChip("Learn", "book") { showLearn = true }
                 #if canImport(MetalKit) && canImport(UIKit)
                 toolChip("Visual", "sparkles") { showVisual = true }
                 #endif
