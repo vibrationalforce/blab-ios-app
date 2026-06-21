@@ -134,6 +134,22 @@ struct EchoelmusicApp: App {
         }
     }
 
+    /// Bring outputs online/offline to match the Patchbay. An enabled route to an
+    /// output's port starts its sender (idempotent — each `start` guards `isActive`);
+    /// removing the last route stops it. MIDI Out is a simple enable flag. Called on
+    /// every routing change and once at launch (for persisted routes).
+    @MainActor
+    private func applyRouting() {
+        let g = signalRouter.graph
+        #if canImport(Network)
+        if g.hasEnabledRoute(toSink: "osc.out") { osc.start(subscribing: bus) } else { osc.stop() }
+        if g.hasEnabledRoute(toSink: "adm.out") { admOSC.start(subscribing: bus) } else { admOSC.stop() }
+        if g.hasEnabledRoute(toSink: "artnet.out") { artNet.start(subscribing: bus) } else { artNet.stop() }
+        if g.hasEnabledRoute(toSink: "sacn.out") { sacn.start(subscribing: bus) } else { sacn.stop() }
+        #endif
+        midiOut.enabled = g.hasEnabledRoute(toSink: "midi.out")
+    }
+
     @ViewBuilder
     private var mainContent: some View {
         // Workstation home: Arrangement/Clips timeline in the foreground, the
@@ -230,10 +246,13 @@ struct EchoelmusicApp: App {
                     beatPlayer?.pattern.setTempo(30 + Double(value) * 270)
                 }
                 modulationEngine.start(subscribing: bus)
-                // Non-essential I/O (BLE straps, external MIDI, OSC out) is NOT
-                // auto-started — the essential instrument is camera/Demo bio →
-                // generate → play → export. These remain available but opt-in,
-                // so launch stays lean and triggers no extra permission prompts.
+                // Non-essential I/O (BLE straps, external MIDI, OSC/ADM/Art-Net/sACN
+                // out) is NOT auto-started. It now comes online ON DEMAND from the
+                // Patchbay: making a connection to an output starts its sender; the
+                // last connection removed stops it. Launch stays lean (no routes =
+                // nothing started, no extra permission prompts).
+                signalRouter.onChange = { applyRouting() }
+                applyRouting()   // honor any persisted routes from a previous session
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
 

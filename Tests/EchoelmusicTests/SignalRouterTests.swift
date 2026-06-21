@@ -72,5 +72,24 @@ final class SignalRouterTests: XCTestCase {
         r.clearAll()
         XCTAssertTrue(r.graph.routes.isEmpty)
     }
+
+    func testOnChange_firesOnEveryMutation() {
+        let r = SignalRouter(defaults: freshDefaults())
+        var count = 0
+        r.onChange = { count += 1 }
+        r.connect("bus.musical", "artnet.out")
+        XCTAssertEqual(count, 1)
+        if let id = r.graph.routes.first?.id { r.disconnect(id) }
+        XCTAssertEqual(count, 2)
+    }
+
+    func testHasEnabledRoute_drivesOutputActivation() {
+        let r = SignalRouter(defaults: freshDefaults())
+        XCTAssertFalse(r.graph.hasEnabledRoute(toSink: "artnet.out"))
+        r.connect("bus.musical", "artnet.out")
+        XCTAssertTrue(r.graph.hasEnabledRoute(toSink: "artnet.out"))
+        r.clearAll()
+        XCTAssertFalse(r.graph.hasEnabledRoute(toSink: "artnet.out"))
+    }
 }
 #endif

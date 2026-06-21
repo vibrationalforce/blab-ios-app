@@ -110,8 +110,11 @@ ADM-OSC / Art-Net / sACN / BLE / Camera bridges (EXTERNAL ports), and `Modulatio
 - Status: ✅ pure core + tests (`Core/SignalRouting.swift`); ✅ live holder
   `SignalRouter` (real endpoint inventory + persisted routes); ✅ **Patchbay UI**
   (`Studio/PatchbayView.swift`, Tools ▸ Routing — tap-to-connect, smart auto-patch,
-  honest live/soon status); ✅ first adapter Music/Bio→Light&Spatial. ⬜ remaining
-  adapters (MIDI graph routing, Audio/AUv3, Broadcast) per founder priority.
+  honest live/soon status); ✅ first adapter Music/Bio→Light&Spatial; ✅ **outputs come
+  online ON DEMAND from the patchbay** — a connection to MIDI Out / OSC / ADM / Art-Net /
+  sACN starts that sender (idempotent), the last connection removed stops it (these were
+  unreachable before — no Sync tab in the single-view IA). ⬜ remaining: MIDI in→out thru,
+  Audio/AUv3 hosting, Broadcast (RTMP/SRT) per founder priority.
 
 ## Guardrails
 - iPhone-first, multi-touch. Brand: claim only what ships (no dead category buttons).

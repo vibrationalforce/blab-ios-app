@@ -297,6 +297,12 @@ public struct SignalGraph: Codable, Sendable, Equatable {
         routes.filter { $0.sinkPortID == id }
     }
 
+    /// True if any ENABLED route targets this sink — the runtime uses this to bring
+    /// the sink's output online (start its sender) only when something feeds it.
+    public func hasEnabledRoute(toSink id: String) -> Bool {
+        routes.contains { $0.sinkPortID == id && $0.enabled }
+    }
+
     // MARK: Intelligent defaults
 
     /// Propose sensible connections that don't yet exist: every source to every

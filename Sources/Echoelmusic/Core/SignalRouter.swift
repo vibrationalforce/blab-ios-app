@@ -27,6 +27,11 @@ public final class SignalRouter {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let storageKey = "signalGraph.routes.v1"
 
+    /// Called after every routing change (and on load) so the app can bring the
+    /// affected outputs online/offline (start/stop senders, enable MIDI out). Set by
+    /// the app; nil = no side effects (e.g. in tests).
+    @ObservationIgnored public var onChange: (() -> Void)?
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.graph = SignalGraph(ports: Self.defaultInventory(), catalog: .default)
@@ -80,8 +85,10 @@ public final class SignalRouter {
     // MARK: - Persistence (routes only; ports are code-defined inventory)
 
     public func save() {
-        guard let data = try? JSONEncoder().encode(graph.routes) else { return }
-        defaults.set(data, forKey: storageKey)
+        if let data = try? JSONEncoder().encode(graph.routes) {
+            defaults.set(data, forKey: storageKey)
+        }
+        onChange?()   // bring outputs online/offline to match the new routing
     }
 
     private func load() {
