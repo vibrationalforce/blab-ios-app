@@ -60,7 +60,8 @@ struct AUv3BrowserView: View {
 
     // The currently-loaded instrument + a one-octave preview keyboard.
     private var loadedBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        @Bindable var host = host
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "waveform").font(.system(size: 13)).foregroundStyle(EchoelTheme.accent)
                 Text(host.loaded?.name ?? "").font(EchoelTheme.font(13, .semibold))
@@ -69,6 +70,11 @@ struct AUv3BrowserView: View {
                 Button("Unload") { host.unload() }
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
             }
+            Toggle(isOn: $host.replaceBuiltInVoice) {
+                Text("Use plugin instead of Echoel's voice")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            }
+            .tint(EchoelTheme.accent)
             previewKeyboard
         }
         .padding(10)

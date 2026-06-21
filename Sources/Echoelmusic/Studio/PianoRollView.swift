@@ -180,6 +180,10 @@ public final class PianoRollModel {
         // notes also drive the sub-bass voice an octave down (the "felt" dimension),
         // adapting per take regardless of the genre's octave.
         let bassCeiling = (notes.map { $0.pitch }.min() ?? 0) + 4
+        // When a hosted plugin is set to REPLACE Echoel's voice, the song drives only
+        // the plugin (no doubling). Note-offs always fire (harmless if it wasn't
+        // playing) so toggling mid-play never leaves the built-in voice stuck.
+        let suppressBuiltIn = auHost?.suppressesBuiltInVoice ?? false
         let ending = active.filter { $0.value.endStep % Self.stepCount == step }
         for id in ending.keys { active[id] = nil }
         for note in ending.values where !active.values.contains(where: { $0.pitch == note.pitch }) {
@@ -189,11 +193,11 @@ public final class PianoRollModel {
             if note.pitch <= bassCeiling { subVoice?.noteOff(pitch: note.pitch - 12) }
         }
         for note in notes where note.startStep == step {
-            voice?.noteOn(pitch: note.pitch, velocity: note.velocity)
+            if !suppressBuiltIn { voice?.noteOn(pitch: note.pitch, velocity: note.velocity) }
             midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity)
             auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
             active[note.id] = note
-            if note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
+            if !suppressBuiltIn, note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
         }
 
         // Publish the chord sounding NOW as a MusicalFrame so renderers can colour /

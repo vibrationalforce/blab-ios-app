@@ -99,6 +99,10 @@ The MusicalFrame (L3) drives the renderers (L4):
      note on/off to the hosted AU (same shared MainActor `onTick` as Echoel's own
      voices + MIDI Out), so a loaded plugin plays the composition, not just the
      preview keys. No-op until a plugin is loaded.
+   - ✅ **Use-plugin-instead toggle**: `AUv3Host.replaceBuiltInVoice` (persisted) —
+     when on with a plugin loaded, the song drives ONLY the plugin (the built-in
+     poly + sub voices are gated off in `PianoRollModel.trigger`), no doubling.
+     Note-offs always fire so toggling mid-play never sticks a note.
    - ⬜ Next: insert effects into a channel's insert chain; embed the plugin's
      `requestViewController` UI in an Echoel panel; `fullState` save/recall; route
      external MIDI-in into the hosted instrument.

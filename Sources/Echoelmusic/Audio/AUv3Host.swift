@@ -63,6 +63,18 @@ public final class AUv3Host {
     /// Last load failure, surfaced to the browser.
     public private(set) var loadError: String?
 
+    /// When true AND a plugin is loaded, the hosted instrument REPLACES Echoel's
+    /// built-in voice for the composition (no doubling) — the song drives only the
+    /// plugin. When false the two layer. Persisted across launches. No effect when
+    /// nothing is loaded.
+    public var replaceBuiltInVoice: Bool {
+        didSet { UserDefaults.standard.set(replaceBuiltInVoice, forKey: Self.replaceKey) }
+    }
+    private static let replaceKey = "auHost.replaceBuiltInVoice"
+
+    /// True only when a loaded plugin should silence the built-in voice.
+    public var suppressesBuiltInVoice: Bool { loaded != nil && replaceBuiltInVoice }
+
     #if canImport(AVFoundation)
     /// The instantiated unit (held so we can detach + send it MIDI). Not observed.
     @ObservationIgnored private var hostedUnit: AVAudioUnit?
@@ -70,7 +82,9 @@ public final class AUv3Host {
     @ObservationIgnored private weak var engine: AudioEngine?
     #endif
 
-    public init() {}
+    public init() {
+        self.replaceBuiltInVoice = UserDefaults.standard.bool(forKey: Self.replaceKey)
+    }
 
     public var total: Int { instruments.count + effects.count }
 
