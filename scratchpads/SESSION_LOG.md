@@ -2947,3 +2947,19 @@ articulation-macro vs editable-ADSR ownership UX; timbreBlend 0.9 masks declared
 on acoustic patches; bio-frame spectral recompute throttle. SynthPatch.init(from:) lossy
 (drops spectralShape/timbre on capture) — fix next.
 NEXT: Stage 2 (modal resonator for lead) after device-listen of Stage 1 instrument characters.
+
+### 2026-06-21 — DMMW IA pivot: Arrangement/Clips become the foreground HOME
+FOUNDER: "die Arrangement View bzw. Clips muss im Vordergrund sein wie in professionellen
+workstations. Pianoroll braucht man nur wenn man einen Clip erzeugt. Audioclips, Midi Clips,
+Video, Visual. Das ganze Biofeedback Teil ist eigentlich nur ein Tool."
+CYCLE 1 — typed clips (commit 1e5ec97, CI green): Clip gains ClipKind (midi/audio/video/visual)
+  + mediaRef + honest isPlayable (midi only). Back-compat decode (old clips → .midi). ClipTypeTests.
+CYCLE 2 — IA shell (commit 722d736): new WorkspaceView = persistent surface switcher
+  (Arrange · Clips · Compose, default Arrange). Arrangement/Clips now the foreground home;
+  EchoelStudioView (bio-compose) hosted as the Compose surface. All surfaces stay MOUNTED
+  (ZStack+opacity) → Compose's audio lifecycle untouched. ArrangementView/ClipView gained an
+  `embedded` mode (drop sheet NavigationStack+Done). App root flips to WorkspaceView; .task/env
+  wiring unchanged. Council gate: proceed-with-mitigation (no lifecycle change). Reversible.
+NEXT (queued): slim/relocate the bio strip out of the always-top spot; surface typed clip lanes
+  (audio/video/visual) in the timeline; unify one transport; then MusicalFrame publisher→renderers.
+DEPLOY: ship to TestFlight for device visual confirmation (UI can't be verified in sandbox).
