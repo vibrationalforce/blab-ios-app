@@ -889,21 +889,9 @@ struct EchoelStudioView: View {
     private func panel<Content: View>(_ title: String, _ subtitle: String,
                                       isExpanded: Binding<Bool>,
                                       @ViewBuilder content: @escaping () -> Content) -> some View {
-        DisclosureGroup(isExpanded: isExpanded) {
-            VStack(alignment: .leading, spacing: 14) { content() }
-                .padding(.top, 12)
-        } label: {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                Text(subtitle).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            }
-        }
-        .tint(EchoelTheme.dim)
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(title)
+        // Delegates to the shared EchoelPanel so Studio, EFX and the coming workspace
+        // all render the identical panel (one CI vocabulary, one place to evolve it).
+        EchoelPanel(title, subtitle, isExpanded: isExpanded, content: content)
     }
 
     /// A label-above-control row (forms: labels above inputs — per UI rules).
