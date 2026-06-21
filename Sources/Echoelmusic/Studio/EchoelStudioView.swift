@@ -508,6 +508,7 @@ struct EchoelStudioView: View {
 
     private var visualPanel: some View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+            musicColourRow
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5)
             EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0)
             EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5)
@@ -516,6 +517,38 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Live "music → colour": the chord sounding now (published on the bus by the
+    /// piano roll as a MusicalFrame) mapped through SpectralColor (OKLab, octave-
+    /// equivalent hue, amplitude-weighted chord mix). Proves the DMMW promise —
+    /// visuals shaped BY musical parameters — and feeds the immersive visual + light.
+    private var musicColourRow: some View {
+        let frame = bus.freshMusical(maxAge: 1.5)
+        let sounding = frame?.isSounding ?? false
+        let swatch = musicColour(frame) ?? EchoelTheme.fill
+        return HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(swatch)
+                .frame(width: 44, height: 28)
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Music → colour").font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                Text(sounding ? "Live chord, mapped by pitch + loudness" : "Plays when the music is sounding")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Music colour, \(sounding ? "live" : "idle")")
+    }
+
+    /// Bridge the bus's latest MusicalFrame to a SwiftUI colour via SpectralColor.
+    /// Output is LINEAR sRGB, so it's handed to SwiftUI as `.sRGBLinear`.
+    private func musicColour(_ frame: MusicalFrame?) -> Color? {
+        guard let frame, frame.isSounding else { return nil }
+        let rgb = SpectralColor.color(forChord: frame.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
+        return Color(.sRGBLinear, red: rgb.r, green: rgb.g, blue: rgb.b)
     }
 
     // MARK: Panel — Mood (character of the composition)
@@ -1368,6 +1401,12 @@ struct EchoelStudioView: View {
         synth.apply(currentPatch)
         // Locked tempo wins for tight loops; otherwise the body sets the pace.
         let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
+        // Push the live musical context so the roll's per-tick MusicalFrame carries the
+        // current key/scale/tempo/concert-pitch → renderers colour by the right key.
+        pianoRoll.musicalA4Hz = session.a4Hz
+        pianoRoll.musicalRootPitchClass = rootIndex
+        pianoRoll.musicalScaleName = scale.rawValue
+        pianoRoll.musicalTempoBPM = tempo
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
         // Global transpose: shift every generated pitch by the user's semitones at the

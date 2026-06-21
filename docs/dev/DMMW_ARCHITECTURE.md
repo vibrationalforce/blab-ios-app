@@ -78,8 +78,10 @@ The MusicalFrame (L3) drives the renderers (L4):
    as one Compose surface. All surfaces stay mounted (ZStack+opacity) so Compose's audio
    lifecycle is untouched. (Earlier step: front-page tools bar.)
 2. **EchoelPanel everywhere** — EFX + all surfaces on the shared panel vocabulary.
-3. **MusicalFrame on the bus** — pure, tested; publish current notes/chord/key/tempo/
-   section/per-track levels. Unlocks every music→media mapping.
+3. **MusicalFrame on the bus** ✅ — pure type tested; the piano roll publishes the live
+   chord each tick (pitch→Hz, velocity→amplitude, key/scale/tempo context). First
+   consumer wired: a live "Music → colour" swatch via SpectralColor (Compose ▸ Visual).
+   Next consumer: the immersive MetalBioView + light.
 4. **Audio-reactive engine (E/F/G)** — analyzer → visual/light; per-stem; spatial.
 5. **AUv3 host** — channel-rack instrument/effect hosting (its own pillar).
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.

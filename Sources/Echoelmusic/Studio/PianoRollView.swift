@@ -44,6 +44,19 @@ public final class PianoRollModel {
     /// so a live re-seed never cuts a sustaining note mid-bar (no click/gap).
     @ObservationIgnored private var pendingNotes: [Note]?
 
+    // MARK: - Musical-parameter publishing (DMMW backbone)
+    // The roll is the source of "what's sounding now", so it publishes a MusicalFrame
+    // on the bus each tick — the music-side mirror of the bio snapshot. Renderers
+    // (visual/light/spatial) subscribe and map it to colour/motion. nil bus = no-op.
+    // See docs/dev/DMMW_ARCHITECTURE.md and Core/MusicalFrame.swift.
+    @ObservationIgnored private weak var bus: EngineBus?
+    /// Live musical context for the published frame, pushed by the Studio when the
+    /// take re-seeds (key/scale/tempo/concert-pitch). Defaults are inert (root -1).
+    @ObservationIgnored public var musicalA4Hz: Double = 440
+    @ObservationIgnored public var musicalRootPitchClass: Int = -1
+    @ObservationIgnored public var musicalScaleName: String = ""
+    @ObservationIgnored public var musicalTempoBPM: Double = 0
+
     public init() {}
 
     // MARK: - Editing
@@ -105,11 +118,12 @@ public final class PianoRollModel {
 
     public func start(pattern: PatternEngine, voice: PolySynthVoice,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
-                      arrangement: ArrangementPlayer? = nil) {
+                      arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil) {
         self.voice = voice
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
+        self.bus = bus
         // Advance the song first (loads the next section's clip on a bar wrap),
         // THEN trigger this step's notes — so a new section plays from step 0 cleanly.
         pattern.onTick = { [weak self] step in
@@ -172,6 +186,30 @@ public final class PianoRollModel {
             active[note.id] = note
             if note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
         }
+
+        // Publish the chord sounding NOW as a MusicalFrame so renderers can colour /
+        // move with the music (DMMW backbone). 16 steps = 4 beats → beatPhase per beat.
+        bus?.publish(musical: Self.musicalFrame(
+            forActive: Array(active.values),
+            a4Hz: musicalA4Hz, rootPitchClass: musicalRootPitchClass,
+            scaleName: musicalScaleName, tempoBPM: musicalTempoBPM,
+            beatPhase: Double(step % 4) / 4.0))
+    }
+
+    /// Build the live musical snapshot from the notes sounding now. Pure (testable):
+    /// pitch → Hz at the given concert pitch, velocity → amplitude, master = the
+    /// summed velocities (clamped) so "how much is sounding" tracks the chord density.
+    public static func musicalFrame(forActive notes: [Note], a4Hz: Double,
+                                    rootPitchClass: Int, scaleName: String,
+                                    tempoBPM: Double, beatPhase: Double) -> MusicalFrame {
+        let mnotes = notes.map { n -> MusicalNote in
+            let hz = a4Hz * pow(2.0, Double(n.pitch - 69) / 12.0)
+            return MusicalNote(frequencyHz: hz, amplitude: Double(n.velocity))
+        }
+        let master = notes.isEmpty ? 0 : Swift.min(1.0, notes.reduce(0.0) { $0 + Double($1.velocity) })
+        return MusicalFrame(notes: mnotes, rootPitchClass: rootPitchClass,
+                            scaleName: scaleName, tempoBPM: tempoBPM,
+                            beatPhase: beatPhase, masterLevel: master)
     }
 
     // MARK: - Labels
