@@ -338,6 +338,8 @@ struct EchoelFXView: View {
             }
             .navigationTitle("EchoelFX")
             .searchable(text: $presetQuery, prompt: "Search presets & tags")
+            .scrollContentBackground(.hidden)              // drop the stock grey grouped background…
+            .background(EchoelTheme.bg.ignoresSafeArea())  // …and show the Echoel black, like the rest of the app
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -346,6 +348,10 @@ struct EchoelFXView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .toolbarBackground(EchoelTheme.bg, for: .navigationBar)   // themed nav bar, not stock grey
+            .toolbarBackground(.visible, for: .navigationBar)
+            .tint(EchoelTheme.accent)                                 // search + Done in the bio-green accent
+            .preferredColorScheme(.dark)                             // system controls render dark, on-brand
             .alert("Save preset", isPresented: $showSaveSheet) {
                 TextField("Name", text: $saveName)
                 Button("Save") {
