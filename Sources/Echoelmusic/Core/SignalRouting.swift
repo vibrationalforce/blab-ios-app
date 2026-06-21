@@ -53,25 +53,46 @@ public enum SignalKind: String, Codable, Sendable, CaseIterable {
 // MARK: - Where it lives (protocol / location)
 
 /// The transport a port speaks. `internalBus` = app-internal; everything else is
-/// an in/out protocol adapter. `auv3`/`rtmp` are typed now, wired later.
+/// an in/out protocol adapter. Covers the relevant iPhone industry standards
+/// (MIDI 1.0/2.0/MPE, RTP-MIDI, OSC, ADM-OSC, Art-Net, sACN, Audio I/O, AUv3, BLE
+/// HRS, RTMP/SRT broadcast, NDI video-over-IP, Ableton Link clock). Several are
+/// typed now and wired per founder priority — honesty via `status`.
 public enum SignalTransport: String, Codable, Sendable, CaseIterable {
     case internalBus
-    case coreMIDI
-    case midi2
-    case mpe
-    case osc
-    case admOSC
-    case artNet
-    case sacn
-    case audioIO
-    case auv3
-    case bleHRS
-    case camera
-    case healthKit
-    case rtmp
+    case coreMIDI       // MIDI 1.0 (CoreMIDI)
+    case midi2          // MIDI 2.0 / UMP (+ MIDI-CI capability inquiry)
+    case mpe            // MPE over CoreMIDI
+    case rtpMIDI        // RTP-MIDI / network MIDI session
+    case osc            // OSC 1.0/1.1 (+ OSCQuery discovery)
+    case admOSC         // ADM-OSC immersive objects
+    case artNet         // DMX over Art-Net
+    case sacn           // DMX over sACN (E1.31)
+    case audioIO        // device / interface / Bluetooth audio buses
+    case auv3           // Audio Unit v3 host
+    case abletonLink    // tempo / transport sync (free lib, Council-gated)
+    case bleHRS         // BLE Heart Rate Service (0x180D) + bio
+    case camera         // camera rPPG / capture
+    case healthKit      // Apple Health
+    case rtmp           // broadcast — RTMP
+    case srt            // broadcast — SRT (low-latency)
+    case ndi            // video over IP (pro-production)
 
     /// True for app-internal transports (no external I/O).
     public var isInternal: Bool { self == .internalBus }
+
+    /// Implementation status — keeps the patchbay honest (no dead endpoints
+    /// pretending to work). `live` = shipping today; `roadmap` = typed, not wired.
+    public enum Status: String, Codable, Sendable { case live, roadmap }
+
+    public var status: Status {
+        switch self {
+        case .internalBus, .coreMIDI, .mpe, .rtpMIDI, .osc, .admOSC,
+             .artNet, .sacn, .audioIO, .bleHRS, .camera, .healthKit:
+            return .live
+        case .midi2, .auv3, .abletonLink, .rtmp, .srt, .ndi:
+            return .roadmap
+        }
+    }
 }
 
 // MARK: - Direction

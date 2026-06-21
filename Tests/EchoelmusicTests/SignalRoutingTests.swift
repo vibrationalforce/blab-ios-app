@@ -110,6 +110,22 @@ final class SignalRoutingTests: XCTestCase {
         XCTAssertEqual(back.routes.first?.converterID, "music→light")
     }
 
+    func testTransport_industryStandards_andHonestStatus() {
+        // The standards the founder asked about are all typed.
+        let all = Set(SignalTransport.allCases)
+        for t: SignalTransport in [.coreMIDI, .midi2, .mpe, .rtpMIDI, .osc, .admOSC,
+                                   .artNet, .sacn, .audioIO, .auv3, .abletonLink,
+                                   .bleHRS, .rtmp, .srt, .ndi] {
+            XCTAssertTrue(all.contains(t))
+        }
+        // Honest: shipping transports are live; not-yet-wired ones are roadmap.
+        XCTAssertEqual(SignalTransport.artNet.status, .live)
+        XCTAssertEqual(SignalTransport.osc.status, .live)
+        XCTAssertEqual(SignalTransport.midi2.status, .roadmap)
+        XCTAssertEqual(SignalTransport.rtmp.status, .roadmap)
+        XCTAssertEqual(SignalTransport.ndi.status, .roadmap)
+    }
+
     func testRoute_clampsAmount() {
         let r = SignalRoute(sourcePortID: "a", sinkPortID: "b", amount: 9)
         XCTAssertEqual(r.amount, 1, accuracy: 1e-9)

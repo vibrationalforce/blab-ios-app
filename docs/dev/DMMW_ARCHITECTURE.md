@@ -97,8 +97,10 @@ ADM-OSC / Art-Net / sACN / BLE / Camera bridges (EXTERNAL ports), and `Modulatio
 (the control→control projection).
 - **`SignalKind`** (what flows): controlBio · controlMusical · controlMacro · note ·
   controlChange · audio · light · spatial · clock · (video · visual = roadmap, `isLive=false`).
-- **`SignalTransport`** (where it lives): internalBus · coreMIDI · midi2 · mpe · osc ·
-  admOSC · artNet · sacn · audioIO · auv3 · bleHRS · camera · healthKit · rtmp.
+- **`SignalTransport`** (where it lives, with honest `status` live/roadmap): internalBus ·
+  coreMIDI · midi2 (+MIDI-CI) · mpe · rtpMIDI · osc (+OSCQuery) · admOSC · artNet · sacn ·
+  audioIO · auv3 · abletonLink · bleHRS · camera · healthKit · rtmp · srt · ndi. Smarter
+  layers: MIDI-CI (param auto-discovery), OSCQuery (remote param typing), Ableton Link (clock).
 - **`SignalPort`** (kind + direction source/sink + transport, stable id) · **`SignalRoute`**
   (source→sink + amount + converter) · **`ConverterCatalog`** (the "intelligent" part:
   allowed cross-kind transforms — bio→CC, pitch/chord→colour, pitch→ADM position, …).
