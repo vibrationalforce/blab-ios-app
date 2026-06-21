@@ -1,0 +1,80 @@
+# Echoel DMMW — Digital Multidimensional Multimedia Workstation
+
+**Goal (founder):** the first and long-term best **biofeedback-driven, multi-touch
+DMMW** — FL Studio Mobile's intuitive workflow + clean AUv3 hosting (the thing FL
+lacks and Cubasis/Zenbeats/AUM do but cluttered) + Echoel's bio core, where a musician
+shapes **video, visuals, light, laser, spatial sound** by **musical parameters**.
+
+## The one idea that makes it coherent
+**One typed signal bus; many media subscribe.** Echoel already has `EngineBus`
+(bio control-plane + lock-free SPSC). The DMMW generalizes it: the bus carries BOTH
+**bio** AND **musical parameters**, and every medium (audio, visuals, light, video,
+spatial) is a *subscriber* that maps those signals to its own domain. "Design visuals/
+light by musical parameters" = the renderers read the music params off the bus. No
+point-to-point wiring; add a medium = add a subscriber.
+
+## Layered structure
+
+```
+L5  WORKSPACE (IA)        Persistent workspace bar (FL-intuitive, nothing hidden):
+                          Arrange · Channels · Mix · Piano-Roll · FX · Visual · Light · Well
+                          Always-on BioStrip on top. Only working areas shown.
+        │
+L4  MEDIA RENDERERS       Audio master · Visuals (MetalBioView + SpectralColor +
+    (subscribers)         oscilloscope) · Light (EchoelLux/Art-Net) · Spatial (ADM-OSC) ·
+                          Video (roadmap). Each maps bus signals → its domain.
+        │
+L3  THE BUS (backbone)    EngineBus carries:
+                          • BioFrame (HR, HRV, coherence, breath, motion)  ✅ live
+                          • MusicalFrame (current notes/chord, key, tempo, section,
+                            per-track level/transient, master spectrum)    ← to build
+        │
+L2  CHANNELS / RACK       FL-style channel rack. Each channel = an INSTRUMENT
+                          (built-in voice OR hosted AUv3) + insert FX (built-in
+                          EchoelFXChain OR hosted AUv3). Add-channel picker like FL's,
+                          plus an "AUv3 Instrument / Effect" category.    ← AUv3 host arc
+        │
+L1  TRANSPORT / TIMELINE  One clock, one arrangement (sections/clips/patterns). Shared
+                          by audio AND every other medium so visuals/light/video run on
+                          the same musical time.  (Transport T1, ArrangementStore,
+                          PatternEngine, ClipStore exist; unify under one transport.)
+```
+
+## The AUv3 solution (FL workflow + clean hosting)
+- **Hosting** (host other devs' AUv3 in a channel): `AVAudioUnitComponentManager`
+  discovery → instantiate `AVAudioUnit` → insert into the channel's node graph →
+  embed the plugin's `requestViewController` UI in an Echoel-framed sheet → round-trip
+  `fullState` for save/recall. Audio-thread rules apply (no work in the render path
+  beyond the AU itself). This is a real multi-cycle engineering arc, tracked as its own
+  pillar — NOT claimed until it ships.
+- **Workflow** (why it stays clean where Cubasis/AUM don't): AUv3s live INSIDE the
+  channel rack as just another instrument/effect — same chip, same panel vocabulary
+  (`EchoelPanel`, `EchoelValueField`) — instead of a separate cluttered host surface.
+  The FL "two-column add" (channel type → instrument) gains an "AUv3" column.
+
+## Music → multimedia mappings (the differentiator)
+The MusicalFrame (L3) drives the renderers (L4):
+- **pitch/chord → colour**: `SpectralColor` (OKLab, octave-equivalent hue, chord =
+  additive mix) ✅ built — feeds Visual + Light.
+- **tempo/section → motion/scene**: visual pace + light cues follow the arrangement.
+- **per-track level/transient → element reactivity**: drums punch the visual, bass
+  drives low-freq fields ("novel oscilloscope", cycles E/F).
+- **key/mode → palette/mood**; **spatial object positions (ADM) → 2D visual field**
+  via `HilbertSensorMapper` (channel→locality) — "multidimensional".
+- **bio (breath/coherence/HR) → the same renderers** — biofeedback is always a
+  co-modulator, never bolted on.
+
+## Build order (each a shippable cycle, deploy between)
+1. **IA shell** — persistent workspace bar; tools on the front (start now: tools bar). 
+2. **EchoelPanel everywhere** — EFX + all surfaces on the shared panel vocabulary.
+3. **MusicalFrame on the bus** — pure, tested; publish current notes/chord/key/tempo/
+   section/per-track levels. Unlocks every music→media mapping.
+4. **Audio-reactive engine (E/F/G)** — analyzer → visual/light; per-stem; spatial.
+5. **AUv3 host** — channel-rack instrument/effect hosting (its own pillar).
+6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
+
+## Guardrails
+- iPhone-first, multi-touch. Brand: claim only what ships (no dead category buttons).
+- Audio-thread rules (no locks/alloc in render); bus snapshot for slow signals, SPSC
+  for fast. Uncodixfy CI (EchoelPanel/EchoelValueField, ≤3 Hz flash, no glow).
+- Protected Rausch triad untouched. Every cycle: build → test → ship → device feedback.

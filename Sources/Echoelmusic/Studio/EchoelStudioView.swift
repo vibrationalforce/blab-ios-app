@@ -294,45 +294,61 @@ struct EchoelStudioView: View {
         #if canImport(HealthKit)
         @Bindable var healthWriter = healthWriter
         #endif
-        return Menu {
-            Button { showPianoRoll = true } label: { Label("Piano Roll", systemImage: "pianokeys") }
-            Button { showClips = true } label: { Label("Clips", systemImage: "square.grid.2x2") }
-            Button { showArrangement = true } label: { Label("Arrangement", systemImage: "rectangle.split.3x1") }
-            Button { showPatchEditor = true } label: { Label("Sound Editor", systemImage: "dial.medium") }
-            Menu {
-                ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
-                    Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
-                }
-            } label: { Label("Drum Samples", systemImage: "waveform") }
-            Button { showBreath = true } label: { Label("Breathing Guide", systemImage: "wind") }
-            Button { showInput = true } label: { Label("Audio Input", systemImage: "mic") }
-            #if canImport(MetalKit) && canImport(UIKit)
-            Button { showVisual = true } label: { Label("Immersive Visual", systemImage: "sparkles") }
-            #endif
-            Divider()
-            // Live MIDI / MPE OUT — the body's take streams to a virtual
-            // "Echoelmusic" source any DAW can record. Off by default.
-            Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
-            Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
-                .disabled(!midiOut.enabled)
-            #if canImport(HealthKit)
-            Divider()
-            // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
-            // BLE) into Apple Health. Off by default; never writes HRV or echoes
-            // Apple's own data back.
-            Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
-            #endif
-            Divider()
-            // Self-identifying build — confirms at a glance which TestFlight build is running.
-            Text("Echoel \(Self.appVersionString)").font(EchoelTheme.font(11))
-        } label: {
-            Label("Tools", systemImage: "slider.horizontal.3")
-                .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                .frame(maxWidth: .infinity).frame(height: 44)
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        // Persistent front-page tools bar (no dropdown): every editor is one tap away,
+        // horizontally scrollable so it stays compact on iPhone. Step 1 of the DMMW
+        // workspace IA (docs/dev/DMMW_ARCHITECTURE.md) — tools on the front, FL-style.
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                toolChip("Piano Roll", "pianokeys") { showPianoRoll = true }
+                toolChip("Clips", "square.grid.2x2") { showClips = true }
+                toolChip("Arrangement", "rectangle.split.3x1") { showArrangement = true }
+                toolChip("Sound", "dial.medium") { showPatchEditor = true }
+                Menu {
+                    ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
+                        Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
+                    }
+                } label: { chipLabel("Drum Samples", "waveform") }
+                toolChip("Breathing", "wind") { showBreath = true }
+                toolChip("Audio In", "mic") { showInput = true }
+                #if canImport(MetalKit) && canImport(UIKit)
+                toolChip("Visual", "sparkles") { showVisual = true }
+                #endif
+                Menu {
+                    // Live MIDI / MPE OUT — the body's take streams to a virtual
+                    // "Echoelmusic" source any DAW can record. Off by default.
+                    Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
+                    Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
+                        .disabled(!midiOut.enabled)
+                    #if canImport(HealthKit)
+                    // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
+                    // BLE) into Apple Health. Off by default; never writes HRV.
+                    Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
+                    #endif
+                    Divider()
+                    Text("Echoel \(Self.appVersionString)").font(EchoelTheme.font(11))
+                } label: { chipLabel("More", "ellipsis") }
+            }
+            .padding(.vertical, 2)
         }
-        .accessibilityLabel("Open tools")
+        .accessibilityLabel("Tools — quick access")
+    }
+
+    /// A compact tool chip for the always-visible front-page tools bar (no dropdown).
+    private func toolChip(_ title: String, _ systemImage: String,
+                          _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { chipLabel(title, systemImage) }
+            .accessibilityLabel(title)
+    }
+
+    private func chipLabel(_ title: String, _ systemImage: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage).font(.system(size: 13))
+            Text(title).font(EchoelTheme.font(12, .semibold))
+        }
+        .foregroundStyle(EchoelTheme.text)
+        .padding(.horizontal, 12).frame(height: 40)
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+            .strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
     // MARK: - The one button
