@@ -15,10 +15,18 @@ point-to-point wiring; add a medium = add a subscriber.
 
 ## Layered structure
 
+# IA priority (founder, 2026-06-21): the ARRANGEMENT / CLIPS timeline is the HOME view
+# (foreground), like pro workstations. Clips are typed — Audio · MIDI · Video · Visual —
+# and live/edited in the main view. Piano Roll is secondary (opens to edit a MIDI clip).
+# Biofeedback is just ONE TOOL, not the center. The one-button bio-compose flow becomes
+# a clip generator/tool, not the home screen.
+
 ```
-L5  WORKSPACE (IA)        Persistent workspace bar (FL-intuitive, nothing hidden):
-                          Arrange · Channels · Mix · Piano-Roll · FX · Visual · Light · Well
-                          Always-on BioStrip on top. Only working areas shown.
+L5  WORKSPACE (IA)        HOME = Arrangement / Clips timeline (typed clips: Audio·MIDI·
+                          Video·Visual), pro-workstation style. Secondary (edit a clip):
+                          Piano-Roll, Sound, FX. Tools (a tool each, not the center):
+                          Biofeedback/Well, Channels, Mix, Visual, Light. Only working
+                          areas shown; persistent compact nav, nothing buried.
         │
 L4  MEDIA RENDERERS       Audio master · Visuals (MetalBioView + SpectralColor +
     (subscribers)         oscilloscope) · Light (EchoelLux/Art-Net) · Spatial (ADM-OSC) ·
