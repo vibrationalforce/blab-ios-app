@@ -105,19 +105,34 @@ public final class ArtNetSender {
     // MARK: - Subscriber tick
 
     private func sendIfFresh(from bus: EngineBus) {
-        guard let frame = bus.latestBio else { return }
-        guard frame.timestamp != lastFrameTimestamp else { return }
-        lastFrameTimestamp = frame.timestamp
+        // Music drives the COLOUR when it's sounding (pitch/chord → SpectralColor),
+        // bio drives it otherwise — bio stays the co-modulator. Dedup on the chosen
+        // source's timestamp so a music-only change still updates the fixture.
+        let music = bus.freshMusical(maxAge: 1.5)
+        let useMusic = music?.isSounding ?? false
+        let sourceTimestamp: TimeInterval
+        var channels: [UInt8]
+        let target: Float
+        if useMusic, let m = music {
+            sourceTimestamp = m.timestamp
+            channels = MusicMediaMap.dmxChannels(forMusic: m, resolution: resolution)
+            target = MusicMediaMap.dimmerUnit(forMusic: m)
+        } else if let frame = bus.latestBio {
+            sourceTimestamp = frame.timestamp
+            channels = Self.dmxChannels(for: frame, resolution: resolution)
+            target = Self.dimmerUnit(for: frame)
+        } else {
+            return
+        }
+        guard sourceTimestamp != lastFrameTimestamp else { return }
+        lastFrameTimestamp = sourceTimestamp
         // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer
         // (luminance) channel so even a pathological input jump can never strobe
-        // the lights. Bio is already slow, but this makes WCAG ≤3 Hz a guarantee,
-        // not an assumption. ~0.08/tick at 30 Hz → full fade ≥0.4 s (~1.2 Hz max).
-        let target = Self.dimmerUnit(for: frame)
+        // the lights. ~0.08/tick at 30 Hz → full fade ≥0.4 s (~1.2 Hz max).
         let limited = lastDimmer < 0
             ? target
             : Float(FlashGuard.limitedLuminance(from: Double(lastDimmer), to: Double(target), maxDelta: 0.08))
         lastDimmer = limited
-        var channels = Self.dmxChannels(for: frame, resolution: resolution)
         Self.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
         sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled

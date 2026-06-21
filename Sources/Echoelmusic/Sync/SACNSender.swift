@@ -101,10 +101,22 @@ public final class SACNSender {
     // MARK: - Subscriber tick
 
     private func sendIfFresh(from bus: EngineBus) {
-        guard let frame = bus.latestBio else { return }
-        guard frame.timestamp != lastFrameTimestamp else { return }
-        lastFrameTimestamp = frame.timestamp
-        let channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
+        // Music drives the COLOUR when sounding (SpectralColor), bio otherwise.
+        // Dedup on the chosen source's timestamp. (sACN shares Art-Net's mapping.)
+        let music = bus.freshMusical(maxAge: 1.5)
+        let sourceTimestamp: TimeInterval
+        let channels: [UInt8]
+        if let m = music, m.isSounding {
+            sourceTimestamp = m.timestamp
+            channels = MusicMediaMap.dmxChannels(forMusic: m, resolution: resolution)
+        } else if let frame = bus.latestBio {
+            sourceTimestamp = frame.timestamp
+            channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
+        } else {
+            return
+        }
+        guard sourceTimestamp != lastFrameTimestamp else { return }
+        lastFrameTimestamp = sourceTimestamp
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)

@@ -95,10 +95,24 @@ public final class ADMOSCSender {
     // MARK: - Subscriber tick
 
     private func sendIfFresh(from bus: EngineBus) {
-        guard let frame = bus.latestBio else { return }
-        guard frame.timestamp != lastFrameTimestamp else { return }
-        lastFrameTimestamp = frame.timestamp
-        for (address, value) in Self.admMessages(for: frame, object: objectIndex) {
+        // Music drives the object POSITION when sounding (pitch→azimuth/elevation,
+        // level→distance/gain), bio otherwise — bio stays the co-modulator. Dedup on
+        // the chosen source's timestamp so a music-only change still moves the object.
+        let music = bus.freshMusical(maxAge: 1.5)
+        let sourceTimestamp: TimeInterval
+        let messages: [(String, Float)]
+        if let m = music, m.isSounding {
+            sourceTimestamp = m.timestamp
+            messages = MusicMediaMap.admMessages(forMusic: m, object: objectIndex)
+        } else if let frame = bus.latestBio {
+            sourceTimestamp = frame.timestamp
+            messages = Self.admMessages(for: frame, object: objectIndex)
+        } else {
+            return
+        }
+        guard sourceTimestamp != lastFrameTimestamp else { return }
+        lastFrameTimestamp = sourceTimestamp
+        for (address, value) in messages {
             send(address: address, floats: [value])
         }
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()

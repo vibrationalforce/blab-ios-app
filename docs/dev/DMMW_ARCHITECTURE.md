@@ -82,7 +82,9 @@ The MusicalFrame (L3) drives the renderers (L4):
    chord each tick (pitch→Hz, velocity→amplitude, key/scale/tempo context). Consumers
    wired: (a) a live "Music → colour" swatch via SpectralColor (Compose ▸ Visual); (b)
    the immersive MetalBioView now colours from the loudest LIVE note (tracks the melody,
-   not a static tonic). Next: Art-Net light + ADM spatial driven by MusicalFrame.
+   not a static tonic); (c) **Light (Art-Net/sACN) + Spatial (ADM-OSC) now driven by the
+   music** when sounding (MusicMediaMap: chord→DMX colour via SpectralColor, pitch→ADM
+   azimuth/elevation, level→distance/gain), bio as fallback co-modulator.
 4. **Audio-reactive engine (E/F/G)** — analyzer → visual/light; per-stem; spatial.
 5. **AUv3 host** — channel-rack instrument/effect hosting (its own pillar).
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
