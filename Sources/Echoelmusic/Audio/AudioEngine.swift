@@ -514,43 +514,57 @@ public final class AudioEngine {
 
     // MARK: - AUv3 Node Hosting
 
-    /// Attach a hosted Audio Unit (instrument/effect) into the master graph and
-    /// connect its output to the master mixer. Mirrors `attachSourceNode` — pause
-    /// while re-wiring, restart if it was running. The AU does its own rendering;
-    /// we only build the graph here (no work added to the render path).
-    func attachAUNode(_ node: AVAudioUnit) {
+    /// Run graph-mutating work with the engine paused, restarting it afterwards if
+    /// it was running. Pause/restart is the safe way to re-wire a live AVAudioEngine
+    /// (mirrors `attachSourceNode`). The AU does its own rendering — no work is added
+    /// to the render path here.
+    func withGraphPaused(_ body: () -> Void) {
         prepareGraph()
         let wasRunning = masterEngine.isRunning
         if wasRunning { masterEngine.pause() }
-        masterEngine.attach(node)
-        let auFormat = node.outputFormat(forBus: 0)
-        let format = (auFormat.sampleRate > 0 && auFormat.channelCount > 0)
-            ? auFormat : masterMixer.outputFormat(forBus: 0)
-        if format.sampleRate > 0, format.channelCount > 0 {
-            masterEngine.connect(node, to: masterMixer, format: format)
-            log.audio("AUv3 node attached to master engine (\(format.sampleRate)Hz, \(format.channelCount)ch)")
-        } else {
-            log.audio("Cannot attach AUv3 node — no valid audio format available", level: .error)
-            masterEngine.detach(node)
-        }
+        body()
         if wasRunning {
             do { try masterEngine.start() }
-            catch { log.audio("Failed to restart engine after AUv3 attachment: \(error)", level: .error) }
+            catch { log.audio("Failed to restart engine after AUv3 re-wire: \(error)", level: .error) }
         }
     }
 
-    func detachAUNode(_ node: AVAudioUnit) {
-        // Symmetric with attachAUNode: pause while re-wiring, restart if it was
-        // running, so unloading a plugin doesn't glitch the live graph.
-        let wasRunning = masterEngine.isRunning
-        if wasRunning { masterEngine.pause() }
+    /// Attach a hosted AU into the graph (no connections yet). Call inside
+    /// `withGraphPaused`. Idempotent-safe only if the caller tracks attach state.
+    func attachAU(_ node: AVAudioUnit) { masterEngine.attach(node) }
+
+    /// Disconnect a hosted AU's output and detach it. Call inside `withGraphPaused`.
+    func detachAU(_ node: AVAudioUnit) {
         masterEngine.disconnectNodeOutput(node)
         masterEngine.detach(node)
-        if wasRunning {
-            do { try masterEngine.start() }
-            catch { log.audio("Failed to restart engine after AUv3 detach: \(error)", level: .error) }
+    }
+
+    /// Drop a hosted AU's current output connection (to re-route it). Inside pause.
+    func disconnectAUOutput(_ node: AVAudioUnit) { masterEngine.disconnectNodeOutput(node) }
+
+    /// One canonical format for the whole hosted AU chain — the master mixer's
+    /// (stereo, hardware rate). Driving every link from a single format avoids
+    /// channel-count mismatches between a mono instrument and a stereo effect, and
+    /// avoids reading an un-negotiated node's `outputFormat` before it's connected.
+    private var auChainFormat: AVAudioFormat? {
+        let f = masterMixer.outputFormat(forBus: 0)
+        return (f.sampleRate > 0 && f.channelCount > 0) ? f : nil
+    }
+
+    /// Connect one hosted AU's output into another's input (instrument → effect).
+    func connectAU(_ from: AVAudioUnit, to dest: AVAudioUnit) {
+        guard let format = auChainFormat else {
+            log.audio("Cannot connect AUv3 chain — no valid format", level: .error); return
         }
-        log.audio("AUv3 node detached from master engine")
+        masterEngine.connect(from, to: dest, format: format)
+    }
+
+    /// Connect a hosted AU's output to the master mixer (chain endpoint).
+    func connectAUToMaster(_ node: AVAudioUnit) {
+        guard let format = auChainFormat else {
+            log.audio("Cannot connect AUv3 node to master — no valid format", level: .error); return
+        }
+        masterEngine.connect(node, to: masterMixer, format: format)
     }
 }
 #endif

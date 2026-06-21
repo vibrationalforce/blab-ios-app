@@ -103,9 +103,15 @@ The MusicalFrame (L3) drives the renderers (L4):
      when on with a plugin loaded, the song drives ONLY the plugin (the built-in
      poly + sub voices are gated off in `PianoRollModel.trigger`), no doubling.
      Note-offs always fire so toggling mid-play never sticks a note.
-   - ⬜ Next: insert effects into a channel's insert chain; embed the plugin's
-     `requestViewController` UI in an Echoel panel; `fullState` save/recall; route
-     external MIDI-in into the hosted instrument.
+   - ✅ **Effect insert (device chain)**: tap an effect → it inserts on the hosted
+     instrument's channel (instrument → effect → master), Ableton-device-chain style.
+     `AudioEngine` gained chain primitives (`withGraphPaused`, `attachAU`/`detachAU`,
+     `connectAU`/`connectAUToMaster`); `AUv3Host` holds instrument + effect units and
+     `rewireChain()` rebuilds the path on load/unload. Effect-only (no instrument)
+     stays unconnected — honest, master-FX is later. Kept off Echoel's own mix path.
+   - ⬜ Next: embed the plugin's `requestViewController` UI in an Echoel panel;
+     `fullState` save/recall; master-bus FX slot; route external MIDI-in into the
+     hosted instrument; multiple inserts per channel.
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

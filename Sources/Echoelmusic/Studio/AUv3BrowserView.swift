@@ -44,10 +44,10 @@ struct AUv3BrowserView: View {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if host.loaded != nil { loadedBar }
+                if host.loaded != nil || host.loadedEffect != nil { loadedBar }
                 section("Instruments", host.instruments, icon: "pianokeys")
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Instruments load into the audio graph and play from the keyboard above. Effect insertion and showing a plugin's own interface are the next steps.")
+                Text("Tap an instrument to load it (play it from the keyboard or your song); tap an effect to insert it on the instrument's channel (instrument → effect → master). Showing a plugin's own interface and saving its state are the next steps.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -58,24 +58,41 @@ struct AUv3BrowserView: View {
         .onAppear { if !host.didScan { host.scan() } }
     }
 
-    // The currently-loaded instrument + a one-octave preview keyboard.
+    // The hosted channel: instrument (+ insert effect) + a one-octave preview keyboard.
     private var loadedBar: some View {
         @Bindable var host = host
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "waveform").font(.system(size: 13)).foregroundStyle(EchoelTheme.accent)
-                Text(host.loaded?.name ?? "").font(EchoelTheme.font(13, .semibold))
-                    .foregroundStyle(EchoelTheme.text).lineLimit(1)
-                Spacer(minLength: 0)
-                Button("Unload") { host.unload() }
-                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
+            if let inst = host.loaded {
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform").font(.system(size: 13)).foregroundStyle(EchoelTheme.accent)
+                    Text(inst.name).font(EchoelTheme.font(13, .semibold))
+                        .foregroundStyle(EchoelTheme.text).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Button("Unload") { host.unload() }
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
+                }
             }
-            Toggle(isOn: $host.replaceBuiltInVoice) {
-                Text("Use plugin instead of Echoel's voice")
-                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            if let fx = host.loadedEffect {
+                HStack(spacing: 8) {
+                    Image(systemName: "dial.medium").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                    Text("→ \(fx.name)").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Button("Remove") { host.unloadEffect() }
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                }
+                if host.loaded == nil {
+                    Text("Load an instrument to feed this effect.")
+                        .font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim)
+                }
             }
-            .tint(EchoelTheme.accent)
-            previewKeyboard
+            if host.loaded != nil {
+                Toggle(isOn: $host.replaceBuiltInVoice) {
+                    Text("Use plugin instead of Echoel's voice")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                }
+                .tint(EchoelTheme.accent)
+                previewKeyboard
+            }
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -123,9 +140,9 @@ struct AUv3BrowserView: View {
 
     @ViewBuilder
     private func row(_ au: HostedAUInfo, icon: String) -> some View {
-        let isLoaded = host.loaded == au
+        let isLoaded = (host.loaded == au) || (host.loadedEffect == au)
         Button {
-            if au.isInstrument { Task { await host.load(au) } }
+            Task { await host.load(au) }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: icon).font(.system(size: 13))
@@ -135,12 +152,13 @@ struct AUv3BrowserView: View {
                     Text(au.manufacturer).font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim).lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if host.isLoading && host.loaded != au {
+                if host.isLoading && !isLoaded {
                     ProgressView().controlSize(.small)
                 } else if isLoaded {
                     Text("Loaded").font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.accent)
-                } else if au.isInstrument {
-                    Image(systemName: "play.circle").font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
+                } else {
+                    Image(systemName: au.isInstrument ? "play.circle" : "plus.circle")
+                        .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
                 }
             }
             .frame(height: 40)
@@ -151,7 +169,6 @@ struct AUv3BrowserView: View {
                 .strokeBorder(isLoaded ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .disabled(!au.isInstrument)
     }
 }
 #endif

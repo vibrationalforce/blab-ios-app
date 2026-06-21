@@ -75,9 +75,15 @@ public final class AUv3Host {
     /// True only when a loaded plugin should silence the built-in voice.
     public var suppressesBuiltInVoice: Bool { loaded != nil && replaceBuiltInVoice }
 
+    /// The effect inserted on the hosted instrument's channel (instrument → effect →
+    /// master), Ableton-device-chain style. nil = the instrument runs dry.
+    public private(set) var loadedEffect: HostedAUInfo?
+
     #if canImport(AVFoundation)
-    /// The instantiated unit (held so we can detach + send it MIDI). Not observed.
-    @ObservationIgnored private var hostedUnit: AVAudioUnit?
+    /// The instantiated instrument (held so we can re-wire + send it MIDI). Not observed.
+    @ObservationIgnored private var instrumentUnit: AVAudioUnit?
+    /// The instantiated insert effect on the instrument's channel.
+    @ObservationIgnored private var effectUnit: AVAudioUnit?
     /// The engine we attach into. Set once at wire-up.
     @ObservationIgnored private weak var engine: AudioEngine?
     #endif
@@ -92,19 +98,16 @@ public final class AUv3Host {
     /// Wire the host to the live audio engine (called once at app start).
     public func use(engine: AudioEngine) { self.engine = engine }
 
-    /// Load a discovered instrument into the audio graph so it can be played.
-    /// Async (AU instantiation is asynchronous); idempotent per-info. Only
-    /// instruments are hosted in this slice — effect insertion comes next.
+    /// Load a discovered AU into the hosted channel — an INSTRUMENT (the sound
+    /// source) or an EFFECT (inserted on the instrument's channel: instrument →
+    /// effect → master). Async (AU instantiation is asynchronous). Replaces the
+    /// existing unit of the same kind and re-wires the chain.
     public func load(_ info: HostedAUInfo) async {
-        guard info.isInstrument else {
-            loadError = "Effect hosting is the next step — instruments only for now."
-            return
-        }
         guard let engine else { loadError = "Audio engine unavailable."; return }
-        if loaded == info, hostedUnit != nil { return }   // already loaded
+        if info.isInstrument, loaded == info, instrumentUnit != nil { return }
+        if !info.isInstrument, loadedEffect == info, effectUnit != nil { return }
         isLoading = true
         loadError = nil
-        unloadUnit()                                       // free any previous unit
         let desc = AudioComponentDescription(
             componentType: info.componentType,
             componentSubType: info.componentSubType,
@@ -112,10 +115,19 @@ public final class AUv3Host {
             componentFlags: 0, componentFlagsMask: 0)
         do {
             let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
-            engine.attachAUNode(unit)
-            hostedUnit = unit
-            loaded = info
-            log.audio("AUv3 instrument loaded: \(info.name)")
+            engine.withGraphPaused {                        // one pause cycle: attach + re-wire
+                engine.attachAU(unit)
+                if info.isInstrument {
+                    if let old = instrumentUnit { engine.detachAU(old) }
+                    instrumentUnit = unit
+                } else {
+                    if let old = effectUnit { engine.detachAU(old) }
+                    effectUnit = unit
+                }
+                connectChainNow()
+            }
+            if info.isInstrument { loaded = info } else { loadedEffect = info }
+            log.audio("AUv3 \(info.isInstrument ? "instrument" : "effect") loaded: \(info.name)")
         } catch {
             loadError = "Could not load \(info.name): \(error.localizedDescription)"
             log.audio("AUv3 load failed: \(error)", level: .error)
@@ -123,15 +135,42 @@ public final class AUv3Host {
         isLoading = false
     }
 
-    /// Remove the hosted instrument from the graph.
+    /// Remove the hosted instrument (and re-wire so any effect is left dry/unfed).
     public func unload() {
-        unloadUnit()
+        let unit = instrumentUnit
+        instrumentUnit = nil
         loaded = nil
+        engine?.withGraphPaused {
+            if let unit { engine?.detachAU(unit) }
+            connectChainNow()
+        }
     }
 
-    private func unloadUnit() {
-        if let unit = hostedUnit { engine?.detachAUNode(unit) }
-        hostedUnit = nil
+    /// Remove the insert effect (instrument reconnects straight to master).
+    public func unloadEffect() {
+        let unit = effectUnit
+        effectUnit = nil
+        loadedEffect = nil
+        engine?.withGraphPaused {
+            if let unit { engine?.detachAU(unit) }
+            connectChainNow()
+        }
+    }
+
+    /// The connect logic — MUST be called inside `withGraphPaused`. (Re)builds the
+    /// hosted channel: instrument → (effect →) master. Units are already attached;
+    /// drop old output connections, then rebuild.
+    private func connectChainNow() {
+        guard let engine else { return }
+        if let i = instrumentUnit { engine.disconnectAUOutput(i) }
+        if let e = effectUnit { engine.disconnectAUOutput(e) }
+        if let i = instrumentUnit, let e = effectUnit {
+            engine.connectAU(i, to: e)
+            engine.connectAUToMaster(e)
+        } else if let i = instrumentUnit {
+            engine.connectAUToMaster(i)
+        }
+        // Effect with no instrument has no source to process → left unconnected.
     }
 
     /// Preview: play a note on the hosted instrument (user-driven keyboard).
@@ -151,7 +190,7 @@ public final class AUv3Host {
     }
 
     private func sendMIDI(status: UInt8, data1: UInt8, data2: UInt8) {
-        guard let block = hostedUnit?.auAudioUnit.scheduleMIDIEventBlock else { return }
+        guard let block = instrumentUnit?.auAudioUnit.scheduleMIDIEventBlock else { return }
         let bytes: [UInt8] = [status, data1, data2]
         bytes.withUnsafeBufferPointer { buf in
             guard let base = buf.baseAddress else { return }
