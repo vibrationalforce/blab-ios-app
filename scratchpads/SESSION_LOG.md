@@ -3013,3 +3013,13 @@ Shipped four gate-safe, additive production/performance cycles (all xcode-compil
   c127f60 same loudness readout in Tools ▸ Broadcast (check before going live) + arch doc
 DEPLOY: .deploy/release → v10.34.37 (TestFlight). HELD for device verify (principle #1): HaishinKit
   A/V wiring, master-bus AUv3 FX slot (master-output-path surgery; founder must confirm on device).
+
+### 2026-06-21 (night, cont. 2) — loudness compliance + panic → batch 2
+  d2bc9b8 loudness-TARGET compliance: pick a delivery target (Streaming −14 / Podcast −16 /
+          Broadcast −23 / Cinema −24); integrated LUFS colours accent/on-target, red/too-loud,
+          dim/too-quiet; true-peak red when over the spec ceiling. Shared @AppStorage key →
+          same colouring in Master panel + Broadcast. LoudnessTarget pure type + tests. GREEN.
+  37a6989 panic — "Silence (all notes off)" in the Master panel: releases every sounding note
+          across built-in poly+sub, hosted AUv3 instrument, and MIDI out. Live stuck-note kill.
+Decision logged (decisions.csv): overnight production-staples direction + the two held
+  device-verify items. NEXT deploy = v10.34.38 (cycles 5–6) once 37a6989 is gate-green.
