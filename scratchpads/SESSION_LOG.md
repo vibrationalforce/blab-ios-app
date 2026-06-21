@@ -2963,3 +2963,21 @@ CYCLE 2 — IA shell (commit 722d736): new WorkspaceView = persistent surface sw
 NEXT (queued): slim/relocate the bio strip out of the always-top spot; surface typed clip lanes
   (audio/video/visual) in the timeline; unify one transport; then MusicalFrame publisher→renderers.
 DEPLOY: ship to TestFlight for device visual confirmation (UI can't be verified in sandbox).
+
+### 2026-06-21 (cont.) — DMMW differentiator goes live: music → visuals
+"Keep going on highest level possible." Continued the IA pivot into the vision payoff:
+CYCLE 3 (cfa04fb) — MusicalFrame published live from the piano roll each tick (chord
+  pitches→Hz at concert pitch, velocity→amplitude; key/scale/tempo context pushed by the
+  composer). First consumer: a live "Music → colour" swatch in Compose ▸ Visual via
+  SpectralColor (OKLab hue circle, amplitude-weighted chord mix). Pure builder tested
+  (MusicalFramePublishTests).
+CYCLE 4 (45056bb) — immersive MetalBioView now colours from the LOUDEST live note off the
+  bus (tracks the melody, not a static tonic); falls back to tonic when silent. No new
+  timer (updateUIView already re-runs on bus changes); flash-safety/clamps unchanged.
+CYCLE 5 (ef111ab) — Clips grid shows the clip KIND (Audio·MIDI·Video·Visual) as a leading
+  glyph + honest per-kind summary ("engine coming" for non-playable lanes; only MIDI shows
+  a play glyph). Makes the typed model visible in the main view.
+ALL compile-gate green individually (concurrency cancels superseded runs; the tip commit's
+  run is authoritative). Deploying as a batch to TestFlight for device confirmation.
+NEXT: Art-Net light + ADM spatial driven by MusicalFrame; per-track levels → element
+  reactivity; then typed-clip creation (audio/video import pipeline) and one unified transport.
