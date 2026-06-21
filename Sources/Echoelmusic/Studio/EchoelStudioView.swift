@@ -58,6 +58,8 @@ struct EchoelStudioView: View {
     @State private var showSound = true
     @State private var showEffects = false
     @State private var showMaster = false
+    /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
+    @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -591,6 +593,14 @@ struct EchoelStudioView: View {
                 get: { Double(audioEngine.masterVolume) },
                 set: { audioEngine.masterVolume = Float($0) }),
                 range: 0...1, unit: "", decimals: 2)
+
+            labeledRow("Target") {
+                Picker("Target", selection: $loudnessTargetRaw) {
+                    ForEach(LoudnessTarget.allCases) { t in Text(t.displayName).tag(t.rawValue) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .accessibilityLabel("Loudness delivery target")
+            }
 
             // The live numbers live in their own view so the 60 Hz meter refresh
             // re-renders only this small grid, not the whole studio body.

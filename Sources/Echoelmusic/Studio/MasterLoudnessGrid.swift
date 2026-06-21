@@ -12,25 +12,46 @@ import SwiftUI
 struct MasterLoudnessGrid: View {
 
     @Environment(AudioEngine.self) private var audioEngine
+    /// Shared with the Master panel's target picker — both read/write this key so
+    /// the colour-coding matches the user's chosen delivery target everywhere.
+    @AppStorage("studio.loudnessTarget") private var targetRaw = LoudnessTarget.streaming.rawValue
+    private var target: LoudnessTarget { LoudnessTarget(rawValue: targetRaw) ?? .off }
+
+    private static let floor = EchoelLoudnessMeter.floorLUFS
 
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                readout("Short-term", lufsText(audioEngine.masterLUFSShortTerm), "LUFS")
-                readout("Integrated", lufsText(audioEngine.masterLUFSIntegrated), "LUFS")
+                readout("Short-term", lufsText(audioEngine.masterLUFSShortTerm), "LUFS", EchoelTheme.text)
+                readout("Integrated", lufsText(audioEngine.masterLUFSIntegrated), "LUFS", integratedColor)
             }
             HStack(spacing: 10) {
-                readout("True peak", dbText(audioEngine.masterTruePeakMaxDb), "dBTP")
-                readout("Range", lraText(audioEngine.masterLRA), "LU")
+                readout("True peak", dbText(audioEngine.masterTruePeakMaxDb), "dBTP", truePeakColor)
+                readout("Range", lraText(audioEngine.masterLRA), "LU", EchoelTheme.text)
             }
         }
     }
 
-    private func readout(_ label: String, _ value: String, _ unit: String) -> some View {
+    /// Colour the integrated LUFS against the chosen target (over = warning).
+    private var integratedColor: Color {
+        switch target.compliance(integratedLUFS: audioEngine.masterLUFSIntegrated, floor: Self.floor) {
+        case .onTarget: return EchoelTheme.accent
+        case .tooLoud:  return EchoelTheme.danger
+        case .tooQuiet: return EchoelTheme.dim
+        case .unknown:  return EchoelTheme.text
+        }
+    }
+
+    private var truePeakColor: Color {
+        target.truePeakExceeds(audioEngine.masterTruePeakMaxDb, floor: EchoelMeter.floorDb)
+            ? EchoelTheme.danger : EchoelTheme.text
+    }
+
+    private func readout(_ label: String, _ value: String, _ unit: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value).font(EchoelTheme.font(18, .semibold).monospacedDigit()).foregroundStyle(EchoelTheme.text)
+                Text(value).font(EchoelTheme.font(18, .semibold).monospacedDigit()).foregroundStyle(color)
                 Text(unit).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
         }

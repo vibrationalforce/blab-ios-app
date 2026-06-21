@@ -3003,3 +3003,13 @@ CYCLE (6e01724) — METRONOME / click track (a real production+performance gap; 
   samplesPerBeat() + MetronomeVoiceTests. audio-thread-reviewer + concurrency-reviewer: clean.
 NEXT (gate-safe, additive — same low-risk lane): tap-tempo; count-in before record; then the
   held device-verify items only with the founder awake to confirm on device.
+
+### 2026-06-21 (night, cont.) — Transport & mastering batch → TestFlight v10.34.37
+Shipped four gate-safe, additive production/performance cycles (all xcode-compile-check GREEN):
+  6e01724 metronome (self-driving click, accented downbeat, follows transport) — audio+concurrency reviewed clean
+  b3c0635 tap tempo (TapTempo pure value type + tests; locks+steers the click)
+  7bf96a1 master EBU R128 loudness readout (LUFS/dBTP/LRA) — was computed on the tap, never shown;
+          new Master panel + reset; MasterLoudnessGrid isolates the 60 Hz refresh
+  c127f60 same loudness readout in Tools ▸ Broadcast (check before going live) + arch doc
+DEPLOY: .deploy/release → v10.34.37 (TestFlight). HELD for device verify (principle #1): HaishinKit
+  A/V wiring, master-bus AUv3 FX slot (master-output-path surgery; founder must confirm on device).
