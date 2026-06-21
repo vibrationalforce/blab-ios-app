@@ -1,1 +1,1 @@
-biofeedback,HRV,bio-reactive,heart rate,synthesizer,beat maker,music,MPE,OSC,AUv3
+biofeedback,HRV,generative,synth,sequencer,beats,AUv3,MIDI,MPE,OSC,artnet,DMX,immersive,visuals

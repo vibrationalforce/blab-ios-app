@@ -23,6 +23,7 @@ CREATE
 - Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
 - 16-step, 8-track beat maker and sampler with velocity, accent, swing and per-pad sample import
 - Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer and more
+- Immersive visual: the notes you play become colour in real time (perceptual pitch-to-hue), reacting to the music and your body
 - Retroactive capture: keep the loop you just played
 - Export audio (WAV) and MIDI (.mid) for your DAW
 
