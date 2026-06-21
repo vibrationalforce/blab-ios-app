@@ -309,6 +309,12 @@ public struct SignalGraph: Codable, Sendable, Equatable {
         routes.contains { $0.sourcePortID == id && $0.enabled }
     }
 
+    /// True if a specific ENABLED route exists from `source` to `sink` — used for
+    /// direct pass-throughs (e.g. MIDI-in → MIDI-out thru).
+    public func hasEnabledRoute(from source: String, to sink: String) -> Bool {
+        routes.contains { $0.sourcePortID == source && $0.sinkPortID == sink && $0.enabled }
+    }
+
     // MARK: Intelligent defaults
 
     /// Propose sensible connections that don't yet exist: every source to every

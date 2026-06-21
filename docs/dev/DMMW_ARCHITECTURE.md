@@ -150,8 +150,11 @@ ADM-OSC / Art-Net / sACN / BLE / Camera bridges (EXTERNAL ports), and `Modulatio
   honest live/soon status); ✅ first adapter Music/Bio→Light&Spatial; ✅ **outputs come
   online ON DEMAND from the patchbay** — a connection to MIDI Out / OSC / ADM / Art-Net /
   sACN starts that sender (idempotent), the last connection removed stops it (these were
-  unreachable before — no Sync tab in the single-view IA). ⬜ remaining: MIDI in→out thru,
-  Audio/AUv3 hosting, Broadcast (RTMP/SRT) per founder priority.
+  unreachable before — no Sync tab in the single-view IA). ✅ **MIDI-in started at
+  launch** (was orphaned) → built-in voice + hosted AUv3 instrument; ✅ **MIDI in→out
+  thru** (a midi.in → midi.out patchbay route echoes external notes to MIDI out). ✅
+  AUv3 hosting (its own pillar above). ⬜ remaining: Broadcast (RTMP/SRT) per founder
+  priority (large — own cycle).
 
 ## Guardrails
 - iPhone-first, multi-touch. Brand: claim only what ships (no dead category buttons).

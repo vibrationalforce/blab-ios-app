@@ -150,6 +150,9 @@ struct EchoelmusicApp: App {
         if g.hasEnabledRoute(toSink: "sacn.out") { sacn.start(subscribing: bus) } else { sacn.stop() }
         #endif
         midiOut.enabled = g.hasEnabledRoute(toSink: "midi.out")
+        #if canImport(CoreMIDI)
+        midiPub.thruEnabled = g.hasEnabledRoute(from: "midi.in", to: "midi.out")  // MIDI thru
+        #endif
     }
 
     @ViewBuilder
@@ -266,7 +269,7 @@ struct EchoelmusicApp: App {
                 // connected keyboard plays the built-in voice AND any hosted AUv3
                 // instrument (host-MIDI). Idempotent.
                 #if canImport(CoreMIDI)
-                midiPub.start(publishing: bus, auHost: auHost)
+                midiPub.start(publishing: bus, auHost: auHost, midiOut: midiOut)
                 #endif
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")

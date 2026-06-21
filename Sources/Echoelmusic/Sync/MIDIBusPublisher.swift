@@ -46,14 +46,22 @@ public final class MIDIBusPublisher {
     @ObservationIgnored
     private weak var auHost: AUv3Host?
 
+    /// Optional MIDI-out for thru: when `thruEnabled` (a midi.in → midi.out patchbay
+    /// route), incoming external notes are echoed straight to MIDI out (router mode).
+    @ObservationIgnored
+    private weak var midiOut: MIDIOutput?
+    /// Set from the patchbay (midi.in → midi.out route). Off by default.
+    public var thruEnabled = false
+
     init(midi: MIDIInput) {
         self.midi = midi
     }
 
-    public func start(publishing bus: EngineBus, auHost: AUv3Host? = nil) {
+    public func start(publishing bus: EngineBus, auHost: AUv3Host? = nil, midiOut: MIDIOutput? = nil) {
         guard !isPublishing else { return }
         self.bus = bus
         self.auHost = auHost
+        self.midiOut = midiOut
         wireCallbacks()
         isPublishing = true
     }
@@ -75,6 +83,8 @@ public final class MIDIBusPublisher {
             self.auHost?.noteOn(UInt8(clamping: note),
                                 velocity: UInt8(clamping: max(1, min(127, Int(velocity * 127)))),
                                 channel: UInt8(clamping: channel))
+            // Thru: echo external notes straight to MIDI out (router mode).
+            if self.thruEnabled { self.midiOut?.noteOn(pitch: note, velocity: velocity) }
             // Built-in voice via the bus — gated off when "use plugin instead" is on.
             if !(self.auHost?.suppressesBuiltInVoice ?? false) {
                 self.publish(ControllerEvent(
@@ -90,6 +100,7 @@ public final class MIDIBusPublisher {
         midi.onNoteOff = { [weak self] note, channel in
             guard let self else { return }
             self.auHost?.noteOff(UInt8(clamping: note), channel: UInt8(clamping: channel))
+            if self.thruEnabled { self.midiOut?.noteOff(pitch: note) }
             // Note-off always reaches the bus so the built-in voice can't stick.
             self.publish(ControllerEvent(
                 timestamp: CFAbsoluteTimeGetCurrent(),
