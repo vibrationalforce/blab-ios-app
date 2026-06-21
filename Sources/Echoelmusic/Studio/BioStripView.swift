@@ -29,19 +29,28 @@ struct BioStripView: View {
     @State private var explain: BioMetric?
 
     var body: some View {
-        HStack(spacing: 10) {
+        // Equal-width metric cells that always fit the screen — no left-packing, so a
+        // value changing digit-count (or the source tag toggling width) can't reflow
+        // its neighbours or overflow the edge (the old "wobble"). The source tag sits
+        // in a bounded slot; everything scales down on narrow phones (adaptive).
+        HStack(spacing: 6) {
             metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
+                .frame(maxWidth: .infinity)
             divider
             metricButton(label: "HRV", value: hrvString,       unit: hrvUnit, metric: .hrv)
+                .frame(maxWidth: .infinity)
             divider
             metricButton(label: "Br",  value: breathString,    unit: "/min",  metric: .breath)
+                .frame(maxWidth: .infinity)
             divider
             metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
-            Spacer(minLength: 4)
+                .frame(maxWidth: .infinity)
             sourceControl
+                .frame(width: 96, alignment: .trailing)
         }
         .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
         .lineLimit(1)
+        .minimumScaleFactor(0.6)
         .font(.system(size: 12, weight: .medium, design: .monospaced))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -73,12 +82,12 @@ struct BioStripView: View {
             Text(label)
                 .foregroundStyle(EchoelTheme.dim)
             Text(value)
+                .monospacedDigit()
             if let unit {
                 Text(unit)
                     .foregroundStyle(EchoelTheme.dim)
             }
         }
-        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var divider: some View {
@@ -110,7 +119,7 @@ struct BioStripView: View {
             Image(systemName: "heart.fill").font(.system(size: 9))
             Text(sourceText)
         }
-        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+        .lineLimit(1)
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(Color.green.opacity(0.22))
         .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -125,7 +134,7 @@ struct BioStripView: View {
                 .symbolEffect(.pulse, isActive: !reduceMotion)
             Text(fingerOnLens ? "Reading…" : "Cover camera")
         }
-        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+        .lineLimit(1)
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(amber.opacity(0.20))
         .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -140,7 +149,7 @@ struct BioStripView: View {
                 Image(systemName: "heart.fill").font(.system(size: 9))
                 Text("Read pulse")
             }
-            .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+            .lineLimit(1)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .overlay(RoundedRectangle(cornerRadius: 4)
                 .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
