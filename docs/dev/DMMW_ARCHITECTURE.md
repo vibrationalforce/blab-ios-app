@@ -153,8 +153,10 @@ ADM-OSC / Art-Net / sACN / BLE / Camera bridges (EXTERNAL ports), and `Modulatio
   unreachable before — no Sync tab in the single-view IA). ✅ **MIDI-in started at
   launch** (was orphaned) → built-in voice + hosted AUv3 instrument; ✅ **MIDI in→out
   thru** (a midi.in → midi.out patchbay route echoes external notes to MIDI out). ✅
-  AUv3 hosting (its own pillar above). ⬜ remaining: Broadcast (RTMP/SRT) per founder
-  priority (large — own cycle).
+  AUv3 hosting (its own pillar above). 🟡 **Broadcast (RTMP/SRT)** — scaffold in:
+  `rtmp.out`/`srt.out` router sinks + `BroadcastPublisher` (persisted URL/key/protocol,
+  honest "engine not installed" state, on-demand start via the patchbay). The real
+  HaishinKit A/V capture path lands as an isolated, gate-verified cycle.
 
 ## Guardrails
 - iPhone-first, multi-touch. Brand: claim only what ships (no dead category buttons).

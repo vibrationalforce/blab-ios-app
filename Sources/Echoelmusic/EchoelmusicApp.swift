@@ -63,6 +63,8 @@ struct EchoelmusicApp: App {
     @State private var signalRouter = SignalRouter()
     /// AUv3 host: discovers installed plugins and loads an instrument into the graph.
     @State private var auHost = AUv3Host()
+    /// Broadcast (RTMP/SRT) publisher — the phone-native stream-out pillar.
+    @State private var broadcast = BroadcastPublisher()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed.
     @State private var haptics = HapticController()
@@ -153,6 +155,11 @@ struct EchoelmusicApp: App {
         #if canImport(CoreMIDI)
         midiPub.thruEnabled = g.hasEnabledRoute(from: "midi.in", to: "midi.out")  // MIDI thru
         #endif
+        // Broadcast comes online on demand: a route to rtmp.out / srt.out starts the
+        // stream (engine permitting), removing the last connection stops it.
+        let wantsBroadcast = g.hasEnabledRoute(toSink: "rtmp.out") || g.hasEnabledRoute(toSink: "srt.out")
+        broadcast.transport = g.hasEnabledRoute(toSink: "srt.out") ? .srt : .rtmp
+        if wantsBroadcast { broadcast.start() } else { broadcast.stop() }
     }
 
     @ViewBuilder
@@ -196,6 +203,7 @@ struct EchoelmusicApp: App {
             .environment(audioInputs)
             .environment(signalRouter)
             .environment(auHost)
+            .environment(broadcast)
             .environment(midiOut)
             #if canImport(CoreHaptics)
             .environment(haptics)
