@@ -303,6 +303,12 @@ public struct SignalGraph: Codable, Sendable, Equatable {
         routes.contains { $0.sinkPortID == id && $0.enabled }
     }
 
+    /// True if any ENABLED route originates from this source — the runtime uses this
+    /// to bring an INPUT online (start its receiver, e.g. MIDI-in) only when wired.
+    public func hasEnabledRoute(fromSource id: String) -> Bool {
+        routes.contains { $0.sourcePortID == id && $0.enabled }
+    }
+
     // MARK: Intelligent defaults
 
     /// Propose sensible connections that don't yet exist: every source to every

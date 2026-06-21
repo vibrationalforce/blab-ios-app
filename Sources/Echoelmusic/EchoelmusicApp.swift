@@ -261,6 +261,14 @@ struct EchoelmusicApp: App {
                 // be loaded into it. Discovery + load are user-driven (no auto-load).
                 auHost.use(engine: audioEngine)
 
+                // External MIDI input: passive (the CoreMIDI client is created in
+                // MIDIInput.init, no permission prompt), so start it at launch — a
+                // connected keyboard plays the built-in voice AND any hosted AUv3
+                // instrument (host-MIDI). Idempotent.
+                #if canImport(CoreMIDI)
+                midiPub.start(publishing: bus, auHost: auHost)
+                #endif
+
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
 
                 // ── BEST-EFFORT, NON-BLOCKING ────────────────────────────────

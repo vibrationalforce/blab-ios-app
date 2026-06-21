@@ -117,8 +117,12 @@ The MusicalFrame (L3) drives the renderers (L4):
      (UserDefaults, keyed by plugin id, plist-guarded) on unload / replace / app
      background, and recalled onto a freshly-instantiated unit on load — a hosted
      plugin returns exactly as you left it across sessions.
-   - ⬜ Next: master-bus FX slot; route external MIDI-in into the hosted
-     instrument; multiple inserts per channel.
+   - ✅ **External MIDI-in → built-in + hosted instrument**: `MIDIBusPublisher` is
+     now started at launch (it was orphaned — never started) and forwards CoreMIDI
+     note on/off to the hosted AUv3 instrument (host-MIDI) as well as the bus; the
+     built-in voice is gated off when "use plugin instead" is on. A connected MIDI
+     keyboard plays the plugin.
+   - ⬜ Next: master-bus FX slot; multiple inserts per channel.
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

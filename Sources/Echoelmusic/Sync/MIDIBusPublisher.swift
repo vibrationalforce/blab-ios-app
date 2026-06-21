@@ -40,13 +40,20 @@ public final class MIDIBusPublisher {
     @ObservationIgnored
     private weak var bus: EngineBus?
 
+    /// Optional hosted AUv3 instrument — external MIDI notes play it too (host-MIDI),
+    /// so a connected keyboard drives the plugin, not just the built-in voice. When
+    /// "use plugin instead" is on, the built-in voice is gated off (no bus publish).
+    @ObservationIgnored
+    private weak var auHost: AUv3Host?
+
     init(midi: MIDIInput) {
         self.midi = midi
     }
 
-    public func start(publishing bus: EngineBus) {
+    public func start(publishing bus: EngineBus, auHost: AUv3Host? = nil) {
         guard !isPublishing else { return }
         self.bus = bus
+        self.auHost = auHost
         wireCallbacks()
         isPublishing = true
     }
@@ -63,17 +70,28 @@ public final class MIDIBusPublisher {
 
     private func wireCallbacks() {
         midi.onNoteOn = { [weak self] note, velocity, channel in
-            self?.publish(ControllerEvent(
-                timestamp: CFAbsoluteTimeGetCurrent(),
-                kind: .noteOn,
-                channel: UInt8(clamping: channel),
-                note: UInt8(clamping: note),
-                value: velocity,
-                auxCC: 0
-            ))
+            guard let self else { return }
+            // Play the hosted plugin (if any) from the external keyboard.
+            self.auHost?.noteOn(UInt8(clamping: note),
+                                velocity: UInt8(clamping: max(1, min(127, Int(velocity * 127)))),
+                                channel: UInt8(clamping: channel))
+            // Built-in voice via the bus — gated off when "use plugin instead" is on.
+            if !(self.auHost?.suppressesBuiltInVoice ?? false) {
+                self.publish(ControllerEvent(
+                    timestamp: CFAbsoluteTimeGetCurrent(),
+                    kind: .noteOn,
+                    channel: UInt8(clamping: channel),
+                    note: UInt8(clamping: note),
+                    value: velocity,
+                    auxCC: 0
+                ))
+            }
         }
         midi.onNoteOff = { [weak self] note, channel in
-            self?.publish(ControllerEvent(
+            guard let self else { return }
+            self.auHost?.noteOff(UInt8(clamping: note), channel: UInt8(clamping: channel))
+            // Note-off always reaches the bus so the built-in voice can't stick.
+            self.publish(ControllerEvent(
                 timestamp: CFAbsoluteTimeGetCurrent(),
                 kind: .noteOff,
                 channel: UInt8(clamping: channel),
