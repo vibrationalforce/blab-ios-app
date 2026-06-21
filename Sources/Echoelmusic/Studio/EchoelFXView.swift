@@ -246,6 +246,7 @@ struct EchoelFXView: View {
                 } footer: {
                     Text("Applies the EchoelFX chain: filter → modulation → delay → dynamics. Stamp a character (Underwater, Telephone, Cassette…) for an instant sound, then tweak. Off by default.")
                 }
+                .listRowBackground(EchoelTheme.fill)
 
                 effectSection("Filter", isOn: $vm.filterEnabled) {
                     Picker("Type", selection: $vm.filterMode) {
@@ -444,6 +445,7 @@ struct EchoelFXView: View {
         } footer: {
             Text("Saved on this device — favorites and recently-used rise to the top. Swipe right to ★, left to Submit or Delete.")
         }
+        .listRowBackground(EchoelTheme.fill)
 
         Section {
             ForEach(FXPreset.curatedCommunity.filter { $0.matches(presetQuery) }) { preset in
@@ -463,6 +465,7 @@ struct EchoelFXView: View {
         } footer: {
             Text("Curated by Echoel. Submitting your own to the community comes next.")
         }
+        .listRowBackground(EchoelTheme.fill)
     }
 
     // MARK: - Building blocks
@@ -482,6 +485,10 @@ struct EchoelFXView: View {
             .tint(EchoelTheme.accent)
             .textCase(nil)
         }
+        // Match the EchoelPanel vocabulary used elsewhere: rows on EchoelTheme.fill
+        // instead of the stock secondary grouped background, so FX looks like the
+        // rest of the app (one card style app-wide).
+        .listRowBackground(EchoelTheme.fill)
         // Per-stage controls are inert until the master Insert FX gate is on.
         .disabled(!vm.fxEnabled)
     }
