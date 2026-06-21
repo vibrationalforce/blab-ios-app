@@ -270,6 +270,11 @@ final class CameraAnalyzer {
             // Reset confidence when finger removed
             bpmConfidence = max(0, bpmConfidence - 0.02)
             signalQuality = max(0, signalQuality - 0.02)
+            if bpmConfidence < 0.05 {        // lock lost → clear held values (no phantom BPM)
+                estimatedBPM = 0
+                rmssd = 0
+                rrIntervals.removeAll()
+            }
         }
     }
 
@@ -319,6 +324,14 @@ final class CameraAnalyzer {
         } else if isPulseDetecting && !isFingerDetected {
             bpmConfidence = max(0, bpmConfidence - 0.02)
             signalQuality = max(0, signalQuality - 0.02)
+            // Lock truly lost (not a brief flicker the hysteresis absorbs) → clear the
+            // held values so the UI never shows a phantom rate. Device log: bpm stuck
+            // at 66 for 60s+ at conf 0 because estimatedBPM was never reset on loss.
+            if bpmConfidence < 0.05 {
+                estimatedBPM = 0
+                rmssd = 0
+                rrIntervals.removeAll()
+            }
         }
     }
 
