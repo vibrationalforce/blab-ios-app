@@ -107,8 +107,11 @@ ADM-OSC / Art-Net / sACN / BLE / Camera bridges (EXTERNAL ports), and `Modulatio
   (source→sink + amount + converter) · **`ConverterCatalog`** (the "intelligent" part:
   allowed cross-kind transforms — bio→CC, pitch/chord→colour, pitch→ADM position, …).
 - **`SignalGraph`** — pure inventory + type-aware `check`/`connect`/`suggestedConnections`.
-- Status: ✅ pure core + tests (`Core/SignalRouting.swift`). ⬜ runtime adapters
-  (move bytes per protocol) + patchbay UI — built next, in founder-chosen priority.
+- Status: ✅ pure core + tests (`Core/SignalRouting.swift`); ✅ live holder
+  `SignalRouter` (real endpoint inventory + persisted routes); ✅ **Patchbay UI**
+  (`Studio/PatchbayView.swift`, Tools ▸ Routing — tap-to-connect, smart auto-patch,
+  honest live/soon status); ✅ first adapter Music/Bio→Light&Spatial. ⬜ remaining
+  adapters (MIDI graph routing, Audio/AUv3, Broadcast) per founder priority.
 
 ## Guardrails
 - iPhone-first, multi-touch. Brand: claim only what ships (no dead category buttons).

@@ -59,6 +59,8 @@ struct EchoelmusicApp: App {
     @State private var arrangementPlayer = ArrangementPlayer()
     /// Selectable recording inputs (mic / interface / Bluetooth) with latency notes.
     @State private var audioInputs = AudioInputManager()
+    /// Universal signal router (patchbay): typed routes across all channels, persisted.
+    @State private var signalRouter = SignalRouter()
     #if canImport(CoreHaptics)
     /// Eyes-free haptic feedback (transport pulse). Off until armed.
     @State private var haptics = HapticController()
@@ -171,6 +173,7 @@ struct EchoelmusicApp: App {
             .environment(arrangementStore)
             .environment(arrangementPlayer)
             .environment(audioInputs)
+            .environment(signalRouter)
             .environment(midiOut)
             #if canImport(CoreHaptics)
             .environment(haptics)

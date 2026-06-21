@@ -283,6 +283,13 @@ public struct SignalGraph: Codable, Sendable, Equatable {
         routes.removeAll { $0.id == routeID }
     }
 
+    /// Replace routes with a persisted set, keeping only those whose BOTH ports still
+    /// exist in the current inventory — so an endpoint that disappeared (or a port
+    /// removed in a new app version) drops its saved routes instead of dangling.
+    public mutating func restore(_ saved: [SignalRoute]) {
+        routes = saved.filter { port($0.sourcePortID) != nil && port($0.sinkPortID) != nil }
+    }
+
     public func routes(forSource id: String) -> [SignalRoute] {
         routes.filter { $0.sourcePortID == id }
     }
