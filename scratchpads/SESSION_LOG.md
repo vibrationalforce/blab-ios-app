@@ -21,7 +21,13 @@ backlog as gate-verified cycles (xcode-compile-check green confirmed per commit)
        default to it → `nonisolated public static let`. [51f45b2]
   5. SOUND 2/4 — spectral-donut visual tracks the ENVELOPE: modulate band intensity by live master
      RMS (peak-hold+decay) so rings swell on attack / fade on tail, not the note grid. [8f6f313]
-DEPLOY: bumped .deploy/release → v10.35.0 carrying all of the above (one deploy/day; Apple upload cap).
+  6. NAV — structured collapsible Tools panel (EchoelStudioView): replaced the flat horizontal
+     chip scroll (chips hid off-side) with a chevron-foldable panel grouped Editors · Audio & Bio ·
+     Connect · Visual & Learn (2-col wrapping grids), state persisted. All 11 triggers preserved;
+     ui-state-reviewer audit GREEN (no dead buttons, all sheets/env wired, only Broadcast engine-gated
+     = honest degradation). Founder ask: "menu besser strukturiert, übersichtlicher … aufklappbar +
+     auf Funktion überprüfen." [9492cfd]
+DEPLOY: bumped .deploy/release → v10.35.1 carrying all of the above (one deploy/day; Apple upload cap).
 HELD for device A/B (founder's ear — signature sound): SOUND 3/4 unison/detune (additive-engine CPU
   risk: N×64 partials — needs a bounded approach) + SOUND 4/4 brighter default tone (genre patches set
   brightness 0.22–0.54 explicitly; rebalancing 14 genres is subjective → tune on device). Also still
