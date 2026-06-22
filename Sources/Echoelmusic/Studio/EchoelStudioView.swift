@@ -129,7 +129,9 @@ struct EchoelStudioView: View {
     /// When the last take was composed — the floor for automatic re-seeds.
     @State private var lastSeedAt: Date = .distantPast
     /// Minimum seconds between AUTOMATIC re-seeds (evolve/lock). User edits bypass it.
-    private let minAutoSeedGap: TimeInterval = 3.5
+    /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
+    /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
+    private let minAutoSeedGap: TimeInterval = 6.0
 
     // Sheets / dialogs
     @State private var showOpen = false
@@ -1503,11 +1505,13 @@ struct EchoelStudioView: View {
         evolveTask?.cancel()
         evolveTask = Task { @MainActor in
             while !Task.isCancelled {
-                // Re-seed roughly every ~2 bars at the current tempo (not a flat 12 s)
-                // so the music keeps hugging the live body and feels far less loop-y.
-                // Clamped 4…8 s so it never churns too fast or drifts too static.
-                let beats = 8.0  // two 4/4 bars
-                let barSpan = min(8.0, max(4.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
+                // Re-seed roughly every ~4 bars at the current tempo (not a flat 12 s)
+                // so the music keeps hugging the live body but is given room to SETTLE
+                // into a phrase instead of re-rolling restlessly (device-log feedback:
+                // takes changed every ~2-4 s and never settled). Clamped 8…16 s so it
+                // never churns too fast or drifts too static.
+                let beats = 16.0  // four 4/4 bars
+                let barSpan = min(16.0, max(8.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
                 try? await Task.sleep(for: .seconds(barSpan))
                 guard running, !Task.isCancelled else { break }
                 scheduleGenerate(auto: true)   // rate-limited — coalesces with any lock-snap/onChange recompose
