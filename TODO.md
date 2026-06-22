@@ -31,7 +31,7 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 - [ ] Multi-track arrangement timeline (parallel lanes, 2-D grid)
 - [ ] Video: **recording** (AVAssetWriter) + **clip playback** (AVPlayer), transport-synced
 - [x] MIDI **import** (SMF → piano roll) — Tools ▸ Editors ▸ Import MIDI (folds onto the bar)
-- [ ] Unison / detune richness (ensemble voicing, CPU-bounded)
+- [x] Unison / detune richness — stacked detuned voices per note (opt-in patch param + gentle default on leads)
 
 ## Open — reach / polish
 - [ ] Light fixture library + multi-universe (club rigs)
