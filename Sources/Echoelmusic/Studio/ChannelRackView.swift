@@ -70,6 +70,28 @@ struct ChannelRackView: View {
             EchoelValueField(label: "Level", value: levelBinding(i),
                              range: 0...2, unit: "", decimals: 2)
                 .opacity(dimmed ? 0.55 : 1)
+
+            // Per-channel insert FX: filter type + (when active) cutoff, plus drive.
+            let fxType = player.fx.indices.contains(i) ? player.fx[i].type : 0
+            HStack(spacing: 8) {
+                Text("Filter").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                Spacer(minLength: 0)
+                Picker("Filter", selection: fxTypeBinding(i)) {
+                    ForEach(ChannelInsertFX.FilterType.allCases, id: \.rawValue) { t in
+                        Text(t.label).tag(t.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(EchoelTheme.text)
+            }
+            if fxType != ChannelInsertFX.FilterType.off.rawValue {
+                EchoelValueField(label: "Cutoff", value: fxFloatBinding(i, \.cutoff),
+                                 range: 20...18000, unit: "Hz", decimals: 0)
+                    .opacity(dimmed ? 0.55 : 1)
+            }
+            EchoelValueField(label: "Drive", value: fxFloatBinding(i, \.drive),
+                             range: 0...1, unit: "", decimals: 2)
+                .opacity(dimmed ? 0.55 : 1)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -93,6 +115,31 @@ struct ChannelRackView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label == "M" ? "Mute" : "Solo")
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    /// Binding to a channel's insert-FX filter type (rawValue).
+    private func fxTypeBinding(_ i: Int) -> Binding<Int> {
+        Binding(
+            get: { player.fx.indices.contains(i) ? player.fx[i].type : 0 },
+            set: { newValue in
+                guard player.fx.indices.contains(i) else { return }
+                var f = player.fx[i]; f.type = newValue
+                player.setFX(track: i, f)
+            }
+        )
+    }
+
+    /// Binding to one Float field of a channel's insert FX (cutoff / drive).
+    private func fxFloatBinding(_ i: Int,
+                               _ keyPath: WritableKeyPath<BeatPlayer.ChannelFX, Float>) -> Binding<Float> {
+        Binding(
+            get: { player.fx.indices.contains(i) ? player.fx[i][keyPath: keyPath] : 0 },
+            set: { newValue in
+                guard player.fx.indices.contains(i) else { return }
+                var f = player.fx[i]; f[keyPath: keyPath] = newValue
+                player.setFX(track: i, f)
+            }
+        )
     }
 
     /// Binding to a channel's level that preserves the rest of its PadShape.
