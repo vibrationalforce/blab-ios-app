@@ -3,6 +3,30 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-22 (cont. 3) — Composition+sound overhaul (science-grounded) + deploy-model fix
+Founder: rework ALL styles toward biofeedback-COHERENT parameters (HeartMath/HRV-resonance, newest
+validation), more composition techniques, fix the "rudimentary" sound; "set the best music scientists
++ developers on it"; later "Du entscheidest. Klang ist erstmal gut."
+- **Two expert passes:** full code audit of the composition/sound stack + a peer-reviewed HRV-coherence
+  science brief (resonance ~0.1 Hz/6-br-min, two-clock tempo, consonance/roughness, timbre dims;
+  Solfeggio/"healing-frequency" pseudoscience EXCLUDED) → `scratchpads/PLAN_COMPOSITION_SOUND_OVERHAUL.md`.
+- **SHIPPED v10.41.0 → v10.45.0 (all CI-green, autonomous push-trigger deploy):**
+  - v10.41.0 real-FFT oscillating spectral rings (lock-free tap ring → main-thread FFT, audio-thread
+    reviewed) + non-standard-tuning hero-path guard (diagnosed the "komische Töne" = a persisted
+    non-12-TET tone system retuning notes 15–30¢ flat; banner + 1-tap 12-TET).
+  - v10.42.0 coherence-convergence DENSITY servo (BioComposer.musicalState, pure+tested).
+  - v10.43.0 two-clock TEMPO entrainment (Flow pulse → 72 BPM as coherence rises) + gentle default
+    UNISON (2-voice/~7¢) — fixed the thin single-voice cause.
+  - v10.44.0 live per-note velocity HUMANIZATION (was export-only) + CONSONANCE convergence.
+  - v10.45.0 coherence-aware GROOVE sparsity (beat settles with the body; backbone intact).
+  - Stability: full all-genres×scales×12-roots×bio×modes + all tone-systems sweep test (CI-green).
+- **Deploy-model correction (durable):** deploy is AUTONOMOUS + TOKENLESS via `.deploy/release`
+  push-trigger — NO daily cap, NO founder action, NO workflow_dispatch. Killed the prior false
+  "upload limit" belief in TODO.md + decisions.csv (founder: "es gibt kein Limit").
+- **Device validation:** founder log shows density tracking arousal live (22 notes @88bpm vs 12–14
+  @56bpm) — servo works on device. Founder: sound is good now → HOLD timbre changes; next big levers
+  (timbre richness, multi-bar song-form techniques) need device ears or a real plan, not blind slices.
+
 ### 2026-06-22 (cont. 2) — Autonomous DAW-depth loop (founder: "no interrupting anymore")
 Founder mandate: work continuously, safe + functioning + brand-strong, no nudging, no questions
 unless genuinely blocking. Worked the TODO backlog as gate-verified cycles (xcode-compile-check
