@@ -44,6 +44,8 @@ struct WorkspaceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            topBar
+            Divider().overlay(EchoelTheme.border)
             ZStack {
                 surfaceLayer(.arrange) { ArrangementView(embedded: true) }
                 surfaceLayer(.clips)   { ClipView(embedded: true) }
@@ -54,6 +56,37 @@ struct WorkspaceView: View {
             bottomBar
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
+    }
+
+    /// Persistent brand header — always on screen, every surface (founder: "oben die
+    /// Leiste soll immer sichtbar sein … egal welche Ansicht"). Left: the E-with-waves
+    /// app mark; right: "Echoelmusic" in the CI face + the running version/build, so
+    /// you always know which build you're on. Uncodixfy-compliant (solid bg, 1px
+    /// border, no glow).
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            EchoelLogoMark().frame(width: 26, height: 26)
+            Spacer(minLength: 0)
+            Text("Echoelmusic")
+                .font(EchoelTheme.font(15, .semibold))
+                .foregroundStyle(EchoelTheme.text)
+            Text(Self.versionString)
+                .font(EchoelTheme.font(11))
+                .foregroundStyle(EchoelTheme.dim)
+                .accessibilityLabel("Version \(Self.versionString)")
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 44)
+        .background(EchoelTheme.bg)
+    }
+
+    /// Short version + build, e.g. "v10.35.2 (1550)" — from the bundle, so it always
+    /// reflects the actual installed build.
+    private static var versionString: String {
+        let info = Bundle.main.infoDictionary
+        let v = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let b = info?["CFBundleVersion"] as? String ?? "—"
+        return "v\(v) (\(b))"
     }
 
     /// Keep every surface mounted; show/enable only the selected one. This preserves
