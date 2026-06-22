@@ -9,6 +9,12 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 > has Apple's daily upload cap), **not** `fastlane beta`. The compile gate
 > (`xcode-compile-check`) is the per-commit green gate. See CLAUDE.md.
 
+> **⚠️ DEPLOY HELD (2026-06-22):** Apple's **daily TestFlight upload limit** is reached (v10.38.0
+> archived+signed fine but the upload was rejected — "wait 1 day"). All shipped features are committed
+> + gate-green on the branch. **Next deploy (after ~2026-06-23 reset):** ONE `.deploy/release` bump →
+> v10.39.0 carrying Audio Clips + MIDI import + Unison (held v10.38.0) **plus** Automation playback
+> **plus** MIDI drum-grid import. Do NOT bump `.deploy/release` before the cap resets (it just re-fails).
+
 ## Done — 2026-06-22 session
 - [x] Persistent bottom navigation bar (Arrange · Clips · Compose)
 - [x] Structured, collapsible Tools menu (grouped)
@@ -30,7 +36,7 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 - [x] Automation **playback** wiring + authoring UI — Tools ▸ Editors ▸ Automation (master/tempo, per-bar; song-position TODO)
 - [ ] Multi-track arrangement timeline (parallel lanes, 2-D grid)
 - [ ] Video: **recording** (AVAssetWriter) + **clip playback** (AVPlayer), transport-synced
-- [x] MIDI **import** (SMF → piano roll) — Tools ▸ Editors ▸ Import MIDI (folds onto the bar)
+- [x] MIDI **import** (SMF → piano roll) — Tools ▸ Editors ▸ Import MIDI (melody folds onto the bar + GM ch10 → drum grid)
 - [x] Unison / detune richness — stacked detuned voices per note (opt-in patch param + gentle default on leads)
 
 ## Open — reach / polish

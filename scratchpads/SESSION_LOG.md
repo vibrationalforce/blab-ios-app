@@ -25,8 +25,19 @@ green confirmed per commit via MCP list_workflow_runs). SHIPPED this run, all GR
     appliedValue(for:atStep:) is the tested core. AutomationView list editor (target · on/off · keyframe
     Beat/Value/Curve rows via EchoelValueField) at Tools ▸ Editors ▸ Automation. Concurrency-reviewed
     PASS. +tests. [03f783d]
-DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import + Unison [a1def0d];
-automation (03f783d) verifying gate-green for the next deploy bump.
+  - MIDI DRUM IMPORT — one "Import MIDI" now brings BOTH melody AND drums: SMF parser refactored to
+    retain channel (channelNotes); MIDIFileImporter.drumGrid maps GM ch10 percussion → BeatPlayer's
+    8-track/16-step grid (Kick/Snare/ClosedHat/OpenHat/Clap, toms/cymbals→Perc), first-bar, accents
+    hard hits (vel≥0.85); importMIDI loads it only when there are hits (never clears the kit). +tests. [d4d52cf]
+DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import + Unison [a1def0d].
+  ⚠️ APPLE DAILY UPLOAD CAP HIT: v10.38.0 ARCHIVED + SIGNED fine but the TestFlight UPLOAD was rejected
+  — "Upload limit reached … wait 1 day" (run 27947625362, ~6+ deploys earlier today exhausted the quota).
+  This is an Apple-side limit, NOT a code/build problem (compile-check + archive both green). NO further
+  .deploy/release bump will upload until the cap resets (~24h). All features stay committed + gate-green
+  on the branch, accumulating.
+  >>> NEXT DEPLOY (after cap resets, ~2026-06-23): bump .deploy/release ONCE to carry v10.38.0 features
+      + Automation playback [03f783d] + MIDI drum-grid import [d4d52cf]. Suggested marker: v10.39.0
+      "Automation + MIDI drum import (Audio Clips/MIDI/Unison from the held v10.38.0 upload)".
 HONEST HOLDS (dedicated cycles): automation song-position (needs absolute-bar counter) + automation to
 DSP params (needs audio-thread param routing review); multi-track parallel-lane arrangement (large
 architecture — current arrangement is a functional linear section-chain); video capture/edit (large
