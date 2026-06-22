@@ -5,9 +5,15 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 
 > **Workflow note (this repo / remote env):** development stays on the branch
 > `claude/piano-roll-clip-view-wozlie` (no per-task branches, no auto-merge to
-> `main` without the founder's OK). Deploy is a `.deploy/release` bump (TestFlight
-> has Apple's daily upload cap), **not** `fastlane beta`. The compile gate
-> (`xcode-compile-check`) is the per-commit green gate. See CLAUDE.md.
+> `main` without the founder's OK). **DEPLOY IS FULLY AUTONOMOUS AND TOKENLESS:**
+> bump `.deploy/release` and `git push` → `testflight.yml`'s `push:` trigger
+> (path-filtered to `.deploy/release`) runs the iOS TestFlight upload using the
+> repo's App Store Connect secrets. **No local token, no `workflow_dispatch`, no
+> founder action needed.** Do NOT claim a "daily upload cap" or that the founder
+> must dispatch — that was a false belief; the push-trigger just works (verified
+> v10.40.0 + v10.41.0). `workflow_dispatch` needs `actions:write` (absent here) —
+> never use it; use the `.deploy/release` bump. Compile gate (`xcode-compile-check`)
+> is the per-commit green gate. See CLAUDE.md.
 
 > **DEPLOY (2026-06-22):** v10.40.0 SHIPPED (upload SUCCESS) — filter-cutoff automation + key-follow
 > stereo + adaptive brightness + resilient retry, on top of the live v10.39.0 sound fixes. App version
