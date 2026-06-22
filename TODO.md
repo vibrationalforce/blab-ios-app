@@ -14,6 +14,12 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 > v10.40.0 + v10.41.0). `workflow_dispatch` needs `actions:write` (absent here) —
 > never use it; use the `.deploy/release` bump. Compile gate (`xcode-compile-check`)
 > is the per-commit green gate. See CLAUDE.md.
+>
+> ⚠️ **GATE TRAP — verify `xcode-compile-check`, NOT `ci.yml`, for Accelerate/DSP code:** `ci.yml`
+> runs on **Linux** where `canImport(Accelerate)` is FALSE, so every `#if canImport(Accelerate)`
+> file (DSP/EchoelVDSPKit, EchoelDDSP, SpaceReverb, …) is EXCLUDED — ci.yml can be falsely GREEN
+> while the iOS build FAILS (e.g. SpaceReverb's bad hex literal passed ci.yml, failed iOS). The
+> macOS/iOS `xcode-compile-check.yml` is authoritative for any DSP/Accelerate/Metal/AUv3 change.
 
 > **DEPLOY (2026-06-22):** v10.40.0 SHIPPED (upload SUCCESS) — filter-cutoff automation + key-follow
 > stereo + adaptive brightness + resilient retry, on top of the live v10.39.0 sound fixes. App version
