@@ -9,11 +9,11 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 > has Apple's daily upload cap), **not** `fastlane beta`. The compile gate
 > (`xcode-compile-check`) is the per-commit green gate. See CLAUDE.md.
 
-> **⚠️ DEPLOY HELD (2026-06-22):** Apple's **daily TestFlight upload limit** is reached (v10.38.0
-> archived+signed fine but the upload was rejected — "wait 1 day"). All shipped features are committed
-> + gate-green on the branch. **Next deploy (after ~2026-06-23 reset):** ONE `.deploy/release` bump →
-> v10.39.0 carrying Audio Clips + MIDI import + Unison (held v10.38.0) **plus** Automation playback
-> **plus** MIDI drum-grid import. Do NOT bump `.deploy/release` before the cap resets (it just re-fails).
+> **DEPLOY (2026-06-22):** v10.39.0 SHIPPED [d7a4648] carrying SOUND FIXES (komische Töne) + Audio
+> Clips + MIDI import (melody + GM drums) + Unison + Automation playback. NOTE: there is NO TestFlight
+> upload limit — the two earlier deploy failures (v10.38.0 / first v10.39.0) were transient Apple ASC
+> outages (503 Service Temporarily Unavailable / auth). If a deploy fails on upload (not archive),
+> just RE-TRIGGER (re-push .deploy/release); the build is fine. Do not "hold for a cap" — it doesn't exist.
 
 ## Done — 2026-06-22 session
 - [x] Persistent bottom navigation bar (Arrange · Clips · Compose)

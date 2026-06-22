@@ -1296,16 +1296,18 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
         if let pan = unisonPan {
             voicePans[voiceIdx] = pan
+        } else if maxVoices > 1 {
+            // Stable stereo image: pan by PITCH, not the (reused) slot index. The old
+            // index-keyed spread made a note's pan depend on which slot it landed in,
+            // so fast/arp notes reusing a slot jumped across the field (audible stereo
+            // wobble). Key-follow panning (low→left, high→right, like a hardware synth)
+            // is stable per pitch; the dedicated mono SubBassVoice anchors the low end.
+            let lo: Float = 36, hi: Float = 84            // C2…C6 musical span
+            let norm = Swift.min(1, Swift.max(0, (Float(note) - lo) / (hi - lo)))
+            let panSpread: Float = 0.35                   // gentle — keeps the image solid
+            voicePans[voiceIdx] = (norm * 2.0 - 1.0) * panSpread
         } else {
-            // Spread panning across active voices (original behaviour).
-            let activeCount = voiceNotes.reduce(0) { $0 + ($1 >= 0 ? 1 : 0) }
-            if activeCount > 1, maxVoices > 1 {
-                let panSpread: Float = 0.6
-                let normalized = Float(voiceIdx) / Float(maxVoices - 1)
-                voicePans[voiceIdx] = (normalized * 2.0 - 1.0) * panSpread
-            } else {
-                voicePans[voiceIdx] = 0
-            }
+            voicePans[voiceIdx] = 0
         }
 
         // Idle voice → clean staggered restart; reused/stolen ringing voice →
