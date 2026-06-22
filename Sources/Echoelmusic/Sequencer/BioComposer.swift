@@ -205,7 +205,7 @@ public enum BioComposer {
         let (calm, _, energy, _, busy) = musicalState(
             coherence: input.coherence,
             hrvNormalized: input.hrvNormalized,
-            heartRateBPM: input.heartRateBPM)
+            heartRateBPM: Double(input.heartRateBPM))
 
         let notes: [Note]
         let drumSteps: [[Bool]]
