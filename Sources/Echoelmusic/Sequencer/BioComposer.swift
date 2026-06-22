@@ -157,15 +157,25 @@ public enum BioComposer {
         ))
     }
 
-    /// Tempo a take should run at: clamped into the style's window in Studio mode,
-    /// heart-following in Flow.
+    /// Resonance pulse band: 72 BPM = 6 breaths/min × 12, i.e. an integer pulse over
+    /// the 0.1 Hz resonance breath clock (the parasympathetic entrainment target).
+    static let resonancePulseBPM = 72.0
+
+    /// Tempo a take should run at: clamped into the style's window in Studio mode;
+    /// in Flow it follows the heart but is pulled toward the resonance band as
+    /// coherence rises (two-clock entrainment — the groove settles WITH the body
+    /// instead of merely mirroring it). At zero coherence Flow follows the heart
+    /// exactly; at full coherence it converges to ~72 BPM. Pure + testable.
     public static func tempo(for input: Input) -> Double {
         switch input.mode {
         case .studioLocked:
             let r = input.style.tempoRange
             return min(max(input.lockedTempo, r.lowerBound), r.upperBound)
         case .flowFree:
-            return min(max(Double(input.heartRateBPM), 40), 160)
+            let hr = Double(input.heartRateBPM)
+            let calm = Double(clamp01(input.coherence))
+            let pulled = hr * (1 - calm) + Self.resonancePulseBPM * calm
+            return min(max(pulled, 40), 160)
         }
     }
 

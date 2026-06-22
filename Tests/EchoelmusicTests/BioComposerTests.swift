@@ -234,10 +234,23 @@ final class BioComposerTests: XCTestCase {
     }
 
     func testFlowTempoFollowsHeart() {
-        XCTAssertEqual(BioComposer.tempo(for: input(hr: 128, mode: .flowFree)), 128,
-                       "Flow mode follows the heart")
-        XCTAssertEqual(BioComposer.tempo(for: input(hr: 220, mode: .flowFree)), 160,
+        // At zero coherence Flow follows the heart exactly (no entrainment pull).
+        XCTAssertEqual(BioComposer.tempo(for: input(coherence: 0, hr: 128, mode: .flowFree)), 128,
+                       "Flow mode follows the heart at zero coherence")
+        XCTAssertEqual(BioComposer.tempo(for: input(coherence: 0, hr: 220, mode: .flowFree)), 160,
                        "Flow tempo is clamped to a musical ceiling")
+    }
+
+    func testFlowTempoPulledTowardResonanceByCoherence() {
+        // Two-clock entrainment: as coherence rises, a fast heart's pulse is drawn
+        // DOWN toward the ~72 BPM resonance band (groove settles with the body).
+        let fastHeart = Float(120)
+        let lowCoh  = BioComposer.tempo(for: input(coherence: 0.0, hr: fastHeart, mode: .flowFree))
+        let midCoh  = BioComposer.tempo(for: input(coherence: 0.5, hr: fastHeart, mode: .flowFree))
+        let fullCoh = BioComposer.tempo(for: input(coherence: 1.0, hr: fastHeart, mode: .flowFree))
+        XCTAssertEqual(lowCoh, 120, accuracy: 1e-6, "no pull at zero coherence")
+        XCTAssertLessThan(midCoh, lowCoh, "coherence pulls the pulse down")
+        XCTAssertEqual(fullCoh, 72, accuracy: 1e-6, "full coherence converges to the resonance band")
     }
 
     // MARK: - Ambient self-observation note bounds
