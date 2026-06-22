@@ -60,6 +60,8 @@ struct EchoelmusicApp: App {
     @State private var arrangementStore = ArrangementStore()
     /// Plays the arrangement back over the shared transport (fed via PianoRollModel).
     @State private var arrangementPlayer = ArrangementPlayer()
+    /// Parameter automation (master level / tempo) played over the shared transport.
+    @State private var automationPlayer = AutomationPlayer()
     /// Selectable recording inputs (mic / interface / Bluetooth) with latency notes.
     @State private var audioInputs = AudioInputManager()
     /// Universal signal router (patchbay): typed routes across all channels, persisted.
@@ -204,6 +206,7 @@ struct EchoelmusicApp: App {
             .environment(clipStore)
             .environment(arrangementStore)
             .environment(arrangementPlayer)
+            .environment(automationPlayer)
             .environment(audioInputs)
             .environment(signalRouter)
             .environment(auHost)
@@ -249,7 +252,8 @@ struct EchoelmusicApp: App {
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost)
+                automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
 
                 // Bio essentials. The body's REAL signal drives everything — camera

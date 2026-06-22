@@ -42,6 +42,9 @@ public final class PianoRollModel {
     /// bar boundary and loads the next section's clip BEFORE that bar's notes
     /// trigger. Fed from the same shared `onTick` so the song stays on one clock.
     @ObservationIgnored private weak var arrangement: ArrangementPlayer?
+    /// Optional parameter automation — applied each step on this same shared clock
+    /// (writes main-thread-safe params: master level / tempo). nil = no-op.
+    @ObservationIgnored private weak var automation: AutomationPlayer?
     /// Notes currently sounding → so we can fire their note-off at end step.
     @ObservationIgnored private var active: [UUID: Note] = [:]
     /// Staged next pattern, swapped in seamlessly at the loop boundary (step 0)
@@ -152,17 +155,20 @@ public final class PianoRollModel {
     public func start(pattern: PatternEngine, voice: PolySynthVoice,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
                       arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
-                      auHost: AUv3Host? = nil) {
+                      auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil) {
         self.voice = voice
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
+        self.automation = automation
         self.bus = bus
         self.auHost = auHost
-        // Advance the song first (loads the next section's clip on a bar wrap),
-        // THEN trigger this step's notes — so a new section plays from step 0 cleanly.
+        // Advance the song first (loads the next section's clip on a bar wrap), apply
+        // automation for this step, THEN trigger this step's notes — so a new section
+        // plays from step 0 cleanly and params are set before the notes sound.
         pattern.onTick = { [weak self] step in
             self?.arrangement?.transportStep(step)
+            self?.automation?.applyStep(step)
             self?.trigger(step)
         }
         // Any stop (from any view) flushes held notes — no caller can forget.

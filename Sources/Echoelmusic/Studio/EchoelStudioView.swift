@@ -155,6 +155,7 @@ struct EchoelStudioView: View {
     @State private var showBroadcast = false
     @State private var showPatchEditor = false
     @State private var showChannelRack = false
+    @State private var showAutomation = false
     @State private var showAudioClip = false
     /// Presents a file picker to import a Standard MIDI File onto the piano roll.
     @State private var midiImportPresented = false
@@ -255,6 +256,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showPlugins) { AUv3BrowserView() }
         .sheet(isPresented: $showLearn) { LearnView() }
         .sheet(isPresented: $showChannelRack) { ChannelRackView() }
+        .sheet(isPresented: $showAutomation) { AutomationView() }
         .sheet(isPresented: $showAudioClip) { AudioClipView() }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
@@ -378,6 +380,7 @@ struct EchoelStudioView: View {
                         }
                     } label: { gridChipLabel("Drum Samples", "waveform") }
                     gridChip("Channels", "slider.vertical.3") { showChannelRack = true }
+                    gridChip("Automation", "point.topleft.down.curvedto.point.bottomright.up") { showAutomation = true }
                     #if canImport(UniformTypeIdentifiers)
                     gridChip("Import MIDI", "square.and.arrow.down") { midiImportPresented = true }
                     #endif
