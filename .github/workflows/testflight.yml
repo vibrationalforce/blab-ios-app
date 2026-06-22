@@ -468,15 +468,19 @@ jobs:
           PLIST
 
           echo "=== Exporting & Uploading directly to TestFlight ==="
-          # The App Store Connect API that -allowProvisioningUpdates calls to mint the
-          # distribution profile intermittently returns an empty/garbled response
-          # ("No profiles for '...' were found" / "data couldn't be read because it
-          # isn't in the correct format"), failing an otherwise-valid archive. This is
-          # transient Apple-side flakiness, so retry that SPECIFIC case a few times.
-          # Real errors (compile, upload-limit, auth) don't match and fail fast.
+          # App Store Connect is intermittently flaky on the export/upload step in
+          # two ways, BOTH transient (the archive itself is valid):
+          #   1. Provisioning mint glitch: "No profiles for '...' were found" /
+          #      "data couldn't be read because it isn't in the correct format".
+          #   2. ASC service/auth outage: HTTP 503 "Service Temporarily Unavailable",
+          #      "Unable to authenticate with App Store Connect", "No Accounts with
+          #      App Store Connect Access", "returned unexpected content", timeouts.
+          # Both self-heal on retry, so retry those SPECIFIC patterns with backoff.
+          # Genuine errors (compile, real auth/config) don't match and fail fast.
+          TRANSIENT='No profiles for|couldn.t be read because it isn.t in the correct format|Service Temporarily Unavailable|503|No Accounts with App Store Connect Access|Unable to authenticate with App Store Connect|returned unexpected content|The request timed out|timed out|connection was lost|Could not connect to the server'
           RESULT=1
-          for attempt in 1 2 3 4; do
-            echo "--- export/upload attempt $attempt/4 ---"
+          for attempt in 1 2 3 4 5; do
+            echo "--- export/upload attempt $attempt/5 ---"
             set +eo pipefail
             xcodebuild -exportArchive \
               -archivePath ./build/Echoelmusic.xcarchive \
@@ -490,9 +494,9 @@ jobs:
             RESULT=${PIPESTATUS[0]}
             set -eo pipefail
             [ $RESULT -eq 0 ] && break
-            if grep -qE "No profiles for|couldn't be read because it isn.t in the correct format" /tmp/export.log; then
-              echo "::warning title=Transient export retry::ASC profile error on attempt $attempt — retrying in 20s"
-              sleep 20
+            if grep -qE "$TRANSIENT" /tmp/export.log; then
+              echo "::warning title=Transient export retry::ASC transient error on attempt $attempt — retrying in 30s"
+              sleep 30
             else
               echo "Non-transient export failure — not retrying."
               break
