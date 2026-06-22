@@ -206,8 +206,15 @@ public final class PolySynthVoice {
     public func apply(_ patch: SynthPatch) {
         // Unison is a poly-engine property (it spawns extra detuned voices per note),
         // not a per-voice timbre param — set it directly (atomic write, read at the
-        // next noteOn, same discipline as setTuning). nil = off (old/blank patches).
-        poly.setUnison(count: patch.unisonVoices ?? 1, detuneCents: patch.unisonDetuneCents ?? 0)
+        // next noteOn, same discipline as setTuning).
+        //
+        // RICHNESS DEFAULT (sound overhaul, Phase 2): when a patch doesn't specify
+        // unison (old/blank patches, and every generative genre patch), default to a
+        // GENTLE 2-voice / ~7¢ unison so leads & pads have ensemble body instead of a
+        // single thin voice — the #1 "thin/rudimentary" cause (research: subtle
+        // detune/unison is the thin→rich lever). Explicit patch values — including an
+        // explicit mono `1` — are always honoured, so this never overrides intent.
+        poly.setUnison(count: patch.unisonVoices ?? 2, detuneCents: patch.unisonDetuneCents ?? 7)
         _ = patchCommands.tryEnqueue(patch)
     }
 
