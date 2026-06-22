@@ -29,6 +29,30 @@ final class AutomationPlayerTests: XCTestCase {
         XCTAssertEqual(AutomationTarget.masterLevel.value(forNormalized: -1), 0, accuracy: 1e-9)
     }
 
+    /// Filter cutoff is designed to be octave-SYMMETRIC around ×1: a lane that swings
+    /// equally above/below centre multiplies the cutoff up by the same factor it
+    /// divides down (0.25×…4×). Guards the log mapping against a linear regression.
+    func testFilterCutoffIsOctaveSymmetric() {
+        let f = AutomationTarget.filterCutoff
+        for d in [0.1, 0.25, 0.5] {
+            let up = f.value(forNormalized: 0.5 + d)
+            let down = f.value(forNormalized: 0.5 - d)
+            XCTAssertEqual(up * down, 1, accuracy: 1e-6,
+                           "symmetric offsets must be reciprocal multipliers")
+        }
+        // Span edges are the stated 0.25×…4× (two octaves each side of ×1).
+        XCTAssertEqual(f.value(forNormalized: 0), 0.25, accuracy: 1e-6)
+        XCTAssertEqual(f.value(forNormalized: 1), 4, accuracy: 1e-6)
+    }
+
+    /// Neutral values must be the genuine no-op for each target so an empty/disabled
+    /// lane is inaudible (filter ×1, master unity, tempo a sane 120).
+    func testNeutralValuesAreNoOps() {
+        XCTAssertEqual(AutomationTarget.filterCutoff.neutralValue, 1, accuracy: 1e-9)
+        XCTAssertEqual(AutomationTarget.masterLevel.neutralValue, 1, accuracy: 1e-9)
+        XCTAssertEqual(AutomationTarget.tempo.neutralValue, 120, accuracy: 1e-9)
+    }
+
     func testBeatTickConversion() {
         XCTAssertEqual(AutomationPlayer.tick(forBeat: 1), Note.ticksPerQuarter)
         XCTAssertEqual(AutomationPlayer.tick(forBeat: 4), Note.ticksPerQuarter * 4)

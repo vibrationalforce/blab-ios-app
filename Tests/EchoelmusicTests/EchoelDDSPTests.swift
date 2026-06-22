@@ -1483,4 +1483,42 @@ final class EchoelDDSPHarmonicAmplitudesTests: XCTestCase {
     }
 }
 
+// MARK: - Key-follow stereo pan (stable per-pitch image)
+
+/// Guards the v10.40.0 stereo fix: pan must be a stable function of PITCH
+/// (low→left, high→right), never of the reused voice-slot index.
+final class EchoelPolyDDSPKeyFollowPanTests: XCTestCase {
+
+    func testKeyFollowPan_centerOfSpanIsCentered() {
+        // C4 (note 60) is the midpoint of the C2…C6 span → dead-centre.
+        XCTAssertEqual(EchoelPolyDDSP.keyFollowPan(forNote: 60), 0, accuracy: 1e-6)
+    }
+
+    func testKeyFollowPan_lowLeftHighRight() {
+        let low = EchoelPolyDDSP.keyFollowPan(forNote: 36)   // C2
+        let high = EchoelPolyDDSP.keyFollowPan(forNote: 84)  // C6
+        XCTAssertLessThan(low, 0, "low notes pan left")
+        XCTAssertGreaterThan(high, 0, "high notes pan right")
+        XCTAssertEqual(low, -0.35, accuracy: 1e-6)           // full ±spread at the edges
+        XCTAssertEqual(high, 0.35, accuracy: 1e-6)
+    }
+
+    func testKeyFollowPan_monotonicAndClampedBeyondSpan() {
+        // Strictly increasing across the musical span…
+        XCTAssertLessThan(EchoelPolyDDSP.keyFollowPan(forNote: 48),
+                          EchoelPolyDDSP.keyFollowPan(forNote: 72))
+        // …and clamped (never exceeds ±spread) for notes outside C2…C6.
+        XCTAssertEqual(EchoelPolyDDSP.keyFollowPan(forNote: 12), -0.35, accuracy: 1e-6)
+        XCTAssertEqual(EchoelPolyDDSP.keyFollowPan(forNote: 120), 0.35, accuracy: 1e-6)
+    }
+
+    func testKeyFollowPan_isPitchStableNotSlotDependent() {
+        // The whole point of the fix: the SAME pitch always yields the SAME pan,
+        // regardless of how many other notes sound / which slot it reuses.
+        let a = EchoelPolyDDSP.keyFollowPan(forNote: 67)
+        let b = EchoelPolyDDSP.keyFollowPan(forNote: 67)
+        XCTAssertEqual(a, b, accuracy: 0, "pan must depend only on pitch")
+    }
+}
+
 #endif
