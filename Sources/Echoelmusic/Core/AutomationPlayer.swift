@@ -80,7 +80,7 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
     public func normalized(forValue v: Double) -> Double {
         if self == .filterCutoff {
             let cv = Swift.min(maxValue, Swift.max(minValue, v))
-            return Swift.min(1, Swift.max(0, log(cv / minValue) / log(maxValue / minValue)))
+            return Swift.min(1, Swift.max(0, Foundation.log(cv / minValue) / Foundation.log(maxValue / minValue)))
         }
         let span = maxValue - minValue
         guard span > 0 else { return 0 }
