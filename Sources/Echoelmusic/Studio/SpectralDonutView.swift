@@ -20,6 +20,7 @@ import SwiftUI
 struct SpectralDonutView: View {
 
     @Environment(AudioEngine.self) private var audioEngine
+    @Environment(EngineBus.self) private var bus
     var reduceMotion: Bool = false
     var bandCount: Int = 28
 
@@ -65,10 +66,30 @@ struct SpectralDonutView: View {
             state.values[i] += (target[i] - state.values[i]) * k
         }
 
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let maxR = min(size.width, size.height) / 2 * 0.94
         let gap = maxR / CGFloat(n)
         let t = date.timeIntervalSinceReferenceDate
+
+        // SWING ("schwingen"): the whole ring system sways through space like a slow
+        // pendulum, bound to the body — breath drives the horizontal azimuth, HRV the
+        // vertical lift — so the rings move WHERE the spatial object is. The pendulum
+        // runs at ~0.1 Hz (resonance breath rate), the bob at ~0.13 Hz; both are far
+        // under the 3 Hz flash ceiling. Sway amplitude follows loudness (silent →
+        // still, centred) so it breathes with the sound. Reduce Motion → no sway.
+        var center = CGPoint(x: size.width / 2, y: size.height / 2)
+        if !reduceMotion {
+            let bio = bus.freshBio(maxAge: 2)
+            let breath = Double(bio?.breathPhase ?? 0.5)         // 0…1
+            let hrv = Double(bio?.hrvNormalized ?? 0.5)          // 0…1
+            let level = Double(max(audioEngine.masterLevel, audioEngine.masterLevelR))
+            let swayAmp = min(1.0, level * 3.0)
+            let azimuth = breath * 2 - 1                          // -1…1 with breath
+            let elevation = hrv * 2 - 1                           // -1…1 with HRV
+            let pendulumX = sin(t * 0.10 * 2 * .pi)
+            let pendulumY = sin(t * 0.13 * 2 * .pi)
+            center.x += CGFloat(maxR * 0.16 * swayAmp * (0.6 * pendulumX + 0.4 * azimuth))
+            center.y -= CGFloat(maxR * 0.10 * swayAmp * (0.5 * pendulumY + 0.5 * elevation))
+        }
 
         // Each band is an OSCILLATING WAVEFORM ring: a closed loop whose radius
         // wobbles around the circle. The wobble AMPLITUDE follows the band's energy,
