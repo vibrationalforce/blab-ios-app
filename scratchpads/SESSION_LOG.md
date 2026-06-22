@@ -38,6 +38,19 @@ DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import +
   >>> NEXT DEPLOY (after cap resets, ~2026-06-23): bump .deploy/release ONCE to carry v10.38.0 features
       + Automation playback [03f783d] + MIDI drum-grid import [d4d52cf]. Suggested marker: v10.39.0
       "Automation + MIDI drum import (Audio Clips/MIDI/Unison from the held v10.38.0 upload)".
+
+  - SOUND FIX (founder: "teilweise komische Töne") — dsp-reviewer audit of the default-ON sound path
+    found 3 intermittent-weird-tone causes, all fixed: (1) STUCK SUB DRONE [primary] — PianoRollModel.
+    trigger gated the sub note-on AND note-off on a per-tick-recomputed bassCeiling; on pattern evolution
+    the bass register shifted and a sub note-off was skipped → wrong-pitch sub drone. Now the sub is
+    reconciled to the LOWEST active note each tick (stateful currentSubPitch, symmetric) — can't strand,
+    reinforces the true root. (2) OFF-PITCH SUB — SubBassVoice hard-clamped the octave-down pitch to
+    28–180 Hz (off-key); now octave-FOLDS (keeps pitch class) + dropped the dissonant 3rd-harmonic fifth
+    & heavy tanh (clean h1+octave). (3) STEAL PORTAMENTO — stolen voices glided ~16 ms into pitch; now
+    prepareForNote snaps pitch (smoothedFreq=-1) always, phases/amp still preserved (no click). [12153ab]
+  >>> FOUNDER CORRECTION: TestFlight upload works, no daily limit to worry about — the v10.38.0 upload
+      failure was transient/cap. DEPLOYED v10.39.0 [82c1b83] carrying the sound fixes + all the held
+      features (Audio Clips + MIDI import + drum grid + Unison + Automation). Verify upload succeeded.
 HONEST HOLDS (dedicated cycles): automation song-position (needs absolute-bar counter) + automation to
 DSP params (needs audio-thread param routing review); multi-track parallel-lane arrangement (large
 architecture — current arrangement is a functional linear section-chain); video capture/edit (large
