@@ -266,6 +266,38 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    // MARK: - Coherence-aware groove sparsity
+
+    private func drumHits(_ c: BioComposition) -> Int {
+        c.drumSteps.reduce(0) { $0 + $1.filter { $0 }.count }
+    }
+
+    /// High coherence must settle the GROOVE too — never more hits than an aroused
+    /// body, with the genre backbone intact. (Rhythmic analog of the density servo.)
+    func testGroove_highCoherenceNeverBusierThanAroused() {
+        for style in [MusicStyle.dubTechno, .trap] {
+            var sawStrictlyFewer = false
+            for seed in UInt64(1)...24 {
+                let aroused = BioComposer.compose(input(coherence: 0.2, hr: 115, style: style, seed: seed))
+                let settled = BioComposer.compose(input(coherence: 0.95, hr: 115, style: style, seed: seed))
+                XCTAssertLessThanOrEqual(drumHits(settled), drumHits(aroused),
+                                         "\(style): settled groove must not exceed aroused (seed \(seed))")
+                if drumHits(settled) < drumHits(aroused) { sawStrictlyFewer = true }
+            }
+            XCTAssertTrue(sawStrictlyFewer, "\(style): settling must actually thin some takes")
+        }
+    }
+
+    func testGroove_backboneSurvivesHighCoherence() {
+        // The signature stays even when settled: trap keeps its half-time snare +
+        // 16th hats; dub keeps four-on-the-floor.
+        let trap = BioComposer.compose(input(coherence: 0.97, hr: 115, style: .trap))
+        XCTAssertTrue(trap.drumSteps[1][8], "trap snare backbone survives")
+        XCTAssertEqual(trap.drumSteps[2].filter { $0 }.count, 16, "trap 16th hats survive")
+        let dub = BioComposer.compose(input(coherence: 0.97, hr: 115, style: .dubTechno))
+        for s in [0, 4, 8, 12] { XCTAssertTrue(dub.drumSteps[0][s], "dub four-on-floor survives") }
+    }
+
     // MARK: - Live velocity humanization
 
     private func uniformNotes(_ v: Float = 0.8, count: Int = 8) -> [Note] {

@@ -258,7 +258,7 @@ public enum BioComposer {
         case .dubTechno:
             notes = dubMelody(key: input.key, busy: busy,
                               breathDepth: input.breathDepth, rng: &rng)
-            (drumSteps, drumAccents) = dubBeat(energy: energy, rng: &rng)
+            (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
         case .trap:
             notes = trapMelody(key: input.key, busy: busy, calm: calm,
                                breathPhase: input.breathPhase,
@@ -295,10 +295,13 @@ public enum BioComposer {
 
     /// Steady 4/4 kick, offbeat ticks, a deep sub on 1 & 3, a soft backbeat and a
     /// little seeded perc. Hypnotic and spacious — the genre's signature.
-    private static func dubBeat(energy: Float, rng: inout SeededRNG)
+    private static func dubBeat(energy: Float, calm: Float, rng: inout SeededRNG)
         -> (steps: [[Bool]], accents: [[Bool]]) {
         var steps = emptyGrid()
         var accents = emptyGrid()
+        // High coherence settles the groove too (rhythmic analog of the density
+        // servo): the backbone stays, the "extra movement" is suppressed.
+        let spacious = calm > 0.7
 
         // 4-on-the-floor kick — the dub pulse.
         for s in stride(from: 0, to: stepCount, by: 4) { steps[Track.kick][s] = true }
@@ -308,20 +311,22 @@ public enum BioComposer {
         // Offbeat closed-hat tick (the "tss" between the kicks).
         for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = true }
 
-        // Offbeat open-hat skank once there's drive.
-        if energy > 0.35 { steps[Track.openHat][6] = true; steps[Track.openHat][14] = true }
+        // Offbeat open-hat skank once there's drive (eased off when the body settles).
+        if energy > 0.35 && !spacious { steps[Track.openHat][6] = true; steps[Track.openHat][14] = true }
 
-        // Soft backbeat clap on beat 4 (and 2 when energetic).
+        // Soft backbeat clap on beat 4 (and 2 when energetic, unless settled).
         steps[Track.clap][12] = true
         accents[Track.clap][12] = true
-        if energy > 0.5 { steps[Track.clap][4] = true }
+        if energy > 0.5 && !spacious { steps[Track.clap][4] = true }
 
         // Deep dub sub on the 1 and the 3.
         steps[Track.bass][0] = true
         steps[Track.bass][8] = true
 
-        // A little seeded perc for movement — taste, not noise.
-        if rng.unit() < 0.6 {
+        // A little seeded perc for movement — taste, not noise; dropped when settled.
+        // (Draw the rng unconditionally so a settled take is a strict subset.)
+        let pPerc = rng.unit()
+        if !spacious && pPerc < 0.6 {
             steps[Track.perc][rng.unit() < 0.5 ? 7 : 11] = true
         }
 
@@ -366,10 +371,14 @@ public enum BioComposer {
         var steps = emptyGrid()
         var accents = emptyGrid()
 
+        // High coherence settles the groove (drops the seeded extras; backbone stays).
+        let spacious = calm > 0.7
+
         // 808 kick: syncopated, half-time feel. The Bass track doubles it (the 808).
         var kickHits = [0, 6, 10]
         if energy > 0.5 { kickHits.append(3) }
-        if rng.unit() < 0.5 { kickHits.append(11) }
+        let pKick = rng.unit()                  // drawn unconditionally (subset on settle)
+        if !spacious && pKick < 0.5 { kickHits.append(11) }
         for s in kickHits {
             steps[Track.kick][s] = true
             steps[Track.bass][s] = true
@@ -395,8 +404,9 @@ public enum BioComposer {
             steps[Track.openHat][15] = true
         }
 
-        // Sparse seeded perc.
-        if rng.unit() < 0.5 {
+        // Sparse seeded perc — dropped when the body is settled (subset on settle).
+        let pPerc = rng.unit()
+        if !spacious && pPerc < 0.5 {
             steps[Track.perc][rng.unit() < 0.5 ? 5 : 13] = true
         }
 
