@@ -126,7 +126,7 @@ public enum SpectralColor {
     /// spectrum into the visible spectrum" for the concentric-donut visual.
     public static func visibleColor(forFrequency hz: Double, fMin: Double = 30, fMax: Double = 16000) -> LinearRGB {
         guard hz > 0, hz.isFinite, fMax > fMin, fMin > 0 else { return neutral }
-        let t = clamp01(log(hz / fMin) / log(fMax / fMin))
+        let t = clamp01(Foundation.log(hz / fMin) / Foundation.log(fMax / fMin))
         let wavelength = 700.0 - t * (700.0 - 400.0)   // low freq → 700 (red), high → 400 (violet)
         return wavelengthToLinearRGB(wavelength)
     }
