@@ -32,7 +32,7 @@ public final class SpaceReverb: @unchecked Sendable {
 
     public init(sampleRate: Float = 48_000, maxBlock: Int = 2048,
                 erMillis: Float = 80, tailSeconds: Float = 1.8,
-                mix: Float = 0.25, blend: Float = 0.5, seed: UInt64 = 0xEC_H0_E1) {
+                mix: Float = 0.25, blend: Float = 0.5, seed: UInt64 = 0xEC0E1) {
         let block = Swift.max(1, maxBlock)
         self.mix = SpaceReverb.clamp01(mix)
         self.blend = SpaceReverb.clamp01(blend)
