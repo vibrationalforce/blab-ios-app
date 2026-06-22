@@ -151,6 +151,7 @@ struct EchoelStudioView: View {
     @State private var showLearn = false
     @State private var showBroadcast = false
     @State private var showPatchEditor = false
+    @State private var showChannelRack = false
     @State private var showVisual = false
     @State private var showBreath = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
@@ -247,6 +248,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showRouting) { PatchbayView() }
         .sheet(isPresented: $showPlugins) { AUv3BrowserView() }
         .sheet(isPresented: $showLearn) { LearnView() }
+        .sheet(isPresented: $showChannelRack) { ChannelRackView() }
         .sheet(isPresented: $showBroadcast) { BroadcastView() }
         .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
         .sheet(isPresented: $showPatchEditor) {
@@ -361,6 +363,7 @@ struct EchoelStudioView: View {
                             Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
                         }
                     } label: { gridChipLabel("Drum Samples", "waveform") }
+                    gridChip("Channels", "slider.vertical.3") { showChannelRack = true }
                 }
                 toolGroup("Audio & Bio") {
                     gridChip("Audio In", "mic") { showInput = true }
