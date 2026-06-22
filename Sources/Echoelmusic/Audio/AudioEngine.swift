@@ -512,6 +512,40 @@ public final class AudioEngine {
         log.audio("Source node detached from master engine")
     }
 
+    /// Attach an AVAudioPlayerNode additively into the master mix (same safe
+    /// pause/attach/connect pattern as `attachSourceNode`). Used by AudioClipPlayer
+    /// — a clip plays into `masterMixer` like any voice, never touching the master
+    /// OUTPUT path. `format` is the player's buffer format (file's processing format).
+    func attachPlayerNode(_ node: AVAudioPlayerNode, format: AVAudioFormat) {
+        prepareGraph()
+        let wasRunning = masterEngine.isRunning
+        if wasRunning { masterEngine.pause() }
+        masterEngine.attach(node)
+        if format.sampleRate > 0, format.channelCount > 0 {
+            masterEngine.connect(node, to: masterMixer, format: format)
+        } else {
+            let fallback = masterMixer.outputFormat(forBus: 0)
+            if fallback.sampleRate > 0, fallback.channelCount > 0 {
+                masterEngine.connect(node, to: masterMixer, format: fallback)
+            } else {
+                masterEngine.detach(node)
+                log.audio("Clip player node attach aborted — no valid format", level: .error)
+            }
+        }
+        if wasRunning {
+            do { try masterEngine.start() }
+            catch { log.audio("Failed to restart engine after player-node attach: \(error)", level: .error) }
+        }
+        log.audio("Clip player node attached to master engine")
+    }
+
+    func detachPlayerNode(_ node: AVAudioPlayerNode) {
+        if node.isPlaying { node.stop() }
+        masterEngine.disconnectNodeOutput(node)
+        masterEngine.detach(node)
+        log.audio("Clip player node detached from master engine")
+    }
+
     // MARK: - AUv3 Node Hosting
 
     /// Run graph-mutating work with the engine paused, restarting it afterwards if
