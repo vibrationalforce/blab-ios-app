@@ -28,6 +28,29 @@ backlog as gate-verified cycles (xcode-compile-check green confirmed per commit)
      = honest degradation). Founder ask: "menu besser strukturiert, übersichtlicher … aufklappbar +
      auf Funktion überprüfen." [9492cfd]
 DEPLOY: bumped .deploy/release → v10.35.1 carrying all of the above (one deploy/day; Apple upload cap).
+
+### 2026-06-22 (cont.) — Device-log + screen-recording feedback round
+Founder shared TWO device logs + a 33s screen recording (extracted frames via PyAV — no ffmpeg in
+sandbox; imageio/av present). Findings: both artefacts are the PREVIOUS build (video shows the TOP
+Arrange/Clips/Compose picker + the flat tools row with "Breathing" cut off the right edge — exactly
+what tonight's bottom-bar + collapsible Tools panel fix). Pipeline is HEALTHY on device: rPPG locks
+(q→0.92, conf→0.94, resting ~52-55 bpm), audio generates+plays, no crashes; Learn/Routing/Breathing/
+Visual all real+functional. Founder picked ALL FOUR follow-ups → shipped 3 (gate-green), held 1:
+  7. CALM RE-GENERATION [d603712] — log showed re-seed every ~2-4 s (never settled). Evolve cadence
+     2 bars→4 bars (clamp 4-8s→8-16s), minAutoSeedGap 3.5→6.0 s. Pure timing; user edits still instant.
+     (2nd log at 1782109148 confirmed the ~4 s churn on the old build → validates the fix.)
+  8. rPPG RE-GRIP FALSE-LOCK [b9dbe27] — log: finger re-place → 142→182 bpm @ conf 0.96 held ~20s then
+     self-corrected (motion artifact peak-counted a harmonic). Fix: on FRESH lock (estimatedBPM==0)
+     corroborate the peak-count vs PulsePeriodEstimator autocorrelation; reject if >20% disagreement &
+     auto.strength>0.4. Gates only the seed moment — steady tracking + the just-shipped lock untouched.
+  9. BRIGHTER/LIVELIER DEFAULT TONE [8a37a83] — genre patches voiced brighter in the shared patch()
+     builder: brightness +0.10, harmonicLevel +0.05 (both clamped). One reversible lever for A/B.
+  HELD (need dedicated cycle, NOT blind at session end): unison/detune (additive engine = N×64 partials,
+     CPU design needed) + per-track insert FX + multi-track arrangement (large multi-file + audio-thread
+     review). Told founder honestly.
+  Also noted for founder: 2nd log shows "generate: 6 notes" CONSTANT (vs 14-24 in 1st log) even when
+     locked — likely a genre/mood/loop-length setting or low-bio sparse fallback; flagged to confirm.
+DEPLOY: bumped .deploy/release → v10.35.2 carrying calm-evolution + rPPG re-grip + brighter tone.
 HELD for device A/B (founder's ear — signature sound): SOUND 3/4 unison/detune (additive-engine CPU
   risk: N×64 partials — needs a bounded approach) + SOUND 4/4 brighter default tone (genre patches set
   brightness 0.22–0.54 explicitly; rebalancing 14 genres is subjective → tune on device). Also still
