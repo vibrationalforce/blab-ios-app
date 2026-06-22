@@ -212,6 +212,7 @@ struct EchoelStudioView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     startButton
+                    nonStandardTuningBanner
                     #if canImport(AVFoundation)
                     if running { measurementControl }
                     #endif
@@ -471,6 +472,44 @@ struct EchoelStudioView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Starts biofeedback; your body composes and plays music. Tap again to stop.")
+    }
+
+    /// Unmissable, on the hero path: when a non-standard tone system is active it
+    /// retunes EVERY generated note (e.g. just intonation reads 15–30¢ flat), which
+    /// sounds "off" to an ear expecting standard pitch. The setting is persisted, so
+    /// without this it can silently colour every session. One tap returns to 12-TET.
+    /// Hidden entirely at 12-TET (the default) so it never adds chrome in normal use.
+    @ViewBuilder private var nonStandardTuningBanner: some View {
+        if tuningID != "edo12" {
+            HStack(spacing: 10) {
+                Image(systemName: "tuningfork")
+                    .foregroundStyle(EchoelTheme.dim)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Non-standard tuning: \(TuningSystem.named(tuningID).name)")
+                        .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
+                    Text("Every note is retuned to this system. Sounds off? Return to standard.")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Button("12-TET") {
+                    tuningID = "edo12"
+                    applyTuning()
+                    recomposeIfRunning()
+                }
+                .font(EchoelTheme.font(13, .semibold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 12).frame(height: 34)
+                .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.text))
+                .buttonStyle(.plain)
+                .accessibilityHint("Switches to standard 12-tone equal temperament")
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .stroke(EchoelTheme.border, lineWidth: 1))
+            .accessibilityElement(children: .combine)
+        }
     }
 
     // MARK: - Sound controls (one morph pad + genre + fine sliders)
