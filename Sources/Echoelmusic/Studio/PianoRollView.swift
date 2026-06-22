@@ -110,6 +110,35 @@ public final class PianoRollModel {
         notes = newNotes
     }
 
+    /// Import externally-authored notes (e.g. a Standard MIDI File) onto the
+    /// single-bar roll. The roll is one `stepCount`-step bar with a fixed pitch
+    /// window, so we make an imported clip *comprehensible* rather than dropping
+    /// most of it: keep the first bar's notes, clamp each length inside the bar,
+    /// and octave-fold every pitch into the visible range. Pure/deterministic so
+    /// it is unit-testable. Returns the notes actually placed (for a UI count).
+    @discardableResult
+    public func importNotes(_ newNotes: [Note]) -> [Note] {
+        let folded = Self.foldToBar(newNotes)
+        load(folded)
+        return folded
+    }
+
+    /// Fold imported notes into one visible bar: first-bar only, length clamped to
+    /// the bar, pitch octave-folded into [lowPitch, highPitch]. Static + pure.
+    public static func foldToBar(_ newNotes: [Note]) -> [Note] {
+        newNotes.compactMap { n -> Note? in
+            guard n.startStep >= 0, n.startStep < stepCount else { return nil }
+            let maxLen = max(1, stepCount - n.startStep)
+            var pitch = n.pitch
+            while pitch < lowPitch { pitch += 12 }
+            while pitch > highPitch { pitch -= 12 }
+            guard pitch >= lowPitch, pitch <= highPitch else { return nil }
+            return Note(pitch: pitch, startStep: n.startStep,
+                        lengthSteps: min(max(1, n.lengthSteps), maxLen),
+                        velocity: n.velocity)
+        }
+    }
+
     /// Stage a new pattern to swap in seamlessly at the next loop boundary.
     /// Unlike `load`, this does NOT cut sounding notes — held notes ring to their
     /// natural end and the new bar layers in on the downbeat (step 0). This is the
