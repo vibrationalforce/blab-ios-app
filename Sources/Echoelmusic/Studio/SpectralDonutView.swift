@@ -17,6 +17,7 @@ import SwiftUI
 struct SpectralDonutView: View {
 
     @Environment(EngineBus.self) private var bus
+    @Environment(AudioEngine.self) private var audioEngine
     var reduceMotion: Bool = false
     var bandCount: Int = 28
 
@@ -39,7 +40,18 @@ struct SpectralDonutView: View {
 
         // Target spectrum from the live music (silent → all zero → fades to black).
         let notes = bus.freshMusical(maxAge: 1.5)?.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) } ?? []
-        let target = SpectrumAnalysis.bands(from: notes, count: n, fMin: Self.fMin, fMax: Self.fMax)
+        var target = SpectrumAnalysis.bands(from: notes, count: n, fMin: Self.fMin, fMax: Self.fMax)
+
+        // Track the ACTUAL sound envelope: the band spectrum is shape-only
+        // (normalized to its own peak), so the rings would snap on at note start
+        // and hold. Modulate the whole visual by the live master RMS (peak-hold
+        // with decay) so it SWELLS on attack and FADES on the decay/reverb tail —
+        // the donuts breathe with the music, not just the note grid. A small
+        // floor keeps a held note faintly visible during quiet sustain.
+        let level = Double(max(audioEngine.masterLevel, audioEngine.masterLevelR))
+        let env = min(1.0, level * 4.0)               // RMS ~0.25 → full intensity
+        let envGain = Float(0.2 + 0.8 * env)
+        for i in 0..<n { target[i] *= envGain }
 
         // Ease toward target (frame-rate independent); freeze when Reduce Motion.
         let dt = reduceMotion ? 0 : min(0.1, max(0, date.timeIntervalSince(state.lastDate)))
