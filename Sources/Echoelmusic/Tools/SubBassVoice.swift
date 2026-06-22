@@ -116,8 +116,16 @@ public final class SubBassVoice {
     }
 
     private nonisolated func frequency(forMIDINote note: Int32) -> Float {
-        let f = a4Hz * powf(2, (Float(note) - 69) / 12)
-        return min(max(f, Self.minHz), Self.maxHz)
+        // Octave-FOLD into the felt band rather than hard-clamping: a hard clamp to
+        // 28/180 Hz forces an OFF-PITCH note (a wrong drone against the music — the
+        // "komische Töne") whenever the octave-down bass lands outside the band.
+        // Folding by whole octaves keeps the correct pitch CLASS (octaves are
+        // musically transparent for a sub) and stays in the felt range.
+        var f = a4Hz * powf(2, (Float(note) - 69) / 12)
+        guard f.isFinite, f > 0 else { return Self.minHz }
+        while f > Self.maxHz { f *= 0.5 }
+        while f < Self.minHz { f *= 2 }
+        return min(max(f, Self.minHz), Self.maxHz)   // final safety only
     }
 
     // MARK: - Source node (audio thread)
@@ -187,19 +195,17 @@ public final class SubBassVoice {
             phase += twoPi * currentFreq / sr
             if phase > twoPi { phase -= twoPi }
 
-            // Missing-fundamental synthesis: the true sub fundamental (28–55 Hz)
-            // is below most phone/laptop speakers, so we add the 2nd + 3rd
-            // harmonics off the SAME phase accumulator. The ear reconstructs the
-            // (unreproduced) fundamental from the harmonic spacing, so the bass
-            // reads at full pitch on small speakers yet is still FELT in full on
-            // a sub/haptics. Integer multiples of one phase → no extra state,
-            // all C math (audio-thread safe).
+            // Felt sub + audible on small speakers: the true sub fundamental
+            // (28–55 Hz) is below most phone/laptop speakers, so we add the 2nd
+            // harmonic (one octave up, always CONSONANT) off the same phase
+            // accumulator — that octave reads on small speakers while the
+            // fundamental is FELT on a sub/haptics. We deliberately do NOT add the
+            // 3rd harmonic (a twelfth = octave-plus-fifth): that pitched fifth
+            // fought the chord and, with heavy saturation, made the sub buzz —
+            // the "komische Töne". Light shaping only. All C math (audio-safe).
             let h1 = sinf(phase)
-            let h2 = sinf(2 * phase) * 0.5
-            let h3 = sinf(3 * phase) * 0.33
-            // Soft-saturate the blend (adds further odd harmonics) and trim the
-            // gain so the richer spectrum doesn't clip.
-            let shaped = tanhf((h1 + h2 + h3) * 1.3) * 0.5
+            let h2 = sinf(2 * phase) * 0.32
+            let shaped = tanhf((h1 + h2) * 1.05) * 0.6
             let out = shaped * env * smoothedGain
 
             for buffer in abl {
