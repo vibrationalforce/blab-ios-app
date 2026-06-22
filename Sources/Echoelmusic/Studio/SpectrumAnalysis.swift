@@ -26,12 +26,12 @@ public enum SpectrumAnalysis {
         let n = max(1, count)
         var energy = [Double](repeating: 0, count: n)
         guard fMax > fMin, fMin > 0 else { return energy.map { Float($0) } }
-        let logMin = log(fMin), logMax = log(fMax)
+        let logMin = Foundation.log(fMin), logMax = Foundation.log(fMax)
         let span = logMax - logMin
 
         @inline(__always) func bandIndex(_ hz: Double) -> Int? {
             guard hz >= fMin, hz <= fMax else { return nil }
-            let t = (log(hz) - logMin) / span
+            let t = (Foundation.log(hz) - logMin) / span
             return min(n - 1, max(0, Int(t * Double(n))))
         }
         @inline(__always) func add(_ hz: Double, _ amp: Double) {
@@ -61,8 +61,8 @@ public enum SpectrumAnalysis {
                                        fMin: Double = 30, fMax: Double = 16000) -> Double {
         let n = max(1, count)
         let idx = min(n - 1, max(0, i))
-        let logMin = log(fMin), logMax = log(fMax)
+        let logMin = Foundation.log(fMin), logMax = Foundation.log(fMax)
         let t = (Double(idx) + 0.5) / Double(n)
-        return exp(logMin + t * (logMax - logMin))
+        return Foundation.exp(logMin + t * (logMax - logMin))
     }
 }
