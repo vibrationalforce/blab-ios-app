@@ -497,6 +497,21 @@ final class CameraAnalyzer {
         let bpm = 60.0 / avgInterval
         guard bpm > 40 && bpm < 200 else { return }
 
+        // FRESH-LOCK corroboration (re-grip robustness, device-log feedback): right
+        // after the finger is re-placed, motion settling can peak-count a HARMONIC
+        // (extra peaks → a shorter interval → a false-high BPM, e.g. 180 at rest)
+        // and the agreement-based confidence then trusts it for ~20 s. When there is
+        // no prior estimate to fall back on (estimatedBPM == 0), cross-check the new
+        // rate against the independent autocorrelation period; if a CONFIDENT
+        // periodicity estimate disagrees by >20 %, skip this window and wait for a
+        // clean one. This only gates the first seed — steady tracking is untouched.
+        if estimatedBPM == 0,
+           let auto = PulsePeriodEstimator.dominantBPM(window, sampleRate: actualRate),
+           auto.strength > 0.4,
+           abs(bpm - auto.bpm) / auto.bpm > 0.2 {
+            return
+        }
+
         let variance = cleanIntervals.reduce(0.0) { $0 + ($1 - avgInterval) * ($1 - avgInterval) }
             / Double(cleanIntervals.count)
         let cv = sqrt(variance) / avgInterval
