@@ -59,6 +59,12 @@ DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import +
       ONE bump. Lesson: distinguish 503 (retry) from "Upload limit reached" (wait for reset, don't hammer).
   >>> SUPERSEDES the earlier "no limit" note: there was indeed a transient 503 once, but the daily limit
       is real. Both true.
+  >>> RESOLVED: v10.40.0 SHIPPED (upload SUCCESS, ~14:5x) once Apple's daily limit cleared — bundles
+      filter-cutoff automation [e3fae2a→fixed 5e5d311: Foundation.log shadowing] + key-follow stereo pan
+      [4a447d3] + adaptive brightness [0af9912] + resilient ASC retry [ae360d3] + MARKETING_VERSION
+      10.33.0→10.40.0 [5e5d311]. App now reports 10.40.0. testflight.yml retry widened to self-heal 503/
+      auth/unexpected-content (CI change — flagged to founder, low-risk surgical). Founder confirmed
+      build 1989 (=v10.39.0 sound fixes) visible in TestFlight ("Öffnen").
   --- (earlier, now-superseded note kept for history): ---
   >>> FOUNDER CORRECTION (confirmed by logs): there is NO TestFlight upload limit. The v10.38.0 and
       first v10.39.0 upload failures were TRANSIENT APPLE ASC OUTAGES — "503 Service Temporarily

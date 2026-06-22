@@ -9,18 +9,11 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 > has Apple's daily upload cap), **not** `fastlane beta`. The compile gate
 > (`xcode-compile-check`) is the per-commit green gate. See CLAUDE.md.
 
-> **DEPLOY (2026-06-22):** v10.39.0 SHIPPED [d7a4648] = the meaningful release (SOUND FIXES /
-> komische Töne + Audio Clips + MIDI import melody+drums + Unison + Automation). TWO Apple-side upload
-> failure modes seen today, BOTH on a valid signed archive (build is always fine — diagnose from
-> /tmp/export.log):
->   1. TRANSIENT 503 "Service Temporarily Unavailable" / auth — now auto-retried in testflight.yml
->      (backoff). Just re-trigger if it slips through.
->   2. REAL DAILY UPLOAD LIMIT — Apple: "Upload limit reached … Please wait 1 day and try again."
->      This IS a real per-app daily build limit; hit after many deploys in a day. NOT retryable —
->      wait for reset (~24h), then ONE bump ships the queued work. (Founder believed there's no limit;
->      Apple's API explicitly says otherwise — show them the export.log line.)
-> QUEUED for next reset: v10.39.1 stereo/pan [4a447d3] + v10.39.2 adaptive brightness [0af9912] +
-> resilient-retry [ae360d3]. One bump after reset ships all of it.
+> **DEPLOY (2026-06-22):** v10.40.0 SHIPPED (upload SUCCESS) — filter-cutoff automation + key-follow
+> stereo + adaptive brightness + resilient retry, on top of the live v10.39.0 sound fixes. App version
+> now reports 10.40.0 (was stuck at 10.33.0). Apple's daily upload limit IS real (hit it mid-day after
+> many deploys; cleared ~2.5h later). On an upload-step failure: 503/auth → auto-retried now; "Upload
+> limit reached" → wait for reset, don't hammer. Build NUMBER is the true per-build identifier.
 
 ## Done — 2026-06-22 session
 - [x] Persistent bottom navigation bar (Arrange · Clips · Compose)
