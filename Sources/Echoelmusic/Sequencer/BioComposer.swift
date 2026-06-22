@@ -207,6 +207,24 @@ public enum BioComposer {
         return (calm, vagal, energy, arousal, busy)
     }
 
+    /// Subtle, SEEDED per-note velocity variation so repeated notes don't read
+    /// machine-gun identical — the `humanize` mood, now applied to the LIVE take and
+    /// not only at MIDI export (audit: live notes were perfectly uniform → lifeless).
+    /// Timing is left to the sequencer/grid; only velocity breathes. Deterministic
+    /// (same seed → same feel), velocity kept in a musical [0.05, 1] window.
+    static func humanizeVelocity(_ notes: [Note], amount: Float, seed: UInt64) -> [Note] {
+        let amt = clamp01(amount)
+        guard amt > 0 else { return notes }
+        let span = amt * 0.18                        // up to ±18% at full humanize
+        return notes.enumerated().map { idx, note in
+            var rng = SeededRNG(seed: seed &+ (UInt64(bitPattern: Int64(idx + 1)) &* 0x9E3779B97F4A7C15))
+            let v = rng.unit() * 2 - 1               // -1…1
+            var n = note
+            n.velocity = min(max(note.velocity * (1 + v * span), 0.05), 1)
+            return n
+        }
+    }
+
     /// Generate music from a bio snapshot, in the requested genre.
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
@@ -247,7 +265,7 @@ public enum BioComposer {
         }
 
         return BioComposition(
-            notes: notes,
+            notes: humanizeVelocity(notes, amount: input.mood.humanize, seed: input.seed),
             drumSteps: drumSteps,
             drumAccents: drumAccents,
             suggestedTempo: tempo(for: input)
