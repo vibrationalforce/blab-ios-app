@@ -101,12 +101,19 @@ public final class BeatPlayer {
     private static func soloKey(_ track: Int) -> String { "echoel.beat.solo.\(track)" }
     private static func fxKey(_ track: Int) -> String { "echoel.beat.fx.\(track)" }
 
-    /// Push a channel's insert-FX params to its sample voice (audio thread reads them).
+    /// Push a channel's insert-FX params to both its sample and synth voices
+    /// (audio thread reads them) so the FX applies regardless of pad mode.
     private func applyFX(_ track: Int) {
-        guard fx.indices.contains(track), voices.indices.contains(track) else { return }
+        guard fx.indices.contains(track) else { return }
         let f = fx[track]
-        voices[track].configureInsertFX(type: f.type, cutoff: f.cutoff,
-                                        resonance: f.resonance, drive: f.drive)
+        if voices.indices.contains(track) {
+            voices[track].configureInsertFX(type: f.type, cutoff: f.cutoff,
+                                            resonance: f.resonance, drive: f.drive)
+        }
+        if synthVoices.indices.contains(track) {
+            synthVoices[track].configureInsertFX(type: f.type, cutoff: f.cutoff,
+                                                 resonance: f.resonance, drive: f.drive)
+        }
     }
 
     /// Update a channel's insert FX, apply it live, and persist (Channel Rack).
