@@ -47,6 +47,12 @@ public final class PianoRollModel {
     @ObservationIgnored private weak var automation: AutomationPlayer?
     /// Notes currently sounding → so we can fire their note-off at end step.
     @ObservationIgnored private var active: [UUID: Note] = [:]
+    /// The roll pitch the felt sub is currently reinforcing (octave-down is applied
+    /// when sent to the sub voice), or nil = sub silent. The sub is reconciled to the
+    /// LOWEST sounding note each tick from `active`, so an evolving pattern can never
+    /// strand a wrong sub pitch (the old per-tick `bassCeiling` gate could skip a
+    /// note-off when the bass register shifted, leaving a stuck wrong-pitch drone).
+    @ObservationIgnored private var currentSubPitch: Int?
     /// Staged next pattern, swapped in seamlessly at the loop boundary (step 0)
     /// so a live re-seed never cuts a sustaining note mid-bar (no click/gap).
     @ObservationIgnored private var pendingNotes: [Note]?
@@ -184,6 +190,7 @@ public final class PianoRollModel {
     public func allNotesOff() {
         for note in active.values { voice?.noteOff(pitch: note.pitch) }
         active.removeAll()
+        currentSubPitch = nil
         voice?.allNotesOff()
         subVoice?.allNotesOff()
         midiOut?.allNotesOff()
@@ -211,10 +218,6 @@ public final class PianoRollModel {
         // voice of that pitch, so when two notes share a pitch (voice-leading can
         // produce this) we must only release a pitch once no surviving note still
         // holds it — otherwise a short note would cut off a sustained same-pitch one.
-        // Bass register = within a major third of the take's lowest note. Those
-        // notes also drive the sub-bass voice an octave down (the "felt" dimension),
-        // adapting per take regardless of the genre's octave.
-        let bassCeiling = (notes.map { $0.pitch }.min() ?? 0) + 4
         // When a hosted plugin is set to REPLACE Echoel's voice, the song drives only
         // the plugin (no doubling). Note-offs always fire (harmless if it wasn't
         // playing) so toggling mid-play never leaves the built-in voice stuck.
@@ -225,14 +228,24 @@ public final class PianoRollModel {
             voice?.noteOff(pitch: note.pitch)
             midiOut?.noteOff(pitch: note.pitch)
             auHost?.noteOff(midiByte(note.pitch))
-            if note.pitch <= bassCeiling { subVoice?.noteOff(pitch: note.pitch - 12) }
         }
         for note in notes where note.startStep == step {
             if !suppressBuiltIn { voice?.noteOn(pitch: note.pitch, velocity: note.velocity) }
             midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity)
             auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
             active[note.id] = note
-            if !suppressBuiltIn, note.pitch <= bassCeiling { subVoice?.noteOn(pitch: note.pitch - 12) }
+        }
+
+        // Felt sub (the "Vibration" dimension): reconcile the mono sub-bass to the
+        // LOWEST sounding note an octave down, every tick, from the now-updated
+        // `active` set. Stateful + symmetric so a re-seed/register shift can never
+        // leave a stranded wrong-pitch sub (the old per-tick bassCeiling gate could).
+        // The sub voice octave-folds into its felt band, so the pitch class is kept.
+        let desiredSub = suppressBuiltIn ? nil : active.values.map(\.pitch).min().map { $0 - 12 }
+        if desiredSub != currentSubPitch {
+            if let p = desiredSub { subVoice?.noteOn(pitch: p) }   // monophonic → retunes
+            else { subVoice?.allNotesOff() }
+            currentSubPitch = desiredSub
         }
 
         // Publish the chord sounding NOW as a MusicalFrame so renderers can colour /

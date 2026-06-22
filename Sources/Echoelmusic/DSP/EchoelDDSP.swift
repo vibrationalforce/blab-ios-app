@@ -616,6 +616,13 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// the per-sample smoothers glide the old sound into the new one. Only a
     /// truly idle voice gets the clean staggered restart.
     public func prepareForNote(hardReset: Bool = true) {
+        // Always snap pitch to the new note — including a STOLEN/ringing voice. The
+        // smoothedFreq one-pole otherwise glides (~16 ms) from the stolen voice's old
+        // pitch to the new one, an audible portamento that reads as a "weird" sliding
+        // note whenever polyphony exceeds maxVoices. Pitch snapping doesn't click
+        // (phase stays continuous and the attack envelope ramps amplitude from
+        // current); only the amplitude smoothers / phases must NOT be zeroed mid-tail.
+        smoothedFreq = -1
         guard hardReset else { return }
         let golden: Float = 0.61803398875
         let twoPi: Float = 2.0 * .pi
@@ -624,7 +631,6 @@ public final class EchoelDDSP: @unchecked Sendable {
             smoothedAmplitudes[i] = 0
         }
         for i in 0..<noiseFilterState.count { noiseFilterState[i] = 0 }
-        smoothedFreq = -1   // fresh idle voice snaps to pitch (no glide)
         filter.reset()
         // NOTE: reverbConvolution.reset() removed — prepareForNote runs on the
         // note-trigger (timer) thread; mutating the convolution's arrays here
