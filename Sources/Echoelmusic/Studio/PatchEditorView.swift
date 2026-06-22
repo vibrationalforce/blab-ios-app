@@ -64,6 +64,12 @@ struct PatchEditorView: View {
                         slider("Rate", $patch.vibratoRate, 0...10, unit: "Hz")
                         slider("Depth", $patch.vibratoDepth, 0...1)
                     }
+                    section("Unison") {
+                        EchoelValueField(label: "Voices", value: unisonVoicesBinding,
+                                         range: 1...Float(EchoelPolyDDSP.maxUnison), unit: "", decimals: 0)
+                        EchoelValueField(label: "Detune", value: unisonDetuneBinding,
+                                         range: 0...50, unit: "cents", decimals: 0)
+                    }
                 }
                 .padding(16)
             }
@@ -198,6 +204,16 @@ struct PatchEditorView: View {
     private func slider(_ label: String, _ value: Binding<Float>, _ range: ClosedRange<Float>,
                         unit: String = "", decimals: Int = 2) -> some View {
         EchoelValueField(label: label, value: value, range: range, unit: unit, decimals: decimals)
+    }
+
+    // Unison ↔ optional-patch-field bridges (nil = off → shows as 1 voice / 0 cents).
+    private var unisonVoicesBinding: Binding<Float> {
+        Binding(get: { Float(patch.unisonVoices ?? 1) },
+                set: { patch.unisonVoices = max(1, Int($0.rounded())) })
+    }
+    private var unisonDetuneBinding: Binding<Float> {
+        Binding(get: { patch.unisonDetuneCents ?? 0 },
+                set: { patch.unisonDetuneCents = max(0, $0) })
     }
 
     private func picker(_ label: String, selection: Binding<String>, options: [String]) -> some View {

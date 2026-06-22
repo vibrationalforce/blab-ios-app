@@ -204,7 +204,16 @@ public final class PolySynthVoice {
     /// voice in its render drain (so the spectral-envelope array rewrite never
     /// races the render).
     public func apply(_ patch: SynthPatch) {
+        // Unison is a poly-engine property (it spawns extra detuned voices per note),
+        // not a per-voice timbre param — set it directly (atomic write, read at the
+        // next noteOn, same discipline as setTuning). nil = off (old/blank patches).
+        poly.setUnison(count: patch.unisonVoices ?? 1, detuneCents: patch.unisonDetuneCents ?? 0)
         _ = patchCommands.tryEnqueue(patch)
+    }
+
+    /// Set unison directly (live, outside a patch) — count 1 = off.
+    public func setUnison(count: Int, detuneCents: Float) {
+        poly.setUnison(count: count, detuneCents: detuneCents)
     }
 
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)

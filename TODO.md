@@ -30,7 +30,7 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 - [ ] Automation **playback** wiring (read AutomationLane during transport) + authoring UI
 - [ ] Multi-track arrangement timeline (parallel lanes, 2-D grid)
 - [ ] Video: **recording** (AVAssetWriter) + **clip playback** (AVPlayer), transport-synced
-- [ ] MIDI **import** (SMF → piano roll)
+- [x] MIDI **import** (SMF → piano roll) — Tools ▸ Editors ▸ Import MIDI (folds onto the bar)
 - [ ] Unison / detune richness (ensemble voicing, CPU-bounded)
 
 ## Open — reach / polish
