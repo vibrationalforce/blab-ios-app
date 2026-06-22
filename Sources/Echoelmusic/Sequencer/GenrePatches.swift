@@ -186,12 +186,19 @@ public extension MusicStyle {
                        color: String, shape: String,
                        cutoff: Float, res: Float, lfoAmt: Float, lfoRate: Float, lfoDepth: Float,
                        revMix: Float, revDecay: Float, vibRate: Float, vibDepth: Float) -> SynthPatch {
-        SynthPatch(
+        // Brighter/livelier default voicing (founder direction, A/B-able): lift the
+        // per-genre brightness a touch and give the upper partials a little more
+        // body. Modest + uniform + clamped so each genre keeps its character (dark
+        // genres stay relatively dark) while the overall default reads less dull on
+        // device. Revert by removing the two `+` offsets if it's too forward.
+        let liftedBright = min(1, bright + 0.10)
+        let liftedHL     = min(1, hl + 0.05)
+        return SynthPatch(
             id: UUID(uuidString: "00000000-0000-0000-0000-0000000000\(suffix)") ?? UUID(),
             name: name,
             attack: a, decay: d, sustain: s, release: r,
             envelopeCurve: "Exponential",
-            harmonicity: harm, harmonicLevel: hl, brightness: bright,
+            harmonicity: harm, harmonicLevel: liftedHL, brightness: liftedBright,
             noiseLevel: noise, noiseColor: color, spectralShape: shape,
             filterCutoff: cutoff, filterResonance: res, lfoToFilterDepth: lfoAmt,
             filterLFORate: lfoRate, filterLFODepth: lfoDepth,
