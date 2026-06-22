@@ -3052,3 +3052,26 @@ Founder: "Go there is no limit. Greb all tasks." Grabbed the big held backlog:
           (founder principle #1). Staged as one verified compiler+device pass; seam already ships.
 DEPLOY: still blocked by Apple's daily upload limit (root-caused earlier). Will do ONE deploy at
   session end carrying everything (build number auto-increments; archive builds branch HEAD).
+
+### 2026-06-22 — Spectral-donut visual + 5-domain repo audit (founder strategic directive)
+SHIPPED (gate-green): spectral-donut immersive visual — full audible+feelable spectrum → visible
+  light, one concentric donut per frequency band (thickness ∝ loudness, colour = freq→wavelength),
+  no chord-blending. SpectralColor.visibleColor + SpectrumAnalysis (harmonic synthesis, pure+tested)
+  + SpectralDonutView (Canvas, eased, flash-safe) + toggle in the immersive cover. Caught+fixed a
+  gate failure: global `log` is the EchoelLogger → used Foundation.log. Validated WIRKUNG by an
+  offline Python render of the exact math (sent to founder) — design holds.
+SOUND validated (dsp-reviewer): code safe/clean; "cheap→pro" levers = unison/detune, envelope-tracked
+  MusicalFrame amplitude (also fixes donut sync), felt-sub-by-default + missing-fundamental, brighter
+  default patch, equal-power harmonicity crossfade + 10/60Hz bio-LFO fix. Signature-sound = founder picks.
+REPO AUDIT (5 parallel read-only audits → scratchpads/PLAN_PRO_LEVEL_2026-06-22.md):
+  1. Wirkspektrum/claims: 8/8 mechanisms present, ZERO claims violations. Reframe health→research.
+  2. DAW depth: real but shallow — NO automation, single-track arrangement, no per-track FX/sends/
+     MIDI-FX, audio/video clips typed-not-playable. Keystone: AutomationLane + multi-track.
+  3. Piano roll: step-quantized (no PPQ), MainActor timing, minimal editing. Keystone: PPQ Note model.
+  4. Light/spatial PRO-GRADE (Art-Net/sACN/ADM-OSC); gaps: fixture library, multi-universe, timecode
+     (Ableton Link). Video: recorder+playback feasible no-dep; NDI gated. Laser: OSC-relay only. 
+     Visuals→club via Resolume/MadMapper OSC (already possible).
+  5. Navigation: clear + no dead buttons, but needs ONE persistent collapsible bottom bar.
+Plan = Wave A (PPQ note, AutomationLane, claims-lint) → Wave B (light fixtures/multiuniverse, video
+  recorder/playback, per-track FX, nav bar) → Wave C (Ableton Link, HaishinKit, multitrack grid, NDI,
+  laser-OSC, PHASE). Awaiting founder's priority order to execute.
