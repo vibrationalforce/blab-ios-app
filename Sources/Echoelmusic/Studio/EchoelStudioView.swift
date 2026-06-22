@@ -1,5 +1,8 @@
 #if canImport(SwiftUI)
 import SwiftUI
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
 
 // EchoelStudioView.swift
 // Echoel — ONE button, then sliders.
@@ -153,6 +156,8 @@ struct EchoelStudioView: View {
     @State private var showPatchEditor = false
     @State private var showChannelRack = false
     @State private var showAudioClip = false
+    /// Presents a file picker to import a Standard MIDI File onto the piano roll.
+    @State private var midiImportPresented = false
     @State private var showVisual = false
     @State private var showBreath = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
@@ -251,6 +256,13 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showLearn) { LearnView() }
         .sheet(isPresented: $showChannelRack) { ChannelRackView() }
         .sheet(isPresented: $showAudioClip) { AudioClipView() }
+        #if canImport(UniformTypeIdentifiers)
+        .fileImporter(isPresented: $midiImportPresented,
+                      allowedContentTypes: [.midi],
+                      allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
+        }
+        #endif
         .sheet(isPresented: $showBroadcast) { BroadcastView() }
         .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
         .sheet(isPresented: $showPatchEditor) {
@@ -366,6 +378,9 @@ struct EchoelStudioView: View {
                         }
                     } label: { gridChipLabel("Drum Samples", "waveform") }
                     gridChip("Channels", "slider.vertical.3") { showChannelRack = true }
+                    #if canImport(UniformTypeIdentifiers)
+                    gridChip("Import MIDI", "square.and.arrow.down") { midiImportPresented = true }
+                    #endif
                 }
                 toolGroup("Audio & Bio") {
                     gridChip("Audio In", "mic") { showInput = true }
@@ -1758,6 +1773,24 @@ struct EchoelStudioView: View {
     }
 
     // MARK: - Helpers
+
+    #if canImport(UniformTypeIdentifiers)
+    /// Import a Standard MIDI File onto the piano roll. Reads via a security-scoped
+    /// URL, parses melodic notes (drums on ch10 excluded), folds them into the
+    /// single visible bar, and loads them — replacing the current take.
+    private func importMIDI(_ url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url),
+              let imported = try? MIDIFileImporter.notes(from: data) else {
+            EchoelCrashLog.breadcrumb("MIDI import failed: \(url.lastPathComponent)")
+            return
+        }
+        let placed = pianoRoll.importNotes(imported)
+        lastNoteCount = placed.count
+        EchoelCrashLog.breadcrumb("MIDI import: \(imported.count) parsed → \(placed.count) on grid")
+    }
+    #endif
 
 }
 

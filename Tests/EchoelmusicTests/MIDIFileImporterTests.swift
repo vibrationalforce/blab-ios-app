@@ -54,4 +54,35 @@ final class MIDIFileImporterTests: XCTestCase {
         let data = MIDIFileExporter.export(notes: [], tempo: 120)
         XCTAssertTrue(try MIDIFileImporter.notes(from: data).isEmpty)
     }
+
+    // MARK: - Fold-onto-grid (the piano-roll import adapter)
+
+    @MainActor
+    func testFoldToBar_dropsNotesPastTheFirstBar() {
+        let inBar = Note(pitch: 60, startStep: 0, lengthSteps: 2)
+        let nextBar = Note(pitch: 62, startStep: PianoRollModel.stepCount, lengthSteps: 2)
+        let folded = PianoRollModel.foldToBar([inBar, nextBar])
+        XCTAssertEqual(folded.map(\.pitch), [60], "only the first bar survives")
+    }
+
+    @MainActor
+    func testFoldToBar_octaveFoldsPitchIntoVisibleRange() {
+        let tooLow = Note(pitch: PianoRollModel.lowPitch - 24, startStep: 0)
+        let tooHigh = Note(pitch: PianoRollModel.highPitch + 13, startStep: 1)
+        let folded = PianoRollModel.foldToBar([tooLow, tooHigh])
+        XCTAssertEqual(folded.count, 2)
+        for n in folded {
+            XCTAssertGreaterThanOrEqual(n.pitch, PianoRollModel.lowPitch)
+            XCTAssertLessThanOrEqual(n.pitch, PianoRollModel.highPitch)
+        }
+        // Pitch classes are preserved by the octave fold.
+        XCTAssertEqual(folded[0].pitch % 12, (PianoRollModel.lowPitch - 24 + 1200) % 12)
+    }
+
+    @MainActor
+    func testFoldToBar_clampsLengthInsideTheBar() {
+        let n = Note(pitch: 64, startStep: PianoRollModel.stepCount - 2, lengthSteps: 99)
+        let folded = PianoRollModel.foldToBar([n])
+        XCTAssertEqual(folded.first?.lengthSteps, 2, "length clamped so it never crosses the bar")
+    }
 }
