@@ -169,27 +169,43 @@ public enum BioComposer {
         }
     }
 
+    /// The body read as an autonomic state (not four loose dials), the validated
+    /// bio→music spine. Pure + deterministic so it can be unit-tested directly.
+    ///   • coherence (`calm`) = HRV resonance near 0.1 Hz → ordered, parasympathetic.
+    ///     High ⇒ space, repetition, consonance.
+    ///   • hrvNormalized (`vagal`) = vagal tone (RMSSD). High ⇒ relaxed; LOW ⇒
+    ///     sympathetic ("fight/flight") load, which lifts musical energy.
+    ///   • heart rate (`energy`) = cardiac drive → rhythmic energy + tempo.
+    /// `arousal` (sympathetic activation) rises with a fast heart AND low HRV — the
+    /// textbook stress signature (↑HR, ↓HRV). `busy` (density) then rises with arousal
+    /// and falls with coherence.
+    ///
+    /// COHERENCE-CONVERGENCE SERVO (science brief, Phase 1): as coherence rises the
+    /// music should not just be a touch sparser — it should CONVERGE toward calm
+    /// (sparser, settled) as the body's reward for self-regulation. So coherence
+    /// enters `busy` both additively (1−calm) AND as a multiplicative settle
+    /// (1 − 0.35·calm): at low coherence the factor is ~1 (unchanged); at high
+    /// coherence the take is decisively sparser. Monotonic in every input, clamped.
+    static func musicalState(coherence: Float, hrvNormalized: Float, heartRateBPM: Double)
+        -> (calm: Float, vagal: Float, energy: Float, arousal: Float, busy: Float) {
+        let calm    = clamp01(coherence)
+        let vagal   = clamp01(hrvNormalized)
+        let energy  = clamp01(Float((heartRateBPM - 50) / 70))   // 50…120 bpm → 0…1
+        let arousal = clamp01(0.55 * energy + 0.45 * (1 - vagal))
+        let settle  = 1 - 0.35 * calm                            // coherence converges
+        let busy    = clamp01((0.6 * arousal + 0.4 * (1 - calm)) * settle)
+        return (calm, vagal, energy, arousal, busy)
+    }
+
     /// Generate music from a bio snapshot, in the requested genre.
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
 
-        // ── Physiological → musical state (autonomic-balance model) ───────────
-        // The body is read as an autonomic state, not four loose dials:
-        //   • coherence (`calm`) = HRV resonance near 0.1 Hz → an ordered,
-        //     parasympathetic state. High ⇒ space, repetition, consonance.
-        //   • hrvNormalized (`vagal`) = vagal tone (RMSSD-derived). High ⇒ relaxed;
-        //     LOW ⇒ sympathetic ("fight/flight") load, which lifts musical energy.
-        //   • heart rate (`energy`) = cardiac drive → rhythmic energy + tempo.
-        // `arousal` (sympathetic activation) rises with a fast heart AND low HRV —
-        // the textbook stress signature (↑HR, ↓HRV) — so the take gets busier/denser
-        // when the body is activated and opens up when it settles. Previously
-        // hrvNormalized was collected but never reached the composition; this threads
-        // it in so the music genuinely tracks autonomic balance, not just heart rate.
-        let calm    = clamp01(input.coherence)
-        let vagal   = clamp01(input.hrvNormalized)
-        let energy  = clamp01((input.heartRateBPM - 50) / 70)   // 50…120 bpm → 0…1
-        let arousal = clamp01(0.55 * energy + 0.45 * (1 - vagal))
-        let busy    = clamp01(0.6 * arousal + 0.4 * (1 - calm))
+        // ── Physiological → musical state (autonomic-balance + coherence servo) ──
+        let (calm, _, energy, _, busy) = musicalState(
+            coherence: input.coherence,
+            hrvNormalized: input.hrvNormalized,
+            heartRateBPM: input.heartRateBPM)
 
         let notes: [Note]
         let drumSteps: [[Bool]]
