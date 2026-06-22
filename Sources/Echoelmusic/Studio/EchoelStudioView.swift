@@ -61,6 +61,8 @@ struct EchoelStudioView: View {
     @State private var showMaster = false
     /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
     @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
+    /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
+    @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -251,13 +253,28 @@ struct EchoelStudioView: View {
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             ZStack(alignment: .topTrailing) {
-                MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
-                             intensity: visualIntensity, ringDensity: visualDetail,
-                             motion: visualMotion, spread: visualSpread).ignoresSafeArea()
-                Button { showVisual = false } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2).foregroundStyle(.white.opacity(0.6)).padding()
+                if spectralDonuts {
+                    // The spectrum→visible-light donut visual: one ring per frequency
+                    // band, thickness ∝ loudness, colour = band frequency → visible.
+                    SpectralDonutView(reduceMotion: reduceMotion,
+                                      bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
+                } else {
+                    MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
+                                 intensity: visualIntensity, ringDensity: visualDetail,
+                                 motion: visualMotion, spread: visualSpread).ignoresSafeArea()
                 }
+                HStack(spacing: 14) {
+                    Button { spectralDonuts.toggle() } label: {
+                        Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
+                            .font(.title2).foregroundStyle(.white.opacity(0.6))
+                    }
+                    .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                    Button { showVisual = false } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2).foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+                .padding()
             }
         }
         #endif
