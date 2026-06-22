@@ -27,7 +27,7 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 
 ## Open — DAW / media depth
 - [x] Audio clips **playable** (AVAudioPlayerNode, trim/loop) — Tools ▸ Audio Clip (import → trim/loop → play)
-- [ ] Automation **playback** wiring (read AutomationLane during transport) + authoring UI
+- [x] Automation **playback** wiring + authoring UI — Tools ▸ Editors ▸ Automation (master/tempo, per-bar; song-position TODO)
 - [ ] Multi-track arrangement timeline (parallel lanes, 2-D grid)
 - [ ] Video: **recording** (AVAssetWriter) + **clip playback** (AVPlayer), transport-synced
 - [x] MIDI **import** (SMF → piano roll) — Tools ▸ Editors ▸ Import MIDI (folds onto the bar)

@@ -3,6 +3,35 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-22 (cont. 2) — Autonomous DAW-depth loop (founder: "no interrupting anymore")
+Founder mandate: work continuously, safe + functioning + brand-strong, no nudging, no questions
+unless genuinely blocking. Worked the TODO backlog as gate-verified cycles (xcode-compile-check
+green confirmed per commit via MCP list_workflow_runs). SHIPPED this run, all GREEN:
+  - AUDIO CLIPS — AudioClipRegion (pure trim/loop/frame, tested) + AudioClipPlayer (AVAudioPlayerNode
+    attached additively to masterMixer, no master-output surgery) + AudioClipView (import → trim/loop/
+    gain → play). Tools ▸ Audio & Bio ▸ Audio Clip. [71a417b, 2cbca17]
+  - MIDI IMPORT — MIDIFileImporter (SMF Type 0/1 → [Note], running status, meta/sysex skip, ch10
+    excluded; round-trips the exporter, tested) [38949cc] + UI hook: PianoRollModel.foldToBar/
+    importNotes (first-bar, length-clamped, octave-folded) + Tools ▸ Editors ▸ Import MIDI fileImporter.
+    +tests. [d829321]
+  - UNISON — EchoelPolyDDSP stacks up to maxUnison(3) detuned voices/note (cents spread + stereo pan +
+    1/√n gain), voices share note tag so noteOff/allNotesOff release the stack unchanged; OFF is
+    bit-identical. Patch-level (SynthPatch optional fields, decode-safe for old JSON) + Sound editor
+    Unison section; Bright Lead 2×10c / Vapor Lead 3×12c default; pads/keys stay clean. Audio-thread-
+    reviewed PASS, +tests (alloc/clamp/release/finite render + patch round-trip + pre-unison decode). [2517f13]
+  - AUTOMATION PLAYBACK — AutomationPlayer rides the shared PatternEngine clock (fed from PianoRollModel
+    onTick like ArrangementPlayer); per step writes each enabled lane to a MAIN-THREAD-safe target only
+    (Master Level / Tempo) — never DSP voice state. Per-bar timing (repeating shape); pure
+    appliedValue(for:atStep:) is the tested core. AutomationView list editor (target · on/off · keyframe
+    Beat/Value/Curve rows via EchoelValueField) at Tools ▸ Editors ▸ Automation. Concurrency-reviewed
+    PASS. +tests. [03f783d]
+DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import + Unison [a1def0d];
+automation (03f783d) verifying gate-green for the next deploy bump.
+HONEST HOLDS (dedicated cycles): automation song-position (needs absolute-bar counter) + automation to
+DSP params (needs audio-thread param routing review); multi-track parallel-lane arrangement (large
+architecture — current arrangement is a functional linear section-chain); video capture/edit (large
+subsystem, device-verified).
+
 ### 2026-06-22 (cont.) — Pro-level execution: nav · PPQ · automation · sound (founder priority order)
 Founder picked the execution order (AskUserQuestion): persistent collapsible nav → piano-roll PPQ →
 arrangement+automation+per-track FX → club light/video; sound = ALL FOUR improvements. Worked the
