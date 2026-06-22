@@ -48,9 +48,15 @@ DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import +
     28–180 Hz (off-key); now octave-FOLDS (keeps pitch class) + dropped the dissonant 3rd-harmonic fifth
     & heavy tanh (clean h1+octave). (3) STEAL PORTAMENTO — stolen voices glided ~16 ms into pitch; now
     prepareForNote snaps pitch (smoothedFreq=-1) always, phases/amp still preserved (no click). [12153ab]
-  >>> FOUNDER CORRECTION: TestFlight upload works, no daily limit to worry about — the v10.38.0 upload
-      failure was transient/cap. DEPLOYED v10.39.0 [82c1b83] carrying the sound fixes + all the held
-      features (Audio Clips + MIDI import + drum grid + Unison + Automation). Verify upload succeeded.
+  >>> FOUNDER CORRECTION (confirmed by logs): there is NO TestFlight upload limit. The v10.38.0 and
+      first v10.39.0 upload failures were TRANSIENT APPLE ASC OUTAGES — "503 Service Temporarily
+      Unavailable" / "Unable to authenticate with App Store Connect" / "No Accounts with App Store
+      Connect Access". Archive+sign+compile-gate were all GREEN both times; only the upload step hit
+      Apple's flaky service. FIX = just re-trigger (re-push .deploy/release). v10.39.0 SHIPPED on the
+      re-trigger [d7a4648] — TestFlight run completed SUCCESS, carrying sound fixes + Audio Clips +
+      MIDI import (melody+drums) + Unison + Automation. LESSON: never "hold for a cap"; on an upload-
+      step failure, re-trigger. (Possible future hardening: widen testflight.yml's transient-retry
+      grep to also catch 503/"No Accounts with App Store Connect Access" — CI change, ask first.)
 HONEST HOLDS (dedicated cycles): automation song-position (needs absolute-bar counter) + automation to
 DSP params (needs audio-thread param routing review); multi-track parallel-lane arrangement (large
 architecture — current arrangement is a functional linear section-chain); video capture/edit (large

@@ -9,9 +9,11 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 > has Apple's daily upload cap), **not** `fastlane beta`. The compile gate
 > (`xcode-compile-check`) is the per-commit green gate. See CLAUDE.md.
 
-> **DEPLOY (2026-06-22):** v10.39.0 bumped [82c1b83] carrying the SOUND FIXES (komische Töne) + the
-> earlier-held v10.38.0 features (Audio Clips + MIDI import + Unison) + Automation playback + MIDI
-> drum-grid import. (Founder: TestFlight upload works — the v10.38.0 "upload limit" was transient.)
+> **DEPLOY (2026-06-22):** v10.39.0 SHIPPED [d7a4648] carrying SOUND FIXES (komische Töne) + Audio
+> Clips + MIDI import (melody + GM drums) + Unison + Automation playback. NOTE: there is NO TestFlight
+> upload limit — the two earlier deploy failures (v10.38.0 / first v10.39.0) were transient Apple ASC
+> outages (503 Service Temporarily Unavailable / auth). If a deploy fails on upload (not archive),
+> just RE-TRIGGER (re-push .deploy/release); the build is fine. Do not "hold for a cap" — it doesn't exist.
 
 ## Done — 2026-06-22 session
 - [x] Persistent bottom navigation bar (Arrange · Clips · Compose)
