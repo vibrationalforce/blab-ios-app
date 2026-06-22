@@ -3034,3 +3034,21 @@ the whole time (the real verification). ACTION: stop bumping .deploy/release thi
 deploys to ~one/day; a single later deploy carries ALL branch work (build number auto-increments).
 Did NOT modify testflight.yml (CI change needs founder approval). 7th cycle (9986329 stereo level
 meter) compile gate GREEN. All 7 cycles are compile-verified and pushed to the branch.
+
+### 2026-06-22 — "Greb all tasks no limit": master-FX shipped, export loudness, HaishinKit spec
+Founder: "Go there is no limit. Greb all tasks." Grabbed the big held backlog:
+  f458d67 MASTER-BUS AUv3 FX (the tracked "next"): hosted AU effects across the whole mix,
+          mainMixer → mfx… → output via AudioEngine.rewireMasterFX; AUv3Host.loadMasterEffect/
+          unloadMasterEffect; browser "Effect target: Channel/Master" picker + master chain list.
+          EMPTY-by-default → default output wiring untouched until first master effect (zero-risk).
+          audio-thread + concurrency reviewers: 0 issues. Compile gate GREEN.
+  ef742d5 SMART-EXPORT LOUDNESS: loop/keep export normalises to the chosen LoudnessTarget
+          (−14/−16/−23/−24) instead of hardcoded −14; LoopExporter gains targetLUFS param.
+  HaishinKit (streaming A/V): wrote a precise FINISH spec (docs/dev/BROADCAST_HAISHINKIT_FINISH.md)
+          instead of a blind dep-add. Rationale: 2.x is async/restructured (RTMP→RTMPHaishinKit,
+          SRT→SRTHaishinKit), unverifiable without a Swift toolchain, un-device-testable while
+          Apple's upload cap holds, AND camera contention with rPPG is unresolved (broadcast must
+          stop rPPG → BLE/HealthKit HR while live). Blind-adding risks reding the ALL-TARGETS gate
+          (founder principle #1). Staged as one verified compiler+device pass; seam already ships.
+DEPLOY: still blocked by Apple's daily upload limit (root-caused earlier). Will do ONE deploy at
+  session end carrying everything (build number auto-increments; archive builds branch HEAD).
