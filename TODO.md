@@ -26,7 +26,7 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 - [x] AudioClipRegion — pure trim/loop/frame model (foundation for audio clips)
 
 ## Open — DAW / media depth
-- [ ] Audio clips **playable** (AVAudioPlayerNode, trim/loop) — makes the audio lane real ← NEXT
+- [x] Audio clips **playable** (AVAudioPlayerNode, trim/loop) — Tools ▸ Audio Clip (import → trim/loop → play)
 - [ ] Automation **playback** wiring (read AutomationLane during transport) + authoring UI
 - [ ] Multi-track arrangement timeline (parallel lanes, 2-D grid)
 - [ ] Video: **recording** (AVAssetWriter) + **clip playback** (AVPlayer), transport-synced
