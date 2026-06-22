@@ -252,4 +252,44 @@ final class BioComposerTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Coherence-convergence servo (Phase 1, science-grounded)
+
+    /// Validated direction: rising coherence must CONVERGE the music toward calm —
+    /// monotonically lowering density (`busy`) — as the body's reward for self-regulation.
+    func testServo_higherCoherenceMonotonicallyLowersBusy() {
+        var last = Float.greatestFiniteMagnitude
+        for coh in stride(from: Float(0), through: 1, by: 0.1) {
+            let s = BioComposer.musicalState(coherence: coh, hrvNormalized: 0.5, heartRateBPM: 80)
+            XCTAssertLessThanOrEqual(s.busy, last + 1e-6, "busy must not rise as coherence rises")
+            last = s.busy
+        }
+        // The convergence is decisive, not marginal: full coherence is much sparser.
+        let lowCoh  = BioComposer.musicalState(coherence: 0, hrvNormalized: 0.5, heartRateBPM: 80).busy
+        let highCoh = BioComposer.musicalState(coherence: 1, hrvNormalized: 0.5, heartRateBPM: 80).busy
+        XCTAssertLessThan(highCoh, lowCoh * 0.6, "high coherence converges to a notably sparser take")
+    }
+
+    /// The textbook stress signature (↑HR, ↓HRV) must raise arousal and density.
+    func testServo_stressSignatureRaisesArousalAndBusy() {
+        let calmBody     = BioComposer.musicalState(coherence: 0.5, hrvNormalized: 0.9, heartRateBPM: 55)
+        let stressedBody = BioComposer.musicalState(coherence: 0.5, hrvNormalized: 0.1, heartRateBPM: 115)
+        XCTAssertGreaterThan(stressedBody.arousal, calmBody.arousal)
+        XCTAssertGreaterThan(stressedBody.busy, calmBody.busy)
+    }
+
+    /// All outputs stay in [0,1] across the whole physiological envelope.
+    func testServo_outputsStayNormalized() {
+        for hr in stride(from: Double(40), through: 180, by: 10) {
+            for hrv in stride(from: Float(0), through: 1, by: 0.25) {
+                for coh in stride(from: Float(0), through: 1, by: 0.25) {
+                    let s = BioComposer.musicalState(coherence: coh, hrvNormalized: hrv, heartRateBPM: hr)
+                    for v in [s.calm, s.vagal, s.energy, s.arousal, s.busy] {
+                        XCTAssertGreaterThanOrEqual(v, 0)
+                        XCTAssertLessThanOrEqual(v, 1)
+                    }
+                }
+            }
+        }
+    }
 }
