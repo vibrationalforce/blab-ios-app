@@ -51,6 +51,24 @@ Visual all real+functional. Founder picked ALL FOUR follow-ups → shipped 3 (ga
   Also noted for founder: 2nd log shows "generate: 6 notes" CONSTANT (vs 14-24 in 1st log) even when
      locked — likely a genre/mood/loop-length setting or low-bio sparse fallback; flagged to confirm.
 DEPLOY: bumped .deploy/release → v10.35.2 carrying calm-evolution + rPPG re-grip + brighter tone.
+
+### 2026-06-22 (cont.) — Stabilize + persistent brand top bar (founder: "Go, alles stabilisieren und alle offenen tasks" + screenshot)
+STABILIZED: audio-thread-reviewer on the only render-path change (SubBassVoice missing-fundamental) =
+  PASS, no violations; fixed one stale comment ("0 default"→0.35) [committed]. "6 notes" device-log
+  anomaly diagnosed as BY-DESIGN (sparse genre e.g. dub = 2 chords × 3-note triads, calm at rest), not
+  a bug. esotericMeditation rename deliberately SKIPPED (String rawValue is persisted via AppStorage/
+  Codable → renaming breaks saved selections for zero user benefit; already shows "Deep Ambient").
+  Claims-guardrail lint drafted but HELD: needs negation-awareness (the brand's own docs say
+  no "healing frequencies" → would false-positive). 
+SHIPPED [e5e4fd5, gate-green]: PERSISTENT BRAND TOP BAR (founder screenshot). WorkspaceView now has a
+  top header above all surfaces (mirrors the bottom bar): left = EchoelLogoMark (E-with-waves drawn in
+  a Canvas to match docs/app-icon.svg exactly — no asset import, theme-coloured, scalable), right =
+  "Echoelmusic" (CI face) + version/build from the bundle. Always visible regardless of view. Verified
+  via job-level status (run-list endpoint was returning stale 'in_progress').
+DEPLOY: bumped .deploy/release → v10.35.3 (adds the top bar).
+OPEN (next dedicated cycles, told founder honestly): unison/detune (additive N×64 → ensemble/chorus
+  approach), per-track insert FX + Channel-Rack, multi-track arrangement + automation PLAYBACK wiring
+  (needs authoring UI + param registry), claims-lint with negation handling, light fixture library.
 HELD for device A/B (founder's ear — signature sound): SOUND 3/4 unison/detune (additive-engine CPU
   risk: N×64 partials — needs a bounded approach) + SOUND 4/4 brighter default tone (genre patches set
   brightness 0.22–0.54 explicitly; rebalancing 14 genres is subjective → tune on device). Also still
