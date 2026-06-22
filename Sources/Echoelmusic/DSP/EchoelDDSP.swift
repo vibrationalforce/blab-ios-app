@@ -1229,6 +1229,26 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         self.scaledBufferR = [Float](repeating: 0, count: maxFrameSize)
     }
 
+    // MARK: - Unison
+
+    /// Maximum stacked detuned voices per played note. Bounds the polyphony cost.
+    public static let maxUnison = 3
+
+    /// Unison voice count per note (1 = off → bit-identical to before). Written from
+    /// the main actor, read on the audio thread in `noteOn`; an aligned `Int` word is
+    /// atomic, so it is safe to change live (takes effect on the next note). Clamped
+    /// to 1…maxUnison on read.
+    public var unisonCount: Int = 1
+    /// Total detune spread across the unison stack, in cents (0 = no detune). Same
+    /// atomic-Float discipline as `a4Hz`.
+    public var unisonDetuneCents: Float = 0
+
+    /// Set unison live (clamped). count 1 = off; detune is the full spread in cents.
+    public func setUnison(count: Int, detuneCents: Float) {
+        unisonCount = min(max(count, 1), Self.maxUnison)
+        unisonDetuneCents = min(max(detuneCents, 0), 50)
+    }
+
     // MARK: - Note Control
 
     /// MIDI note on
@@ -1236,21 +1256,50 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // Per-pitch-class microtonal retune (cents → semitone fraction). Zero table
         // = standard 12-TET, bit-identical to before.
         let cents = tuningCents[((note % 12) + 12) % 12]
-        let freq = a4Hz * pow(2.0, (Float(note - 69) + cents / 100.0) / 12.0)
+        let baseFreq = a4Hz * pow(2.0, (Float(note - 69) + cents / 100.0) / 12.0)
+        let v = min(1, max(0, velocity))
+
+        let u = min(max(unisonCount, 1), Self.maxUnison)
+        if u == 1 {
+            // OFF: spawn one voice with the original pan/amplitude behaviour (unchanged).
+            spawnVoice(note: note, frequency: baseFreq, velocity: v, unisonPan: nil, unisonGain: 1)
+            return
+        }
+        // ON: stack `u` detuned voices, symmetric about the played pitch, panned
+        // across the stereo field. Per-voice gain 1/√u keeps the summed loudness sane.
+        let gain = 1 / sqrt(Float(u))
+        let panSpread: Float = 0.6
+        let spread = unisonDetuneCents      // snapshot once (atomic read) for this note
+        for k in 0..<u {
+            let t = Float(k) / Float(u - 1) * 2 - 1          // -1 … +1
+            let detune = pow(2.0, (t * spread * 0.5) / 1200.0)
+            spawnVoice(note: note, frequency: baseFreq * detune, velocity: v,
+                       unisonPan: t * panSpread, unisonGain: gain)
+        }
+    }
+
+    /// Allocate one voice for `note` and start it. `unisonPan`/`unisonGain` override
+    /// the default pan-spread / unity gain when stacking a unison voice.
+    private func spawnVoice(note: Int, frequency freq: Float, velocity v: Float,
+                            unisonPan: Float?, unisonGain: Float) {
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
         ageCounter += 1
         voiceAges[voiceIdx] = ageCounter
 
-        // Spread panning across active voices
-        let activeCount = voiceNotes.reduce(0) { $0 + ($1 >= 0 ? 1 : 0) }
-        if activeCount > 1, maxVoices > 1 {
-            let panSpread: Float = 0.6
-            let normalized = Float(voiceIdx) / Float(maxVoices - 1)
-            voicePans[voiceIdx] = (normalized * 2.0 - 1.0) * panSpread
+        if let pan = unisonPan {
+            voicePans[voiceIdx] = pan
         } else {
-            voicePans[voiceIdx] = 0
+            // Spread panning across active voices (original behaviour).
+            let activeCount = voiceNotes.reduce(0) { $0 + ($1 >= 0 ? 1 : 0) }
+            if activeCount > 1, maxVoices > 1 {
+                let panSpread: Float = 0.6
+                let normalized = Float(voiceIdx) / Float(maxVoices - 1)
+                voicePans[voiceIdx] = (normalized * 2.0 - 1.0) * panSpread
+            } else {
+                voicePans[voiceIdx] = 0
+            }
         }
 
         // Idle voice → clean staggered restart; reused/stolen ringing voice →
@@ -1260,10 +1309,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // the onset snap. The amplitude curve expands dynamics on percussive patches
         // (soft → softer, hard → present) while leaving pads linear, so the dialed-in
         // pad loudness is untouched. velocity stored for the per-note attack scale.
-        let v = min(1, max(0, velocity))
         let percussiveness = max(0, 1 - voices[voiceIdx].attack / 0.15)
         voices[voiceIdx].noteVelocity = v
-        voices[voiceIdx].amplitude = pow(v, 1 + percussiveness * 0.5)
+        voices[voiceIdx].amplitude = pow(v, 1 + percussiveness * 0.5) * unisonGain
         voices[voiceIdx].noteOn(frequency: freq)
         // Only let bio overwrite the note's velocity/timbre when bio modulation is
         // actually on. Previously unconditional → every note collapsed to a neutral

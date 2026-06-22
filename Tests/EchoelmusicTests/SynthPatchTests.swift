@@ -13,6 +13,34 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertEqual(decoded, patch)
     }
 
+    func testUnisonRoundTrips() throws {
+        var patch = SynthPatch.factory[1]
+        patch.unisonVoices = 3
+        patch.unisonDetuneCents = 14
+        let data = try JSONEncoder().encode(patch)
+        let decoded = try JSONDecoder().decode(SynthPatch.self, from: data)
+        XCTAssertEqual(decoded.unisonVoices, 3)
+        XCTAssertEqual(decoded.unisonDetuneCents, 14)
+    }
+
+    func testPreUnisonJSONStillDecodes() throws {
+        // A patch JSON saved before unison existed has no unison keys; it must still
+        // decode (optional fields → nil = off), so existing user sounds aren't lost.
+        let json = """
+        {"id":"00000000-0000-0000-0000-0000000000A1","name":"Old Pad",
+         "attack":0.5,"decay":0.5,"sustain":0.8,"release":2.0,"envelopeCurve":"exponential",
+         "harmonicity":0.88,"harmonicLevel":0.8,"brightness":0.25,"noiseLevel":0.01,
+         "noiseColor":"pink","spectralShape":"dark","filterCutoff":220,"filterResonance":0.1,
+         "lfoToFilterDepth":0.15,"filterLFORate":0.2,"filterLFODepth":0.3,
+         "reverbMix":0.25,"reverbDecay":2.0,"vibratoRate":0,"vibratoDepth":0,
+         "timbreProfile":"","timbreBlend":0}
+        """
+        let decoded = try JSONDecoder().decode(SynthPatch.self, from: Data(json.utf8))
+        XCTAssertNil(decoded.unisonVoices, "missing unison key → nil (off)")
+        XCTAssertNil(decoded.unisonDetuneCents)
+        XCTAssertEqual(decoded.name, "Old Pad")
+    }
+
     func testFactoryIDsAreStable() {
         let a = SynthPatch.factory.map { $0.id }
         let b = SynthPatch.factory.map { $0.id }

@@ -336,6 +336,43 @@ final class EchoelPolyDDSPRenderTests: XCTestCase {
         poly.allNotesOff()
         XCTAssertEqual(poly.activeVoiceCount, 0, "All voices should be off")
     }
+
+    func testUnisonOffSpawnsOneVoice() {
+        let poly = EchoelPolyDDSP(maxVoices: 6, sampleRate: 48000, frameSize: 128)
+        poly.setUnison(count: 1, detuneCents: 12)   // count 1 = off regardless of detune
+        poly.noteOn(note: 60, velocity: 0.8)
+        XCTAssertEqual(poly.activeVoiceCount, 1, "Unison off → one voice per note")
+    }
+
+    func testUnisonStacksDetunedVoices() {
+        let poly = EchoelPolyDDSP(maxVoices: 6, sampleRate: 48000, frameSize: 128)
+        poly.setUnison(count: 3, detuneCents: 14)
+        poly.noteOn(note: 60, velocity: 0.8)
+        XCTAssertEqual(poly.activeVoiceCount, 3, "Unison 3 → three voices for one note")
+        // A single noteOff releases the whole stack (they share the note tag).
+        poly.noteOff(note: 60)
+        XCTAssertEqual(poly.activeVoiceCount, 0, "noteOff releases the entire unison stack")
+    }
+
+    func testUnisonClampedToMax() {
+        let poly = EchoelPolyDDSP(maxVoices: 8, sampleRate: 48000, frameSize: 128)
+        poly.setUnison(count: 99, detuneCents: 999)
+        poly.noteOn(note: 60, velocity: 0.8)
+        XCTAssertEqual(poly.activeVoiceCount, EchoelPolyDDSP.maxUnison,
+                       "Unison count clamps to maxUnison")
+    }
+
+    func testUnisonRenderIsFinite() {
+        let poly = EchoelPolyDDSP(maxVoices: 6, sampleRate: 48000, frameSize: 128)
+        poly.setUnison(count: 3, detuneCents: 20)
+        poly.noteOn(note: 57, velocity: 1.0)
+        var left = [Float](repeating: 0, count: 128)
+        var right = [Float](repeating: 0, count: 128)
+        poly.renderStereo(left: &left, right: &right, frameCount: 128)
+        for i in 0..<128 {
+            XCTAssertTrue(left[i].isFinite && right[i].isFinite, "Unison render finite at \(i)")
+        }
+    }
 }
 
 // MARK: - ClassicAnalogEmulations Tests

@@ -46,6 +46,11 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     public var vibratoRate: Float
     public var vibratoDepth: Float
 
+    // Unison — stacked detuned voices per note for a thicker, ensemble sound.
+    // Optional so patches saved before unison existed still decode (nil = off).
+    public var unisonVoices: Int?        // 1 / nil = off (max EchoelPolyDDSP.maxUnison)
+    public var unisonDetuneCents: Float? // total spread in cents (0 = none)
+
     // Acoustic timbre transfer — a built-in instrument spectral profile blended over
     // the synth's own spectrum for a naturally voiced character (violin, flute, …).
     public var timbreProfile: String   // EchoelDDSP.InstrumentTimbre rawValue, or "" = none
@@ -62,7 +67,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         filterLFORate: Float = 0.2, filterLFODepth: Float = 0.3,
         reverbMix: Float = 0.25, reverbDecay: Float = 2.0,
         vibratoRate: Float = 0, vibratoDepth: Float = 0,
-        timbreProfile: String = "", timbreBlend: Float = 0
+        timbreProfile: String = "", timbreBlend: Float = 0,
+        unisonVoices: Int? = nil, unisonDetuneCents: Float? = nil
     ) {
         self.id = id
         self.name = name
@@ -77,6 +83,7 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         self.reverbMix = reverbMix; self.reverbDecay = reverbDecay
         self.vibratoRate = vibratoRate; self.vibratoDepth = vibratoDepth
         self.timbreProfile = timbreProfile; self.timbreBlend = timbreBlend
+        self.unisonVoices = unisonVoices; self.unisonDetuneCents = unisonDetuneCents
     }
 
     /// A stable id from a fixed string (factory presets need identity that
@@ -102,7 +109,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             attack: 0.02, decay: 0.3, sustain: 0.7, release: 0.6,
             harmonicity: 0.95, brightness: 0.7, noiseLevel: 0.0,
             spectralShape: "bright", filterCutoff: 4000, filterResonance: 0.2,
-            reverbMix: 0.15, reverbDecay: 1.2, vibratoRate: 5, vibratoDepth: 0.15
+            reverbMix: 0.15, reverbDecay: 1.2, vibratoRate: 5, vibratoDepth: 0.15,
+            unisonVoices: 2, unisonDetuneCents: 10
         ),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000A3"),
@@ -174,7 +182,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             attack: 0.03, decay: 0.5, sustain: 0.7, release: 1.4,
             harmonicity: 0.9, harmonicLevel: 0.85, brightness: 0.65, noiseLevel: 0.01,
             spectralShape: "bright", filterCutoff: 5000, filterResonance: 0.22,
-            reverbMix: 0.6, reverbDecay: 3.2, vibratoRate: 5.5, vibratoDepth: 0.2
+            reverbMix: 0.6, reverbDecay: 3.2, vibratoRate: 5.5, vibratoDepth: 0.2,
+            unisonVoices: 3, unisonDetuneCents: 12
         ),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000AC"),
