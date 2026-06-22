@@ -66,6 +66,19 @@ SHIPPED [e5e4fd5, gate-green]: PERSISTENT BRAND TOP BAR (founder screenshot). Wo
   "Echoelmusic" (CI face) + version/build from the bundle. Always visible regardless of view. Verified
   via job-level status (run-list endpoint was returning stale 'in_progress').
 DEPLOY: bumped .deploy/release → v10.35.3 (adds the top bar).
+
+### 2026-06-22 (cont.) — "Echoelmusic" centred + Channel Rack (per-track channels)
+SHIPPED [d99b75d, gate-green]: centred "Echoelmusic" in the top bar (ZStack: logo left, title centre,
+  version right) per founder. → deploy v10.35.4.
+SHIPPED [41c3995 model + f546bb4 UI, BOTH gate-green]: CHANNEL RACK — first per-track channel layer.
+  BeatPlayer gains persisted per-track mute/solo + a pure unit-tested gate (shouldSound: muted=silent,
+  any-solo→only-soloed, mute>solo; 6 tests in ChannelRackTests). Gate wired into the sequencer trigger
+  (control-plane only, NO audio-graph change); manual pad taps bypass (respectMix:false). ChannelRackView
+  (Tools ▸ Editors ▸ Channels): per-track Level (EchoelValueField) + Mute/Solo + Clear Solo, rows dim to
+  mirror audibility. Foundation for per-track insert FX (each channel already has its own voice node).
+  NB: GitHub Actions MCP read endpoints cache aggressively (~frozen snapshot for many min) — verify via
+  list_workflow_runs?status=completed once the cache clears, not rapid job polls. → deploy v10.36.0.
+NEXT: per-track INSERT FX (plug an FX chain per channel) → then unison/detune (ensemble), multitrack.
 OPEN (next dedicated cycles, told founder honestly): unison/detune (additive N×64 → ensemble/chorus
   approach), per-track insert FX + Channel-Rack, multi-track arrangement + automation PLAYBACK wiring
   (needs authoring UI + param registry), claims-lint with negation handling, light fixture library.
