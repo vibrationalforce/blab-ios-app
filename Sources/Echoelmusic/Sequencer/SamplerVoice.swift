@@ -181,6 +181,12 @@ public final class SamplerVoice: @unchecked Sendable {
 
     // MARK: - Source node
 
+    /// Set the per-channel insert FX (filter type + cutoff + resonance + drive).
+    /// Main-thread only; the audio thread reads atomic-width mirrors.
+    public func configureInsertFX(type: Int, cutoff: Float, resonance: Float, drive: Float) {
+        renderState.configureInsertFX(type: type, cutoff: cutoff, resonance: resonance, drive: drive)
+    }
+
     private func makeSourceNode() -> AVAudioSourceNode {
         let state = renderState
         let renderBlock: AVAudioSourceNodeRenderBlock = { _, _, frameCount, audioBufferList in
@@ -243,6 +249,22 @@ private final class RenderState: @unchecked Sendable {
     private var reverse: Bool = false     // play the region backwards
     private var rate: Float = 1.0         // playback speed = pitch (0.25…4, 1 = original)
 
+    // Per-channel INSERT FX params (main-thread set, audio-thread read; atomic-width
+    // scalars). The filter STATE lives only on the audio thread (`insertFX`); the
+    // render applies the params (recomputing coefficients at most once per block when
+    // they change), so there is no cross-thread mutation of the biquad memory.
+    private var fxType: Int = 0           // ChannelInsertFX.FilterType.rawValue (0 = off)
+    private var fxCutoff: Float = 1200
+    private var fxRes: Float = 0.707
+    private var fxDrive: Float = 0
+
+    // Audio-thread-only effect instance + last-applied params (change detection).
+    private var insertFX = ChannelInsertFX(sampleRate: Float(SamplerVoice.sampleRate))
+    private var lastFxType: Int = -1
+    private var lastFxCutoff: Float = .nan
+    private var lastFxRes: Float = .nan
+    private var lastFxDrive: Float = .nan
+
     /// Main thread, before audio engine start.
     func installBuffer(_ samples: [Float]) {
         sampleBuffer = samples
@@ -284,6 +306,30 @@ private final class RenderState: @unchecked Sendable {
         self.rate = Swift.min(Swift.max(rate, 0.25), 4)
     }
 
+    /// Main thread. Set the per-channel insert-FX params (atomic-width scalars; the
+    /// audio thread recomputes the biquad at most once per block when they change).
+    func configureInsertFX(type: Int, cutoff: Float, resonance: Float, drive: Float) {
+        fxType = type
+        fxCutoff = cutoff
+        fxRes = resonance
+        fxDrive = drive
+    }
+
+    /// Audio thread. Apply the current insert-FX params (recomputing coefficients
+    /// only when a param changed) and run the buffer through the biquad + drive.
+    private func applyInsertFX(buf: UnsafeMutablePointer<Float>, frameCount: Int) {
+        // Nothing to do when the channel is clean.
+        if fxType == 0 && fxDrive <= 0 { return }
+        if fxType != lastFxType || fxCutoff != lastFxCutoff
+            || fxRes != lastFxRes || fxDrive != lastFxDrive {
+            let t = ChannelInsertFX.FilterType(rawValue: fxType) ?? .off
+            insertFX.setParams(type: t, cutoffHz: fxCutoff, resonance: fxRes, drive: fxDrive)
+            lastFxType = fxType; lastFxCutoff = fxCutoff
+            lastFxRes = fxRes; lastFxDrive = fxDrive
+        }
+        for i in 0..<frameCount { buf[i] = insertFX.process(buf[i]) }
+    }
+
     /// Audio thread. Writes `frameCount` mono float32 samples into the first
     /// channel of `audioBufferList`. Zero allocation, no locks.
     func render(frameCount: Int, audioBufferList: UnsafeMutablePointer<AudioBufferList>) {
@@ -310,6 +356,7 @@ private final class RenderState: @unchecked Sendable {
             currentGain = triggerGain
             posF = reverse ? Float(playEnd - 1) : Float(playStart)   // start at the right edge
             playedOut = 0
+            insertFX.reset()   // clear filter memory so a new hit starts clean
         }
 
         if silenceRequested {
@@ -361,6 +408,10 @@ private final class RenderState: @unchecked Sendable {
         if produced < frameCount {
             memset(buf.advanced(by: produced), 0, (frameCount - produced) * MemoryLayout<Float>.size)
         }
+
+        // Per-channel insert FX (filter + drive) on the channel's output. Runs over
+        // the whole block so a resonant filter rings out across the silent tail.
+        applyInsertFX(buf: buf, frameCount: frameCount)
 
         if posF < startF || posF >= endF { isPlaying = false }
     }

@@ -57,6 +57,19 @@ public final class BeatPlayer {
     /// Per-track synth (modal) drum params, persisted.
     public private(set) var synthParams: [DrumSynthParams]
 
+    /// Per-channel insert-FX settings (filter + drive), persisted (Channel Rack).
+    /// `type` is `ChannelInsertFX.FilterType.rawValue` (0 = off).
+    public struct ChannelFX: Codable, Sendable, Equatable {
+        public var type: Int = 0
+        public var cutoff: Float = 1200
+        public var resonance: Float = 0.707
+        public var drive: Float = 0
+        public init() {}
+    }
+
+    /// Per-track insert FX, persisted (Channel Rack). Applied to the sample voice.
+    public private(set) var fx: [ChannelFX]
+
     /// Per-track MUTE — a muted channel never sounds. Persisted (Channel Rack).
     public private(set) var mutes: [Bool]
 
@@ -76,6 +89,7 @@ public final class BeatPlayer {
         self.shapes = Self.trackNames.map { _ in PadShape() }
         self.modes = Self.trackNames.map { _ in .sample }
         self.synthParams = Self.trackNames.map { _ in DrumSynthParams() }
+        self.fx = Self.trackNames.map { _ in ChannelFX() }
         self.mutes = Self.trackNames.map { _ in false }
         self.solos = Self.trackNames.map { _ in false }
     }
@@ -85,6 +99,25 @@ public final class BeatPlayer {
     private static func synthKey(_ track: Int) -> String { "echoel.beat.synth.\(track)" }
     private static func muteKey(_ track: Int) -> String { "echoel.beat.mute.\(track)" }
     private static func soloKey(_ track: Int) -> String { "echoel.beat.solo.\(track)" }
+    private static func fxKey(_ track: Int) -> String { "echoel.beat.fx.\(track)" }
+
+    /// Push a channel's insert-FX params to its sample voice (audio thread reads them).
+    private func applyFX(_ track: Int) {
+        guard fx.indices.contains(track), voices.indices.contains(track) else { return }
+        let f = fx[track]
+        voices[track].configureInsertFX(type: f.type, cutoff: f.cutoff,
+                                        resonance: f.resonance, drive: f.drive)
+    }
+
+    /// Update a channel's insert FX, apply it live, and persist (Channel Rack).
+    public func setFX(track: Int, _ value: ChannelFX) {
+        guard fx.indices.contains(track) else { return }
+        fx[track] = value
+        applyFX(track)
+        if let data = try? JSONEncoder().encode(value) {
+            UserDefaults.standard.set(data, forKey: Self.fxKey(track))
+        }
+    }
 
     /// Pure mixer rule (testable, no audio): a track sounds when it is not muted
     /// AND (nothing is soloed, OR this track is one of the soloed ones).
@@ -251,11 +284,16 @@ public final class BeatPlayer {
         restoreMix()
     }
 
-    /// Restore persisted Channel-Rack mute/solo state.
+    /// Restore persisted Channel-Rack mute/solo + insert-FX state and apply the FX.
     private func restoreMix() {
         for i in Self.trackNames.indices {
             mutes[i] = UserDefaults.standard.bool(forKey: Self.muteKey(i))
             solos[i] = UserDefaults.standard.bool(forKey: Self.soloKey(i))
+            if let data = UserDefaults.standard.data(forKey: Self.fxKey(i)),
+               let f = try? JSONDecoder().decode(ChannelFX.self, from: data) {
+                fx[i] = f
+            }
+            applyFX(i)
         }
     }
 
