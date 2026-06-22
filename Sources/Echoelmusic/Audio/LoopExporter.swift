@@ -30,7 +30,7 @@ public final class LoopExporter {
     /// Render the current loop to a `.wav`. Plays the transport for one loop
     /// length, captures the master, and exports. Returns the file URL on success.
     @discardableResult
-    public func exportWav(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int) async -> URL? {
+    public func exportWav(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int, targetLUFS: Float = -14) async -> URL? {
         guard status != .capturing, status != .rendering else { return nil }
 
         let bpm = beatPlayer.pattern.tempo
@@ -58,7 +58,7 @@ public final class LoopExporter {
         status = .rendering
         engine.singleExport.reset()
         engine.singleExport.outputFormat = .wav
-        engine.singleExport.targetLUFS = -14
+        engine.singleExport.targetLUFS = targetLUFS
         await engine.singleExport.export(sourceURL: cafURL)
 
         if let url = engine.singleExport.exportState.exportedURL {
@@ -75,7 +75,7 @@ public final class LoopExporter {
     /// then normalise + write a .wav. The cut is exactly `bars` long, so it loops at
     /// tempo. Returns the file URL on success.
     @discardableResult
-    public func exportRecentLoop(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int) async -> URL? {
+    public func exportRecentLoop(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int, targetLUFS: Float = -14) async -> URL? {
         guard status != .capturing, status != .rendering else { return nil }
 
         let bpm = beatPlayer.pattern.tempo
@@ -93,7 +93,7 @@ public final class LoopExporter {
         status = .rendering
         engine.singleExport.reset()
         engine.singleExport.outputFormat = .wav
-        engine.singleExport.targetLUFS = -14
+        engine.singleExport.targetLUFS = targetLUFS
         await engine.singleExport.export(sourceURL: cafURL)
 
         if let url = engine.singleExport.exportState.exportedURL {

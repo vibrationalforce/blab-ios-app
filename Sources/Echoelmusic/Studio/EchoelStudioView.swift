@@ -1600,8 +1600,16 @@ struct EchoelStudioView: View {
 
     // MARK: - Export / projects
 
+    /// The loudness the export normalises to — the same delivery target chosen in the
+    /// Master panel (Streaming −14 / Podcast −16 / Broadcast −23 / Cinema −24). "No
+    /// target" keeps the established −14 default so existing behaviour is unchanged.
+    private var exportTargetLUFS: Float {
+        LoudnessTarget(rawValue: loudnessTargetRaw)?.integratedLUFS ?? -14
+    }
+
     private func exportWav() async {
-        if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
+        if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer,
+                                              bars: loopBars.rawValue, targetLUFS: exportTargetLUFS) {
             share = ExportedFile(url: url)
         }
         // Always return to idle: a failed/empty export must never leave the button
@@ -1612,7 +1620,8 @@ struct EchoelStudioView: View {
 
     /// Retroactive "keep that" — export the last few bars already heard, no replay.
     private func keepLastLoop() async {
-        if let url = await exporter.exportRecentLoop(engine: audioEngine, beatPlayer: beatPlayer, bars: loopBars.rawValue) {
+        if let url = await exporter.exportRecentLoop(engine: audioEngine, beatPlayer: beatPlayer,
+                                                     bars: loopBars.rawValue, targetLUFS: exportTargetLUFS) {
             share = ExportedFile(url: url)
         }
         exporter.reset()
