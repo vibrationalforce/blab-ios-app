@@ -37,7 +37,7 @@ public final class SubBassVoice {
     /// slider. Launch silence is still guaranteed: the render stays pure-zero
     /// until the first armed bass note (`hasEverSounded`), so nothing sounds at
     /// launch — this only sets how loud the sub is once a bass note plays.
-    public static let defaultSubGain: Float = 0.35
+    nonisolated public static let defaultSubGain: Float = 0.35
 
     /// User-pushable sub level [0...1]. Defaults to `defaultSubGain` so the felt
     /// sub is present by default; the performer can still pull it to 0 or push it
