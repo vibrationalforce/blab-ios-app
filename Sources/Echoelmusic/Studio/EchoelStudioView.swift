@@ -139,6 +139,9 @@ struct EchoelStudioView: View {
     @State private var diagnostics: DiagReport?
 
     // Tools — open the (previously unreachable) editors as sheets.
+    /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
+    /// way you left it. Default expanded so every editor is visible at a glance.
+    @AppStorage("compose.toolsExpanded") private var toolsExpanded = true
     @State private var showPianoRoll = false
     @State private var showInput = false
     @State private var showRouting = false
@@ -204,8 +207,8 @@ struct EchoelStudioView: View {
                     #endif
                     soundControls
                     utilityRow
-                    toolsRow
-                }
+                    toolsSection
+}
                 .padding(16)
             }
         }
@@ -316,71 +319,112 @@ struct EchoelStudioView: View {
 
     // MARK: - Tools (deep editors)
 
-    /// Opens the deeper editors — a real piano roll, the synth patch editor, and the
-    /// sample browser — without cluttering the one-button flow.
-    private var toolsRow: some View {
+    /// The deeper editors, grouped into a CLEAR, collapsible panel (founder: "besser
+    /// strukturiert, übersichtlicher … sich aufklappen lässt"). A header with a
+    /// chevron unfolds/folds the whole set; inside, tools are grouped by purpose
+    /// (Editors · Audio & Bio · Connect · Visual & Learn) in wrapping grids so every
+    /// tool is visible at a glance instead of hidden off the side of a scroll row.
+    /// Clips + Arrangement live on the workspace's bottom surface bar, so they are
+    /// not duplicated here — a name means ONE thing.
+    private var toolsSection: some View {
         @Bindable var midiOut = midiOut
         #if canImport(HealthKit)
         @Bindable var healthWriter = healthWriter
         #endif
-        // Persistent front-page tools bar (no dropdown): every editor is one tap away,
-        // horizontally scrollable so it stays compact on iPhone. Step 1 of the DMMW
-        // workspace IA (docs/dev/DMMW_ARCHITECTURE.md) — tools on the front, FL-style.
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                // Clips + Arrangement are the workspace's top-level surfaces (the
-                // Arrange · Clips · Compose picker) — not duplicated here, so a name
-                // means ONE thing. This bar holds only Compose's own sub-editors + tools.
-                toolChip("Piano Roll", "pianokeys") { showPianoRoll = true }
-                toolChip("Sound", "dial.medium") { showPatchEditor = true }
-                Menu {
-                    ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
-                        Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
-                    }
-                } label: { chipLabel("Drum Samples", "waveform") }
-                toolChip("Breathing", "wind") { showBreath = true }
-                toolChip("Audio In", "mic") { showInput = true }
-                toolChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
-                toolChip("Plugins", "puzzlepiece.extension") { showPlugins = true }
-                toolChip("Learn", "book") { showLearn = true }
-                toolChip("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
-                #if canImport(MetalKit) && canImport(UIKit)
-                toolChip("Visual", "sparkles") { showVisual = true }
-                #endif
-                Menu {
-                    // Live MIDI / MPE OUT — the body's take streams to a virtual
-                    // "Echoelmusic" source any DAW can record. Off by default.
-                    Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
-                    Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
-                        .disabled(!midiOut.enabled)
-                    #if canImport(HealthKit)
-                    // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
-                    // BLE) into Apple Health. Off by default; never writes HRV.
-                    Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
-                    #endif
-                    Divider()
-                    Text("Echoel \(Self.appVersionString)").font(EchoelTheme.font(11))
-                } label: { chipLabel("More", "ellipsis") }
+        return VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { toolsExpanded.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "wrench.and.screwdriver").font(.system(size: 13))
+                    Text("Tools").font(EchoelTheme.font(13, .semibold))
+                    Spacer(minLength: 0)
+                    Image(systemName: toolsExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.dim)
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .frame(height: 40)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 2)
+            .buttonStyle(.plain)
+            .accessibilityLabel(toolsExpanded ? "Collapse tools" : "Expand tools")
+            .accessibilityAddTraits(.isButton)
+
+            if toolsExpanded {
+                toolGroup("Editors") {
+                    gridChip("Piano Roll", "pianokeys") { showPianoRoll = true }
+                    gridChip("Sound", "dial.medium") { showPatchEditor = true }
+                    Menu {
+                        ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
+                            Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
+                        }
+                    } label: { gridChipLabel("Drum Samples", "waveform") }
+                }
+                toolGroup("Audio & Bio") {
+                    gridChip("Audio In", "mic") { showInput = true }
+                    gridChip("Breathing", "wind") { showBreath = true }
+                }
+                toolGroup("Connect") {
+                    gridChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
+                    gridChip("Plugins", "puzzlepiece.extension") { showPlugins = true }
+                    gridChip("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
+                    Menu {
+                        // Live MIDI / MPE OUT — the body's take streams to a virtual
+                        // "Echoelmusic" source any DAW can record. Off by default.
+                        Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
+                        Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
+                            .disabled(!midiOut.enabled)
+                        #if canImport(HealthKit)
+                        // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
+                        // BLE) into Apple Health. Off by default; never writes HRV.
+                        Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
+                        #endif
+                    } label: { gridChipLabel("MIDI / Health", "pianokeys.inverse") }
+                }
+                toolGroup("Visual & Learn") {
+                    #if canImport(MetalKit) && canImport(UIKit)
+                    gridChip("Visual", "sparkles") { showVisual = true }
+                    #endif
+                    gridChip("Learn", "book") { showLearn = true }
+                }
+                Text("Echoel \(Self.appVersionString)")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
         }
-        .accessibilityLabel("Tools — quick access")
     }
 
-    /// A compact tool chip for the always-visible front-page tools bar (no dropdown).
-    private func toolChip(_ title: String, _ systemImage: String,
+    /// A titled group of tool chips in a wrapping 2-column grid (everything visible,
+    /// no horizontal hiding). Plain title (no eyebrow/uppercase per Uncodixfy).
+    private func toolGroup<Content: View>(_ title: String,
+                                          @ViewBuilder _ chips: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
+                                GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                chips()
+            }
+        }
+    }
+
+    /// A full-width tool chip (fills its grid cell, left-aligned) opening an editor.
+    private func gridChip(_ title: String, _ systemImage: String,
                           _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { chipLabel(title, systemImage) }
+        Button(action: action) { gridChipLabel(title, systemImage) }
+            .buttonStyle(.plain)
             .accessibilityLabel(title)
     }
 
-    private func chipLabel(_ title: String, _ systemImage: String) -> some View {
+    /// The chip label content — shared by plain-button and Menu-label chips.
+    private func gridChipLabel(_ title: String, _ systemImage: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: systemImage).font(.system(size: 13))
-            Text(title).font(EchoelTheme.font(12, .semibold))
+            Text(title).font(EchoelTheme.font(12, .semibold)).lineLimit(1)
+            Spacer(minLength: 0)
         }
         .foregroundStyle(EchoelTheme.text)
         .padding(.horizontal, 12).frame(height: 40)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
