@@ -48,6 +48,18 @@ DEPLOY: bumped .deploy/release → v10.38.0 carrying Audio Clips + MIDI import +
     28–180 Hz (off-key); now octave-FOLDS (keeps pitch class) + dropped the dissonant 3rd-harmonic fifth
     & heavy tanh (clean h1+octave). (3) STEAL PORTAMENTO — stolen voices glided ~16 ms into pitch; now
     prepareForNote snaps pitch (smoothedFreq=-1) always, phases/amp still preserved (no click). [12153ab]
+  >>> CORRECTION (2nd, evidence-based): there ARE TWO Apple-side upload failure modes, both on a valid
+      signed archive: (a) TRANSIENT 503 "Service Temporarily Unavailable"/auth (first v10.39.0 attempt
+      — fixed by re-trigger + testflight.yml retry hardening [ae360d3]); and (b) a REAL per-app DAILY
+      UPLOAD LIMIT — Apple literally returns "Upload limit reached. The upload limit for your
+      application has been reached. Please wait 1 day and try again." (v10.38.0 AND v10.39.2). So the
+      founder's "no upload limit" is contradicted by Apple's own API: there IS a daily limit, hit after
+      many deploys/day. v10.39.0 SHIPPED [d7a4648] before the limit re-exhausted. v10.39.1 (pan) +
+      v10.39.2 (brightness) are gate-green but BLOCKED on the limit — they upload after ~24h reset with
+      ONE bump. Lesson: distinguish 503 (retry) from "Upload limit reached" (wait for reset, don't hammer).
+  >>> SUPERSEDES the earlier "no limit" note: there was indeed a transient 503 once, but the daily limit
+      is real. Both true.
+  --- (earlier, now-superseded note kept for history): ---
   >>> FOUNDER CORRECTION (confirmed by logs): there is NO TestFlight upload limit. The v10.38.0 and
       first v10.39.0 upload failures were TRANSIENT APPLE ASC OUTAGES — "503 Service Temporarily
       Unavailable" / "Unable to authenticate with App Store Connect" / "No Accounts with App Store

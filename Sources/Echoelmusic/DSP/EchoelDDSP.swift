@@ -136,6 +136,12 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Base filter cutoff (before modulation) [20-20000 Hz]
     public var filterCutoff: Float = 220.0     // Warm, dark start — opens with coherence
 
+    /// External cutoff multiplier (1 = no change), e.g. driven by parameter
+    /// automation. Applied on top of the base cutoff + LFO in the render. A plain
+    /// Float written from the control side and read on the audio thread (aligned-word
+    /// atomic, same discipline as other render params); off (1.0) is bit-identical.
+    public var renderCutoffScale: Float = 1.0
+
     /// Isochronic brainwave entrainment
     public let entrainment = EchoelEntrainment(sampleRate: 48000)
 
@@ -756,7 +762,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             // --- Resonant Filter (SVF) ---
             // LFO modulates filter cutoff around the base cutoff
             let lfoMod = filterLFO.next()  // [-depth, +depth]
-            let modulatedCutoff = max(20, min(filterCutoff * (1.0 + lfoMod * lfoToFilterDepth), 18000))
+            let modulatedCutoff = max(20, min(filterCutoff * renderCutoffScale * (1.0 + lfoMod * lfoToFilterDepth), 18000))
             // One-pole smooth the target so bio/LFO cutoff steps don't zipper the SVF.
             // Seed on first sample to avoid a startup sweep. coeff ~0.01 ≈ a few-ms glide.
             if smoothedCutoff < 0 { smoothedCutoff = modulatedCutoff }
@@ -1255,6 +1261,13 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         unisonDetuneCents = min(max(detuneCents, 0), 50)
     }
 
+    /// Global filter-cutoff multiplier (1 = no change), fanned to every voice in the
+    /// render. Driven by parameter automation; clamped to a musical range.
+    public var cutoffScale: Float = 1.0
+    public func setCutoffScale(_ scale: Float) {
+        cutoffScale = min(max(scale.isFinite ? scale : 1, 0.1), 8)
+    }
+
     // MARK: - Note Control
 
     /// MIDI note on
@@ -1434,6 +1447,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // Render any voice still producing sound — held notes AND release
             // tails of notes already noteOff'd (voiceNotes == -1 but still ringing).
             guard voiceNotes[i] >= 0 || voices[i].isActive else { continue }
+
+            // Fan the global cutoff scale (automation) to the voice before it renders.
+            voices[i].renderCutoffScale = cutoffScale
 
             // Render voice mono
             memset(&voiceBuffer, 0, frameCount * MemoryLayout<Float>.size)

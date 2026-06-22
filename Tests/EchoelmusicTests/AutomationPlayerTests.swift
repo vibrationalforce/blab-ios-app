@@ -10,15 +10,18 @@ final class AutomationPlayerTests: XCTestCase {
 
     func testTargetMappingRoundTrips() {
         for target in AutomationTarget.allCases {
+            // normalized∘value is identity on [0,1] for every target (linear or log).
             let real = target.value(forNormalized: 0.5)
-            XCTAssertEqual(real, (target.minValue + target.maxValue) / 2, accuracy: 1e-9)
-            // normalized∘value is identity on [0,1].
-            let back = target.normalized(forValue: real)
-            XCTAssertEqual(back, 0.5, accuracy: 1e-9)
+            XCTAssertEqual(target.normalized(forValue: real), 0.5, accuracy: 1e-9)
+            // Endpoints map to the declared range.
+            XCTAssertEqual(target.value(forNormalized: 0), target.minValue, accuracy: 1e-6)
+            XCTAssertEqual(target.value(forNormalized: 1), target.maxValue, accuracy: 1e-6)
         }
         XCTAssertEqual(AutomationTarget.tempo.value(forNormalized: 0), 40, accuracy: 1e-9)
         XCTAssertEqual(AutomationTarget.tempo.value(forNormalized: 1), 220, accuracy: 1e-9)
         XCTAssertEqual(AutomationTarget.masterLevel.value(forNormalized: 1), 1, accuracy: 1e-9)
+        // Filter cutoff is log-mapped: ×1 sits at the centre (0.5).
+        XCTAssertEqual(AutomationTarget.filterCutoff.value(forNormalized: 0.5), 1, accuracy: 1e-6)
     }
 
     func testMappingClampsOutOfRange() {

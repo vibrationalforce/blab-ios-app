@@ -252,7 +252,7 @@ struct EchoelmusicApp: App {
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
-                automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine)
+                automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
 

@@ -20,36 +20,68 @@ import Observation
 public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifiable {
     case masterLevel
     case tempo
+    case filterCutoff
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
-        case .masterLevel: return "Master Level"
-        case .tempo:       return "Tempo"
+        case .masterLevel:  return "Master Level"
+        case .tempo:        return "Tempo"
+        case .filterCutoff: return "Filter Cutoff"
         }
     }
 
     public var unit: String {
         switch self {
-        case .masterLevel: return ""
-        case .tempo:       return "BPM"
+        case .masterLevel:  return ""
+        case .tempo:        return "BPM"
+        case .filterCutoff: return "×"
         }
     }
 
     /// Real-world value range the normalized lane maps onto.
-    public var minValue: Double { self == .tempo ? 40 : 0 }
-    public var maxValue: Double { self == .tempo ? 220 : 1 }
+    public var minValue: Double {
+        switch self {
+        case .tempo:        return 40
+        case .filterCutoff: return 0.25
+        case .masterLevel:  return 0
+        }
+    }
+    public var maxValue: Double {
+        switch self {
+        case .tempo:        return 220
+        case .filterCutoff: return 4
+        case .masterLevel:  return 1
+        }
+    }
     public var decimals: Int { self == .tempo ? 0 : 2 }
 
-    /// Map a normalized [0...1] lane value to the real parameter value.
+    /// Neutral value (no audible effect) when a lane is empty / automation off.
+    public var neutralValue: Double {
+        switch self {
+        case .filterCutoff: return 1        // ×1 = unchanged cutoff
+        case .masterLevel:  return 1
+        case .tempo:        return 120
+        }
+    }
+
+    /// Map a normalized [0...1] lane value to the real parameter value. Filter cutoff
+    /// uses a log (octave) curve so 0.5 sits at ×1; the rest are linear.
     public func value(forNormalized n: Double) -> Double {
         let c = Swift.min(1, Swift.max(0, n))
+        if self == .filterCutoff {
+            return minValue * pow(maxValue / minValue, c)   // 0.25…4, ×1 at c=0.5
+        }
         return minValue + c * (maxValue - minValue)
     }
 
     /// Inverse: real value → normalized [0...1] (for editing in real units).
     public func normalized(forValue v: Double) -> Double {
+        if self == .filterCutoff {
+            let cv = Swift.min(maxValue, Swift.max(minValue, v))
+            return Swift.min(1, Swift.max(0, log(cv / minValue) / log(maxValue / minValue)))
+        }
         let span = maxValue - minValue
         guard span > 0 else { return 0 }
         return Swift.min(1, Swift.max(0, (v - minValue) / span))
@@ -77,6 +109,7 @@ public final class AutomationPlayer {
 
     @ObservationIgnored private weak var pattern: PatternEngine?
     @ObservationIgnored private weak var audioEngine: AudioEngine?
+    @ObservationIgnored private weak var voice: PolySynthVoice?
     @ObservationIgnored private let store = AppGroupStore(subdirectory: "Automation")
     @ObservationIgnored private static let fileName = "automation"
 
@@ -100,10 +133,11 @@ public final class AutomationPlayer {
 
     // MARK: - Wiring
 
-    /// Connect the live transport + master so applied values land somewhere.
-    public func wire(pattern: PatternEngine, audioEngine: AudioEngine) {
+    /// Connect the live transport + master + synth so applied values land somewhere.
+    public func wire(pattern: PatternEngine, audioEngine: AudioEngine, voice: PolySynthVoice? = nil) {
         self.pattern = pattern
         self.audioEngine = audioEngine
+        self.voice = voice
     }
 
     // MARK: - Playback (called each transport step on the shared clock)
@@ -111,12 +145,17 @@ public final class AutomationPlayer {
     /// Apply every enabled lane's value at `step` to its live parameter. Per-bar:
     /// the step maps to a tick within one bar, so the lane repeats each loop.
     public func applyStep(_ step: Int) {
-        guard enabled else { return }
+        // When automation is off, release the hidden multiplier so the synth isn't
+        // left filtered; master/tempo stay where they are (user-visible).
+        guard enabled else { voice?.setCutoffScale(1); return }
         for target in AutomationTarget.allCases {
-            guard let real = appliedValue(for: target, atStep: step) else { continue }
+            let real = appliedValue(for: target, atStep: step)
             switch target {
-            case .masterLevel: audioEngine?.masterVolume = Float(real)
-            case .tempo:       pattern?.setTempo(real)
+            case .masterLevel: if let r = real { audioEngine?.masterVolume = Float(r) }
+            case .tempo:       if let r = real { pattern?.setTempo(r) }
+            // Filter cutoff is a hidden multiplier → reset to neutral (×1) when its
+            // lane is empty, so an unused lane never leaves the sound filtered.
+            case .filterCutoff: voice?.setCutoffScale(Float(real ?? target.neutralValue))
             }
         }
     }
