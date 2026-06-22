@@ -115,6 +115,45 @@ public enum SpectralColor {
         return oklabToLinear(OKLab(L: L / wSum, a: a / wSum, b: b / wSum))
     }
 
+    // MARK: Audible → visible spectrum (per-band donut visualization)
+
+    /// Translate an audible frequency to a VISIBLE-spectrum colour by mapping the
+    /// (log) audible range onto wavelengths 700 nm (low → red) … 400 nm (high → violet),
+    /// then wavelength → RGB. Unlike `oklab(forFrequency:)` (octave-CYCLIC pitch-class
+    /// hue, so partials of one note collapse onto one hue), this spreads the WHOLE
+    /// spectrum across the whole visible range so fundamentals, partials and overtones
+    /// each read as a DISTINCT colour — the founder's "translate the audible+feelable
+    /// spectrum into the visible spectrum" for the concentric-donut visual.
+    public static func visibleColor(forFrequency hz: Double, fMin: Double = 30, fMax: Double = 16000) -> LinearRGB {
+        guard hz > 0, hz.isFinite, fMax > fMin, fMin > 0 else { return neutral }
+        let t = clamp01(log(hz / fMin) / log(fMax / fMin))
+        let wavelength = 700.0 - t * (700.0 - 400.0)   // low freq → 700 (red), high → 400 (violet)
+        return wavelengthToLinearRGB(wavelength)
+    }
+
+    /// Approximate visible wavelength (nm) → RGB (Bruton-style piecewise ramp with
+    /// end-of-range intensity falloff). Used as a perceptual *visualization* mapping,
+    /// not a colorimetric claim.
+    public static func wavelengthToLinearRGB(_ wl: Double) -> LinearRGB {
+        var r = 0.0, g = 0.0, b = 0.0
+        switch wl {
+        case ..<440:      r = -(wl - 440) / (440 - 380); g = 0;                      b = 1
+        case 440..<490:   r = 0;                         g = (wl - 440) / (490 - 440); b = 1
+        case 490..<510:   r = 0;                         g = 1;                      b = -(wl - 510) / (510 - 490)
+        case 510..<580:   r = (wl - 510) / (580 - 510);  g = 1;                      b = 0
+        case 580..<645:   r = 1;                         g = -(wl - 645) / (645 - 580); b = 0
+        default:          r = 1;                         g = 0;                      b = 0
+        }
+        // Dim the deep-violet and deep-red extremes (eye sensitivity falloff).
+        let factor: Double
+        switch wl {
+        case ..<420:      factor = 0.3 + 0.7 * (wl - 380) / (420 - 380)
+        case 420...700:   factor = 1.0
+        default:          factor = max(0.3, 0.3 + 0.7 * (780 - wl) / (780 - 700))
+        }
+        return LinearRGB(r: clamp01(r * factor), g: clamp01(g * factor), b: clamp01(b * factor))
+    }
+
     // MARK: OKLab → linear sRGB (Ottosson 2020)
 
     public static func oklabToLinear(_ c: OKLab) -> LinearRGB {
