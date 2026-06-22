@@ -79,6 +79,24 @@ SHIPPED [41c3995 model + f546bb4 UI, BOTH gate-green]: CHANNEL RACK — first pe
   NB: GitHub Actions MCP read endpoints cache aggressively (~frozen snapshot for many min) — verify via
   list_workflow_runs?status=completed once the cache clears, not rapid job polls. → deploy v10.36.0.
 NEXT: per-track INSERT FX (plug an FX chain per channel) → then unison/detune (ensemble), multitrack.
+
+### 2026-06-22 (cont.) — Autonomous mode: per-channel insert FX (both drum paths)
+Founder: "Alles überprüfen und weiterarbeiten ohne Zwischenfragen. Sicher, funktionierend, brand stark"
+→ continuous loop, no permission-asking; report results not questions; TODO.md is the live list.
+SHIPPED:
+  - ChannelInsertFX DSP core (RBJ biquad LP/HP + tanh drive), 7 tests [c928777, GREEN].
+  - Insert FX wired into the SAMPLE path (SamplerVoice render) + BeatPlayer.ChannelFX persistence +
+    Channel Rack UI (Filter/Cutoff/Drive). audio-thread-reviewer PASS. Fixed FX sample-rate to 44.1k.
+    [af16574, GREEN] → deploy v10.37.0.
+  - Insert FX extended to the SYNTH path (DrumSynthVoice); BeatPlayer.applyFX pushes to BOTH voices so
+    FX applies in any pad mode. [287a68d — CI confirm pending the MCP cache; same reviewed pattern.]
+  - TODO.md created [c568d5b] as the Ralph-loop list; adapted the founder's bash-loop intent to this
+    repo (feature branch not per-task+main-merge; .deploy/release not fastlane beta; no recursive
+    `claude --auto`). 
+NOTE: GitHub Actions MCP endpoints cache ~frozen for many minutes — verify via
+  list_workflow_runs?status=completed once cache clears; the per-run/per-job GETs also cache.
+NEXT (autonomous): Audio clips playable (AVAudioPlayerNode trim/loop) → automation playback wiring →
+  multitrack timeline → video (AVAssetWriter + AVPlayer). Hold each commit to compile-gate green.
 OPEN (next dedicated cycles, told founder honestly): unison/detune (additive N×64 → ensemble/chorus
   approach), per-track insert FX + Channel-Rack, multi-track arrangement + automation PLAYBACK wiring
   (needs authoring UI + param registry), claims-lint with negation handling, light fixture library.
