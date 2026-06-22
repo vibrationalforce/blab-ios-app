@@ -32,12 +32,19 @@ import Foundation
 @Observable
 public final class SubBassVoice {
 
-    /// User-pushable sub level [0...1]. Default 0 — the sub is silent until the
-    /// performer pushes the "Sub / Bass" slider, so launch and first play are
-    /// unchanged. MainActor-isolated (UI binding); the audio thread reads its
-    /// nonisolated mirror `_subGain` instead (a MainActor property can't be read
-    /// from the nonisolated render block — same bridge as PolySynthVoice's params).
-    public var subGain: Float = 0 {
+    /// Default felt-sub level. Non-zero by founder decision ("felt sub by
+    /// default") so the body's bass is FELT on first play without hunting for a
+    /// slider. Launch silence is still guaranteed: the render stays pure-zero
+    /// until the first armed bass note (`hasEverSounded`), so nothing sounds at
+    /// launch — this only sets how loud the sub is once a bass note plays.
+    public static let defaultSubGain: Float = 0.35
+
+    /// User-pushable sub level [0...1]. Defaults to `defaultSubGain` so the felt
+    /// sub is present by default; the performer can still pull it to 0 or push it
+    /// up. MainActor-isolated (UI binding); the audio thread reads its nonisolated
+    /// mirror `audioSubGain` instead (a MainActor property can't be read from the
+    /// nonisolated render block — same bridge as PolySynthVoice's params).
+    public var subGain: Float = SubBassVoice.defaultSubGain {
         didSet { audioSubGain = min(max(subGain, 0), 1) }
     }
 
@@ -45,7 +52,7 @@ public final class SubBassVoice {
     /// read on the audio thread. Float-atomic width on Apple → no torn reads.
     /// NB: not named `_subGain` — that collides with the @Observable macro's backing.
     @ObservationIgnored
-    nonisolated(unsafe) private var audioSubGain: Float = 0
+    nonisolated(unsafe) private var audioSubGain: Float = SubBassVoice.defaultSubGain
 
     @ObservationIgnored
     nonisolated(unsafe) private var a4Hz: Float = 440
@@ -179,10 +186,19 @@ public final class SubBassVoice {
             phase += twoPi * currentFreq / sr
             if phase > twoPi { phase -= twoPi }
 
-            // Sine fundamental (the felt sub) + gentle tanh saturation so its odd
-            // harmonics make the bass audible on small phone speakers too.
-            let s = sinf(phase)
-            let shaped = tanhf(s * 1.6) * 0.62
+            // Missing-fundamental synthesis: the true sub fundamental (28–55 Hz)
+            // is below most phone/laptop speakers, so we add the 2nd + 3rd
+            // harmonics off the SAME phase accumulator. The ear reconstructs the
+            // (unreproduced) fundamental from the harmonic spacing, so the bass
+            // reads at full pitch on small speakers yet is still FELT in full on
+            // a sub/haptics. Integer multiples of one phase → no extra state,
+            // all C math (audio-thread safe).
+            let h1 = sinf(phase)
+            let h2 = sinf(2 * phase) * 0.5
+            let h3 = sinf(3 * phase) * 0.33
+            // Soft-saturate the blend (adds further odd harmonics) and trim the
+            // gain so the richer spectrum doesn't clip.
+            let shaped = tanhf((h1 + h2 + h3) * 1.3) * 0.5
             let out = shaped * env * smoothedGain
 
             for buffer in abl {
