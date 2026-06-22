@@ -134,9 +134,11 @@ Stalling → inject minimal novelty, not complexity.
   - [ ] NEXT: time-evolving timbre (bright attack→darker sustain; envelope-tracked filter)
   - [ ] Use the noise bank for body/air per patch (patches are all noiseLevel:0)
   - [ ] Brand-consistent named instrument palette
-- [ ] **Phase 3 — composition techniques** (motif dev, tension arc, call&response,
-      harmonic-rhythm lever, counterpoint, arrangement layering, breath-phase phrasing
-      across ALL styles — currently only ambient/trap use breathPhase)
+- [~] **Phase 3 — composition techniques (begun):**
+  - [x] Coherence-aware groove sparsity (beat settles with the body; v10.45.0)
+  - [x] (found already present) breath-phase contour bias in harmonic lead
+  - [ ] motif development, tension arc, call&response, harmonic-rhythm lever,
+        counterpoint, arrangement layering
 - [ ] **Phase 4 — completeness** (adaptive JI, user tunings, all roots×scales×tunings tested)
 
 All Phase-1/2 slices: pure helpers + unit tests in BioComposerTests; compile+CI green;
