@@ -57,6 +57,13 @@ public final class BeatPlayer {
     /// Per-track synth (modal) drum params, persisted.
     public private(set) var synthParams: [DrumSynthParams]
 
+    /// Per-track MUTE — a muted channel never sounds. Persisted (Channel Rack).
+    public private(set) var mutes: [Bool]
+
+    /// Per-track SOLO — if ANY channel is soloed, only soloed channels sound.
+    /// Persisted (Channel Rack).
+    public private(set) var solos: [Bool]
+
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private var attachedSourceNodes: [AVAudioSourceNode] = []
 
@@ -69,11 +76,24 @@ public final class BeatPlayer {
         self.shapes = Self.trackNames.map { _ in PadShape() }
         self.modes = Self.trackNames.map { _ in .sample }
         self.synthParams = Self.trackNames.map { _ in DrumSynthParams() }
+        self.mutes = Self.trackNames.map { _ in false }
+        self.solos = Self.trackNames.map { _ in false }
     }
 
     private static func shapeKey(_ track: Int) -> String { "echoel.beat.shape.\(track)" }
     private static func modeKey(_ track: Int) -> String { "echoel.beat.mode.\(track)" }
     private static func synthKey(_ track: Int) -> String { "echoel.beat.synth.\(track)" }
+    private static func muteKey(_ track: Int) -> String { "echoel.beat.mute.\(track)" }
+    private static func soloKey(_ track: Int) -> String { "echoel.beat.solo.\(track)" }
+
+    /// Pure mixer rule (testable, no audio): a track sounds when it is not muted
+    /// AND (nothing is soloed, OR this track is one of the soloed ones).
+    nonisolated public static func shouldSound(track: Int, mutes: [Bool], solos: [Bool]) -> Bool {
+        guard mutes.indices.contains(track), solos.indices.contains(track) else { return true }
+        if mutes[track] { return false }
+        let anySolo = solos.contains(true)
+        return !anySolo || solos[track]
+    }
 
     /// Apply a track's shape to its voice (audio thread reads it on next render).
     private func applyShape(_ track: Int) {
@@ -89,6 +109,28 @@ public final class BeatPlayer {
         applyShape(track)
         if let data = try? JSONEncoder().encode(shape) {
             UserDefaults.standard.set(data, forKey: Self.shapeKey(track))
+        }
+    }
+
+    /// Set a channel's MUTE and persist it (Channel Rack).
+    public func setMute(track: Int, _ on: Bool) {
+        guard mutes.indices.contains(track) else { return }
+        mutes[track] = on
+        UserDefaults.standard.set(on, forKey: Self.muteKey(track))
+    }
+
+    /// Set a channel's SOLO and persist it (Channel Rack).
+    public func setSolo(track: Int, _ on: Bool) {
+        guard solos.indices.contains(track) else { return }
+        solos[track] = on
+        UserDefaults.standard.set(on, forKey: Self.soloKey(track))
+    }
+
+    /// Clear every solo (Channel Rack "exit solo").
+    public func clearSolos() {
+        for i in solos.indices where solos[i] {
+            solos[i] = false
+            UserDefaults.standard.set(false, forKey: Self.soloKey(i))
         }
     }
 
@@ -147,8 +189,13 @@ public final class BeatPlayer {
     }
 
     /// Trigger a pad through its current sound source (sample / synth / blend).
-    private func trigger(track: Int, gain: Float) {
+    /// `respectMix` gates on the Channel Rack mute/solo state (sequencer playback);
+    /// manual pad auditions pass `false` so an explicit tap always sounds.
+    private func trigger(track: Int, gain: Float, respectMix: Bool = true) {
         guard voices.indices.contains(track) else { return }
+        // Channel Rack: a muted channel — or a non-soloed one while any solo is
+        // active — does not sound. Pure control-plane gate (no audio-graph change).
+        if respectMix, !Self.shouldSound(track: track, mutes: mutes, solos: solos) { return }
         switch modes[track] {
         case .sample:
             voices[track].fire(gain: gain)
@@ -201,6 +248,15 @@ public final class BeatPlayer {
         restoreCustomSamples()
         restoreShapes()
         restoreModesAndSynth()
+        restoreMix()
+    }
+
+    /// Restore persisted Channel-Rack mute/solo state.
+    private func restoreMix() {
+        for i in Self.trackNames.indices {
+            mutes[i] = UserDefaults.standard.bool(forKey: Self.muteKey(i))
+            solos[i] = UserDefaults.standard.bool(forKey: Self.soloKey(i))
+        }
     }
 
     /// Re-loads any user-imported samples saved as security-scoped bookmarks on
@@ -296,7 +352,7 @@ public final class BeatPlayer {
     /// Manually fires one pad — used by drum-pad taps in BeatTab. Routes through
     /// the pad's current sound source (sample / synth / blend).
     public func playPad(_ track: Int) {
-        trigger(track: track, gain: 1.0)
+        trigger(track: track, gain: 1.0, respectMix: false)
     }
 
     // MARK: - Sample browser support
