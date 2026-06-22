@@ -22,10 +22,10 @@ build → test → **Xcode Compile Check green** → ship via `.deploy/release` 
 - [x] Brighter / livelier default tone (genre patches)
 - [x] Channel Rack — per-track Level · Mute · Solo (tested)
 - [x] Per-channel insert FX (filter + drive) — drum **sample** path
+- [x] Per-channel insert FX — **synth-drum** path (DrumSynthVoice) *(CI confirm pending cache)*
 
 ## Open — DAW / media depth
-- [ ] Per-channel insert FX on the **synth-drum** path (DrumSynthVoice)
-- [ ] Audio clips **playable** (AVAudioPlayerNode, trim/loop) — makes the audio lane real
+- [ ] Audio clips **playable** (AVAudioPlayerNode, trim/loop) — makes the audio lane real ← NEXT
 - [ ] Automation **playback** wiring (read AutomationLane during transport) + authoring UI
 - [ ] Multi-track arrangement timeline (parallel lanes, 2-D grid)
 - [ ] Video: **recording** (AVAssetWriter) + **clip playback** (AVPlayer), transport-synced
