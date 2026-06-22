@@ -152,6 +152,7 @@ struct EchoelStudioView: View {
     @State private var showBroadcast = false
     @State private var showPatchEditor = false
     @State private var showChannelRack = false
+    @State private var showAudioClip = false
     @State private var showVisual = false
     @State private var showBreath = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
@@ -249,6 +250,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showPlugins) { AUv3BrowserView() }
         .sheet(isPresented: $showLearn) { LearnView() }
         .sheet(isPresented: $showChannelRack) { ChannelRackView() }
+        .sheet(isPresented: $showAudioClip) { AudioClipView() }
         .sheet(isPresented: $showBroadcast) { BroadcastView() }
         .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
         .sheet(isPresented: $showPatchEditor) {
@@ -367,6 +369,7 @@ struct EchoelStudioView: View {
                 }
                 toolGroup("Audio & Bio") {
                     gridChip("Audio In", "mic") { showInput = true }
+                    gridChip("Audio Clip", "waveform") { showAudioClip = true }
                     gridChip("Breathing", "wind") { showBreath = true }
                 }
                 toolGroup("Connect") {

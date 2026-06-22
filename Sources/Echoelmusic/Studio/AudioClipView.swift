@@ -1,0 +1,148 @@
+#if canImport(SwiftUI)
+import SwiftUI
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
+
+// AudioClipView.swift
+// Echoel — import an audio file and play it as a CLIP: trim in/out, loop, gain,
+// with Play/Stop. Drives a self-contained AudioClipPlayer attached additively to
+// the master mix (no master-output surgery). First real, playable audio-clip
+// surface; the timeline/ClipStore wiring builds on the same player next.
+
+@MainActor
+struct AudioClipView: View {
+
+    @Environment(AudioEngine.self) private var audioEngine
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var player = AudioClipPlayer()
+    @State private var region = AudioClipRegion()
+    @State private var importerPresented = false
+    @State private var scopedURL: URL?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    fileRow
+                    if player.loadedURL != nil {
+                        regionControls
+                        transport
+                    } else {
+                        Text("Import an audio file (WAV · AIFF · MP3 · M4A · …) to play it as a clip — trim, loop and set its level.")
+                            .font(EchoelTheme.font(13))
+                            .foregroundStyle(EchoelTheme.dim)
+                            .padding(.top, 4)
+                    }
+                }
+                .padding(16)
+            }
+            .background(EchoelTheme.bg.ignoresSafeArea())
+            .navigationTitle("Audio Clip")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            #if canImport(UniformTypeIdentifiers)
+            .fileImporter(isPresented: $importerPresented,
+                          allowedContentTypes: [.audio],
+                          allowsMultipleSelection: false) { result in
+                if case .success(let urls) = result, let url = urls.first { load(url) }
+            }
+            #endif
+            .onDisappear {
+                player.detach()
+                if let s = scopedURL { s.stopAccessingSecurityScopedResource(); scopedURL = nil }
+            }
+        }
+    }
+
+    private var fileRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "waveform").foregroundStyle(EchoelTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(player.loadedURL?.lastPathComponent ?? "No file")
+                    .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text).lineLimit(1)
+                if player.durationSeconds > 0 {
+                    Text(String(format: "%.2f s", player.durationSeconds))
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                }
+            }
+            Spacer(minLength: 0)
+            Button("Import") { importerPresented = true }
+                .font(EchoelTheme.font(13, .semibold))
+                .foregroundStyle(EchoelTheme.onPrimary)
+                .padding(.horizontal, 14).frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
+                .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    private var regionControls: some View {
+        VStack(spacing: 10) {
+            EchoelValueField(label: "Start", value: secondsBinding(\.startSeconds),
+                             range: 0...Float(max(0.01, player.durationSeconds)), unit: "s", decimals: 2)
+            EchoelValueField(label: "End", value: secondsBinding(\.endSeconds),
+                             range: 0...Float(max(0.01, player.durationSeconds)), unit: "s", decimals: 2)
+            EchoelValueField(label: "Gain", value: gainBinding, range: 0...2, unit: "", decimals: 2)
+            Toggle(isOn: loopBinding) {
+                Text("Loop").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+        }
+    }
+
+    private var transport: some View {
+        HStack(spacing: 10) {
+            Button { player.play(region: region) } label: {
+                Label("Play", systemImage: "play.fill")
+                    .font(EchoelTheme.font(14, .semibold))
+                    .foregroundStyle(EchoelTheme.onPrimary)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent))
+            }
+            .buttonStyle(.plain)
+            Button { player.stop() } label: {
+                Label("Stop", systemImage: "stop.fill")
+                    .font(EchoelTheme.font(14, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(!player.isPlaying)
+        }
+    }
+
+    private func load(_ url: URL) {
+        // Release any previous scope, claim the new one for the player's lifetime.
+        if let s = scopedURL { s.stopAccessingSecurityScopedResource() }
+        let scoped = url.startAccessingSecurityScopedResource()
+        scopedURL = scoped ? url : nil
+        player.attach(to: audioEngine)
+        if player.load(url: url) {
+            region = AudioClipRegion(startSeconds: 0, endSeconds: player.durationSeconds, loop: false)
+        }
+    }
+
+    // MARK: Bindings (Double seconds ↔ Float field), re-applied to `region`.
+
+    private func secondsBinding(_ keyPath: WritableKeyPath<AudioClipRegion, Double>) -> Binding<Float> {
+        Binding(
+            get: { Float(region[keyPath: keyPath]) },
+            set: { region[keyPath: keyPath] = Double($0) }
+        )
+    }
+    private var gainBinding: Binding<Float> {
+        Binding(get: { region.gain }, set: { region.gain = $0 })
+    }
+    private var loopBinding: Binding<Bool> {
+        Binding(get: { region.loop }, set: { region.loop = $0 })
+    }
+}
+#endif
