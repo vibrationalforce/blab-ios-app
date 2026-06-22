@@ -44,14 +44,14 @@ struct WorkspaceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            surfacePicker
-            Divider().overlay(EchoelTheme.border)
             ZStack {
                 surfaceLayer(.arrange) { ArrangementView(embedded: true) }
                 surfaceLayer(.clips)   { ClipView(embedded: true) }
                 surfaceLayer(.compose) { EchoelStudioView() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider().overlay(EchoelTheme.border)
+            bottomBar
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
     }
@@ -68,28 +68,29 @@ struct WorkspaceView: View {
             .accessibilityHidden(!active)
     }
 
-    private var surfacePicker: some View {
-        HStack(spacing: 8) {
+    /// Persistent bottom navigation — always visible ("durchgehend zu sehen"), one
+    /// equal-width tab per surface (icon over label). Chrome-only: surfaces stay
+    /// mounted in the ZStack above, so switching never touches the Compose audio
+    /// lifecycle. Uncodixfy-compliant (EchoelTheme, top border, no glow/scale).
+    private var bottomBar: some View {
+        HStack(spacing: 0) {
             ForEach(Surface.allCases) { s in
                 Button { surfaceRaw = s.rawValue } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: s.systemImage).font(.system(size: 13))
-                        Text(s.title).font(EchoelTheme.font(13, .semibold))
+                    VStack(spacing: 3) {
+                        Image(systemName: s.systemImage).font(.system(size: 17, weight: .medium))
+                        Text(s.title).font(EchoelTheme.font(10, .medium))
                     }
-                    .foregroundStyle(surface == s ? EchoelTheme.onPrimary : EchoelTheme.text)
-                    .padding(.horizontal, 14).frame(height: 38)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(surface == s ? EchoelTheme.text : EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(EchoelTheme.border, lineWidth: surface == s ? 0 : 1))
+                    .foregroundStyle(surface == s ? EchoelTheme.accent : EchoelTheme.dim)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(s.title)
                 .accessibilityAddTraits(surface == s ? .isSelected : [])
             }
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(EchoelTheme.bg)
     }
 }
 #endif
