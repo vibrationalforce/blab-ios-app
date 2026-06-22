@@ -216,6 +216,12 @@ public final class PolySynthVoice {
         poly.setUnison(count: count, detuneCents: detuneCents)
     }
 
+    /// Global filter-cutoff multiplier (1 = no change), driven by parameter
+    /// automation. Atomic write; takes effect on the next render block.
+    public func setCutoffScale(_ scale: Float) {
+        poly.setCutoffScale(scale)
+    }
+
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
 
     /// Begin polling `bus.latestBio` at 10 Hz and fanning bio modulation across
