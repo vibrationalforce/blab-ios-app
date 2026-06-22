@@ -64,16 +64,20 @@ struct WorkspaceView: View {
     /// you always know which build you're on. Uncodixfy-compliant (solid bg, 1px
     /// border, no glow).
     private var topBar: some View {
-        HStack(spacing: 10) {
-            EchoelLogoMark().frame(width: 26, height: 26)
-            Spacer(minLength: 0)
+        ZStack {
+            // "Echoelmusic" truly centred (founder), independent of the logo/version
+            // widths on either side.
             Text("Echoelmusic")
                 .font(EchoelTheme.font(15, .semibold))
                 .foregroundStyle(EchoelTheme.text)
-            Text(Self.versionString)
-                .font(EchoelTheme.font(11))
-                .foregroundStyle(EchoelTheme.dim)
-                .accessibilityLabel("Version \(Self.versionString)")
+            HStack(spacing: 10) {
+                EchoelLogoMark().frame(width: 26, height: 26)
+                Spacer(minLength: 0)
+                Text(Self.versionString)
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .accessibilityLabel("Version \(Self.versionString)")
+            }
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
