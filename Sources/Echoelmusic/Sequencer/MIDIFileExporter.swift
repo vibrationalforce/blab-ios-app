@@ -23,6 +23,12 @@ public enum MIDIFileExporter {
     public static let ticksPerQuarter: UInt16 = 96
     private static var ticksPerStep: Int { Int(ticksPerQuarter) / 4 }
 
+    /// Convert a `Note` PPQ tick (480 PPQ) into this exporter's PPQ. On-grid notes
+    /// map identically; sub-step (unquantized) positions survive the export.
+    private static func exportTicks(noteTicks: Int) -> Int {
+        noteTicks * Int(ticksPerQuarter) / Note.ticksPerQuarter
+    }
+
     /// Build a Type-0 Standard MIDI File for the grid + tempo.
     /// - Parameters:
     ///   - steps: `steps[track][step] == true` triggers a note.
@@ -101,9 +107,9 @@ public enum MIDIFileExporter {
         var events: [Ev] = []
         for (i, n) in notes.enumerated() {
             let (tickDelta, velScale) = humanize.jitter(index: i, seed: seed)
-            let onTick = Swift.max(0, n.startStep * ticksPerStep + tickDelta)
+            let onTick = Swift.max(0, exportTicks(noteTicks: n.startTick) + tickDelta)
             // Preserve duration: shift the note-off with the note-on.
-            let offTick = onTick + n.lengthSteps * ticksPerStep
+            let offTick = onTick + Swift.max(1, exportTicks(noteTicks: n.lengthTicks))
             let note = UInt8(Swift.min(127, Swift.max(0, n.pitch)))
             let vel = UInt8(Swift.min(127, Swift.max(1, Int(n.velocity * 127 * velScale))))
             events.append(Ev(tick: onTick, on: true, note: note, vel: vel))
@@ -174,8 +180,8 @@ public enum MIDIFileExporter {
         var events: [MIDIEvent] = []
         for (i, n) in notes.enumerated() {
             let (tickDelta, velScale) = humanize.jitter(index: i, seed: seed)
-            let onTick = Swift.max(0, n.startStep * ticksPerStep + tickDelta)
-            let offTick = onTick + n.lengthSteps * ticksPerStep
+            let onTick = Swift.max(0, exportTicks(noteTicks: n.startTick) + tickDelta)
+            let offTick = onTick + Swift.max(1, exportTicks(noteTicks: n.lengthTicks))
             let note = UInt8(Swift.min(127, Swift.max(0, n.pitch)))
             let vel = UInt8(Swift.min(127, Swift.max(1, Int(n.velocity * 127 * velScale))))
             events.append(MIDIEvent(tick: onTick, on: true, status: 0x90, note: note, vel: vel))

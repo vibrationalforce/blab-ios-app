@@ -1,27 +1,40 @@
 // Note.swift
 // Echoel — the one note model shared by the piano roll, melody clips, and MIDI
-// export. A note has a pitch, a start step, a length in steps (≥1, so it can
-// sustain across step boundaries → legato), and a per-note velocity.
+// export. A note has a pitch, a start time, a length, and a per-note velocity.
 //
-// Step resolution matches the sequencer grid (16th notes). Sub-step timing is
-// out of scope for v1; a note starts on a step boundary and ends `lengthSteps`
-// later. See PLAN: "B1.1 — deep piano roll".
+// PRECISION: the underlying time unit is PPQ TICKS (pulses-per-quarter, the MIDI
+// standard), NOT steps. `ticksPerQuarter = 480` and the 16-step/bar grid means
+// `ticksPerStep = 120`. Ticks are the source of truth so notes can sit OFF the
+// step grid (unquantized capture, nudge, swing) and export sample-tight. The
+// familiar `startStep`/`lengthSteps` remain as computed views over the ticks, so
+// every existing call site (and the step-grid UI) keeps working unchanged.
 
 import Foundation
 
-/// A single melodic note on the step grid.
+/// A single melodic note, timed in PPQ ticks.
 ///
-/// `startStep` is the 0-based step it begins on; `lengthSteps` is how many steps
-/// it sounds for (clamped to ≥1). `velocity` is normalized [0...1] and is carried
-/// straight into `ControllerEvent.value` when the note is triggered.
+/// `startTick` is the 0-based tick it begins on; `lengthTicks` is how long it
+/// sounds (clamped to ≥1 tick). `velocity` is normalized [0...1] and is carried
+/// straight into `ControllerEvent.value` when the note is triggered. The
+/// `startStep`/`lengthSteps` accessors quantize to/from the 16th-note grid.
 public struct Note: Codable, Sendable, Equatable, Identifiable {
+
+    /// PPQ resolution — ticks per quarter note (MIDI standard 480).
+    public static let ticksPerQuarter = 480
+    /// 16 steps per 4/4 bar → 4 steps per quarter → 120 ticks per step.
+    public static let ticksPerStep = ticksPerQuarter / 4   // = 120
 
     public var id: UUID
     public var pitch: Int
-    public var startStep: Int
-    public var lengthSteps: Int
+    /// Start time in PPQ ticks (≥0). Source of truth.
+    public var startTick: Int
+    /// Length in PPQ ticks (≥1). Source of truth.
+    public var lengthTicks: Int
     public var velocity: Float
 
+    // MARK: Init
+
+    /// Step-grid init (back-compatible). Steps are converted to ticks.
     public init(
         id: UUID = UUID(),
         pitch: Int,
@@ -30,17 +43,105 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         velocity: Float = 0.8
     ) {
         self.id = id
-        self.pitch = min(max(pitch, 0), 127)   // defensive: keep MIDI in range
-        self.startStep = startStep
-        self.lengthSteps = max(1, lengthSteps)
+        self.pitch = min(max(pitch, 0), 127)               // defensive: MIDI range
+        self.startTick = max(0, startStep) * Note.ticksPerStep
+        self.lengthTicks = max(1, lengthSteps) * Note.ticksPerStep
         self.velocity = min(max(velocity, 0), 1)
+    }
+
+    /// Tick-precise init — for unquantized capture / sub-step editing.
+    public init(
+        id: UUID = UUID(),
+        pitch: Int,
+        startTick: Int,
+        lengthTicks: Int,
+        velocity: Float = 0.8
+    ) {
+        self.id = id
+        self.pitch = min(max(pitch, 0), 127)
+        self.startTick = max(0, startTick)
+        self.lengthTicks = max(1, lengthTicks)
+        self.velocity = min(max(velocity, 0), 1)
+    }
+
+    // MARK: Step views (quantized to the 16th grid)
+
+    /// Start step on the 16th-note grid (rounds to the nearest step).
+    public var startStep: Int {
+        get { (startTick + Note.ticksPerStep / 2) / Note.ticksPerStep }
+        set { startTick = max(0, newValue) * Note.ticksPerStep }
+    }
+
+    /// Length in steps (≥1, rounds UP so a sub-step note still reads as one step).
+    public var lengthSteps: Int {
+        get { max(1, (lengthTicks + Note.ticksPerStep - 1) / Note.ticksPerStep) }
+        set { lengthTicks = max(1, newValue) * Note.ticksPerStep }
     }
 
     /// Exclusive end step: the first step at which the note is no longer held.
     public var endStep: Int { startStep + lengthSteps }
 
+    /// Exclusive end tick.
+    public var endTick: Int { startTick + lengthTicks }
+
+    // MARK: Queries / editing
+
     /// True if this note is sounding during `step` (start inclusive, end exclusive).
     public func covers(step: Int) -> Bool {
         step >= startStep && step < endStep
+    }
+
+    /// Nudge the start by a tick delta (clamped to ≥0). Returns a new note.
+    public func nudged(byTicks delta: Int) -> Note {
+        var n = self
+        n.startTick = max(0, startTick + delta)
+        return n
+    }
+
+    /// Snap the start to the nearest multiple of `division` ticks (e.g. a 16th =
+    /// `ticksPerStep`, a triplet 8th = `ticksPerQuarter/3`). Returns a new note.
+    public func quantizedStart(toTicks division: Int) -> Note {
+        guard division > 0 else { return self }
+        var n = self
+        n.startTick = ((startTick + division / 2) / division) * division
+        return n
+    }
+
+    // MARK: Codable (ticks primary; falls back to legacy steps)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, pitch, startTick, lengthTicks, velocity
+        case startStep, lengthSteps   // legacy fallback (pre-PPQ clips)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        self.pitch = min(max(try c.decode(Int.self, forKey: .pitch), 0), 127)
+        self.velocity = min(max(try c.decodeIfPresent(Float.self, forKey: .velocity) ?? 0.8, 0), 1)
+        if let t = try c.decodeIfPresent(Int.self, forKey: .startTick) {
+            self.startTick = max(0, t)
+        } else {
+            let s = try c.decodeIfPresent(Int.self, forKey: .startStep) ?? 0
+            self.startTick = max(0, s) * Note.ticksPerStep
+        }
+        if let lt = try c.decodeIfPresent(Int.self, forKey: .lengthTicks) {
+            self.lengthTicks = max(1, lt)
+        } else {
+            let ls = try c.decodeIfPresent(Int.self, forKey: .lengthSteps) ?? 1
+            self.lengthTicks = max(1, ls) * Note.ticksPerStep
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(pitch, forKey: .pitch)
+        try c.encode(startTick, forKey: .startTick)
+        try c.encode(lengthTicks, forKey: .lengthTicks)
+        try c.encode(velocity, forKey: .velocity)
+        // Legacy mirror so an older build can still read the clip.
+        try c.encode(startStep, forKey: .startStep)
+        try c.encode(lengthSteps, forKey: .lengthSteps)
     }
 }
