@@ -2,6 +2,32 @@
 
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
+
+### 2026-06-22 (cont.) — Pro-level execution: nav · PPQ · automation · sound (founder priority order)
+Founder picked the execution order (AskUserQuestion): persistent collapsible nav → piano-roll PPQ →
+arrangement+automation+per-track FX → club light/video; sound = ALL FOUR improvements. Worked the
+backlog as gate-verified cycles (xcode-compile-check green confirmed per commit). SHIPPED, all GREEN:
+  1. NAV — persistent bottom bar (WorkspaceView): Arrange · Clips · Compose always visible, surfaces
+     stay mounted (Compose audio lifecycle untouched). [307bdb5]
+  2. PPQ — Note model keystone: PPQ ticks (480 PPQ → 120/step) now the source of truth; startStep/
+     lengthSteps are computed views (all call sites unchanged); tick init + nudged + quantizedStart;
+     Codable falls back to legacy step-only clips; MIDI export converts note-ticks→SMF-ticks
+     (sub-step preserved, on-grid identical). +tests. [0c16427]
+  3. AUTOMATION — AutomationLane pure value type (tick keyframes, hold/linear, normalized 0..1,
+     sorted-on-edit, hold-before-first/after-last). +tests. Playback wiring = next cycle. [55eb39d]
+  4. SOUND 1/4 — felt sub by DEFAULT (subGain 0.35; launch silence still gated by hasEverSounded) +
+     missing-fundamental (2nd+3rd harmonics off one phase) so bass reads on small speakers. [a6a7758]
+     → caught+fixed gate failure: defaultSubGain was MainActor-isolated, nonisolated mirror couldn't
+       default to it → `nonisolated public static let`. [51f45b2]
+  5. SOUND 2/4 — spectral-donut visual tracks the ENVELOPE: modulate band intensity by live master
+     RMS (peak-hold+decay) so rings swell on attack / fade on tail, not the note grid. [8f6f313]
+DEPLOY: bumped .deploy/release → v10.35.0 carrying all of the above (one deploy/day; Apple upload cap).
+HELD for device A/B (founder's ear — signature sound): SOUND 3/4 unison/detune (additive-engine CPU
+  risk: N×64 partials — needs a bounded approach) + SOUND 4/4 brighter default tone (genre patches set
+  brightness 0.22–0.54 explicitly; rebalancing 14 genres is subjective → tune on device). Also still
+  queued: nav collapsible shared Tools row, per-track insert FX + Channel-Rack, multi-track arrangement
+  grid, club light fixture library/multi-universe, VideoRecorder+AVPlayer clips. See PLAN_PRO_LEVEL.
+
 Read this FIRST when continuing work on Echoelmusic.
 
 > **Structure (read at session start):** WHY = `memory/vision.md` · HOW = `docs/dev/ROADMAP.md`
