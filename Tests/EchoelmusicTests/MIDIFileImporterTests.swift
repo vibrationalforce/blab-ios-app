@@ -55,6 +55,35 @@ final class MIDIFileImporterTests: XCTestCase {
         XCTAssertTrue(try MIDIFileImporter.notes(from: data).isEmpty)
     }
 
+    // MARK: - Drum grid (GM channel 10 → BeatPlayer grid)
+
+    func testDrumTrackMapping() {
+        XCTAssertEqual(MIDIFileImporter.drumTrack(forGM: 36), 0, "bass drum → Kick")
+        XCTAssertEqual(MIDIFileImporter.drumTrack(forGM: 38), 1, "snare → Snare")
+        XCTAssertEqual(MIDIFileImporter.drumTrack(forGM: 42), 2, "closed hat → ClosedHat")
+        XCTAssertEqual(MIDIFileImporter.drumTrack(forGM: 46), 3, "open hat → OpenHat")
+        XCTAssertEqual(MIDIFileImporter.drumTrack(forGM: 39), 4, "hand clap → Clap")
+        XCTAssertEqual(MIDIFileImporter.drumTrack(forGM: 51), 5, "ride → Perc (catch-all)")
+    }
+
+    func testDrumGridFromCombinedExport() throws {
+        // Combined export puts kicks on ch10; build the grid back from it.
+        var grid = [[Bool]](repeating: [Bool](repeating: false, count: 16), count: 8)
+        grid[0][0] = true; grid[0][8] = true     // kick hits
+        let data = MIDIFileExporter.exportCombined(notes: [], steps: grid, tempo: 120)
+
+        let drums = try MIDIFileImporter.drumGrid(from: data)
+        XCTAssertTrue(drums.steps[0][0], "kick at step 0 recovered")
+        XCTAssertTrue(drums.steps[0][8], "kick at step 8 recovered")
+        XCTAssertFalse(drums.steps[1].contains(true), "no snare hits")
+    }
+
+    func testDrumGridEmptyWhenNoPercussion() throws {
+        let melodyOnly = MIDIFileExporter.export(notes: [Note(pitch: 60, startStep: 0)], tempo: 120)
+        let drums = try MIDIFileImporter.drumGrid(from: melodyOnly)
+        XCTAssertFalse(drums.steps.contains { $0.contains(true) }, "melody-only file → empty drum grid")
+    }
+
     // MARK: - Fold-onto-grid (the piano-roll import adapter)
 
     @MainActor

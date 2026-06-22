@@ -1791,6 +1791,14 @@ struct EchoelStudioView: View {
         }
         let placed = pianoRoll.importNotes(imported)
         lastNoteCount = placed.count
+        // Drums: if the file has GM channel-10 hits, load them onto the beat grid too
+        // (so one import brings both melody and drums). No hits → leave the kit alone.
+        if let grid = try? MIDIFileImporter.drumGrid(from: data,
+                                                     trackCount: BeatPlayer.trackNames.count,
+                                                     stepCount: PatternEngine.stepCount),
+           grid.steps.contains(where: { $0.contains(true) }) {
+            beatPlayer.pattern.load(steps: grid.steps, accents: grid.accents)
+        }
         EchoelCrashLog.breadcrumb("MIDI import: \(imported.count) parsed → \(placed.count) on grid")
     }
     #endif

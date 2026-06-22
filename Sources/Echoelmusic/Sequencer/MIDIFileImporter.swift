@@ -28,6 +28,16 @@ public enum MIDIFileImporter {
     /// Parse SMF `data` into melodic notes. `includeChannel10` keeps GM percussion
     /// (usually unwanted for the melodic roll). Notes come back sorted by start.
     public static func notes(from data: [UInt8], includeChannel10: Bool = false) throws -> [Note] {
+        try channelNotes(from: data)
+            .filter { includeChannel10 || $0.channel != 9 }    // ch10 == index 9
+            .map(\.note)
+            .sorted { $0.startTick != $1.startTick ? $0.startTick < $1.startTick : $0.pitch < $1.pitch }
+    }
+
+    /// Parse SMF `data` into (channel, note) pairs — the shared parse used by both
+    /// the melodic `notes(...)` and the drum-grid extraction. Channel is the 0-based
+    /// MIDI channel (9 == GM percussion / "channel 10").
+    public static func channelNotes(from data: [UInt8]) throws -> [(channel: Int, note: Note)] {
         var p = 0
         func need(_ n: Int) throws { if p + n > data.count { throw ImportError.truncated } }
         func u16(_ i: Int) -> Int { (Int(data[i]) << 8) | Int(data[i + 1]) }
@@ -47,7 +57,7 @@ public enum MIDIFileImporter {
 
         struct Open { var startTick: Int; var velocity: Float }
         var open: [Int: Open] = [:]        // key = channel*128 + pitch
-        var out: [Note] = []
+        var out: [(channel: Int, note: Note)] = []
 
         @inline(__always) func mapTicks(_ fileTick: Int) -> Int {
             // Scale the file's PPQ to Note.ticksPerQuarter (round to nearest).
@@ -95,12 +105,11 @@ public enum MIDIFileImporter {
                     if isOn {
                         open[key] = Open(startTick: absTick, velocity: Float(vel) / 127.0)
                     } else if let o = open.removeValue(forKey: key) {
-                        if includeChannel10 || chan != 9 {     // MIDI channel 10 == index 9
-                            let startT = mapTicks(o.startTick)
-                            let lenT = max(1, mapTicks(absTick) - startT)
-                            out.append(Note(pitch: pitch, startTick: startT,
-                                            lengthTicks: lenT, velocity: o.velocity))
-                        }
+                        let startT = mapTicks(o.startTick)
+                        let lenT = max(1, mapTicks(absTick) - startT)
+                        out.append((channel: chan,
+                                    note: Note(pitch: pitch, startTick: startT,
+                                               lengthTicks: lenT, velocity: o.velocity)))
                     }
                 case 0xA0, 0xB0, 0xE0:                 // 2-data-byte channel msgs — skip
                     i += 2
@@ -122,10 +131,49 @@ public enum MIDIFileImporter {
             }
         }
 
-        return out.sorted { $0.startTick != $1.startTick ? $0.startTick < $1.startTick : $0.pitch < $1.pitch }
+        return out
     }
 
     public static func notes(from data: Data, includeChannel10: Bool = false) throws -> [Note] {
         try notes(from: [UInt8](data), includeChannel10: includeChannel10)
+    }
+
+    // MARK: - Drum grid (GM channel 10 → BeatPlayer's 8-track / 16-step grid)
+
+    /// Echoel drum-track index for a General-MIDI percussion note, or nil if it has
+    /// no slot (it folds into "Perc"). Tracks: 0 Kick · 1 Snare · 2 ClosedHat ·
+    /// 3 OpenHat · 4 Clap · 5 Perc · (6 Bass / 7 LeadFX are not GM drums).
+    public static func drumTrack(forGM note: Int) -> Int {
+        switch note {
+        case 35, 36:            return 0   // bass drums → Kick
+        case 38, 40, 37:        return 1   // snares + side stick → Snare
+        case 42, 44:            return 2   // closed / pedal hat → ClosedHat
+        case 46:                return 3   // open hat → OpenHat
+        case 39:                return 4   // hand clap → Clap
+        default:                return 5   // toms / cymbals / aux perc → Perc
+        }
+    }
+
+    /// Build BeatPlayer's (steps, accents) grid from a SMF's channel-10 notes,
+    /// folded onto the first 16-step bar. `trackCount`/`stepCount` size the grid.
+    /// Accents mark hard hits (velocity ≥ 0.85). Empty (no ch10 hits) → all-false.
+    public static func drumGrid(from data: [UInt8], trackCount: Int = 8, stepCount: Int = 16)
+        throws -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = [[Bool]](repeating: [Bool](repeating: false, count: stepCount), count: trackCount)
+        var accents = [[Bool]](repeating: [Bool](repeating: false, count: stepCount), count: trackCount)
+        for (channel, note) in try channelNotes(from: data) where channel == 9 {
+            let step = note.startStep
+            guard step >= 0, step < stepCount else { continue }   // first bar only
+            let track = drumTrack(forGM: note.pitch)
+            guard track >= 0, track < trackCount else { continue }
+            steps[track][step] = true
+            if note.velocity >= 0.85 { accents[track][step] = true }
+        }
+        return (steps, accents)
+    }
+
+    public static func drumGrid(from data: Data, trackCount: Int = 8, stepCount: Int = 16)
+        throws -> (steps: [[Bool]], accents: [[Bool]]) {
+        try drumGrid(from: [UInt8](data), trackCount: trackCount, stepCount: stepCount)
     }
 }
