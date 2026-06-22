@@ -121,6 +121,23 @@ Stalling → inject minimal novelty, not complexity.
 - `EchoelValueField` for any new parameter UI. No wellness/esoteric/overclaim copy.
 - Each slice: compile-green gate + tests; one coherent change per commit; deploy via `.deploy/release`.
 
-## STATUS
+## STATUS (2026-06-22)
 - [x] Audit + science brief (this plan)
-- [ ] Slice 1 (breath clock @ resonance) — NEXT
+- [x] **Phase 1 — coherence core COMPLETE:**
+  - [x] Breath clock @ resonance (already shipped: BreathPattern.resonance 4in/6out = 6/min)
+  - [x] Coherence-convergence density servo (BioComposer.musicalState; v10.42.0)
+  - [x] Two-clock tempo entrainment (Flow pulse → 72 BPM as coherence rises; v10.43.0)
+  - [x] Consonance convergence (effectiveTension → 40% at full coherence; v10.44.0)
+- [x] **Phase 2 — sound, started:**
+  - [x] Gentle default unison 2-voice/~7¢ (v10.43.0)
+  - [x] Live per-note velocity humanization (v10.44.0)
+  - [ ] NEXT: time-evolving timbre (bright attack→darker sustain; envelope-tracked filter)
+  - [ ] Use the noise bank for body/air per patch (patches are all noiseLevel:0)
+  - [ ] Brand-consistent named instrument palette
+- [ ] **Phase 3 — composition techniques** (motif dev, tension arc, call&response,
+      harmonic-rhythm lever, counterpoint, arrangement layering, breath-phase phrasing
+      across ALL styles — currently only ambient/trap use breathPhase)
+- [ ] **Phase 4 — completeness** (adaptive JI, user tunings, all roots×scales×tunings tested)
+
+All Phase-1/2 slices: pure helpers + unit tests in BioComposerTests; compile+CI green;
+shipped v10.42.0→v10.44.0 via `.deploy/release` push-trigger (tokenless, autonomous).
