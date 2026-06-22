@@ -126,7 +126,12 @@ The MusicalFrame (L3) drives the renderers (L4):
      note on/off to the hosted AUv3 instrument (host-MIDI) as well as the bus; the
      built-in voice is gated off when "use plugin instead" is on. A connected MIDI
      keyboard plays the plugin.
-   - ⬜ Next: master-bus FX slot.
+   - ✅ **Master-bus FX**: hosted AUv3 effects on the MASTER bus (process the whole
+     mix), inserted mainMixer → mfx[0] → … → output via `AudioEngine.rewireMasterFX`;
+     `AUv3Host.loadMasterEffect`/`unloadMasterEffect` + `masterEffectUnits`. Empty-by-
+     default → the default output wiring is NEVER touched until the first master effect
+     (zero-risk to normal builds). Browser: an "Effect target: Channel / Master" picker
+     routes a tapped effect; the loaded bar lists the master chain (Open/Remove).
 6. **Domain renderers** — light/laser/spatial/360/video, each shown only when live.
 7. **Universal Signal Router (patchbay)** — intelligent routing for ALL channels,
    app-internal + in/out, every protocol (MIDI · MIDI 2.0 · MPE · Audio · OSC · ADM ·

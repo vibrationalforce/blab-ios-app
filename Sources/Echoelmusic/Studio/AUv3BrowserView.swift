@@ -1,5 +1,11 @@
 #if canImport(SwiftUI)
 import SwiftUI
+#if canImport(AVFoundation)
+import AVFoundation
+#endif
+#if canImport(AudioToolbox)
+import AudioToolbox
+#endif
 
 // AUv3BrowserView.swift
 // Echoel — the AUv3 browser + host. Lists the Audio Unit instruments and effects
@@ -15,10 +21,18 @@ struct AUv3BrowserView: View {
     @Environment(\.dismiss) private var dismiss
     var embedded = false
 
-    /// Which hosted plugin's own UI to present — the instrument (effectIndex nil) or
-    /// the insert effect at the given chain index.
-    private struct PluginUIRequest: Identifiable { let id = UUID(); let title: String; let effectIndex: Int? }
+    /// Which hosted plugin's own UI to present — the instrument, a channel insert
+    /// effect, or a master-bus effect (by chain index).
+    private struct PluginUIRequest: Identifiable {
+        let id = UUID(); let title: String
+        enum Target: Equatable { case instrument; case channelEffect(Int); case masterEffect(Int) }
+        let target: Target
+    }
     @State private var uiRequest: PluginUIRequest?
+
+    /// Where a tapped EFFECT is inserted: the instrument's own channel, or the master bus.
+    private enum EffectTarget: String, CaseIterable { case channel = "Channel"; case master = "Master" }
+    @State private var effectTarget: EffectTarget = .channel
 
     var body: some View {
         Group {
@@ -45,7 +59,7 @@ struct AUv3BrowserView: View {
         NavigationStack {
             Group {
                 #if canImport(UIKit) && canImport(AVFoundation)
-                if let au = (req.effectIndex.map { host.effectAudioUnit(at: $0) } ?? host.instrumentAudioUnit()) {
+                if let au = resolveAudioUnit(req.target) {
                     AUv3PluginUIView(audioUnit: au).ignoresSafeArea()
                 } else {
                     Text("Plugin unavailable.").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
@@ -64,6 +78,17 @@ struct AUv3BrowserView: View {
         }
     }
 
+    #if canImport(AVFoundation)
+    /// Resolve the AUAudioUnit for a UI request (instrument / channel fx / master fx).
+    private func resolveAudioUnit(_ target: PluginUIRequest.Target) -> AUAudioUnit? {
+        switch target {
+        case .instrument:            return host.instrumentAudioUnit()
+        case .channelEffect(let i):  return host.effectAudioUnit(at: i)
+        case .masterEffect(let i):   return host.masterEffectAudioUnit(at: i)
+        }
+    }
+    #endif
+
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -76,10 +101,11 @@ struct AUv3BrowserView: View {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if host.loaded != nil || !host.loadedEffects.isEmpty { loadedBar }
+                if host.loaded != nil || !host.loadedEffects.isEmpty || !host.loadedMasterEffects.isEmpty { loadedBar }
                 section("Instruments", host.instruments, icon: "pianokeys")
+                if !host.effects.isEmpty { effectTargetPicker }
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Tap an instrument to load it (play it from the keyboard or your song); tap effects to build an insert chain on its channel (instrument → fx → fx → master). Open any loaded plugin's own interface with “Open”. Settings are saved and recalled across sessions.")
+                Text("Tap an instrument to load it (play it from the keyboard or your song). Effects go to the target you pick: the instrument's own Channel chain (instrument → fx → master) or the Master bus (the whole mix → fx → output). Open any loaded plugin's own interface with “Open”. Settings are saved and recalled across sessions.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -88,6 +114,14 @@ struct AUv3BrowserView: View {
         }
         .background(EchoelTheme.bg)
         .onAppear { if !host.didScan { host.scan() } }
+    }
+
+    // Where tapped effects land — the instrument channel or the master bus.
+    private var effectTargetPicker: some View {
+        Picker("Effect target", selection: $effectTarget) {
+            ForEach(EffectTarget.allCases, id: \.self) { t in Text(t.rawValue).tag(t) }
+        }
+        .pickerStyle(.segmented)
     }
 
     // The hosted channel: instrument (+ insert effect) + a one-octave preview keyboard.
@@ -100,7 +134,7 @@ struct AUv3BrowserView: View {
                     Text(inst.name).font(EchoelTheme.font(13, .semibold))
                         .foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Spacer(minLength: 0)
-                    Button("Open") { uiRequest = .init(title: inst.name, effectIndex: nil) }
+                    Button("Open") { uiRequest = .init(title: inst.name, target: .instrument) }
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.accent)
                     Button("Unload") { host.unload() }
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
@@ -112,7 +146,7 @@ struct AUv3BrowserView: View {
                     Image(systemName: "dial.medium").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
                     Text("→ \(fx.name)").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
                     Spacer(minLength: 0)
-                    Button("Open") { uiRequest = .init(title: fx.name, effectIndex: index) }
+                    Button("Open") { uiRequest = .init(title: fx.name, target: .channelEffect(index)) }
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.accent)
                     Button("Remove") { host.unloadEffect(at: index) }
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
@@ -121,6 +155,21 @@ struct AUv3BrowserView: View {
             if host.loaded == nil && !host.loadedEffects.isEmpty {
                 Text("Load an instrument to feed these effects.")
                     .font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim)
+            }
+            // Master-bus FX chain (processes the whole mix → output).
+            if !host.loadedMasterEffects.isEmpty {
+                Text("Master bus").font(EchoelTheme.font(10, .semibold)).foregroundStyle(EchoelTheme.dim)
+                ForEach(Array(host.loadedMasterEffects.enumerated()), id: \.element.id) { index, fx in
+                    HStack(spacing: 8) {
+                        Image(systemName: "dial.medium").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                        Text("Mix → \(fx.name)").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
+                        Spacer(minLength: 0)
+                        Button("Open") { uiRequest = .init(title: fx.name, target: .masterEffect(index)) }
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.accent)
+                        Button("Remove") { host.unloadMasterEffect(at: index) }
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                    }
+                }
             }
             if host.loaded != nil {
                 Toggle(isOn: $host.replaceBuiltInVoice) {
@@ -177,11 +226,18 @@ struct AUv3BrowserView: View {
 
     @ViewBuilder
     private func row(_ au: HostedAUInfo, icon: String) -> some View {
-        // Instrument is single-slot (Loaded badge); effects append to the chain, so
-        // they stay tappable (you can add more) and just highlight when in the chain.
-        let highlighted = au.isInstrument ? (host.loaded == au) : host.loadedEffects.contains(au)
+        // Instrument is single-slot (Loaded badge); effects append to the targeted
+        // chain, so they stay tappable (you can add more) and highlight when present.
+        let highlighted: Bool = {
+            if au.isInstrument { return host.loaded == au }
+            return effectTarget == .master ? host.loadedMasterEffects.contains(au)
+                                            : host.loadedEffects.contains(au)
+        }()
         Button {
-            Task { await host.load(au) }
+            Task {
+                if !au.isInstrument && effectTarget == .master { await host.loadMasterEffect(au) }
+                else { await host.load(au) }
+            }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: icon).font(.system(size: 13))
