@@ -52,6 +52,11 @@ public final class AudioEngine {
     var masterLUFSIntegrated: Float = EchoelLoudnessMeter.floorLUFS
     var masterLRA: Float = 0
 
+    /// Live output sample rate (Hz), set from the master tap format in
+    /// `prepareGraph`. 48 kHz until the graph is built. Used by the FFT visual to
+    /// map magnitude bins to frequency bands.
+    var sampleRate: Double = 48000
+
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterL = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private let _rawMeterR = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     /// Master metering published values (dB / LUFS). Written ONLY from the tap
@@ -68,6 +73,20 @@ public final class AudioEngine {
     /// reset on its own thread (meters are tap-confined) and clears the flag.
     @ObservationIgnored nonisolated(unsafe) private let _resetMeters = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private var meterPollTimer: Timer?
+
+    /// Lock-free mono ring of the most recent master-output samples, for the
+    /// immersive FFT visual. The meter tap `memcpy`s the live mix into it
+    /// (allocation-free, audio-safe — no DSP on the tap thread); a UI reader pulls
+    /// the latest window on the MAIN thread and runs the FFT there. A torn read can
+    /// only ripple one visual frame, never corrupt audio or crash. Size = a few
+    /// FFT windows so the reader always has a full 1024-pt frame available.
+    static let outputRingSize = 4096
+    @ObservationIgnored nonisolated(unsafe) private let _outputRing =
+        UnsafeMutablePointer<Float>.allocate(capacity: AudioEngine.outputRingSize)
+    /// Total samples ever written (monotonic). The tap writes; the UI reads. A
+    /// single-word Int handoff, same discipline as the `_rawMeter*` floats.
+    @ObservationIgnored nonisolated(unsafe) private let _outputRingCount =
+        UnsafeMutablePointer<Int>.allocate(capacity: 1)
 
     /// Master meters. Confined to the tap thread (only ever touched inside the
     /// master tap callback); cross-thread output flows via `_peakDb`/`_lufs`.
@@ -118,6 +137,8 @@ public final class AudioEngine {
         _lufsI.initialize(to: EchoelLoudnessMeter.floorLUFS)
         _lra.initialize(to: 0)
         _resetMeters.initialize(to: false)
+        _outputRing.initialize(repeating: 0, count: AudioEngine.outputRingSize)
+        _outputRingCount.initialize(to: 0)
 
         // Interruption / route-change handlers are cheap closure storage with no
         // audio I/O — safe to wire at init.
@@ -276,6 +297,7 @@ public final class AudioEngine {
             // Match the loudness windows to the real hardware rate. Safe to
             // reassign here: the meter has no tap yet, so it is untouched by any
             // other thread until installTap below.
+            sampleRate = meterFormat.sampleRate
             loudnessMeter = EchoelLoudnessMeter(sampleRate: Float(meterFormat.sampleRate))
             let ptrL = _rawMeterL
             let ptrR = _rawMeterR
@@ -289,6 +311,9 @@ public final class AudioEngine {
             let resetPtr = _resetMeters
             let meter = masterMeter
             let loudness = loudnessMeter
+            let ringPtr = _outputRing
+            let ringCountPtr = _outputRingCount
+            let ringSize = AudioEngine.outputRingSize
             masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, _ in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = UInt(buffer.frameLength)
@@ -328,6 +353,21 @@ public final class AudioEngine {
                 tpMaxPtr.pointee = meter.truePeakMaxDb
                 lufsIPtr.pointee = loudness.integratedLUFS
                 lraPtr.pointee = loudness.loudnessRange
+
+                // Capture the mono mix into the lock-free ring for the FFT visual.
+                // Plain index writes only — no allocation, no DSP, audio-safe. The
+                // write cursor wraps; `_outputRingCount` advances monotonically so a
+                // main-thread reader can find the newest contiguous window.
+                let count = ringCountPtr.pointee
+                let left = channelData[0]
+                let rightCh = stereo ? channelData[1] : channelData[0]
+                var w = count % ringSize
+                for i in 0..<n {
+                    ringPtr[w] = (left[i] + rightCh[i]) * 0.5
+                    w += 1
+                    if w == ringSize { w = 0 }
+                }
+                ringCountPtr.pointee = count + n
             }
         }
         log.audio("Master AVAudioEngine graph: playerNode -> masterMixer -> mainMixer -> outputNode -> hardware")
@@ -396,6 +436,26 @@ public final class AudioEngine {
         }
     }
 
+    /// Copy the most recent `count` master-output samples (oldest→newest) into
+    /// `dest` for the FFT visual. Returns true if a full window was available.
+    /// Runs on the MAIN thread; the FFT itself is done by the caller, never on the
+    /// audio thread. `dest` must have room for `count` samples. Before enough audio
+    /// has played the leading samples are zero (a clean silent window).
+    @discardableResult
+    func copyLatestOutputSamples(into dest: inout [Float], count: Int) -> Bool {
+        let ringSize = AudioEngine.outputRingSize
+        let n = Swift.min(count, ringSize)
+        guard dest.count >= n else { return false }
+        let total = _outputRingCount.pointee          // snapshot once
+        // Newest sample sits at (total-1)%ringSize; walk back n samples.
+        let start = total - n
+        for i in 0..<n {
+            let idx = start + i
+            dest[i] = idx < 0 ? 0 : _outputRing[((idx % ringSize) + ringSize) % ringSize]
+        }
+        return total >= n
+    }
+
     /// Reset the EBU R128 integration (integrated LUFS, LRA) and the true-peak
     /// max-hold — e.g. at the start of a measurement / take. The actual reset
     /// runs on the meter-owning tap thread; this just raises the request flag.
@@ -436,6 +496,10 @@ public final class AudioEngine {
         _lra.deallocate()
         _resetMeters.deinitialize(count: 1)
         _resetMeters.deallocate()
+        _outputRing.deinitialize(count: AudioEngine.outputRingSize)
+        _outputRing.deallocate()
+        _outputRingCount.deinitialize(count: 1)
+        _outputRingCount.deallocate()
     }
 
     func stop() {

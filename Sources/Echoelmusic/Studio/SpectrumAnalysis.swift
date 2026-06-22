@@ -55,6 +55,41 @@ public enum SpectrumAnalysis {
         return energy.map { Float(min(1.0, $0 / peak)) }
     }
 
+    /// Build `count` log-spaced band energies (0…1, normalized to the loudest band)
+    /// from a real FFT magnitude spectrum (`magnitudes[k]` = bin k, k·sampleRate/fftSize Hz).
+    /// Each band takes the PEAK of the bins falling in its log range so a single
+    /// strong partial reads as its own ring instead of being averaged away. This is
+    /// the live-audio counterpart to `bands(from:notes:)` — the visual reflects what
+    /// is actually heard (timbre, overtones, reverb tail), not just the note grid.
+    public static func bands(fromMagnitudes magnitudes: [Float], sampleRate: Double,
+                             count: Int = 28,
+                             fMin: Double = 30, fMax: Double = 16000) -> [Float] {
+        let n = max(1, count)
+        var energy = [Float](repeating: 0, count: n)
+        let bins = magnitudes.count
+        guard bins > 1, sampleRate > 0, fMax > fMin, fMin > 0 else { return energy }
+        let fftSize = Double(bins * 2)
+        let hzPerBin = sampleRate / fftSize
+        let logMin = Foundation.log(fMin), logMax = Foundation.log(fMax)
+        let span = logMax - logMin
+        guard span > 0 else { return energy }
+
+        // Skip DC (bin 0); assign each bin to its log-spaced band, keeping the peak.
+        for k in 1..<bins {
+            let hz = Double(k) * hzPerBin
+            guard hz >= fMin, hz <= fMax else { continue }
+            let t = (Foundation.log(hz) - logMin) / span
+            let i = min(n - 1, max(0, Int(t * Double(n))))
+            if magnitudes[k] > energy[i] { energy[i] = magnitudes[k] }
+        }
+
+        let peak = energy.max() ?? 0
+        guard peak > 0 else { return energy }
+        // Mild compression (sqrt) so quiet partials stay visible without the loud
+        // band washing everything out — a perceptual, not linear, magnitude.
+        return energy.map { Float((Double($0 / peak)).squareRoot()) }
+    }
+
     /// Center frequency (Hz) of band `i` of `count` — for colouring each donut via
     /// `SpectralColor.visibleColor`. Geometric (log) center, matching the binning.
     public static func centerFrequency(band i: Int, count: Int,
