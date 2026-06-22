@@ -310,6 +310,18 @@ final class BioComposerTests: XCTestCase {
         XCTAssertLessThan(highCoh, lowCoh * 0.6, "high coherence converges to a notably sparser take")
     }
 
+    /// Consonance convergence: rising coherence must lower effective melodic tension
+    /// (more consonant when settled), unchanged at zero coherence.
+    func testServo_coherenceLowersEffectiveTension() {
+        XCTAssertEqual(BioComposer.effectiveTension(0.8, coherence: 0), 0.8, accuracy: 1e-6)
+        let mid  = BioComposer.effectiveTension(0.8, coherence: 0.5)
+        let full = BioComposer.effectiveTension(0.8, coherence: 1)
+        XCTAssertLessThan(mid, 0.8)
+        XCTAssertLessThan(full, mid)
+        XCTAssertEqual(full, 0.8 * 0.4, accuracy: 1e-6, "full coherence → 40% tension")
+        XCTAssertGreaterThanOrEqual(full, 0)
+    }
+
     /// The textbook stress signature (↑HR, ↓HRV) must raise arousal and density.
     func testServo_stressSignatureRaisesArousalAndBusy() {
         let calmBody     = BioComposer.musicalState(coherence: 0.5, hrvNormalized: 0.9, heartRateBPM: 55)

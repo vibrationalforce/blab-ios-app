@@ -207,6 +207,13 @@ public enum BioComposer {
         return (calm, vagal, energy, arousal, busy)
     }
 
+    /// Consonance convergence: scale a mood's tension down as coherence rises so a
+    /// settled body yields a more consonant melody (fewer out-of-chord bends). At
+    /// zero coherence tension is unchanged; at full coherence it drops to 40%.
+    static func effectiveTension(_ moodTension: Float, coherence: Float) -> Float {
+        clamp01(moodTension) * (1 - 0.6 * clamp01(coherence))
+    }
+
     /// Subtle, SEEDED per-note velocity variation so repeated notes don't read
     /// machine-gun identical — the `humanize` mood, now applied to the LIVE take and
     /// not only at MIDI export (audit: live notes were perfectly uniform → lifeless).
@@ -235,6 +242,14 @@ public enum BioComposer {
             hrvNormalized: input.hrvNormalized,
             heartRateBPM: Double(input.heartRateBPM))
 
+        // CONSONANCE CONVERGENCE (servo): as coherence rises the melody should stray
+        // LESS from chord tones — high coherence → more consonant/settled (the reward
+        // for self-regulation; science brief: reduce tension depth, converge to
+        // consonance). Scale the mood's tension down by coherence before it reaches
+        // the melody generators; every other mood dimension is untouched.
+        var effMood = input.mood
+        effMood.tension = effectiveTension(input.mood.tension, coherence: input.coherence)
+
         let notes: [Note]
         let drumSteps: [[Bool]]
         let drumAccents: [[Bool]]
@@ -252,7 +267,7 @@ public enum BioComposer {
         case .selfObservation:
             notes = ambientMelody(key: input.key, calm: calm, busy: busy,
                                   breathPhase: input.breathPhase,
-                                  breathDepth: input.breathDepth, mood: input.mood, rng: &rng)
+                                  breathDepth: input.breathDepth, mood: effMood, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         default:
             // The non-beat harmonic genres: pads/chords/arps + an optional lead,
@@ -260,7 +275,7 @@ public enum BioComposer {
             notes = composeHarmonic(key: input.key, profile: input.style.harmonicProfile,
                                     calm: calm, busy: busy,
                                     breathPhase: input.breathPhase,
-                                    breathDepth: input.breathDepth, mood: input.mood, rng: &rng)
+                                    breathDepth: input.breathDepth, mood: effMood, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         }
 
