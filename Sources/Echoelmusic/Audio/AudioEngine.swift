@@ -80,7 +80,7 @@ public final class AudioEngine {
     /// the latest window on the MAIN thread and runs the FFT there. A torn read can
     /// only ripple one visual frame, never corrupt audio or crash. Size = a few
     /// FFT windows so the reader always has a full 1024-pt frame available.
-    static let outputRingSize = 4096
+    nonisolated static let outputRingSize = 4096
     @ObservationIgnored nonisolated(unsafe) private let _outputRing =
         UnsafeMutablePointer<Float>.allocate(capacity: AudioEngine.outputRingSize)
     /// Total samples ever written (monotonic). The tap writes; the UI reads. A
