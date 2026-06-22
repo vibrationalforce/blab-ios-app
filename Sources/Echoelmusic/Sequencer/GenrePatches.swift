@@ -186,13 +186,13 @@ public extension MusicStyle {
                        color: String, shape: String,
                        cutoff: Float, res: Float, lfoAmt: Float, lfoRate: Float, lfoDepth: Float,
                        revMix: Float, revDecay: Float, vibRate: Float, vibDepth: Float) -> SynthPatch {
-        // Brighter/livelier default voicing (founder direction, A/B-able): lift the
-        // per-genre brightness a touch and give the upper partials a little more
-        // body. Modest + uniform + clamped so each genre keeps its character (dark
-        // genres stay relatively dark) while the overall default reads less dull on
-        // device. Revert by removing the two `+` offsets if it's too forward.
-        let liftedBright = min(1, bright + 0.10)
-        let liftedHL     = min(1, hl + 0.05)
+        // Brighter/livelier default voicing (founder direction): lift the per-genre
+        // brightness and upper-partial body — but ADAPTIVELY. The lift scales with how
+        // dull the genre already is (×(1-bright)/×(1-hl)), so dull genres get the full
+        // lift (read less dull on device) while already-bright genres are barely
+        // touched — avoiding the harsh/forward top end a uniform +0.10 gave them.
+        let liftedBright = min(1, bright + 0.12 * (1 - bright))
+        let liftedHL     = min(1, hl + 0.06 * (1 - hl))
         return SynthPatch(
             id: UUID(uuidString: "00000000-0000-0000-0000-0000000000\(suffix)") ?? UUID(),
             name: name,
