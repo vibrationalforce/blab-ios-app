@@ -60,6 +60,15 @@ public final class DrumSynthVoice: @unchecked Sendable {
         state.modalBank.noteOn(velocity: min(max(gain, 0), 1))
     }
 
+    /// Set the per-channel insert FX (filter type + cutoff + resonance + drive).
+    /// Main-thread only; the audio thread reads atomic-width mirrors.
+    public func configureInsertFX(type: Int, cutoff: Float, resonance: Float, drive: Float) {
+        state.fxType = type
+        state.fxCutoff = cutoff
+        state.fxRes = resonance
+        state.fxDrive = drive
+    }
+
     private func makeSourceNode() -> AVAudioSourceNode {
         let state = self.state
         let renderBlock: AVAudioSourceNodeRenderBlock = { _, _, frameCount, audioBufferList in
@@ -82,11 +91,38 @@ private final class DrumRenderState: @unchecked Sendable {
     /// Output gain (main-thread set, audio-thread read; atomic-width).
     var level: Float = 1.0
 
+    // Per-channel INSERT FX params (main-thread set, audio-thread read; atomic-width).
+    // Filter state lives only on the audio thread; coefficients recompute ≤1×/block.
+    var fxType: Int = 0
+    var fxCutoff: Float = 1200
+    var fxRes: Float = 0.707
+    var fxDrive: Float = 0
+    private var insertFX: ChannelInsertFX
+    private var lastFxType: Int = -1
+    private var lastFxCutoff: Float = .nan
+    private var lastFxRes: Float = .nan
+    private var lastFxDrive: Float = .nan
+
     init(sampleRate: Float) {
         self.modalBank = EchoelModalBank(sampleRate: sampleRate)
         self.scratch = [Float](repeating: 0, count: 4096)
+        self.insertFX = ChannelInsertFX(sampleRate: sampleRate)
         self.modalBank.material = .drum
         self.modalBank.frequency = 90
+    }
+
+    /// Audio thread. Apply the insert-FX params (recompute coeffs only on change)
+    /// and run the buffer through the biquad + drive.
+    private func applyInsertFX(_ dst: UnsafeMutablePointer<Float>, _ frameCount: Int) {
+        if fxType == 0 && fxDrive <= 0 { return }
+        if fxType != lastFxType || fxCutoff != lastFxCutoff
+            || fxRes != lastFxRes || fxDrive != lastFxDrive {
+            let t = ChannelInsertFX.FilterType(rawValue: fxType) ?? .off
+            insertFX.setParams(type: t, cutoffHz: fxCutoff, resonance: fxRes, drive: fxDrive)
+            lastFxType = fxType; lastFxCutoff = fxCutoff
+            lastFxRes = fxRes; lastFxDrive = fxDrive
+        }
+        for i in 0..<frameCount { dst[i] = insertFX.process(dst[i]) }
     }
 
     func render(frameCount: Int, audioBufferList: UnsafeMutablePointer<AudioBufferList>) {
@@ -105,6 +141,8 @@ private final class DrumRenderState: @unchecked Sendable {
         if frameCount > count {
             memset(dst.advanced(by: count), 0, (frameCount - count) * MemoryLayout<Float>.size)
         }
+        // Per-channel insert FX over the whole block (resonance rings into the tail).
+        applyInsertFX(dst, frameCount)
     }
 }
 
