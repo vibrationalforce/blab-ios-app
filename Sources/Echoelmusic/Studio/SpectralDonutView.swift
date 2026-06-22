@@ -2,21 +2,23 @@
 import SwiftUI
 
 // SpectralDonutView.swift
-// Echoel — the immersive spectrum visual. Instead of blending the chord into one
-// colour, it translates the WHOLE audible+feelable spectrum into the VISIBLE
-// spectrum: each log-spaced frequency band is one concentric DONUT whose THICKNESS
-// follows that band's loudness and whose COLOUR is that band's frequency mapped to
-// visible light (low/bass → red core, high/treble → violet rim). Fundamentals,
-// partials and overtones each read as their own ring — they do not wash together.
+// Echoel — the immersive spectrum visual. It translates the WHOLE audible+feelable
+// spectrum into the VISIBLE spectrum: each log-spaced frequency band is one concentric
+// ring whose COLOUR is that band's frequency mapped to visible light (low/bass → red
+// core, high/treble → violet rim). Each ring is an OSCILLATING WAVEFORM — a closed
+// loop whose radius wobbles around the circle, amplitude following that band's energy
+// and lobe-count rising with frequency — so fundamentals, partials and overtones each
+// read as their own animated waveform rather than washing together.
 //
-// Reads the live MusicalFrame off the EngineBus (the same snapshot MetalBioView uses),
-// synthesizes the harmonic spectrum (SpectrumAnalysis), and eases each ring so changes
-// are smooth — no flashing (WCAG ≤3 Hz; Reduce Motion → a still frame).
+// The spectrum is a REAL FFT of the master output: the audio tap memcpy's the live mix
+// into a lock-free ring (AudioEngine), and this view pulls the newest window and runs
+// the FFT on the main thread (EchoelRealFFT) every frame — no DSP on the audio thread.
+// Each ring is eased so changes are smooth and motion is slow (no flashing; WCAG ≤3 Hz;
+// Reduce Motion → a still frame).
 
 @MainActor
 struct SpectralDonutView: View {
 
-    @Environment(EngineBus.self) private var bus
     @Environment(AudioEngine.self) private var audioEngine
     var reduceMotion: Bool = false
     var bandCount: Int = 28
@@ -38,20 +40,22 @@ struct SpectralDonutView: View {
         let n = max(4, bandCount)
         state.ensure(count: n, fMin: Self.fMin, fMax: Self.fMax)
 
-        // Target spectrum from the live music (silent → all zero → fades to black).
-        let notes = bus.freshMusical(maxAge: 1.5)?.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) } ?? []
-        var target = SpectrumAnalysis.bands(from: notes, count: n, fMin: Self.fMin, fMax: Self.fMax)
+        // Target spectrum from a REAL FFT of the master output. The audio tap
+        // memcpy's the live mix into a lock-free ring; we pull the newest window
+        // and run the FFT HERE on the main thread (never on the audio thread). The
+        // visual therefore reflects what is actually heard — timbre, overtones and
+        // the reverb tail — not just the note grid. Silent → zeros → fades to black.
+        audioEngine.copyLatestOutputSamples(into: &state.samples, count: DonutState.fftSize)
+        let (mags, _) = state.fftEngine.forward(state.samples)
+        var target = SpectrumAnalysis.bands(fromMagnitudes: mags, sampleRate: audioEngine.sampleRate,
+                                            count: n, fMin: Self.fMin, fMax: Self.fMax)
 
-        // Track the ACTUAL sound envelope: the band spectrum is shape-only
-        // (normalized to its own peak), so the rings would snap on at note start
-        // and hold. Modulate the whole visual by the live master RMS (peak-hold
-        // with decay) so it SWELLS on attack and FADES on the decay/reverb tail —
-        // the donuts breathe with the music, not just the note grid. A small
-        // floor keeps a held note faintly visible during quiet sustain.
+        // The band spectrum is shape-only (normalized to its own peak), so modulate
+        // by the live master level so the rings SWELL on attack and FADE on the
+        // decay/reverb tail, and vanish in true silence (no held full-scale rings).
         let level = Double(max(audioEngine.masterLevel, audioEngine.masterLevelR))
-        let env = min(1.0, level * 4.0)               // RMS ~0.25 → full intensity
-        let envGain = Float(0.2 + 0.8 * env)
-        for i in 0..<n { target[i] *= envGain }
+        let env = Float(min(1.0, level * 4.0))        // RMS ~0.25 → full intensity
+        for i in 0..<n { target[i] *= env }
 
         // Ease toward target (frame-rate independent); freeze when Reduce Motion.
         let dt = reduceMotion ? 0 : min(0.1, max(0, date.timeIntervalSince(state.lastDate)))
@@ -64,21 +68,42 @@ struct SpectralDonutView: View {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let maxR = min(size.width, size.height) / 2 * 0.94
         let gap = maxR / CGFloat(n)
+        let t = date.timeIntervalSinceReferenceDate
 
-        // Inner ring = lowest band (bass core), outer = highest (treble rim).
+        // Each band is an OSCILLATING WAVEFORM ring: a closed loop whose radius
+        // wobbles around the circle. The wobble AMPLITUDE follows the band's energy,
+        // the LOBE COUNT rises with frequency (inner = smooth bass, outer = busy
+        // treble), and the PHASE advances over time (alternating direction per ring
+        // for an interference look). Inner ring = lowest band, outer = highest.
+        // Motion is continuous and slow (≪3 Hz, no luminance flashing); Reduce
+        // Motion freezes the phase so the FFT shape is still shown, just still.
+        let segs = 128
         for i in 0..<n {
-            let v = CGFloat(max(0, min(1, state.values[i])))
+            let v = Double(max(0, min(1, state.values[i])))
             guard v > 0.012 else { continue }                 // quiet bands stay invisible
-            let radius = gap * (CGFloat(i) + 0.5)
-            let thickness = gap * v * 0.95                     // ≤ gap → rings never overlap
-            guard thickness > 0.5 else { continue }
+            let baseRadius = Double(gap) * (Double(i) + 0.5)
+            let lobes = Double(3 + i)                          // higher band → more lobes
+            let wobble = Double(gap) * 0.42 * v               // stays within the ring's gap
+            let speed = reduceMotion ? 0 : (0.5 + 0.1 * Double(i))
+            let dir: Double = (i % 2 == 0) ? 1 : -1
+            let phase = t * speed * dir
+
+            var path = Path()
+            for s in 0...segs {
+                let a = Double(s) / Double(segs) * 2 * .pi
+                let r = baseRadius + wobble * sin(lobes * a + phase)
+                let p = CGPoint(x: center.x + CGFloat(cos(a) * r),
+                                y: center.y + CGFloat(sin(a) * r))
+                if s == 0 { path.move(to: p) } else { path.addLine(to: p) }
+            }
+            path.closeSubpath()
+
             let rgb = state.colors[i]
             let color = Color(.sRGBLinear, red: rgb.r, green: rgb.g, blue: rgb.b,
-                              opacity: 0.45 + 0.55 * Double(v))
-            let rect = CGRect(x: center.x - radius, y: center.y - radius,
-                              width: radius * 2, height: radius * 2)
-            ctx.stroke(Circle().path(in: rect), with: .color(color),
-                       style: StrokeStyle(lineWidth: thickness, lineCap: .round))
+                              opacity: 0.45 + 0.55 * v)
+            let lineWidth = max(0.8, Double(gap) * (0.14 + 0.32 * v))
+            ctx.stroke(path, with: .color(color),
+                       style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
         }
     }
 
@@ -86,12 +111,17 @@ struct SpectralDonutView: View {
     private static let fMax: Double = 16000
 }
 
-/// Per-frame eased ring values + the fixed per-band visible colours (computed once).
+/// Per-frame eased ring values + the fixed per-band visible colours (computed once),
+/// plus the reusable FFT engine and sample window for the live spectrum.
 @MainActor
 private final class DonutState {
+    static let fftSize = 1024                          // matches the tap buffer size
     var values: [Float] = []
     var colors: [LinearRGB] = []
     var lastDate: Date = .now
+    /// Held across frames so the FFT setup + windowed buffers allocate once.
+    let fftEngine = EchoelRealFFT(size: DonutState.fftSize)
+    var samples = [Float](repeating: 0, count: DonutState.fftSize)
     private var configuredCount = 0
 
     func ensure(count: Int, fMin: Double, fMax: Double) {
