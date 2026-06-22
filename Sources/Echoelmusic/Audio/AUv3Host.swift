@@ -80,11 +80,19 @@ public final class AUv3Host {
     /// Empty = the instrument runs dry.
     public private(set) var loadedEffects: [HostedAUInfo] = []
 
+    /// The MASTER-bus effect chain — processes the ENTIRE Echoel mix (every built-in
+    /// voice, drums, and the hosted instrument), inserted between the main mixer and
+    /// the hardware output: mix → mfx[0] → … → output. Empty = the mix runs dry
+    /// (default; the output wiring is never touched until the first master effect).
+    public private(set) var loadedMasterEffects: [HostedAUInfo] = []
+
     #if canImport(AVFoundation)
     /// The instantiated instrument (held so we can re-wire + send it MIDI). Not observed.
     @ObservationIgnored private var instrumentUnit: AVAudioUnit?
     /// The instantiated insert-effect chain (parallel to `loadedEffects`).
     @ObservationIgnored private var effectUnits: [AVAudioUnit] = []
+    /// The instantiated master-bus effect chain (parallel to `loadedMasterEffects`).
+    @ObservationIgnored private var masterEffectUnits: [AVAudioUnit] = []
     /// The engine we attach into. Set once at wire-up.
     @ObservationIgnored private weak var engine: AudioEngine?
     #endif
@@ -164,12 +172,64 @@ public final class AUv3Host {
         }
     }
 
-    /// Persist the live settings of everything currently loaded (instrument + chain).
+    /// Load an EFFECT onto the master bus (processes the whole mix). Async; appends to
+    /// the master chain and re-wires mix → mfx… → output. Distinct from `load`, which
+    /// puts effects on the instrument's own channel.
+    public func loadMasterEffect(_ info: HostedAUInfo) async {
+        guard let engine else { loadError = "Audio engine unavailable."; return }
+        guard !info.isInstrument else { return }   // master bus takes effects only
+        isLoading = true
+        loadError = nil
+        let desc = AudioComponentDescription(
+            componentType: info.componentType,
+            componentSubType: info.componentSubType,
+            componentManufacturer: info.componentManufacturer,
+            componentFlags: 0, componentFlagsMask: 0)
+        do {
+            let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
+            restoreState(unit, id: info.id)
+            engine.withGraphPaused {
+                engine.attachAU(unit)
+                masterEffectUnits.append(unit)
+                engine.rewireMasterFX(masterEffectUnits)
+            }
+            loadedMasterEffects.append(info)
+            log.audio("AUv3 master-bus effect loaded: \(info.name)")
+        } catch {
+            loadError = "Could not load \(info.name): \(error.localizedDescription)"
+            log.audio("AUv3 master effect load failed: \(error)", level: .error)
+        }
+        isLoading = false
+    }
+
+    /// Remove one master-bus effect by index; the master chain re-links (empty →
+    /// the direct mix → output connection is restored).
+    public func unloadMasterEffect(at index: Int) {
+        guard masterEffectUnits.indices.contains(index) else { return }
+        let unit = masterEffectUnits[index]
+        if loadedMasterEffects.indices.contains(index) { saveState(unit, id: loadedMasterEffects[index].id) }
+        masterEffectUnits.remove(at: index)
+        if loadedMasterEffects.indices.contains(index) { loadedMasterEffects.remove(at: index) }
+        engine?.withGraphPaused {
+            engine?.detachAU(unit)
+            engine?.rewireMasterFX(masterEffectUnits)
+        }
+    }
+
+    /// The AUAudioUnit of the master-bus effect at `index` (for its own UI). nil if none.
+    public func masterEffectAudioUnit(at index: Int) -> AUAudioUnit? {
+        masterEffectUnits.indices.contains(index) ? masterEffectUnits[index].auAudioUnit : nil
+    }
+
+    /// Persist the live settings of everything currently loaded (instrument + chains).
     /// Call when the app backgrounds so in-session tweaks survive a relaunch.
     public func persistState() {
         if let u = instrumentUnit, let info = loaded { saveState(u, id: info.id) }
         for (i, u) in effectUnits.enumerated() where loadedEffects.indices.contains(i) {
             saveState(u, id: loadedEffects[i].id)
+        }
+        for (i, u) in masterEffectUnits.enumerated() where loadedMasterEffects.indices.contains(i) {
+            saveState(u, id: loadedMasterEffects[i].id)
         }
     }
 

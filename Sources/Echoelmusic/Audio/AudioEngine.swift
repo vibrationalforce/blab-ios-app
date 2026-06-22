@@ -566,5 +566,40 @@ public final class AudioEngine {
         }
         masterEngine.connect(node, to: masterMixer, format: format)
     }
+
+    /// One canonical format for the master-bus FX path — the main mixer's output
+    /// (post AutoMixChain, what actually feeds the hardware). Valid-or-nil.
+    private var masterFXFormat: AVAudioFormat? {
+        let f = masterEngine.mainMixerNode.outputFormat(forBus: 0)
+        return (f.sampleRate > 0 && f.channelCount > 0) ? f : nil
+    }
+
+    /// Master-bus FX: insert hosted AU effects between the main mixer and the output,
+    /// so they process the ENTIRE Echoel mix (mainMixer → fx[0] → … → fx[n] → output).
+    /// Passing an EMPTY array restores the direct mainMixer → output connection (the
+    /// default). The units must already be attached (`attachAU`); call inside
+    /// `withGraphPaused`. NB: only ever called when the master chain CHANGES, so a
+    /// build with no master FX never touches the default output wiring (zero-risk).
+    func rewireMasterFX(_ units: [AVAudioUnit]) {
+        let main = masterEngine.mainMixerNode
+        let out = masterEngine.outputNode
+        let fmt = masterFXFormat
+        // Drop the main mixer's current output (the implicit main→output link, or a
+        // previous master-FX link) and every master-FX node's output, then relink.
+        masterEngine.disconnectNodeOutput(main)
+        for u in units { masterEngine.disconnectNodeOutput(u) }
+        guard !units.isEmpty else {
+            masterEngine.connect(main, to: out, format: fmt)   // restore default
+            log.audio("Master-bus FX cleared — main mixer → output restored")
+            return
+        }
+        var prev: AVAudioNode = main
+        for u in units {
+            masterEngine.connect(prev, to: u, format: fmt)
+            prev = u
+        }
+        masterEngine.connect(prev, to: out, format: fmt)
+        log.audio("Master-bus FX chain wired (\(units.count) effect\(units.count == 1 ? "" : "s"))")
+    }
 }
 #endif
