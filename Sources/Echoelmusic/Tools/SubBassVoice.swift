@@ -159,8 +159,9 @@ public final class SubBassVoice {
         }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
-        // Launch/idle silence: pure zero until the first armed note (and the sub is
-        // also inaudible while subGain stays at its 0 default).
+        // Launch/idle silence: pure zero until the first armed note. The felt-sub
+        // default gain (0.35) only sets loudness ONCE a bass note plays — nothing
+        // sounds at launch because this gate holds until the first armed note.
         guard hasEverSounded else {
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return
