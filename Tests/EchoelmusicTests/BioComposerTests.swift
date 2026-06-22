@@ -266,6 +266,33 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    // MARK: - Live velocity humanization
+
+    private func uniformNotes(_ v: Float = 0.8, count: Int = 8) -> [Note] {
+        (0..<count).map { Note(pitch: 60 + $0, startStep: $0, lengthSteps: 1, velocity: v) }
+    }
+
+    func testHumanize_zeroAmountIsIdentity() {
+        let notes = uniformNotes()
+        let out = BioComposer.humanizeVelocity(notes, amount: 0, seed: 0x5EED)
+        XCTAssertEqual(out.map(\.velocity), notes.map(\.velocity), "amount 0 → no change")
+    }
+
+    func testHumanize_variesButStaysMusicalAndDeterministic() {
+        let notes = uniformNotes(0.8)
+        let a = BioComposer.humanizeVelocity(notes, amount: 0.25, seed: 0x5EED)
+        let b = BioComposer.humanizeVelocity(notes, amount: 0.25, seed: 0x5EED)
+        XCTAssertEqual(a.map(\.velocity), b.map(\.velocity), "seeded → reproducible")
+        XCTAssertFalse(a.allSatisfy { $0.velocity == 0.8 }, "uniform input must gain variation")
+        for n in a {
+            XCTAssertGreaterThanOrEqual(n.velocity, 0.05)
+            XCTAssertLessThanOrEqual(n.velocity, 1)
+        }
+        // ±18% cap at full humanize: stays within a sane band of the source velocity.
+        let full = BioComposer.humanizeVelocity(notes, amount: 1, seed: 0x5EED)
+        for n in full { XCTAssertLessThanOrEqual(abs(n.velocity - 0.8), 0.8 * 0.18 + 1e-6) }
+    }
+
     // MARK: - Coherence-convergence servo (Phase 1, science-grounded)
 
     /// Validated direction: rising coherence must CONVERGE the music toward calm —
