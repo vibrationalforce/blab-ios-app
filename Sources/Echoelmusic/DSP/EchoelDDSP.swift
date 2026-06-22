@@ -1297,6 +1297,16 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         }
     }
 
+    /// Key-follow stereo pan for a polyphonic voice: low notes left, high notes
+    /// right, stable per pitch (independent of which voice slot the note lands in).
+    /// Pure arithmetic — bit-identical to the inline form, testable in isolation.
+    /// `note` is a MIDI note number; the C2…C6 span maps to ±`spread`, clamped.
+    static func keyFollowPan(forNote note: Int, spread: Float = 0.35) -> Float {
+        let lo: Float = 36, hi: Float = 84            // C2…C6 musical span
+        let norm = Swift.min(1, Swift.max(0, (Float(note) - lo) / (hi - lo)))
+        return (norm * 2.0 - 1.0) * spread
+    }
+
     /// Allocate one voice for `note` and start it. `unisonPan`/`unisonGain` override
     /// the default pan-spread / unity gain when stacking a unison voice.
     private func spawnVoice(note: Int, frequency freq: Float, velocity v: Float,
@@ -1315,10 +1325,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // so fast/arp notes reusing a slot jumped across the field (audible stereo
             // wobble). Key-follow panning (low→left, high→right, like a hardware synth)
             // is stable per pitch; the dedicated mono SubBassVoice anchors the low end.
-            let lo: Float = 36, hi: Float = 84            // C2…C6 musical span
-            let norm = Swift.min(1, Swift.max(0, (Float(note) - lo) / (hi - lo)))
-            let panSpread: Float = 0.35                   // gentle — keeps the image solid
-            voicePans[voiceIdx] = (norm * 2.0 - 1.0) * panSpread
+            voicePans[voiceIdx] = Self.keyFollowPan(forNote: note)
         } else {
             voicePans[voiceIdx] = 0
         }
