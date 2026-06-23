@@ -1,5 +1,8 @@
 #if canImport(SwiftUI)
 import SwiftUI
+#if canImport(UIKit)
+import UIKit   // UIApplication.isIdleTimerDisabled (keep screen awake while projecting)
+#endif
 #if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 #endif
@@ -282,9 +285,17 @@ struct EchoelStudioView: View {
             handlePendingIntent()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { handlePendingIntent() }
+            if phase == .active { handlePendingIntent(); updateKeepAwake() }
         }
-        .onDisappear { stopEverything() }
+        // Keep the screen awake while performing or projecting — an installation, a
+        // projected immersive visual, or a hands-off guided session must NOT auto-lock
+        // mid-show. Recomputed from the combined state so any one toggle is correct;
+        // re-enabled (battery) the moment nothing needs it.
+        .onChange(of: running) { _, _ in updateKeepAwake() }
+        .onChange(of: showVisual) { _, _ in updateKeepAwake() }
+        .onChange(of: showBreath) { _, _ in updateKeepAwake() }
+        .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
+        .onDisappear { stopEverything(); disableKeepAwake() }
         .sheet(isPresented: $showOpen) { openSheet }
         .sheet(item: $share) { ShareSheet(url: $0.url) }
         .sheet(item: $diagnostics) { report in diagnosticsSheet(report.text) }
@@ -969,6 +980,22 @@ struct EchoelStudioView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
     #endif
+
+    /// Hold the screen on while the instrument is performing or projecting; otherwise
+    /// let it sleep (battery). iOS resets `isIdleTimerDisabled` on background, so this
+    /// is re-applied on scene-active too. No-op off UIKit.
+    private func updateKeepAwake() {
+        #if canImport(UIKit)
+        UIApplication.shared.isIdleTimerDisabled =
+            running || showVisual || showBreath || showMeditation
+        #endif
+    }
+
+    private func disableKeepAwake() {
+        #if canImport(UIKit)
+        UIApplication.shared.isIdleTimerDisabled = false
+        #endif
+    }
 
     /// Load a preset into the live visual controls. Sliders remain editable; the
     /// values stay within the flash-safe clamps (enforced in VisualPreset.init).
