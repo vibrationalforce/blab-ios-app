@@ -93,7 +93,7 @@ struct ImmersiveMonitorMini: View {
                     .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
             }
         }
-        .frame(width: 44, height: 30)
+        .frame(width: 54, height: 32)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.border, lineWidth: 1))
         .accessibilityElement(children: .ignore)
