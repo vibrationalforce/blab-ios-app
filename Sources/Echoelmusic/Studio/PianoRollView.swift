@@ -229,9 +229,18 @@ public final class PianoRollModel {
             midiOut?.noteOff(pitch: note.pitch)
             auHost?.noteOff(midiByte(note.pitch))
         }
+        // The body's live 5D expression for this note (only when MIDI-out 5D mode is
+        // armed and a fresh bio frame exists): coherence→Slide/brightness,
+        // breath→Press, HRV→Glide micro-drift. nil → plain note-on (unchanged).
+        let expression: MPEExpression? = {
+            guard midiOut?.expressionEnabled == true, let bio = bus?.usableBio() else { return nil }
+            return MPEExpression.from(coherence: bio.coherence,
+                                      breathDepth: bio.breathPhase,
+                                      hrvNormalized: bio.hrvNormalized)
+        }()
         for note in notes where note.startStep == step {
             if !suppressBuiltIn { voice?.noteOn(pitch: note.pitch, velocity: note.velocity) }
-            midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity)
+            midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity, expression: expression)
             auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
             active[note.id] = note
         }

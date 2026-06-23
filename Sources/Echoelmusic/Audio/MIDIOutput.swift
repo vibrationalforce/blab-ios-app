@@ -52,6 +52,13 @@ public final class MIDIOutput {
         }
     }
 
+    /// Stream the body's live 5D expression per note (Glide/Slide/Press) alongside
+    /// each note-on — the ROLI-Seaboard-style multidimensional take, out to any MPE
+    /// rig/DAW. Opt-in, off by default, and only meaningful with `mpeEnabled` (each
+    /// note needs its own member channel for per-note bend/pressure/CC74). With it
+    /// off, output is byte-for-byte the previous note-on/off stream.
+    public var expressionEnabled = false
+
     /// Number of MPE member channels (lower zone): MIDI channels 2…16.
     public static let mpeMemberChannels = 15
 
@@ -110,10 +117,32 @@ public final class MIDIOutput {
     // MARK: - Note events (mirror exactly what the synth plays)
 
     public func noteOn(pitch: Int, velocity: Float) {
+        noteOn(pitch: pitch, velocity: velocity, expression: nil)
+    }
+
+    /// Note-on that can carry the body's live 5D expression. When `expression` is
+    /// supplied AND `expressionEnabled && mpeEnabled`, the per-note Glide (pitch
+    /// bend), Slide (CC74) and Press (channel pressure) are emitted on the SAME
+    /// member channel the note was allocated to — so a receiving MPE rig hears the
+    /// note as a fully expressive, body-driven voice. Otherwise identical to the
+    /// plain note-on (expression is simply ignored).
+    public func noteOn(pitch: Int, velocity: Float, expression: MPEExpression?) {
         guard enabled, isReady, (0...127).contains(pitch) else { return }
         let ch = allocateChannel(for: pitch)
         let vel = UInt8(max(1, min(127, Int(velocity * 127))))   // 1…127 (0 = note off)
         send([0x90 | UInt8(ch), UInt8(pitch), vel])
+        if let expr = expression, mpeEnabled, expressionEnabled {
+            sendExpression(expr, channel: ch)
+        }
+    }
+
+    /// Emit the three continuous MPE per-note dimensions on member channel `ch`:
+    /// Glide (14-bit pitch bend), Slide (CC74) and Press (channel pressure, 0xD0).
+    private func sendExpression(_ expr: MPEExpression, channel ch: Int) {
+        let pb = MPEExpression.pitchBend14(expr.bend)
+        send([0xE0 | UInt8(ch), pb.lsb, pb.msb])                       // Glide
+        send([0xB0 | UInt8(ch), MPEExpression.slideCCIndex, expr.slideCC74])  // Slide (CC74)
+        send([0xD0 | UInt8(ch), expr.pressure])                       // Press (channel pressure)
     }
 
     public func noteOff(pitch: Int) {
