@@ -63,6 +63,9 @@ final class FXViewModel {
         harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
         reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
         reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
+        bitcrushEnabled = c.bitcrushEnabled; bitcrushBits = c.bitcrush.bits
+        bitcrushDownsample = c.bitcrush.downsample; bitcrushMix = c.bitcrush.mix
+        widenerEnabled = c.widenerEnabled; widenerWidth = c.widener.width
     }
 
     // Master
@@ -125,6 +128,16 @@ final class FXViewModel {
     var saturationDrive: Float { didSet { chain.saturationDrive = saturationDrive } }
     var saturationMix: Float { didSet { chain.saturationMix = saturationMix } }
 
+    // Bitcrush (digital lo-fi)
+    var bitcrushEnabled: Bool { didSet { chain.bitcrushEnabled = bitcrushEnabled } }
+    var bitcrushBits: Float { didSet { chain.bitcrush.bits = bitcrushBits } }
+    var bitcrushDownsample: Float { didSet { chain.bitcrush.downsample = bitcrushDownsample } }
+    var bitcrushMix: Float { didSet { chain.bitcrush.mix = bitcrushMix } }
+
+    // Stereo widener (M/S)
+    var widenerEnabled: Bool { didSet { chain.widenerEnabled = widenerEnabled } }
+    var widenerWidth: Float { didSet { chain.widener.width = widenerWidth } }
+
     // Harmonizer (added harmony voices above the melody)
     var harmonizerEnabled: Bool { didSet { chain.harmonizerEnabled = harmonizerEnabled } }
     var harmInterval1: Float { didSet { chain.harmonizer.interval1 = harmInterval1 } }
@@ -178,6 +191,9 @@ final class FXViewModel {
         harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
         reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
         reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
+        bitcrushEnabled = c.bitcrushEnabled; bitcrushBits = c.bitcrush.bits
+        bitcrushDownsample = c.bitcrush.downsample; bitcrushMix = c.bitcrush.mix
+        widenerEnabled = c.widenerEnabled; widenerWidth = c.widener.width
     }
 
     // MARK: - Preset save / recall
@@ -267,6 +283,12 @@ struct EchoelFXView: View {
                     field("Mix", $vm.saturationMix, 0...1)
                 }
 
+                effectSection("Bitcrush", isOn: $vm.bitcrushEnabled) {
+                    field("Bits", $vm.bitcrushBits, 1...16, unit: "bit", decimals: 0)
+                    field("Downsample", $vm.bitcrushDownsample, 1...64, unit: "×", decimals: 0)
+                    field("Mix", $vm.bitcrushMix, 0...1)
+                }
+
                 effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
                     field("Voice 1", $vm.harmInterval1, -12...12, unit: "st", decimals: 0)
                     Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
@@ -279,6 +301,10 @@ struct EchoelFXView: View {
                     field("Damping", $vm.reverbDamping, 0...1)
                     field("Width", $vm.reverbWidth, 0...1)
                     field("Mix", $vm.reverbMix, 0...1)
+                }
+
+                effectSection("Stereo Width", isOn: $vm.widenerEnabled) {
+                    field("Width", $vm.widenerWidth, 0...2)
                 }
 
                 effectSection("Delay", isOn: $vm.delayEnabled) {

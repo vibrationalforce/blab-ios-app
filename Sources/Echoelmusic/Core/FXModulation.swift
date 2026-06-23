@@ -29,6 +29,8 @@ public enum FXModTarget: String, Codable, Sendable, CaseIterable, Identifiable {
     case delayFeedback
     case reverbMix
     case reverbSize
+    case bitcrushMix
+    case stereoWidth
 
     public var id: String { rawValue }
 
@@ -45,6 +47,8 @@ public enum FXModTarget: String, Codable, Sendable, CaseIterable, Identifiable {
         case .delayFeedback:   return "Delay Feedback"
         case .reverbMix:       return "Reverb Mix"
         case .reverbSize:      return "Reverb Size"
+        case .bitcrushMix:     return "Bitcrush Mix"
+        case .stereoWidth:     return "Stereo Width"
         }
     }
 
@@ -54,6 +58,7 @@ public enum FXModTarget: String, Codable, Sendable, CaseIterable, Identifiable {
         switch self {
         case .filterCutoff:    return 80...18000
         case .delayFeedback:   return 0...0.95
+        case .stereoWidth:     return 0...2
         default:               return 0...1     // mixes/depths/drive/resonance/size
         }
     }
