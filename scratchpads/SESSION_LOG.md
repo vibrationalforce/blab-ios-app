@@ -3421,3 +3421,7 @@ NOTE: CI — rapid back-to-back pushes triggered concurrency cancellation on the
 - **rPPG BPM jitter** (83→118→89): acf≈0 at fingertip SNR → rate rode the peak-counter. Added median-of-5 + ratio-gated harmonic guard (folds only true 2×/0.5×, leaves 0.625–1.6× real ramps alone — dsp-reviewed FAIL→fixed). CameraAnalyzer only.
 - **"Visuals ruckeln hin und her"**: shader animated sin(d·density − time×flashHz) with unbounded time → frequency changes snapped the phase. Fixed: CPU phase accumulation + per-frame frame-rate-independent easing of all uniforms; removed AnyView churn around the live MTKView cover. Added coherence-driven interference rings + breath bloom (variety/physics). Flash-safe. Swift+MSL reviewed PASS. → v10.76.5.
 - **Visual roadmap (founder wants more):** selectable visual STYLES, projection/external-display output, bio-reactive routing of visual params. To scope next.
+
+## 2026-06-23 (cont.3) — Multi-style immersive visual (10.76.6)
+- Founder wants more variety/design/physics in the visuals. Added MetalBioView `style` uniform + 3 physical looks: Rings (interference, coherence detune), Chladni (plate eigenmodes from the tone), Plasma (superposed waves). Polish: breath bloom + per-look vignette + sub-LSB dither (no banding). One persisted "Look" strip (Donuts·Rings·Chladni·Plasma) in VJ overlay + Visual panel. Flash-safe ≤2.5 Hz; colour stays physical tone→light. Swift+MSL reviewed PASS. → v10.76.6.
+- Next: projection/external-display output, bio-routing of visual params, more looks once device-confirmed.
