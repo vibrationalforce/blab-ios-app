@@ -161,6 +161,7 @@ struct EchoelStudioView: View {
     @State private var midiImportPresented = false
     @State private var showVisual = false
     @State private var showBreath = false
+    @State private var showMeditation = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
     @State private var showAllFX = false
     /// Which drum track's sample browser is open (nil = closed). Identifiable
@@ -306,6 +307,7 @@ struct EchoelStudioView: View {
         }
         #endif
         .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
+        .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -393,6 +395,7 @@ struct EchoelStudioView: View {
                     gridChip("Audio In", "mic") { showInput = true }
                     gridChip("Audio Clip", "waveform") { showAudioClip = true }
                     gridChip("Breathing", "wind") { showBreath = true }
+                    gridChip("Meditation", "figure.mind.and.body") { showMeditation = true }
                 }
                 toolGroup("Connect") {
                     gridChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
