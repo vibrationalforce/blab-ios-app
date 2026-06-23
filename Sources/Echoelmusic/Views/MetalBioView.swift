@@ -54,6 +54,9 @@ private struct BioUniforms {
     /// cycles at once (the "ruckeln hin und her"). Integrating phase per frame means
     /// a frequency change alters only the RATE, never the position. Continuous.
     var pulsePhase: Float = 0
+    /// Visual STYLE selector (discrete, snapped — not eased): 0 = interference rings,
+    /// 1 = Chladni nodal eigenmodes (tone → plate modes), 2 = plasma wave field.
+    var style: Float = 0
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -74,6 +77,8 @@ struct MetalBioView: UIViewRepresentable {
     /// VJ palette controls (see BioUniforms). Defaults keep the physical colour.
     var hueShift: Float = 0
     var saturation: Float = 1
+    /// Visual style: 0 rings · 1 Chladni · 2 plasma (see `BioUniforms.style`).
+    var style: Int = 0
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -124,6 +129,7 @@ struct MetalBioView: UIViewRepresentable {
             intensity: intensity, ringDensity: scaledRingDensity, motion: motion, spread: spread,
             pulseHz: Float(vp.pulseHz),
             hueShift: hueShift, saturation: saturation,
+            style: style,
             reduceMotion: effectiveReduceMotion
         )
     }
@@ -168,9 +174,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
-                pulseHz: Float, hueShift: Float, saturation: Float, reduceMotion: Bool) {
+                pulseHz: Float, hueShift: Float, saturation: Float, style: Int, reduceMotion: Bool) {
         // Writes the TARGET; draw() eases the live uniforms toward it. Same clamps as
         // before (the GPU never sees an out-of-range / non-finite value).
+        // Style is DISCRETE — snap it on both live and target (no cross-fade between modes).
+        let s = Float(min(max(style, 0), 2))
+        target.style = s
+        uniforms.style = s
         target.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         target.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         target.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
@@ -295,7 +305,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     struct VOut { float4 pos [[position]]; float2 uv; };
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
-                      float pulseHz; float hueShift; float saturation; float pulsePhase; };
+                      float pulseHz; float hueShift; float saturation; float pulsePhase; float style; };
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -355,6 +365,50 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         return wavelengthToRGB(clamp(wl, 380.0, 780.0));
     }
 
+    // ── Visual styles — each returns a scalar field in ~[0,1] ───────────────────
+    // STYLE 0 — wave INTERFERENCE rings: a second ring system detuned by coherence
+    // (high = aligned/constructive, low = turbulent moiré) beats against the first.
+    float fieldRings(float d, float density, float phase, float coh) {
+        float rings  = 0.5 + 0.5 * sin(d * density - phase);
+        float detune = mix(1.6, 1.04, coh);
+        float rings2 = 0.5 + 0.5 * sin(d * density * detune - phase * 0.5);
+        return mix(rings, rings * rings2, 0.5);
+    }
+    // STYLE 1 — CHLADNI nodal figures: eigenmodes of a vibrating square plate,
+    // s = cos(mπx)cos(nπy) − cos(nπx)cos(mπy); sand gathers on the nodal lines (s≈0).
+    // The mode numbers m,n come from the sounding TONE, so a higher pitch shows a
+    // finer figure — a real physical pitch→pattern mapping. Coherence sharpens the
+    // lines; the (slow, flash-safe) pulse phase makes them breathe.
+    float fieldChladni(float2 p, float toneHz, float phase, float coh) {
+        float b = log2(max(toneHz, 1.0));
+        float m = 2.0 + floor(fract(b * 0.50) * 5.0);          // 2..6
+        float n = 2.0 + floor(fract(b * 0.37 + 0.3) * 5.0);    // 2..6
+        float a1 = 3.14159265 * m;
+        float a2 = 3.14159265 * n;
+        float s = cos(a1 * p.x) * cos(a2 * p.y) - cos(a2 * p.x) * cos(a1 * p.y);
+        float amp = 0.7 + 0.3 * sin(phase * 0.5);              // gentle breathing
+        float w = mix(0.14, 0.04, coh);                        // coherence sharpens lines
+        return 1.0 - smoothstep(0.0, w, abs(s) * amp);
+    }
+    // STYLE 2 — PLASMA: superposed travelling plane waves (a classic interference
+    // field). Drifts slowly via the flash-safe phase; coherence raises the contrast
+    // (ordered banding) vs a soft wash. Organic motion with no fast flashing.
+    float fieldPlasma(float2 p, float phase, float coh) {
+        float t = phase * 0.5;                                 // slow drift (≤ flashHz)
+        float v = sin(p.x * 3.0 + t)
+                + sin(p.y * 3.0 - t * 0.8)
+                + sin((p.x + p.y) * 2.5 + t * 0.6)
+                + sin(length(p) * 5.0 - t);
+        v = 0.5 + 0.125 * v;                                   // → ~[0,1]
+        return pow(clamp(v, 0.0, 1.0), mix(1.0, 2.2, coh));
+    }
+    // Cheap hash → a sub-LSB dither that removes banding in the dark gradients.
+    float echoelHash(float2 p) {
+        p = fract(p * float2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+    }
+
     // Full-screen triangle generated from the vertex id — no vertex buffer needed.
     vertex VOut echoel_bio_vertex(uint vid [[vertex_id]]) {
         float2 p = float2((vid << 1) & 2, vid & 2);   // (0,0) (2,0) (0,2)
@@ -370,41 +424,46 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         uv.x *= u.aspect;
         float2 c = float2(0.5 * u.aspect, 0.5);
         float d = distance(uv, c);
+        float2 p = (uv - c) * 2.0;             // centred ~[-1,1] for the 2D styles
 
-        // Heart rate → ring pulse. The temporal motion is the ACCUMULATED phase
-        // (u.pulsePhase, integrated on the CPU from the flash-safe frequency), NOT
-        // time × frequency — so an HR change alters the rate, never snaps the pattern
-        // (kills the "ruckeln"). Flash-safety is already enforced where the phase is
-        // integrated (≤2.5 Hz, < WCAG 3 Hz); this is a pure read of that phase.
+        // The temporal motion is the ACCUMULATED phase (integrated on the CPU from the
+        // flash-safe frequency), NOT time × frequency — so an HR change alters the rate,
+        // never snaps the pattern (kills the "ruckeln"). Flash-safety is enforced where
+        // the phase is integrated (≤2.5 Hz, < WCAG 3 Hz); this is a pure read.
+        float coh = clamp(u.coherence, 0.0, 1.0);
         float density = clamp(u.ringDensity, 4.0, 120.0);
         float phase = u.pulsePhase * 6.2831853;
-        float rings = 0.5 + 0.5 * sin(d * density - phase);
-
-        // Wave INTERFERENCE: a second ring system at a detuned spatial frequency. The
-        // detune is driven by COHERENCE — high coherence pulls the two systems into
-        // near-alignment (ordered, slow constructive beat); low coherence detunes them
-        // (busy, turbulent moiré). It is a literal visual of the bio signal's own
-        // coherence, and adds depth/variety without any extra temporal flashing.
-        float coh = clamp(u.coherence, 0.0, 1.0);
-        float detune = mix(1.6, 1.04, coh);
-        float rings2 = 0.5 + 0.5 * sin(d * density * detune - phase * 0.5);
-        float interf = mix(rings, rings * rings2, 0.5);
-
-        // Breath → field spread (× user Spread) + a soft central bloom that swells on
-        // the inhale, so the body's slow rhythm is felt as light pressure, not motion.
         float spread = (0.85 + u.breath * 0.35) * clamp(u.spread, 0.4, 1.6);
-        float field = interf * smoothstep(0.62 * spread, 0.0, d);
+
+        // Select the look. Each style is a physically/analytically grounded field; the
+        // vignette per style frames it (rings = centred medallion, the 2D fields fill).
+        float field;
+        float vignette;
+        if (u.style < 0.5) {
+            field = fieldRings(d, density, phase, coh);
+            vignette = smoothstep(0.62 * spread, 0.0, d);
+        } else if (u.style < 1.5) {
+            field = fieldChladni(p, u.toneHz, phase, coh);
+            vignette = smoothstep(1.05 * spread, 0.0, d);
+        } else {
+            field = fieldPlasma(p, phase, coh);
+            vignette = smoothstep(1.15 * spread, 0.0, d);
+        }
+        field *= vignette;
+        // Breath → a soft central bloom that swells on the inhale (light pressure).
         float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
 
         // Colour = the heard tone transposed into light (physically correct), so the
-        // pitch you hear is the colour you see. Coherence lifts the saturation/glow.
+        // pitch you hear is the colour you see. Coherence lifts the saturation/glow,
+        // then the VJ palette applies (neutral at defaults — physical colour preserved).
         float3 col = toneColour(u.toneHz);
         col = mix(col, col * 1.15 + 0.05, coh);
-        // VJ palette control (neutral at defaults — physical colour preserved).
         col = echoelSaturate(col, clamp(u.saturation, 0.0, 2.0));
         col = echoelHue(col, u.hueShift);
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
+
         float3 outCol = col * field + col * bloom;
+        outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
         return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }
     """
