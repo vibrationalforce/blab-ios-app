@@ -104,17 +104,22 @@ public struct FXModRoute: Codable, Sendable, Identifiable, Equatable {
     public var bipolar: Bool
     /// LFO rate in Hz (used when `carrier == .lfo`).
     public var lfoRateHz: Float
+    /// Response shaping applied to the [0..1] carrier signal before depth/polarity —
+    /// `.exponential` for a slow start then a fast top, `.logarithmic` for the
+    /// reverse, `.sCurve` for soft ends. Default `.linear` (identity).
+    public var curve: ResponseCurve
     public var enabled: Bool
 
     public init(id: UUID = UUID(), carrier: FXModCarrier, target: FXModTarget,
                 depth: Float = 0.5, bipolar: Bool = true, lfoRateHz: Float = 0.5,
-                enabled: Bool = true) {
+                curve: ResponseCurve = .linear, enabled: Bool = true) {
         self.id = id
         self.carrier = carrier
         self.target = target
         self.depth = FXModulation.clamp01(depth)
         self.bipolar = bipolar
         self.lfoRateHz = Swift.max(0.01, lfoRateHz)
+        self.curve = curve
         self.enabled = enabled
     }
 }
