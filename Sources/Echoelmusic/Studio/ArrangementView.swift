@@ -64,6 +64,10 @@ struct ArrangementView: View {
             VStack(alignment: .leading, spacing: 12) {
                 transportBar
 
+                if !store.isEmpty {
+                    timelineCanvas
+                }
+
                 if store.isEmpty {
                     emptyState
                 } else {
@@ -143,6 +147,50 @@ struct ArrangementView: View {
     /// 1-based "bar·beat" string from the Transport position.
     private var positionLabel: String {
         "\(transport.position.bar + 1)·\(transport.position.beat + 1)"
+    }
+
+    // MARK: - Timeline canvas
+
+    /// A horizontal overview of the whole song: each section is a bar whose WIDTH is
+    /// proportional to its length, laid out left→right in play order, with a live
+    /// playhead (riding Transport) sweeping across while the song plays. The vertical
+    /// list below stays the editor; this is the at-a-glance map.
+    private var timelineCanvas: some View {
+        let totalBars = Swift.max(store.totalBars, 1)
+        return GeometryReader { geo in
+            let w = geo.size.width
+            HStack(spacing: 1) {
+                ForEach(Array(store.sections.enumerated()), id: \.element.id) { index, section in
+                    let tint = Self.palette[section.colorIndex % Self.palette.count]
+                    let isHere = player.isPlaying && player.currentIndex == index
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(tint.opacity(isHere ? 0.55 : 0.30))
+                        .overlay(
+                            Text(section.name)
+                                .font(EchoelTheme.font(9, .medium))
+                                .foregroundStyle(EchoelTheme.text)
+                                .lineLimit(1).padding(.horizontal, 3),
+                            alignment: .leading
+                        )
+                        .frame(width: Swift.max(w * CGFloat(section.lengthBars) / CGFloat(totalBars) - 1, 8))
+                }
+            }
+            .frame(width: w, height: 34, alignment: .leading)
+            .overlay(alignment: .leading) {
+                if transport.isPlaying {
+                    // Wrap within the song so a looping arrangement keeps the playhead
+                    // on-screen (Transport.bar counts monotonically since play()).
+                    let progress = Double((transport.position.bar % totalBars) * Transport.stepsPerBar
+                        + transport.position.step) / Double(totalBars * Transport.stepsPerBar)
+                    Rectangle()
+                        .fill(EchoelTheme.accent)
+                        .frame(width: 2, height: 34)
+                        .offset(x: w * CGFloat(progress))
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .frame(height: 34)
     }
 
     private var emptyState: some View {
