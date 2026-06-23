@@ -1,5 +1,18 @@
-build: 2026-06-23 v10.72.0 (number-pad signs + haptic transport pulse)
+build: 2026-06-23 v10.72.1 (rPPG acf=0 diagnostic telemetry + number-pad signs + haptics)
 branch: claude/piano-roll-clip-view-wozlie
+notesH: Device log 2026-06-23 showed a CLEAN, stable rPPG session (bpm 61-64, conf 0.85→0.97,
+  q→0.99 — the saturation-hold/resilience direction is working) BUT acf=0.00 the entire run: the
+  autocorrelation safety-net (PulsePeriodEstimator) returns nil even with a clear pulse, which also
+  explains the slowish first lock (~24 s) since the fast autocorrelation fallback never fires. The
+  pure estimator is unit-test-verified correct for clean/noisy/random/flat synthetic signals, so the
+  field nil is NOT a generic estimator bug — it depends on the real bandpassed window or the true
+  frame rate (a rate far from the 15 Hz the bandpass is tuned for detunes both the passband and the
+  lag→BPM mapping). Rather than blind-guess a DSP change that could break the WORKING peak-counter,
+  this ships targeted telemetry: the breadcrumb now also logs rate=<true sample Hz> and win=<window
+  samples> — the two inputs that decide whether dominantBPM can lock — so the next device log
+  pinpoints WHY acf reads 0. Logging-only in CameraAnalyzer + CameraRPPGBioPublisher (no signal-path
+  change). Bundled with the verified v10.72.0 work (number-pad minus/plus/sign accessory + haptic
+  transport pulse).
 notesG: Founder — "Nummernpads + Menüs optimieren mit allen Vorzeichen (minus/plus/done); alles
   von überall schnell zugänglich, schließbar, verschiebbar." (1) NUMBER PAD — EchoelValueField, the
   ONE control behind every adjustable number app-wide, gains a full keyboard accessory: − / + nudge

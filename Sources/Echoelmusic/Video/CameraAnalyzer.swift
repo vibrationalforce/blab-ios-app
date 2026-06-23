@@ -52,6 +52,13 @@ final class CameraAnalyzer {
     @ObservationIgnored private(set) var lastPeakCount: Int = 0
     @ObservationIgnored private(set) var lastAutoStrength: Double = 0
     @ObservationIgnored private(set) var lastFilteredAmplitude: Float = 0
+    /// True frame-derived sample rate + window length fed to the autocorrelation —
+    /// the two inputs that decide whether `dominantBPM` can lock. A rate far from the
+    /// 15 Hz the bandpass is designed for (e.g. dropped/doubled frames) detunes both
+    /// the passband and the lag→BPM mapping; surfaced so a device log can show WHY
+    /// `acf` reads 0 even with a clean pulse (field finding 2026-06-23).
+    @ObservationIgnored private(set) var lastActualRate: Double = 0
+    @ObservationIgnored private(set) var lastWindowSize: Int = 0
 
     /// Frame counter for debugging
     private var frameCount: Int = 0
@@ -354,6 +361,8 @@ final class CameraAnalyzer {
         // here — peak-counting and autocorrelation — is correct regardless of frame rate.
         let span = signalTimestamps[n - 1] - signalTimestamps[startIdx]
         let actualRate = span > 0 ? Double(windowSize - 1) / span : effectiveSampleRate
+        lastActualRate = actualRate
+        lastWindowSize = windowSize
 
         // Robust periodicity once per scan — reused for telemetry, the fresh-lock
         // cross-check, and the few-peaks fallback (avoids recomputing it twice).
