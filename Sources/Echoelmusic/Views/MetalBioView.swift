@@ -442,20 +442,16 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // near-zero → broad flat bands → the "flat green flood"). Returns x = field, y = vignette.
     float2 styleField(float si, float d, float2 pf, float density, float toneHz,
                       float phase, float coh, float breath, float spread) {
-        float field; float vig;
-        if (si < 0.5) {
-            field = fieldRings(d, density, phase, coh);
-            vig = smoothstep(1.10 * spread, 0.0, d);
-        } else if (si < 1.5) {
-            field = fieldChladni(pf, toneHz, phase, coh);
-            vig = smoothstep(1.30 * spread, 0.0, d);
-        } else if (si < 2.5) {
-            field = fieldPlasma(pf, phase, coh);
-            vig = smoothstep(1.35 * spread, 0.0, d);
-        } else {
-            field = fieldWater(pf, phase, coh, breath);
-            vig = smoothstep(1.35 * spread, 0.0, d);
-        }
+        float field;
+        // One generous vignette for every style. The edge is ALWAYS larger than the
+        // screen radius (max d ≈ 0.55), so even the smallest Spread can never collapse
+        // the look to a black centre — it only tightens the soft frame.
+        float vEdge = 0.9 + 0.5 * spread;          // 0.9 … 1.7, always > screen radius
+        float vig = smoothstep(vEdge, 0.0, d);
+        if (si < 0.5)       field = fieldRings(d, density, phase, coh);
+        else if (si < 1.5)  field = fieldChladni(pf, toneHz, phase, coh);
+        else if (si < 2.5)  field = fieldPlasma(pf, phase, coh);
+        else                field = fieldWater(pf, phase, coh, breath);
         return float2(field, vig);
     }
 
@@ -503,7 +499,6 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float2 fb = styleField(u.styleB, d, pf, density, u.toneHz, phase, coh, u.breath, spread);
         float field    = mix(fa.x, fb.x, blend);
         float vignette = mix(fa.y, fb.y, blend);
-        field *= vignette;
         // Breath → a soft central bloom that swells on the inhale (light pressure).
         float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
 
@@ -512,14 +507,22 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // then the VJ palette applies (neutral at defaults — physical colour preserved).
         float3 col = toneColour(u.toneHz);
         col = mix(col, col * 1.15 + 0.05, coh);
+        // Never near-black: deep-red/violet tones are dim via the CMF (eye sensitivity).
+        // Lift very dark colours up to a luminance floor while PRESERVING hue, so the
+        // look is always a visible colour and can never collapse toward black.
+        float lum = dot(col, float3(0.2126, 0.7152, 0.0722));
+        col *= (lum < 0.35) ? (0.35 / max(lum, 0.04)) : 1.0;
         col = echoelSaturate(col, clamp(u.saturation, 0.0, 2.0));
         col = echoelHue(col, u.hueShift);
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
 
-        // A faint, breath-framed ambient wash in the tone colour so EVERY look/blend
-        // shows something (no pure-black "dead" screen) without washing out projection.
-        float ambient = 0.03 * vignette;
-        float3 outCol = col * field + col * bloom + col * ambient;
+        // Compose so the frame is NEVER a dead black: a faint full-frame tone wash
+        // (ambient, independent of the vignette so a small Spread can't black it out)
+        // rising to the full pattern at its peaks. The pattern keeps the structure;
+        // the wash guarantees the look always reads as "on".
+        float energy = clamp(field * vignette + bloom, 0.0, 1.0);
+        float ambient = 0.06;
+        float3 outCol = col * (ambient + (1.0 - ambient) * energy);
         outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
         return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }
