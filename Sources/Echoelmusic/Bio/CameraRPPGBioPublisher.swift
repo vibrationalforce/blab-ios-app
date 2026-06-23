@@ -108,6 +108,14 @@ public final class CameraRPPGBioPublisher {
             }
         }
 
+        // If the camera self-recovers from a silent stall (watchdog restart or full
+        // reconfigure), the device exposure is fresh (back to auto). Drop our lock so
+        // the loop re-locks against the finger instead of trusting a stale lock; the
+        // torch is re-armed by CameraCapture itself. Fires on a background queue → hop.
+        capture.onSessionReset = { [weak self] in
+            Task { @MainActor [weak self] in self?.handleCameraSessionReset() }
+        }
+
         do {
             try await capture.start()
         } catch {
@@ -262,9 +270,22 @@ public final class CameraRPPGBioPublisher {
         }
     }
 
+    /// The camera restarted the session under us (stall recovery). The device is
+    /// freshly configured with exposure back to auto, so reset our exposure state
+    /// machine to re-lock cleanly. Also breadcrumbed so the recovery is visible in a
+    /// device log (previously a stall just looked like frozen values).
+    private func handleCameraSessionReset() {
+        exposureLocked = false
+        fingerStableTicks = 0
+        saturatedTicks = 0
+        fingerLostTicks = 0
+        EchoelCrashLog.breadcrumb("rPPG: camera session recovered after stall — re-locking exposure")
+    }
+
     public func stop() {
         publishTask?.cancel()
         publishTask = nil
+        capture.onSessionReset = nil
         capture.setTorch(false)
         capture.unlockExposure()       // leave the device back in auto for next time
         capture.stop()

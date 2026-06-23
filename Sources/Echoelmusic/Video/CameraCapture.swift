@@ -24,6 +24,18 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     nonisolated(unsafe) private var lastRestartTime: CFAbsoluteTime = 0
     private var watchdog: DispatchSourceTimer?
     private var sessionObservers: [NSObjectProtocol] = []
+    /// Consecutive stall-restart attempts (sessionQueue). Resets the instant frames
+    /// flow again. Drives escalation: a cheap stop/start first, a FULL reconfigure if
+    /// that didn't revive delivery (a deep stall — mediaServices reset / thermal —
+    /// often survives a bare restart).
+    private var stallRestarts = 0
+    /// Last torch state the app asked for (sessionQueue-only). A session restart/
+    /// reconfigure silently drops the torch, so recovery must re-arm it — without it
+    /// rPPG has no signal and the "stall" looks unrecovered even after frames resume.
+    private var torchDesired = false
+    /// Called after the session is restarted/reconfigured by recovery, so the owner
+    /// (rPPG publisher) can reset its exposure state machine and re-lock cleanly.
+    nonisolated(unsafe) var onSessionReset: (() -> Void)?
 
     /// Whether the session is running
     var isRunning: Bool { session.isRunning }
@@ -123,26 +135,32 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     /// Finger-on-lens PPG has no red-channel pulse without it.
     func setTorch(_ on: Bool) {
         sessionQueue.async { [weak self] in
-            guard let self,
-                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
-                  device.hasTorch else {
-                log.log(.warning, category: .biofeedback, "Torch unavailable on capture device")
-                return
+            guard let self else { return }
+            self.torchDesired = on          // remembered so recovery can re-arm it
+            self.applyTorch()
+        }
+    }
+
+    /// Apply `torchDesired` to the running device. MUST be called on sessionQueue
+    /// (setTorch + recovery both do). Re-armed after every restart/reconfigure.
+    private func applyTorch() {
+        guard let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
+              device.hasTorch else {
+            log.log(.warning, category: .biofeedback, "Torch unavailable on capture device")
+            return
+        }
+        do {
+            try device.lockForConfiguration()
+            if torchDesired {
+                try device.setTorchModeOn(level: min(0.6, AVCaptureDevice.maxAvailableTorchLevel))
+            } else {
+                device.torchMode = .off
             }
-            do {
-                try device.lockForConfiguration()
-                if on {
-                    let level = min(0.6, AVCaptureDevice.maxAvailableTorchLevel)
-                    try device.setTorchModeOn(level: level)
-                } else {
-                    device.torchMode = .off
-                }
-                device.unlockForConfiguration()
-                log.log(.info, category: .biofeedback,
-                        "Torch \(on ? "on" : "off"), active=\(device.isTorchActive)")
-            } catch {
-                log.log(.warning, category: .biofeedback, "Torch control failed: \(error.localizedDescription)")
-            }
+            device.unlockForConfiguration()
+            log.log(.info, category: .biofeedback,
+                    "Torch \(torchDesired ? "on" : "off"), active=\(device.isTorchActive)")
+        } catch {
+            log.log(.warning, category: .biofeedback, "Torch control failed: \(error.localizedDescription)")
         }
     }
 
@@ -207,16 +225,26 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         sessionObservers = [rt, intr, ended]
     }
 
-    /// On a runtime error (notably `.mediaServicesWereReset`) restart the session.
+    /// On a runtime error (notably `.mediaServicesWereReset`, which invalidates the
+    /// session) do a FULL reconfigure — a bare start can't recover a reset session,
+    /// and the torch must be re-armed. Runs on sessionQueue (the observer hops there).
     private func recoverFromError(_ code: AVError.Code?) {
-        log.log(.warning, category: .biofeedback, "Camera runtime error (\(code.map(String.init(describing:)) ?? "unknown")) — restarting")
-        if !session.isRunning { session.startRunning() }
-        lastFrameTime = CFAbsoluteTimeGetCurrent()
+        // Share the watchdog's restart throttle: a hardware reset that keeps re-emitting
+        // the error must not thrash reconfigures (each reconfigure can itself re-emit).
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - lastRestartTime > 6.0 else {
+            log.log(.warning, category: .biofeedback, "Camera runtime error within cooldown — skipping reconfigure")
+            return
+        }
+        log.log(.warning, category: .biofeedback, "Camera runtime error (\(code.map(String.init(describing:)) ?? "unknown")) — full reconfigure")
+        restartSession(fullReconfigure: true)
     }
 
     /// Watchdog: if the session is running but no frame has arrived for >4 s, the
-    /// capture pipeline has silently stalled (device log: ~68 s freeze, no error) —
-    /// kick it with a stop/start. Cooldown-guarded so it can never thrash.
+    /// capture pipeline has silently stalled (device logs: ~50–68 s freeze, no error).
+    /// Recovery ESCALATES — a cheap stop/start first; a full reconfigure if frames
+    /// still don't return (a deep stall survives a bare restart). Cooldown-guarded so
+    /// it can never thrash, and `stallRestarts` resets the moment frames flow again.
     private func startWatchdog() {
         watchdog?.cancel()
         let timer = DispatchSource.makeTimerSource(queue: sessionQueue)
@@ -224,17 +252,47 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         timer.setEventHandler { [weak self] in
             guard let self, self.session.isRunning else { return }
             let now = CFAbsoluteTimeGetCurrent()
-            guard now - self.lastFrameTime > 4.0,        // frames stopped
-                  now - self.lastRestartTime > 6.0 else { return }   // restart cooldown
-            self.lastRestartTime = now
+            if now - self.lastFrameTime <= 4.0 {          // frames flowing → healthy
+                self.stallRestarts = 0
+                return
+            }
+            guard now - self.lastRestartTime > 6.0 else { return }   // restart cooldown
+            self.stallRestarts += 1
+            // First kick is the cheap stop/start; if that didn't revive delivery,
+            // escalate to a full teardown + reconfigure of inputs/outputs.
+            let full = self.stallRestarts >= 2
             log.log(.warning, category: .biofeedback,
-                    "Camera stalled \(String(format: "%.1f", now - self.lastFrameTime))s — restarting session")
-            self.session.stopRunning()
-            self.session.startRunning()
-            self.lastFrameTime = CFAbsoluteTimeGetCurrent()   // grace after kick
+                    "Camera stalled \(String(format: "%.1f", now - self.lastFrameTime))s — "
+                    + "restarting (attempt \(self.stallRestarts), full=\(full))")
+            self.restartSession(fullReconfigure: full)
         }
         timer.resume()
         watchdog = timer
+    }
+
+    /// Restart the capture session after a stall. `fullReconfigure` tears down and
+    /// rebuilds inputs/outputs (for a deep stall a bare stop/start can't clear). Always
+    /// re-arms the torch (a restart drops it) and notifies the owner to re-lock exposure.
+    /// MUST run on sessionQueue (the watchdog handler does).
+    private func restartSession(fullReconfigure: Bool) {
+        lastRestartTime = CFAbsoluteTimeGetCurrent()       // single shared restart throttle
+        session.stopRunning()
+        if fullReconfigure {
+            session.beginConfiguration()
+            for input in session.inputs { session.removeInput(input) }
+            for output in session.outputs { session.removeOutput(output) }
+            session.commitConfiguration()
+            do {
+                try configureSession()                    // re-adds I/O, resets exposure to auto
+            } catch {
+                log.log(.error, category: .biofeedback,
+                        "Camera reconfigure failed: \(error.localizedDescription)")
+            }
+        }
+        session.startRunning()
+        lastFrameTime = CFAbsoluteTimeGetCurrent()         // grace after the kick
+        applyTorch()                                       // restart silently drops the torch
+        onSessionReset?()                                  // owner re-locks exposure cleanly
     }
 
     // MARK: - Stop
