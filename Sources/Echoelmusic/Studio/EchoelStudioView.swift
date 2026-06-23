@@ -268,6 +268,13 @@ struct EchoelStudioView: View {
                 ? SynthPatch.factory[presetIndex] : style.synthPatch
             applyArticulation()                // impose the persisted Pluck↔Pad envelope
             applyTuning()                      // 12-TET default = no-op; restores any selected system
+            // Restore the last-picked immersive visual look so an installation /
+            // performance setup survives relaunch (the live params aren't persisted
+            // individually, but the chosen scene is).
+            if !visualPresetID.isEmpty,
+               let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
+                applyVisualPreset(p)
+            }
             surfacePriorCrashIfAny()
             handlePendingIntent()
         }
