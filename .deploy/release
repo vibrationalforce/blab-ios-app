@@ -1,5 +1,23 @@
-build: 2026-06-23 v10.76.4 (CRITICAL: fixes the launch crash in 10.76.3 / build 2037)
+build: 2026-06-23 v10.76.5 (visuals: stop the stutter + smoother, richer, more physical)
 branch: claude/piano-roll-clip-view-wozlie
+notesR: 10.76.4 confirmed on device — LAUNCHES (crash fixed) and the camera pulse finally LOCKS
+  (rate≈13.1 Hz, conf 0.55–0.76). Two follow-ups from the device session:
+  (1) rPPG BPM was jumpy (83→118→89 at a steady finger): the autocorrelation is ~0 at fingertip SNR
+  so the rate rode the noisy peak-counter. Added a MEDIAN-of-5 smoother + a ratio-gated harmonic guard
+  (folds only true 2×/0.5× errors, never a real 0.625–1.6× HR ramp — dsp-reviewed). Steadier number,
+  steadier sound, steadier visual.
+  (2) "Visuals ruckeln hin und her": ROOT CAUSE — the ring shader animated with sin(d·density −
+  time×flashHz), and time grows unbounded, so any change in the HR-derived frequency multiplied the big
+  time value → the whole pattern snapped by many cycles at once (the jitter, amplified by the jumpy BPM
+  above). Fixed by integrating an ACCUMULATED pulse phase on the CPU (a frequency change now alters the
+  rate, never the position) and by EASING every bio/look uniform per frame (HR, colour, breath,
+  coherence, density, spread, hue) so updates GLIDE instead of snapping — frame-rate independent, so a
+  thermal FPS step no longer shows as a speed change. Also removed an AnyView wrapper around the live
+  MetalView cover (it could tear down/recreate the view = stutter). MORE design/physics, as asked: a
+  second INTERFERENCE ring system whose detuning is driven by COHERENCE (high coherence = ordered
+  constructive beat, low = turbulent moiré — a literal visual of your signal's coherence) plus a
+  breath-driven central bloom. Flash-safety unchanged (≤2.5 Hz, < WCAG 3 Hz). Both gates + DSP/code
+  review green. INSTALL 10.76.5.
 notesQ: 10.76.3 (build 2037) COMPILED + shipped (the build break is fixed) but CRASHED at launch.
   Root cause from the device crash report: NOT a logic bug — a Swift RUNTIME stack overflow
   (EXC_BAD_ACCESS / SIGSEGV in the Stack Guard region). The main-thread backtrace shows the Swift

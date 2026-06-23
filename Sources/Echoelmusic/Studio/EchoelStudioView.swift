@@ -347,7 +347,11 @@ struct EchoelStudioView: View {
         }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
-            AnyView(ZStack(alignment: .topTrailing) {
+            // NOT AnyView-wrapped: this cover builds lazily on present (it never
+            // contributed to the launch-time metadata overflow), and wrapping the live
+            // MTKView in AnyView defeats SwiftUI identity → the view can be torn down
+            // and recreated, which shows as a stutter. Keep the concrete type here.
+            ZStack(alignment: .topTrailing) {
                 if spectralDonuts {
                     // The spectrum→visible-light donut visual: one ring per frequency
                     // band, thickness ∝ loudness, colour = band frequency → visible.
@@ -395,11 +399,11 @@ struct EchoelStudioView: View {
                 }
                 .padding()
             }
-            .statusBarHidden(true))
+            .statusBarHidden(true)
         }
         #endif
-        .fullScreenCover(isPresented: $showBreath) { AnyView(BreathGuideView()) }
-        .fullScreenCover(isPresented: $showMeditation) { AnyView(MeditationView()) }
+        .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
+        .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
         #if canImport(MultipeerConnectivity)
         .sheet(isPresented: $showLiveColabo) {
             AnyView(LiveColaboView(currentSession: { currentProject(named: "Shared session") },

@@ -48,6 +48,12 @@ private struct BioUniforms {
     var hueShift: Float = 0
     /// VJ saturation [0…2]. 1 = neutral (unchanged), 0 = greyscale, >1 = punchier.
     var saturation: Float = 1
+    /// ACCUMULATED pulse phase (turns). The ring animation reads this, NOT
+    /// `time × pulseHz`: with the old form, any change in the HR-derived frequency
+    /// multiplied the (large, ever-growing) time → the whole pattern snapped by many
+    /// cycles at once (the "ruckeln hin und her"). Integrating phase per frame means
+    /// a frequency change alters only the RATE, never the position. Continuous.
+    var pulsePhase: Float = 0
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -130,9 +136,17 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     private var commandQueue: MTLCommandQueue?
     private var pipeline: MTLRenderPipelineState?
+    /// `uniforms` are what the GPU sees THIS frame; `target` is what the latest bio /
+    /// look update asked for. Every draw eases `uniforms` toward `target` (time-based
+    /// exponential smoothing) so discrete updates — a stepped HR, a new note's colour,
+    /// a governor detail change — GLIDE instead of snapping. This is the felt
+    /// "smoothness/Wirkung": the body modulates the look continuously, never in jerks.
     private var uniforms = BioUniforms()
+    private var target = BioUniforms()
+    private var hasTarget = false
     private var reduceMotion = false
     private let startTime = CFAbsoluteTimeGetCurrent()
+    private var lastFrameTime = CFAbsoluteTimeGetCurrent()
     /// The resource governor receives each frame's timestamp so a sustained FPS drop
     /// can demote the visual tier. The MTKView draw callback runs on the main thread
     /// (default CADisplayLink), so the @MainActor hop below is a safe no-op assertion.
@@ -155,25 +169,43 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
                 pulseHz: Float, hueShift: Float, saturation: Float, reduceMotion: Bool) {
-        uniforms.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
-        uniforms.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
-        uniforms.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
+        // Writes the TARGET; draw() eases the live uniforms toward it. Same clamps as
+        // before (the GPU never sees an out-of-range / non-finite value).
+        target.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
+        target.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
+        target.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
         let t = Float(toneHz)
-        uniforms.toneHz = min(max(t.isFinite ? t : 261.63, 20), 20000)
-        uniforms.intensity = min(max(intensity.isFinite ? intensity : 1, 0), 1.5)
-        uniforms.ringDensity = min(max(ringDensity.isFinite ? ringDensity : 40, 4), 120)
-        uniforms.motion = min(max(motion.isFinite ? motion : 1, 0), 1.5)
-        uniforms.spread = min(max(spread.isFinite ? spread : 1, 0.4), 1.6)
+        target.toneHz = min(max(t.isFinite ? t : 261.63, 20), 20000)
+        target.intensity = min(max(intensity.isFinite ? intensity : 1, 0), 1.5)
+        target.ringDensity = min(max(ringDensity.isFinite ? ringDensity : 40, 4), 120)
+        target.motion = min(max(motion.isFinite ? motion : 1, 0), 1.5)
+        target.spread = min(max(spread.isFinite ? spread : 1, 0.4), 1.6)
         // Already flash-clamped upstream (BioVisualParams/FlashGuard); guard finite
         // and hard-cap at the WCAG ceiling as defense in depth.
-        uniforms.pulseHz = min(max(pulseHz.isFinite ? pulseHz : 1, 0), 3)
+        target.pulseHz = min(max(pulseHz.isFinite ? pulseHz : 1, 0), 3)
         // VJ palette: hue wraps to [0,1); saturation clamped [0,2]. Defaults (0,1)
         // leave the physically-correct tone colour untouched.
         var hs = hueShift.isFinite ? hueShift : 0
         hs = hs - floor(hs)
-        uniforms.hueShift = hs
-        uniforms.saturation = min(max(saturation.isFinite ? saturation : 1, 0), 2)
+        target.hueShift = hs
+        target.saturation = min(max(saturation.isFinite ? saturation : 1, 0), 2)
         self.reduceMotion = reduceMotion
+        // First update: snap (no glide from defaults), so the opening frame is correct.
+        if !hasTarget {
+            let phase = uniforms.pulsePhase
+            uniforms = target
+            uniforms.pulsePhase = phase
+            hasTarget = true
+        }
+    }
+
+    /// Exponential glide of `a` toward `b` over time-constant `tau` (seconds) for the
+    /// elapsed `dt`. Frame-rate independent: the same easing whether the governor runs
+    /// the view at 30 or 120 fps, so a tier change never shows as a speed change.
+    private static func ease(_ a: Float, _ b: Float, tau: Float, dt: Float) -> Float {
+        guard tau > 0, dt > 0 else { return b }
+        let k = 1 - exp(-dt / tau)
+        return a + (b - a) * k
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -192,8 +224,44 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
               let queue = commandQueue,
               let buffer = queue.makeCommandBuffer() else { return }
 
-        // Reduce Motion → freeze the animation clock at 0 (a still frame).
-        uniforms.time = reduceMotion ? 0 : Float(CFAbsoluteTimeGetCurrent() - startTime)
+        // Real elapsed time since the last drawn frame — drives both the smoothing and
+        // the phase integration, so everything is frame-rate independent.
+        let nowT = CFAbsoluteTimeGetCurrent()
+        let dt = Float(min(max(nowT - lastFrameTime, 0), 0.1))   // clamp after a stall
+        lastFrameTime = nowT
+
+        // Glide the live uniforms toward the latest target. Per-parameter time
+        // constants: breath/coherence track quickly (they ARE slow signals), HR and
+        // colour glide more so residual rPPG jitter and note changes feel musical,
+        // VJ palette is snappy (it's a live performance control).
+        if hasTarget {
+            uniforms.hr        = Self.ease(uniforms.hr,        target.hr,        tau: 1.2,  dt: dt)
+            uniforms.coherence = Self.ease(uniforms.coherence, target.coherence, tau: 0.6,  dt: dt)
+            uniforms.breath    = Self.ease(uniforms.breath,    target.breath,    tau: 0.35, dt: dt)
+            uniforms.toneHz    = Self.ease(uniforms.toneHz,    target.toneHz,    tau: 0.45, dt: dt)
+            uniforms.intensity = Self.ease(uniforms.intensity, target.intensity, tau: 0.4,  dt: dt)
+            uniforms.ringDensity = Self.ease(uniforms.ringDensity, target.ringDensity, tau: 0.7, dt: dt)
+            uniforms.motion    = Self.ease(uniforms.motion,    target.motion,    tau: 0.4,  dt: dt)
+            uniforms.spread    = Self.ease(uniforms.spread,    target.spread,    tau: 0.5,  dt: dt)
+            uniforms.pulseHz   = Self.ease(uniforms.pulseHz,   target.pulseHz,   tau: 1.2,  dt: dt)
+            // Hue wraps, so glide along the SHORTEST arc on the colour wheel.
+            var dHue = target.hueShift - uniforms.hueShift
+            dHue -= round(dHue)
+            uniforms.hueShift = (uniforms.hueShift + dHue * (dt > 0 ? (1 - exp(-dt / 0.15)) : 1))
+            uniforms.hueShift -= floor(uniforms.hueShift)
+            uniforms.saturation = Self.ease(uniforms.saturation, target.saturation, tau: 0.2, dt: dt)
+        }
+
+        // Integrate the flash-safe pulse phase from the SMOOTHED frequency. flashHz =
+        // pulseHz × motion, hard-capped at 2.5 Hz (< WCAG 3 Hz) as on the shader side.
+        // Reduce Motion → freeze (no advance).
+        if !reduceMotion {
+            let flashHz = min(uniforms.pulseHz * uniforms.motion, 2.5)
+            uniforms.pulsePhase += dt * flashHz
+            if uniforms.pulsePhase > 1e6 { uniforms.pulsePhase -= 1e6 }   // keep it bounded
+        }
+        // Keep `time` as a free-running clock for the secondary motion in the shader.
+        uniforms.time = reduceMotion ? 0 : Float(nowT - startTime)
 
         if let pipeline,
            let encoder = buffer.makeRenderCommandEncoder(descriptor: pass) {
@@ -227,7 +295,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     struct VOut { float4 pos [[position]]; float2 uv; };
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
-                      float pulseHz; float hueShift; float saturation; };
+                      float pulseHz; float hueShift; float saturation; float pulsePhase; };
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -303,27 +371,41 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float2 c = float2(0.5 * u.aspect, 0.5);
         float d = distance(uv, c);
 
-        // Heart rate → ring pulse. pulseHz arrives pre-clamped by FlashGuard (Swift
-        // side, the single source of WCAG flash-safety). The temporal frequency is
-        // pulseHz × motion, still hard-capped at 2.5 Hz so the user's Motion control
-        // can NEVER breach the 3 Hz WCAG flash limit (defense in depth, CLAUDE.md).
-        float pulseHz = clamp(u.pulseHz, 0.0, 3.0);
-        float flashHz = min(pulseHz * u.motion, 2.5);
+        // Heart rate → ring pulse. The temporal motion is the ACCUMULATED phase
+        // (u.pulsePhase, integrated on the CPU from the flash-safe frequency), NOT
+        // time × frequency — so an HR change alters the rate, never snaps the pattern
+        // (kills the "ruckeln"). Flash-safety is already enforced where the phase is
+        // integrated (≤2.5 Hz, < WCAG 3 Hz); this is a pure read of that phase.
         float density = clamp(u.ringDensity, 4.0, 120.0);
-        float rings = 0.5 + 0.5 * sin(d * density - u.time * flashHz * 6.2831853);
-        // Breath → how far the field spreads from the centre (× user Spread).
+        float phase = u.pulsePhase * 6.2831853;
+        float rings = 0.5 + 0.5 * sin(d * density - phase);
+
+        // Wave INTERFERENCE: a second ring system at a detuned spatial frequency. The
+        // detune is driven by COHERENCE — high coherence pulls the two systems into
+        // near-alignment (ordered, slow constructive beat); low coherence detunes them
+        // (busy, turbulent moiré). It is a literal visual of the bio signal's own
+        // coherence, and adds depth/variety without any extra temporal flashing.
+        float coh = clamp(u.coherence, 0.0, 1.0);
+        float detune = mix(1.6, 1.04, coh);
+        float rings2 = 0.5 + 0.5 * sin(d * density * detune - phase * 0.5);
+        float interf = mix(rings, rings * rings2, 0.5);
+
+        // Breath → field spread (× user Spread) + a soft central bloom that swells on
+        // the inhale, so the body's slow rhythm is felt as light pressure, not motion.
         float spread = (0.85 + u.breath * 0.35) * clamp(u.spread, 0.4, 1.6);
-        float field = rings * smoothstep(0.62 * spread, 0.0, d);
+        float field = interf * smoothstep(0.62 * spread, 0.0, d);
+        float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
 
         // Colour = the heard tone transposed into light (physically correct), so the
         // pitch you hear is the colour you see. Coherence lifts the saturation/glow.
         float3 col = toneColour(u.toneHz);
-        col = mix(col, col * 1.15 + 0.05, u.coherence);
+        col = mix(col, col * 1.15 + 0.05, coh);
         // VJ palette control (neutral at defaults — physical colour preserved).
         col = echoelSaturate(col, clamp(u.saturation, 0.0, 2.0));
         col = echoelHue(col, u.hueShift);
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
-        return float4(col * field, 1.0);
+        float3 outCol = col * field + col * bloom;
+        return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }
     """
 }
