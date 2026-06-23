@@ -1661,8 +1661,17 @@ struct EchoelStudioView: View {
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil
         lockSnapTask?.cancel(); lockSnapTask = nil
-        beatPlayer.pattern.stop()
+        beatPlayer.pattern.stop()       // stops the transport (→ onStop flush)
+        // Force-silence EVERY voice explicitly — never rely on the onStop callback
+        // wiring alone. pianoRoll.allNotesOff() clears its active-note tracking and
+        // releases poly/sub/MIDI/AUv3; panicAllNotesOff() is the belt-and-suspenders
+        // direct release in case a voice ref ever falls out of sync. Idempotent, so
+        // doubling up can never leave a note ringing ("Sound bleibt hängen" fix).
+        pianoRoll.allNotesOff()
+        panicAllNotesOff()
+        synth.bioModulationEnabled = false   // stop the 10 Hz timbre drive too
         stopBioSource()
+        EchoelCrashLog.breadcrumb("stopEverything: transport + all voices released")
     }
 
     /// Begin publishing a bio signal. Camera rPPG on devices that have it (cover
