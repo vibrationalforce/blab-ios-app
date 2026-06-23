@@ -3326,3 +3326,27 @@ REPO AUDIT (5 parallel read-only audits → scratchpads/PLAN_PRO_LEVEL_2026-06-2
 Plan = Wave A (PPQ note, AutomationLane, claims-lint) → Wave B (light fixtures/multiuniverse, video
   recorder/playback, per-track FX, nav bar) → Wave C (Ableton Link, HaishinKit, multitrack grid, NDI,
   laser-OSC, PHASE). Awaiting founder's priority order to execute.
+
+### 2026-06-23 — CIE spectral colour + Transport unification (autonomous loop)
+SHIPPED (gates green):
+- v10.52.0 — Colorimetric CIE-1931 spectral colour. Answered founder's "optisch physikalisch
+  korrekt?" question: replaced Bruton wavelength→RGB with the CIE 1931 CMFs (Wyman 2013 analytic
+  multi-lobe Gaussian fit) → XYZ → linear sRGB (D65), gamut-clamped, in BOTH Swift (SpectralColor)
+  AND the Metal shader (MetalBioView) so screen/donut/immersive agree per-frequency. Added
+  SpectralColor.visibleWavelength(forToneHz:) octave-transposition physics. Ungated tests run on
+  Linux ci.yml. Pitch-class→OKLCH hue stays the perceptual default for notes/chords (must mix).
+- v10.53.0 — Transport unification Cycle 1 + first consumer. PatternEngine still owns the timer but
+  RELAYS every pulse (tick/play/stop/setTempo/setSwing) into the authoritative Transport (Core/
+  Transport.swift, already existed unwired). Zero audible change; onStep/onTick stay the live path.
+  App owns Transport + injects to environment. First consumer: Arrangement transport bar shows a
+  live 1-based bar·beat playhead. Ungated PatternEngineTransportRelayTests run on Linux.
+- v10.54.0 — Arrangement visual timeline canvas: horizontal proportional-width section bars in play
+  order, playing section highlighted, live bio-green playhead (rides Transport.position, wraps for
+  loops). Pure SwiftUI; vertical list stays the editor.
+DECISION: Did NOT migrate ArrangementPlayer/PianoRoll off pattern.onTick to Transport subscribers
+  (plan Cycle 2/3) this session — the live beat-clock path has SIGTRAP history and the migration is
+  invisible; defer until Ableton Link actually needs Transport to drive the timer. Adding Ableton
+  Link (LinkKit) for Live Colabo needs founder sign-off (DO-NOT-add-deps rule) — flag before doing.
+NEXT: per-channel pan/mixer depth; cross-device/community session sharing (CloudKit/Multipeer, no
+  dep); Live Colabo via Ableton Link (needs dep approval); EchoelAI chat (large, later); refine
+  presets/compositions (await founder ear-check of new master EQ).
