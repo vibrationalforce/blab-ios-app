@@ -1767,7 +1767,13 @@ struct EchoelStudioView: View {
         // never repeats, even when the readings hold steady — while the body's
         // signature still dominates the feel.
         evolution &+= 1
-        let evolvingSeed = bioSeed(frame) ^ (evolution &* 0x9E3779B97F4A7C15)
+        // Cohesion: the STRUCTURE seed is the body-only seed (no evolution nonce), so
+        // the harmonic skeleton / register / density stay stable while the DETAIL seed
+        // (with the nonce) evolves the melody — consecutive takes feel like the same
+        // piece breathing, not a new random one ("homogener klingen"). When the body
+        // shifts, the structure evolves with it; with no signal both are random.
+        let structureSeed = bioSeed(frame)
+        let evolvingSeed = structureSeed ^ (evolution &* 0x9E3779B97F4A7C15)
         // Dynamic depth from the body (was a flat 0.5, which left velocity dead):
         // a calm, coherent state breathes fuller/louder, an aroused one lighter, so
         // dynamics actually track the live signal instead of sitting constant.
@@ -1790,7 +1796,8 @@ struct EchoelStudioView: View {
             mode: .flowFree,          // tempo always follows the body
             lockedTempo: 90,
             mood: mood,
-            seed: evolvingSeed
+            seed: evolvingSeed,
+            structureSeed: structureSeed
         )
         let composition = BioComposer.compose(input)
         // Honor the user's Kammerton (concert pitch) + live timbre on the next notes.
