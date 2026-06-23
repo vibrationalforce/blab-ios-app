@@ -113,6 +113,14 @@ public enum BioComposer {
         public var lockedTempo: Double      // used when mode == .studioLocked
         public var mood: MoodProfile
         public var seed: UInt64
+        /// Optional SKELETON seed for cohesion. The structural skeleton — chord
+        /// progression, register, note density, and WHERE ornaments / octave-lifts /
+        /// syncopation land — is drawn from this stream; the melodic DETAIL (which
+        /// pitches, fine velocity) is drawn from `seed`. Pass a body-stable value here
+        /// and an evolving value in `seed` so consecutive takes feel like the SAME
+        /// piece evolving (homogeneous), not a new random piece each time. `nil`
+        /// (default) makes the skeleton share `seed` — original behaviour.
+        public var structureSeed: UInt64?
 
         public init(
             heartRateBPM: Float = 70,
@@ -125,7 +133,8 @@ public enum BioComposer {
             mode: ComposerMode = .studioLocked,
             lockedTempo: Double = 124,
             mood: MoodProfile = MoodProfile(),
-            seed: UInt64 = 0x5EED
+            seed: UInt64 = 0x5EED,
+            structureSeed: UInt64? = nil
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -138,6 +147,7 @@ public enum BioComposer {
             self.lockedTempo = lockedTempo
             self.mood = mood
             self.seed = seed
+            self.structureSeed = structureSeed
         }
     }
 
@@ -235,6 +245,11 @@ public enum BioComposer {
     /// Generate music from a bio snapshot, in the requested genre.
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
+        // Skeleton RNG: structural choices (progression, register, ornament/lift/
+        // syncopation placement, density) are drawn from here so they stay stable
+        // while `rng` evolves the melodic detail. Defaults to the detail seed → the
+        // original single-stream behaviour when no structureSeed is supplied.
+        var structureRNG = SeededRNG(seed: input.structureSeed ?? input.seed)
 
         // ── Physiological → musical state (autonomic-balance + coherence servo) ──
         let (calm, _, energy, _, busy) = musicalState(
@@ -275,7 +290,8 @@ public enum BioComposer {
             notes = composeHarmonic(key: input.key, profile: input.style.harmonicProfile,
                                     calm: calm, busy: busy,
                                     breathPhase: input.breathPhase,
-                                    breathDepth: input.breathDepth, mood: effMood, rng: &rng)
+                                    breathDepth: input.breathDepth, mood: effMood,
+                                    rng: &rng, structureRNG: &structureRNG)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         }
 
@@ -519,31 +535,35 @@ public enum BioComposer {
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
-                                        mood: MoodProfile, rng: inout SeededRNG) -> [Note] {
+                                        mood: MoodProfile, rng: inout SeededRNG,
+                                        structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
         // Seed-vary the harmony so a re-seed never replays the identical chord move
         // ("immer derselbe Tonwechsel"). The genre profile sets the vocabulary; the
         // seed rotates the progression and, for adventurous moods, borrows an in-key
         // secondary chord (ii/V/vi) and adds a turnaround so the loop resolves. Every
         // degree still resolves through MusicalKey.degree → always perfectly in key.
+        // The harmonic skeleton (progression rotation, borrowed chord, cadence) is
+        // drawn from structureRNG so it stays STABLE across evolving takes — the
+        // single biggest "same song?" cue. Only the melody on top evolves.
         var prog = profile.progression.isEmpty ? [0] : profile.progression
         if prog.count > 1 {
-            let rot = Int(rng.next() % UInt64(prog.count))
+            let rot = Int(structureRNG.next() % UInt64(prog.count))
             prog = Array((prog + prog)[rot..<rot + prog.count])
         }
         // Adventurous (weird) moods splice a borrowed secondary chord before the last
         // chord, so the phrase gets a fresh harmonic colour it didn't have before.
-        if rng.unit() < clamp01(mood.weird) * 0.6 {
+        if structureRNG.unit() < clamp01(mood.weird) * 0.6 {
             let candidates = [4, 5, 1].filter { !prog.contains($0) }   // V, vi, ii
             if !candidates.isEmpty {
-                let extra = candidates[Int(rng.next() % UInt64(candidates.count))]
+                let extra = candidates[Int(structureRNG.next() % UInt64(candidates.count))]
                 prog.insert(extra, at: max(0, prog.count - 1))
             }
         }
         // Turnaround cadence: on multi-chord takes, end on the dominant (V) some of
         // the time so the loop pulls back to the tonic at the wrap (V→i), instead of
         // always closing on the same chord. Seeded + tension-scaled so it varies.
-        if prog.count > 1, prog.last != 4, rng.unit() < 0.35 + 0.4 * clamp01(mood.tension) {
+        if prog.count > 1, prog.last != 4, structureRNG.unit() < 0.35 + 0.4 * clamp01(mood.tension) {
             prog[prog.count - 1] = 4
         }
         // Guard chord tones symmetrically with the progression (a public
@@ -632,15 +652,16 @@ public enum BioComposer {
             // pitch (a big part of "it's the same tune again"). Breath still biases
             // low on inhale / higher on exhale; the seed adds the individual offset.
             var toneIdx = (breathPhase < 0.5 ? 0 : 1)
-                + Int(rng.next() % UInt64(max(1, tones.count)))
+                + Int(structureRNG.next() % UInt64(max(1, tones.count)))
             for i in 0..<count {
                 let start = i * stepCount / count
                 var startStep = min(stepCount - 1, max(start, lastStart + 1))
                 // Syncopation: push an on-beat note onto the following off-beat (still
                 // inside the bar, after the previous note) for groove that isn't locked
-                // to the downbeat. Scaled so 0 = dead-on-grid.
+                // to the downbeat. Scaled so 0 = dead-on-grid. Placement is structural
+                // (stable groove across takes), so it draws from structureRNG.
                 if startStep % 2 == 0, startStep + 1 < stepCount,
-                   rng.unit() < clamp01(mood.syncopation) * 0.6 {
+                   structureRNG.unit() < clamp01(mood.syncopation) * 0.6 {
                     startStep += 1
                 }
                 lastStart = startStep
@@ -671,15 +692,18 @@ public enum BioComposer {
                 // register climax (same pitch class → still in key), resolving down
                 // after — a tension/release arc instead of a flat tessitura.
                 let liftP = (0.25 + 0.45 * clamp01(mood.virtuosity)) * (0.4 + 0.6 * clamp01(mood.liveliness))
-                let lift = (arc > 0.7 && rng.unit() < liftP) ? 12 : 0
+                let lift = (arc > 0.7 && structureRNG.unit() < liftP) ? 12 : 0   // stable climaxes
                 // Ornamentation: a virtuosic line splits a note into a quick grace
                 // run — a neighbouring chord tone leading into the main note — for
                 // virtuosic motion. Only when there's room (len ≥ 2) so nothing
                 // overruns the bar. Both pitches are chord tones → always consonant.
                 var mainStart = startStep
                 var mainLen = length
+                // Ornament PLACEMENT is structural (keeps the note count + rhythm
+                // stable across takes); the grace pitch + velocity below stay on the
+                // evolving rng so the detail still breathes.
                 let ornamentP = clamp01(mood.liveliness) * 0.35 + busy * 0.15 + clamp01(mood.virtuosity) * 0.5
-                if length >= 2, startStep + 1 < stepCount, rng.unit() < ornamentP {
+                if length >= 2, startStep + 1 < stepCount, structureRNG.unit() < ornamentP {
                     let gIdx = toneIdx + (rng.unit() < 0.5 ? 1 : -1)
                     let gTone = tones[((gIdx % tones.count) + tones.count) % tones.count]
                     let gPitch = key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift) + lift
