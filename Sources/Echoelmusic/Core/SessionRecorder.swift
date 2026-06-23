@@ -44,6 +44,62 @@ public struct BioSessionSummary: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+/// Pure, testable analytics over a list of saved sessions — practice streak and
+/// coherence trend. Free of the recorder/bus/timer so it unit-tests with an
+/// injected `calendar` + `now`. Used by the Meditation pillar to reward a habit.
+public enum SessionStats {
+
+    /// Consecutive calendar days, ending today (or yesterday), on which at least
+    /// one session was recorded. A streak survives "today not practiced yet" — it
+    /// only breaks once a full day is missed (standard habit-streak convention).
+    public static func streakDays(
+        _ sessions: [BioSessionSummary],
+        calendar: Calendar = .current,
+        now: Date = Date()
+    ) -> Int {
+        guard !sessions.isEmpty else { return 0 }
+        // Unique day-starts that have a session.
+        var days = Set<Date>()
+        for s in sessions { days.insert(calendar.startOfDay(for: s.date)) }
+
+        let today = calendar.startOfDay(for: now)
+        // Anchor on today if practiced, else yesterday (grace for "not yet today").
+        var anchor: Date
+        if days.contains(today) {
+            anchor = today
+        } else if let yest = calendar.date(byAdding: .day, value: -1, to: today),
+                  days.contains(yest) {
+            anchor = yest
+        } else {
+            return 0
+        }
+
+        var streak = 0
+        var cursor = anchor
+        while days.contains(cursor) {
+            streak += 1
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return streak
+    }
+
+    /// Coherence trend: mean avgCoherence of the most-recent `window` sessions
+    /// minus the mean of the `window` before them. Positive = improving. Returns 0
+    /// when there isn't enough history to compare. `sessions` is newest-first
+    /// (as `SessionRecorder.sessions` stores them).
+    public static func coherenceTrend(_ sessions: [BioSessionSummary], window: Int = 5) -> Float {
+        guard window > 0, sessions.count >= 2 else { return 0 }
+        let recent = Array(sessions.prefix(window))
+        let prior = Array(sessions.dropFirst(recent.count).prefix(window))
+        guard !prior.isEmpty else { return 0 }
+        let mean: ([BioSessionSummary]) -> Float = { arr in
+            arr.reduce(0) { $0 + $1.avgCoherence } / Float(arr.count)
+        }
+        return mean(recent) - mean(prior)
+    }
+}
+
 @MainActor
 @Observable
 public final class SessionRecorder {
