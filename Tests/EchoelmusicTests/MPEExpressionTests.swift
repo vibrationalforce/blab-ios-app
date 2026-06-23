@@ -52,4 +52,28 @@ final class MPEExpressionTests: XCTestCase {
         XCTAssertEqual(MPEExpression(slideCC74: 0, pressure: 0, bend: 9).bend, 1, accuracy: 1e-6)
         XCTAssertEqual(MPEExpression(slideCC74: 0, pressure: 0, bend: -9).bend, -1, accuracy: 1e-6)
     }
+
+    func testMIDI2NoteOnMessages_carriesAll5Dimensions() {
+        let e = MPEExpression(slideCC74: 127, pressure: 64, bend: 0)   // centre bend
+        let msgs = e.midi2NoteOnMessages(channel: 0, note: 60, strike: 1.0)
+        XCTAssertEqual(msgs.count, 4, "note-on + per-note bend + per-note CC74 + channel pressure")
+
+        // [0] Note On — opcode 0x9, full 16-bit Strike velocity.
+        XCTAssertEqual((msgs[0].0 >> 20) & 0xF, 0x9)
+        XCTAssertEqual(msgs[0].1 >> 16, 0xFFFF, "strike 1.0 → full velocity")
+
+        // [1] Per-note pitch bend — opcode 0x6, centre = 0x8000_0000 (no drift).
+        XCTAssertEqual((msgs[1].0 >> 20) & 0xF, 0x6)
+        XCTAssertEqual((msgs[1].0 >> 8) & 0xFF, 60, "carries the note (per-note)")
+        XCTAssertEqual(msgs[1].1, 0x8000_0000, "centre bend = no drift")
+
+        // [2] Per-note controller — opcode 0x1, index CC74, full Slide.
+        XCTAssertEqual((msgs[2].0 >> 20) & 0xF, 0x1)
+        XCTAssertEqual(msgs[2].0 & 0xFF, 74, "CC74 = Slide/brightness")
+        XCTAssertEqual(msgs[2].1, 0xFFFF_FFFF, "slide 127 → full scale")
+
+        // [3] Channel pressure — opcode 0xD, centre Press.
+        XCTAssertEqual((msgs[3].0 >> 20) & 0xF, 0xD)
+        XCTAssertEqual(msgs[3].1, 0x8000_0000, "pressure 64 → 32-bit centre")
+    }
 }
