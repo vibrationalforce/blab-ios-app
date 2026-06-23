@@ -76,25 +76,10 @@ final class CameraAnalyzer {
         return slice.map { $0 / norm }
     }
 
-    // MARK: - Filter Modulation Output
-
-    /// Normalized modulation value (0–1) from camera analysis
-    var filterModulation: Float = 0.5
-    /// Modulation mode
-    var modulationMode: ModulationMode = .brightness
-
-    enum ModulationMode: String, CaseIterable {
-        case brightness = "Brightness"
-        case color = "Color"
-        case motion = "Motion"
-    }
-
     // MARK: - Internal State
 
-    private var frameSkipCounter = 0
     /// Process every 2nd frame at 30fps = 15 Hz sample rate (Nyquist > 4 Hz max HR)
     private let analyzeEveryNthFrame = 2
-    private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
     /// Effective sample rate after frame skipping
     private let effectiveSampleRate: Double = 15.0 // 30fps / 2
@@ -125,9 +110,6 @@ final class CameraAnalyzer {
     /// Running count of `true` frames in the window, kept in sync on push/pop so the
     /// per-frame detection is O(1) (no `filter { $0 }.count` allocation at ~15 Hz).
     private var fingerTrueCount = 0
-
-    // Motion detection
-    private var previousBrightness: Float = 0.5
 
     // MARK: - Bandpass Filter Coefficients (pre-computed, constant)
 
@@ -180,109 +162,11 @@ final class CameraAnalyzer {
         bpc = BandpassCoefficients(sampleRate: Float(effectiveSampleRate))
     }
 
-    // MARK: - Frame Analysis
-
-    /// Call from CameraManager's onFrameCaptured callback
-    func analyzeFrame(_ sampleBuffer: CMSampleBuffer) {
-        frameSkipCounter += 1
-        guard frameSkipCounter >= analyzeEveryNthFrame else { return }
-        frameSkipCounter = 0
-
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        analyzePixelBuffer(pixelBuffer)
-    }
-
-    /// Analyze a CVPixelBuffer for pulse detection
-    func analyzePixelBuffer(_ pixelBuffer: CVPixelBuffer) {
-        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
-        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
-
-        let width = CVPixelBufferGetWidth(pixelBuffer)
-        let height = CVPixelBufferGetHeight(pixelBuffer)
-
-        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else { return }
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
-        let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
-
-        guard pixelFormat == kCVPixelFormatType_32BGRA else { return }
-
-        // Sample center region (50% of frame for finger-on-lens)
-        let regionX = width / 4
-        let regionY = height / 4
-        let regionW = width / 2
-        let regionH = height / 2
-
-        var totalR: Float = 0
-        var totalG: Float = 0
-        var totalB: Float = 0
-        var sampleCount: Float = 0
-
-        // Also track variance for finger detection
-        var sumR2: Float = 0
-
-        let step = 4
-        for y in stride(from: regionY, to: regionY + regionH, by: step) {
-            let rowStart = baseAddress.advanced(by: y * bytesPerRow)
-            for x in stride(from: regionX, to: regionX + regionW, by: step) {
-                let pixel = rowStart.advanced(by: x * 4)
-                let b = Float(pixel.load(fromByteOffset: 0, as: UInt8.self)) / 255.0
-                let g = Float(pixel.load(fromByteOffset: 1, as: UInt8.self)) / 255.0
-                let r = Float(pixel.load(fromByteOffset: 2, as: UInt8.self)) / 255.0
-                totalR += r
-                totalG += g
-                totalB += b
-                sumR2 += r * r
-                sampleCount += 1
-            }
-        }
-
-        guard sampleCount > 0 else { return }
-
-        let avgR = totalR / sampleCount
-        let avgG = totalG / sampleCount
-        let avgB = totalB / sampleCount
-        let avgBrightness = (avgR + avgG + avgB) / 3.0
-
-        // Red channel variance — low variance + high red = finger on lens
-        let varianceR = (sumR2 / sampleCount) - (avgR * avgR)
-
-        brightness = brightness * 0.7 + avgBrightness * 0.3
-        redChannel = redChannel * 0.7 + avgR * 0.3
-        previousBrightness = brightness
-
-        // Update filter modulation
-        switch modulationMode {
-        case .brightness:
-            filterModulation = brightness
-        case .color:
-            let maxChannel = max(avgR, avgG, avgB)
-            let minChannel = min(avgR, avgG, avgB)
-            filterModulation = maxChannel - minChannel
-        case .motion:
-            let delta = abs(avgBrightness - previousBrightness)
-            filterModulation = min(delta * 10, 1.0)
-        }
-
-        // Finger detection: high red, low green/blue relative, low spatial variance
-        let isFingerFrame = avgR > 0.5 && avgR > avgG * 1.3 && avgR > avgB * 1.5 && varianceR < 0.02
-        updateFingerDetection(isFingerFrame)
-
-        // Pulse detection
-        if isPulseDetecting && isFingerDetected {
-            processPulseSignal(avgR: avgR)
-        } else if isPulseDetecting && !isFingerDetected {
-            // Reset confidence when finger removed
-            bpmConfidence = max(0, bpmConfidence - 0.02)
-            signalQuality = max(0, signalQuality - 0.02)
-            if bpmConfidence < 0.05 {        // lock lost → clear held values (no phantom BPM)
-                estimatedBPM = 0
-                rmssd = 0
-                rrIntervals.removeAll()
-            }
-        }
-    }
-
     // MARK: - Pulse Detection (Bandpass + Peak)
+    // NOTE: the live path is processExtractedRGB(...) below — the publisher averages
+    // the centre region on the capture queue and feeds RGB here. The old
+    // analyzeFrame/analyzePixelBuffer CVPixelBuffer path (and its unused
+    // filterModulation/ModulationMode machinery) was dead code and was removed.
 
     /// Process pre-extracted RGB values (called from MainActor via BioSourceManager)
     /// This avoids the @MainActor crash from accessing pixel buffers on background threads.
@@ -636,7 +520,6 @@ final class CameraAnalyzer {
         resetPulseState()
         brightness = 0.5
         redChannel = 0.5
-        filterModulation = 0.5
         isPulseDetecting = false
         isFingerDetected = false
         fingerDetectionBuffer.removeAll()
