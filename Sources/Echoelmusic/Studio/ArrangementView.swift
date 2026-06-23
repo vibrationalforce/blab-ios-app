@@ -19,6 +19,8 @@ struct ArrangementView: View {
     @Environment(ClipStore.self) private var clips
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
+    /// The authoritative clock — read here for the live song-position playhead.
+    @Environment(Transport.self) private var transport
     @Environment(\.dismiss) private var dismiss
 
     /// `true` when hosted as a foreground workspace surface (WorkspaceView): drop the
@@ -124,9 +126,23 @@ struct ArrangementView: View {
 
             Spacer()
 
+            // Live playhead, fed by the authoritative Transport (1-based bar·beat).
+            // Monospaced digits so the readout doesn't jitter as it counts.
+            if transport.isPlaying {
+                Text(positionLabel)
+                    .font(EchoelTheme.font(12, .semibold).monospacedDigit())
+                    .foregroundStyle(EchoelTheme.text)
+                    .accessibilityLabel("Position bar \(transport.position.bar + 1), beat \(transport.position.beat + 1)")
+            }
+
             Text("\(store.totalBars) bars")
                 .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
         }
+    }
+
+    /// 1-based "bar·beat" string from the Transport position.
+    private var positionLabel: String {
+        "\(transport.position.bar + 1)·\(transport.position.beat + 1)"
     }
 
     private var emptyState: some View {
