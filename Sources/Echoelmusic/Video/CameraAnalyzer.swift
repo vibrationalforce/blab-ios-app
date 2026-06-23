@@ -193,12 +193,24 @@ final class CameraAnalyzer {
         // 0.6) — red-dominant and ratio-passing, but blocked by an over-tight 0.4
         // floor so the pulse never locked. Lower the floor to 0.28; the 1.2×/1.3×
         // ratio gates still keep a non-red scene out.
-        let isFingerFrame = avgR > 0.28 && avgR > avgG * 1.2 && avgR > avgB * 1.3
+        // Overexposed frame (all channels clipped near white): the finger IS on the
+        // lens but pressed too hard / the torch washed it out. The red-dominance test
+        // would FAIL here (R≈G≈B≈1) and drop the lock, which made the exposure
+        // re-settle and reset BPM to 0 (device log 2026-06-23: R=0.98 → finger=no →
+        // re-settling → re-lock churn). Instead, treat saturation as "finger present,
+        // signal temporarily bad": hold the lock, decay quality, and skip feeding the
+        // clipped sample into the pulse buffer so the rate stays put through it.
+        let isSaturated = Swift.min(avgR, avgG, avgB) > 0.92
+        let isFingerFrame = isSaturated || (avgR > 0.28 && avgR > avgG * 1.2 && avgR > avgB * 1.3)
         updateFingerDetection(isFingerFrame)
 
         // Pulse detection
         if isPulseDetecting && isFingerDetected {
-            processPulseSignal(avgR: avgR)
+            if isSaturated {
+                signalQuality = max(0, signalQuality - 0.02)   // hold lock, drop quality
+            } else {
+                processPulseSignal(avgR: avgR)
+            }
         } else if isPulseDetecting && !isFingerDetected {
             bpmConfidence = max(0, bpmConfidence - 0.02)
             signalQuality = max(0, signalQuality - 0.02)
