@@ -42,6 +42,18 @@ public final class CameraRPPGBioPublisher {
     /// True once a confident pulse is locked.
     public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
 
+    /// Live, specific placement guidance — turns the internal amplitude/exposure
+    /// diagnostics into user coaching so the lens reaches a lockable signal, instead
+    /// of a flat "Acquiring…". Pure derived state, read on the main actor by the UI.
+    public var coachingHint: String {
+        if isLocked { return "Locked" }
+        if !fingerDetected { return "Cover the rear camera + flash" }
+        // Finger is on the lit lens but no lock yet — say WHY, from the live signal.
+        if analyzer.brightness > 0.85 || analyzer.redChannel > 0.92 { return "Press a little lighter" }
+        if analyzer.lastFilteredAmplitude < 0.0008 { return "Press gently and hold still" }
+        return "Hold still — finding your pulse…"
+    }
+
     @ObservationIgnored private let capture = CameraCapture()
     @ObservationIgnored private let analyzer = CameraAnalyzer()
     @ObservationIgnored private weak var bus: EngineBus?
