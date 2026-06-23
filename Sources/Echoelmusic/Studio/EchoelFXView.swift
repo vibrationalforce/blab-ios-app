@@ -203,6 +203,7 @@ struct EchoelFXView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(FXBioModulator.self) private var modulator
     @State private var vm: FXViewModel
     /// The user's own saved presets (local). The curated community set is bundled.
     @State private var presetStore = FXPresetStore()
@@ -228,6 +229,7 @@ struct EchoelFXView: View {
         NavigationStack {
             Form {
                 presetSection
+                FXBioModSection(modulator: modulator)
                 Section {
                     Toggle("Insert FX", isOn: $vm.fxEnabled)
                         .tint(EchoelTheme.accent)
@@ -540,6 +542,90 @@ struct EchoelFXView: View {
         decimals: Int = 2
     ) -> some View {
         EchoelValueField(label: title, value: value, range: range, unit: unit, decimals: decimals)
+    }
+}
+
+// MARK: - Bio-reactive modulation section
+
+/// The Echoel signature applied to FX: the body (and free LFOs) sculpt the chain
+/// live — coherence opening a reverb, breath sweeping a filter, heartbeat driving a
+/// tremolo. Edits the driver's routes; the driver writes them at ~30 Hz around the
+/// user's base value and enables the targeted stage so the move is heard.
+@MainActor
+private struct FXBioModSection: View {
+    @Bindable var modulator: FXBioModulator
+
+    var body: some View {
+        Section {
+            ForEach($modulator.routes) { $route in
+                FXModRouteRow(route: $route) {
+                    modulator.routes.removeAll { $0.id == route.id }
+                }
+            }
+            Menu {
+                ForEach(FXModTarget.allCases) { target in
+                    Button(target.displayName) {
+                        modulator.routes.append(FXModRoute(carrier: .bio(.coherence), target: target))
+                    }
+                }
+            } label: {
+                Label("Add bio modulation…", systemImage: "waveform.path.ecg")
+                    .font(EchoelTheme.font(13, .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .accessibilityHint("Map the body or an LFO onto an effect parameter")
+        } header: {
+            Text("Bio-reactive").font(EchoelTheme.font(13, .bold)).textCase(nil)
+        } footer: {
+            Text(modulator.routes.isEmpty
+                 ? "Let the body shape the effects: e.g. coherence → reverb, breath → filter, heart rate → tremolo. Add a route to begin."
+                 : "Each route moves its parameter around your set value at ~30 Hz. The targeted stage turns on automatically.")
+        }
+        .listRowBackground(EchoelTheme.fill)
+    }
+}
+
+// MARK: - Bio-modulation route row
+
+/// One bio→FX modulation route: carrier · target · depth (+ polarity / LFO rate),
+/// on the app-wide value-field vocabulary. A swipe deletes it.
+@MainActor
+private struct FXModRouteRow: View {
+    @Binding var route: FXModRoute
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Toggle("", isOn: $route.enabled).labelsHidden().tint(EchoelTheme.accent)
+                    .accessibilityLabel("Route enabled")
+                Picker("Source", selection: $route.carrier) {
+                    ForEach(FXModCarrier.allChoices, id: \.self) { c in
+                        Text(c.displayName).tag(c)
+                    }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(EchoelTheme.dim)
+                Picker("Target", selection: $route.target) {
+                    ForEach(FXModTarget.allCases) { t in Text(t.displayName).tag(t) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                Spacer(minLength: 0)
+            }
+            EchoelValueField(label: "Depth", value: $route.depth, range: 0...1, decimals: 2)
+            HStack(spacing: 12) {
+                Toggle("Bipolar", isOn: $route.bipolar).tint(EchoelTheme.accent)
+                    .font(EchoelTheme.font(12))
+                if route.carrier == .lfo {
+                    EchoelValueField(label: "LFO rate", value: $route.lfoRateHz,
+                                     range: 0.05...8, unit: "Hz")
+                }
+            }
+        }
+        .padding(.vertical, 2)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive, action: onDelete) { Label("Delete", systemImage: "trash") }
+        }
     }
 }
 #endif
