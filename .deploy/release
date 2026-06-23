@@ -1,5 +1,19 @@
-build: 2026-06-23 v10.71.1 (EchoelFX bio-mod response curves + macro-morph)
+build: 2026-06-23 v10.72.0 (number-pad signs + haptic transport pulse)
 branch: claude/piano-roll-clip-view-wozlie
+notesG: Founder — "Nummernpads + Menüs optimieren mit allen Vorzeichen (minus/plus/done); alles
+  von überall schnell zugänglich, schließbar, verschiebbar." (1) NUMBER PAD — EchoelValueField, the
+  ONE control behind every adjustable number app-wide, gains a full keyboard accessory: − / + nudge
+  by one step (1% of range, never finer than the decimal grid; live like the fader), ± flips the sign
+  (the only way to type a negative — pan/formant/dB — on the decimal pad; shown when the range allows
+  it), Done closes (gated on focus = no stacked buttons). Negatives are finally enterable everywhere.
+  (2) Audited the menu/window IA against the request: every Tools sheet already opens from the one
+  main view (grouped Editors/Audio&Bio/Connect/Visual&Learn, all visible) and every sheet already has
+  a NavigationStack + Done — so "accessible + closable" was already solid (no churn added). "Freely
+  movable windows" is not a native iPhone concept and would be a large IA change — flagged, not done
+  blind. (3) HAPTIC TRANSPORT PULSE — the built-but-dead HapticController (DMMW "Vibration" dimension,
+  zero call sites) is now wired to the authoritative Transport: a lowest-priority step subscriber
+  pulses the body on each quarter-note (down-beat strongest), armed-off, with a "Haptic beat (feel)"
+  toggle by the metronome. Eyes-free time-keeping. CoreHaptics-gated. Both CI gates green on HEAD.
 notesF: Workstream 3/4 of the EchoelFX deepening — the performance MACRO. New pure FXPreset.morphed(to:amount:) (continuous params interpolate, enables/modes switch at midpoint; clamped; Linux-tested incl. chain round-trip). EchoelFX "Macro morph" section: pick any preset (yours + curated) as a target → snapshots the current sound as A → one fader blends A→target live (every parameter glides) for smooth on-stage transitions. FXViewModel.morph keeps the master gate as-is and reseeds the UI. Next: workstream 4 CI/design polish.
 notesE: Founder — "Visuals müssen besser steuerbar sein: VJ, Installation, Performance Art Level." (1) Live VJ control overlay ON the fullscreen immersive visual: tap the canvas to hide/show a solid bottom panel with a one-tap scene strip + live Intensity/Detail/Motion/Spread/Hue/Saturation — perform the visual without leaving the projected view; status bar hidden for clean output. (2) Palette control: MetalBioView shader gains hue rotation (YIQ) + luma-preserving saturation, default neutral so the physically-correct tone→light colour is preserved (science-first) but a VJ can rotate/desaturate the palette live. Both wired into the Visual panel and the fullscreen overlay. Flash-safety (≤3 Hz) and adaptive-quality FPS/detail unchanged. Next visual: bio-reactive routing of visual params + external-display/mapping output.
 notesD: Workstream 2/4 of the EchoelFX deepening — two pro stages added to the chain (now 13): EchoelBitcrush (digital lo-fi: bit-depth quantisation 1–16 bit + sample-rate reduction 1–64× via sample-and-hold, parallel wet/dry) and EchoelStereoWidener (M/S width 0=mono…1=unchanged…2=wide). Audio-thread-safe (final class, plain Float params, pure C-math, no alloc/locks), Foundation-only so the AUv3/DSP target compiles them. Signal flow: …saturation → BITCRUSH → harmonizer → mod → delay → reverb → WIDENER → comp → limiter. Fully wired: FXViewModel mirrors + EchoelFX UI sections (Bitcrush bits/downsample/mix, Stereo Width), FXPreset save/recall (lenient decode → old presets still load), and both are bio-modulation targets (.bitcrushMix, .stereoWidth) so the body can drive them too. New pure DSP tests (FXLoFiTests). Code-reviewed (compile-clean, arg-order verified). Next: macro-morph + deeper presets, then CI/design polish.
