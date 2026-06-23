@@ -1036,7 +1036,8 @@ struct EchoelStudioView: View {
     private var visualLookStrip: some View {
         // (label, isDonuts, metalStyle)
         let looks: [(String, Bool, Int)] = [
-            ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1), ("Plasma", false, 2)
+            ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1),
+            ("Plasma", false, 2), ("Water", false, 3)
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
