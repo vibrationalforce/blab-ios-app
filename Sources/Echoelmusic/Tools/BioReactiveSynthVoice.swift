@@ -283,7 +283,9 @@ public final class BioReactiveSynthVoice {
         // same class fixed for notes/patches in PolySynthVoice). The render block
         // drains this queue and applies it on the one audio thread.
         _ = bioCommands.tryEnqueue(BioParams(
-            coherence: clampUnit(frame.coherence),
+            // coherence 0 = "no data" (camera until enough beats; HealthKit never),
+            // not "maximally dark filter" — treat as neutral so resting tone stays open.
+            coherence: frame.coherence > 0 ? clampUnit(frame.coherence) : 0.5,
             hrv: clampUnit(frame.hrvNormalized),
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),

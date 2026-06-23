@@ -257,7 +257,7 @@ public final class PolySynthVoice {
 
         let hrNormalized = clampUnit((frame.heartRateBPM - 40) / 160)
         poly.applyBioReactive(
-            coherence: clampUnit(frame.coherence),
+            coherence: liveCoherence(frame.coherence),
             hrvVariability: clampUnit(frame.hrvNormalized),
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),
@@ -268,6 +268,11 @@ public final class PolySynthVoice {
     }
 
     private func clampUnit(_ x: Float) -> Float { min(max(x, 0), 1) }
+    /// Coherence of exactly 0 means "no coherence data" (camera until enough beats;
+    /// HealthKit never measures it) — NOT "maximally incoherent". The synth maps
+    /// coherence→filter cutoff (200 Hz at 0 → muffled), so a literal 0 muffled every
+    /// resting/unmeasured take. Treat 0 as neutral so the baseline tone is open.
+    private func liveCoherence(_ c: Float) -> Float { c > 0 ? clampUnit(c) : 0.5 }
 
     // MARK: - Source node (audio thread)
 
