@@ -99,6 +99,9 @@ struct EchoelmusicApp: App {
     // Records a meditation/coherence session (HR/HRV/coherence averages + peak) and
     // keeps the history — the dormant SessionRecorder, now wired for the Meditation pillar.
     @State private var sessionRecorder = SessionRecorder()
+    // Battery/CPU/GPU resource conservation: reads thermal/power/battery + render FPS
+    // and publishes one app-wide QualitySettings (visual FPS/detail, bio/OSC rates).
+    @State private var resourceGovernor = ResourceGovernor()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -237,6 +240,7 @@ struct EchoelmusicApp: App {
             .environment(demoSource)
             .environment(breathPacer)
             .environment(sessionRecorder)
+            .environment(resourceGovernor)
             .task {
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must
