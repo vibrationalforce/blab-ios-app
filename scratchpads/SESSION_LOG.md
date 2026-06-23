@@ -3240,6 +3240,30 @@ deploys to ~one/day; a single later deploy carries ALL branch work (build number
 Did NOT modify testflight.yml (CI change needs founder approval). 7th cycle (9986329 stereo level
 meter) compile gate GREEN. All 7 cycles are compile-verified and pushed to the branch.
 
+### 2026-06-23 — "Greb all tasks, optimize all" + device log/video: rPPG, mastering, Lock-BPM, 5D out, visual presets
+Founder Ralph-mode sweep. Shipped (v10.49.0 → v10.50.0, all gate-green, reviewed):
+  • rPPG NEVER LOCKED (device log: R=0.82 q=0.31 bpm=0 for 7 min). Root cause: exposure frozen on a
+    blind 2 s timer against the DIM finger-less scene → saturates when the bright finger arrives, AC
+    swamped. Fix: lock only after finger stable ~1.2 s, re-settle on saturation, re-lock on re-grip;
+    DC-relative (CV) quality gate. dsp-reviewer: SHIP (diagnosis + math correct, no thrash, no regression).
+  • LOCK BPM now adopts the live bio HR on enable (was a stale 70 vs HR 62 → immersive circles jumped).
+  • MASTER EQ retuned from an FFT of a real take (sub-dominated, dark, nothing >8 kHz; old "balanced"
+    made it worse): HPF 45, low-shelf −1.5@140, presence +2@2.8k, air +3.5@9k. Reversible; ear-verify.
+  • LIVE 5D MPE OUTPUT (opt-in, off by default): per-note Glide/Slide/Press out to any MPE rig; zero
+    internal-audio risk. concurrency-reviewer PASS. Built on the cycle's tested cores (MPEExpression,
+    UMPEncoder MIDI1+2, BinauralPanner, SpaceReverb processInPlace, MPE→UMP bridge).
+  • IMMERSIVE VISUAL PRESETS (VisualPreset.swift): curated Aura→Zentrifuge (9 looks) over the existing
+    live sliders; flash-safe clamps; colour stays tone→light. Lowest-churn (no shader/env changes).
+FOUNDER ROADMAP (stated priority order, recorded for next passes):
+  1. FIRST: program solid with OPTIMIZED ARCHITECTURE + DESIGN ← the meta-priority.
+  2. More visual presets/params matching Echoel CI (DONE this pass; can extend the A→Z set + expose more
+     params e.g. swing depth, wobble, hue bias — would need threading params into Spectral/Metal views).
+  3. In-app EchoelAI CHAT (keyboard + voice): "make the sound/character/composition like X, visuals like
+     Y" → drive synth/FX/composer/visual params via natural language. (Large; later.)
+  4. Beyond autosave: cross-device session save + COMMUNITY SHARING. (Large; later.)
+PRESETS + COMPOSITION refinement deliberately deferred to an ear-verified pass AFTER the new master EQ
+  lands (tuning patches blind against a mix about to change tonally would be lower quality + muddy attribution).
+
 ### 2026-06-23 — Multidimensional cores (endless loop): SpaceReverb RT path, BinauralPanner, UMPEncoder
 Continuing the founder's "5D Sounds wie ROLI Seaboard + Airwave / 4D Raum-in-Raum Faltungshall / alle
 Industriestandard-Formate / Farbringe schwingen" + "mache weiter endlos schleife". Strategy: ship only
