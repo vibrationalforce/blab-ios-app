@@ -42,6 +42,13 @@ struct WorkspaceView: View {
     @AppStorage("workspace.surface") private var surfaceRaw = Surface.arrange.rawValue
     private var surface: Surface { Surface(rawValue: surfaceRaw) ?? .arrange }
 
+    /// The persistent header's live monitors (founder idea): left EKG pulse, right
+    /// immersive visual. Tapping a mini opens it full screen.
+    #if canImport(AVFoundation)
+    @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
+    #endif
+    @State private var expandedMonitor: ExpandedMonitor?
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -56,6 +63,7 @@ struct WorkspaceView: View {
             bottomBar
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
+        .fullScreenCover(item: $expandedMonitor) { ExpandedMonitorView(kind: $0) }
     }
 
     /// Persistent brand header — always on screen, every surface (founder: "oben die
@@ -65,22 +73,38 @@ struct WorkspaceView: View {
     /// border, no glow).
     private var topBar: some View {
         ZStack {
-            // "Echoelmusic" truly centred (founder), independent of the logo/version
-            // widths on either side.
+            // "Echoelmusic" truly centred (founder), independent of the monitors on
+            // either side.
             Text("Echoelmusic")
-                .font(EchoelTheme.font(15, .semibold))
+                .font(EchoelTheme.font(14, .semibold))
                 .foregroundStyle(EchoelTheme.text)
-            HStack(spacing: 10) {
-                EchoelLogoMark().frame(width: 26, height: 26)
+            HStack(spacing: 8) {
+                // LEFT (founder red-1): app mark + live EKG pulse monitor.
+                EchoelLogoMark().frame(width: 22, height: 22)
+                #if canImport(AVFoundation)
+                Button { expandedMonitor = .pulse } label: {
+                    PulseMonitorMini(waveform: cameraRPPG.waveform,
+                                     bpm: cameraRPPG.detectedBPM,
+                                     locked: cameraRPPG.isLocked)
+                }
+                .buttonStyle(.plain)
+                #endif
                 Spacer(minLength: 0)
+                // RIGHT (founder red-2): version + live immersive-visual monitor.
                 Text(Self.versionString)
-                    .font(EchoelTheme.font(11))
+                    .font(EchoelTheme.font(10))
                     .foregroundStyle(EchoelTheme.dim)
                     .accessibilityLabel("Version \(Self.versionString)")
+                #if canImport(AVFoundation)
+                Button { expandedMonitor = .immersive } label: {
+                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
+                }
+                .buttonStyle(.plain)
+                #endif
             }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 44)
+        .padding(.horizontal, 12)
+        .frame(height: 48)
         .background(EchoelTheme.bg)
     }
 
