@@ -10,12 +10,14 @@ import SwiftUI
 struct AudioInputPickerView: View {
 
     @Environment(AudioInputManager.self) private var inputs
+    @Environment(AudioEngine.self) private var audioEngine
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 10) {
+                    monitoringSection
                     if inputs.available.isEmpty {
                         emptyState
                     } else {
@@ -35,6 +37,54 @@ struct AudioInputPickerView: View {
             }
             .onAppear { inputs.refresh() }
         }
+    }
+
+    // MARK: - Live monitoring + feedback guard
+
+    @ViewBuilder
+    private var monitoringSection: some View {
+        #if os(iOS)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "headphones").foregroundStyle(EchoelTheme.dim).frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Live monitoring").font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                    Text("Hear your mic through the output, in time with the beat")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: Binding(
+                    get: { audioEngine.isInputMonitoring },
+                    set: { _ = audioEngine.setInputMonitoring($0) }
+                ))
+                .labelsHidden()
+                .accessibilityLabel("Live monitoring")
+            }
+            if audioEngine.isInputMonitoring {
+                EchoelValueField(
+                    label: "Monitor level",
+                    value: Binding(get: { audioEngine.inputMonitorGain },
+                                   set: { audioEngine.inputMonitorGain = $0 }),
+                    range: 0...1, decimals: 2)
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(audioEngine.feedbackGuardActive ? Color.orange : EchoelTheme.accent)
+                        .frame(width: 8, height: 8)
+                    Text(audioEngine.feedbackGuardActive ? "Feedback guard — ducking runaway" : "Feedback guard armed")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                }
+                .accessibilityElement(children: .combine)
+                Text("Use headphones or an interface to avoid acoustic feedback. On the speaker, the guard automatically ducks any howl that builds up.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        #endif
     }
 
     // MARK: - Rows

@@ -115,6 +115,29 @@ public final class AudioEngine {
         didSet { masterMixer.outputVolume = masterVolume }
     }
 
+    // MARK: - Live input monitoring + FeedbackGuard (opt-in, DEFAULT OFF)
+    // Routes the mic through the main output so you can sing/play over the beat, with
+    // a FeedbackGuard auto-duck that pulls the monitor down the instant a runaway
+    // (rising level over a ceiling) starts — the classic acoustic-feedback signature.
+    // Use headphones/an interface to remove the acoustic loop entirely. Nothing here
+    // runs until the user explicitly enables it, so it can never affect normal use.
+    @ObservationIgnored private let monitorMixer = AVAudioMixerNode()
+    @ObservationIgnored private var monitorAttached = false
+    /// Whether the mic is being monitored through the main output.
+    public private(set) var isInputMonitoring = false
+    /// True while FeedbackGuard is actively ducking (drives the UI indicator).
+    public private(set) var feedbackGuardActive = false
+    /// Monitor level 0…1 — conservative by default; feedback risk rises with gain.
+    var inputMonitorGain: Float = 0.6 {
+        didSet {
+            let g = min(max(inputMonitorGain, 0), 1)
+            if isInputMonitoring && !feedbackGuardActive { monitorMixer.outputVolume = g }
+        }
+    }
+    /// Output-RMS window (MainActor) that feeds FeedbackGuard while monitoring.
+    @ObservationIgnored private var monitorLevelHistory: [Float] = []
+    @ObservationIgnored private var monitorPollTick = 0
+
     let microphoneManager: MicrophoneManager
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     /// True once the audio session is configured and the master graph is built.
@@ -432,6 +455,13 @@ public final class AudioEngine {
                 self.masterTruePeakMaxDb = self._tpMax.pointee
                 self.masterLUFSIntegrated = self._lufsI.pointee
                 self.masterLRA = self._lra.pointee
+                // FeedbackGuard for live input monitoring (~15 Hz, only while monitoring).
+                #if os(iOS)
+                self.monitorPollTick &+= 1
+                if self.isInputMonitoring && self.monitorPollTick % 4 == 0 {
+                    self.updateFeedbackGuard()
+                }
+                #endif
             }
         }
     }
@@ -540,6 +570,75 @@ public final class AudioEngine {
         masterPlayerNode.scheduleBuffer(buffer, at: nil, options: loopCount, completionHandler: nil)
         if !masterPlayerNode.isPlaying { masterPlayerNode.play() }
     }
+
+    // MARK: - Live Input Monitoring (opt-in)
+
+    /// Start/stop monitoring the mic through the main output with FeedbackGuard.
+    /// Returns false if monitoring couldn't start (e.g. no mic permission / format).
+    /// Defensive throughout — never crashes; worst case it simply doesn't engage.
+    @discardableResult
+    func setInputMonitoring(_ on: Bool) -> Bool {
+        #if os(iOS)
+        prepareGraph()
+        let input = masterEngine.inputNode
+        if on {
+            guard !isInputMonitoring else { return true }
+            let inFmt = input.inputFormat(forBus: 0)
+            guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
+                log.audio("Input monitoring: no valid input format (mic permission?)", level: .error)
+                return false
+            }
+            let wasRunning = masterEngine.isRunning
+            if wasRunning { masterEngine.pause() }
+            if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
+            monitorMixer.outputVolume = 0          // silent until connected, avoids a pop
+            let outFmt = masterMixer.outputFormat(forBus: 0)
+            masterEngine.connect(input, to: monitorMixer, format: inFmt)
+            masterEngine.connect(monitorMixer, to: masterMixer, format: outFmt)
+            monitorLevelHistory.removeAll(keepingCapacity: true)
+            feedbackGuardActive = false
+            if wasRunning {
+                do { try masterEngine.start() }
+                catch {
+                    log.audio("Input monitoring: engine restart failed (\(error))", level: .error)
+                    masterEngine.disconnectNodeOutput(monitorMixer)
+                    return false
+                }
+            }
+            isInputMonitoring = true
+            monitorMixer.outputVolume = min(max(inputMonitorGain, 0), 1)
+            log.audio("Input monitoring ON (gain \(inputMonitorGain))")
+            return true
+        } else {
+            guard isInputMonitoring else { return true }
+            monitorMixer.outputVolume = 0
+            masterEngine.disconnectNodeOutput(monitorMixer)
+            isInputMonitoring = false
+            feedbackGuardActive = false
+            log.audio("Input monitoring OFF")
+            return true
+        }
+        #else
+        return false
+        #endif
+    }
+
+    #if os(iOS)
+    /// MainActor FeedbackGuard step (called from the meter poll while monitoring):
+    /// duck the MIC monitor — not the music — when the output shows the rising-over-
+    /// ceiling runaway that signals acoustic feedback. No audio-thread work, no tap.
+    private func updateFeedbackGuard() {
+        guard isInputMonitoring else { return }
+        let level = Swift.max(_rawMeterL.pointee, _rawMeterR.pointee)
+        monitorLevelHistory.append(level)
+        if monitorLevelHistory.count > 8 { monitorLevelHistory.removeFirst() }
+        let duckDB = FeedbackGuard.gainReductionDB(rmsHistory: monitorLevelHistory)
+        let base = Swift.min(Swift.max(inputMonitorGain, 0), 1)
+        let factor: Float = duckDB > 0 ? powf(10, -duckDB / 20) : 1
+        monitorMixer.outputVolume = base * factor
+        feedbackGuardActive = duckDB > 0
+    }
+    #endif
 
     // MARK: - Source Node Registration
 
