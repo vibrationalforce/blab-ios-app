@@ -131,27 +131,60 @@ public enum SpectralColor {
         return wavelengthToLinearRGB(wavelength)
     }
 
-    /// Approximate visible wavelength (nm) → RGB (Bruton-style piecewise ramp with
-    /// end-of-range intensity falloff). Used as a perceptual *visualization* mapping,
-    /// not a colorimetric claim.
+    /// Approximate visible wavelength (nm) → linear sRGB, **colorimetrically** via the
+    /// CIE 1931 colour-matching functions (Wyman/Sloan/Shirley 2013 analytic multi-lobe
+    /// Gaussian fit) → XYZ → linear sRGB (D65), gamut-clamped. This replaces the older
+    /// Bruton piecewise ramp so a shown spectral colour is physically faithful (the
+    /// natural eye-sensitivity falloff dims the deep-red/violet ends for free). The
+    /// SAME fit is mirrored in the Metal shader (MetalBioView.wavelengthToRGB) so every
+    /// surface that shows a spectral colour agrees.
+    /// Ref: Wyman, Sloan, Shirley, "Simple Analytic Approximations to the CIE XYZ Color
+    /// Matching Functions", JCGT 2013.
     public static func wavelengthToLinearRGB(_ wl: Double) -> LinearRGB {
-        var r = 0.0, g = 0.0, b = 0.0
-        switch wl {
-        case ..<440:      r = -(wl - 440) / (440 - 380); g = 0;                      b = 1
-        case 440..<490:   r = 0;                         g = (wl - 440) / (490 - 440); b = 1
-        case 490..<510:   r = 0;                         g = 1;                      b = -(wl - 510) / (510 - 490)
-        case 510..<580:   r = (wl - 510) / (580 - 510);  g = 1;                      b = 0
-        case 580..<645:   r = 1;                         g = -(wl - 645) / (645 - 580); b = 0
-        default:          r = 1;                         g = 0;                      b = 0
+        let (x, y, z) = cie1931(wl)
+        // CIE XYZ (D65) → linear sRGB.
+        var r =  3.2406 * x - 1.5372 * y - 0.4986 * z
+        var g = -0.9689 * x + 1.8758 * y + 0.0415 * z
+        var b =  0.0557 * x - 0.2040 * y + 1.0570 * z
+        // Clip out-of-gamut negatives, then normalize only if a channel exceeds 1 — this
+        // preserves the CMFs' natural relative luminance (green bright, ends dim).
+        r = Swift.max(0, r); g = Swift.max(0, g); b = Swift.max(0, b)
+        let m = Swift.max(r, Swift.max(g, b))
+        if m > 1 { r /= m; g /= m; b /= m }
+        return LinearRGB(r: clamp01(r), g: clamp01(g), b: clamp01(b))
+    }
+
+    /// Analytic CIE 1931 2° colour-matching functions (Wyman et al. 2013). `wl` in nm.
+    /// A piecewise single-/multi-lobe Gaussian fit accurate enough for real-time colour.
+    public static func cie1931(_ wl: Double) -> (x: Double, y: Double, z: Double) {
+        func g(_ x: Double, _ mu: Double, _ s1: Double, _ s2: Double) -> Double {
+            let t = (x - mu) * (x < mu ? 1.0 / s1 : 1.0 / s2)
+            return Foundation.exp(-0.5 * t * t)
         }
-        // Dim the deep-violet and deep-red extremes (eye sensitivity falloff).
-        let factor: Double
-        switch wl {
-        case ..<420:      factor = 0.3 + 0.7 * (wl - 380) / (420 - 380)
-        case 420...700:   factor = 1.0
-        default:          factor = max(0.3, 0.3 + 0.7 * (780 - wl) / (780 - 700))
-        }
-        return LinearRGB(r: clamp01(r * factor), g: clamp01(g * factor), b: clamp01(b * factor))
+        let x = 1.056 * g(wl, 599.8, 37.9, 31.0)
+              + 0.362 * g(wl, 442.0, 16.0, 26.7)
+              - 0.065 * g(wl, 501.1, 20.4, 26.2)
+        let y = 0.821 * g(wl, 568.8, 46.9, 40.5)
+              + 0.286 * g(wl, 530.9, 16.3, 31.1)
+        let z = 1.217 * g(wl, 437.0, 11.8, 36.0)
+              + 0.681 * g(wl, 459.0, 26.0, 13.8)
+        return (Swift.max(0, x), Swift.max(0, y), Swift.max(0, z))
+    }
+
+    /// The genuine physics linking a heard tone to a light colour: transpose the tone up
+    /// by whole octaves until it lands in the visible band (~380–780 nm), then
+    /// wavelength = c / f. Octave-equivalent (integer octaves) so it agrees with the
+    /// immersive Metal `toneColour`. NOTE: per Echoel's own research this 2^n
+    /// transposition is an *artistic* convention (audio ≈10 octaves, light ≈1), not a
+    /// claim that a note "is" a colour — exposed for the explicit Spectral/physical mode.
+    public static func visibleWavelength(forToneHz hz: Double) -> Double {
+        guard hz > 0, hz.isFinite else { return 555.0 }
+        let cNmPerSec = 2.99792458e17            // speed of light in nm/s
+        // Octaves up so f lands near the green centre (~540 THz ≈ 555 nm), then λ=c/f.
+        let n = (Foundation.log2(5.4e14 / hz)).rounded()
+        let fLight = hz * Foundation.pow(2.0, n)
+        let wl = cNmPerSec / fLight
+        return Swift.min(780.0, Swift.max(380.0, wl))
     }
 
     // MARK: OKLab → linear sRGB (Ottosson 2020)

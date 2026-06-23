@@ -195,20 +195,31 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
                       float pulseHz; };
 
-    // Map a light wavelength (nm) to linear-ish RGB (Bruton's classic approximation),
-    // with an intensity roll-off near the limits of human vision.
+    // Wavelength (nm) → linear sRGB, COLORIMETRICALLY via the CIE 1931 colour-matching
+    // functions (Wyman/Sloan/Shirley 2013 analytic fit) → XYZ → linear sRGB (D65). This
+    // is the exact same fit as the Swift SpectralColor.wavelengthToLinearRGB, so the
+    // immersive visual and the spectral donut agree. The CMFs' own falloff dims the
+    // deep-red/violet ends (physically correct eye sensitivity).
+    float cieLobe(float x, float mu, float s1, float s2) {
+        float t = (x - mu) * (x < mu ? 1.0 / s1 : 1.0 / s2);
+        return exp(-0.5 * t * t);
+    }
     float3 wavelengthToRGB(float wl) {
-        float3 c = float3(0.0);
-        if      (wl < 440.0) { c = float3(-(wl - 440.0) / 60.0, 0.0, 1.0); }
-        else if (wl < 490.0) { c = float3(0.0, (wl - 440.0) / 50.0, 1.0); }
-        else if (wl < 510.0) { c = float3(0.0, 1.0, -(wl - 510.0) / 20.0); }
-        else if (wl < 580.0) { c = float3((wl - 510.0) / 70.0, 1.0, 0.0); }
-        else if (wl < 645.0) { c = float3(1.0, -(wl - 645.0) / 65.0, 0.0); }
-        else                 { c = float3(1.0, 0.0, 0.0); }
-        float f = 1.0;
-        if      (wl < 420.0) f = 0.3 + 0.7 * (wl - 380.0) / 40.0;
-        else if (wl > 700.0) f = 0.3 + 0.7 * (780.0 - wl) / 80.0;
-        return clamp(c, 0.0, 1.0) * clamp(f, 0.0, 1.0);
+        float X = 1.056 * cieLobe(wl, 599.8, 37.9, 31.0)
+                + 0.362 * cieLobe(wl, 442.0, 16.0, 26.7)
+                - 0.065 * cieLobe(wl, 501.1, 20.4, 26.2);
+        float Y = 0.821 * cieLobe(wl, 568.8, 46.9, 40.5)
+                + 0.286 * cieLobe(wl, 530.9, 16.3, 31.1);
+        float Z = 1.217 * cieLobe(wl, 437.0, 11.8, 36.0)
+                + 0.681 * cieLobe(wl, 459.0, 26.0, 13.8);
+        X = max(0.0, X); Y = max(0.0, Y); Z = max(0.0, Z);
+        float3 c = float3( 3.2406 * X - 1.5372 * Y - 0.4986 * Z,
+                          -0.9689 * X + 1.8758 * Y + 0.0415 * Z,
+                           0.0557 * X - 0.2040 * Y + 1.0570 * Z);
+        c = max(c, 0.0);
+        float m = max(c.r, max(c.g, c.b));
+        if (m > 1.0) c /= m;
+        return clamp(c, 0.0, 1.0);
     }
 
     // Physically transpose an audible tone up by WHOLE octaves into visible light,
