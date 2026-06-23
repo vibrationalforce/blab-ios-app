@@ -79,6 +79,8 @@
 		<string>_midi._udp</string>
 		<string>_apple-midi._udp</string>
 		<string>_echoelmusic._tcp</string>
+		<string>_echoel-colab._tcp</string>
+		<string>_echoel-colab._udp</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

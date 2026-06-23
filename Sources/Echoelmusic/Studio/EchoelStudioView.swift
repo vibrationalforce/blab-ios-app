@@ -186,6 +186,7 @@ struct EchoelStudioView: View {
     @State private var showVisual = false
     @State private var showBreath = false
     @State private var showMeditation = false
+    @State private var showLiveColabo = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
     @State private var showAllFX = false
     /// Which drum track's sample browser is open (nil = closed). Identifiable
@@ -332,6 +333,12 @@ struct EchoelStudioView: View {
         #endif
         .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
         .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
+        #if canImport(MultipeerConnectivity)
+        .sheet(isPresented: $showLiveColabo) {
+            LiveColaboView(currentSession: { currentProject(named: "Shared session") },
+                           onLoadShared: { open($0) })
+        }
+        #endif
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -425,6 +432,9 @@ struct EchoelStudioView: View {
                     gridChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
                     gridChip("Plugins", "puzzlepiece.extension") { showPlugins = true }
                     gridChip("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
+                    #if canImport(MultipeerConnectivity)
+                    gridChip("Live Colabo", "person.2.wave.2") { showLiveColabo = true }
+                    #endif
                     Menu {
                         // Live MIDI / MPE OUT — the body's take streams to a virtual
                         // "Echoelmusic" source any DAW can record. Off by default.
@@ -1892,10 +1902,12 @@ struct EchoelStudioView: View {
         }
     }
 
-    private func saveProject() {
-        let name = saveName.isEmpty ? session.sessionName(bpm: beatPlayer.pattern.tempo) : saveName
-        let project = Project(
-            name: name,
+    /// Snapshot the live session as a Project — shared by Save and Live Colabo so
+    /// "what you share" is byte-identical to "what you save".
+    private func currentProject(named name: String? = nil) -> Project {
+        let n = name ?? (saveName.isEmpty ? session.sessionName(bpm: beatPlayer.pattern.tempo) : saveName)
+        return Project(
+            name: n,
             styleRaw: style.rawValue, keyRoot: rootIndex, scaleRaw: scale.rawValue,
             bpm: beatPlayer.pattern.tempo, modeRaw: ComposerMode.flowFree.rawValue,
             fxCharacterRaw: fxCharacter.rawValue, loopBars: loopBars.rawValue,
@@ -1903,7 +1915,10 @@ struct EchoelStudioView: View {
             patch: currentPatch, notes: pianoRoll.notes,
             drumSteps: beatPlayer.pattern.steps, drumAccents: beatPlayer.pattern.accents
         )
-        projects.save(project)
+    }
+
+    private func saveProject() {
+        projects.save(currentProject())
     }
 
     private func open(_ p: Project) {

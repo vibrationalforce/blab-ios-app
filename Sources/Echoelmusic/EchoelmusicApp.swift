@@ -39,6 +39,11 @@ struct EchoelmusicApp: App {
     /// Live MIDI / MPE OUT — publishes the body-generated take as a virtual
     /// "Echoelmusic" source for a DAW to record. Off by default; armed from Sync.
     @State private var midiOut = MIDIOutput()
+    #if canImport(MultipeerConnectivity)
+    /// Live Colabo — nearby peer-to-peer session sharing. Off until the user goes
+    /// live from Tools ▸ Live Colabo. No external dependency.
+    @State private var colab = MultipeerSession()
+    #endif
     #if canImport(Network)
     @State private var osc: OSCSender
     /// Opt-in ADM-OSC bridge (immersive object positioning). Off by default;
@@ -210,6 +215,9 @@ struct EchoelmusicApp: App {
             .environment(modulationEngine)
             .environment(patchStore)
             .environment(transport)
+            #if canImport(MultipeerConnectivity)
+            .environment(colab)
+            #endif
             .environment(pianoRoll)
             .environment(clipStore)
             .environment(arrangementStore)
