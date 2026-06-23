@@ -262,6 +262,7 @@ struct EchoelStudioView: View {
 }
                 .padding(16)
             }
+            quickAccessHUD
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -550,6 +551,73 @@ struct EchoelStudioView: View {
         .contentShape(Rectangle())
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    // MARK: - The one button
+
+    /// Persistent quick-access HUD pinned to the bottom edge — every key destination
+    /// reachable from ANYWHERE without scrolling (the tools otherwise live at the
+    /// bottom of the scroll). Evidence-grounded: edge-anchored thumb zone (Fitts),
+    /// visible permanent affordances not hidden gestures (WCAG 2.2), non-modal. Solid
+    /// semi-transparent fill + 1px border (Uncodixfy — no glass/blur).
+    private var quickAccessHUD: some View {
+        HStack(spacing: 10) {
+            hudButton(running ? "Stop" : "Play", running ? "stop.fill" : "play.fill",
+                      tint: running ? EchoelTheme.text : EchoelTheme.accent) { toggleBiofeedback() }
+            #if canImport(MetalKit) && canImport(UIKit)
+            hudButton("Visual", "sparkles") { showVisual = true }
+            #endif
+            Menu {
+                Section("Editors") {
+                    hudButtonLabelMenu("Piano Roll", "pianokeys") { showPianoRoll = true }
+                    hudButtonLabelMenu("Sound", "dial.medium") { showPatchEditor = true }
+                    hudButtonLabelMenu("Channels", "slider.vertical.3") { showChannelRack = true }
+                    hudButtonLabelMenu("Automation", "point.topleft.down.curvedto.point.bottomright.up") { showAutomation = true }
+                }
+                Section("Audio & Bio") {
+                    hudButtonLabelMenu("Audio In", "mic") { showInput = true }
+                    hudButtonLabelMenu("Audio Clip", "waveform") { showAudioClip = true }
+                    hudButtonLabelMenu("Breathing", "wind") { showBreath = true }
+                    hudButtonLabelMenu("Meditation", "figure.mind.and.body") { showMeditation = true }
+                }
+                Section("Connect") {
+                    hudButtonLabelMenu("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
+                    hudButtonLabelMenu("Plugins", "puzzlepiece.extension") { showPlugins = true }
+                    hudButtonLabelMenu("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
+                    hudButtonLabelMenu("Learn", "book") { showLearn = true }
+                }
+            } label: {
+                hudLabel("Tools", "square.grid.2x2")
+            }
+            .accessibilityLabel("Tools — open any editor from anywhere")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(EchoelTheme.bg.opacity(0.92))
+        .overlay(Rectangle().frame(height: 1).foregroundStyle(EchoelTheme.border), alignment: .top)
+    }
+
+    private func hudButton(_ title: String, _ icon: String,
+                           tint: Color = EchoelTheme.text, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { hudLabel(title, icon).foregroundStyle(tint) }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(title)
+    }
+
+    private func hudLabel(_ title: String, _ icon: String) -> some View {
+        VStack(spacing: 2) {
+            Image(systemName: icon).font(.system(size: 17))
+            Text(title).font(EchoelTheme.font(10, .medium))
+        }
+        .foregroundStyle(EchoelTheme.text)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .contentShape(Rectangle())
+    }
+
+    private func hudButtonLabelMenu(_ title: String, _ icon: String,
+                                    _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { Label(title, systemImage: icon) }
     }
 
     // MARK: - The one button
