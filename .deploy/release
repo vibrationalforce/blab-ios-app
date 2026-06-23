@@ -1,5 +1,18 @@
-build: 2026-06-23 v10.72.2 (FIX: fullscreen Visual dead-end — Close was unreachable)
+build: 2026-06-23 v10.73.0 (voice analyser core + tap-to-type + keep-awake + FX standard)
 branch: claude/piano-roll-clip-view-wozlie
+notesJ: Founder — "Alles auf höchstem Level lambda" (do all four next directions, top quality). Shipped
+  as four code-reviewed slices: (1) VOICE AS INSTRUMENT — VoiceAnalyzer, the pure unit-tested INPUT
+  core of the audiovisual vocoder (pitch via autocorrelation + voicing gate, dBFS loudness, ZCR
+  brightness proxy) feeding the existing VocoderMapping; the live mic-tap is the next device-verified
+  wiring step (off the audio thread by design). (2) UX QUICK-EDIT — tapping any value field now clears
+  to a fresh entry with the old value shown as the greyed placeholder (empty commit restores); −/+/±
+  still nudge the committed value. (3) VISUALS INSTALLATION-LEVEL — the screen now stays awake while
+  performing/projecting (running||visual||breath||meditation; re-applied on scene-active, released when
+  idle) so a projected show never auto-locks; the immersive visual was ALREADY bio-reactive at the
+  shader level (hr→pulse, coherence→hue, breath→spread, colour follows the live music), so no
+  double-routing. (4) ECHOELFX/CI — verified the one-control standard: ZERO raw Slider/Stepper in the
+  app, EchoelValueField everywhere, so the FX panel already meets the design baseline (no blind
+  restyle). All four code-reviewed for compile-correctness (no local Swift toolchain).
 notesI: Founder device feedback — "Aus dieser Ansicht kommt man nicht heraus ohne die App zu
   schließen" (the fullscreen immersive Visual trapped the user; only force-quit escaped). Root
   cause: the Close (X) was gated behind the tap-toggled controls AND drawn BEFORE visualVJOverlay,
