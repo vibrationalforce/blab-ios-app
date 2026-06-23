@@ -23,6 +23,11 @@ public final class SpaceReverb: @unchecked Sendable {
 
     private let er: EchoelConvolution      // inner small room (early reflections)
     private let tail: EchoelConvolution    // outer large room (diffuse tail)
+    /// Pre-allocated wet scratch (sized to maxBlock) so `processInPlace` never
+    /// allocates — the audio-thread-safe path.
+    private var erScratch: [Float]
+    private var tailScratch: [Float]
+    private let maxBlock: Int
 
     /// Dry→wet amount, 0…1.
     public private(set) var mix: Float
@@ -34,6 +39,9 @@ public final class SpaceReverb: @unchecked Sendable {
                 erMillis: Float = 80, tailSeconds: Float = 1.8,
                 mix: Float = 0.25, blend: Float = 0.5, seed: UInt64 = 0xEC0E1) {
         let block = Swift.max(1, maxBlock)
+        self.maxBlock = block
+        self.erScratch = [Float](repeating: 0, count: block)
+        self.tailScratch = [Float](repeating: 0, count: block)
         self.mix = SpaceReverb.clamp01(mix)
         self.blend = SpaceReverb.clamp01(blend)
         let erTaps = Swift.max(1, Int(sampleRate * erMillis / 1000))
@@ -69,6 +77,26 @@ public final class SpaceReverb: @unchecked Sendable {
             out[i] = v.isFinite ? v : 0
         }
         return out
+    }
+
+    /// Real-time-safe variant: processes `buffer` IN PLACE (dry → wet) using the
+    /// pre-allocated scratch, so it never allocates. `buffer.count` must be
+    /// ≤ `maxBlock` (extra samples beyond the scratch are passed through dry).
+    /// This is the path the live render will call once wired (reviewed slice);
+    /// it produces bit-identical output to `process(_:)` for the same instance.
+    public func processInPlace(_ buffer: inout [Float]) {
+        let n = Swift.min(buffer.count, maxBlock)
+        guard n > 0 else { return }
+        er.process(buffer, into: &erScratch)
+        tail.process(buffer, into: &tailScratch)
+        let erGain: Float = 0.7
+        let tailGain: Float = 0.9 * blend
+        let wet = SpaceReverb.clamp01(mix)
+        for i in 0..<n {
+            let w = erGain * erScratch[i] + tailGain * tailScratch[i]
+            let v = buffer[i] * (1 - wet) + w * wet
+            buffer[i] = v.isFinite ? v : 0
+        }
     }
 
     // MARK: - Deterministic synthetic impulse responses (pure, testable)
