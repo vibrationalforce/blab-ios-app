@@ -45,6 +45,14 @@ final class CameraAnalyzer {
     /// Calculated RMSSD from camera PPG
     var rmssd: Double = 0
 
+    // MARK: - Diagnostics (device breadcrumb only) — reveal WHICH stage blocks a
+    // lock when bpm stays 0: amp≈0 → no pulsatile signal (positioning/torch);
+    // peaks<3 with a strong acf → peak-counting issue (rounded waveform); acf low →
+    // genuinely weak/aperiodic signal (perfusion/pressure). Not observed.
+    @ObservationIgnored private(set) var lastPeakCount: Int = 0
+    @ObservationIgnored private(set) var lastAutoStrength: Double = 0
+    @ObservationIgnored private(set) var lastFilteredAmplitude: Float = 0
+
     /// Frame counter for debugging
     private var frameCount: Int = 0
 
@@ -371,6 +379,9 @@ final class CameraAnalyzer {
         bpmConfidence = 0
         signalQuality = 0
         rmssd = 0
+        lastPeakCount = 0
+        lastAutoStrength = 0
+        lastFilteredAmplitude = 0
     }
 
     private func processPulseSignal(avgR: Float) {
@@ -441,20 +452,26 @@ final class CameraAnalyzer {
         let startIdx = n - windowSize
         let window = Array(filteredRedSignal[startIdx..<n])
 
+        // TRUE sample rate from timestamps (don't assume 15 Hz) so every BPM derived
+        // here — peak-counting and autocorrelation — is correct regardless of frame rate.
+        let span = signalTimestamps[n - 1] - signalTimestamps[startIdx]
+        let actualRate = span > 0 ? Double(windowSize - 1) / span : effectiveSampleRate
+
+        // Robust periodicity once per scan — reused for telemetry, the fresh-lock
+        // cross-check, and the few-peaks fallback (avoids recomputing it twice).
+        let auto = PulsePeriodEstimator.dominantBPM(window, sampleRate: actualRate)
+        lastAutoStrength = auto?.strength ?? 0
+
         // Adaptive threshold: 55% of amplitude range
         var maxAmp: Float = 0
         vDSP_maxv(window, 1, &maxAmp, vDSP_Length(windowSize))
         var minAmp: Float = 0
         vDSP_minv(window, 1, &minAmp, vDSP_Length(windowSize))
         let amplitude = maxAmp - minAmp
+        lastFilteredAmplitude = amplitude
         // Reject flat signal — no finger contact
-        guard amplitude > 0.0003 else { return }
+        guard amplitude > 0.0003 else { lastPeakCount = 0; return }
         let threshold = minAmp + amplitude * 0.55
-
-        // TRUE sample rate from timestamps (don't assume 15 Hz) for the
-        // autocorrelation fallback, so its BPM is correct regardless of frame rate.
-        let span = signalTimestamps[n - 1] - signalTimestamps[startIdx]
-        let actualRate = span > 0 ? Double(windowSize - 1) / span : effectiveSampleRate
 
         // Minimum inter-beat interval: 300ms (200 BPM max)
         let minPeakDistance = Int(effectiveSampleRate * 0.3)
@@ -469,8 +486,9 @@ final class CameraAnalyzer {
                 newPeaks.append(i)
             }
         }
+        lastPeakCount = newPeaks.count
 
-        guard newPeaks.count >= 3 else { fallbackBPM(window, rate: actualRate); return }
+        guard newPeaks.count >= 3 else { fallbackBPM(auto); return }
 
         var intervals: [Double] = []
         for j in 1..<newPeaks.count {
@@ -479,7 +497,7 @@ final class CameraAnalyzer {
             intervals.append(dt)
         }
 
-        guard intervals.count >= 2 else { fallbackBPM(window, rate: actualRate); return }
+        guard intervals.count >= 2 else { fallbackBPM(auto); return }
 
         // IQR outlier rejection
         let sorted = intervals.sorted()
@@ -499,16 +517,20 @@ final class CameraAnalyzer {
 
         // FRESH-LOCK corroboration (re-grip robustness, device-log feedback): right
         // after the finger is re-placed, motion settling can peak-count a HARMONIC
-        // (extra peaks → a shorter interval → a false-high BPM, e.g. 180 at rest)
-        // and the agreement-based confidence then trusts it for ~20 s. When there is
-        // no prior estimate to fall back on (estimatedBPM == 0), cross-check the new
+        // (extra peaks → a shorter interval → a false-high BPM, e.g. 180 at rest).
+        // When there is no prior estimate (estimatedBPM == 0), cross-check the new
         // rate against the independent autocorrelation period; if a CONFIDENT
-        // periodicity estimate disagrees by >20 %, skip this window and wait for a
-        // clean one. This only gates the first seed — steady tracking is untouched.
+        // periodicity disagrees by >20 %, the discrete count is the suspect one — so
+        // SEED FROM THE AUTOCORRELATION rather than discarding the window. The old
+        // code `return`ed here, which left bpm=0 forever when peak-counting kept
+        // catching a dicrotic notch (device log: finger=yes, q≈0.30, bpm=0 all run).
         if estimatedBPM == 0,
-           let auto = PulsePeriodEstimator.dominantBPM(window, sampleRate: actualRate),
-           auto.strength > 0.4,
+           let auto, auto.strength > 0.4,
            abs(bpm - auto.bpm) / auto.bpm > 0.2 {
+            estimatedBPM = auto.bpm
+            bpmConfidence = bpmConfidence * 0.82 + min(1, (auto.strength - 0.4) / 0.4) * 0.18
+            rrIntervals = cleanIntervals.map { $0 * 1000.0 }
+            if rrIntervals.count >= 3 { calculateRMSSD() }
             return
         }
 
@@ -541,9 +563,8 @@ final class CameraAnalyzer {
     /// 3 clean peaks, the device-log "bpm=0 forever" case), recover the rate from
     /// the window's periodicity via autocorrelation. Gated on periodicity strength
     /// so it locks onto a real pulse, not noise.
-    private func fallbackBPM(_ window: [Float], rate: Double) {
-        guard let r = PulsePeriodEstimator.dominantBPM(window, sampleRate: rate),
-              r.strength > 0.3 else { return }
+    private func fallbackBPM(_ auto: (bpm: Double, strength: Double)?) {
+        guard let r = auto, r.strength > 0.3 else { return }
         estimatedBPM = estimatedBPM == 0 ? r.bpm : estimatedBPM * 0.80 + r.bpm * 0.20
         let conf = max(0, min(1, (r.strength - 0.3) / 0.5))
         bpmConfidence = bpmConfidence * 0.82 + conf * 0.18
