@@ -158,11 +158,12 @@ public final class CameraRPPGBioPublisher {
                     // autocorrelation seed now covers it); acf low → weak/aperiodic
                     // perfusion. This is the one line that pinpoints the failing stage.
                     EchoelCrashLog.breadcrumb(String(format:
-                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f bpm=%.0f conf=%.2f",
+                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f rate=%.1f win=%d bpm=%.0f conf=%.2f",
                         self.fingerDetected ? "yes" : "no",
                         self.analyzer.redChannel, self.analyzer.brightness, self.signalQuality,
                         self.analyzer.lastFilteredAmplitude, self.analyzer.lastPeakCount,
-                        self.analyzer.lastAutoStrength, self.detectedBPM, self.confidence))
+                        self.analyzer.lastAutoStrength, self.analyzer.lastActualRate,
+                        self.analyzer.lastWindowSize, self.detectedBPM, self.confidence))
                 }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
