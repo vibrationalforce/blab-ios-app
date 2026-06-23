@@ -1,5 +1,14 @@
-build: 2026-06-23 v10.76.0 (#3 non-modal panels — tool sheets become draggable HUD panels)
+build: 2026-06-23 v10.76.1 (version label fix — App Store version was stuck at 10.65.0)
 branch: claude/piano-roll-clip-view-wozlie
+notesN: Founder saw "10.65.0 (2031)" and asked what's coming. Root cause: MARKETING_VERSION was
+  HARDCODED at "10.65.0" in project.yml, so every TestFlight build showed 10.65.0 regardless of the
+  real changes — only the build NUMBER (CI run number) moved. Bumped MARKETING_VERSION → 10.76.1 so
+  the next build reads "10.76.1 (xxxx)" and is unmistakably the one carrying ALL the recent work:
+  rPPG rate/Nyquist fix, voice analyser core, value-field tap-to-type + minus/plus/sign accessory,
+  keep-screen-awake, persistent quick-access HUD, visible visual-control handle, and the non-modal
+  draggable tool panels. (Decided per founder "du entscheidest": chose the one-line safe bump over a
+  riskier auto-version CI change that could break the deploy pipeline — revisit auto-versioning when
+  CI is verifiable.) INSTALL the 10.76.1 build.
 notesM: #3 of the persistent-control-layer work — the modal→panel refactor. One reusable
   `.echoelSheetPanel()` modifier (Echoel CI: one treatment everywhere) turns the 12 editor/tool
   sheets (Piano Roll, FX, Channels, Sound, Audio In, Routing, Plugins, Automation, Audio Clip,
