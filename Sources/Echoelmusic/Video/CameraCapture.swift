@@ -14,6 +14,17 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     /// Called for each captured frame (on captureQueue — NOT main thread)
     nonisolated(unsafe) var onFrame: ((CVPixelBuffer) -> Void)?
 
+    // MARK: - Resilience (frame-stall watchdog + session-error recovery)
+    /// Wall-clock of the last delivered frame. Written on captureQueue, read on the
+    /// watchdog (sessionQueue); a CFAbsoluteTime is atomic-width so the small race is
+    /// benign for a stall detector. Device logs showed the capture session silently
+    /// stop delivering frames for ~68 s mid-session (thermal/resource contention with
+    /// the audio+Metal pipeline) with no runtime-error — only a watchdog catches that.
+    nonisolated(unsafe) private var lastFrameTime: CFAbsoluteTime = 0
+    nonisolated(unsafe) private var lastRestartTime: CFAbsoluteTime = 0
+    private var watchdog: DispatchSourceTimer?
+    private var sessionObservers: [NSObjectProtocol] = []
+
     /// Whether the session is running
     var isRunning: Bool { session.isRunning }
 
@@ -38,7 +49,10 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                 }
                 do {
                     try self.configureSession()
+                    self.installSessionObservers()
                     self.session.startRunning()
+                    self.lastFrameTime = CFAbsoluteTimeGetCurrent()   // grace from start
+                    self.startWatchdog()
                     continuation.resume()
                 } catch {
                     continuation.resume(throwing: error)
@@ -164,11 +178,76 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         }
     }
 
+    // MARK: - Resilience
+
+    /// Observe AVCaptureSession runtime errors + interruptions and recover. Extract
+    /// only Sendable values inside each notification block, then hop to sessionQueue
+    /// (Notification itself is non-Sendable, so it must not cross the boundary).
+    private func installSessionObservers() {
+        let nc = NotificationCenter.default
+        let rt = nc.addObserver(forName: .AVCaptureSessionRuntimeError, object: session,
+                                queue: nil) { [weak self] note in
+            let code = (note.userInfo?[AVCaptureSessionErrorKey] as? AVError)?.code
+            self?.sessionQueue.async { self?.recoverFromError(code) }
+        }
+        let intr = nc.addObserver(forName: .AVCaptureSessionWasInterrupted, object: session,
+                                  queue: nil) { note in
+            let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
+            log.log(.warning, category: .biofeedback, "Camera session interrupted (reason \(reason))")
+        }
+        let ended = nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session,
+                                   queue: nil) { [weak self] _ in
+            self?.sessionQueue.async {
+                guard let self, !self.session.isRunning else { return }
+                self.session.startRunning()
+                self.lastFrameTime = CFAbsoluteTimeGetCurrent()
+                log.log(.info, category: .biofeedback, "Camera session resumed after interruption")
+            }
+        }
+        sessionObservers = [rt, intr, ended]
+    }
+
+    /// On a runtime error (notably `.mediaServicesWereReset`) restart the session.
+    private func recoverFromError(_ code: AVError.Code?) {
+        log.log(.warning, category: .biofeedback, "Camera runtime error (\(code.map(String.init(describing:)) ?? "unknown")) — restarting")
+        if !session.isRunning { session.startRunning() }
+        lastFrameTime = CFAbsoluteTimeGetCurrent()
+    }
+
+    /// Watchdog: if the session is running but no frame has arrived for >4 s, the
+    /// capture pipeline has silently stalled (device log: ~68 s freeze, no error) —
+    /// kick it with a stop/start. Cooldown-guarded so it can never thrash.
+    private func startWatchdog() {
+        watchdog?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: sessionQueue)
+        timer.schedule(deadline: .now() + 2, repeating: 2)
+        timer.setEventHandler { [weak self] in
+            guard let self, self.session.isRunning else { return }
+            let now = CFAbsoluteTimeGetCurrent()
+            guard now - self.lastFrameTime > 4.0,        // frames stopped
+                  now - self.lastRestartTime > 6.0 else { return }   // restart cooldown
+            self.lastRestartTime = now
+            log.log(.warning, category: .biofeedback,
+                    "Camera stalled \(String(format: "%.1f", now - self.lastFrameTime))s — restarting session")
+            self.session.stopRunning()
+            self.session.startRunning()
+            self.lastFrameTime = CFAbsoluteTimeGetCurrent()   // grace after kick
+        }
+        timer.resume()
+        watchdog = timer
+    }
+
     // MARK: - Stop
 
     func stop() {
+        // All watchdog/observer state is mutated on sessionQueue (start + stop), so
+        // tear it down there too — keeps access serialized, no data race.
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            self.watchdog?.cancel()
+            self.watchdog = nil
+            for o in self.sessionObservers { NotificationCenter.default.removeObserver(o) }
+            self.sessionObservers = []
             self.session.stopRunning()
             for input in self.session.inputs { self.session.removeInput(input) }
             for output in self.session.outputs { self.session.removeOutput(output) }
@@ -186,6 +265,7 @@ extension CameraCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         from connection: AVCaptureConnection
     ) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        lastFrameTime = CFAbsoluteTimeGetCurrent()   // watchdog heartbeat
         onFrame?(pixelBuffer)
     }
 }
