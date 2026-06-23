@@ -3,7 +3,7 @@ import Foundation
 /// Ordered, audio-thread-safe composition of the EchoelFX processors — the unit
 /// the render block, UI, and (later) AUv3 wrapper drive. Signal flow:
 ///
-///   in → filter → saturation → harmonizer → chorus → flanger → phaser → tremolo → delay → reverb → compressor → limiter → out
+///   in → filter → saturation → bitcrush → harmonizer → chorus → flanger → phaser → tremolo → delay → reverb → widener → compressor → limiter → out
 ///
 /// The filter sits first so its colour (muffled "underwater" low-pass, telephone
 /// band-pass) shapes the source before the echoes and modulation inherit it.
@@ -22,6 +22,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// / "telephone" / lo-fi characters.
     public let filterL: EchoelSVFilter
     public let filterR: EchoelSVFilter
+    public let bitcrush: EchoelBitcrush
     public let harmonizer: EchoelHarmonizer
     public let chorus: EchoelChorus
     public let flanger: EchoelFlanger
@@ -29,6 +30,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public let tremolo: EchoelTremolo
     public let delay: EchoelDelay
     public let reverb: EchoelReverb
+    public let widener: EchoelStereoWidener
     public let compressor: EchoelCompressor
     public let limiter: EchoelLimiter
 
@@ -38,6 +40,9 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// Analog warmth. On by default — the additive source is otherwise a sterile
     /// sum of sines; saturation adds the harmonic body that sounds professional.
     public var saturationEnabled: Bool = true
+    /// Digital lo-fi (bit-depth + sample-rate crush). Off by default; a character
+    /// effect for crushed/vintage textures.
+    public var bitcrushEnabled: Bool = false
     /// Pitch-shift harmony voices. Off by default — a character effect surfaced
     /// via the Effects picker (`.harmonizer`).
     public var harmonizerEnabled: Bool = false
@@ -52,6 +57,8 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// Algorithmic room/hall reverb. Off by default; genre presets enable it to
     /// give a take real space (the additive source has no reverb of its own).
     public var reverbEnabled: Bool = false
+    /// Stereo widener (M/S). Off by default; widens the modulation/reverb image.
+    public var widenerEnabled: Bool = false
     public var compressorEnabled: Bool = false
     public var limiterEnabled: Bool = true
 
@@ -69,6 +76,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public init(sampleRate: Float = 48000) {
         self.filterL = EchoelSVFilter(sampleRate: sampleRate)
         self.filterR = EchoelSVFilter(sampleRate: sampleRate)
+        self.bitcrush = EchoelBitcrush(sampleRate: sampleRate)
         self.harmonizer = EchoelHarmonizer(sampleRate: sampleRate)
         self.chorus = EchoelChorus(sampleRate: sampleRate)
         // Gentle default: low wet mix + modest depth + slow rate → ensemble
@@ -81,6 +89,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         self.tremolo = EchoelTremolo(sampleRate: sampleRate)
         self.delay = EchoelDelay(sampleRate: sampleRate)
         self.reverb = EchoelReverb(sampleRate: sampleRate)
+        self.widener = EchoelStereoWidener(sampleRate: sampleRate)
         self.compressor = EchoelCompressor(sampleRate: sampleRate)
         self.limiter = EchoelLimiter(sampleRate: sampleRate)
     }
@@ -100,6 +109,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         var r = inR
         if filterEnabled     { l = filterL.process(l); r = filterR.process(r) }
         if saturationEnabled { (l, r) = saturate(l, r) }
+        if bitcrushEnabled   { (l, r) = bitcrush.processStereo(l, r) }
         if harmonizerEnabled { (l, r) = harmonizer.processStereo(l, r) }
         if chorusEnabled     { (l, r) = chorus.processStereo(l, r) }
         if flangerEnabled    { (l, r) = flanger.processStereo(l, r) }
@@ -107,6 +117,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         if tremoloEnabled    { (l, r) = tremolo.processStereo(l, r) }
         if delayEnabled      { (l, r) = delay.processStereo(l, r) }
         if reverbEnabled     { (l, r) = reverb.processStereo(l, r) }
+        if widenerEnabled    { (l, r) = widener.processStereo(l, r) }
         if compressorEnabled { (l, r) = compressor.processStereo(l, r) }
         if limiterEnabled    { (l, r) = limiter.processStereo(l, r) }
         return (l, r)
@@ -164,6 +175,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public func reset() {
         filterL.reset()
         filterR.reset()
+        bitcrush.reset()
         harmonizer.reset()
         chorus.reset()
         flanger.reset()
@@ -171,6 +183,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         tremolo.reset()
         delay.reset()
         reverb.reset()
+        widener.reset()
         compressor.reset()
         limiter.reset()
     }

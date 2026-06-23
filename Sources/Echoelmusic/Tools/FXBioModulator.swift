@@ -134,6 +134,8 @@ public final class FXBioModulator {
         case .delayFeedback:   return c.delay.feedback
         case .reverbMix:       return c.reverb.mix
         case .reverbSize:      return c.reverb.roomSize
+        case .bitcrushMix:     return c.bitcrush.mix
+        case .stereoWidth:     return c.widener.width
         }
     }
 
@@ -150,6 +152,8 @@ public final class FXBioModulator {
         case .delayFeedback:   c.delay.feedback = v
         case .reverbMix:       c.reverb.mix = v
         case .reverbSize:      c.reverb.roomSize = v
+        case .bitcrushMix:     c.bitcrush.mix = v
+        case .stereoWidth:     c.widener.width = v
         }
     }
 
@@ -163,6 +167,8 @@ public final class FXBioModulator {
         case .tremoloDepth:                   c.tremoloEnabled = true
         case .delayMix, .delayFeedback:       c.delayEnabled = true
         case .reverbMix, .reverbSize:         c.reverbEnabled = true
+        case .bitcrushMix:                    c.bitcrushEnabled = true
+        case .stereoWidth:                    c.widenerEnabled = true
         }
     }
 }

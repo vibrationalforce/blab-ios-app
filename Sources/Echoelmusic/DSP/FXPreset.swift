@@ -37,6 +37,16 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var saturationDrive: Float
     public var saturationMix: Float
 
+    // Bitcrush (digital lo-fi)
+    public var bitcrushEnabled: Bool
+    public var bitcrushBits: Float
+    public var bitcrushDownsample: Float
+    public var bitcrushMix: Float
+
+    // Stereo widener (M/S)
+    public var widenerEnabled: Bool
+    public var widenerWidth: Float
+
     // Harmonizer
     public var harmonizerEnabled: Bool
     public var harmonizerInterval1: Float
@@ -121,6 +131,14 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         saturationDrive = f(.saturationDrive, 0.30)
         saturationMix = f(.saturationMix, 0.5)
 
+        bitcrushEnabled = b(.bitcrushEnabled, false)
+        bitcrushBits = f(.bitcrushBits, 16)
+        bitcrushDownsample = f(.bitcrushDownsample, 1)
+        bitcrushMix = f(.bitcrushMix, 1.0)
+
+        widenerEnabled = b(.widenerEnabled, false)
+        widenerWidth = f(.widenerWidth, 1.0)
+
         harmonizerEnabled = b(.harmonizerEnabled, false)
         harmonizerInterval1 = f(.harmonizerInterval1, 4)
         harmonizerInterval2 = f(.harmonizerInterval2, 7)
@@ -179,6 +197,8 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         fxEnabled: Bool,
         filterEnabled: Bool, filterModeRaw: String, filterCutoff: Float, filterResonance: Float,
         saturationEnabled: Bool, saturationDrive: Float, saturationMix: Float,
+        bitcrushEnabled: Bool, bitcrushBits: Float, bitcrushDownsample: Float, bitcrushMix: Float,
+        widenerEnabled: Bool, widenerWidth: Float,
         harmonizerEnabled: Bool, harmonizerInterval1: Float, harmonizerInterval2: Float,
         harmonizerVoice2Enabled: Bool, harmonizerMix: Float,
         chorusEnabled: Bool, chorusRate: Float, chorusDepth: Float, chorusMix: Float,
@@ -197,6 +217,9 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         self.filterEnabled = filterEnabled; self.filterModeRaw = filterModeRaw
         self.filterCutoff = filterCutoff; self.filterResonance = filterResonance
         self.saturationEnabled = saturationEnabled; self.saturationDrive = saturationDrive; self.saturationMix = saturationMix
+        self.bitcrushEnabled = bitcrushEnabled; self.bitcrushBits = bitcrushBits
+        self.bitcrushDownsample = bitcrushDownsample; self.bitcrushMix = bitcrushMix
+        self.widenerEnabled = widenerEnabled; self.widenerWidth = widenerWidth
         self.harmonizerEnabled = harmonizerEnabled
         self.harmonizerInterval1 = harmonizerInterval1; self.harmonizerInterval2 = harmonizerInterval2
         self.harmonizerVoice2Enabled = harmonizerVoice2Enabled; self.harmonizerMix = harmonizerMix
@@ -239,6 +262,12 @@ public extension FXPreset {
             saturationEnabled: chain.saturationEnabled,
             saturationDrive: chain.saturationDrive,
             saturationMix: chain.saturationMix,
+            bitcrushEnabled: chain.bitcrushEnabled,
+            bitcrushBits: chain.bitcrush.bits,
+            bitcrushDownsample: chain.bitcrush.downsample,
+            bitcrushMix: chain.bitcrush.mix,
+            widenerEnabled: chain.widenerEnabled,
+            widenerWidth: chain.widener.width,
             harmonizerEnabled: chain.harmonizerEnabled,
             harmonizerInterval1: chain.harmonizer.interval1,
             harmonizerInterval2: chain.harmonizer.interval2,
@@ -296,6 +325,12 @@ public extension FXPreset {
         chain.saturationEnabled = saturationEnabled
         chain.saturationDrive = saturationDrive
         chain.saturationMix = saturationMix
+        chain.bitcrushEnabled = bitcrushEnabled
+        chain.bitcrush.bits = bitcrushBits
+        chain.bitcrush.downsample = bitcrushDownsample
+        chain.bitcrush.mix = bitcrushMix
+        chain.widenerEnabled = widenerEnabled
+        chain.widener.width = widenerWidth
         chain.harmonizerEnabled = harmonizerEnabled
         chain.harmonizer.interval1 = harmonizerInterval1
         chain.harmonizer.interval2 = harmonizerInterval2
