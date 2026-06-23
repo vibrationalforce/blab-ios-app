@@ -95,7 +95,10 @@ struct MeditationView: View {
 
             primaryButton("Begin") { beginPressed() }
 
-            if !recorder.sessions.isEmpty { historyList }
+            if !recorder.sessions.isEmpty {
+                streakBanner
+                historyList
+            }
             Spacer(minLength: 0)
         }
     }
@@ -129,6 +132,11 @@ struct MeditationView: View {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 44))
                 .foregroundStyle(EchoelTheme.accent)
             Text("Session complete").font(EchoelTheme.font(20, .semibold)).foregroundStyle(EchoelTheme.text)
+            let streak = SessionStats.streakDays(recorder.sessions)
+            if streak > 1 {
+                Label("\(streak)-day streak", systemImage: "flame.fill")
+                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.accent)
+            }
             if let s = lastSummary, s.sampleCount > 0 {
                 VStack(spacing: 10) {
                     statRow("Duration", timeString(s.durationSeconds))
@@ -150,6 +158,33 @@ struct MeditationView: View {
                     .frame(maxWidth: .infinity).frame(height: 44)
             }
         }
+    }
+
+    // MARK: Streak + trend (habit reward, pure SessionStats)
+
+    private var streakBanner: some View {
+        let streak = SessionStats.streakDays(recorder.sessions)
+        let trend = SessionStats.coherenceTrend(recorder.sessions)
+        return HStack(spacing: 12) {
+            if streak > 0 {
+                Label("\(streak)-day streak", systemImage: "flame.fill")
+                    .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.accent)
+            } else {
+                Text("Practice daily to build a streak")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            }
+            Spacer()
+            if abs(trend) >= 0.01 {
+                let up = trend > 0
+                Label(String(format: "%+.2f coherence", trend),
+                      systemImage: up ? "arrow.up.right" : "arrow.down.right")
+                    .font(EchoelTheme.font(12, .medium))
+                    .foregroundStyle(up ? EchoelTheme.accent : EchoelTheme.dim)
+                    .accessibilityLabel(String(format: "coherence trend %@ %.2f", up ? "up" : "down", abs(trend)))
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
     }
 
     // MARK: History
