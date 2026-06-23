@@ -52,6 +52,10 @@ struct EchoelmusicApp: App {
     @State private var modulationEngine: ModulationEngine
     /// Library of user + factory synth sounds for the patch editor.
     @State private var patchStore: PatchStore
+    /// The single authoritative musical clock. PatternEngine relays its pulses
+    /// here so position/tempo/play-state live in one observable place that the
+    /// timeline, MIDI clock and Ableton Link can all ride.
+    @State private var transport = Transport()
     /// Shared melodic piano-roll pattern — the body-generated melody.
     @State private var pianoRoll: PianoRollModel
     /// Session grid of launchable clips (drum pattern + melody snapshots).
@@ -205,6 +209,7 @@ struct EchoelmusicApp: App {
             #endif
             .environment(modulationEngine)
             .environment(patchStore)
+            .environment(transport)
             .environment(pianoRoll)
             .environment(clipStore)
             .environment(arrangementStore)
@@ -254,6 +259,9 @@ struct EchoelmusicApp: App {
 
                 // The melodic instrument + shared transport — the core sound path.
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
+                // PatternEngine relays each pulse into the authoritative Transport
+                // (additive mirror; existing onStep/onTick stay the live path).
+                beatPlayer.pattern.transport = transport
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)

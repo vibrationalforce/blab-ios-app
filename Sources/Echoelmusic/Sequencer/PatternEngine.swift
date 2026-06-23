@@ -75,6 +75,17 @@ public final class PatternEngine {
     /// to silence notes on stop and leave a drone ringing.
     public var onStop: (() -> Void)?
 
+    // MARK: - Transport relay (Cycle 1 — zero behaviour change)
+
+    /// The single authoritative musical clock. PatternEngine remains the source of
+    /// real-time pulses (it owns the timer); it RELAYS each pulse into `Transport`
+    /// so position/tempo/play-state live in one observable place that future
+    /// consumers (timeline playhead, MIDI clock, Ableton Link) can all ride. Today
+    /// nothing subscribes to Transport — this mirror is additive and audible-no-op;
+    /// existing `onStep`/`onTick`/`onStop` stay wired and firing. See
+    /// scratchpads/PLAN_TRANSPORT_CLOCK.md. Weak so the app owns Transport's lifetime.
+    @ObservationIgnored public weak var transport: Transport?
+
     // MARK: - Internal
 
     // A DispatchSourceTimer that fires ON THE MAIN QUEUE. A DispatchSource (vs a
@@ -148,6 +159,7 @@ public final class PatternEngine {
     /// Set the swing amount, clamped to [0, 0.5].
     public func setSwing(_ amount: Double) {
         swing = Swift.min(Swift.max(amount, 0), 0.5)
+        transport?.setSwing(swing)
     }
 
     /// Replace the whole grid (steps + accents), e.g. when launching a clip.
@@ -181,6 +193,7 @@ public final class PatternEngine {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
         guard clamped != tempo else { return }
         tempo = clamped
+        transport?.setTempo(clamped)
         // Re-arm at the new rate if playing, otherwise the already-scheduled tick
         // would still fire at the OLD interval (one lagged step after a tempo
         // change / regenerate). scheduleTick invalidates the old timer first.
@@ -196,6 +209,7 @@ public final class PatternEngine {
         guard !isPlaying else { return }
         isPlaying = true
         currentStep = 0
+        transport?.play()
         scheduleTick(after: 60.0 / tempo / 4.0)
     }
 
@@ -205,6 +219,7 @@ public final class PatternEngine {
         timer = nil
         currentStep = 0
         isPlaying = false
+        transport?.stop()
         onStop?()   // flush held notes so nothing drones after stop
     }
 
@@ -256,6 +271,10 @@ public final class PatternEngine {
         guard isPlaying else { return }
 
         let step = currentStep
+        // Relay this pulse into the authoritative clock FIRST, so any Transport
+        // subscriber sees the new position before the legacy onStep/onTick consumers
+        // act on it (priority ordering lives in Transport). Zero-cost when unwired.
+        transport?.tick(step: step)
         for track in 0..<PatternEngine.trackCount {
             if steps[track][step] {
                 onStep?(track, step)
