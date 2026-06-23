@@ -68,8 +68,12 @@ final class CameraAnalyzer {
         let n = Swift.min(filteredRedSignal.count, 90)   // ~6 s at 15 Hz
         guard n > 1 else { return [] }
         let slice = Array(filteredRedSignal.suffix(n))
-        let maxAbs = Swift.max(slice.map { Swift.abs($0) }.max() ?? 1, 0.0001)
-        return slice.map { $0 / maxAbs }
+        // vDSP max-magnitude avoids the intermediate `map { abs }` array on this
+        // ~10 Hz read (the waveform array itself is the only allocation kept).
+        var maxAbs: Float = 0
+        vDSP_maxmgv(slice, 1, &maxAbs, vDSP_Length(n))
+        let norm = Swift.max(maxAbs, 0.0001)
+        return slice.map { $0 / norm }
     }
 
     // MARK: - Filter Modulation Output
@@ -118,6 +122,9 @@ final class CameraAnalyzer {
     // Finger detection — 30 frames = 2 seconds at 15Hz for robust detection
     private var fingerDetectionBuffer: [Bool] = []
     private let fingerDetectionWindow = 30
+    /// Running count of `true` frames in the window, kept in sync on push/pop so the
+    /// per-frame detection is O(1) (no `filter { $0 }.count` allocation at ~15 Hz).
+    private var fingerTrueCount = 0
 
     // Motion detection
     private var previousBrightness: Float = 0.5
@@ -258,18 +265,7 @@ final class CameraAnalyzer {
 
         // Finger detection: high red, low green/blue relative, low spatial variance
         let isFingerFrame = avgR > 0.5 && avgR > avgG * 1.3 && avgR > avgB * 1.5 && varianceR < 0.02
-
-        fingerDetectionBuffer.append(isFingerFrame)
-        if fingerDetectionBuffer.count > fingerDetectionWindow {
-            fingerDetectionBuffer.removeFirst()
-        }
-
-        // Finger is "detected" when >70% of recent frames match
-        let fingerFrames = fingerDetectionBuffer.filter { $0 }.count
-        // Hysteresis: harder to acquire (half the window) than to hold (a quarter),
-        // so a brief glare/pressure flicker doesn't drop the lock and reset confidence.
-        let needed = isFingerDetected ? (fingerDetectionWindow / 4) : (fingerDetectionWindow / 2)
-        isFingerDetected = fingerFrames > needed
+        updateFingerDetection(isFingerFrame)
 
         // Pulse detection
         if isPulseDetecting && isFingerDetected {
@@ -314,17 +310,7 @@ final class CameraAnalyzer {
         // floor so the pulse never locked. Lower the floor to 0.28; the 1.2×/1.3×
         // ratio gates still keep a non-red scene out.
         let isFingerFrame = avgR > 0.28 && avgR > avgG * 1.2 && avgR > avgB * 1.3
-
-        fingerDetectionBuffer.append(isFingerFrame)
-        if fingerDetectionBuffer.count > fingerDetectionWindow {
-            fingerDetectionBuffer.removeFirst()
-        }
-
-        let fingerFrames = fingerDetectionBuffer.filter { $0 }.count
-        // Hysteresis: harder to acquire (half the window) than to hold (a quarter),
-        // so a brief glare/pressure flicker doesn't drop the lock and reset confidence.
-        let needed = isFingerDetected ? (fingerDetectionWindow / 4) : (fingerDetectionWindow / 2)
-        isFingerDetected = fingerFrames > needed
+        updateFingerDetection(isFingerFrame)
 
         // Pulse detection
         if isPulseDetecting && isFingerDetected {
@@ -341,6 +327,22 @@ final class CameraAnalyzer {
                 rrIntervals.removeAll()
             }
         }
+    }
+
+    /// Push a finger/no-finger frame into the sliding window and update
+    /// `isFingerDetected`, maintaining a running true-count so the decision is O(1)
+    /// per frame (replaces a `filter { $0 }.count` allocation at ~15 Hz). Shared by
+    /// both the pixel-buffer and pre-extracted-RGB analysis paths.
+    private func updateFingerDetection(_ isFingerFrame: Bool) {
+        fingerDetectionBuffer.append(isFingerFrame)
+        if isFingerFrame { fingerTrueCount += 1 }
+        if fingerDetectionBuffer.count > fingerDetectionWindow {
+            if fingerDetectionBuffer.removeFirst() { fingerTrueCount -= 1 }
+        }
+        // Hysteresis: harder to acquire (half the window) than to hold (a quarter),
+        // so a brief glare/pressure flicker doesn't drop the lock and reset confidence.
+        let needed = isFingerDetected ? (fingerDetectionWindow / 4) : (fingerDetectionWindow / 2)
+        isFingerDetected = fingerTrueCount > needed
     }
 
     // MARK: - Pulse Signal Processing
@@ -638,6 +640,7 @@ final class CameraAnalyzer {
         isPulseDetecting = false
         isFingerDetected = false
         fingerDetectionBuffer.removeAll()
+        fingerTrueCount = 0
         dcEstimate = 0
     }
 }
