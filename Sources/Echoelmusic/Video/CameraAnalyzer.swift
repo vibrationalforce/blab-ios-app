@@ -69,6 +69,15 @@ final class CameraAnalyzer {
     /// Counts samples since pulse start, for a fast DC-baseline warmup.
     private var dcWarmupCount: Int = 0
 
+    /// Last few accepted per-window BPM estimates, for a MEDIAN smoother. rPPG
+    /// peak-counting is noisy (a dicrotic notch or a motion bump adds/drops a peak →
+    /// a single window jumps the rate, device log: 83→118→89 at a steady finger). A
+    /// median of recent windows rejects those one-off excursions far better than the
+    /// EMA alone (the EMA still chases a run of bad windows). Kept short so it tracks
+    /// real change within a few seconds.
+    private var recentBPMs: [Double] = []
+    private let recentBPMCapacity = 5
+
     /// Recent bandpass-filtered pulse signal, normalized to ~[-1,1], for a live
     /// waveform ("Stimmungsbild"). Empty until samples exist; flat = no signal.
     var recentWaveform: [Float] {
@@ -245,6 +254,7 @@ final class CameraAnalyzer {
                 estimatedBPM = 0
                 rmssd = 0
                 rrIntervals.removeAll()
+                recentBPMs.removeAll()   // don't seed the next lock from a stale median
             }
         }
     }
@@ -297,6 +307,7 @@ final class CameraAnalyzer {
         dcEstimate = 0
         dcWarmupCount = 0
         peakTick = 0
+        recentBPMs.removeAll()
         estimatedBPM = 0
         bpmConfidence = 0
         signalQuality = 0
@@ -504,13 +515,44 @@ final class CameraAnalyzer {
             : cvConf
         let confidence = max(cvConf, agreement)
 
-        estimatedBPM = estimatedBPM == 0 ? bpm : estimatedBPM * 0.80 + bpm * 0.20
+        // STABILISE before committing: fold octave errors toward the running rate,
+        // then take the MEDIAN of the last few windows. This is what removes the
+        // 83→118→89 jumpiness in the device log — a lone noisy window can no longer
+        // yank the published BPM; a real change still carries once it persists across
+        // a couple of windows.
+        let target = stabilisedBPM(bpm)
+
+        estimatedBPM = estimatedBPM == 0 ? target : estimatedBPM * 0.80 + target * 0.20
         // Ramp on every valid window (no hard gate): a clean, stable pulse locks in
         // a few seconds; brief noisy windows are smoothed by the EMA, not ignored.
         bpmConfidence = bpmConfidence * 0.82 + confidence * 0.18
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
         if rrIntervals.count >= 3 { calculateRMSSD() }
+    }
+
+    /// Octave-fold a raw window BPM toward the running estimate, then return the
+    /// median of the recent accepted windows. Pure post-processing on the discrete
+    /// peak-count rate (the autocorrelation strength is ~0 at typical fingertip SNR,
+    /// so it can't be relied on to carry the lock — the device log shows acf≈0 while
+    /// peak-counting alone produced the rate).
+    private func stabilisedBPM(_ raw: Double) -> Double {
+        var bpm = raw
+        // Harmonic guard: peak-counting a dicrotic notch doubles the count (≈2×) and
+        // a missed beat halves it (≈0.5×). Fold ONLY in true harmonic territory — a
+        // RATIO gate, not nearest-candidate. A nearest-candidate fold would mis-read a
+        // genuine 1.5–2× HR ramp (e.g. 60→110) as a doubled old rate and trap the lock
+        // at the old octave (dsp-review finding); the 0.625–1.6 band is left untouched
+        // so a real heart-rate change always passes through.
+        if estimatedBPM > 0 {
+            let ratio = raw / estimatedBPM
+            if ratio > 1.6, raw / 2.0 >= 40 { bpm = raw / 2.0 }          // likely doubled
+            else if ratio < 0.625, raw * 2.0 <= 200 { bpm = raw * 2.0 }  // likely halved
+        }
+        recentBPMs.append(bpm)
+        if recentBPMs.count > recentBPMCapacity { recentBPMs.removeFirst() }
+        let sorted = recentBPMs.sorted()
+        return sorted[sorted.count / 2]
     }
 
     /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than
