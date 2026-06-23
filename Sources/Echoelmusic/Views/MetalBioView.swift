@@ -43,6 +43,11 @@ private struct BioUniforms {
     /// Heartbeat pulse frequency (Hz), already flash-clamped by `BioVisualParams`/
     /// `FlashGuard` on the Swift side — the single source of WCAG flash-safety truth.
     var pulseHz: Float = 1.0
+    /// VJ hue rotation in turns [0…1]. 0 = the physically-correct tone→light colour
+    /// (the science-first default); >0 rotates the palette for performance.
+    var hueShift: Float = 0
+    /// VJ saturation [0…2]. 1 = neutral (unchanged), 0 = greyscale, >1 = punchier.
+    var saturation: Float = 1
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -60,6 +65,9 @@ struct MetalBioView: UIViewRepresentable {
     var ringDensity: Float = 40
     var motion: Float = 1.0
     var spread: Float = 1.0
+    /// VJ palette controls (see BioUniforms). Defaults keep the physical colour.
+    var hueShift: Float = 0
+    var saturation: Float = 1
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -109,6 +117,7 @@ struct MetalBioView: UIViewRepresentable {
             toneHz: liveTone,
             intensity: intensity, ringDensity: scaledRingDensity, motion: motion, spread: spread,
             pulseHz: Float(vp.pulseHz),
+            hueShift: hueShift, saturation: saturation,
             reduceMotion: effectiveReduceMotion
         )
     }
@@ -145,7 +154,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
-                pulseHz: Float, reduceMotion: Bool) {
+                pulseHz: Float, hueShift: Float, saturation: Float, reduceMotion: Bool) {
         uniforms.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         uniforms.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         uniforms.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
@@ -158,6 +167,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Already flash-clamped upstream (BioVisualParams/FlashGuard); guard finite
         // and hard-cap at the WCAG ceiling as defense in depth.
         uniforms.pulseHz = min(max(pulseHz.isFinite ? pulseHz : 1, 0), 3)
+        // VJ palette: hue wraps to [0,1); saturation clamped [0,2]. Defaults (0,1)
+        // leave the physically-correct tone colour untouched.
+        var hs = hueShift.isFinite ? hueShift : 0
+        hs = hs - floor(hs)
+        uniforms.hueShift = hs
+        uniforms.saturation = min(max(saturation.isFinite ? saturation : 1, 0), 2)
         self.reduceMotion = reduceMotion
     }
 
@@ -212,7 +227,28 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     struct VOut { float4 pos [[position]]; float2 uv; };
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
-                      float pulseHz; };
+                      float pulseHz; float hueShift; float saturation; };
+
+    // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
+    // (explicit dot products to avoid any column/row matrix ambiguity). Both are
+    // no-ops at the defaults (saturation 1, hueShift 0) so the physical colour holds.
+    float3 echoelSaturate(float3 c, float s) {
+        float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+        return mix(float3(l), c, s);
+    }
+    float3 echoelHue(float3 c, float shiftTurns) {
+        float a = shiftTurns * 6.2831853;
+        float ca = cos(a), sa = sin(a);
+        float y = dot(c, float3(0.299,  0.587,  0.114));
+        float i = dot(c, float3(0.596, -0.274, -0.322));
+        float q = dot(c, float3(0.211, -0.523,  0.312));
+        float i2 = i * ca - q * sa;
+        float q2 = i * sa + q * ca;
+        float3 rgb = float3(y + 0.956 * i2 + 0.621 * q2,
+                            y - 0.272 * i2 - 0.647 * q2,
+                            y - 1.106 * i2 + 1.703 * q2);
+        return clamp(rgb, 0.0, 1.0);
+    }
 
     // Wavelength (nm) → linear sRGB, COLORIMETRICALLY via the CIE 1931 colour-matching
     // functions (Wyman/Sloan/Shirley 2013 analytic fit) → XYZ → linear sRGB (D65). This
@@ -283,6 +319,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // pitch you hear is the colour you see. Coherence lifts the saturation/glow.
         float3 col = toneColour(u.toneHz);
         col = mix(col, col * 1.15 + 0.05, u.coherence);
+        // VJ palette control (neutral at defaults — physical colour preserved).
+        col = echoelSaturate(col, clamp(u.saturation, 0.0, 2.0));
+        col = echoelHue(col, u.hueShift);
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
         return float4(col * field, 1.0);
     }
