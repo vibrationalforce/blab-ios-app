@@ -89,6 +89,16 @@ public final class ArrangementPlayer {
         }
     }
 
+    /// Tap-to-seek: jump the playing song straight to `index`, loading that
+    /// section's clip immediately so it plays from its first step. No-op when
+    /// stopped or the index is out of range — the timeline list stays the editor.
+    public func jump(to index: Int) {
+        guard isPlaying, sectionSnapshot.indices.contains(index) else { return }
+        cursor.seek(to: index, sectionCount: sectionSnapshot.count)
+        currentIndex = cursor.index
+        loadCurrentSection()
+    }
+
     // MARK: - Loading
 
     /// Load the section at the cursor into the live pattern + piano roll.
