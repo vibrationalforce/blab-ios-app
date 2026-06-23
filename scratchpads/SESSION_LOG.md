@@ -3396,4 +3396,16 @@ SHIPPED (cumulative):
   status bar hidden) + palette control (MetalBioView hue rotation YIQ + luma saturation, neutral
   default so physical tone→colour is preserved).
 DECISION: AskUserQuestion used once (EchoelFX direction) — founder chose ALL four workstreams,
-  research-oriented; sequencing one green commit each (1 bio-mod ✅, 2 lo-fi ✅, 3 macro-morph, 4 CI polish).
+  research-oriented; sequencing one green commit each (1 bio-mod ✅, 2 lo-fi ✅, 3 macro-morph ✅, 4 CI polish).
+- v10.71.0 ECHOELFX MACRO-MORPH (workstream 3/4) — pure FXPreset.morphed(to:amount:) (continuous
+  params interpolate, enables/modes switch at midpoint; Linux-tested incl. chain round-trip) + a
+  "Macro morph" performance fader (snapshot current = A, pick any preset = target, one fader glides
+  A→target live). v10.71.1 added per-route ResponseCurve (linear/exp/log/sCurve) to bio-FX modulation.
+- (on branch) RESTORE LAST IMMERSIVE VISUAL SCENE on launch (visual preset persisted/restored).
+- (on branch) HAPTIC TRANSPORT PULSE wired — HapticController was built+unit-tested but had ZERO call
+  sites (dead DMMW "Vibration" dimension). Now a lowest-priority Transport step subscriber pulses the
+  body on each quarter-note (down-beat strongest), armed-off, with a "Haptic beat (feel)" toggle beside
+  the metronome. CoreHaptics-gated (Linux/AUv3 skip). Eyes-free time-keeping for performance.
+NOTE: CI — rapid back-to-back pushes triggered concurrency cancellation on the macro-morph/curves/
+  visual-restore compile-check runs (conclusion "cancelled", not real failures); the haptics HEAD run
+  is the authoritative verdict for the whole branch.
