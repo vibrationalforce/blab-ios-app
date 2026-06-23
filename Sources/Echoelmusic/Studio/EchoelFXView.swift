@@ -699,6 +699,13 @@ private struct FXModRouteRow: View {
             HStack(spacing: 12) {
                 Toggle("Bipolar", isOn: $route.bipolar).tint(EchoelTheme.accent)
                     .font(EchoelTheme.font(12))
+                Picker("Curve", selection: $route.curve) {
+                    ForEach(ResponseCurve.allCases, id: \.self) { c in
+                        Text(c.rawValue.capitalized).tag(c)
+                    }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .accessibilityLabel("Response curve")
                 if route.carrier == .lfo {
                     EchoelValueField(label: "LFO rate", value: $route.lfoRateHz,
                                      range: 0.05...8, unit: "Hz")

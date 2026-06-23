@@ -111,7 +111,7 @@ public final class FXBioModulator {
                     let phase = (now * route.lfoRateHz).truncatingRemainder(dividingBy: 1)
                     signal = FXModulation.lfoUnipolar(phase: phase)
                 }
-                sum += FXModulation.offset(target: target, signal: signal,
+                sum += FXModulation.offset(target: target, signal: route.curve.apply(signal),
                                            depth: route.depth, bipolar: route.bipolar)
             }
             write(target, FXModulation.combine(base: base, target: target, offset: sum), to: c)

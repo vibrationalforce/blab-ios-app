@@ -97,6 +97,23 @@ final class FXModulationTests: XCTestCase {
         XCTAssertEqual(r, back)
     }
 
+    func testRoute_CurveShapesSignal() {
+        // exponential curve (x²) on a 0.5 signal → 0.25 before depth/polarity.
+        // unipolar reverbMix (span 1), depth 1 → offset = 0.25.
+        let shaped = ResponseCurve.exponential.apply(0.5)
+        XCTAssertEqual(shaped, 0.25, accuracy: 1e-5)
+        let off = FXModulation.offset(target: .reverbMix, signal: shaped, depth: 1, bipolar: false)
+        XCTAssertEqual(off, 0.25, accuracy: 1e-5)
+    }
+
+    func testRoute_CurveCodableRoundTrip() throws {
+        let r = FXModRoute(carrier: .bio(.breathPhase), target: .filterCutoff,
+                           depth: 0.4, bipolar: false, curve: .sCurve)
+        let back = try JSONDecoder().decode(FXModRoute.self, from: JSONEncoder().encode(r))
+        XCTAssertEqual(r, back)
+        XCTAssertEqual(back.curve, .sCurve)
+    }
+
     func testTarget_AllHaveFiniteRanges() {
         for t in FXModTarget.allCases {
             XCTAssertTrue(t.range.lowerBound.isFinite && t.range.upperBound.isFinite)
