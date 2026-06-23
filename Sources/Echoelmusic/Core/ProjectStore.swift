@@ -40,6 +40,37 @@ public final class ProjectStore {
         projects.first { $0.id == id }
     }
 
+    // MARK: - Sharing (cross-device / community)
+
+    /// Encode a project to portable, human-diffable JSON for sharing (AirDrop,
+    /// Files, Messages) or cross-device transfer. Self-contained: style, key, tempo,
+    /// the synth patch, the notes and the drum grid all travel in one document.
+    public func exportData(_ project: Project) -> Data? {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? enc.encode(project)
+    }
+
+    /// Import a shared project document. The decoded project gets a FRESH id (so
+    /// importing your own export never overwrites the original) and is saved to the
+    /// top of the library. Returns the saved project, or nil if the data isn't a
+    /// valid Echoel session.
+    @discardableResult
+    public func importProject(from data: Data) -> Project? {
+        guard var p = try? JSONDecoder().decode(Project.self, from: data) else { return nil }
+        p.id = UUID()
+        return save(p)
+    }
+
+    /// Import from a (security-scoped) file URL — the `fileImporter` path.
+    @discardableResult
+    public func importProject(from url: URL) -> Project? {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return importProject(from: data)
+    }
+
     private func persist() {
         _ = store.save(projects, name: fileName)
     }

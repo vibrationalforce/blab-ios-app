@@ -3,6 +3,28 @@ import SwiftUI
 #if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 #endif
+#if canImport(CoreTransferable)
+import CoreTransferable
+
+/// Lazy `Transferable` wrapper so `ShareLink` exports a saved session as a
+/// portable `.json` document ONLY when the user actually shares it (the JSON is
+/// encoded on demand, not on every list render). Shared as `<name>.echoel.json`.
+@available(iOS 16.0, *)
+struct SharedEchoelProject: Transferable {
+    let project: Project
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .json) { shared in
+            (try? JSONEncoder().encode(shared.project)) ?? Data()
+        }
+        .suggestedFileName { shared in
+            let safe = shared.project.name
+                .replacingOccurrences(of: "/", with: "-")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return "\(safe.isEmpty ? "Echoel Session" : safe).echoel.json"
+        }
+    }
+}
+#endif
 
 // EchoelStudioView.swift
 // Echoel — ONE button, then sliders.
@@ -159,6 +181,8 @@ struct EchoelStudioView: View {
     @State private var showAudioClip = false
     /// Presents a file picker to import a Standard MIDI File onto the piano roll.
     @State private var midiImportPresented = false
+    /// Drives the project-import file picker in the Open-project sheet.
+    @State private var projectImportPresented = false
     @State private var showVisual = false
     @State private var showBreath = false
     @State private var showMeditation = false
@@ -1514,12 +1538,24 @@ struct EchoelStudioView: View {
                     Text("No saved projects yet.").foregroundStyle(.secondary)
                 }
                 ForEach(projects.projects) { p in
-                    Button { open(p); showOpen = false } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
-                            Text("\(p.style.displayName) · \(p.key.shortName) · \(String(format: "%.0f", p.bpm)) BPM")
-                                .font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Button { open(p); showOpen = false } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
+                                Text("\(p.style.displayName) · \(p.key.shortName) · \(String(format: "%.0f", p.bpm)) BPM")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        ShareLink(item: SharedEchoelProject(project: p),
+                                  preview: SharePreview(p.name)) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
+                                .frame(width: 34, height: 34)
+                        }
+                        .accessibilityLabel("Share \(p.name)")
                     }
                 }
                 .onDelete { idx in idx.map { projects.projects[$0].id }.forEach { projects.delete(id: $0) } }
@@ -1527,6 +1563,22 @@ struct EchoelStudioView: View {
             .navigationTitle("Open project")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { projectImportPresented = true } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                }
+            }
+            #if canImport(UniformTypeIdentifiers)
+            .fileImporter(isPresented: $projectImportPresented,
+                          allowedContentTypes: [.json],
+                          allowsMultipleSelection: false) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    projects.importProject(from: url)
+                }
+            }
             #endif
         }
     }

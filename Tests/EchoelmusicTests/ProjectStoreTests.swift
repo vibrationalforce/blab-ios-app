@@ -88,4 +88,41 @@ final class ProjectStoreTests: XCTestCase {
         XCTAssertNil(store.project(id: a.id))
         XCTAssertEqual(store.projects.count, 1)
     }
+
+    // MARK: - Sharing (cross-device / community)
+
+    func testExportImportRoundTripPreservesContent() {
+        let store = freshStore()
+        let original = project("Shared Take")
+        guard let data = store.exportData(original) else {
+            return XCTFail("export produced no data")
+        }
+        let imported = store.importProject(from: data)
+        XCTAssertNotNil(imported)
+        // Content travels intact…
+        XCTAssertEqual(imported?.name, original.name)
+        XCTAssertEqual(imported?.bpm, original.bpm)
+        XCTAssertEqual(imported?.styleRaw, original.styleRaw)
+        XCTAssertEqual(imported?.keyRoot, original.keyRoot)
+        // …but the import gets a FRESH id so it never overwrites the source.
+        XCTAssertNotEqual(imported?.id, original.id)
+        XCTAssertEqual(store.projects.count, 1, "imported project lands in the library")
+    }
+
+    func testImportInvalidDataReturnsNil() {
+        let store = freshStore()
+        XCTAssertNil(store.importProject(from: Data("not a session".utf8)))
+        XCTAssertTrue(store.projects.isEmpty)
+    }
+
+    func testImportingSameExportTwiceMakesTwoDistinctProjects() {
+        let store = freshStore()
+        guard let data = store.exportData(project("Dup")) else {
+            return XCTFail("export produced no data")
+        }
+        let first = store.importProject(from: data)
+        let second = store.importProject(from: data)
+        XCTAssertNotEqual(first?.id, second?.id, "each import is independent")
+        XCTAssertEqual(store.projects.count, 2)
+    }
 }
