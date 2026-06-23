@@ -94,6 +94,8 @@ struct EchoelStudioView: View {
     @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
     /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
     @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
+    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma.
+    @AppStorage("visual.style") private var visualStyle = 0
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -361,7 +363,8 @@ struct EchoelStudioView: View {
                     MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
                                  intensity: visualIntensity, ringDensity: visualDetail,
                                  motion: visualMotion, spread: visualSpread,
-                                 hueShift: visualHue, saturation: visualSaturation).ignoresSafeArea()
+                                 hueShift: visualHue, saturation: visualSaturation,
+                                 style: visualStyle).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ control PANEL — clean for
                 // projection, hands-on for performance. Controls are a solid panel.
@@ -979,6 +982,8 @@ struct EchoelStudioView: View {
 
     private var visualPanel: some View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+            Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            visualLookStrip
             visualPresetRow
             musicColourRow
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
@@ -1024,6 +1029,38 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// One LOOK selector for the immersive visual — Donuts (spectrum→light) plus the
+    /// three physically/analytically grounded Metal fields (Rings = wave interference,
+    /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
+    /// instead of two scattered toggles (clearer design); persists via @AppStorage.
+    private var visualLookStrip: some View {
+        // (label, isDonuts, metalStyle)
+        let looks: [(String, Bool, Int)] = [
+            ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1), ("Plasma", false, 2)
+        ]
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(looks.indices, id: \.self) { i in
+                    let look = looks[i]
+                    let selected = look.1 ? spectralDonuts : (!spectralDonuts && visualStyle == look.2)
+                    Button {
+                        if look.1 { spectralDonuts = true }
+                        else { spectralDonuts = false; visualStyle = look.2 }
+                    } label: {
+                        Text(look.0)
+                            .font(EchoelTheme.font(12, .semibold))
+                            .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(RoundedRectangle(cornerRadius: 8)
+                                .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(look.0) visual look")
+                }
+            }
+        }
+    }
+
     #if canImport(MetalKit) && canImport(UIKit)
     /// The hands-on VJ control panel that floats over the fullscreen visual: the four
     /// live parameters + a quick scene strip, on the app-wide value-field vocabulary,
@@ -1036,6 +1073,9 @@ struct EchoelStudioView: View {
             // the panel to full height (which previously covered the Close button).
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 8) {
+                    // Pick the visual LOOK (engine), then the scene preset (parameters).
+                    Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+                    visualLookStrip
                     // Quick scene strip — launch a look in one tap during a performance.
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {

@@ -1,5 +1,21 @@
-build: 2026-06-23 v10.76.5 (visuals: stop the stutter + smoother, richer, more physical)
+build: 2026-06-23 v10.76.6 (visuals: 3 selectable physical looks + design polish)
 branch: claude/piano-roll-clip-view-wozlie
+notesS: Founder: "mehr Vielfalt, besseres Design, Wirkung, physikalische + analytische Aspekte." On top
+  of the 10.76.5 smoothness work (phase accumulation + per-frame easing that already kill the
+  "ruckeln"), the immersive visual now has a LOOK selector — one strip: Donuts · Rings · Chladni ·
+  Plasma — shown both in the fullscreen VJ overlay and the Visual panel, persisted.
+  • RINGS — wave interference; a 2nd ring system detuned by COHERENCE (aligned/constructive at high
+    coherence, turbulent moiré at low) — a literal visual of your signal coherence.
+  • CHLADNI — the eigenmodes of a vibrating square plate (cos(mπx)cos(nπy) − cos(nπx)cos(mπy)); sand
+    gathers on the nodal lines. The mode numbers m,n come from the SOUNDING TONE, so a higher pitch
+    shows a finer figure — a real, physical pitch→pattern mapping. Coherence sharpens the lines.
+  • PLASMA — superposed travelling plane waves; coherence raises the contrast (ordered banding vs soft
+    wash); drifts slowly via the flash-safe phase.
+  Design polish across all looks: a breath-driven central bloom, per-look vignette for depth, and a
+  sub-LSB dither that removes banding in the dark gradients. Colour stays the physically-correct
+  tone→light (pitch = colour); Hue/Saturation still rotate the palette for VJ use. Flash-safety
+  unchanged (every look ≤2.5 Hz < WCAG 3 Hz). Swift + MSL both code-reviewed PASS (struct layouts
+  match, all functions defined before use, no fallback risk). INSTALL 10.76.6.
 notesR: 10.76.4 confirmed on device — LAUNCHES (crash fixed) and the camera pulse finally LOCKS
   (rate≈13.1 Hz, conf 0.55–0.76). Two follow-ups from the device session:
   (1) rPPG BPM was jumpy (83→118→89 at a steady finger): the autocorrelation is ~0 at fingertip SNR
