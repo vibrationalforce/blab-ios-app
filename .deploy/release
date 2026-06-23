@@ -1,5 +1,13 @@
-build: 2026-06-23 v10.76.1 (version label fix — App Store version was stuck at 10.65.0)
+build: 2026-06-23 v10.76.2 (deploy optimized — App Store version now auto-tracks this label)
 branch: claude/piano-roll-clip-view-wozlie
+notesO: Deploy optimization (founder: "optimize deploy, no limits"). The App Store version no longer
+  goes stale: testflight.yml now DERIVES MARKETING_VERSION from this file's version label at build
+  time (added next to the existing BUILD_NUMBER sed in all 6 build jobs). So from now on bumping ONLY
+  this label sets the App Store version — this build reads "10.76.2 (CI run #)". Defensive by design
+  (reviewed): the derive is `…|| true` so a no-match can never fail under set -e/pipefail, and if the
+  label is unparseable the project.yml default is kept and the build proceeds unchanged — it can never
+  break the deploy. Carries everything: rPPG fix, voice core, tap-to-type + sign keypad, keep-awake,
+  persistent HUD, visual-control handle, non-modal draggable tool panels. INSTALL the 10.76.2 build.
 notesN: Founder saw "10.65.0 (2031)" and asked what's coming. Root cause: MARKETING_VERSION was
   HARDCODED at "10.65.0" in project.yml, so every TestFlight build showed 10.65.0 regardless of the
   real changes — only the build NUMBER (CI run number) moved. Bumped MARKETING_VERSION → 10.76.1 so

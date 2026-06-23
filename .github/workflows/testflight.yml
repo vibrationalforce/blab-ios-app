@@ -185,6 +185,12 @@ jobs:
         run: |
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"PLACEHOLDER1\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
+          # Auto-version: the App Store version follows the .deploy/release label so it
+          # never goes stale (founder saw every build stuck at 10.65.0). Defensive — if
+          # the label can't be parsed, the project.yml default is kept and the build
+          # proceeds unchanged, so this can never break the deploy.
+          DEPLOY_VER=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+' .deploy/release | head -1 | tr -dc '0-9.' || true)
+          if [ -n "$DEPLOY_VER" ]; then sed -i '' "s/MARKETING_VERSION: \"[0-9.]*\"/MARKETING_VERSION: \"$DEPLOY_VER\"/" project.yml; fi
           xcodegen generate --spec project.yml
 
       - name: "Compile (iOS device SDK, no signing)"
@@ -345,6 +351,12 @@ jobs:
           gem install fastlane:2.225.0 -N --no-document
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
+          # Auto-version: the App Store version follows the .deploy/release label so it
+          # never goes stale (founder saw every build stuck at 10.65.0). Defensive — if
+          # the label can't be parsed, the project.yml default is kept and the build
+          # proceeds unchanged, so this can never break the deploy.
+          DEPLOY_VER=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+' .deploy/release | head -1 | tr -dc '0-9.' || true)
+          if [ -n "$DEPLOY_VER" ]; then sed -i '' "s/MARKETING_VERSION: \"[0-9.]*\"/MARKETING_VERSION: \"$DEPLOY_VER\"/" project.yml; fi
           xcodegen generate --spec project.yml
 
       - name: "Setup API Key & Keychain"
@@ -699,6 +711,12 @@ jobs:
           gem install fastlane:2.225.0 -N --no-document
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
+          # Auto-version: the App Store version follows the .deploy/release label so it
+          # never goes stale (founder saw every build stuck at 10.65.0). Defensive — if
+          # the label can't be parsed, the project.yml default is kept and the build
+          # proceeds unchanged, so this can never break the deploy.
+          DEPLOY_VER=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+' .deploy/release | head -1 | tr -dc '0-9.' || true)
+          if [ -n "$DEPLOY_VER" ]; then sed -i '' "s/MARKETING_VERSION: \"[0-9.]*\"/MARKETING_VERSION: \"$DEPLOY_VER\"/" project.yml; fi
           xcodegen generate --spec project.yml
 
       - name: "Check Scheme Exists"
@@ -906,6 +924,12 @@ jobs:
           gem install fastlane:2.225.0 -N --no-document
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
+          # Auto-version: the App Store version follows the .deploy/release label so it
+          # never goes stale (founder saw every build stuck at 10.65.0). Defensive — if
+          # the label can't be parsed, the project.yml default is kept and the build
+          # proceeds unchanged, so this can never break the deploy.
+          DEPLOY_VER=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+' .deploy/release | head -1 | tr -dc '0-9.' || true)
+          if [ -n "$DEPLOY_VER" ]; then sed -i '' "s/MARKETING_VERSION: \"[0-9.]*\"/MARKETING_VERSION: \"$DEPLOY_VER\"/" project.yml; fi
           xcodegen generate --spec project.yml
 
       - name: "Check Scheme Exists"
@@ -1114,6 +1138,12 @@ jobs:
           gem install fastlane:2.225.0 -N --no-document
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
+          # Auto-version: the App Store version follows the .deploy/release label so it
+          # never goes stale (founder saw every build stuck at 10.65.0). Defensive — if
+          # the label can't be parsed, the project.yml default is kept and the build
+          # proceeds unchanged, so this can never break the deploy.
+          DEPLOY_VER=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+' .deploy/release | head -1 | tr -dc '0-9.' || true)
+          if [ -n "$DEPLOY_VER" ]; then sed -i '' "s/MARKETING_VERSION: \"[0-9.]*\"/MARKETING_VERSION: \"$DEPLOY_VER\"/" project.yml; fi
           xcodegen generate --spec project.yml
 
       - name: "Check Scheme Exists"
@@ -1322,6 +1352,12 @@ jobs:
           gem install fastlane:2.225.0 -N --no-document
           sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"${{ secrets.APPLE_TEAM_ID }}\"/" project.yml
           sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml
+          # Auto-version: the App Store version follows the .deploy/release label so it
+          # never goes stale (founder saw every build stuck at 10.65.0). Defensive — if
+          # the label can't be parsed, the project.yml default is kept and the build
+          # proceeds unchanged, so this can never break the deploy.
+          DEPLOY_VER=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+' .deploy/release | head -1 | tr -dc '0-9.' || true)
+          if [ -n "$DEPLOY_VER" ]; then sed -i '' "s/MARKETING_VERSION: \"[0-9.]*\"/MARKETING_VERSION: \"$DEPLOY_VER\"/" project.yml; fi
           xcodegen generate --spec project.yml
 
       - name: "Check Scheme Exists"
