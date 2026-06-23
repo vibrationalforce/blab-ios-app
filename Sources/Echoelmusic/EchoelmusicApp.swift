@@ -102,6 +102,10 @@ struct EchoelmusicApp: App {
     // Battery/CPU/GPU resource conservation: reads thermal/power/battery + render FPS
     // and publishes one app-wide QualitySettings (visual FPS/detail, bio/OSC rates).
     @State private var resourceGovernor = ResourceGovernor()
+    // Bio-reactive FX: the body (and LFOs) sculpt the melody voice's EchoelFX chain
+    // live (coherence→reverb, breath→filter, HR→tremolo). Control-rate, off the
+    // audio thread; idle until the user adds routes in the FX tool.
+    @State private var fxModulator = FXBioModulator()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -241,6 +245,7 @@ struct EchoelmusicApp: App {
             .environment(breathPacer)
             .environment(sessionRecorder)
             .environment(resourceGovernor)
+            .environment(fxModulator)
             .task {
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must
@@ -276,6 +281,10 @@ struct EchoelmusicApp: App {
                 beatPlayer.pattern.transport = transport
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
+                // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
+                // the ~30 Hz control loop (idle until the user adds modulation routes).
+                fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
+                fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
