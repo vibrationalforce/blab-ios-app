@@ -1,5 +1,22 @@
-build: 2026-06-23 v10.76.3 (CRITICAL: fixes the build that broke every deploy since the rPPG fix)
+build: 2026-06-23 v10.76.4 (CRITICAL: fixes the launch crash in 10.76.3 / build 2037)
 branch: claude/piano-roll-clip-view-wozlie
+notesQ: 10.76.3 (build 2037) COMPILED + shipped (the build break is fixed) but CRASHED at launch.
+  Root cause from the device crash report: NOT a logic bug — a Swift RUNTIME stack overflow
+  (EXC_BAD_ACCESS / SIGSEGV in the Stack Guard region). The main-thread backtrace shows the Swift
+  type-metadata decoder infinitely recursing — swift_getTypeByMangledNameInContext → decodeMangledType
+  ⇄ decodeGenericArgs ⇄ … — while SwiftUI instantiated the ScrollView's VStack content in
+  EchoelStudioView.body. The root view's body had grown into ONE enormously deep nested generic type
+  (every `some View` panel — soundControls, toolsSection, … — expands its whole sub-tree into the
+  parent's type metadata, and 18 chained .sheet/.fullScreenCover modifiers each embed their content
+  type). Adding the quick-access HUD branch + .echoelSheetPanel() on 12 sheet contents tipped the
+  aggregate type past what the metadata decoder can resolve without overflowing the 1 MB main-thread
+  stack. It compiles clean and only fails at launch when the type is realized. Fix: put AnyView
+  type-erasure boundaries at the heavy branches (the ScrollView's children, the HUD, and all
+  sheet/cover contents) so the decoder hits a concrete, non-generic type instead of recursing into the
+  sub-tree — the standard remedy for this exact crash. Negligible cost (page-level containers, not
+  tight-loop rows). Carries everything 10.76.3 did (rPPG lock fix, voice core, value-field keypad,
+  keep-awake, persistent HUD, visible visual handle, non-modal panels) — now it actually launches.
+  INSTALL 10.76.4.
 notesP: ROOT CAUSE FOUND — the last build that reached TestFlight was 10.73.0 (CI #2031); EVERY build
   since (the rPPG fix and the 4 builds after it: #2032–#2036) silently FAILED to compile and never
   shipped. The founder saw "10.65.0 (2031)" and rightly asked "kommt da noch was?" — nothing was,

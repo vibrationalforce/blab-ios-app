@@ -251,18 +251,28 @@ struct EchoelStudioView: View {
                          onStartPulse: { startBiofeedback() })
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    startButton
-                    nonStandardTuningBanner
+                    // Type-erased on purpose: `body` had grown into a single, very
+                    // deeply-nested generic type (each `some View` panel expands its
+                    // whole sub-tree into the parent's type metadata). At launch the
+                    // Swift runtime decodes that type and, past a threshold, the
+                    // metadata decoder recurses until it overflows the main-thread
+                    // stack → SIGSEGV in the Stack Guard region (a compile-clean crash
+                    // we hit on 10.76.3 / build 2037). AnyView puts a concrete,
+                    // non-generic boundary at each heavy branch so the decoder never
+                    // recurses into the sub-tree. The cost is negligible here (these
+                    // are page-level containers, not tight-loop rows).
+                    AnyView(startButton)
+                    AnyView(nonStandardTuningBanner)
                     #if canImport(AVFoundation)
-                    if running { measurementControl }
+                    if running { AnyView(measurementControl) }
                     #endif
-                    soundControls
-                    utilityRow
-                    toolsSection
-}
+                    AnyView(soundControls)
+                    AnyView(utilityRow)
+                    AnyView(toolsSection)
+                }
                 .padding(16)
             }
-            quickAccessHUD
+            AnyView(quickAccessHUD)
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -297,25 +307,28 @@ struct EchoelStudioView: View {
         .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
-        .sheet(isPresented: $showOpen) { openSheet }
-        .sheet(item: $share) { ShareSheet(url: $0.url) }
-        .sheet(item: $diagnostics) { report in diagnosticsSheet(report.text) }
+        // Sheet/cover contents are AnyView-erased too — same reason as the scroll
+        // content above: keep the root view's aggregate generic type shallow so the
+        // launch-time metadata decode can never overflow the stack again.
+        .sheet(isPresented: $showOpen) { AnyView(openSheet) }
+        .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
+        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
         .sheet(isPresented: $showPianoRoll) {
-            PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel()
+            AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
         }
         .sheet(isPresented: $showAllFX) {
-            EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
+            AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
                          fxEnabled: { synth.isFXEnabled },
                          setFXEnabled: { synth.setFXEnabled($0) })
-                .echoelSheetPanel()
+                .echoelSheetPanel())
         }
-        .sheet(isPresented: $showInput) { AudioInputPickerView().echoelSheetPanel() }
-        .sheet(isPresented: $showRouting) { PatchbayView().echoelSheetPanel() }
-        .sheet(isPresented: $showPlugins) { AUv3BrowserView().echoelSheetPanel() }
-        .sheet(isPresented: $showLearn) { LearnView() }   // self-manages its detents
-        .sheet(isPresented: $showChannelRack) { ChannelRackView().echoelSheetPanel() }
-        .sheet(isPresented: $showAutomation) { AutomationView().echoelSheetPanel() }
-        .sheet(isPresented: $showAudioClip) { AudioClipView().echoelSheetPanel() }
+        .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
+        .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
+        .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
+        .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
+        .sheet(isPresented: $showChannelRack) { AnyView(ChannelRackView().echoelSheetPanel()) }
+        .sheet(isPresented: $showAutomation) { AnyView(AutomationView().echoelSheetPanel()) }
+        .sheet(isPresented: $showAudioClip) { AnyView(AudioClipView().echoelSheetPanel()) }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],
@@ -323,18 +336,18 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        .sheet(isPresented: $showBroadcast) { BroadcastView().echoelSheetPanel() }
-        .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id).echoelSheetPanel() }
+        .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
+        .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
         .sheet(isPresented: $showPatchEditor) {
-            PatchEditorView(initial: currentPatch) { p in
+            AnyView(PatchEditorView(initial: currentPatch) { p in
                 currentPatch = p
                 synth.apply(p)   // editor changes hit the live voice immediately
             }
-            .echoelSheetPanel()
+            .echoelSheetPanel())
         }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
-            ZStack(alignment: .topTrailing) {
+            AnyView(ZStack(alignment: .topTrailing) {
                 if spectralDonuts {
                     // The spectrum→visible-light donut visual: one ring per frequency
                     // band, thickness ∝ loudness, colour = band frequency → visible.
@@ -382,16 +395,16 @@ struct EchoelStudioView: View {
                 }
                 .padding()
             }
-            .statusBarHidden(true)
+            .statusBarHidden(true))
         }
         #endif
-        .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
-        .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
+        .fullScreenCover(isPresented: $showBreath) { AnyView(BreathGuideView()) }
+        .fullScreenCover(isPresented: $showMeditation) { AnyView(MeditationView()) }
         #if canImport(MultipeerConnectivity)
         .sheet(isPresented: $showLiveColabo) {
-            LiveColaboView(currentSession: { currentProject(named: "Shared session") },
+            AnyView(LiveColaboView(currentSession: { currentProject(named: "Shared session") },
                            onLoadShared: { open($0) })
-                .echoelSheetPanel()
+                .echoelSheetPanel())
         }
         #endif
         .alert("Save project", isPresented: $showSaveDialog) {
