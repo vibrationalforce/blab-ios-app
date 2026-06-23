@@ -3240,6 +3240,28 @@ deploys to ~one/day; a single later deploy carries ALL branch work (build number
 Did NOT modify testflight.yml (CI change needs founder approval). 7th cycle (9986329 stereo level
 meter) compile gate GREEN. All 7 cycles are compile-verified and pushed to the branch.
 
+### 2026-06-23 — Multidimensional cores (endless loop): SpaceReverb RT path, BinauralPanner, UMPEncoder
+Continuing the founder's "5D Sounds wie ROLI Seaboard + Airwave / 4D Raum-in-Raum Faltungshall / alle
+Industriestandard-Formate / Farbringe schwingen" + "mache weiter endlos schleife". Strategy: ship only
+what is BOTH safe (founder-approved sound untouched) AND gate-VERIFIABLE — pure cores (ci.yml executes
+them on Linux for real) + visible visuals; audible audio-graph wiring is staged as tested cores for the
+founder's device pass (deploys are free/autonomous — no upload limit; the gate is acoustic quality).
+  v10.47 SHIPPED earlier: SpectralDonutView rings now multidimensional — swing(breath→azimuth ≤0.13Hz),
+          distance(coherence), elevation(HRV); Reduce-Motion aware. (Slice 6.)
+  4b15c67 SpaceReverb.processInPlace — no-alloc real-time-safe path (preallocated er/tail scratch),
+          bit-identical to process(); test asserts equality. iOS compile gate GREEN. (Slice 1 finished.)
+  a380019 BinauralPanner — pure ILD(equal-power)/ITD(Woodworth spherical head)/distance(atten+air high-cut)
+          from ONE position, sharing the ADM-OSC azimuth/elev/dist convention + a bio convenience overload.
+          ci.yml EXECUTED its tests → green. Foundation for on-device binaural (Slice 4).
+  0225c1c UMPEncoder — pure MIDI 1.0 + MIDI 2.0 UMP words incl. PER-NOTE pitch bend / per-note controllers
+          (the real home for 5D expression) + MMA min-center-max scaling (anchors tested). MIDIOutput.send
+          now packs through it (live wire format centralised + tested, behaviour identical).
+  GATED next (device/founder-verify, can't auto-ship): wiring SpaceReverb tail in real time needs a
+          NET-NEW partitioned FFT convolution (EchoelConvolution=vDSP_conv O(N·P), too heavy for 1.8s;
+          EchoelRealFFT returns windowed mags/phases, unusable for convolution) whose correctness NEITHER
+          gate executes → build with dsp+audio-thread reviewers, then device-verify. Also: synth-hears-MPE,
+          on-device binaural, MPE/MIDI2 output. Plan: scratchpads/PLAN_MULTIDIMENSIONAL_SOUND_2026-06-22.md.
+
 ### 2026-06-22 — "Greb all tasks no limit": master-FX shipped, export loudness, HaishinKit spec
 Founder: "Go there is no limit. Greb all tasks." Grabbed the big held backlog:
   f458d67 MASTER-BUS AUv3 FX (the tracked "next"): hosted AU effects across the whole mix,

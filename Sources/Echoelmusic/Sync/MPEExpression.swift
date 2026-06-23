@@ -55,4 +55,35 @@ public struct MPEExpression: Equatable, Sendable {
         let m = Swift.max(1, Swift.min(15, memberCount))
         return 2 + (Swift.max(0, noteIndex) % m)        // 2 … (1 + m)
     }
+
+    // MARK: - MIDI 2.0 / UMP bridge (the high-res home for 5D expression)
+
+    /// CC index for Slide / timbre (brightness), CC74 — the MPE convention.
+    public static let slideCCIndex: UInt8 = 74
+
+    /// The full MIDI 2.0 UMP word-pairs that express this 5D state for ONE sounding
+    /// note on a single channel — no 15-channel MPE workaround needed because MIDI
+    /// 2.0 carries per-note Glide + per-note Slide:
+    ///   • Note On (opcode 0x9)            ← Strike (16-bit velocity)
+    ///   • Per-note Pitch Bend (0x6)       ← Glide  (`bend`, centre = no drift)
+    ///   • Per-note Controller (0x1, CC74) ← Slide  (`slideCC74`, brightness)
+    ///   • Channel Pressure (0xD)          ← Press  (`pressure`)
+    /// Pure: returns the words; the CoreMIDI ._2_0 transport just sends them.
+    public func midi2NoteOnMessages(channel: UInt8, note: UInt8, strike: Float,
+                                    group: UInt8 = 0) -> [(UInt32, UInt32)] {
+        let vel16 = UInt16(Swift.max(0, Swift.min(65_535, (strike * 65_535).rounded())))
+        // Reuse the tested 14-bit centre mapping, then widen to a 32-bit MIDI-2.0
+        // bend so centre (no drift) lands exactly on 0x8000_0000.
+        let pb = MPEExpression.pitchBend14(bend)
+        let bend14 = (UInt16(pb.msb) << 7) | UInt16(pb.lsb)
+        return [
+            UMPEncoder.note2On(channel: channel, note: note, velocity16: vel16, group: group),
+            UMPEncoder.perNotePitchBend2(channel: channel, note: note,
+                                         value32: UMPEncoder.bend14to32(bend14), group: group),
+            UMPEncoder.perNoteController2(channel: channel, note: note, index: MPEExpression.slideCCIndex,
+                                          value32: UMPEncoder.cc7to32(slideCC74), group: group),
+            UMPEncoder.channelPressure2(channel: channel,
+                                        value32: UMPEncoder.cc7to32(pressure), group: group)
+        ]
+    }
 }

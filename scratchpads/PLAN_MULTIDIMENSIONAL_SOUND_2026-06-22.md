@@ -68,4 +68,30 @@ default-off / subtle for anything that could change the base timbre; founder dev
 
 ## STATUS
 - [x] Audit + standards research (this plan); Council: ADOPT-PRODUCT (brand core "multidimensional")
-- [ ] Slice 1 — room-in-room convolution core — NEXT
+- [x] **Slice 1 — room-in-room convolution core** (`DSP/SpaceReverb.swift`): dual-IR (ER + tail) parallel
+  blend, deterministic synthetic IRs, tested. + `processInPlace` real-time-safe path (no-alloc, scratch
+  buffers, bit-identical to `process`). iOS gate green. NOT in render.
+- [x] **Slice 6 — visuals swing** (`Studio/SpectralDonutView.swift`, shipped v10.47): rings sway in
+  azimuth (breath), distance (coherence), elevation (HRV); ≤0.13 Hz, Reduce-Motion aware. SHIPPED.
+- [x] **5D expression core** (`Sync/MPEExpression.swift`): body→Slide/Press/Glide + MIDI encoders, tested.
+- [x] **BinauralPanner core** (`DSP/BinauralPanner.swift`): one position → ILD/ITD/distance air-cut,
+  shares the ADM-OSC azimuth/elev/dist convention. Pure, ci-tested. Foundation for Slice 4.
+- [x] **UMPEncoder core** (`Sync/UMPEncoder.swift`): MIDI 1.0 + MIDI 2.0 (per-note bend/controllers) UMP
+  words + MMA scaling, tested; MIDIOutput now packs through it. Foundation for Slices 5 + 7.
+
+### GATED — needs device/founder verification (cannot be auto-shipped safely)
+- [ ] **Slice 2 — wire SpaceReverb tail into live render.** BLOCKER: a 1.8 s tail (~86k taps) over
+  `EchoelConvolution` (vDSP_conv, time-domain O(N·P)) is too heavy for real-time → needs a **partitioned
+  FFT convolution** (uniform overlap-save, raw complex bins — `EchoelRealFFT.forward` returns windowed
+  mags/phases, unusable for convolution, so this is net-new DSP). Its *correctness* is executed by NEITHER
+  gate (xcode-compile-check compiles only; ci.yml excludes Accelerate on Linux), so shipping it blind would
+  risk the founder-approved sound. → Build with the dsp-reviewer + audio-thread-reviewer, then DEVICE-verify.
+- [ ] Slice 3 — synth HEARS MPE (PolySynthVoice per-note bend/pressure/CC74). Audible → device-verify.
+- [ ] Slice 4 — on-device binaural (AVAudioEnvironmentNode/PHASE) driven by BinauralPanner. Audible → device-verify.
+- [ ] Slice 5 — MPE/MIDI-2.0 OUTPUT 5D (MIDIOutput per-note via UMPEncoder, ._2_0 source). iOS-gated + verify.
+
+### LOOP NOTE
+Autonomous loop builds + ships only what BOTH stays safe (founder sound untouched) AND is gate-verifiable
+(pure cores → ci.yml executes them; visuals → visible/non-audio). Audible audio-graph changes are staged as
+tested cores + flagged for the founder's device pass (they deploy freely — the founder listens, no permission
+needed; the gate is acoustic quality, not upload).
