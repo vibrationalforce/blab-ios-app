@@ -183,6 +183,9 @@ struct EchoelStudioView: View {
     @State private var visualMotion: Float = 1.0      // animation speed (flash-clamped)
     @State private var visualSpread: Float = 1.0
     @State private var showVisualSettings = false
+    /// Last-picked immersive visual preset (persisted) — a launch point for the
+    /// four live sliders below; "" = none/custom after a manual tweak.
+    @AppStorage("visual.preset") private var visualPresetID = ""
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
@@ -783,15 +786,58 @@ struct EchoelStudioView: View {
 
     private var visualPanel: some View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+            visualPresetRow
             musicColourRow
-            EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5)
-            EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0)
-            EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5)
-            EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5)
+            EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
+                             onChange: { visualPresetID = "" })
             Text("The colour is the heard tone transposed into visible light (physically correct). Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping
+    /// one loads its look into the four live sliders below (which stay editable for
+    /// hands-on play); a manual slider tweak clears the selection back to custom.
+    private var visualPresetRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Preset").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(VisualPreset.factory) { preset in
+                        let selected = visualPresetID == preset.id
+                        Button { applyVisualPreset(preset) } label: {
+                            Text(preset.name)
+                                .font(EchoelTheme.font(12, .medium))
+                                .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
+                                .padding(.horizontal, 12).frame(height: 32)
+                                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        }
+                        .accessibilityLabel("\(preset.name) visual preset — \(preset.blurb)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Load a preset into the live visual controls. Sliders remain editable; the
+    /// values stay within the flash-safe clamps (enforced in VisualPreset.init).
+    private func applyVisualPreset(_ p: VisualPreset) {
+        visualIntensity = p.intensity
+        visualDetail = p.detail
+        visualMotion = p.motion
+        visualSpread = p.spread
+        spectralDonuts = p.spectralDonuts
+        visualPresetID = p.id
     }
 
     /// Live "music → colour": the chord sounding now (published on the bus by the
