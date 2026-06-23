@@ -357,6 +357,15 @@ struct EchoelStudioView: View {
                 // only guaranteed escape (device feedback: the view trapped the user and
                 // forced an app kill). Kept subtle for clean projection output.
                 HStack(spacing: 14) {
+                    // Persistent, VISIBLE controls handle — replaces the undiscoverable
+                    // "tap the canvas" reveal (WCAG 2.2: don't gate controls behind a
+                    // hidden gesture). The panel still toggles, but the affordance to
+                    // summon it is always on screen.
+                    Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.title2).foregroundStyle(.white.opacity(showVisualControls ? 0.85 : 0.5))
+                    }
+                    .accessibilityLabel(showVisualControls ? "Hide visual controls" : "Show visual controls")
                     Button { spectralDonuts.toggle() } label: {
                         Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
                             .font(.title2).foregroundStyle(.white.opacity(0.6))
