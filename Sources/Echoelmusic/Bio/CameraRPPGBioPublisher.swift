@@ -140,15 +140,17 @@ public final class CameraRPPGBioPublisher {
                 // log reveals WHY there is no signal: finger off → torch/position;
                 // finger on but bpm 0 → exposure/signal; conf < 0.35 → still locking.
                 if tick % 20 == 0 {
-                    // Include red level + brightness: finger=no with R high → the
-                    // red-dominance threshold is the culprit; R low → the finger
-                    // isn't covering the lit lens (positioning/torch). This is the
-                    // one number that disambiguates "why no signal".
+                    // R/bright disambiguate finger placement; amp/pk/acf disambiguate
+                    // WHY a placed finger won't lock: amp≈0 → no pulsatile AC (press
+                    // lighter / torch); pk<3 with acf high → rounded waveform (the
+                    // autocorrelation seed now covers it); acf low → weak/aperiodic
+                    // perfusion. This is the one line that pinpoints the failing stage.
                     EchoelCrashLog.breadcrumb(String(format:
-                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f bpm=%.0f conf=%.2f",
+                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f bpm=%.0f conf=%.2f",
                         self.fingerDetected ? "yes" : "no",
-                        self.analyzer.redChannel, self.analyzer.brightness,
-                        self.signalQuality, self.detectedBPM, self.confidence))
+                        self.analyzer.redChannel, self.analyzer.brightness, self.signalQuality,
+                        self.analyzer.lastFilteredAmplitude, self.analyzer.lastPeakCount,
+                        self.analyzer.lastAutoStrength, self.detectedBPM, self.confidence))
                 }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
