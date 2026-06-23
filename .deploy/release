@@ -1,5 +1,17 @@
-build: 2026-06-23 v10.76.2 (deploy optimized — App Store version now auto-tracks this label)
+build: 2026-06-23 v10.76.3 (CRITICAL: fixes the build that broke every deploy since the rPPG fix)
 branch: claude/piano-roll-clip-view-wozlie
+notesP: ROOT CAUSE FOUND — the last build that reached TestFlight was 10.73.0 (CI #2031); EVERY build
+  since (the rPPG fix and the 4 builds after it: #2032–#2036) silently FAILED to compile and never
+  shipped. The founder saw "10.65.0 (2031)" and rightly asked "kommt da noch was?" — nothing was,
+  because the deploy was red. The single cause: the rPPG fix changed CameraAnalyzer.effectiveSampleRate
+  from `let` to `var`, and init() then read self.effectiveSampleRate to build the bandpass coefficients
+  BEFORE the last stored property (bpc) was initialized — Swift forbids any self access until every
+  stored property is set ("'self' used before all stored properties are initialized"). Fixed by reading
+  a static default constant in init() instead of self. This one line unblocks all of: the rPPG
+  rate/Nyquist lock fix, the voice analyser core, value-field tap-to-type + minus/plus/sign keypad,
+  keep-screen-awake, the persistent quick-access HUD, the visible visual-control handle, the non-modal
+  draggable tool panels, AND the auto-versioning. Verified: this was the ONLY compile error in the
+  whole tree at HEAD (checked the latest failing run's full log). INSTALL the 10.76.3 build.
 notesO: Deploy optimization (founder: "optimize deploy, no limits"). The App Store version no longer
   goes stale: testflight.yml now DERIVES MARKETING_VERSION from this file's version label at build
   time (added next to the existing BUILD_NUMBER sed in all 6 build jobs). So from now on bumping ONLY

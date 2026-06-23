@@ -94,10 +94,13 @@ final class CameraAnalyzer {
     /// the MEASURED rate (below) so the filter is always valid for the true rate.
     private let analyzeEveryNthFrame = 1
 
+    /// Nominal starting rate before the one-time measured-rate correction.
+    private static let defaultSampleRate: Double = 15.0
+
     /// Effective sample rate — starts at the nominal 15 Hz and is corrected ONCE to
     /// the true measured frame rate (so the bandpass is designed for reality, not an
     /// assumption). `var` because the filter re-tunes to it.
-    private var effectiveSampleRate: Double = 15.0
+    private var effectiveSampleRate: Double = CameraAnalyzer.defaultSampleRate
     /// Set true after the one-time re-tune to the measured rate (avoids thrashing).
     private var filterRateAdapted = false
 
@@ -180,7 +183,7 @@ final class CameraAnalyzer {
     // MARK: - Init
 
     init() {
-        bpc = BandpassCoefficients(sampleRate: Float(effectiveSampleRate))
+        bpc = BandpassCoefficients(sampleRate: Float(Self.defaultSampleRate))
     }
 
     // MARK: - Pulse Detection (Bandpass + Peak)
@@ -305,8 +308,8 @@ final class CameraAnalyzer {
         lastWindowSize = 0
         // Re-measure the frame rate next session; restore the nominal filter until then.
         filterRateAdapted = false
-        effectiveSampleRate = 15.0
-        bpc = BandpassCoefficients(sampleRate: 15.0)
+        effectiveSampleRate = Self.defaultSampleRate
+        bpc = BandpassCoefficients(sampleRate: Float(Self.defaultSampleRate))
     }
 
     private func processPulseSignal(avgR: Float) {
