@@ -94,8 +94,12 @@ struct EchoelStudioView: View {
     @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
     /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
     @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
-    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma.
+    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water.
     @AppStorage("visual.style") private var visualStyle = 0
+    /// Secondary style to blend with `visualStyle` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water.
+    @AppStorage("visual.styleB") private var visualStyleB = 0
+    /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
+    @AppStorage("visual.blend") private var visualBlend = 0.0
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -364,7 +368,8 @@ struct EchoelStudioView: View {
                                  intensity: visualIntensity, ringDensity: visualDetail,
                                  motion: visualMotion, spread: visualSpread,
                                  hueShift: visualHue, saturation: visualSaturation,
-                                 style: visualStyle).ignoresSafeArea()
+                                 style: visualStyle, styleB: visualStyleB,
+                                 blend: Float(visualBlend)).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ control PANEL — clean for
                 // projection, hands-on for performance. Controls are a solid panel.
@@ -984,6 +989,7 @@ struct EchoelStudioView: View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
+            visualBlendControls
             visualPresetRow
             musicColourRow
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
@@ -1062,6 +1068,48 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// The "mischend" controls: a SECOND look to overlap with the primary, plus a Mix
+    /// ratio (0 = pure primary, 1 = pure secondary). Only shown for the Metal field
+    /// looks (Donuts is a different renderer that can't blend yet — next cycle). Tapping
+    /// the already-selected B clears the blend back to pure A (Mix → 0), so the strip
+    /// itself is the on/off too.
+    @ViewBuilder
+    private var visualBlendControls: some View {
+        if !spectralDonuts {
+            let bLooks: [(String, Int)] = [
+                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3)
+            ]
+            Text("Blend with").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(bLooks.indices, id: \.self) { i in
+                        let b = bLooks[i]
+                        // "Selected" means this B is active AND the mix is actually open.
+                        let selected = visualStyleB == b.1 && visualBlend > 0.001
+                        Button {
+                            if visualStyleB == b.1 && visualBlend > 0.001 {
+                                visualBlend = 0            // tap again → back to pure primary
+                            } else {
+                                visualStyleB = b.1
+                                if visualBlend < 0.001 { visualBlend = 0.5 }   // open the mix
+                            }
+                        } label: {
+                            Text(b.0)
+                                .font(EchoelTheme.font(12, .semibold))
+                                .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
+                                .padding(.horizontal, 12).padding(.vertical, 7)
+                                .background(RoundedRectangle(cornerRadius: 8)
+                                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Blend with \(b.0)")
+                    }
+                }
+            }
+            EchoelValueField(label: "Mix", value: $visualBlend, range: 0...1)
+        }
+    }
+
     #if canImport(MetalKit) && canImport(UIKit)
     /// The hands-on VJ control panel that floats over the fullscreen visual: the four
     /// live parameters + a quick scene strip, on the app-wide value-field vocabulary,
@@ -1077,6 +1125,7 @@ struct EchoelStudioView: View {
                     // Pick the visual LOOK (engine), then the scene preset (parameters).
                     Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
                     visualLookStrip
+                    visualBlendControls
                     // Quick scene strip — launch a look in one tap during a performance.
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -1135,14 +1184,16 @@ struct EchoelStudioView: View {
         #endif
     }
 
-    /// Load a preset into the live visual controls. Sliders remain editable; the
-    /// values stay within the flash-safe clamps (enforced in VisualPreset.init).
+    /// Load a preset's ENERGY into the live visual controls (Intensity/Detail/Motion/
+    /// Spread). Controls remain editable; values stay within the flash-safe clamps
+    /// (enforced in VisualPreset.init). A preset deliberately does NOT change the
+    /// renderer or Look — the Look strip owns that — so the two never fight and every
+    /// preset composes on top of whatever Look is active.
     private func applyVisualPreset(_ p: VisualPreset) {
         visualIntensity = p.intensity
         visualDetail = p.detail
         visualMotion = p.motion
         visualSpread = p.spread
-        spectralDonuts = p.spectralDonuts
         visualPresetID = p.id
     }
 

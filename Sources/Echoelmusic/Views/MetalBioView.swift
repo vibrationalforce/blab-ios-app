@@ -58,6 +58,11 @@ private struct BioUniforms {
     /// 1 = Chladni nodal eigenmodes (tone → plate modes), 2 = plasma wave field,
     /// 3 = water caustics (rippling light net).
     var style: Float = 0
+    /// SECONDARY style to blend with `style` (same index space). Discrete/snapped.
+    var styleB: Float = 0
+    /// Blend (Mix) ratio between `style` (0) and `styleB` (1) — the overlapping/
+    /// "mischend" control. EASED so changing the mix or B morphs smoothly. 0 = pure A.
+    var blend: Float = 0
 }
 
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
@@ -80,6 +85,10 @@ struct MetalBioView: UIViewRepresentable {
     var saturation: Float = 1
     /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water (see `BioUniforms.style`).
     var style: Int = 0
+    /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water.
+    var styleB: Int = 0
+    /// Mix ratio A↔B [0…1] — 0 = pure `style`, 1 = pure `styleB`. The "mischend" control.
+    var blend: Float = 0
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -130,7 +139,7 @@ struct MetalBioView: UIViewRepresentable {
             intensity: intensity, ringDensity: scaledRingDensity, motion: motion, spread: spread,
             pulseHz: Float(vp.pulseHz),
             hueShift: hueShift, saturation: saturation,
-            style: style,
+            style: style, styleB: styleB, blend: blend,
             reduceMotion: effectiveReduceMotion
         )
     }
@@ -175,13 +184,19 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
-                pulseHz: Float, hueShift: Float, saturation: Float, style: Int, reduceMotion: Bool) {
+                pulseHz: Float, hueShift: Float, saturation: Float,
+                style: Int, styleB: Int, blend: Float, reduceMotion: Bool) {
         // Writes the TARGET; draw() eases the live uniforms toward it. Same clamps as
         // before (the GPU never sees an out-of-range / non-finite value).
-        // Style is DISCRETE — snap it on both live and target (no cross-fade between modes).
+        // Styles are DISCRETE — snap them on both live and target (no cross-fade between
+        // modes). The BLEND between them is what eases (a smooth A↔B morph).
         let s = Float(min(max(style, 0), 3))
         target.style = s
         uniforms.style = s
+        let sb = Float(min(max(styleB, 0), 3))
+        target.styleB = sb
+        uniforms.styleB = sb
+        target.blend = min(max(blend.isFinite ? blend : 0, 0), 1)
         target.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         target.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         target.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)
@@ -261,6 +276,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.hueShift = (uniforms.hueShift + dHue * (dt > 0 ? (1 - exp(-dt / 0.15)) : 1))
             uniforms.hueShift -= floor(uniforms.hueShift)
             uniforms.saturation = Self.ease(uniforms.saturation, target.saturation, tau: 0.2, dt: dt)
+            // The A↔B mix morphs smoothly (snappy — it's a live performance control).
+            uniforms.blend = Self.ease(uniforms.blend, target.blend, tau: 0.3, dt: dt)
         }
 
         // Integrate the flash-safe pulse phase from the SMOOTHED frequency. flashHz =
@@ -306,7 +323,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     struct VOut { float4 pos [[position]]; float2 uv; };
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
-                      float pulseHz; float hueShift; float saturation; float pulsePhase; float style; };
+                      float pulseHz; float hueShift; float saturation; float pulsePhase; float style;
+                      float styleB; float blend; };
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -417,6 +435,30 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float net = clamp(0.5 + 0.18 * w, 0.0, 1.0);
         return pow(net, mix(3.0, 6.0, coh));        // crests → bright caustic filaments
     }
+    // Evaluate ONE style → (field, vignette). `d` is the aspect-correct radial distance
+    // (for the rings + every style's framing); `pf` is a SQUARE, aspect-independent
+    // coordinate in [-1,1]² for the 2D fields, so their pattern fills both axes evenly
+    // on a tall phone (the old anisotropic coord collapsed the horizontal frequency to
+    // near-zero → broad flat bands → the "flat green flood"). Returns x = field, y = vignette.
+    float2 styleField(float si, float d, float2 pf, float density, float toneHz,
+                      float phase, float coh, float breath, float spread) {
+        float field; float vig;
+        if (si < 0.5) {
+            field = fieldRings(d, density, phase, coh);
+            vig = smoothstep(1.10 * spread, 0.0, d);
+        } else if (si < 1.5) {
+            field = fieldChladni(pf, toneHz, phase, coh);
+            vig = smoothstep(1.30 * spread, 0.0, d);
+        } else if (si < 2.5) {
+            field = fieldPlasma(pf, phase, coh);
+            vig = smoothstep(1.35 * spread, 0.0, d);
+        } else {
+            field = fieldWater(pf, phase, coh, breath);
+            vig = smoothstep(1.35 * spread, 0.0, d);
+        }
+        return float2(field, vig);
+    }
+
     // Cheap hash → a sub-LSB dither that removes banding in the dark gradients.
     float echoelHash(float2 p) {
         p = fract(p * float2(123.34, 456.21));
@@ -435,11 +477,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     fragment float4 echoel_bio_fragment(VOut in [[stage_in]],
                                         constant Uniforms& u [[buffer(0)]]) {
+        // Aspect-correct radial distance (for the rings + every style's framing).
         float2 uv = in.uv;
         uv.x *= u.aspect;
         float2 c = float2(0.5 * u.aspect, 0.5);
         float d = distance(uv, c);
-        float2 p = (uv - c) * 2.0;             // centred ~[-1,1] for the 2D styles
+        // SQUARE, aspect-independent coordinate in [-1,1]² for the 2D fields, so the
+        // pattern keeps its frequency in BOTH axes on a tall phone (fixes the flood).
+        float2 pf = in.uv * 2.0 - 1.0;
 
         // The temporal motion is the ACCUMULATED phase (integrated on the CPU from the
         // flash-safe frequency), NOT time × frequency — so an HR change alters the rate,
@@ -450,23 +495,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float phase = u.pulsePhase * 6.2831853;
         float spread = (0.85 + u.breath * 0.35) * clamp(u.spread, 0.4, 1.6);
 
-        // Select the look. Each style is a physically/analytically grounded field; the
-        // vignette per style frames it (rings = centred medallion, the 2D fields fill).
-        float field;
-        float vignette;
-        if (u.style < 0.5) {
-            field = fieldRings(d, density, phase, coh);
-            vignette = smoothstep(0.62 * spread, 0.0, d);
-        } else if (u.style < 1.5) {
-            field = fieldChladni(p, u.toneHz, phase, coh);
-            vignette = smoothstep(1.05 * spread, 0.0, d);
-        } else if (u.style < 2.5) {
-            field = fieldPlasma(p, phase, coh);
-            vignette = smoothstep(1.15 * spread, 0.0, d);
-        } else {
-            field = fieldWater(p, phase, coh, u.breath);
-            vignette = smoothstep(1.20 * spread, 0.0, d);
-        }
+        // BLEND two looks ("überlappend/mischend"): evaluate style A and style B and mix
+        // both their field AND their vignette by the eased Mix ratio. blend 0 = pure A,
+        // 1 = pure B, anything between = a true overlap of the two physical fields.
+        float blend = clamp(u.blend, 0.0, 1.0);
+        float2 fa = styleField(u.style,  d, pf, density, u.toneHz, phase, coh, u.breath, spread);
+        float2 fb = styleField(u.styleB, d, pf, density, u.toneHz, phase, coh, u.breath, spread);
+        float field    = mix(fa.x, fb.x, blend);
+        float vignette = mix(fa.y, fb.y, blend);
         field *= vignette;
         // Breath → a soft central bloom that swells on the inhale (light pressure).
         float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
@@ -480,7 +516,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         col = echoelHue(col, u.hueShift);
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
 
-        float3 outCol = col * field + col * bloom;
+        // A faint, breath-framed ambient wash in the tone colour so EVERY look/blend
+        // shows something (no pure-black "dead" screen) without washing out projection.
+        float ambient = 0.03 * vignette;
+        float3 outCol = col * field + col * bloom + col * ambient;
         outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
         return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }
