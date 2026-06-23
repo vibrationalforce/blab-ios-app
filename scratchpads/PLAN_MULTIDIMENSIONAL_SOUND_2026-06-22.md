@@ -79,6 +79,12 @@ default-off / subtle for anything that could change the base timbre; founder dev
 - [x] **UMPEncoder core** (`Sync/UMPEncoder.swift`): MIDI 1.0 + MIDI 2.0 (per-note bend/controllers) UMP
   words + MMA scaling, tested; MIDIOutput now packs through it. Foundation for Slices 5 + 7.
 
+- [x] **Slice 5 — live 5D MPE OUTPUT** (`Audio/MIDIOutput.swift` + `Studio/PianoRollView.swift` +
+  `EchoelStudioView` toggle): per-note Glide/Slide/Press from the body on each note's MPE member
+  channel, opt-in ("5D Expression (body)", off by default), byte-identical to before when off.
+  Press shaped as a smooth breath swell (sin(phase·π)). Concurrency review PASS (0 issues). Output-only
+  → ZERO internal-audio risk. SHIPPED.
+
 ### GATED — needs device/founder verification (cannot be auto-shipped safely)
 - [ ] **Slice 2 — wire SpaceReverb tail into live render.** BLOCKER: a 1.8 s tail (~86k taps) over
   `EchoelConvolution` (vDSP_conv, time-domain O(N·P)) is too heavy for real-time → needs a **partitioned
@@ -86,7 +92,13 @@ default-off / subtle for anything that could change the base timbre; founder dev
   mags/phases, unusable for convolution, so this is net-new DSP). Its *correctness* is executed by NEITHER
   gate (xcode-compile-check compiles only; ci.yml excludes Accelerate on Linux), so shipping it blind would
   risk the founder-approved sound. → Build with the dsp-reviewer + audio-thread-reviewer, then DEVICE-verify.
-- [ ] Slice 3 — synth HEARS MPE (PolySynthVoice per-note bend/pressure/CC74). Audible → device-verify.
+- [ ] Slice 3 — synth HEARS MPE INTERNALLY (Slide/Press). BioReactiveSynthVoice already drains
+  controllerEvents + applies pitchBend, but `.slide`/`.channelPressure` are `break` (ignored).
+  Wiring them needs: CC74→brightness is NOT MainActor-safe (`brightness.didSet` rewrites the harmonic
+  arrays — must go through an audio-thread command queue like `bioCommands`), and Press→amplitude is a
+  scalar mirror but is overwritten by `applyBioReactive` at 10 Hz → needs a modulation-PRIORITY rule
+  (held-note expression > bio). Audible + needs ear-tuning → audio-thread-reviewer + device-verify.
+  (Output already does full 5D — Slice 5.)
 - [ ] Slice 4 — on-device binaural (AVAudioEnvironmentNode/PHASE) driven by BinauralPanner. Audible → device-verify.
 - [ ] Slice 5 — MPE/MIDI-2.0 OUTPUT 5D (MIDIOutput per-note via UMPEncoder, ._2_0 source). iOS-gated + verify.
 

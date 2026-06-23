@@ -47,6 +47,16 @@ public final class CameraRPPGBioPublisher {
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var publishTask: Task<Void, Never>?
 
+    // Exposure-lock state machine (10 Hz). Lock against the FINGER-covered scene,
+    // not the dim finger-less one; re-settle if a lock saturates.
+    @ObservationIgnored private var exposureLocked = false
+    @ObservationIgnored private var fingerStableTicks = 0
+    @ObservationIgnored private var saturatedTicks = 0
+    @ObservationIgnored private var fingerLostTicks = 0
+    private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
+    private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
+    private static let relockOnLossTicks = 30   // ~3 s without finger → allow re-lock
+
     public init() {}
 
     /// Start the camera, drive the analyzer from captured frames, and publish
@@ -102,17 +112,11 @@ public final class CameraRPPGBioPublisher {
         isRunning = true
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
-        // Let auto-exposure settle (~2 s), then LOCK it: continuous AGC fights the
-        // tiny pulsatile brightness oscillation and flattens the PPG signal. This
-        // call was missing — the camera could never lock a stable pulse. Re-assert
-        // the torch at the same time (exposure reconfig can drop it on some devices).
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard let self, self.isRunning else { return }
-            self.capture.lockExposure()
-            self.capture.setTorch(true)
-            EchoelCrashLog.breadcrumb("rPPG: exposure locked, torch re-asserted")
-        }
+        // Exposure is now locked from the publish loop ONLY once the finger is
+        // stably covering the lit lens (see the loop below) — NOT on a blind timer.
+        // Continuous auto-exposure stays on until then so the AGC adapts to the
+        // bright finger-covered scene first; locking against the dim finger-less
+        // scene was the device-log root cause of "bpm=0 forever" (R saturated 0.82).
 
         publishTask = Task { @MainActor [weak self] in
             var tick = 0
@@ -125,6 +129,11 @@ public final class CameraRPPGBioPublisher {
                 self.confidence = min(max(self.analyzer.bpmConfidence, 0), 1)
                 self.detectedBPM = self.analyzer.estimatedBPM
                 self.waveform = self.analyzer.recentWaveform
+
+                // EXPOSURE: lock once the finger has covered the lens for ~1.2 s (so
+                // the AGC settled on the bright fingertip), and RE-SETTLE if the lock
+                // ever leaves the sensor saturated (DC swamps the pulsatile AC).
+                self.manageExposure()
                 // Publish a confident pulse to the bus at ~1 Hz (every 10th tick).
                 tick += 1
                 // Diagnostics into the breadcrumb stream (~every 2 s) so a device
@@ -185,10 +194,64 @@ public final class CameraRPPGBioPublisher {
         }
     }
 
+    /// 10 Hz exposure state machine. Locks exposure only after the finger has
+    /// stably covered the torch-lit lens (so the AGC has adapted to that bright
+    /// scene), and re-settles if a lock leaves the sensor saturated — the fix for
+    /// the device-log "R=0.82, bpm=0 forever" (exposure was frozen too early,
+    /// against the dim finger-less scene, then saturated when the finger arrived).
+    private func manageExposure() {
+        let bright = self.analyzer.brightness
+        let red = self.analyzer.redChannel
+        let saturating = bright > 0.85 || red > 0.92
+
+        if !exposureLocked {
+            // Wait for a stable finger, THEN lock against the finger-covered scene.
+            fingerStableTicks = fingerDetected ? (fingerStableTicks + 1) : 0
+            if fingerStableTicks >= Self.lockAfterTicks {
+                capture.lockExposure()
+                capture.setTorch(true)              // exposure reconfig can drop torch
+                exposureLocked = true
+                saturatedTicks = 0
+                fingerLostTicks = 0
+                EchoelCrashLog.breadcrumb(String(format:
+                    "rPPG: exposure locked on finger (bright=%.2f R=%.2f)", bright, red))
+            }
+            return
+        }
+
+        // Locked. If it saturates for a sustained spell, the AC pulse is swamped →
+        // hand exposure back to auto so it re-settles, then the loop re-locks.
+        if saturating {
+            saturatedTicks += 1
+            if saturatedTicks >= Self.resettleAfterTicks {
+                capture.unlockExposure()
+                exposureLocked = false
+                fingerStableTicks = 0
+                saturatedTicks = 0
+                EchoelCrashLog.breadcrumb(String(format:
+                    "rPPG: re-settling exposure — saturated (bright=%.2f R=%.2f)", bright, red))
+            }
+        } else {
+            saturatedTicks = max(0, saturatedTicks - 1)
+        }
+
+        // Finger gone for a while → drop the lock so the next placement re-locks
+        // against the new (possibly different) finger pressure/position.
+        fingerLostTicks = fingerDetected ? 0 : (fingerLostTicks + 1)
+        if fingerLostTicks >= Self.relockOnLossTicks {
+            capture.unlockExposure()
+            exposureLocked = false
+            fingerStableTicks = 0
+            saturatedTicks = 0
+            fingerLostTicks = 0
+        }
+    }
+
     public func stop() {
         publishTask?.cancel()
         publishTask = nil
         capture.setTorch(false)
+        capture.unlockExposure()       // leave the device back in auto for next time
         capture.stop()
         capture.onFrame = nil
         analyzer.stopPulseDetection()
@@ -198,6 +261,10 @@ public final class CameraRPPGBioPublisher {
         confidence = 0
         detectedBPM = 0
         waveform = []
+        exposureLocked = false
+        fingerStableTicks = 0
+        saturatedTicks = 0
+        fingerLostTicks = 0
     }
 
 }

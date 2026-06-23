@@ -234,8 +234,11 @@ public final class PianoRollModel {
         // breath→Press, HRV→Glide micro-drift. nil → plain note-on (unchanged).
         let expression: MPEExpression? = {
             guard midiOut?.expressionEnabled == true, let bio = bus?.usableBio() else { return nil }
+            // Press should SWELL through the breath, not saw-reset at the cycle wrap:
+            // shape the 0…1 phase into a smooth hump (0 at the cycle ends, 1 mid-breath).
+            let breathSwell = Float(sin(Double(bio.breathPhase) * .pi))
             return MPEExpression.from(coherence: bio.coherence,
-                                      breathDepth: bio.breathPhase,
+                                      breathDepth: breathSwell,
                                       hrvNormalized: bio.hrvNormalized)
         }()
         for note in notes where note.startStep == step {

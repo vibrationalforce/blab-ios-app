@@ -134,7 +134,11 @@ final class CameraCapture: NSObject, @unchecked Sendable {
 
     // MARK: - Exposure Lock (call after ~2s for stable PPG baseline)
 
-    /// Lock camera exposure to prevent auto-gain from corrupting PPG signal
+    /// Lock camera exposure to prevent auto-gain from corrupting PPG signal.
+    /// IMPORTANT: only call this once the finger is actually covering the torch-lit
+    /// lens — locking against a dim, finger-less scene freezes a high-gain exposure
+    /// that then SATURATES (R≈0.82) when the bright fingertip arrives, swamping the
+    /// tiny pulsatile AC so no pulse ever locks (device-log root cause, 2026-06-23).
     func lockExposure() {
         sessionQueue.async { [weak self] in
             guard let self,
@@ -142,6 +146,20 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                   device.isExposureModeSupported(.locked) else { return }
             try? device.lockForConfiguration()
             device.exposureMode = .locked
+            device.unlockForConfiguration()
+        }
+    }
+
+    /// Hand exposure back to continuous auto so it can re-settle to the current
+    /// scene before a fresh `lockExposure()` — used to recover from a saturated
+    /// lock (e.g. exposure was frozen before the finger arrived, or a re-grip).
+    func unlockExposure() {
+        sessionQueue.async { [weak self] in
+            guard let self,
+                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
+                  device.isExposureModeSupported(.continuousAutoExposure) else { return }
+            try? device.lockForConfiguration()
+            device.exposureMode = .continuousAutoExposure
             device.unlockForConfiguration()
         }
     }
