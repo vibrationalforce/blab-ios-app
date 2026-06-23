@@ -55,7 +55,8 @@ private struct BioUniforms {
     /// a frequency change alters only the RATE, never the position. Continuous.
     var pulsePhase: Float = 0
     /// Visual STYLE selector (discrete, snapped — not eased): 0 = interference rings,
-    /// 1 = Chladni nodal eigenmodes (tone → plate modes), 2 = plasma wave field.
+    /// 1 = Chladni nodal eigenmodes (tone → plate modes), 2 = plasma wave field,
+    /// 3 = water caustics (rippling light net).
     var style: Float = 0
 }
 
@@ -77,7 +78,7 @@ struct MetalBioView: UIViewRepresentable {
     /// VJ palette controls (see BioUniforms). Defaults keep the physical colour.
     var hueShift: Float = 0
     var saturation: Float = 1
-    /// Visual style: 0 rings · 1 Chladni · 2 plasma (see `BioUniforms.style`).
+    /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water (see `BioUniforms.style`).
     var style: Int = 0
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
@@ -178,7 +179,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Writes the TARGET; draw() eases the live uniforms toward it. Same clamps as
         // before (the GPU never sees an out-of-range / non-finite value).
         // Style is DISCRETE — snap it on both live and target (no cross-fade between modes).
-        let s = Float(min(max(style, 0), 2))
+        let s = Float(min(max(style, 0), 3))
         target.style = s
         uniforms.style = s
         target.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
@@ -402,6 +403,20 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         v = 0.5 + 0.125 * v;                                   // → ~[0,1]
         return pow(clamp(v, 0.0, 1.0), mix(1.0, 2.2, coh));
     }
+    // STYLE 3 — WATER caustics: crossing wave trains form a rippling light net, like
+    // sun on a pool floor — the "Wasser·Klang·Licht" aesthetic for music-video / film /
+    // stage. A high power on the wave crests yields the bright caustic filaments;
+    // coherence sharpens them, breath widens the ripple scale, the slow flash-safe
+    // phase drifts the surface. Pure sin/cos (no loop), so it stays compile-safe.
+    float fieldWater(float2 p, float phase, float coh, float breath) {
+        float t = phase * 0.4;
+        float scale = mix(4.0, 7.0, breath);
+        float w = sin(p.x * scale + t) * cos(p.y * (scale - 1.0) - t * 0.7);
+        w += sin(length(p) * (scale + 3.0) - t * 1.1);
+        w += sin((p.x + p.y) * (scale - 1.5) + t * 0.5);
+        float net = clamp(0.5 + 0.18 * w, 0.0, 1.0);
+        return pow(net, mix(3.0, 6.0, coh));        // crests → bright caustic filaments
+    }
     // Cheap hash → a sub-LSB dither that removes banding in the dark gradients.
     float echoelHash(float2 p) {
         p = fract(p * float2(123.34, 456.21));
@@ -445,9 +460,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         } else if (u.style < 1.5) {
             field = fieldChladni(p, u.toneHz, phase, coh);
             vignette = smoothstep(1.05 * spread, 0.0, d);
-        } else {
+        } else if (u.style < 2.5) {
             field = fieldPlasma(p, phase, coh);
             vignette = smoothstep(1.15 * spread, 0.0, d);
+        } else {
+            field = fieldWater(p, phase, coh, u.breath);
+            vignette = smoothstep(1.20 * spread, 0.0, d);
         }
         field *= vignette;
         // Breath → a soft central bloom that swells on the inhale (light pressure).

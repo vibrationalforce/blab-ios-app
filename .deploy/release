@@ -1,5 +1,13 @@
-build: 2026-06-23 v10.76.6 (visuals: 3 selectable physical looks + design polish)
+build: 2026-06-23 v10.76.7 (visuals: + Water caustics look — Wasser·Klang·Licht)
 branch: claude/piano-roll-clip-view-wozlie
+notesT: Founder chose all next visual directions + the "Wasser·Klang·Licht" aesthetic for classic media
+  production (music video, film, social). First slice: a WATER caustics look added to the Look strip
+  (Donuts · Rings · Chladni · Plasma · Water). Crossing wave trains form a rippling bright light net
+  like sun on a pool floor; coherence sharpens the caustic filaments, breath widens the ripple scale,
+  the slow flash-safe phase drifts the surface. Pure sin/cos (no loop) so it stays compile-safe; colour
+  stays the physical tone→light; flash-safe ≤2.5 Hz. Queued behind this (next cycles, after your
+  device check): external-display/projection output, bio→visual param routing, optional analytics
+  overlay (waveform/spectrum/HRV). INSTALL 10.76.7.
 notesS: Founder: "mehr Vielfalt, besseres Design, Wirkung, physikalische + analytische Aspekte." On top
   of the 10.76.5 smoothness work (phase accumulation + per-frame easing that already kill the
   "ruckeln"), the immersive visual now has a LOOK selector — one strip: Donuts · Rings · Chladni ·
