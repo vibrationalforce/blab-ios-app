@@ -209,6 +209,8 @@ struct EchoelStudioView: View {
     @State private var visualMotion: Float = 1.0      // animation speed (flash-clamped)
     @State private var visualSpread: Float = 1.0
     @State private var showVisualSettings = false
+    /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
+    @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
     /// four live sliders below; "" = none/custom after a manual tweak.
     @AppStorage("visual.preset") private var visualPresetID = ""
@@ -316,19 +318,30 @@ struct EchoelStudioView: View {
                                  intensity: visualIntensity, ringDensity: visualDetail,
                                  motion: visualMotion, spread: visualSpread).ignoresSafeArea()
                 }
-                HStack(spacing: 14) {
-                    Button { spectralDonuts.toggle() } label: {
-                        Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
-                            .font(.title2).foregroundStyle(.white.opacity(0.6))
+                // Tap the canvas to hide/show the VJ controls — clean for projection,
+                // hands-on for performance. Controls are a solid panel (no glass/blur).
+                Color.clear.contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
+                if showVisualControls {
+                    HStack(spacing: 14) {
+                        Button { spectralDonuts.toggle() } label: {
+                            Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
+                                .font(.title2).foregroundStyle(.white.opacity(0.6))
+                        }
+                        .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                        Button { showVisual = false } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2).foregroundStyle(.white.opacity(0.6))
+                        }
+                        .accessibilityLabel("Close visual")
                     }
-                    .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
-                    Button { showVisual = false } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2).foregroundStyle(.white.opacity(0.6))
-                    }
+                    .padding()
+                    visualVJOverlay
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .padding()
             }
+            .statusBarHidden(true)
         }
         #endif
         .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
@@ -865,6 +878,52 @@ struct EchoelStudioView: View {
             }
         }
     }
+
+    #if canImport(MetalKit) && canImport(UIKit)
+    /// The hands-on VJ control panel that floats over the fullscreen visual: the four
+    /// live parameters + a quick scene strip, on the app-wide value-field vocabulary,
+    /// in a solid (non-glass) bottom panel sized for stage use. Tap the canvas to hide.
+    private var visualVJOverlay: some View {
+        VStack {
+            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 8) {
+                // Quick scene strip — launch a look in one tap during a performance.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(VisualPreset.factory) { preset in
+                            let selected = visualPresetID == preset.id
+                            Button { applyVisualPreset(preset) } label: {
+                                Text(preset.name)
+                                    .font(EchoelTheme.font(12, .semibold))
+                                    .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
+                                    .padding(.horizontal, 12).padding(.vertical, 7)
+                                    .background(RoundedRectangle(cornerRadius: 8)
+                                        .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(preset.name) scene")
+                        }
+                    }
+                }
+                EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                                 onChange: { visualPresetID = "" })
+                EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
+                                 onChange: { visualPresetID = "" })
+                EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
+                                 onChange: { visualPresetID = "" })
+                EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
+                                 onChange: { visualPresetID = "" })
+            }
+            .padding(14)
+            .background(EchoelTheme.bg.opacity(0.92))
+            .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            .padding(.horizontal, 12).padding(.bottom, 12)
+            .frame(maxWidth: 560)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+    }
+    #endif
 
     /// Load a preset into the live visual controls. Sliders remain editable; the
     /// values stay within the flash-safe clamps (enforced in VisualPreset.init).
