@@ -1,5 +1,30 @@
-build: 2026-06-23 v10.74.0 (FIX: rPPG never locked — 7.5 Hz rate broke the bandpass)
+build: 2026-06-23 v10.76.0 (#3 non-modal panels — tool sheets become draggable HUD panels)
 branch: claude/piano-roll-clip-view-wozlie
+notesM: #3 of the persistent-control-layer work — the modal→panel refactor. One reusable
+  `.echoelSheetPanel()` modifier (Echoel CI: one treatment everywhere) turns the 12 editor/tool
+  sheets (Piano Roll, FX, Channels, Sound, Audio In, Routing, Plugins, Automation, Audio Clip,
+  Broadcast, Sample Browser, Live Colabo) from hard full-screen modals into NON-MODAL panels: open
+  full (.large) so editors keep their room, drag DOWN to .medium where the instrument behind stays
+  VISIBLE and INTERACTIVE (pro-media HUD pattern — keep playing while a panel is open), grab handle
+  always shown (WCAG 2.2: visible affordance, not a hidden gesture), semi-transparent solid backing
+  (no glass/blur — Uncodixfy). Skipped LearnView (self-manages detents), the system Share sheet, and
+  the immersive fullScreenCovers (intentionally full-screen). Single modifier = DRY + reversible;
+  code-reviewed compile-clean (iOS 18 floor covers the 16.4+ presentation APIs). Needs on-device
+  visual confirmation. Completes #1 (visual control handle) + #2 (persistent HUD) + #3 (non-modal
+  panels).
+notesL: Founder — "Bedienung stabilisieren; alle Einstellungen von jedem Ort aus zugänglicher;
+  transparente permanente Layer; evidenzbasiert für accessible physical computing + pro media."
+  Evidence-grounded (WCAG 2.2: no hidden-gesture-gated controls; Fitts: edge-anchored thumb zone;
+  pro-media HUD: persistent, non-modal, canvas-visible; Uncodixfy: solid semi-transparent, no glass).
+  Shipped: (1) the immersive visual gains a VISIBLE persistent Controls handle (replaces the
+  undiscoverable tap-the-canvas reveal). (2) a PERSISTENT quick-access HUD pinned to the studio's
+  bottom edge — always visible regardless of scroll — with transport (Play/Stop) + Visual + a grouped
+  Tools menu (Editors/Audio&Bio/Connect) that opens EVERY editor from anywhere (tools previously lived
+  only at the bottom of the scroll). 44pt targets, code-reviewed compile-clean. Also bundles the
+  v10.74.0 rPPG rate/Nyquist fix + v10.73.0 (voice analyser core, value-field tap-to-type, keep-screen-
+  awake while performing/projecting). NOTE: converting the ~18 full-screen sheets into non-modal
+  transparent panels (the larger pro-media step) needs on-device visual verification and is NOT done
+  blind — next, once verifiable.
 notesK: The rate/win telemetry (v10.72.1) pinpointed the rPPG root cause: the camera delivers ~15 fps
   but the analyzer DECIMATED by 2 → 7.5 Hz sample rate, while the Butterworth bandpass was hardcoded
   for 15 Hz. At 7.5 Hz the 4.0 Hz low-pass sits ABOVE the 3.75 Hz Nyquist → tanf() prewarp goes

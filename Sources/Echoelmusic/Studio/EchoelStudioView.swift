@@ -301,20 +301,21 @@ struct EchoelStudioView: View {
         .sheet(item: $share) { ShareSheet(url: $0.url) }
         .sheet(item: $diagnostics) { report in diagnosticsSheet(report.text) }
         .sheet(isPresented: $showPianoRoll) {
-            PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
+            PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel()
         }
         .sheet(isPresented: $showAllFX) {
             EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
                          fxEnabled: { synth.isFXEnabled },
                          setFXEnabled: { synth.setFXEnabled($0) })
+                .echoelSheetPanel()
         }
-        .sheet(isPresented: $showInput) { AudioInputPickerView() }
-        .sheet(isPresented: $showRouting) { PatchbayView() }
-        .sheet(isPresented: $showPlugins) { AUv3BrowserView() }
-        .sheet(isPresented: $showLearn) { LearnView() }
-        .sheet(isPresented: $showChannelRack) { ChannelRackView() }
-        .sheet(isPresented: $showAutomation) { AutomationView() }
-        .sheet(isPresented: $showAudioClip) { AudioClipView() }
+        .sheet(isPresented: $showInput) { AudioInputPickerView().echoelSheetPanel() }
+        .sheet(isPresented: $showRouting) { PatchbayView().echoelSheetPanel() }
+        .sheet(isPresented: $showPlugins) { AUv3BrowserView().echoelSheetPanel() }
+        .sheet(isPresented: $showLearn) { LearnView() }   // self-manages its detents
+        .sheet(isPresented: $showChannelRack) { ChannelRackView().echoelSheetPanel() }
+        .sheet(isPresented: $showAutomation) { AutomationView().echoelSheetPanel() }
+        .sheet(isPresented: $showAudioClip) { AudioClipView().echoelSheetPanel() }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],
@@ -322,13 +323,14 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        .sheet(isPresented: $showBroadcast) { BroadcastView() }
-        .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id) }
+        .sheet(isPresented: $showBroadcast) { BroadcastView().echoelSheetPanel() }
+        .sheet(item: $sampleBrowserTrack) { ref in SampleBrowserView(track: ref.id).echoelSheetPanel() }
         .sheet(isPresented: $showPatchEditor) {
             PatchEditorView(initial: currentPatch) { p in
                 currentPatch = p
                 synth.apply(p)   // editor changes hit the live voice immediately
             }
+            .echoelSheetPanel()
         }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
@@ -389,6 +391,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showLiveColabo) {
             LiveColaboView(currentSession: { currentProject(named: "Shared session") },
                            onLoadShared: { open($0) })
+                .echoelSheetPanel()
         }
         #endif
         .alert("Save project", isPresented: $showSaveDialog) {
