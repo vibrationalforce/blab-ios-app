@@ -85,11 +85,21 @@ final class CameraAnalyzer {
 
     // MARK: - Internal State
 
-    /// Process every 2nd frame at 30fps = 15 Hz sample rate (Nyquist > 4 Hz max HR)
-    private let analyzeEveryNthFrame = 2
+    /// Process EVERY delivered frame. The capture is locked to ≤30 fps but devices
+    /// commonly deliver ~15 fps under torch + `.low` preset; the old "skip every 2nd"
+    /// assumed a steady 30 fps and so HALVED the real rate to ~7.5 Hz (device log:
+    /// rate=7.5), which detuned the bandpass AND pushed its 4 Hz low-pass past the
+    /// 3.75 Hz Nyquist → invalid coefficients, no lock. Using every frame keeps the
+    /// rate as high as the camera allows; `effectiveSampleRate` is then corrected to
+    /// the MEASURED rate (below) so the filter is always valid for the true rate.
+    private let analyzeEveryNthFrame = 1
 
-    /// Effective sample rate after frame skipping
-    private let effectiveSampleRate: Double = 15.0 // 30fps / 2
+    /// Effective sample rate — starts at the nominal 15 Hz and is corrected ONCE to
+    /// the true measured frame rate (so the bandpass is designed for reality, not an
+    /// assumption). `var` because the filter re-tunes to it.
+    private var effectiveSampleRate: Double = 15.0
+    /// Set true after the one-time re-tune to the measured rate (avoids thrashing).
+    private var filterRateAdapted = false
 
     // Raw and filtered signal buffers — maintained in sync
     private var rawRedSignal: [Float] = []
@@ -103,9 +113,9 @@ final class CameraAnalyzer {
     // Bandpass filter state (2nd order Butterworth, 0.7–4 Hz)
     private var bpState = BandpassState()
 
-    // Pre-computed Butterworth bandpass coefficients (constant for fixed sample rate)
-    // Computed once — avoids tanf/exp on every filter call
-    private let bpc: BandpassCoefficients
+    // Butterworth bandpass coefficients. Recomputed once when the true frame rate is
+    // measured (var, not let) so the filter matches the real sample rate.
+    private var bpc: BandpassCoefficients
 
     // Peak detection
     private var peakIndices: [Int] = []
@@ -135,8 +145,12 @@ final class CameraAnalyzer {
             hpA0 = a0hp;  hpA1 = -2.0 * a0hp;  hpA2 = a0hp
             hpB1 = 2.0 * (wHP2 - 1.0) * a0hp
             hpB2 = (1.0 - 1.414 * wHP + wHP2) * a0hp
-            // Low-pass at 4.0 Hz: bilinear transform Butterworth 2nd order
-            let wLP = tanf(Float.pi * 4.0 / sampleRate)
+            // Low-pass at 4.0 Hz — but NEVER above the Nyquist limit. At low frame
+            // rates (e.g. 7.5 Hz, Nyquist 3.75 Hz) a fixed 4 Hz cutoff makes the
+            // bilinear prewarp tanf() go past π/2 → negative/garbage coefficients →
+            // a broken filter. Clamp the cutoff to 0.45·rate so it is always valid.
+            let lpHz = Swift.min(Float(4.0), sampleRate * 0.45)
+            let wLP = tanf(Float.pi * lpHz / sampleRate)
             let wLP2 = wLP * wLP
             let denom = 1.0 + 1.414 * wLP + wLP2
             lpA0 = wLP2 / denom;  lpA1 = 2.0 * wLP2 / denom;  lpA2 = wLP2 / denom
@@ -287,6 +301,12 @@ final class CameraAnalyzer {
         lastPeakCount = 0
         lastAutoStrength = 0
         lastFilteredAmplitude = 0
+        lastActualRate = 0
+        lastWindowSize = 0
+        // Re-measure the frame rate next session; restore the nominal filter until then.
+        filterRateAdapted = false
+        effectiveSampleRate = 15.0
+        bpc = BandpassCoefficients(sampleRate: 15.0)
     }
 
     private func processPulseSignal(avgR: Float) {
@@ -313,6 +333,30 @@ final class CameraAnalyzer {
             filteredRedSignal.removeFirst()
             signalTimestamps.removeFirst()
             peakIndices = peakIndices.compactMap { $0 > 0 ? $0 - 1 : nil }
+        }
+
+        // ── One-time re-tune of the bandpass to the TRUE frame rate ──────────────
+        // The assumed 15 Hz is often wrong (device log: real rate 7.5–15 Hz). A
+        // mismatch detunes the filter and, below ~8 Hz, breaks it (4 Hz low-pass past
+        // Nyquist). Once enough samples give a stable rate, re-design the filter for it
+        // and restart the buffers so the window refills with correctly-filtered data.
+        // On a clean 15 Hz device the rate matches and this is a no-op.
+        if !filterRateAdapted, signalTimestamps.count >= 30,   // ~2 s, past DC warmup
+           let firstT = signalTimestamps.first, let lastT = signalTimestamps.last, lastT > firstT {
+            let measured = Double(signalTimestamps.count - 1) / (lastT - firstT)
+            if measured.isFinite, measured >= 4, measured <= 60,
+               abs(measured - effectiveSampleRate) / effectiveSampleRate > 0.15 {
+                effectiveSampleRate = measured
+                bpc = BandpassCoefficients(sampleRate: Float(measured))
+                bpState = BandpassState()
+                rawRedSignal.removeAll(keepingCapacity: true)
+                filteredRedSignal.removeAll(keepingCapacity: true)
+                signalTimestamps.removeAll(keepingCapacity: true)
+                peakIndices.removeAll(keepingCapacity: true)
+                dcEstimate = 0
+                dcWarmupCount = 0
+            }
+            filterRateAdapted = true
         }
 
         // Need ~2s of data before the first estimate (was 3s — faster first lock).

@@ -1,5 +1,16 @@
-build: 2026-06-23 v10.73.0 (voice analyser core + tap-to-type + keep-awake + FX standard)
+build: 2026-06-23 v10.74.0 (FIX: rPPG never locked — 7.5 Hz rate broke the bandpass)
 branch: claude/piano-roll-clip-view-wozlie
+notesK: The rate/win telemetry (v10.72.1) pinpointed the rPPG root cause: the camera delivers ~15 fps
+  but the analyzer DECIMATED by 2 → 7.5 Hz sample rate, while the Butterworth bandpass was hardcoded
+  for 15 Hz. At 7.5 Hz the 4.0 Hz low-pass sits ABOVE the 3.75 Hz Nyquist → tanf() prewarp goes
+  negative → invalid filter coefficients. Result seen on device: acf=0.00 the whole session and
+  confidence stuck at 0.27, never crossing the 0.35 publish threshold — so the camera pulse NEVER
+  reached the bus / drove the instrument. Fix (CameraAnalyzer only; protected Rausch triad untouched,
+  dsp-reviewed): (1) process EVERY frame (no decimation) → the full ~15 Hz the camera gives; (2) clamp
+  the low-pass cutoff to 0.45·rate so it can never exceed Nyquist (filter is always valid); (3) re-tune
+  the bandpass ONCE to the TRUE measured frame rate (restart the window so it refills correctly) — so
+  the filter is designed for reality at any fps, not an assumption. On a clean 15 Hz device behaviour is
+  unchanged. This should finally let the camera HR lock and drive sound/visual/light.
 notesJ: Founder — "Alles auf höchstem Level lambda" (do all four next directions, top quality). Shipped
   as four code-reviewed slices: (1) VOICE AS INSTRUMENT — VoiceAnalyzer, the pure unit-tested INPUT
   core of the audiovisual vocoder (pitch via autocorrelation + voicing gate, dBFS loudness, ZCR
