@@ -332,28 +332,32 @@ struct EchoelStudioView: View {
                                  motion: visualMotion, spread: visualSpread,
                                  hueShift: visualHue, saturation: visualSaturation).ignoresSafeArea()
                 }
-                // Tap the canvas to hide/show the VJ controls — clean for projection,
-                // hands-on for performance. Controls are a solid panel (no glass/blur).
+                // Tap the canvas to hide/show the VJ control PANEL — clean for
+                // projection, hands-on for performance. Controls are a solid panel.
                 Color.clear.contentShape(Rectangle())
                     .ignoresSafeArea()
                     .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
                 if showVisualControls {
-                    HStack(spacing: 14) {
-                        Button { spectralDonuts.toggle() } label: {
-                            Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
-                                .font(.title2).foregroundStyle(.white.opacity(0.6))
-                        }
-                        .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
-                        Button { showVisual = false } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title2).foregroundStyle(.white.opacity(0.6))
-                        }
-                        .accessibilityLabel("Close visual")
-                    }
-                    .padding()
                     visualVJOverlay
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
+                // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
+                // only guaranteed escape (device feedback: the view trapped the user and
+                // forced an app kill). Kept subtle for clean projection output.
+                HStack(spacing: 14) {
+                    Button { spectralDonuts.toggle() } label: {
+                        Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
+                            .font(.title2).foregroundStyle(.white.opacity(0.6))
+                    }
+                    .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                    Button { showVisual = false } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2).foregroundStyle(.white.opacity(0.85))
+                    }
+                    .accessibilityLabel("Close visual")
+                }
+                .padding()
             }
             .statusBarHidden(true)
         }
@@ -919,37 +923,43 @@ struct EchoelStudioView: View {
     private var visualVJOverlay: some View {
         VStack {
             Spacer(minLength: 0)
-            VStack(alignment: .leading, spacing: 8) {
-                // Quick scene strip — launch a look in one tap during a performance.
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(VisualPreset.factory) { preset in
-                            let selected = visualPresetID == preset.id
-                            Button { applyVisualPreset(preset) } label: {
-                                Text(preset.name)
-                                    .font(EchoelTheme.font(12, .semibold))
-                                    .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
-                                    .padding(.horizontal, 12).padding(.vertical, 7)
-                                    .background(RoundedRectangle(cornerRadius: 8)
-                                        .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+            // Scrollable + height-capped so the panel stays in the LOWER portion: the
+            // top stays canvas + the always-on Close bar, and many params never grow
+            // the panel to full height (which previously covered the Close button).
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Quick scene strip — launch a look in one tap during a performance.
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(VisualPreset.factory) { preset in
+                                let selected = visualPresetID == preset.id
+                                Button { applyVisualPreset(preset) } label: {
+                                    Text(preset.name)
+                                        .font(EchoelTheme.font(12, .semibold))
+                                        .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
+                                        .padding(.horizontal, 12).padding(.vertical, 7)
+                                        .background(RoundedRectangle(cornerRadius: 8)
+                                            .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("\(preset.name) scene")
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("\(preset.name) scene")
                         }
                     }
+                    EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                                     onChange: { visualPresetID = "" })
+                    EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
+                                     onChange: { visualPresetID = "" })
+                    EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
+                                     onChange: { visualPresetID = "" })
+                    EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
+                                     onChange: { visualPresetID = "" })
+                    EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
+                    EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
                 }
-                EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                                 onChange: { visualPresetID = "" })
-                EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
-                                 onChange: { visualPresetID = "" })
-                EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                                 onChange: { visualPresetID = "" })
-                EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                                 onChange: { visualPresetID = "" })
-                EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
-                EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+                .padding(14)
             }
-            .padding(14)
+            .frame(maxHeight: 360)
             .background(EchoelTheme.bg.opacity(0.92))
             .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))

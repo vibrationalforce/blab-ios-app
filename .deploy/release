@@ -1,5 +1,14 @@
-build: 2026-06-23 v10.72.1 (rPPG acf=0 diagnostic telemetry + number-pad signs + haptics)
+build: 2026-06-23 v10.72.2 (FIX: fullscreen Visual dead-end — Close was unreachable)
 branch: claude/piano-roll-clip-view-wozlie
+notesI: Founder device feedback — "Aus dieser Ansicht kommt man nicht heraus ohne die App zu
+  schließen" (the fullscreen immersive Visual trapped the user; only force-quit escaped). Root
+  cause: the Close (X) was gated behind the tap-toggled controls AND drawn BEFORE visualVJOverlay,
+  whose panel (scene strip + 6 value fields) grew to full height and covered it — and
+  fullScreenCover has no swipe-to-dismiss. Fix: (1) the top bar (donut toggle + Close) is now
+  ALWAYS visible and drawn LAST in the ZStack, so it can never be covered — a guaranteed escape;
+  (2) the VJ control panel is height-capped (360pt) + vertically scrollable, so it stays in the
+  lower portion and the top stays canvas + Close. Tap-to-hide still gives clean projection output;
+  Breath/Meditation fullscreens already had persistent Close (verified). One-file SwiftUI fix.
 notesH: Device log 2026-06-23 showed a CLEAN, stable rPPG session (bpm 61-64, conf 0.85→0.97,
   q→0.99 — the saturation-hold/resilience direction is working) BUT acf=0.00 the entire run: the
   autocorrelation safety-net (PulsePeriodEstimator) returns nil even with a clear pulse, which also
