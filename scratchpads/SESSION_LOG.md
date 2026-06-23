@@ -3350,3 +3350,23 @@ DECISION: Did NOT migrate ArrangementPlayer/PianoRoll off pattern.onTick to Tran
 NEXT: per-channel pan/mixer depth; cross-device/community session sharing (CloudKit/Multipeer, no
   dep); Live Colabo via Ableton Link (needs dep approval); EchoelAI chat (large, later); refine
   presets/compositions (await founder ear-check of new master EQ).
+
+### 2026-06-23 (cont.) — Live Colabo (Multipeer) + session sharing + meditation streaks
+Founder reaffirmed autonomy twice ("Greb all task at highest intelligence possible", then
+"Alles auf höchster Ebene") in answer to the Live-Colabo dependency question.
+SHIPPED (cumulative v10.57.0):
+- v10.55.0 tap-to-seek on the Arrangement timeline (ArrangementCursor.seek + ArrangementPlayer.jump).
+- v10.56.0 portable session share: ProjectStore.exportData/importProject + a lazy Transferable
+  ShareLink ('<name>.echoel.json') + .json fileImporter in the Open-project sheet. No dep/Info.plist.
+- v10.57.0 LIVE COLABO (DMMW 'Live Collaboration' pillar, dependency-free): MultipeerSession
+  (@MainActor @Observable NSObject, MultipeerConnectivity) — go live, discover nearby Echoel, connect,
+  share the full Codable session both ways; receive → load live or save. ColabPayload pure-Codable wire
+  format (round-trip test on Linux). LiveColaboView (Tools ▸ Live Colabo). Bonjour _echoel-colab._tcp/udp
+  added to Info.plist + project.yml. Concurrency-reviewed → fix applied: @preconcurrency import
+  MultipeerConnectivity (matches PolarH10's @preconcurrency import CoreBluetooth); mcSession
+  nonisolated(unsafe) for the off-main invitation handler. ALSO: Meditation streak + coherence trend
+  (pure SessionStats, tested).
+DECISION (founder "alles auf höchster Ebene"): built Live Colabo's dependency-free half NOW
+  (Multipeer session sharing). Ableton Link (real-time tempo/phase lock) deferred as its own
+  device-verified step — LinkKit needs Ableton dev registration / C++ vendoring + a new build target +
+  on-device audio-thread phase verification; shipping that blind would NOT be "highest level". Flagged.
