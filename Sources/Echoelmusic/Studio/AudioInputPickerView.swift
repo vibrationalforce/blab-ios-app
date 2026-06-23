@@ -75,6 +75,11 @@ struct AudioInputPickerView: View {
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
                 .accessibilityElement(children: .combine)
+                if inputs.outputIsHighLatency {
+                    Text("Output is on \(inputs.outputRouteName.isEmpty ? "Bluetooth" : inputs.outputRouteName) (~150–250 ms). The iPhone mic stays low-latency, but you'll hear your own voice slightly delayed through Bluetooth — fine for the beat, less tight for vocals. Plug in wired/USB headphones for delay-free self-monitoring.")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text("Use headphones or an interface to avoid acoustic feedback. On the speaker, the guard automatically ducks any howl that builds up.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)

@@ -99,6 +99,11 @@ public final class AudioInputManager {
     public private(set) var available: [AudioInputInfo] = []
     /// UID of the currently preferred / active input.
     public private(set) var selectedID: String?
+    /// Human name of the current OUTPUT route (e.g. "Hi-X25BT", "iPhone").
+    public private(set) var outputRouteName: String = ""
+    /// True when the output route is high-latency (Bluetooth / AirPlay / CarPlay):
+    /// monitoring your own voice through it is delayed even with a low-latency input.
+    public private(set) var outputIsHighLatency: Bool = false
 
     public init() {}
 
@@ -114,9 +119,19 @@ public final class AudioInputManager {
                                   kind: c.kind, latency: c.latency)
         }
         selectedID = session.preferredInput?.uid ?? session.currentRoute.inputs.first?.uid
+        // Output route: a low-latency input (built-in mic) paired with a Bluetooth
+        // output (A2DP, ~150–250 ms) still delays self-monitoring — the latency is on
+        // the OUTPUT side. Surface it so the monitoring hint is honest.
+        let outputs = session.currentRoute.outputs
+        outputRouteName = outputs.first?.portName ?? ""
+        outputIsHighLatency = outputs.contains { out in
+            AudioInputClassifier.classify(portTypeRaw: out.portType.rawValue).latency == .high
+        }
         #else
         available = []   // macOS: input device is system-managed (HAL)
         selectedID = nil
+        outputRouteName = ""
+        outputIsHighLatency = false
         #endif
     }
 
