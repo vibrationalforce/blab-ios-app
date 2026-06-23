@@ -313,7 +313,14 @@ public final class AudioEngine {
             format: processingFormat
         )
         masterMixer.outputVolume = masterVolume
-        masterEngine.mainMixerNode.outputVolume = 1.0
+        // True-peak safety trim AFTER the brick-wall limiter. The Apple PeakLimiter
+        // limits to 0 dBFS, so peaks sat right on the ceiling (device capture showed
+        // repeated −0.1 dBFS peaks → harsh, inter-sample-clip-prone, "not smooth").
+        // A −1 dB final trim gives a clean ≤ −1 dBFS ceiling: no clipping, smoother
+        // and more homogeneous level, at a negligible 1 dB loudness cost. Everything
+        // routes through masterMixer → AutoMixChain → here, so this is the one global
+        // output trim.
+        masterEngine.mainMixerNode.outputVolume = 0.89   // ≈ −1.0 dBFS
 
         let meterFormat = masterMixer.outputFormat(forBus: 0)
         if meterFormat.sampleRate > 0 && meterFormat.channelCount > 0 {
