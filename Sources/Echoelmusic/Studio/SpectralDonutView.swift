@@ -77,10 +77,16 @@ struct SpectralDonutView: View {
         // under the 3 Hz flash ceiling. Sway amplitude follows loudness (silent →
         // still, centred) so it breathes with the sound. Reduce Motion → no sway.
         var center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let bio = bus.freshBio(maxAge: 2)
+        let breath = Double(bio?.breathPhase ?? 0.5)             // 0…1
+        let hrv = Double(bio?.hrvNormalized ?? 0.5)              // 0…1
+        let coh = Double(bio?.coherence ?? 0.5)                  // 0…1
+        // DEPTH cues (slow, bounded — not flashing, so applied even under Reduce
+        // Motion): coherence pulls the whole field CLOSE (larger) — the spatial
+        // "distance" dimension — and HRV LIFTS it into a taller ellipse (elevation).
+        let radiusScale = 1.0 + 0.12 * (coh * 2 - 1)            // 0.88…1.12 (close↔far)
+        let squashY = 1.0 + 0.10 * (hrv * 2 - 1)               // 0.90…1.10 (lift)
         if !reduceMotion {
-            let bio = bus.freshBio(maxAge: 2)
-            let breath = Double(bio?.breathPhase ?? 0.5)         // 0…1
-            let hrv = Double(bio?.hrvNormalized ?? 0.5)          // 0…1
             let level = Double(max(audioEngine.masterLevel, audioEngine.masterLevelR))
             let swayAmp = min(1.0, level * 3.0)
             let azimuth = breath * 2 - 1                          // -1…1 with breath
@@ -112,9 +118,9 @@ struct SpectralDonutView: View {
             var path = Path()
             for s in 0...segs {
                 let a = Double(s) / Double(segs) * 2 * .pi
-                let r = baseRadius + wobble * sin(lobes * a + phase)
+                let r = (baseRadius + wobble * sin(lobes * a + phase)) * radiusScale
                 let p = CGPoint(x: center.x + CGFloat(cos(a) * r),
-                                y: center.y + CGFloat(sin(a) * r))
+                                y: center.y + CGFloat(sin(a) * r * squashY))
                 if s == 0 { path.move(to: p) } else { path.addLine(to: p) }
             }
             path.closeSubpath()
