@@ -437,6 +437,75 @@ public extension FXPreset {
         return comps.url
     }
 
+    /// Continuously MORPH this preset toward another by `amount` [0…1] — the macro
+    /// control. Continuous parameters interpolate linearly; enables/modes switch at
+    /// the midpoint. `amount` 0 = self, 1 = `other`. Pure + deterministic.
+    func morphed(to other: FXPreset, amount: Float) -> FXPreset {
+        let t = Swift.min(Swift.max(amount, 0), 1)
+        func L(_ a: Float, _ b: Float) -> Float { a + (b - a) * t }
+        func B(_ a: Bool, _ b: Bool) -> Bool { t < 0.5 ? a : b }
+        func S(_ a: String, _ b: String) -> String { t < 0.5 ? a : b }
+        return FXPreset(
+            id: UUID(), name: "Morph", tags: [], schema: 2,
+            fxEnabled: B(fxEnabled, other.fxEnabled),
+            filterEnabled: B(filterEnabled, other.filterEnabled),
+            filterModeRaw: S(filterModeRaw, other.filterModeRaw),
+            filterCutoff: L(filterCutoff, other.filterCutoff),
+            filterResonance: L(filterResonance, other.filterResonance),
+            saturationEnabled: B(saturationEnabled, other.saturationEnabled),
+            saturationDrive: L(saturationDrive, other.saturationDrive),
+            saturationMix: L(saturationMix, other.saturationMix),
+            bitcrushEnabled: B(bitcrushEnabled, other.bitcrushEnabled),
+            bitcrushBits: L(bitcrushBits, other.bitcrushBits),
+            bitcrushDownsample: L(bitcrushDownsample, other.bitcrushDownsample),
+            bitcrushMix: L(bitcrushMix, other.bitcrushMix),
+            widenerEnabled: B(widenerEnabled, other.widenerEnabled),
+            widenerWidth: L(widenerWidth, other.widenerWidth),
+            harmonizerEnabled: B(harmonizerEnabled, other.harmonizerEnabled),
+            harmonizerInterval1: L(harmonizerInterval1, other.harmonizerInterval1),
+            harmonizerInterval2: L(harmonizerInterval2, other.harmonizerInterval2),
+            harmonizerVoice2Enabled: B(harmonizerVoice2Enabled, other.harmonizerVoice2Enabled),
+            harmonizerMix: L(harmonizerMix, other.harmonizerMix),
+            chorusEnabled: B(chorusEnabled, other.chorusEnabled),
+            chorusRate: L(chorusRate, other.chorusRate),
+            chorusDepth: L(chorusDepth, other.chorusDepth),
+            chorusMix: L(chorusMix, other.chorusMix),
+            flangerEnabled: B(flangerEnabled, other.flangerEnabled),
+            flangerRate: L(flangerRate, other.flangerRate),
+            flangerDepth: L(flangerDepth, other.flangerDepth),
+            flangerFeedback: L(flangerFeedback, other.flangerFeedback),
+            flangerMix: L(flangerMix, other.flangerMix),
+            phaserEnabled: B(phaserEnabled, other.phaserEnabled),
+            phaserRate: L(phaserRate, other.phaserRate),
+            phaserDepth: L(phaserDepth, other.phaserDepth),
+            phaserFeedback: L(phaserFeedback, other.phaserFeedback),
+            phaserMix: L(phaserMix, other.phaserMix),
+            tremoloEnabled: B(tremoloEnabled, other.tremoloEnabled),
+            tremoloRate: L(tremoloRate, other.tremoloRate),
+            tremoloDepth: L(tremoloDepth, other.tremoloDepth),
+            tremoloStereoPan: B(tremoloStereoPan, other.tremoloStereoPan),
+            delayEnabled: B(delayEnabled, other.delayEnabled),
+            delayModeRaw: S(delayModeRaw, other.delayModeRaw),
+            delayMix: L(delayMix, other.delayMix),
+            delayTime: L(delayTime, other.delayTime),
+            delayFeedback: L(delayFeedback, other.delayFeedback),
+            delayTone: L(delayTone, other.delayTone),
+            delayWow: L(delayWow, other.delayWow),
+            delayDrive: L(delayDrive, other.delayDrive),
+            reverbEnabled: B(reverbEnabled, other.reverbEnabled),
+            reverbRoomSize: L(reverbRoomSize, other.reverbRoomSize),
+            reverbDamping: L(reverbDamping, other.reverbDamping),
+            reverbMix: L(reverbMix, other.reverbMix),
+            reverbWidth: L(reverbWidth, other.reverbWidth),
+            compressorEnabled: B(compressorEnabled, other.compressorEnabled),
+            compThreshold: L(compThreshold, other.compThreshold),
+            compRatio: L(compRatio, other.compRatio),
+            compMakeup: L(compMakeup, other.compMakeup),
+            limiterEnabled: B(limiterEnabled, other.limiterEnabled),
+            limiterCeiling: L(limiterCeiling, other.limiterCeiling)
+        )
+    }
+
     /// Case-insensitive match over name + tags for the library search field.
     /// Empty/whitespace query matches everything.
     func matches(_ query: String) -> Bool {

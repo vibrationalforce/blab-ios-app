@@ -3370,3 +3370,30 @@ DECISION (founder "alles auf höchster Ebene"): built Live Colabo's dependency-f
   (Multipeer session sharing). Ableton Link (real-time tempo/phase lock) deferred as its own
   device-verified step — LinkKit needs Ableton dev registration / C++ vendoring + a new build target +
   on-device audio-thread phase verification; shipping that blind would NOT be "highest level". Flagged.
+
+### 2026-06-23 (cont.) — Stability sweep + EchoelFX deepening + VJ visuals (Ralph loop)
+Founder drove a long autonomous loop ("ohne Zwischenfragen bis spät in die Nacht"). All on
+`claude/piano-roll-clip-view-wozlie`; every commit green on both gates (xcode-compile-check incl.
+AUv3 + ci.yml Linux tests) unless noted building.
+SHIPPED (cumulative):
+- v10.66.0 ADAPTIVE QUALITY — AdaptiveQuality (pure, Linux-tested) + ResourceGovernor (@MainActor
+  @Observable, thermal/low-power/battery + measured-FPS → QualityTier) wired into MetalBioView
+  (preferredFPS/detail/reduce-motion + per-frame feedback). Akku/CPU/GPU Ressourcenschonung.
+- v10.66.1 output-route-aware live-monitoring hint (iPhone mic + BT-A2DP output combo).
+- v10.66.2 rPPG saturation-hold (clipped frame = finger present, hold lock; no BPM-reset churn).
+- v10.67.0 COMPOSITION COHESION — BioComposer split into a body-stable STRUCTURE rng + evolving
+  DETAIL rng (structureSeed); same body = same song evolving ("homogener klingen"). Invariants kept.
+- v10.67.1 master −1 dBFS true-peak trim after the limiter (device capture showed 0 dBFS clipping).
+- v10.67.2 CAMERA-SESSION RESILIENCE — runtime-error/interruption observers + DispatchSource
+  frame-stall watchdog (>4 s no frame → restart, 6 s cooldown). Fixes the ~68 s/~200 s silent rPPG
+  freeze seen in device logs (camera stopped delivering frames, no notification). Concurrency-reviewed.
+- v10.68.0 ECHOELFX BIO-REACTIVE MODULATION (workstream 1/4) — FXModulation pure core (Core/, reuses
+  ModSource so AUv3/DSP stays self-contained; Linux-tested) + FXBioModulator (~30 Hz control loop,
+  routes carrier→FX target around the user base, off audio thread) + EchoelFX "Bio-reactive" section.
+- v10.69.0 ECHOELFX MORE ALGORITHMS (workstream 2/4) — EchoelBitcrush (bit-depth + sample-rate
+  reduction) + EchoelStereoWidener (M/S), wired chain→VM→UI→FXPreset(lenient)→bio-mod targets. Tests.
+- v10.70.0 VJ VISUALS — live in-fullscreen control overlay (tap canvas; scene strip + live params,
+  status bar hidden) + palette control (MetalBioView hue rotation YIQ + luma saturation, neutral
+  default so physical tone→colour is preserved).
+DECISION: AskUserQuestion used once (EchoelFX direction) — founder chose ALL four workstreams,
+  research-oriented; sequencing one green commit each (1 bio-mod ✅, 2 lo-fi ✅, 3 macro-morph, 4 CI polish).

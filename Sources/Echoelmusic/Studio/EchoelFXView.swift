@@ -210,6 +210,14 @@ final class FXViewModel {
         fxEnabled = preset.fxEnabled   // didSet bridges the voice's master gate
         reseed()
     }
+
+    /// Macro-morph: continuously blend from preset `a` toward preset `b` by `amount`
+    /// [0…1] and write the result live (keeps the master gate as-is). The view drives
+    /// this from the morph fader; `reseed()` refreshes every UI mirror.
+    func morph(from a: FXPreset, to b: FXPreset, amount: Float) {
+        a.morphed(to: b, amount: amount).apply(to: chain)
+        reseed()
+    }
 }
 
 // MARK: - View
@@ -230,6 +238,11 @@ struct EchoelFXView: View {
     @State private var renameText = ""
     /// Live filter over preset names + tags (both My presets and Community).
     @State private var presetQuery = ""
+    // Macro morph: snapshot of the sound when a target is picked (A), the target (B),
+    // and the live morph amount A→B.
+    @State private var morphA: FXPreset?
+    @State private var morphTarget: FXPreset?
+    @State private var morphAmount: Float = 0
 
     /// Drive any voice's insert chain. `fxEnabled`/`setFXEnabled` bridge the
     /// voice's master gate so the surface stays decoupled from the voice type.
@@ -245,6 +258,7 @@ struct EchoelFXView: View {
         NavigationStack {
             Form {
                 presetSection
+                macroMorphSection
                 FXBioModSection(modulator: modulator)
                 Section {
                     Toggle("Insert FX", isOn: $vm.fxEnabled)
@@ -404,6 +418,49 @@ struct EchoelFXView: View {
                 Button("Cancel", role: .cancel) { renameTarget = nil }
             }
         }
+    }
+
+    // MARK: - Macro morph
+
+    /// All presets that can be a morph target (your own + curated community).
+    private var morphTargets: [FXPreset] { presetStore.sortedPresets + FXPreset.curatedCommunity }
+
+    /// One fader that continuously morphs the CURRENT sound toward a chosen preset —
+    /// the performance "macro". Picking a target snapshots the current sound as A;
+    /// the fader blends A→target live (every continuous parameter glides).
+    @ViewBuilder
+    private var macroMorphSection: some View {
+        Section {
+            Menu {
+                ForEach(morphTargets) { preset in
+                    Button(preset.name) {
+                        morphA = vm.snapshot(name: "Morph A")
+                        morphTarget = preset
+                        morphAmount = 0
+                    }
+                }
+            } label: {
+                Label(morphTarget.map { "Morph → \($0.name)" } ?? "Morph toward a preset…",
+                      systemImage: "slider.horizontal.3")
+                    .font(EchoelTheme.font(13, .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .accessibilityHint("Pick a preset to morph the current sound toward")
+            if let a = morphA, let b = morphTarget {
+                EchoelValueField(
+                    label: "Morph",
+                    value: Binding(get: { morphAmount },
+                                   set: { morphAmount = $0; vm.morph(from: a, to: b, amount: $0) }),
+                    range: 0...1, decimals: 2)
+            }
+        } header: {
+            Text("Macro morph").font(EchoelTheme.font(13, .bold)).textCase(nil)
+        } footer: {
+            Text(morphTarget == nil
+                 ? "Blend the current sound continuously toward any preset with one fader — for live transitions."
+                 : "0 = current sound · 1 = the target preset. Every parameter glides between them.")
+        }
+        .listRowBackground(EchoelTheme.fill)
     }
 
     // MARK: - Presets (save your own / recall)
