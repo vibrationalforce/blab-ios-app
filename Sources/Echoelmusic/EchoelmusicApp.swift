@@ -87,6 +87,9 @@ struct EchoelmusicApp: App {
 
     // Resonance-breathing guide (the active half of the coherence loop).
     @State private var breathPacer = BreathPacer()
+    // Records a meditation/coherence session (HR/HRV/coherence averages + peak) and
+    // keeps the history — the dormant SessionRecorder, now wired for the Meditation pillar.
+    @State private var sessionRecorder = SessionRecorder()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     @Environment(\.scenePhase) private var scenePhase
@@ -220,6 +223,7 @@ struct EchoelmusicApp: App {
             .environment(projectStore)
             .environment(demoSource)
             .environment(breathPacer)
+            .environment(sessionRecorder)
             .task {
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must
