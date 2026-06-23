@@ -89,11 +89,26 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                     #if os(iOS)
                     .keyboardType(.decimalPad)
                     .toolbar {
-                        // Gate on `focused` so only the active field contributes one Done
-                        // to the shared keyboard accessory (avoids the stacked-Done bug).
+                        // Gate on `focused` so only the active field contributes ONE bar
+                        // to the shared keyboard accessory (avoids the stacked-button bug).
+                        // The decimal pad has no minus/plus and no return key — so the bar
+                        // carries every sign the founder asked for: − / + nudge by one
+                        // step, ± flips the sign (the only way to type a negative on the
+                        // decimal pad — shown when the range allows it), Done closes.
                         if focused {
                             ToolbarItemGroup(placement: .keyboard) {
-                                Spacer(); Button("Done") { focused = false }
+                                Button { stepBy(-1) } label: { Image(systemName: "minus") }
+                                    .accessibilityLabel("Decrease \(label)")
+                                Button { stepBy(1) } label: { Image(systemName: "plus") }
+                                    .accessibilityLabel("Increase \(label)")
+                                if range.lowerBound < 0 {
+                                    Button { toggleSign() } label: {
+                                        Image(systemName: "plus.forwardslash.minus")
+                                    }
+                                    .accessibilityLabel("Flip sign of \(label)")
+                                }
+                                Spacer()
+                                Button("Done") { focused = false }.fontWeight(.semibold)
                             }
                         }
                     }
@@ -177,6 +192,36 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 }
             }
             .onEnded { _ in scrubbing = false; onCommit() }
+    }
+
+    /// A meaningful single nudge for the − / + buttons: 1% of the range, but never
+    /// finer than the decimal grid so a tap always changes the displayed number.
+    private var stepSize: Double {
+        let span = Double(range.upperBound - range.lowerBound)
+        let grid = pow(10.0, -Double(decimals))
+        return Swift.max(grid, span / 100)
+    }
+
+    /// The number the toolbar acts on: the in-progress typed text if it parses,
+    /// otherwise the committed value (so −/+/± work mid-edit and before editing).
+    private var editingBase: Double {
+        Double(text.replacingOccurrences(of: ",", with: ".")) ?? Double(value)
+    }
+
+    /// − / + nudge by one step. Live like the fader: applies + reflects, fires onChange;
+    /// onCommit lands on Done.
+    private func stepBy(_ dir: Double) {
+        apply(editingBase + dir * stepSize)
+        syncText()
+        onChange()
+    }
+
+    /// ± flips the sign — the decimal pad cannot type a leading minus, so this is how a
+    /// negative value (pan, formant, dB) is entered. Clamps to the range like everything.
+    private func toggleSign() {
+        apply(-editingBase)
+        syncText()
+        onChange()
     }
 
     private func apply(_ raw: Double) {
