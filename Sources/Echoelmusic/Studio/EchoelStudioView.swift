@@ -1488,8 +1488,9 @@ struct EchoelStudioView: View {
         let locked = cameraRPPG.isLocked
         let lightColor: Color = !cameraRPPG.fingerDetected ? EchoelTheme.dim
             : (locked ? EchoelTheme.accent : Color.orange)
-        let statusText = !cameraRPPG.fingerDetected ? "Cover the rear camera + flash"
-            : (locked ? "Locked" : "Acquiring…")
+        // Specific, live coaching ("Press lighter" / "Hold still…") instead of a
+        // flat "Acquiring…", so a placed-but-unlockable finger gets actionable help.
+        let statusText = cameraRPPG.coachingHint
         return VStack(spacing: 8) {
             HStack(spacing: 10) {
                 Circle().fill(lightColor).frame(width: 14, height: 14)
