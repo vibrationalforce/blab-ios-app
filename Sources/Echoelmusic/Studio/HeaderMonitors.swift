@@ -77,20 +77,38 @@ struct PulseMonitorMini: View {
 
 // MARK: - Immersive monitor (right)
 
-/// Compact header monitor of the immersive visual. Renders the real `MetalBioView`
-/// only while a session is live (bounds GPU); otherwise a neutral tile invites a tap.
+/// Compact header monitor of the immersive visual. Deliberately a LIGHTWEIGHT
+/// SwiftUI preview (radial bio-colour that pulses at the heart rate, hue following
+/// coherence) — NOT a second MetalBioView. Running two MTKViews at once (this tile
+/// + the full-screen immersive) starved the GPU and made the full immersive render
+/// black for seconds (device video, 2026-06-23). Tapping opens the real Metal
+/// immersive, so only ONE MetalBioView ever renders at a time.
 @MainActor
 struct ImmersiveMonitorMini: View {
     let active: Bool
+    @Environment(EngineBus.self) private var bus
 
     var body: some View {
-        ZStack {
+        Group {
             if active {
-                MetalBioView(intensity: 0.9, ringDensity: 24, motion: 0.8, spread: 0.9)
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { tl in
+                    let bio = bus.freshBio()
+                    let coh = Double(bio?.coherence ?? 0.4)
+                    let hr = max(40.0, Double(bio?.heartRateBPM ?? 60))
+                    // Smooth heartbeat pulse from the wall clock at the live HR.
+                    let phase = (tl.date.timeIntervalSinceReferenceDate * hr / 60.0)
+                        .truncatingRemainder(dividingBy: 1.0)
+                    let pulse = 0.5 - 0.5 * cos(phase * 2 * .pi)           // 0…1 per beat
+                    let hue = 0.66 - 0.33 * min(max(coh, 0), 1)           // blue→green with coherence
+                    let color = Color(hue: hue, saturation: 0.85, brightness: 0.45 + 0.45 * pulse)
+                    RadialGradient(colors: [color, .black], center: .center,
+                                   startRadius: 1, endRadius: 28)
+                }
             } else {
-                EchoelTheme.fill
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                ZStack {
+                    EchoelTheme.fill
+                    Image(systemName: "sparkles").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                }
             }
         }
         .frame(width: 54, height: 32)
