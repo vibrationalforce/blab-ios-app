@@ -118,47 +118,57 @@ final class AutoMixChain {
     // MARK: - Node configuration
 
     private func configureEQ() {
-        // Band 0: High-pass 40Hz — remove sub-bass rumble
+        // Master curve retuned 2026-06-23 from an FFT of a real take: the mix was
+        // sub-dominated and dark (20–60 Hz ~+15 dB over the low-mids, almost nothing
+        // above 8 kHz). The old "balanced" preset made it worse — a low-shelf BOOST
+        // (boom) + a presence DIP (darker). The new curve trims rumble, tames the
+        // boom, restores presence and opens the air so the body's take reads clear.
+
+        // Band 0: High-pass 45 Hz — trim deep, non-musical rumble (felt sub stays).
         eq.bands[0].filterType  = .highPass
-        eq.bands[0].frequency   = 40
+        eq.bands[0].frequency   = 45
         eq.bands[0].bypass      = false
 
-        // Band 1: Low-shelf warmth +1.5dB at 180Hz
+        // Band 1: Low-shelf CUT -1.5 dB at 140 Hz — tame the boom/mud that swamped
+        // the mids (was a +1.5 dB boost).
         eq.bands[1].filterType  = .lowShelf
-        eq.bands[1].frequency   = 180
-        eq.bands[1].gain        = 1.5
+        eq.bands[1].frequency   = 140
+        eq.bands[1].gain        = -1.5
         eq.bands[1].bypass      = false
 
-        // Band 2: Presence dip -1.5dB at 3kHz (tames harshness)
+        // Band 2: Presence BOOST +2 dB at 2.8 kHz (clarity/definition; was a -1.5 dB dip).
         eq.bands[2].filterType  = .parametric
-        eq.bands[2].frequency   = 3000
-        eq.bands[2].bandwidth   = 1.0
-        eq.bands[2].gain        = -1.5
+        eq.bands[2].frequency   = 2800
+        eq.bands[2].bandwidth   = 1.5
+        eq.bands[2].gain        = 2.0
         eq.bands[2].bypass      = false
 
-        // Band 3: Air shelf +2dB at 10kHz (clarity, openness)
+        // Band 3: Air shelf +3.5 dB at 9 kHz (openness — the mix had no top end).
         eq.bands[3].filterType  = .highShelf
-        eq.bands[3].frequency   = 10000
-        eq.bands[3].gain        = 2.0
+        eq.bands[3].frequency   = 9000
+        eq.bands[3].gain        = 3.5
         eq.bands[3].bypass      = false
     }
 
     // MARK: - Preset switching
 
     private func applyPreset() {
+        // Gains are (low-shelf @140, presence @2.8k, air @9k). Balanced = the new
+        // clear default; warm leans back toward body/low-mids; bright pushes
+        // presence + air; transparent is flat.
         switch preset {
         case .balanced:
-            eq.bands[1].gain =  1.5
-            eq.bands[2].gain = -1.5
-            eq.bands[3].gain =  2.0
-        case .warm:
-            eq.bands[1].gain =  3.0
-            eq.bands[2].gain = -2.5
-            eq.bands[3].gain =  0.5
-        case .bright:
-            eq.bands[1].gain =  0.5
-            eq.bands[2].gain = -0.5
+            eq.bands[1].gain = -1.5
+            eq.bands[2].gain =  2.0
             eq.bands[3].gain =  3.5
+        case .warm:
+            eq.bands[1].gain =  1.5
+            eq.bands[2].gain =  0.5
+            eq.bands[3].gain =  1.5
+        case .bright:
+            eq.bands[1].gain = -2.5
+            eq.bands[2].gain =  3.0
+            eq.bands[3].gain =  5.0
         case .transparent:
             eq.bands[1].gain =  0
             eq.bands[2].gain =  0

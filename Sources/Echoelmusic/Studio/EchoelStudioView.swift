@@ -629,8 +629,18 @@ struct EchoelStudioView: View {
                 Text("Lock BPM (tight loops)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
-            .onChange(of: lockBPM) { _, _ in recomposeIfRunning() }
-            .accessibilityHint("When on, the loop runs at exactly the set tempo instead of following your heart")
+            .onChange(of: lockBPM) { _, on in
+                // Enabling the lock ADOPTS the body's current tempo instead of
+                // snapping to a stale value — so the take (and the tempo-driven
+                // immersive circles) stay continuous through the toggle. Falls back
+                // to the existing lockedBPM when no fresh bio frame is available.
+                if on, let hr = bus.freshBio()?.heartRateBPM, hr >= 40, hr <= 240 {
+                    lockedBPM = (Double(hr) * 10).rounded() / 10
+                    if running { beatPlayer.pattern.setTempo(lockedBPM); metronome.bpm = lockedBPM }
+                }
+                recomposeIfRunning()
+            }
+            .accessibilityHint("When on, the loop locks to your current heart-rate tempo for tight loops")
 
             if lockBPM {
                 EchoelValueField(label: "Tempo", value: $lockedBPM, range: 40...240, unit: "BPM",
