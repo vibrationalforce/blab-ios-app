@@ -208,6 +208,9 @@ struct EchoelStudioView: View {
     @State private var visualDetail: Float = 40       // ring density
     @State private var visualMotion: Float = 1.0      // animation speed (flash-clamped)
     @State private var visualSpread: Float = 1.0
+    /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
+    @State private var visualHue: Float = 0
+    @State private var visualSaturation: Float = 1
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
@@ -316,7 +319,8 @@ struct EchoelStudioView: View {
                 } else {
                     MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
                                  intensity: visualIntensity, ringDensity: visualDetail,
-                                 motion: visualMotion, spread: visualSpread).ignoresSafeArea()
+                                 motion: visualMotion, spread: visualSpread,
+                                 hueShift: visualHue, saturation: visualSaturation).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ controls — clean for projection,
                 // hands-on for performance. Controls are a solid panel (no glass/blur).
@@ -846,7 +850,9 @@ struct EchoelStudioView: View {
                              onChange: { visualPresetID = "" })
             EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
                              onChange: { visualPresetID = "" })
-            Text("The colour is the heard tone transposed into visible light (physically correct). Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
+            EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
+            EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+            Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -913,6 +919,8 @@ struct EchoelStudioView: View {
                                  onChange: { visualPresetID = "" })
                 EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
                                  onChange: { visualPresetID = "" })
+                EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
+                EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
             }
             .padding(14)
             .background(EchoelTheme.bg.opacity(0.92))
