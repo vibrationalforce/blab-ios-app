@@ -62,6 +62,46 @@ final class ArrangementPlayerTests: XCTestCase {
         store.clearAll()
     }
 
+    func testJumpSeeksToSectionAndLoadsItsClip() {
+        let (clips, drumClip, melodyClip) = makeClips()
+        let store = ArrangementStore()
+        store.clearAll()
+        store.addSection(clipID: drumClip.id, name: "A", lengthBars: 4)
+        store.addSection(clipID: melodyClip.id, name: "B", lengthBars: 4)
+
+        let pattern = PatternEngine()
+        let roll = PianoRollModel()
+        let player = ArrangementPlayer()
+        player.play(store: store, clips: clips, pattern: pattern, pianoRoll: roll)
+        XCTAssertEqual(player.currentIndex, 0)
+
+        // Tap-to-seek straight to section B without waiting out section A's bars.
+        player.jump(to: 1)
+        XCTAssertEqual(player.currentIndex, 1)
+        XCTAssertEqual(roll.notes.first?.pitch, 60, "section B's melody clip loaded immediately")
+        XCTAssertFalse(pattern.steps[0][0], "section A's drums replaced")
+
+        player.stop()
+        store.clearAll()
+    }
+
+    func testJumpIsNoOpWhenStopped() {
+        let (clips, drumClip, melodyClip) = makeClips()
+        let store = ArrangementStore()
+        store.clearAll()
+        store.addSection(clipID: drumClip.id, name: "A", lengthBars: 4)
+        store.addSection(clipID: melodyClip.id, name: "B", lengthBars: 4)
+
+        let pattern = PatternEngine()
+        let roll = PianoRollModel()
+        let player = ArrangementPlayer()
+        // Never started → jump must do nothing (the list is the editor when stopped).
+        player.jump(to: 1)
+        XCTAssertFalse(player.isPlaying)
+        XCTAssertEqual(player.currentIndex, 0)
+        store.clearAll()
+    }
+
     func testAdvancesToNextSectionAtBarBoundary() {
         let (clips, drumClip, melodyClip) = makeClips()
         let store = ArrangementStore()

@@ -173,6 +173,13 @@ struct ArrangementView: View {
                             alignment: .leading
                         )
                         .frame(width: Swift.max(w * CGFloat(section.lengthBars) / CGFloat(totalBars) - 1, 8))
+                        // Tap-to-seek while the song plays: jump straight to this
+                        // section. Inert when stopped (the list below is the editor).
+                        .contentShape(Rectangle())
+                        .onTapGesture { if player.isPlaying { player.jump(to: index) } }
+                        .accessibilityElement()
+                        .accessibilityLabel("Jump to \(section.name)")
+                        .accessibilityAddTraits(.isButton)
                 }
             }
             .frame(width: w, height: 34, alignment: .leading)

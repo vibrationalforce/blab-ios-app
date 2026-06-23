@@ -73,6 +73,14 @@ public struct ArrangementCursor: Equatable, Sendable {
         public var finished: Bool
     }
 
+    /// Jump straight to a section, restarting it from its first bar. Used by
+    /// tap-to-seek on the timeline. Out-of-range indices are ignored (no-op).
+    public mutating func seek(to newIndex: Int, sectionCount: Int) {
+        guard newIndex >= 0, newIndex < sectionCount else { return }
+        index = newIndex
+        barsIntoSection = 0
+    }
+
     /// Advance the cursor by one completed bar.
     ///
     /// - Parameters:

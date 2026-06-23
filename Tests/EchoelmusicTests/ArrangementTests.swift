@@ -103,6 +103,21 @@ final class ArrangementTests: XCTestCase {
         XCTAssertEqual(cursor.index, 0)
     }
 
+    func testSeekJumpsToSectionAndRestartsItsBars() {
+        var cursor = ArrangementCursor(index: 0, barsIntoSection: 3)
+        cursor.seek(to: 2, sectionCount: 4)
+        XCTAssertEqual(cursor.index, 2)
+        XCTAssertEqual(cursor.barsIntoSection, 0)   // restarts the section from bar 0
+    }
+
+    func testSeekOutOfRangeIsNoOp() {
+        var cursor = ArrangementCursor(index: 1, barsIntoSection: 2)
+        cursor.seek(to: 9, sectionCount: 3)         // past the end → ignored
+        cursor.seek(to: -1, sectionCount: 3)        // negative → ignored
+        XCTAssertEqual(cursor.index, 1)
+        XCTAssertEqual(cursor.barsIntoSection, 2)
+    }
+
     // MARK: - Store
 
     @MainActor
