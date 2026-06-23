@@ -72,6 +72,21 @@ final class SpaceReverbTests: XCTestCase {
                              "more room-in-room blend → more late (outer-room tail) energy")
     }
 
+    func testProcessInPlaceMatchesProcess() {
+        // Two fresh, identically-seeded instances must produce bit-identical wet
+        // output from `process` (allocating) and `processInPlace` (real-time-safe).
+        let a = smallSpace(mix: 0.6, blend: 0.8)
+        let b = smallSpace(mix: 0.6, blend: 0.8)
+        let dry = (0..<64).map { Float(sin(Double($0) * 0.4)) }
+        let ref = a.process(dry)
+        var buf = dry
+        b.processInPlace(&buf)
+        XCTAssertEqual(buf.count, 64)
+        for i in 0..<64 {
+            XCTAssertEqual(buf[i], ref[i], accuracy: 1e-5, "in-place == process at sample \(i)")
+        }
+    }
+
     func testSetSpaceClampsAndUpdates() {
         let rv = smallSpace(mix: 0.5, blend: 0.5)
         rv.setSpace(mix: 2, blend: -1)
