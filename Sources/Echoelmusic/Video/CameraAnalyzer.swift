@@ -589,10 +589,18 @@ final class CameraAnalyzer {
             vDSP_dotpr(temp, 1, temp, 1, &variance, 30)
             variance /= 30.0
 
-            // Good PPG signal has small but measurable variance
-            let snr = Double(variance)
-            if snr > 0.0001 && snr < 0.01 {
-                quality += 0.3
+            // Good PPG signal has a small but measurable pulsatile component. Judge
+            // it RELATIVE to the DC level (coefficient of variation), not as an
+            // absolute variance: at a bright finger (DC≈0.8) a healthy ~1% AC gives
+            // variance ≈6e-5, which the old absolute `> 0.0001` gate wrongly rejected
+            // — so quality capped at 0.31 and never reflected a real pulse (device
+            // log). CV in ~0.1%…10% of DC is the plausible fingertip-PPG band.
+            let meanD = Double(mean)
+            if meanD > 0.01 {
+                let cv = Double(sqrt(max(0, variance))) / meanD
+                if cv > 0.001 && cv < 0.1 {
+                    quality += 0.3
+                }
             }
         }
 

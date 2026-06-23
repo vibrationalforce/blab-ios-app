@@ -401,6 +401,11 @@ struct EchoelStudioView: View {
                         Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
                         Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
                             .disabled(!midiOut.enabled)
+                        // Stream the body's live 5D expression (Glide/Slide/Press) per
+                        // note — the ROLI-Seaboard-style multidimensional take out to any
+                        // MPE rig. Needs MPE on; off by default.
+                        Toggle(isOn: $midiOut.expressionEnabled) { Label("5D Expression (body)", systemImage: "hand.draw") }
+                            .disabled(!midiOut.enabled || !midiOut.mpeEnabled)
                         #if canImport(HealthKit)
                         // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
                         // BLE) into Apple Health. Off by default; never writes HRV.
