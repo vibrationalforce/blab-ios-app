@@ -64,6 +64,9 @@ struct EchoelStudioView: View {
     @Environment(\.openURL) private var openURL
     #if canImport(HealthKit)
     @Environment(HealthKitWriter.self) private var healthWriter
+    #if canImport(CoreHaptics)
+    @Environment(HapticController.self) private var haptics
+    #endif
     #endif
 
     // The live, fully-editable timbre is `currentPatch` (single source of truth).
@@ -714,6 +717,9 @@ struct EchoelStudioView: View {
 
             tapTempoRow
             metronomeRow
+            #if canImport(CoreHaptics)
+            hapticsRow
+            #endif
         }
     }
 
@@ -742,6 +748,20 @@ struct EchoelStudioView: View {
             }
         }
     }
+
+    #if canImport(CoreHaptics)
+    /// Eyes-free transport pulse — the body feels each quarter-note (down-beat
+    /// strongest) so a performer can hold time without watching the screen. Off
+    /// until armed, exactly like the click.
+    @ViewBuilder private var hapticsRow: some View {
+        @Bindable var haptics = haptics
+        Toggle(isOn: $haptics.isEnabled) {
+            Text("Haptic beat (feel)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+        }
+        .tint(EchoelTheme.accent)
+        .accessibilityHint("Pulses the phone on each quarter-note so you can keep time eyes-free")
+    }
+    #endif
 
     /// Tap a tempo in time — the classic performance way to dial BPM by feel. Tapping
     /// locks the BPM (so the take holds it) and steers the click; a long pause resets.

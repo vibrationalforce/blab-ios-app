@@ -279,6 +279,14 @@ struct EchoelmusicApp: App {
                 // PatternEngine relays each pulse into the authoritative Transport
                 // (additive mirror; existing onStep/onTick stay the live path).
                 beatPlayer.pattern.transport = transport
+                #if canImport(CoreHaptics)
+                // Eyes-free transport: every quarter-note pulses the body (no-op
+                // until the user arms haptics). Lowest-priority subscriber so it
+                // never reorders the arrangement→roll note path.
+                transport.addStepSubscriber("haptics", priority: 1000) { [weak haptics] pos in
+                    haptics?.tapBeat(step: pos.step)
+                }
+                #endif
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
