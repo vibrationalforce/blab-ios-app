@@ -73,11 +73,17 @@ struct WorkspaceView: View {
     /// border, no glow).
     private var topBar: some View {
         ZStack {
-            // "Echoelmusic" truly centred (founder), independent of the monitors on
-            // either side.
-            Text("Echoelmusic")
-                .font(EchoelTheme.font(14, .semibold))
-                .foregroundStyle(EchoelTheme.text)
+            // Centred brand with the small version directly beneath it (founder), so
+            // both header corners are free for the live monitors.
+            VStack(spacing: 1) {
+                Text("Echoelmusic")
+                    .font(EchoelTheme.font(14, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                Text(Self.versionString)
+                    .font(EchoelTheme.font(9))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .accessibilityLabel("Version \(Self.versionString)")
+            }
             HStack(spacing: 8) {
                 // LEFT (founder red-1): app mark + live EKG pulse monitor.
                 EchoelLogoMark().frame(width: 22, height: 22)
@@ -90,11 +96,7 @@ struct WorkspaceView: View {
                 .buttonStyle(.plain)
                 #endif
                 Spacer(minLength: 0)
-                // RIGHT (founder red-2): version + live immersive-visual monitor.
-                Text(Self.versionString)
-                    .font(EchoelTheme.font(10))
-                    .foregroundStyle(EchoelTheme.dim)
-                    .accessibilityLabel("Version \(Self.versionString)")
+                // RIGHT (founder red-2): live immersive-visual monitor (full corner).
                 #if canImport(AVFoundation)
                 Button { expandedMonitor = .immersive } label: {
                     ImmersiveMonitorMini(active: cameraRPPG.isRunning)
@@ -104,7 +106,7 @@ struct WorkspaceView: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 48)
+        .frame(height: 50)
         .background(EchoelTheme.bg)
     }
 
