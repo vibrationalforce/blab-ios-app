@@ -34,6 +34,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
 
     @State private var text = ""
+    /// While editing, the current value is shown as the (greyed) placeholder so a tap
+    /// lets you type a FRESH number without first clearing digits — the old value
+    /// stays visible as a hint, and an empty commit restores it.
+    @State private var editPlaceholder = ""
     @FocusState private var focused: Bool
 
     // Vertical-fader drag state (incremental, so toggling fine mode never jumps).
@@ -79,7 +83,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         // radius; bio-green only while editing/scrubbing.
         ZStack {
             HStack(spacing: 5) {
-                TextField("", text: $text)
+                TextField(editPlaceholder, text: $text)
                     .multilineTextAlignment(.trailing)
                     .font(EchoelTheme.font(17).monospacedDigit())
                     .foregroundStyle(focused || scrubbing ? EchoelTheme.accent : EchoelTheme.text)
@@ -114,7 +118,16 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                     }
                     #endif
                     .onSubmit(commitText)
-                    .onChange(of: focused) { _, f in if !f { commitText() } }
+                    .onChange(of: focused) { _, f in
+                        if f {
+                            // Tap-to-type: clear the field and show the current value as
+                            // the placeholder, so the first keystroke starts a fresh number.
+                            editPlaceholder = numberString
+                            text = ""
+                        } else {
+                            commitText()   // empty input → Double(nil) → syncText restores
+                        }
+                    }
 
                 if !unitLabel.isEmpty {
                     Text(unitLabel)
