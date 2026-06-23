@@ -32,9 +32,10 @@ public enum PitchTracker {
         for s in samples { energy += Double(s) * Double(s) }
         guard energy / Double(n) > 1e-7 else { return nil }
 
-        // 1) Difference function d(τ).
+        // 1) Difference function d(τ), canonical from τ=1 so the cumulative-mean
+        //    normalisation (and thus the 0.12 threshold) is calibrated as in YIN.
         var d = [Double](repeating: 0, count: tauMax + 1)
-        for tau in tauMin...tauMax {
+        for tau in 1...tauMax {
             var sum = 0.0
             var i = 0
             let limit = n - tau
@@ -46,12 +47,12 @@ public enum PitchTracker {
             d[tau] = sum
         }
 
-        // 2) Cumulative mean normalised difference d'(τ).
+        // 2) Cumulative mean normalised difference d'(τ) = d(τ) / [(1/τ) Σ_{1..τ} d(j)].
         var dPrime = [Double](repeating: 1, count: tauMax + 1)
         var running = 0.0
-        for tau in tauMin...tauMax {
+        for tau in 1...tauMax {
             running += d[tau]
-            dPrime[tau] = running > 0 ? d[tau] * Double(tau - tauMin + 1) / running : 1
+            dPrime[tau] = running > 0 ? d[tau] * Double(tau) / running : 1
         }
 
         // 3) Absolute threshold: first τ dipping below `threshold` at a local minimum;
