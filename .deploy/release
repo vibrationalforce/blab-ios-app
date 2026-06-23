@@ -1,5 +1,15 @@
-build: 2026-06-23 v10.76.7 (visuals: + Water caustics look — Wasser·Klang·Licht)
+build: 2026-06-23 v10.76.8 (visuals: blend looks + decouple presets + never-black)
 branch: claude/piano-roll-clip-view-wozlie
+notesT: Device feedback fix — the immersive Visual had two control rows fighting (a Preset
+  silently swapped the renderer under the chosen Look) and some combos rendered BLACK or
+  flat-green-flooded. Now: (1) Presets shape ENERGY only; the Look strip alone owns the
+  renderer — every button does what it says. (2) Real BLENDING ("mischend"): a "Blend with"
+  look + a Mix ratio 0…1 overlaps two fields (Rings⊕Water etc.) with a smooth morph. (3)
+  The Metal visual is now STRUCTURALLY never a dead-black screen: tone-colour luminance floor
+  (dim deep-red/violet tones lifted, hue preserved), a vignette that can't collapse on small
+  Spread, and a faint full-frame ambient wash. (4) Fixed the flat-green flood (2D-field
+  square coordinate). (5) Donuts shows a faint idle baseline when silent instead of black.
+  Flash-safety unchanged (≤2.5 Hz < WCAG 3 Hz). INSTALL 10.76.8.
 notesT: Founder chose all next visual directions + the "Wasser·Klang·Licht" aesthetic for classic media
   production (music video, film, social). First slice: a WATER caustics look added to the Look strip
   (Donuts · Rings · Chladni · Plasma · Water). Crossing wave trains form a rippling bright light net

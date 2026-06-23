@@ -58,6 +58,16 @@ struct SpectralDonutView: View {
         let env = Float(min(1.0, level * 4.0))        // RMS ~0.25 → full intensity
         for i in 0..<n { target[i] *= env }
 
+        // IDLE so the look is never a dead-black screen when there is no audio yet (e.g.
+        // the synth is armed-silent, or the user opens the visual before playing): a
+        // faint, slow breathing baseline across the bands. Real signal overrides it the
+        // instant there is output, so this only ever shows during true silence.
+        let totalEnergy = target.reduce(0, +)
+        if totalEnergy < 0.02 {
+            let idle = Float(0.06 + 0.02 * sin(date.timeIntervalSinceReferenceDate * 0.3))
+            for i in 0..<n { target[i] = idle }
+        }
+
         // Ease toward target (frame-rate independent); freeze when Reduce Motion.
         let dt = reduceMotion ? 0 : min(0.1, max(0, date.timeIntervalSince(state.lastDate)))
         state.lastDate = date

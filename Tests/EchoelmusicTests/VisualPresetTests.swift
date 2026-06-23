@@ -27,7 +27,7 @@ final class VisualPresetTests: XCTestCase {
 
     func testInitClampsOutOfRange() {
         let p = VisualPreset(id: "x", name: "X", intensity: 9, detail: 999, motion: -3,
-                             spread: 9, spectralDonuts: true, blurb: "")
+                             spread: 9, blurb: "")
         XCTAssertEqual(p.intensity, 1.5)
         XCTAssertEqual(p.detail, 90)
         XCTAssertEqual(p.motion, 0)
