@@ -177,10 +177,10 @@ public final class MIDIOutput {
     private func send(_ bytes: [UInt8]) {
         #if canImport(CoreMIDI)
         guard isReady, (2...3).contains(bytes.count) else { return }
-        let status = UInt32(bytes[0])
-        let data1 = UInt32(bytes[1])
-        let data2 = bytes.count > 2 ? UInt32(bytes[2]) : 0
-        var word = (UInt32(0x2) << 28) | (status << 16) | (data1 << 8) | data2
+        // Build the MIDI 1.0 UMP word via the pure, unit-tested encoder (group 0),
+        // so the live wire format is centralised and verified by UMPEncoderTests.
+        var word = UMPEncoder.midi1ChannelVoice(status: bytes[0], data1: bytes[1],
+                                                data2: bytes.count > 2 ? bytes[2] : 0)
 
         var eventList = MIDIEventList()
         let packet = MIDIEventListInit(&eventList, ._1_0)
