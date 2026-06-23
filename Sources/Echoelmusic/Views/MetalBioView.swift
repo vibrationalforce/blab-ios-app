@@ -50,6 +50,7 @@ private struct BioUniforms {
 struct MetalBioView: UIViewRepresentable {
 
     @Environment(EngineBus.self) private var bus
+    @Environment(ResourceGovernor.self) private var governor
     var reduceMotion: Bool = false
     /// The instrument's current fundamental (Hz) — its colour is the physical
     /// octave-transposition of this pitch into visible light.
@@ -80,13 +81,21 @@ struct MetalBioView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: MTKView, context: Context) {
+        // Resource conservation: the governor decides the frame rate, the visual
+        // detail and whether to freeze motion, from live thermal/battery/FPS. Apply
+        // before pushing bio so this frame already honours the current tier.
+        let q = governor.settings
+        view.preferredFramesPerSecond = q.targetFPS
+        context.coordinator.governor = governor
+        let effectiveReduceMotion = reduceMotion || q.reduceMotion
+        let scaledRingDensity = ringDensity * q.visualDetailScale
         // Push the freshest bio snapshot into the renderer on the main actor; the
         // draw loop reads these atomically. Stale frames expire via freshBio().
         let bio = bus.freshBio()
         // Derive the flash-safe heartbeat pulse from the shared, unit-tested
         // BioVisualParams so WCAG flash-safety lives in ONE place (FlashGuard),
         // not duplicated in the shader. The look is unchanged (same hr/60 mapping).
-        let vp = BioVisualParams.from(bio, reduceMotion: reduceMotion)
+        let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
         // Colour follows the MUSIC when it's sounding: use the loudest live note from
         // the published MusicalFrame so the immersive visual tracks the melody, not a
         // static tonic. Falls back to the instrument's tonic (`toneHz`) when silent.
@@ -98,9 +107,9 @@ struct MetalBioView: UIViewRepresentable {
             coherence: bio?.coherence ?? 0.5,
             breath: bio?.breathPhase ?? 0.5,
             toneHz: liveTone,
-            intensity: intensity, ringDensity: ringDensity, motion: motion, spread: spread,
+            intensity: intensity, ringDensity: scaledRingDensity, motion: motion, spread: spread,
             pulseHz: Float(vp.pulseHz),
-            reduceMotion: reduceMotion
+            reduceMotion: effectiveReduceMotion
         )
     }
 }
@@ -115,6 +124,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var uniforms = BioUniforms()
     private var reduceMotion = false
     private let startTime = CFAbsoluteTimeGetCurrent()
+    /// The resource governor receives each frame's timestamp so a sustained FPS drop
+    /// can demote the visual tier. The MTKView draw callback runs on the main thread
+    /// (default CADisplayLink), so the @MainActor hop below is a safe no-op assertion.
+    weak var governor: ResourceGovernor?
 
     func configure(device: MTLDevice) {
         commandQueue = device.makeCommandQueue()
@@ -153,6 +166,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     }
 
     func draw(in view: MTKView) {
+        // Feed the render cadence back to the governor (main thread → safe isolation
+        // assertion). Lets it back off detail/FPS if the GPU can't keep up.
+        if let governor {
+            let now = CFAbsoluteTimeGetCurrent()
+            MainActor.assumeIsolated { governor.recordFrame(timestamp: now) }
+        }
         guard let drawable = view.currentDrawable,
               let pass = view.currentRenderPassDescriptor,
               let queue = commandQueue,
