@@ -1,5 +1,17 @@
-build: 2026-06-23 v10.75.0 (persistent control layer — settings from anywhere + rPPG fix)
+build: 2026-06-23 v10.76.0 (#3 non-modal panels — tool sheets become draggable HUD panels)
 branch: claude/piano-roll-clip-view-wozlie
+notesM: #3 of the persistent-control-layer work — the modal→panel refactor. One reusable
+  `.echoelSheetPanel()` modifier (Echoel CI: one treatment everywhere) turns the 12 editor/tool
+  sheets (Piano Roll, FX, Channels, Sound, Audio In, Routing, Plugins, Automation, Audio Clip,
+  Broadcast, Sample Browser, Live Colabo) from hard full-screen modals into NON-MODAL panels: open
+  full (.large) so editors keep their room, drag DOWN to .medium where the instrument behind stays
+  VISIBLE and INTERACTIVE (pro-media HUD pattern — keep playing while a panel is open), grab handle
+  always shown (WCAG 2.2: visible affordance, not a hidden gesture), semi-transparent solid backing
+  (no glass/blur — Uncodixfy). Skipped LearnView (self-manages detents), the system Share sheet, and
+  the immersive fullScreenCovers (intentionally full-screen). Single modifier = DRY + reversible;
+  code-reviewed compile-clean (iOS 18 floor covers the 16.4+ presentation APIs). Needs on-device
+  visual confirmation. Completes #1 (visual control handle) + #2 (persistent HUD) + #3 (non-modal
+  panels).
 notesL: Founder — "Bedienung stabilisieren; alle Einstellungen von jedem Ort aus zugänglicher;
   transparente permanente Layer; evidenzbasiert für accessible physical computing + pro media."
   Evidence-grounded (WCAG 2.2: no hidden-gesture-gated controls; Fitts: edge-anchored thumb zone;
