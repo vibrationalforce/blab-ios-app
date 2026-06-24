@@ -227,6 +227,8 @@ struct EchoelStudioView: View {
     /// (base values stay editable; the modulator returns the shaped values to render).
     @State private var visualMod = VisualBioModulator()
     @State private var showVisualSettings = false
+    /// Analytics overlay (live audio waveform + bio numbers) over the fullscreen visual.
+    @AppStorage("visual.analytics") private var showVisualAnalytics = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
@@ -391,6 +393,12 @@ struct EchoelStudioView: View {
                     visualVJOverlay
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+                // Optional analytics overlay (waveform + live bio numbers) for media
+                // production. Drawn before the top bar so the bar stays tappable.
+                if showVisualAnalytics {
+                    visualAnalyticsOverlay
+                        .transition(.opacity)
+                }
                 // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
                 // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
                 // only guaranteed escape (device feedback: the view trapped the user and
@@ -410,6 +418,11 @@ struct EchoelStudioView: View {
                             .font(.title2).foregroundStyle(.white.opacity(0.6))
                     }
                     .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                    Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualAnalytics.toggle() } } label: {
+                        Image(systemName: "waveform.path.ecg.rectangle")
+                            .font(.title2).foregroundStyle(.white.opacity(showVisualAnalytics ? 0.85 : 0.5))
+                    }
+                    .accessibilityLabel(showVisualAnalytics ? "Hide analytics overlay" : "Show analytics overlay")
                     Button { showVisual = false } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title2).foregroundStyle(.white.opacity(0.85))
@@ -1202,6 +1215,82 @@ struct EchoelStudioView: View {
             .frame(maxWidth: 560)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+    }
+
+    /// Media-production analytics over the fullscreen visual: a live audio oscilloscope
+    /// plus legible bio numbers (HR · HRV · Coherence · Level). Top-aligned, solid
+    /// (non-glass), flash-safe (a continuous line — no luminance flashing). Informational,
+    /// so it never eats canvas taps. Toggled from the top bar.
+    private var visualAnalyticsOverlay: some View {
+        let bio = bus.freshBio()
+        return VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                analyticsStat("HR", bio.map { String(format: "%.0f", $0.heartRateBPM) } ?? "—", "bpm")
+                analyticsStat("HRV", hrvReadout(bio), (bio?.hrvRMSSDms ?? 0) > 0 ? "ms" : "")
+                analyticsStat("Coh", bio.map { String(format: "%.2f", $0.coherence) } ?? "—", "")
+                analyticsStat("Lvl", levelReadout, "dB")
+                Spacer(minLength: 0)
+            }
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { _ in
+                Canvas { ctx, size in drawScope(ctx, size) }
+                    .frame(height: 56)
+            }
+        }
+        .padding(12)
+        .background(EchoelTheme.bg.opacity(0.72))
+        .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        .padding(.horizontal, 12).padding(.top, 64)   // clear the top control bar
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .allowsHitTesting(false)
+    }
+
+    private func analyticsStat(_ label: String, _ value: String, _ unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label).font(EchoelTheme.font(9, .medium)).foregroundStyle(.white.opacity(0.5))
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value).font(EchoelTheme.font(17, .semibold)).foregroundStyle(.white)
+                if !unit.isEmpty {
+                    Text(unit).font(EchoelTheme.font(9)).foregroundStyle(.white.opacity(0.5))
+                }
+            }
+        }
+    }
+
+    private func hrvReadout(_ bio: BioSampleFrame?) -> String {
+        guard let bio else { return "—" }
+        return bio.hrvRMSSDms > 0 ? String(format: "%.0f", bio.hrvRMSSDms)
+                                  : String(format: "%.2f", bio.hrvNormalized)
+    }
+
+    private var levelReadout: String {
+        let lvl = Swift.max(audioEngine.masterLevel, audioEngine.masterLevelR)
+        guard lvl > 0.0001 else { return "−∞" }
+        return String(format: "%.0f", 20 * log10f(lvl))
+    }
+
+    /// Draw the live audio oscilloscope from the engine's latest output samples (pulled
+    /// here on the main thread — never the audio thread; same lock-free ring the donut
+    /// visual reads). A thin accent line, vertically centred.
+    private func drawScope(_ ctx: GraphicsContext, _ size: CGSize) {
+        let n = 256
+        var buf = [Float](repeating: 0, count: n)
+        _ = audioEngine.copyLatestOutputSamples(into: &buf, count: n)
+        var path = Path()
+        let midY = size.height / 2
+        for i in 0..<n {
+            let x = size.width * CGFloat(i) / CGFloat(n - 1)
+            let s = CGFloat(Swift.max(-1, Swift.min(1, buf[i])))
+            let y = midY - s * (size.height * 0.45)
+            if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+        }
+        ctx.stroke(path, with: .color(EchoelTheme.accent.opacity(0.9)),
+                   style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+        // Baseline for reference (subtle).
+        var base = Path()
+        base.move(to: CGPoint(x: 0, y: midY)); base.addLine(to: CGPoint(x: size.width, y: midY))
+        ctx.stroke(base, with: .color(.white.opacity(0.12)), lineWidth: 0.5)
     }
     #endif
 
