@@ -318,28 +318,50 @@ struct EchoelStudioView: View {
         .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
-        // Sheet/cover contents are AnyView-erased too — same reason as the scroll
-        // content above: keep the root view's aggregate generic type shallow so the
-        // launch-time metadata decode can never overflow the stack again.
-        .sheet(isPresented: $showOpen) { AnyView(openSheet) }
-        .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
-        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
-        .sheet(isPresented: $showPianoRoll) {
-            AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
+        // CONSOLIDATED presentation (stability): this view previously attached 16 `.sheet`
+        // + 3 `.fullScreenCover` modifiers. If two of those flags ever became true at once
+        // (crash-diagnostic auto-firing over an open sheet; two tool/HUD/intent paths; a
+        // child view's own sheet) SwiftUI installed an invisible presentation container
+        // that captured hit-testing but showed nothing → "the app hangs / can't click".
+        // Now ONE `.sheet(item:)` + ONE `.fullScreenCover(item:)` are driven by computed
+        // bindings over the existing flags, so only a single presentation can ever be live;
+        // dismissing clears all flags. Contents stay AnyView-erased (shallow launch
+        // metadata) except the Metal visual (kept concrete for MTKView identity).
+        .sheet(item: sheetBinding) { sheet in
+            switch sheet {
+            case .open: AnyView(openSheet)
+            case .share(let url): AnyView(ShareSheet(url: url))
+            case .diagnostics(let text): AnyView(diagnosticsSheet(text))
+            case .pianoRoll:
+                AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
+            case .allFX:
+                AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
+                             fxEnabled: { synth.isFXEnabled },
+                             setFXEnabled: { synth.setFXEnabled($0) }).echoelSheetPanel())
+            case .input: AnyView(AudioInputPickerView().echoelSheetPanel())
+            case .routing: AnyView(PatchbayView().echoelSheetPanel())
+            case .plugins: AnyView(AUv3BrowserView().echoelSheetPanel())
+            case .learn: AnyView(LearnView())   // self-manages its detents
+            case .channelRack: AnyView(ChannelRackView().echoelSheetPanel())
+            case .automation: AnyView(AutomationView().echoelSheetPanel())
+            case .audioClip: AnyView(AudioClipView().echoelSheetPanel())
+            case .broadcast: AnyView(BroadcastView().echoelSheetPanel())
+            case .patchEditor:
+                AnyView(PatchEditorView(initial: currentPatch) { p in
+                    currentPatch = p
+                    synth.apply(p)   // editor changes hit the live voice immediately
+                }.echoelSheetPanel())
+            case .sampleBrowser(let track):
+                AnyView(SampleBrowserView(track: track).echoelSheetPanel())
+            case .liveColabo:
+                #if canImport(MultipeerConnectivity)
+                AnyView(LiveColaboView(currentSession: { currentProject(named: "Shared session") },
+                               onLoadShared: { open($0) }).echoelSheetPanel())
+                #else
+                AnyView(EmptyView())
+                #endif
+            }
         }
-        .sheet(isPresented: $showAllFX) {
-            AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
-                         fxEnabled: { synth.isFXEnabled },
-                         setFXEnabled: { synth.setFXEnabled($0) })
-                .echoelSheetPanel())
-        }
-        .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
-        .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
-        .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
-        .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
-        .sheet(isPresented: $showChannelRack) { AnyView(ChannelRackView().echoelSheetPanel()) }
-        .sheet(isPresented: $showAutomation) { AnyView(AutomationView().echoelSheetPanel()) }
-        .sheet(isPresented: $showAudioClip) { AnyView(AudioClipView().echoelSheetPanel()) }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],
@@ -347,102 +369,18 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
-        .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
-        .sheet(isPresented: $showPatchEditor) {
-            AnyView(PatchEditorView(initial: currentPatch) { p in
-                currentPatch = p
-                synth.apply(p)   // editor changes hit the live voice immediately
+        .fullScreenCover(item: coverBinding) { cover in
+            switch cover {
+            case .visual:
+                #if canImport(MetalKit) && canImport(UIKit)
+                visualCoverContent
+                #else
+                EmptyView()
+                #endif
+            case .breath: BreathGuideView()
+            case .meditation: MeditationView()
             }
-            .echoelSheetPanel())
         }
-        #if canImport(MetalKit) && canImport(UIKit)
-        .fullScreenCover(isPresented: $showVisual) {
-            // NOT AnyView-wrapped: this cover builds lazily on present (it never
-            // contributed to the launch-time metadata overflow), and wrapping the live
-            // MTKView in AnyView defeats SwiftUI identity → the view can be torn down
-            // and recreated, which shows as a stutter. Keep the concrete type here.
-            ZStack(alignment: .topTrailing) {
-                if spectralDonuts {
-                    // The spectrum→visible-light donut visual: one ring per frequency
-                    // band, thickness ∝ loudness, colour = band frequency → visible.
-                    SpectralDonutView(reduceMotion: reduceMotion,
-                                      bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
-                } else {
-                    // Bio→Visual: shape the user's BASE params by the live body (reading
-                    // the bus snapshot here tracks it, so the body re-renders as bio
-                    // updates; the renderer eases between updates for smoothness).
-                    let base = VisualParams(intensity: visualIntensity, detail: visualDetail,
-                                            motion: visualMotion, spread: visualSpread,
-                                            hue: visualHue, saturation: visualSaturation,
-                                            blend: Float(visualBlend))
-                    let eff = visualMod.effective(base: base, bio: bus.freshBio())
-                    MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
-                                 intensity: eff.intensity, ringDensity: eff.detail,
-                                 motion: eff.motion, spread: eff.spread,
-                                 hueShift: eff.hue, saturation: eff.saturation,
-                                 style: visualStyle, styleB: visualStyleB,
-                                 blend: eff.blend).ignoresSafeArea()
-                }
-                // Tap the canvas to hide/show the VJ control PANEL — clean for
-                // projection, hands-on for performance. Controls are a solid panel.
-                Color.clear.contentShape(Rectangle())
-                    .ignoresSafeArea()
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
-                if showVisualControls {
-                    visualVJOverlay
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                // Optional analytics overlay (waveform + live bio numbers) for media
-                // production. Drawn before the top bar so the bar stays tappable.
-                if showVisualAnalytics {
-                    visualAnalyticsOverlay
-                        .transition(.opacity)
-                }
-                // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
-                // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
-                // only guaranteed escape (device feedback: the view trapped the user and
-                // forced an app kill). Kept subtle for clean projection output.
-                HStack(spacing: 14) {
-                    // Persistent, VISIBLE controls handle — replaces the undiscoverable
-                    // "tap the canvas" reveal (WCAG 2.2: don't gate controls behind a
-                    // hidden gesture). The panel still toggles, but the affordance to
-                    // summon it is always on screen.
-                    Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.title2).foregroundStyle(.white.opacity(showVisualControls ? 0.85 : 0.5))
-                    }
-                    .accessibilityLabel(showVisualControls ? "Hide visual controls" : "Show visual controls")
-                    Button { spectralDonuts.toggle() } label: {
-                        Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
-                            .font(.title2).foregroundStyle(.white.opacity(0.6))
-                    }
-                    .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
-                    Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualAnalytics.toggle() } } label: {
-                        Image(systemName: "waveform.path.ecg.rectangle")
-                            .font(.title2).foregroundStyle(.white.opacity(showVisualAnalytics ? 0.85 : 0.5))
-                    }
-                    .accessibilityLabel(showVisualAnalytics ? "Hide analytics overlay" : "Show analytics overlay")
-                    Button { showVisual = false } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2).foregroundStyle(.white.opacity(0.85))
-                    }
-                    .accessibilityLabel("Close visual")
-                }
-                .padding()
-            }
-            .statusBarHidden(true)
-        }
-        #endif
-        .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
-        .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
-        #if canImport(MultipeerConnectivity)
-        .sheet(isPresented: $showLiveColabo) {
-            AnyView(LiveColaboView(currentSession: { currentProject(named: "Shared session") },
-                           onLoadShared: { open($0) })
-                .echoelSheetPanel())
-        }
-        #endif
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -476,6 +414,88 @@ struct EchoelStudioView: View {
         } message: {
             Text("Saves the current timbre as a named sound you can recall.")
         }
+    }
+
+    // MARK: - Consolidated presentation (one sheet + one cover at a time)
+
+    /// Every modal sheet, as ONE type so only a single sheet can ever present (the fix
+    /// for the multi-`.sheet` hang). Payload-carrying cases mirror the old `item:` sheets.
+    private enum StudioSheet: Identifiable {
+        case open, pianoRoll, allFX, input, routing, plugins, learn, channelRack
+        case automation, audioClip, broadcast, patchEditor, liveColabo
+        case share(URL), diagnostics(String), sampleBrowser(Int)
+        var id: String {
+            switch self {
+            case .open: return "open"; case .pianoRoll: return "pianoRoll"
+            case .allFX: return "allFX"; case .input: return "input"
+            case .routing: return "routing"; case .plugins: return "plugins"
+            case .learn: return "learn"; case .channelRack: return "channelRack"
+            case .automation: return "automation"; case .audioClip: return "audioClip"
+            case .broadcast: return "broadcast"; case .patchEditor: return "patchEditor"
+            case .liveColabo: return "liveColabo"; case .share: return "share"
+            case .diagnostics: return "diagnostics"
+            case .sampleBrowser(let i): return "sampleBrowser-\(i)"
+            }
+        }
+    }
+
+    /// The single full-screen cover, same idea.
+    private enum StudioCover: Identifiable {
+        case visual, breath, meditation
+        var id: String {
+            switch self { case .visual: return "visual"; case .breath: return "breath"
+            case .meditation: return "meditation" }
+        }
+    }
+
+    /// Highest-priority active sheet derived from the existing flags. Even if two flags
+    /// are true, only this one presents — so two sheets can never collide.
+    private var activeSheet: StudioSheet? {
+        if let s = share { return .share(s.url) }
+        if let d = diagnostics { return .diagnostics(d.text) }
+        if let t = sampleBrowserTrack { return .sampleBrowser(t.id) }
+        if showOpen { return .open }
+        if showPianoRoll { return .pianoRoll }
+        if showAllFX { return .allFX }
+        if showInput { return .input }
+        if showRouting { return .routing }
+        if showPlugins { return .plugins }
+        if showLearn { return .learn }
+        if showChannelRack { return .channelRack }
+        if showAutomation { return .automation }
+        if showAudioClip { return .audioClip }
+        if showBroadcast { return .broadcast }
+        if showPatchEditor { return .patchEditor }
+        if showLiveColabo { return .liveColabo }
+        return nil
+    }
+
+    private var activeCover: StudioCover? {
+        if showVisual { return .visual }
+        if showBreath { return .breath }
+        if showMeditation { return .meditation }
+        return nil
+    }
+
+    /// Bindings for the consolidated presentations: GET the active one; SET(nil) on
+    /// dismiss clears ALL flags (so an environment/swipe dismiss can't leave a stale flag
+    /// that immediately re-presents).
+    private var sheetBinding: Binding<StudioSheet?> {
+        Binding(get: { self.activeSheet }, set: { if $0 == nil { self.clearAllSheets() } })
+    }
+    private var coverBinding: Binding<StudioCover?> {
+        Binding(get: { self.activeCover }, set: { if $0 == nil { self.clearAllCovers() } })
+    }
+
+    private func clearAllSheets() {
+        showOpen = false; showPianoRoll = false; showAllFX = false; showInput = false
+        showRouting = false; showPlugins = false; showLearn = false; showChannelRack = false
+        showAutomation = false; showAudioClip = false; showBroadcast = false
+        showPatchEditor = false; showLiveColabo = false
+        share = nil; diagnostics = nil; sampleBrowserTrack = nil
+    }
+    private func clearAllCovers() {
+        showVisual = false; showBreath = false; showMeditation = false
     }
 
     // MARK: - Tools (deep editors)
@@ -1161,6 +1181,77 @@ struct EchoelStudioView: View {
     }
 
     #if canImport(MetalKit) && canImport(UIKit)
+    /// The fullscreen immersive-visual cover content. Extracted from the body so the
+    /// consolidated `.fullScreenCover(item:)` switch stays readable. NOT AnyView-wrapped
+    /// (keeps MTKView identity, so the live renderer is never torn down + recreated).
+    private var visualCoverContent: some View {
+        ZStack(alignment: .topTrailing) {
+            if spectralDonuts {
+                // The spectrum→visible-light donut visual: one ring per frequency band,
+                // thickness ∝ loudness, colour = band frequency → visible.
+                SpectralDonutView(reduceMotion: reduceMotion,
+                                  bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
+            } else {
+                // Bio→Visual: shape the user's BASE params by the live body (reading the
+                // bus snapshot here tracks it, so this re-renders as bio updates; the
+                // renderer eases between updates for smoothness).
+                let base = VisualParams(intensity: visualIntensity, detail: visualDetail,
+                                        motion: visualMotion, spread: visualSpread,
+                                        hue: visualHue, saturation: visualSaturation,
+                                        blend: Float(visualBlend))
+                let eff = visualMod.effective(base: base, bio: bus.freshBio())
+                MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
+                             intensity: eff.intensity, ringDensity: eff.detail,
+                             motion: eff.motion, spread: eff.spread,
+                             hueShift: eff.hue, saturation: eff.saturation,
+                             style: visualStyle, styleB: visualStyleB,
+                             blend: eff.blend).ignoresSafeArea()
+            }
+            // Tap the canvas to hide/show the VJ control PANEL — clean for projection,
+            // hands-on for performance. Controls are a solid panel.
+            Color.clear.contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
+            if showVisualControls {
+                visualVJOverlay
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            // Optional analytics overlay (waveform + live bio numbers) for media
+            // production. Drawn before the top bar so the bar stays tappable.
+            if showVisualAnalytics {
+                visualAnalyticsOverlay
+                    .transition(.opacity)
+            }
+            // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
+            // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the only
+            // guaranteed escape. Kept subtle for clean projection output.
+            HStack(spacing: 14) {
+                Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.title2).foregroundStyle(.white.opacity(showVisualControls ? 0.85 : 0.5))
+                }
+                .accessibilityLabel(showVisualControls ? "Hide visual controls" : "Show visual controls")
+                Button { spectralDonuts.toggle() } label: {
+                    Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
+                        .font(.title2).foregroundStyle(.white.opacity(0.6))
+                }
+                .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualAnalytics.toggle() } } label: {
+                    Image(systemName: "waveform.path.ecg.rectangle")
+                        .font(.title2).foregroundStyle(.white.opacity(showVisualAnalytics ? 0.85 : 0.5))
+                }
+                .accessibilityLabel(showVisualAnalytics ? "Hide analytics overlay" : "Show analytics overlay")
+                Button { showVisual = false } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2).foregroundStyle(.white.opacity(0.85))
+                }
+                .accessibilityLabel("Close visual")
+            }
+            .padding()
+        }
+        .statusBarHidden(true)
+    }
+
     /// The hands-on VJ control panel that floats over the fullscreen visual: the four
     /// live parameters + a quick scene strip, on the app-wide value-field vocabulary,
     /// in a solid (non-glass) bottom panel sized for stage use. Tap the canvas to hide.
