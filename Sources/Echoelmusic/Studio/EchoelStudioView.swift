@@ -374,15 +374,24 @@ struct EchoelStudioView: View {
         }
         #endif
         .fullScreenCover(item: coverBinding) { cover in
+            // AnyView-erase every branch. `.fullScreenCover` is generic over the content
+            // type, so a NON-erased branch (the deep `visualCoverContent` ZStack — VJ
+            // overlay + analytics overlay + MetalBioView) bakes its full nesting into
+            // THIS view's `body` type metadata. That depth is what overflows the Swift
+            // runtime's metadata decoder at launch → SIGSEGV / black screen (the launch
+            // brick from 10.76.10 onward, after the cover grew). Erasing here keeps the
+            // cover content out of `body`'s metadata. MTKView identity is preserved: the
+            // wrapped concrete type is stable across renders, so SwiftUI diffs it
+            // (updateUIView), never tears the renderer down.
             switch cover {
             case .visual:
                 #if canImport(MetalKit) && canImport(UIKit)
-                visualCoverContent
+                AnyView(visualCoverContent)
                 #else
-                EmptyView()
+                AnyView(EmptyView())
                 #endif
-            case .breath: BreathGuideView()
-            case .meditation: MeditationView()
+            case .breath: AnyView(BreathGuideView())
+            case .meditation: AnyView(MeditationView())
             }
         }
         .alert("Save project", isPresented: $showSaveDialog) {
