@@ -223,6 +223,9 @@ struct EchoelStudioView: View {
     /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
     @State private var visualHue: Float = 0
     @State private var visualSaturation: Float = 1
+    /// Bio→Visual routing: the body shapes the immersive visual non-destructively
+    /// (base values stay editable; the modulator returns the shaped values to render).
+    @State private var visualMod = VisualBioModulator()
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
@@ -364,12 +367,20 @@ struct EchoelStudioView: View {
                     SpectralDonutView(reduceMotion: reduceMotion,
                                       bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
                 } else {
+                    // Bio→Visual: shape the user's BASE params by the live body (reading
+                    // the bus snapshot here tracks it, so the body re-renders as bio
+                    // updates; the renderer eases between updates for smoothness).
+                    let base = VisualParams(intensity: visualIntensity, detail: visualDetail,
+                                            motion: visualMotion, spread: visualSpread,
+                                            hue: visualHue, saturation: visualSaturation,
+                                            blend: Float(visualBlend))
+                    let eff = visualMod.effective(base: base, bio: bus.freshBio())
                     MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
-                                 intensity: visualIntensity, ringDensity: visualDetail,
-                                 motion: visualMotion, spread: visualSpread,
-                                 hueShift: visualHue, saturation: visualSaturation,
+                                 intensity: eff.intensity, ringDensity: eff.detail,
+                                 motion: eff.motion, spread: eff.spread,
+                                 hueShift: eff.hue, saturation: eff.saturation,
                                  style: visualStyle, styleB: visualStyleB,
-                                 blend: Float(visualBlend)).ignoresSafeArea()
+                                 blend: eff.blend).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ control PANEL — clean for
                 // projection, hands-on for performance. Controls are a solid panel.
@@ -1005,7 +1016,32 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            bioVisualSection
         }
+    }
+
+    /// Bio → Visual routing: let the body sculpt the immersive visual (e.g. coherence
+    /// → Blend morph, breath → spread, heart rate → intensity), the same vocabulary as
+    /// the FX bio-routing. Applied non-destructively on top of the values above.
+    @ViewBuilder private var bioVisualSection: some View {
+        Divider().overlay(EchoelTheme.border)
+        Text("Bio → Visual").font(EchoelTheme.font(13, .bold)).foregroundStyle(EchoelTheme.text)
+        ForEach($visualMod.routes) { $route in
+            VisualModRouteRow(route: $route) { visualMod.removeRoute(id: route.id) }
+        }
+        Menu {
+            ForEach(VisualModTarget.allCases) { target in
+                Button(target.displayName) { visualMod.addRoute(target: target) }
+            }
+        } label: {
+            Label("Add bio routing…", systemImage: "waveform.path.ecg")
+                .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.accent)
+        }
+        Text(visualMod.routes.isEmpty
+             ? "Let the body shape the light: e.g. Coherence → Blend (one look morphs into another), Breath → Spread, Heart rate → Intensity."
+             : "Each route moves its visual parameter around your set value from the live body.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping
@@ -2365,6 +2401,47 @@ private struct StudioZoom: ViewModifier {
                 }
                 .onEnded { _ in pinchBase = nil }
         )
+    }
+}
+
+/// One Bio→Visual route editor row (source → visual target, depth, polarity, curve),
+/// mirroring the FX bio-routing row so the two read identically.
+private struct VisualModRouteRow: View {
+    @Binding var route: VisualModRoute
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Toggle("", isOn: $route.enabled).labelsHidden().tint(EchoelTheme.accent)
+                Picker("Source", selection: $route.carrier) {
+                    ForEach(FXModCarrier.allChoices, id: \.self) { c in
+                        Text(c.displayName).tag(c)
+                    }
+                }
+                .pickerStyle(.menu)
+                Image(systemName: "arrow.right").font(.caption).foregroundStyle(EchoelTheme.dim)
+                Picker("Target", selection: $route.target) {
+                    ForEach(VisualModTarget.allCases) { t in Text(t.displayName).tag(t) }
+                }
+                .pickerStyle(.menu)
+                Spacer(minLength: 0)
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash").font(.caption).foregroundStyle(EchoelTheme.dim)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Delete route")
+            }
+            EchoelValueField(label: "Depth", value: $route.depth, range: 0...1, decimals: 2)
+            HStack(spacing: 12) {
+                Toggle("Bipolar", isOn: $route.bipolar).tint(EchoelTheme.accent)
+                    .font(EchoelTheme.font(12))
+                if route.carrier == .lfo {
+                    EchoelValueField(label: "LFO Hz", value: $route.lfoRateHz, range: 0.02...4, decimals: 2)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
