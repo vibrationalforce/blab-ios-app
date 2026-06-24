@@ -51,9 +51,6 @@ final class CameraAnalyzer {
     // genuinely weak/aperiodic signal (perfusion/pressure). Not observed.
     @ObservationIgnored private(set) var lastPeakCount: Int = 0
     @ObservationIgnored private(set) var lastAutoStrength: Double = 0
-    /// Independent autocorrelation BPM (octave-robust fundamental). Telemetry only —
-    /// compared against the peak-count rate to diagnose octave (half/double) errors.
-    @ObservationIgnored private(set) var lastAutoBPM: Double = 0
     @ObservationIgnored private(set) var lastFilteredAmplitude: Float = 0
     /// True frame-derived sample rate + window length fed to the autocorrelation —
     /// the two inputs that decide whether `dominantBPM` can lock. A rate far from the
@@ -317,7 +314,6 @@ final class CameraAnalyzer {
         rmssd = 0
         lastPeakCount = 0
         lastAutoStrength = 0
-        lastAutoBPM = 0
         lastFilteredAmplitude = 0
         lastActualRate = 0
         lastWindowSize = 0
@@ -430,7 +426,6 @@ final class CameraAnalyzer {
         // cross-check, and the few-peaks fallback (avoids recomputing it twice).
         let auto = PulsePeriodEstimator.dominantBPM(window, sampleRate: actualRate)
         lastAutoStrength = auto?.strength ?? 0
-        lastAutoBPM = auto?.bpm ?? 0
 
         // Adaptive threshold: 55% of amplitude range
         var maxAmp: Float = 0

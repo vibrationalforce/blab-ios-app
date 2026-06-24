@@ -1,22 +1,15 @@
-build: 2026-06-24 v10.76.17 (STABILITY: the real launch fix — erase the fullscreen cover from body metadata)
+build: 2026-06-24 v10.76.18 (DIAGNOSTIC: exact 10.76.9 code — the last build that launched)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: THIS is the actual launch fix (10.76.14/.15/.16 all black-screened; .15/.16 fixed
-  real-but-secondary bugs). Root cause: a SwiftUI type-metadata STACK OVERFLOW (SIGSEGV)
-  at launch — a compile-clean crash, no Swift trap, just black screen. EchoelStudioView is
-  mounted at launch (WorkspaceView keeps all surfaces in a ZStack). Its `.fullScreenCover`
-  content (`visualCoverContent` — the immersive ZStack with the VJ overlay + analytics
-  overlay + MetalBioView) was NOT type-erased, and since `.fullScreenCover` is generic over
-  its content type, that whole deep nesting got baked into the view's `body` type metadata.
-  When 10.76.10 (Bio→Visual) and 10.76.11 (analytics overlay) GREW that cover, the body
-  metadata crossed the decoder's recursion limit → overflow → SIGSEGV at launch. That's why
-  10.76.9 launched (verified) but everything from 10.76.10 on bricked, and why the sheet-
-  consolidation (.15) and the no-auto-modal fix (.16) didn't help — neither touched the
-  cover's contribution to body. FIX: wrap every `.fullScreenCover` branch in AnyView (it was
-  already done for the 16 `.sheet` cases and the body sections) so the deep cover type leaves
-  body's metadata. MTKView identity preserved (stable wrapped type → updateUIView, no
-  teardown). Reviewed twice (ui-state + launch-path audit): sufficient, compiles under
-  -warnings-as-errors. No feature changes — same visual, same controls.
-  INSTALL 10.76.17 from TestFlight. It should finally launch. If it still black-screens,
-  send the crash log (Settings > Privacy & Security > Analytics & Improvements > Analytics
-  Data > newest "Echoel..." entry) — a SIGSEGV in swift_getTypeByMangledName confirms this
-  class of bug; anything else points elsewhere.
+notesT: After 4 builds that black-screened (10.76.14–.17), this build reverts the app code
+  to EXACTLY 10.76.9 — the last version you confirmed launching (the "rendert bunt"
+  build). Everything since (Bio→Visual routing, the colour-cloud shaders, the camera
+  diagnostic, the sheet/cover refactors) is rolled back. This is a deliberate ground-truth
+  test:
+   • If 10.76.18 LAUNCHES → the problem is in the code added after 10.76.9, and I now know
+     exactly which 7 files to bisect — I re-add them one at a time WITH a launch check each
+     time, so we never go dark again.
+   • If 10.76.18 STILL black-screens → the problem is NOT the app code (build pipeline,
+     signing, or the install on the device), and I stop changing code and look there.
+  PLEASE: delete the app first, then install 10.76.18 fresh from TestFlight (clears any
+  stuck state). Tell me launches / black. If black, also send the crash log: Settings >
+  Privacy & Security > Analysis & Improvements > Analytics Data > newest "Echoel…".

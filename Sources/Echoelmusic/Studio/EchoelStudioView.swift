@@ -176,10 +176,6 @@ struct EchoelStudioView: View {
     @State private var saveName = ""
     @State private var share: ExportedFile?
     @State private var diagnostics: DiagReport?
-    /// Set at launch if the previous run logged a crash; lets the Diagnostics button
-    /// highlight that a report is waiting — WITHOUT auto-presenting a modal (see
-    /// `surfaceDidAppear`).
-    @State private var priorCrashAvailable = false
 
     // Tools — open the (previously unreachable) editors as sheets.
     /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
@@ -227,12 +223,7 @@ struct EchoelStudioView: View {
     /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
     @State private var visualHue: Float = 0
     @State private var visualSaturation: Float = 1
-    /// Bio→Visual routing: the body shapes the immersive visual non-destructively
-    /// (base values stay editable; the modulator returns the shaped values to render).
-    @State private var visualMod = VisualBioModulator()
     @State private var showVisualSettings = false
-    /// Analytics overlay (live audio waveform + bio numbers) over the fullscreen visual.
-    @AppStorage("visual.analytics") private var showVisualAnalytics = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
@@ -307,7 +298,7 @@ struct EchoelStudioView: View {
                let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
                 applyVisualPreset(p)
             }
-            surfaceDidAppear()
+            surfacePriorCrashIfAny()
             handlePendingIntent()
         }
         .onChange(of: scenePhase) { _, phase in
@@ -322,50 +313,28 @@ struct EchoelStudioView: View {
         .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
-        // CONSOLIDATED presentation (stability): this view previously attached 16 `.sheet`
-        // + 3 `.fullScreenCover` modifiers. If two of those flags ever became true at once
-        // (crash-diagnostic auto-firing over an open sheet; two tool/HUD/intent paths; a
-        // child view's own sheet) SwiftUI installed an invisible presentation container
-        // that captured hit-testing but showed nothing → "the app hangs / can't click".
-        // Now ONE `.sheet(item:)` + ONE `.fullScreenCover(item:)` are driven by computed
-        // bindings over the existing flags, so only a single presentation can ever be live;
-        // dismissing clears all flags. Contents stay AnyView-erased (shallow launch
-        // metadata) except the Metal visual (kept concrete for MTKView identity).
-        .sheet(item: sheetBinding) { sheet in
-            switch sheet {
-            case .open: AnyView(openSheet)
-            case .share(let url): AnyView(ShareSheet(url: url))
-            case .diagnostics(let text): AnyView(diagnosticsSheet(text))
-            case .pianoRoll:
-                AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
-            case .allFX:
-                AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
-                             fxEnabled: { synth.isFXEnabled },
-                             setFXEnabled: { synth.setFXEnabled($0) }).echoelSheetPanel())
-            case .input: AnyView(AudioInputPickerView().echoelSheetPanel())
-            case .routing: AnyView(PatchbayView().echoelSheetPanel())
-            case .plugins: AnyView(AUv3BrowserView().echoelSheetPanel())
-            case .learn: AnyView(LearnView())   // self-manages its detents
-            case .channelRack: AnyView(ChannelRackView().echoelSheetPanel())
-            case .automation: AnyView(AutomationView().echoelSheetPanel())
-            case .audioClip: AnyView(AudioClipView().echoelSheetPanel())
-            case .broadcast: AnyView(BroadcastView().echoelSheetPanel())
-            case .patchEditor:
-                AnyView(PatchEditorView(initial: currentPatch) { p in
-                    currentPatch = p
-                    synth.apply(p)   // editor changes hit the live voice immediately
-                }.echoelSheetPanel())
-            case .sampleBrowser(let track):
-                AnyView(SampleBrowserView(track: track).echoelSheetPanel())
-            case .liveColabo:
-                #if canImport(MultipeerConnectivity)
-                AnyView(LiveColaboView(currentSession: { currentProject(named: "Shared session") },
-                               onLoadShared: { open($0) }).echoelSheetPanel())
-                #else
-                AnyView(EmptyView())
-                #endif
-            }
+        // Sheet/cover contents are AnyView-erased too — same reason as the scroll
+        // content above: keep the root view's aggregate generic type shallow so the
+        // launch-time metadata decode can never overflow the stack again.
+        .sheet(isPresented: $showOpen) { AnyView(openSheet) }
+        .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
+        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
+        .sheet(isPresented: $showPianoRoll) {
+            AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
         }
+        .sheet(isPresented: $showAllFX) {
+            AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
+                         fxEnabled: { synth.isFXEnabled },
+                         setFXEnabled: { synth.setFXEnabled($0) })
+                .echoelSheetPanel())
+        }
+        .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
+        .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
+        .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
+        .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
+        .sheet(isPresented: $showChannelRack) { AnyView(ChannelRackView().echoelSheetPanel()) }
+        .sheet(isPresented: $showAutomation) { AnyView(AutomationView().echoelSheetPanel()) }
+        .sheet(isPresented: $showAudioClip) { AnyView(AudioClipView().echoelSheetPanel()) }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],
@@ -373,27 +342,83 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        .fullScreenCover(item: coverBinding) { cover in
-            // AnyView-erase every branch. `.fullScreenCover` is generic over the content
-            // type, so a NON-erased branch (the deep `visualCoverContent` ZStack — VJ
-            // overlay + analytics overlay + MetalBioView) bakes its full nesting into
-            // THIS view's `body` type metadata. That depth is what overflows the Swift
-            // runtime's metadata decoder at launch → SIGSEGV / black screen (the launch
-            // brick from 10.76.10 onward, after the cover grew). Erasing here keeps the
-            // cover content out of `body`'s metadata. MTKView identity is preserved: the
-            // wrapped concrete type is stable across renders, so SwiftUI diffs it
-            // (updateUIView), never tears the renderer down.
-            switch cover {
-            case .visual:
-                #if canImport(MetalKit) && canImport(UIKit)
-                AnyView(visualCoverContent)
-                #else
-                AnyView(EmptyView())
-                #endif
-            case .breath: AnyView(BreathGuideView())
-            case .meditation: AnyView(MeditationView())
+        .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
+        .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
+        .sheet(isPresented: $showPatchEditor) {
+            AnyView(PatchEditorView(initial: currentPatch) { p in
+                currentPatch = p
+                synth.apply(p)   // editor changes hit the live voice immediately
             }
+            .echoelSheetPanel())
         }
+        #if canImport(MetalKit) && canImport(UIKit)
+        .fullScreenCover(isPresented: $showVisual) {
+            // NOT AnyView-wrapped: this cover builds lazily on present (it never
+            // contributed to the launch-time metadata overflow), and wrapping the live
+            // MTKView in AnyView defeats SwiftUI identity → the view can be torn down
+            // and recreated, which shows as a stutter. Keep the concrete type here.
+            ZStack(alignment: .topTrailing) {
+                if spectralDonuts {
+                    // The spectrum→visible-light donut visual: one ring per frequency
+                    // band, thickness ∝ loudness, colour = band frequency → visible.
+                    SpectralDonutView(reduceMotion: reduceMotion,
+                                      bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
+                } else {
+                    MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
+                                 intensity: visualIntensity, ringDensity: visualDetail,
+                                 motion: visualMotion, spread: visualSpread,
+                                 hueShift: visualHue, saturation: visualSaturation,
+                                 style: visualStyle, styleB: visualStyleB,
+                                 blend: Float(visualBlend)).ignoresSafeArea()
+                }
+                // Tap the canvas to hide/show the VJ control PANEL — clean for
+                // projection, hands-on for performance. Controls are a solid panel.
+                Color.clear.contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
+                if showVisualControls {
+                    visualVJOverlay
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
+                // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
+                // only guaranteed escape (device feedback: the view trapped the user and
+                // forced an app kill). Kept subtle for clean projection output.
+                HStack(spacing: 14) {
+                    // Persistent, VISIBLE controls handle — replaces the undiscoverable
+                    // "tap the canvas" reveal (WCAG 2.2: don't gate controls behind a
+                    // hidden gesture). The panel still toggles, but the affordance to
+                    // summon it is always on screen.
+                    Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.title2).foregroundStyle(.white.opacity(showVisualControls ? 0.85 : 0.5))
+                    }
+                    .accessibilityLabel(showVisualControls ? "Hide visual controls" : "Show visual controls")
+                    Button { spectralDonuts.toggle() } label: {
+                        Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
+                            .font(.title2).foregroundStyle(.white.opacity(0.6))
+                    }
+                    .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                    Button { showVisual = false } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2).foregroundStyle(.white.opacity(0.85))
+                    }
+                    .accessibilityLabel("Close visual")
+                }
+                .padding()
+            }
+            .statusBarHidden(true)
+        }
+        #endif
+        .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
+        .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
+        #if canImport(MultipeerConnectivity)
+        .sheet(isPresented: $showLiveColabo) {
+            AnyView(LiveColaboView(currentSession: { currentProject(named: "Shared session") },
+                           onLoadShared: { open($0) })
+                .echoelSheetPanel())
+        }
+        #endif
         .alert("Save project", isPresented: $showSaveDialog) {
             TextField("Name", text: $saveName)
             Button("Save") { saveProject() }
@@ -427,88 +452,6 @@ struct EchoelStudioView: View {
         } message: {
             Text("Saves the current timbre as a named sound you can recall.")
         }
-    }
-
-    // MARK: - Consolidated presentation (one sheet + one cover at a time)
-
-    /// Every modal sheet, as ONE type so only a single sheet can ever present (the fix
-    /// for the multi-`.sheet` hang). Payload-carrying cases mirror the old `item:` sheets.
-    private enum StudioSheet: Identifiable {
-        case open, pianoRoll, allFX, input, routing, plugins, learn, channelRack
-        case automation, audioClip, broadcast, patchEditor, liveColabo
-        case share(URL), diagnostics(String), sampleBrowser(Int)
-        var id: String {
-            switch self {
-            case .open: return "open"; case .pianoRoll: return "pianoRoll"
-            case .allFX: return "allFX"; case .input: return "input"
-            case .routing: return "routing"; case .plugins: return "plugins"
-            case .learn: return "learn"; case .channelRack: return "channelRack"
-            case .automation: return "automation"; case .audioClip: return "audioClip"
-            case .broadcast: return "broadcast"; case .patchEditor: return "patchEditor"
-            case .liveColabo: return "liveColabo"; case .share: return "share"
-            case .diagnostics: return "diagnostics"
-            case .sampleBrowser(let i): return "sampleBrowser-\(i)"
-            }
-        }
-    }
-
-    /// The single full-screen cover, same idea.
-    private enum StudioCover: Identifiable {
-        case visual, breath, meditation
-        var id: String {
-            switch self { case .visual: return "visual"; case .breath: return "breath"
-            case .meditation: return "meditation" }
-        }
-    }
-
-    /// Highest-priority active sheet derived from the existing flags. Even if two flags
-    /// are true, only this one presents — so two sheets can never collide.
-    private var activeSheet: StudioSheet? {
-        if let s = share { return .share(s.url) }
-        if let d = diagnostics { return .diagnostics(d.text) }
-        if let t = sampleBrowserTrack { return .sampleBrowser(t.id) }
-        if showOpen { return .open }
-        if showPianoRoll { return .pianoRoll }
-        if showAllFX { return .allFX }
-        if showInput { return .input }
-        if showRouting { return .routing }
-        if showPlugins { return .plugins }
-        if showLearn { return .learn }
-        if showChannelRack { return .channelRack }
-        if showAutomation { return .automation }
-        if showAudioClip { return .audioClip }
-        if showBroadcast { return .broadcast }
-        if showPatchEditor { return .patchEditor }
-        if showLiveColabo { return .liveColabo }
-        return nil
-    }
-
-    private var activeCover: StudioCover? {
-        if showVisual { return .visual }
-        if showBreath { return .breath }
-        if showMeditation { return .meditation }
-        return nil
-    }
-
-    /// Bindings for the consolidated presentations: GET the active one; SET(nil) on
-    /// dismiss clears ALL flags (so an environment/swipe dismiss can't leave a stale flag
-    /// that immediately re-presents).
-    private var sheetBinding: Binding<StudioSheet?> {
-        Binding(get: { self.activeSheet }, set: { if $0 == nil { self.clearAllSheets() } })
-    }
-    private var coverBinding: Binding<StudioCover?> {
-        Binding(get: { self.activeCover }, set: { if $0 == nil { self.clearAllCovers() } })
-    }
-
-    private func clearAllSheets() {
-        showOpen = false; showPianoRoll = false; showAllFX = false; showInput = false
-        showRouting = false; showPlugins = false; showLearn = false; showChannelRack = false
-        showAutomation = false; showAudioClip = false; showBroadcast = false
-        showPatchEditor = false; showLiveColabo = false
-        share = nil; diagnostics = nil; sampleBrowserTrack = nil
-    }
-    private func clearAllCovers() {
-        showVisual = false; showBreath = false; showMeditation = false
     }
 
     // MARK: - Tools (deep editors)
@@ -1062,33 +1005,7 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
-            bioVisualSection
         }
-    }
-
-    /// Bio → Visual routing: let the body sculpt the immersive visual (e.g. coherence
-    /// → Blend morph, breath → spread, heart rate → intensity), the same vocabulary as
-    /// the FX bio-routing. Applied non-destructively on top of the values above.
-    @ViewBuilder private var bioVisualSection: some View {
-        @Bindable var visualMod = visualMod   // @Observable → proper binding + observation
-        Divider().overlay(EchoelTheme.border)
-        Text("Bio → Visual").font(EchoelTheme.font(13, .bold)).foregroundStyle(EchoelTheme.text)
-        ForEach($visualMod.routes) { $route in
-            VisualModRouteRow(route: $route) { visualMod.removeRoute(id: route.id) }
-        }
-        Menu {
-            ForEach(VisualModTarget.allCases) { target in
-                Button(target.displayName) { visualMod.addRoute(target: target) }
-            }
-        } label: {
-            Label("Add bio routing…", systemImage: "waveform.path.ecg")
-                .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.accent)
-        }
-        Text(visualMod.routes.isEmpty
-             ? "Let the body shape the light: e.g. Coherence → Blend (one look morphs into another), Breath → Spread, Heart rate → Intensity."
-             : "Each route moves its visual parameter around your set value from the live body.")
-            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping
@@ -1194,77 +1111,6 @@ struct EchoelStudioView: View {
     }
 
     #if canImport(MetalKit) && canImport(UIKit)
-    /// The fullscreen immersive-visual cover content. Extracted from the body so the
-    /// consolidated `.fullScreenCover(item:)` switch stays readable. NOT AnyView-wrapped
-    /// (keeps MTKView identity, so the live renderer is never torn down + recreated).
-    private var visualCoverContent: some View {
-        ZStack(alignment: .topTrailing) {
-            if spectralDonuts {
-                // The spectrum→visible-light donut visual: one ring per frequency band,
-                // thickness ∝ loudness, colour = band frequency → visible.
-                SpectralDonutView(reduceMotion: reduceMotion,
-                                  bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
-            } else {
-                // Bio→Visual: shape the user's BASE params by the live body (reading the
-                // bus snapshot here tracks it, so this re-renders as bio updates; the
-                // renderer eases between updates for smoothness).
-                let base = VisualParams(intensity: visualIntensity, detail: visualDetail,
-                                        motion: visualMotion, spread: visualSpread,
-                                        hue: visualHue, saturation: visualSaturation,
-                                        blend: Float(visualBlend))
-                let eff = visualMod.effective(base: base, bio: bus.freshBio())
-                MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
-                             intensity: eff.intensity, ringDensity: eff.detail,
-                             motion: eff.motion, spread: eff.spread,
-                             hueShift: eff.hue, saturation: eff.saturation,
-                             style: visualStyle, styleB: visualStyleB,
-                             blend: eff.blend).ignoresSafeArea()
-            }
-            // Tap the canvas to hide/show the VJ control PANEL — clean for projection,
-            // hands-on for performance. Controls are a solid panel.
-            Color.clear.contentShape(Rectangle())
-                .ignoresSafeArea()
-                .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
-            if showVisualControls {
-                visualVJOverlay
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-            // Optional analytics overlay (waveform + live bio numbers) for media
-            // production. Drawn before the top bar so the bar stays tappable.
-            if showVisualAnalytics {
-                visualAnalyticsOverlay
-                    .transition(.opacity)
-            }
-            // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
-            // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the only
-            // guaranteed escape. Kept subtle for clean projection output.
-            HStack(spacing: 14) {
-                Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.title2).foregroundStyle(.white.opacity(showVisualControls ? 0.85 : 0.5))
-                }
-                .accessibilityLabel(showVisualControls ? "Hide visual controls" : "Show visual controls")
-                Button { spectralDonuts.toggle() } label: {
-                    Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
-                        .font(.title2).foregroundStyle(.white.opacity(0.6))
-                }
-                .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
-                Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualAnalytics.toggle() } } label: {
-                    Image(systemName: "waveform.path.ecg.rectangle")
-                        .font(.title2).foregroundStyle(.white.opacity(showVisualAnalytics ? 0.85 : 0.5))
-                }
-                .accessibilityLabel(showVisualAnalytics ? "Hide analytics overlay" : "Show analytics overlay")
-                Button { showVisual = false } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2).foregroundStyle(.white.opacity(0.85))
-                }
-                .accessibilityLabel("Close visual")
-            }
-            .padding()
-        }
-        .statusBarHidden(true)
-    }
-
     /// The hands-on VJ control panel that floats over the fullscreen visual: the four
     /// live parameters + a quick scene strip, on the app-wide value-field vocabulary,
     /// in a solid (non-glass) bottom panel sized for stage use. Tap the canvas to hide.
@@ -1319,82 +1165,6 @@ struct EchoelStudioView: View {
             .frame(maxWidth: 560)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-    }
-
-    /// Media-production analytics over the fullscreen visual: a live audio oscilloscope
-    /// plus legible bio numbers (HR · HRV · Coherence · Level). Top-aligned, solid
-    /// (non-glass), flash-safe (a continuous line — no luminance flashing). Informational,
-    /// so it never eats canvas taps. Toggled from the top bar.
-    private var visualAnalyticsOverlay: some View {
-        let bio = bus.freshBio()
-        return VStack(spacing: 8) {
-            HStack(spacing: 16) {
-                analyticsStat("HR", bio.map { String(format: "%.0f", $0.heartRateBPM) } ?? "—", "bpm")
-                analyticsStat("HRV", hrvReadout(bio), (bio?.hrvRMSSDms ?? 0) > 0 ? "ms" : "")
-                analyticsStat("Coh", bio.map { String(format: "%.2f", $0.coherence) } ?? "—", "")
-                analyticsStat("Lvl", levelReadout, "dB")
-                Spacer(minLength: 0)
-            }
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { _ in
-                Canvas { ctx, size in drawScope(ctx, size) }
-                    .frame(height: 56)
-            }
-        }
-        .padding(12)
-        .background(EchoelTheme.bg.opacity(0.72))
-        .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
-        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-        .padding(.horizontal, 12).padding(.top, 64)   // clear the top control bar
-        .frame(maxWidth: 560)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .allowsHitTesting(false)
-    }
-
-    private func analyticsStat(_ label: String, _ value: String, _ unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(EchoelTheme.font(9, .medium)).foregroundStyle(.white.opacity(0.5))
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(value).font(EchoelTheme.font(17, .semibold)).foregroundStyle(.white)
-                if !unit.isEmpty {
-                    Text(unit).font(EchoelTheme.font(9)).foregroundStyle(.white.opacity(0.5))
-                }
-            }
-        }
-    }
-
-    private func hrvReadout(_ bio: BioSampleFrame?) -> String {
-        guard let bio else { return "—" }
-        return bio.hrvRMSSDms > 0 ? String(format: "%.0f", bio.hrvRMSSDms)
-                                  : String(format: "%.2f", bio.hrvNormalized)
-    }
-
-    private var levelReadout: String {
-        let lvl = Swift.max(audioEngine.masterLevel, audioEngine.masterLevelR)
-        guard lvl > 0.0001 else { return "−∞" }
-        return String(format: "%.0f", 20 * log10f(lvl))
-    }
-
-    /// Draw the live audio oscilloscope from the engine's latest output samples (pulled
-    /// here on the main thread — never the audio thread; same lock-free ring the donut
-    /// visual reads). A thin accent line, vertically centred.
-    private func drawScope(_ ctx: GraphicsContext, _ size: CGSize) {
-        let n = 256
-        var buf = [Float](repeating: 0, count: n)
-        _ = audioEngine.copyLatestOutputSamples(into: &buf, count: n)
-        var path = Path()
-        let midY = size.height / 2
-        for i in 0..<n {
-            let x = size.width * CGFloat(i) / CGFloat(n - 1)
-            let s = CGFloat(Swift.max(-1, Swift.min(1, buf[i])))
-            let y = midY - s * (size.height * 0.45)
-            if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
-        }
-        ctx.stroke(path, with: .color(EchoelTheme.accent.opacity(0.9)),
-                   style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
-        // Baseline for reference (subtle).
-        var base = Path()
-        base.move(to: CGPoint(x: 0, y: midY)); base.addLine(to: CGPoint(x: size.width, y: midY))
-        ctx.stroke(base, with: .color(.white.opacity(0.12)), lineWidth: 0.5)
     }
     #endif
 
@@ -1957,17 +1727,8 @@ struct EchoelStudioView: View {
                 .disabled(projects.projects.isEmpty)
             }
 
-            Button {
-                // If the previous run crashed, lead with that report (the actionable
-                // one); otherwise show the current session's log. User-initiated, and
-                // only reachable when Compose is visible — safe to present here.
-                let prev = EchoelCrashLog.previousSession
-                diagnostics = DiagReport(text: priorCrashAvailable && !prev.isEmpty
-                                         ? prev : EchoelCrashLog.currentLog())
-            } label: {
-                Text(priorCrashAvailable ? "Diagnostics — prior crash ›" : "Diagnostics")
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(priorCrashAvailable ? EchoelTheme.danger : EchoelTheme.dim)
+            Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
+                Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
@@ -1976,21 +1737,14 @@ struct EchoelStudioView: View {
 
     // MARK: - Diagnostics
 
-    /// Launch-time guard. This view is mounted by `WorkspaceView` in a ZStack with the
-    /// other surfaces and is HIDDEN (opacity 0) at launch unless Compose is the chosen
-    /// surface. We must therefore NEVER auto-present a modal from here on appear: a
-    /// `.sheet`/`.fullScreenCover` raised from a hidden, opacity-0 layer installs a
-    /// presentation with no visible presenter → a black screen / invisible tap-blocker,
-    /// and (worse) if the previous run crashed it would re-fire every launch — a
-    /// self-sustaining launch crash-loop. So instead of auto-surfacing the prior crash
-    /// log, we (1) guarantee no modal is up at launch and (2) flag that a prior-crash
-    /// report exists so the always-reachable "Diagnostics" button can highlight it. The
-    /// log itself is still captured by `EchoelCrashLog` and shareable in one tap from
-    /// that button — just never shoved in front of the user during the launch transition.
-    private func surfaceDidAppear() {
-        clearAllSheets(); clearAllCovers()      // no modal may be live at launch
+    /// On launch, if the previous run reached biofeedback start (or recorded a
+    /// crash) but the app is back at square one, it almost certainly crashed —
+    /// surface the log so it can be shared in one tap.
+    private func surfacePriorCrashIfAny() {
+        guard diagnostics == nil else { return }
         let prev = EchoelCrashLog.previousSession
-        priorCrashAvailable = prev.contains("Start tapped") || prev.contains("CRASH")
+        guard prev.contains("Start tapped") || prev.contains("CRASH") else { return }
+        diagnostics = DiagReport(text: prev)
     }
 
     private func diagnosticsSheet(_ text: String) -> some View {
@@ -2611,47 +2365,6 @@ private struct StudioZoom: ViewModifier {
                 }
                 .onEnded { _ in pinchBase = nil }
         )
-    }
-}
-
-/// One Bio→Visual route editor row (source → visual target, depth, polarity, curve),
-/// mirroring the FX bio-routing row so the two read identically.
-private struct VisualModRouteRow: View {
-    @Binding var route: VisualModRoute
-    let onDelete: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Toggle("", isOn: $route.enabled).labelsHidden().tint(EchoelTheme.accent)
-                Picker("Source", selection: $route.carrier) {
-                    ForEach(FXModCarrier.allChoices, id: \.self) { c in
-                        Text(c.displayName).tag(c)
-                    }
-                }
-                .pickerStyle(.menu)
-                Image(systemName: "arrow.right").font(.caption).foregroundStyle(EchoelTheme.dim)
-                Picker("Target", selection: $route.target) {
-                    ForEach(VisualModTarget.allCases) { t in Text(t.displayName).tag(t) }
-                }
-                .pickerStyle(.menu)
-                Spacer(minLength: 0)
-                Button(role: .destructive, action: onDelete) {
-                    Image(systemName: "trash").font(.caption).foregroundStyle(EchoelTheme.dim)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Delete route")
-            }
-            EchoelValueField(label: "Depth", value: $route.depth, range: 0...1, decimals: 2)
-            HStack(spacing: 12) {
-                Toggle("Bipolar", isOn: $route.bipolar).tint(EchoelTheme.accent)
-                    .font(EchoelTheme.font(12))
-                if route.carrier == .lfo {
-                    EchoelValueField(label: "LFO Hz", value: $route.lfoRateHz, range: 0.02...4, decimals: 2)
-                }
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 
