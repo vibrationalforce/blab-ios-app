@@ -1,5 +1,15 @@
-build: 2026-06-24 v10.76.10 (Bio→Visual routing — the body sculpts the light)
+build: 2026-06-24 v10.76.11 (visual: spectral colour-in-space + analytics overlay)
 branch: claude/piano-roll-clip-view-wozlie
+notesT: Device-confirmed: the visual now renders in colour (never-black fix works). Two
+  follow-ups in this build: (1) SPECTRAL DISPERSION — the Metal looks (Rings/Chladni/
+  Plasma/Water) no longer paint one flat hue; the tone's spectrum is now distributed
+  across the frame (radius + horizontal axis → wavelength, scaled by Spread), like light
+  through water / a prism, still anchored to the heard tone. Answers "die Aufteilung der
+  Farben im Raum könnte besser sein". (2) ANALYTICS OVERLAY — a top-bar toggle adds a
+  live audio oscilloscope + bio numbers (HR · HRV · Coherence · Level) over the visual,
+  for film/stage/social production. Flash-safe; never-black floor intact. Open the visual
+  → try the Look + "Blend with" + Mix, the new colour spread, and the analytics toggle.
+  INSTALL 10.76.11.
 notesT: NEW: Bio→Visual routing. The live body now sculpts the immersive visual, the same
   way the bio→FX routing works. In the Visual section, "Add bio routing…" maps any body
   channel (Heart rate · HRV · Breath · Coherence · Motion) or an LFO onto any visual

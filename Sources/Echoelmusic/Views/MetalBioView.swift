@@ -374,14 +374,17 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         return clamp(c, 0.0, 1.0);
     }
 
-    // Physically transpose an audible tone up by WHOLE octaves into visible light,
-    // then return its true colour. c = 2.998e17 nm/s, so wavelength = c / f_light.
-    float3 toneColour(float toneHz) {
+    // Physically transpose an audible tone up by WHOLE octaves into visible light and
+    // return the resulting WAVELENGTH (nm, unclamped — the caller clamps). c = 2.998e17
+    // nm/s, so wavelength = c / f_light.
+    float toneWavelengthNm(float toneHz) {
         float f = max(toneHz, 1.0);
         float n = round(log2(5.4e14 / f));         // octaves up to ~555 nm (green centre)
         float fLight = f * exp2(n);                 // now in the ~400–790 THz visible band
-        float wl = 2.998e17 / fLight;              // nanometres
-        return wavelengthToRGB(clamp(wl, 380.0, 780.0));
+        return 2.998e17 / fLight;                   // nanometres
+    }
+    float3 toneColour(float toneHz) {
+        return wavelengthToRGB(clamp(toneWavelengthNm(toneHz), 380.0, 780.0));
     }
 
     // ── Visual styles — each returns a scalar field in ~[0,1] ───────────────────
@@ -502,10 +505,18 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Breath → a soft central bloom that swells on the inhale (light pressure).
         float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
 
-        // Colour = the heard tone transposed into light (physically correct), so the
-        // pitch you hear is the colour you see. Coherence lifts the saturation/glow,
-        // then the VJ palette applies (neutral at defaults — physical colour preserved).
-        float3 col = toneColour(u.toneHz);
+        // Colour = the heard tone transposed into light (physically correct), now with
+        // spatial SPECTRAL DISPERSION so the colours are distributed across the frame
+        // (founder: "die Aufteilung der Farben im Raum") instead of one flat hue. The
+        // per-pixel wavelength = the tone's wavelength + a spatial offset (radius gives a
+        // radial rainbow, the horizontal axis a second gradient), scaled by Spread — like
+        // light through water / a prism, still anchored to the heard tone at the centre.
+        // Slowly drifts with the flash-safe phase so it breathes. Clamped to the visible
+        // band; the CMF naturally dims the deep-red/violet ends.
+        float wlBase = toneWavelengthNm(u.toneHz);
+        float drift = 18.0 * sin(phase * 0.5);
+        float disp = ((d - 0.30) * 165.0 + pf.x * 38.0 + drift) * spread;
+        float3 col = wavelengthToRGB(clamp(wlBase + disp, 380.0, 780.0));
         col = mix(col, col * 1.15 + 0.05, coh);
         // Never near-black: deep-red/violet tones are dim via the CMF (eye sensitivity).
         // Lift very dark colours up to a luminance floor while PRESERVING hue, so the
