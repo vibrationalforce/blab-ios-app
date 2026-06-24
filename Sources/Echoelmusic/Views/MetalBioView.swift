@@ -541,6 +541,17 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // anchored to the heard tone's overtone series. `cloudGlow` lets them softly glow.
         float cloudGlow = 0.0;
         float3 col = toneCloudColour(pf, phase, u.toneHz, spread, cloudGlow);
+        // NATURAL WARM LIGHT (founder): pure spectral colours look "neon"; nature's light
+        // — a prism/rainbow in warm daylight — is warmer and a touch less saturated. Pull
+        // gently toward a warm white point (~3500 K) and ease the saturation, keeping the
+        // warmth in the desaturated part so it never goes cold/grey. Still bunt; the user
+        // Saturation control can push it back to vivid. Hue order/variety is preserved.
+        {
+            float l = dot(col, float3(0.2126, 0.7152, 0.0722));
+            float3 warm = float3(1.0, 0.92, 0.80);          // warm daylight white point
+            col = mix(float3(l) * warm, col, 0.85);         // gentle, warm-tinted desaturation
+            col = mix(col, warm, 0.10);                     // slight overall warm lift
+        }
         col = mix(col, col * 1.15 + 0.05, coh);
         // Never near-black: deep-red/violet tones are dim via the CMF (eye sensitivity).
         // Lift very dark colours up to a luminance floor while PRESERVING hue, so the
