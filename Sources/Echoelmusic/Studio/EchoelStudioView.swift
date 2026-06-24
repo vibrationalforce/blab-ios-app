@@ -176,6 +176,10 @@ struct EchoelStudioView: View {
     @State private var saveName = ""
     @State private var share: ExportedFile?
     @State private var diagnostics: DiagReport?
+    /// Set at launch if the previous run logged a crash; lets the Diagnostics button
+    /// highlight that a report is waiting — WITHOUT auto-presenting a modal (see
+    /// `surfaceDidAppear`).
+    @State private var priorCrashAvailable = false
 
     // Tools — open the (previously unreachable) editors as sheets.
     /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
@@ -303,7 +307,7 @@ struct EchoelStudioView: View {
                let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
                 applyVisualPreset(p)
             }
-            surfacePriorCrashIfAny()
+            surfaceDidAppear()
             handlePendingIntent()
         }
         .onChange(of: scenePhase) { _, phase in
@@ -1944,8 +1948,17 @@ struct EchoelStudioView: View {
                 .disabled(projects.projects.isEmpty)
             }
 
-            Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
-                Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            Button {
+                // If the previous run crashed, lead with that report (the actionable
+                // one); otherwise show the current session's log. User-initiated, and
+                // only reachable when Compose is visible — safe to present here.
+                let prev = EchoelCrashLog.previousSession
+                diagnostics = DiagReport(text: priorCrashAvailable && !prev.isEmpty
+                                         ? prev : EchoelCrashLog.currentLog())
+            } label: {
+                Text(priorCrashAvailable ? "Diagnostics — prior crash ›" : "Diagnostics")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(priorCrashAvailable ? EchoelTheme.danger : EchoelTheme.dim)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
@@ -1954,14 +1967,21 @@ struct EchoelStudioView: View {
 
     // MARK: - Diagnostics
 
-    /// On launch, if the previous run reached biofeedback start (or recorded a
-    /// crash) but the app is back at square one, it almost certainly crashed —
-    /// surface the log so it can be shared in one tap.
-    private func surfacePriorCrashIfAny() {
-        guard diagnostics == nil else { return }
+    /// Launch-time guard. This view is mounted by `WorkspaceView` in a ZStack with the
+    /// other surfaces and is HIDDEN (opacity 0) at launch unless Compose is the chosen
+    /// surface. We must therefore NEVER auto-present a modal from here on appear: a
+    /// `.sheet`/`.fullScreenCover` raised from a hidden, opacity-0 layer installs a
+    /// presentation with no visible presenter → a black screen / invisible tap-blocker,
+    /// and (worse) if the previous run crashed it would re-fire every launch — a
+    /// self-sustaining launch crash-loop. So instead of auto-surfacing the prior crash
+    /// log, we (1) guarantee no modal is up at launch and (2) flag that a prior-crash
+    /// report exists so the always-reachable "Diagnostics" button can highlight it. The
+    /// log itself is still captured by `EchoelCrashLog` and shareable in one tap from
+    /// that button — just never shoved in front of the user during the launch transition.
+    private func surfaceDidAppear() {
+        clearAllSheets(); clearAllCovers()      // no modal may be live at launch
         let prev = EchoelCrashLog.previousSession
-        guard prev.contains("Start tapped") || prev.contains("CRASH") else { return }
-        diagnostics = DiagReport(text: prev)
+        priorCrashAvailable = prev.contains("Start tapped") || prev.contains("CRASH")
     }
 
     private func diagnosticsSheet(_ text: String) -> some View {

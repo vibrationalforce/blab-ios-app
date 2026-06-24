@@ -1,12 +1,19 @@
-build: 2026-06-24 v10.76.15 (STABILITY: fix launch crash + UI hang — one sheet/cover)
+build: 2026-06-24 v10.76.16 (STABILITY: kill the launch crash-loop — no modal at launch)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Critical stability fix. 10.76.14 wouldn't launch, and the app sometimes hung
-  ("can't click anything") or crashed. Root cause: the main view attached 16 .sheet + 3
-  .fullScreenCover modifiers; when two became true at once (the crash-diagnostic auto-
-  surfacing at launch over another presentation; tool/intent paths) SwiftUI installed an
-  invisible tap-blocking layer / crashed, and the deep modifier nesting also risked the
-  metadata launch-overflow. FIX: consolidated to ONE .sheet(item:) + ONE
-  .fullScreenCover(item:) driven by computed bindings over the existing flags, so only a
-  single presentation can ever be live and dismiss clears the flags. This also flattens
-  the body type (19 modifiers to 2). No feature changes; all tools/visual unchanged.
-  INSTALL 10.76.15 and confirm it launches + nothing freezes.
+notesT: This is the real launch fix. 10.76.14/10.76.15 black-screened at launch. Root
+  cause found: WorkspaceView keeps ALL three surfaces mounted in a ZStack (opacity), so
+  the Compose surface (EchoelStudioView) is mounted but HIDDEN at launch. Its .onAppear
+  auto-surfaced the prior-crash diagnostics sheet whenever the PREVIOUS run had logged a
+  crash — i.e. it tried to present a .sheet from a hidden, opacity-0 layer (a presentation
+  with no visible presenter = black screen / invisible tap-blocker), and because it read
+  the LAST session's crash it re-fired on EVERY launch: a self-sustaining crash-loop. That
+  is why 10.76.15's single-sheet consolidation didn't help — the auto-present still fired.
+  FIX: never auto-present a modal at launch. onAppear now (1) clears all sheet/cover flags
+  (guarantees nothing is live at launch) and (2) just flags that a prior-crash report
+  exists. The crash log is still captured and shareable in one tap from the always-present
+  "Diagnostics" button (which now highlights in red — "Diagnostics — prior crash >" — when
+  a report is waiting). No feature changes.
+  INSTALL 10.76.16 from TestFlight (the update works even though the app won't launch).
+  If it STILL black-screens: delete + reinstall (clears persisted state), then open
+  Settings > Privacy & Security > Analytics & Improvements > Analytics Data, find the
+  newest "Echoel..." entry and send it — that's the exact crash stack.
