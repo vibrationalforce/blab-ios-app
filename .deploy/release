@@ -1,5 +1,15 @@
-build: 2026-06-24 v10.76.11 (visual: spectral colour-in-space + analytics overlay)
+build: 2026-06-24 v10.76.12 (visual: drifting colour CLOUDS — a bunt picture)
 branch: claude/piano-roll-clip-view-wozlie
+notesT: Founder: "verschiedene Farbwolken in Kombination wären schöner … nicht zu einer
+  Mischung". The Metal looks now paint MULTIPLE drifting colour clouds — one per ODD
+  harmonic of the played tone (tonic · fifth · third · seventh · second → five distinct
+  colours), each at its own slowly-drifting centre with a soft falloff. Per pixel the
+  DOMINANT cloud wins (only overlaps blend), so each region keeps its own colour and the
+  picture stays bunt instead of averaging to one muddy mix. Clouds softly self-illuminate;
+  the field still adds structure on top; never-black floor + flash-safety intact. Also in
+  this build: analytics overlay (top-bar toggle: oscilloscope + HR/HRV/Coherence/Level).
+  INSTALL 10.76.12 — open the visual and try the looks; tell me if the clouds want to be
+  bigger/smaller, more/fewer, or drift faster/slower.
 notesT: Device-confirmed: the visual now renders in colour (never-black fix works). Two
   follow-ups in this build: (1) SPECTRAL DISPERSION — the Metal looks (Rings/Chladni/
   Plasma/Water) no longer paint one flat hue; the tone's spectrum is now distributed
