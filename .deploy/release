@@ -1,5 +1,12 @@
-build: 2026-06-24 v10.76.13 (visual: natural warm-light colour clouds)
+build: 2026-06-24 v10.76.14 (rPPG diagnostic: log autocorrelation BPM)
 branch: claude/piano-roll-clip-view-wozlie
+notesT: Diagnostic-only (no behaviour change). The rPPG breadcrumb now logs the independent
+  autocorrelation BPM as `auto=…` alongside the peak-count `bpm=…`. The device log showed
+  BPM gliding from ~106 to ~60 (peak count halving) — ambiguous: either a real ~106
+  halving to a false 60, or false-high settling converging to a true 60. With `auto` we
+  can tell: if bpm ≈ auto/2 with a decent acf, it's an octave-halving (then I build the
+  fix); if they agree, the rate is genuine. Carries the natural warm colour clouds +
+  analytics overlay. INSTALL 10.76.14, do a normal rPPG run, send the log.
 notesT: Founder wants the colours to look NATURAL — warm natural light combined like a
   prism/rainbow in nature. The drifting harmonic colour clouds (tonic·fifth·third·
   seventh·second) are now pulled gently toward a warm ~3500 K daylight white point and
