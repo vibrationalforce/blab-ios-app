@@ -1,19 +1,22 @@
-build: 2026-06-24 v10.76.16 (STABILITY: kill the launch crash-loop — no modal at launch)
+build: 2026-06-24 v10.76.17 (STABILITY: the real launch fix — erase the fullscreen cover from body metadata)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: This is the real launch fix. 10.76.14/10.76.15 black-screened at launch. Root
-  cause found: WorkspaceView keeps ALL three surfaces mounted in a ZStack (opacity), so
-  the Compose surface (EchoelStudioView) is mounted but HIDDEN at launch. Its .onAppear
-  auto-surfaced the prior-crash diagnostics sheet whenever the PREVIOUS run had logged a
-  crash — i.e. it tried to present a .sheet from a hidden, opacity-0 layer (a presentation
-  with no visible presenter = black screen / invisible tap-blocker), and because it read
-  the LAST session's crash it re-fired on EVERY launch: a self-sustaining crash-loop. That
-  is why 10.76.15's single-sheet consolidation didn't help — the auto-present still fired.
-  FIX: never auto-present a modal at launch. onAppear now (1) clears all sheet/cover flags
-  (guarantees nothing is live at launch) and (2) just flags that a prior-crash report
-  exists. The crash log is still captured and shareable in one tap from the always-present
-  "Diagnostics" button (which now highlights in red — "Diagnostics — prior crash >" — when
-  a report is waiting). No feature changes.
-  INSTALL 10.76.16 from TestFlight (the update works even though the app won't launch).
-  If it STILL black-screens: delete + reinstall (clears persisted state), then open
-  Settings > Privacy & Security > Analytics & Improvements > Analytics Data, find the
-  newest "Echoel..." entry and send it — that's the exact crash stack.
+notesT: THIS is the actual launch fix (10.76.14/.15/.16 all black-screened; .15/.16 fixed
+  real-but-secondary bugs). Root cause: a SwiftUI type-metadata STACK OVERFLOW (SIGSEGV)
+  at launch — a compile-clean crash, no Swift trap, just black screen. EchoelStudioView is
+  mounted at launch (WorkspaceView keeps all surfaces in a ZStack). Its `.fullScreenCover`
+  content (`visualCoverContent` — the immersive ZStack with the VJ overlay + analytics
+  overlay + MetalBioView) was NOT type-erased, and since `.fullScreenCover` is generic over
+  its content type, that whole deep nesting got baked into the view's `body` type metadata.
+  When 10.76.10 (Bio→Visual) and 10.76.11 (analytics overlay) GREW that cover, the body
+  metadata crossed the decoder's recursion limit → overflow → SIGSEGV at launch. That's why
+  10.76.9 launched (verified) but everything from 10.76.10 on bricked, and why the sheet-
+  consolidation (.15) and the no-auto-modal fix (.16) didn't help — neither touched the
+  cover's contribution to body. FIX: wrap every `.fullScreenCover` branch in AnyView (it was
+  already done for the 16 `.sheet` cases and the body sections) so the deep cover type leaves
+  body's metadata. MTKView identity preserved (stable wrapped type → updateUIView, no
+  teardown). Reviewed twice (ui-state + launch-path audit): sufficient, compiles under
+  -warnings-as-errors. No feature changes — same visual, same controls.
+  INSTALL 10.76.17 from TestFlight. It should finally launch. If it still black-screens,
+  send the crash log (Settings > Privacy & Security > Analytics & Improvements > Analytics
+  Data > newest "Echoel..." entry) — a SIGSEGV in swift_getTypeByMangledName confirms this
+  class of bug; anything else points elsewhere.
