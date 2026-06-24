@@ -1,5 +1,14 @@
-build: 2026-06-23 v10.76.9 (rPPG: robust camera stall-recovery — no more 50 s freeze)
+build: 2026-06-24 v10.76.10 (Bio→Visual routing — the body sculpts the light)
 branch: claude/piano-roll-clip-view-wozlie
+notesT: NEW: Bio→Visual routing. The live body now sculpts the immersive visual, the same
+  way the bio→FX routing works. In the Visual section, "Add bio routing…" maps any body
+  channel (Heart rate · HRV · Breath · Coherence · Motion) or an LFO onto any visual
+  parameter (Intensity · Detail · Motion · Spread · Hue · Saturation · Blend Mix), each
+  with Depth + polarity. Non-destructive: your set values stay the base, the body shapes
+  around them; routes persist across launches. e.g. Coherence → Blend (one look morphs
+  into another as you settle), Breath → Spread, Heart rate → Intensity. Flash-safety
+  unchanged. Carries 10.76.8 (blendable looks + never-black) and 10.76.9 (rPPG
+  stall-recovery). INSTALL 10.76.10.
 notesT: Device logs showed the camera silently freezing mid-session (~50 s of identical
   rPPG values) — the watchdog's bare stop/start couldn't clear a deep stall and never
   re-armed the torch. Now recovery ESCALATES: a cheap stop/start first, then a FULL

@@ -1024,6 +1024,7 @@ struct EchoelStudioView: View {
     /// → Blend morph, breath → spread, heart rate → intensity), the same vocabulary as
     /// the FX bio-routing. Applied non-destructively on top of the values above.
     @ViewBuilder private var bioVisualSection: some View {
+        @Bindable var visualMod = visualMod   // @Observable → proper binding + observation
         Divider().overlay(EchoelTheme.border)
         Text("Bio → Visual").font(EchoelTheme.font(13, .bold)).foregroundStyle(EchoelTheme.text)
         ForEach($visualMod.routes) { $route in
