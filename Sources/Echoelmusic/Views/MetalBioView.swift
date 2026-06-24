@@ -387,6 +387,36 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         return wavelengthToRGB(clamp(toneWavelengthNm(toneHz), 380.0, 780.0));
     }
 
+    // Multiple drifting COLOUR CLOUDS so the picture is varied ("verschiedene Farbwolken
+    // in Kombination") instead of one flat hue or one muddy average. Each cloud is a
+    // HARMONIC of the played tone (1st..5th) rendered as its TRUE light colour, placed at
+    // its own slowly-drifting centre with a soft Gaussian falloff. The per-pixel colour is
+    // the weight-DOMINANT cloud (weighted average, but sharp falloffs mean each region
+    // keeps its own cloud's colour — only overlaps blend, never a global average). `glow`
+    // returns the summed cloud density so the clouds can softly self-illuminate. Drift is
+    // slow (flash-safe); each cloud's colour is fixed, so no colour flashing.
+    float3 toneCloudColour(float2 q, float phase, float toneHz, float spread, thread float& glow) {
+        float3 acc = float3(0.0);
+        float w = 0.0;
+        float radius = 0.45 * spread;
+        float r2 = max(radius * radius, 1e-4);
+        for (int k = 0; k < 5; k++) {
+            // ODD harmonics 1,3,5,7,9 → five DISTINCT pitch classes (tonic, fifth, third,
+            // seventh, second). Even harmonics are octaves of these and octave-fold to the
+            // same colour, which would collapse the variety — odd harmonics stay bunt.
+            float h = float(1 + 2 * k);
+            float3 ck = wavelengthToRGB(clamp(toneWavelengthNm(toneHz * h), 380.0, 780.0));
+            float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe drift
+            float2 ctr = float2(cos(a * 0.7 + h), sin(a + h * 2.0)) * (0.5 * spread);
+            float2 dq = q - ctr;
+            float wk = exp(-dot(dq, dq) / r2);
+            acc += ck * wk;
+            w += wk;
+        }
+        glow = w;
+        return acc / max(w, 1e-3);
+    }
+
     // ── Visual styles — each returns a scalar field in ~[0,1] ───────────────────
     // STYLE 0 — wave INTERFERENCE rings: a second ring system detuned by coherence
     // (high = aligned/constructive, low = turbulent moiré) beats against the first.
@@ -505,18 +535,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Breath → a soft central bloom that swells on the inhale (light pressure).
         float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
 
-        // Colour = the heard tone transposed into light (physically correct), now with
-        // spatial SPECTRAL DISPERSION so the colours are distributed across the frame
-        // (founder: "die Aufteilung der Farben im Raum") instead of one flat hue. The
-        // per-pixel wavelength = the tone's wavelength + a spatial offset (radius gives a
-        // radial rainbow, the horizontal axis a second gradient), scaled by Spread — like
-        // light through water / a prism, still anchored to the heard tone at the centre.
-        // Slowly drifts with the flash-safe phase so it breathes. Clamped to the visible
-        // band; the CMF naturally dims the deep-red/violet ends.
-        float wlBase = toneWavelengthNm(u.toneHz);
-        float drift = 18.0 * sin(phase * 0.5);
-        float disp = ((d - 0.30) * 165.0 + pf.x * 38.0 + drift) * spread;
-        float3 col = wavelengthToRGB(clamp(wlBase + disp, 380.0, 780.0));
+        // Colour = drifting CLOUDS of the tone's harmonic colours distributed across the
+        // frame (founder: "verschiedene Farbwolken in Kombination … nicht zu einer
+        // Mischung") — a varied, bunt picture where each region keeps its own colour,
+        // anchored to the heard tone's overtone series. `cloudGlow` lets them softly glow.
+        float cloudGlow = 0.0;
+        float3 col = toneCloudColour(pf, phase, u.toneHz, spread, cloudGlow);
         col = mix(col, col * 1.15 + 0.05, coh);
         // Never near-black: deep-red/violet tones are dim via the CMF (eye sensitivity).
         // Lift very dark colours up to a luminance floor while PRESERVING hue, so the
@@ -528,10 +552,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
 
         // Compose so the frame is NEVER a dead black: a faint full-frame tone wash
-        // (ambient, independent of the vignette so a small Spread can't black it out)
-        // rising to the full pattern at its peaks. The pattern keeps the structure;
-        // the wash guarantees the look always reads as "on".
-        float energy = clamp(field * vignette + bloom, 0.0, 1.0);
+        // (ambient) + a soft self-illumination of the colour clouds (so they read as
+        // floating colour even between the field's bright structure) rising to the full
+        // pattern at its peaks. The pattern keeps the structure; the clouds carry colour.
+        float glow = clamp(cloudGlow * 0.22, 0.0, 0.5);
+        float energy = clamp(field * vignette + bloom + glow, 0.0, 1.0);
         float ambient = 0.06;
         float3 outCol = col * (ambient + (1.0 - ambient) * energy);
         outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
