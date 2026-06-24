@@ -1007,11 +1007,16 @@ struct EchoelStudioView: View {
 
     private var visualPanel: some View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+            // Composite children AnyView-erased: visualPanel is built at launch (inside
+            // soundControls) and its concrete type sums every child. These five are the
+            // deep ones (bioVisualSection is the section that tipped 10.76.10 over the
+            // metadata-overflow limit). Erasing them keeps visualPanel's own type flat
+            // too — belt-and-braces on top of erasing the 7 panels in soundControls.
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-            visualLookStrip
-            visualBlendControls
-            visualPresetRow
-            musicColourRow
+            AnyView(visualLookStrip)
+            AnyView(visualBlendControls)
+            AnyView(visualPresetRow)
+            AnyView(musicColourRow)
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
                              onChange: { visualPresetID = "" })
             EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
@@ -1025,7 +1030,7 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
-            bioVisualSection
+            AnyView(bioVisualSection)
         }
     }
 
