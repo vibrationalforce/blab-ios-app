@@ -1,15 +1,12 @@
-build: 2026-06-24 v10.76.18 (DIAGNOSTIC: exact 10.76.9 code — the last build that launched)
+build: 2026-06-24 v10.76.19 (bisect step 1 — restore colours + camera diag on the launching 10.76.9 base)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: After 4 builds that black-screened (10.76.14–.17), this build reverts the app code
-  to EXACTLY 10.76.9 — the last version you confirmed launching (the "rendert bunt"
-  build). Everything since (Bio→Visual routing, the colour-cloud shaders, the camera
-  diagnostic, the sheet/cover refactors) is rolled back. This is a deliberate ground-truth
-  test:
-   • If 10.76.18 LAUNCHES → the problem is in the code added after 10.76.9, and I now know
-     exactly which 7 files to bisect — I re-add them one at a time WITH a launch check each
-     time, so we never go dark again.
-   • If 10.76.18 STILL black-screens → the problem is NOT the app code (build pipeline,
-     signing, or the install on the device), and I stop changing code and look there.
-  PLEASE: delete the app first, then install 10.76.18 fresh from TestFlight (clears any
-  stuck state). Tell me launches / black. If black, also send the crash log: Settings >
-  Privacy & Security > Analysis & Improvements > Analytics Data > newest "Echoel…".
+notesT: 10.76.18 (exact 10.76.9 code) LAUNCHED — so the launch break is in the code added
+  after 10.76.9, not the build/install. Now re-adding it in safe groups with a launch check
+  each step (lambda). This step re-adds the SAFE, non-launch-path group on top of the
+  launching base: the MetalBioView colour-cloud shaders (the natural warm "verschiedene
+  Farbwolken" you wanted) + the camera rPPG diagnostic logging. None of these touch the
+  launch path (shader compiles lazily with a fallback; camera logging runs only while
+  measuring), so this should still launch — and you get the colours back.
+  Next step isolates the actual regression to the Bio→Visual routing feature.
+  Test: still launches? And open the immersive Visual (Well) — the colour clouds should be
+  back. Tell me launches/black.
