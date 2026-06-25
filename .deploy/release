@@ -1,12 +1,19 @@
-build: 2026-06-24 v10.76.19 (bisect step 1 — restore colours + camera diag on the launching 10.76.9 base)
+build: 2026-06-24 v10.76.20 (Bio→Visual restored — launch metadata overflow fixed at the source)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: 10.76.18 (exact 10.76.9 code) LAUNCHED — so the launch break is in the code added
-  after 10.76.9, not the build/install. Now re-adding it in safe groups with a launch check
-  each step (lambda). This step re-adds the SAFE, non-launch-path group on top of the
-  launching base: the MetalBioView colour-cloud shaders (the natural warm "verschiedene
-  Farbwolken" you wanted) + the camera rPPG diagnostic logging. None of these touch the
-  launch path (shader compiles lazily with a fallback; camera logging runs only while
-  measuring), so this should still launch — and you get the colours back.
-  Next step isolates the actual regression to the Bio→Visual routing feature.
-  Test: still launches? And open the immersive Visual (Well) — the colour clouds should be
-  back. Tell me launches/black.
+notesT: 10.76.19 launched + ran a full session (confirmed on device), proving the launch
+  brick was the Bio→Visual feature, not the build. This re-adds Bio→Visual WITH the real
+  fix. Root cause (proven by 10.76.18 == 10.76.9 launching): soundControls is built in the
+  main scroll at LAUNCH, and its compiled SwiftUI type was the SUM of all 7 inlined panel
+  sub-types. visualPanel gained the Bio→Visual section in 10.76.10, pushing that summed
+  type past the Swift runtime metadata decoder's recursion limit → SIGSEGV / black screen.
+  10.76.9 sat just under the limit. (My earlier .15/.16/.17 fixes missed it — they erased
+  the fullscreen cover, which only builds when you OPEN the visual, not at launch.)
+  FIX: AnyView-erase each of the 7 panels in soundControls AND visualPanel's deep children
+  (visualLookStrip / visualBlendControls / visualPresetRow / musicColourRow /
+  bioVisualSection). Each now decodes as its own shallow type with lots of headroom, so
+  this class of crash can't recur as panels grow. Reviewed (compile-safe + sufficient).
+  Bio→Visual feature is back: route body channels (HR/HRV/breath/coherence/motion) or an
+  LFO to the visual params (intensity/detail/motion/spread/hue/saturation/Blend morph).
+  Test: still launches, and Sound ▸ Visual panel shows the "Bio → Visual" routing again.
+  (Separately noted from your log: the rPPG BPM is jittery/octave-jumpy — that's the next
+  task once this is confirmed; it does not affect launch.)
