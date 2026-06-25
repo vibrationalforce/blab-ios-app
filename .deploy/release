@@ -1,19 +1,15 @@
-build: 2026-06-24 v10.76.20 (Bio→Visual restored — launch metadata overflow fixed at the source)
+build: 2026-06-24 v10.76.21 (REPAIR: back to the launching code; Bio→Visual is the confirmed launch-breaker)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: 10.76.19 launched + ran a full session (confirmed on device), proving the launch
-  brick was the Bio→Visual feature, not the build. This re-adds Bio→Visual WITH the real
-  fix. Root cause (proven by 10.76.18 == 10.76.9 launching): soundControls is built in the
-  main scroll at LAUNCH, and its compiled SwiftUI type was the SUM of all 7 inlined panel
-  sub-types. visualPanel gained the Bio→Visual section in 10.76.10, pushing that summed
-  type past the Swift runtime metadata decoder's recursion limit → SIGSEGV / black screen.
-  10.76.9 sat just under the limit. (My earlier .15/.16/.17 fixes missed it — they erased
-  the fullscreen cover, which only builds when you OPEN the visual, not at launch.)
-  FIX: AnyView-erase each of the 7 panels in soundControls AND visualPanel's deep children
-  (visualLookStrip / visualBlendControls / visualPresetRow / musicColourRow /
-  bioVisualSection). Each now decodes as its own shallow type with lots of headroom, so
-  this class of crash can't recur as panels grow. Reviewed (compile-safe + sufficient).
-  Bio→Visual feature is back: route body channels (HR/HRV/breath/coherence/motion) or an
-  LFO to the visual params (intensity/detail/motion/spread/hue/saturation/Blend morph).
-  Test: still launches, and Sound ▸ Visual panel shows the "Bio → Visual" routing again.
-  (Separately noted from your log: the rPPG BPM is jittery/octave-jumpy — that's the next
-  task once this is confirmed; it does not affect launch.)
+notesT: Clean repair. Proven on device: 10.76.19 launches (full session), 10.76.20 = 19 +
+  the Bio→Visual feature → black screen. So the Bio→Visual feature is the exact launch-
+  breaker, and (since AnyView panel-erasure did NOT help) it is a RUNTIME fault in that
+  feature at launch, not a view-type/metadata issue. 10.76.21 = the exact launching code
+  (Bio→Visual removed) PLUS the new, tested ColorOctave core (Cousto colour octave —
+  present, not yet wired, zero launch risk). The app launches; nothing half-wired.
+  TO FIX BIO→VISUAL IN ONE SHOT, I need the crash stack from the 10.76.20 run:
+  Settings > Privacy & Security > Analytics & Improvements > Analytics Data > newest
+  "Echoel..." entry > Share. With it I pinpoint the exact line; without it I must re-add
+  Bio→Visual piece-by-piece over several builds. Next visible step after launch is
+  confirmed: wire ColorOctave into the immersive visual (Cousto colours) — that path
+  (MetalBioView shader) has never broken launch, so it is safe.
+  Test: 10.76.21 launches?
