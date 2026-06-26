@@ -383,8 +383,38 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float fLight = f * exp2(n);                 // now in the ~400–790 THz visible band
         return 2.998e17 / fLight;                   // nanometres
     }
+    // Hans Cousto's COSMIC-OCTAVE colour convention: note (pitch class) → colour, the
+    // octave transposition made explicit as the founder's reference chart (F#→Rot …
+    // C→Grün … F→Rotviolett). Smoothly interpolated between neighbouring pitch classes
+    // so a glide/microtone slides along the wheel — a prism, not 12 hard steps. Mirrors
+    // ColorOctave.swift (Swift) value-for-value so UI and visual agree. The downstream
+    // warm-desaturation + luminance floor turn these into natural light, not neon.
+    // Defined BEFORE toneColour/toneCloudColour so MSL sees it first.
+    float3 coustoColour(float hz) {
+        float3 wheel[12];
+        wheel[0]  = float3(0.000, 0.784, 0.000);  // C   Grün
+        wheel[1]  = float3(0.000, 0.784, 0.627);  // C#  Blaugrün
+        wheel[2]  = float3(0.000, 0.353, 1.000);  // D   Blau
+        wheel[3]  = float3(0.294, 0.000, 0.784);  // D#  Blauviolett
+        wheel[4]  = float3(0.580, 0.000, 0.827);  // E   Violett
+        wheel[5]  = float3(0.784, 0.000, 0.549);  // F   Rotviolett
+        wheel[6]  = float3(1.000, 0.000, 0.000);  // F#  Rot
+        wheel[7]  = float3(1.000, 0.271, 0.000);  // G   Rotorange
+        wheel[8]  = float3(1.000, 0.549, 0.000);  // G#  Orange
+        wheel[9]  = float3(1.000, 0.749, 0.000);  // A   Gelborange
+        wheel[10] = float3(1.000, 1.000, 0.000);  // A#  Gelb
+        wheel[11] = float3(0.678, 1.000, 0.184);  // H   Gelbgrün
+        float f = max(hz, 1.0);
+        float semis = 12.0 * log2(f / 16.351597831287414);   // C0 = MIDI 12
+        float pc = fmod(semis, 12.0);
+        if (pc < 0.0) pc += 12.0;
+        int lo = int(floor(pc)) % 12;
+        int hi = (lo + 1) % 12;
+        float t = pc - floor(pc);
+        return mix(wheel[lo], wheel[hi], t);
+    }
     float3 toneColour(float toneHz) {
-        return wavelengthToRGB(clamp(toneWavelengthNm(toneHz), 380.0, 780.0));
+        return coustoColour(toneHz);
     }
 
     // Multiple drifting COLOUR CLOUDS so the picture is varied ("verschiedene Farbwolken
@@ -405,7 +435,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // seventh, second). Even harmonics are octaves of these and octave-fold to the
             // same colour, which would collapse the variety — odd harmonics stay bunt.
             float h = float(1 + 2 * k);
-            float3 ck = wavelengthToRGB(clamp(toneWavelengthNm(toneHz * h), 380.0, 780.0));
+            float3 ck = coustoColour(toneHz * h);   // each harmonic → its Cousto note colour
             float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe drift
             float2 ctr = float2(cos(a * 0.7 + h), sin(a + h * 2.0)) * (0.5 * spread);
             float2 dq = q - ctr;
