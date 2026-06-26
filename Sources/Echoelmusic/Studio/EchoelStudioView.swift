@@ -179,6 +179,7 @@ struct EchoelStudioView: View {
     @State private var saveName = ""
     @State private var share: ExportedFile?
     @State private var diagnostics: DiagReport?
+    @State private var showAcknowledgments = false
 
     // Tools — open the (previously unreachable) editors as sheets.
     /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
@@ -322,6 +323,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showOpen) { AnyView(openSheet) }
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
         .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
+        .sheet(isPresented: $showAcknowledgments) { AnyView(acknowledgmentsSheet) }
         .sheet(isPresented: $showPianoRoll) {
             AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
         }
@@ -1763,11 +1765,19 @@ struct EchoelStudioView: View {
                 .disabled(projects.projects.isEmpty)
             }
 
-            Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
-                Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            HStack(spacing: 16) {
+                Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
+                    Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
+
+                Button { showAcknowledgments = true } label: {
+                    Text("Licenses & Credits").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Open-source licenses and attributions")
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
         }
     }
 
@@ -1802,6 +1812,78 @@ struct EchoelStudioView: View {
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { diagnostics = nil }
+                }
+            }
+        }
+    }
+
+    // MARK: - Acknowledgments / Licenses
+
+    /// One credit section: a bold title + a body paragraph. Plain `Text` only —
+    /// deliberately the simplest possible view tree (no Menu, no @Observable
+    /// bindings, no ForEach over projected state) so this screen can never be a
+    /// launch-time metadata or runtime-crash risk.
+    private func creditSection(_ title: String, _ body: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(EchoelTheme.font(14, .semibold))
+                .foregroundStyle(EchoelTheme.text)
+            Text(body)
+                .font(EchoelTheme.font(12))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// In-app open-source attributions / acknowledgments. Surfaces the same
+    /// information as `THIRD_PARTY_NOTICES.md` in a form users can read on device
+    /// (App Store hygiene; the font's OFL 1.1 prefers the license travel with the
+    /// app). Static content, computed once — safe for the root view's shallow type.
+    private var acknowledgmentsSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Echoel is built with open standards and a few generously-licensed works. Thank you to their authors.")
+                        .font(EchoelTheme.font(12))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    creditSection(
+                        "Atkinson Hyperlegible — SIL Open Font License 1.1",
+                        "© 2020 Braille Institute of America, Inc., with Reserved Font Name “Atkinson Hyperlegible”. Designed by Applied Design Works (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky). Used under the SIL OFL 1.1 — the full license ships in the app (Resources/Fonts/OFL.txt) and is available at scripts.sil.org/OFL.")
+
+                    creditSection(
+                        "Cosmic Octave — Hans Cousto (concept)",
+                        "The colour-octave (tone → visible light by octave transposition) and the planetary tunings use the octave-transposition method and frequency values described by Hans Cousto, “The Cosmic Octave” (1978). Presented as creative tuning / acoustics / astronomy — no health, healing, chakra or Solfeggio claims.")
+
+                    creditSection(
+                        "Drum samples — original work",
+                        "All bundled drum sounds are procedurally synthesised by Echoel’s own DSP. No third-party samples are used.")
+
+                    creditSection(
+                        "Apple frameworks",
+                        "Built with AVFoundation, Accelerate, Metal, CoreMIDI, HealthKit, CoreBluetooth, SwiftUI and SwiftData, under the Apple developer-program terms.")
+
+                    creditSection(
+                        "Echoel",
+                        "© 2024–2026 Echoelmusic (Michael Terbuyken). The Echoel source is MIT-licensed. No third-party Swift packages ship in this build.")
+
+                    Text("Full notices: THIRD_PARTY_NOTICES.md in the project repository.")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(16)
+            }
+            .background(EchoelTheme.bg)
+            .navigationTitle("Licenses & Credits")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { showAcknowledgments = false }
                 }
             }
         }

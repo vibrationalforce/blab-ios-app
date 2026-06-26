@@ -1,15 +1,17 @@
-build: 2026-06-24 v10.76.24 (Planetentöne — Cousto planetary tuning — #14)
+build: 2026-06-26 v10.76.25 (In-app Licenses & Credits — legal compliance)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.23. Adds Cousto's PLANETARY TONES as a creative Kammerton tuning:
-  a "Planet tone" picker in Compose ▸ Composition. Pick a planet → the concert pitch (A4)
-  is set so the instrument plays in tune with that planet's tone, e.g. Earth-year (OM,
-  136.10 Hz) → A4 ≈ 432 Hz, Venus → A4 ≈ 442 Hz. 13 bodies (Sun…Pluto + Earth day/year/
-  Platonic). Astronomy-derived creative tuning — labelled as such, NO health/energy/chakra
-  claims. Pure PlanetTone core + tests; the picker uses the SAME proven pattern as the
-  tone-system picker (reviewed launch-safe — it does NOT use the Bio→Visual pattern that
-  black-screened). Off by default; "Off" leaves your Kammerton untouched.
-  Launch-safe: reviewed (no Menu / no @Observable-binding ForEach / one extra static row;
-  session.a4Hz write propagates to the Kammerton field). Tests: Earth-year→C#/432,
-  Venus→A/442, all planets tune A within ±50¢ of 440, catalogue complete/unique, round-trip.
-  Test: 10.76.24 launches? Compose ▸ Composition → "Planet tone" picker; choose "Earth —
-  year" → Kammerton shows ≈432 Hz and the take retunes.
+notesT: Builds on 10.76.24. Adds the in-app "Licenses & Credits" screen (Compose
+  footer, next to Diagnostics) so the open-source attributions travel with the app:
+  Atkinson Hyperlegible (SIL OFL 1.1 — Braille Institute; full OFL text already
+  bundled in Resources/Fonts/OFL.txt), Hans Cousto's Cosmic Octave concept
+  (colour-octave + planetary tones — creative tuning, NO health/chakra claims),
+  procedurally-synthesised drums (original work), Apple frameworks, and Echoel's
+  own MIT licence. Mirrors THIRD_PARTY_NOTICES.md. App Store hygiene; the font's
+  OFL prefers the licence ship alongside the font.
+  Launch-safe by construction: standalone NavigationStack + ScrollView + plain
+  Text sections — NO Menu, NO ForEach, NO @Observable-binding (the patterns that
+  black-screened); AnyView-erased like the sibling sheets and built lazily on
+  presentation, so it cannot touch launch-time root metadata. Reviewed GO
+  (ui-state-reviewer). One new @State Bool with a complete dismiss path.
+  Test: 10.76.25 launches? Compose → scroll to footer → tap "Licenses & Credits"
+  → the credits sheet opens (font OFL, Cousto, drums, Apple, Echoel MIT) → Done.
