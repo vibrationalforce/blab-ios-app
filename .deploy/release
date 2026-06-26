@@ -1,15 +1,15 @@
-build: 2026-06-24 v10.76.21 (REPAIR: back to the launching code; Bio→Visual is the confirmed launch-breaker)
+build: 2026-06-24 v10.76.22 (Cousto colour octave in the immersive visual — #13)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Clean repair. Proven on device: 10.76.19 launches (full session), 10.76.20 = 19 +
-  the Bio→Visual feature → black screen. So the Bio→Visual feature is the exact launch-
-  breaker, and (since AnyView panel-erasure did NOT help) it is a RUNTIME fault in that
-  feature at launch, not a view-type/metadata issue. 10.76.21 = the exact launching code
-  (Bio→Visual removed) PLUS the new, tested ColorOctave core (Cousto colour octave —
-  present, not yet wired, zero launch risk). The app launches; nothing half-wired.
-  TO FIX BIO→VISUAL IN ONE SHOT, I need the crash stack from the 10.76.20 run:
-  Settings > Privacy & Security > Analytics & Improvements > Analytics Data > newest
-  "Echoel..." entry > Share. With it I pinpoint the exact line; without it I must re-add
-  Bio→Visual piece-by-piece over several builds. Next visible step after launch is
-  confirmed: wire ColorOctave into the immersive visual (Cousto colours) — that path
-  (MetalBioView shader) has never broken launch, so it is safe.
-  Test: 10.76.21 launches?
+notesT: First feature on the repaired, launching base. The immersive visual now colours
+  the played tone (and its harmonic clouds) by Hans Cousto's COSMIC-OCTAVE convention —
+  the note→colour wheel from your chart (F#→Rot, C→Grün, A→Gelborange …), smoothly
+  interpolated so glides/microtones slide along the wheel like a prism. The existing
+  warm-light desaturation + luminance floor stay, so it reads as natural light, not neon.
+  Shader matches the Swift ColorOctave core value-for-value (UI + visual will agree).
+  WHY THIS IS SAFE: the change is only inside the runtime-compiled Metal shader string —
+  if anything were wrong it falls back to clear-colour and the app STILL launches. The
+  launch-path code is the exact 10.76.19/21 code that you confirmed launches.
+  Test: 10.76.22 launches? Open the immersive Visual (Well) — the colours should follow
+  the played note per Cousto (C green, A yellow-orange, F# red …).
+  (Still pending: the 10.76.20 crash log so I can re-add Bio→Visual routing without a black
+  screen — Settings ▸ Privacy ▸ Analytics Data ▸ newest "Echoel…".)
