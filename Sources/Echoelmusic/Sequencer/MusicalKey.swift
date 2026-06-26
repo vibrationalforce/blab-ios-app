@@ -18,6 +18,20 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     case pentatonicMinor
     case harmonicMinor
     case chromatic
+    // Church mode completing the set (Ionian=major, Aeolian=minor already above).
+    case locrian
+    // Jazz — melodic minor + its most-used modes, and a bebop scale.
+    case melodicMinor
+    case lydianDominant
+    case altered
+    case bebopDominant
+    // Blues — the two hexatonic blues scales.
+    case bluesMinor
+    case bluesMajor
+    // Symmetric — dreamlike / cinematic tension.
+    case wholeTone
+    case diminishedWholeHalf
+    case diminishedHalfWhole
 
     /// Ascending semitone offsets from the root, one octave.
     public var intervals: [Int] {
@@ -32,6 +46,16 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .pentatonicMinor: return [0, 3, 5, 7, 10]
         case .harmonicMinor:   return [0, 2, 3, 5, 7, 8, 11]
         case .chromatic:       return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        case .locrian:             return [0, 1, 3, 5, 6, 8, 10]
+        case .melodicMinor:        return [0, 2, 3, 5, 7, 9, 11]
+        case .lydianDominant:      return [0, 2, 4, 6, 7, 9, 10]
+        case .altered:             return [0, 1, 3, 4, 6, 8, 10]
+        case .bebopDominant:       return [0, 2, 4, 5, 7, 9, 10, 11]
+        case .bluesMinor:          return [0, 3, 5, 6, 7, 10]
+        case .bluesMajor:          return [0, 2, 3, 4, 7, 9]
+        case .wholeTone:           return [0, 2, 4, 6, 8, 10]
+        case .diminishedWholeHalf: return [0, 2, 3, 5, 6, 8, 9, 11]
+        case .diminishedHalfWhole: return [0, 1, 3, 4, 6, 7, 9, 10]
         }
     }
 
@@ -48,6 +72,16 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .pentatonicMinor: return "Pentatonic Minor"
         case .harmonicMinor:   return "Harmonic Minor"
         case .chromatic:       return "Chromatic"
+        case .locrian:             return "Locrian"
+        case .melodicMinor:        return "Melodic Minor"
+        case .lydianDominant:      return "Lydian Dominant"
+        case .altered:             return "Altered"
+        case .bebopDominant:       return "Bebop Dominant"
+        case .bluesMinor:          return "Blues Minor"
+        case .bluesMajor:          return "Blues Major"
+        case .wholeTone:           return "Whole Tone"
+        case .diminishedWholeHalf: return "Diminished (W–H)"
+        case .diminishedHalfWhole: return "Diminished (H–W)"
         }
     }
 
@@ -64,6 +98,16 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .pentatonicMinor: return "pentm"
         case .harmonicMinor:   return "harm"
         case .chromatic:       return "chr"
+        case .locrian:             return "loc"
+        case .melodicMinor:        return "melm"
+        case .lydianDominant:      return "lydom"
+        case .altered:             return "alt"
+        case .bebopDominant:       return "bebop"
+        case .bluesMinor:          return "blsm"
+        case .bluesMajor:          return "blsM"
+        case .wholeTone:           return "whole"
+        case .diminishedWholeHalf: return "dimWH"
+        case .diminishedHalfWhole: return "dimHW"
         }
     }
 }

@@ -74,6 +74,42 @@ final class MusicalKeyTests: XCTestCase {
             XCTAssertFalse(scale.intervals.isEmpty)
             XCTAssertTrue(scale.intervals.allSatisfy { (0...11).contains($0) })
             XCTAssertEqual(scale.intervals, scale.intervals.sorted(), "ascending")
+            XCTAssertEqual(scale.intervals.first, 0, "starts on the root")
+            XCTAssertEqual(Set(scale.intervals).count, scale.intervals.count, "no duplicate degrees in \(scale)")
+            XCTAssertFalse(scale.displayName.isEmpty)
+            XCTAssertFalse(scale.shortTag.isEmpty)
         }
+    }
+
+    func testScaleDisplayNamesAndTagsAreUnique() {
+        XCTAssertEqual(Set(Scale.allCases.map(\.displayName)).count, Scale.allCases.count)
+        XCTAssertEqual(Set(Scale.allCases.map(\.shortTag)).count, Scale.allCases.count)
+    }
+
+    func testNewScales_haveExpectedIntervals() {
+        XCTAssertEqual(Scale.locrian.intervals,        [0, 1, 3, 5, 6, 8, 10])
+        XCTAssertEqual(Scale.melodicMinor.intervals,   [0, 2, 3, 5, 7, 9, 11])
+        XCTAssertEqual(Scale.lydianDominant.intervals, [0, 2, 4, 6, 7, 9, 10])
+        XCTAssertEqual(Scale.altered.intervals,        [0, 1, 3, 4, 6, 8, 10])
+        XCTAssertEqual(Scale.bebopDominant.intervals,  [0, 2, 4, 5, 7, 9, 10, 11])
+        XCTAssertEqual(Scale.bluesMinor.intervals,     [0, 3, 5, 6, 7, 10])
+        XCTAssertEqual(Scale.bluesMajor.intervals,     [0, 2, 3, 4, 7, 9])
+        XCTAssertEqual(Scale.wholeTone.intervals,      [0, 2, 4, 6, 8, 10])
+        XCTAssertEqual(Scale.diminishedWholeHalf.intervals, [0, 2, 3, 5, 6, 8, 9, 11])
+        XCTAssertEqual(Scale.diminishedHalfWhole.intervals, [0, 1, 3, 4, 6, 7, 9, 10])
+    }
+
+    func testNewScale_codableRoundTrip() throws {
+        // raw values are the case names; new cases must round-trip for persisted keys.
+        for scale in [Scale.locrian, .lydianDominant, .bluesMinor, .wholeTone] {
+            let key = MusicalKey(root: 2, scale: scale)
+            let data = try JSONEncoder().encode(key)
+            XCTAssertEqual(try JSONDecoder().decode(MusicalKey.self, from: data), key)
+        }
+    }
+
+    func testWholeTone_quantizeStaysInScale() {
+        let wt = MusicalKey(root: 0, scale: .wholeTone)   // C D E F# G# A#
+        for n in 60...72 { XCTAssertTrue(wt.contains(wt.quantize(n)), "quantized \(n) in scale") }
     }
 }

@@ -119,6 +119,10 @@ public extension TuningSystem {
     private static let justMajorCents:  [Double] = [0, 203.910, 386.314, 498.045, 701.955, 884.359, 1088.269]
     private static let justMinorCents:  [Double] = [0, 203.910, 315.641, 498.045, 701.955, 813.686, 1017.596]
     private static let pythagoreanCents: [Double] = [0, 203.910, 407.820, 498.045, 701.955, 905.865, 1109.775]
+    // Quarter-comma meantone (12 chromatic degrees): pure 5:4 major thirds (386¢), the
+    // historical keyboard temperament — sweeter triads than 12-TET, a wide "wolf" aside.
+    private static let meantoneCents: [Double] = [0, 76.0, 193.2, 310.3, 386.3, 503.4,
+                                                  579.5, 696.6, 772.6, 889.7, 1006.8, 1082.9]
 
     /// A curated, representative span: equal temperaments, just intonation, Arabic
     /// maqām (24-TET theoretic), Indonesian gamelan, Japanese, and a non-octave
@@ -137,6 +141,8 @@ public extension TuningSystem {
                      family: .justIntonation, degreesCents: justMinorCents),
         TuningSystem(id: "pythagorean", name: "Pythagorean (diatonic)",
                      family: .justIntonation, degreesCents: pythagoreanCents),
+        TuningSystem(id: "meantone-quarter", name: "1/4-comma Meantone (chromatic)",
+                     family: .justIntonation, degreesCents: meantoneCents),
 
         // — World (representative; regional/ensemble variation is real) —
         TuningSystem(id: "maqam-rast", name: "Maqām Rāst (24-TET theoretic)",
