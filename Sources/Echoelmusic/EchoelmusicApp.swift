@@ -160,6 +160,7 @@ struct EchoelmusicApp: App {
 
         _ = MemoryPressureHandler.shared
         log.log(.info, category: .system, "APP INIT [done] — UI next (audio/bio start post-UI in .task)")
+        EchoelCrashLog.breadcrumb("init done: engines constructed, UI next")
     }
 
     var body: some Scene {
@@ -279,10 +280,17 @@ struct EchoelmusicApp: App {
                 // source nodes to a running AVAudioEngine has crashed at launch
                 // (build 1363). Attach all voices first, then a single .start().
                 log.log(.info, category: .system, "STARTUP [1/4] Audio session + master graph...")
+                // Breadcrumbs at every STARTUP milestone: this is the most crash-prone
+                // window (the build-1363 hot-attach + audio-engine start). They land in
+                // the shared diagnostic log, so a launch that dies here names the phase
+                // instead of leaving only "launch" (the diagnostics gap behind a black
+                // screen). Best-effort file appends on the main actor — negligible cost.
+                EchoelCrashLog.breadcrumb("startup 1/4: audio session + graph")
                 audioEngine.prepareGraph()
                 beatPlayer.loadDefaultSamples()
 
                 log.log(.info, category: .system, "STARTUP [2/4] Attaching voices...")
+                EchoelCrashLog.breadcrumb("startup 2/4: attaching voices")
                 beatPlayer.attach(to: audioEngine)
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
@@ -290,7 +298,9 @@ struct EchoelmusicApp: App {
                 metronome.attach(to: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
+                EchoelCrashLog.breadcrumb("startup 3/4: starting audio engine")
                 audioEngine.start()
+                EchoelCrashLog.breadcrumb("startup 3/4: audio engine started OK")
 
                 // The melodic instrument + shared transport — the core sound path.
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
@@ -349,6 +359,7 @@ struct EchoelmusicApp: App {
                 #endif
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
+                EchoelCrashLog.breadcrumb("startup 4/4: core ready — instrument live")
 
                 // Self-healing: the UI rendered and the core came up. Confirm this
                 // launch healthy a few seconds in (a crash during initial render
