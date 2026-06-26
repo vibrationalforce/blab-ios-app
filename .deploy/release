@@ -1,15 +1,15 @@
-build: 2026-06-24 v10.76.22 (Cousto colour octave in the immersive visual — #13)
+build: 2026-06-24 v10.76.23 (Tonarten: +10 scales (jazz/blues/modes/symmetric) +1 tuning — #14)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: First feature on the repaired, launching base. The immersive visual now colours
-  the played tone (and its harmonic clouds) by Hans Cousto's COSMIC-OCTAVE convention —
-  the note→colour wheel from your chart (F#→Rot, C→Grün, A→Gelborange …), smoothly
-  interpolated so glides/microtones slide along the wheel like a prism. The existing
-  warm-light desaturation + luminance floor stay, so it reads as natural light, not neon.
-  Shader matches the Swift ColorOctave core value-for-value (UI + visual will agree).
-  WHY THIS IS SAFE: the change is only inside the runtime-compiled Metal shader string —
-  if anything were wrong it falls back to clear-colour and the app STILL launches. The
-  launch-path code is the exact 10.76.19/21 code that you confirmed launches.
-  Test: 10.76.22 launches? Open the immersive Visual (Well) — the colours should follow
-  the played note per Cousto (C green, A yellow-orange, F# red …).
-  (Still pending: the 10.76.20 crash log so I can re-add Bio→Visual routing without a black
-  screen — Settings ▸ Privacy ▸ Analytics Data ▸ newest "Echoel…".)
+notesT: Builds on 10.76.22 (Cousto colours). Expands the Tonarten/Tonsysteme as you asked —
+  DATA ONLY, so the Key/Scale + Tone-system pickers just gain entries (no new UI, no launch
+  risk). New scales: Locrian (completes the church modes), Melodic Minor, Lydian Dominant,
+  Altered, Bebop Dominant (jazz), Blues Minor, Blues Major, Whole Tone, Diminished (W–H) and
+  Diminished (H–W) (symmetric/cinematic). New tone system: 1/4-comma Meantone (pure 5:4
+  major thirds — historical keyboard temperament). All covered by tests (intervals, unique
+  names/tags, Codable round-trip, in-scale quantize, meantone pure-third). Pentatonics +
+  natural/harmonic minor for rock were already present.
+  Launch-path code unchanged from the confirmed-launching base; this only adds enum cases +
+  one library entry. Next (lambda): planet tones (Cousto) as a root tuning, then the visual-
+  menu category redesign + a Farboktave reference wheel.
+  Test: 10.76.23 launches? Compose ▸ Composition → the Scale picker shows the new jazz/blues/
+  modes, and Tone system shows 1/4-comma Meantone. And the Visual still shows Cousto colours.

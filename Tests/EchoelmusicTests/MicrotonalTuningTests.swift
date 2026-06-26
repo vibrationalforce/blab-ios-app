@@ -168,4 +168,13 @@ final class MicrotonalTuningTests: XCTestCase {
             XCTAssertEqual(c, 0, accuracy: acc)
         }
     }
+
+    func testMeantone_presentWithPureMajorThird() {
+        // 1/4-comma meantone is in the library and gives a ~386¢ (pure 5:4) major third.
+        let m = TuningSystem.named("meantone-quarter")
+        XCTAssertEqual(m.id, "meantone-quarter", "meantone is registered (named() fell back?)")
+        XCTAssertEqual(m.degreeCount, 12)
+        XCTAssertEqual(m.degreesCents[4], 386.3, accuracy: 0.3)   // pure major third
+        XCTAssertEqual(m.degreesCents[7], 696.6, accuracy: 0.3)   // narrow meantone fifth
+    }
 }
