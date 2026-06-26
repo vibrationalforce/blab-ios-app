@@ -230,6 +230,12 @@ struct EchoelStudioView: View {
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
+    /// Bio→Visual routing: the body shapes the immersive visual non-destructively
+    /// (base values stay editable; the modulator returns the shaped values to render).
+    /// The editor lives in a LAZY sheet (built only when opened) — never in the eager
+    /// launch scroll — so it cannot affect launch.
+    @State private var visualMod = VisualBioModulator()
+    @State private var showBioVisual = false
     /// Last-picked immersive visual preset (persisted) — a launch point for the
     /// four live sliders below; "" = none/custom after a manual tweak.
     @AppStorage("visual.preset") private var visualPresetID = ""
@@ -324,6 +330,7 @@ struct EchoelStudioView: View {
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
         .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
         .sheet(isPresented: $showAcknowledgments) { AnyView(acknowledgmentsSheet) }
+        .sheet(isPresented: $showBioVisual) { AnyView(BioVisualEditorView(modulator: visualMod).echoelSheetPanel()) }
         .sheet(isPresented: $showPianoRoll) {
             AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
         }
@@ -369,12 +376,17 @@ struct EchoelStudioView: View {
                     SpectralDonutView(reduceMotion: reduceMotion,
                                       bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
                 } else {
+                    // Bio→Visual: the body shapes the user's BASE params non-destructively.
+                    // Reading bus.latestBio + visualMod.routes here tracks them, so the
+                    // cover re-renders as the body changes; MetalBioView eases between
+                    // updates. No-op (returns base) when no routes are enabled.
+                    let eff = effectiveVisualParams()
                     MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
-                                 intensity: visualIntensity, ringDensity: visualDetail,
-                                 motion: visualMotion, spread: visualSpread,
-                                 hueShift: visualHue, saturation: visualSaturation,
+                                 intensity: eff.intensity, ringDensity: eff.detail,
+                                 motion: eff.motion, spread: eff.spread,
+                                 hueShift: eff.hue, saturation: eff.saturation,
                                  style: visualStyle, styleB: visualStyleB,
-                                 blend: Float(visualBlend)).ignoresSafeArea()
+                                 blend: eff.blend).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ control PANEL — clean for
                 // projection, hands-on for performance. Controls are a solid panel.
@@ -1043,7 +1055,29 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            // Bio→Visual: opens a LAZY sheet (built only on tap). Just a button here so
+            // the eager launch scroll stays trivial — the heavy editor never builds at launch.
+            Button { showBioVisual = true } label: {
+                Label(visualMod.isActive ? "Bio → Visual (active)" : "Bio → Visual…",
+                      systemImage: "waveform.path.ecg")
+                    .font(EchoelTheme.font(13, .semibold))
+                    .foregroundStyle(visualMod.isActive ? EchoelTheme.accent : EchoelTheme.text)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Let the body shape the immersive visual")
         }
+    }
+
+    /// The visual parameters to render: the user's base values shaped non-destructively
+    /// by the live body through `visualMod`. Reads `bus.latestBio` (via freshBio) and
+    /// `visualMod.routes` so the caller re-renders when either changes. Returns the base
+    /// unchanged when no routes are enabled.
+    private func effectiveVisualParams() -> VisualParams {
+        let base = VisualParams(intensity: visualIntensity, detail: visualDetail,
+                                motion: visualMotion, spread: visualSpread,
+                                hue: visualHue, saturation: visualSaturation,
+                                blend: Float(visualBlend))
+        return visualMod.effective(base: base, bio: bus.freshBio())
     }
 
     /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping

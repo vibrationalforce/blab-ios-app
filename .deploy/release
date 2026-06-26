@@ -1,18 +1,17 @@
-build: 2026-06-26 v10.76.26 (Selbstheilung — self-healing crash-loop Safe Mode)
+build: 2026-06-26 v10.76.27 (Bio→Visual reborn — body shapes the light, launch-safe)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.25. SELF-HEALING: the app must never trap you at a black
-  screen again. If a launch crashes before the UI reaches a healthy steady state,
-  the NEXT launch boots into a minimal "Safe Mode" recovery screen instead of
-  re-rendering the view tree that just crashed.
-  How it works: LaunchGuard (pure UserDefaults counter, can't itself crash) records
-  each launch and only clears it once the studio has been up ~4 s. A launch that
-  crashes during render never clears the counter → the next launch is protected.
-  Threshold = 2, so after a single unhealthy launch you're shielded — you never see
-  a second black screen. The recovery screen (plain text, no engine dependencies —
-  the one view that can always render) explains what happened, lets you Share the
-  diagnostics in one tap, and has a "Continue to Echoel" button to go straight back
-  into the full app. Reviewed launch-safe (ui-state) + Swift 6 concurrency-clean.
-  Test: 10.76.26 launches normally? (Safe Mode only appears AFTER a crash.) To see
-  it: if a build ever black-screens, just relaunch — you'll land on the recovery
-  screen with the crash log, not a black void. "Continue to Echoel" returns you to
-  the app.
+notesT: Builds on 10.76.26 (Safe Mode). Brings back BIO→VISUAL — the body sculpts the
+  immersive visual non-destructively: Coherence → Blend (one look morphs into another),
+  Breath → Spread, Heart rate → Intensity, plus LFOs. Your base visual values stay
+  editable; the live signal moves them around that base in real time.
+  This is the feature that black-screened in 10.76.20 — rebuilt so it CAN'T do that
+  again: (1) the editor lives in a lazy sheet (built only when you open it), never in
+  the launch scroll — visualPanel just has a "Bio → Visual…" button; (2) the editor
+  avoids all three confirmed crash patterns (no binding-ForEach over the @Observable
+  array, no Menu, no .menu Pickers — it uses chip buttons + explicit per-field
+  bindings); (3) it ships UNDER the 10.76.26 Safe-Mode net, so even a residual launch
+  fault would self-heal into the recovery screen with a crash log, not a black void.
+  Reviewed launch-safe (ui-state-reviewer GO). Pure cores restored with tests.
+  Test: 10.76.27 launches normally? Then: open the immersive Visual → "Bio → Visual…"
+  (in the Visual panel) → add e.g. Coherence → Blend, set Depth → watch the look morph
+  with your coherence. Off by default (no routes = identical to before).
