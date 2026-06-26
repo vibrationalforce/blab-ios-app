@@ -1,15 +1,15 @@
-build: 2026-06-24 v10.76.23 (Tonarten: +10 scales (jazz/blues/modes/symmetric) +1 tuning — #14)
+build: 2026-06-24 v10.76.24 (Planetentöne — Cousto planetary tuning — #14)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.22 (Cousto colours). Expands the Tonarten/Tonsysteme as you asked —
-  DATA ONLY, so the Key/Scale + Tone-system pickers just gain entries (no new UI, no launch
-  risk). New scales: Locrian (completes the church modes), Melodic Minor, Lydian Dominant,
-  Altered, Bebop Dominant (jazz), Blues Minor, Blues Major, Whole Tone, Diminished (W–H) and
-  Diminished (H–W) (symmetric/cinematic). New tone system: 1/4-comma Meantone (pure 5:4
-  major thirds — historical keyboard temperament). All covered by tests (intervals, unique
-  names/tags, Codable round-trip, in-scale quantize, meantone pure-third). Pentatonics +
-  natural/harmonic minor for rock were already present.
-  Launch-path code unchanged from the confirmed-launching base; this only adds enum cases +
-  one library entry. Next (lambda): planet tones (Cousto) as a root tuning, then the visual-
-  menu category redesign + a Farboktave reference wheel.
-  Test: 10.76.23 launches? Compose ▸ Composition → the Scale picker shows the new jazz/blues/
-  modes, and Tone system shows 1/4-comma Meantone. And the Visual still shows Cousto colours.
+notesT: Builds on 10.76.23. Adds Cousto's PLANETARY TONES as a creative Kammerton tuning:
+  a "Planet tone" picker in Compose ▸ Composition. Pick a planet → the concert pitch (A4)
+  is set so the instrument plays in tune with that planet's tone, e.g. Earth-year (OM,
+  136.10 Hz) → A4 ≈ 432 Hz, Venus → A4 ≈ 442 Hz. 13 bodies (Sun…Pluto + Earth day/year/
+  Platonic). Astronomy-derived creative tuning — labelled as such, NO health/energy/chakra
+  claims. Pure PlanetTone core + tests; the picker uses the SAME proven pattern as the
+  tone-system picker (reviewed launch-safe — it does NOT use the Bio→Visual pattern that
+  black-screened). Off by default; "Off" leaves your Kammerton untouched.
+  Launch-safe: reviewed (no Menu / no @Observable-binding ForEach / one extra static row;
+  session.a4Hz write propagates to the Kammerton field). Tests: Earth-year→C#/432,
+  Venus→A/442, all planets tune A within ±50¢ of 440, catalogue complete/unique, round-trip.
+  Test: 10.76.24 launches? Compose ▸ Composition → "Planet tone" picker; choose "Earth —
+  year" → Kammerton shows ≈432 Hz and the take retunes.
