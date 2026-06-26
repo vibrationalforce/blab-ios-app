@@ -1,17 +1,18 @@
-build: 2026-06-26 v10.76.25 (In-app Licenses & Credits — legal compliance)
+build: 2026-06-26 v10.76.26 (Selbstheilung — self-healing crash-loop Safe Mode)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.24. Adds the in-app "Licenses & Credits" screen (Compose
-  footer, next to Diagnostics) so the open-source attributions travel with the app:
-  Atkinson Hyperlegible (SIL OFL 1.1 — Braille Institute; full OFL text already
-  bundled in Resources/Fonts/OFL.txt), Hans Cousto's Cosmic Octave concept
-  (colour-octave + planetary tones — creative tuning, NO health/chakra claims),
-  procedurally-synthesised drums (original work), Apple frameworks, and Echoel's
-  own MIT licence. Mirrors THIRD_PARTY_NOTICES.md. App Store hygiene; the font's
-  OFL prefers the licence ship alongside the font.
-  Launch-safe by construction: standalone NavigationStack + ScrollView + plain
-  Text sections — NO Menu, NO ForEach, NO @Observable-binding (the patterns that
-  black-screened); AnyView-erased like the sibling sheets and built lazily on
-  presentation, so it cannot touch launch-time root metadata. Reviewed GO
-  (ui-state-reviewer). One new @State Bool with a complete dismiss path.
-  Test: 10.76.25 launches? Compose → scroll to footer → tap "Licenses & Credits"
-  → the credits sheet opens (font OFL, Cousto, drums, Apple, Echoel MIT) → Done.
+notesT: Builds on 10.76.25. SELF-HEALING: the app must never trap you at a black
+  screen again. If a launch crashes before the UI reaches a healthy steady state,
+  the NEXT launch boots into a minimal "Safe Mode" recovery screen instead of
+  re-rendering the view tree that just crashed.
+  How it works: LaunchGuard (pure UserDefaults counter, can't itself crash) records
+  each launch and only clears it once the studio has been up ~4 s. A launch that
+  crashes during render never clears the counter → the next launch is protected.
+  Threshold = 2, so after a single unhealthy launch you're shielded — you never see
+  a second black screen. The recovery screen (plain text, no engine dependencies —
+  the one view that can always render) explains what happened, lets you Share the
+  diagnostics in one tap, and has a "Continue to Echoel" button to go straight back
+  into the full app. Reviewed launch-safe (ui-state) + Swift 6 concurrency-clean.
+  Test: 10.76.26 launches normally? (Safe Mode only appears AFTER a crash.) To see
+  it: if a build ever black-screens, just relaunch — you'll land on the recovery
+  screen with the crash log, not a black void. "Continue to Echoel" returns you to
+  the app.

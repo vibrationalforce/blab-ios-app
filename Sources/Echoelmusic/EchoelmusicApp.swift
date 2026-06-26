@@ -108,10 +108,20 @@ struct EchoelmusicApp: App {
     @State private var fxModulator = FXBioModulator()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
+    /// Set when the user taps "Continue to Echoel" in Safe Mode — renders the full
+    /// app for the rest of this process even though this launch booted into Safe Mode.
+    @State private var forceNormalMode = false
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
         EchoelCrashLog.begin()   // diagnostics first: capture any crash from here on
+        // Self-healing crash-loop guard: record this launch. If the previous one(s)
+        // crashed before becoming healthy, `body` boots into Safe Mode instead of
+        // re-rendering the view tree that crashed (no more black screen at launch).
+        LaunchGuard.beginLaunch()
+        if LaunchGuard.isSafeMode {
+            EchoelCrashLog.breadcrumb("LaunchGuard: SAFE MODE (prior launch did not confirm healthy)")
+        }
         log.log(.info, category: .system, "APP INIT [start] — constructing engines (no audio I/O here)")
         let mic = MicrophoneManager()
         let audio = AudioEngine(microphoneManager: mic)
@@ -154,7 +164,15 @@ struct EchoelmusicApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
+            if LaunchGuard.isSafeMode && !forceNormalMode {
+                // Self-healing recovery: the previous launch crashed before becoming
+                // healthy. Show a legible recovery screen (never a black one). The
+                // user can read/share the diagnostics and relaunch the full app.
+                SafeModeView {
+                    LaunchGuard.reset()
+                    forceNormalMode = true
+                }
+            } else if hasCompletedOnboarding {
                 mainContent
             } else {
                 OnboardingView(isComplete: $hasCompletedOnboarding, shouldAutoPlay: $shouldAutoPlay)
@@ -331,6 +349,17 @@ struct EchoelmusicApp: App {
                 #endif
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
+
+                // Self-healing: the UI rendered and the core came up. Confirm this
+                // launch healthy a few seconds in (a crash during initial render
+                // fires BEFORE this, leaving LaunchGuard's counter raised → the next
+                // launch escalates to Safe Mode). A MainActor child task (inherits
+                // isolation) so it can't delay the rest of startup.
+                Task {
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    LaunchGuard.confirmHealthy()
+                    EchoelCrashLog.breadcrumb("LaunchGuard: launch confirmed healthy")
+                }
 
                 // ── BEST-EFFORT, NON-BLOCKING ────────────────────────────────
                 // These await (HealthKit permission dialog, StoreKit network) and
