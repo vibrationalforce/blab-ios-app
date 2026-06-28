@@ -236,6 +236,9 @@ struct EchoelStudioView: View {
     /// launch scroll — so it cannot affect launch.
     @State private var visualMod = VisualBioModulator()
     @State private var showBioVisual = false
+    /// The reworked, categorized visuals menu (looks by category + Farboktave wheel).
+    /// LAZY sheet — built only when opened, never in the eager launch scroll.
+    @State private var showVisualMenu = false
     /// Last-picked immersive visual preset (persisted) — a launch point for the
     /// four live sliders below; "" = none/custom after a manual tweak.
     @AppStorage("visual.preset") private var visualPresetID = ""
@@ -331,6 +334,7 @@ struct EchoelStudioView: View {
         .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
         .sheet(isPresented: $showAcknowledgments) { AnyView(acknowledgmentsSheet) }
         .sheet(isPresented: $showBioVisual) { AnyView(BioVisualEditorView(modulator: visualMod).echoelSheetPanel()) }
+        .sheet(isPresented: $showVisualMenu) { AnyView(VisualMenuView(spectralDonuts: $spectralDonuts, visualStyle: $visualStyle, liveToneHz: Double(currentToneHz)).echoelSheetPanel()) }
         .sheet(isPresented: $showPianoRoll) {
             AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
         }
@@ -1037,6 +1041,16 @@ struct EchoelStudioView: View {
 
     private var visualPanel: some View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+            // Reworked menu: a categorized look browser + the Farboktave (Cousto)
+            // reference wheel, opened lazily. Trivial button here so the eager launch
+            // scroll stays light; the quick strip below stays for one-tap switching.
+            Button { showVisualMenu = true } label: {
+                Label("Looks & Farboktave…", systemImage: "paintpalette")
+                    .font(EchoelTheme.font(13, .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Browse visual looks by category and the colour-octave wheel")
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
             visualBlendControls
