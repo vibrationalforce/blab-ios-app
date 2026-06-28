@@ -97,6 +97,11 @@ final class MusicalKeyTests: XCTestCase {
         XCTAssertEqual(Scale.wholeTone.intervals,      [0, 2, 4, 6, 8, 10])
         XCTAssertEqual(Scale.diminishedWholeHalf.intervals, [0, 2, 3, 5, 6, 8, 9, 11])
         XCTAssertEqual(Scale.diminishedHalfWhole.intervals, [0, 1, 3, 4, 6, 7, 9, 10])
+        // World / exotic additions.
+        XCTAssertEqual(Scale.phrygianDominant.intervals, [0, 1, 4, 5, 7, 8, 10])
+        XCTAssertEqual(Scale.harmonicMajor.intervals,    [0, 2, 4, 5, 7, 8, 11])
+        XCTAssertEqual(Scale.hungarianMinor.intervals,   [0, 2, 3, 6, 7, 8, 11])
+        XCTAssertEqual(Scale.doubleHarmonic.intervals,   [0, 1, 4, 5, 7, 8, 11])
     }
 
     func testNewScale_codableRoundTrip() throws {
