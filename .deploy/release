@@ -1,10 +1,15 @@
-build: 2026-06-26 v10.76.33 (Diagnose: which UI branch at launch)
+build: 2026-06-26 v10.76.34 (Fix: Safe Mode self-clearing — no lock-in)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.32. Pure diagnostics: two shared logs stopped right after
-  "init done" with no startup steps, which means the app may be showing a NON-studio
-  screen (Safe-Mode recovery or Onboarding) or hanging after init — not the studio
-  whose startup task writes those steps. This build breadcrumbs the UI branch taken:
-  "ui branch: STUDIO — startup task running" / "ui branch: SAFE MODE recovery screen"
-  / "ui branch: ONBOARDING (not yet completed)". The next diagnostics log will name
-  the screen, so we can tell a harmless early snapshot from a real stuck state.
-  Test: 10.76.33 → Diagnostics → the log now includes a "ui branch:" line.
+notesT: Builds on 10.76.33. CRITICAL fix: your 10.76.33 log showed the app booting
+  straight into Safe Mode every launch ("LaunchGuard: SAFE MODE"). The bug: in Safe
+  Mode the studio's startup task never runs, so the "healthy" confirm never fired and
+  the counter never reset — so once tripped (quitting fast a couple of times while
+  grabbing logs did it), EVERY relaunch re-entered Safe Mode until you tapped
+  "Continue to Echoel". A perfectly healthy app sat trapped behind the recovery screen.
+  Fix: the counter is cleared the instant the recovery screen appears. Safe Mode is now
+  a ONE-SHOT speed bump — the next launch goes straight to the studio; if the app ever
+  truly crashes again the counter rebuilds and Safe Mode returns after that failure.
+  To get out RIGHT NOW on the current build: tap "Continue to Echoel" on the recovery
+  screen. After 10.76.34 it self-clears.
+  Test: 10.76.34 → relaunch a few times → lands in the normal Studio (no sticky Safe
+  Mode); Diagnostics shows "ui branch: STUDIO — startup task running" + the full chain.
