@@ -69,5 +69,43 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         let once = A.octaveCorrected(raw: 60, autoBPM: 120, autoStrength: 0.8)
         XCTAssertEqual(A.octaveCorrected(raw: once, autoBPM: 120, autoStrength: 0.8), once, accuracy: 0.001)
     }
+
+    // MARK: - autoTrust (non-octave dicrotic-notch inflation)
+
+    func testAutoTrust_pullsInflatedEstimateTowardFundamental() {
+        // Device-log case: peak-count inflated to 100 while a strong autocorrelation sits
+        // at 75 (acf 0.74). Ratio 1.33 is OUTSIDE octave bands, so octaveCorrected can't
+        // help — autoTrust nudges the estimate down toward the confident fundamental.
+        let pulled = A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.74)
+        XCTAssertLessThan(pulled, 100)            // moved toward auto
+        XCTAssertGreaterThan(pulled, 75)          // but not overwritten in one window
+    }
+
+    func testAutoTrust_strongerAcfPullsHarder() {
+        let weak = A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.6)
+        let strong = A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.9)
+        XCTAssertLessThan(strong, weak)           // higher acf → closer to the fundamental
+    }
+
+    func testAutoTrust_weakPeriodicity_leavesEstimate() {
+        // Below the 0.55 gate, peak-counting still leads (low-SNR fingertip windows).
+        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.5), 100, accuracy: 0.001)
+    }
+
+    func testAutoTrust_pullIsCappedAtHalf() {
+        // Even at perfect acf the per-window pull is ≤ 50 %: 100 toward 60 → ≥ 80.
+        let pulled = A.autoTrust(estimate: 100, autoBPM: 60, autoStrength: 1.0)
+        XCTAssertEqual(pulled, 80, accuracy: 0.001)
+    }
+
+    func testAutoTrust_invalidInputs_returnEstimate() {
+        XCTAssertEqual(A.autoTrust(estimate: 0, autoBPM: 75, autoStrength: 0.9), 0, accuracy: 0.001)
+        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 0, autoStrength: 0.9), 100, accuracy: 0.001)
+    }
+
+    func testAutoTrust_agreementIsNoOp() {
+        // When peak-count already agrees with the fundamental, the pull changes nothing.
+        XCTAssertEqual(A.autoTrust(estimate: 75, autoBPM: 75, autoStrength: 0.9), 75, accuracy: 0.001)
+    }
 }
 #endif

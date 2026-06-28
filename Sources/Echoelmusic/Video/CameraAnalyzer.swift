@@ -528,6 +528,15 @@ final class CameraAnalyzer {
         let target = stabilisedBPM(bpm)
 
         estimatedBPM = estimatedBPM == 0 ? target : estimatedBPM * 0.80 + target * 0.20
+        // AUTOCORRELATION TRUST (device-log feedback): the dicrotic notch can add an
+        // extra peak per beat, inflating the discrete count by ~1.3–1.7× — a NON-octave
+        // error `octaveCorrected` (×2/×0.5 bands) deliberately won't touch. The log
+        // showed pk-count bpm jumping 132/100/79 while a STRONG, steady autocorrelation
+        // sat at 75–79 (acf 0.74–0.87). When that periodicity is confident, pull the
+        // estimate toward it — gently, weighted by acf strength — so peak-count noise
+        // can't yank the published rate while a clean fundamental is being ignored.
+        // Weak acf → no pull (peak-counting still leads at low SNR; the fingertip case).
+        estimatedBPM = Self.autoTrust(estimate: estimatedBPM, autoBPM: lastAutoBPM, autoStrength: lastAutoStrength)
         // Ramp on every valid window (no hard gate): a clean, stable pulse locks in
         // a few seconds; brief noisy windows are smoothed by the EMA, not ignored.
         bpmConfidence = bpmConfidence * 0.82 + confidence * 0.18
@@ -585,6 +594,22 @@ final class CameraAnalyzer {
         if r > 0.42 && r < 0.6,  raw * 2.0 <= 220 { return raw * 2.0 }   // raw ≈ ½× → double
         if r > 1.7 && r < 2.4,   raw * 0.5 >= 35  { return raw * 0.5 }   // raw ≈ 2×  → halve
         return raw
+    }
+
+    /// Confidence-weighted pull of the running estimate toward the autocorrelation
+    /// fundamental — the guard for NON-octave peak-count inflation (the dicrotic-notch
+    /// case `octaveCorrected` can't address: an extra peak per beat scales the count by
+    /// ~1.3–1.7×, which is neither ≈2× nor ≈½×). Autocorrelation reports the true
+    /// fundamental period directly, so when it is CONFIDENT we lean the estimate that way.
+    ///
+    /// Gentle and gated: no effect below acf 0.55 (low-SNR fingertip windows keep trusting
+    /// peak-counting), and even at perfect acf the pull is capped at 50 % per window — so a
+    /// genuine peak-count rate is nudged, never overwritten, and the EMA still smooths.
+    /// Pure (no state) → unit-testable on Linux.
+    nonisolated static func autoTrust(estimate: Double, autoBPM: Double, autoStrength: Double) -> Double {
+        guard estimate > 0, autoBPM > 40, autoStrength > 0.55 else { return estimate }
+        let w = min(0.5, (autoStrength - 0.55) / 0.45 * 0.5)
+        return estimate * (1 - w) + autoBPM * w
     }
 
     /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than
