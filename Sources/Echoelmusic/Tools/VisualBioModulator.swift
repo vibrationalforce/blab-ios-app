@@ -2,6 +2,10 @@
 //  VisualBioModulator.swift
 //  Echoelmusic — the body sculpting the immersive visual.
 //
+//  ⚠️ PARKED / NOT WIRED (10.76.38): only consumer (BioVisualEditorView) is parked after
+//  the 10.76.36 launch-bisect revert. Pure value-type mapping lives in VisualModulation
+//  (Linux-tested); this @Observable holder is kept for the eventual Bio→Visual re-wire.
+//
 //  Holds the user's Bio→Visual routes and turns the user's BASE visual parameters +
 //  the live bio snapshot into the modulated parameters handed to MetalBioView each
 //  refresh. Non-destructive: the base (the EchoelValueField values) is never
