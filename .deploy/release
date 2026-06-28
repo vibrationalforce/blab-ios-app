@@ -1,19 +1,17 @@
-build: 2026-06-26 v10.76.29 (Visuals menu reworked — categories + Farboktave wheel)
+build: 2026-06-26 v10.76.30 (Prism look — sound refracted into natural daylight)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.28. Reworks the visuals MENÜFÜHRUNG (founder ask): a new
-  categorized look browser + the Farboktave (Hans Cousto) reference wheel, opened from
-  the Visual panel via "Looks & Farboktave…".
-  • Looks by CATEGORY, each a designed card with a short description + selected state:
-    Spectrum (Donuts) · Interference (Rings, Chladni) · Fields (Plasma, Water).
-    Selecting a look drives the same live state as the quick strip.
-  • FARBOKTAVE section: the 12-colour Cousto wheel (C…H) drawn from the app's canonical
-    colour-octave data, with note labels, a live marker for the sounding tone, and a
-    "Now: note → colour" readout. Framed as creative tuning / acoustics — no health,
-    chakra or Solfeggio claims.
-  Launch-safe: the whole menu is a LAZY sheet (built only when opened); the Visual
-  panel only gains a button. One Canvas, static arrays, plain buttons — none of the
-  patterns that black-screened; all wheel indexing bounds-guarded. Reviewed GO.
-  Next: prism / natural-light look deepening.
-  Test: 10.76.29 launches? Visual panel → "Looks & Farboktave…" → switch looks by
-  category; scroll to the colour wheel → with a tone playing, the marker + "Now:"
-  line track the note's colour.
+notesT: Builds on 10.76.29. Adds the PRISM look (#16) — the rainbow/prism aspect the
+  founder asked for, as natural light. A new, opt-in look (alongside Donuts/Rings/
+  Chladni/Plasma/Water) that refracts the sounding tone across the frame like white
+  light through glass: horizontal position fans the tone's neighbourhood across the
+  full Cousto colour wheel — a rainbow centred on what you hear. Coherence narrows it
+  to a purer spectrum. Rendered through the app's warm-daylight pipeline, so it reads
+  as natural light, not neon.
+  Chosen the lambda way: a SEPARATE look, so the existing default looks are untouched
+  (no Unstimmigkeit). Selectable in the quick strip, the blend list, and the new
+  visuals menu (its own "Prism" category). Flash-safe (slow pulse only; colour fixed
+  per location). Shader compiles at runtime with a clear-colour fallback → cannot
+  affect launch. Reviewed GO (dsp/shader: ordering, types, numerics, flash-safety).
+  Test: 10.76.30 launches? Visual → "Looks & Farboktave…" → Prism (or the strip).
+  Play a note → a warm rainbow fans across the frame, centred on the tone; raise
+  coherence → the spectrum tightens. Try Mix with Water/Plasma for a blended look.
