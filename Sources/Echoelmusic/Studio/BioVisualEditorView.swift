@@ -2,6 +2,12 @@
 //  BioVisualEditorView.swift
 //  Echoelmusic — Studio
 //
+//  ⚠️ PARKED / NOT WIRED (10.76.38): call site removed by the 10.76.36 launch-bisect
+//  revert. Bio→Visual is the recurring launch-crash suspect (10.76.20 and again this
+//  session) — re-wire ONLY with a device check, and NOT by appending another `.sheet`
+//  to EchoelStudioView's body (consolidate the modal chain first — see CLAUDE.md). Pure
+//  cores behind it (VisualModulation, VisualBioModulator) stay tested.
+//
 //  The Bio→Visual routing editor: the body sculpts the immersive visual
 //  (Coherence → Blend morph, Breath → Spread, Heart rate → Intensity, …), the
 //  same modulation vocabulary as the FX bio-routing. Non-destructive — the user's

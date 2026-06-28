@@ -2,6 +2,13 @@
 //  VisualMenuView.swift
 //  Echoelmusic — Studio
 //
+//  ⚠️ PARKED / NOT WIRED (10.76.38): the call site in EchoelStudioView was removed by
+//  the 10.76.36 launch-bisect revert. Kept (compiles clean, tested cores behind it) for
+//  a careful re-wire — do NOT re-add by appending another `.sheet` to EchoelStudioView's
+//  body (see CLAUDE.md "Presentation" note: that chain is at its metadata-overflow limit;
+//  consolidate to a `.sheet(item:)` enum first). The Farboktave COLOURS are already live
+//  in the shader (MetalBioView/ColorOctave) independent of this menu.
+//
 //  The reworked immersive-visual menu: looks grouped into CATEGORIES with design
 //  emphasis, plus a Farboktave (Hans Cousto) reference wheel so the tone→colour
 //  science is legible in the UI (not only in the shader). Founder ask (2026-06):

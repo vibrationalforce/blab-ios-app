@@ -3425,3 +3425,39 @@ NOTE: CI — rapid back-to-back pushes triggered concurrency cancellation on the
 ## 2026-06-23 (cont.3) — Multi-style immersive visual (10.76.6)
 - Founder wants more variety/design/physics in the visuals. Added MetalBioView `style` uniform + 3 physical looks: Rings (interference, coherence detune), Chladni (plate eigenmodes from the tone), Plasma (superposed waves). Polish: breath bloom + per-look vignette + sub-LSB dither (no banding). One persisted "Look" strip (Donuts·Rings·Chladni·Plasma) in VJ overlay + Visual panel. Flash-safe ≤2.5 Hz; colour stays physical tone→light. Swift+MSL reviewed PASS. → v10.76.6.
 - Next: projection/external-display output, bio-routing of visual params, more looks once device-confirmed.
+
+## 2026-06-26 — Color-music/tone-systems ship → launch-crash saga → stabilize & clean up
+
+**Shipped (10.76.22–10.76.32):** Cousto colour octave in shader · +10 scales + ¼-comma
+meantone · planetary tones · in-app Licenses screen · self-healing crash-loop Safe Mode
+(LaunchGuard + SafeModeView) · re-introduced Bio→Visual · reworked visuals menu +
+Farboktave wheel · Prism look · rPPG octave-drift guard + faster healthy-confirm ·
++4 world/exotic scales (Phrygian-dominant, Harmonic major, Hungarian minor, Double harmonic).
+
+**Launch-crash saga (10.76.33–10.76.36):** device reported "Safe Mode oder Black Screen".
+Root cause: EchoelStudioView's body had ~24 AnyView-wrapped .sheet/.fullScreenCover
+modifiers; the 3 sheets added this session tipped the SwiftUI metadata decoder past its
+stack limit → SIGSEGV at first render (before any breadcrumb). Two wrong guesses
+(10.76.34 safe-mode self-clear — still needed & kept; 10.76.35 AnyView-split of the chain
+— did NOT fix). Decisive bisect: reverted ONLY EchoelStudioView.swift to ac4055b/10.76.21
+→ **10.76.36 launches** (full breadcrumb chain confirmed on device). Lesson: stop guessing,
+bisect to known-good.
+
+**After launch restored (10.76.37–10.76.38):** device feedback "nicht smooth, Sound
+verkrautet, Visuals ruckeln/springen". Fixes: auto-evolve cadence 8–16s → 25–45s (music
+settles, fewer colour jumps); Cousto wheel marked `const` (was rebuilt per-pixel ×6 →
+GPU stutter). Began disciplined one-at-a-time re-add: **planet-tone picker re-added
+(10.76.38)** — purely additive, no new sheet.
+
+**Stabilize & clean up ("alles stabil aufräumen"):** audit (code-reviewer) confirmed NO
+build/launch risk on the current branch. VisualMenuView / BioVisualEditorView /
+VisualBioModulator are orphaned-but-harmless → marked PARKED (kept, not deleted — founder
+wants the features; restorable via careful re-wire). Tested cores (ColorOctave, PlanetTone,
+VisualModulation) + active infra (LaunchGuard, SafeModeView) kept. Corrected the stale
+CLAUDE.md "ONE .sheet" presentation note to the real as-shipped AnyView-per-modal baseline
++ the "don't grow the chain" rule. Logged 2 decisions.
+
+**Open / next:** re-add Licenses → visuals menu → Bio→Visual (each device-checked, via a
+.sheet(item:) consolidation, NOT by appending modifiers); confirm 10.76.37 smoothness +
+whether "verkrauteter" sound persists; roadmap items #2 projection, #4 more looks, #12
+tools/HUD unification.
