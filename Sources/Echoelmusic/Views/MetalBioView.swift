@@ -83,9 +83,9 @@ struct MetalBioView: UIViewRepresentable {
     /// VJ palette controls (see BioUniforms). Defaults keep the physical colour.
     var hueShift: Float = 0
     var saturation: Float = 1
-    /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water (see `BioUniforms.style`).
+    /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (see `BioUniforms.style`).
     var style: Int = 0
-    /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water.
+    /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
     var styleB: Int = 0
     /// Mix ratio A↔B [0…1] — 0 = pure `style`, 1 = pure `styleB`. The "mischend" control.
     var blend: Float = 0
@@ -190,10 +190,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // before (the GPU never sees an out-of-range / non-finite value).
         // Styles are DISCRETE — snap them on both live and target (no cross-fade between
         // modes). The BLEND between them is what eases (a smooth A↔B morph).
-        let s = Float(min(max(style, 0), 3))
+        // 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (spectral dispersion).
+        let s = Float(min(max(style, 0), 4))
         target.style = s
         uniforms.style = s
-        let sb = Float(min(max(styleB, 0), 3))
+        let sb = Float(min(max(styleB, 0), 4))
         target.styleB = sb
         uniforms.styleB = sb
         target.blend = min(max(blend.isFinite ? blend : 0, 0), 1)
@@ -447,6 +448,23 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         return acc / max(w, 1e-3);
     }
 
+    // PRISM colour — disperse the sounding tone across space like white light through a
+    // glass prism. Horizontal position selects an octave offset around the played tone,
+    // so the frame fans the tone's neighbourhood across the full Cousto wheel: a rainbow
+    // refraction centred on what you hear. A slow refraction drift keeps it alive
+    // (flash-safe: the colour at each location is fixed, only the band slides gently);
+    // coherence narrows the spread to a tighter, purer spectrum. The downstream warm-
+    // desaturation + luminance floor render it as NATURAL daylight, not neon.
+    float3 prismColour(float2 q, float toneHz, float phase, float coh) {
+        float span   = mix(1.5, 0.7, coh);                       // octaves fanned across frame
+        float x      = q.x * 0.5 + 0.05 * sin(phase * 0.3 + q.y * 1.5);   // slow refraction drift
+        float octave = clamp(x * span, -4.0, 4.0);               // guard exp2 range
+        float hz     = max(toneHz, 1.0) * exp2(octave);
+        float3 c     = coustoColour(hz);
+        float band   = 0.85 + 0.15 * cos(q.y * 3.14159265);      // luminous band, not flat fill
+        return c * band;
+    }
+
     // ── Visual styles — each returns a scalar field in ~[0,1] ───────────────────
     // STYLE 0 — wave INTERFERENCE rings: a second ring system detuned by coherence
     // (high = aligned/constructive, low = turbulent moiré) beats against the first.
@@ -498,6 +516,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float net = clamp(0.5 + 0.18 * w, 0.0, 1.0);
         return pow(net, mix(3.0, 6.0, coh));        // crests → bright caustic filaments
     }
+    // STYLE 4 — PRISM: a luminous, mostly-open field so the spectral COLOUR (see
+    // prismColour) is the star — the prism's job is dispersion, not dark structure.
+    // A slow travelling shimmer adds life; coherence firms it up. Slow phase only, so
+    // it stays well under the flash-safety ceiling.
+    float fieldPrism(float2 p, float phase, float coh) {
+        float shimmer = 0.5 + 0.5 * sin(p.x * 6.0 + phase * 0.6) * cos(p.y * 5.0 - phase * 0.4);
+        return clamp(mix(0.80, 0.94, coh) + 0.10 * shimmer, 0.0, 1.0);
+    }
+
     // Evaluate ONE style → (field, vignette). `d` is the aspect-correct radial distance
     // (for the rings + every style's framing); `pf` is a SQUARE, aspect-independent
     // coordinate in [-1,1]² for the 2D fields, so their pattern fills both axes evenly
@@ -514,7 +541,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         if (si < 0.5)       field = fieldRings(d, density, phase, coh);
         else if (si < 1.5)  field = fieldChladni(pf, toneHz, phase, coh);
         else if (si < 2.5)  field = fieldPlasma(pf, phase, coh);
-        else                field = fieldWater(pf, phase, coh, breath);
+        else if (si < 3.5)  field = fieldWater(pf, phase, coh, breath);
+        else                field = fieldPrism(pf, phase, coh);
         return float2(field, vig);
     }
 
@@ -571,6 +599,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // anchored to the heard tone's overtone series. `cloudGlow` lets them softly glow.
         float cloudGlow = 0.0;
         float3 col = toneCloudColour(pf, phase, u.toneHz, spread, cloudGlow);
+        // PRISM look: replace the cloud colour with a spatial spectral dispersion (a
+        // rainbow refraction of the sounding tone). Weighted by how much the active
+        // look(s) are Prism (style/styleB == 4), so blending Prism↔another look cross-
+        // fades the colour too. Injected BEFORE the natural-light block so the rainbow
+        // is rendered as warm daylight, not neon.
+        float prismW = clamp(step(3.5, u.style) * (1.0 - blend) + step(3.5, u.styleB) * blend, 0.0, 1.0);
+        if (prismW > 0.0) { col = mix(col, prismColour(pf, u.toneHz, phase, coh), prismW); }
         // NATURAL WARM LIGHT (founder): pure spectral colours look "neon"; nature's light
         // — a prism/rainbow in warm daylight — is warmer and a touch less saturated. Pull
         // gently toward a warm white point (~3500 K) and ease the saturation, keeping the

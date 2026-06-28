@@ -56,6 +56,9 @@ struct VisualMenuView: View {
         Category(id: "Fields", title: "Fields", subtitle: "Flowing light", looks: [
             Look(id: "Plasma", name: "Plasma", detail: "Superposed plane waves; coherence sets the contrast.", isDonuts: false, style: 2),
             Look(id: "Water", name: "Water", detail: "Caustic water light — gentle, organic motion.", isDonuts: false, style: 3)
+        ]),
+        Category(id: "Prism", title: "Prism", subtitle: "Spectral dispersion · natural light", looks: [
+            Look(id: "Prism", name: "Prism", detail: "Refracts the sounding tone across the frame like white light through glass — a rainbow centred on what you hear, rendered as warm daylight. Coherence narrows it to a purer spectrum.", isDonuts: false, style: 4)
         ])
     ]
 
