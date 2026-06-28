@@ -173,10 +173,14 @@ struct EchoelmusicApp: App {
                     LaunchGuard.reset()
                     forceNormalMode = true
                 }
+                // Breadcrumb the UI branch taken, so a shared diag log that stops after
+                // "init done" reveals WHY: recovery screen vs onboarding vs the studio.
+                .onAppear { EchoelCrashLog.breadcrumb("ui branch: SAFE MODE recovery screen") }
             } else if hasCompletedOnboarding {
                 mainContent
             } else {
                 OnboardingView(isComplete: $hasCompletedOnboarding, shouldAutoPlay: $shouldAutoPlay)
+                    .onAppear { EchoelCrashLog.breadcrumb("ui branch: ONBOARDING (not yet completed)") }
             }
         }
     }
@@ -266,6 +270,11 @@ struct EchoelmusicApp: App {
             .environment(resourceGovernor)
             .environment(fxModulator)
             .task {
+                // First line: proves the studio surface rendered AND its startup task
+                // ran. If a shared diag log shows "init done" then this, the UI is the
+                // studio; if it stops at "init done" with no branch/startup line, the
+                // app never reached here (a hang or a non-studio branch).
+                EchoelCrashLog.breadcrumb("ui branch: STUDIO — startup task running")
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must
                 // start with NO awaiting dependency in front of it. Previously
