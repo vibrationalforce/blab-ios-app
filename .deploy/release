@@ -1,16 +1,16 @@
-build: 2026-06-26 v10.76.36 (Bisect: revert Studio to last launching state)
+build: 2026-06-26 v10.76.37 (Smoother takes + de-stutter visuals)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: 10.76.34 and 10.76.35 both still black-screened, so the earlier hypotheses
-  were wrong — stopping the guesswork and doing a decisive bisect. Every diag log
-  stops at "init done" and no UI-branch breadcrumb ever fires → the crash is at the
-  first render, before any screen. The only render-path change since the last
-  CONFIRMED-launching build (10.76.21) is EchoelStudioView. So this build restores
-  EchoelStudioView to exactly that known-good state.
-  Trade-off: this session's studio additions are temporarily removed (planet-tone
-  picker, Licenses button, Bio→Visual, the new visuals menu, prism look entry). The
-  shader Cousto colours, scales, planetary tunings, rPPG fix and the self-healing net
-  all remain. If this launches, those features get re-added ONE AT A TIME with a device
-  check each; if it still black-screens, the cause is outside the studio view.
-  Test: 10.76.36 → cold launch → does the Studio appear (no black screen)? Please also
-  send the previous-session log from the recovery screen if Safe Mode ever shows — it
-  contains the crash backtrace that names the faulting function.
+notesT: Builds on 10.76.36 (which launches cleanly — the crash was isolated to this
+  session's studio changes and reverted). Two smoothness fixes from your 10.76.36
+  feedback ("nicht smooth, Sound verkrautet, Visuals ruckeln und springen"):
+  1) The generated take re-seeded every ~8 s against a jumpy pulse, so music + the
+     colour that follows the tonic kept changing. Now it settles for ~25–45 s (eight
+     bars) before evolving — calmer, more musical, far fewer visual colour jumps.
+  2) The Cousto colour wheel was rebuilt for every pixel (~6× per pixel each frame) —
+     a real GPU cost that stuttered the visual. It's now a constant, hoisted out of the
+     per-pixel path. (Shader is runtime-compiled with a safe fallback — no launch risk.)
+  Both are logic/shader-only; the studio view structure is untouched so the 10.76.36
+  launch fix stands.
+  Test: 10.76.37 → Start. Music should hold a phrase ~30 s before evolving (smoother);
+  the immersive visual should run noticeably smoother. Tell me if the "verkrauteter"
+  sound persists — that one I'll chase next with your feedback.
