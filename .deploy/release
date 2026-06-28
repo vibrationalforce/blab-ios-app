@@ -1,15 +1,16 @@
-build: 2026-06-26 v10.76.34 (Fix: Safe Mode self-clearing — no lock-in)
+build: 2026-06-26 v10.76.35 (FIX black screen — split deep .sheet chain)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.33. CRITICAL fix: your 10.76.33 log showed the app booting
-  straight into Safe Mode every launch ("LaunchGuard: SAFE MODE"). The bug: in Safe
-  Mode the studio's startup task never runs, so the "healthy" confirm never fired and
-  the counter never reset — so once tripped (quitting fast a couple of times while
-  grabbing logs did it), EVERY relaunch re-entered Safe Mode until you tapped
-  "Continue to Echoel". A perfectly healthy app sat trapped behind the recovery screen.
-  Fix: the counter is cleared the instant the recovery screen appears. Safe Mode is now
-  a ONE-SHOT speed bump — the next launch goes straight to the studio; if the app ever
-  truly crashes again the counter rebuilds and Safe Mode returns after that failure.
-  To get out RIGHT NOW on the current build: tap "Continue to Echoel" on the recovery
-  screen. After 10.76.34 it self-clears.
-  Test: 10.76.34 → relaunch a few times → lands in the normal Studio (no sticky Safe
-  Mode); Diagnostics shows "ui branch: STUDIO — startup task running" + the full chain.
+notesT: Builds on 10.76.34. THE fix for "Safe Mode oder Black Screen" (build 2068).
+  Cause: EchoelStudioView stacked ~24 .sheet/.fullScreenCover modifiers on ONE view —
+  a ~30-deep generic type that overflowed the SwiftUI metadata decoder's stack at
+  launch (a compile-clean SIGSEGV before anything renders; Safe Mode then caught every
+  other launch). The 3 sheets added this session tipped a chain that was already near
+  the limit.
+  Fix: the presentation modifiers are split into AnyView-bounded groups (screenBase →
+  screenSheets1 → screenSheets2 → body), so no single view stacks more than ~8–10
+  modifiers and the decoder can't overflow. No feature lost, behaviour identical;
+  reviewed for balanced structure + depth. With 10.76.34's self-clearing Safe Mode,
+  the trap is fully closed.
+  Test: 10.76.35 → cold launch several times → lands straight in the Studio every time
+  (no Safe Mode, no black screen). Diagnostics shows the full chain through
+  "ui branch: STUDIO — startup task running" → "confirmed healthy".
