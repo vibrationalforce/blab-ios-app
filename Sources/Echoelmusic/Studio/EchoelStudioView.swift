@@ -94,9 +94,9 @@ struct EchoelStudioView: View {
     @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
     /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
     @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
-    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
+    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water.
     @AppStorage("visual.style") private var visualStyle = 0
-    /// Secondary style to blend with `visualStyle` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
+    /// Secondary style to blend with `visualStyle` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water.
     @AppStorage("visual.styleB") private var visualStyleB = 0
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
     @AppStorage("visual.blend") private var visualBlend = 0.0
@@ -139,9 +139,6 @@ struct EchoelStudioView: View {
     /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
     /// Persisted so a chosen world tuning survives relaunch.
     @AppStorage("toneSystemID") private var tuningID = "edo12"
-    /// Selected Cousto planetary tone ("" = off). Sets the Kammerton so the instrument
-    /// plays in tune with the planet's tone. Creative tuning — astronomy, no claims.
-    @AppStorage("planet.tone") private var planetID = ""
     @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
     @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
     /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
@@ -179,7 +176,6 @@ struct EchoelStudioView: View {
     @State private var saveName = ""
     @State private var share: ExportedFile?
     @State private var diagnostics: DiagReport?
-    @State private var showAcknowledgments = false
 
     // Tools — open the (previously unreachable) editors as sheets.
     /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
@@ -230,15 +226,6 @@ struct EchoelStudioView: View {
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
-    /// Bio→Visual routing: the body shapes the immersive visual non-destructively
-    /// (base values stay editable; the modulator returns the shaped values to render).
-    /// The editor lives in a LAZY sheet (built only when opened) — never in the eager
-    /// launch scroll — so it cannot affect launch.
-    @State private var visualMod = VisualBioModulator()
-    @State private var showBioVisual = false
-    /// The reworked, categorized visuals menu (looks by category + Farboktave wheel).
-    /// LAZY sheet — built only when opened, never in the eager launch scroll.
-    @State private var showVisualMenu = false
     /// Last-picked immersive visual preset (persisted) — a launch point for the
     /// four live sliders below; "" = none/custom after a manual tweak.
     @AppStorage("visual.preset") private var visualPresetID = ""
@@ -263,16 +250,7 @@ struct EchoelStudioView: View {
         #endif
     }
 
-    // The root screen + ALL its presentations were one ~30-deep modifier chain
-    // (lifecycle + 24 .sheet/.fullScreenCover). At launch the Swift runtime decodes
-    // that aggregate generic type and, past a threshold, the metadata decoder
-    // recurses until it overflows the main-thread stack → SIGSEGV / black screen
-    // BEFORE any view renders (build 2068: "Safe Mode oder Black Screen"). The fix is
-    // to split the chain into AnyView-bounded groups so each view's static type stays
-    // shallow — the decoder stops at each AnyView boundary. screenBase → screenSheets1
-    // → screenSheets2 → body, each adding a handful of modifiers on a shallow base.
-    private var screenBase: AnyView {
-        AnyView(
+    var body: some View {
         VStack(spacing: 0) {
             BioStripView(measuring: running,
                          fingerOnLens: pulseFingerOnLens,
@@ -335,24 +313,12 @@ struct EchoelStudioView: View {
         .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
-        )
-    }
-
-    /// First presentation group, stacked on the type-erased `screenBase`. Splitting
-    /// the presentations across AnyView boundaries is what keeps the launch-time
-    /// metadata decode from overflowing (see `screenBase`).
-    private var screenSheets1: AnyView {
-        AnyView(
-        screenBase
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
         // launch-time metadata decode can never overflow the stack again.
         .sheet(isPresented: $showOpen) { AnyView(openSheet) }
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
         .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
-        .sheet(isPresented: $showAcknowledgments) { AnyView(acknowledgmentsSheet) }
-        .sheet(isPresented: $showBioVisual) { AnyView(BioVisualEditorView(modulator: visualMod).echoelSheetPanel()) }
-        .sheet(isPresented: $showVisualMenu) { AnyView(VisualMenuView(spectralDonuts: $spectralDonuts, visualStyle: $visualStyle, liveToneHz: Double(currentToneHz)).echoelSheetPanel()) }
         .sheet(isPresented: $showPianoRoll) {
             AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
         }
@@ -362,13 +328,6 @@ struct EchoelStudioView: View {
                          setFXEnabled: { synth.setFXEnabled($0) })
                 .echoelSheetPanel())
         }
-        )
-    }
-
-    /// Second presentation group, stacked on the type-erased `screenSheets1`.
-    private var screenSheets2: AnyView {
-        AnyView(
-        screenSheets1
         .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
         .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
         .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
@@ -383,11 +342,6 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        )
-    }
-
-    var body: some View {
-        screenSheets2
         .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
         .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
         .sheet(isPresented: $showPatchEditor) {
@@ -410,17 +364,12 @@ struct EchoelStudioView: View {
                     SpectralDonutView(reduceMotion: reduceMotion,
                                       bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
                 } else {
-                    // Bio→Visual: the body shapes the user's BASE params non-destructively.
-                    // Reading bus.latestBio + visualMod.routes here tracks them, so the
-                    // cover re-renders as the body changes; MetalBioView eases between
-                    // updates. No-op (returns base) when no routes are enabled.
-                    let eff = effectiveVisualParams()
                     MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
-                                 intensity: eff.intensity, ringDensity: eff.detail,
-                                 motion: eff.motion, spread: eff.spread,
-                                 hueShift: eff.hue, saturation: eff.saturation,
+                                 intensity: visualIntensity, ringDensity: visualDetail,
+                                 motion: visualMotion, spread: visualSpread,
+                                 hueShift: visualHue, saturation: visualSaturation,
                                  style: visualStyle, styleB: visualStyleB,
-                                 blend: eff.blend).ignoresSafeArea()
+                                 blend: Float(visualBlend)).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ control PANEL — clean for
                 // projection, hands-on for performance. Controls are a solid panel.
@@ -783,42 +732,9 @@ struct EchoelStudioView: View {
             genrePicker
             tonartRow
             kammertonRow
-            planetRow
             tuningRow
             tempoRow
         }
-    }
-
-    /// Cousto planetary tone — selecting one tunes the Kammerton so the instrument plays
-    /// in tune with that planet's tone (e.g. Earth-year → A4 ≈ 432 Hz). Same proven
-    /// Picker pattern as the tone-system row. Astronomy-derived creative tuning, no claims.
-    private var planetRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            labeledRow("Planet tone") {
-                Picker("Planet tone", selection: $planetID) {
-                    Text("Off").tag("")
-                    ForEach(PlanetTones.all) { p in Text(p.name).tag(p.id) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: planetID) { _, id in applyPlanetTone(id) }
-                .accessibilityLabel("Planet tone")
-            }
-            if let p = PlanetTones.named(planetID) {
-                Text("Tuned to \(p.name): A4 ≈ \(String(format: "%.1f", p.a4Hz)) Hz (root note \(p.nearestNoteName)). Astronomy-derived creative tuning.")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    /// Apply a planet tone by setting the Kammerton (same path as the Kammerton field).
-    /// "Off" (empty id) leaves the current concert pitch untouched.
-    private func applyPlanetTone(_ id: String) {
-        guard let p = PlanetTones.named(id) else { return }
-        session.a4Hz = p.a4Hz
-        synth.setTuning(a4Hz: session.a4Hz)
-        subBass.setTuning(a4Hz: session.a4Hz)
-        recomposeIfRunning()
     }
 
     /// Tone system — 12-TET by default; selecting just intonation, a maqām, gamelan
@@ -1071,16 +987,6 @@ struct EchoelStudioView: View {
 
     private var visualPanel: some View {
         panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
-            // Reworked menu: a categorized look browser + the Farboktave (Cousto)
-            // reference wheel, opened lazily. Trivial button here so the eager launch
-            // scroll stays light; the quick strip below stays for one-tap switching.
-            Button { showVisualMenu = true } label: {
-                Label("Looks & Farboktave…", systemImage: "paintpalette")
-                    .font(EchoelTheme.font(13, .semibold))
-                    .foregroundStyle(EchoelTheme.accent)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Browse visual looks by category and the colour-octave wheel")
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
             visualBlendControls
@@ -1099,29 +1005,7 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
-            // Bio→Visual: opens a LAZY sheet (built only on tap). Just a button here so
-            // the eager launch scroll stays trivial — the heavy editor never builds at launch.
-            Button { showBioVisual = true } label: {
-                Label(visualMod.isActive ? "Bio → Visual (active)" : "Bio → Visual…",
-                      systemImage: "waveform.path.ecg")
-                    .font(EchoelTheme.font(13, .semibold))
-                    .foregroundStyle(visualMod.isActive ? EchoelTheme.accent : EchoelTheme.text)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Let the body shape the immersive visual")
         }
-    }
-
-    /// The visual parameters to render: the user's base values shaped non-destructively
-    /// by the live body through `visualMod`. Reads `bus.latestBio` (via freshBio) and
-    /// `visualMod.routes` so the caller re-renders when either changes. Returns the base
-    /// unchanged when no routes are enabled.
-    private func effectiveVisualParams() -> VisualParams {
-        let base = VisualParams(intensity: visualIntensity, detail: visualDetail,
-                                motion: visualMotion, spread: visualSpread,
-                                hue: visualHue, saturation: visualSaturation,
-                                blend: Float(visualBlend))
-        return visualMod.effective(base: base, bio: bus.freshBio())
     }
 
     /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping
@@ -1159,7 +1043,7 @@ struct EchoelStudioView: View {
         // (label, isDonuts, metalStyle)
         let looks: [(String, Bool, Int)] = [
             ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1),
-            ("Plasma", false, 2), ("Water", false, 3), ("Prism", false, 4)
+            ("Plasma", false, 2), ("Water", false, 3)
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -1193,7 +1077,7 @@ struct EchoelStudioView: View {
     private var visualBlendControls: some View {
         if !spectralDonuts {
             let bLooks: [(String, Int)] = [
-                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4)
+                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3)
             ]
             Text("Blend with").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             ScrollView(.horizontal, showsIndicators: false) {
@@ -1843,19 +1727,11 @@ struct EchoelStudioView: View {
                 .disabled(projects.projects.isEmpty)
             }
 
-            HStack(spacing: 16) {
-                Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
-                    Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
-
-                Button { showAcknowledgments = true } label: {
-                    Text("Licenses & Credits").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Open-source licenses and attributions")
+            Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
+                Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
         }
     }
 
@@ -1890,78 +1766,6 @@ struct EchoelStudioView: View {
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { diagnostics = nil }
-                }
-            }
-        }
-    }
-
-    // MARK: - Acknowledgments / Licenses
-
-    /// One credit section: a bold title + a body paragraph. Plain `Text` only —
-    /// deliberately the simplest possible view tree (no Menu, no @Observable
-    /// bindings, no ForEach over projected state) so this screen can never be a
-    /// launch-time metadata or runtime-crash risk.
-    private func creditSection(_ title: String, _ body: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(EchoelTheme.font(14, .semibold))
-                .foregroundStyle(EchoelTheme.text)
-            Text(body)
-                .font(EchoelTheme.font(12))
-                .foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// In-app open-source attributions / acknowledgments. Surfaces the same
-    /// information as `THIRD_PARTY_NOTICES.md` in a form users can read on device
-    /// (App Store hygiene; the font's OFL 1.1 prefers the license travel with the
-    /// app). Static content, computed once — safe for the root view's shallow type.
-    private var acknowledgmentsSheet: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("Echoel is built with open standards and a few generously-licensed works. Thank you to their authors.")
-                        .font(EchoelTheme.font(12))
-                        .foregroundStyle(EchoelTheme.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    creditSection(
-                        "Atkinson Hyperlegible — SIL Open Font License 1.1",
-                        "© 2020 Braille Institute of America, Inc., with Reserved Font Name “Atkinson Hyperlegible”. Designed by Applied Design Works (Elliott Scott, Megan Eiswerth, Linus Boman, Theodore Petrosky). Used under the SIL OFL 1.1 — the full license ships in the app (Resources/Fonts/OFL.txt) and is available at scripts.sil.org/OFL.")
-
-                    creditSection(
-                        "Cosmic Octave — Hans Cousto (concept)",
-                        "The colour-octave (tone → visible light by octave transposition) and the planetary tunings use the octave-transposition method and frequency values described by Hans Cousto, “The Cosmic Octave” (1978). Presented as creative tuning / acoustics / astronomy — no health, healing, chakra or Solfeggio claims.")
-
-                    creditSection(
-                        "Drum samples — original work",
-                        "All bundled drum sounds are procedurally synthesised by Echoel’s own DSP. No third-party samples are used.")
-
-                    creditSection(
-                        "Apple frameworks",
-                        "Built with AVFoundation, Accelerate, Metal, CoreMIDI, HealthKit, CoreBluetooth, SwiftUI and SwiftData, under the Apple developer-program terms.")
-
-                    creditSection(
-                        "Echoel",
-                        "© 2024–2026 Echoelmusic (Michael Terbuyken). The Echoel source is MIT-licensed. No third-party Swift packages ship in this build.")
-
-                    Text("Full notices: THIRD_PARTY_NOTICES.md in the project repository.")
-                        .font(EchoelTheme.font(11))
-                        .foregroundStyle(EchoelTheme.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(16)
-            }
-            .background(EchoelTheme.bg)
-            .navigationTitle("Licenses & Credits")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { showAcknowledgments = false }
                 }
             }
         }
