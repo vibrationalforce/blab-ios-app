@@ -391,20 +391,25 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // ColorOctave.swift (Swift) value-for-value so UI and visual agree. The downstream
     // warm-desaturation + luminance floor turn these into natural light, not neon.
     // Defined BEFORE toneColour/toneCloudColour so MSL sees it first.
+    // The 12 Cousto wheel colours in CONSTANT memory (program scope) — initialised
+    // once, not per pixel. coustoColour is called ~6× per fragment (5 harmonic clouds
+    // + prism); the old per-call `float3 wheel[12]` init ran millions of stores/frame
+    // at 1080p·60 and stuttered the visual (device feedback 10.76.36 "Visuals ruckeln").
     float3 coustoColour(float hz) {
-        float3 wheel[12];
-        wheel[0]  = float3(0.000, 0.784, 0.000);  // C   Grün
-        wheel[1]  = float3(0.000, 0.784, 0.627);  // C#  Blaugrün
-        wheel[2]  = float3(0.000, 0.353, 1.000);  // D   Blau
-        wheel[3]  = float3(0.294, 0.000, 0.784);  // D#  Blauviolett
-        wheel[4]  = float3(0.580, 0.000, 0.827);  // E   Violett
-        wheel[5]  = float3(0.784, 0.000, 0.549);  // F   Rotviolett
-        wheel[6]  = float3(1.000, 0.000, 0.000);  // F#  Rot
-        wheel[7]  = float3(1.000, 0.271, 0.000);  // G   Rotorange
-        wheel[8]  = float3(1.000, 0.549, 0.000);  // G#  Orange
-        wheel[9]  = float3(1.000, 0.749, 0.000);  // A   Gelborange
-        wheel[10] = float3(1.000, 1.000, 0.000);  // A#  Gelb
-        wheel[11] = float3(0.678, 1.000, 0.184);  // H   Gelbgrün
+        const float3 wheel[12] = {
+            float3(0.000, 0.784, 0.000),  // C   Grün
+            float3(0.000, 0.784, 0.627),  // C#  Blaugrün
+            float3(0.000, 0.353, 1.000),  // D   Blau
+            float3(0.294, 0.000, 0.784),  // D#  Blauviolett
+            float3(0.580, 0.000, 0.827),  // E   Violett
+            float3(0.784, 0.000, 0.549),  // F   Rotviolett
+            float3(1.000, 0.000, 0.000),  // F#  Rot
+            float3(1.000, 0.271, 0.000),  // G   Rotorange
+            float3(1.000, 0.549, 0.000),  // G#  Orange
+            float3(1.000, 0.749, 0.000),  // A   Gelborange
+            float3(1.000, 1.000, 0.000),  // A#  Gelb
+            float3(0.678, 1.000, 0.184)   // H   Gelbgrün
+        };
         float f = max(hz, 1.0);
         float semis = 12.0 * log2(f / 16.351597831287414);   // C0 = MIDI 12
         float pc = fmod(semis, 12.0);

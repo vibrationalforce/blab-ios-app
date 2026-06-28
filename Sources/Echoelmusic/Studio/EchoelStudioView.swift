@@ -2024,13 +2024,14 @@ struct EchoelStudioView: View {
         evolveTask?.cancel()
         evolveTask = Task { @MainActor in
             while !Task.isCancelled {
-                // Re-seed roughly every ~4 bars at the current tempo (not a flat 12 s)
-                // so the music keeps hugging the live body but is given room to SETTLE
-                // into a phrase instead of re-rolling restlessly (device-log feedback:
-                // takes changed every ~2-4 s and never settled). Clamped 8…16 s so it
-                // never churns too fast or drifts too static.
-                let beats = 16.0  // four 4/4 bars
-                let barSpan = min(16.0, max(8.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
+                // Re-seed roughly every ~8 bars at the current tempo so the music keeps
+                // hugging the live body but is given GENEROUS room to settle into a phrase
+                // instead of re-rolling restlessly. Device feedback (10.76.36): re-seeding
+                // every ~8 s with a jumpy rPPG made the take — and the visual colour that
+                // follows the tonic — change too often ("nicht smooth … Visuals springen").
+                // Clamped 25…45 s: long enough to feel like a settled phrase, still alive.
+                let beats = 32.0  // eight 4/4 bars
+                let barSpan = min(45.0, max(25.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
                 try? await Task.sleep(for: .seconds(barSpan))
                 guard running, !Task.isCancelled else { break }
                 scheduleGenerate(auto: true)   // rate-limited — coalesces with any lock-snap/onChange recompose
