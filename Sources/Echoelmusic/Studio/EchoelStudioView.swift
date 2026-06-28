@@ -139,6 +139,8 @@ struct EchoelStudioView: View {
     /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
     /// Persisted so a chosen world tuning survives relaunch.
     @AppStorage("toneSystemID") private var tuningID = "edo12"
+    /// Selected Cousto planetary tone (sets the Kammerton). "" = off (Kammerton untouched).
+    @AppStorage("planet.tone") private var planetID = ""
     @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
     @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
     /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
@@ -732,9 +734,42 @@ struct EchoelStudioView: View {
             genrePicker
             tonartRow
             kammertonRow
+            planetRow
             tuningRow
             tempoRow
         }
+    }
+
+    /// Cousto planetary tone → sets the Kammerton so the instrument plays in tune with
+    /// that planet's tone (e.g. Earth-year → A4 ≈ 432 Hz). Same proven Picker pattern as
+    /// the tone-system row. Astronomy-derived creative tuning, no health claims.
+    private var planetRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            labeledRow("Planet tone") {
+                Picker("Planet tone", selection: $planetID) {
+                    Text("Off").tag("")
+                    ForEach(PlanetTones.all) { p in Text(p.name).tag(p.id) }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: planetID) { _, id in applyPlanetTone(id) }
+                .accessibilityLabel("Planet tone")
+            }
+            if let p = PlanetTones.named(planetID) {
+                Text("Tuned to \(p.name): A4 ≈ \(String(format: "%.1f", p.a4Hz)) Hz (root note \(p.nearestNoteName)). Astronomy-derived creative tuning.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Apply a planet tone by setting the Kammerton (same path as the Kammerton field).
+    /// "Off" (empty id) leaves the current concert pitch untouched.
+    private func applyPlanetTone(_ id: String) {
+        guard let p = PlanetTones.named(id) else { return }
+        session.a4Hz = p.a4Hz
+        synth.setTuning(a4Hz: session.a4Hz)
+        subBass.setTuning(a4Hz: session.a4Hz)
+        recomposeIfRunning()
     }
 
     /// Tone system — 12-TET by default; selecting just intonation, a maqām, gamelan

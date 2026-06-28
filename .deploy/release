@@ -1,16 +1,13 @@
-build: 2026-06-26 v10.76.37 (Smoother takes + de-stutter visuals)
+build: 2026-06-26 v10.76.38 (Re-add 1/4: planetary-tone picker)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.36 (which launches cleanly — the crash was isolated to this
-  session's studio changes and reverted). Two smoothness fixes from your 10.76.36
-  feedback ("nicht smooth, Sound verkrautet, Visuals ruckeln und springen"):
-  1) The generated take re-seeded every ~8 s against a jumpy pulse, so music + the
-     colour that follows the tonic kept changing. Now it settles for ~25–45 s (eight
-     bars) before evolving — calmer, more musical, far fewer visual colour jumps.
-  2) The Cousto colour wheel was rebuilt for every pixel (~6× per pixel each frame) —
-     a real GPU cost that stuttered the visual. It's now a constant, hoisted out of the
-     per-pixel path. (Shader is runtime-compiled with a safe fallback — no launch risk.)
-  Both are logic/shader-only; the studio view structure is untouched so the 10.76.36
-  launch fix stands.
-  Test: 10.76.37 → Start. Music should hold a phrase ~30 s before evolving (smoother);
-  the immersive visual should run noticeably smoother. Tell me if the "verkrauteter"
-  sound persists — that one I'll chase next with your feedback.
+notesT: Builds on 10.76.37. Starts the careful re-add of the studio features that were
+  reverted in 10.76.36 to fix the black screen — ONE at a time, each with a device
+  check, so the launch can never silently break again. First and lowest-risk: the
+  Cousto PLANETARY-TONE picker in Compose ▸ Composition (Sun…Pluto + Earth day/year).
+  Pick a planet → the concert pitch A4 is set to play in tune with it (e.g. Earth-year
+  → A4 ≈ 432 Hz). It's purely a Picker row + tuning logic (the same proven pattern as
+  the Kammerton/Tone-system rows) — no new sheet, no structural change — so it can't
+  reintroduce the metadata-overflow crash. Off by default.
+  Test: 10.76.38 → does it still launch straight to the Studio? Compose ▸ Composition →
+  "Planet tone" → e.g. "Earth — year" → Kammerton shows ≈432 Hz. If it launches clean,
+  next re-add is the Licenses screen, then the visuals menu, then Bio→Visual.
