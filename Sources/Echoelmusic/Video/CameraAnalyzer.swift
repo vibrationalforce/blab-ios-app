@@ -554,10 +554,37 @@ final class CameraAnalyzer {
             if ratio > 1.6, raw / 2.0 >= 40 { bpm = raw / 2.0 }          // likely doubled
             else if ratio < 0.625, raw * 2.0 <= 200 { bpm = raw * 2.0 }  // likely halved
         }
+        // Octave anchor (task #6): correct GRADUAL half/double drift the running-estimate
+        // fold above can't see (each step stays inside 0.625…1.6 yet accumulates). Done
+        // at the SOURCE — the raw window rate — against the octave-robust autocorrelation
+        // fundamental, so the median + EMA below then operate on octave-correct values
+        // (no tug-of-war between a half-rate target and a corrective nudge).
+        bpm = Self.octaveCorrected(raw: bpm, autoBPM: lastAutoBPM, autoStrength: lastAutoStrength)
         recentBPMs.append(bpm)
         if recentBPMs.count > recentBPMCapacity { recentBPMs.removeFirst() }
         let sorted = recentBPMs.sorted()
         return sorted[sorted.count / 2]
+    }
+
+    /// Octave anchor against the octave-robust autocorrelation fundamental — the guard
+    /// for GRADUAL half/double drift (task #6). The per-window ratio fold in
+    /// `stabilisedBPM` only trips on a SUDDEN jump (raw outside 0.625…1.6 of the running
+    /// estimate); a slow drift where each window steps just inside that band accumulates
+    /// undetected until the locked rate sits a full octave off. Autocorrelation reports
+    /// the TRUE fundamental regardless of peak-count octave, so when a CONFIDENT
+    /// periodicity says the estimate is ~½× or ~2× the fundamental, nudge it back.
+    ///
+    /// Conservative by construction: it acts ONLY in explicit octave bands (raw ≈ ½× or
+    /// ≈ 2× the fundamental) — never in the 0.625…1.6 "genuine HR change" band — and an
+    /// octave error is EXACTLY a factor of two, so it corrects by ×2 / ×0.5 (gated on a
+    /// confident autocorrelation), not an arbitrary blend. Pure (no state) → unit-
+    /// testable on Linux.
+    nonisolated static func octaveCorrected(raw: Double, autoBPM: Double, autoStrength: Double) -> Double {
+        guard raw > 0, autoBPM > 40, autoStrength > 0.45 else { return raw }
+        let r = raw / autoBPM
+        if r > 0.42 && r < 0.6,  raw * 2.0 <= 220 { return raw * 2.0 }   // raw ≈ ½× → double
+        if r > 1.7 && r < 2.4,   raw * 0.5 >= 35  { return raw * 0.5 }   // raw ≈ 2×  → halve
+        return raw
     }
 
     /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than

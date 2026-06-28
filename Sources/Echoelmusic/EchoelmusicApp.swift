@@ -361,16 +361,16 @@ struct EchoelmusicApp: App {
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
                 EchoelCrashLog.breadcrumb("startup 4/4: core ready — instrument live")
 
-                // Self-healing: the UI rendered and the core came up. Confirm this
-                // launch healthy a few seconds in (a crash during initial render
-                // fires BEFORE this, leaving LaunchGuard's counter raised → the next
-                // launch escalates to Safe Mode). A MainActor child task (inherits
-                // isolation) so it can't delay the rest of startup.
-                Task {
-                    try? await Task.sleep(nanoseconds: 4_000_000_000)
-                    LaunchGuard.confirmHealthy()
-                    EchoelCrashLog.breadcrumb("LaunchGuard: launch confirmed healthy")
-                }
+                // Self-healing: confirm this launch healthy NOW that the UI rendered and
+                // the whole risky startup (graph build · voice attach · engine start —
+                // the build-1363 crash zone) completed without crashing. A crash anywhere
+                // BEFORE this point leaves LaunchGuard's counter raised → the next launch
+                // boots into Safe Mode. Confirming at end-of-startup (was a 4 s wall-clock
+                // sleep) shrinks the false-escalation window to the sub-second startup
+                // duration — so quitting the app fast (e.g. to read the diagnostics log)
+                // no longer risks a spurious Safe Mode on the next launch.
+                LaunchGuard.confirmHealthy()
+                EchoelCrashLog.breadcrumb("LaunchGuard: launch confirmed healthy")
 
                 // ── BEST-EFFORT, NON-BLOCKING ────────────────────────────────
                 // These await (HealthKit permission dialog, StoreKit network) and

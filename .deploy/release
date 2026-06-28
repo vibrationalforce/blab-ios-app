@@ -1,17 +1,19 @@
-build: 2026-06-26 v10.76.30 (Prism look — sound refracted into natural daylight)
+build: 2026-06-26 v10.76.31 (rPPG octave-drift guard + faster healthy-confirm)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.29. Adds the PRISM look (#16) — the rainbow/prism aspect the
-  founder asked for, as natural light. A new, opt-in look (alongside Donuts/Rings/
-  Chladni/Plasma/Water) that refracts the sounding tone across the frame like white
-  light through glass: horizontal position fans the tone's neighbourhood across the
-  full Cousto colour wheel — a rainbow centred on what you hear. Coherence narrows it
-  to a purer spectrum. Rendered through the app's warm-daylight pipeline, so it reads
-  as natural light, not neon.
-  Chosen the lambda way: a SEPARATE look, so the existing default looks are untouched
-  (no Unstimmigkeit). Selectable in the quick strip, the blend list, and the new
-  visuals menu (its own "Prism" category). Flash-safe (slow pulse only; colour fixed
-  per location). Shader compiles at runtime with a clear-colour fallback → cannot
-  affect launch. Reviewed GO (dsp/shader: ordering, types, numerics, flash-safety).
-  Test: 10.76.30 launches? Visual → "Looks & Farboktave…" → Prism (or the strip).
-  Play a note → a warm rainbow fans across the frame, centred on the tone; raise
-  coherence → the spectrum tightens. Try Mix with Water/Plasma for a blended look.
+notesT: Builds on 10.76.30. Two stability fixes.
+  1) rPPG octave-drift guard (#6): the pulse rate could slowly drift to half (or
+     double) the true value over a minute — each window stepping just inside the old
+     guard's band so it never tripped. Now the raw window rate is octave-corrected
+     (×2 / ×0.5, an octave error is exactly a factor of two) against the octave-robust
+     autocorrelation fundamental, only when a confident periodicity says we're a full
+     octave off — never touching a genuine heart-rate change. Applied at the source so
+     the median/EMA smoothing then works on correct values. Pure + unit-tested.
+  2) Self-healing confirm: a launch is now marked healthy at END OF STARTUP (core
+     ready) instead of after a fixed 4 s. It still covers the whole risky startup
+     (graph build · voice attach · engine start), but quitting the app fast — e.g. to
+     read the diagnostics log — no longer risks a spurious Safe Mode on the next launch.
+  Diagnostics log of a healthy launch now reads: launch → init done → startup 1/4 →
+  2/4 → 3/4 → 3/4 OK → 4/4 core ready → confirmed healthy.
+  Test: 10.76.31 launches? Diagnostics shows the full sequence incl. "confirmed
+  healthy". rPPG: finger on lens+flash → the BPM should hold its octave (no slow
+  halving) over a minute.
