@@ -173,9 +173,18 @@ struct EchoelmusicApp: App {
                     LaunchGuard.reset()
                     forceNormalMode = true
                 }
-                // Breadcrumb the UI branch taken, so a shared diag log that stops after
-                // "init done" reveals WHY: recovery screen vs onboarding vs the studio.
-                .onAppear { EchoelCrashLog.breadcrumb("ui branch: SAFE MODE recovery screen") }
+                // Safe Mode is a ONE-SHOT speed bump, not a sticky state. Clear the
+                // counter the moment the recovery screen appears: in Safe Mode the
+                // studio's startup task never runs, so confirmHealthy() never fires —
+                // without this, EVERY relaunch would re-enter Safe Mode until the user
+                // happened to tap "Continue" (the lock-in a fast quit/relaunch caused).
+                // Resetting here means the next launch tries the studio normally; if it
+                // genuinely crashes again the counter simply rebuilds and Safe Mode
+                // reappears after the next failure — protection without the trap.
+                .onAppear {
+                    EchoelCrashLog.breadcrumb("ui branch: SAFE MODE recovery screen (counter cleared)")
+                    LaunchGuard.reset()
+                }
             } else if hasCompletedOnboarding {
                 mainContent
             } else {
