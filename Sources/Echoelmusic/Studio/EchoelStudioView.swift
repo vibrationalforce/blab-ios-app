@@ -263,7 +263,16 @@ struct EchoelStudioView: View {
         #endif
     }
 
-    var body: some View {
+    // The root screen + ALL its presentations were one ~30-deep modifier chain
+    // (lifecycle + 24 .sheet/.fullScreenCover). At launch the Swift runtime decodes
+    // that aggregate generic type and, past a threshold, the metadata decoder
+    // recurses until it overflows the main-thread stack → SIGSEGV / black screen
+    // BEFORE any view renders (build 2068: "Safe Mode oder Black Screen"). The fix is
+    // to split the chain into AnyView-bounded groups so each view's static type stays
+    // shallow — the decoder stops at each AnyView boundary. screenBase → screenSheets1
+    // → screenSheets2 → body, each adding a handful of modifiers on a shallow base.
+    private var screenBase: AnyView {
+        AnyView(
         VStack(spacing: 0) {
             BioStripView(measuring: running,
                          fingerOnLens: pulseFingerOnLens,
@@ -326,6 +335,15 @@ struct EchoelStudioView: View {
         .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
+        )
+    }
+
+    /// First presentation group, stacked on the type-erased `screenBase`. Splitting
+    /// the presentations across AnyView boundaries is what keeps the launch-time
+    /// metadata decode from overflowing (see `screenBase`).
+    private var screenSheets1: AnyView {
+        AnyView(
+        screenBase
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
         // launch-time metadata decode can never overflow the stack again.
@@ -344,6 +362,13 @@ struct EchoelStudioView: View {
                          setFXEnabled: { synth.setFXEnabled($0) })
                 .echoelSheetPanel())
         }
+        )
+    }
+
+    /// Second presentation group, stacked on the type-erased `screenSheets1`.
+    private var screenSheets2: AnyView {
+        AnyView(
+        screenSheets1
         .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
         .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
         .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
@@ -358,6 +383,11 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
+        )
+    }
+
+    var body: some View {
+        screenSheets2
         .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
         .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
         .sheet(isPresented: $showPatchEditor) {
