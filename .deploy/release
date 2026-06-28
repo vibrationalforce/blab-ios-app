@@ -1,15 +1,10 @@
-build: 2026-06-26 v10.76.32 (+4 world/exotic scales)
+build: 2026-06-26 v10.76.33 (Diagnose: which UI branch at launch)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.31. Rounds out the Tonarten with four world/exotic scales:
-  Phrygian Dominant (Spanish/flamenco/metal), Harmonic Major, Hungarian/Gypsy Minor,
-  and Double Harmonic (Byzantine/Arabic, Maqam Hijaz-kar). They appear automatically
-  in the key Picker and drive the bio-composer like every other scale. Pure data +
-  tests; zero launch risk.
-  With the earlier additions (10.76.23) the scale set now spans: major/minor, all
-  church modes, both pentatonics, harmonic+melodic minor, jazz (lydian dominant,
-  altered, bebop), blues (major+minor), whole-tone, both diminished, and these four
-  world scales — 24 in total, plus the microtonal tone-systems (12/19/24/31-EDO, just
-  major/minor, Pythagorean, ¼-comma meantone, maqam rast/bayati/hijaz, gamelan
-  slendro/pelog, hirajoshi, Bohlen-Pierce) and the 13 Cousto planetary tunings.
-  Test: 10.76.32 launches? Compose → key/scale picker → the four new scales are
-  selectable and the generated take stays in the chosen scale.
+notesT: Builds on 10.76.32. Pure diagnostics: two shared logs stopped right after
+  "init done" with no startup steps, which means the app may be showing a NON-studio
+  screen (Safe-Mode recovery or Onboarding) or hanging after init — not the studio
+  whose startup task writes those steps. This build breadcrumbs the UI branch taken:
+  "ui branch: STUDIO — startup task running" / "ui branch: SAFE MODE recovery screen"
+  / "ui branch: ONBOARDING (not yet completed)". The next diagnostics log will name
+  the screen, so we can tell a harmless early snapshot from a real stuck state.
+  Test: 10.76.33 → Diagnostics → the log now includes a "ui branch:" line.
