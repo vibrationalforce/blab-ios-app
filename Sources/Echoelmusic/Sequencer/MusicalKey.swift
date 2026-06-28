@@ -32,6 +32,11 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     case wholeTone
     case diminishedWholeHalf
     case diminishedHalfWhole
+    // World / exotic — flamenco/metal, Gypsy, Byzantine/Arabic colour.
+    case phrygianDominant   // 5th mode of harmonic minor — Spanish/flamenco/metal
+    case harmonicMajor      // major with ♭6
+    case hungarianMinor     // Gypsy minor (♯4 over harmonic minor)
+    case doubleHarmonic     // Byzantine / Arabic (Maqam Hijaz-kar)
 
     /// Ascending semitone offsets from the root, one octave.
     public var intervals: [Int] {
@@ -56,6 +61,10 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .wholeTone:           return [0, 2, 4, 6, 8, 10]
         case .diminishedWholeHalf: return [0, 2, 3, 5, 6, 8, 9, 11]
         case .diminishedHalfWhole: return [0, 1, 3, 4, 6, 7, 9, 10]
+        case .phrygianDominant:    return [0, 1, 4, 5, 7, 8, 10]
+        case .harmonicMajor:       return [0, 2, 4, 5, 7, 8, 11]
+        case .hungarianMinor:      return [0, 2, 3, 6, 7, 8, 11]
+        case .doubleHarmonic:      return [0, 1, 4, 5, 7, 8, 11]
         }
     }
 
@@ -82,6 +91,10 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .wholeTone:           return "Whole Tone"
         case .diminishedWholeHalf: return "Diminished (W–H)"
         case .diminishedHalfWhole: return "Diminished (H–W)"
+        case .phrygianDominant:    return "Phrygian Dominant"
+        case .harmonicMajor:       return "Harmonic Major"
+        case .hungarianMinor:      return "Hungarian Minor"
+        case .doubleHarmonic:      return "Double Harmonic"
         }
     }
 
@@ -108,6 +121,10 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .wholeTone:           return "whole"
         case .diminishedWholeHalf: return "dimWH"
         case .diminishedHalfWhole: return "dimHW"
+        case .phrygianDominant:    return "phrdom"
+        case .harmonicMajor:       return "harmM"
+        case .hungarianMinor:      return "hung"
+        case .doubleHarmonic:      return "dblharm"
         }
     }
 }
