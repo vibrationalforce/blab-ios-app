@@ -3,6 +3,25 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-28 — rPPG smoothness (10.76.39): trust confident autocorrelation
+Founder thread: "noch keinen smooth experience … verkrauteter Sound … Visuals ruckeln/springen".
+Smoothness already addressed in 10.76.37 (const colour wheel + 25-45s auto-evolve cadence) and
+10.76.38 cleanup (planet picker re-add, launches clean). This cycle: the jumpy CAMERA HEART RATE.
+- **Diagnosis (device log):** published BPM jumped 132/100/79/76 while autocorrelation sat steady
+  at 75-79 (acf 0.74-0.87). The dicrotic notch adds a 2nd peak/beat → peak-counter over-counts by
+  ~1.3-1.7× — a NON-octave error `octaveCorrected` (×2/×0.5 only) can't catch.
+- **Fix (10.76.39):** new pure `CameraAnalyzer.autoTrust(estimate:autoBPM:autoStrength:)` — a
+  confidence-weighted pull of the post-EMA estimate toward the autocorrelation fundamental, gated at
+  acf>0.55, capped at 50%/window. Weak acf → no pull (low-SNR fingertip keeps peak-counting); genuine
+  HR ramp still leads. Camera analysis path only (NOT audio/render/launch → cannot touch the
+  black-screen surface). dsp-reviewer: GO. 7 new unit tests. Commit d656e81, pushed.
+- **dsp-reviewer notes (future, non-blocking):** (a) it's mitigation not full correction — chronic
+  notch-inflation settles a few BPM high; (b) `PulsePeriodEstimator` autocorr has a short-lag/high-BPM
+  bias (no per-lag normalization) — consider `bestCorr/(n-lag)` before leaning harder on ACF.
+- **Re-add discipline still standing:** next reverted features to restore ONE-at-a-time, device-checked,
+  via `.sheet(item:)` consolidation (NOT appending modifiers): Licenses → visuals menu (Farboktave) →
+  Bio→Visual (highest crash suspect). Parked files carry ⚠️ headers.
+
 ### 2026-06-22 (cont. 3) — Composition+sound overhaul (science-grounded) + deploy-model fix
 Founder: rework ALL styles toward biofeedback-COHERENT parameters (HeartMath/HRV-resonance, newest
 validation), more composition techniques, fix the "rudimentary" sound; "set the best music scientists
