@@ -35,16 +35,13 @@ _Last reviewed: 2026-06-26._
   SwiftUI, SwiftData, VideoToolbox, CoreHaptics, MultipeerConnectivity, etc.
 - Used under the Apple SDK / developer-program terms. No separate attribution required.
 
-### Hans Cousto — "Cosmic Octave" (concept attribution)
-- The colour-octave (tone→visible-light by octave transposition) and the planetary-tone
-  tunings are based on the method described by **Hans Cousto, _The Cosmic Octave_ (1978)**.
-- What we use: the **octave-transposition mathematics** (f × 2ⁿ) and **frequency values**
-  (e.g. planetary tones in Hz) — these are facts / a method, not copyrightable expression.
-  We did **not** copy Cousto's text, and we do **not** reproduce the reference colour-wheel
-  image/PDF in the app (only the numeric note→colour values were used).
-- Attribution is given in-code (`ColorOctave.swift`, `PlanetTone.swift`) and in user-facing
-  copy as a courtesy and for accuracy. Presented as **creative tuning / acoustics /
-  astronomy** — no health, healing, chakra or Solfeggio claims.
+### Light/colour mapping — physically-derived (no third-party concept)
+- The immersive visual colours a tone by transposing it up whole octaves into the visible
+  band and converting that **light wavelength → RGB via the CIE colour-matching functions**
+  (`MetalBioView.swift`, `wavelengthToRGB`/`toneWavelengthNm`). This is standard physics
+  (octave mathematics f × 2ⁿ + CIE 1931), not a third-party convention — no attribution
+  required. (The earlier Hans Cousto "Cosmic Octave" colour-wheel and planetary-tone tunings
+  were removed in 10.76.40.)
 
 ### External Swift packages — NONE currently ship
 - `Package.swift` `dependencies: []`; the Xcode app target `dependencies: []`
@@ -73,7 +70,7 @@ The Echoel source is MIT-licensed — see `LICENSE` (© 2024–2025 Echoelmusic)
 ## Action items (compliance checklist)
 - [ ] Ensure `Resources/Fonts/OFL.txt` is a **bundled resource** (ships with the app), so
       the font license travels with the font (OFL §2).
-- [ ] Add an in-app **Acknowledgments** screen surfacing this file (font OFL + Cousto
-      attribution). Nice-to-have for OFL; standard for App Store apps.
+- [ ] Add an in-app **Acknowledgments** screen surfacing this file (font OFL notice).
+      Nice-to-have for OFL; standard for App Store apps.
 - [ ] Re-add HaishinKit's MIT notice here **if/when** streaming is enabled.
 - [ ] Counsel review before release.

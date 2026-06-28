@@ -384,43 +384,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float fLight = f * exp2(n);                 // now in the ~400–790 THz visible band
         return 2.998e17 / fLight;                   // nanometres
     }
-    // Hans Cousto's COSMIC-OCTAVE colour convention: note (pitch class) → colour, the
-    // octave transposition made explicit as the founder's reference chart (F#→Rot …
-    // C→Grün … F→Rotviolett). Smoothly interpolated between neighbouring pitch classes
-    // so a glide/microtone slides along the wheel — a prism, not 12 hard steps. Mirrors
-    // ColorOctave.swift (Swift) value-for-value so UI and visual agree. The downstream
-    // warm-desaturation + luminance floor turn these into natural light, not neon.
-    // Defined BEFORE toneColour/toneCloudColour so MSL sees it first.
-    // The 12 Cousto wheel colours in CONSTANT memory (program scope) — initialised
-    // once, not per pixel. coustoColour is called ~6× per fragment (5 harmonic clouds
-    // + prism); the old per-call `float3 wheel[12]` init ran millions of stores/frame
-    // at 1080p·60 and stuttered the visual (device feedback 10.76.36 "Visuals ruckeln").
-    float3 coustoColour(float hz) {
-        const float3 wheel[12] = {
-            float3(0.000, 0.784, 0.000),  // C   Grün
-            float3(0.000, 0.784, 0.627),  // C#  Blaugrün
-            float3(0.000, 0.353, 1.000),  // D   Blau
-            float3(0.294, 0.000, 0.784),  // D#  Blauviolett
-            float3(0.580, 0.000, 0.827),  // E   Violett
-            float3(0.784, 0.000, 0.549),  // F   Rotviolett
-            float3(1.000, 0.000, 0.000),  // F#  Rot
-            float3(1.000, 0.271, 0.000),  // G   Rotorange
-            float3(1.000, 0.549, 0.000),  // G#  Orange
-            float3(1.000, 0.749, 0.000),  // A   Gelborange
-            float3(1.000, 1.000, 0.000),  // A#  Gelb
-            float3(0.678, 1.000, 0.184)   // H   Gelbgrün
-        };
-        float f = max(hz, 1.0);
-        float semis = 12.0 * log2(f / 16.351597831287414);   // C0 = MIDI 12
-        float pc = fmod(semis, 12.0);
-        if (pc < 0.0) pc += 12.0;
-        int lo = int(floor(pc)) % 12;
-        int hi = (lo + 1) % 12;
-        float t = pc - floor(pc);
-        return mix(wheel[lo], wheel[hi], t);
-    }
     float3 toneColour(float toneHz) {
-        return coustoColour(toneHz);
+        return wavelengthToRGB(clamp(toneWavelengthNm(toneHz), 380.0, 780.0));
     }
 
     // Multiple drifting COLOUR CLOUDS so the picture is varied ("verschiedene Farbwolken
@@ -441,7 +406,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // seventh, second). Even harmonics are octaves of these and octave-fold to the
             // same colour, which would collapse the variety — odd harmonics stay bunt.
             float h = float(1 + 2 * k);
-            float3 ck = coustoColour(toneHz * h);   // each harmonic → its Cousto note colour
+            float3 ck = wavelengthToRGB(clamp(toneWavelengthNm(toneHz * h), 380.0, 780.0));   // each harmonic → its true light colour
             float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe drift
             float2 ctr = float2(cos(a * 0.7 + h), sin(a + h * 2.0)) * (0.5 * spread);
             float2 dq = q - ctr;
@@ -455,8 +420,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
     // PRISM colour — disperse the sounding tone across space like white light through a
     // glass prism. Horizontal position selects an octave offset around the played tone,
-    // so the frame fans the tone's neighbourhood across the full Cousto wheel: a rainbow
-    // refraction centred on what you hear. A slow refraction drift keeps it alive
+    // so the frame fans the tone's neighbourhood across the full visible spectrum: a
+    // rainbow refraction centred on what you hear. A slow refraction drift keeps it alive
     // (flash-safe: the colour at each location is fixed, only the band slides gently);
     // coherence narrows the spread to a tighter, purer spectrum. The downstream warm-
     // desaturation + luminance floor render it as NATURAL daylight, not neon.
@@ -465,7 +430,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float x      = q.x * 0.5 + 0.05 * sin(phase * 0.3 + q.y * 1.5);   // slow refraction drift
         float octave = clamp(x * span, -4.0, 4.0);               // guard exp2 range
         float hz     = max(toneHz, 1.0) * exp2(octave);
-        float3 c     = coustoColour(hz);
+        float3 c     = wavelengthToRGB(clamp(toneWavelengthNm(hz), 380.0, 780.0));   // disperse by true light wavelength
         float band   = 0.85 + 0.15 * cos(q.y * 3.14159265);      // luminous band, not flat fill
         return c * band;
     }

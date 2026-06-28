@@ -1,15 +1,17 @@
-build: 2026-06-28 v10.76.39 (rPPG: trust the confident autocorrelation)
+build: 2026-06-28 v10.76.40 (Remove planetary tones + Cousto sound→colour)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.38. Smooths the camera heart-rate (rPPG) reading. Device logs
-  showed the published BPM jumping 132 → 100 → 79 → 76 while a strong, steady pulse
-  fundamental sat at 75–79 the whole time — the discrete peak-counter was being fooled by
-  the dicrotic notch (a small second bump per heartbeat) and over-counting by ~1.3–1.7×.
-  That's a NON-octave error, so the existing ×2/×0.5 octave guard couldn't catch it.
-  Fix: a new `autoTrust` step gently pulls the reading toward the autocorrelation
-  fundamental WHEN that periodicity is confident (acf > 0.55), weighted by its strength
-  and capped at 50 % per window — so peak-count noise can't yank the number around while a
-  clean pulse is being ignored, yet a genuine heart-rate change (or a low-SNR window where
-  autocorrelation is weak) still leads. Pure helper, fully unit-tested, on the camera
-  analysis path only (NOT audio/render/launch) — cannot affect the black-screen surface.
-  Test: 10.76.39 → Well ▸ camera rPPG, finger on lens: the BPM should settle and hold
-  steady instead of jumping by 20–50 between updates. Still launches straight to Studio.
+notesT: Builds on 10.76.39. Founder call: drop the planetary-tone picker AND the Hans
+  Cousto "sound → colour" octave mapping — the colour we had before is better.
+  • Compose ▸ Composition: the "Planet tone" row is gone (Kammerton / tone-system rows
+    stay). Removed PlanetTone + its picker/tuning logic + tests.
+  • Immersive visual: the tone→colour now uses the PHYSICAL light mapping again — the tone
+    is transposed up whole octaves into the visible band and converted to RGB via the CIE
+    colour-matching functions (real spectral colour), instead of Cousto's 12-colour wheel
+    convention. The Prism look now disperses by true light wavelength (a real prism).
+    Removed coustoColour from the shader, ColorOctave.swift, and the parked Farboktave
+    menu (VisualMenuView) + tests. Updated THIRD_PARTY_NOTICES (Cousto attribution dropped).
+  Pure removal/revert to the prior colour path — no new sheets, no structural change; the
+  shader is runtime-compiled so even a shader issue can't touch launch. Off-paths only.
+  Test: 10.76.40 → still launches straight to Studio. Compose ▸ Composition has no "Planet
+  tone" row. Well ▸ immersive visual: colours look like the natural-light palette from
+  before the Cousto change (warm spectral light), not the 12-step wheel.
