@@ -3,6 +3,18 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-28 — rPPG motion reject (10.76.45): kill the false early lock
+Device log: ~1 s after finger placement the analyzer false-locked at 105 bpm and snap-re-seeded
+the music, on a MOTION/pressure artifact (filtered amp ≈ 0.76 vs clean pulse ≈ 0.03–0.08; acf
+≈ 0.2 aperiodic; auto jumping 67→152→0→44). A steady wobble earned a false agreement-based
+confidence lock. Fix: pure `CameraAnalyzer.isMotionAmplitude(_:)` (> 0.25, ~3× over the
+plausible-pulse ceiling); in detectPeaks, after the flat-signal guard, skip motion windows AND
+bleed bpmConfidence (×0.6/scan ≈ 0.16 over 1 s) so motion can neither earn nor hold a lock
+(drops below the 0.35 gate fast). Placed before the median/EMA → motion can't poison the
+stabiliser. Unit-tested; camera-analysis path only. dsp-reviewer: GO (caveat logged: the absolute
+0.25 constant is valid only while the red channel stays normalised [0,1] with the 0.92 saturation
+cap — revisit to a relative perfusion-index gate if normalisation ever changes).
+
 ### 2026-06-28 — Dropdown stable-at-start (10.76.43) + own number pad (10.76.44)
 - **10.76.43 (founder: "Genre/Tonart dropdown ist am Anfang noch nicht stabil"):** after 10.76.41
   the menus held in steady state but generate()/re-seed still rebuilt the root body via two @State
