@@ -3,12 +3,13 @@
 //  Echoelmusic — Studio
 //
 //  The one control: a NUMERIC VALUE, no permanent slider/knob (saves space, reads
-//  science-first). Interaction is a direct VERTICAL FADER:
+//  science-first). Interaction:
 //   • Press the value and drag UP/DOWN — a transparent vertical slider appears to the
 //     left as a position reference (touch-sensitive, musical for filter sweeps). Full
 //     range crosses in ~one short drag, so it's fast, not stiff.
 //   • Pull sideways while dragging for FINE mode (precise to the decimal grid).
-//   • Tap the value to type an exact number (decimal pad; accepts comma or dot).
+//   • TAP the value to open the EchoelNumberPad — our own keypad with − / + at the
+//     bottom-left (the iOS decimal pad can't carry a sign key). Same pad everywhere.
 //   • VoiceOver: adjustable by swipe, speaks the real value + unit.
 //
 //  Everything scales with Dynamic Type / the app zoom (EchoelTheme.font relativeTo +
@@ -33,12 +34,8 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     // 4-decimal value with a large integer part plus its unit ("18000.0000 Hz").
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
 
-    @State private var text = ""
-    /// While editing, the current value is shown as the (greyed) placeholder so a tap
-    /// lets you type a FRESH number without first clearing digits — the old value
-    /// stays visible as a hint, and an empty commit restores it.
-    @State private var editPlaceholder = ""
-    @FocusState private var focused: Bool
+    /// Presents the shared numeric keypad (tap-to-type path).
+    @State private var showPad = false
 
     // Vertical-fader drag state (incremental, so toggling fine mode never jumps).
     @State private var scrubbing = false
@@ -59,8 +56,6 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
-        .onAppear { syncText() }
-        .onChange(of: value) { _, _ in if !focused { syncText() } }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue(accessibleValue)
@@ -80,54 +75,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     private var valueBox: some View {
         // Number + unit read as ONE cohesive field ("440.0000  Hz"), trailing-aligned
         // so values line up in a column. Website CI: solid fill, 1px muted border, 8px
-        // radius; bio-green only while editing/scrubbing.
-        ZStack {
+        // radius; bio-green while scrubbing or while the pad is open.
+        let active = scrubbing || showPad
+        return ZStack {
             HStack(spacing: 5) {
-                TextField(editPlaceholder, text: $text)
-                    .multilineTextAlignment(.trailing)
+                Text(numberString)
                     .font(EchoelTheme.font(17).monospacedDigit())
-                    .foregroundStyle(focused || scrubbing ? EchoelTheme.accent : EchoelTheme.text)
-                    .textFieldStyle(.plain)
+                    .foregroundStyle(active ? EchoelTheme.accent : EchoelTheme.text)
+                    .lineLimit(1).minimumScaleFactor(0.5)
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                    .focused($focused)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    .toolbar {
-                        // Gate on `focused` so only the active field contributes ONE bar
-                        // to the shared keyboard accessory (avoids the stacked-button bug).
-                        // The decimal pad has no minus/plus and no return key — so the bar
-                        // carries every sign the founder asked for: − / + nudge by one
-                        // step, ± flips the sign (the only way to type a negative on the
-                        // decimal pad — shown when the range allows it), Done closes.
-                        if focused {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Button { stepBy(-1) } label: { Image(systemName: "minus") }
-                                    .accessibilityLabel("Decrease \(label)")
-                                Button { stepBy(1) } label: { Image(systemName: "plus") }
-                                    .accessibilityLabel("Increase \(label)")
-                                if range.lowerBound < 0 {
-                                    Button { toggleSign() } label: {
-                                        Image(systemName: "plus.forwardslash.minus")
-                                    }
-                                    .accessibilityLabel("Flip sign of \(label)")
-                                }
-                                Spacer()
-                                Button("Done") { focused = false }.fontWeight(.semibold)
-                            }
-                        }
-                    }
-                    #endif
-                    .onSubmit(commitText)
-                    .onChange(of: focused) { _, f in
-                        if f {
-                            // Tap-to-type: clear the field and show the current value as
-                            // the placeholder, so the first keystroke starts a fresh number.
-                            editPlaceholder = numberString
-                            text = ""
-                        } else {
-                            commitText()   // empty input → Double(nil) → syncText restores
-                        }
-                    }
 
                 if !unitLabel.isEmpty {
                     Text(unitLabel)
@@ -138,25 +94,32 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 }
             }
 
-            // While not editing, a transparent layer turns the value into a vertical
-            // fader: drag = adjust, tap = type. Removed when focused so the TextField
-            // receives touches for editing.
-            if !focused {
-                Rectangle().fill(Color.clear).contentShape(Rectangle())
-                    .gesture(scrubGesture)
-                    .onTapGesture { focused = true }
-            }
+            // A transparent layer turns the value into a vertical fader: drag = adjust,
+            // tap = open the keypad.
+            Rectangle().fill(Color.clear).contentShape(Rectangle())
+                .gesture(scrubGesture)
+                .onTapGesture { showPad = true }
         }
         .frame(width: valueWidth)
         .padding(.horizontal, 12).padding(.vertical, 9)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-            .strokeBorder(focused || scrubbing ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+            .strokeBorder(active ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
         // The transparent orientation slider floats just left of the box while dragging.
         .overlay(alignment: .leading) {
             if scrubbing { faderOverlay.offset(x: -22) }
         }
         .animation(.easeOut(duration: 0.12), value: scrubbing)
+        .sheet(isPresented: $showPad) {
+            EchoelNumberPad(title: label, initial: Double(value), decimals: decimals,
+                            unit: unit, range: Double(range.lowerBound)...Double(range.upperBound)) { newVal in
+                apply(newVal)
+                onChange()
+                onCommit()
+            }
+            .presentationDetents([.height(440), .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     /// The transient vertical slider shown on press — a position reference to orient by.
@@ -200,41 +163,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 let delta = (dyStep / fullRangePoints) * span * fine
                 if delta != 0 {
                     apply(Double(value) + delta)
-                    if !focused { syncText() }
                     onChange()
                 }
             }
             .onEnded { _ in scrubbing = false; onCommit() }
-    }
-
-    /// A meaningful single nudge for the − / + buttons: 1% of the range, but never
-    /// finer than the decimal grid so a tap always changes the displayed number.
-    private var stepSize: Double {
-        let span = Double(range.upperBound - range.lowerBound)
-        let grid = pow(10.0, -Double(decimals))
-        return Swift.max(grid, span / 100)
-    }
-
-    /// The number the toolbar acts on: the in-progress typed text if it parses,
-    /// otherwise the committed value (so −/+/± work mid-edit and before editing).
-    private var editingBase: Double {
-        Double(text.replacingOccurrences(of: ",", with: ".")) ?? Double(value)
-    }
-
-    /// − / + nudge by one step. Live like the fader: applies + reflects, fires onChange;
-    /// onCommit lands on Done.
-    private func stepBy(_ dir: Double) {
-        apply(editingBase + dir * stepSize)
-        syncText()
-        onChange()
-    }
-
-    /// ± flips the sign — the decimal pad cannot type a leading minus, so this is how a
-    /// negative value (pan, formant, dB) is entered. Clamps to the range like everything.
-    private func toggleSign() {
-        apply(-editingBase)
-        syncText()
-        onChange()
     }
 
     private func apply(_ raw: Double) {
@@ -260,14 +192,5 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     private var unitLabel: String { unit }
 
     private var numberString: String { String(format: "%.\(decimals)f", Double(value)) }
-
-    private func syncText() { text = numberString }
-
-    private func commitText() {
-        let cleaned = text.replacingOccurrences(of: ",", with: ".")
-        if let d = Double(cleaned) { apply(d) }
-        syncText()
-        onCommit()
-    }
 }
 #endif

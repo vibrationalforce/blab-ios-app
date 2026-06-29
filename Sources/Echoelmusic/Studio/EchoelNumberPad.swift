@@ -1,0 +1,205 @@
+//
+//  EchoelNumberPad.swift
+//  Echoelmusic — Studio
+//
+//  The ONE numeric keypad, used by every `EchoelValueField` (so entry is identical
+//  app-wide — "alles angleichen"). The iOS system decimal pad can't carry a sign key,
+//  so we present our own: a clean grid with − and + at the BOTTOM-LEFT, where − makes the
+//  value negative and + makes it positive (the logical way to enter e.g. Transpose −5).
+//  Fields with a non-negative range (Hz, BPM, dimensionless) show − disabled.
+//
+//  Design: Website-CI tokens, ≥44 pt keys, ≤8 px radius, no glow/scale. Pure UI.
+//
+
+#if canImport(SwiftUI)
+import SwiftUI
+
+struct EchoelNumberPad: View {
+    let title: String
+    let initial: Double
+    let decimals: Int
+    let unit: String
+    let range: ClosedRange<Double>
+    /// Called with the committed, range-clamped value when the user taps OK.
+    let onCommit: (Double) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    /// The literal typed string. Empty → the current value shows as a dimmed preview and
+    /// the first keystroke starts a fresh number.
+    @State private var buffer = ""
+
+    private var allowsNegative: Bool { range.lowerBound < 0 }
+    private var allowsDecimal: Bool { decimals > 0 }
+
+    /// What the field will become if committed now (buffer if it parses, else the initial).
+    private var pendingValue: Double {
+        let cleaned = buffer.replacingOccurrences(of: ",", with: ".")
+        if cleaned.isEmpty || cleaned == "-" || cleaned == "." || cleaned == "-." {
+            return initial
+        }
+        return Double(cleaned) ?? initial
+    }
+
+    private var clamped: Double {
+        Swift.min(Swift.max(pendingValue, range.lowerBound), range.upperBound)
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            header
+            grid
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(EchoelTheme.bg)
+    }
+
+    // MARK: - Header (label + live value + range)
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(EchoelTheme.font(13, .medium))
+                .foregroundStyle(EchoelTheme.dim)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(displayString)
+                    .font(EchoelTheme.font(30, .semibold).monospacedDigit())
+                    .foregroundStyle(buffer.isEmpty ? EchoelTheme.dim : EchoelTheme.text)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(EchoelTheme.font(15, .medium))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
+                Spacer(minLength: 0)
+            }
+            Text("Range \(fmt(range.lowerBound))–\(fmt(range.upperBound))\(unit.isEmpty ? "" : " " + unit)")
+                .font(EchoelTheme.font(11))
+                .foregroundStyle(EchoelTheme.dim)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The big readout: the typed buffer if any, otherwise the current value (dimmed).
+    private var displayString: String {
+        buffer.isEmpty ? fmt(initial) : buffer
+    }
+
+    // MARK: - Keypad grid
+
+    private var grid: some View {
+        // 7 8 9 / 4 5 6 / 1 2 3 / − 0 ⌫ / + . OK
+        // − and + sit in the bottom-LEFT column (founder ask), OK is prominent.
+        VStack(spacing: 10) {
+            HStack(spacing: 10) { digit("7"); digit("8"); digit("9") }
+            HStack(spacing: 10) { digit("4"); digit("5"); digit("6") }
+            HStack(spacing: 10) { digit("1"); digit("2"); digit("3") }
+            HStack(spacing: 10) {
+                signKey(negative: true)
+                digit("0")
+                deleteKey
+            }
+            HStack(spacing: 10) {
+                signKey(negative: false)
+                decimalKey
+                okKey
+            }
+        }
+    }
+
+    private func digit(_ d: String) -> some View {
+        keyButton(action: { append(d) }) {
+            Text(d).font(EchoelTheme.font(22, .medium)).foregroundStyle(EchoelTheme.text)
+        }
+    }
+
+    /// − (negative) / + (positive): set the sign of the value being entered. − is disabled
+    /// where the range can't go below zero. This is the founder's "Vorzeichen unten links".
+    private func signKey(negative: Bool) -> some View {
+        let enabled = negative ? allowsNegative : true
+        return keyButton(action: { setSign(negative: negative) }, enabled: enabled) {
+            Image(systemName: negative ? "minus" : "plus")
+                .font(EchoelTheme.font(20, .semibold))
+                .foregroundStyle(enabled ? EchoelTheme.text : EchoelTheme.dim.opacity(0.4))
+        }
+    }
+
+    private var decimalKey: some View {
+        keyButton(action: { appendDecimal() }, enabled: allowsDecimal) {
+            Text(".").font(EchoelTheme.font(22, .medium))
+                .foregroundStyle(allowsDecimal ? EchoelTheme.text : EchoelTheme.dim.opacity(0.4))
+        }
+    }
+
+    private var deleteKey: some View {
+        keyButton(action: { deleteLast() }) {
+            Image(systemName: "delete.left").font(EchoelTheme.font(20))
+                .foregroundStyle(EchoelTheme.text)
+        }
+        .accessibilityLabel("Delete")
+    }
+
+    private var okKey: some View {
+        keyButton(action: { commit() }, tint: EchoelTheme.accent) {
+            Text("OK").font(EchoelTheme.font(18, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
+        }
+        .accessibilityLabel("Confirm \(title)")
+    }
+
+    /// One key cell: tall, solid fill, 8 px radius, no glow. Disabled keys read dimmed.
+    private func keyButton<Content: View>(action: @escaping () -> Void,
+                                          enabled: Bool = true,
+                                          tint: Color? = nil,
+                                          @ViewBuilder _ label: () -> Content) -> some View {
+        Button(action: action) {
+            label()
+                .frame(maxWidth: .infinity).frame(height: 54)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(tint ?? EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: tint == nil ? 1 : 0))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    // MARK: - Editing
+
+    private func append(_ d: String) {
+        // Cap length so a fat-fingered run can't overflow the field.
+        guard buffer.count < 9 else { return }
+        buffer += d
+    }
+
+    private func appendDecimal() {
+        guard allowsDecimal, !buffer.contains(".") else { return }
+        buffer += buffer.isEmpty || buffer == "-" ? "0." : "."
+    }
+
+    /// − prepends a leading minus (works on an in-progress number or, if empty, seeds it so
+    /// the next digit lands negative); + strips the leading minus. Sign-only, never a digit.
+    private func setSign(negative: Bool) {
+        let body = buffer.hasPrefix("-") ? String(buffer.dropFirst()) : buffer
+        buffer = negative ? "-" + body : body
+    }
+
+    private func deleteLast() {
+        guard !buffer.isEmpty else { return }
+        buffer.removeLast()
+    }
+
+    private func commit() {
+        onCommit(snapped(clamped))
+        dismiss()
+    }
+
+    /// Snap to the field's decimal grid so the committed number is exact.
+    private func snapped(_ v: Double) -> Double {
+        let f = pow(10.0, Double(decimals))
+        return (v * f).rounded() / f
+    }
+
+    private func fmt(_ v: Double) -> String { String(format: "%.\(decimals)f", v) }
+}
+#endif
