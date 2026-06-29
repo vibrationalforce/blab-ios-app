@@ -147,14 +147,23 @@ struct EchoelStudioView: View {
     /// velocity sensitivity automatically (short attack ⇒ percussive ⇒ touch-responsive).
     @AppStorage("studio.articulation") private var articulation: Double = 0.4
     @State private var currentPatch = SynthPatch(name: "Init")
-    @State private var lastNoteCount: Int?
+    /// Whether anything has been composed yet (gates the export/save buttons). A plain
+    /// Bool that only ever flips false→true ONCE — it used to be `lastNoteCount: Int?`
+    /// re-set to the note count on every re-seed, and since `@State` invalidates the WHOLE
+    /// body, that rebuilt the root view each re-seed and tore down any open Tonart/Genre
+    /// `.menu` Picker (the "dropdown am Anfang nicht stabil" freeze; AnyView-wrapped panels
+    /// lose menu identity on rebuild). The buttons only ever read it as `== nil`, so a Bool
+    /// is equivalent and stops the re-seed churn.
+    @State private var hasComposed = false
     /// Ever-advancing evolution counter folded into every seed so the composition
     /// keeps developing and never repeats, even when the body holds steady.
     @State private var evolution: UInt64 = 0
 
     /// EchoelAI's plain-English narration of how the live body is shaping the sound,
-    /// refreshed each time the composition re-seeds. Deterministic, on-device.
-    @State private var aiExplanation = ""
+    /// refreshed each time the composition re-seeds. Held in a tiny `@Observable` so its
+    /// per-re-seed text change is observed ONLY by the leaf `StudioCaptionView` — not the
+    /// root body — so re-seeding never rebuilds (and closes) the selection menus.
+    @State private var caption = StudioCaption()
 
     // Background evolution + bio acquisition.
     @State private var evolveTask: Task<Void, Never>?
@@ -709,11 +718,7 @@ struct EchoelStudioView: View {
             masterPanel
             visualPanel
             if running {
-                Text(aiExplanation.isEmpty
-                     ? "The music is arising from your live signal — every control shapes it as it plays."
-                     : aiExplanation)
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .animation(.easeInOut(duration: 0.18), value: aiExplanation)
+                StudioCaptionView(caption: caption)
             }
         }
     }
@@ -1675,7 +1680,7 @@ struct EchoelStudioView: View {
                         .fill(isExporting ? EchoelTheme.dim : EchoelTheme.text))
             }
             .buttonStyle(.plain)
-            .disabled(isExporting || lastNoteCount == nil)
+            .disabled(isExporting || !hasComposed)
             .accessibilityHint("Records one loop and exports a WAV to share")
 
             Button { Task { await keepLastLoop() } } label: {
@@ -1687,7 +1692,7 @@ struct EchoelStudioView: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .disabled(isExporting || lastNoteCount == nil)
+            .disabled(isExporting || !hasComposed)
             .accessibilityHint("Keeps the last bars you just heard as a WAV loop, without replaying them")
 
             Button { exportMIDI() } label: {
@@ -1698,7 +1703,7 @@ struct EchoelStudioView: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .disabled(lastNoteCount == nil)
+            .disabled(!hasComposed)
             .accessibilityHint("Exports the generated melody as a MIDI file to open in any DAW")
 
             HStack(spacing: 10) {
@@ -1709,7 +1714,7 @@ struct EchoelStudioView: View {
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 }
                 .buttonStyle(.plain)
-                .disabled(lastNoteCount == nil)
+                .disabled(!hasComposed)
                 Button { showOpen = true } label: {
                     Label("Open", systemImage: "tray.and.arrow.up")
                         .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
@@ -2098,9 +2103,9 @@ struct EchoelStudioView: View {
         beatPlayer.pattern.setTempo(tempo)
         metronome.bpm = tempo   // keep the click on the live transport tempo
         session.adopt(key: key)
-        lastNoteCount = composition.notes.count
+        hasComposed = true
         // EchoelAI narrates the live bio→sound mapping in plain technical English.
-        if let frame { aiExplanation = BioExplanation.text(for: frame, tempo: tempo) }
+        if let frame { caption.text = BioExplanation.text(for: frame, tempo: tempo) }
         let wasPlaying = beatPlayer.pattern.isPlaying
         if !wasPlaying { beatPlayer.pattern.play() }
         if !wasPlaying { metronome.resync() }   // align the click's downbeat to the start
@@ -2216,7 +2221,7 @@ struct EchoelStudioView: View {
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
-        lastNoteCount = p.notes.count
+        hasComposed = true
         // Re-push the microtonal retune for the restored root. onChange(of:rootIndex)
         // won't fire if the opened key matches the current one, so do it explicitly
         // — otherwise a non-12-TET system would play against the previous root.
@@ -2238,7 +2243,7 @@ struct EchoelStudioView: View {
             return
         }
         let placed = pianoRoll.importNotes(imported)
-        lastNoteCount = placed.count
+        hasComposed = true
         // Drums: if the file has GM channel-10 hits, load them onto the beat grid too
         // (so one import brings both melody and drums). No hits → leave the kit alone.
         if let grid = try? MIDIFileImporter.drumGrid(from: data,
