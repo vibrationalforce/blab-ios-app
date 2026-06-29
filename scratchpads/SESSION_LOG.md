@@ -3,6 +3,32 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-28 — Full audit pass: menu freeze + visual stability (10.76.47)
+Founder: "Drop-down Menüs sind immer noch schnell im freeze. Visuals funktionieren noch nicht
+stabil. Alles überprüfen und verbessern." Ran TWO parallel deep audits.
+- **Visuals (CONFIRMED #1):** `MetalBioView.updateUIView` read `bus.freshBio()`/`freshMusical()`/
+  `governor.settings` (~10 Hz @Observable) inside the SwiftUI graph node → re-ran the representable
+  + fullscreen overlay 10×/s (stutter + flaky VJ controls). Moved those reads into the renderer's
+  `draw(in:)` (CADisplayLink, main thread, off the SwiftUI graph) via `MainActor.assumeIsolated`;
+  `updateUIView` now forwards only static look params via `setLook(...)`. concurrency-reviewer: GO.
+- **Menu (CONFIRMED item A):** `masterPanel` read `audioEngine.masterVolume` at render; AutomationPlayer
+  rewrites it every tick when a master-level lane plays → churned the menu-hosting body. Extracted into
+  `MasterVolumeField` leaf (MasterLoudnessGrid.swift). Menu audit otherwise found the body CLEAN during
+  a plain take (FX-bio-mod 30 Hz = @ObservationIgnored fxChain, NOT injected; synth 10 Hz lands in
+  @ObservationIgnored poly/mirror; bus/playhead/tempo/metronome all read in closures not render).
+- **Landmine:** `PolySynthVoice`/`BioReactiveSynthVoice.framesApplied` (10 Hz, non-ignored @Observable,
+  unread) → `@ObservationIgnored` so a future panel read can't reproduce the freeze.
+- **Visual jumps:** `ResourceGovernor.recordFrame` could flap the quality tier near an FPS boundary
+  (visible detail/FPS jumps) → widened recovery 0.90→0.95 + 4 s per-tier dwell; thermal still immediate.
+- All reviews GO (concurrency + build). **Open question if it persists:** if a dropdown STILL freezes
+  WITHOUT automation, the remaining suspect is main-thread contention from the @MainActor CameraAnalyzer
+  scan (~3.75 Hz O(n) + the 10 Hz modulation poll) during a take — next step would be moving rPPG
+  analysis off the main actor (big change; only if device feedback confirms). Asked founder to report
+  whether the freeze is camera-active-only.
+- **Durable structural note (audit):** panels are computed `var`s in ONE observation scope, AnyView-
+  wrapped → any future @Observable read in any panel re-creates this freeze. The durable fix is to
+  promote each heavy panel to its own `View` struct (deferred — large; do if it recurs).
+
 ### 2026-06-28 — rPPG motion reject (10.76.45): kill the false early lock
 Device log: ~1 s after finger placement the analyzer false-locked at 105 bpm and snap-re-seeded
 the music, on a MOTION/pressure artifact (filtered amp ≈ 0.76 vs clean pulse ≈ 0.03–0.08; acf
