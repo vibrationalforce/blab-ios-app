@@ -108,5 +108,26 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         // When peak-count already agrees with the fundamental, the pull changes nothing.
         XCTAssertEqual(A.autoTrust(estimate: 75, autoBPM: 75, autoStrength: 0.9), 75, accuracy: 0.001)
     }
+
+    // MARK: - Motion-amplitude reject (false-lock guard)
+
+    func testMotionAmplitude_plausiblePulse_isNotMotion() {
+        // Real fingertip pulse AC seen in device logs: ~0.03–0.08 → never motion.
+        XCTAssertFalse(A.isMotionAmplitude(0.03))
+        XCTAssertFalse(A.isMotionAmplitude(0.08))
+        XCTAssertFalse(A.isMotionAmplitude(0.15))   // generous strong-pulse headroom
+    }
+
+    func testMotionAmplitude_largeSwing_isMotion() {
+        // The false-lock session swung 0.26–0.81 (finger moving/pressing) → motion.
+        XCTAssertTrue(A.isMotionAmplitude(0.26))
+        XCTAssertTrue(A.isMotionAmplitude(0.76))
+    }
+
+    func testMotionAmplitude_gateBoundary() {
+        // Gate is `> 0.25`: at/below 0.25 is kept, just above is rejected.
+        XCTAssertFalse(A.isMotionAmplitude(0.25))
+        XCTAssertTrue(A.isMotionAmplitude(0.2501))
+    }
 }
 #endif
