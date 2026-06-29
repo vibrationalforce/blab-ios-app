@@ -1,16 +1,15 @@
-build: 2026-06-28 v10.76.41 (Fix: selection menus freeze while playing)
+build: 2026-06-28 v10.76.42 (rPPG: lean harder on the steady pulse fundamental)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.40. Fixes the recurring "you suddenly can't select the Tonart/
-  Genre anymore" freeze. Root cause: the main screen was reading the camera pulse status
-  (finger-on-lens + the live acquisition readout), which updates ~10×/s while a take plays.
-  Reading those on the MAIN view meant SwiftUI rebuilt the WHOLE screen ten times a second
-  — and every rebuild closed any dropdown menu you had just opened, so a tap couldn't land.
-  No crash, just an un-selectable menu (worse while playing — exactly when those readings
-  tick). Fix: moved both fast-updating readouts into their own small sub-views (the bio
-  strip and a new pulse-readout view), so only those tiny views refresh 10×/s while the
-  selection menus' screen stays still. No new sheets, no structural change to the modal
-  chain — can't reintroduce the black-screen crash. ui-state-reviewer + build-error-resolver:
-  GO.
-  Test: 10.76.41 → start a take (Create from Within), put a finger on the camera, then open
-  Compose ▸ Composition ▸ Tonart / Genre / Tone-system dropdown — it should stay open and
-  let you pick, no freeze, while playing. Still launches straight to Studio.
+notesT: Builds on 10.76.41. Further smooths the camera heart-rate. Your last log: the
+  pulse fundamental (autocorrelation) sat rock-steady at 53–58 bpm for the whole read, but
+  the shown number still wandered 51–87. The 10.76.39 "trust the fundamental" pull was too
+  gentle in the MODERATE-confidence band (acf ≈0.5–0.7) that real fingertip contact mostly
+  lives in — so peak-counting noise still leaked through. This build strengthens that pull:
+  once there's a usable periodicity it now DOMINATES the noisy discrete count (it still
+  contributes, and the existing octave/EMA guards remain), so the displayed BPM should track
+  the steady fundamental instead of jumping. Pure helper change, unit-tested, camera-analysis
+  path only (NOT audio/render/launch). Also confirms 10.76.41: NO menu-freeze in the log,
+  app launched clean.
+  Test: 10.76.42 → Well/Start with a finger on the lens: the BPM should hold steady (±a few)
+  around your real resting rate instead of swinging 20–40. Still launches straight to Studio,
+  and the Tonart/Genre menus stay selectable while playing.
