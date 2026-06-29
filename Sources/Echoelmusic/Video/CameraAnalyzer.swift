@@ -600,15 +600,19 @@ final class CameraAnalyzer {
     /// fundamental — the guard for NON-octave peak-count inflation (the dicrotic-notch
     /// case `octaveCorrected` can't address: an extra peak per beat scales the count by
     /// ~1.3–1.7×, which is neither ≈2× nor ≈½×). Autocorrelation reports the true
-    /// fundamental period directly, so when it is CONFIDENT we lean the estimate that way.
+    /// fundamental period directly, so when it is usable we lean the estimate that way.
     ///
-    /// Gentle and gated: no effect below acf 0.55 (low-SNR fingertip windows keep trusting
-    /// peak-counting), and even at perfect acf the pull is capped at 50 % per window — so a
-    /// genuine peak-count rate is nudged, never overwritten, and the EMA still smooths.
+    /// STRENGTHENED (device-log 2026-06-28): across a long read the autocorrelation `auto`
+    /// sat rock-steady at 53–58 bpm while discrete peak-counting wandered 51–87 — even at
+    /// MODERATE acf (0.5–0.7), the band that dominates real fingertip contact. The first
+    /// curve (gate 0.55, max 0.5, ≈0 weight at 0.6) barely moved the estimate in exactly
+    /// that band, so the published rate kept jumping. Now: gate at 0.5, ramp 0.5→0.85 to a
+    /// 0.8 cap, so a usable periodicity DOMINATES the noisy count (it still contributes ≥20 %,
+    /// and the EMA + octave guards upstream protect against an autocorrelation octave slip).
     /// Pure (no state) → unit-testable on Linux.
     nonisolated static func autoTrust(estimate: Double, autoBPM: Double, autoStrength: Double) -> Double {
-        guard estimate > 0, autoBPM > 40, autoStrength > 0.55 else { return estimate }
-        let w = min(0.5, (autoStrength - 0.55) / 0.45 * 0.5)
+        guard estimate > 0, autoBPM > 40, autoStrength > 0.5 else { return estimate }
+        let w = min(0.8, (autoStrength - 0.5) / 0.35 * 0.8)
         return estimate * (1 - w) + autoBPM * w
     }
 

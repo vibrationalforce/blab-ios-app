@@ -88,14 +88,15 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
     }
 
     func testAutoTrust_weakPeriodicity_leavesEstimate() {
-        // Below the 0.55 gate, peak-counting still leads (low-SNR fingertip windows).
+        // At/below the 0.5 gate, peak-counting still leads (low-SNR fingertip windows).
         XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.5), 100, accuracy: 0.001)
+        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.45), 100, accuracy: 0.001)
     }
 
-    func testAutoTrust_pullIsCappedAtHalf() {
-        // Even at perfect acf the per-window pull is ≤ 50 %: 100 toward 60 → ≥ 80.
+    func testAutoTrust_pullIsCappedAt80Percent() {
+        // Even at perfect acf the per-window pull is capped at 80 %: 100 toward 60 → 68.
         let pulled = A.autoTrust(estimate: 100, autoBPM: 60, autoStrength: 1.0)
-        XCTAssertEqual(pulled, 80, accuracy: 0.001)
+        XCTAssertEqual(pulled, 68, accuracy: 0.001)
     }
 
     func testAutoTrust_invalidInputs_returnEstimate() {

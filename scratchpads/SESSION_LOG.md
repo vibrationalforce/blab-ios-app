@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-28 — Picker-menu freeze (10.76.41) + remove planet/Cousto (10.76.40)
+- **10.76.40 (founder: "Planetentöne doch weg. Sound to Color nach Cousto kann auch weg. Das was
+  wir haben ist besser oder?"):** removed the planetary-tone picker AND the Cousto tone→colour
+  octave mapping; the shader reverts to the physical wavelength→RGB CIE spectral palette (the
+  natural-light look that preceded Cousto); Prism disperses by true wavelength. Deleted PlanetTone,
+  ColorOctave, the parked Farboktave VisualMenuView + tests; THIRD_PARTY_NOTICES Cousto attribution
+  dropped. −715 lines. build-error-resolver: GO.
+- **10.76.41 (founder: "Generell öfters freeze der Menüs zum auswählen der Tonarten … plötzlich
+  nicht mehr auswählen"):** the recurring menu-freeze. NOT a crash (log runs through). ui-state-
+  reviewer root cause: `EchoelStudioView.body` read the ~10 Hz `CameraRPPGBioPublisher` state via
+  `pulseFingerOnLens` (always) AND the computed `measurementControl`/`pulseWaveform` vars (while
+  running). `AnyView` is NOT an observation boundary → those reads registered the WHOLE root body as
+  a 10 Hz observer; each rebuild tore down any open `.menu` Picker → unselectable (worse while
+  playing, exactly when those tick). Fix: confined the reads to leaf views — BioStripView reads
+  `cameraRPPG.fingerDetected` itself, and `measurementControl`+`pulseWaveform` extracted into a new
+  `PulseMeasurementView` struct (a real observation boundary). Root body now re-evals only on real
+  user/compose events → menus stay open. No new sheets, no modal-chain growth (no black-screen risk).
+  build-error-resolver: GO. **Lesson logged to CLAUDE.md (presentation note) + decisions.csv.**
+- **Device log confirms 10.76.39 rPPG fix works:** pulse settled steady at 52–55 bpm conf 0.90–0.95
+  (pk-count and autocorrelation now agree), no more 20–50 bpm jumps; graceful on finger-lift.
+
 ### 2026-06-28 — rPPG smoothness (10.76.39): trust confident autocorrelation
 Founder thread: "noch keinen smooth experience … verkrauteter Sound … Visuals ruckeln/springen".
 Smoothness already addressed in 10.76.37 (const colour wheel + 25-45s auto-evolve cadence) and
