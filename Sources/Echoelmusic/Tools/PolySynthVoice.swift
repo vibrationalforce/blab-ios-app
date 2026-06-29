@@ -81,7 +81,11 @@ public final class PolySynthVoice {
 
     public private(set) var isSubscribed = false
 
-    public private(set) var framesApplied: UInt64 = 0
+    /// Diagnostic frame counter, bumped ~10 Hz by the bio-modulation poll. MUST stay
+    /// `@ObservationIgnored`: as a tracked `@Observable` it would invalidate any view that
+    /// reads it 10×/s — the exact "menus freeze while playing" class. Nothing reads it for
+    /// UI; keep it non-observed.
+    @ObservationIgnored public private(set) var framesApplied: UInt64 = 0
 
     @ObservationIgnored
     private weak var bus: EngineBus?

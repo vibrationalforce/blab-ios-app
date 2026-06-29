@@ -933,10 +933,10 @@ struct EchoelStudioView: View {
     /// integration + peak hold to start a fresh measurement.
     private var masterPanel: some View {
         panel("Master", "Output level · EBU R128 loudness", isExpanded: $showMaster) {
-            EchoelValueField(label: "Master volume", value: Binding(
-                get: { Double(audioEngine.masterVolume) },
-                set: { audioEngine.masterVolume = Float($0) }),
-                range: 0...1, unit: "", decimals: 2)
+            // Master volume lives in its own view (MasterVolumeField) so an automation
+            // lane rewriting audioEngine.masterVolume re-renders only that field, not the
+            // menu-hosting studio body. (Was the remaining take-time Picker-freeze source.)
+            MasterVolumeField()
 
             labeledRow("Target") {
                 Picker("Target", selection: $loudnessTargetRaw) {

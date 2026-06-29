@@ -139,11 +139,21 @@ public final class ResourceGovernor {
         // Only recompute if the smoothed FPS would change the demotion decision.
         let target = Double(settings.targetFPS)
         let nearFloor = smoothedFPS < target * 0.75
-        let recovered = smoothedFPS > target * 0.90
-        if nearFloor || (recovered && settings.tier < pressureTier) {
-            recompute()
-        }
+        // Wider recovery band (0.95, was 0.90) + a per-tier DWELL so the FPS feedback
+        // can't oscillate the tier on a device hovering near a boundary — that flapping
+        // visibly jumps detail + frame rate mid-session ("Visuals nicht stabil"). Thermal/
+        // battery changes still apply immediately via refresh()/recompute() (not gated).
+        let recovered = smoothedFPS > target * 0.95
+        guard nearFloor || (recovered && settings.tier < pressureTier) else { return }
+        guard timestamp - lastFpsTierChangeAt >= Self.tierDwellSeconds else { return }
+        let before = settings.tier
+        recompute()
+        if settings.tier != before { lastFpsTierChangeAt = timestamp }
     }
+
+    /// Minimum seconds between FPS-feedback-driven tier changes — stops boundary flapping.
+    private static let tierDwellSeconds: CFTimeInterval = 4
+    @ObservationIgnored private var lastFpsTierChangeAt: CFTimeInterval = 0
 
     /// The tier the device pressure alone would pick (ignores FPS) — used to know if
     /// the renderer has headroom to recover after an FPS-driven demotion.

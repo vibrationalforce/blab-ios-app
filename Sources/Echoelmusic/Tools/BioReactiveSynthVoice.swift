@@ -81,7 +81,9 @@ public final class BioReactiveSynthVoice {
 
     public private(set) var lastApplied: BioSampleFrame?
 
-    public private(set) var framesApplied: UInt64 = 0
+    /// Diagnostic frame counter, bumped ~10 Hz. Kept `@ObservationIgnored` so it can never
+    /// invalidate an observing view 10×/s (the "menus freeze while playing" class).
+    @ObservationIgnored public private(set) var framesApplied: UInt64 = 0
 
     @ObservationIgnored
     private weak var bus: EngineBus?
