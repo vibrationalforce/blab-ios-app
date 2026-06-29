@@ -148,7 +148,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     }
 
     private var scrubGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        // 8 pt slop so a TAP (which always carries ~1–3 pt of jitter) reliably opens the
+        // keypad instead of being claimed as a near-zero scrub. Deliberate drags still
+        // adjust. (The old 1 pt threshold made tap-to-type flaky.)
+        DragGesture(minimumDistance: 8)
             .onChanged { g in
                 if !scrubbing {
                     scrubbing = true
