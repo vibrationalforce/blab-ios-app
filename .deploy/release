@@ -1,15 +1,16 @@
-build: 2026-06-28 v10.76.43 (Dropdown stable from the start — stop re-seed rebuilds)
+build: 2026-06-28 v10.76.44 (Own number pad — − / + bottom-left, same everywhere)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.42. Fixes "Genre/Tonart dropdown ist am Anfang noch nicht stabil".
-  After the 10.76.41 fix the menus were fine in steady state, but a freshly-opened dropdown
-  could still snap shut in the first seconds of a take. Cause: every time the music
-  re-seeds (once at start, then periodically), it updated two screen-level values — the
-  live AI caption text and a "has anything been composed" note count — and changing those
-  rebuilt the WHOLE main screen, which closes any open dropdown (the panels are type-erased,
-  so a rebuild loses the menu). Fix: the caption now lives in its own tiny view that
-  refreshes alone, and the note-count gate became a one-time on/off flag instead of a value
-  that changes every re-seed. So re-seeding no longer rebuilds the screen → the dropdowns
-  stay open and selectable from the very first moment. build-error-resolver: GO.
-  Test: 10.76.43 → tap Create from Within, immediately open Compose ▸ Composition ▸ Genre
-  / Tonart — it should stay open and let you pick, even right at the start while the first
-  notes are generating. Still launches straight to Studio.
+notesT: Builds on 10.76.43. Reworks number entry. The iOS number pad can't carry a sign
+  key, and the old "± in the keyboard bar" was unintuitive for Transpose. So Echoel now has
+  its OWN keypad (EchoelNumberPad) with a MINUS and a PLUS at the bottom-left, used by EVERY
+  numeric field in the app (FX, synth, mix, bio, transpose, tempo…) — one consistent control
+  ("alles angeglichen"). − makes the value negative, + makes it positive: for Transpose, type
+  5 then tap − → −5. On fields that can't go below zero (Hz, BPM) the − key is simply greyed
+  out. Drag-up/down on a value still adjusts it as before; tapping a value now opens this pad
+  (tap is more reliable now — the old 1 pt drag threshold that sometimes swallowed taps was
+  raised). VoiceOver unchanged. Reviewed for compile-safety AND SwiftUI state-flow (the many
+  per-field sheets do NOT risk the launch crash — each lives on its own small view, not the
+  root body): both GO.
+  Test: 10.76.44 → Transpose: tap the value, type 5, tap − → shows −5, OK. Tap any Hz/BPM
+  value → − is greyed (positive-only). Same pad layout everywhere. Still launches to Studio,
+  dropdowns stay selectable.
