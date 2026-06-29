@@ -8,6 +8,23 @@ import SwiftUI
 // own view so the 60 Hz meter refresh re-renders only this small grid, not the
 // whole studio. Science-first: the legible number leads, the unit follows.
 
+/// The master-volume parameter field in its OWN view so the read of
+/// `audioEngine.masterVolume` is confined here. That value is rewritten by the
+/// AutomationPlayer on every tick when a master-level automation lane plays; read inline
+/// in `masterPanel` it invalidated the whole studio body (and tore down any open
+/// Tonart/Genre `.menu` Picker — the "menus freeze while playing" report). Isolated, only
+/// this field re-renders on an automation tick.
+@MainActor
+struct MasterVolumeField: View {
+    @Environment(AudioEngine.self) private var audioEngine
+    var body: some View {
+        EchoelValueField(label: "Master volume", value: Binding(
+            get: { Double(audioEngine.masterVolume) },
+            set: { audioEngine.masterVolume = Float($0) }),
+            range: 0...1, unit: "", decimals: 2)
+    }
+}
+
 @MainActor
 struct MasterLoudnessGrid: View {
 

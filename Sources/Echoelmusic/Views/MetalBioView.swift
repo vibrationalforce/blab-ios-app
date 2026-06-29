@@ -110,38 +110,19 @@ struct MetalBioView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: MTKView, context: Context) {
-        // Resource conservation: the governor decides the frame rate, the visual
-        // detail and whether to freeze motion, from live thermal/battery/FPS. Apply
-        // before pushing bio so this frame already honours the current tier.
-        let q = governor.settings
-        view.preferredFramesPerSecond = q.targetFPS
-        context.coordinator.governor = governor
-        let effectiveReduceMotion = reduceMotion || q.reduceMotion
-        let scaledRingDensity = ringDensity * q.visualDetailScale
-        // Push the freshest bio snapshot into the renderer on the main actor; the
-        // draw loop reads these atomically. Stale frames expire via freshBio().
-        let bio = bus.freshBio()
-        // Derive the flash-safe heartbeat pulse from the shared, unit-tested
-        // BioVisualParams so WCAG flash-safety lives in ONE place (FlashGuard),
-        // not duplicated in the shader. The look is unchanged (same hr/60 mapping).
-        let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
-        // Colour follows the MUSIC when it's sounding: use the loudest live note from
-        // the published MusicalFrame so the immersive visual tracks the melody, not a
-        // static tonic. Falls back to the instrument's tonic (`toneHz`) when silent.
-        let liveTone = bus.freshMusical(maxAge: 1.5)
-            .flatMap { $0.notes.max(by: { $0.amplitude < $1.amplitude })?.frequencyHz }
-            ?? toneHz
-        context.coordinator.update(
-            hr: bio?.heartRateBPM ?? 60,
-            coherence: bio?.coherence ?? 0.5,
-            breath: bio?.breathPhase ?? 0.5,
-            toneHz: liveTone,
-            intensity: intensity, ringDensity: scaledRingDensity, motion: motion, spread: spread,
-            pulseHz: Float(vp.pulseHz),
-            hueShift: hueShift, saturation: saturation,
-            style: style, styleB: styleB, blend: blend,
-            reduceMotion: effectiveReduceMotion
-        )
+        // CRITICAL (stability): do NOT read the live bus / governor `@Observable`s here.
+        // `updateUIView` is a SwiftUI graph node — reading `bus.freshBio()` /
+        // `bus.freshMusical()` / `governor.settings` (all ~10 Hz) would subscribe this
+        // representable AND the enclosing fullscreen overlay to those properties, re-running
+        // them 10×/s (the "visuals/controls feel unstable while playing" churn). Instead we
+        // forward ONLY the static, user-set look params; the renderer pulls the live bio +
+        // governor itself inside `draw(in:)` (the CADisplayLink loop, off the SwiftUI graph).
+        let c = context.coordinator
+        c.bus = bus
+        c.governor = governor
+        c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
+                  motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
+                  style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion)
     }
 }
 
@@ -167,6 +148,42 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// can demote the visual tier. The MTKView draw callback runs on the main thread
     /// (default CADisplayLink), so the @MainActor hop below is a safe no-op assertion.
     weak var governor: ResourceGovernor?
+    /// The live bio/music source — read HERE in `draw(in:)` (the CADisplayLink loop), not
+    /// in `updateUIView`, so the ~10 Hz snapshots never churn the SwiftUI graph / overlay.
+    weak var bus: EngineBus?
+
+    // Static, user-set look params forwarded from `updateUIView` (change on user action,
+    // not per-frame). The per-frame bio/governor values are pulled in `draw(in:)` and
+    // combined with these. Defaults match the look's neutral state.
+    private var lookToneFallbackHz: Double = 261.63
+    private var lookIntensity: Float = 1
+    private var lookRingDensity: Float = 40
+    private var lookMotion: Float = 1
+    private var lookSpread: Float = 1
+    private var lookHue: Float = 0
+    private var lookSaturation: Float = 1
+    private var lookStyle: Int = 0
+    private var lookStyleB: Int = 0
+    private var lookBlend: Float = 0
+    private var lookReduceMotionAccessibility = false
+
+    /// Store the user's static look params (called from `updateUIView`). No bio/governor
+    /// reads here — those are pulled per-frame in `draw(in:)`.
+    func setLook(toneFallbackHz: Double, intensity: Float, ringDensity: Float, motion: Float,
+                 spread: Float, hueShift: Float, saturation: Float, style: Int, styleB: Int,
+                 blend: Float, reduceMotionAccessibility: Bool) {
+        lookToneFallbackHz = toneFallbackHz
+        lookIntensity = intensity
+        lookRingDensity = ringDensity
+        lookMotion = motion
+        lookSpread = spread
+        lookHue = hueShift
+        lookSaturation = saturation
+        lookStyle = style
+        lookStyleB = styleB
+        lookBlend = blend
+        lookReduceMotionAccessibility = reduceMotionAccessibility
+    }
 
     func configure(device: MTLDevice) {
         commandQueue = device.makeCommandQueue()
@@ -240,11 +257,36 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     }
 
     func draw(in view: MTKView) {
-        // Feed the render cadence back to the governor (main thread → safe isolation
-        // assertion). Lets it back off detail/FPS if the GPU can't keep up.
-        if let governor {
-            let now = CFAbsoluteTimeGetCurrent()
-            MainActor.assumeIsolated { governor.recordFrame(timestamp: now) }
+        // Pull the live governor + bio HERE — the CADisplayLink draw loop runs on the main
+        // thread (so `assumeIsolated` is a safe no-op assertion) and is OFF the SwiftUI
+        // dependency graph, so these ~10 Hz `@Observable` reads no longer re-run
+        // `updateUIView`/the fullscreen overlay (the visual-instability churn). The governor
+        // sets the frame rate + detail tier; the bus gives the freshest bio + live note.
+        let nowGov = CFAbsoluteTimeGetCurrent()
+        MainActor.assumeIsolated {
+            let q = governor?.settings
+            if let q { view.preferredFramesPerSecond = q.targetFPS }
+            let detailScale = q?.visualDetailScale ?? 1
+            let effectiveReduceMotion = lookReduceMotionAccessibility || (q?.reduceMotion ?? false)
+            let bio = bus?.freshBio()
+            let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
+            // Colour follows the MUSIC when sounding (loudest live note), else the tonic.
+            let liveTone = bus?.freshMusical(maxAge: 1.5)
+                .flatMap { $0.notes.max(by: { $0.amplitude < $1.amplitude })?.frequencyHz }
+                ?? lookToneFallbackHz
+            update(hr: bio?.heartRateBPM ?? 60,
+                   coherence: bio?.coherence ?? 0.5,
+                   breath: bio?.breathPhase ?? 0.5,
+                   toneHz: liveTone,
+                   intensity: lookIntensity, ringDensity: lookRingDensity * detailScale,
+                   motion: lookMotion, spread: lookSpread,
+                   pulseHz: Float(vp.pulseHz),
+                   hueShift: lookHue, saturation: lookSaturation,
+                   style: lookStyle, styleB: lookStyleB, blend: lookBlend,
+                   reduceMotion: effectiveReduceMotion)
+            // Feed the render cadence back to the governor so a sustained FPS drop can
+            // demote the tier (lets it back off detail/FPS if the GPU can't keep up).
+            governor?.recordFrame(timestamp: nowGov)
         }
         guard let drawable = view.currentDrawable,
               let pass = view.currentRenderPassDescriptor,
