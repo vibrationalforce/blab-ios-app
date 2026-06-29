@@ -3,6 +3,24 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-28 — Dropdown stable-at-start (10.76.43) + own number pad (10.76.44)
+- **10.76.43 (founder: "Genre/Tonart dropdown ist am Anfang noch nicht stabil"):** after 10.76.41
+  the menus held in steady state but generate()/re-seed still rebuilt the root body via two @State
+  it mutates each re-seed — `aiExplanation` + `lastNoteCount` — and AnyView-wrapped panels lose an
+  open `.menu` Picker's identity on any rebuild. Fix: `aiExplanation` → tiny @Observable `StudioCaption`
+  read only by a new leaf `StudioCaptionView`; `lastNoteCount: Int?` → `hasComposed: Bool` (buttons
+  only read it `== nil`, only ever flips once). Re-seeds no longer rebuild the Picker-host. GO.
+- **10.76.44 (founder: "Vorzeichen im Nummernblock bei transpose nicht logisch … ein minus und ein
+  plus unten links … alles angleichen"):** the iOS decimal pad can't carry a sign key. Built our own
+  `EchoelNumberPad` (− / + bottom-left; − negative, + positive; − disabled where range ≥ 0) and routed
+  `EchoelValueField`'s tap-to-type through it via a per-field `.sheet` (public API unchanged → every
+  parameter field gets it = "alles angeglichen"). Removed the old keyboard accessory toolbar (−/+/±).
+  Reviews: build-error-resolver GO; ui-state-reviewer GO with one CAUTION — `DragGesture(minimumDistance:1)`
+  swallowed taps → bumped to 8 pt so tap reliably opens the pad. Per-field sheets do NOT risk the launch
+  metadata-overflow (each on its own small view, not the root body). **CLAUDE.md UI standard updated.**
+- **rPPG (10.76.42):** strengthened autoTrust pull toward the steady autocorrelation (gate 0.5, cap 0.8)
+  after a log showed auto steady 53–58 while published bpm wandered 51–87 at moderate acf.
+
 ### 2026-06-28 — Picker-menu freeze (10.76.41) + remove planet/Cousto (10.76.40)
 - **10.76.40 (founder: "Planetentöne doch weg. Sound to Color nach Cousto kann auch weg. Das was
   wir haben ist besser oder?"):** removed the planetary-tone picker AND the Cousto tone→colour
