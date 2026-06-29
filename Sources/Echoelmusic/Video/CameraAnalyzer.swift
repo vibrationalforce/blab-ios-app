@@ -441,6 +441,16 @@ final class CameraAnalyzer {
         lastFilteredAmplitude = amplitude
         // Reject flat signal — no finger contact
         guard amplitude > 0.0003 else { lastPeakCount = 0; return }
+        // Reject MOTION/pressure artifacts: a real pulse AC is a small fraction of the red
+        // DC, so an amplitude this large is the finger moving / changing pressure / lifting
+        // — its steady peak count would otherwise earn a false "agreement" lock (device log
+        // amp≈0.76, acf≈0.2 → false lock at 105 bpm). Skip the window AND bleed confidence
+        // so a motion run can neither earn nor hold a lock (drops below the lock gate fast).
+        if Self.isMotionAmplitude(amplitude) {
+            lastPeakCount = 0
+            bpmConfidence *= 0.6
+            return
+        }
         let threshold = minAmp + amplitude * 0.55
 
         // Minimum inter-beat interval: 300ms (200 BPM max)
@@ -614,6 +624,17 @@ final class CameraAnalyzer {
         guard estimate > 0, autoBPM > 40, autoStrength > 0.5 else { return estimate }
         let w = min(0.8, (autoStrength - 0.5) / 0.35 * 0.8)
         return estimate * (1 - w) + autoBPM * w
+    }
+
+    /// Whether a bandpass-filtered window amplitude is MOTION, not pulse. The red channel
+    /// is normalised ~[0,1]; a real fingertip pulse AC is a small fraction of the DC
+    /// (≈0.5–10 %, device logs: amp ≈ 0.03–0.08). An amplitude this large means the finger
+    /// moved / changed pressure / lifted — a motion artifact whose steady peak count can
+    /// otherwise earn a false "agreement" lock (device log: amp ≈ 0.76, acf ≈ 0.2 locked at
+    /// 105 bpm). The 0.25 gate leaves ~3× margin over the plausible-pulse ceiling. Pure →
+    /// Linux-testable.
+    nonisolated static func isMotionAmplitude(_ amplitude: Float) -> Bool {
+        amplitude > 0.25
     }
 
     /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than

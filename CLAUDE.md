@@ -532,7 +532,11 @@ When generating SwiftUI views, follow clean design principles. Avoid AI-default 
 - Flash rate: max 3 Hz (W3C WCAG epilepsy compliance)
 - **Parameter rows — ONE control everywhere:** every adjustable numeric parameter (FX, synth
   patch, mix, bio, future modules) uses `EchoelValueField` (label + value + unit, adjusted by a
-  vertical-fader drag / tap-to-type). **No raw SwiftUI `Slider`/`Stepper` for parameters.** This
+  vertical-fader drag / tap-to-type). **No raw SwiftUI `Slider`/`Stepper` for parameters.** Tap-to-type
+  opens `EchoelNumberPad` — our OWN keypad (the iOS decimal pad can't carry a sign key), with − / +
+  at the bottom-left where **− makes the value negative, + positive** (logical for Transpose); − is
+  disabled where the range can't go below zero (10.76.44). One keypad app-wide — don't reintroduce the
+  system `.decimalPad`/keyboard-toolbar sign buttons. This
   keeps reading + interaction identical app-wide and is science-first (number, not a knob). Dimensionless
   values show as raw decimals (e.g. `0.50`), not `%`. New parameter UI MUST use it; if it can't, raise it
   in The Council before diverging. **Scope:** the main `Echoelmusic` app target. The standalone
