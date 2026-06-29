@@ -240,20 +240,13 @@ struct EchoelStudioView: View {
         return session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0 + semis) / 12.0)
     }
 
-    /// Whether the rear camera currently sees a finger/face — drives the strip's
-    /// "Cover camera" vs "Reading…" hint. False where there is no camera.
-    private var pulseFingerOnLens: Bool {
-        #if canImport(AVFoundation)
-        return cameraRPPG.fingerDetected
-        #else
-        return false
-        #endif
-    }
-
     var body: some View {
         VStack(spacing: 0) {
+            // NOTE: do NOT pass the camera's `fingerDetected` (10 Hz) down from here —
+            // reading it in this root body re-evaluated the whole view 10×/s while a take
+            // played, collapsing any open Tonart/Genre `.menu` Picker (the "can't select
+            // anymore" freeze). BioStripView now reads it itself (a Picker-free leaf view).
             BioStripView(measuring: running,
-                         fingerOnLens: pulseFingerOnLens,
                          onStartPulse: { startBiofeedback() })
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -270,7 +263,7 @@ struct EchoelStudioView: View {
                     AnyView(startButton)
                     AnyView(nonStandardTuningBanner)
                     #if canImport(AVFoundation)
-                    if running { AnyView(measurementControl) }
+                    if running { AnyView(PulseMeasurementView()) }
                     #endif
                     AnyView(soundControls)
                     AnyView(utilityRow)
@@ -1801,64 +1794,11 @@ struct EchoelStudioView: View {
     }
     private var exportIcon: String { isExporting ? "hourglass" : "square.and.arrow.up" }
 
-    // MARK: - Camera pulse readout (visible acquisition feedback)
-
-    #if canImport(AVFoundation)
-    private var measurementControl: some View {
-        let locked = cameraRPPG.isLocked
-        let lightColor: Color = !cameraRPPG.fingerDetected ? EchoelTheme.dim
-            : (locked ? EchoelTheme.accent : Color.orange)
-        // Specific, live coaching ("Press lighter" / "Hold still…") instead of a
-        // flat "Acquiring…", so a placed-but-unlockable finger gets actionable help.
-        let statusText = cameraRPPG.coachingHint
-        return VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                Circle().fill(lightColor).frame(width: 14, height: 14)
-                    .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
-                Text(statusText).font(.caption.weight(.semibold)).foregroundStyle(EchoelTheme.text)
-                Spacer(minLength: 0)
-                if cameraRPPG.detectedBPM > 0, cameraRPPG.detectedBPM.isFinite {
-                    // .isFinite guard: Int(Float) traps on NaN/+Inf, which an rPPG
-                    // BPM can briefly be before lock (upstream divide-by-zero).
-                    Text("\(Int(cameraRPPG.detectedBPM)) bpm")
-                        .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(EchoelTheme.text)
-                }
-            }
-            pulseWaveform
-            ProgressView(value: locked ? 1 : min(max(cameraRPPG.confidence, 0), 1))
-                .tint(locked ? EchoelTheme.accent : Color.orange)
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-    }
-
-    private var pulseWaveform: some View {
-        Canvas { ctx, size in
-            var base = Path()
-            base.move(to: CGPoint(x: 0, y: size.height / 2))
-            base.addLine(to: CGPoint(x: size.width, y: size.height / 2))
-            ctx.stroke(base, with: .color(EchoelTheme.border), lineWidth: 1)
-            let w = cameraRPPG.waveform
-            guard w.count > 1 else { return }
-            let dx = size.width / CGFloat(w.count - 1)
-            let amp = size.height / 2 - 3
-            var path = Path()
-            for (i, v) in w.enumerated() {
-                let x = CGFloat(i) * dx
-                // A NaN/Inf sample (rPPG can emit one before lock) would feed a NaN
-                // point to CoreGraphics → hard crash. Clamp non-finite to the centre
-                // line and bound the sample so the path is always drawable.
-                let sample = v.isFinite ? CGFloat(min(max(v, -1), 1)) : 0
-                let y = size.height / 2 - sample * amp
-                if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
-            }
-            ctx.stroke(path, with: .color(EchoelTheme.accent), lineWidth: 2)
-        }
-        .frame(height: 52).frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 6).fill(EchoelTheme.bg.opacity(0.35)))
-    }
-    #endif
+    // MARK: - Camera pulse readout
+    //
+    // Extracted to `PulseMeasurementView` (its own `View` struct) so its ~10 Hz
+    // `cameraRPPG` reads no longer register the root `body` as an observer — that 10 Hz
+    // invalidation was tearing down open Tonart/Genre `.menu` Pickers while playing.
 
     // MARK: - Open projects sheet
 
