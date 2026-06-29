@@ -1,15 +1,15 @@
-build: 2026-06-28 v10.76.42 (rPPG: lean harder on the steady pulse fundamental)
+build: 2026-06-28 v10.76.43 (Dropdown stable from the start — stop re-seed rebuilds)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.41. Further smooths the camera heart-rate. Your last log: the
-  pulse fundamental (autocorrelation) sat rock-steady at 53–58 bpm for the whole read, but
-  the shown number still wandered 51–87. The 10.76.39 "trust the fundamental" pull was too
-  gentle in the MODERATE-confidence band (acf ≈0.5–0.7) that real fingertip contact mostly
-  lives in — so peak-counting noise still leaked through. This build strengthens that pull:
-  once there's a usable periodicity it now DOMINATES the noisy discrete count (it still
-  contributes, and the existing octave/EMA guards remain), so the displayed BPM should track
-  the steady fundamental instead of jumping. Pure helper change, unit-tested, camera-analysis
-  path only (NOT audio/render/launch). Also confirms 10.76.41: NO menu-freeze in the log,
-  app launched clean.
-  Test: 10.76.42 → Well/Start with a finger on the lens: the BPM should hold steady (±a few)
-  around your real resting rate instead of swinging 20–40. Still launches straight to Studio,
-  and the Tonart/Genre menus stay selectable while playing.
+notesT: Builds on 10.76.42. Fixes "Genre/Tonart dropdown ist am Anfang noch nicht stabil".
+  After the 10.76.41 fix the menus were fine in steady state, but a freshly-opened dropdown
+  could still snap shut in the first seconds of a take. Cause: every time the music
+  re-seeds (once at start, then periodically), it updated two screen-level values — the
+  live AI caption text and a "has anything been composed" note count — and changing those
+  rebuilt the WHOLE main screen, which closes any open dropdown (the panels are type-erased,
+  so a rebuild loses the menu). Fix: the caption now lives in its own tiny view that
+  refreshes alone, and the note-count gate became a one-time on/off flag instead of a value
+  that changes every re-seed. So re-seeding no longer rebuilds the screen → the dropdowns
+  stay open and selectable from the very first moment. build-error-resolver: GO.
+  Test: 10.76.43 → tap Create from Within, immediately open Compose ▸ Composition ▸ Genre
+  / Tonart — it should stay open and let you pick, even right at the start while the first
+  notes are generating. Still launches straight to Studio.
