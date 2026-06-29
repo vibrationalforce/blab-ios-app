@@ -1,13 +1,20 @@
-build: 2026-06-28 v10.76.46 (rPPG coaching: say "hold still" when it's movement)
+build: 2026-06-28 v10.76.47 (Menu freeze + visual stability — full audit pass)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.45. Small but important companion to the motion-reject fix. When the
-  finger is moving / pressing unevenly (large signal swings), the analyzer now correctly
-  refuses to lock onto a wrong rate — but the on-screen guidance only said a generic
-  "finding your pulse…". It now says "Hold still — keep your finger steady" in exactly that
-  case, so a shaky/heavy contact gets actionable help instead of seeming stuck. (Your last
-  log was still a pre-10.76.45 build and showed exactly this: amplitude 0.34–0.74 = movement,
-  BPM climbing 99→115 — that won't false-lock anymore, and now you'll be told to hold still.)
-  One line in the pure coaching text, reusing the reviewed motion helper. Camera path only.
-  Test: 10.76.46 → Start, finger on lens but move/press a bit: the pulse readout should say
-  "Hold still — keep your finger steady" and NOT jump to a wrong number; hold steady & light →
-  it locks onto your real rate. Light, steady contact is what it wants.
+notesT: Builds on 10.76.46. Two parallel deep audits (UI-state + visuals) found the
+  remaining causes of "dropdowns freeze while playing" and "visuals not stable", now fixed:
+  • VISUALS (biggest): the immersive view was reading the live bio/quality signals (~10×/s)
+    inside the SwiftUI layer, which rebuilt the visual + its on-screen controls ten times a
+    second → stutter and flaky VJ controls. Those reads moved into the Metal draw loop
+    itself (off the SwiftUI graph). Result: smooth visual, stable controls.
+  • MENU: the Master-volume row read a value that automation rewrites every tick, which
+    rebuilt the whole screen (closing any open dropdown). Moved into its own small view so it
+    can't churn the menu screen. Plus a latent 10 Hz counter that could re-trigger the same
+    freeze if ever shown is now non-observing (prevention).
+  • VISUALS (jumps): the adaptive-quality governor could flip detail/frame-rate back and
+    forth near a performance boundary (visible jumps); added a 4 s dwell + wider recovery
+    band so it settles instead of flapping.
+  All reviewed (concurrency + build): GO. No new sheets / no launch-crash surface touched.
+  Test: 10.76.47 → play a take, open Compose ▸ Composition ▸ Genre/Tonart repeatedly — it
+  should stay open/selectable. Open the immersive visual — it should run smooth, controls
+  responsive, no detail/FPS jumping. If a dropdown STILL freezes, tell me whether it's only
+  while the camera pulse is active (points to a separate fix).
