@@ -50,6 +50,10 @@ public final class CameraRPPGBioPublisher {
         if !fingerDetected { return "Cover the rear camera + flash" }
         // Finger is on the lit lens but no lock yet — say WHY, from the live signal.
         if analyzer.brightness > 0.85 || analyzer.redChannel > 0.92 { return "Press a little lighter" }
+        // Large swings = the finger moving / changing pressure, not a pulse (the analyzer
+        // rejects these windows, so it can't lock). Tell the user the real blocker so a
+        // motion-heavy contact gets actionable guidance instead of an endless "finding…".
+        if CameraAnalyzer.isMotionAmplitude(analyzer.lastFilteredAmplitude) { return "Hold still — keep your finger steady" }
         if analyzer.lastFilteredAmplitude < 0.0008 { return "Press gently and hold still" }
         return "Hold still — finding your pulse…"
     }

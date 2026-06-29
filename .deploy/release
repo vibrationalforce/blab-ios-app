@@ -1,14 +1,13 @@
-build: 2026-06-28 v10.76.45 (rPPG: reject motion, no more false early lock)
+build: 2026-06-28 v10.76.46 (rPPG coaching: say "hold still" when it's movement)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.44. Fixes a false early heart-rate lock. Your log showed the reading
-  "lock" at 105 bpm a second after you put your finger down, then drift 100→53→72 — but that
-  105 wasn't a pulse, it was the finger still settling/pressing (the filtered signal swung
-  ~0.76, where a real pulse swings ~0.03–0.08, and the periodicity was weak). A steady wobble
-  can fool a beat-counter into a confident-looking-but-wrong rate. Fix: the analyzer now
-  recognises that an over-large swing is MOTION, not pulse, skips those frames, and lets the
-  confidence fall so a wobble can neither grab nor hold a lock — the BPM only commits once a
-  real, calm pulse is present. Pure, unit-tested, camera-analysis path only (not audio/render/
-  launch). dsp-reviewer: GO.
-  Test: 10.76.45 → Start, put finger on lens but move/press a bit first: it should stay
-  "Reading…/Cover camera" instead of jumping to a wrong high number; once you hold still it
-  locks onto your real rate and holds steady. Menus stay selectable; number pad −/+ unchanged.
+notesT: Builds on 10.76.45. Small but important companion to the motion-reject fix. When the
+  finger is moving / pressing unevenly (large signal swings), the analyzer now correctly
+  refuses to lock onto a wrong rate — but the on-screen guidance only said a generic
+  "finding your pulse…". It now says "Hold still — keep your finger steady" in exactly that
+  case, so a shaky/heavy contact gets actionable help instead of seeming stuck. (Your last
+  log was still a pre-10.76.45 build and showed exactly this: amplitude 0.34–0.74 = movement,
+  BPM climbing 99→115 — that won't false-lock anymore, and now you'll be told to hold still.)
+  One line in the pure coaching text, reusing the reviewed motion helper. Camera path only.
+  Test: 10.76.46 → Start, finger on lens but move/press a bit: the pulse readout should say
+  "Hold still — keep your finger steady" and NOT jump to a wrong number; hold steady & light →
+  it locks onto your real rate. Light, steady contact is what it wants.
