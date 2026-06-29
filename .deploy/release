@@ -1,17 +1,16 @@
-build: 2026-06-28 v10.76.40 (Remove planetary tones + Cousto sound→colour)
+build: 2026-06-28 v10.76.41 (Fix: selection menus freeze while playing)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.39. Founder call: drop the planetary-tone picker AND the Hans
-  Cousto "sound → colour" octave mapping — the colour we had before is better.
-  • Compose ▸ Composition: the "Planet tone" row is gone (Kammerton / tone-system rows
-    stay). Removed PlanetTone + its picker/tuning logic + tests.
-  • Immersive visual: the tone→colour now uses the PHYSICAL light mapping again — the tone
-    is transposed up whole octaves into the visible band and converted to RGB via the CIE
-    colour-matching functions (real spectral colour), instead of Cousto's 12-colour wheel
-    convention. The Prism look now disperses by true light wavelength (a real prism).
-    Removed coustoColour from the shader, ColorOctave.swift, and the parked Farboktave
-    menu (VisualMenuView) + tests. Updated THIRD_PARTY_NOTICES (Cousto attribution dropped).
-  Pure removal/revert to the prior colour path — no new sheets, no structural change; the
-  shader is runtime-compiled so even a shader issue can't touch launch. Off-paths only.
-  Test: 10.76.40 → still launches straight to Studio. Compose ▸ Composition has no "Planet
-  tone" row. Well ▸ immersive visual: colours look like the natural-light palette from
-  before the Cousto change (warm spectral light), not the 12-step wheel.
+notesT: Builds on 10.76.40. Fixes the recurring "you suddenly can't select the Tonart/
+  Genre anymore" freeze. Root cause: the main screen was reading the camera pulse status
+  (finger-on-lens + the live acquisition readout), which updates ~10×/s while a take plays.
+  Reading those on the MAIN view meant SwiftUI rebuilt the WHOLE screen ten times a second
+  — and every rebuild closed any dropdown menu you had just opened, so a tap couldn't land.
+  No crash, just an un-selectable menu (worse while playing — exactly when those readings
+  tick). Fix: moved both fast-updating readouts into their own small sub-views (the bio
+  strip and a new pulse-readout view), so only those tiny views refresh 10×/s while the
+  selection menus' screen stays still. No new sheets, no structural change to the modal
+  chain — can't reintroduce the black-screen crash. ui-state-reviewer + build-error-resolver:
+  GO.
+  Test: 10.76.41 → start a take (Create from Within), put a finger on the camera, then open
+  Compose ▸ Composition ▸ Tonart / Genre / Tone-system dropdown — it should stay open and
+  let you pick, no freeze, while playing. Still launches straight to Studio.

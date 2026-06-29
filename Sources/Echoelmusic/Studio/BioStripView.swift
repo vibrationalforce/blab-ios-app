@@ -16,12 +16,17 @@ struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Read the finger-on-lens flag HERE (this small leaf view), not in the parent
+    /// `EchoelStudioView.body`. `fingerDetected` is rewritten ~10 Hz while reading; if the
+    /// root body subscribed to it (the old `fingerOnLens:` argument), it re-evaluated 10×/s
+    /// and tore down any open `.menu` Picker popover in the Composition panel — the "can't
+    /// select the Tonart anymore" freeze. Confining the read to this Picker-free strip keeps
+    /// the high-frequency invalidation off the selection menus.
+    @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
 
     /// True while a camera pulse-read is in progress but no real signal has locked
     /// yet — the strip shows live "reading…" feedback instead of a dead "No signal".
     var measuring: Bool = false
-    /// Whether a finger/face is covering the lens (drives the cover-camera hint).
-    var fingerOnLens: Bool = false
     /// One-tap entry from the otherwise-dead strip: bring the body's pulse in.
     var onStartPulse: () -> Void = {}
 
@@ -129,17 +134,18 @@ struct BioStripView: View {
 
     private var measuringTag: some View {
         let amber = Color(red: 0.90, green: 0.62, blue: 0.20)
+        let finger = cameraRPPG.fingerDetected
         return HStack(spacing: 4) {
             Image(systemName: "heart.fill").font(.system(size: 9))
                 .symbolEffect(.pulse, isActive: !reduceMotion)
-            Text(fingerOnLens ? "Reading…" : "Cover camera")
+            Text(finger ? "Reading…" : "Cover camera")
         }
         .lineLimit(1)
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(amber.opacity(0.20))
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .foregroundStyle(amber)
-        .accessibilityLabel(fingerOnLens ? "Reading your pulse" : "Cover the rear camera and flash to read your pulse")
+        .accessibilityLabel(finger ? "Reading your pulse" : "Cover the rear camera and flash to read your pulse")
     }
 
     /// The old dead "No signal" becomes the one-tap gateway to the live body.
