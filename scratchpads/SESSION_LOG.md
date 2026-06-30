@@ -3,6 +3,31 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-30 — 10.76.48: menu freeze WHILE biofeedback runs — ROOT CAUSE fixed (the predicted one)
+Founder: "Sobald Biofeedback läuft kann ich nicht mehr in den Dropdown-Menüs auswählen. Vermeide
+hier alle issues, Fehler, errors, freeze etc." This confirmed the EXACT open question from 10.76.47's
+log: the freeze is **camera-active-only**, i.e. main-thread contention from the camera path — NOT
+observation churn (the body was already clean).
+- **ROOT CAUSE:** `CameraRPPGBioPublisher.onFrame` ran on the camera capture queue and did a
+  `Task { @MainActor }` **per frame** (~30/s at native capture rate, before the analyzer's internal
+  frame-skip). That flood of main-actor task submissions starved the SwiftUI executor → an open
+  `.menu` Picker stopped responding while biofeedback ran.
+- **FIX:** added `RGBSampleQueue` (`@unchecked Sendable`, `NSLock` + capped `[Sample]`, push/drain/
+  clear). The capture-queue closure now only `push`es the 3 extracted Floats + a capture timestamp —
+  ZERO actor hops. The existing 10 Hz `publishTask` drains the queue at tick start and feeds the
+  analyzer in one batch on the main actor. `CameraAnalyzer.processExtractedRGB`/`processPulseSignal`
+  gained a `timestamp: TimeInterval` param so batched samples keep correct rate maths. `stop()` clears
+  the queue.
+- **ALSO shipped (same commit):** adaptive refractory for the pulse detector —
+  `refractorySeconds(autoBPM:)` spaces detected peaks at ~½ the autocorrelation beat period (clamped
+  0.30–0.60 s) to reject the dicrotic-notch double-count that inflated BPM when acf was too low for the
+  acf-gated octave/autoTrust guards. + 3 unit tests (fallback/half-period/clamp).
+- **Lesson (logged to CLAUDE.md):** a high-frequency producer on a background queue must NOT hop to
+  `@MainActor` per item — batch into an existing low-rate main-actor poll via a lock-protected queue.
+  Per-frame `Task { @MainActor }` from a 30 fps source = UI-executor starvation (looks like a freeze).
+- Reviews: concurrency GO (0 issues, retain-cycle + lock safety verified), build CLEAN. Commit 9ced08a,
+  pushed → CI auto-deploy. **Awaiting device confirmation** that dropdowns stay selectable during a pulse.
+
 ### 2026-06-28 — ✅ 10.76.47 DEVICE-VERIFIED (founder "Ja"): menus stable + visuals stable
 The full-audit fixes landed: founder confirms on device that the Genre/Tonart dropdowns stay
 open/selectable while playing AND the immersive visuals are stable. Closes the long menu-freeze
