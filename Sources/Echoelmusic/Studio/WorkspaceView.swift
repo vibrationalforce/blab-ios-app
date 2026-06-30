@@ -89,9 +89,12 @@ struct WorkspaceView: View {
                 EchoelLogoMark().frame(width: 22, height: 22)
                 #if canImport(AVFoundation)
                 Button { expandedMonitor = .pulse } label: {
-                    PulseMonitorMini(waveform: cameraRPPG.waveform,
-                                     bpm: cameraRPPG.detectedBPM,
-                                     locked: cameraRPPG.isLocked)
+                    // Live reads live in PulseMonitorMiniLive (a leaf) — NOT here. Reading
+                    // cameraRPPG.waveform/detectedBPM/isLocked in this body subscribed
+                    // WorkspaceView (parent of every surface) to the 10 Hz pulse signal, so
+                    // the whole surface tree rebuilt 10×/s during biofeedback and tore down
+                    // any open dropdown menu in the active surface (the recurring freeze).
+                    PulseMonitorMiniLive()
                 }
                 .buttonStyle(.plain)
                 #endif
