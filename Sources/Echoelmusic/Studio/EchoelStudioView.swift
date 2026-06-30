@@ -990,16 +990,7 @@ struct EchoelStudioView: View {
             visualBlendControls
             visualPresetRow
             musicColourRow
-            EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                             onChange: { visualPresetID = "" })
-            EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
-                             onChange: { visualPresetID = "" })
-            EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                             onChange: { visualPresetID = "" })
-            EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                             onChange: { visualPresetID = "" })
-            EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
-            EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+            visualAdjustFields
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1126,34 +1117,11 @@ struct EchoelStudioView: View {
                     Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
                     visualLookStrip
                     visualBlendControls
-                    // Quick scene strip — launch a look in one tap during a performance.
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(VisualPreset.factory) { preset in
-                                let selected = visualPresetID == preset.id
-                                Button { applyVisualPreset(preset) } label: {
-                                    Text(preset.name)
-                                        .font(EchoelTheme.font(12, .semibold))
-                                        .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
-                                        .padding(.horizontal, 12).padding(.vertical, 7)
-                                        .background(RoundedRectangle(cornerRadius: 8)
-                                            .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("\(preset.name) scene")
-                            }
-                        }
-                    }
-                    EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                                     onChange: { visualPresetID = "" })
-                    EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
-                                     onChange: { visualPresetID = "" })
-                    EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                                     onChange: { visualPresetID = "" })
-                    EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                                     onChange: { visualPresetID = "" })
-                    EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
-                    EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+                    // SAME controls as the inline Visual panel — one definition each
+                    // (visualPresetRow + visualAdjustFields), so the immersive overlay and the
+                    // Compose panel can never drift apart ("easy to understand/control").
+                    visualPresetRow
+                    visualAdjustFields
                 }
                 .padding(14)
             }
@@ -1195,6 +1163,24 @@ struct EchoelStudioView: View {
         visualMotion = p.motion
         visualSpread = p.spread
         visualPresetID = p.id
+    }
+
+    /// The six live visual adjust fields — ONE definition, used by BOTH the inline Visual
+    /// panel and the fullscreen VJ overlay so the controls are identical everywhere
+    /// (founder: "easy to understand/control" — no drift, one place to change). The energy
+    /// fields (Intensity/Detail/Motion/Spread) clear the preset selection on edit since they
+    /// then diverge from it; Hue/Saturation are palette-only and leave the preset intact.
+    @ViewBuilder private var visualAdjustFields: some View {
+        EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                         onChange: { visualPresetID = "" })
+        EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
+                         onChange: { visualPresetID = "" })
+        EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
+                         onChange: { visualPresetID = "" })
+        EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
+                         onChange: { visualPresetID = "" })
+        EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
+        EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
     }
 
     /// Live "music → colour": the chord sounding now (published on the bus by the
