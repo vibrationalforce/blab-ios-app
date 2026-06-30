@@ -3,6 +3,18 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-28 — ✅ 10.76.47 DEVICE-VERIFIED (founder "Ja"): menus stable + visuals stable
+The full-audit fixes landed: founder confirms on device that the Genre/Tonart dropdowns stay
+open/selectable while playing AND the immersive visuals are stable. Closes the long menu-freeze
++ visual-instability arc (10.76.41/43/47). Root causes that mattered, in order: (1) 10 Hz camera
+reads inside MetalBioView.updateUIView (visual churn), (2) 10 Hz fingerDetected + measurementControl
+in the root body, (3) re-seed @State (aiExplanation/lastNoteCount), (4) automation-driven
+masterVolume in masterPanel. Lesson cluster logged to CLAUDE.md: never read a high-frequency
+@Observable in a body / computed-var the body evaluates / a UIViewRepresentable's updateUIView —
+confine to a leaf View or the draw loop. Remaining soft spot (founder not blocking on it): rPPG
+signal quality at low camera fps / imperfect contact — addressed defensively (motion reject 10.76.45,
+autoTrust 10.76.42, coaching 10.76.46); further gains need better contact or off-main camera work.
+
 ### 2026-06-28 — Full audit pass: menu freeze + visual stability (10.76.47)
 Founder: "Drop-down Menüs sind immer noch schnell im freeze. Visuals funktionieren noch nicht
 stabil. Alles überprüfen und verbessern." Ran TWO parallel deep audits.
