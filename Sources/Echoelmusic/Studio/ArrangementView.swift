@@ -19,8 +19,9 @@ struct ArrangementView: View {
     @Environment(ClipStore.self) private var clips
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
-    /// The authoritative clock — read here for the live song-position playhead.
-    @Environment(Transport.self) private var transport
+    // The live song-position playhead now reads Transport inside its own leaf views
+    // (ArrangementPositionLabel / ArrangementPlayhead) so the ~8 Hz position update no
+    // longer rebuilds this whole (always-mounted) surface during playback.
     @Environment(\.dismiss) private var dismiss
 
     /// `true` when hosted as a foreground workspace surface (WorkspaceView): drop the
@@ -130,23 +131,14 @@ struct ArrangementView: View {
 
             Spacer()
 
-            // Live playhead, fed by the authoritative Transport (1-based bar·beat).
-            // Monospaced digits so the readout doesn't jitter as it counts.
-            if transport.isPlaying {
-                Text(positionLabel)
-                    .font(EchoelTheme.font(12, .semibold).monospacedDigit())
-                    .foregroundStyle(EchoelTheme.text)
-                    .accessibilityLabel("Position bar \(transport.position.bar + 1), beat \(transport.position.beat + 1)")
-            }
+            // Live song position — in its OWN leaf so the ~8 Hz Transport.position read
+            // churns only this label, not the whole ArrangementView (which stays mounted
+            // behind the other surfaces and would otherwise rebuild 8×/s during every take).
+            ArrangementPositionLabel()
 
             Text("\(store.totalBars) bars")
                 .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
         }
-    }
-
-    /// 1-based "bar·beat" string from the Transport position.
-    private var positionLabel: String {
-        "\(transport.position.bar + 1)·\(transport.position.beat + 1)"
     }
 
     // MARK: - Timeline canvas
@@ -184,17 +176,10 @@ struct ArrangementView: View {
             }
             .frame(width: w, height: 34, alignment: .leading)
             .overlay(alignment: .leading) {
-                if transport.isPlaying {
-                    // Wrap within the song so a looping arrangement keeps the playhead
-                    // on-screen (Transport.bar counts monotonically since play()).
-                    let progress = Double((transport.position.bar % totalBars) * Transport.stepsPerBar
-                        + transport.position.step) / Double(totalBars * Transport.stepsPerBar)
-                    Rectangle()
-                        .fill(EchoelTheme.accent)
-                        .frame(width: 2, height: 34)
-                        .offset(x: w * CGFloat(progress))
-                        .accessibilityHidden(true)
-                }
+                // Playhead in its OWN leaf — confines the ~8 Hz Transport.position read
+                // (same reason as the position label: this view stays mounted behind the
+                // other surfaces, so a body-level read would rebuild it 8×/s every take).
+                ArrangementPlayhead(totalBars: totalBars, width: w)
             }
         }
         .frame(height: 34)
@@ -340,6 +325,47 @@ struct ArrangementView: View {
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { store.rename(id: id, to: trimmed) }
         renaming = nil
+    }
+}
+
+// MARK: - Live transport leaves (observation isolation)
+
+/// The 1-based "bar·beat" song position. A LEAF that reads `Transport` in its own body
+/// so the ~8 Hz `position` update churns only this tiny label — `ArrangementView` stays
+/// mounted (opacity 0) behind the other workspace surfaces, so a body-level Transport
+/// read there rebuilt the whole arrangement 8×/s during EVERY take (incl. biofeedback).
+@MainActor
+private struct ArrangementPositionLabel: View {
+    @Environment(Transport.self) private var transport
+    var body: some View {
+        if transport.isPlaying {
+            Text("\(transport.position.bar + 1)·\(transport.position.beat + 1)")
+                .font(EchoelTheme.font(12, .semibold).monospacedDigit())
+                .foregroundStyle(EchoelTheme.text)
+                .accessibilityLabel("Position bar \(transport.position.bar + 1), beat \(transport.position.beat + 1)")
+        }
+    }
+}
+
+/// The sweeping timeline playhead. Same isolation rationale as `ArrangementPositionLabel`:
+/// the ~8 Hz `Transport.position` read is confined here so only the 2 pt bar redraws.
+@MainActor
+private struct ArrangementPlayhead: View {
+    let totalBars: Int
+    let width: CGFloat
+    @Environment(Transport.self) private var transport
+    var body: some View {
+        if transport.isPlaying {
+            // Wrap within the song so a looping arrangement keeps the playhead on-screen
+            // (Transport.bar counts monotonically since play()).
+            let progress = Double((transport.position.bar % totalBars) * Transport.stepsPerBar
+                + transport.position.step) / Double(totalBars * Transport.stepsPerBar)
+            Rectangle()
+                .fill(EchoelTheme.accent)
+                .frame(width: 2, height: 34)
+                .offset(x: width * CGFloat(progress))
+                .accessibilityHidden(true)
+        }
     }
 }
 #endif
