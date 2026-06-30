@@ -23,6 +23,45 @@ import Foundation
 import AVFoundation
 import Observation
 
+/// Lock-protected hand-off for pre-extracted RGB samples from the camera capture
+/// queue to the @MainActor analyzer. The OLD path hopped to the main actor with a
+/// `Task { @MainActor }` PER FRAME (~30/s at native capture rate, before the
+/// analyzer's internal frame-skip). That flood of main-actor task submissions
+/// starved the UI executor while biofeedback ran — the dropdown `.menu` Picker
+/// stopped responding ("Sobald Biofeedback läuft kann ich nicht mehr auswählen").
+/// Now the capture queue just appends samples here (one lock, no actor hop) and the
+/// existing 10 Hz publish loop drains them on the main actor — zero per-frame tasks.
+private final class RGBSampleQueue: @unchecked Sendable {
+    struct Sample { let r: Float; let g: Float; let b: Float; let t: TimeInterval }
+    private let lock = NSLock()
+    private var samples: [Sample] = []
+    /// Cap so a stalled drain can't grow this without bound (~3 s at 30 fps).
+    private static let maxBuffered = 90
+
+    func push(r: Float, g: Float, b: Float, t: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        if samples.count >= Self.maxBuffered { samples.removeFirst(samples.count - Self.maxBuffered + 1) }
+        samples.append(Sample(r: r, g: g, b: b, t: t))
+    }
+
+    /// Atomically take and clear everything queued so far (FIFO order preserved).
+    func drain() -> [Sample] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !samples.isEmpty else { return [] }
+        let out = samples
+        samples.removeAll(keepingCapacity: true)
+        return out
+    }
+
+    func clear() {
+        lock.lock()
+        samples.removeAll(keepingCapacity: true)
+        lock.unlock()
+    }
+}
+
 @MainActor
 @Observable
 public final class CameraRPPGBioPublisher {
@@ -62,6 +101,9 @@ public final class CameraRPPGBioPublisher {
     @ObservationIgnored private let analyzer = CameraAnalyzer()
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var publishTask: Task<Void, Never>?
+    /// Capture-queue → main-actor sample hand-off (no per-frame Task hop). See
+    /// RGBSampleQueue: this is the fix for the menu freeze during biofeedback.
+    @ObservationIgnored private let sampleQueue = RGBSampleQueue()
 
     // Exposure-lock state machine (10 Hz). Lock against the FINGER-covered scene,
     // not the dim finger-less one; re-settle if a lock saturates.
@@ -81,8 +123,8 @@ public final class CameraRPPGBioPublisher {
         guard !isRunning else { return }
         self.bus = bus
 
-        let analyzer = self.analyzer
-        capture.onFrame = { [weak analyzer] pixelBuffer in
+        let sampleQueue = self.sampleQueue
+        capture.onFrame = { pixelBuffer in
             // Average the center region on the capture queue → 3 Sendable Floats.
             CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
             defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
@@ -107,9 +149,10 @@ public final class CameraRPPGBioPublisher {
             let avgR = totalR / count / 255.0
             let avgG = totalG / count / 255.0
             let avgB = totalB / count / 255.0
-            Task { @MainActor [weak analyzer] in
-                analyzer?.processExtractedRGB(avgR: avgR, avgG: avgG, avgB: avgB)
-            }
+            // No per-frame actor hop — just enqueue. The 10 Hz publish loop drains
+            // and feeds the analyzer on the main actor (timestamp preserves the rate
+            // calc). This is what keeps the UI / dropdown menus responsive while bio runs.
+            sampleQueue.push(r: avgR, g: avgG, b: avgB, t: ProcessInfo.processInfo.systemUptime)
         }
 
         // If the camera self-recovers from a silent stall (watchdog restart or full
@@ -147,6 +190,13 @@ public final class CameraRPPGBioPublisher {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(100))   // ~10 Hz: live feel
                 guard let self, self.isRunning else { break }
+                // Drain the frames the capture queue buffered since the last tick and
+                // feed them to the analyzer IN ORDER, on the main actor, with their
+                // capture timestamps (so the rate maths stays correct). Replaces the old
+                // per-frame `Task { @MainActor }` flood that froze the menus while bio ran.
+                for s in self.sampleQueue.drain() {
+                    self.analyzer.processExtractedRGB(avgR: s.r, avgG: s.g, avgB: s.b, timestamp: s.t)
+                }
                 // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
                 self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)
@@ -298,6 +348,7 @@ public final class CameraRPPGBioPublisher {
         capture.unlockExposure()       // leave the device back in auto for next time
         capture.stop()
         capture.onFrame = nil
+        sampleQueue.clear()            // drop any frames buffered but not yet drained
         analyzer.stopPulseDetection()
         isRunning = false
         fingerDetected = false

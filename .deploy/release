@@ -1,20 +1,22 @@
-build: 2026-06-28 v10.76.47 (Menu freeze + visual stability — full audit pass)
+build: 2026-06-30 v10.76.48 (Menu freeze WHILE biofeedback runs — root cause fixed)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Builds on 10.76.46. Two parallel deep audits (UI-state + visuals) found the
-  remaining causes of "dropdowns freeze while playing" and "visuals not stable", now fixed:
-  • VISUALS (biggest): the immersive view was reading the live bio/quality signals (~10×/s)
-    inside the SwiftUI layer, which rebuilt the visual + its on-screen controls ten times a
-    second → stutter and flaky VJ controls. Those reads moved into the Metal draw loop
-    itself (off the SwiftUI graph). Result: smooth visual, stable controls.
-  • MENU: the Master-volume row read a value that automation rewrites every tick, which
-    rebuilt the whole screen (closing any open dropdown). Moved into its own small view so it
-    can't churn the menu screen. Plus a latent 10 Hz counter that could re-trigger the same
-    freeze if ever shown is now non-observing (prevention).
-  • VISUALS (jumps): the adaptive-quality governor could flip detail/frame-rate back and
-    forth near a performance boundary (visible jumps); added a 4 s dwell + wider recovery
-    band so it settles instead of flapping.
-  All reviewed (concurrency + build): GO. No new sheets / no launch-crash surface touched.
-  Test: 10.76.47 → play a take, open Compose ▸ Composition ▸ Genre/Tonart repeatedly — it
-  should stay open/selectable. Open the immersive visual — it should run smooth, controls
-  responsive, no detail/FPS jumping. If a dropdown STILL freezes, tell me whether it's only
-  while the camera pulse is active (points to a separate fix).
+notesT: Direct fix for "Sobald Biofeedback läuft kann ich nicht mehr in den Dropdown-
+  Menüs auswählen." This is the LAST piece of the menu-freeze story — it only happened
+  while the camera pulse was active, which earlier (10.76.41/43/47) fixes didn't touch.
+  • ROOT CAUSE: the camera fed the pulse analyzer with ONE main-thread task PER FRAME
+    (~30/second), submitted from the camera's background queue. That flood of tiny
+    main-thread jobs starved the UI, so an open dropdown (Genre/Tonart) stopped
+    responding the moment biofeedback ran.
+  • FIX: the camera now just drops each frame's 3 colour values into a lock-protected
+    buffer (no main-thread hop at all); the existing 10×/s pulse loop empties that buffer
+    and feeds the analyzer in one batch on the main thread. Result: 0 per-frame tasks →
+    the UI stays free → dropdowns stay selectable WHILE the pulse runs. Frame timestamps
+    are carried through so the heart-rate maths is unchanged.
+  • ALSO: adaptive refractory for the pulse detector — spaces detected beats at ~½ the
+    estimated beat period (0.30–0.60 s) to reject the "dicrotic notch" double-count that
+    was inflating BPM on a weak/rounded fingertip signal the other guards couldn't catch.
+  Reviewed (concurrency + build): GO, 0 issues. No new sheets / no launch-crash surface.
+  Test: 10.76.48 → start the camera pulse (Well), then open Compose ▸ Composition ▸
+  Genre/Tonart and change it repeatedly WHILE the pulse is measuring — it must stay open
+  and selectable. Pulse BPM should also read truer (no sudden ~1.3–2× jumps on a shaky
+  finger). If a dropdown STILL freezes during biofeedback, tell me exactly which menu.
