@@ -129,5 +129,26 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         XCTAssertFalse(A.isMotionAmplitude(0.25))
         XCTAssertTrue(A.isMotionAmplitude(0.2501))
     }
+
+    // MARK: - Adaptive refractory (dicrotic-notch reject)
+
+    func testRefractory_noPlausiblePeriod_fallsBackTo300ms() {
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 0), 0.3, accuracy: 0.0001)
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 39), 0.3, accuracy: 0.0001)   // below floor
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 181), 0.3, accuracy: 0.0001)  // above ceiling
+    }
+
+    func testRefractory_isHalfTheBeatPeriod() {
+        // 60 bpm → 1.0 s beat → 0.5 s refractory (rejects the ~0.4 s dicrotic notch,
+        // keeps the next 1.0 s-away beat). The device-log inflation case (auto≈55-65).
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 60), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 55), 0.5 * 60.0 / 55.0, accuracy: 0.0001)
+    }
+
+    func testRefractory_clampedToRange() {
+        // Slow rate would give >0.6 → clamp 0.6; fast rate <0.3 → clamp 0.3 (≤200 bpm).
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 45), 0.6, accuracy: 0.0001)   // 0.5*60/45=0.667→0.6
+        XCTAssertEqual(A.refractorySeconds(autoBPM: 150), 0.3, accuracy: 0.0001)  // 0.5*60/150=0.2→0.3
+    }
 }
 #endif

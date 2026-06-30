@@ -204,9 +204,12 @@ final class CameraAnalyzer {
     // analyzeFrame/analyzePixelBuffer CVPixelBuffer path (and its unused
     // filterModulation/ModulationMode machinery) was dead code and was removed.
 
-    /// Process pre-extracted RGB values (called from MainActor via BioSourceManager)
-    /// This avoids the @MainActor crash from accessing pixel buffers on background threads.
-    func processExtractedRGB(avgR: Float, avgG: Float, avgB: Float) {
+    /// Process pre-extracted RGB values. `timestamp` is captured when the FRAME arrived (on
+    /// the capture queue), not when this runs — the samples are now buffered and drained in a
+    /// batch by the 10 Hz publish loop (instead of one MainActor Task per frame, which flooded
+    /// the main actor and froze the UI while biofeedback ran), so the real per-frame time must
+    /// travel with the sample or the sample-rate estimate would collapse.
+    func processExtractedRGB(avgR: Float, avgG: Float, avgB: Float, timestamp: TimeInterval) {
         frameCount += 1
 
         // Frame skipping: process every 2nd frame at ~30fps = 15Hz effective sample rate.
@@ -245,7 +248,7 @@ final class CameraAnalyzer {
             if isSaturated {
                 signalQuality = max(0, signalQuality - 0.02)   // hold lock, drop quality
             } else {
-                processPulseSignal(avgR: avgR)
+                processPulseSignal(avgR: avgR, timestamp: timestamp)
             }
         } else if isPulseDetecting && !isFingerDetected {
             bpmConfidence = max(0, bpmConfidence - 0.02)
@@ -327,8 +330,8 @@ final class CameraAnalyzer {
         bpc = BandpassCoefficients(sampleRate: Float(Self.defaultSampleRate))
     }
 
-    private func processPulseSignal(avgR: Float) {
-        let now = ProcessInfo.processInfo.systemUptime
+    private func processPulseSignal(avgR: Float, timestamp: TimeInterval) {
+        let now = timestamp
 
         // DC offset removal. Warm up FAST for the first ~1s (τ≈0.7s) so the
         // baseline — and thus the bandpass — settles in ~1s instead of ~6s (the
@@ -453,8 +456,10 @@ final class CameraAnalyzer {
         }
         let threshold = minAmp + amplitude * 0.55
 
-        // Minimum inter-beat interval: 300ms (200 BPM max)
-        let minPeakDistance = Int(effectiveSampleRate * 0.3)
+        // Minimum inter-beat interval — ADAPTIVE refractory (rejects the dicrotic notch;
+        // see refractorySeconds). Uses the autocorrelation fundamental set above; falls back
+        // to 300 ms (≤200 bpm) when no plausible period is available.
+        let minPeakDistance = Int(effectiveSampleRate * Self.refractorySeconds(autoBPM: lastAutoBPM))
 
         // Find local maxima above threshold
         var newPeaks: [Int] = []
@@ -635,6 +640,22 @@ final class CameraAnalyzer {
     /// Linux-testable.
     nonisolated static func isMotionAmplitude(_ amplitude: Float) -> Bool {
         amplitude > 0.25
+    }
+
+    /// Minimum inter-beat distance (seconds) for peak detection — an ADAPTIVE refractory
+    /// that rejects the DICROTIC NOTCH (the smaller secondary peak ~0.3–0.4× of a beat after
+    /// systole). On contacts where the notch clears the amplitude threshold it DOUBLES the
+    /// peak count: device log pk≈18–20 → bpm≈110 while the autocorrelation fundamental sat at
+    /// ~55–65, and acf was too low (<0.3) for the acf-gated octave/autoTrust guards to fire —
+    /// so the inflated count won. Spacing beats at ~0.5× the autocorrelation-estimated period
+    /// keeps real beats (1.0× apart) while killing the notch (~0.4× in). Clamped 0.30–0.60 s
+    /// (≤200…≥100 bpm reach); falls back to the fixed 0.30 s when no plausible period is
+    /// available (autoBPM 0 on a zero-strength window → behaves exactly as before). The
+    /// autocorrelation reports the FUNDAMENTAL (not the notch), so it's the right rate to set
+    /// the refractory from even when its STRENGTH is low. Pure → Linux-testable.
+    nonisolated static func refractorySeconds(autoBPM: Double) -> Double {
+        guard autoBPM >= 40, autoBPM <= 180 else { return 0.3 }
+        return min(0.6, max(0.3, 0.5 * 60.0 / autoBPM))
     }
 
     /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than
