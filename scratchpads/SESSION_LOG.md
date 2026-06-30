@@ -3,6 +3,20 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-30 — chore: finish Visuals tidy — delete parked bio→visual editor cluster
+Completes the founder's "vermeide komplexen stub und reguliere alles" (after 10.76.49 exposed
+Prism + deleted the dead VisualRendererKernels.metal). Removed the parked, fully-unwired
+bio→visual editor island: `VisualBioModulator.swift` (86 lines) + `BioVisualEditorView.swift`
+(170 lines) — they referenced ONLY each other + the tested `VisualModulation` core; no live code
+(WorkspaceView/EchoelStudioView/App) touched them (call site removed in the 10.76.36 launch
+bisect). KEPT the tested `Core/VisualModulation.swift` core (VisualModRoute/Target) per the
+established "tested-but-unwired foundation stays" pattern (CLAUDE.md). Build stays green (nothing
+live referenced the deletions). No behavior change → no .deploy bump (no TestFlight build needed).
+Also held: rPPG further tuning (waiting on a device log FROM a 10.76.50/51 build — the last logs
+were pre-fix, still showing the fps collapse), and the audio-thread timbre-alloc fix R4 (correct
+fix is invasive + untestable-from-here; the convolution-reverb gate precedent says gate, don't
+restructure blind — deferred until device-testable).
+
 ### 2026-06-30 — 10.76.50: menu-freeze ACTUAL ROOT CAUSE (WorkspaceView) + camera fps-collapse
 Founder: "Das freeze problem in den drop down Menüs während aktivem biofeedback ist immer noch
 nicht behoben." After 41/43/47/48 each fixed a real-but-insufficient cause, found the TRUE one.
