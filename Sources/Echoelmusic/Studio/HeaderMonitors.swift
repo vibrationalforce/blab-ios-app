@@ -75,6 +75,25 @@ struct PulseMonitorMini: View {
     }
 }
 
+#if canImport(AVFoundation)
+/// Live wrapper that reads the ~10 Hz pulse publisher in ITS OWN body, so the churn
+/// stays in this leaf. Reading `cameraRPPG.waveform`/`detectedBPM`/`isLocked` directly
+/// in `WorkspaceView.topBar` subscribed `WorkspaceView` — the PARENT of every surface —
+/// to a 10 Hz signal, so the whole surface tree (including the active surface's Compose/
+/// Mood/Effects `.menu` Pickers) rebuilt 10×/s during biofeedback and tore down any open
+/// dropdown ("kann nicht mehr auswählen während Biofeedback", 10.76.50). Confining the
+/// reads here keeps WorkspaceView still; only this 30 pt monitor refreshes.
+@MainActor
+struct PulseMonitorMiniLive: View {
+    @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
+    var body: some View {
+        PulseMonitorMini(waveform: cameraRPPG.waveform,
+                         bpm: cameraRPPG.detectedBPM,
+                         locked: cameraRPPG.isLocked)
+    }
+}
+#endif
+
 // MARK: - Immersive monitor (right)
 
 /// Compact header monitor of the immersive visual. Deliberately a LIGHTWEIGHT

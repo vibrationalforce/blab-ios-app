@@ -1,24 +1,24 @@
-build: 2026-06-30 v10.76.49 (Stable audio — no dropouts/crackle · Visuals tidy)
+build: 2026-06-30 v10.76.50 (Menu-freeze ROOT CAUSE found + camera fps-collapse fix)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Two asks: stable audio (keine Aussetzer / kein Kratzen) + a tidier Visuals section
-  (no half-built stubs, regulate what we already have).
-  • AUDIO STABILITY (the dropouts/crackle): an audio-thread audit found the polyphonic
-    synth could run up to 768 additive partials per sample (12 voices × 64 harmonics) — far
-    over a phone's real-time budget on dense chords, so the render missed its deadline →
-    buffer underruns heard as dropouts/crackle. Regulated WITHOUT a new subsystem, just
-    sane caps: voices 12→8, harmonics 64→32 (still rich — most energy is in the first ~16),
-    and the audio buffer 256→512 frames (render deadline 5.3 ms→10.7 ms, still well under
-    the 15 ms limit). Net: worst-case partials drop ~3× AND there's 2× more time to render
-    them — dense chords now stay inside the deadline. The deliberate 2-voice unison
-    "richness" is untouched. (Next levers if anything still crackles: a one-time pop when
-    switching to the named instrument patches — a small allocation that should move off the
-    audio thread — and a denormal-flush in release tails; both noted for a focused follow-up.)
-  • VISUALS TIDY: the fully-built "Prism" look (spectral dispersion) was implemented in the
-    shader but never shown in the picker — now added to both the Look strip and the Blend
-    strip, so every shipped look is reachable. Deleted a dead 271-line compute-shader stub
-    (VisualRendererKernels.metal — five kernels, zero wiring) — exactly the kind of unfinished
-    stub to keep out. No behaviour change beyond Prism becoming selectable.
-  Build-checked. Test: 10.76.49 → play a full chord-heavy take (with bio on) and listen —
-  it should be clean, no dropouts/crackle. Open the immersive visual → "Prism" now appears
-  in the Look strip and as a Blend partner. Tell me if any crackle remains (and whether it's
-  steady, on patch-change, or in the silent tail — that points to the next specific fix).
+notesT: The recurring "kann während Biofeedback nicht mehr in den Dropdowns auswählen" —
+  finally the ACTUAL cause, one level above where I'd been looking.
+  • ROOT CAUSE (menu freeze): the persistent top bar (WorkspaceView.topBar — it sits ABOVE
+    every surface) read the live pulse waveform/BPM directly to feed the little header pulse
+    monitor. The waveform updates ~10×/s while biofeedback runs, so WorkspaceView — the PARENT
+    of the whole instrument — rebuilt 10×/s, and every rebuild tore down any open dropdown in
+    the surface below it (Compose/Mood/Effects). Earlier fixes all checked the instrument view
+    (EchoelStudioView) and correctly found it clean — but the churn was in the ROOT above it,
+    so it was never seen. FIX: the live reads now live inside the small monitor leaf
+    (PulseMonitorMiniLive); WorkspaceView no longer subscribes to the 10 Hz signal, so the
+    surface tree (and your open menus) stays still while bio runs. This is the real fix.
+  • CAMERA fps-collapse (from your pasted log): the first lock worked (≈54 bpm), but after you
+    lifted/replaced the finger the camera frame rate fell to ~3 fps (log: rate 15→4.8→3.1) and
+    the pulse could never re-lock. Cause: exposure lock used plain ".locked", which freezes
+    whatever long exposure the dim fingertip scene last chose — a long exposure forces a low
+    frame rate. FIX: lock with a bounded custom exposure (≤1/30 s) so the frame rate can't drop
+    below ~30 fps (and it saturates less). Reacquisition should now re-lock instead of stalling
+    at rate≈3.
+  Build-checked. Test: 10.76.50 → start the camera pulse, then open Compose ▸ Composition ▸
+  Genre/Tonart (and Mood, Effects) and change them repeatedly WHILE measuring — they must stay
+  open and selectable. Lift + replace your finger → it should re-lock (no rate≈3 stall). If a
+  dropdown STILL freezes, tell me — but this was the measured parent-rebuild cause.

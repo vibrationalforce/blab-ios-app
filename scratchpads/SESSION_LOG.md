@@ -3,6 +3,38 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-30 — 10.76.49: stable audio (no dropouts/crackle) + Visuals tidy
+Founder: "Stabile Performance um Audio Aussetzer und kratzen zu vermeiden. Auch die Visuals
+Sektion ist nicht ganz durchstrukturiert, vermeide komplexen stub und reguliere alles was wir
+bisher haben." Three parallel audits (audio-thread, visuals inventory, + the menu trace).
+- **AUDIO (dropouts/crackle = CPU overrun):** audio-thread audit found PolySynthVoice could run
+  up to **768 additive partials/sample** (maxVoices 12 × harmonics 64) — over a phone's real-time
+  budget on dense chords → render misses the 256-frame/5.3 ms deadline → buffer underrun =
+  dropout/crackle. Regulated with static caps (no new subsystem): **maxVoices 12→8**, **poly
+  harmonicCount 64→32**, **default IO buffer 256→512** (deadline →10.7 ms, <15 ms limit). Worst
+  case ~3× fewer partials + 2× more time. Unison richness untouched. Deferred (noted): R4 = move
+  the timbre-profile `[Float]` alloc OFF the audio thread (it runs in patch.apply on the render
+  thread for the 6 named instrument patches → one-time pop on patch-change); R5 = denormal flush
+  in release-tail one-pole/SVF smoothers (silence-crackle). Do these if crackle persists.
+- **VISUALS (tidy):** the fully-built **Prism** look (shader style 4, spectral dispersion) was
+  implemented but never shown → added to the Look strip AND the Blend strip (every shipped look now
+  reachable). Deleted dead **VisualRendererKernels.metal** (271 lines, 5 compute kernels, ZERO
+  wiring — MetalBioView uses runtime-string shaders; SpectralDonutView is Canvas). Visuals-inventory
+  agent also flagged for a future cycle: parked VisualBioModulator/BioVisualEditorView (cores stay,
+  editor unwired), BioVisualPattern dead enum, visualPanel↔visualVJOverlay control duplication,
+  look-selection split across two @AppStorage keys (could be one `enum Look`). Left as scoped
+  follow-ups (kept this cycle minimal). ChromaKey.metal also dead but belongs to the deferred
+  video/broadcast feature, left in place.
+- Reviews: audio-thread audit + build-check = clean. Commit c2d694a, pushed → CI auto-deploy.
+- **MENU FREEZE (10.76.48) — trace CONFIRMED clean:** a ui-state agent verified EchoelStudioView.body
+  is observation-clean for the Composition/Mood/Effects pickers; the only bio/playback-churning
+  render read is `bus.freshMusical()` at line 1203 (musicColourRow), and the `EchoelPanel` struct
+  boundary confines it to the Visual panel only. So 10.76.48's per-frame-Task-hop removal IS the
+  real fix; the device that still froze was on a pre-10.76.48 build (TestFlight processing lag).
+  Optional future tightening: move musicColourRow's frame read into its own leaf view.
+- **Comms note:** founder shared a `/brief` command carousel → adopt answer-first, minimal-preamble
+  replies (logged to memory/preferences.md).
+
 ### 2026-06-30 — 10.76.48: menu freeze WHILE biofeedback runs — ROOT CAUSE fixed (the predicted one)
 Founder: "Sobald Biofeedback läuft kann ich nicht mehr in den Dropdown-Menüs auswählen. Vermeide
 hier alle issues, Fehler, errors, freeze etc." This confirmed the EXACT open question from 10.76.47's

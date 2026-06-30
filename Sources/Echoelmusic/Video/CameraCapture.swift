@@ -174,11 +174,28 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     func lockExposure() {
         sessionQueue.async { [weak self] in
             guard let self,
-                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
-                  device.isExposureModeSupported(.locked) else { return }
+                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device else { return }
             try? device.lockForConfiguration()
-            device.exposureMode = .locked
-            device.unlockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            // Prefer a CUSTOM exposure with a BOUNDED duration over plain `.locked`.
+            // `.locked` freezes whatever auto-exposure last chose; in a dim fingertip
+            // scene that is a LONG integration time, and a long exposure forces the
+            // camera to deliver only ~3 fps (device log 2026-06-30: rate collapsed
+            // 15→4.8→3.1). At 3 fps the 15 Hz pulse bandpass can't resolve a heartbeat,
+            // so reacquisition never re-locks. Capping the exposure to ≤ 1/30 s keeps
+            // the frame rate ≥ 30 fps (and curbs the saturation long exposures caused).
+            if device.isExposureModeSupported(.custom) {
+                let fmt = device.activeFormat
+                var dur = CMTimeMake(value: 1, timescale: 30)        // ≤ 1/30 s → fps ≥ 30
+                if CMTimeCompare(dur, fmt.maxExposureDuration) > 0 { dur = fmt.maxExposureDuration }
+                if CMTimeCompare(dur, fmt.minExposureDuration) < 0 { dur = fmt.minExposureDuration }
+                // Keep the AGC's current ISO (clamped to the format range) so the
+                // shorter exposure stays bright enough on the torch-lit finger.
+                let iso = min(max(device.iso, fmt.minISO), fmt.maxISO)
+                device.setExposureModeCustom(duration: dur, iso: iso, completionHandler: nil)
+            } else if device.isExposureModeSupported(.locked) {
+                device.exposureMode = .locked
+            }
         }
     }
 
