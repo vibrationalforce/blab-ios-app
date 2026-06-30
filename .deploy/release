@@ -1,12 +1,18 @@
-build: 2026-06-30 v10.76.52 (Less take-time churn — Arrangement playhead off the hot path)
+build: 2026-06-30 v10.76.53 (Visuals overhaul · step 1 — Rings: crisp interference, not haze)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Proactive follow-up to the menu-freeze work (10.76.50): the workspace keeps ALL three
-  surfaces (Arrange · Clips · Compose) mounted at once so switching never stops the audio. But
-  the Arrangement surface read the transport song-position directly in its body, so even while
-  HIDDEN behind Compose it rebuilt its whole view ~8×/s during every take (the position updates
-  each 16th-note) — wasted main-thread work that adds to take-time/biofeedback jank. FIX: the
-  live position label + the sweeping playhead now read the transport inside their OWN tiny leaf
-  views, so only those 2 pt elements refresh; the rest of the (hidden) Arrangement view stays
-  still. Same observation-isolation pattern as the 10.76.50 header fix. No visible change —
-  purely less background churn while playing. (ClipView checked: already clean.)
-  Build-checked. Nothing else changed.
+notesT: Start of the "design meets physical correctness" visuals rework. I can't render Metal
+  off-device, so this ships ONE look at a time for you to judge on screen and steer.
+  • STEP 1 — RINGS look: was a soft sinusoidal wash (0.5+0.5·sin) → read as a blurry rainbow
+    haze, which also broke our own "no soft gradients/glow" rule. Now it's a PHYSICALLY correct
+    interference field: two radial wave trains are superposed and the visible value is their
+    INTENSITY = amplitude² (energy ∝ amplitude²) → crisp bright fringes on a dark field, like
+    real wave interference. Coherence does the physical double-duty: it both detunes the second
+    train (high coherence = wide ordered fringes, low = turbulent moiré) AND sharpens the
+    maxima (coherent light → thin crisp rings; incoherent → washed). Colour unchanged this step.
+  Test 10.76.53: open the immersive visual on the Rings look — it should show clean, defined
+  interference rings (sharper as your coherence rises), not a soft gradient. Tell me:
+  (a) does the crisp-fringe direction look right? and (b) the COLOUR model you want for the rest —
+  1) Harmony-true (each played note = its real wavelength→colour; chord shows its notes' colours),
+  2) Single-tone-true (one true colour per tone; only Prism disperses), or
+  3) keep the expressive rainbow/overtone clouds, just sharpen structure everywhere.
+  Then I rework Chladni/Plasma/Water/Prism the same way, one per build.
