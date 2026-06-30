@@ -121,22 +121,23 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
     // MARK: - Motion-amplitude reject (false-lock guard)
 
     func testMotionAmplitude_plausiblePulse_isNotMotion() {
-        // Real fingertip pulse AC seen in device logs: ~0.03–0.08 → never motion.
+        // Real fingertip pulse AC seen in device logs: up to ~0.16 (strongest clean lock).
         XCTAssertFalse(A.isMotionAmplitude(0.03))
         XCTAssertFalse(A.isMotionAmplitude(0.08))
-        XCTAssertFalse(A.isMotionAmplitude(0.15))   // generous strong-pulse headroom
+        XCTAssertFalse(A.isMotionAmplitude(0.16))   // strongest real lock observed → kept
     }
 
     func testMotionAmplitude_largeSwing_isMotion() {
-        // The false-lock session swung 0.26–0.81 (finger moving/pressing) → motion.
-        XCTAssertTrue(A.isMotionAmplitude(0.26))
+        // Hard-press / re-grip windows (device logs: 0.22–0.33, and a 0.76 swing) → motion.
+        XCTAssertTrue(A.isMotionAmplitude(0.22))
+        XCTAssertTrue(A.isMotionAmplitude(0.33))
         XCTAssertTrue(A.isMotionAmplitude(0.76))
     }
 
     func testMotionAmplitude_gateBoundary() {
-        // Gate is `> 0.25`: at/below 0.25 is kept, just above is rejected.
-        XCTAssertFalse(A.isMotionAmplitude(0.25))
-        XCTAssertTrue(A.isMotionAmplitude(0.2501))
+        // Gate is `> 0.20`: at/below 0.20 is kept, just above is rejected.
+        XCTAssertFalse(A.isMotionAmplitude(0.20))
+        XCTAssertTrue(A.isMotionAmplitude(0.2001))
     }
 
     // MARK: - Adaptive refractory (dicrotic-notch reject)
