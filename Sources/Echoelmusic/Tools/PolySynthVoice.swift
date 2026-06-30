@@ -138,8 +138,16 @@ public final class PolySynthVoice {
         isFXEnabled = on
     }
 
-    public init(maxVoices: Int = 12) {
-        self.poly = EchoelPolyDDSP(maxVoices: maxVoices, sampleRate: Float(Self.sampleRate))
+    public init(maxVoices: Int = 8) {
+        // Performance regulation (10.76.49 — "Audio Aussetzer / Kratzen vermeiden"):
+        // worst-case additive cost is voices × harmonics. Capping voices 12→8 and
+        // harmonics 64→32 cuts the ceiling from 768 to 256 partials/sample (~3×),
+        // which — together with the larger IO buffer (see AudioConfiguration) — pulls
+        // dense chords back inside the real-time render deadline so they stop dropping
+        // out. 32 harmonics is still rich (most perceptual energy is in the first ~16);
+        // the nyquist trim already discarded most of the upper 32 on all but bass notes.
+        self.poly = EchoelPolyDDSP(maxVoices: maxVoices, harmonicCount: 32,
+                                   sampleRate: Float(Self.sampleRate))
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchL = Array(repeating: 0, count: Self.maxBlockFrames)
         self.scratchR = Array(repeating: 0, count: Self.maxBlockFrames)
