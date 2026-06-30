@@ -1,18 +1,17 @@
-build: 2026-06-30 v10.76.53 (Visuals overhaul · step 1 — Rings: crisp interference, not haze)
+build: 2026-06-30 v10.76.54 (Visuals overhaul · step 2 — one control set, identical everywhere)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Start of the "design meets physical correctness" visuals rework. I can't render Metal
-  off-device, so this ships ONE look at a time for you to judge on screen and steer.
-  • STEP 1 — RINGS look: was a soft sinusoidal wash (0.5+0.5·sin) → read as a blurry rainbow
-    haze, which also broke our own "no soft gradients/glow" rule. Now it's a PHYSICALLY correct
-    interference field: two radial wave trains are superposed and the visible value is their
-    INTENSITY = amplitude² (energy ∝ amplitude²) → crisp bright fringes on a dark field, like
-    real wave interference. Coherence does the physical double-duty: it both detunes the second
-    train (high coherence = wide ordered fringes, low = turbulent moiré) AND sharpens the
-    maxima (coherent light → thin crisp rings; incoherent → washed). Colour unchanged this step.
-  Test 10.76.53: open the immersive visual on the Rings look — it should show clean, defined
-  interference rings (sharper as your coherence rises), not a soft gradient. Tell me:
-  (a) does the crisp-fringe direction look right? and (b) the COLOUR model you want for the rest —
-  1) Harmony-true (each played note = its real wavelength→colour; chord shows its notes' colours),
-  2) Single-tone-true (one true colour per tone; only Prism disperses), or
-  3) keep the expressive rainbow/overtone clouds, just sharpen structure everywhere.
-  Then I rework Chladni/Plasma/Water/Prism the same way, one per build.
+notesT: "Complete and easy to understand/control" pass on the immersive visuals.
+  • DECISIONS (you said decide): colour stays the physically-grounded model — the heard tone's
+    overtone series rendered as drifting colour-clouds (that IS harmony-as-light, and it works);
+    "design meets physics" comes from CRISP physical STRUCTURE per look (the lever I can verify
+    is right), not a blind colour re-plumbing. Rings was the only un-physical "haze" look →
+    already fixed to real interference (step 1, 10.76.53). Chladni/Plasma/Water/Prism are already
+    real wave physics and looked right in your video, so I left the good ones alone.
+  • EASY TO CONTROL (this build): the visual controls were DUPLICATED — the inline Visual panel
+    and the fullscreen VJ overlay each had their own copy of the six adjust fields + preset strip,
+    so they could drift apart and were confusing. Now there's ONE definition each (visualPresetRow
+    + visualAdjustFields), used in both places — the controls are IDENTICAL whether you adjust them
+    in Compose or live over the fullscreen visual. Less to learn, nothing can desync.
+  No behavior change beyond consistency; reviewed (build) before ship. Test: open the Visual panel
+  AND the fullscreen visual — same Look strip, same Preset row, same Intensity/Detail/Motion/
+  Spread/Hue/Saturation, behaving identically in both. Rings should read as crisp interference.
