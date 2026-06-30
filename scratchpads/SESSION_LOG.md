@@ -3,6 +3,26 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+### 2026-06-30 — 10.76.50: menu-freeze ACTUAL ROOT CAUSE (WorkspaceView) + camera fps-collapse
+Founder: "Das freeze problem in den drop down Menüs während aktivem biofeedback ist immer noch
+nicht behoben." After 41/43/47/48 each fixed a real-but-insufficient cause, found the TRUE one.
+- **ROOT CAUSE (menu freeze):** `WorkspaceView.topBar` (the persistent header, ABOVE every
+  surface) read `cameraRPPG.waveform`/`detectedBPM`/`isLocked` directly to feed `PulseMonitorMini`.
+  `waveform` updates ~10 Hz while bio runs → `WorkspaceView.body` (parent of the whole instrument)
+  rebuilt 10×/s → tore down any open `.menu` Picker in the surface below (Compose/Mood/Effects).
+  EVERY prior audit scoped to `EchoelStudioView` and found it clean — because the 10 Hz read was
+  one level UP, in the root. FIX: `PulseMonitorMiniLive` leaf reads the publisher in its own body;
+  `WorkspaceView` now only reads `isRunning` (start/stop). Lesson added to CLAUDE.md: when a churn
+  persists after the obvious view is proven clean, AUDIT THE PARENT/ROOT — any always-on header/HUD
+  that reads live bio must read it in its OWN leaf, never via values passed down from a parent body.
+- **CAMERA fps-collapse (device log rate 15→4.8→3.1):** first lock worked (~54 bpm) but
+  reacquisition after lifting the finger stalled because the frame rate fell to ~3 fps (the 15 Hz
+  bandpass can't resolve a pulse there; acf=0.77/auto=184 = undersampling garbage). Cause:
+  `CameraCapture.lockExposure()` used `.locked`, freezing the long exposure a dim fingertip scene
+  chose → long exposure forces low fps. FIX: lock with a BOUNDED custom exposure (≤1/30 s via
+  `setExposureModeCustom`) so fps stays ≥~30 (and saturates less).
+- Reviews: build-check CLEAN (3 files). Commit 882a82d, pushed → CI auto-deploy.
+
 ### 2026-06-30 — 10.76.49: stable audio (no dropouts/crackle) + Visuals tidy
 Founder: "Stabile Performance um Audio Aussetzer und kratzen zu vermeiden. Auch die Visuals
 Sektion ist nicht ganz durchstrukturiert, vermeide komplexen stub und reguliere alles was wir
