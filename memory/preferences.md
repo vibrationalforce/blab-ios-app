@@ -11,6 +11,9 @@ User preferences for development workflow, communication, and tooling.
 
 ## Communication
 - **Tone:** Direct, no filler, no emojis unless requested
+- **Answer-first / brief (2026-06-30):** founder shared a `/brief`-style command carousel
+  ("Shortest possible answer. No fluff. No preamble. Just the answer."). Lead with the
+  result/fix, minimal process narration. Report fixes, not the journey. Short replies.
 - **Science only:** No esoteric terminology, evidence-based claims only
 - **Branding:** "Echoelmusic" -- never "BLAB" or "Vibrational Force"
 

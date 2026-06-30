@@ -1038,10 +1038,12 @@ struct EchoelStudioView: View {
     /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
     private var visualLookStrip: some View {
-        // (label, isDonuts, metalStyle)
+        // (label, isDonuts, metalStyle). Prism (style 4 — spectral dispersion) is fully
+        // implemented in the shader (clamped 0…4) and was simply never surfaced here; it
+        // now joins the strip so every shipped look is reachable (10.76.49 visuals tidy).
         let looks: [(String, Bool, Int)] = [
             ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1),
-            ("Plasma", false, 2), ("Water", false, 3)
+            ("Plasma", false, 2), ("Water", false, 3), ("Prism", false, 4)
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -1075,7 +1077,7 @@ struct EchoelStudioView: View {
     private var visualBlendControls: some View {
         if !spectralDonuts {
             let bLooks: [(String, Int)] = [
-                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3)
+                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4)
             ]
             Text("Blend with").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             ScrollView(.horizontal, showsIndicators: false) {

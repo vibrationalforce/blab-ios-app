@@ -40,10 +40,16 @@ enum AudioConfiguration {
     /// At 48kHz: 512/48000 = 10.67ms latency
     static let normalBufferSize: AVAudioFrameCount = 512
 
-    /// Current buffer size (defaults to low latency)
+    /// Current buffer size (defaults to the 512-frame / 10.67 ms "normal" buffer).
     /// Audio thread + main thread access — nonisolated(unsafe) because writes are
     /// always followed by a full session reconfiguration (memory barrier).
-    nonisolated(unsafe) static var currentBufferSize: AVAudioFrameCount = lowLatencyBufferSize
+    ///
+    /// Was `lowLatencyBufferSize` (256 / 5.33 ms): too tight a render deadline for the
+    /// polyphonic additive synth under dense chords → underruns heard as dropouts /
+    /// crackle ("Aussetzer / Kratzen", 10.76.49). 512 doubles the deadline to 10.67 ms,
+    /// still well inside the app's <15 ms latency FAIL line. `LatencyMode.low` can still
+    /// opt back into 256 on capable hardware.
+    nonisolated(unsafe) static var currentBufferSize: AVAudioFrameCount = normalBufferSize
 
     /// Calculate IO buffer duration for AVAudioSession
     static func ioBufferDuration(for sampleRate: Double) -> TimeInterval {

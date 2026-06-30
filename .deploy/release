@@ -1,22 +1,24 @@
-build: 2026-06-30 v10.76.48 (Menu freeze WHILE biofeedback runs — root cause fixed)
+build: 2026-06-30 v10.76.49 (Stable audio — no dropouts/crackle · Visuals tidy)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: Direct fix for "Sobald Biofeedback läuft kann ich nicht mehr in den Dropdown-
-  Menüs auswählen." This is the LAST piece of the menu-freeze story — it only happened
-  while the camera pulse was active, which earlier (10.76.41/43/47) fixes didn't touch.
-  • ROOT CAUSE: the camera fed the pulse analyzer with ONE main-thread task PER FRAME
-    (~30/second), submitted from the camera's background queue. That flood of tiny
-    main-thread jobs starved the UI, so an open dropdown (Genre/Tonart) stopped
-    responding the moment biofeedback ran.
-  • FIX: the camera now just drops each frame's 3 colour values into a lock-protected
-    buffer (no main-thread hop at all); the existing 10×/s pulse loop empties that buffer
-    and feeds the analyzer in one batch on the main thread. Result: 0 per-frame tasks →
-    the UI stays free → dropdowns stay selectable WHILE the pulse runs. Frame timestamps
-    are carried through so the heart-rate maths is unchanged.
-  • ALSO: adaptive refractory for the pulse detector — spaces detected beats at ~½ the
-    estimated beat period (0.30–0.60 s) to reject the "dicrotic notch" double-count that
-    was inflating BPM on a weak/rounded fingertip signal the other guards couldn't catch.
-  Reviewed (concurrency + build): GO, 0 issues. No new sheets / no launch-crash surface.
-  Test: 10.76.48 → start the camera pulse (Well), then open Compose ▸ Composition ▸
-  Genre/Tonart and change it repeatedly WHILE the pulse is measuring — it must stay open
-  and selectable. Pulse BPM should also read truer (no sudden ~1.3–2× jumps on a shaky
-  finger). If a dropdown STILL freezes during biofeedback, tell me exactly which menu.
+notesT: Two asks: stable audio (keine Aussetzer / kein Kratzen) + a tidier Visuals section
+  (no half-built stubs, regulate what we already have).
+  • AUDIO STABILITY (the dropouts/crackle): an audio-thread audit found the polyphonic
+    synth could run up to 768 additive partials per sample (12 voices × 64 harmonics) — far
+    over a phone's real-time budget on dense chords, so the render missed its deadline →
+    buffer underruns heard as dropouts/crackle. Regulated WITHOUT a new subsystem, just
+    sane caps: voices 12→8, harmonics 64→32 (still rich — most energy is in the first ~16),
+    and the audio buffer 256→512 frames (render deadline 5.3 ms→10.7 ms, still well under
+    the 15 ms limit). Net: worst-case partials drop ~3× AND there's 2× more time to render
+    them — dense chords now stay inside the deadline. The deliberate 2-voice unison
+    "richness" is untouched. (Next levers if anything still crackles: a one-time pop when
+    switching to the named instrument patches — a small allocation that should move off the
+    audio thread — and a denormal-flush in release tails; both noted for a focused follow-up.)
+  • VISUALS TIDY: the fully-built "Prism" look (spectral dispersion) was implemented in the
+    shader but never shown in the picker — now added to both the Look strip and the Blend
+    strip, so every shipped look is reachable. Deleted a dead 271-line compute-shader stub
+    (VisualRendererKernels.metal — five kernels, zero wiring) — exactly the kind of unfinished
+    stub to keep out. No behaviour change beyond Prism becoming selectable.
+  Build-checked. Test: 10.76.49 → play a full chord-heavy take (with bio on) and listen —
+  it should be clean, no dropouts/crackle. Open the immersive visual → "Prism" now appears
+  in the Look strip and as a Blend partner. Tell me if any crackle remains (and whether it's
+  steady, on patch-change, or in the silent tail — that points to the next specific fix).
