@@ -478,13 +478,21 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     }
 
     // ── Visual styles — each returns a scalar field in ~[0,1] ───────────────────
-    // STYLE 0 — wave INTERFERENCE rings: a second ring system detuned by coherence
-    // (high = aligned/constructive, low = turbulent moiré) beats against the first.
+    // STYLE 0 — wave INTERFERENCE rings. Two radial wave trains, the second detuned by
+    // coherence, are SUPERPOSED (added) and the visible field is their INTENSITY = |amplitude|²
+    // — the physically correct quantity (energy ∝ amplitude²), which yields crisp bright
+    // fringes on a dark field instead of a soft sinusoidal wash (the old `0.5+0.5·sin`
+    // gradient-haze that read as a blurry rainbow and broke the "no soft gradients" rule).
+    // Coherence does double duty, physically: it both detunes the second train (high = nearly
+    // aligned → wide ordered fringes; low = turbulent moiré beat) AND sharpens the fringes
+    // (coherent light interferes into thin crisp maxima; incoherent washes out).
     float fieldRings(float d, float density, float phase, float coh) {
-        float rings  = 0.5 + 0.5 * sin(d * density - phase);
-        float detune = mix(1.6, 1.04, coh);
-        float rings2 = 0.5 + 0.5 * sin(d * density * detune - phase * 0.5);
-        return mix(rings, rings * rings2, 0.5);
+        float w1 = sin(d * density - phase);
+        float detune = mix(1.6, 1.02, coh);                 // high coh → near-unison, ordered
+        float w2 = sin(d * density * detune - phase * 0.5);
+        float interf = (w1 + w2) * 0.5;                     // superposition, [-1,1]
+        float intensity = interf * interf;                  // energy = amplitude² → crisp fringes
+        return pow(intensity, mix(1.0, 2.6, coh));          // coherence sharpens the maxima
     }
     // STYLE 1 — CHLADNI nodal figures: eigenmodes of a vibrating square plate,
     // s = cos(mπx)cos(nπy) − cos(nπx)cos(mπy); sand gathers on the nodal lines (s≈0).
