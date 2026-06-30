@@ -1,24 +1,13 @@
-build: 2026-06-30 v10.76.50 (Menu-freeze ROOT CAUSE found + camera fps-collapse fix)
+build: 2026-06-30 v10.76.51 (Steadier pulse readout — trust autocorrelation earlier)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: The recurring "kann während Biofeedback nicht mehr in den Dropdowns auswählen" —
-  finally the ACTUAL cause, one level above where I'd been looking.
-  • ROOT CAUSE (menu freeze): the persistent top bar (WorkspaceView.topBar — it sits ABOVE
-    every surface) read the live pulse waveform/BPM directly to feed the little header pulse
-    monitor. The waveform updates ~10×/s while biofeedback runs, so WorkspaceView — the PARENT
-    of the whole instrument — rebuilt 10×/s, and every rebuild tore down any open dropdown in
-    the surface below it (Compose/Mood/Effects). Earlier fixes all checked the instrument view
-    (EchoelStudioView) and correctly found it clean — but the churn was in the ROOT above it,
-    so it was never seen. FIX: the live reads now live inside the small monitor leaf
-    (PulseMonitorMiniLive); WorkspaceView no longer subscribes to the 10 Hz signal, so the
-    surface tree (and your open menus) stays still while bio runs. This is the real fix.
-  • CAMERA fps-collapse (from your pasted log): the first lock worked (≈54 bpm), but after you
-    lifted/replaced the finger the camera frame rate fell to ~3 fps (log: rate 15→4.8→3.1) and
-    the pulse could never re-lock. Cause: exposure lock used plain ".locked", which freezes
-    whatever long exposure the dim fingertip scene last chose — a long exposure forces a low
-    frame rate. FIX: lock with a bounded custom exposure (≤1/30 s) so the frame rate can't drop
-    below ~30 fps (and it saturates less). Reacquisition should now re-lock instead of stalling
-    at rate≈3.
-  Build-checked. Test: 10.76.50 → start the camera pulse, then open Compose ▸ Composition ▸
-  Genre/Tonart (and Mood, Effects) and change them repeatedly WHILE measuring — they must stay
-  open and selectable. Lift + replace your finger → it should re-lock (no rate≈3 stall). If a
-  dropdown STILL freezes, tell me — but this was the measured parent-rebuild cause.
+notesT: From three device pulse logs: the engine locks cleanly with good contact (one read
+  held 50–51 bpm at conf 0.95; another hit acf 0.83 at 64 bpm). The visible wander (bpm
+  jumping 62→106→72) tracked weak contact where discrete peak-counting gets noisy — but the
+  autocorrelation estimate stayed steady (50–65) the whole time, and was already reliable down
+  to acf≈0.4, a band the smoother previously ignored (it only trusted autocorrelation at ≥0.5).
+  FIX: lower that trust gate 0.5→0.4 so the steady fundamental anchors the readout from the
+  moment it's reliable, instead of letting the noisy peak-count lead on moderate signals. Pure
+  change + unit tests; the octave/EMA guards upstream still protect against a wrong harmonic.
+  NOTE: one log still showed the camera frame rate collapsing (rate→6.6) — that's the fps fix
+  already in 10.76.50, which this device hadn't received yet. Test 10.76.51 once installed: a
+  resting pulse readout should hold steadier (fewer big jumps) on a normal fingertip contact.

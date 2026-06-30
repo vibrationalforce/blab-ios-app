@@ -88,9 +88,18 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
     }
 
     func testAutoTrust_weakPeriodicity_leavesEstimate() {
-        // At/below the 0.5 gate, peak-counting still leads (low-SNR fingertip windows).
-        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.5), 100, accuracy: 0.001)
-        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.45), 100, accuracy: 0.001)
+        // At/below the 0.4 gate, peak-counting still leads (low-SNR fingertip windows).
+        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.4), 100, accuracy: 0.001)
+        XCTAssertEqual(A.autoTrust(estimate: 100, autoBPM: 75, autoStrength: 0.35), 100, accuracy: 0.001)
+    }
+
+    func testAutoTrust_moderateAcfNowPulls() {
+        // Data-backed (device logs 2026-06-30): autocorrelation is reliable from acf≈0.4,
+        // exactly where peak-counting wanders — so a MODERATE 0.5 now nudges the estimate
+        // toward the steady fundamental instead of leaving it to chase the noisy count.
+        let pulled = A.autoTrust(estimate: 100, autoBPM: 60, autoStrength: 0.5)
+        XCTAssertLessThan(pulled, 100)
+        XCTAssertGreaterThan(pulled, 60)
     }
 
     func testAutoTrust_pullIsCappedAt80Percent() {

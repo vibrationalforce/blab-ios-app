@@ -617,17 +617,17 @@ final class CameraAnalyzer {
     /// ~1.3–1.7×, which is neither ≈2× nor ≈½×). Autocorrelation reports the true
     /// fundamental period directly, so when it is usable we lean the estimate that way.
     ///
-    /// STRENGTHENED (device-log 2026-06-28): across a long read the autocorrelation `auto`
-    /// sat rock-steady at 53–58 bpm while discrete peak-counting wandered 51–87 — even at
-    /// MODERATE acf (0.5–0.7), the band that dominates real fingertip contact. The first
-    /// curve (gate 0.55, max 0.5, ≈0 weight at 0.6) barely moved the estimate in exactly
-    /// that band, so the published rate kept jumping. Now: gate at 0.5, ramp 0.5→0.85 to a
-    /// 0.8 cap, so a usable periodicity DOMINATES the noisy count (it still contributes ≥20 %,
-    /// and the EMA + octave guards upstream protect against an autocorrelation octave slip).
-    /// Pure (no state) → unit-testable on Linux.
+    /// STRENGTHENED again (device logs 2026-06-30): across THREE long reads the
+    /// autocorrelation `auto` sat steady at 50–65 bpm (acf up to 0.83) while discrete
+    /// peak-counting wandered 62→106→72 — and `auto` was already TRUSTWORTHY down to
+    /// acf≈0.4 (it held 63–65 there), a band the previous 0.5 gate ignored, so those
+    /// moderate windows kept following the noisy count. Now: gate at 0.4 (was 0.5), ramp
+    /// 0.4→0.85 to the same 0.8 cap, so a usable periodicity steadies the readout from the
+    /// moment it becomes reliable. The EMA + octave guards upstream still protect against an
+    /// autocorrelation octave slip. Pure (no state) → unit-testable on Linux.
     nonisolated static func autoTrust(estimate: Double, autoBPM: Double, autoStrength: Double) -> Double {
-        guard estimate > 0, autoBPM > 40, autoStrength > 0.5 else { return estimate }
-        let w = min(0.8, (autoStrength - 0.5) / 0.35 * 0.8)
+        guard estimate > 0, autoBPM > 40, autoStrength > 0.4 else { return estimate }
+        let w = min(0.8, (autoStrength - 0.4) / 0.45 * 0.8)
         return estimate * (1 - w) + autoBPM * w
     }
 
