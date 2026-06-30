@@ -1,17 +1,12 @@
-build: 2026-06-30 v10.76.54 (Visuals overhaul · step 2 — one control set, identical everywhere)
+build: 2026-06-30 v10.76.55 (Pulse: reject hard-press motion — gate 0.25→0.20)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: "Complete and easy to understand/control" pass on the immersive visuals.
-  • DECISIONS (you said decide): colour stays the physically-grounded model — the heard tone's
-    overtone series rendered as drifting colour-clouds (that IS harmony-as-light, and it works);
-    "design meets physics" comes from CRISP physical STRUCTURE per look (the lever I can verify
-    is right), not a blind colour re-plumbing. Rings was the only un-physical "haze" look →
-    already fixed to real interference (step 1, 10.76.53). Chladni/Plasma/Water/Prism are already
-    real wave physics and looked right in your video, so I left the good ones alone.
-  • EASY TO CONTROL (this build): the visual controls were DUPLICATED — the inline Visual panel
-    and the fullscreen VJ overlay each had their own copy of the six adjust fields + preset strip,
-    so they could drift apart and were confusing. Now there's ONE definition each (visualPresetRow
-    + visualAdjustFields), used in both places — the controls are IDENTICAL whether you adjust them
-    in Compose or live over the fullscreen visual. Less to learn, nothing can desync.
-  No behavior change beyond consistency; reviewed (build) before ship. Test: open the Visual panel
-  AND the fullscreen visual — same Look strip, same Preset row, same Intensity/Detail/Motion/
-  Spread/Hue/Saturation, behaving identically in both. Rings should read as crisp interference.
+notesT: First long log from the FIXED build (rate held ~15, no fps collapse) — and it locked
+  strong: ~63 bpm steady for ~60 s at high periodicity (acf 0.8+). The fps fix (10.76.50) +
+  steadier-readout (10.76.51) both landed and work.
+  One clear remaining defect: at the end you pressed harder (amp 0.22–0.33, R≈0.6) and it
+  briefly published WRONG rates (bpm 70→56) because the motion-reject gate (0.25) let those
+  through. The log now shows real clean pulses top out at amp ≈0.16, so I tightened the motion
+  gate 0.25→0.20 — it cleanly rejects hard-press/re-grip windows (0.22+) while keeping every
+  real pulse (≤0.16). Pure change + unit tests.
+  Test 10.76.55: hold a gentle, steady contact → it should lock near your resting rate and HOLD;
+  if you press hard or re-grip, it should drop to "finding…" rather than flash a wrong number.

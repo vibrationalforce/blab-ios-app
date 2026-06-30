@@ -632,14 +632,16 @@ final class CameraAnalyzer {
     }
 
     /// Whether a bandpass-filtered window amplitude is MOTION, not pulse. The red channel
-    /// is normalised ~[0,1]; a real fingertip pulse AC is a small fraction of the DC
-    /// (≈0.5–10 %, device logs: amp ≈ 0.03–0.08). An amplitude this large means the finger
-    /// moved / changed pressure / lifted — a motion artifact whose steady peak count can
-    /// otherwise earn a false "agreement" lock (device log: amp ≈ 0.76, acf ≈ 0.2 locked at
-    /// 105 bpm). The 0.25 gate leaves ~3× margin over the plausible-pulse ceiling. Pure →
-    /// Linux-testable.
+    /// is normalised ~[0,1]; a real fingertip pulse AC is a small fraction of the DC. An
+    /// amplitude this large means the finger moved / changed pressure / lifted — a motion
+    /// artifact whose steady peak count can otherwise earn a false "agreement" lock.
+    /// Gate tightened 0.25 → 0.20 (device logs 2026-06-30): real locks topped out at amp
+    /// ≈0.16 (the strongest clean fingertip pulse), while a hard-press / re-grip published
+    /// WRONG rates at amp 0.22–0.33 that the old 0.25 gate let through (e.g. bpm 70 at
+    /// amp 0.32, conf 0.64). 0.20 cleanly separates the two (1.25× over the 0.16 ceiling)
+    /// without rejecting any observed real pulse. Pure → Linux-testable.
     nonisolated static func isMotionAmplitude(_ amplitude: Float) -> Bool {
-        amplitude > 0.25
+        amplitude > 0.20
     }
 
     /// Minimum inter-beat distance (seconds) for peak detection — an ADAPTIVE refractory
