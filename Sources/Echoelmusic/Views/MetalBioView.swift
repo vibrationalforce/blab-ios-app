@@ -264,6 +264,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // sets the frame rate + detail tier; the bus gives the freshest bio + live note.
         let nowGov = CFAbsoluteTimeGetCurrent()
         MainActor.assumeIsolated {
+            // Aspect EVERY frame from the LIVE drawable size, so the rings are concentric from
+            // the FIRST frame. It used to be set only in drawableSizeWillChange, which on launch
+            // fires late / with a stale size — the first frames then rendered with the default
+            // aspect = 1, which on a tall phone stretches the radial metric into ellipses, so the
+            // rings looked non-concentric until a ROTATION forced a resize (founder: "Kreise am
+            // Anfang viel, bis man das Handy dreht — sie sollen immer concentrisch sein").
+            let ds = view.drawableSize
+            if ds.height > 0 { uniforms.aspect = Float(ds.width / ds.height) }
             let q = governor?.settings
             if let q { view.preferredFramesPerSecond = q.targetFPS }
             let detailScale = q?.visualDetailScale ?? 1

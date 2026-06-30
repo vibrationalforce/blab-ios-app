@@ -1,12 +1,12 @@
-build: 2026-06-30 v10.76.55 (Pulse: reject hard-press motion — gate 0.25→0.20)
+build: 2026-06-30 v10.76.56 (Visual rings concentric from the FIRST frame)
 branch: claude/piano-roll-clip-view-wozlie
-notesT: First long log from the FIXED build (rate held ~15, no fps collapse) — and it locked
-  strong: ~63 bpm steady for ~60 s at high periodicity (acf 0.8+). The fps fix (10.76.50) +
-  steadier-readout (10.76.51) both landed and work.
-  One clear remaining defect: at the end you pressed harder (amp 0.22–0.33, R≈0.6) and it
-  briefly published WRONG rates (bpm 70→56) because the motion-reject gate (0.25) let those
-  through. The log now shows real clean pulses top out at amp ≈0.16, so I tightened the motion
-  gate 0.25→0.20 — it cleanly rejects hard-press/re-grip windows (0.22+) while keeping every
-  real pulse (≤0.16). Pure change + unit tests.
-  Test 10.76.55: hold a gentle, steady contact → it should lock near your resting rate and HOLD;
-  if you press hard or re-grip, it should drop to "finding…" rather than flash a wrong number.
+notesT: Fix: "Die Visual-Kreise sind am Anfang viel, bis man das Handy dreht — sie sollen immer
+  concentrisch sein." Root cause: the renderer's aspect ratio was set ONLY when the drawable
+  size changed (rotation). On launch that callback fires late / with a stale size, so the first
+  frames rendered with aspect = 1 — on a tall phone that stretches the radial metric into
+  ellipses, so the rings looked non-concentric (busy/elliptical) until a rotation forced a
+  resize. Now the aspect is recomputed from the LIVE drawable size every frame, so the rings are
+  perfectly concentric from the very first frame — no rotation needed.
+  Test 10.76.56: open the immersive visual fresh (no rotating) — rings should be round/concentric
+  immediately. (Pulse note: this log was again a flickering contact — finger kept lifting, 6 fps —
+  so it didn't lock; that's contact, not the visual fix.)
