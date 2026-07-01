@@ -92,6 +92,7 @@ final class VideoRecorder {
         let writer = self.writer
         let input = self.videoInput
         let url = self.outputURL
+        let elapsedSnapshot = self.elapsed
         lock.unlock()
 
         guard let writer, let input else {
@@ -107,7 +108,7 @@ final class VideoRecorder {
 
         if writer.status == .completed, let url {
             recordState = .done(url)
-            log.log(.info, category: .video, "VideoRecorder: wrote \(url.lastPathComponent) (\(String(format: "%.1f", elapsed))s)")
+            log.log(.info, category: .video, "VideoRecorder: wrote \(url.lastPathComponent) (\(String(format: "%.1f", elapsedSnapshot))s)")
             return url
         } else {
             let message = writer.error?.localizedDescription ?? "unknown writer error"
