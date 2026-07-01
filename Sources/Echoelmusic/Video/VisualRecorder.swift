@@ -38,20 +38,24 @@ final class VisualRecorder {
 
     // MARK: - Control
 
-    /// Start recording the visual, and — if an audio engine is given — the master mix
-    /// alongside it. The two are combined into one .mp4 on `stop()`.
+    /// Start recording the visual. The master-mix audio is grabbed from the
+    /// always-on ring buffer on `stop()` (last N seconds), so nothing to start here
+    /// but remembering the engine to pull from.
     func start(audio: AudioEngine? = nil) {
         audioEngine = audio
-        _ = audio?.startVideoAudioCapture()
         video.startRecording()
     }
 
-    /// Finish the video + audio and mux them. Returns the final .mp4 (video-only if
-    /// there was no audio engine, nil only if the video itself failed).
+    /// Finish the video, grab the matching tail of master-mix audio, and mux them.
+    /// Returns the final .mp4 (video-only if there was no audio engine, nil only if
+    /// the video itself failed).
     @discardableResult
     func stop() async -> URL? {
         let videoURL = await video.stopRecording()
-        let audioURL = audioEngine?.stopVideoAudioCapture()
+        // Pull the last `duration` seconds of the mix NOW (ends ≈ the video's end →
+        // best-effort alignment). Ring is ~30 s; longer videos get their last 30 s.
+        let duration = video.recordedSeconds()
+        let audioURL = duration > 0.2 ? audioEngine?.captureRecentMixAudio(seconds: duration) : nil
         audioEngine = nil
         guard let videoURL else { return nil }
         guard let audioURL else { return videoURL }

@@ -3,9 +3,10 @@ import AVFoundation
 import Foundation
 
 /// P3 · Video — combines a silent video file (from `VisualRecorder`) with an audio
-/// file (from `MixTapRecorder`) into one shareable `.mp4`. Both are real-time
-/// captures started together, so laying each track at time 0 and trimming to the
-/// shorter of the two keeps them in sync.
+/// file (the last N seconds of the master mix, from RetroCapture's ring buffer via
+/// `AudioEngine.captureRecentMixAudio`) into one shareable `.mp4`. Both windows end
+/// at stop time, so laying each track at time 0 and trimming to the shorter keeps
+/// them in sync (best-effort).
 ///
 /// Uses only high-level, robust APIs (`AVMutableComposition` + the iOS-18
 /// `AVAssetExportSession.export(to:as:)`), so there is no hand-rolled sample
