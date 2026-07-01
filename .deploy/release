@@ -1,15 +1,18 @@
-build: 2026-07-01 v10.77 (Video — record the bio-reactive visual, WITH sound)
-branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch, commit cadf8d0)
+build: 2026-07-01 v10.77.0 (Video — record the bio-reactive visual, WITH sound; crash fix)
+branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch, commit 37b2838)
 notesT: NEW — you can now RECORD your bio-reactive visual as a shareable .mp4 WITH the music.
   Open the fullscreen immersive visual, tap the new Record button (top bar, turns red), let the
   music + biofeedback run, tap Stop → a share sheet appears with the finished .mp4 (H.264 video
   + AAC audio). The recorded picture is the Metal visual your pulse drives (NOT the rPPG
   finger-camera), so there's no interference with pulse measurement.
+  CRASH FIX (was crashing on Record in build 2092): recording the audio no longer taps the audio
+  engine's OUTPUT node — AVFAudio forbids that (the "_isInput" assertion, an immediate crash).
+  Instead we reuse the always-on RetroCapture ring buffer (the last ~30 s of the master mix),
+  read-only, no new tap → no crash.
   Under the hood: VisualRecorder blits the rendered Metal frame → H.264 (VideoRecorder);
-  MixTapRecorder records the final output mix (outputNode) pre-roll-free; VideoMuxer combines
-  them via AVAssetExportSession into one mp4, trimmed to the shorter track for sync.
+  AudioEngine.captureRecentMixAudio pulls the matching tail of the mix from the RetroCapture ring;
+  VideoMuxer combines them via AVAssetExportSession into one mp4, trimmed to the shorter track.
   KNOWN LIMITS this build: A/V sync is best-effort (~tens of ms, not sample-accurate); only the
   Metal visual records (the spectrum-donut mode doesn't yet); no trim UI yet.
   Test 10.77: fullscreen visual → Record → play music/bio → Stop → share the mp4 → confirm it
-  plays with sound and the picture matches. (Compilation verified via the Xcode Compile Check
-  gate; this build is the on-device verification.)
+  plays with sound and the picture matches, AND that tapping Record no longer crashes.
