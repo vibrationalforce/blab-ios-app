@@ -20,10 +20,22 @@ ingest appends synchronously on capture queue, NO per-frame main hop, NSLock-gua
 leaf-read clock). + `VideoRecorderTests.swift` (pure helpers + state). concurrency-reviewer:
 COMPILES clean, found 1 MEDIUM race (unlocked `elapsed` read in stopRecording) → fixed by
 snapshot under lock. Commits fd96b48 (docs), aa40782 (recorder), + race fix.
-**Open / next:** NEXT CYCLE = wire VideoRecorder → CameraCapture + a Record button (Well/
-Visual). CAUTION: CameraCapture is shared with the rPPG bio path — must not disturb bio;
-feed frames via camera's nonisolated onFrame → recorder.ingest (no main hop). Then Trim →
-bio-overlay → AAC audio-mux (later cycles). Verify on TestFlight once a cycle is device-ready.
+**P3 step 2 — record the VISUAL (shipped):** discovery — CameraCapture is `.low`-res + back-cam
++ torch for finger-rPPG AND bio-critical → WRONG video source. On-brand source = the bio-reactive
+Metal visual (body drives image), no rPPG/camera conflict. New `Video/VisualRecorder.swift` blits
+the rendered drawable → pooled CVPixelBuffer (CVMetalTextureCache) → VideoRecorder, on the
+main-thread MTKView draw loop. `MetalBioView`/renderer got an optional `capturesVideo` tap before
+present; `framebufferOnly=!capturesVideo` at creation (NOT per-frame — same-frame flip left the
+first drawable framebuffer-only). Record toggle in the fullscreen VJ top bar (red=recording) +
+cover-scoped share of the .mp4 (reuses ExportedFile; doesn't grow root sheet chain). App injects a
+shared VisualRecorder. Two reviews: concurrency PASS 0-issues; general found framebufferOnly race
+(fixed) + import CoreMedia (added) + Sendable-box the recorder (done, resolves reviewer
+disagreement conservatively). Commits: VisualRecorder feat + review-fixes.
+**Open / next:** device-verify on TestFlight (open fullscreen visual → Record → Stop → Share →
+plays as .mp4). THEN: AAC audio-mux (record the master bus alongside), then trim UI. Only the
+Metal visual records (spectral-donut Canvas path not captured yet). NOTE reviewer disagreement
+logged: a @MainActor final class IS implicitly Sendable in Swift 6 (concurrency reviewer correct);
+kept the @unchecked box anyway for certainty.
 
 
 ### 2026-06-30 — chore: finish Visuals tidy — delete parked bio→visual editor cluster
