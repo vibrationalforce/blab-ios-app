@@ -232,11 +232,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Styles are DISCRETE — snap them on both live and target (no cross-fade between
         // modes). The BLEND between them is what eases (a smooth A↔B morph).
         // 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (spectral dispersion)
-        // · 5 Aurora · 6 Lissajous · 7 Depth Caustics.
-        let s = Float(min(max(style, 0), 7))
+        // · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
+        let s = Float(min(max(style, 0), 9))
         target.style = s
         uniforms.style = s
-        let sb = Float(min(max(styleB, 0), 7))
+        let sb = Float(min(max(styleB, 0), 9))
         target.styleB = sb
         uniforms.styleB = sb
         target.blend = min(max(blend.isFinite ? blend : 0, 0), 1)
@@ -638,6 +638,60 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float net = clamp(0.5 + 0.14 * acc, 0.0, 1.0);
         return pow(net, mix(3.0, 6.0, coh));
     }
+    // Cheap hash (moved up from below so the fractal look can build value noise on it)
+    // → also the sub-LSB dither that removes banding in the dark gradients.
+    float echoelHash(float2 p) {
+        p = fract(p * float2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+    }
+    // Smooth-interpolated lattice (value) noise from the hash — the octave primitive for
+    // the fractal look.
+    float valNoise(float2 p) {
+        float2 i = floor(p);
+        float2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);                       // smoothstep interpolation
+        float a = echoelHash(i);
+        float b = echoelHash(i + float2(1.0, 0.0));
+        float c = echoelHash(i + float2(0.0, 1.0));
+        float d = echoelHash(i + float2(1.0, 1.0));
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+    // STYLE 8 — OSCILLOSCOPE: a glowing beam tracing a tone-derived waveform (fundamental
+    // + two harmonics), scrolling on the slow flash-safe phase; coherence sharpens the
+    // beam and a soft halo makes it read as a scope, not a bare line. Pitch sets the wiggle
+    // frequency, so a higher note draws a busier trace.
+    float fieldScope(float2 p, float toneHz, float phase, float coh) {
+        float b = log2(max(toneHz, 1.0));
+        float k = 3.0 + floor(fract(b * 0.5) * 6.0);       // 3..8 spatial freq from pitch
+        float t = phase * 0.6;                             // slow scroll (≤ flash-safe)
+        float wave = 0.55 * sin(p.x * k + t)
+                   + 0.25 * sin(p.x * k * 2.0 + t * 1.3)
+                   + 0.12 * sin(p.x * k * 3.0 - t * 0.7);
+        wave *= 0.5;                                       // amplitude in screen space
+        float dist = abs(p.y - wave);
+        float thickness = mix(0.05, 0.015, coh);           // coherent → crisper beam
+        float trace = 1.0 - smoothstep(0.0, thickness, dist);
+        float glow  = 0.15 * (1.0 - smoothstep(0.0, 0.4, dist));
+        return clamp(trace + glow, 0.0, 1.0);
+    }
+    // STYLE 9 — FRACTAL: ridged fractal-Brownian-motion (4 value-noise octaves, manually
+    // unrolled — no loops, like fieldWater), drifting slowly and breathing its scale with
+    // respiration; coherence sharpens the ridges into filaments. Pairs beautifully UNDER
+    // the Oscilloscope via the Blend control — "a mix of oscilloscope and fractals".
+    float fieldFractal(float2 p, float phase, float coh, float breath) {
+        float t = phase * 0.3;
+        float2 q = p * mix(2.0, 3.5, breath) + float2(t, -t * 0.6);
+        float n0 = valNoise(q);
+        float n1 = valNoise(q * 2.0);
+        float n2 = valNoise(q * 4.0);
+        float n3 = valNoise(q * 8.0);
+        float sum = 0.5000 * (1.0 - abs(2.0 * n0 - 1.0))
+                  + 0.2500 * (1.0 - abs(2.0 * n1 - 1.0))
+                  + 0.1250 * (1.0 - abs(2.0 * n2 - 1.0))
+                  + 0.0625 * (1.0 - abs(2.0 * n3 - 1.0));
+        return pow(clamp(sum, 0.0, 1.0), mix(1.0, 2.2, coh));
+    }
 
     // Evaluate ONE style → (field, vignette). `d` is the aspect-correct radial distance
     // (for the rings + every style's framing); `pf` is a SQUARE, aspect-independent
@@ -659,15 +713,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         else if (si < 4.5)  field = fieldPrism(pf, phase, coh);
         else if (si < 5.5)  field = fieldAurora(pf, phase, coh, breath);
         else if (si < 6.5)  field = fieldLissajous(pf, toneHz, phase, coh);
-        else                field = fieldDepthCaustics(pf, phase, coh, breath);
+        else if (si < 7.5)  field = fieldDepthCaustics(pf, phase, coh, breath);
+        else if (si < 8.5)  field = fieldScope(pf, toneHz, phase, coh);
+        else                field = fieldFractal(pf, phase, coh, breath);
         return float2(field, vig);
-    }
-
-    // Cheap hash → a sub-LSB dither that removes banding in the dark gradients.
-    float echoelHash(float2 p) {
-        p = fract(p * float2(123.34, 456.21));
-        p += dot(p, p + 45.32);
-        return fract(p.x * p.y);
     }
 
     // Full-screen triangle generated from the vertex id — no vertex buffer needed.
