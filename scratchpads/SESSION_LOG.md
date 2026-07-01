@@ -3,6 +3,36 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-01 — DAW-look reorg (Ralph Wiggum loop, 12h autonomous window)
+Founder: "Bau das alles um — Ralph Wiggum lambda — bis Biofeedback einen guten Platz
+gefunden hat und der Fokus auf multidimensionale Multimedia-Produktion mit DAW-Look ist"
++ "Zieh durch, du kannst 12 Stunden arbeiten. Keine Rückfragen." Executed
+`scratchpads/PLAN_DAW_REORG.md` one cycle per commit; each reviewer-clean (ui-state +
+bio-safety) then pushed → Xcode-compile-check the verifier (no local build). Bottom bar is
+now **Arrange · Clips · Compose · Mix · Bio · Browse**.
+- **Cycle 1 (prior) — Mix surface:** ChannelRackView(embedded:) as `.mix`. v10.77.5.
+- **Cycle 2 — persistent transport bar:** `TransportBar` (Play/Stop → PatternEngine; Tempo =
+  EchoelValueField w/ new compact `boxWidth`) + `TransportPositionView` leaf (~10 Hz
+  bars.beats — freeze-safe, sibling of surfaces). No fake loop button. Commit 038ab81.
+- **Cycle 3 — dedupe:** removed the Channel Rack Tools entry + `openTool` case + `showChannelRack`
+  @State + its `.sheet` now that Mix is a surface (also shrinks the EchoelStudioView body
+  generic type → widens the black-screen margin). Commit 43f9248.
+- **Cycle 4 — Bio SOURCE page (`BioSourceView`):** biofeedback's "good place" as ONE
+  modulation source: arm the body (shares the one `cameraRPPG`, idempotent → `isRunning` =
+  truth), live BioStrip+PulseMeasurement leaves, route Body→sound / Body→visual, entrainment
+  band picker + full safety notice. ui-state + bio-safety both clean. Commit 8a51e0a.
+- **Cycle 5 — Browser page (`BrowserView`):** Presets (recall a synth sound, favorites-first,
+  Load highlight) + Samples (audition on the preview voice). Freeze-safe (segmented Picker,
+  no high-freq read). Commit f695ea4.
+- **Cycle 6 — Video page: DESIGNED + DEFERRED** — `scratchpads/PLAN_VIDEO_PAGE.md`. The
+  VisualRecorder capture path / always-on-Metal gating / GPU+battery behaviour can't be
+  proven by compile+review alone; shipping blind during the no-questions window would break
+  the cardinal stability rule. Reuses the proven VisualRecorder when device-verifiable.
+- **Deploy:** batched Cycles 2–5 as **v10.78.0** (transport · Bio · Browser · dedupe). Compile
+  gate green on 8a51e0a (2–4); 5 (f695ea4) verified before the TestFlight push.
+- **Pattern reaffirmed:** every new page = `Surface` enum case + `surfaceLayer` (all mounted),
+  NEVER a WorkspaceView/EchoelStudioView body rewrite; live values read in leaves only.
+
 ## 2026-07-01 — Batch: skills + 2 features + audio route hardening ("mach fertig")
 Founder: "Greb all tasks und mach fertig … Deep Research nach den anderen Skills". Video
 verified first (see below). Then a full pass, one commit each, both reviewer agents clean

@@ -1,15 +1,24 @@
-build: 2026-07-01 v10.77.5 (DAW reorg — Mix page + smoother visual pulse)
+build: 2026-07-01 v10.78.0 (DAW reorg — transport bar · Bio page · Browser · dedupe)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: DAW-look reorg begins. NEW "Mix" page: the Channel Rack (per-track mute/solo/level/
-  FX) is now a first-class workspace tab, so the bottom bar reads Arrange · Clips · Compose ·
-  Mix — a familiar DAW layout, with biofeedback becoming one element rather than the whole
-  app. (More cycles coming: a persistent transport bar, a Bio source lane, a browser, and a
-  video page.)
-  Also: the immersive visual PULSE is now smoothed — on a weak-signal pulse reading the HR
-  could bounce and stutter the on-screen pulse; it now slew-limits + glides slowly so the
-  picture breathes steadily. The measured heart rate stays honest (the pulse detector is
-  unchanged); only the visual is smoothed.
-  Everything from 10.77.4 stands (brainwave entrainment audio+visual; Oscilloscope + Fractal
-  looks; Aurora/Lissajous/Depth; unified Tools; route hardening; projection hint).
-  Test 10.77.5: tap the new "Mix" tab → mute/solo/level per track; open the fullscreen visual
-  and confirm the pulse breathes smoothly (no stutter) even when the finger signal is weak.
+notesT: The DAW-look reorg lands in force. The bottom bar now reads Arrange · Clips ·
+  Compose · Mix · Bio · Browse — a familiar pro-tool layout where biofeedback is one
+  source among many, not the whole app.
+  NEW in this build:
+  1) PERSISTENT TRANSPORT BAR — Play/Stop, the Tempo field, and a moving bars.beats
+     position sit at the top of EVERY page (Ableton/Logic style), always one tap away.
+  2) "Bio" PAGE — biofeedback's own home as a SOURCE: arm your body as an input, watch
+     the live HR/HRV/breath/coherence, choose what it drives (sound timbre, the immersive
+     visual) and set up brainwave entrainment (with the full safety notice).
+  3) "Browse" PAGE — recall synth SOUNDS (presets, favorites-first, one-tap Load) and
+     audition SAMPLES before you use them — the DAW left-column staple.
+  4) TIDY-UP — the Channel Rack is the "Mix" page now, so its old duplicate Tools entry
+     is gone (one thing, one home; also trims the Compose screen's view complexity).
+  Everything from 10.77.5 stands (Mix page, smoothed visual pulse, entrainment audio+
+  visual, Oscilloscope/Fractal/Aurora/Lissajous/Depth looks, route hardening).
+  Test 10.78.0:
+   • transport bar visible on every tab — Play starts the beat, position counts, Tempo
+     drags/types;
+   • Bio tab → Arm bio input, cover the camera+flash, numbers go live, toggle Body→sound
+     and an entrainment band;
+   • Browse tab → Presets: Load a sound then play and hear it; Samples: tap ▶ to preview;
+   • switch tabs freely while a pulse reads — confirm no menu freeze anywhere.

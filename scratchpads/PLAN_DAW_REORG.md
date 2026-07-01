@@ -17,16 +17,21 @@ switcher (`Surface` enum + `surfaceLayer`, all mounted).
 - Biofeedback: always-on BioStrip + rPPG + coherence (currently prominent → to be repositioned).
 
 ## Cycles (one per commit, each shippable)
-1. **Mix surface** — Channel Rack as a first-class page (add `.mix` to Surface). ADDITIVE. ← doing
-2. **Persistent transport bar** — Play/Stop · BPM · position · loop, across all surfaces
-   (in WorkspaceView chrome; leaf-read live values → freeze-safe).
-3. **Dedupe** — remove now-redundant Tools entries that became surfaces ("a name = one thing").
-4. **Biofeedback "a good place"** — a **Bio** source/lane (not the always-on center): a Bio
-   surface OR a track-lane that routes bio → audio/visual, so it's one modulation source
-   among many. Repositions the BioStrip from "the app" to "a source".
-5. **Browser** surface (Sounds/Samples/Presets) — Ableton's left column, from SampleBrowser.
-6. **Video page (DaVinci)** — timeline + clips + the bio-visual as a source. BIG, greenfield
-   (P3/P4); its own sub-plan + device verification.
+1. ✅ **Mix surface** — Channel Rack as a first-class page (`.mix`). Shipped v10.77.5.
+2. ✅ **Persistent transport bar** — Play/Stop · Tempo · bars.beats position across all
+   surfaces (WorkspaceView chrome; position in a leaf → freeze-safe). NO fake loop button
+   (deferred until a real loop region exists). Shipped v10.78.0.
+3. ✅ **Dedupe** — Channel Rack Tools entry/sheet/@State removed now that Mix is a surface
+   ("a name = one thing"; also shrinks the EchoelStudioView body generic type). v10.78.0.
+4. ✅ **Biofeedback "a good place"** — a **Bio** SOURCE surface (`BioSourceView`): arm the
+   body as an input, live metrics, route Body→sound / Body→visual, entrainment + safety.
+   Shares the one `cameraRPPG` with Compose (idempotent → `isRunning` is truth). v10.78.0.
+5. ✅ **Browser** surface (`BrowserView`) — Presets (recall a sound) + Samples (audition).
+   Freeze-safe (segmented Picker, no high-freq read). v10.78.0.
+6. ⏸ **Video page (DaVinci)** — DESIGNED + DEFERRED (needs on-device verification; see
+   `scratchpads/PLAN_VIDEO_PAGE.md`). Not shipped blind during the autonomous window.
+
+**Bottom bar now:** Arrange · Clips · Compose · Mix · Bio · Browse (6 tabs — pro-tool IA).
 
 ## Guardrails
 - Surface adds follow the existing safe pattern (enum case + `surfaceLayer`, all mounted).
