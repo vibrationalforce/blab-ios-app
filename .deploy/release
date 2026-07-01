@@ -1,12 +1,15 @@
-build: 2026-06-30 v10.76.56 (Visual rings concentric from the FIRST frame)
-branch: claude/piano-roll-clip-view-wozlie
-notesT: Fix: "Die Visual-Kreise sind am Anfang viel, bis man das Handy dreht — sie sollen immer
-  concentrisch sein." Root cause: the renderer's aspect ratio was set ONLY when the drawable
-  size changed (rotation). On launch that callback fires late / with a stale size, so the first
-  frames rendered with aspect = 1 — on a tall phone that stretches the radial metric into
-  ellipses, so the rings looked non-concentric (busy/elliptical) until a rotation forced a
-  resize. Now the aspect is recomputed from the LIVE drawable size every frame, so the rings are
-  perfectly concentric from the very first frame — no rotation needed.
-  Test 10.76.56: open the immersive visual fresh (no rotating) — rings should be round/concentric
-  immediately. (Pulse note: this log was again a flickering contact — finger kept lifting, 6 fps —
-  so it didn't lock; that's contact, not the visual fix.)
+build: 2026-07-01 v10.77 (Video — record the bio-reactive visual, WITH sound)
+branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch, commit cadf8d0)
+notesT: NEW — you can now RECORD your bio-reactive visual as a shareable .mp4 WITH the music.
+  Open the fullscreen immersive visual, tap the new Record button (top bar, turns red), let the
+  music + biofeedback run, tap Stop → a share sheet appears with the finished .mp4 (H.264 video
+  + AAC audio). The recorded picture is the Metal visual your pulse drives (NOT the rPPG
+  finger-camera), so there's no interference with pulse measurement.
+  Under the hood: VisualRecorder blits the rendered Metal frame → H.264 (VideoRecorder);
+  MixTapRecorder records the final output mix (outputNode) pre-roll-free; VideoMuxer combines
+  them via AVAssetExportSession into one mp4, trimmed to the shorter track for sync.
+  KNOWN LIMITS this build: A/V sync is best-effort (~tens of ms, not sample-accurate); only the
+  Metal visual records (the spectrum-donut mode doesn't yet); no trim UI yet.
+  Test 10.77: fullscreen visual → Record → play music/bio → Stop → share the mp4 → confirm it
+  plays with sound and the picture matches. (Compilation verified via the Xcode Compile Check
+  gate; this build is the on-device verification.)

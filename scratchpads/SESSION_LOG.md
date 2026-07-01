@@ -48,6 +48,26 @@ shared .mp4 has sound + is in sync). THEN options: (a) simple trim UI, (b) tight
 path too (currently only the Metal visual records). NOTE: a @MainActor final class IS implicitly
 Sendable in Swift 6 (settled).
 
+## 2026-07-01 — CI caught what reviews missed + deployed v10.77
+**PROCESS LESSON (important):** the Xcode Compile Check (Swift-6-strict, `xcode-compile-check.yml`)
+caught real errors that BOTH the SwiftPM CI (`ci.yml`) AND both sub-agent review passes missed.
+`VideoRecorder.swift`: (1) static helpers on a @MainActor class are @MainActor-isolated → can't be
+called from the nonisolated setUpWriterLocked → made them `nonisolated static`; (2) `NSLock.lock()/
+unlock()` are BANNED in an async function → extracted the locked disarm+snapshot in stopRecording()
+into a synchronous `nonisolated` helper. Fixed in cadf8d0; Xcode Compile Check now GREEN.
+RULE GOING FORWARD: after pushing Swift changes, CHECK the Xcode Compile Check run (via GitHub MCP
+actions_list → jq the saved file for name=="Xcode Compile Check") — sub-agent reviews and the
+SwiftPM build are NOT a substitute (SwiftPM uses a laxer concurrency mode than the Xcode project).
+**Deploy mechanics (learned):** no local GitHub token (`.claude/settings.local.json` has none) and
+the GitHub MCP integration lacks actions:write (403 on run_workflow). The token-free path is
+`git push origin +HEAD:deploy` → `deploy-on-tag.yml` dispatches `testflight.yml` (ios, build_only=
+false). `auto-merge-claude.yml` auto-merges claude/** → main on push but its TestFlight trigger is
+DISABLED (quota). `deploy-dryrun` branch = build_only compile check without upload.
+**Shipped:** pushed cadf8d0 to `deploy` → TestFlight build for v10.77 (record the bio-reactive
+visual WITH sound). Awaiting the TestFlight run + founder's on-device test.
+**Open / next after device test:** trim UI · tighten A/V sync (single-writer live mux) · capture
+the spectrum-donut path too. If device shows a defect, diagnose from the log.
+
 
 ### 2026-06-30 — chore: finish Visuals tidy — delete parked bio→visual editor cluster
 Completes the founder's "vermeide komplexen stub und reguliere alles" (after 10.76.49 exposed
