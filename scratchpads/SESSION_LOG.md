@@ -3,6 +3,29 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-01 — Product structure + P3 Video kickoff
+**Strategic:** Founder asked if "ganze Musikprodukte mit Visuals/Video" (bass/leads/drums/
+breakbeats/arrangement/video-edit) is realistic. Audited the REAL repo state: audio/DAW is
+~80% foundationed. Then an external AI "inspiration list" (TCA migration, MusicTheory pkg,
+Fastlane, XcodeGen, privacy audit) — vision-gated: XcodeGen+Fastlane already done, TCA + ext
+MusicTheory REJECTED (contradict real-time arch / already in-house), privacy-audit = the one
+ADOPT. Logged 4 decisions in decisions.csv.
+**Key finding:** P1 "Sound complete" is ALREADY BUILT + wired + tested (PatchEditorView/
+SynthPatch/PatchStore, LoopCutter loop-cut UI, exportMIDI+ShareSheet, ClipView/ArrangementView
+surfaces). The CLAUDE.md "Clips/Arrangement UI not wired" note was STALE → corrected. Wrote
+scratchpads/PLAN_PRODUCT_STRUCTURE_2026-07-01.md (Product/Interface/Architecture, P0..P4).
+**Shipped:** P3 Video step 1 — `Sources/Echoelmusic/Video/VideoRecorder.swift` (H.264 mp4
+AVAssetWriter sink; lazy setup from first frame dims; forward-safe threading: nonisolated
+ingest appends synchronously on capture queue, NO per-frame main hop, NSLock-guarded state,
+leaf-read clock). + `VideoRecorderTests.swift` (pure helpers + state). concurrency-reviewer:
+COMPILES clean, found 1 MEDIUM race (unlocked `elapsed` read in stopRecording) → fixed by
+snapshot under lock. Commits fd96b48 (docs), aa40782 (recorder), + race fix.
+**Open / next:** NEXT CYCLE = wire VideoRecorder → CameraCapture + a Record button (Well/
+Visual). CAUTION: CameraCapture is shared with the rPPG bio path — must not disturb bio;
+feed frames via camera's nonisolated onFrame → recorder.ingest (no main hop). Then Trim →
+bio-overlay → AAC audio-mux (later cycles). Verify on TestFlight once a cycle is device-ready.
+
+
 ### 2026-06-30 — chore: finish Visuals tidy — delete parked bio→visual editor cluster
 Completes the founder's "vermeide komplexen stub und reguliere alles" (after 10.76.49 exposed
 Prism + deleted the dead VisualRendererKernels.metal). Removed the parked, fully-unwired
