@@ -488,6 +488,81 @@ struct EchoelStudioView: View {
 
     // MARK: - Tools (deep editors)
 
+    // MARK: - Tools catalog (ONE source of truth for the grid + the HUD)
+
+    /// Which group a tool belongs to. Both the Tools grid and the bottom HUD menu are
+    /// rendered from `toolItems` filtered by this — so adding a tool ONCE surfaces it in
+    /// BOTH places (fixes the old drift where the HUD silently lacked several tools).
+    private enum ToolCat: CaseIterable { case editors, audioBio, connect, visualLearn }
+
+    /// One simple, single-action tool destination. (The two menu-based tools — Drum
+    /// Samples and MIDI/Health — are inherently sub-menus, so they stay inline in both
+    /// surfaces; everything else flows from this list.)
+    private struct ToolItem: Identifiable { let id: String; let title: String; let icon: String; let cat: ToolCat }
+
+    /// The single catalog. Platform-gated tools are appended under the same `#if` that
+    /// guards their action in `openTool`, so a tool never appears without a live action.
+    private var toolItems: [ToolItem] {
+        var items: [ToolItem] = [
+            ToolItem(id: "pianoroll", title: "Piano Roll", icon: "pianokeys", cat: .editors),
+            ToolItem(id: "sound", title: "Sound", icon: "dial.medium", cat: .editors),
+            ToolItem(id: "channels", title: "Channels", icon: "slider.vertical.3", cat: .editors),
+            ToolItem(id: "automation", title: "Automation",
+                     icon: "point.topleft.down.curvedto.point.bottomright.up", cat: .editors),
+            ToolItem(id: "audioin", title: "Audio In", icon: "mic", cat: .audioBio),
+            ToolItem(id: "audioclip", title: "Audio Clip", icon: "waveform", cat: .audioBio),
+            ToolItem(id: "breathing", title: "Breathing", icon: "wind", cat: .audioBio),
+            ToolItem(id: "meditation", title: "Meditation", icon: "figure.mind.and.body", cat: .audioBio),
+            ToolItem(id: "routing", title: "Routing",
+                     icon: "point.3.connected.trianglepath.dotted", cat: .connect),
+            ToolItem(id: "plugins", title: "Plugins", icon: "puzzlepiece.extension", cat: .connect),
+            ToolItem(id: "broadcast", title: "Broadcast",
+                     icon: "dot.radiowaves.left.and.right", cat: .connect),
+        ]
+        #if canImport(UniformTypeIdentifiers)
+        items.append(ToolItem(id: "importmidi", title: "Import MIDI", icon: "square.and.arrow.down", cat: .editors))
+        #endif
+        #if canImport(MultipeerConnectivity)
+        items.append(ToolItem(id: "livecolabo", title: "Live Colabo", icon: "person.2.wave.2", cat: .connect))
+        #endif
+        #if canImport(MetalKit) && canImport(UIKit)
+        items.append(ToolItem(id: "visual", title: "Visual", icon: "sparkles", cat: .visualLearn))
+        #endif
+        items.append(ToolItem(id: "learn", title: "Learn", icon: "book", cat: .visualLearn))
+        return items
+    }
+
+    /// Central action mapping — the one place a tool id opens its editor. Called by both
+    /// the grid chips and the HUD menu rows.
+    private func openTool(_ id: String) {
+        switch id {
+        case "pianoroll": showPianoRoll = true
+        case "sound": showPatchEditor = true
+        case "channels": showChannelRack = true
+        case "automation": showAutomation = true
+        case "audioin": showInput = true
+        case "audioclip": showAudioClip = true
+        case "breathing": showBreath = true
+        case "meditation": showMeditation = true
+        case "routing": showRouting = true
+        case "plugins": showPlugins = true
+        case "broadcast": showBroadcast = true
+        case "learn": showLearn = true
+        #if canImport(UniformTypeIdentifiers)
+        case "importmidi": midiImportPresented = true
+        #endif
+        #if canImport(MultipeerConnectivity)
+        case "livecolabo": showLiveColabo = true
+        #endif
+        #if canImport(MetalKit) && canImport(UIKit)
+        case "visual": showVisual = true
+        #endif
+        default: break
+        }
+    }
+
+    private func toolItems(_ cat: ToolCat) -> [ToolItem] { toolItems.filter { $0.cat == cat } }
+
     /// The deeper editors, grouped into a CLEAR, collapsible panel (founder: "besser
     /// strukturiert, übersichtlicher … sich aufklappen lässt"). A header with a
     /// chevron unfolds/folds the whole set; inside, tools are grouped by purpose
@@ -521,32 +596,24 @@ struct EchoelStudioView: View {
 
             if toolsExpanded {
                 toolGroup("Editors") {
-                    gridChip("Piano Roll", "pianokeys") { showPianoRoll = true }
-                    gridChip("Sound", "dial.medium") { showPatchEditor = true }
+                    ForEach(toolItems(.editors)) { t in
+                        gridChip(t.title, t.icon) { openTool(t.id) }
+                    }
                     Menu {
                         ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
                             Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
                         }
                     } label: { gridChipLabel("Drum Samples", "waveform") }
-                    gridChip("Channels", "slider.vertical.3") { showChannelRack = true }
-                    gridChip("Automation", "point.topleft.down.curvedto.point.bottomright.up") { showAutomation = true }
-                    #if canImport(UniformTypeIdentifiers)
-                    gridChip("Import MIDI", "square.and.arrow.down") { midiImportPresented = true }
-                    #endif
                 }
                 toolGroup("Audio & Bio") {
-                    gridChip("Audio In", "mic") { showInput = true }
-                    gridChip("Audio Clip", "waveform") { showAudioClip = true }
-                    gridChip("Breathing", "wind") { showBreath = true }
-                    gridChip("Meditation", "figure.mind.and.body") { showMeditation = true }
+                    ForEach(toolItems(.audioBio)) { t in
+                        gridChip(t.title, t.icon) { openTool(t.id) }
+                    }
                 }
                 toolGroup("Connect") {
-                    gridChip("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
-                    gridChip("Plugins", "puzzlepiece.extension") { showPlugins = true }
-                    gridChip("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
-                    #if canImport(MultipeerConnectivity)
-                    gridChip("Live Colabo", "person.2.wave.2") { showLiveColabo = true }
-                    #endif
+                    ForEach(toolItems(.connect)) { t in
+                        gridChip(t.title, t.icon) { openTool(t.id) }
+                    }
                     Menu {
                         // Live MIDI / MPE OUT — the body's take streams to a virtual
                         // "Echoelmusic" source any DAW can record. Off by default.
@@ -566,10 +633,9 @@ struct EchoelStudioView: View {
                     } label: { gridChipLabel("MIDI / Health", "pianokeys.inverse") }
                 }
                 toolGroup("Visual & Learn") {
-                    #if canImport(MetalKit) && canImport(UIKit)
-                    gridChip("Visual", "sparkles") { showVisual = true }
-                    #endif
-                    gridChip("Learn", "book") { showLearn = true }
+                    ForEach(toolItems(.visualLearn)) { t in
+                        gridChip(t.title, t.icon) { openTool(t.id) }
+                    }
                 }
                 Text("Echoel \(Self.appVersionString)")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -621,30 +687,56 @@ struct EchoelStudioView: View {
     /// visible permanent affordances not hidden gestures (WCAG 2.2), non-modal. Solid
     /// semi-transparent fill + 1px border (Uncodixfy — no glass/blur).
     private var quickAccessHUD: some View {
-        HStack(spacing: 10) {
+        @Bindable var midiOut = midiOut
+        #if canImport(HealthKit)
+        @Bindable var healthWriter = healthWriter
+        #endif
+        return HStack(spacing: 10) {
             hudButton(running ? "Stop" : "Play", running ? "stop.fill" : "play.fill",
                       tint: running ? EchoelTheme.text : EchoelTheme.accent) { toggleBiofeedback() }
             #if canImport(MetalKit) && canImport(UIKit)
             hudButton("Visual", "sparkles") { showVisual = true }
             #endif
             Menu {
+                // Both this menu AND the Tools grid render from `toolItems` — one source,
+                // so every tool is reachable from both (the two menu-based specials below
+                // are added to both surfaces too).
                 Section("Editors") {
-                    hudButtonLabelMenu("Piano Roll", "pianokeys") { showPianoRoll = true }
-                    hudButtonLabelMenu("Sound", "dial.medium") { showPatchEditor = true }
-                    hudButtonLabelMenu("Channels", "slider.vertical.3") { showChannelRack = true }
-                    hudButtonLabelMenu("Automation", "point.topleft.down.curvedto.point.bottomright.up") { showAutomation = true }
+                    ForEach(toolItems(.editors)) { t in
+                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
+                    }
+                    Menu {
+                        ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
+                            Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
+                        }
+                    } label: { Label("Drum Samples", systemImage: "waveform") }
                 }
                 Section("Audio & Bio") {
-                    hudButtonLabelMenu("Audio In", "mic") { showInput = true }
-                    hudButtonLabelMenu("Audio Clip", "waveform") { showAudioClip = true }
-                    hudButtonLabelMenu("Breathing", "wind") { showBreath = true }
-                    hudButtonLabelMenu("Meditation", "figure.mind.and.body") { showMeditation = true }
+                    ForEach(toolItems(.audioBio)) { t in
+                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
+                    }
                 }
                 Section("Connect") {
-                    hudButtonLabelMenu("Routing", "point.3.connected.trianglepath.dotted") { showRouting = true }
-                    hudButtonLabelMenu("Plugins", "puzzlepiece.extension") { showPlugins = true }
-                    hudButtonLabelMenu("Broadcast", "dot.radiowaves.left.and.right") { showBroadcast = true }
-                    hudButtonLabelMenu("Learn", "book") { showLearn = true }
+                    ForEach(toolItems(.connect)) { t in
+                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
+                    }
+                    Menu {
+                        Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
+                        Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
+                            .disabled(!midiOut.enabled)
+                        Toggle(isOn: $midiOut.expressionEnabled) { Label("5D Expression (body)", systemImage: "hand.draw") }
+                            .disabled(!midiOut.enabled || !midiOut.mpeEnabled)
+                        #if canImport(HealthKit)
+                        Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
+                        #endif
+                    } label: { Label("MIDI / Health", systemImage: "pianokeys.inverse") }
+                }
+                // "Visual" is already the prominent top-level HUD button → skip it here to
+                // avoid a duplicate; the menu carries the rest of Visual & Learn (Learn).
+                Section("Visual & Learn") {
+                    ForEach(toolItems(.visualLearn).filter { $0.id != "visual" }) { t in
+                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
+                    }
                 }
             } label: {
                 hudLabel("Tools", "square.grid.2x2")
