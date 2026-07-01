@@ -379,7 +379,8 @@ struct EchoelStudioView: View {
                                  motion: visualMotion, spread: visualSpread,
                                  hueShift: visualHue, saturation: visualSaturation,
                                  style: visualStyle, styleB: visualStyleB,
-                                 blend: Float(visualBlend)).ignoresSafeArea()
+                                 blend: Float(visualBlend),
+                                 entrainmentPulseHz: entrainmentVisualPulseHz).ignoresSafeArea()
                 }
                 // Tap the canvas to hide/show the VJ control PANEL — clean for
                 // projection, hands-on for performance. Controls are a solid panel.
@@ -1155,6 +1156,15 @@ struct EchoelStudioView: View {
                 .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Flash-safe (≤3 Hz) visual pulse for the armed entrainment, else 0. Only MANUAL band
+    /// mode couples the visual — a stable, LOW-frequency read (`entrainmentEnabled` +
+    /// `entrainmentManualBand`), so it never reads the 10 Hz auto target in the body (the
+    /// freeze rule). Auto mode keeps the HR-derived pulse.
+    private var entrainmentVisualPulseHz: Double {
+        guard synth.entrainmentEnabled, let band = synth.entrainmentManualBand else { return 0 }
+        return BioEntrainmentDirector.visualHz(for: band)
     }
 
     /// One band chip for the entrainment picker. `nil` = Auto (bio-selected).

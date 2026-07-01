@@ -93,6 +93,9 @@ struct MetalBioView: UIViewRepresentable {
     var styleB: Int = 0
     /// Mix ratio A↔B [0…1] — 0 = pure `style`, 1 = pure `styleB`. The "mischend" control.
     var blend: Float = 0
+    /// Armed brainwave-entrainment visual pulse (Hz, already flash-safe ≤3). When > 0 it
+    /// overrides the HR-derived pulse so the picture breathes WITH the entrainment. 0 = off.
+    var entrainmentPulseHz: Double = 0
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -133,7 +136,8 @@ struct MetalBioView: UIViewRepresentable {
         c.capturesVideo = capturesVideo
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
                   motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
-                  style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion)
+                  style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion,
+                  entrainmentPulseHz: entrainmentPulseHz)
     }
 }
 
@@ -181,12 +185,16 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var lookStyleB: Int = 0
     private var lookBlend: Float = 0
     private var lookReduceMotionAccessibility = false
+    /// Entrainment visual pulse (Hz). When > 0 it OVERRIDES the HR-derived pulse so the
+    /// on-screen pulse follows the armed brainwave band's flash-safe sub-harmonic. Always
+    /// already ≤3 Hz from `BioEntrainmentDirector.visualHz`; the draw loop re-caps anyway.
+    private var lookEntrainmentPulseHz: Double = 0
 
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
     func setLook(toneFallbackHz: Double, intensity: Float, ringDensity: Float, motion: Float,
                  spread: Float, hueShift: Float, saturation: Float, style: Int, styleB: Int,
-                 blend: Float, reduceMotionAccessibility: Bool) {
+                 blend: Float, reduceMotionAccessibility: Bool, entrainmentPulseHz: Double = 0) {
         lookToneFallbackHz = toneFallbackHz
         lookIntensity = intensity
         lookRingDensity = ringDensity
@@ -198,6 +206,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         lookStyleB = styleB
         lookBlend = blend
         lookReduceMotionAccessibility = reduceMotionAccessibility
+        lookEntrainmentPulseHz = entrainmentPulseHz
     }
 
     func configure(device: MTLDevice) {
@@ -304,7 +313,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    toneHz: liveTone,
                    intensity: lookIntensity, ringDensity: lookRingDensity * detailScale,
                    motion: lookMotion, spread: lookSpread,
-                   pulseHz: Float(vp.pulseHz),
+                   // Armed entrainment overrides the HR-derived pulse so the visual
+                   // breathes at the brainwave band's flash-safe sub-harmonic (still
+                   // re-capped ≤3 Hz inside update()).
+                   pulseHz: Float(lookEntrainmentPulseHz > 0 ? lookEntrainmentPulseHz : vp.pulseHz),
                    hueShift: lookHue, saturation: lookSaturation,
                    style: lookStyle, styleB: lookStyleB, blend: lookBlend,
                    reduceMotion: effectiveReduceMotion)

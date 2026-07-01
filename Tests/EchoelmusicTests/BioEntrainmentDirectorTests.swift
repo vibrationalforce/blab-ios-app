@@ -82,4 +82,25 @@ final class BioEntrainmentDirectorTests: XCTestCase {
         let t = D(manualBand: .alpha).target(coherence: 1.0, quality: 0.1)
         XCTAssertFalse(t.isActive)   // bad lock → no stimulus even in manual mode
     }
+
+    // MARK: - EchoelEntrainment.process() signal-path invariants
+
+    /// The isochronic AM must never add clipping to the DDSP master: for a unit DC input
+    /// the gain must stay in [1-depth, 1] over a full cycle at the deepest setting.
+    func testProcess_gainNeverExceedsUnityOrGoesNegative() {
+        let e = EchoelEntrainment(sampleRate: 48000)
+        e.band = .beta
+        e.depth = BioEntrainmentDirector.maxDepth   // 0.6, the deepest the director emits
+        for _ in 0..<200_000 {
+            let y = e.process(1.0)                   // unit DC → y == modulation gain
+            XCTAssertGreaterThanOrEqual(y, 1.0 - Float(BioEntrainmentDirector.maxDepth) - 1e-5)
+            XCTAssertLessThanOrEqual(y, 1.0 + 1e-5)
+        }
+    }
+
+    func testProcess_depthBelowThreshold_isPassthrough() {
+        let e = EchoelEntrainment(sampleRate: 48000)
+        e.depth = 0.005                              // below the 0.01 activity gate
+        XCTAssertEqual(e.process(0.7), 0.7, accuracy: 1e-6)
+    }
 }
