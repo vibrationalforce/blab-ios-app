@@ -86,16 +86,15 @@ final class VideoRecorder {
 
         // Close the ingress and snapshot the writer under the lock. Any in-flight
         // append holds the lock, so it completes before we disarm; any later
-        // ingest re-checks `armed` under the lock and bails.
-        lock.lock()
-        armed = false
-        let writer = self.writer
-        let input = self.videoInput
-        let url = self.outputURL
-        let elapsedSnapshot = self.elapsed
-        lock.unlock()
+        // ingest re-checks `armed` under the lock and bails. The lock/unlock lives in
+        // a SYNCHRONOUS helper — NSLock.lock()/unlock() are unavailable in an async
+        // context (they must not be held across a suspension).
+        let snapshot = disarmAndSnapshot()
+        let writer = snapshot.writer
+        let elapsedSnapshot = snapshot.elapsed
+        let url = snapshot.url
 
-        guard let writer, let input else {
+        guard let writer, let input = snapshot.input else {
             // Armed but no frame ever arrived — nothing to finalize.
             recordState = .idle
             return nil
@@ -121,6 +120,16 @@ final class VideoRecorder {
     func reset() {
         guard recordState != .recording, recordState != .finishing else { return }
         recordState = .idle
+    }
+
+    /// Synchronous, lock-guarded snapshot for `stopRecording` — disarms the ingress
+    /// and returns the writer state. Kept sync (nonisolated) because NSLock.lock()/
+    /// unlock() are banned inside an async function.
+    private nonisolated func disarmAndSnapshot()
+        -> (writer: AVAssetWriter?, input: AVAssetWriterInput?, url: URL?, elapsed: Double) {
+        lock.lock(); defer { lock.unlock() }
+        armed = false
+        return (writer, videoInput, outputURL, elapsed)
     }
 
     /// Seconds written so far. Read from a leaf view (poll / TimelineView) so the
@@ -206,7 +215,7 @@ final class VideoRecorder {
     // MARK: - Pure helpers (unit-testable without a device)
 
     /// H.264 writer settings for the given frame size + target bitrate.
-    static func videoSettings(width: Int, height: Int, bitRate: Int) -> [String: Any] {
+    nonisolated static func videoSettings(width: Int, height: Int, bitRate: Int) -> [String: Any] {
         [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: width,
@@ -221,14 +230,14 @@ final class VideoRecorder {
 
     /// Bitrate heuristic: ~4 bits per pixel-frame, clamped to a sane 2–20 Mbps
     /// so tiny previews aren't wasteful and 1080p isn't starved.
-    static func recommendedBitRate(width: Int, height: Int) -> Int {
+    nonisolated static func recommendedBitRate(width: Int, height: Int) -> Int {
         let pixels = max(0, width) * max(0, height)
         let raw = pixels * 4
         return min(max(raw, 2_000_000), 20_000_000)
     }
 
     /// Unique output URL under Documents/Videos (created if missing).
-    static func makeOutputURL() throws -> URL {
+    nonisolated static func makeOutputURL() throws -> URL {
         guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw RecorderError.noDocumentsDirectory
         }
