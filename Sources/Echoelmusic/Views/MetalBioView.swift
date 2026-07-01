@@ -105,7 +105,12 @@ struct MetalBioView: UIViewRepresentable {
         view.delegate = context.coordinator
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         view.colorPixelFormat = .bgra8Unorm
-        view.framebufferOnly = true
+        // The capture instance keeps its drawable blit-readable for the whole time it is
+        // mounted (fullscreen VJ only), so recording never has to flip this mid-frame —
+        // flipping it in the same draw that then reads `drawable.texture` would leave the
+        // first recorded frame's drawable framebuffer-only (Metal validation failure).
+        // Non-capturing instances keep the framebuffer-only optimization.
+        view.framebufferOnly = !capturesVideo
         view.preferredFramesPerSecond = 60
         view.isPaused = false
         view.enableSetNeedsDisplay = false
@@ -305,11 +310,6 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // Feed the render cadence back to the governor so a sustained FPS drop can
             // demote the tier (lets it back off detail/FPS if the GPU can't keep up).
             governor?.recordFrame(timestamp: nowGov)
-            // While recording the visual, the drawable texture must be blit-readable
-            // (default framebufferOnly=true forbids reading it). Toggle it ONLY when
-            // recording so the normal path keeps the framebuffer-only optimization.
-            let recording = capturesVideo && (visualRecorder?.video.recordState.isRecording ?? false)
-            if view.framebufferOnly == recording { view.framebufferOnly = !recording }
         }
         guard let drawable = view.currentDrawable,
               let pass = view.currentRenderPassDescriptor,
