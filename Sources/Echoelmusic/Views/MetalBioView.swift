@@ -222,11 +222,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // before (the GPU never sees an out-of-range / non-finite value).
         // Styles are DISCRETE — snap them on both live and target (no cross-fade between
         // modes). The BLEND between them is what eases (a smooth A↔B morph).
-        // 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (spectral dispersion).
-        let s = Float(min(max(style, 0), 4))
+        // 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (spectral dispersion)
+        // · 5 Aurora · 6 Lissajous · 7 Depth Caustics.
+        let s = Float(min(max(style, 0), 7))
         target.style = s
         uniforms.style = s
-        let sb = Float(min(max(styleB, 0), 4))
+        let sb = Float(min(max(styleB, 0), 7))
         target.styleB = sb
         uniforms.styleB = sb
         target.blend = min(max(blend.isFinite ? blend : 0, 0), 1)
@@ -576,6 +577,55 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float shimmer = 0.5 + 0.5 * sin(p.x * 6.0 + phase * 0.6) * cos(p.y * 5.0 - phase * 0.4);
         return clamp(mix(0.80, 0.94, coh) + 0.10 * shimmer, 0.0, 1.0);
     }
+    // STYLE 5 — AURORA: soft vertical curtains that wave horizontally and breathe,
+    // like northern lights — for ambient/installation looks. Two offset bands drift on
+    // the slow flash-safe phase; coherence tightens the curtain edge (ordered vs diffuse).
+    // Colour comes from the tone (physical-colour default), so a low tone reads warm, a
+    // high tone cool — a real pitch→hue aurora. Pure sin (no loop), compile-safe.
+    float fieldAurora(float2 p, float phase, float coh, float breath) {
+        float t = phase * 0.35;                                   // slow drift
+        float wave = sin(p.x * 2.2 + t) * 0.35 + sin(p.x * 4.7 - t * 0.6) * 0.15;
+        float edge = mix(0.55, 0.30, coh);                        // coherence sharpens
+        float curtain = 1.0 - smoothstep(0.0, edge, abs(p.y - wave));
+        float wave2 = sin(p.x * 3.1 - t * 0.8) * 0.30;
+        float curtain2 = 1.0 - smoothstep(0.0, 0.45, abs(p.y + 0.4 - wave2));
+        float breathe = 0.8 + 0.2 * sin(phase * 0.5);             // gentle
+        return clamp((curtain + curtain2 * 0.6) * breathe, 0.0, 1.0);
+    }
+    // STYLE 6 — LISSAJOUS: woven nodal figures from two tone-derived axis frequencies
+    // (a harmonograph weave). The x/y integer ratios come from the sounding TONE via
+    // log2, so pitch shapes the figure; coherence sharpens the lines; the slow phase
+    // rotates it. Distinct from Chladni (plate eigenmodes) — this is curve interference.
+    float fieldLissajous(float2 p, float toneHz, float phase, float coh) {
+        float b = log2(max(toneHz, 1.0));
+        float a = 2.0 + floor(fract(b * 0.50) * 4.0);            // 2..5
+        float c = 3.0 + floor(fract(b * 0.37 + 0.3) * 4.0);      // 3..6
+        float t = phase * 0.5;
+        float x = sin(a * p.x * 3.14159265 + t);
+        float y = sin(c * p.y * 3.14159265 + t * 0.8);
+        float w = mix(0.16, 0.045, coh);                         // coherence sharpens
+        return 1.0 - smoothstep(0.0, w, abs(x - y));
+    }
+    // STYLE 7 — DEPTH CAUSTICS: three superposed caustic layers at increasing scale
+    // and decreasing brightness → a parallax/occlusion sense of depth (deeper filaments
+    // finer + dimmer), like light through deep water. Manually unrolled (no loop, like
+    // fieldWater) for compile safety; slow flash-safe phase only; coherence brightens
+    // the crests into caustic filaments.
+    float fieldDepthCaustics(float2 p, float phase, float coh, float breath) {
+        float t = phase * 0.4;
+        float s = mix(3.0, 5.0, breath);
+        float w0 = sin(p.x * s + t) * cos(p.y * s - t * 0.8)
+                 + sin(length(p) * (s + 2.0) - t * 1.1);
+        float s1 = s * 1.7;
+        float w1 = sin(p.x * s1 + t + 1.3) * cos(p.y * s1 - t * 0.8 + 1.0)
+                 + sin(length(p) * (s1 + 2.0) - t * 1.1 - 1.0);
+        float s2 = s1 * 1.7;
+        float w2 = sin(p.x * s2 + t + 2.6) * cos(p.y * s2 - t * 0.8 + 2.0)
+                 + sin(length(p) * (s2 + 2.0) - t * 1.1 - 2.0);
+        float acc = w0 + 0.55 * w1 + 0.30 * w2;
+        float net = clamp(0.5 + 0.14 * acc, 0.0, 1.0);
+        return pow(net, mix(3.0, 6.0, coh));
+    }
 
     // Evaluate ONE style → (field, vignette). `d` is the aspect-correct radial distance
     // (for the rings + every style's framing); `pf` is a SQUARE, aspect-independent
@@ -594,7 +644,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         else if (si < 1.5)  field = fieldChladni(pf, toneHz, phase, coh);
         else if (si < 2.5)  field = fieldPlasma(pf, phase, coh);
         else if (si < 3.5)  field = fieldWater(pf, phase, coh, breath);
-        else                field = fieldPrism(pf, phase, coh);
+        else if (si < 4.5)  field = fieldPrism(pf, phase, coh);
+        else if (si < 5.5)  field = fieldAurora(pf, phase, coh, breath);
+        else if (si < 6.5)  field = fieldLissajous(pf, toneHz, phase, coh);
+        else                field = fieldDepthCaustics(pf, phase, coh, breath);
         return float2(field, vig);
     }
 

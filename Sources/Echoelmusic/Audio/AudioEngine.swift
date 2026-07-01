@@ -230,14 +230,20 @@ public final class AudioEngine {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                // Only act if the OS actually stopped us; a healthy engine that
-                // simply re-mapped its output needs no restart.
-                guard !self.masterEngine.isRunning, self.isRunning || self.degraded else {
-                    // Engine still running OR we were intentionally stopped — clear
-                    // any stale recovery counter and do nothing.
-                    if self.masterEngine.isRunning { self.recoveryAttempts = 0 }
+                // A healthy engine that simply re-mapped its output needs no restart —
+                // BUT the route may have switched the hardware sample rate (e.g. the
+                // rPPG camera activating mid-session drops it to 44.1 kHz). Re-install
+                // the RetroCapture tap so its capture sample rate tracks the NEW format;
+                // otherwise a retroactive capture/export would be pitch-shifted
+                // ("viel höher"). install() is idempotent (removes the old tap first).
+                if self.masterEngine.isRunning {
+                    self.recoveryAttempts = 0
+                    self.retroCapture.install(on: self.masterEngine)
                     return
                 }
+                // Engine actually stopped or we were intentionally stopped: recover only
+                // if we were meant to be running.
+                guard self.isRunning || self.degraded else { return }
                 self.recoverEngine(reason: "engine configuration changed")
             }
         }

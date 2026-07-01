@@ -3,6 +3,29 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-01 — P3 Video crash fix + captured-audio pitch fix (DEVICE-VERIFIED)
+**Crash fix (DEVICE-CONFIRMED):** Record crashed on tap (build 2092, `_isInput`) — `MixTapRecorder`
+tapped `AVAudioEngine.outputNode`, which AVFAudio forbids (only mixer/input nodes tappable).
+Deleted MixTapRecorder; audio now comes read-only from the always-on `RetroCapture` ring via
+`AudioEngine.captureRecentMixAudio(seconds:)`. Founder confirmed "Läuft" — no more crash.
+**Captured-audio pitch fix (DEVICE-VERIFIED via uploaded .mp4):** the recorded .mp4 sounded
+"viel höher + unruhig" vs. live. Root cause: `RetroCapture` hard-wired 48000 Hz everywhere
+(ring sizing, captureRecent, writePreRoll, snapshot, output file format), but the tap installs
+with the mixer's ACTUAL format — iOS grants 44100 Hz once the rPPG camera route is active. So
+44.1k samples were written into a 48k-stamped file → played ~9% too fast (higher + off timing).
+Live was fine (straight to HW at real rate); only the exported file was wrong. Fix: capture the
+tap's real `format.sampleRate` in `install(on:)` into `captureSampleRate` and use it for the
+output file format AND all seconds↔frames math. Ring stays sized for 48k max (lower rate = a bit
+more pre-roll). Commit c60b9c9 → TestFlight build 2097 (v10.77.1), CI green.
+**VERIFICATION:** founder's uploaded output .mp4 parsed via MP4 atom probe — audio track
+timescale/samplerate = **44100 Hz**, dur 6.80 s; video 6.77 s → in sync, correct rate. Pitch bug
+GONE. (Could not render frames — no ffmpeg in sandbox — but container metadata is conclusive.)
+**LESSON (added to patterns):** RetroCapture/any tap-backed capture MUST use the tap's real
+`format.sampleRate`, never a hardcoded rate — the audio route drops to 44.1 kHz when the camera
+is active. A 48k-vs-actual mismatch pitch-shifts every retroactively-captured/exported file.
+**Cleanup:** corrected `.deploy/release` notes (were still describing the deleted outputNode tap)
++ fixed malformed 2-component "v10.77" → valid "v10.77.0"/"v10.77.1" (auto-version regex vX.Y.Z).
+
 ## 2026-07-01 — Product structure + P3 Video kickoff
 **Strategic:** Founder asked if "ganze Musikprodukte mit Visuals/Video" (bass/leads/drums/
 breakbeats/arrangement/video-edit) is realistic. Audited the REAL repo state: audio/DAW is
