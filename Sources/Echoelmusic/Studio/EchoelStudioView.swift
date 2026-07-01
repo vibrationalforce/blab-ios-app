@@ -57,6 +57,9 @@ struct EchoelStudioView: View {
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
+    #if canImport(AVFoundation) && canImport(Metal)
+    @Environment(VisualRecorder.self) private var visualRecorder
+    #endif
 
     // The single live-state flag: biofeedback running or not.
     @State private var running = false
@@ -184,6 +187,9 @@ struct EchoelStudioView: View {
     @State private var showSaveDialog = false
     @State private var saveName = ""
     @State private var share: ExportedFile?
+    /// Finished visual recording, presented via a cover-scoped share sheet (kept
+    /// separate from `share` so it never competes with the root-body share modal).
+    @State private var visualShare: ExportedFile?
     @State private var diagnostics: DiagReport?
 
     // Tools — open the (previously unreachable) editors as sheets.
@@ -366,7 +372,7 @@ struct EchoelStudioView: View {
                     SpectralDonutView(reduceMotion: reduceMotion,
                                       bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
                 } else {
-                    MetalBioView(reduceMotion: reduceMotion, toneHz: currentToneHz,
+                    MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: currentToneHz,
                                  intensity: visualIntensity, ringDensity: visualDetail,
                                  motion: visualMotion, spread: visualSpread,
                                  hueShift: visualHue, saturation: visualSaturation,
@@ -401,6 +407,28 @@ struct EchoelStudioView: View {
                             .font(.title2).foregroundStyle(.white.opacity(0.6))
                     }
                     .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
+                    #if canImport(AVFoundation) && canImport(Metal)
+                    // Record the bio-reactive visual to an .mp4 (rings/prism only — the
+                    // spectrum-donut Canvas isn't Metal, so no capture there yet).
+                    if !spectralDonuts {
+                        Button {
+                            if visualRecorder.isRecording {
+                                Task {
+                                    if let url = await visualRecorder.stop() {
+                                        visualShare = ExportedFile(url: url)
+                                    }
+                                }
+                            } else {
+                                visualRecorder.start()
+                            }
+                        } label: {
+                            Image(systemName: visualRecorder.isRecording ? "stop.circle.fill" : "record.circle")
+                                .font(.title2)
+                                .foregroundStyle(visualRecorder.isRecording ? Color.red : .white.opacity(0.85))
+                        }
+                        .accessibilityLabel(visualRecorder.isRecording ? "Stop recording" : "Record video")
+                    }
+                    #endif
                     Button { showVisual = false } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.title2).foregroundStyle(.white.opacity(0.85))
@@ -410,6 +438,7 @@ struct EchoelStudioView: View {
                 .padding()
             }
             .statusBarHidden(true)
+            .sheet(item: $visualShare) { AnyView(ShareSheet(url: $0.url)) }
         }
         #endif
         .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }

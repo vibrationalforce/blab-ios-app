@@ -71,6 +71,10 @@ struct MetalBioView: UIViewRepresentable {
 
     @Environment(EngineBus.self) private var bus
     @Environment(ResourceGovernor.self) private var governor
+    @Environment(VisualRecorder.self) private var visualRecorder
+    /// Only the instance that owns the record affordance (the fullscreen VJ cover)
+    /// feeds the recorder — keeps a second mounted MetalBioView from double-capturing.
+    var capturesVideo: Bool = false
     var reduceMotion: Bool = false
     /// The instrument's current fundamental (Hz) — its colour is the physical
     /// octave-transposition of this pitch into visible light.
@@ -120,6 +124,8 @@ struct MetalBioView: UIViewRepresentable {
         let c = context.coordinator
         c.bus = bus
         c.governor = governor
+        c.visualRecorder = capturesVideo ? visualRecorder : nil
+        c.capturesVideo = capturesVideo
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
                   motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
                   style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion)
@@ -151,6 +157,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// The live bio/music source — read HERE in `draw(in:)` (the CADisplayLink loop), not
     /// in `updateUIView`, so the ~10 Hz snapshots never churn the SwiftUI graph / overlay.
     weak var bus: EngineBus?
+    /// Optional video-capture sink (set only for the fullscreen VJ instance). When it is
+    /// recording, each rendered frame is blitted into it (see the tap in `draw(in:)`).
+    weak var visualRecorder: VisualRecorder?
+    var capturesVideo = false
 
     // Static, user-set look params forwarded from `updateUIView` (change on user action,
     // not per-frame). The per-frame bio/governor values are pulled in `draw(in:)` and
@@ -295,6 +305,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // Feed the render cadence back to the governor so a sustained FPS drop can
             // demote the tier (lets it back off detail/FPS if the GPU can't keep up).
             governor?.recordFrame(timestamp: nowGov)
+            // While recording the visual, the drawable texture must be blit-readable
+            // (default framebufferOnly=true forbids reading it). Toggle it ONLY when
+            // recording so the normal path keeps the framebuffer-only optimization.
+            let recording = capturesVideo && (visualRecorder?.video.recordState.isRecording ?? false)
+            if view.framebufferOnly == recording { view.framebufferOnly = !recording }
         }
         guard let drawable = view.currentDrawable,
               let pass = view.currentRenderPassDescriptor,
@@ -359,6 +374,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             pass.colorAttachments[0].clearColor =
                 MTLClearColor(red: beat * 0.4, green: beat * 0.2, blue: beat, alpha: 1)
             buffer.makeRenderCommandEncoder(descriptor: pass)?.endEncoding()
+        }
+
+        // Video tap: blit this exact rendered frame into the recorder (same command
+        // buffer, before present). Runs on main (this draw loop is the CADisplayLink),
+        // so the @MainActor call is a safe no-op assertion. No-op unless recording.
+        if capturesVideo, let vr = visualRecorder {
+            MainActor.assumeIsolated {
+                vr.capture(from: drawable.texture, in: buffer, device: drawable.texture.device)
+            }
         }
 
         buffer.present(drawable)
