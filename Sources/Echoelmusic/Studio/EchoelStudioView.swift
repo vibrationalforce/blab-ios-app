@@ -204,7 +204,7 @@ struct EchoelStudioView: View {
     @State private var showLearn = false
     @State private var showBroadcast = false
     @State private var showPatchEditor = false
-    @State private var showChannelRack = false
+    // (showChannelRack removed — the Channel Rack is now the first-class "Mix" workspace surface.)
     @State private var showAutomation = false
     @State private var showAudioClip = false
     /// Presents a file picker to import a Standard MIDI File onto the piano roll.
@@ -342,7 +342,6 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
         .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
         .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
-        .sheet(isPresented: $showChannelRack) { AnyView(ChannelRackView().echoelSheetPanel()) }
         .sheet(isPresented: $showAutomation) { AnyView(AutomationView().echoelSheetPanel()) }
         .sheet(isPresented: $showAudioClip) { AnyView(AudioClipView().echoelSheetPanel()) }
         #if canImport(UniformTypeIdentifiers)
@@ -508,7 +507,7 @@ struct EchoelStudioView: View {
         var items: [ToolItem] = [
             ToolItem(id: "pianoroll", title: "Piano Roll", icon: "pianokeys", cat: .editors),
             ToolItem(id: "sound", title: "Sound", icon: "dial.medium", cat: .editors),
-            ToolItem(id: "channels", title: "Channels", icon: "slider.vertical.3", cat: .editors),
+            // "Channels" is now the first-class Mix workspace surface — not duplicated here.
             ToolItem(id: "automation", title: "Automation",
                      icon: "point.topleft.down.curvedto.point.bottomright.up", cat: .editors),
             ToolItem(id: "audioin", title: "Audio In", icon: "mic", cat: .audioBio),
@@ -540,7 +539,6 @@ struct EchoelStudioView: View {
         switch id {
         case "pianoroll": showPianoRoll = true
         case "sound": showPatchEditor = true
-        case "channels": showChannelRack = true
         case "automation": showAutomation = true
         case "audioin": showInput = true
         case "audioclip": showAudioClip = true
