@@ -419,7 +419,7 @@ struct EchoelStudioView: View {
                                     }
                                 }
                             } else {
-                                visualRecorder.start()
+                                visualRecorder.start(audio: audioEngine)
                             }
                         } label: {
                             Image(systemName: visualRecorder.isRecording ? "stop.circle.fill" : "record.circle")

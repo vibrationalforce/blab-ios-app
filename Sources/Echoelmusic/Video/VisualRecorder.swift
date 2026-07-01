@@ -34,12 +34,32 @@ final class VisualRecorder {
 
     var isRecording: Bool { video.recordState.isRecording }
 
+    @ObservationIgnored private weak var audioEngine: AudioEngine?
+
     // MARK: - Control
 
-    func start() { video.startRecording() }
+    /// Start recording the visual, and — if an audio engine is given — the master mix
+    /// alongside it. The two are combined into one .mp4 on `stop()`.
+    func start(audio: AudioEngine? = nil) {
+        audioEngine = audio
+        _ = audio?.startVideoAudioCapture()
+        video.startRecording()
+    }
 
+    /// Finish the video + audio and mux them. Returns the final .mp4 (video-only if
+    /// there was no audio engine, nil only if the video itself failed).
     @discardableResult
-    func stop() async -> URL? { await video.stopRecording() }
+    func stop() async -> URL? {
+        let videoURL = await video.stopRecording()
+        let audioURL = audioEngine?.stopVideoAudioCapture()
+        audioEngine = nil
+        guard let videoURL else { return nil }
+        guard let audioURL else { return videoURL }
+        if let muxed = await VideoMuxer.mux(video: videoURL, audio: audioURL) {
+            return muxed
+        }
+        return videoURL   // mux failed → return at least the silent video
+    }
 
     // MARK: - Frame tap (main thread, from the Metal draw loop)
 
