@@ -77,6 +77,23 @@ public final class PolySynthVoice {
         didSet { poly.bioModulationEnabled = bioModulationEnabled }
     }
 
+    // MARK: - Brainwave entrainment (biofeedback-driven)
+
+    /// Arm the isochronic brainwave-entrainment stimulus. OFF by default (silent-until-
+    /// armed). When on, the body's coherence + pulse-lock quality drive the band + depth
+    /// via `BioEntrainmentDirector`, applied to every voice's existing `EchoelEntrainment`.
+    /// Low-rate (user toggle) so it is safe as a tracked `@Observable` property.
+    public var entrainmentEnabled = false {
+        didSet { if !entrainmentEnabled { clearEntrainment() } }
+    }
+
+    /// Pinned band, or `nil` for auto (bio-selected). Manual lets the user hold e.g. Theta.
+    public var entrainmentManualBand: BrainwaveBand?
+
+    /// Last computed target — telemetry only. `@ObservationIgnored`: it changes ~10 Hz, so
+    /// reading it in a view body would be the "menus freeze while playing" class.
+    @ObservationIgnored public private(set) var entrainmentTarget: BioEntrainmentTarget = .inactive
+
     // MARK: - Bus subscription state
 
     public private(set) var isSubscribed = false
@@ -277,6 +294,32 @@ public final class PolySynthVoice {
             lfHfRatio: 0.5,
             coherenceTrend: 0
         )
+        applyEntrainment(coherence: frame.coherence,
+                         heartRateBPM: frame.heartRateBPM,
+                         motionEnergy: frame.motionEnergy)
+    }
+
+    /// Drive the isochronic entrainment from the body. Quality gates the depth: a frame
+    /// only carries `heartRateBPM > 0` on a confident pulse lock (the camera publisher
+    /// gates on its lock threshold), and motion degrades it — so a noisy/absent signal
+    /// can never push a strong stimulus. Writes band/depth to every voice's existing
+    /// `EchoelEntrainment` (same main-poll→audio-read path as `applyBioReactive`).
+    private func applyEntrainment(coherence: Float, heartRateBPM: Float, motionEnergy: Float) {
+        guard entrainmentEnabled else { return }
+        let quality: Float = heartRateBPM > 0 ? clampUnit(1 - motionEnergy) : 0
+        let target = BioEntrainmentDirector(manualBand: entrainmentManualBand)
+            .target(coherence: liveCoherence(coherence), quality: quality)
+        entrainmentTarget = target
+        poly.forEachVoice { voice in
+            voice.entrainment.band = target.band
+            voice.entrainment.depth = target.depth
+        }
+    }
+
+    /// Silence the stimulus on every voice (called when entrainment is disarmed).
+    private func clearEntrainment() {
+        poly.forEachVoice { $0.entrainment.depth = 0 }
+        entrainmentTarget = .inactive
     }
 
     private func clampUnit(_ x: Float) -> Float { min(max(x, 0), 1) }
