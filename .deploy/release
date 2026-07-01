@@ -1,15 +1,16 @@
-build: 2026-07-01 v10.77 (Video — record the bio-reactive visual, WITH sound)
-branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch, commit cadf8d0)
-notesT: NEW — you can now RECORD your bio-reactive visual as a shareable .mp4 WITH the music.
-  Open the fullscreen immersive visual, tap the new Record button (top bar, turns red), let the
-  music + biofeedback run, tap Stop → a share sheet appears with the finished .mp4 (H.264 video
-  + AAC audio). The recorded picture is the Metal visual your pulse drives (NOT the rPPG
-  finger-camera), so there's no interference with pulse measurement.
-  Under the hood: VisualRecorder blits the rendered Metal frame → H.264 (VideoRecorder);
-  MixTapRecorder records the final output mix (outputNode) pre-roll-free; VideoMuxer combines
-  them via AVAssetExportSession into one mp4, trimmed to the shorter track for sync.
-  KNOWN LIMITS this build: A/V sync is best-effort (~tens of ms, not sample-accurate); only the
-  Metal visual records (the spectrum-donut mode doesn't yet); no trim UI yet.
-  Test 10.77: fullscreen visual → Record → play music/bio → Stop → share the mp4 → confirm it
-  plays with sound and the picture matches. (Compilation verified via the Xcode Compile Check
-  gate; this build is the on-device verification.)
+build: 2026-07-01 v10.77.1 (Video — fix: captured audio pitch/tempo wrong vs. live)
+branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
+notesT: FIX — the recorded .mp4 sounded higher and restless compared to what you heard
+  live ("das Ergebnis klingt anders als während der Session"). Cause: the master-mix
+  ring buffer was hard-wired to 48 kHz, but with the rPPG camera active iOS runs the
+  audio route at 44.1 kHz — so the captured audio was saved with the wrong rate stamp and
+  played back ~9% too fast (higher pitch + off timing). It now uses the REAL capture rate
+  for the file and all frame math, so the exported audio matches the live sound.
+  Everything else from 10.77 stands: fullscreen immersive visual → Record (top bar, turns
+  red) → play music/bio → Stop → share the .mp4 (Metal visual + master-mix audio). Record
+  no longer crashes (the 2092 _isInput crash was fixed — audio now comes from the read-only
+  RetroCapture ring, no illegal outputNode tap).
+  KNOWN LIMITS: A/V sync is best-effort; only the Metal visual records (not the spectrum
+  donut); no trim UI yet.
+  Test 10.77.1: with a finger on the camera (rPPG running), record a short clip → Stop →
+  play the shared .mp4 → confirm the audio pitch/tempo now matches what you heard live.

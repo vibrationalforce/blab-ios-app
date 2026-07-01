@@ -68,6 +68,26 @@ visual WITH sound). Awaiting the TestFlight run + founder's on-device test.
 **Open / next after device test:** trim UI · tighten A/V sync (single-writer live mux) · capture
 the spectrum-donut path too. If device shows a defect, diagnose from the log.
 
+## 2026-07-01 — CRASH on Record (build 2092) → fixed (build 2095)
+**Device crash:** tapping Record → `com.apple.coreaudio.avfaudio: required condition is false:
+_isInput`. Cause: `MixTapRecorder` installed an `installTap` on `engine.outputNode` — AVFAudio
+FORBIDS tapping the output I/O node (asserts `_isInput`). It only crashed at the Record tap, so
+launch/music/pulse were all fine before it. NEITHER the sub-agent reviews NOR the Xcode Compile
+Check caught it — it's a RUNTIME assertion, only a device (or a real audio-graph run) surfaces it.
+**RULE:** never `installTap` on `outputNode`. Tap a mixer node. The full mix is available via
+`mainMixerNode` — but it's already tapped (RetroCapture) and masterMixer is tapped (meter); one
+tap per bus. So DON'T add a tap at all — reuse `RetroCapture.captureRecent(seconds:)` (always-on
+ring, read-only, no tap). Fix commit 37b2838: deleted MixTapRecorder; AudioEngine.captureRecentMixAudio
+→ retroCapture.captureRecent; VisualRecorder pulls the last `video.recordedSeconds()` of mix at stop.
+**PROCESS:** Xcode Compile Check green ≠ crash-free. AVFoundation/audio-graph correctness needs a
+device/TestFlight run. Deploy chain confirmed working: `git push origin +HEAD:deploy` →
+deploy-on-tag.yml → testflight.yml; BUILD_NUMBER = github.run_number; version = vX.Y.Z parsed from
+.deploy/release (must be 3-component — "v10.77" fails the regex, falls back to project default).
+Build 2092 (crashing) and 2095 (fixed) are both version 10.76.56 — distinguish by build number.
+**Next:** confirm 2095 fixes Record on device (tap Record → no crash → .mp4 with sound). THEN the
+deferred items. Also: do a clean deploy bumping .deploy/release to v10.77.0 so the version visibly
+increments (deferred to avoid an extra quota-spending build now).
+
 
 ### 2026-06-30 — chore: finish Visuals tidy — delete parked bio→visual editor cluster
 Completes the founder's "vermeide komplexen stub und reguliere alles" (after 10.76.49 exposed
