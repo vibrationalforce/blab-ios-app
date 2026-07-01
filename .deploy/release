@@ -1,20 +1,21 @@
-build: 2026-07-01 v10.77.2 (New looks · unified Tools · audio route hardening · projection)
+build: 2026-07-01 v10.77.3 (Biofeedback-driven brainwave entrainment — audio + visual)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: This build ships a batch of upgrades — all compile-verified via the Xcode gate.
-  NEW VISUAL LOOKS: three immersive looks join the Look strip (and the Blend-with strip):
-  Aurora (soft northern-lights curtains), Lissajous (tone-driven woven figures), and Depth
-  Caustics (layered light with depth). Open the fullscreen visual → Look → pick one; blend
-  any two.
-  TOOLS REACHABILITY: the bottom "Tools" menu and the Tools grid now come from ONE list, so
-  every tool is reachable from both — the quick menu previously lacked Drum Samples, Import
-  MIDI, Live Colabo and MIDI/Health; they're all there now.
-  AUDIO ROUTE HARDENING: when the rPPG camera switches the audio route mid-session (to
-  44.1 kHz), the capture tap is now re-installed so any recording/export keeps the correct
-  pitch/tempo even if the route flips while playing — a follow-through on the 10.77.1 fix.
-  PROJECTION: the fullscreen visual is a projector surface (chrome-free, screen stays awake,
-  status bar hidden) — mirror it to a beamer/TV via Control Center → Screen Mirroring
-  (AirPlay). A hint in the visual's control panel now points this out. (Dedicated dual-screen
-  is a later cycle.)
-  Test 10.77.2: fullscreen visual → try Aurora/Lissajous/Depth + blend; open the bottom Tools
-  menu and confirm Drum Samples/Import MIDI/MIDI-Health are listed; with rPPG running, record
-  a clip and confirm the pitch still matches live; AirPlay-mirror the visual to a screen.
+notesT: NEW — biofeedback-driven brainwave ENTRAINMENT (audio + visual), science-first.
+  Open Compose → the "Entrainment" panel → Enable. The body drives it: your HRV coherence
+  selects the brainwave band (aroused → Beta, relaxed → Alpha, settled → Theta), and the
+  stimulus only deepens on a good pulse lock. Audio uses gentle isochronic amplitude pulses
+  at the band rate; pin a band (Delta…Gamma) or leave it on Auto (bio-selected). In the
+  fullscreen visual, a pinned band also makes the picture pulse WITH the entrainment — always
+  held under the 3 Hz flash-safety limit.
+  Off by default (silent until you enable it AND a real pulse lock is present). Reviewed for
+  DSP correctness, Swift-6 concurrency, and bio-safety (flash cap, no medical overclaim, no
+  wellness/esoteric wording).
+  SAFETY (also shown in the panel): not while driving or operating machinery; not under the
+  influence of alcohol/drugs; coordinate any therapeutic use with your provider. For self-
+  observation, NOT medical diagnosis. Max 3 Hz visual flash.
+  Also in this build (from 10.77.2): three new visual looks (Aurora/Lissajous/Depth Caustics),
+  unified Tools menu, audio route-change hardening, AirPlay projection hint.
+  Test 10.77.3: Compose → Entrainment → Enable → with a finger on the camera, watch the band
+  follow your coherence (or pin Theta/Alpha); open the fullscreen visual with a pinned band and
+  confirm the picture pulses gently (never a fast flash); confirm audio has a soft rhythmic
+  pulse; toggle off → the pulse stops.
