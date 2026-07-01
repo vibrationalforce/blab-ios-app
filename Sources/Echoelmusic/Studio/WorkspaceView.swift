@@ -19,7 +19,7 @@ struct WorkspaceView: View {
     /// The foreground surfaces. Arrange/Clips are the home (the song); Compose is
     /// the bio-generative instrument, now one tool rather than the whole app.
     enum Surface: String, CaseIterable, Identifiable {
-        case arrange, clips, compose, mix
+        case arrange, clips, compose, mix, bio
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -27,6 +27,7 @@ struct WorkspaceView: View {
             case .clips:   return "Clips"
             case .compose: return "Compose"
             case .mix:     return "Mix"
+            case .bio:     return "Bio"
             }
         }
         var systemImage: String {
@@ -35,6 +36,7 @@ struct WorkspaceView: View {
             case .clips:   return "square.grid.2x2"
             case .compose: return "waveform.path.ecg"
             case .mix:     return "slider.vertical.3"
+            case .bio:     return "heart.fill"
             }
         }
     }
@@ -55,11 +57,14 @@ struct WorkspaceView: View {
         VStack(spacing: 0) {
             topBar
             Divider().overlay(EchoelTheme.border)
+            TransportBar()
+            Divider().overlay(EchoelTheme.border)
             ZStack {
                 surfaceLayer(.arrange) { ArrangementView(embedded: true) }
                 surfaceLayer(.clips)   { ClipView(embedded: true) }
                 surfaceLayer(.compose) { EchoelStudioView() }
                 surfaceLayer(.mix)     { ChannelRackView(embedded: true) }
+                surfaceLayer(.bio)     { BioSourceView() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Divider().overlay(EchoelTheme.border)
@@ -160,6 +165,79 @@ struct WorkspaceView: View {
             }
         }
         .background(EchoelTheme.bg)
+    }
+}
+
+// MARK: - Persistent transport bar (DAW chrome)
+
+/// Always-on transport across every surface (Ableton/Logic-style): Play/Stop on the
+/// left, the Tempo field, and a bars.beats.sixteenths position readout on the right.
+/// A LEAF view (sibling of the surfaces, not an ancestor) so its reads never rebuild
+/// the surface tree. It reads only the LOW-frequency Transport state (isPlaying,
+/// tempo); the ~10 Hz position lives in its own `TransportPositionView` leaf so the
+/// buttons/field don't churn (freeze rule). Play/Stop drives PatternEngine — the
+/// clock that RELAYS into Transport — so the position/tempo shown stay authoritative.
+@MainActor
+private struct TransportBar: View {
+    @Environment(Transport.self) private var transport
+    @Environment(BeatPlayer.self) private var player
+
+    /// Writes tempo through PatternEngine.setTempo (which clamps AND relays into
+    /// Transport), reads back the authoritative Transport tempo.
+    private var tempoBinding: Binding<Double> {
+        Binding(get: { transport.tempo },
+                set: { player.pattern.setTempo($0) })
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button { toggle() } label: {
+                Image(systemName: transport.isPlaying ? "stop.fill" : "play.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
+                    .frame(width: 38, height: 32)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(transport.isPlaying ? "Stop" : "Play")
+
+            EchoelValueField(label: "Tempo", value: tempoBinding,
+                             range: Transport.minTempo...Transport.maxTempo,
+                             unit: "BPM", decimals: 0, boxWidth: 78)
+
+            Spacer(minLength: 0)
+
+            TransportPositionView()
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 44)
+        .background(EchoelTheme.bg)
+    }
+
+    private func toggle() {
+        if transport.isPlaying { player.pattern.stop() }
+        else { player.pattern.play() }
+    }
+}
+
+/// The moving playhead — bars.beats.sixteenths (1-based, DAW convention). Isolated in
+/// its OWN leaf because `transport.position` updates on every step (~10 Hz at 120 BPM);
+/// keeping the read here means only this tiny label rebuilds, never the transport bar's
+/// buttons/field or (crucially) any surface above/below. Monospaced so width is steady.
+@MainActor
+private struct TransportPositionView: View {
+    @Environment(Transport.self) private var transport
+
+    var body: some View {
+        let pos = transport.position
+        let sixteenth = pos.step % Transport.stepsPerBeat
+        Text(String(format: "%d.%d.%d", pos.bar + 1, pos.beat + 1, sixteenth + 1))
+            .font(EchoelTheme.font(14, .medium).monospacedDigit())
+            .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
+            .accessibilityLabel("Position")
+            .accessibilityValue("Bar \(pos.bar + 1), beat \(pos.beat + 1)")
     }
 }
 #endif
