@@ -97,9 +97,10 @@ struct EchoelStudioView: View {
     @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
     /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
     @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
-    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water.
+    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
+    /// · 4 Prism · 5 Aurora · 6 Lissajous · 7 Depth Caustics.
     @AppStorage("visual.style") private var visualStyle = 0
-    /// Secondary style to blend with `visualStyle` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water.
+    /// Secondary style to blend with `visualStyle` (same index space). 0…7 as above.
     @AppStorage("visual.styleB") private var visualStyleB = 0
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
     @AppStorage("visual.blend") private var visualBlend = 0.0
@@ -1063,7 +1064,8 @@ struct EchoelStudioView: View {
         // now joins the strip so every shipped look is reachable (10.76.49 visuals tidy).
         let looks: [(String, Bool, Int)] = [
             ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1),
-            ("Plasma", false, 2), ("Water", false, 3), ("Prism", false, 4)
+            ("Plasma", false, 2), ("Water", false, 3), ("Prism", false, 4),
+            ("Aurora", false, 5), ("Lissajous", false, 6), ("Depth", false, 7)
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -1097,7 +1099,8 @@ struct EchoelStudioView: View {
     private var visualBlendControls: some View {
         if !spectralDonuts {
             let bLooks: [(String, Int)] = [
-                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4)
+                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4),
+                ("Aurora", 5), ("Lissajous", 6), ("Depth", 7)
             ]
             Text("Blend with").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             ScrollView(.horizontal, showsIndicators: false) {
