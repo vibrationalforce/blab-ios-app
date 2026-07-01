@@ -112,16 +112,19 @@ klares, flaches Modell nötig — nicht noch ein Tab. Kandidat: Surfaces = „R�
 Crashfree · kein Menu-Freeze · Pulse lockt bei gutem Kontakt · Audio ohne Aussetzer ·
 Visuals konzentrisch. **Regel: keine Feature-Arbeit auf instabilem Boden.**
 
-### P1 — SOUND COMPLETE (das „ganzer Track"-Fundament) ← EMPFOHLENER START
-Ziel: Aus vorhandenen Voices ein Produkt machen, bei dem der Sound **dir gehört**.
-- **A. Patch-Editor + Presets** — `SynthPatch` (Codable) + `PatchStore` (App-Group) +
-  `PatchEditorView`. Bass/Lead/Drum-Klang editierbar, benannte Presets. *(Params existieren.)*
-- **B. Breakbeat-Slicing im UI** — `LoopCutter` ans UI hängen (Slice/Reorder/1–32 Takte).
-- **C. Arrangement/Clips-Feinschliff** — Capture/Launch, Quantize, Automation sichtbar.
-- **D. Export solide** — Loop/Stem/Master (`SingleExport`) + MIDI mit echten Längen/Velocities.
-- **Design:** alle Parameter über `EchoelValueField`; Editoren als Leaf-Views (Freeze-Regel).
-- **Arch:** `AppGroupStore` einführen; Voices bleiben lock-frei.
-- **Ships:** je Workstream ein TestFlight-Build.
+### P1 — SOUND COMPLETE ✅ BEREITS GEBAUT (Audit 2026-07-01)
+Ziel war: aus vorhandenen Voices ein Produkt machen, bei dem der Sound **dir gehört**.
+Der Audit zeigt: **schon fertig, verdrahtet und getestet** — der Plan war hier veraltet.
+- **A. Patch-Editor + Presets** ✅ `SynthPatch`/`PatchStore`/`AppGroupStore`/`PatchEditorView`
+  (aus `EchoelStudioView` erreichbar; Envelope/Tone/Filter/Space/Vibrato/Unison; Favorites/
+  Community/Save-as/Delete; Live-Apply; `SynthPatchTests`+`PatchLibraryTests`).
+- **B. Breakbeat-Loop-Cut** ✅ `LoopCutter`/`LoopBarLength` im Studio-UI (1–32 Takte).
+  *(Rest-Idee, WATCH: echtes Slice/Chop/Reorder eines Samples — über Loop-Länge hinaus.)*
+- **C. Arrangement/Clips** ✅ `ClipView`/`ArrangementView` als `WorkspaceView`-Surfaces +
+  `ClipStore`/`ArrangementStore`/`AutomationLane`.
+- **D. Export** ✅ MIDI-Export (`exportMIDI()` + `ShareSheet`) + Audio-Master (`SingleExport`).
+- **Voices:** `PolySynthVoice` (poly) + `SubBassVoice` (bass) + `BeatPlayer`+`DrumSynthVoice` (drums).
+- **Konsequenz:** kein Neubau in P1 — Fokus rückt auf P2 (Kohärenz) und P3 (Video).
 
 ### P2 — PERFORM (Kohärenz + Visuals als Output-Säule)
 - Navigation konsolidieren (Räume-Modell), `.sheet`-Kette in eine Enum.
