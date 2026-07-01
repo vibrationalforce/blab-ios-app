@@ -31,11 +31,22 @@ cover-scoped share of the .mp4 (reuses ExportedFile; doesn't grow root sheet cha
 shared VisualRecorder. Two reviews: concurrency PASS 0-issues; general found framebufferOnly race
 (fixed) + import CoreMedia (added) + Sendable-box the recorder (done, resolves reviewer
 disagreement conservatively). Commits: VisualRecorder feat + review-fixes.
-**Open / next:** device-verify on TestFlight (open fullscreen visual → Record → Stop → Share →
-plays as .mp4). THEN: AAC audio-mux (record the master bus alongside), then trim UI. Only the
-Metal visual records (spectral-donut Canvas path not captured yet). NOTE reviewer disagreement
-logged: a @MainActor final class IS implicitly Sendable in Swift 6 (concurrency reviewer correct);
-kept the @unchecked box anyway for certainty.
+**P3 step 3 — audio mux (shipped):** the recorded visual now has SOUND. `Audio/MixTapRecorder`
+taps `outputNode` (mainMixerNode is taken by RetroCapture, masterMixer by the meter — one tap
+per bus) pre-roll-free → LPCM .caf in the node's own format (write can't format-mismatch),
+RetroCapture pattern. `Video/VideoMuxer` composes silent-video + audio via AVMutableComposition
++ iOS-18 `AVAssetExportSession.export(to:as:)` (NOT deprecated exportAsynchronously), trims to
+min(video,audio) → AAC+H.264 mp4. `AudioEngine.start/stopVideoAudioCapture()` (masterEngine
+stays private). `VisualRecorder.start(audio:)`/`stop()` orchestrate + degrade to video-only if
+no audio/mux fails. Record button passes the AudioEngine. BOTH reviews (concurrency + AVFoundation
+API) PASS 0-issues, no fixes. TRADE-OFFS (honest): A/V sync is best-effort (two independent start
+points trimmed to min, offset ~tens of ms — fine for a share clip, not sample-accurate); mux
+re-encodes video via HighestQuality preset (chosen for robustness over passthrough). Commit: audio-mux feat.
+**Open / next:** device-verify on TestFlight (fullscreen visual → Record → music plays → Stop →
+shared .mp4 has sound + is in sync). THEN options: (a) simple trim UI, (b) tighten A/V sync
+(single-writer live mux if founder wants sample-accurate), (c) capture the spectral-donut Canvas
+path too (currently only the Metal visual records). NOTE: a @MainActor final class IS implicitly
+Sendable in Swift 6 (settled).
 
 
 ### 2026-06-30 — chore: finish Visuals tidy — delete parked bio→visual editor cluster
