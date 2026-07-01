@@ -1851,7 +1851,9 @@ struct EchoelStudioView: View {
         regenTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, running else { return }
-            generate()
+            // Re-seeds swap notes into a playing transport; they never restart a
+            // transport the user stopped from the transport bar (see generate()).
+            generate(startTransport: false)
         }
     }
 
@@ -2200,7 +2202,13 @@ struct EchoelStudioView: View {
         return s == 0 ? 1 : s
     }
 
-    private func generate() {
+    /// - Parameter startTransport: when `true` (the user-initiated first generate) this
+    ///   starts the transport if it isn't already running. Background/onChange re-seeds
+    ///   pass `false` so they only swap notes into an ALREADY-playing transport — they
+    ///   must never resurrect a transport the user stopped from the persistent transport
+    ///   bar (the bar's Stop calls `pattern.stop()` directly, leaving the Compose session
+    ///   `running` but silent; without this the ~25–45 s evolve tick would restart it).
+    private func generate(startTransport: Bool = true) {
         lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
         // Compose from a USABLE frame, judged per source: a lifted finger or dropped
         // strap (camera/BLE) expires in seconds, but Apple Watch / HealthKit HR is
@@ -2296,9 +2304,13 @@ struct EchoelStudioView: View {
         // EchoelAI narrates the live bio→sound mapping in plain technical English.
         if let frame { caption.text = BioExplanation.text(for: frame, tempo: tempo) }
         let wasPlaying = beatPlayer.pattern.isPlaying
-        if !wasPlaying { beatPlayer.pattern.play() }
-        if !wasPlaying { metronome.resync() }   // align the click's downbeat to the start
-        EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing")
+        // Start playback only for the user-initiated first generate; a background/onChange
+        // re-seed must not restart a transport the user stopped from the transport bar.
+        if !wasPlaying && startTransport {
+            beatPlayer.pattern.play()
+            metronome.resync()   // align the click's downbeat to the start
+        }
+        EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying)")
     }
 
     /// Apply the live timbre (`currentPatch`) to the running synth without
