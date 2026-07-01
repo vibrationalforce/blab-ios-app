@@ -101,6 +101,10 @@ public final class AudioEngine {
     /// Microphone-over-beats multitrack recorder (EchoelMix REC).
     let multiTrackRecorder = MultiTrackRecorder()
 
+    /// Records the final output mix (outputNode) to a temp file for muxing with a
+    /// visual video recording. Pre-roll-free so it lines up with the video.
+    let mixRecorder = MixTapRecorder()
+
     /// Master mastering chain — EQ + compression + limiting + auto-LUFS.
     let autoMixChain = AutoMixChain()
 
@@ -770,6 +774,17 @@ public final class AudioEngine {
         }
         masterEngine.connect(node, to: masterMixer, format: format)
     }
+
+    // MARK: - Video audio capture (record the mix alongside a visual recording)
+
+    /// Start recording the final output mix to a temp file (for muxing into a video).
+    /// Returns false if the tap could not be installed.
+    @discardableResult
+    func startVideoAudioCapture() -> Bool { mixRecorder.start(on: masterEngine) }
+
+    /// Stop the mix recording and return the written audio file (nil if none).
+    @discardableResult
+    func stopVideoAudioCapture() -> URL? { mixRecorder.stop() }
 
     /// One canonical format for the master-bus FX path — the main mixer's output
     /// (post AutoMixChain, what actually feeds the hardware). Valid-or-nil.
