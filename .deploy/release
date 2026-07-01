@@ -1,14 +1,15 @@
-build: 2026-07-01 v10.77.4 (Visual — Oscilloscope + Fractal looks, blendable)
+build: 2026-07-01 v10.77.5 (DAW reorg — Mix page + smoother visual pulse)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: NEW visual looks — Oscilloscope and Fractal, and you can MIX them.
-  Open the fullscreen visual → Look → pick "Scope" (a glowing oscilloscope beam that traces
-  a waveform driven by the sounding pitch) or "Fractal" (ridged fractal noise that drifts and
-  breathes). Then use "Blend with" + Mix to overlay the two — an oscilloscope over a fractal
-  field (exactly the "mix of oscilloscope and fractals" idea). Both animate slowly and stay
-  under the 3 Hz flash-safety limit; colour still follows the heard tone.
-  Reviewed for Metal shader correctness (clean). Everything from 10.77.3 stands (biofeedback-
-  driven brainwave entrainment, audio + visual), plus 10.77.2 (Aurora/Lissajous/Depth looks,
-  unified Tools menu, audio route hardening, AirPlay projection hint).
-  Test 10.77.4: fullscreen visual → Look → Scope, then Fractal; then Blend Scope with Fractal
-  and move Mix — confirm the oscilloscope beam rides over the fractal texture and neither
-  flashes fast.
+notesT: DAW-look reorg begins. NEW "Mix" page: the Channel Rack (per-track mute/solo/level/
+  FX) is now a first-class workspace tab, so the bottom bar reads Arrange · Clips · Compose ·
+  Mix — a familiar DAW layout, with biofeedback becoming one element rather than the whole
+  app. (More cycles coming: a persistent transport bar, a Bio source lane, a browser, and a
+  video page.)
+  Also: the immersive visual PULSE is now smoothed — on a weak-signal pulse reading the HR
+  could bounce and stutter the on-screen pulse; it now slew-limits + glides slowly so the
+  picture breathes steadily. The measured heart rate stays honest (the pulse detector is
+  unchanged); only the visual is smoothed.
+  Everything from 10.77.4 stands (brainwave entrainment audio+visual; Oscilloscope + Fractal
+  looks; Aurora/Lissajous/Depth; unified Tools; route hardening; projection hint).
+  Test 10.77.5: tap the new "Mix" tab → mute/solo/level per track; open the fullscreen visual
+  and confirm the pulse breathes smoothly (no stutter) even when the finger signal is weak.
