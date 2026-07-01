@@ -3,6 +3,36 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-01 — Batch: skills + 2 features + audio route hardening ("mach fertig")
+Founder: "Greb all tasks und mach fertig … Deep Research nach den anderen Skills". Video
+verified first (see below). Then a full pass, one commit each, both reviewer agents clean
+(concurrency 0-issues; Metal shader clean bill), pushed → Xcode-compile-check the verifier.
+- **Deep research (2 bg agents):** (1) skills to adopt — top finding: promote recurring
+  CLAUDE.md failure signatures to triggered SKILL.md; (2) codebase scope of the 3 pending
+  feature tasks. Research also surfaced that `AudioEngine` had NO route-remap tap-refresh
+  (the exact 48k↔44.1k class) → became task #18.
+- **3 skills added** (`.claude/skills/`, pipeline-only): `swiftui-render-safety` (the
+  .sheet-chain black-screen + 10 Hz @Observable ancestor freeze), `avaudio-route-resilience`
+  (48k↔44.1k camera-route rate + config-change), `device-log-triage` (route a pasted
+  device/echoel_diag log to the right fix skill). Commit 740ea2e.
+- **#4 Three new immersive looks** — Metal styles 5/6/7: Aurora (waving curtains),
+  Lissajous (harmonograph weave), Depth Caustics (3 unrolled parallax layers). Added
+  fieldAurora/fieldLissajous/fieldDepthCaustics, extended styleField dispatch, clamp 4→7,
+  surfaced in Look + Blend strips. Flash-safe (slow phase only). Commit 9eaf175.
+- **#12 Unify Tools grid + HUD** — one `toolItems` catalog + central `openTool(id)` drives
+  BOTH the grid and the bottom HUD menu (they had drifted; HUD silently lacked Drum Samples,
+  Import MIDI, Live Colabo, MIDI/Health — now present in both). No new sheets; freeze-safe.
+  Legal property+method same-name `toolItems`/`toolItems(_:)` (confirmed by reviewer). c60e2d4→9cbae2d.
+- **#18 Audio route-remap hardening** — the config-change watchdog only re-installed the
+  RetroCapture tap when the engine STOPPED. Gap: a healthy route re-map (camera → 44.1 kHz)
+  left the tap's sample rate stale → later capture pitch-shifted. Now the healthy-remap
+  branch re-installs the tap (idempotent) so captureSampleRate always tracks the route.
+  Control-plane only. Commit 4ed9e60.
+- **DEFERRED #2 Projection/external display** — real external-display rendering needs
+  UIScene/scene-delegate work + a device with an external screen to verify; shipping blind
+  violates the crashfrei rule. NOTE: AirPlay screen-mirroring already projects the fullscreen
+  visual today. Recommended as its own device-verified cycle.
+
 ## 2026-07-01 — P3 Video crash fix + captured-audio pitch fix (DEVICE-VERIFIED)
 **Crash fix (DEVICE-CONFIRMED):** Record crashed on tap (build 2092, `_isInput`) — `MixTapRecorder`
 tapped `AVAudioEngine.outputNode`, which AVFAudio forbids (only mixer/input nodes tappable).
