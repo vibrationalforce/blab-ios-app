@@ -33,6 +33,37 @@ verified first (see below). Then a full pass, one commit each, both reviewer age
   violates the crashfrei rule. NOTE: AirPlay screen-mirroring already projects the fullscreen
   visual today. Recommended as its own device-verified cycle.
 
+## 2026-07-01 — Biofeedback-driven brainwave ENTRAINMENT (audio + visual) v10.77.3
+Founder: "Du entscheidest, Fokus auf biofeedback driven Audio Visual brainwave Entrainment."
+Decision on the earlier BPM question: **Option 1 (leave the tuned CameraAnalyzer as-is)** —
+entrainment is driven by SLOW trends (coherence/breath), not instantaneous BPM, and the
+analyzer is documented-tuned for the fingertip case; sessions are objectively good (conf 0.9+).
+Found: `EchoelEntrainment` (isochronic, audio-thread-safe) already existed + was wired in the
+DDSP render path (line 774) but depth=0 and never bio-driven; `BinauralPanner` unused; the
+visual already had a flash-safe HR pulse. The pieces were NOT connected into "body → AV
+entrainment".
+The Council (brand/safety): entrainment is on-vision ONLY science-first — band names + Hz,
+NO healing-frequency/Solfeggio/chakra wording; visual flicker HARD ≤3 Hz (WCAG); mandatory
+safety warning; claim the STIMULUS, not a neural effect.
+Built (all reviewed — concurrency clean 0-issues + compile-verified, DSP no defects,
+bio-safety CLEAN BILL all 5 mandated points):
+- `DSP/BioEntrainmentDirector.swift` (+ tests) — the missing brain: coherence→band (aroused
+  Beta / relaxed Alpha / settled Theta), depth = 0.6·quality·(0.5+0.5·coherence) gated by
+  pulse-lock quality, flash-safe visualPulseHz (band centre halved to ≤3 Hz).
+- Audio wiring (`PolySynthVoice`): armed `entrainmentEnabled` (OFF default) + `entrainment
+  ManualBand` (nil=auto); 10 Hz poll derives target + writes band/depth to every voice's
+  EchoelEntrainment via `forEachVoice` (no render-block change). entrainmentTarget
+  @ObservationIgnored (freeze-safe).
+- UI (`EchoelStudioView`): inline "Entrainment" panel (NOT a new .sheet) — enable toggle,
+  Auto/Delta…Gamma picker, science-first copy + MANDATORY safety warning.
+- Visual coupling: `MetalBioView.entrainmentPulseHz` overrides the HR pulse in MANUAL mode
+  (stable low-freq read; ≤3 Hz, re-capped in the draw loop).
+- Added `EchoelEntrainment.process()` invariant tests (gain ∈ [1-depth,1], never clips).
+Deploy: .deploy/release → v10.77.3.
+NEXT (noted, not done): auto-mode visual coupling needs a renderer-side read of the live band
+(avoid a 10 Hz body read); master-bus single-phase entrainment if per-voice phase-smear reads
+weak on device; binaural (headphone) mode via the unused BinauralPanner.
+
 ## 2026-07-01 — Batch: skills + 3 looks + Tools-unify + route hardening + projection (v10.77.2)
 Founder: "Greb all tasks und mach fertig … Deep Research nach den anderen Skills" then
 "Erst alle offenen Tasks abarbeiten dann deploy". Delivered:
