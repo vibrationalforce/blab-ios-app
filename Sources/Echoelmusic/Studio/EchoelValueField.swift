@@ -33,6 +33,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     // The value box + label grow with Dynamic Type / app zoom. Wide enough for a
     // 4-decimal value with a large integer part plus its unit ("18000.0000 Hz").
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
+    /// Optional fixed box width for COMPACT contexts (e.g. the transport bar's BPM),
+    /// where the default 150 is far wider than a short value needs. When nil the box
+    /// keeps the Dynamic-Type-scaled default. The one control still — just narrower.
+    var boxWidth: CGFloat? = nil
 
     /// Presents the shared numeric keypad (tap-to-type path).
     @State private var showPad = false
@@ -100,7 +104,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 .gesture(scrubGesture)
                 .onTapGesture { showPad = true }
         }
-        .frame(width: valueWidth)
+        .frame(width: boxWidth ?? valueWidth)
         .padding(.horizontal, 12).padding(.vertical, 9)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
