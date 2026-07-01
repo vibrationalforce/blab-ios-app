@@ -13,34 +13,58 @@ struct ChannelRackView: View {
 
     @Environment(BeatPlayer.self) private var player
     @Environment(\.dismiss) private var dismiss
+    /// When mounted as a WorkspaceView surface (the "Mix" page) rather than presented as a
+    /// sheet: drop the NavigationStack/Done toolbar and show a lightweight inline header.
+    var embedded: Bool = false
 
     private var anySolo: Bool { player.solos.contains(true) }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
-                        channelRow(i)
+        if embedded {
+            content.background(EchoelTheme.bg.ignoresSafeArea())
+        } else {
+            NavigationStack {
+                content
+                    .background(EchoelTheme.bg.ignoresSafeArea())
+                    .navigationTitle("Channel Rack")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { dismiss() }
+                        }
+                        ToolbarItem(placement: .cancellationAction) {
+                            if anySolo {
+                                Button("Clear Solo") { player.clearSolos() }
+                            }
+                        }
                     }
-                }
-                .padding(16)
             }
-            .background(EchoelTheme.bg.ignoresSafeArea())
-            .navigationTitle("Channel Rack")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    if anySolo {
-                        Button("Clear Solo") { player.clearSolos() }
+        }
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                if embedded {
+                    // Inline header for the mounted Mix surface (no nav bar here).
+                    HStack {
+                        Text("Channel Rack")
+                            .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
+                        Spacer(minLength: 0)
+                        if anySolo {
+                            Button("Clear Solo") { player.clearSolos() }
+                                .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.accent)
+                        }
                     }
+                    .padding(.bottom, 2)
+                }
+                ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
+                    channelRow(i)
                 }
             }
+            .padding(16)
         }
     }
 
