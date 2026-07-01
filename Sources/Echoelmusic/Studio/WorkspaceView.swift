@@ -19,7 +19,7 @@ struct WorkspaceView: View {
     /// The foreground surfaces. Arrange/Clips are the home (the song); Compose is
     /// the bio-generative instrument, now one tool rather than the whole app.
     enum Surface: String, CaseIterable, Identifiable {
-        case arrange, clips, compose, mix
+        case arrange, clips, compose, mix, bio
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -27,6 +27,7 @@ struct WorkspaceView: View {
             case .clips:   return "Clips"
             case .compose: return "Compose"
             case .mix:     return "Mix"
+            case .bio:     return "Bio"
             }
         }
         var systemImage: String {
@@ -35,6 +36,7 @@ struct WorkspaceView: View {
             case .clips:   return "square.grid.2x2"
             case .compose: return "waveform.path.ecg"
             case .mix:     return "slider.vertical.3"
+            case .bio:     return "heart.fill"
             }
         }
     }
@@ -62,6 +64,7 @@ struct WorkspaceView: View {
                 surfaceLayer(.clips)   { ClipView(embedded: true) }
                 surfaceLayer(.compose) { EchoelStudioView() }
                 surfaceLayer(.mix)     { ChannelRackView(embedded: true) }
+                surfaceLayer(.bio)     { BioSourceView() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Divider().overlay(EchoelTheme.border)
