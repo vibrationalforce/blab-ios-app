@@ -2,6 +2,8 @@
 import AVFoundation
 import Metal
 import CoreVideo
+import CoreMedia
+import QuartzCore
 #if canImport(Observation)
 import Observation
 #endif
@@ -73,11 +75,16 @@ final class VisualRecorder {
                   destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
         blit.endEncoding()
 
-        // Sample the timestamp NOW (at capture), not in the async handler.
-        let box = FrameBox(pb: pb, pts: CMTime(seconds: CACurrentMediaTime(), preferredTimescale: 600))
-        let sink = video   // @MainActor class → Sendable; ingest is nonisolated.
+        // Ferry recorder + buffer + timestamp through the @unchecked Sendable box so the
+        // @Sendable GPU-completion closure captures ONLY that box. The timestamp is
+        // sampled NOW (at capture), not in the async handler.
+        // INVARIANT: the pooled `pb` must not be recycled until this handler runs — it
+        // isn't, because each frame dequeues a fresh buffer and hands its only reference
+        // to the box, which releases it after `ingest`.
+        let box = FrameBox(sink: video, pb: pb,
+                           pts: CMTime(seconds: CACurrentMediaTime(), preferredTimescale: 600))
         commandBuffer.addCompletedHandler { _ in
-            sink.ingest(box.pb, at: box.pts)
+            box.sink.ingest(box.pb, at: box.pts)
         }
     }
 
@@ -105,9 +112,10 @@ final class VisualRecorder {
         }
     }
 
-    /// Non-Sendable pixel buffer + timestamp ferried into the @Sendable GPU
-    /// completion handler (same escape hatch as the RGB sample queue).
+    /// Recorder + non-Sendable pixel buffer + timestamp ferried into the @Sendable
+    /// GPU completion handler (same escape hatch as the RGB sample queue).
     private struct FrameBox: @unchecked Sendable {
+        let sink: VideoRecorder
         let pb: CVPixelBuffer
         let pts: CMTime
     }
