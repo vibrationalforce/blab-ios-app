@@ -1,21 +1,14 @@
-build: 2026-07-01 v10.77.3 (Biofeedback-driven brainwave entrainment — audio + visual)
+build: 2026-07-01 v10.77.4 (Visual — Oscilloscope + Fractal looks, blendable)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: NEW — biofeedback-driven brainwave ENTRAINMENT (audio + visual), science-first.
-  Open Compose → the "Entrainment" panel → Enable. The body drives it: your HRV coherence
-  selects the brainwave band (aroused → Beta, relaxed → Alpha, settled → Theta), and the
-  stimulus only deepens on a good pulse lock. Audio uses gentle isochronic amplitude pulses
-  at the band rate; pin a band (Delta…Gamma) or leave it on Auto (bio-selected). In the
-  fullscreen visual, a pinned band also makes the picture pulse WITH the entrainment — always
-  held under the 3 Hz flash-safety limit.
-  Off by default (silent until you enable it AND a real pulse lock is present). Reviewed for
-  DSP correctness, Swift-6 concurrency, and bio-safety (flash cap, no medical overclaim, no
-  wellness/esoteric wording).
-  SAFETY (also shown in the panel): not while driving or operating machinery; not under the
-  influence of alcohol/drugs; coordinate any therapeutic use with your provider. For self-
-  observation, NOT medical diagnosis. Max 3 Hz visual flash.
-  Also in this build (from 10.77.2): three new visual looks (Aurora/Lissajous/Depth Caustics),
-  unified Tools menu, audio route-change hardening, AirPlay projection hint.
-  Test 10.77.3: Compose → Entrainment → Enable → with a finger on the camera, watch the band
-  follow your coherence (or pin Theta/Alpha); open the fullscreen visual with a pinned band and
-  confirm the picture pulses gently (never a fast flash); confirm audio has a soft rhythmic
-  pulse; toggle off → the pulse stops.
+notesT: NEW visual looks — Oscilloscope and Fractal, and you can MIX them.
+  Open the fullscreen visual → Look → pick "Scope" (a glowing oscilloscope beam that traces
+  a waveform driven by the sounding pitch) or "Fractal" (ridged fractal noise that drifts and
+  breathes). Then use "Blend with" + Mix to overlay the two — an oscilloscope over a fractal
+  field (exactly the "mix of oscilloscope and fractals" idea). Both animate slowly and stay
+  under the 3 Hz flash-safety limit; colour still follows the heard tone.
+  Reviewed for Metal shader correctness (clean). Everything from 10.77.3 stands (biofeedback-
+  driven brainwave entrainment, audio + visual), plus 10.77.2 (Aurora/Lissajous/Depth looks,
+  unified Tools menu, audio route hardening, AirPlay projection hint).
+  Test 10.77.4: fullscreen visual → Look → Scope, then Fractal; then Blend Scope with Fractal
+  and move Mix — confirm the oscilloscope beam rides over the fractal texture and neither
+  flashes fast.
