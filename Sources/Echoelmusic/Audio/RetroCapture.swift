@@ -28,6 +28,15 @@ final class RetroCapture {
     private let preRollSeconds: Int = 30
     private let waveformResolution: Int = 200       // display points
     private let ringCapacity: Int
+
+    /// The ACTUAL sample rate the tap captures at (= mixer/hardware rate, which iOS may
+    /// grant as 44.1 kHz even though we request 48 kHz — e.g. once the rPPG camera route
+    /// is active). Set in `install(on:)` from the tap's real format. ALL seconds↔frames
+    /// math and every output-file format use this, NOT a hardcoded 48000 — otherwise the
+    /// captured audio plays back pitch-shifted ("viel höher") and mistimed ("unruhig").
+    /// MainActor-only (the audio-thread tap callback indexes the ring by frame and never
+    /// reads this). Ring is sized for the 48 kHz max so a lower rate just yields >30 s.
+    private var captureSampleRate: Double = 48000
     nonisolated(unsafe) private let ring: UnsafeMutablePointer<Float>
     nonisolated(unsafe) private let ringWriteFrame: UnsafeMutablePointer<Int64>
 
@@ -89,6 +98,7 @@ final class RetroCapture {
 
         node.removeTap(onBus: 0)    // idempotent — removes previous tap if any
         tappedNode = node           // weak ref so deinit can remove the tap
+        captureSampleRate = format.sampleRate   // real capture rate for all frame math + file format
 
         // Capture raw pointers only — never capture self on audio-thread callback
         let ringPtr   = ring
@@ -160,7 +170,7 @@ final class RetroCapture {
 
         do {
             let url = try makeRecordingURL()
-            guard let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 2) else {
+            guard let format = AVAudioFormat(standardFormatWithSampleRate: captureSampleRate, channels: 2) else {
                 log.log(.error, category: .audio, "RetroCapture: cannot create recording format")
                 return
             }
@@ -193,7 +203,7 @@ final class RetroCapture {
     /// Deinterleave ring buffer data and write to file in 8192-frame chunks.
     /// Must be called BEFORE activating the live tap to preserve correct chronological order.
     private func writePreRollToFile(_ file: AVAudioFile, format: AVAudioFormat, seconds: Int) throws {
-        let totalFrames = min(seconds * 48000, ringCapacity)
+        let totalFrames = min(Int(Double(seconds) * captureSampleRate), ringCapacity)
         let endFrame   = Int(ringWriteFrame.pointee)
         let startFrame = max(0, endFrame - totalFrames)
         let chunkSize  = 8192
@@ -250,7 +260,7 @@ final class RetroCapture {
     /// Returns the last `seconds` of ring buffer audio as interleaved stereo floats.
     /// Use for waveform preview. Recording already prepends pre-roll via writePreRollToFile().
     func snapshotPreRoll(seconds: Int = 30) -> [Float] {
-        let frames  = min(seconds * 48000, ringCapacity)
+        let frames  = min(Int(Double(seconds) * captureSampleRate), ringCapacity)
         let endFrame = Int(ringWriteFrame.pointee)
         let startFrame = max(0, endFrame - frames)
         var out = [Float](repeating: 0, count: frames * 2)
@@ -271,9 +281,9 @@ final class RetroCapture {
     /// retroactive "die Stelle war gut → behalten" path: grab exactly what was just
     /// heard (already including reverb/delay tails). Returns the file URL, or nil.
     func captureRecent(seconds: Double) -> URL? {
-        let frames = min(max(Int(seconds * 48000), 0), ringCapacity)
+        let frames = min(max(Int(seconds * captureSampleRate), 0), ringCapacity)
         guard frames > 0 else { return nil }
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 2) else {
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: captureSampleRate, channels: 2) else {
             log.log(.error, category: .audio, "RetroCapture.captureRecent: cannot create format")
             return nil
         }
