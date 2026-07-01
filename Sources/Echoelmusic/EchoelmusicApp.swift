@@ -102,6 +102,11 @@ struct EchoelmusicApp: App {
     // Battery/CPU/GPU resource conservation: reads thermal/power/battery + render FPS
     // and publishes one app-wide QualitySettings (visual FPS/detail, bio/OSC rates).
     @State private var resourceGovernor = ResourceGovernor()
+    #if canImport(AVFoundation) && canImport(Metal)
+    // Records the bio-reactive Metal visual to an .mp4 (the on-brand video source —
+    // does NOT touch the rPPG camera). Fed by the fullscreen VJ MetalBioView.
+    @State private var visualRecorder = VisualRecorder()
+    #endif
     // Bio-reactive FX: the body (and LFOs) sculpt the melody voice's EchoelFX chain
     // live (coherence→reverb, breath→filter, HR→tremolo). Control-rate, off the
     // audio thread; idle until the user adds routes in the FX tool.
@@ -238,6 +243,9 @@ struct EchoelmusicApp: App {
             #endif
             #if canImport(AVFoundation)
             .environment(cameraRPPG)
+            #endif
+            #if canImport(AVFoundation) && canImport(Metal)
+            .environment(visualRecorder)
             #endif
             #if canImport(HealthKit)
             .environment(healthWriter)
