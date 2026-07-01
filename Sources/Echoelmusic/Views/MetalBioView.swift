@@ -189,6 +189,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// on-screen pulse follows the armed brainwave band's flash-safe sub-harmonic. Always
     /// already ≤3 Hz from `BioEntrainmentDirector.visualHz`; the draw loop re-caps anyway.
     private var lookEntrainmentPulseHz: Double = 0
+    /// Slew-limited pulse target — the visual pulse is the most bio-jitter-sensitive value
+    /// (a weak-signal rPPG reading can bounce HR, and thus the raw pulse target, hard). We
+    /// rate-limit the TARGET here (then glide slowly), so the picture breathes steadily
+    /// instead of stuttering with beat-to-beat noise. The measurement stays honest; only
+    /// the VISUAL is smoothed (CameraAnalyzer untouched).
+    private var smoothedPulseTarget: Float = 0
 
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
@@ -348,7 +354,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.ringDensity = Self.ease(uniforms.ringDensity, target.ringDensity, tau: 0.7, dt: dt)
             uniforms.motion    = Self.ease(uniforms.motion,    target.motion,    tau: 0.4,  dt: dt)
             uniforms.spread    = Self.ease(uniforms.spread,    target.spread,    tau: 0.5,  dt: dt)
-            uniforms.pulseHz   = Self.ease(uniforms.pulseHz,   target.pulseHz,   tau: 1.2,  dt: dt)
+            // Visual pulse: slew-limit the target (≤0.5 Hz/s) THEN glide slowly (tau 3 s)
+            // so weak-signal HR bounce can't stutter the breathing. Double-smoothed, visual
+            // only.
+            let pulseSlew = Float(0.5 * dt)
+            let dPulse = min(max(target.pulseHz - smoothedPulseTarget, -pulseSlew), pulseSlew)
+            smoothedPulseTarget += dPulse
+            uniforms.pulseHz   = Self.ease(uniforms.pulseHz,   smoothedPulseTarget, tau: 3.0, dt: dt)
             // Hue wraps, so glide along the SHORTEST arc on the colour wheel.
             var dHue = target.hueShift - uniforms.hueShift
             dHue -= round(dHue)
