@@ -1246,6 +1246,18 @@ struct EchoelStudioView: View {
                     // Compose panel can never drift apart ("easy to understand/control").
                     visualPresetRow
                     visualAdjustFields
+                    // Projection output: this chrome-free, keep-awake canvas IS the beamer
+                    // image — mirror it to a projector/TV via AirPlay (Control Center →
+                    // Screen Mirroring). Tap the canvas to hide these controls for a clean
+                    // projected picture. (Dedicated dual-screen — device = controls, beamer
+                    // = visual only — needs an Info.plist scene manifest + device check, a
+                    // separate cycle.) Only shown while the panel is open, so it never
+                    // appears in the projected image.
+                    Label("Project: mirror to a screen via AirPlay", systemImage: "airplayvideo")
+                        .font(EchoelTheme.font(10, .medium))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .padding(.top, 2)
+                        .accessibilityHint("Use Control Center Screen Mirroring to project this visual")
                 }
                 .padding(14)
             }
