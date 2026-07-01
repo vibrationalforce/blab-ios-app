@@ -184,12 +184,19 @@ struct WorkspaceView: View {
 private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
+    @Environment(MetronomeVoice.self) private var metronome
 
     /// Writes tempo through PatternEngine.setTempo (which clamps AND relays into
-    /// Transport), reads back the authoritative Transport tempo.
+    /// Transport), reads back the authoritative Transport tempo, and keeps the
+    /// metronome click in time — otherwise a tempo change from the bar would leave an
+    /// armed click running at the old BPM (Compose only synced the click on generate /
+    /// lockBPM, never on a raw transport-bar tempo edit).
     private var tempoBinding: Binding<Double> {
         Binding(get: { transport.tempo },
-                set: { player.pattern.setTempo($0) })
+                set: {
+                    player.pattern.setTempo($0)
+                    metronome.bpm = transport.tempo   // clamped, authoritative value
+                })
     }
 
     var body: some View {

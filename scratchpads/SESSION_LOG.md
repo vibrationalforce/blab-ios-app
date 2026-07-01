@@ -32,6 +32,18 @@ now **Arrange · Clips · Compose · Mix · Bio · Browse**.
   gate green on 8a51e0a (2–4); 5 (f695ea4) verified before the TestFlight push.
 - **Pattern reaffirmed:** every new page = `Surface` enum case + `surfaceLayer` (all mounted),
   NEVER a WorkspaceView/EchoelStudioView body rewrite; live values read in leaves only.
+- **Coherence fix (ceb5894):** the transport-bar Stop calls `pattern.stop()` directly, which
+  left the Compose session `running`; the ~25–45 s evolve tick then resurrected playback.
+  `generate(startTransport:)` now starts the transport ONLY for the user-initiated first
+  generate; all re-seeds pass `false`. Shipped in v10.78.1.
+- **⚑ FOUNDER-CONFIRM (deliberate default, low-med):** transport-bar Stop stops PLAYBACK
+  only; it does NOT end the Compose bio session (camera/evolve/bio-mod stay armed) — so the
+  global Stop and Compose's own Start/Stop have DIFFERENT scope (transport = clock, Compose
+  Start = arm+auto-compose+play). Chosen to preserve "stop the music, keep watching your
+  pulse/visual" and avoid re-entrant coupling. Not a bug (no crash/clock-desync; resurrection
+  fixed). If you'd rather the big Stop kill the whole session (and free the camera), say so
+  and I'll either (A) derive the Compose button from `transport.isPlaying` or (B) have
+  transport Stop quiesce the session via a `Transport` stop-subscriber.
 
 ## 2026-07-01 — Batch: skills + 2 features + audio route hardening ("mach fertig")
 Founder: "Greb all tasks und mach fertig … Deep Research nach den anderen Skills". Video

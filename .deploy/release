@@ -1,4 +1,4 @@
-build: 2026-07-01 v10.78.0 (DAW reorg — transport bar · Bio page · Browser · dedupe)
+build: 2026-07-01 v10.78.1 (DAW reorg — transport bar · Bio page · Browser · dedupe)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
 notesT: The DAW-look reorg lands in force. The bottom bar now reads Arrange · Clips ·
   Compose · Mix · Bio · Browse — a familiar pro-tool layout where biofeedback is one
@@ -21,4 +21,9 @@ notesT: The DAW-look reorg lands in force. The bottom bar now reads Arrange · C
    • Bio tab → Arm bio input, cover the camera+flash, numbers go live, toggle Body→sound
      and an entrainment band;
    • Browse tab → Presets: Load a sound then play and hear it; Samples: tap ▶ to preview;
-   • switch tabs freely while a pulse reads — confirm no menu freeze anywhere.
+   • switch tabs freely while a pulse reads — confirm no menu freeze anywhere;
+   • transport Stop stays stopped during a bio Compose session (no auto-restart
+     seconds later).
+  Fix in .1: the transport bar's Stop now stays stopped during a live bio Compose
+  session — previously the gentle auto-evolution could restart playback ~30 s after
+  you pressed Stop. Transport Stop is now authoritative; press Play to resume.
