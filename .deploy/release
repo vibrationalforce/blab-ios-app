@@ -1,16 +1,16 @@
-build: 2026-07-02 v10.79.13 (Build-Fix — bringt Sound+Groove+Melodie+Puls+Multitimbral+rPPG endlich aufs Gerät)
+build: 2026-07-02 v10.79.14 (Multitimbral Step 2b — die Lead-Stimme klingt jetzt pro Genre anders)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: WICHTIG: v10.79.10/11/12 sind alle am CI-Compile gescheitert (ein Actor-Isolation-
-  Fehler in meinem rPPG-Fix) — deshalb war dein Gerät noch auf 2112 (79.7) und dein letztes
-  gutes rPPG-Log war 79.7 + gute Fingerführung, NICHT mein Washout-Fix. Der Compile-Fehler ist
-  jetzt behoben. Dieser Build bringt ALLES der letzten Runde zusammen aufs Gerät:
-  - Sound: echte Instrumenten-Klangfarben + Unison (Zyklus 1)
-  - Groove: Swing pro Genre (Zyklus 2)
-  - Melodie: echte Motive, Frage/Antwort, Auflösung (Zyklus 3)
-  - Mehr Elemente: Innen-Puls unter dem Pad
-  - MULTITIMBRAL: die Melodie hat eine eigene Lead-Stimme mit eigenem Klang → getrennte
-    Instrumente statt einer Fläche
-  - rPPG: Washout-Lock-Fix (kein Lock mehr auf überstrahltes Bild)
-  TEST 10.79.13: (1) Compose → harmonische Genres (Synthwave/Vaporwave/Classical): klingt es
-  jetzt nach Arrangement mit getrennten Instrumenten (Bass · Pad · Puls · Lead), voller,
-  geswungen, singbar? Aussetzer/Knacksen bei dichten Stellen? (2) Bio → rPPG lockt sauber?
+notesT: Aufbauend auf 79.13 (das komplett auf TestFlight gelandet ist: Sound+Groove+Melodie+
+  Puls+Multitimbral-Lead+rPPG-Washout-Fix). Diese Runde macht die getrennte Lead-Stimme
+  RICHTIG hörbar: statt EINER fixen Lead-Klangfarbe bekommt die Melodie-Lead jetzt PRO GENRE
+  ein passendes Instrument:
+  - Synthwave/Eighties/Rock/Punk/Psytrance → Bright Lead
+  - Jazz → Soft Keys (warmes Rhodes) · Klezmer → Clarinet · Oriental → Oboe · Classical → Violin
+  - Trap/Futuristic → Glass Bell · Vaporwave → Vapor Lead · SciFi/Metal/Doom → Metallic
+  - Disco/Ska → Trumpet · Rock'n'Roll/Rocksteady → Hollow Reed (sax-artig)
+  - DubTechno/EarlySynth → Pluck · Ambient/Meditation → Flute
+  So liest sich die Melodie klar als eigenes Instrument ÜBER Bass · Pad · Puls — ein echtes
+  Arrangement, kein Einheitsklang.
+  TEST 10.79.14: Compose in mehreren Genres nacheinander (z. B. Jazz → Synthwave → Klezmer):
+  Klingt die Lead-Melodie jeweils nach einem ANDEREN, genretypischen Instrument, deutlich
+  abgesetzt von Pad/Bass? Aussetzer/Knacksen bei dichten Stellen (3-Stimmen-Lead)?

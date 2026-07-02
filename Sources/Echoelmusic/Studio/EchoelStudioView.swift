@@ -2167,6 +2167,12 @@ struct EchoelStudioView: View {
         // straight genres stay 0). Melody + any drums ride the same clock, so the
         // whole take swings together instead of sitting dead-on-grid.
         beatPlayer.pattern.setSwing(style.swing)
+        // MULTITIMBRAL Step 2b: give the LEAD voice a genre-appropriate timbre so
+        // the lead line reads as its own instrument (synth lead vs jazz Rhodes vs
+        // klezmer clarinet) over the pad/bass. Falls back to "Bright Lead".
+        let leadPatch = SynthPatch.factory.first { $0.name == style.leadPatchName }
+            ?? SynthPatch.factory.first { $0.name == "Bright Lead" }
+        if let leadPatch { pianoRoll.applyLeadPatch(leadPatch) }
         metronome.bpm = tempo   // keep the click on the live transport tempo
         session.adopt(key: key)
         hasComposed = true

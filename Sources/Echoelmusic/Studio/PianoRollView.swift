@@ -217,6 +217,12 @@ public final class PianoRollModel {
     /// is released independently.
     private func usesLeadVoice(_ role: NoteRole) -> Bool { role == .lead && lead != nil }
 
+    /// Give the dedicated lead voice its own timbre (multitimbral Step 2b). The
+    /// generator picks a factory patch per genre so the lead line reads as a
+    /// distinct instrument over the pad/bass, instead of a single fixed lead.
+    /// No-op when there is no separate lead voice.
+    public func applyLeadPatch(_ patch: SynthPatch) { lead?.apply(patch) }
+
     /// Each tick: release notes ending now, then start notes beginning now.
     /// `endStep % stepCount` so a note ending on the bar line releases at the
     /// loop wrap (step 0), giving correct sustain + retrigger.
