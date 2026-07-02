@@ -1,13 +1,20 @@
-build: 2026-07-02 v10.79.32 (rPPG frozen-frame fix — sample-pipe stall recovery)
+build: 2026-07-02 v10.79.33 (Gesamt-Erlebnis: Stabilität + ruhige UI + reichere Visuals + vollerer Sound)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Frozen-Puls-Fix (Founder-Log 2× gesendet: rPPG-Werte ~13 s byte-identisch,
-  Puls eingefroren). Ursache: der RGB-SAMPLE-Pfad stockte (kein NEUES Bild erreichte den
-  Analyzer), während der bisherige Kamera-Watchdog nur prüfte, ob `captureOutput` überhaupt
-  noch feuert — diese Lücke sah er nicht. NEU: der 10-Hz-Publish-Loop zählt Ticks OHNE neue
-  RGB-Samples; nach ~6 s ohne neues Sample erzwingt er `CameraCapture.recoverFromStall()`
-  (voller Reconfigure, teilt sich den 6-s-Cooldown mit dem Watchdog, kann also nicht
-  thrashen; Torch + Belichtung werden sauber neu gesetzt, Belichtungs-State wird zurück-
-  gesetzt). Keine geschützte DSP/Render-Änderung; rein additiver Recovery-Pfad im Bio-Modul.
-  TEST 10.79.32: Puls lesen starten; wenn die Werte je einfrieren, erholt sich die Kamera
-  nach ~6 s selbst (Breadcrumb "rPPG: no new frames ~6 s — forcing camera recovery") statt
-  dauerhaft eingefroren zu bleiben.
+notesT: EIN Build über alle vier Achsen (Founder: "Das gesamte Erlebnis optimieren. UI, Sound
+  und Komposition, visuals, Steuerung"). NICHTS gelöscht, alles additiv/umkehrbar.
+  • STEUERUNG/Stabilität — rPPG Frozen-Puls-Fix: der Publish-Loop zählt jetzt Ticks OHNE neue
+    RGB-Samples; nach ~6 s ohne neues Bild erzwingt er eine volle Kamera-Erholung
+    (recoverFromStall, teilt den 6-s-Cooldown mit dem Watchdog, Torch+Belichtung neu gesetzt).
+    Behebt das eingefrorene Puls-Log (Werte ~13 s byte-identisch, Kamera-Watchdog blieb "happy").
+  • UI — Visual-Panel hat jetzt einen klaren "Show/Hide visual window"-Button; Export/Save zeigen
+    einen Hinweis "Erst Generate tippen" statt still ausgegraut zu wirken.
+  • VISUALS — schöner ab Werk: Sättigung 0.82 (professionell, nicht neon), Standard-Look Aurora
+    statt flacher Ringe, doppelter Preset "Halo" → "Aura" umbenannt.
+  • SOUND/KOMPOSITION (deterministisch, in-key, geschützte DSP unberührt): (1) innere Puls-Ebene
+    liegt jetzt eine Oktave ÜBER dem Pad (weniger Matsch, kein Voice-Stealing über ~15 Genres);
+    (2) Dub Techno bekommt echten Sub-Bass (Oktave 2) — vorher kein Tiefton im Generativ-Pfad;
+    (3) Drum-Groove: Nicht-Akzent-Schläge mit metrischer Gewichtung + ±6% Jitter statt flacher
+    0.82 (kein "Maschinengewehr"-HiHat mehr).
+  TEST 10.79.33: Puls lesen (friert es je ein, erholt sich die Kamera nach ~6 s selbst); ruhige
+  erste Ansicht; Visual-Fenster per Panel-Button ein/aus; Genre wechseln (Dub hat jetzt Bass,
+  Pads klarer, Drums grooven). Klingt/fühlt sich das Gesamt-Erlebnis runder an?
