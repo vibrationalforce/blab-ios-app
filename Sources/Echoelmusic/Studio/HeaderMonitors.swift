@@ -68,13 +68,11 @@ struct PulseMonitorMini: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.border, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
-        // per the freeze rule). The enclosing button provides the tap; keep ONE element
-        // here so VoiceOver doesn't get two competing descriptions.
+        // per the freeze rule). Glanceable STATUS only now — the body is armed from the
+        // instrument's Start flow, so this no longer navigates anywhere.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Live pulse")
         .accessibilityValue(locked && bpm > 0 ? "\(Int(bpm)) beats per minute" : "No pulse lock")
-        .accessibilityHint("Opens the Bio page")
-        .accessibilityAddTraits(.isButton)
     }
 }
 

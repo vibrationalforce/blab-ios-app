@@ -1,16 +1,16 @@
-build: 2026-07-02 v10.79.23 (Visual als schwebendes Fenster — ein/ausblendbar, S/M/L)
+build: 2026-07-02 v10.79.24 (Eine adaptive Ansicht — Tab-Leiste + Studio-Tür entfernt)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Founder-Kurs (2026-07-02): radikal auf qualitative Biofeedback-Musik reduzieren; das
-  Visual als "kleines Fenster flexibel groß ein- und ausblendbar". Schritt 1 der Visual-Überarbeitung:
-  Das immersive Visual läuft jetzt als SCHWEBENDES Fenster (FloatingVisualWindow) statt nur
-  Vollbild — verschiebbar (am Griff ziehen), 3 Größen S/M/L (ein Button), schließen (X). KEINE
-  Regler im Fenster (weniger Einstellungen). Getippt wird es über den Visual-Monitor oben rechts
-  (ein-/ausblenden). Es schwebt nur über der Inhaltsfläche, nie über Transport/Navigation.
-  Render-sicher: das Fenster liest nur Low-Freq-Zustand (Größe/Position); das echte MetalBioView
-  zieht die Bio-Daten selbst im Draw-Loop → kein 10-Hz-Read im Eltern-Body (Freeze-Regel). Der
-  alte Vollbild-Monitor-Pfad (zweites, unerreichbares MetalBioView) wurde entfernt — genau EIN
-  Metal-Pfad. (Der tiefe VJ-Vollbildmodus in Compose bleibt vorerst; die vielen Visual-Regler
-  vereinfache ich im nächsten Schritt.)
-  TEST 10.79.23: oben rechts auf den Visual-Monitor tippen → kleines Fenster erscheint. Griff
-  ziehen = verschieben; Größen-Button = S→M→L; X = ausblenden. Ton + Menüs laufen weiter, auch
-  während Biofeedback. Fühlt sich das Fenster gut an? Größen ok? Was soll das Visual „interessanter" machen?
+notesT: Founder: "Eine adaptive Ansicht ohne weitere Untermenüs." Die Shell ist jetzt EINE
+  Ansicht — das bio-generative Instrument (EchoelStudioView) mit nur der Dauer-Chrome darüber
+  (Marken-Header + Transport) und dem Visual als schwebendem Fenster. Die 6er-Tab-Leiste
+  (Arrange/Clips/Mix/Bio/Browse) UND die "Studio"-Tür sind aus der Navigation raus. Die Flächen
+  existieren weiter im Code (voll umkehrbar — Bottom-Bar zurückholen bringt sie wieder), sind nur
+  nicht mehr vorne. Körper wird im Instrument scharfgeschaltet (Start → Kamera → Musik), das
+  Visual schaltet der Monitor oben rechts. Reine WorkspaceView-Änderung; das (fragile)
+  EchoelStudioView-Body/Sheet-Chain wurde NICHT angefasst (Black-Screen-Schutz).
+  HINWEIS: Damit sind vorerst nicht mehr erreichbar: Mix-Seite, Bio-Seite (Entrainment +
+  Harmonic-Mapping-Schalter), Browser (Presets), Clips, Arrange. Sag, wenn du eines davon in der
+  einen Ansicht willst — dann hole ich es gezielt rein. NÄCHSTER (heikler) Schritt: die
+  Sektionen/Tools INNERHALB des Instruments zu einer adaptiven Ansicht verschlanken.
+  TEST 10.79.24: App startet direkt im Instrument, keine Tab-Leiste unten, keine Studio-Tür.
+  Oben: Marke + Puls + Visual-Monitor. Start → Musik aus dem Körper; Visual-Monitor → Fenster.
