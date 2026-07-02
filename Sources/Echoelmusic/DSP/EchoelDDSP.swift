@@ -675,12 +675,17 @@ public final class EchoelDDSP: @unchecked Sendable {
                 currentFreq = smoothedFreq * pow(2.0, vibratoSemitones / 12.0)
             }
 
-            // Smooth amplitude transitions (exponential smoothing)
+            // Smooth amplitude transitions (exponential smoothing). The `+ antiDenormal`
+            // term keeps a decaying partial (target→0 on note release) above the FP
+            // denormal range so the per-sample one-pole never falls into the subnormal
+            // zone that triggers idle CPU spikes (audit 2026-07-02 P2). 1e-25 is a normal
+            // Float and its audible floor (~2e-23) is inaudible. Pure arithmetic, branch-free.
             let smoothCoeff: Float = 0.995
             let oneMinusSmooth: Float = 0.005
+            let antiDenormal: Float = 1e-25
             for i in 0..<harmonicCount {
                 let target = harmonicAmplitudes[i] * harmonicLevel
-                smoothedAmplitudes[i] = smoothedAmplitudes[i] * smoothCoeff + target * oneMinusSmooth
+                smoothedAmplitudes[i] = smoothedAmplitudes[i] * smoothCoeff + target * oneMinusSmooth + antiDenormal
             }
 
             // --- vDSP Vectorized Harmonic Generation ---
@@ -748,7 +753,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             if smoothedHarmonicity < 0 { smoothedHarmonicity = harmonicity }
             if smoothedNoiseLevel < 0 { smoothedNoiseLevel = noiseLevel }
             smoothedHarmonicity += 0.01 * (harmonicity - smoothedHarmonicity)
-            smoothedNoiseLevel  += 0.01 * (noiseLevel  - smoothedNoiseLevel)
+            smoothedNoiseLevel  += 0.01 * (noiseLevel  - smoothedNoiseLevel) + antiDenormal
             // Mix harmonic + noise based on the smoothed harmonicity
             let mixed = harmonicSample * smoothedHarmonicity + noiseSample * smoothedNoiseLevel * (1.0 - smoothedHarmonicity)
 
@@ -756,7 +761,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             // note's velocity and the 10 Hz bio amplitude pulse glide in instead of
             // stepping the level (crackle). Seed on first sample to avoid a ramp-up.
             if smoothedGain < 0 { smoothedGain = amplitude }
-            smoothedGain += 0.01 * (amplitude - smoothedGain)
+            smoothedGain += 0.01 * (amplitude - smoothedGain) + antiDenormal
             var sample = mixed * smoothedGain * envelopeValue
 
             // --- Resonant Filter (SVF) ---
