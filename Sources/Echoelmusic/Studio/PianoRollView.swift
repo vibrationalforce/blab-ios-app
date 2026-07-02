@@ -27,6 +27,11 @@ public final class PianoRollModel {
     public private(set) var notes: [Note] = []
 
     @ObservationIgnored private weak var voice: PolySynthVoice?
+    /// Optional dedicated LEAD instrument voice (multitimbral). When set, notes tagged
+    /// `.lead` play through it (its own timbre) while everything else stays on `voice`,
+    /// so a take reads as separate instruments instead of one surface. nil → the lead
+    /// falls back to `voice` (single-timbre behaviour, unchanged).
+    @ObservationIgnored private weak var lead: PolySynthVoice?
     /// Optional sub-bass voice — the lowest notes of each take also drive this an
     /// octave down so the bass can be FELT (sub/headphones/haptics). nil = no sub.
     @ObservationIgnored private weak var subVoice: SubBassVoice?
@@ -159,10 +164,12 @@ public final class PianoRollModel {
     // MARK: - Transport (shared clock)
 
     public func start(pattern: PatternEngine, voice: PolySynthVoice,
+                      lead: PolySynthVoice? = nil,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
                       arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
                       auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil) {
         self.voice = voice
+        self.lead = lead
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
@@ -188,13 +195,21 @@ public final class PianoRollModel {
     }
 
     public func allNotesOff() {
-        for note in active.values { voice?.noteOff(pitch: note.pitch) }
+        for note in active.values { outputVoice(for: note.role)?.noteOff(pitch: note.pitch) }
         active.removeAll()
         currentSubPitch = nil
         voice?.allNotesOff()
+        lead?.allNotesOff()
         subVoice?.allNotesOff()
         midiOut?.allNotesOff()
         auHost?.allNotesOff()
+    }
+
+    /// The instrument voice a note plays through, by role (multitimbral routing):
+    /// `.lead` → the dedicated lead voice when present, else the main voice; every
+    /// other role → the main voice. `nil` lead → single-timbre behaviour, unchanged.
+    private func outputVoice(for role: NoteRole) -> PolySynthVoice? {
+        (role == .lead) ? (lead ?? voice) : voice
     }
 
     /// Each tick: release notes ending now, then start notes beginning now.
@@ -224,10 +239,18 @@ public final class PianoRollModel {
         let suppressBuiltIn = auHost?.suppressesBuiltInVoice ?? false
         let ending = active.filter { $0.value.endStep % Self.stepCount == step }
         for id in ending.keys { active[id] = nil }
-        for note in ending.values where !active.values.contains(where: { $0.pitch == note.pitch }) {
-            voice?.noteOff(pitch: note.pitch)
-            midiOut?.noteOff(pitch: note.pitch)
-            auHost?.noteOff(midiByte(note.pitch))
+        for note in ending.values {
+            let target = outputVoice(for: note.role)
+            // Release this pitch on its voice only when no surviving note still holds
+            // it ON THE SAME VOICE (the two timbres can hold a shared pitch apart).
+            if !active.values.contains(where: { $0.pitch == note.pitch && outputVoice(for: $0.role) === target }) {
+                target?.noteOff(pitch: note.pitch)
+            }
+            // MIDI/AU mirror the whole song regardless of the internal voice split.
+            if !active.values.contains(where: { $0.pitch == note.pitch }) {
+                midiOut?.noteOff(pitch: note.pitch)
+                auHost?.noteOff(midiByte(note.pitch))
+            }
         }
         // The body's live 5D expression for this note (only when MIDI-out 5D mode is
         // armed and a fresh bio frame exists): coherence→Slide/brightness,
@@ -242,7 +265,7 @@ public final class PianoRollModel {
                                       hrvNormalized: bio.hrvNormalized)
         }()
         for note in notes where note.startStep == step {
-            if !suppressBuiltIn { voice?.noteOn(pitch: note.pitch, velocity: note.velocity) }
+            if !suppressBuiltIn { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: note.velocity) }
             midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity, expression: expression)
             auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
             active[note.id] = note

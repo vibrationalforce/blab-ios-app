@@ -22,6 +22,10 @@ struct EchoelmusicApp: App {
     @State private var bioVoice: BioReactiveSynthVoice
     /// Polyphonic note instrument driven directly by the piano roll.
     @State private var polyVoice: PolySynthVoice
+    /// Dedicated LEAD instrument voice (multitimbral): notes tagged `.lead` play
+    /// through this with its own timbre so a take reads as separate instruments
+    /// (bass · harmony · LEAD), not one surface. Small pool — the lead is few-note.
+    @State private var leadVoice: PolySynthVoice
     @State private var subBass: SubBassVoice
     /// Steady click track — production/performance metronome (self-driving, silent
     /// until armed). Synced to the transport tempo by the studio view.
@@ -148,6 +152,8 @@ struct EchoelmusicApp: App {
         // constant voice-stealing caused clicks, instant pitch changes and tanh
         // level swings (device report: "Lautstärke-/Phasensprünge, Knacksen").
         _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 12))
+        // Lead voice: small pool (the melody is few-note) to keep the added CPU low.
+        _leadVoice = State(wrappedValue: PolySynthVoice(maxVoices: 3))
         _subBass = State(wrappedValue: SubBassVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
@@ -320,6 +326,7 @@ struct EchoelmusicApp: App {
                 beatPlayer.attach(to: audioEngine)
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
+                leadVoice.attach(to: audioEngine)
                 subBass.attach(to: audioEngine)
                 metronome.attach(to: audioEngine)
 
@@ -352,13 +359,20 @@ struct EchoelmusicApp: App {
                 }
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
+                leadVoice.start(subscribing: bus)
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
                 // the ~30 Hz control loop (idle until the user adds modulation routes).
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
+                // Give the lead voice a distinct, cutting timbre so .lead notes read as
+                // a separate instrument over the (per-genre) harmony voice. Fixed for
+                // now; a per-genre lead patch is the next step.
+                if let leadPatch = SynthPatch.factory.first(where: { $0.name == "Bright Lead" }) {
+                    leadVoice.apply(leadPatch)
+                }
 
                 // Bio essentials. The body's REAL signal drives everything — camera
                 // rPPG (started when the user taps Create from Within), HealthKit, or
