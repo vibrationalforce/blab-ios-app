@@ -1,24 +1,12 @@
-build: 2026-07-02 v10.79.0 (Control-surface unification — one accessible path + all your AUv3)
+build: 2026-07-02 v10.79.1 (Polish — one breath home, bigger tap targets, consistent theme)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: A big "übersichtlicher / no duplicate paths" pass — one accessible way to everything,
-  and your plugins finally all show up.
-  UNIFY (no more doppelte Wege):
-  • The header pulse tap now opens the Bio page (one bio home) instead of a separate
-    fullscreen pulse screen.
-  • ONE Stop: the transport bar's Stop now ends the whole take (music + bio session) — no
-    second stop button needed. (To just watch your pulse without music, arm the body on the
-    Bio page.)
-  • Removed Compose's redundant bottom HUD — its Play/Visual/Tools all duplicated the
-    transport bar, the header, and the Tools grid. Compose is cleaner now.
-  • Entrainment lives only on the Bio page now (was duplicated in Compose too).
-  • Arrange's empty screen now guides you: "Open Compose / Open Clips" — no dead end.
-  PLUGINS:
-  • You now see ALL your installed AUv3 instruments & effects, not just Apple's — the scan
-    was one-time (stale) and now re-scans every time you open Plugins, with a Rescan button.
-    Open any loaded plugin's own UI to tweak it inline.
-  COMING (foundation shipped, audio wiring is a device-tested next step): auditioning
-  samples/loops in MASTER TEMPO across all tools (Browser · sampler · breakbeat slicer ·
-  drum machine), pitch-preserving — the tempo-match math + tests are in this build.
-  Test 10.79.0: header pulse → Bio page; Stop on the transport ends everything; Compose has
-  no bottom HUD; Plugins shows your third-party AUv3 (tap Rescan after installing one);
-  Arrange (empty) shows the guide buttons.
+notesT: A tidy-up pass on top of 10.79.0's unification.
+  • Breathing lives only on the Bio page now (was also duplicated in Compose's Tools) —
+    one body/breath home, no doubled path.
+  • Bigger, easier taps: the project Share icon, Channel Rack Mute/Solo, the Browser
+    favorite star, and the Arrangement controls are all full-size (≥44pt) now.
+  • Consistent colours: a few stray off-theme greys/yellows now use the Echoel palette
+    (Open-project subtitles, the Bio strip text, the FX favorite swipe).
+  • Header pulse VoiceOver now reads correctly ("Opens the Bio page").
+  Test 10.79.1: Compose Tools no longer lists Breathing (it's on Bio); Mute/Solo and the
+  Browser star are comfortable to tap; nothing looks off-palette.
