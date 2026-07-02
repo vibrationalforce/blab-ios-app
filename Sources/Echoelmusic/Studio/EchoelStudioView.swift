@@ -50,6 +50,10 @@ struct EchoelStudioView: View {
     @Environment(PolySynthVoice.self) private var synth
     @Environment(SubBassVoice.self) private var subBass
     @Environment(MetronomeVoice.self) private var metronome
+    // The one shared transport. Read ONLY via `.onChange(of: transport.isPlaying)` (a
+    // LOW-frequency flag — flips on play/stop, never 10 Hz) so the global transport bar's
+    // Stop can end the whole bio session; NOT read in `body` (freeze rule).
+    @Environment(Transport.self) private var transport
     @Environment(SessionContext.self) private var session
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
@@ -288,7 +292,6 @@ struct EchoelStudioView: View {
                 }
                 .padding(16)
             }
-            AnyView(quickAccessHUD)
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -319,6 +322,15 @@ struct EchoelStudioView: View {
         // mid-show. Recomputed from the combined state so any one toggle is correct;
         // re-enabled (battery) the moment nothing needs it.
         .onChange(of: running) { _, _ in updateKeepAwake() }
+        // ONE Stop for the whole app: when the transport stops from ANYWHERE (the global
+        // transport bar, an arrangement finishing), end the bio session too — don't leave
+        // the camera/evolve armed behind a stopped clock (founder: one accessible solution,
+        // no duplicate paths). Guarded by `running` so stopEverything()'s own pattern.stop()
+        // (which flips transport.isPlaying false after already setting running=false) can't
+        // recurse. To only WATCH the pulse without music, arm the body on the Bio page.
+        .onChange(of: transport.isPlaying) { _, playing in
+            if !playing && running { stopEverything() }
+        }
         .onChange(of: showVisual) { _, _ in updateKeepAwake() }
         .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
@@ -677,99 +689,6 @@ struct EchoelStudioView: View {
         .contentShape(Rectangle())
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
-    }
-
-    // MARK: - The one button
-
-    /// Persistent quick-access HUD pinned to the bottom edge — every key destination
-    /// reachable from ANYWHERE without scrolling (the tools otherwise live at the
-    /// bottom of the scroll). Evidence-grounded: edge-anchored thumb zone (Fitts),
-    /// visible permanent affordances not hidden gestures (WCAG 2.2), non-modal. Solid
-    /// semi-transparent fill + 1px border (Uncodixfy — no glass/blur).
-    private var quickAccessHUD: some View {
-        @Bindable var midiOut = midiOut
-        #if canImport(HealthKit)
-        @Bindable var healthWriter = healthWriter
-        #endif
-        return HStack(spacing: 10) {
-            hudButton(running ? "Stop" : "Play", running ? "stop.fill" : "play.fill",
-                      tint: running ? EchoelTheme.text : EchoelTheme.accent) { toggleBiofeedback() }
-            #if canImport(MetalKit) && canImport(UIKit)
-            hudButton("Visual", "sparkles") { showVisual = true }
-            #endif
-            Menu {
-                // Both this menu AND the Tools grid render from `toolItems` — one source,
-                // so every tool is reachable from both (the two menu-based specials below
-                // are added to both surfaces too).
-                Section("Editors") {
-                    ForEach(toolItems(.editors)) { t in
-                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
-                    }
-                    Menu {
-                        ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
-                            Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
-                        }
-                    } label: { Label("Drum Samples", systemImage: "waveform") }
-                }
-                Section("Audio & Bio") {
-                    ForEach(toolItems(.audioBio)) { t in
-                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
-                    }
-                }
-                Section("Connect") {
-                    ForEach(toolItems(.connect)) { t in
-                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
-                    }
-                    Menu {
-                        Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
-                        Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
-                            .disabled(!midiOut.enabled)
-                        Toggle(isOn: $midiOut.expressionEnabled) { Label("5D Expression (body)", systemImage: "hand.draw") }
-                            .disabled(!midiOut.enabled || !midiOut.mpeEnabled)
-                        #if canImport(HealthKit)
-                        Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
-                        #endif
-                    } label: { Label("MIDI / Health", systemImage: "pianokeys.inverse") }
-                }
-                // "Visual" is already the prominent top-level HUD button → skip it here to
-                // avoid a duplicate; the menu carries the rest of Visual & Learn (Learn).
-                Section("Visual & Learn") {
-                    ForEach(toolItems(.visualLearn).filter { $0.id != "visual" }) { t in
-                        hudButtonLabelMenu(t.title, t.icon) { openTool(t.id) }
-                    }
-                }
-            } label: {
-                hudLabel("Tools", "square.grid.2x2")
-            }
-            .accessibilityLabel("Tools — open any editor from anywhere")
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(EchoelTheme.bg.opacity(0.92))
-        .overlay(Rectangle().frame(height: 1).foregroundStyle(EchoelTheme.border), alignment: .top)
-    }
-
-    private func hudButton(_ title: String, _ icon: String,
-                           tint: Color = EchoelTheme.text, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { hudLabel(title, icon).foregroundStyle(tint) }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel(title)
-    }
-
-    private func hudLabel(_ title: String, _ icon: String) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon).font(.system(size: 17))
-            Text(title).font(EchoelTheme.font(10, .medium))
-        }
-        .foregroundStyle(EchoelTheme.text)
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .contentShape(Rectangle())
-    }
-
-    private func hudButtonLabelMenu(_ title: String, _ icon: String,
-                                    _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(title, systemImage: icon) }
     }
 
     // MARK: - The one button
