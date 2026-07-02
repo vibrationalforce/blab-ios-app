@@ -1,14 +1,13 @@
-build: 2026-07-02 v10.79.25 (Tools-Raster + MIDI raus · Export trägt Tonart/Tempo/Genre)
+build: 2026-07-02 v10.79.26 (MP4-Aufnahme im schwebenden Visual — WAV + MP4)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Founder (Screenshots): "Alles weg außer visuals" (rotes X über dem ganzen Tools-Raster)
-  + "Midi Quatsch kann auch weg" + "gut wenn das Exportieren gleich die Tonart etc mit drin hat".
-  Umgesetzt: (1) das komplette Tools-Raster (Piano Roll, Sound, Automation, Import MIDI, Drum
-  Samples, Audio In, Audio Clip, Coherence, Routing, Plugins, Broadcast, Live Colabo, MIDI/Health,
-  Learn) ist aus der Ansicht raus — das Visual bleibt (schwebendes Fenster über den Monitor oben
-  rechts). (2) Der "Send .mid"-Button ist weg. (3) Der WAV-Export heißt jetzt beschreibend mit
-  Tonart + Tempo + Stimmung + Genre, z.B. `Echoel_2026-07-02_Dm_120bpm_A440_Dub-Techno.wav`
-  (die Datei selbst trägt den Kontext). Reine Reduktion in EchoelStudioView (Body-Zweig + Button
-  entfernt = sicherer fürs Metadata-Limit, nie angehängt); Engine/geschützte DSP unberührt.
-  Musik-Regler (Genre/Key/Tempo/Sound/Effects/Master) + Start + WAV-Export (Loop/Keep) bleiben.
-  TEST 10.79.25: unten kein Tools-Raster, kein "Send .mid" mehr. Loop exportieren → der Dateiname
-  enthält Tonart/Tempo/Genre. Visual über den Monitor oben rechts. Fühlt sich das jetzt schlank an?
+notesT: Founder: "WAV und MP4 sind die Formate der Wahl." WAV (Audio-Loops) ist fertig
+  (mit Tonart/Tempo/Genre im Namen). Jetzt MP4: das schwebende Visual-Fenster nimmt auf —
+  ein Record-Button in der Fensterleiste (● = starten, ⏹ rot = stoppen) schreibt das
+  bio-reaktive Visual + den Live-Ton als .mp4 und öffnet danach das Teilen-Blatt (social-tauglich).
+  Die MP4-Aufnahme steckte vorher nur im alten Vollbild-Visual (jetzt nicht mehr erreichbar,
+  weil das Tools-Raster weg ist) — sie ist jetzt dort, wo das Visual lebt. Genau EIN Metal-Pfad
+  = eine Aufnahme-Instanz (kein Doppel-Capture). Tipp: Fenster vor der Aufnahme auf L stellen →
+  höher aufgelöster Clip (das Video wird in Fenstergröße gerendert). Render-sicher: nur
+  Low-Freq-Reads (isRecording) in der Leiste; MetalBioView zieht Bio im Draw-Loop.
+  TEST 10.79.26: Visual über Monitor oben rechts einblenden → Record (●) tippen → spielen →
+  Stop (⏹) → Teilen-Blatt mit .mp4. WAV-Export wie gehabt. Ton + Menüs laufen weiter.

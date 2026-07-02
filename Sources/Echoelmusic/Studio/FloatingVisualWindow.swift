@@ -15,11 +15,26 @@ import SwiftUI
 // graph). Only ONE `MetalBioView` renders app-wide at a time (GPU rule): this window is
 // the single Metal path at the WorkspaceView root.
 
+/// A finished MP4 clip to share (Identifiable so `.sheet(item:)` can present it).
+private struct RecordedClip: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 @MainActor
 struct FloatingVisualWindow: View {
 
     /// Show/hide — owned by WorkspaceView (persisted there), toggled from the header.
     @Binding var isPresented: Bool
+
+    // MP4 capture (founder 2026-07-02: "WAV und MP4 sind die Formate der Wahl"). The
+    // window's MetalBioView is the single Metal path, so it is the one capture instance;
+    // tapping record writes the bio-reactive visual (+ the live audio) to an .mp4 to share.
+    #if canImport(AVFoundation)
+    @Environment(VisualRecorder.self) private var recorder
+    @Environment(AudioEngine.self) private var audioEngine
+    @State private var recordedClip: RecordedClip?
+    #endif
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -64,6 +79,9 @@ struct FloatingVisualWindow: View {
                 .position(c)
         }
         .transition(.opacity)
+        #if canImport(AVFoundation)
+        .sheet(item: $recordedClip) { clip in ShareSheet(url: clip.url) }
+        #endif
     }
 
     // MARK: - Card
@@ -72,7 +90,9 @@ struct FloatingVisualWindow: View {
     private func card(size: CGSize, in bounds: CGSize) -> some View {
         VStack(spacing: 0) {
             handleBar(in: bounds, card: size)
-            MetalBioView()
+            // `capturesVideo: true` → this instance feeds the shared VisualRecorder when
+            // recording (it is the only Metal path, so no double-capture).
+            MetalBioView(capturesVideo: true)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
         }
@@ -93,6 +113,16 @@ struct FloatingVisualWindow: View {
                 .foregroundStyle(EchoelTheme.dim)
             Text("Visual").font(EchoelTheme.font(11, .medium)).foregroundStyle(EchoelTheme.dim)
             Spacer(minLength: 0)
+            #if canImport(AVFoundation)
+            Button { toggleRecording() } label: {
+                Image(systemName: recorder.isRecording ? "stop.circle.fill" : "record.circle")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(recorder.isRecording ? Color.red : EchoelTheme.text)
+                    .frame(width: 28, height: 22)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(recorder.isRecording ? "Stop recording" : "Record MP4 video")
+            #endif
             Button { cycleSize() } label: {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 12, weight: .semibold))
@@ -131,6 +161,21 @@ struct FloatingVisualWindow: View {
     private func cycleSize() {
         withAnimation(.easeInOut(duration: 0.18)) { sizeRaw = windowSize.next.rawValue }
     }
+
+    #if canImport(AVFoundation)
+    /// Start/stop MP4 capture of the visual (with live audio). On stop, present the share
+    /// sheet. Tip: size the window up (L) before recording for a higher-resolution clip —
+    /// the video is rendered at the window's on-screen size.
+    private func toggleRecording() {
+        if recorder.isRecording {
+            Task { @MainActor in
+                if let url = await recorder.stop() { recordedClip = RecordedClip(url: url) }
+            }
+        } else {
+            recorder.start(audio: audioEngine)
+        }
+    }
+    #endif
 
     // MARK: - Geometry
 
