@@ -99,15 +99,19 @@ struct WorkspaceView: View {
                 // LEFT (founder red-1): app mark + live EKG pulse monitor.
                 EchoelLogoMark().frame(width: 22, height: 22)
                 #if canImport(AVFoundation)
-                Button { expandedMonitor = .pulse } label: {
-                    // Live reads live in PulseMonitorMiniLive (a leaf) — NOT here. Reading
-                    // cameraRPPG.waveform/detectedBPM/isLocked in this body subscribed
-                    // WorkspaceView (parent of every surface) to the 10 Hz pulse signal, so
-                    // the whole surface tree rebuilt 10×/s during biofeedback and tore down
-                    // any open dropdown menu in the active surface (the recurring freeze).
+                // The pulse mini is glanceable STATUS; tapping it opens the ONE bio home
+                // (the Bio surface), not a separate fullscreen pulse view — one place for
+                // the body (founder: no duplicate paths). Live reads stay in the
+                // PulseMonitorMiniLive leaf (NOT this body): reading cameraRPPG.waveform/
+                // detectedBPM/isLocked here would subscribe WorkspaceView (parent of every
+                // surface) to the 10 Hz pulse and rebuild the whole tree, tearing down any
+                // open dropdown in the active surface (the recurring freeze).
+                Button { surfaceRaw = Surface.bio.rawValue } label: {
                     PulseMonitorMiniLive()
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Bio")
+                .accessibilityHint("Opens the Bio page")
                 #endif
                 Spacer(minLength: 0)
                 // RIGHT (founder red-2): live immersive-visual monitor (full corner).

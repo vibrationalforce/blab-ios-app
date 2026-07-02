@@ -145,7 +145,9 @@ struct ImmersiveMonitorMini: View {
 
 /// Which header monitor is expanded full screen.
 enum ExpandedMonitor: String, Identifiable {
-    case pulse, immersive
+    // Only the immersive visual expands to fullscreen now; the pulse mini routes to the
+    // Bio SURFACE instead (one bio home, no duplicate fullscreen pulse view).
+    case immersive
     var id: String { rawValue }
 }
 
@@ -156,15 +158,11 @@ enum ExpandedMonitor: String, Identifiable {
 struct ExpandedMonitorView: View {
     let kind: ExpandedMonitor
     @Environment(\.dismiss) private var dismiss
-    #if canImport(AVFoundation)
-    @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
-    #endif
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             switch kind {
-            case .pulse:    pulseScreen
             case .immersive: MetalBioView(intensity: 1.0, ringDensity: 40, motion: 1.0, spread: 1.0)
                                 .ignoresSafeArea()
             }
@@ -184,27 +182,5 @@ struct ExpandedMonitorView: View {
         }
     }
 
-    @ViewBuilder
-    private var pulseScreen: some View {
-        #if canImport(AVFoundation)
-        VStack(spacing: 20) {
-            Text(cameraRPPG.isLocked && cameraRPPG.detectedBPM > 0
-                 ? "\(Int(cameraRPPG.detectedBPM)) bpm" : "—")
-                .font(.system(size: 56, weight: .bold)).monospacedDigit()
-                .foregroundStyle(.white)
-                .accessibilityLabel(cameraRPPG.isLocked && cameraRPPG.detectedBPM > 0
-                                    ? "\(Int(cameraRPPG.detectedBPM)) beats per minute" : "No pulse lock")
-            PulseTrace(samples: cameraRPPG.waveform,
-                       color: cameraRPPG.isLocked ? EchoelTheme.accent : .white.opacity(0.5),
-                       lineWidth: 2.5)
-                .frame(height: 160).padding(.horizontal, 24)
-            Text(cameraRPPG.coachingHint)
-                .font(EchoelTheme.font(14)).foregroundStyle(.white.opacity(0.7))
-        }
-        .padding(24)
-        #else
-        Text("Pulse monitor unavailable").foregroundStyle(.white)
-        #endif
-    }
 }
 #endif
