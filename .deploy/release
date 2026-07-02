@@ -1,16 +1,14 @@
-build: 2026-07-02 v10.79.24 (Eine adaptive Ansicht — Tab-Leiste + Studio-Tür entfernt)
+build: 2026-07-02 v10.79.25 (Tools-Raster + MIDI raus · Export trägt Tonart/Tempo/Genre)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Founder: "Eine adaptive Ansicht ohne weitere Untermenüs." Die Shell ist jetzt EINE
-  Ansicht — das bio-generative Instrument (EchoelStudioView) mit nur der Dauer-Chrome darüber
-  (Marken-Header + Transport) und dem Visual als schwebendem Fenster. Die 6er-Tab-Leiste
-  (Arrange/Clips/Mix/Bio/Browse) UND die "Studio"-Tür sind aus der Navigation raus. Die Flächen
-  existieren weiter im Code (voll umkehrbar — Bottom-Bar zurückholen bringt sie wieder), sind nur
-  nicht mehr vorne. Körper wird im Instrument scharfgeschaltet (Start → Kamera → Musik), das
-  Visual schaltet der Monitor oben rechts. Reine WorkspaceView-Änderung; das (fragile)
-  EchoelStudioView-Body/Sheet-Chain wurde NICHT angefasst (Black-Screen-Schutz).
-  HINWEIS: Damit sind vorerst nicht mehr erreichbar: Mix-Seite, Bio-Seite (Entrainment +
-  Harmonic-Mapping-Schalter), Browser (Presets), Clips, Arrange. Sag, wenn du eines davon in der
-  einen Ansicht willst — dann hole ich es gezielt rein. NÄCHSTER (heikler) Schritt: die
-  Sektionen/Tools INNERHALB des Instruments zu einer adaptiven Ansicht verschlanken.
-  TEST 10.79.24: App startet direkt im Instrument, keine Tab-Leiste unten, keine Studio-Tür.
-  Oben: Marke + Puls + Visual-Monitor. Start → Musik aus dem Körper; Visual-Monitor → Fenster.
+notesT: Founder (Screenshots): "Alles weg außer visuals" (rotes X über dem ganzen Tools-Raster)
+  + "Midi Quatsch kann auch weg" + "gut wenn das Exportieren gleich die Tonart etc mit drin hat".
+  Umgesetzt: (1) das komplette Tools-Raster (Piano Roll, Sound, Automation, Import MIDI, Drum
+  Samples, Audio In, Audio Clip, Coherence, Routing, Plugins, Broadcast, Live Colabo, MIDI/Health,
+  Learn) ist aus der Ansicht raus — das Visual bleibt (schwebendes Fenster über den Monitor oben
+  rechts). (2) Der "Send .mid"-Button ist weg. (3) Der WAV-Export heißt jetzt beschreibend mit
+  Tonart + Tempo + Stimmung + Genre, z.B. `Echoel_2026-07-02_Dm_120bpm_A440_Dub-Techno.wav`
+  (die Datei selbst trägt den Kontext). Reine Reduktion in EchoelStudioView (Body-Zweig + Button
+  entfernt = sicherer fürs Metadata-Limit, nie angehängt); Engine/geschützte DSP unberührt.
+  Musik-Regler (Genre/Key/Tempo/Sound/Effects/Master) + Start + WAV-Export (Loop/Keep) bleiben.
+  TEST 10.79.25: unten kein Tools-Raster, kein "Send .mid" mehr. Loop exportieren → der Dateiname
+  enthält Tonart/Tempo/Genre. Visual über den Monitor oben rechts. Fühlt sich das jetzt schlank an?
