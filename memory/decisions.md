@@ -4,6 +4,27 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-02 ENVIRONMENT CONSTRAINT: YouTube is blocked in the web sandbox (capability exists, network doesn't)
+- **Fact to remember (founder: "merke dir das"):** The `youtube-analyze` capability EXISTS
+  (skill + `scripts/analyze-youtube.py` + vision-gate routing). It does NOT work in the
+  Claude-Code-on-web remote environment because THIS session's **network policy blocks
+  `youtube.com` at the egress gateway** — a hard `403 CONNECT` policy denial (confirmed via
+  `curl http://127.0.0.1:46751/__agentproxy/status` → `www.youtube.com:443 connect_rejected`).
+  `WebFetch` on a YouTube URL also returns 403; `WebSearch` cannot resolve a video by its
+  bare ID (only by title/topic). Same policy blocks context7, perplexity, firecrawl MCP.
+- **Do NOT:** retry, pretend to have watched the video, or route around the block via
+  third-party mirrors (invidious/piped) — the proxy README explicitly forbids routing around
+  an org policy denial.
+- **To actually enable YouTube analysis, ONE of:** (a) the founder changes the environment's
+  **network policy to allow `youtube.com` (+ `googlevideo.com` for transcripts)** — see
+  code.claude.com/docs/en/claude-code-on-the-web (network policy is chosen when the env is
+  created); (b) the founder pastes the transcript/title text and I analyze that; (c) run the
+  skill in a local/session where YouTube is reachable.
+- **When the founder shares a YouTube link here:** state honestly it's network-blocked in this
+  env, offer the three unblock paths, and ask for a one-line takeaway if he wants it acted on
+  now. Don't silently drop it; don't fake analysis.
+- **Review:** 2026-08-01 (re-check whether the env policy was widened).
+
 ### 2026-06-19 UI standard: one parameter control (`EchoelValueField`) app-wide
 - **Decision:** Every adjustable numeric parameter across the app uses `EchoelValueField`
   (label + value + unit, adjusted by a vertical-fader drag / tap-to-type) — **no raw SwiftUI
