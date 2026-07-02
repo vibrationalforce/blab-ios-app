@@ -233,15 +233,20 @@ struct EchoelStudioView: View {
     @State private var transposeSemitones: Float = 0
     @State private var showTranspose = false
 
-    // Immersive-visual controls (also persisted feel). All clamped so the WCAG flash
-    // ceiling (≤3 Hz) can never be exceeded — see MetalBioView.
-    @State private var visualIntensity: Float = 1.0
-    @State private var visualDetail: Float = 40       // ring density
-    @State private var visualMotion: Float = 1.0      // animation speed (flash-clamped)
-    @State private var visualSpread: Float = 1.0
+    // Immersive-visual controls. Now @AppStorage (Double) so they are the SHARED single
+    // source of truth read by BOTH this panel AND the floating visual window (founder
+    // 2026-07-02: "Visual Design muss möglich sein" — every tweak must show in the window,
+    // live). All clamped so the WCAG flash ceiling (≤3 Hz) can never be exceeded — see
+    // MetalBioView. Stored as Double (@AppStorage has no Float); passed to the renderer as
+    // Float(...). EchoelValueField is generic over BinaryFloatingPoint, so the fields bind
+    // to Double directly.
+    @AppStorage("visual.intensity") private var visualIntensity = 1.0
+    @AppStorage("visual.detail") private var visualDetail = 40.0   // ring density
+    @AppStorage("visual.motion") private var visualMotion = 1.0    // animation speed (flash-clamped)
+    @AppStorage("visual.spread") private var visualSpread = 1.0
     /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
-    @State private var visualHue: Float = 0
-    @State private var visualSaturation: Float = 1
+    @AppStorage("visual.hue") private var visualHue = 0.0
+    @AppStorage("visual.saturation") private var visualSaturation = 1.0
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
@@ -388,9 +393,9 @@ struct EchoelStudioView: View {
                                       bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
                 } else {
                     MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: currentToneHz,
-                                 intensity: visualIntensity, ringDensity: visualDetail,
-                                 motion: visualMotion, spread: visualSpread,
-                                 hueShift: visualHue, saturation: visualSaturation,
+                                 intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
+                                 motion: Float(visualMotion), spread: Float(visualSpread),
+                                 hueShift: Float(visualHue), saturation: Float(visualSaturation),
                                  style: visualStyle, styleB: visualStyleB,
                                  blend: Float(visualBlend),
                                  entrainmentPulseHz: entrainmentVisualPulseHz).ignoresSafeArea()
@@ -1227,10 +1232,10 @@ struct EchoelStudioView: View {
     /// renderer or Look — the Look strip owns that — so the two never fight and every
     /// preset composes on top of whatever Look is active.
     private func applyVisualPreset(_ p: VisualPreset) {
-        visualIntensity = p.intensity
-        visualDetail = p.detail
-        visualMotion = p.motion
-        visualSpread = p.spread
+        visualIntensity = Double(p.intensity)
+        visualDetail = Double(p.detail)
+        visualMotion = Double(p.motion)
+        visualSpread = Double(p.spread)
         visualPresetID = p.id
     }
 

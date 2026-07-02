@@ -41,15 +41,19 @@ struct FloatingVisualWindow: View {
     @State private var recordedClip: RecordedClip?
     #endif
 
-    // Visual DESIGN (founder: "Visual Design muss schon noch möglich sein"). The look you
-    // set in the Visual panel must actually reach THIS window. These are the SHARED
-    // (@AppStorage) design keys the panel writes; the floating MetalBioView reads them so
-    // the chosen Look + preset show here. (The panel's live fine-tune sliders are @State
-    // and not yet shared — a follow-up; the persisted design is the preset, resolved below.)
+    // Visual DESIGN (founder: "Visual Design muss möglich sein" + "Feinschliff, alles
+    // User-optimiert"). EVERY design control the Visual panel exposes is now SHARED
+    // (@AppStorage), so each live tweak shows in this window immediately — Look/blend and
+    // the six energy/palette params. Single source of truth; no drift between panel + window.
     @AppStorage("visual.style") private var visualStyle = 0
     @AppStorage("visual.styleB") private var visualStyleB = 0
     @AppStorage("visual.blend") private var visualBlend = 0.0
-    @AppStorage("visual.preset") private var visualPresetID = ""
+    @AppStorage("visual.intensity") private var visualIntensity = 1.0
+    @AppStorage("visual.detail") private var visualDetail = 40.0
+    @AppStorage("visual.motion") private var visualMotion = 1.0
+    @AppStorage("visual.spread") private var visualSpread = 1.0
+    @AppStorage("visual.hue") private var visualHue = 0.0
+    @AppStorage("visual.saturation") private var visualSaturation = 1.0
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -85,14 +89,6 @@ struct FloatingVisualWindow: View {
     private let margin: CGFloat = 12
     private let handleHeight: CGFloat = 30
 
-    /// The persisted visual design (energy/form) — the chosen preset if any, else the
-    /// neutral defaults. Shared with the Visual panel via `visual.preset`.
-    private var design: (intensity: Float, detail: Float, motion: Float, spread: Float) {
-        if let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
-            return (p.intensity, p.detail, p.motion, p.spread)
-        }
-        return (1.0, 40, 1.0, 1.0)
-    }
 
     var body: some View {
         GeometryReader { geo in
@@ -116,11 +112,12 @@ struct FloatingVisualWindow: View {
             handleBar(in: bounds, card: size)
             // `capturesVideo: true` → this instance feeds the shared VisualRecorder when
             // recording (it is the only Metal path, so no double-capture). The look params
-            // are the SHARED design (style/blend + the resolved preset), so what you set in
-            // the Visual panel shows here too.
+            // are the SHARED design keys (style/blend + the six energy/palette params), so
+            // every tweak in the Visual panel shows here live.
             MetalBioView(capturesVideo: true,
-                         intensity: design.intensity, ringDensity: design.detail,
-                         motion: design.motion, spread: design.spread,
+                         intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
+                         motion: Float(visualMotion), spread: Float(visualSpread),
+                         hueShift: Float(visualHue), saturation: Float(visualSaturation),
                          style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
