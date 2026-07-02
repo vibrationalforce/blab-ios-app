@@ -47,7 +47,10 @@ private struct BioUniforms {
     /// (the science-first default); >0 rotates the palette for performance.
     var hueShift: Float = 0
     /// VJ saturation [0…2]. 1 = neutral (unchanged), 0 = greyscale, >1 = punchier.
-    var saturation: Float = 1
+    /// DEFAULT 0.82 (not 1): full spectral saturation reads "neon rainbow / amateur"; a
+    /// gentle pull toward a graded palette looks professional while staying scientific
+    /// (the tone→light hue order is untouched). The VJ control can push it back to vivid.
+    var saturation: Float = 0.82
     /// ACCUMULATED pulse phase (turns). The ring animation reads this, NOT
     /// `time × pulseHz`: with the old form, any change in the HR-derived frequency
     /// multiplied the (large, ever-growing) time → the whole pattern snapped by many
@@ -84,9 +87,11 @@ struct MetalBioView: UIViewRepresentable {
     var ringDensity: Float = 40
     var motion: Float = 1.0
     var spread: Float = 1.0
-    /// VJ palette controls (see BioUniforms). Defaults keep the physical colour.
+    /// VJ palette controls (see BioUniforms). hueShift 0 keeps the physical hue order;
+    /// saturation defaults to a graded 0.82 (see BioUniforms) so the palette reads
+    /// professional, not neon — pushable back to vivid by the VJ control.
     var hueShift: Float = 0
-    var saturation: Float = 1
+    var saturation: Float = 0.82
     /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (see `BioUniforms.style`).
     var style: Int = 0
     /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
@@ -792,7 +797,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         {
             float l = dot(col, float3(0.2126, 0.7152, 0.0722));
             float3 warm = float3(1.0, 0.92, 0.80);          // warm daylight white point
-            col = mix(float3(l) * warm, col, 0.85);         // gentle, warm-tinted desaturation
+            col = mix(float3(l) * warm, col, 0.80);         // warm-tinted desaturation (was .85 — ease neon further)
             col = mix(col, warm, 0.10);                     // slight overall warm lift
         }
         col = mix(col, col * 1.15 + 0.05, coh);
