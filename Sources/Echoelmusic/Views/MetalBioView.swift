@@ -775,6 +775,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float vignette = mix(fa.y, fb.y, blend);
         // Breath → a soft central bloom that swells on the inhale (light pressure).
         float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
+        // HEARTBEAT (V3): the central bloom gently throbs once per pulse, so the body
+        // VISIBLY drives the visual ("your heartbeat", not a generic visualizer). Flash-safe:
+        // `phase` is integrated from a ≤2.5 Hz clock (< WCAG 3 Hz) and the swing is gentle.
+        float beat = 0.5 - 0.5 * cos(phase);            // 0…1 once per heartbeat
+        bloom *= (0.80 + 0.20 * beat);
 
         // Colour = drifting CLOUDS of the tone's harmonic colours distributed across the
         // frame (founder: "verschiedene Farbwolken in Kombination … nicht zu einer
