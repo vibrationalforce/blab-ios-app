@@ -454,7 +454,15 @@ final class CameraAnalyzer {
         // so a motion run can neither earn nor hold a lock (drops below the lock gate fast).
         if Self.isMotionAmplitude(amplitude) {
             lastPeakCount = 0
-            bpmConfidence *= 0.6
+            // Bleed confidence for a motion window — but this runs PER SAMPLE, and the
+            // publish loop drains ~15–30 samples per tick, so a flat 0.6 compounds to ≈0 and
+            // wipes a good lock in ONE tick. Device log 2026-07-02: a clean conf-0.96 / bpm-50
+            // lock (acf 0.5–0.7) collapsed to conf 0.00 the instant amp brushed 0.21 during a
+            // small pressure change — the autocorrelation still saw the pulse perfectly. So
+            // when the independent autocorrelation still confirms a strong, steady pulse
+            // (acf > 0.4), bleed GENTLY (a 1–2 s wobble survives the lock gate); a true motion
+            // / false-lock window (weak acf, e.g. amp≈0.76 acf≈0.2) still bleeds hard.
+            bpmConfidence *= Self.motionBleed(autoStrength: lastAutoStrength)
             return
         }
         let threshold = minAmp + amplitude * 0.55
@@ -645,6 +653,17 @@ final class CameraAnalyzer {
     /// without rejecting any observed real pulse. Pure → Linux-testable.
     nonisolated static func isMotionAmplitude(_ amplitude: Float) -> Bool {
         amplitude > 0.20
+    }
+
+    /// Per-sample confidence multiplier for a motion-amplitude window. Applied once per
+    /// analysed sample (the drain feeds ~15–30/tick), so it MUST stay close to 1 for the
+    /// keep case or it compounds to ≈0 in a single tick. When the independent autocorrelation
+    /// still confirms a strong, steady pulse (acf > 0.4), a brief pressure blip on a good lock
+    /// bleeds only slightly (0.98 → ~0.55–0.74 across a full tick, well above the 0.35 gate);
+    /// a genuine motion / false-lock window (weak acf) still bleeds hard (0.6 → collapses fast).
+    /// Device log 2026-07-02: this is what stops a conf-0.96 lock dying the instant amp≈0.21.
+    nonisolated static func motionBleed(autoStrength: Double) -> Double {
+        autoStrength > 0.4 ? 0.98 : 0.6
     }
 
     /// Per-frame finger-presence test with red-floor HYSTERESIS (acquire hard, hold easy) —
