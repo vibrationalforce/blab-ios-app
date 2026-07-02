@@ -106,7 +106,8 @@ struct EchoelStudioView: View {
     @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
     /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
     /// · 4 Prism · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
-    @AppStorage("visual.style") private var visualStyle = 0
+    /// Default 5 (Aurora) — a richer look out of the box; MUST match FloatingVisualWindow.
+    @AppStorage("visual.style") private var visualStyle = 5
     /// Secondary style to blend with `visualStyle` (same index space). 0…9 as above.
     @AppStorage("visual.styleB") private var visualStyleB = 0
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
@@ -248,8 +249,13 @@ struct EchoelStudioView: View {
     @AppStorage("visual.motion") private var visualMotion = 1.0    // animation speed (flash-clamped)
     @AppStorage("visual.spread") private var visualSpread = 1.0
     /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
+    /// Default saturation 0.82 (professional, not neon); MUST match FloatingVisualWindow.
     @AppStorage("visual.hue") private var visualHue = 0.0
-    @AppStorage("visual.saturation") private var visualSaturation = 1.0
+    @AppStorage("visual.saturation") private var visualSaturation = 0.82
+    /// The floating visual window's show/hide state — SHARED with WorkspaceView's header
+    /// monitor button and the window's own close button, so the Visual panel can toggle it
+    /// directly (founder: everything user-optimized; don't make the header the only way in).
+    @AppStorage("visual.floating.visible") private var floatingVisualVisible = false
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
@@ -1036,7 +1042,24 @@ struct EchoelStudioView: View {
     // MARK: Panel — Visual (immersive sound→light)
 
     private var visualPanel: some View {
-        panel("Visual", "Immersive sound→light — tap the visual monitor (top right) to show it", isExpanded: $showVisualSettings) {
+        panel("Visual", "Immersive sound→light — show it in a floating window you can move + resize", isExpanded: $showVisualSettings) {
+            Button {
+                floatingVisualVisible.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: floatingVisualVisible ? "eye.slash" : "eye")
+                    Text(floatingVisualVisible ? "Hide visual window" : "Show visual window")
+                        .font(EchoelTheme.font(13, .medium))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(floatingVisualVisible ? EchoelTheme.onPrimary : EchoelTheme.text)
+                .padding(.horizontal, 12).frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(floatingVisualVisible ? EchoelTheme.accent : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
             visualBlendControls
@@ -1739,6 +1762,14 @@ struct EchoelStudioView: View {
 
     private var utilityRow: some View {
         VStack(spacing: 10) {
+            if !hasComposed {
+                // The export/keep/save buttons below are disabled until there's a take —
+                // say WHY, so a first-run user doesn't read the greyed buttons as broken.
+                Text("Tap Generate first — then you can export a WAV loop or record a video.")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             loopLengthSelector
             Button { Task { await exportWav() } } label: {
                 Label(exportLabel, systemImage: exportIcon)

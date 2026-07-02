@@ -74,7 +74,11 @@ struct FloatingVisualWindow: View {
     // User-optimiert"). EVERY design control the Visual panel exposes is now SHARED
     // (@AppStorage), so each live tweak shows in this window immediately — Look/blend and
     // the six energy/palette params. Single source of truth; no drift between panel + window.
-    @AppStorage("visual.style") private var visualStyle = 0
+    // Defaults: a rich look (Aurora, index 5) out of the box — "interessanter" than flat
+    // Rings — and saturation 0.82 (professional, not neon; keeps the physical tone→colour
+    // readable). Kept IDENTICAL to EchoelStudioView's declarations so an absent key resolves
+    // to the same value in both views (no drift before the user touches a control).
+    @AppStorage("visual.style") private var visualStyle = 5
     @AppStorage("visual.styleB") private var visualStyleB = 0
     @AppStorage("visual.blend") private var visualBlend = 0.0
     @AppStorage("visual.intensity") private var visualIntensity = 1.0
@@ -82,7 +86,7 @@ struct FloatingVisualWindow: View {
     @AppStorage("visual.motion") private var visualMotion = 1.0
     @AppStorage("visual.spread") private var visualSpread = 1.0
     @AppStorage("visual.hue") private var visualHue = 0.0
-    @AppStorage("visual.saturation") private var visualSaturation = 1.0
+    @AppStorage("visual.saturation") private var visualSaturation = 0.82
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
