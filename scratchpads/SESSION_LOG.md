@@ -44,7 +44,12 @@ now **Arrange · Clips · Compose · Mix · Bio · Browse**.
   isPlaying, no recursion; mirrors the shipping haptics step-subscriber). Concurrency-reviewed
   clean. Now every surface's play/stop is coherent with the one transport (Compose ✓, Arrange ✓,
   Clips has no play-state, Mix/Bio/Browse have none). Batched as v10.78.2.
-- **⚑ FOUNDER-CONFIRM (deliberate default, low-med):** transport-bar Stop stops PLAYBACK
+- **✅ RESOLVED (2026-07-02) — item-5 (transport Stop scope):** the founder's "one accessible
+  solution, no duplicate paths" directive settled it → UNIFY. The global transport Stop now
+  ALSO ends the Compose bio session (U2a: `.onChange(of: transport.isPlaying)` → stopEverything
+  when running; guarded by `running`, no recursion). To only watch the pulse without music, arm
+  the body on the Bio page (its proper home). One Stop for the whole app.
+- **~~⚑ FOUNDER-CONFIRM (superseded by the above)~~:** transport-bar Stop stops PLAYBACK
   only; it does NOT end the Compose bio session (camera/evolve/bio-mod stay armed) — so the
   global Stop and Compose's own Start/Stop have DIFFERENT scope (transport = clock, Compose
   Start = arm+auto-compose+play). Chosen to preserve "stop the music, keep watching your
