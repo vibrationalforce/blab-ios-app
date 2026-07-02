@@ -1,14 +1,10 @@
-build: 2026-07-02 v10.79.19 (Marke P1.6 — „Meditation" → „Coherence Session")
+build: 2026-07-02 v10.79.20 (Audit P2 — Denormal-Schutz im Synth-Render)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Marken-Bereinigung nach „stärkste Marketing-Richtlinien" (Audit P1.6 + memory/
-  preferences: keine Wellness-Sprache user-facing). Die „Meditation"-Fläche heißt jetzt
-  „Coherence Session":
-  - Tools-Eintrag „Meditation" → „Coherence" (Icon figure.mind.and.body → waveform.path.ecg)
-  - View-Titel „Meditation" → „Coherence Session"
-  - Copy „Settle in… watch your coherence rise" → „Breathe with the circle. Your coherence
-    is measured live." (messend statt heilsversprechend)
-  - Session-Name „Meditation X min" → „Coherence X min"
-  Interne id bleibt „meditation" (Stabilität/Persistenz). Nur user-facing Text geändert.
-  HINWEIS: Falls du „Meditate" bewusst als USP („Create·Meditate·Songs") behalten willst,
-  ist das ein Ein-Zeilen-Revert — sag Bescheid.
-  TEST 10.79.19: Tools → heißt der Eintrag „Coherence", Titel „Coherence Session", Copy messend?
+notesT: Audit-Härtung P2 (DSP-Korrektheit). Die per-Sample One-Pole-Glätter in EchoelDDSP
+  (Obertonamplituden, Rausch-Level, Master-Gain) fallen beim Ausklingen (Target→0) in den
+  FP-Denormal-Bereich → periodische CPU-Spikes bei leisen/ausklingenden Stimmen. Fix: ein
+  winziger, unhörbarer Anti-Denormal-Boden (1e-25, normaler Float; hörbarer Boden ~2e-23 =
+  still) hält die Rekursion über der Subnormal-Zone. Reine Arithmetik, branch-frei, audio-
+  thread-sicher. Kein Klang-Unterschied, aber sauberere CPU-Auslastung im Leerlauf.
+  TEST 10.79.20: rein technisch (CPU/Thermik) — keine hörbare Änderung erwartet; einfach
+  bestätigen dass Sound unverändert gut klingt.

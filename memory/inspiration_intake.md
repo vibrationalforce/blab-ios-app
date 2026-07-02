@@ -285,3 +285,23 @@ VisualProcessor/PerformanceManager stubs, GPL v3 repo tree, Windows build.yml �
 C++/CMake/desktop/GPL stack deliberately removed (Swift-only/MIT/iPhone-first now). Only
 business/branding/monetization brainstorming (freemium, domains) = business-side, not app.
 The in-file "TherapeuticEffects→HarmonicEffects" rename just confirms the de-medicalize direction.
+
+### 2026-07-02 addendum 2 — Atmos/Dante batch + more BLAB code dumps
+- **Ableton_Atmos_Live_Workflow / Dolby_Renderer_Config / Dante_Routing_Guide** — the ONE
+  genuinely valuable find in the whole legacy dump. Pro live-production workflow: Ableton →
+  Dolby Atmos Renderer (Bed 7.1.2 + N objects) → ADM BWF, Dante two-machine routing, binaural
+  monitor; "BLAB/Blub receives OSC for visuals & haptics." VALIDATES Echoel's existing ADM-OSC
+  output (/adm/obj/{n}/*) as the bio-reactive OBJECT SOURCE into a spatial rig — exactly the
+  CLAUDE.md strategy ("bio-reactive object source for accessible immersive media"). ADOPT-PIPELINE:
+  write a docs/integration guide "Echoel → Atmos/Ambisonics via ADM-OSC (+ OSC→visuals/haptics)".
+  Not app code. Confirms the immersive direction is already correctly built.
+- **code.txt / code_2.txt (identical), blab_blub_suite_v2.txt, Code_Bausteine.docx,
+  AI_README_V10_3 (dup)** — BLAB C++ "Immersive Sound" core + BLAB/BLUB C++ starter kit +
+  HTML/JS sound→light tutorial. Banned brand + discarded C++/JS stack + already-built concept.
+  NO salvage.
+
+**ARCHIVE CLOSED (~27 files triaged).** Net on-vision salvage across the ENTIRE legacy dump:
+(1) Atmos/ADM integration guide [pipeline/docs], (2) per-track Kammerton/Tonart [music feature],
+(3) worldwide-styles/harmony DB [genre depth], (4) Ableton Link, (5) facial-expression bio-input,
+(6) shared-coherence multiplayer. Everything else = BLAB/SYNG banned brand / discarded stack /
+wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-scan + bucket only.
