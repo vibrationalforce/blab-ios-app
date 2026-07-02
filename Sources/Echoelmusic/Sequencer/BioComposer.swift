@@ -224,6 +224,39 @@ public enum BioComposer {
         clamp01(moodTension) * (1 - 0.6 * clamp01(coherence))
     }
 
+    /// Depth of the bar-internal dynamic SHAPE (metric accent + swell) applied to every
+    /// take. The device clip measured LRA 1.7 LU (dynamically dead — a flat 1-bar loop);
+    /// this gives the loop real phrasing so it breathes. Kept musical (peak-to-peak ~±30%),
+    /// not a pump. Tunable; 0 restores the old flat behaviour.
+    static let dynamicDepth: Float = 0.6
+
+    /// Velocity multiplier (~[1−depth/2, 1+depth/2]) for a note starting at `step`: a metric
+    /// accent (downbeat > 8th > 16th, the natural musical hierarchy) blended with a gentle
+    /// raised-cosine swell across the bar (0→1→0). Pure + deterministic → unit-tested.
+    static func barDynamic(step: Int, stepCount: Int, depth: Float) -> Float {
+        guard stepCount > 1 else { return 1 }
+        let s = ((step % stepCount) + stepCount) % stepCount
+        let pos = Float(s) / Float(stepCount)                     // 0..<1 across the bar
+        let metric: Float = (s % 4 == 0) ? 1.0 : (s % 2 == 0 ? 0.6 : 0.32)
+        let swell = 0.5 - 0.5 * cos(2 * Float.pi * pos)           // 0 → 1 → 0 hump
+        let shape = 0.6 * metric + 0.4 * swell                    // 0…1
+        return 1 + clamp01(depth) * (shape - 0.5)                 // centred ~1, span ±depth/2
+    }
+
+    /// Shape a take's dynamics over the bar so the WHOLE texture (pads, bass, lead) rises
+    /// and relaxes together instead of sitting at a flat velocity — the phrasing a looping
+    /// bar otherwise lacks (LRA 1.7 → lifeless). Applied to all genres uniformly. Pure,
+    /// deterministic; velocity clamped to a musical [0.05, 1]. depth 0 → unchanged.
+    static func shapeBarDynamics(_ notes: [Note], depth: Float, stepCount: Int) -> [Note] {
+        guard clamp01(depth) > 0, stepCount > 1 else { return notes }
+        return notes.map { note in
+            var n = note
+            n.velocity = min(max(note.velocity * barDynamic(step: note.startStep,
+                                                            stepCount: stepCount, depth: depth), 0.05), 1)
+            return n
+        }
+    }
+
     /// Subtle, SEEDED per-note velocity variation so repeated notes don't read
     /// machine-gun identical — the `humanize` mood, now applied to the LIVE take and
     /// not only at MIDI export (audit: live notes were perfectly uniform → lifeless).
@@ -296,7 +329,11 @@ public enum BioComposer {
         }
 
         return BioComposition(
-            notes: humanizeVelocity(notes, amount: input.mood.humanize, seed: input.seed),
+            // Shape the bar's dynamics (metric accent + swell) so the whole texture breathes,
+            // THEN add the seeded humanize jitter on top — flat loops read as unprofessional.
+            notes: humanizeVelocity(
+                shapeBarDynamics(notes, depth: Self.dynamicDepth, stepCount: stepCount),
+                amount: input.mood.humanize, seed: input.seed),
             drumSteps: drumSteps,
             drumAccents: drumAccents,
             suggestedTempo: tempo(for: input)
