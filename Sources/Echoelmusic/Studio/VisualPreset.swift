@@ -44,7 +44,7 @@ public struct VisualPreset: Identifiable, Sendable, Equatable {
     /// Curated set spanning the calm/sparse → intense/dense range the founder framed
     /// as "von Aura bis Zentrifuge". Ordered from softest to most energetic.
     public static let factory: [VisualPreset] = [
-        VisualPreset(id: "aura", name: "Aura", intensity: 0.8, detail: 14, motion: 0.45,
+        VisualPreset(id: "aura", name: "Halo", intensity: 0.8, detail: 14, motion: 0.45,
                      spread: 1.35, blurb: "soft, sparse, slow halo"),
         VisualPreset(id: "drift", name: "Drift", intensity: 0.75, detail: 20, motion: 0.4,
                      spread: 1.4, blurb: "calm, wide and gentle"),

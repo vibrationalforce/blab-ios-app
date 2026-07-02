@@ -81,6 +81,17 @@ final class CameraAnalyzer {
     private var recentBPMs: [Double] = []
     private let recentBPMCapacity = 5
 
+    /// Physiological rate-of-change ceiling for the COMMITTED estimate. A resting
+    /// heart cannot swing tens of bpm in a second; when autocorrelation drops out
+    /// (acf≈0) the peak-count fallback can ramp the EMA 60→140 in ~2.5 s (device
+    /// log 2026-07-02). The slew limiter caps the committed change per REAL second
+    /// so a genuine ramp still passes but a runaway can't. Tuned generous enough
+    /// (~8 bpm/s) that real exertion changes are not blocked.
+    private static let maxBPMChangePerSecond: Double = 8.0
+    /// Frame timestamp of the last committed estimate, for the real-time slew delta.
+    /// 0 = none yet (first commit, or after a reset) → slew skipped so the lock seeds.
+    private var lastEstimateTimestamp: TimeInterval = 0
+
     /// Recent bandpass-filtered pulse signal, normalized to ~[-1,1], for a live
     /// waveform ("Stimmungsbild"). Empty until samples exist; flat = no signal.
     var recentWaveform: [Float] {
@@ -317,6 +328,7 @@ final class CameraAnalyzer {
         dcWarmupCount = 0
         peakTick = 0
         recentBPMs.removeAll()
+        lastEstimateTimestamp = 0
         estimatedBPM = 0
         bpmConfidence = 0
         signalQuality = 0
@@ -553,6 +565,7 @@ final class CameraAnalyzer {
         // a couple of windows.
         let target = stabilisedBPM(bpm)
 
+        let prevEstimate = estimatedBPM
         estimatedBPM = estimatedBPM == 0 ? target : estimatedBPM * 0.80 + target * 0.20
         // AUTOCORRELATION TRUST (device-log feedback): the dicrotic notch can add an
         // extra peak per beat, inflating the discrete count by ~1.3–1.7× — a NON-octave
@@ -563,9 +576,30 @@ final class CameraAnalyzer {
         // can't yank the published rate while a clean fundamental is being ignored.
         // Weak acf → no pull (peak-counting still leads at low SNR; the fingertip case).
         estimatedBPM = Self.autoTrust(estimate: estimatedBPM, autoBPM: lastAutoBPM, autoStrength: lastAutoStrength)
+        // PHYSIOLOGICAL SLEW LIMIT (audit 2026-07-02, P0.1): cap the committed change to
+        // maxBPMChangePerSecond over the REAL elapsed time since the last commit. This is
+        // the load-bearing fix for the acf=0 runaway (60→140 with the finger still on) —
+        // it directly bounds rate-of-change regardless of which guard failed. A first
+        // commit or a re-seed after full loss (prevEstimate==0) is exempt so the lock
+        // still snaps in. dt is capped at 2 s so one long gap can't grant a huge jump.
+        var slewClamped = false
+        if prevEstimate > 0, lastEstimateTimestamp > 0 {
+            let dt = Swift.min(2.0, Swift.max(0, timestamp - lastEstimateTimestamp))
+            let limited = Self.slewLimited(previous: prevEstimate, target: estimatedBPM,
+                                           maxDelta: Self.maxBPMChangePerSecond * dt)
+            slewClamped = abs(limited - estimatedBPM) > 0.5
+            estimatedBPM = limited
+        }
+        lastEstimateTimestamp = timestamp
         // Ramp on every valid window (no hard gate): a clean, stable pulse locks in
         // a few seconds; brief noisy windows are smoothed by the EMA, not ignored.
         bpmConfidence = bpmConfidence * 0.82 + confidence * 0.18
+        // SOFT confidence penalty when the estimate tried to jump faster than physiology
+        // allows: a clamped window is inherently untrustworthy, so don't let the
+        // agreement metric (which rewards self-consistency, audit finding) keep a drifting
+        // rate "locked". This is self-gating — a steady low-SNR fingertip lock never
+        // clamps, so it is never penalised; only an implausible jump is. Recovers at once.
+        if slewClamped { bpmConfidence *= 0.85 }
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
         if rrIntervals.count >= 3 { calculateRMSSD() }
@@ -640,6 +674,14 @@ final class CameraAnalyzer {
         guard estimate > 0, autoBPM > 40, autoStrength > 0.4 else { return estimate }
         let w = min(0.8, (autoStrength - 0.4) / 0.45 * 0.8)
         return estimate * (1 - w) + autoBPM * w
+    }
+
+    /// Clamp `target` to within `maxDelta` of `previous` — the physiological slew
+    /// limiter (audit 2026-07-02, P0.1). `maxDelta <= 0` (no time elapsed) returns
+    /// `target` unchanged. Pure (no state) → unit-testable on Linux.
+    nonisolated static func slewLimited(previous: Double, target: Double, maxDelta: Double) -> Double {
+        guard maxDelta > 0 else { return target }
+        return Swift.min(previous + maxDelta, Swift.max(previous - maxDelta, target))
     }
 
     /// Whether a bandpass-filtered window amplitude is MOTION, not pulse. The red channel
