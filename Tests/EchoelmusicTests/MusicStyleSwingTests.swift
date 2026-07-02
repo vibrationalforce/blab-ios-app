@@ -39,4 +39,22 @@ final class MusicStyleSwingTests: XCTestCase {
         let maxSwing = MusicStyle.allCases.map { $0.swing }.max() ?? 0
         XCTAssertEqual(MusicStyle.jazz.swing, maxSwing, "jazz should be the most swung genre")
     }
+
+    // MULTITIMBRAL Step 2b — every genre's lead timbre must resolve to a real
+    // factory patch, or the lead voice silently keeps the previous/default sound.
+    func testEveryGenreLeadPatchExistsInFactory() {
+        let names = Set(SynthPatch.factory.map { $0.name })
+        for style in MusicStyle.allCases {
+            XCTAssertTrue(names.contains(style.leadPatchName),
+                          "\(style) lead patch '\(style.leadPatchName)' is not in SynthPatch.factory")
+        }
+    }
+
+    func testLeadTimbresAreGenreDistinct() {
+        // The point of Step 2b is variety — the lead is not one fixed sound across
+        // all genres. Expect several different lead patches in use.
+        let distinct = Set(MusicStyle.allCases.map { $0.leadPatchName })
+        XCTAssertGreaterThanOrEqual(distinct.count, 6,
+                                    "leads should span several instruments, got \(distinct.sorted())")
+    }
 }

@@ -222,6 +222,40 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// The factory `SynthPatch` name the dedicated LEAD voice takes on for this
+    /// genre (multitimbral Step 2b). The lead line then reads as a distinct
+    /// instrument sitting over the pad/bass — a synthwave lead vs a jazz Rhodes
+    /// vs a klezmer clarinet — instead of one fixed lead everywhere. Names must
+    /// exist in `SynthPatch.factory`; the generator falls back to "Bright Lead"
+    /// if a name is ever missing.
+    public var leadPatchName: String {
+        switch self {
+        case .dubTechno:          return "Pluck"
+        case .trap:               return "Glass Bell"
+        case .vaporwave:          return "Vapor Lead"
+        case .eighties:           return "Bright Lead"
+        case .disco:              return "Trumpet"
+        case .synthwave:          return "Bright Lead"
+        case .earlySynth:         return "Pluck"
+        case .futuristic:         return "Glass Bell"
+        case .sciFi:              return "Metallic"
+        case .psytrance:          return "Bright Lead"
+        case .esotericMeditation: return "Flute"
+        case .classical:          return "Violin"
+        case .jazz:               return "Soft Keys"    // warm Rhodes
+        case .klezmer:            return "Clarinet"
+        case .oriental:           return "Oboe"
+        case .punk:               return "Bright Lead"
+        case .rocknroll:          return "Hollow Reed"  // sax-like honk
+        case .rock:               return "Bright Lead"
+        case .ska:                return "Trumpet"       // ska horn line
+        case .rocksteady:         return "Hollow Reed"
+        case .heavyMetal:         return "Metallic"
+        case .doom:               return "Metallic"
+        case .selfObservation:    return "Flute"
+        }
+    }
+
     /// The dark/bright, genre-appropriate scale a take defaults to.
     public var scale: Scale {
         switch self {
