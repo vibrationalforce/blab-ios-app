@@ -33,8 +33,23 @@ struct FloatingVisualWindow: View {
     #if canImport(AVFoundation)
     @Environment(VisualRecorder.self) private var recorder
     @Environment(AudioEngine.self) private var audioEngine
+    // For a fitting MP4 name (founder: "Session Recording für video und auch passender
+    // Name") — same convention as the WAV: Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4.
+    @Environment(SessionContext.self) private var session
+    @Environment(Transport.self) private var transport
+    @AppStorage("studio.genre") private var genre: MusicStyle = .vaporwave
     @State private var recordedClip: RecordedClip?
     #endif
+
+    // Visual DESIGN (founder: "Visual Design muss schon noch möglich sein"). The look you
+    // set in the Visual panel must actually reach THIS window. These are the SHARED
+    // (@AppStorage) design keys the panel writes; the floating MetalBioView reads them so
+    // the chosen Look + preset show here. (The panel's live fine-tune sliders are @State
+    // and not yet shared — a follow-up; the persisted design is the preset, resolved below.)
+    @AppStorage("visual.style") private var visualStyle = 0
+    @AppStorage("visual.styleB") private var visualStyleB = 0
+    @AppStorage("visual.blend") private var visualBlend = 0.0
+    @AppStorage("visual.preset") private var visualPresetID = ""
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -70,6 +85,15 @@ struct FloatingVisualWindow: View {
     private let margin: CGFloat = 12
     private let handleHeight: CGFloat = 30
 
+    /// The persisted visual design (energy/form) — the chosen preset if any, else the
+    /// neutral defaults. Shared with the Visual panel via `visual.preset`.
+    private var design: (intensity: Float, detail: Float, motion: Float, spread: Float) {
+        if let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
+            return (p.intensity, p.detail, p.motion, p.spread)
+        }
+        return (1.0, 40, 1.0, 1.0)
+    }
+
     var body: some View {
         GeometryReader { geo in
             let sz = size(in: geo.size)
@@ -91,8 +115,13 @@ struct FloatingVisualWindow: View {
         VStack(spacing: 0) {
             handleBar(in: bounds, card: size)
             // `capturesVideo: true` → this instance feeds the shared VisualRecorder when
-            // recording (it is the only Metal path, so no double-capture).
-            MetalBioView(capturesVideo: true)
+            // recording (it is the only Metal path, so no double-capture). The look params
+            // are the SHARED design (style/blend + the resolved preset), so what you set in
+            // the Visual panel shows here too.
+            MetalBioView(capturesVideo: true,
+                         intensity: design.intensity, ringDensity: design.detail,
+                         motion: design.motion, spread: design.spread,
+                         style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
         }
@@ -169,10 +198,31 @@ struct FloatingVisualWindow: View {
     private func toggleRecording() {
         if recorder.isRecording {
             Task { @MainActor in
-                if let url = await recorder.stop() { recordedClip = RecordedClip(url: url) }
+                if let url = await recorder.stop() {
+                    recordedClip = RecordedClip(url: renamedForShare(url))
+                }
             }
         } else {
             recorder.start(audio: audioEngine)
+        }
+    }
+
+    /// Give the recorded clip a fitting name — same convention as the WAV export:
+    /// `Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4` (key + tempo + tuning + genre). Copies
+    /// to a temp file with that name for the share sheet; falls back to the original on
+    /// failure so a recording is never lost.
+    private func renamedForShare(_ url: URL) -> URL {
+        let raw = "\(session.sessionName(bpm: transport.tempo))_\(genre.displayName)"
+        let safe = raw.components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>| "))
+            .filter { !$0.isEmpty }.joined(separator: "-")
+        let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
+        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("\(safe).\(ext)")
+        do {
+            try? FileManager.default.removeItem(at: dest)
+            try FileManager.default.copyItem(at: url, to: dest)
+            return dest
+        } catch {
+            return url
         }
     }
     #endif

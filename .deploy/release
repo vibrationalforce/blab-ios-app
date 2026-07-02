@@ -1,13 +1,15 @@
-build: 2026-07-02 v10.79.26 (MP4-Aufnahme im schwebenden Visual — WAV + MP4)
+build: 2026-07-02 v10.79.27 (Visual-Design wirkt im Fenster · MP4 mit passendem Namen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Founder: "WAV und MP4 sind die Formate der Wahl." WAV (Audio-Loops) ist fertig
-  (mit Tonart/Tempo/Genre im Namen). Jetzt MP4: das schwebende Visual-Fenster nimmt auf —
-  ein Record-Button in der Fensterleiste (● = starten, ⏹ rot = stoppen) schreibt das
-  bio-reaktive Visual + den Live-Ton als .mp4 und öffnet danach das Teilen-Blatt (social-tauglich).
-  Die MP4-Aufnahme steckte vorher nur im alten Vollbild-Visual (jetzt nicht mehr erreichbar,
-  weil das Tools-Raster weg ist) — sie ist jetzt dort, wo das Visual lebt. Genau EIN Metal-Pfad
-  = eine Aufnahme-Instanz (kein Doppel-Capture). Tipp: Fenster vor der Aufnahme auf L stellen →
-  höher aufgelöster Clip (das Video wird in Fenstergröße gerendert). Render-sicher: nur
-  Low-Freq-Reads (isRecording) in der Leiste; MetalBioView zieht Bio im Draw-Loop.
-  TEST 10.79.26: Visual über Monitor oben rechts einblenden → Record (●) tippen → spielen →
-  Stop (⏹) → Teilen-Blatt mit .mp4. WAV-Export wie gehabt. Ton + Menüs laufen weiter.
+notesT: Founder: "Visual Design muss schon noch möglich sein. Session Recording für video und
+  auch passender Name." Zwei Dinge:
+  (1) Visual-Design wirkt jetzt im schwebenden Fenster. Das Fenster nutzte bisher nur den
+  Default-Look; jetzt liest es die GETEILTEN Design-Keys (Look/Style + Blend + gewähltes Preset
+  aus dem Visual-Panel) und zeigt sie an — was du im Visual-Panel einstellst, siehst du im Fenster.
+  Das Visual-Panel bleibt (Design weiterhin möglich). (Die Fein-Regler Intensity/Detail/Motion/
+  Spread sind noch view-lokal → das PRESET trägt diese Form; Live-Regler ins Fenster ist ein
+  Folgeschritt.)
+  (2) Die Video-Aufnahme (MP4) heißt jetzt beschreibend wie die WAV:
+  `Echoel_2026-07-02_Dm_120bpm_A440_Dub-Techno.mp4` (Tonart · Tempo · Stimmung · Genre).
+  Fällt sicher auf den Originalnamen zurück, falls das Umbenennen scheitert.
+  TEST 10.79.27: Im Visual-Panel ein Preset/Look wählen → schwebendes Fenster zeigt ihn.
+  Aufnahme (●) → Stop (⏹) → Teilen-Blatt: die .mp4 trägt Tonart/Tempo/Genre im Namen.
