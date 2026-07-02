@@ -91,10 +91,13 @@ struct EchoelStudioView: View {
     @State private var tapTempo = TapTempo()
     @State private var lastTappedBPM: Double? = nil
 
-    // Collapsible control-panel state ("aufklappen") + timbre preset.
+    // Collapsible control-panel state ("aufklappen"). Feinschliff 3/4 (founder: "eine
+    // adaptive Ansicht ohne weitere Untermenüs … nur das Wesentliche sichtbar"): the view
+    // now opens CALM — only Composition (genre/key/tempo) expanded; every other panel is
+    // one tap away, nothing removed (function preserved, reversible).
     @State private var showComposition = true
     @State private var showMood = false
-    @State private var showSound = true
+    @State private var showSound = false
     @State private var showEffects = false
     @State private var showMaster = false
     /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
@@ -756,13 +759,15 @@ struct EchoelStudioView: View {
 
     private var soundControls: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Essentials first (Composition open by default), advanced (Mood) last — the
+            // view reads top-down from "what most people touch" to "deep tweaks".
             compositionPanel
             transposePanel
-            moodPanel
             soundPanel
             effectsPanel
             masterPanel
             visualPanel
+            moodPanel
             // Entrainment now lives on the Bio page (its home) — not duplicated here.
             if running {
                 StudioCaptionView(caption: caption)

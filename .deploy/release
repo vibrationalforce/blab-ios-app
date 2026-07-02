@@ -1,12 +1,12 @@
-build: 2026-07-02 v10.79.30 (Feinschliff 2/4 — ruhige BPM-Anzeige)
+build: 2026-07-02 v10.79.31 (Feinschliff 3/4 — ruhige Ansicht, nur Wesentliches offen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Feinschliff 2/4 (Founder: "ruhige Anzeige"). Neuer Anzeige-Wert `displayBPM` im rPPG-
-  Publisher: er übernimmt nur CONFIDENTE Messungen (≥0.6) und glättet leicht (EMA), sonst HÄLT
-  er den letzten guten Wert — so springt die sichtbare Zahl nicht mehr (dein Log: 55↔98 bei
-  schwachem Kontakt). Rein Anzeige: die Messung (`detectedBPM`) und die an den Bus/Musik
-  gelieferte HR bleiben ehrlich/unverändert. Alle drei On-Screen-Zahlen nutzen jetzt den ruhigen
-  Wert: Header-Puls-Monitor, PulseMeasurementView (großes „bpm" beim Messen) und der HR im
-  BioStrip (nur solange die Kamera die Quelle ist; BLE/HealthKit + Vor-Lock fallen auf den
-  Bus-Wert zurück). Vor dem ersten sicheren Lock zeigt der Header „—" statt einer Zufallszahl.
-  TEST 10.79.30: Puls messen bei leicht wackeligem Finger → die angezeigte BPM bleibt ruhig
-  (hält den letzten guten Wert) statt zu springen; sie zieht nach, sobald wieder sicher gelockt.
+notesT: Feinschliff 3/4 (Founder: "eine adaptive Ansicht ohne weitere Untermenüs … nur das
+  Wesentliche sichtbar"). Die Ansicht öffnet jetzt RUHIG: nur das Composition-Panel (Genre ·
+  Key · Tuning · Tempo) ist aufgeklappt; Sound/Effects/Master/Visual/Transpose/Mood sind
+  eingeklappt (ein Tipp entfernt). NICHTS gelöscht — jede Funktion bleibt, nur der erste
+  Eindruck ist entschlackt (voll umkehrbar). Reihenfolge top-down von "was die meisten nutzen"
+  zu "tiefe Tweaks": Composition → Transpose → Sound → Effects → Master → Visual → Mood (das
+  fortgeschrittene Mood-Panel nach ganz unten). Reine Reduktion/Reorder im Body-Zweig (schrumpft
+  den Typ → sicher fürs Metadata-Limit; kein neues Modal), geschützte DSP/Engine unberührt.
+  TEST 10.79.31: App/Instrument öffnet mit nur Composition offen, darunter kompakte Panel-
+  Köpfe; Start erzeugt Musik; Panels per Tipp aufklappen. Fühlt sich der erste Eindruck ruhig an?
