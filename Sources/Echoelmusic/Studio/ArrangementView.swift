@@ -28,6 +28,10 @@ struct ArrangementView: View {
     /// sheet's NavigationStack + "Done", since the surface switcher owns the chrome.
     var embedded = false
 
+    /// The workspace's surface key (same @AppStorage WorkspaceView drives) — lets the
+    /// empty state guide a newcomer straight to Compose / Clips (one shared nav path).
+    @AppStorage("workspace.surface") private var workspaceSurfaceRaw = "arrange"
+
     @State private var renaming: UUID?
     @State private var renameText = ""
 
@@ -87,7 +91,7 @@ struct ArrangementView: View {
                 }
                 .buttonStyle(.plain)
 
-                Text("Each section plays a Session clip for its bar length, then the song advances. Capture clips in Tools → Clips first.")
+                Text("Each section plays a Session clip for its bar length, then the song advances. Capture clips in the Clips tab first.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -185,11 +189,35 @@ struct ArrangementView: View {
         .frame(height: 34)
     }
 
+    /// Newcomer-friendly empty state: a song is a chain of clips, so guide straight to
+    /// where you make them (Compose) and capture them (Clips) — one obvious next step.
     private var emptyState: some View {
-        Text("No sections yet. Add one and point it at a clip.")
-            .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("No song yet")
+                .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
+            Text("A song is a chain of clips. New here? Create sounds in Compose, capture them as Clips, then add sections to arrange them into a track.")
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                emptyNavButton("Open Compose", "waveform.path.ecg", "compose")
+                emptyNavButton("Open Clips", "square.grid.2x2", "clips")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+    }
+
+    /// A pill that jumps to another workspace surface via the shared nav key.
+    private func emptyNavButton(_ title: String, _ icon: String, _ surface: String) -> some View {
+        Button { workspaceSurfaceRaw = surface } label: {
+            Label(title, systemImage: icon)
+                .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.accent)
+                .padding(.horizontal, 12).frame(height: 36)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Switches to the \(title.replacingOccurrences(of: "Open ", with: "")) page")
     }
 
     // MARK: - Section row
