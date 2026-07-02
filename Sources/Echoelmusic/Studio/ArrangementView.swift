@@ -247,22 +247,22 @@ struct ArrangementView: View {
                 Spacer(minLength: 0)
                 Button { store.move(at: index, by: -1) } label: {
                     Image(systemName: "arrow.up").font(.system(size: 13)).foregroundStyle(EchoelTheme.dim)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain).disabled(index == 0).accessibilityLabel("Move up")
                 Button { store.move(at: index, by: 1) } label: {
                     Image(systemName: "arrow.down").font(.system(size: 13)).foregroundStyle(EchoelTheme.dim)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain).disabled(index == store.sections.count - 1).accessibilityLabel("Move down")
                 Button { beginRename(section) } label: {
                     Image(systemName: "pencil").font(.system(size: 13)).foregroundStyle(EchoelTheme.dim)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain).accessibilityLabel("Rename section")
                 Button(role: .destructive) { store.remove(at: index) } label: {
                     Image(systemName: "trash").font(.system(size: 13)).foregroundStyle(EchoelTheme.danger)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain).accessibilityLabel("Delete section")
             }

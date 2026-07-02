@@ -74,8 +74,10 @@ struct BrowserView: View {
         return HStack(spacing: 12) {
             Button { toggleFavorite(patch) } label: {
                 Image(systemName: isFav ? "star.fill" : "star")
-                    .font(.system(size: 14))
+                    .font(.system(size: 16))
                     .foregroundStyle(isFav ? EchoelTheme.accent : EchoelTheme.dim)
+                    .frame(width: 44, height: 44)   // ≥44pt tap target (a11y)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isFav ? "Unfavorite \(patch.name)" : "Favorite \(patch.name)")

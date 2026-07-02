@@ -130,7 +130,7 @@ struct ChannelRackView: View {
             Text(label)
                 .font(EchoelTheme.font(13, .bold))
                 .foregroundStyle(on ? EchoelTheme.onPrimary : EchoelTheme.text)
-                .frame(width: 34, height: 34)
+                .frame(width: 44, height: 44)   // ≥44pt tap target (a11y)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(on ? tint : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)

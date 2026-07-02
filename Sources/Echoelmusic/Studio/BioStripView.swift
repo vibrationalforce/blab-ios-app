@@ -60,7 +60,7 @@ struct BioStripView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(red: 0.07, green: 0.07, blue: 0.09))
-        .foregroundStyle(.primary)
+        .foregroundStyle(EchoelTheme.text)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(EchoelTheme.text.opacity(0.08))

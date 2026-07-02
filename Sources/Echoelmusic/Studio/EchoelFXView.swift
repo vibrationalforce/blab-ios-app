@@ -512,7 +512,7 @@ struct EchoelFXView: View {
                         } label: {
                             Label(presetStore.isFavorite(id: preset.id) ? "Unstar" : "Favorite",
                                   systemImage: presetStore.isFavorite(id: preset.id) ? "star.slash" : "star")
-                        }.tint(.yellow)
+                        }.tint(EchoelTheme.accent)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {

@@ -3,6 +3,34 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-02 — Control-surface unification + all-AUv3 + tempo-preview foundation (v10.79.0)
+Founder: "Die gesamte Bedieneinheit ist zu unübersichtlich. Vermeide doppelte Wege — eine
+accessible Lösung. Super intelligent für noobs → pro." + "Vorhören im Mastertempo für alle
+Tools; ich sehe nur Apple AUv3, will alle meine Instrumente+Effekte; schrauben im seamless
+workflow; vermeide unzureichende Tools; top level." The Council gated the direction (one
+transport · one bio home · one place per function; phase safest→riskiest). See
+scratchpads/PLAN_UI_UNIFY.md + PLAN_TEMPO_PREVIEW.md.
+- **U1 (721e626)** — pulse gets one home: header pulse tap → Bio SURFACE (removed the
+  duplicate `ExpandedMonitor.pulse` fullscreen + pulseScreen).
+- **U2 (e2cab08)** — ONE Stop + removed Compose's duplicate quickAccessHUD: `.onChange(of:
+  transport.isPlaying)` ends the bio session on any transport stop (resolves item-5 →
+  unify); deleted the HUD (Play/Visual/Tools all duplicated startButton/header/grid) + its
+  helpers. Shrinks the black-screen body.
+- **U3 (f018d5f)** — entrainment lives only on the Bio page (removed Compose's entrainmentPanel
+  + band chips + state; kept entrainmentVisualPulseHz).
+- **U4 (a4f5042)** — intelligent Arrange empty state: "Open Compose / Open Clips" guide via the
+  shared workspace.surface key; fixed the stale "Tools → Clips" text. Unification batch
+  compile-gate GREEN.
+- **AUv3 (3602aa4)** — show ALL installed instruments/effects, not just Apple's: scan() queries
+  each type + wildcard & de-dupes; re-scans on every open + a Rescan button (was scan-once →
+  stale). Plugin's own UI already openable via "Open" (inline schrauben).
+- **Tempo-preview (b0ae523)** — pure `TempoMatch` core + tests (native BPM, clamped stretch
+  rate, power-of-two bar guess). The pitch-preserving audio wiring (AVAudioUnitTimePitch, one
+  shared preview voice for Browser/sampler/slicer/drum) is a DEVICE-VERIFIED next cycle — not
+  shipped blind (founder: vermeide unzureichende Tools).
+- **Deploy v10.79.0 (1bcc742).** Each ui-unify cycle reviewer-clean; no local build → CI gate.
+
+
 ## 2026-07-01 — DAW-look reorg (Ralph Wiggum loop, 12h autonomous window)
 Founder: "Bau das alles um — Ralph Wiggum lambda — bis Biofeedback einen guten Platz
 gefunden hat und der Fokus auf multidimensionale Multimedia-Produktion mit DAW-Look ist"
