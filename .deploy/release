@@ -1,14 +1,14 @@
-build: 2026-07-02 v10.79.2 (rPPG lock fix — finger no longer flip-flops)
+build: 2026-07-02 v10.79.3 (rPPG stable lock — two fixes: finger flip-flop + lock survives movement)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: The big one this build: the camera pulse should actually LOCK now.
-  rPPG FIX (from your device log): your finger was on the lens the whole time, but the
-  red level drifted across the finger-detection threshold every ~8 s, so the app kept
-  flipping "finger yes/no". Each "no" wiped the heart-rate estimate and left gaps in the
-  pulse signal, so it never locked (bpm stuck at 0, confidence never climbed). The
-  finger-detection now has hysteresis — once your finger is detected it HOLDS through the
-  dips instead of dropping out, so the signal stays continuous and the pulse can lock.
-  Test 10.79.2: Bio page → cover the rear camera + flash, hold still ~15–20 s → you should
-  get a stable BPM with confidence climbing (not flickering back to "—"). If the red level
-  still reads very low on your device, tell me and I'll raise the torch brightness next.
-  ALSO carries 10.79.1's polish: Breathing only on the Bio page, ≥44pt tap targets on
-  Mute/Solo · Share · Browser star · Arrange controls, consistent theme colours.
+notesT: Two camera-pulse fixes from your device logs — the pulse should now lock AND hold.
+  FIX 1 (weak-signal): if the red level drifted across the finger-detection threshold, the
+  app used to flip "finger yes/no", wiping the heart-rate estimate each time so it never
+  locked. Finger detection now has hysteresis — once detected it HOLDS through dips.
+  FIX 2 (strong-signal): once locked (nice steady BPM), a tiny finger-pressure change made
+  the amplitude briefly spike, which tripped the motion filter and WIPED the whole lock in
+  one instant — even though your pulse was still perfectly readable. Now, when the pulse is
+  clearly there, a brief movement barely dents the lock instead of resetting it.
+  Test 10.79.3: Bio page → cover the rear camera + flash, hold ~15–20 s → BPM should lock
+  AND stay locked through small movements (confidence holds, not flickering to "—").
+  Known next item if it still shows: a rare too-bright exposure lock → brief "re-settle".
+  Also carries 10.79.1's polish (Breathing only on Bio, ≥44pt taps, consistent theme).
