@@ -165,3 +165,31 @@ meta-analysis 1895–2022, Yerkes-Dodson, colour-in-context).
 
 Highest-value adoption: a **science-grounded light/colour engine + cited LearnLibrary entries** —
 deepens the TIER-1 Light dimension with rigor, stays on the right side of the medical red line.
+
+---
+
+## 2026-07-02 — Deep-research relay: web STT + web bio-visuals for echoelmusic.com
+
+External suggestion (founder relay): local STT via **Whisper-Flow** (WebSocket server),
+bio-visuals via **Three.js + MediaPipe FaceMesh + Web Bluetooth**. Scored against vision +
+"straight to future Apple hardware / iOS ecosystem".
+
+- **Verdict pattern: the CAPABILITIES are on-vision; the TOOLS are the wrong platform.** The
+  suggested stack is a browser/Python glue architecture that directly contradicts principle 2
+  (near-zero deps, no SDK lock-in) and Echoel's on-device, no-backend identity. Every piece has
+  a *native* equivalent that is already shipping or is the correct Apple path:
+  - Whisper-Flow → **Apple SpeechAnalyzer / SpeechTranscriber** (iOS 26, on-device, streaming) — REJECT tool, ADOPT capability natively.
+  - Three.js → **Metal / MetalBioView** already ships (TIER-1) — REJECT (redundant).
+  - MediaPipe FaceMesh → **ARKit blendShapes / Vision** — WATCH (face as a later body input).
+  - Web Bluetooth → **Core Bluetooth** universal 0x180D already ships (TIER-1) — REJECT (redundant).
+- **Highest-value nugget: on-device SPEECH as a control/caption modality** — voice as a 6th body
+  input (hands-free control, take-tagging, **live captions = accessibility win**, and spoken-word
+  into the flagship **AUDIOVISUAL VOCODER**). Apple just shipped the perfect native tool; this is
+  the one thing worth planning (one Ralph cycle, sequenced after the vocoder wiring).
+- **Apple-ecosystem read:** Apple's on-device Apple Intelligence + SpeechAnalyzer pivot is a
+  *tailwind* — "your voice and body never leave your iPhone" is now Apple's own headline. Betting
+  native bets *with* Apple's roadmap (Neural Engine, visionOS spatial = the installation North Star);
+  a localhost web stack fights it and undercuts the privacy narrative.
+- **Website only:** a live browser demo (Three.js + Web BLE + browser STT) is the ONE legit place
+  the web stack fits — PIPELINE, never Sources/. But it's heavy and risks being worse than the app;
+  prefer the already-logged cheaper route (Hyperframes pre-rendered loop/video) first.
