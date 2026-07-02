@@ -1,15 +1,16 @@
-build: 2026-07-02 v10.79.15 (Music Step 3 — bewegte Basslinie statt Bass-Drone)
+build: 2026-07-02 v10.79.16 (Mix-Glue — Bus-Level pro Genre)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Aufbauend auf 79.13 (auf TestFlight gelandet) + 79.14 (per-Genre-Lead, CI grün).
-  Der Bass in den harmonischen Genres war bisher EIN gehaltener Grundton pro Akkord (Drone).
-  Jetzt bewegt er sich wie ein echter Bassist:
-  - Downbeat = Grundton (Fundament), dann Schritte über Grund-/Quintton
-  - am Sektionsende läuft er eine Stufe in den nächsten Akkord-Grundton hinein (Walking-Feel)
-  - Dichte folgt dem Körper: ruhiger Puls/hohe Kohärenz → weiter EIN gehaltener Grundton
-    (Genres bleiben luftig); treibender Körper → Achtel/Viertel-Bewegung
-  - alles in-key, Sub folgt dem tiefsten Ton → bewegter Sub-Bass
-  Perkussion bewusst NICHT in dieser Runde: der Generate-Pfad hält die Drums absichtlich
-  stumm (reines melodisches Instrument) — das umzudrehen ist eine eigene Design-Entscheidung.
-  TEST 10.79.15: Compose in Synthwave/Classical/Jazz mit ruhigem vs. schnellem Puls —
-  hört man bei Bewegung eine laufende Basslinie (Grundton → Quinte → rein in den nächsten
-  Akkord), und bleibt es bei Ruhe schön getragen? Aussetzer/Knacksen bei dichtem Bass?
+notesT: 79.15 (bewegte Basslinie) ist CI-grün + hochgeladen. Diese Runde: jedes Genre bekommt
+  ein eigenes Lautstärke-Verhältnis der Rollen (Bass · Harmonie/Pad · Lead), umgesetzt als
+  reine Velocity-Skalierung beim Generieren (audio-thread-sicher, kein Eingriff im Render):
+  - Synth-Genres (Synthwave/Eighties/Vaporwave/Futuristic/SciFi/Psytrance): Lead vorne
+  - Dub/Trap + Rock/Metal/Punk: Bass fester
+  - dichte Genres: Pad einen Tick zurück, damit Lead + Bass klar bleiben
+  - akustisch (Classical/Jazz/Klezmer/Oriental): ausgewogen, Lead leicht präsent
+  - alle Faktoren sanft (0.85–1.2), auf [0,1] geklemmt → nichts clippt oder verschwindet
+  WICHTIG (Beobachtung aus deinem letzten Log): jedes „generate" zeigte GENAU 6 Noten —
+  das ist das alte, sparsame 79.7-Verhalten. Bitte prüfe in TestFlight die installierte
+  Build-NUMMER: steht da noch 2112 (79.7)? Dann sind Sound/Groove/Melodie/Puls/Multitimbral/
+  Bass NOCH NICHT auf dem Gerät — bitte auf 79.16 aktualisieren. Erst dann klingt es wie geplant.
+  TEST 10.79.16: nach Update — Compose in Synthwave vs. Jazz vs. Trap: sitzt die Balance
+  je Genre stimmig (Lead vs. Bass vs. Pad), und zeigt „generate" jetzt DEUTLICH mehr Noten?
