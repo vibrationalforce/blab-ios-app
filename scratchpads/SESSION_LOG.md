@@ -3,6 +3,38 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-02 — rPPG CONFIRMED GOOD on device (v10.79.7 / build 2112, torch 0.45)
+Founder device log on build 2112: finger on → R settles to **0.27–0.29** (bright 0.13–0.14,
+no more washout to R 0.7–0.85), locks at **conf 0.95** (~17 s: 10 s buffer fill + acf ramp),
+then **holds steady** conf 0.85–0.95 / bpm 53–56 for the whole session — no dead spells, no
+collapse. The torch 0.6→0.45 drop was the correct dial for this device/finger. **rPPG =
+RESOLVED.** Deliberately NOT tightening time-to-lock: the ~10 s is the analysis-window fill;
+a shorter window trades BPM stability for speed — not worth thrashing a working lock.
+
+## 2026-07-02 — Great Cleanup Phase 0 inventory + Phase 1 zero-risk demolition
+Founder: "GREAT CLEANUP & RESTRUCTURE" (ABRISS) → then "You decide as a critical senior
+Apple developer / stability engineer / product manager." Ran Phase 0 (read-only inventory,
+`docs/AUDIT_2026-07.md`) then executed the 4 zero-risk Phase-1 cycles (config + docs only —
+nothing under `Sources/`, so CI can't compile-regress):
+- **Phase 0 (9fbd44e)** — `docs/AUDIT_2026-07.md`: found the code clean of legacy terms; the
+  debt is periphery + doc drift. Key finding: the "four pillars" (EchoelTools/Works/Sync/Well)
+  were **never built as modules** — only `EngineBus` is real; CLAUDE.md counts were stale
+  (133→212 Swift, 2→1 Metal); `Views/` deprecated list already gone.
+- **Cycle 1 (.agents/ removed)** — deleted duplicate AI-config root (`remotion-best-practices`
+  was byte-identical to the `.claude/` copy).
+- **Cycle 2 (.ai/ → .claude/WORKING_METHOD.md)** — consolidated the durable CI-only
+  collaboration model into `.claude/`; dropped stale sprint specifics. Now ONE config root.
+- **Cycle 3 (CLAUDE.md)** — reconciled file counts + flagged the dead pillar model; doctrine
+  prose untouched.
+- **Cycle 4 (faf21a5)** — archived 37 superseded scratchpads → `scratchpads/archive/` (moved,
+  not deleted) + `scratchpads/README.md` live index. 21 live docs remain.
+- **Cycle 5 (branch prune) — HELD** by stability-engineer judgment: deleting stale remote
+  branches (`deploy-dryrun`/`dsym-probe`) is destructive/outward-facing with near-zero upside;
+  `deploy*` may be wired to the TestFlight dispatch. Owner can prune via GitHub UI if desired.
+- **Phase 2 (Studio/ relocation) — DEFERRED**: `Studio/` (56 files) mixes views + misplaced
+  Core/DSP logic; relocation needs owner-run `.pbxproj`/target edits (I don't touch those).
+  Move-list is in AUDIT §6.
+
 ## 2026-07-02 — Control-surface unification + all-AUv3 + tempo-preview foundation (v10.79.0)
 Founder: "Die gesamte Bedieneinheit ist zu unübersichtlich. Vermeide doppelte Wege — eine
 accessible Lösung. Super intelligent für noobs → pro." + "Vorhören im Mastertempo für alle

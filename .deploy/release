@@ -1,12 +1,17 @@
-build: 2026-07-02 v10.79.7 (rPPG torch 0.45 — less washout, more pulse contrast)
+build: 2026-07-02 v10.79.8 (Sound Cycle 1 — echte Instrumenten-Klangfarben + Unison-Breite)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Your latest log showed the lock fixes WORKING (finger holds now, it locks) — but the
-  finger kept washing out bright (R 0.7-0.85) with a tiny pulse signal, and once it washed it
-  went dead for a while. That's the torch being too strong for your finger: too much light
-  saturates the skin and crushes the actual pulse. This build lowers the torch (0.6 → 0.45)
-  for more contrast and headroom.
-  Test 10.79.7: Bio page → cover the rear camera + flash, hold ~15-20 s. Does it lock FASTER
-  and stay steady (less flicker to a wandering number, fewer long dead spells)? If it's now
-  too DIM (no lock at all), tell me and I'll nudge the torch back up — this is a dial we tune
-  to your device/finger.
-  Also still in: music breathes (M1), graded/filmic palette (V1/V2), heartbeat throb (V3).
+notesT: Du sagtest "klingt noch nicht nach richtiger Musik". Diagnose: die Noten waren gut,
+  aber ALLE 23 Genres liefen durch denselben sauberen Sinus-Stack — deshalb klang es
+  synthetisch. Die Engine kann längst echte Instrumenten-Spektren (Geige/Cello/Klarinette/
+  Oboe/Flöte/Trompete), aber KEIN Genre hat sie genutzt.
+  Dieser Build (Sound-Zyklus 1 von 4 — reine Klang-Daten, noch nicht Struktur/Groove):
+  - Akustische Genres klingen jetzt nach echtem Instrument: Classical→Cello, Disco→Geige,
+    Klezmer→Klarinette, Oriental→Oboe (moderater Blend, Genre-Charakter bleibt).
+  - Pads/Leads bekommen Unison-Breite (2-3 verstimmte Stimmen) statt dünnem Einzelton.
+  - Atem/Luft-Noise auf akustischen + Pad-Stimmen (Bogen/Reed-Realismus); harte Leads bleiben clean.
+  TEST 10.79.8: Compose → verschiedene Genres generieren + abspielen. Vergleich zu vorher:
+  klingt es "voller/nach echtem Instrument" statt nach billigem Synth? Besonders Classical,
+  Disco, Klezmer, Oriental (die 4 mit echtem Instrument) und die Pads (Vapor, Calm, Nebula).
+  Wenn ja → Zyklus 2 (Groove/Timing), dann 3 (echte Melodie-Motive), dann 4 (Multi-Bar-Struktur).
+  Wenn ein Genre zu dünn/zu breit/verstimmt klingt: sag welches, ich justiere Blend/Unison —
+  das ist ein Ohr-Dial.

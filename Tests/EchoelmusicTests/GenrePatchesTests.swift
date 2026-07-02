@@ -38,6 +38,50 @@ final class GenrePatchesTests: XCTestCase {
         }
     }
 
+    func testTimbreProfilesAreValidWhenSet() {
+        // SOUND CYCLE 1 landmine (same shape as the enum-rawValue one): a
+        // timbreProfile that isn't an exact InstrumentTimbre rawValue, OR a profile
+        // set with timbreBlend == 0, is silently ignored in SynthPatch.apply — the
+        // genre falls back to the pure sine stack. Guard both.
+        for style in MusicStyle.allCases {
+            let p = style.synthPatch
+            guard !p.timbreProfile.isEmpty else { continue }
+            XCTAssertNotNil(EchoelDDSP.InstrumentTimbre(rawValue: p.timbreProfile),
+                            "\(style): timbreProfile '\(p.timbreProfile)' is not a valid EchoelDDSP.InstrumentTimbre rawValue")
+            XCTAssertGreaterThan(p.timbreBlend, 0,
+                            "\(style): timbreProfile set but timbreBlend == 0 → silently ignored")
+            XCTAssertLessThanOrEqual(p.timbreBlend, 1, "\(style): timbreBlend must be <= 1")
+        }
+    }
+
+    func testAcousticGenresCarryRealInstrumentSpectra() {
+        // The intent of the cycle: the acoustic-leaning genres are voiced through
+        // the built-in instrument spectra, not the bare synth. Lock it in.
+        let expected: [MusicStyle: String] = [
+            .classical: "Cello", .disco: "Violin", .klezmer: "Clarinet", .oriental: "Oboe"
+        ]
+        for (style, timbre) in expected {
+            XCTAssertEqual(style.synthPatch.timbreProfile, timbre,
+                           "\(style) should be voiced through the \(timbre) spectrum")
+        }
+    }
+
+    func testUnisonIsInSaneRangeWhenSet() {
+        for style in MusicStyle.allCases {
+            let p = style.synthPatch
+            if let v = p.unisonVoices {
+                XCTAssertGreaterThanOrEqual(v, 1, "\(style) unisonVoices must be >= 1")
+                XCTAssertLessThanOrEqual(v, 4, "\(style) unisonVoices unexpectedly large")
+                // Unison without detune is pointless (voices stack in phase) — guard it.
+                XCTAssertNotNil(p.unisonDetuneCents, "\(style) sets unisonVoices but no detune")
+                if let d = p.unisonDetuneCents {
+                    XCTAssertGreaterThan(d, 0, "\(style) unison detune must be > 0 to widen")
+                    XCTAssertLessThanOrEqual(d, 50, "\(style) unison detune too wide")
+                }
+            }
+        }
+    }
+
     func testParamsAreInSaneRanges() {
         for style in MusicStyle.allCases {
             let p = style.synthPatch
@@ -63,7 +107,7 @@ final class GenrePatchesTests: XCTestCase {
         // Dub is dark, trap is bright.
         XCTAssertLessThan(dub.brightness, trap.brightness, "dub is darker than trap")
         XCTAssertEqual(dub.spectralShape, "Dark")
-        XCTAssertEqual(trap.spectralShape, "Bell")
+        XCTAssertEqual(trap.spectralShape, "Natural")   // (was wrongly asserted "Bell")
         // The pad attacks slowly (a swell), the others are immediate.
         XCTAssertGreaterThan(pad.attack, dub.attack)
         XCTAssertGreaterThan(pad.attack, trap.attack)
