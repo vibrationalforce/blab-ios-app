@@ -193,3 +193,21 @@ bio-visuals via **Three.js + MediaPipe FaceMesh + Web Bluetooth**. Scored agains
 - **Website only:** a live browser demo (Three.js + Web BLE + browser STT) is the ONE legit place
   the web stack fits — PIPELINE, never Sources/. But it's heavy and risks being worse than the app;
   prefer the already-logged cheaper route (Hyperframes pre-rendered loop/video) first.
+
+---
+
+## 2026-07-02 — YouTube intake capability + first video
+
+**Capability shipped (pipeline):** `scripts/analyze-youtube.py` + `.claude/skills/youtube-analyze/`
+— fetch a video's metadata + transcript → score via vision-gate → log here. Robust (URL/ID
+parsing self-tested, yt-dlp→oEmbed metadata fallback, modern+legacy transcript API, clean
+network-block error). NETWORK NOTE: this session's policy blocks youtube.com at the proxy
+(403), so live fetch needs a session/machine where YouTube is reachable; PyPI is reachable.
+
+**First video — "Use These 17 Claude Plugins" (V2RIVnGCy74):** a Claude Code *plugin* roundup
+= DEV TOOL, not the app. Verdict **ADOPT-PIPELINE (selective) / WATCH** (see
+`scratchpads/inspiration/youtube-V2RIVnGCy74.md`). Echoel already runs the mature bespoke
+equivalent (skills + review sub-agents + rules + markdown memory), so no wholesale install.
+Only nuggets: `mcp-builder` for a tiny TestFlight/ASC-status MCP (kill the 400 KB actions_list
+dumps), and the plugin/marketplace format if we ever publish our `.claude/` skills. Transcript
+was blocked in-session; re-run the tool where YT is reachable to capture the exact 17 list.

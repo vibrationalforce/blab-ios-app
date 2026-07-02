@@ -140,6 +140,33 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         XCTAssertTrue(A.isMotionAmplitude(0.2001))
     }
 
+    // MARK: - Motion-window confidence bleed (don't wipe a good lock on a blip)
+
+    func testMotionBleed_strongAcf_bleedsGently() {
+        // A brief pressure blip while the autocorrelation still confirms a strong pulse
+        // (acf > 0.4) must barely dent confidence — it's applied per-sample (~15-30/tick),
+        // so it stays near 1. Device log 2026-07-02: conf 0.96 → 0.00 in one tick was the bug.
+        XCTAssertEqual(A.motionBleed(autoStrength: 0.5), 0.98, accuracy: 0.0001)
+        XCTAssertEqual(A.motionBleed(autoStrength: 0.9), 0.98, accuracy: 0.0001)
+        // Even compounded across a whole tick, a strong-acf lock survives the 0.35 gate.
+        XCTAssertGreaterThan(0.96 * pow(A.motionBleed(autoStrength: 0.7), 20), 0.35)
+    }
+
+    func testMotionBleed_weakAcf_bleedsHard() {
+        // The true motion / false-lock case (amp≈0.76, acf≈0.2) still bleeds hard so a
+        // motion run can neither earn nor hold a lock — preserves the false-lock guard.
+        XCTAssertEqual(A.motionBleed(autoStrength: 0.2), 0.6, accuracy: 0.0001)
+        XCTAssertEqual(A.motionBleed(autoStrength: 0.0), 0.6, accuracy: 0.0001)
+        // Compounded across a tick it collapses well below the lock gate.
+        XCTAssertLessThan(0.96 * pow(A.motionBleed(autoStrength: 0.2), 15), 0.35)
+    }
+
+    func testMotionBleed_gateBoundaryIsExclusive() {
+        // Boundary is `> 0.4`: exactly 0.4 is still the hard bleed, just above is gentle.
+        XCTAssertEqual(A.motionBleed(autoStrength: 0.4), 0.6, accuracy: 0.0001)
+        XCTAssertEqual(A.motionBleed(autoStrength: 0.401), 0.98, accuracy: 0.0001)
+    }
+
     // MARK: - Finger-frame red-floor hysteresis (limit-cycle fix)
 
     func testFingerFrame_acquiresOnlyAboveHardFloor() {
