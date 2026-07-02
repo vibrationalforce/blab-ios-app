@@ -152,7 +152,11 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         do {
             try device.lockForConfiguration()
             if torchDesired {
-                try device.setTorchModeOn(level: min(0.6, AVCaptureDevice.maxAvailableTorchLevel))
+                // Torch level 0.45 (was 0.6): device logs 2026-07-02 showed the finger washing
+                // to R≈0.7–0.85 with a tiny pulsatile AC (amp≈0.01–0.05) — too much light
+                // saturates the capillary DC and crushes the pulse. A lower level keeps more AC
+                // contrast and headroom before washout. Clamped to the device max.
+                try device.setTorchModeOn(level: min(0.45, AVCaptureDevice.maxAvailableTorchLevel))
             } else {
                 device.torchMode = .off
             }

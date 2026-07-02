@@ -1,13 +1,12 @@
-build: 2026-07-02 v10.79.6 (Pro pass III — heartbeat throb + music breathes + graded/filmic palette)
+build: 2026-07-02 v10.79.7 (rPPG torch 0.45 — less washout, more pulse contrast)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Professionalization loop, build 3.
-  VISUAL (V3): the immersive visual now GENTLY THROBS with your heartbeat — the central
-  bloom pulses once per beat, so the body VISIBLY drives the picture (not a generic
-  visualizer). Flash-safe (≤2.5 Hz, gentle swing). Plus the earlier grade: less neon, warmer,
-  a filmic contrast so it reads premium — VJ Saturation still pushes vivid.
-  MUSIC (M1): the take breathes over the bar (downbeats lead + swell), not a flat metronome.
-  rPPG: both camera-pulse lock fixes (no finger flip-flop; a small movement won't wipe a lock).
-  Test 10.79.6: (1) does the visual pulse WITH your heartbeat on the Bio/immersive view?
-  (2) less neon / more premium? (3) does the music breathe? (4) does the pulse lock + hold?
-  Next careful steps (need your device/ear, not blind): real multi-bar arrangement
-  (intro/build/break), audio-graph mix glue, per-look anti-aliasing.
+notesT: Your latest log showed the lock fixes WORKING (finger holds now, it locks) — but the
+  finger kept washing out bright (R 0.7-0.85) with a tiny pulse signal, and once it washed it
+  went dead for a while. That's the torch being too strong for your finger: too much light
+  saturates the skin and crushes the actual pulse. This build lowers the torch (0.6 → 0.45)
+  for more contrast and headroom.
+  Test 10.79.7: Bio page → cover the rear camera + flash, hold ~15-20 s. Does it lock FASTER
+  and stay steady (less flicker to a wandering number, fewer long dead spells)? If it's now
+  too DIM (no lock at all), tell me and I'll nudge the torch back up — this is a dial we tune
+  to your device/finger.
+  Also still in: music breathes (M1), graded/filmic palette (V1/V2), heartbeat throb (V3).
