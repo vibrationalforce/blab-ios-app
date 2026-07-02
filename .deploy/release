@@ -1,13 +1,13 @@
-build: 2026-07-02 v10.79.5 (Pro pass II — music breathes · palette graded · filmic finish · rPPG)
+build: 2026-07-02 v10.79.6 (Pro pass III — heartbeat throb + music breathes + graded/filmic palette)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Professionalization loop, build 2 — steer me on each and I keep going.
-  MUSIC (M1): the take BREATHES now — whole texture rises/relaxes over the bar (downbeats
-  lead + gentle swell) instead of a flat metronome. (Next: real intro/build/break across
-  several bars — that's an arrangement rebuild, coming as its own careful step.)
-  VISUAL (V1+V2): eased off "neon rainbow" toward a graded, natural-light palette (same
-  scientific tone→colour, less saturated + warmer) AND added a gentle filmic contrast so the
-  frame reads rich/graded, not flat. VJ Saturation can still push vivid.
-  rPPG: carries both camera-pulse lock fixes (finger no longer flip-flops; a small movement
-  no longer wipes a good lock) — Bio page, cover camera + flash, hold ~15-20 s.
-  Test 10.79.5: (1) does the music phrase/breathe — more or less? (2) is the visual less neon
-  / more premium — grade it further? (3) does the pulse lock and hold? Tell me per item.
+notesT: Professionalization loop, build 3.
+  VISUAL (V3): the immersive visual now GENTLY THROBS with your heartbeat — the central
+  bloom pulses once per beat, so the body VISIBLY drives the picture (not a generic
+  visualizer). Flash-safe (≤2.5 Hz, gentle swing). Plus the earlier grade: less neon, warmer,
+  a filmic contrast so it reads premium — VJ Saturation still pushes vivid.
+  MUSIC (M1): the take breathes over the bar (downbeats lead + swell), not a flat metronome.
+  rPPG: both camera-pulse lock fixes (no finger flip-flop; a small movement won't wipe a lock).
+  Test 10.79.6: (1) does the visual pulse WITH your heartbeat on the Bio/immersive view?
+  (2) less neon / more premium? (3) does the music breathe? (4) does the pulse lock + hold?
+  Next careful steps (need your device/ear, not blind): real multi-bar arrangement
+  (intro/build/break), audio-graph mix glue, per-look anti-aliasing.
