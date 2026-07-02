@@ -1,10 +1,13 @@
-build: 2026-07-02 v10.79.20 (Audit P2 — Denormal-Schutz im Synth-Render)
+build: 2026-07-02 v10.79.21 (Harmonic Mapping — opt-in body→overtone profile)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Audit-Härtung P2 (DSP-Korrektheit). Die per-Sample One-Pole-Glätter in EchoelDDSP
-  (Obertonamplituden, Rausch-Level, Master-Gain) fallen beim Ausklingen (Target→0) in den
-  FP-Denormal-Bereich → periodische CPU-Spikes bei leisen/ausklingenden Stimmen. Fix: ein
-  winziger, unhörbarer Anti-Denormal-Boden (1e-25, normaler Float; hörbarer Boden ~2e-23 =
-  still) hält die Rekursion über der Subnormal-Zone. Reine Arithmetik, branch-frei, audio-
-  thread-sicher. Kein Klang-Unterschied, aber sauberere CPU-Auslastung im Leerlauf.
-  TEST 10.79.20: rein technisch (CPU/Thermik) — keine hörbare Änderung erwartet; einfach
-  bestätigen dass Sound unverändert gut klingt.
+notesT: Neue, OPT-IN Bio→Klang-Charakteristik "Harmonic mapping" (COLLAB_SYNC_TRIAGE §1.2).
+  Bisher gilt weiter das etablierte Mapping (.natural = DEFAULT, klanglich unverändert):
+  Kohärenz→Harmonizität, HRV→Helligkeit, Puls→Vibrato, Atem→Hüllkurve. Der neue Schalter
+  in "Bio → Routing" aktiviert `.harmonicSeries`: dann treibt der KÖRPER die Obertöne direkt
+  — HRV öffnet die harmonische Fülle (Variabilität → Obertonspreizung), die Atemphase lässt
+  die Amplitude schwellen. Reine Umverdrahtung ÜBER dem geschützten Rausch-DSP (kein neuer
+  Render-Pfad, keine Triade berührt); Default = identischer Klang → null Risiko für den frisch
+  getunten Sound. UI: ein zweiter Toggle in der bestehenden Routing-Karte (kein neues Sheet →
+  respektiert die EchoelStudioView-Modal-Grenze), nur aktiv wenn "Body → sound" an ist.
+  TEST 10.79.21: Bio-Quelle scharfschalten (Bio-Tab), "Harmonic mapping" AN, spielen — der
+  Klang soll mit der Atmung "atmen" und mit hoher HRV obertonreicher werden; AUS = wie bisher.

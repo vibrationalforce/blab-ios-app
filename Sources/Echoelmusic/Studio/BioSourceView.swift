@@ -119,6 +119,18 @@ struct BioSourceView: View {
             }
             .tint(EchoelTheme.accent)
 
+            Toggle(isOn: Binding(get: { synth.bioMappingHarmonic },
+                                 set: { synth.bioMappingHarmonic = $0 })) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Harmonic mapping").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    Text("The body drives the overtones directly — HRV opens the harmonic richness, breath swells the amplitude")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                }
+            }
+            .tint(EchoelTheme.accent)
+            .disabled(!synth.bioModulationEnabled)
+            .opacity(synth.bioModulationEnabled ? 1 : 0.5)
+
             HStack(spacing: 8) {
                 Image(systemName: "sparkles").font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
                 Text("Body → visual reacts automatically in the immersive view")

@@ -930,7 +930,8 @@ public final class EchoelDDSP: @unchecked Sendable {
         breathPhase: Float = 0.5,
         breathDepth: Float = 0.5,
         lfHfRatio: Float = 0.5,
-        coherenceTrend: Float = 0
+        coherenceTrend: Float = 0,
+        profile: BioMapProfile = .natural
     ) {
         // =====================================================================
         // BIO-REACTIVE MAPPINGS — DESIGNED TO BE AUDIBLE
@@ -997,6 +998,17 @@ public final class EchoelDDSP: @unchecked Sendable {
 
         // 7. Breath phase → Filter LFO depth (breathing modulates filter movement)
         lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
+
+        // HARMONIC-SERIES profile (opt-in; §1.2). Body drives the harmonic structure:
+        // HRV opens the overtone richness (variability → harmonic spread), and the
+        // breath phase swells the amplitude (audible breath). Overrides two outputs on
+        // top of the natural mappings; `.natural` skips this entirely (identical sound).
+        // 10 Hz control-plane writes; the render loop re-smooths harmonicity/gain.
+        if profile == .harmonicSeries {
+            harmonicity = (0.40 + hrvVariability * 0.50).clamped(to: 0.05...0.98) // HRV → overtone spread
+            let breathSwell = 0.5 + 0.5 * sinf(breathPhase * 2 * .pi)              // 0..1 over the breath
+            amplitude = (amplitude * (0.82 + 0.18 * breathSwell)).clamped(to: 0...1)
+        }
     }
 
     // MARK: - Timbre Transfer
@@ -1150,6 +1162,16 @@ public final class EchoelDDSP: @unchecked Sendable {
 /// Performance: O(maxVoices * harmonicCount) per sample, SIMD-accelerated
 ///
 /// Thread-safety: Same invariant as EchoelDDSP — all access serialized via @MainActor.
+/// Bio→timbre mapping character (COLLAB_SYNC_TRIAGE §1.2). `.natural` is the
+/// established mapping (unchanged). `.harmonicSeries` makes the BODY drive the
+/// harmonic structure more directly — HRV opens the overtone richness and the
+/// breath swells the amplitude — the "harmonic mapping of physiological rhythms"
+/// character. Opt-in; uses only real signals (no fabricated depth/LF-HF).
+public enum BioMapProfile: Int, Sendable, Codable {
+    case natural
+    case harmonicSeries
+}
+
 public final class EchoelPolyDDSP: @unchecked Sendable {
 
     // MARK: - Configuration
@@ -1205,6 +1227,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     private var bioBreathDepth: Float = 0.5
     private var bioLfHfRatio: Float = 0.5
     private var bioCoherenceTrend: Float = 0
+    /// Bio→timbre mapping character fanned to every voice (default `.natural`).
+    private var bioProfile: BioMapProfile = .natural
 
     // MARK: - Scratch Buffers (pre-allocated, zero audio-thread allocation)
 
@@ -1409,7 +1433,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         breathPhase: Float = 0.5,
         breathDepth: Float = 0.5,
         lfHfRatio: Float = 0.5,
-        coherenceTrend: Float = 0
+        coherenceTrend: Float = 0,
+        profile: BioMapProfile = .natural
     ) {
         bioCoherence = coherence
         bioHRV = hrvVariability
@@ -1418,6 +1443,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         bioBreathDepth = breathDepth
         bioLfHfRatio = lfHfRatio
         bioCoherenceTrend = coherenceTrend
+        bioProfile = profile
 
         for i in 0..<maxVoices where voiceNotes[i] >= 0 {
             applyBioToVoice(i)
@@ -1432,7 +1458,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             breathPhase: bioBreathPhase,
             breathDepth: bioBreathDepth,
             lfHfRatio: bioLfHfRatio,
-            coherenceTrend: bioCoherenceTrend
+            coherenceTrend: bioCoherenceTrend,
+            profile: bioProfile
         )
     }
 
