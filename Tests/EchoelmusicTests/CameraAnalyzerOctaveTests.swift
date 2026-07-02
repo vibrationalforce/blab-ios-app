@@ -140,6 +140,40 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         XCTAssertTrue(A.isMotionAmplitude(0.2001))
     }
 
+    // MARK: - Finger-frame red-floor hysteresis (limit-cycle fix)
+
+    func testFingerFrame_acquiresOnlyAboveHardFloor() {
+        // Not yet detected: needs R > 0.28 (red-dominant). 0.30 acquires; 0.25 does not.
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.30, avgG: 0.10, avgB: 0.08, wasDetected: false))
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.25, avgG: 0.10, avgB: 0.08, wasDetected: false))
+    }
+
+    func testFingerFrame_holdsThroughDipsOnceAcquired() {
+        // The device-log regression: once acquired, a lit finger dipping to R≈0.21–0.25
+        // must STILL read as present (hold floor 0.18) so the window stays continuous and
+        // the pulse can lock — the old single 0.28 floor dropped these → bpm never locked.
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.25, avgG: 0.10, avgB: 0.08, wasDetected: true))
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.21, avgG: 0.09, avgB: 0.07, wasDetected: true))
+    }
+
+    func testFingerFrame_releasesBelowHoldFloor() {
+        // Finger truly gone: below the 0.18 hold floor it releases even when previously held.
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.15, avgG: 0.06, avgB: 0.05, wasDetected: true))
+    }
+
+    func testFingerFrame_redDominanceGatesRejectNonFinger() {
+        // A bright but non-red scene (R not dominant over G/B) is rejected at EITHER floor,
+        // so the relaxed hold floor can't false-hold on ambient light.
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.40, avgG: 0.39, avgB: 0.38, wasDetected: true))
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.40, avgG: 0.39, avgB: 0.38, wasDetected: false))
+    }
+
+    func testFingerFrame_saturatedFrameCountsAsPresent() {
+        // All channels clipped (finger pressed too hard / torch washout): still present,
+        // so the lock holds through a saturated spell instead of dropping to no-finger.
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.95, avgG: 0.94, avgB: 0.93, wasDetected: false))
+    }
+
     // MARK: - Adaptive refractory (dicrotic-notch reject)
 
     func testRefractory_noPlausiblePeriod_fallsBackTo300ms() {
