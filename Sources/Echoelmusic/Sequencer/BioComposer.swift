@@ -275,6 +275,50 @@ public enum BioComposer {
         }
     }
 
+    /// MOTIF CONTOUR (Cycle 3, "singt statt noodelt"). Per-note scale-step deltas
+    /// for a melodic line that STATES a short seeded cell, then RESTATES it as a
+    /// varied answer (statement→answer / call-and-response), and RESOLVES back toward
+    /// its centre so the phrase settles instead of drifting — the structure that
+    /// makes a line sing instead of wander. The caller still maps the running index
+    /// onto chord tones, so output stays perfectly in key. Pure + deterministic.
+    ///   • `directionBias` (0…1, from breath): >0.5 leans the cell upward (inhale).
+    ///   • `weird` (0…1, mood): widens intervals (1 → 2–3 steps) and loosens the
+    ///     restatement (more likely to invert the contour for the answer).
+    static func motifDeltas(count: Int, directionBias: Float, weird: Float,
+                            rng: inout SeededRNG) -> [Int] {
+        guard count > 0 else { return [] }
+        let w = clamp01(weird)
+        let bias = clamp01(directionBias)
+        // 1) A short motivic cell (2–4 steps). Stepwise by default; weird widens.
+        let cellLen = 2 + Int(rng.unit() * 2.999)              // 2…4
+        var cell: [Int] = []
+        for _ in 0..<cellLen {
+            let up = rng.unit() < (0.30 + 0.45 * bias)         // breath leans direction
+            let wide = rng.unit() < w
+            let mag = wide ? 2 + Int(rng.unit() * 1.999) : 1   // 2–3 only when weird
+            cell.append((up ? 1 : -1) * mag)
+        }
+        // 2) State the cell (first half), then restate it (second half) — inverted
+        //    some of the time so the answer echoes the question in a recognizable
+        //    shape. The cell index RESTARTS at the answer so it's a clean restatement.
+        let invertAnswer = rng.unit() < (0.5 + 0.3 * w)
+        let half = Swift.max(1, count / 2)
+        var deltas: [Int] = []
+        while deltas.count < count {
+            let inAnswer = deltas.count >= half
+            let idx = inAnswer ? (deltas.count - half) : deltas.count
+            let base = cell[idx % cell.count]
+            deltas.append(inAnswer && invertAnswer ? -base : base)
+        }
+        // 3) Resolve: the final step opposes the accumulated direction so the phrase
+        //    settles toward its centre rather than climbing/falling off the end.
+        if count >= 2 {
+            let net = deltas[0..<(count - 1)].reduce(0, +)
+            if net > 0 { deltas[count - 1] = -1 } else if net < 0 { deltas[count - 1] = 1 }
+        }
+        return deltas
+    }
+
     /// Generate music from a bio snapshot, in the requested genre.
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
@@ -488,6 +532,11 @@ public enum BioComposer {
         // Seeded opening degree (was always 0) so the dark bell line doesn't open on
         // the same note every take.
         var degree = Int(rng.next() % 3)
+        // Motif contour (Cycle 3) so the bell line states + answers a shape instead
+        // of wandering; small weird keeps the dark, slightly-unpredictable character.
+        let leadDeltas = Self.motifDeltas(count: noteCount,
+                                          directionBias: inhaleBias,
+                                          weird: 0.2, rng: &rng)
         var lastStart = -1
         for i in 0..<noteCount {
             let start = i * stepCount / noteCount
@@ -504,9 +553,7 @@ public enum BioComposer {
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
                               lengthSteps: length, velocity: velocity))
 
-            let dir = rng.unit() < inhaleBias ? 1 : -1
-            let leap = 1 + Int(rng.unit() * 2)
-            degree = min(14, max(-7, degree + dir * leap))
+            degree = min(14, max(-7, degree + leadDeltas[i]))
         }
         return notes
     }
@@ -530,6 +577,11 @@ public enum BioComposer {
         // Seeded opening degree (was always 0) so the breath line doesn't always
         // start on the tonic — gentle variety without breaking the calm character.
         var degree = Int(rng.next() % 3)
+        // Motif contour (Cycle 3): a gentle stated+answered shape that resolves; a
+        // calm body keeps it stepwise (weird 0), an unsettled one loosens it slightly.
+        let leadDeltas = Self.motifDeltas(count: noteCount,
+                                          directionBias: inhaleBias,
+                                          weird: calm > 0.5 ? 0 : 0.15, rng: &rng)
         var lastStart = -1
         for i in 0..<noteCount {
             let start = i * stepCount / noteCount
@@ -550,9 +602,7 @@ public enum BioComposer {
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
                               lengthSteps: length, velocity: velocity))
 
-            let dir = rng.unit() < inhaleBias ? 1 : -1
-            let leap = calm > 0.5 ? 1 : 1 + Int(rng.unit() * 2)
-            degree = min(14, max(-7, degree + dir * leap))
+            degree = min(14, max(-7, degree + leadDeltas[i]))
         }
         return notes
     }
@@ -690,6 +740,11 @@ public enum BioComposer {
             // low on inhale / higher on exhale; the seed adds the individual offset.
             var toneIdx = (breathPhase < 0.5 ? 0 : 1)
                 + Int(structureRNG.next() % UInt64(max(1, tones.count)))
+            // Motif contour (Cycle 3): the line follows a seeded statement→answer
+            // shape that resolves, instead of a random walk — so it sings.
+            let leadDeltas = Self.motifDeltas(count: count,
+                                              directionBias: breathPhase < 0.5 ? 0.72 : 0.30,
+                                              weird: mood.weird, rng: &rng)
             for i in 0..<count {
                 let start = i * stepCount / count
                 var startStep = min(stepCount - 1, max(start, lastStart + 1))
@@ -752,11 +807,9 @@ public enum BioComposer {
                 }
                 notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch + lift)),
                                   startStep: mainStart, lengthSteps: mainLen, velocity: velocity))
-                // Steps through the chord; inhale biases upward. Weird widens the
-                // leap from a single step to two or three (odd, surprising motion).
-                let up = rng.unit() < (breathPhase < 0.5 ? 0.62 : 0.40)
-                let leap = (rng.unit() < clamp01(mood.weird)) ? (1 + Int(rng.unit() * 2)) : 1
-                toneIdx += (up ? 1 : -1) * leap
+                // Advance along the motif contour (statement→answer, resolving)
+                // instead of a random walk — chord-tone-locked above, so still in key.
+                toneIdx += leadDeltas[i]
             }
         }
         return notes

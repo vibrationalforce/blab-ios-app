@@ -1,17 +1,20 @@
-build: 2026-07-02 v10.79.9 (Groove Cycle 2 — Swing pro Genre statt Maschinen-Raster)
+build: 2026-07-02 v10.79.10 (Melodie-Motive Zyklus 3 + rPPG Washout-Lock-Fix)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zyklus 2 von 4 (Groove/Timing). Das Playback lief bisher exakt auf dem 16tel-Raster
-  (Swing=0) — das ist der "klingt nach Maschine"-Effekt. Die Swing-Mathematik war schon da
-  (tempo-erhaltend), wurde aber nie eingeschaltet.
-  Jetzt bekommt jedes Genre seinen eigenen Swing: die geraden 16tel bleiben, die ungeraden
-  landen etwas später → rollendes, menschliches Feel. Melodie UND Beat teilen denselben
-  Clock, also swingt der ganze Take zusammen.
-  - Stark geswungen: JAZZ (2:1 Shuffle), Rock'n'Roll, Rocksteady, Klezmer, Ska.
-  - Subtiler Push: Vaporwave, Disco, Trap, Oriental, Dub Techno.
-  - Bleibt gerade (Swing würde schaden): Psytrance, Rock, Metal, Doom, Classical, Ambient,
-    Synthwave, Early Synth, Punk.
-  TEST 10.79.9: Compose → JAZZ generieren + abspielen (der deutlichste Effekt — sollte jetzt
-  "shuffeln"/rollen statt steif ticken). Dann Rock'n'Roll, Rocksteady. Vergleich zu einem
-  geraden Genre (Psytrance/Rock) — der Unterschied muss hörbar sein. Fühlt es sich "gespielt"
-  an? Wenn ein Genre zu stark/zu wenig swingt: sag welches, ich justiere den Wert (Ohr-Dial).
-  Immer noch drin: Sound-Zyklus 1 (echte Instrumente/Unison, v10.79.8).
+notesT: Zwei Sachen in diesem Build (Musik + rPPG, unabhängig testbar):
+
+  MUSIK — Zyklus 3 (echte Melodie-Motive): die Melodie wanderte bisher per Zufallsschritt
+  (korrekt in Tonart, aber ziellos "genoodelt"). Jetzt folgt jede Lead-Linie einem MOTIV:
+  eine kurze Zelle wird GESAGT, dann als variierte ANTWORT wiederholt (Frage/Antwort), und
+  löst am Ende zur Mitte hin AUF. Bio steuert weiter Richtung (Atem) + Weite (Mood). Gilt für
+  Harmonic-Genres, Trap-Bell und Ambient. TEST: Compose → mehrere Genres; klingt die Melodie
+  jetzt "singbar"/wiedererkennbar statt beliebig? (Zusammen mit Sound v10.79.8 + Groove v10.79.9.)
+
+  rPPG — Washout-Lock-Fix (aus deinem letzten Log): die Belichtung hatte sich auf einem
+  überstrahlten Frame (bright 0.62) festgelegt → nie ein Puls, bpm=0 die ganze Session.
+  Jetzt: Belichtung lockt NUR wenn der Finger da UND das Bild dunkel genug ist (kein Lock auf
+  überstrahltes Bild); und ein gelockter, ins Washout driftender Frame (bright 0.6–0.8) löst
+  jetzt Neu-Einregeln aus statt tot dazuliegen.
+  WICHTIG zur Fingerführung: den Finger SANFT und VOLL über Kamera+Blitz legen — nicht fest
+  drücken und nicht so, dass Blitzlicht seitlich in die Linse flutet (das erzeugt genau das
+  Washout, bright→0.9). Ziel ist ein dunkles, tiefrotes Bild. TEST 10.79.10: Bio → ruhig
+  halten ~15–20 s; lockt es jetzt wieder (conf hoch) und vermeidet das Festfrieren auf hell?

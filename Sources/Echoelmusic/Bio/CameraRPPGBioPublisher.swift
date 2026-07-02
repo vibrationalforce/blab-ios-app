@@ -114,6 +114,25 @@ public final class CameraRPPGBioPublisher {
     private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
     private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
     private static let relockOnLossTicks = 30   // ~3 s without finger → allow re-lock
+    // Only lock exposure when the finger scene is dark enough for PPG. A bright
+    // finger scene means torch light is flooding the lens; locking there captured a
+    // washed frame that never produced a pulse (device log 2026-07-02: locked at
+    // bright=0.62, bpm=0 the whole session). Healthy PPG brightness is ~0.1–0.4.
+    private static let maxLockBrightness: Float = 0.6
+
+    // MARK: - Pure lock predicates (extracted so the state machine is unit-tested)
+
+    /// A tick may count toward an exposure lock only when the finger is present AND
+    /// the scene is dark enough for PPG — never lock a bright/flooded frame.
+    nonisolated static func canLockNow(fingerDetected: Bool, brightness: Float) -> Bool {
+        fingerDetected && brightness < maxLockBrightness
+    }
+
+    /// A locked scene is washed out (AC pulse swamped) once it drifts too bright or
+    /// the red channel clips — trigger a re-settle so it recovers instead of sitting dead.
+    nonisolated static func isWashedOut(brightness: Float, red: Float) -> Bool {
+        brightness > 0.72 || red > 0.92
+    }
 
     public init() {}
 
@@ -283,11 +302,21 @@ public final class CameraRPPGBioPublisher {
     private func manageExposure() {
         let bright = self.analyzer.brightness
         let red = self.analyzer.redChannel
-        let saturating = bright > 0.85 || red > 0.92
+        // Washout detection (threshold 0.72, was 0.85): a locked scene that drifts to
+        // bright 0.6–0.8 (finger lightening / re-grip) is already washed out — the AC
+        // pulse is swamped — so recover instead of sitting dead (device log 2026-07-02:
+        // stayed "locked" at bright 0.80 with bpm=0). Healthy PPG bright is ~0.1–0.4,
+        // well under 0.72, so a good lock is never disturbed.
+        let saturating = Self.isWashedOut(brightness: bright, red: red)
 
         if !exposureLocked {
-            // Wait for a stable finger, THEN lock against the finger-covered scene.
-            fingerStableTicks = fingerDetected ? (fingerStableTicks + 1) : 0
+            // Wait for a stable finger AND a dark-enough scene, THEN lock. The
+            // brightness gate stops a lock from capturing a washed/flooded frame
+            // (device log 2026-07-02: locked at bright=0.62 → no pulse all session).
+            // If the finger is present but the scene is too bright, keep auto-exposure
+            // running so the AGC pulls the exposure down before we freeze it.
+            fingerStableTicks = Self.canLockNow(fingerDetected: fingerDetected, brightness: bright)
+                ? (fingerStableTicks + 1) : 0
             if fingerStableTicks >= Self.lockAfterTicks {
                 capture.lockExposure()
                 capture.setTorch(true)              // exposure reconfig can drop torch
