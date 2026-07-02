@@ -1,13 +1,13 @@
-build: 2026-07-02 v10.79.21 (Harmonic Mapping — opt-in body→overtone profile)
+build: 2026-07-02 v10.79.22 (Refocus — ruhige Oberfläche, eine "Studio"-Tür)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Neue, OPT-IN Bio→Klang-Charakteristik "Harmonic mapping" (COLLAB_SYNC_TRIAGE §1.2).
-  Bisher gilt weiter das etablierte Mapping (.natural = DEFAULT, klanglich unverändert):
-  Kohärenz→Harmonizität, HRV→Helligkeit, Puls→Vibrato, Atem→Hüllkurve. Der neue Schalter
-  in "Bio → Routing" aktiviert `.harmonicSeries`: dann treibt der KÖRPER die Obertöne direkt
-  — HRV öffnet die harmonische Fülle (Variabilität → Obertonspreizung), die Atemphase lässt
-  die Amplitude schwellen. Reine Umverdrahtung ÜBER dem geschützten Rausch-DSP (kein neuer
-  Render-Pfad, keine Triade berührt); Default = identischer Klang → null Risiko für den frisch
-  getunten Sound. UI: ein zweiter Toggle in der bestehenden Routing-Karte (kein neues Sheet →
-  respektiert die EchoelStudioView-Modal-Grenze), nur aktiv wenn "Body → sound" an ist.
-  TEST 10.79.21: Bio-Quelle scharfschalten (Bio-Tab), "Harmonic mapping" AN, spielen — der
-  Klang soll mit der Atmung "atmen" und mit hoher HRV obertonreicher werden; AUS = wie bisher.
+notesT: Founder-Pivot (2026-07-02): die App fühlt sich zu komplex / halb-funktionierend /
+  irritierend an → Entscheidung 1A+2A: OBERFLÄCHE reduzieren, ENGINE behalten, Wording bleibt
+  science-first. Schritt 1: die Bottom-Bar von 6 Tabs auf den ruhigen Bio-Session-Flow
+  reduziert — nur noch **Bio · Compose · Studio**. Arrange/Clips/Mix/Browse sind NICHT
+  gelöscht (voll umkehrbar), sondern liegen hinter EINER "Studio"-Tür (ein Sheet, das die vier
+  Flächen auflistet). Alle Surfaces bleiben gemountet (Audio-Lifecycle unberührt), Start-Tab
+  ist jetzt Compose (das Instrument = Startseite). Reine WorkspaceView-Änderung, keine Engine/
+  keine geschützte DSP berührt.
+  TEST 10.79.22: unten nur noch 3 Einträge (Bio · Compose · Studio). "Studio" öffnet die vier
+  Produktions-Flächen; ein Tipp darauf wechselt und schließt. Ton läuft beim Wechseln weiter.
+  Fühlt sich die App ruhiger/klarer an? Was fehlt im Front-Flow, was ist im Studio gut aufgehoben?

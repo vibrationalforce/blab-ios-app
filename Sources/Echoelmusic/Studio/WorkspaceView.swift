@@ -41,12 +41,23 @@ struct WorkspaceView: View {
             case .browser: return "folder"
             }
         }
+
+        /// Front-door surfaces — the calm bio-session flow (founder pivot 2026-07-02:
+        /// reduce the surface, keep the engine). The body + the instrument are the home.
+        static let primary: [Surface] = [.bio, .compose]
+        /// DAW/advanced surfaces — one "Studio" door away, not deleted (reversible).
+        static let advanced: [Surface] = [.arrange, .clips, .mix, .browser]
     }
 
     /// Persisted so the workstation reopens on the surface you left it on. Defaults
-    /// to Arrange — the timeline is the foreground.
-    @AppStorage("workspace.surface") private var surfaceRaw = Surface.arrange.rawValue
-    private var surface: Surface { Surface(rawValue: surfaceRaw) ?? .arrange }
+    /// to Compose — the bio-generative instrument is the front door now.
+    @AppStorage("workspace.surface") private var surfaceRaw = Surface.compose.rawValue
+    private var surface: Surface { Surface(rawValue: surfaceRaw) ?? .compose }
+
+    /// Presents the Studio door — one sheet listing the advanced surfaces. The ONLY
+    /// sheet on WorkspaceView besides `expandedMonitor` (well under any metadata limit;
+    /// the sheet-chain ceiling is EchoelStudioView's constraint, not this view's).
+    @State private var showStudioDoor = false
 
     /// The persistent header's live monitors (founder idea): left EKG pulse, right
     /// immersive visual. Tapping a mini opens it full screen.
@@ -75,6 +86,12 @@ struct WorkspaceView: View {
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
         .fullScreenCover(item: $expandedMonitor) { ExpandedMonitorView(kind: $0) }
+        .sheet(isPresented: $showStudioDoor) {
+            StudioDoorView(current: surface) { picked in
+                surfaceRaw = picked.rawValue
+                showStudioDoor = false
+            }
+        }
     }
 
     /// Persistent brand header — always on screen, every surface (founder: "oben die
@@ -149,29 +166,106 @@ struct WorkspaceView: View {
             .accessibilityHidden(!active)
     }
 
-    /// Persistent bottom navigation — always visible ("durchgehend zu sehen"), one
-    /// equal-width tab per surface (icon over label). Chrome-only: surfaces stay
-    /// mounted in the ZStack above, so switching never touches the Compose audio
-    /// lifecycle. Uncodixfy-compliant (EchoelTheme, top border, no glow/scale).
+    /// Persistent bottom navigation — always visible ("durchgehend zu sehen"). Reduced
+    /// to the calm bio-session flow (founder pivot): the PRIMARY surfaces + one
+    /// **Studio** door to the advanced DAW surfaces. Chrome-only: every surface stays
+    /// mounted in the ZStack above, so switching (and the Studio door) never touches the
+    /// Compose audio lifecycle. Uncodixfy-compliant (EchoelTheme, top border, no glow).
     private var bottomBar: some View {
         HStack(spacing: 0) {
-            ForEach(Surface.allCases) { s in
-                Button { surfaceRaw = s.rawValue } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: s.systemImage).font(.system(size: 17, weight: .medium))
-                        Text(s.title).font(EchoelTheme.font(10, .medium))
-                    }
-                    .foregroundStyle(surface == s ? EchoelTheme.accent : EchoelTheme.dim)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(s.title)
-                .accessibilityAddTraits(surface == s ? .isSelected : [])
+            ForEach(Surface.primary) { s in
+                tabButton(icon: s.systemImage, label: s.title,
+                          selected: surface == s) { surfaceRaw = s.rawValue }
             }
+            // The Studio door — selected whenever an advanced surface is showing, so
+            // there's always a visible "you are in Studio" state and a way back (tap a
+            // primary tab). Opens ONE sheet listing the advanced surfaces.
+            tabButton(icon: "square.stack.3d.up", label: "Studio",
+                      selected: Surface.advanced.contains(surface)) { showStudioDoor = true }
         }
         .background(EchoelTheme.bg)
+    }
+
+    /// One equal-width bottom tab (icon over label). Shared by the primary tabs and the
+    /// Studio door so both read identically.
+    @ViewBuilder
+    private func tabButton(icon: String, label: String,
+                           selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: icon).font(.system(size: 17, weight: .medium))
+                Text(label).font(EchoelTheme.font(10, .medium))
+            }
+            .foregroundStyle(selected ? EchoelTheme.accent : EchoelTheme.dim)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+// MARK: - Studio door (advanced surfaces, one sheet away)
+
+/// The single entry to the advanced DAW surfaces (Arrange · Clips · Mix · Browse),
+/// kept out of the calm front-door flow but NOT deleted (founder pivot 2026-07-02:
+/// reduce the surface, keep the engine — reversible). A plain list; picking a row
+/// switches the mounted surface and dismisses. Uncodixfy: solid bg, 1px borders,
+/// ≤8px radius, no glow.
+@MainActor
+private struct StudioDoorView: View {
+    let current: WorkspaceView.Surface
+    let onPick: (WorkspaceView.Surface) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 10) {
+                    Text("The full production surfaces. The calm bio-session flow stays a tap away in the bar below.")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(WorkspaceView.Surface.advanced) { s in
+                        Button { onPick(s) } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: s.systemImage)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(current == s ? EchoelTheme.accent : EchoelTheme.text)
+                                    .frame(width: 24)
+                                Text(s.title)
+                                    .font(EchoelTheme.font(15, .medium))
+                                    .foregroundStyle(EchoelTheme.text)
+                                Spacer(minLength: 0)
+                                if current == s {
+                                    Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(EchoelTheme.accent)
+                                }
+                                Image(systemName: "chevron.right").font(.system(size: 11))
+                                    .foregroundStyle(EchoelTheme.dim)
+                            }
+                            .padding(14)
+                            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(s.title)
+                        .accessibilityAddTraits(current == s ? .isSelected : [])
+                    }
+                }
+                .padding(16)
+            }
+            .background(EchoelTheme.bg.ignoresSafeArea())
+            .navigationTitle("Studio")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }.foregroundStyle(EchoelTheme.accent)
+                }
+            }
+        }
     }
 }
 
