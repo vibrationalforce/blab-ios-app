@@ -240,7 +240,10 @@ final class CameraAnalyzer {
         // signal temporarily bad": hold the lock, decay quality, and skip feeding the
         // clipped sample into the pulse buffer so the rate stays put through it.
         let isSaturated = Swift.min(avgR, avgG, avgB) > 0.92
-        let isFingerFrame = isSaturated || (avgR > 0.28 && avgR > avgG * 1.2 && avgR > avgB * 1.3)
+        // Per-frame finger test with red-floor HYSTERESIS — extracted to a pure static so
+        // the acquire-hard/hold-easy behaviour is unit-tested (see CameraAnalyzerOctaveTests).
+        let isFingerFrame = Self.isFingerFrame(avgR: avgR, avgG: avgG, avgB: avgB,
+                                               wasDetected: isFingerDetected)
         updateFingerDetection(isFingerFrame)
 
         // Pulse detection
@@ -642,6 +645,23 @@ final class CameraAnalyzer {
     /// without rejecting any observed real pulse. Pure → Linux-testable.
     nonisolated static func isMotionAmplitude(_ amplitude: Float) -> Bool {
         amplitude > 0.20
+    }
+
+    /// Per-frame finger-presence test with red-floor HYSTERESIS (acquire hard, hold easy) —
+    /// mirrors the frame-count window's own hysteresis. Device log 2026-07-02: a lit finger
+    /// sat at R≈0.22–0.37, oscillating ACROSS a single 0.28 floor every ~8 s → `finger`
+    /// flip-flopped yes/no, which both wiped the BPM state (the conf<0.05 reset) and gapped
+    /// the pulse buffer (no samples fed while finger=no) → acf=0.00, bpm never locked. It was
+    /// a limit cycle: finger-loss dropped the exposure lock, the re-lock brightened R back
+    /// over 0.28, repeat. Holding finger-present down to a lower floor (0.18) once acquired
+    /// keeps the window continuous so the pulse can actually lock; the 1.2×/1.3× red-dominance
+    /// gates still reject a non-finger scene at either floor, and a fully saturated frame (all
+    /// channels clipped, finger pressed too hard) still counts as present. Pure → Linux-testable.
+    nonisolated static func isFingerFrame(avgR: Float, avgG: Float, avgB: Float,
+                                          wasDetected: Bool) -> Bool {
+        let saturated = Swift.min(avgR, avgG, avgB) > 0.92
+        let redFloor: Float = wasDetected ? 0.18 : 0.28
+        return saturated || (avgR > redFloor && avgR > avgG * 1.2 && avgR > avgB * 1.3)
     }
 
     /// Minimum inter-beat distance (seconds) for peak detection — an ADAPTIVE refractory
