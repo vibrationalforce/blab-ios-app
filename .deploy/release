@@ -1,32 +1,24 @@
-build: 2026-07-01 v10.78.2 (DAW reorg — transport bar · Bio page · Browser · coherence)
+build: 2026-07-02 v10.79.0 (Control-surface unification — one accessible path + all your AUv3)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: The DAW-look reorg lands in force. The bottom bar now reads Arrange · Clips ·
-  Compose · Mix · Bio · Browse — a familiar pro-tool layout where biofeedback is one
-  source among many, not the whole app.
-  NEW in this build:
-  1) PERSISTENT TRANSPORT BAR — Play/Stop, the Tempo field, and a moving bars.beats
-     position sit at the top of EVERY page (Ableton/Logic style), always one tap away.
-  2) "Bio" PAGE — biofeedback's own home as a SOURCE: arm your body as an input, watch
-     the live HR/HRV/breath/coherence, choose what it drives (sound timbre, the immersive
-     visual) and set up brainwave entrainment (with the full safety notice).
-  3) "Browse" PAGE — recall synth SOUNDS (presets, favorites-first, one-tap Load) and
-     audition SAMPLES before you use them — the DAW left-column staple.
-  4) TIDY-UP — the Channel Rack is the "Mix" page now, so its old duplicate Tools entry
-     is gone (one thing, one home; also trims the Compose screen's view complexity).
-  Everything from 10.77.5 stands (Mix page, smoothed visual pulse, entrainment audio+
-  visual, Oscilloscope/Fractal/Aurora/Lissajous/Depth looks, route hardening).
-  Test 10.78.0:
-   • transport bar visible on every tab — Play starts the beat, position counts, Tempo
-     drags/types;
-   • Bio tab → Arm bio input, cover the camera+flash, numbers go live, toggle Body→sound
-     and an entrainment band;
-   • Browse tab → Presets: Load a sound then play and hear it; Samples: tap ▶ to preview;
-   • switch tabs freely while a pulse reads — confirm no menu freeze anywhere;
-   • transport Stop stays stopped during a bio Compose session (no auto-restart
-     seconds later).
-  Fixes in .1/.2 — the persistent transport bar is now fully coherent with every page:
-   • Stop stays stopped during a live bio Compose session (the gentle auto-evolution
-     no longer restarts playback ~30 s after you pressed Stop);
-   • Stop from the transport bar also resets the Arrange page's song (no stuck
-     "playing" state / lit playhead when you stop from the top bar);
-   • changing Tempo from the transport bar keeps the metronome click in time.
+notesT: A big "übersichtlicher / no duplicate paths" pass — one accessible way to everything,
+  and your plugins finally all show up.
+  UNIFY (no more doppelte Wege):
+  • The header pulse tap now opens the Bio page (one bio home) instead of a separate
+    fullscreen pulse screen.
+  • ONE Stop: the transport bar's Stop now ends the whole take (music + bio session) — no
+    second stop button needed. (To just watch your pulse without music, arm the body on the
+    Bio page.)
+  • Removed Compose's redundant bottom HUD — its Play/Visual/Tools all duplicated the
+    transport bar, the header, and the Tools grid. Compose is cleaner now.
+  • Entrainment lives only on the Bio page now (was duplicated in Compose too).
+  • Arrange's empty screen now guides you: "Open Compose / Open Clips" — no dead end.
+  PLUGINS:
+  • You now see ALL your installed AUv3 instruments & effects, not just Apple's — the scan
+    was one-time (stale) and now re-scans every time you open Plugins, with a Rescan button.
+    Open any loaded plugin's own UI to tweak it inline.
+  COMING (foundation shipped, audio wiring is a device-tested next step): auditioning
+  samples/loops in MASTER TEMPO across all tools (Browser · sampler · breakbeat slicer ·
+  drum machine), pitch-preserving — the tempo-match math + tests are in this build.
+  Test 10.79.0: header pulse → Bio page; Stop on the transport ends everything; Compose has
+  no bottom HUD; Plugins shows your third-party AUv3 (tap Rescan after installing one);
+  Arrange (empty) shows the guide buttons.
