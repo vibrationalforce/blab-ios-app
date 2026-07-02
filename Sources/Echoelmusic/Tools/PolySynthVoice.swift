@@ -77,6 +77,12 @@ public final class PolySynthVoice {
         didSet { poly.bioModulationEnabled = bioModulationEnabled }
     }
 
+    /// Bio→timbre mapping character. `false` (default) = the established `.natural`
+    /// mapping (unchanged sound). `true` = `.harmonicSeries` — HRV opens the overtone
+    /// richness and the breath swells the amplitude ("harmonic mapping of physiological
+    /// rhythms"). Low-rate user toggle → safe as a tracked `@Observable` property.
+    public var bioMappingHarmonic = false
+
     // MARK: - Brainwave entrainment (biofeedback-driven)
 
     /// Arm the isochronic brainwave-entrainment stimulus. OFF by default (silent-until-
@@ -292,7 +298,8 @@ public final class PolySynthVoice {
             breathPhase: clampUnit(frame.breathPhase),
             breathDepth: 0.5,
             lfHfRatio: 0.5,
-            coherenceTrend: 0
+            coherenceTrend: 0,
+            profile: bioMappingHarmonic ? .harmonicSeries : .natural
         )
         applyEntrainment(coherence: frame.coherence,
                          heartRateBPM: frame.heartRateBPM,
