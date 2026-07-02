@@ -278,3 +278,10 @@ Web as core (iPhone-first, Swift-only, HaishinKit sole dep). The umbrella-busine
 (Gastro/Shop/Club/Consulting/Board/Glasses hardware) is founder BUSINESS vision, not app scope.
 
 Note: the "Gibberish" files are just stylized/obfuscated duplicates of the plain docs — no new info.
+
+### 2026-07-02 addendum — Artifacts_1.txt / Artifacts_2.txt (SYNG-era dumps)
+Triaged: NO code salvage. Old "SYNG" pre-Echoel prototype — C++ UpdateSystem, Python
+VisualProcessor/PerformanceManager stubs, GPL v3 repo tree, Windows build.yml — the exact
+C++/CMake/desktop/GPL stack deliberately removed (Swift-only/MIT/iPhone-first now). Only
+business/branding/monetization brainstorming (freemium, domains) = business-side, not app.
+The in-file "TherapeuticEffects→HarmonicEffects" rename just confirms the de-medicalize direction.
