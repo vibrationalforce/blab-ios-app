@@ -1,20 +1,16 @@
-build: 2026-07-02 v10.79.10 (Melodie-Motive Zyklus 3 + rPPG Washout-Lock-Fix)
+build: 2026-07-02 v10.79.11 (Mehr Elemente — Innen-Puls: Arrangement statt einer Fläche)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zwei Sachen in diesem Build (Musik + rPPG, unabhängig testbar):
-
-  MUSIK — Zyklus 3 (echte Melodie-Motive): die Melodie wanderte bisher per Zufallsschritt
-  (korrekt in Tonart, aber ziellos "genoodelt"). Jetzt folgt jede Lead-Linie einem MOTIV:
-  eine kurze Zelle wird GESAGT, dann als variierte ANTWORT wiederholt (Frage/Antwort), und
-  löst am Ende zur Mitte hin AUF. Bio steuert weiter Richtung (Atem) + Weite (Mood). Gilt für
-  Harmonic-Genres, Trap-Bell und Ambient. TEST: Compose → mehrere Genres; klingt die Melodie
-  jetzt "singbar"/wiedererkennbar statt beliebig? (Zusammen mit Sound v10.79.8 + Groove v10.79.9.)
-
-  rPPG — Washout-Lock-Fix (aus deinem letzten Log): die Belichtung hatte sich auf einem
-  überstrahlten Frame (bright 0.62) festgelegt → nie ein Puls, bpm=0 die ganze Session.
-  Jetzt: Belichtung lockt NUR wenn der Finger da UND das Bild dunkel genug ist (kein Lock auf
-  überstrahltes Bild); und ein gelockter, ins Washout driftender Frame (bright 0.6–0.8) löst
-  jetzt Neu-Einregeln aus statt tot dazuliegen.
-  WICHTIG zur Fingerführung: den Finger SANFT und VOLL über Kamera+Blitz legen — nicht fest
-  drücken und nicht so, dass Blitzlicht seitlich in die Linse flutet (das erzeugt genau das
-  Washout, bright→0.9). Ziel ist ein dunkles, tiefrotes Bild. TEST 10.79.10: Bio → ruhig
-  halten ~15–20 s; lockt es jetzt wieder (conf hoch) und vermeidet das Festfrieren auf hell?
+notesT: Dein Ohr-Feedback: "ein Instrumental braucht mehr Elemente, nicht nur eine Fläche" —
+  genau richtig. Ursache: die harmonischen Genres spielten Sustain-Pad + eine Linie (Drums
+  bewusst stumm) → klang wie EINE Fläche.
+  Erster Schritt: unter den Sustain-Pad kommt eine leise, bewegte INNENSTIMME (Chord-Ton-Puls
+  auf 8teln, 16tel wenn der Körper aktiv ist). Der Take bewegt sich jetzt als
+  Bass · Pad · PULS · Lead — ein Arrangement statt einer statischen Fläche. Alles in Tonart,
+  Puls leiser als der Pad; bei bereits arpeggierten Genres übersprungen (die bewegen sich schon).
+  TEST 10.79.11: Compose → harmonische Genres (z. B. Synthwave, Vaporwave, Classical, Futuristic).
+  Hörst du jetzt konstante Bewegung/mehrere Ebenen statt nur Fläche + Linie? Wenn der Puls zu
+  viel/zu wenig ist: sag's, ich justiere Dichte/Lautstärke.
+  NÄCHSTE Schritte für "mehr Elemente" (größer): jede Ebene ein EIGENER Instrumentenklang
+  (multitimbral — Architektur, der stärkste Hebel gegen "eine Fläche"), bewegte Basslinie,
+  dezente Percussion. Sag ob ich da weitermachen soll.
+  Weiter drin: Sound (79.8), Groove (79.9), Melodie-Motive (79.10), rPPG-Washout-Fix (79.10).

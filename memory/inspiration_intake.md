@@ -226,3 +226,14 @@ session provenance · Cyborg-Synchrony collective audience biofeedback over OSC 
 pillar) · AVAudioEngine spatial + CMHeadphoneMotionManager head-tracking. **REJECT:** the
 five-tone/Jue clinical-anxiety framing (wellness/medical red line — facts may inform cited
 tap-to-learn, never a therapy claim). No change to the active professionalization loop.
+
+## 2026-07-02 — PENDING YouTube analysis (network-blocked, awaiting policy widening)
+Founder shared these as inspiration; youtube.com is egress-blocked in this env (see
+memory/decisions.md 2026-07-02). Once the env network policy allows youtube.com +
+*.googlevideo.com, run each through youtube-analyze → vision-gate → verdict + nugget.
+- https://www.youtube.com/watch?v=ovj_Gor6nSM
+- https://www.youtube.com/watch?v=0UaqjKb3QHM  (from search "Software developer claude solo apple")
+- https://www.youtube.com/watch?v=Ffh9OeJ7yxw  (from search "Software developer claude solo apple")
+- https://www.youtube.com/watch?v=MzhIr7BfpI0
+- https://youtu.be/GQGr4sXlWb0
+- Playlist: https://youtube.com/playlist?list=PLRmLTbt9DLCEW7BSqwhnwFwGOw_vC9rUK
