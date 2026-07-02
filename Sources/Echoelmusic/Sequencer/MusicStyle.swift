@@ -256,6 +256,25 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// Per-genre MIX GLUE (relative role levels, applied as velocity multipliers
+    /// at generate time — velocity scales each voice's amplitude, so this is a
+    /// pure level move, no audio-thread change). Keeps each genre balanced: bass
+    /// firmer in dub/trap/heavy, lead forward in synth genres, pads back in dense
+    /// takes, everything gentle (0.85–1.2) so nothing clips or disappears.
+    public var mixLevels: (bass: Float, harmony: Float, lead: Float) {
+        switch self {
+        case .dubTechno, .trap:                       return (1.18, 0.92, 1.00)
+        case .ska, .rocksteady, .disco:               return (1.12, 0.95, 1.05)
+        case .synthwave, .eighties, .vaporwave, .earlySynth:
+                                                      return (1.00, 0.90, 1.15)
+        case .futuristic, .sciFi, .psytrance:         return (1.00, 0.88, 1.18)
+        case .classical, .jazz, .klezmer, .oriental:  return (1.00, 1.00, 1.06)
+        case .punk, .rock, .rocknroll, .heavyMetal, .doom:
+                                                      return (1.12, 0.90, 1.10)
+        case .esotericMeditation, .selfObservation:   return (0.95, 1.05, 0.98)
+        }
+    }
+
     /// The dark/bright, genre-appropriate scale a take defaults to.
     public var scale: Scale {
         switch self {

@@ -50,6 +50,18 @@ final class MusicStyleSwingTests: XCTestCase {
         }
     }
 
+    // MIX GLUE — role level multipliers must stay in a sane, non-clipping band so
+    // the generate-time velocity pass never zeroes a voice or slams everything hot.
+    func testMixLevelsAreSaneForEveryGenre() {
+        for style in MusicStyle.allCases {
+            let m = style.mixLevels
+            for (name, f) in [("bass", m.bass), ("harmony", m.harmony), ("lead", m.lead)] {
+                XCTAssertGreaterThanOrEqual(f, 0.8, "\(style) \(name) level too low")
+                XCTAssertLessThanOrEqual(f, 1.3, "\(style) \(name) level too hot")
+            }
+        }
+    }
+
     func testLeadTimbresAreGenreDistinct() {
         // The point of Step 2b is variety — the lead is not one fixed sound across
         // all genres. Expect several different lead patches in use.
