@@ -316,6 +316,24 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         onSessionReset?()                                  // owner re-locks exposure cleanly
     }
 
+    /// Publisher-driven recovery: the RGB SAMPLE PIPE stalled (the analyzer got no new
+    /// frames for ~6 s) even though the capture-layer watchdog — which only checks that
+    /// `captureOutput` is still firing — stayed happy (device log 2026-07-02: analyzer
+    /// output byte-identical ~13 s while `rate` sat frozen). That gap is invisible to the
+    /// frame-delivery watchdog, so the owner forces a recovery here. Full reconfigure (a
+    /// deep stall survives a bare restart) on sessionQueue, sharing the 6 s restart
+    /// throttle so it can't thrash against the watchdog.
+    func recoverFromStall() {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            let now = CFAbsoluteTimeGetCurrent()
+            guard now - self.lastRestartTime > 6.0 else { return }   // shared restart cooldown
+            log.log(.warning, category: .biofeedback,
+                    "Camera RGB pipe stalled — publisher forced full recovery")
+            self.restartSession(fullReconfigure: true)
+        }
+    }
+
     // MARK: - Stop
 
     func stop() {
