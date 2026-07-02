@@ -307,8 +307,20 @@ public final class AUv3Host {
     /// call on appear. No-op where AVFoundation is unavailable.
     public func scan() {
         #if canImport(AVFoundation)
-        let any = AudioComponentDescription()   // all-zero matches every component
-        let components = AVAudioUnitComponentManager.shared().components(matching: any)
+        let mgr = AVAudioUnitComponentManager.shared()
+        // Query the all-match wildcard AND each hosted type explicitly, then de-dupe.
+        // A single all-zero query is documented to return everything, but querying each
+        // type as well is belt-and-suspenders coverage so EVERY installed third-party
+        // instrument/effect shows up — not just Apple's (founder: "ich will alle meine
+        // Instrumente und Effekte sehen"). `split(_:)` de-dupes by id, so overlap is fine.
+        var descriptions = [AudioComponentDescription()]   // all-zero = every component
+        for t in [kAudioUnitType_MusicDevice, kAudioUnitType_Effect, kAudioUnitType_MusicEffect] {
+            var d = AudioComponentDescription()
+            d.componentType = t
+            descriptions.append(d)
+        }
+        var components: [AVAudioUnitComponent] = []
+        for d in descriptions { components.append(contentsOf: mgr.components(matching: d)) }
         let infos: [HostedAUInfo] = components.compactMap { c in
             let type = c.audioComponentDescription.componentType
             // Only host the kinds a DAW channel uses: instruments + effects.

@@ -92,6 +92,20 @@ struct AUv3BrowserView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                // Rescan header: opening the browser always refreshes (below), and this
+                // button re-scans on demand so a plugin you just installed shows up
+                // without relaunching (was scan-once → stale).
+                HStack(spacing: 8) {
+                    Text("\(host.total) installed")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    Spacer(minLength: 0)
+                    Button { host.scan() } label: {
+                        Label("Rescan", systemImage: "arrow.clockwise")
+                            .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Re-scans for Audio Units you've installed since opening the app")
+                }
                 if host.didScan && host.total == 0 {
                     Text("No Audio Units found. Install AUv3 instruments or effects from the App Store; they'll appear here.")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
@@ -113,7 +127,8 @@ struct AUv3BrowserView: View {
             .padding(16)
         }
         .background(EchoelTheme.bg)
-        .onAppear { if !host.didScan { host.scan() } }
+        // Always refresh on open so newly-installed AUv3 appear (was scan-once → stale).
+        .onAppear { host.scan() }
     }
 
     // Where tapped effects land — the instrument channel or the master bus.
