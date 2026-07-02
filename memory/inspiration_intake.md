@@ -211,3 +211,18 @@ equivalent (skills + review sub-agents + rules + markdown memory), so no wholesa
 Only nuggets: `mcp-builder` for a tiny TestFlight/ASC-status MCP (kill the 400 KB actions_list
 dumps), and the plugin/marketplace format if we ever publish our `.claude/` skills. Transcript
 was blocked in-session; re-run the tool where YT is reachable to capture the exact 17 list.
+
+---
+
+## 2026-07-02 — Deep-research strategic synthesis (founder doc)
+
+Mostly **validation**: the protected DSP triad, the Core-Bluetooth (not HealthKit) realtime
+path, and the **deterministic bio→parameter mapping** are confirmed on-vision AND a **legal
+moat** in the 2026 AI "consent crisis" (AFM v UMG/WMG; Spotify/TME synthetic-track purges; EU
+AI Act 50(4)) — Echoel replicates no copyrighted training data, so it dodges the generative
+"black-box" liability. That's positioning/marketing truth (echoel-marketing), not a code change.
+Genuine roadmap WATCH items logged to inspiration.csv: AccessorySetupKit onboarding · C2PA/DDEX
+session provenance · Cyborg-Synchrony collective audience biofeedback over OSC (North Star live
+pillar) · AVAudioEngine spatial + CMHeadphoneMotionManager head-tracking. **REJECT:** the
+five-tone/Jue clinical-anxiety framing (wellness/medical red line — facts may inform cited
+tap-to-learn, never a therapy claim). No change to the active professionalization loop.
