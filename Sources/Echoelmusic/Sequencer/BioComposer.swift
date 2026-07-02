@@ -619,6 +619,52 @@ public enum BioComposer {
         clamp01(v + (rng.unit() - 0.5) * 0.10)
     }
 
+    /// Build a MOVING bass line for one chord section instead of a single held
+    /// root. The section downbeat is always the chord root (the foundation); on
+    /// takes with drive it subdivides into root/fifth hits and walks a passing
+    /// tone up to the NEXT chord's root at the section end — a real bass line,
+    /// like a player, not a drone. Calm or short sections keep one sustained root
+    /// so spacious genres stay spacious. All tones resolve through
+    /// `MusicalKey.degree` → always in key. `role: .bass` so the sub follows it.
+    /// Deterministic given the seed.
+    private static func appendBass(into notes: inout [Note], key: MusicalKey,
+                                   rootDegree: Int, nextRoot: Int, octave: Int,
+                                   secStart: Int, len: Int, busy: Float, calm: Float,
+                                   velocity: Float, rng: inout SeededRNG) {
+        let motion = clamp01(busy * 0.7 + (1 - calm) * 0.4)
+        // Spacious / short sections keep the grounding single sustained root.
+        guard motion > 0.32, len >= 4 else {
+            notes.append(Note(id: nextUUID(&rng),
+                              pitch: key.degree(rootDegree, octave: octave),
+                              startStep: secStart, lengthSteps: len,
+                              velocity: hVel(velocity, &rng), role: .bass))
+            return
+        }
+        let gap = (motion > 0.62 && len >= 8) ? 2 : 4      // 8ths when driving, else quarters
+        let secEndLocal = secStart + len
+        var hitStarts: [Int] = []
+        var s = secStart
+        while s < secEndLocal { hitStarts.append(s); s += gap }
+        for (j, start) in hitStarts.enumerated() {
+            let noteLen = max(1, min(gap, secEndLocal - start))
+            let isDown = (j == 0)
+            let isLast = (j == hitStarts.count - 1)
+            let degree: Int
+            if isDown {
+                degree = rootDegree                                  // foundation on the downbeat
+            } else if isLast, nextRoot != rootDegree, nextRoot > 0 {
+                degree = nextRoot - 1                                // walk a step up into the next root
+            } else {
+                degree = (j % 2 == 1) ? rootDegree + 4 : rootDegree  // fifth / root alternation
+            }
+            let vel = isDown ? velocity : velocity * 0.82
+            notes.append(Note(id: nextUUID(&rng),
+                              pitch: key.degree(degree, octave: octave),
+                              startStep: start, lengthSteps: noteLen,
+                              velocity: hVel(vel, &rng), role: .bass))
+        }
+    }
+
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
@@ -676,14 +722,17 @@ public enum BioComposer {
             guard secEnd > secStart else { continue }
             let len = secEnd - secStart
 
-            // 1) Bass foundation — a sustained root an octave below the pad. Gives
-            //    every chord a defined low end so the loop reads full and produced,
-            //    never thin or floating. Slightly stronger so it grounds the harmony.
+            // 1) Bass foundation — a MOVING bass line an octave below the pad, not a
+            //    single held root. The downbeat grounds the chord; on takes with drive
+            //    it steps through root/fifth and walks up into the next chord's root, so
+            //    the low end reads like a played bass instead of a drone. Calm/spacious
+            //    takes keep the one sustained root (see appendBass). role: .bass → sub
+            //    follows it; all tones stay in key.
             let bassOct = max(0, profile.padOctave - 1 + octShift)
-            notes.append(Note(id: nextUUID(&rng),
-                              pitch: key.degree(rootDegree, octave: bassOct),
-                              startStep: secStart, lengthSteps: len, velocity: hVel(bassVelocity, &rng),
-                              role: .bass))
+            let nextRoot = prog[(idx + 1) % prog.count]
+            appendBass(into: &notes, key: key, rootDegree: rootDegree, nextRoot: nextRoot,
+                       octave: bassOct, secStart: secStart, len: len,
+                       busy: busy, calm: calm, velocity: bassVelocity, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
