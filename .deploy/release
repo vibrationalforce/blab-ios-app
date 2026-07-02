@@ -1,16 +1,15 @@
-build: 2026-07-02 v10.79.14 (Multitimbral Step 2b — die Lead-Stimme klingt jetzt pro Genre anders)
+build: 2026-07-02 v10.79.15 (Music Step 3 — bewegte Basslinie statt Bass-Drone)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Aufbauend auf 79.13 (das komplett auf TestFlight gelandet ist: Sound+Groove+Melodie+
-  Puls+Multitimbral-Lead+rPPG-Washout-Fix). Diese Runde macht die getrennte Lead-Stimme
-  RICHTIG hörbar: statt EINER fixen Lead-Klangfarbe bekommt die Melodie-Lead jetzt PRO GENRE
-  ein passendes Instrument:
-  - Synthwave/Eighties/Rock/Punk/Psytrance → Bright Lead
-  - Jazz → Soft Keys (warmes Rhodes) · Klezmer → Clarinet · Oriental → Oboe · Classical → Violin
-  - Trap/Futuristic → Glass Bell · Vaporwave → Vapor Lead · SciFi/Metal/Doom → Metallic
-  - Disco/Ska → Trumpet · Rock'n'Roll/Rocksteady → Hollow Reed (sax-artig)
-  - DubTechno/EarlySynth → Pluck · Ambient/Meditation → Flute
-  So liest sich die Melodie klar als eigenes Instrument ÜBER Bass · Pad · Puls — ein echtes
-  Arrangement, kein Einheitsklang.
-  TEST 10.79.14: Compose in mehreren Genres nacheinander (z. B. Jazz → Synthwave → Klezmer):
-  Klingt die Lead-Melodie jeweils nach einem ANDEREN, genretypischen Instrument, deutlich
-  abgesetzt von Pad/Bass? Aussetzer/Knacksen bei dichten Stellen (3-Stimmen-Lead)?
+notesT: Aufbauend auf 79.13 (auf TestFlight gelandet) + 79.14 (per-Genre-Lead, CI grün).
+  Der Bass in den harmonischen Genres war bisher EIN gehaltener Grundton pro Akkord (Drone).
+  Jetzt bewegt er sich wie ein echter Bassist:
+  - Downbeat = Grundton (Fundament), dann Schritte über Grund-/Quintton
+  - am Sektionsende läuft er eine Stufe in den nächsten Akkord-Grundton hinein (Walking-Feel)
+  - Dichte folgt dem Körper: ruhiger Puls/hohe Kohärenz → weiter EIN gehaltener Grundton
+    (Genres bleiben luftig); treibender Körper → Achtel/Viertel-Bewegung
+  - alles in-key, Sub folgt dem tiefsten Ton → bewegter Sub-Bass
+  Perkussion bewusst NICHT in dieser Runde: der Generate-Pfad hält die Drums absichtlich
+  stumm (reines melodisches Instrument) — das umzudrehen ist eine eigene Design-Entscheidung.
+  TEST 10.79.15: Compose in Synthwave/Classical/Jazz mit ruhigem vs. schnellem Puls —
+  hört man bei Bewegung eine laufende Basslinie (Grundton → Quinte → rein in den nächsten
+  Akkord), und bleibt es bei Ruhe schön getragen? Aussetzer/Knacksen bei dichtem Bass?

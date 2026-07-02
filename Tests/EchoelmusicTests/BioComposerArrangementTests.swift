@@ -47,6 +47,39 @@ final class BioComposerArrangementTests: XCTestCase {
             "a busier take should carry at least as many elements as a calm one")
     }
 
+    func testBusyTakeHasAMovingBassLine() {
+        // Music Step 3: a driving take's bass should MOVE (several bass onsets),
+        // not sit on one held root. Use a busy body so appendBass subdivides.
+        for style in harmonicStyles {
+            let comp = BioComposer.compose(input(style, hr: 125, coh: 0.1))
+            let bassStarts = Set(comp.notes.filter { $0.role == .bass }.map { $0.startStep })
+            XCTAssertGreaterThanOrEqual(bassStarts.count, 2,
+                "\(style): a busy take needs a moving bass line, not one drone")
+        }
+    }
+
+    func testCalmTakeKeepsBassSpacious() {
+        // A calm body should keep the bass grounded/sustained — fewer bass onsets
+        // than a busy one, so spacious genres stay spacious.
+        let calm = BioComposer.compose(input(.vaporwave, hr: 55, coh: 0.95))
+        let busy = BioComposer.compose(input(.vaporwave, hr: 130, coh: 0.05))
+        let calmBass = Set(calm.notes.filter { $0.role == .bass }.map { $0.startStep }).count
+        let busyBass = Set(busy.notes.filter { $0.role == .bass }.map { $0.startStep }).count
+        XCTAssertLessThanOrEqual(calmBass, busyBass,
+            "a calm take should not have a busier bass than a driving one")
+    }
+
+    func testBassNotesStayInKey() {
+        for style in harmonicStyles {
+            let key = MusicalKey(root: 0, scale: .minor)
+            let comp = BioComposer.compose(input(style, hr: 125, coh: 0.1))
+            for note in comp.notes where note.role == .bass {
+                XCTAssertTrue(key.contains(note.pitch),
+                    "\(style): moving-bass pitch \(note.pitch) must stay in key")
+            }
+        }
+    }
+
     func testEveryPulseNoteStaysInKey() {
         // The new inner-pulse layer must never break the in-key guarantee.
         for style in harmonicStyles {
