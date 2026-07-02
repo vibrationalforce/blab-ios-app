@@ -1,12 +1,14 @@
-build: 2026-07-02 v10.79.1 (Polish — one breath home, bigger tap targets, consistent theme)
+build: 2026-07-02 v10.79.2 (rPPG lock fix — finger no longer flip-flops)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: A tidy-up pass on top of 10.79.0's unification.
-  • Breathing lives only on the Bio page now (was also duplicated in Compose's Tools) —
-    one body/breath home, no doubled path.
-  • Bigger, easier taps: the project Share icon, Channel Rack Mute/Solo, the Browser
-    favorite star, and the Arrangement controls are all full-size (≥44pt) now.
-  • Consistent colours: a few stray off-theme greys/yellows now use the Echoel palette
-    (Open-project subtitles, the Bio strip text, the FX favorite swipe).
-  • Header pulse VoiceOver now reads correctly ("Opens the Bio page").
-  Test 10.79.1: Compose Tools no longer lists Breathing (it's on Bio); Mute/Solo and the
-  Browser star are comfortable to tap; nothing looks off-palette.
+notesT: The big one this build: the camera pulse should actually LOCK now.
+  rPPG FIX (from your device log): your finger was on the lens the whole time, but the
+  red level drifted across the finger-detection threshold every ~8 s, so the app kept
+  flipping "finger yes/no". Each "no" wiped the heart-rate estimate and left gaps in the
+  pulse signal, so it never locked (bpm stuck at 0, confidence never climbed). The
+  finger-detection now has hysteresis — once your finger is detected it HOLDS through the
+  dips instead of dropping out, so the signal stays continuous and the pulse can lock.
+  Test 10.79.2: Bio page → cover the rear camera + flash, hold still ~15–20 s → you should
+  get a stable BPM with confidence climbing (not flickering back to "—"). If the red level
+  still reads very low on your device, tell me and I'll raise the torch brightness next.
+  ALSO carries 10.79.1's polish: Breathing only on the Bio page, ≥44pt tap targets on
+  Mute/Solo · Share · Browser star · Arrange controls, consistent theme colours.
