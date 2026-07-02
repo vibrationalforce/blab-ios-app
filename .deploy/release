@@ -1,16 +1,15 @@
-build: 2026-07-02 v10.79.11 (Mehr Elemente — Innen-Puls: Arrangement statt einer Fläche)
+build: 2026-07-02 v10.79.12 (Multitimbral — Lead-Stimme mit eigenem Klang: getrennte Instrumente)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Ohr-Feedback: "ein Instrumental braucht mehr Elemente, nicht nur eine Fläche" —
-  genau richtig. Ursache: die harmonischen Genres spielten Sustain-Pad + eine Linie (Drums
-  bewusst stumm) → klang wie EINE Fläche.
-  Erster Schritt: unter den Sustain-Pad kommt eine leise, bewegte INNENSTIMME (Chord-Ton-Puls
-  auf 8teln, 16tel wenn der Körper aktiv ist). Der Take bewegt sich jetzt als
-  Bass · Pad · PULS · Lead — ein Arrangement statt einer statischen Fläche. Alles in Tonart,
-  Puls leiser als der Pad; bei bereits arpeggierten Genres übersprungen (die bewegen sich schon).
-  TEST 10.79.11: Compose → harmonische Genres (z. B. Synthwave, Vaporwave, Classical, Futuristic).
-  Hörst du jetzt konstante Bewegung/mehrere Ebenen statt nur Fläche + Linie? Wenn der Puls zu
-  viel/zu wenig ist: sag's, ich justiere Dichte/Lautstärke.
-  NÄCHSTE Schritte für "mehr Elemente" (größer): jede Ebene ein EIGENER Instrumentenklang
-  (multitimbral — Architektur, der stärkste Hebel gegen "eine Fläche"), bewegte Basslinie,
-  dezente Percussion. Sag ob ich da weitermachen soll.
-  Weiter drin: Sound (79.8), Groove (79.9), Melodie-Motive (79.10), rPPG-Washout-Fix (79.10).
+notesT: Dein "mehr Elemente, nicht eine Fläche" an der Wurzel angepackt. Grund war: Bass,
+  Harmonie UND Lead liefen durch DIESELBE Synth-Stimme = ein Klang → sie verschmolzen.
+  Jetzt MULTITIMBRAL: die Melodie (.lead) spielt durch eine EIGENE Stimme mit eigenem,
+  schneidendem Klang (Bright Lead), während Pad/Puls/Bass auf der Harmonie-Stimme bleiben und
+  der Sub-Bass die Tiefe trägt. Man hört jetzt GETRENNTE Instrumente statt einer Fläche.
+  TEST 10.79.12: Compose → harmonische Genres (Synthwave, Vaporwave, Classical, Futuristic)
+  generieren + abspielen. Hörst du die Melodie als eigenes Instrument ÜBER dem Pad, klar
+  abgesetzt? Ist es jetzt ein Arrangement (Bass · Pad · Puls · Lead) statt einer Fläche?
+  WICHTIG bitte mit-testen (CPU): irgendwelche Audio-Aussetzer / Knacksen bei dichten Stellen?
+  (Die Lead-Stimme ist bewusst klein gehalten — falls Aussetzer, sag Bescheid, ich senke die
+  Last.) Der Lead-Klang ist vorerst FEST für alle Genres; als Nächstes gebe ich jedem Genre
+  einen eigenen Lead-Sound (Step 2b), plus bewegte Basslinie + dezente Percussion.
+  Enthält alles seit 79.7 (Sound, Groove, Melodie-Motive, Innen-Puls, rPPG-Fix).
