@@ -818,6 +818,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float energy = clamp(field * vignette + bloom + glow, 0.0, 1.0);
         float ambient = 0.06;
         float3 outCol = col * (ambient + (1.0 - ambient) * energy);
+        // Premium finish: a gentle filmic S-contrast so the frame reads rich/graded, not flat
+        // (deepens shadows, lifts highlights a touch). Cheap, no new uniforms; degrade-safe.
+        outCol = clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0);
         outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
         return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }

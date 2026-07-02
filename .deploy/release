@@ -1,14 +1,13 @@
-build: 2026-07-02 v10.79.3 (rPPG stable lock — two fixes: finger flip-flop + lock survives movement)
+build: 2026-07-02 v10.79.5 (Pro pass II — music breathes · palette graded · filmic finish · rPPG)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Two camera-pulse fixes from your device logs — the pulse should now lock AND hold.
-  FIX 1 (weak-signal): if the red level drifted across the finger-detection threshold, the
-  app used to flip "finger yes/no", wiping the heart-rate estimate each time so it never
-  locked. Finger detection now has hysteresis — once detected it HOLDS through dips.
-  FIX 2 (strong-signal): once locked (nice steady BPM), a tiny finger-pressure change made
-  the amplitude briefly spike, which tripped the motion filter and WIPED the whole lock in
-  one instant — even though your pulse was still perfectly readable. Now, when the pulse is
-  clearly there, a brief movement barely dents the lock instead of resetting it.
-  Test 10.79.3: Bio page → cover the rear camera + flash, hold ~15–20 s → BPM should lock
-  AND stay locked through small movements (confidence holds, not flickering to "—").
-  Known next item if it still shows: a rare too-bright exposure lock → brief "re-settle".
-  Also carries 10.79.1's polish (Breathing only on Bio, ≥44pt taps, consistent theme).
+notesT: Professionalization loop, build 2 — steer me on each and I keep going.
+  MUSIC (M1): the take BREATHES now — whole texture rises/relaxes over the bar (downbeats
+  lead + gentle swell) instead of a flat metronome. (Next: real intro/build/break across
+  several bars — that's an arrangement rebuild, coming as its own careful step.)
+  VISUAL (V1+V2): eased off "neon rainbow" toward a graded, natural-light palette (same
+  scientific tone→colour, less saturated + warmer) AND added a gentle filmic contrast so the
+  frame reads rich/graded, not flat. VJ Saturation can still push vivid.
+  rPPG: carries both camera-pulse lock fixes (finger no longer flip-flops; a small movement
+  no longer wipes a good lock) — Bio page, cover camera + flash, hold ~15-20 s.
+  Test 10.79.5: (1) does the music phrase/breathe — more or less? (2) is the visual less neon
+  / more premium — grade it further? (3) does the pulse lock and hold? Tell me per item.
