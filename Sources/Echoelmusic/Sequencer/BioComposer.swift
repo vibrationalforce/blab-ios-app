@@ -456,6 +456,18 @@ public enum BioComposer {
         let second = secondDegrees[Int(rng.next() % UInt64(secondDegrees.count))]
         for s in positions([2, 6])  { addChord(rootDegree: 0, at: s) }        // i (tonic)
         for s in positions([10, 14]) { addChord(rootDegree: second, at: s) }  // seeded move
+
+        // Sustained root bass (octave 2, role .bass) mirroring the trap sub — dub's whole
+        // identity is a deep sub under spacious chord stabs. Without this the generative path
+        // played dub with NO low end (the offbeat triads live at octave 4, all .harmony; the
+        // dub sub only existed on the SILENCED drum grid). Follows the harmony: tonic under
+        // the first half, the seeded `second` degree under the move. .bass also drives the
+        // octave-doubling subBass voice and the firmer dub bass mix level.
+        let subVel = clamp01(0.6 + 0.2 * breathDepth)
+        notes.append(Note(id: nextUUID(&rng), pitch: key.degree(0, octave: 2),
+                          startStep: 0, lengthSteps: 8, velocity: subVel, role: .bass))
+        notes.append(Note(id: nextUUID(&rng), pitch: key.degree(second, octave: 2),
+                          startStep: 8, lengthSteps: 8, velocity: subVel, role: .bass))
         return notes
     }
 
@@ -782,12 +794,18 @@ public enum BioComposer {
             if !profile.arpeggiated, !voiced.isEmpty {
                 let pulseGap = busy > 0.6 ? 1 : 2                       // 16ths busy, else 8ths
                 let pulseVel = clamp01(padVelocity * 0.55)
+                // Voice the pulse an OCTAVE ABOVE the pad (chord tones + 12, clamped ≤127) —
+                // a comp/shimmer sits over the held chord like a real player, it doesn't
+                // re-articulate the pad's exact fundamentals in the same register. Same-pitch
+                // pulses piled mud in one band AND requested the pad's own MIDI pitches on the
+                // shared 8-voice poly engine (voice-stealing → pad dropouts on dense 7ths).
+                let pulsePitches = voiced.map { Swift.min(127, $0 + 12) }
                 var ps = secStart
                 var pt = 1                                             // offset so it doesn't just double the pad's downbeat
                 while ps < secEnd {
                     let plen = Swift.max(1, Swift.min(pulseGap, secEnd - ps))
                     notes.append(Note(id: nextUUID(&rng),
-                                      pitch: voiced[pt % voiced.count],
+                                      pitch: pulsePitches[pt % pulsePitches.count],
                                       startStep: ps, lengthSteps: plen, velocity: hVel(pulseVel, &rng)))
                     ps += pulseGap
                     pt += 1

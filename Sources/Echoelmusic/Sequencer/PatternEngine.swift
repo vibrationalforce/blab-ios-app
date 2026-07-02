@@ -148,12 +148,37 @@ public final class PatternEngine {
         accents[track][step] = on
     }
 
-    /// Velocity (gain) for a cell: accent → loud, active → normal, off → 0.
+    /// Velocity (gain) for a cell: accent → loud, active → grooved, off → 0.
+    ///
+    /// Non-accented hits used to fire at one flat `normalVelocity` (0.82), the textbook
+    /// "machine-gun hats" tell — every 16th identical. Instead we apply a deterministic
+    /// GROOVE curve: a metric weighting (downbeat > 8th > 16th) plus a small (±6%) seeded
+    /// jitter keyed on (track, step) so hats/percussion breathe like a human player without
+    /// ever wandering. Accents stay exactly 1.0, so drawn accents are untouched. Pure +
+    /// deterministic (same grid → same groove), so it's fully unit-testable.
     public func velocity(track: Int, step: Int) -> Float {
         guard track >= 0, track < PatternEngine.trackCount,
               step >= 0, step < PatternEngine.stepCount,
               steps[track][step] else { return 0 }
-        return accents[track][step] ? PatternEngine.accentVelocity : PatternEngine.normalVelocity
+        if accents[track][step] { return PatternEngine.accentVelocity }
+        return PatternEngine.groovedVelocity(track: track, step: step)
+    }
+
+    /// Deterministic groove velocity for a non-accented active cell. Metric emphasis:
+    /// downbeats (÷4) loudest, backbeat 8ths (÷2) mid, off-16ths softest (ghosted); a
+    /// bounded ±6% hash jitter adds micro-humanity. Centered on `normalVelocity`.
+    static func groovedVelocity(track: Int, step: Int) -> Float {
+        let base = normalVelocity
+        // Metric weight: on-beat > 8th > 16th. Small spans keep the existing feel.
+        let metric: Float
+        if step % 4 == 0      { metric =  0.10 }   // downbeat — push
+        else if step % 2 == 0 { metric =  0.02 }   // 8th — slight
+        else                  { metric = -0.10 }   // off-16th — ghost
+        // Deterministic bounded jitter in [-0.06, 0.06] from a cheap (track,step) hash.
+        let h = (UInt32(bitPattern: Int32(step &* 73 &+ track &* 19 &+ 1)) &* 2654435761) >> 8
+        let jitter = (Float(h % 1000) / 1000.0 - 0.5) * 0.12   // ±0.06
+        let v = base + metric + jitter
+        return Swift.min(0.98, Swift.max(0.35, v))             // stay below accent, audible floor
     }
 
     /// Set the swing amount, clamped to [0, 0.5].
