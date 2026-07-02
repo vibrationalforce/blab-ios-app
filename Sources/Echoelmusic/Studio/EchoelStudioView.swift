@@ -216,7 +216,6 @@ struct EchoelStudioView: View {
     /// Drives the project-import file picker in the Open-project sheet.
     @State private var projectImportPresented = false
     @State private var showVisual = false
-    @State private var showBreath = false
     @State private var showMeditation = false
     @State private var showLiveColabo = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
@@ -331,7 +330,6 @@ struct EchoelStudioView: View {
             if !playing && running { stopEverything() }
         }
         .onChange(of: showVisual) { _, _ in updateKeepAwake() }
-        .onChange(of: showBreath) { _, _ in updateKeepAwake() }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
@@ -454,7 +452,6 @@ struct EchoelStudioView: View {
             .sheet(item: $visualShare) { AnyView(ShareSheet(url: $0.url)) }
         }
         #endif
-        .fullScreenCover(isPresented: $showBreath) { BreathGuideView() }
         .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
         #if canImport(MultipeerConnectivity)
         .sheet(isPresented: $showLiveColabo) {
@@ -523,7 +520,7 @@ struct EchoelStudioView: View {
                      icon: "point.topleft.down.curvedto.point.bottomright.up", cat: .editors),
             ToolItem(id: "audioin", title: "Audio In", icon: "mic", cat: .audioBio),
             ToolItem(id: "audioclip", title: "Audio Clip", icon: "waveform", cat: .audioBio),
-            ToolItem(id: "breathing", title: "Breathing", icon: "wind", cat: .audioBio),
+            // "Breathing" lives on the Bio surface (the one body/breath home) — not duplicated here.
             ToolItem(id: "meditation", title: "Meditation", icon: "figure.mind.and.body", cat: .audioBio),
             ToolItem(id: "routing", title: "Routing",
                      icon: "point.3.connected.trianglepath.dotted", cat: .connect),
@@ -553,7 +550,6 @@ struct EchoelStudioView: View {
         case "automation": showAutomation = true
         case "audioin": showInput = true
         case "audioclip": showAudioClip = true
-        case "breathing": showBreath = true
         case "meditation": showMeditation = true
         case "routing": showRouting = true
         case "plugins": showPlugins = true
@@ -1210,7 +1206,7 @@ struct EchoelStudioView: View {
     private func updateKeepAwake() {
         #if canImport(UIKit)
         UIApplication.shared.isIdleTimerDisabled =
-            running || showVisual || showBreath || showMeditation
+            running || showVisual || showMeditation
         #endif
     }
 
@@ -1869,7 +1865,7 @@ struct EchoelStudioView: View {
         NavigationStack {
             List {
                 if projects.projects.isEmpty {
-                    Text("No saved projects yet.").foregroundStyle(.secondary)
+                    Text("No saved projects yet.").foregroundStyle(EchoelTheme.dim)
                 }
                 ForEach(projects.projects) { p in
                     HStack(spacing: 8) {
@@ -1877,7 +1873,7 @@ struct EchoelStudioView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
                                 Text("\(p.style.displayName) · \(p.key.shortName) · \(String(format: "%.0f", p.bpm)) BPM")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(EchoelTheme.dim)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
@@ -1887,7 +1883,8 @@ struct EchoelStudioView: View {
                                   preview: SharePreview(p.name)) {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
-                                .frame(width: 34, height: 34)
+                                .frame(width: 44, height: 44)   // ≥44pt tap target (a11y)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel("Share \(p.name)")
                     }

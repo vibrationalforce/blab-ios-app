@@ -107,11 +107,11 @@ struct WorkspaceView: View {
                 // surface) to the 10 Hz pulse and rebuild the whole tree, tearing down any
                 // open dropdown in the active surface (the recurring freeze).
                 Button { surfaceRaw = Surface.bio.rawValue } label: {
+                    // PulseMonitorMiniLive (leaf) owns the accessibility element (live BPM +
+                    // "Opens the Bio page"); no label here, so VoiceOver reads one element.
                     PulseMonitorMiniLive()
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Bio")
-                .accessibilityHint("Opens the Bio page")
                 #endif
                 Spacer(minLength: 0)
                 // RIGHT (founder red-2): live immersive-visual monitor (full corner).
