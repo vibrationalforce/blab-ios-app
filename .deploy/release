@@ -1,13 +1,14 @@
-build: 2026-07-02 v10.79.18 (Audit P0.2 — DrumSynth Cross-Thread-Race behoben)
+build: 2026-07-02 v10.79.19 (Marke P1.6 — „Meditation" → „Coherence Session")
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Stabiler Code (Audit-Fund P0.2, HIGH). DrumSynthVoice hat bisher den Modal-Bank
-  auf dem MAIN-Thread angeschlagen/konfiguriert, während der Audio-Thread dieselben
-  Mode-Arrays las/schrieb — eine echte Cross-Thread-Race (gleiche Klasse wie die
-  absichtlich abgeschaltete DDSP-Convolution-Race). Fix: fire()/configure() melden jetzt
-  nur noch lock-frei einen Request (atomarer Zähler + Skalar-Felder, das SamplerVoice-
-  Muster); der Audio-Thread wendet Anschlag UND Konfiguration in render() an — beide
-  Modal-Bank-Operationen sind in-place/alloc-frei, laufen jetzt nur noch auf dem Audio-
-  Thread und können den Render nicht mehr zerreißen. Kein hörbarer „glitchy Hit" mehr
-  bei dichten Synth-Drum-Stellen / Live-Pad-Edits.
-  TEST 10.79.18: Synth-Drums / Beat-Genres (DubTechno/Trap) — saubere, konsistente
-  Schläge auch bei dichten Patterns? (Betrifft nur Synth-Pads, nicht die Melodie.)
+notesT: Marken-Bereinigung nach „stärkste Marketing-Richtlinien" (Audit P1.6 + memory/
+  preferences: keine Wellness-Sprache user-facing). Die „Meditation"-Fläche heißt jetzt
+  „Coherence Session":
+  - Tools-Eintrag „Meditation" → „Coherence" (Icon figure.mind.and.body → waveform.path.ecg)
+  - View-Titel „Meditation" → „Coherence Session"
+  - Copy „Settle in… watch your coherence rise" → „Breathe with the circle. Your coherence
+    is measured live." (messend statt heilsversprechend)
+  - Session-Name „Meditation X min" → „Coherence X min"
+  Interne id bleibt „meditation" (Stabilität/Persistenz). Nur user-facing Text geändert.
+  HINWEIS: Falls du „Meditate" bewusst als USP („Create·Meditate·Songs") behalten willst,
+  ist das ein Ein-Zeilen-Revert — sag Bescheid.
+  TEST 10.79.19: Tools → heißt der Eintrag „Coherence", Titel „Coherence Session", Copy messend?

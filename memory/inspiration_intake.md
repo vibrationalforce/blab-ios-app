@@ -237,3 +237,51 @@ memory/decisions.md 2026-07-02). Once the env network policy allows youtube.com 
 - https://www.youtube.com/watch?v=MzhIr7BfpI0
 - https://youtu.be/GQGr4sXlWb0
 - Playlist: https://youtube.com/playlist?list=PLRmLTbt9DLCEW7BSqwhnwFwGOw_vC9rUK
+
+---
+
+## 2026-07-02 — Founder legacy-doc dump (12 files) — vision-gate triage
+
+Founder uploaded 12 old planning docs asking "ist noch was Brauchbares bei?":
+Übersicht.docx (=Gibberish Master Spec), Musik_Wellness_TraumaForschung.docx,
+ProjectKnowledge_Optimized/Gibberish, App_ToDo_Board, AI_README_V10_3,
+Dev_Kit_v1 (+ LICENSE/TESTPLAN/Manifest/CONTRIBUTORS), Gibberish_Master.
+
+**Verdict: mostly HISTORICAL/SUPERSEDED; a big chunk OFF-VISION (wellness/esoteric);
+a handful of genuinely useful on-vision salvage items.**
+
+### SALVAGE — on-vision, worth keeping/considering
+- **TESTPLAN.md** → adopt as an rPPG QA reference: the lighting (daylight/LED warm-cold/
+  low-light+torch) × motion (stable/micro/strong) × temperature (ambient/warmed) matrix +
+  "freeze on low confidence / fallback values" is exactly our device-verification grid.
+  ADOPT-PIPELINE (a docs/dev/RPPG_TESTPLAN.md), timely for the current rPPG hardening.
+- **Ableton Link** — already CLAUDE.md-sanctioned + noted planned in PatternEngine/App;
+  best concrete tech pickup for the performance-instrument vision. WATCH→build when scheduled.
+- **Dolby Atmos / spatial objects** (V10.3 spatial_mixing, "Atmos bed+objects") — aligns with
+  the existing ADM-OSC immersive-object direction. WATCH (future pro output).
+- **Facial-expression as a bio-input** (Vision framework face landmarks) — on-vision as a
+  science-based MODULATION SOURCE if framed neutrally (expression→modulation), dropping the
+  "School of Smiling"/wellness framing. ADOPT-PRODUCT candidate (new bio input; not built yet).
+- **Shared-coherence multiplayer** (WebRTC/LiveNet performer↔audience) — on-vision; partially
+  exists (MultipeerSession). WATCH.
+- **OSC / Ableton M4L companion bridge + AUM mapping presets** (Dev_Kit) — fits the open-
+  standards / no-SDK-lock-in positioning. WATCH (ecosystem play).
+- **Manifest.md "Science + Art, no health-claim" framing** — reinforces current brand; the doc
+  itself already quarantines the spiritual layer from the evidence-based core. Reference only.
+- LICENSE (MIT code + © brand/artwork) — repo ALREADY has one; no action.
+
+### REJECT — off-vision / banned by brand guardrail (do NOT bring into the app)
+Organuhr, Meridiane, Soultuning, Stammbaum-Visualisierung, KI-Trauma-Modelle, Dorn-Methode,
+Kinesiologie, Reflexzonen, ätherische Öle/Cremes/Supplements, "Wellness/Therapy" positioning,
+"Health & Fitness" category framing. Also superseded tech: JUCE/VST desktop, AudioKit, Android/
+Web as core (iPhone-first, Swift-only, HaishinKit sole dep). The umbrella-business empire
+(Gastro/Shop/Club/Consulting/Board/Glasses hardware) is founder BUSINESS vision, not app scope.
+
+Note: the "Gibberish" files are just stylized/obfuscated duplicates of the plain docs — no new info.
+
+### 2026-07-02 addendum — Artifacts_1.txt / Artifacts_2.txt (SYNG-era dumps)
+Triaged: NO code salvage. Old "SYNG" pre-Echoel prototype — C++ UpdateSystem, Python
+VisualProcessor/PerformanceManager stubs, GPL v3 repo tree, Windows build.yml — the exact
+C++/CMake/desktop/GPL stack deliberately removed (Swift-only/MIT/iPhone-first now). Only
+business/branding/monetization brainstorming (freemium, domains) = business-side, not app.
+The in-file "TherapeuticEffects→HarmonicEffects" rename just confirms the de-medicalize direction.
