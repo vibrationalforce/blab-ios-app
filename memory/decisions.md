@@ -4,6 +4,34 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-02 STRATEGIC PIVOT: refocus to a calm shell (reduce surface, keep engine)
+- **Founder trigger:** "Ich empfinde die ganze App als eine sehr komplexe nicht richtig
+  funktionierende und irritierende Umgebung." Proposed drastically reducing to: (1) a
+  biofeedback session experience with beautiful music + visuals, (2) render tight audio
+  loops, (3) social-media short videos.
+- **Council + founder chose 1A + 2A:**
+  - **1A — refocus, keep the engine (reversible).** Reduce the *surface*, not the *engine*.
+    The DSP/EngineBus/rPPG/generative music work and are the good part; the pain is the maze
+    (6 tabs + a Tools menu of ~10 sheets). Move DAW complexity behind ONE "Studio" door;
+    delete nothing yet — prune later from evidence (what the founder never opens). NOT a
+    hard delete (irreversible) and NOT a greenfield rewrite (riskiest).
+  - **2A — wording stays science-first.** The *experience* may be calm/meditative, but the
+    WORD "meditation"/wellness stays out (keeps the codified "instrument, NOT wellness" brand
+    rule intact). Founder explicitly kept this rule.
+- **Executed (v10.79.22):** bottom bar reduced 6 → **Bio · Compose · Studio**; advanced
+  surfaces (Arrange/Clips/Mix/Browse) behind a single `StudioDoorView` sheet; default surface
+  flipped to Compose (instrument = home). Supersedes the earlier same-day "keep Arrange
+  default" decision.
+- **Next steps (planned, `scratchpads/PLAN_REFOCUS_CALM_SHELL.md`):** unify Compose's internal
+  Picker so generate+visual+play is the default; make "render loop" a clear action; finish the
+  deferred **short-video export** (the one genuinely new build); then prune hard from evidence.
+- **Also true right now:** the founder is still testing the OLD 79.7 build (log shows
+  `generate: 6 notes`) — part of the "half-working/irritating" feeling is an outdated build.
+  He must UPDATE TestFlight to judge the real current state.
+- **Review:** 2026-08-02.
+
+---
+
 ### 2026-07-02 ENVIRONMENT CONSTRAINT: YouTube is blocked in the web sandbox (capability exists, network doesn't)
 - **Fact to remember (founder: "merke dir das"):** The `youtube-analyze` capability EXISTS
   (skill + `scripts/analyze-youtube.py` + vision-gate routing). It does NOT work in the

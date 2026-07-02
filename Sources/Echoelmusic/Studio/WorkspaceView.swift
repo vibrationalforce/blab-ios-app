@@ -55,8 +55,9 @@ struct WorkspaceView: View {
     private var surface: Surface { Surface(rawValue: surfaceRaw) ?? .compose }
 
     /// Presents the Studio door — one sheet listing the advanced surfaces. The ONLY
-    /// sheet on WorkspaceView besides `expandedMonitor` (well under any metadata limit;
-    /// the sheet-chain ceiling is EchoelStudioView's constraint, not this view's).
+    /// modal on WorkspaceView (the floating visual is an `.overlay`, not a sheet; well
+    /// under any metadata limit — the sheet-chain ceiling is EchoelStudioView's, not this
+    /// view's).
     @State private var showStudioDoor = false
 
     /// The persistent header's live monitors (founder idea): left EKG pulse, right
@@ -64,7 +65,11 @@ struct WorkspaceView: View {
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
-    @State private var expandedMonitor: ExpandedMonitor?
+
+    /// The immersive visual now rides along as a FLOATING, resizable, show/hide window
+    /// (founder 2026-07-02) instead of a fullscreen-only cover. Persisted so it reopens
+    /// as you left it. Toggled from the header monitor.
+    @AppStorage("visual.floating.visible") private var floatingVisualVisible = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,11 +86,19 @@ struct WorkspaceView: View {
                 surfaceLayer(.browser) { BrowserView() }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // The floating visual window rides OVER the surface area only (not the chrome),
+            // so it never blocks the transport or bottom nav. One Metal path at the root.
+            .overlay {
+                #if canImport(MetalKit) && canImport(UIKit)
+                if floatingVisualVisible {
+                    FloatingVisualWindow(isPresented: $floatingVisualVisible)
+                }
+                #endif
+            }
             Divider().overlay(EchoelTheme.border)
             bottomBar
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
-        .fullScreenCover(item: $expandedMonitor) { ExpandedMonitorView(kind: $0) }
         .sheet(isPresented: $showStudioDoor) {
             StudioDoorView(current: surface) { picked in
                 surfaceRaw = picked.rawValue
@@ -131,12 +144,18 @@ struct WorkspaceView: View {
                 .buttonStyle(.plain)
                 #endif
                 Spacer(minLength: 0)
-                // RIGHT (founder red-2): live immersive-visual monitor (full corner).
+                // RIGHT (founder red-2): live immersive-visual monitor. Tapping now shows/
+                // hides the FLOATING visual window (founder 2026-07-02) rather than a
+                // fullscreen cover. `isRunning` is a LOW-frequency read (start/stop), so it
+                // is safe in this header body; the live waveform stays in its own leaf.
                 #if canImport(AVFoundation)
-                Button { expandedMonitor = .immersive } label: {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
+                } label: {
                     ImmersiveMonitorMini(active: cameraRPPG.isRunning)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
                 #endif
             }
         }

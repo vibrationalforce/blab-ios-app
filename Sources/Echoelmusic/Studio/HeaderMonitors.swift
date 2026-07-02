@@ -139,51 +139,13 @@ struct ImmersiveMonitorMini: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Immersive visual monitor")
         .accessibilityValue(active ? "Live" : "Idle")
-        .accessibilityHint("Opens the full immersive visual")
+        .accessibilityHint("Shows or hides the floating visual window")
         .accessibilityAddTraits(.isButton)
     }
 }
 
-// MARK: - Full-screen expansion
-
-/// Which header monitor is expanded full screen.
-enum ExpandedMonitor: String, Identifiable {
-    // Only the immersive visual expands to fullscreen now; the pulse mini routes to the
-    // Bio SURFACE instead (one bio home, no duplicate fullscreen pulse view).
-    case immersive
-    var id: String { rawValue }
-}
-
-/// Full-screen view for an expanded header monitor. Reuses live state from the
-/// environment so the big view tracks the same signal as the mini. The foundation
-/// for routing either monitor to an external display / stream later.
-@MainActor
-struct ExpandedMonitorView: View {
-    let kind: ExpandedMonitor
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            switch kind {
-            case .immersive: MetalBioView(intensity: 1.0, ringDensity: 40, motion: 1.0, spread: 1.0)
-                                .ignoresSafeArea()
-            }
-            VStack {
-                HStack {
-                    Spacer()
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28)).foregroundStyle(.white.opacity(0.85))
-                            .padding(16)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Close monitor")
-                }
-                Spacer()
-            }
-        }
-    }
-
-}
+// The immersive visual now opens as a FLOATING, resizable window (FloatingVisualWindow,
+// toggled from the header monitor), not a fullscreen cover — so the earlier
+// `ExpandedMonitor` enum + `ExpandedMonitorView` (a second, now-unreachable MetalBioView
+// path) were removed (founder pivot 2026-07-02: one visual path, fewer surfaces).
 #endif
