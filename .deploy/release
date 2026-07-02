@@ -1,17 +1,17 @@
-build: 2026-07-02 v10.79.8 (Sound Cycle 1 — echte Instrumenten-Klangfarben + Unison-Breite)
+build: 2026-07-02 v10.79.9 (Groove Cycle 2 — Swing pro Genre statt Maschinen-Raster)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Du sagtest "klingt noch nicht nach richtiger Musik". Diagnose: die Noten waren gut,
-  aber ALLE 23 Genres liefen durch denselben sauberen Sinus-Stack — deshalb klang es
-  synthetisch. Die Engine kann längst echte Instrumenten-Spektren (Geige/Cello/Klarinette/
-  Oboe/Flöte/Trompete), aber KEIN Genre hat sie genutzt.
-  Dieser Build (Sound-Zyklus 1 von 4 — reine Klang-Daten, noch nicht Struktur/Groove):
-  - Akustische Genres klingen jetzt nach echtem Instrument: Classical→Cello, Disco→Geige,
-    Klezmer→Klarinette, Oriental→Oboe (moderater Blend, Genre-Charakter bleibt).
-  - Pads/Leads bekommen Unison-Breite (2-3 verstimmte Stimmen) statt dünnem Einzelton.
-  - Atem/Luft-Noise auf akustischen + Pad-Stimmen (Bogen/Reed-Realismus); harte Leads bleiben clean.
-  TEST 10.79.8: Compose → verschiedene Genres generieren + abspielen. Vergleich zu vorher:
-  klingt es "voller/nach echtem Instrument" statt nach billigem Synth? Besonders Classical,
-  Disco, Klezmer, Oriental (die 4 mit echtem Instrument) und die Pads (Vapor, Calm, Nebula).
-  Wenn ja → Zyklus 2 (Groove/Timing), dann 3 (echte Melodie-Motive), dann 4 (Multi-Bar-Struktur).
-  Wenn ein Genre zu dünn/zu breit/verstimmt klingt: sag welches, ich justiere Blend/Unison —
-  das ist ein Ohr-Dial.
+notesT: Zyklus 2 von 4 (Groove/Timing). Das Playback lief bisher exakt auf dem 16tel-Raster
+  (Swing=0) — das ist der "klingt nach Maschine"-Effekt. Die Swing-Mathematik war schon da
+  (tempo-erhaltend), wurde aber nie eingeschaltet.
+  Jetzt bekommt jedes Genre seinen eigenen Swing: die geraden 16tel bleiben, die ungeraden
+  landen etwas später → rollendes, menschliches Feel. Melodie UND Beat teilen denselben
+  Clock, also swingt der ganze Take zusammen.
+  - Stark geswungen: JAZZ (2:1 Shuffle), Rock'n'Roll, Rocksteady, Klezmer, Ska.
+  - Subtiler Push: Vaporwave, Disco, Trap, Oriental, Dub Techno.
+  - Bleibt gerade (Swing würde schaden): Psytrance, Rock, Metal, Doom, Classical, Ambient,
+    Synthwave, Early Synth, Punk.
+  TEST 10.79.9: Compose → JAZZ generieren + abspielen (der deutlichste Effekt — sollte jetzt
+  "shuffeln"/rollen statt steif ticken). Dann Rock'n'Roll, Rocksteady. Vergleich zu einem
+  geraden Genre (Psytrance/Rock) — der Unterschied muss hörbar sein. Fühlt es sich "gespielt"
+  an? Wenn ein Genre zu stark/zu wenig swingt: sag welches, ich justiere den Wert (Ohr-Dial).
+  Immer noch drin: Sound-Zyklus 1 (echte Instrumente/Unison, v10.79.8).
