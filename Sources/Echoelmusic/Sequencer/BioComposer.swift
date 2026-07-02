@@ -722,6 +722,27 @@ public enum BioComposer {
                                       startStep: secStart, lengthSteps: len, velocity: hVel(padVelocity, &rng)))
                 }
             }
+
+            // Inner PULSE layer ("more elements", founder ear-feedback: an instrumental
+            // needs more than one surface). Under a SUSTAINED pad, add a quiet chord-tone
+            // pulse on 8ths (16ths when the body is busy) so the texture keeps moving —
+            // a take reads as bass · pad · PULSE · lead, an arrangement, not one static
+            // Fläche. Arpeggiated genres already move, so skip them. Chord tones only →
+            // always in key; sits at the pad's register, softer than the pad.
+            if !profile.arpeggiated, !voiced.isEmpty {
+                let pulseGap = busy > 0.6 ? 1 : 2                       // 16ths busy, else 8ths
+                let pulseVel = clamp01(padVelocity * 0.55)
+                var ps = secStart
+                var pt = 1                                             // offset so it doesn't just double the pad's downbeat
+                while ps < secEnd {
+                    let plen = Swift.max(1, Swift.min(pulseGap, secEnd - ps))
+                    notes.append(Note(id: nextUUID(&rng),
+                                      pitch: voiced[pt % voiced.count],
+                                      startStep: ps, lengthSteps: plen, velocity: hVel(pulseVel, &rng)))
+                    ps += pulseGap
+                    pt += 1
+                }
+            }
         }
 
         // 3) Lead melody — ALWAYS consonant: every note is a chord tone of the
