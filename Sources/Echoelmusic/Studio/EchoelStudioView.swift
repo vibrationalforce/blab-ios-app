@@ -244,7 +244,6 @@ struct EchoelStudioView: View {
     @State private var visualHue: Float = 0
     @State private var visualSaturation: Float = 1
     @State private var showVisualSettings = false
-    @State private var showEntrainmentSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
@@ -758,7 +757,7 @@ struct EchoelStudioView: View {
             effectsPanel
             masterPanel
             visualPanel
-            entrainmentPanel
+            // Entrainment now lives on the Bio page (its home) — not duplicated here.
             if running {
                 StudioCaptionView(caption: caption)
             }
@@ -1041,40 +1040,6 @@ struct EchoelStudioView: View {
 
     // MARK: Panel — Entrainment (biofeedback-driven brainwave stimulus)
 
-    /// Body-driven brainwave entrainment. The synth's isochronic `EchoelEntrainment` is
-    /// driven from HRV coherence + pulse-lock quality (via `BioEntrainmentDirector`).
-    /// Science-first, OFF by default, with the mandatory safety warning. Inline panel —
-    /// NOT a new `.sheet` (keeps the root modal chain flat, per the render-safety rule).
-    private var entrainmentPanel: some View {
-        @Bindable var synth = synth
-        return panel("Entrainment", "Body-driven brainwave stimulus (isochronic)",
-                     isExpanded: $showEntrainmentSettings) {
-            Toggle(isOn: $synth.entrainmentEnabled) {
-                Text("Enable entrainment").font(EchoelTheme.font(13, .medium))
-            }
-            .tint(EchoelTheme.accent)
-
-            Text("Band").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    entrainmentBandChip("Auto", nil)
-                    ForEach(BrainwaveBand.allCases, id: \.self) { band in
-                        entrainmentBandChip("\(band.rawValue) · \(Int(band.centerFrequency)) Hz", band)
-                    }
-                }
-            }
-
-            Text("The body's HRV coherence selects the brainwave band (aroused → Beta, relaxed → Alpha, settled → Theta), and the stimulus deepens only on a good pulse lock. Audio uses isochronic amplitude pulses; the on-screen pulse stays under the 3 Hz flash-safety limit.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("Safety: not while driving or operating machinery; not under the influence of alcohol or drugs; coordinate any therapeutic use with your provider. For self-observation, not medical diagnosis. Max 3 Hz visual flash.")
-                .font(EchoelTheme.font(11, .medium))
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     /// Flash-safe (≤3 Hz) visual pulse for the armed entrainment, else 0. Only MANUAL band
     /// mode couples the visual — a stable, LOW-frequency read (`entrainmentEnabled` +
     /// `entrainmentManualBand`), so it never reads the 10 Hz auto target in the body (the
@@ -1082,23 +1047,6 @@ struct EchoelStudioView: View {
     private var entrainmentVisualPulseHz: Double {
         guard synth.entrainmentEnabled, let band = synth.entrainmentManualBand else { return 0 }
         return BioEntrainmentDirector.visualHz(for: band)
-    }
-
-    /// One band chip for the entrainment picker. `nil` = Auto (bio-selected).
-    private func entrainmentBandChip(_ label: String, _ band: BrainwaveBand?) -> some View {
-        let selected = synth.entrainmentManualBand == band
-        return Button {
-            synth.entrainmentManualBand = band
-        } label: {
-            Text(label)
-                .font(EchoelTheme.font(12, .semibold))
-                .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
-                .padding(.horizontal, 12).padding(.vertical, 7)
-                .background(RoundedRectangle(cornerRadius: 8)
-                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(band == nil ? "Auto band, bio-selected" : "Pin \(label)")
     }
 
     /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping
