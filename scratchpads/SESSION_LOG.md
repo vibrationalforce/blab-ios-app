@@ -3,6 +3,14 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-02 — rPPG CONFIRMED GOOD on device (v10.79.7 / build 2112, torch 0.45)
+Founder device log on build 2112: finger on → R settles to **0.27–0.29** (bright 0.13–0.14,
+no more washout to R 0.7–0.85), locks at **conf 0.95** (~17 s: 10 s buffer fill + acf ramp),
+then **holds steady** conf 0.85–0.95 / bpm 53–56 for the whole session — no dead spells, no
+collapse. The torch 0.6→0.45 drop was the correct dial for this device/finger. **rPPG =
+RESOLVED.** Deliberately NOT tightening time-to-lock: the ~10 s is the analysis-window fill;
+a shorter window trades BPM stability for speed — not worth thrashing a working lock.
+
 ## 2026-07-02 — Great Cleanup Phase 0 inventory + Phase 1 zero-risk demolition
 Founder: "GREAT CLEANUP & RESTRUCTURE" (ABRISS) → then "You decide as a critical senior
 Apple developer / stability engineer / product manager." Ran Phase 0 (read-only inventory,
