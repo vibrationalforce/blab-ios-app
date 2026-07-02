@@ -160,16 +160,15 @@
             <section id="chain">
                 <h2>The Signal Chain</h2>
                 <p>One chain runs the whole instrument. Sensors are fused into a normalized bio frame, published on the bus, and consumed in parallel by the synth voice, the OSC sender and the event detector. Performer input (MIDI/MPE) joins on its own topic and takes priority over bio for note gating.</p>
-                <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)            <b>CONSUMERS</b>
-  HealthKit / Apple Watch  ─┐
-  BLE Heart Rate (direct)  ─┤
-  iPhone camera (rPPG)        ─┼─▶ <b>bioFrames</b>    ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
-  Demo (DEBUG)             ─┘   (SPSC queue)   ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
-        │                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
-        ▼ BioSourceManager (confidence fusion)                                          │
-                                          <b>bioEvents</b> ◀───────────────────────────────────┘
-  CoreMIDI 2.0 / MPE ───────────▶ <b>controllerEvents</b> ─▶ synth notes (performer priority)</div>
-                <p class="note">Three typed topics, three independent rates: <strong>bioFrames</strong> (≤4&nbsp;Hz, the slow body signal), <strong>controllerEvents</strong> (real-time MIDI/MPE), <strong>bioEvents</strong> (discrete onsets). Each is a lock-free queue, so a slow sensor never stalls the audio thread.</p>
+                <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)             <b>CONSUMERS</b>
+  HealthKit / Apple Watch  ─┐   confidence fusion
+  BLE Heart Rate (direct)  ─┤   into one snapshot
+  iPhone camera (rPPG)        ─┼─▶ <b>latestBio</b>      ─┬─▶ BioReactiveSynthVoice ─▶ EchoelDDSP ─▶ AudioEngine ─▶ OUT
+  Demo (DEBUG)             ─┘   (@MainActor, ~10 Hz) ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
+                                                     └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
+                                          <b>bioEvents</b> (SPSC) ◀──────────────────────────────┘
+  CoreMIDI 2.0 / MPE ───────────▶ <b>controllerEvents</b> (SPSC) ─▶ synth notes (performer priority)</div>
+                <p class="note">The slow body signal flows over the <strong>@MainActor <code>latestBio</code> snapshot</strong>, polled at ~10&nbsp;Hz — so a slow sensor never stalls the audio thread. The lock-free SPSC queues carry the real-time streams: <strong>controllerEvents</strong> (MIDI/MPE) and <strong>bioEvents</strong> (discrete onsets). A <strong>bioFrames</strong> queue is defined for a future full-rate path but is currently reserved and undrained.</p>
                 <p class="note"><strong>Modulation, not control:</strong> bio signals are modulation sources for the parameter lanes you paint — not hard controllers. Tempo can optionally follow heart rate, but watch-HR latency (4–5&nbsp;s) makes that a loose adopt, never a beat-lock. The expressivity lives in continuous modulation of your own automation.</p>
             </section>
 
@@ -199,11 +198,11 @@
             <!-- BIO CAPTURE -->
             <section id="bio">
                 <h2>Bio Capture &amp; Fusion <span class="tag">LIVE</span></h2>
-                <p>Several sources can feed the bus at once; <code>BioSourceManager</code> merges them into one <code>BioSnapshot</code> by confidence, so the highest-quality available signal wins.</p>
+                <p>Several sources can feed the bus at once; they are fused into one bio snapshot by confidence on the <code>EngineBus</code> <code>latestBio</code> path, so the highest-quality available signal wins.</p>
                 <div class="data-row"><div class="k">HealthKit</div><div class="v"><code>EchoelBioEngine</code> derives heart rate, RMSSD-normalized HRV, breath rate (iOS&nbsp;17+) and coherence; <code>HealthKitBioPublisher</code> polls it every 500&nbsp;ms and publishes a frame. This is the catch-all for <strong>Apple&nbsp;Watch and any device that writes to Apple&nbsp;Health</strong> — including the <strong>Oura&nbsp;Ring</strong> (any gen, incl. Ring&nbsp;4) via Oura's Health sync. Watch HR carries 4–5&nbsp;s latency and ring data is delayed/aggregated, so neither is used for beat-accurate sync — for that, use a BLE strap or the camera.</div></div>
                 <div class="data-row"><div class="k">BLE Heart Rate</div><div class="v"><code>PolarH10BioPublisher</code> connects over BLE (CoreBluetooth, no SDK) to <strong>any device exposing the standard Heart Rate service</strong> (<code>0x180D</code>/<code>0x2A37</code>) — Polar, Wahoo, Garmin/CooSpo/Magene straps, watches in HR-broadcast mode. Parses RR intervals (1/1024&nbsp;s), emits one discrete <code>.heartbeat</code> per beat, computes RMSSD over a 30-interval window. <strong>Lowest latency</strong> — beats are timed, not averaged. (The Oura Ring exposes no real-time BLE to third parties, so it arrives via Apple&nbsp;Health instead.)</div></div>
                 <div class="data-row"><div class="k">Camera (rPPG)</div><div class="v"><code>CameraCapture</code> + <code>CameraAnalyzer</code> — finger-on-lens photoplethysmography: red-channel extraction, 0.7–4&nbsp;Hz 2nd-order Butterworth bandpass (42–240&nbsp;BPM), peak detection with IQR outlier rejection, RMSSD and a confidence score.</div></div>
-                <div class="data-row"><div class="k">Fusion / Demo</div><div class="v"><code>BioSourceManager</code> confidence priority (Watch &gt; camera &gt; daily &gt; fallback) with decay. <code>BioSimulator</code> provides a walking demo signal in DEBUG builds only and defers the moment a real source appears.</div></div>
+                <div class="data-row"><div class="k">Fusion / Demo</div><div class="v">Snapshot-level confidence priority (Watch &gt; camera &gt; daily &gt; fallback) with decay, resolved on the <code>latestBio</code> path. <code>BioSimulator</code> provides a walking demo signal in DEBUG builds only and defers the moment a real source appears.</div></div>
             </section>
 
             <!-- DSP TRIAD -->
@@ -248,7 +247,7 @@
             <section id="seq">
                 <h2>Generative Composition <span class="tag">LIVE</span></h2>
                 <p>Echoelmusic is <strong>drum-free</strong> by design. Your biometrics compose harmonic and melodic loops in any key and BPM, which you render to .wav and MIDI for your DAW.</p>
-                <div class="data-row"><div class="k">GenerativeEngine</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity, automation and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">BioComposer</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity, automation and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Voice triggering</div><div class="v">Notes are fired lock-free via an atomic trigger counter (no allocation on the audio thread) into the bio-reactive synth voices. A drum/sampler track and a step sequencer are <span class="tag">ROADMAP</span>, not in the app today.</div></div>
             </section>
 
@@ -263,8 +262,8 @@
 
             <!-- VISUALS & VIDEO -->
             <section id="visuals">
-                <h2>Visuals &amp; Video <span class="tag">ROADMAP</span></h2>
-                <p>Visuals and video are the wider vision &mdash; in active development, not in the app today. The design: a Metal renderer (<code>MetalBioView</code> / <code>BioVisualRenderer</code>) targeting <strong>120&nbsp;fps</strong>, where coherence drives complexity and palette and heart rate adds a pulse.</p>
+                <h2>Visuals &amp; Video <span class="tag">LIVE</span> / <span class="tag">ROADMAP</span></h2>
+                <p>A Metal bio-visual ships today: <code>MetalBioView</code> renders a full-screen pulse where heart rate drives the pulse (capped &le;3&nbsp;Hz for WCAG flash safety), coherence drives the hue and breath the spread, honouring Reduce Motion. The wider vision &mdash; a 120&nbsp;fps renderer with richer modes, chroma key and video &mdash; is in active development, not in the app today.</p>
                 <div class="data-row"><div class="k">Visual modes (planned)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Chroma key (planned)</div><div class="v">A 6-pass GPU pipeline: HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Video export (planned)</div><div class="v">Short-form 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay. <span class="tag">ROADMAP</span></div></div>
@@ -299,8 +298,8 @@
                 <div class="data-row"><div class="k">Spatial audio</div><div class="v">Stereo with HRV-reactive spatial reverb character <span class="tag">LIVE</span>; 3D object panning, Dolby&nbsp;Atmos, head-tracked spatial audio (AirPods), 5.1 / 7.1.4 &amp; ambisonics <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI&nbsp;2.0 + MPE input <span class="tag">LIVE</span>; Standard MIDI File (.mid) I/O and MIDI output <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Video</div><div class="v">H.264 MP4 720×1280 short-form (15/30/60&nbsp;s); H.265/HEVC, ProRes 422/4444, 1080p/4K, LUT grading &mdash; all <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">Metal 120&nbsp;fps + 6-pass chroma key; projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay &mdash; all <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">Lighting / streaming</div><div class="v">DMX-512, Art-Net&nbsp;4 (UDP 6454), HomeKit; RTMP/RTMPS (HaishinKit) to YouTube/Twitch/Facebook <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">Metal bio-visual <span class="tag">LIVE</span>; 120&nbsp;fps richer modes + 6-pass chroma key, projection mapping (warp/edge-blend), multi-screen, NDI/Syphon, AirPlay &mdash; all <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Lighting / streaming</div><div class="v">Art-Net (UDP 6454) + sACN / E1.31 (unicast, UDP 5568) <span class="tag">LIVE</span>; DMX-512, HomeKit and RTMP/RTMPS (HaishinKit) to YouTube/Twitch/Facebook <span class="tag">ROADMAP</span>.</div></div>
             </section>
 
             <!-- CONCURRENCY -->
@@ -350,10 +349,11 @@
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
                 <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher (Watch / Oura via Health) · PolarH10BioPublisher (any BLE Heart Rate device) · CameraRPPGBioPublisher (finger-on-lens rPPG, live) · BioSimulator. ADM-OSC object output via <code>ADMOSCSender</code>.</div></div>
-                <div class="data-row"><div class="k">EchoelVis <span class="tag">ROADMAP</span></div><div class="v">MetalBioView · BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal — designed, not in the app today</div></div>
+                <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView — Metal bio-visual live today (HR&rarr;pulse &le;3&nbsp;Hz, coherence&rarr;hue, breath&rarr;spread). BioVisualRenderer · VisualRendererKernels.metal · ChromaKey.metal (richer modes + chroma key) <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">EchoelVid <span class="tag">ROADMAP</span></div><div class="v">CameraCapture · ShortContentRenderer (NLE/ProRes/RTMP) — designed, not in the app today</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
-                <div class="data-row"><div class="k">EchoelLux / EchoelStage / EchoelAI <span class="tag">ROADMAP</span></div><div class="v">DMX-512 / Art-Net / HomeKit lighting · external displays / projection · on-device CoreML &amp; stems — designed, not yet implemented.</div></div>
+                <div class="data-row"><div class="k">EchoelLux <span class="tag">LIVE</span></div><div class="v">ArtNetSender · SACNSender — native Art-Net (UDP 6454) and sACN / E1.31 (unicast) lighting live today, flash-safe. DMX-512 · HomeKit · fixture profiles · cue lists <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">EchoelStage / EchoelAI <span class="tag">ROADMAP</span></div><div class="v">External displays / projection · on-device CoreML &amp; stems — designed, not yet implemented.</div></div>
                 <div class="data-row"><div class="k">Bridge <span class="tag">LIVE</span></div><div class="v">EngineBus · SPSCQueue · BioReactiveSynthVoice (the bio→sound bridge)</div></div>
             </section>
 
