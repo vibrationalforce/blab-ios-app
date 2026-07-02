@@ -2146,8 +2146,24 @@ struct EchoelStudioView: View {
         // thread). The sub-bass follows automatically — it derives from note.pitch-12
         // in the trigger — so synth + sub stay locked an octave apart. Clamp to MIDI.
         let semis = Int(transposeSemitones.rounded())
-        let notes: [Note] = semis == 0 ? composition.notes : composition.notes.map {
+        var notes: [Note] = semis == 0 ? composition.notes : composition.notes.map {
             var n = $0; n.pitch = min(127, max(0, n.pitch + semis)); return n
+        }
+        // Per-genre MIX GLUE: nudge relative role levels so each genre sits right
+        // (lead forward in synth genres, bass firmer in dub/heavy, pad back in
+        // dense takes). Velocity scales each voice's amplitude, so this is a pure,
+        // audio-thread-safe level move at the one point all notes exist as an array.
+        let mix = style.mixLevels
+        notes = notes.map { n in
+            var m = n
+            let f: Float
+            switch n.role {
+            case .bass:    f = mix.bass
+            case .lead:    f = mix.lead
+            case .harmony: f = mix.harmony
+            }
+            m.velocity = min(1, max(0, n.velocity * f))
+            return m
         }
         // While the transport is already playing (live evolution), stage the new
         // notes and swap them in at the next loop boundary so a held note is never
