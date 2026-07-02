@@ -522,7 +522,7 @@ public enum BioComposer {
         for s in [0, 8] {
             let pitch = key.degree(0, octave: 2)
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: s,
-                              lengthSteps: 6, velocity: subVel))
+                              lengthSteps: 6, velocity: subVel, role: .bass))
         }
 
         // Sparse dark bell lead up top (octave 5), harmonic-minor tension.
@@ -551,7 +551,7 @@ public enum BioComposer {
             let metric: Float = (startStep % 4 == 0) ? 0.1 : 0
             let velocity = clamp01(0.42 + 0.3 * breathDepth + 0.16 * arc + metric)
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
-                              lengthSteps: length, velocity: velocity))
+                              lengthSteps: length, velocity: velocity, role: .lead))
 
             degree = min(14, max(-7, degree + leadDeltas[i]))
         }
@@ -600,7 +600,7 @@ public enum BioComposer {
             let velocity = clamp01(0.5 + 0.28 * breathDepth + 0.12 * arc + accent)
 
             notes.append(Note(id: nextUUID(&rng), pitch: pitch, startStep: startStep,
-                              lengthSteps: length, velocity: velocity))
+                              lengthSteps: length, velocity: velocity, role: .lead))
 
             degree = min(14, max(-7, degree + leadDeltas[i]))
         }
@@ -682,7 +682,8 @@ public enum BioComposer {
             let bassOct = max(0, profile.padOctave - 1 + octShift)
             notes.append(Note(id: nextUUID(&rng),
                               pitch: key.degree(rootDegree, octave: bassOct),
-                              startStep: secStart, lengthSteps: len, velocity: hVel(bassVelocity, &rng)))
+                              startStep: secStart, lengthSteps: len, velocity: hVel(bassVelocity, &rng),
+                              role: .bass))
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
@@ -822,12 +823,12 @@ public enum BioComposer {
                     let gPitch = key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift) + lift
                     notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, gPitch)),
                                       startStep: startStep, lengthSteps: 1,
-                                      velocity: hVel(velocity * 0.7, &rng)))
+                                      velocity: hVel(velocity * 0.7, &rng), role: .lead))
                     mainStart = startStep + 1
                     mainLen = max(1, length - 1)
                 }
                 notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch + lift)),
-                                  startStep: mainStart, lengthSteps: mainLen, velocity: velocity))
+                                  startStep: mainStart, lengthSteps: mainLen, velocity: velocity, role: .lead))
                 // Advance along the motif contour (statement→answer, resolving)
                 // instead of a random walk — chord-tone-locked above, so still in key.
                 toneIdx += leadDeltas[i]

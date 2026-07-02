@@ -11,6 +11,15 @@
 
 import Foundation
 
+/// Which arrangement layer a note belongs to — the routing key for the multitimbral
+/// engine (each role can play through its own instrument voice/timbre). Defaults to
+/// `.harmony`; legacy clips without a role decode as `.harmony` (unchanged behaviour).
+public enum NoteRole: String, Codable, Sendable {
+    case harmony   // chords / pad / inner pulse
+    case lead      // the melody line
+    case bass      // the low root line
+}
+
 /// A single melodic note, timed in PPQ ticks.
 ///
 /// `startTick` is the 0-based tick it begins on; `lengthTicks` is how long it
@@ -31,6 +40,8 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     /// Length in PPQ ticks (≥1). Source of truth.
     public var lengthTicks: Int
     public var velocity: Float
+    /// Arrangement layer for multitimbral routing (default `.harmony`).
+    public var role: NoteRole
 
     // MARK: Init
 
@@ -40,13 +51,15 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         pitch: Int,
         startStep: Int,
         lengthSteps: Int = 1,
-        velocity: Float = 0.8
+        velocity: Float = 0.8,
+        role: NoteRole = .harmony
     ) {
         self.id = id
         self.pitch = min(max(pitch, 0), 127)               // defensive: MIDI range
         self.startTick = max(0, startStep) * Note.ticksPerStep
         self.lengthTicks = max(1, lengthSteps) * Note.ticksPerStep
         self.velocity = min(max(velocity, 0), 1)
+        self.role = role
     }
 
     /// Tick-precise init — for unquantized capture / sub-step editing.
@@ -55,13 +68,15 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         pitch: Int,
         startTick: Int,
         lengthTicks: Int,
-        velocity: Float = 0.8
+        velocity: Float = 0.8,
+        role: NoteRole = .harmony
     ) {
         self.id = id
         self.pitch = min(max(pitch, 0), 127)
         self.startTick = max(0, startTick)
         self.lengthTicks = max(1, lengthTicks)
         self.velocity = min(max(velocity, 0), 1)
+        self.role = role
     }
 
     // MARK: Step views (quantized to the 16th grid)
@@ -110,7 +125,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     // MARK: Codable (ticks primary; falls back to legacy steps)
 
     private enum CodingKeys: String, CodingKey {
-        case id, pitch, startTick, lengthTicks, velocity
+        case id, pitch, startTick, lengthTicks, velocity, role
         case startStep, lengthSteps   // legacy fallback (pre-PPQ clips)
     }
 
@@ -131,6 +146,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
             let ls = try c.decodeIfPresent(Int.self, forKey: .lengthSteps) ?? 1
             self.lengthTicks = max(1, ls) * Note.ticksPerStep
         }
+        self.role = try c.decodeIfPresent(NoteRole.self, forKey: .role) ?? .harmony
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -140,6 +156,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         try c.encode(startTick, forKey: .startTick)
         try c.encode(lengthTicks, forKey: .lengthTicks)
         try c.encode(velocity, forKey: .velocity)
+        try c.encode(role, forKey: .role)
         // Legacy mirror so an older build can still read the clip.
         try c.encode(startStep, forKey: .startStep)
         try c.encode(lengthSteps, forKey: .lengthSteps)
