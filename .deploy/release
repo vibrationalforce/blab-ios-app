@@ -1,14 +1,12 @@
-build: 2026-07-02 v10.79.29 (Feinschliff 1/4 + 4/4 — Look-Knopf + REC-Anzeige im Fenster)
+build: 2026-07-02 v10.79.30 (Feinschliff 2/4 — ruhige BPM-Anzeige)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Feinschliff (Founder: "Ja alles, alles User-optimiert"). Zwei sichere Punkte im
-  schwebenden Visual-Fenster:
-  (1/4) LOOK-KNOPF direkt im Fenster (Paletten-Icon) — zykelt die Visual-Styles
-  (Rings→Chladni→Plasma→Water→Prism→Aurora→Lissajous→Depth→Oscilloscope→Fractal), schreibt den
-  geteilten `visual.style`-Key → das Visual-Panel bleibt synchron. Design dort, wo man es sieht.
-  (4/4) REC-ANZEIGE — beim Aufnehmen erscheint oben links ein rotes „● REC m:ss" (Restsekunden
-  laufen), damit klar ist, dass ein Clip läuft und wie lang er ist.
-  Sicher/entkoppelt (nur FloatingVisualWindow), render-sicher (nur Low-Freq-Reads).
-  NÄCHSTE zwei kommen als eigene verifizierte Builds: (2/4) ruhige BPM-Anzeige bei schwacher
-  Konfidenz (berührt rPPG-Pfad), (3/4) Panels entschlacken (berührt die fragile Ansicht).
-  TEST 10.79.29: Fenster einblenden → Paletten-Icon tippt neue Looks durch. Aufnahme (●) →
-  rotes REC mit laufender Zeit → Stop (⏹) → .mp4 mit Tonart/Tempo/Genre. Ton/Menüs laufen weiter.
+notesT: Feinschliff 2/4 (Founder: "ruhige Anzeige"). Neuer Anzeige-Wert `displayBPM` im rPPG-
+  Publisher: er übernimmt nur CONFIDENTE Messungen (≥0.6) und glättet leicht (EMA), sonst HÄLT
+  er den letzten guten Wert — so springt die sichtbare Zahl nicht mehr (dein Log: 55↔98 bei
+  schwachem Kontakt). Rein Anzeige: die Messung (`detectedBPM`) und die an den Bus/Musik
+  gelieferte HR bleiben ehrlich/unverändert. Alle drei On-Screen-Zahlen nutzen jetzt den ruhigen
+  Wert: Header-Puls-Monitor, PulseMeasurementView (großes „bpm" beim Messen) und der HR im
+  BioStrip (nur solange die Kamera die Quelle ist; BLE/HealthKit + Vor-Lock fallen auf den
+  Bus-Wert zurück). Vor dem ersten sicheren Lock zeigt der Header „—" statt einer Zufallszahl.
+  TEST 10.79.30: Puls messen bei leicht wackeligem Finger → die angezeigte BPM bleibt ruhig
+  (hält den letzten guten Wert) statt zu springen; sie zieht nach, sobald wieder sicher gelockt.
