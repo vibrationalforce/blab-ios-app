@@ -341,6 +341,15 @@ struct EchoelmusicApp: App {
                     haptics?.tapBeat(step: pos.step)
                 }
                 #endif
+                // Keep the Arrangement's follow-state coherent with the ONE transport:
+                // when the transport is stopped from anywhere (the global transport bar's
+                // Stop calls PatternEngine.stop() directly, not ArrangementPlayer.stop()),
+                // reset the song so it doesn't stay stuck "playing". No-op unless the
+                // arrangement was following, so the arrangement's own stop/finish path
+                // doesn't recurse.
+                transport.addStopSubscriber("arrangement") { [weak arrangementPlayer] in
+                    arrangementPlayer?.handleTransportStopped()
+                }
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run

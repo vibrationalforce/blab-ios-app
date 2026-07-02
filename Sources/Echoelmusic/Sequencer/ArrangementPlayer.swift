@@ -67,6 +67,19 @@ public final class ArrangementPlayer {
         pianoRoll?.allNotesOff()
     }
 
+    /// Reset follow-state when the transport is stopped from OUTSIDE the arrangement —
+    /// e.g. the global transport bar's Stop calls `PatternEngine.stop()` directly, not
+    /// `ArrangementPlayer.stop()`. Without this, `isPlaying` would stay stuck `true`: the
+    /// song would look like it's still playing while the clock is stopped, and its
+    /// "Play song"/Stop button would show the wrong state. A no-op when already stopped,
+    /// so the arrangement's own stop()/finish path (which sets `isPlaying=false` BEFORE
+    /// calling `pattern.stop()`) neither recurses nor double-clears.
+    public func handleTransportStopped() {
+        guard isPlaying else { return }
+        isPlaying = false
+        pianoRoll?.allNotesOff()
+    }
+
     /// Fed every transport step by the host. Detects bar boundaries (15→0) and
     /// advances the song. Idempotent while stopped.
     public func transportStep(_ step: Int) {
