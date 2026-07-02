@@ -1,13 +1,14 @@
-build: 2026-07-02 v10.79.28 (Feinschliff — Visual-Design komplett live im Fenster)
+build: 2026-07-02 v10.79.29 (Feinschliff 1/4 + 4/4 — Look-Knopf + REC-Anzeige im Fenster)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Founder: "Ja, mach den Feinschliff. Alles soll User-optimiert sein." Die sechs Visual-
-  Fein-Regler (Intensity · Detail · Motion · Spread · Hue · Saturation) waren view-lokal (@State,
-  pro Start zurückgesetzt) und wirkten nur im alten, nicht mehr erreichbaren Vollbild. Jetzt sind
-  sie GETEILTER Speicher (@AppStorage), also EINE Wahrheit für Visual-Panel UND schwebendes
-  Fenster: jeder Regler-Tweak zeigt sich SOFORT im Fenster (dazu Look/Style + Blend, die schon
-  geteilt waren). Werte bleiben persistent über App-Neustarts. Flash-Safety (≤3 Hz) unverändert
-  (Clamp im Renderer). EchoelValueField ist generisch → bindet direkt an Double; an den Renderer
-  gehen Float(...). Damit ist "Visual Design" vollständig live und driftfrei zwischen Panel + Fenster.
-  TEST 10.79.28: Visual-Fenster einblenden (Monitor oben rechts), Visual-Panel öffnen, an
-  Intensity/Detail/Motion/Spread/Hue/Saturation ziehen → das Fenster ändert sich sofort mit. Look/
-  Preset ebenso. Aufnahme → .mp4 mit Tonart/Tempo/Genre im Namen. Nach Neustart bleibt das Design.
+notesT: Feinschliff (Founder: "Ja alles, alles User-optimiert"). Zwei sichere Punkte im
+  schwebenden Visual-Fenster:
+  (1/4) LOOK-KNOPF direkt im Fenster (Paletten-Icon) — zykelt die Visual-Styles
+  (Rings→Chladni→Plasma→Water→Prism→Aurora→Lissajous→Depth→Oscilloscope→Fractal), schreibt den
+  geteilten `visual.style`-Key → das Visual-Panel bleibt synchron. Design dort, wo man es sieht.
+  (4/4) REC-ANZEIGE — beim Aufnehmen erscheint oben links ein rotes „● REC m:ss" (Restsekunden
+  laufen), damit klar ist, dass ein Clip läuft und wie lang er ist.
+  Sicher/entkoppelt (nur FloatingVisualWindow), render-sicher (nur Low-Freq-Reads).
+  NÄCHSTE zwei kommen als eigene verifizierte Builds: (2/4) ruhige BPM-Anzeige bei schwacher
+  Konfidenz (berührt rPPG-Pfad), (3/4) Panels entschlacken (berührt die fragile Ansicht).
+  TEST 10.79.29: Fenster einblenden → Paletten-Icon tippt neue Looks durch. Aufnahme (●) →
+  rotes REC mit laufender Zeit → Stop (⏹) → .mp4 mit Tonart/Tempo/Genre. Ton/Menüs laufen weiter.

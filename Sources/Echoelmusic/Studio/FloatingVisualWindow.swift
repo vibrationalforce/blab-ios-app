@@ -21,6 +21,33 @@ private struct RecordedClip: Identifiable {
     let url: URL
 }
 
+/// On-screen recording feedback: a red dot + "REC m:ss" elapsed, ticking once a second.
+/// Small rounded chip (not a pill) per Uncodixfy; drawn over the visual while recording.
+private struct RecordingBadge: View {
+    let start: Date?
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = max(0, start.map { context.date.timeIntervalSince($0) } ?? 0)
+            HStack(spacing: 5) {
+                Circle().fill(Color.red).frame(width: 7, height: 7)
+                Text("REC \(timeString(elapsed))")
+                    .font(EchoelTheme.font(10, .semibold).monospacedDigit())
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.55)))
+            .padding(8)
+        }
+        .accessibilityLabel("Recording")
+    }
+
+    private func timeString(_ s: TimeInterval) -> String {
+        let t = Int(s)
+        return String(format: "%d:%02d", t / 60, t % 60)
+    }
+}
+
 @MainActor
 struct FloatingVisualWindow: View {
 
@@ -39,6 +66,8 @@ struct FloatingVisualWindow: View {
     @Environment(Transport.self) private var transport
     @AppStorage("studio.genre") private var genre: MusicStyle = .vaporwave
     @State private var recordedClip: RecordedClip?
+    /// When recording started — drives the on-screen REC elapsed time.
+    @State private var recordStart: Date?
     #endif
 
     // Visual DESIGN (founder: "Visual Design muss möglich sein" + "Feinschliff, alles
@@ -121,6 +150,13 @@ struct FloatingVisualWindow: View {
                          style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                #if canImport(AVFoundation)
+                // Recording feedback — a red REC pill with elapsed time, top-leading over
+                // the visual so it's clear a clip is being captured.
+                .overlay(alignment: .topLeading) {
+                    if recorder.isRecording { RecordingBadge(start: recordStart) }
+                }
+                #endif
         }
         .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -133,12 +169,23 @@ struct FloatingVisualWindow: View {
     /// The only chrome: a drag handle + a size cycle + a close button. Deliberately no
     /// sliders (founder: fewer settings).
     private func handleBar(in bounds: CGSize, card: CGSize) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(EchoelTheme.dim)
-            Text("Visual").font(EchoelTheme.font(11, .medium)).foregroundStyle(EchoelTheme.dim)
             Spacer(minLength: 0)
+            // Look — cycle the visual style right here, where you see it (founder: design
+            // where the visual is). Writes the SHARED visual.style key, so the Visual panel
+            // stays in sync.
+            Button { cycleLook() } label: {
+                Image(systemName: "paintpalette")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 26, height: 22)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Change look")
+            .accessibilityValue(Self.styleName(visualStyle))
             #if canImport(AVFoundation)
             Button { toggleRecording() } label: {
                 Image(systemName: recorder.isRecording ? "stop.circle.fill" : "record.circle")
@@ -188,18 +235,32 @@ struct FloatingVisualWindow: View {
         withAnimation(.easeInOut(duration: 0.18)) { sizeRaw = windowSize.next.rawValue }
     }
 
+    /// The MetalBioView styles (index space matches `visual.style`). Cycling steps through
+    /// them so a new look is one tap away in the window.
+    private static let styleCount = 10
+    private static func styleName(_ i: Int) -> String {
+        let names = ["Rings", "Chladni", "Plasma", "Water", "Prism", "Aurora",
+                     "Lissajous", "Depth", "Oscilloscope", "Fractal"]
+        return (i >= 0 && i < names.count) ? names[i] : "Look \(i)"
+    }
+    private func cycleLook() {
+        visualStyle = (visualStyle + 1) % Self.styleCount
+    }
+
     #if canImport(AVFoundation)
     /// Start/stop MP4 capture of the visual (with live audio). On stop, present the share
     /// sheet. Tip: size the window up (L) before recording for a higher-resolution clip —
     /// the video is rendered at the window's on-screen size.
     private func toggleRecording() {
         if recorder.isRecording {
+            recordStart = nil
             Task { @MainActor in
                 if let url = await recorder.stop() {
                     recordedClip = RecordedClip(url: renamedForShare(url))
                 }
             }
         } else {
+            recordStart = Date()
             recorder.start(audio: audioEngine)
         }
     }
