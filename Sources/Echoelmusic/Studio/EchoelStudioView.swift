@@ -286,7 +286,12 @@ struct EchoelStudioView: View {
                     #endif
                     AnyView(soundControls)
                     AnyView(utilityRow)
-                    AnyView(toolsSection)
+                    // Tools grid removed (founder 2026-07-02: "Alles weg außer visuals").
+                    // The whole editors/utilities pile is gone from the one adaptive view;
+                    // the Visual stays as the floating window (header monitor toggle). The
+                    // `toolsSection` builder + its sheets remain in code (reversible); they
+                    // are just no longer mounted. Removing a body branch only SHRINKS the
+                    // aggregate type (safer re: the launch metadata limit), never grows it.
                 }
                 .padding(16)
             }
@@ -1021,7 +1026,7 @@ struct EchoelStudioView: View {
     // MARK: Panel — Visual (immersive sound→light)
 
     private var visualPanel: some View {
-        panel("Visual", "Immersive sound→light — open from Tools", isExpanded: $showVisualSettings) {
+        panel("Visual", "Immersive sound→light — tap the visual monitor (top right) to show it", isExpanded: $showVisualSettings) {
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
             visualBlendControls
@@ -1749,16 +1754,8 @@ struct EchoelStudioView: View {
             .disabled(isExporting || !hasComposed)
             .accessibilityHint("Keeps the last bars you just heard as a WAV loop, without replaying them")
 
-            Button { exportMIDI() } label: {
-                Label("Send .mid (for your DAW)", systemImage: "pianokeys")
-                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .disabled(!hasComposed)
-            .accessibilityHint("Exports the generated melody as a MIDI file to open in any DAW")
+            // MIDI export removed (founder 2026-07-02: "Midi Quatsch kann auch weg").
+            // The WAV export below now carries the key/tempo/tuning/genre in its name.
 
             HStack(spacing: 10) {
                 Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
@@ -2239,7 +2236,7 @@ struct EchoelStudioView: View {
     private func exportWav() async {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer,
                                               bars: loopBars.rawValue, targetLUFS: exportTargetLUFS) {
-            share = ExportedFile(url: url)
+            share = ExportedFile(url: renamedForShare(url))
         }
         // Always return to idle: a failed/empty export must never leave the button
         // stuck on "Recording…/Writing…" (a "hanging button"). On success the URL is
@@ -2251,9 +2248,32 @@ struct EchoelStudioView: View {
     private func keepLastLoop() async {
         if let url = await exporter.exportRecentLoop(engine: audioEngine, beatPlayer: beatPlayer,
                                                      bars: loopBars.rawValue, targetLUFS: exportTargetLUFS) {
-            share = ExportedFile(url: url)
+            share = ExportedFile(url: renamedForShare(url))
         }
         exporter.reset()
+    }
+
+    /// Copy the exported loop to a share-ready file whose NAME carries the musical
+    /// context (founder 2026-07-02: "das Exportieren soll gleich die Tonart etc mit drin
+    /// haben"). `sessionName` already yields `Echoel_<date>_<Key>_<bpm>_A440` (key + tempo
+    /// + tuning); we append the genre. E.g. `Echoel_2026-07-02_Dm_120bpm_A440_Dub-Techno.wav`.
+    /// Falls back to the original URL if the copy fails, so an export can never be lost.
+    private func renamedForShare(_ url: URL) -> URL {
+        let base = session.sessionName(bpm: beatPlayer.pattern.tempo)
+        let genre = style.displayName
+        let raw = "\(base)_\(genre)"
+        let safe = raw.components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>| "))
+            .filter { !$0.isEmpty }.joined(separator: "-")
+        let ext = url.pathExtension.isEmpty ? "wav" : url.pathExtension
+        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("\(safe).\(ext)")
+        do {
+            try? FileManager.default.removeItem(at: dest)
+            try FileManager.default.copyItem(at: url, to: dest)
+            return dest
+        } catch {
+            EchoelCrashLog.breadcrumb("export rename failed: \(error.localizedDescription)")
+            return url
+        }
     }
 
     /// Export the generated melody as a standard MIDI file (in-key notes, real
