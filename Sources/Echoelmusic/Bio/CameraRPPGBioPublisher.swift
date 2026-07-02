@@ -120,6 +120,10 @@ public final class CameraRPPGBioPublisher {
     @ObservationIgnored private var fingerStableTicks = 0
     @ObservationIgnored private var saturatedTicks = 0
     @ObservationIgnored private var fingerLostTicks = 0
+    /// Counts publish-loop ticks with ZERO drained RGB samples. When the RGB pipe
+    /// stalls (analyzer frozen while the capture watchdog stays happy — device log
+    /// 2026-07-02), this crosses the threshold and forces a full camera recovery.
+    @ObservationIgnored private var stallTicks = 0
     private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
     private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
     private static let relockOnLossTicks = 30   // ~3 s without finger → allow re-lock
@@ -208,6 +212,7 @@ public final class CameraRPPGBioPublisher {
         capture.setTorch(true)
         analyzer.startPulseDetection()
         isRunning = true
+        stallTicks = 0
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
         // Exposure is now locked from the publish loop ONLY once the finger is
@@ -225,8 +230,24 @@ public final class CameraRPPGBioPublisher {
                 // feed them to the analyzer IN ORDER, on the main actor, with their
                 // capture timestamps (so the rate maths stays correct). Replaces the old
                 // per-frame `Task { @MainActor }` flood that froze the menus while bio ran.
-                for s in self.sampleQueue.drain() {
+                let drained = self.sampleQueue.drain()
+                for s in drained {
                     self.analyzer.processExtractedRGB(avgR: s.r, avgG: s.g, avgB: s.b, timestamp: s.t)
+                }
+                // Sample-pipe stall guard (device log 2026-07-02: analyzer output frozen
+                // byte-identical for ~13 s — no NEW RGB reached it — while the capture-layer
+                // watchdog saw frames and stayed happy). If NO samples arrive for ~6 s while
+                // we're running, the RGB path (not just the raw session) has stalled: force a
+                // full camera recovery. Cooldown lives in CameraCapture.recoverFromStall().
+                if drained.isEmpty {
+                    self.stallTicks += 1
+                    if self.stallTicks >= 60 {          // ~6 s at 10 Hz
+                        self.stallTicks = 0
+                        EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery")
+                        self.capture.recoverFromStall()
+                    }
+                } else {
+                    self.stallTicks = 0
                 }
                 // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
@@ -384,6 +405,7 @@ public final class CameraRPPGBioPublisher {
         fingerStableTicks = 0
         saturatedTicks = 0
         fingerLostTicks = 0
+        stallTicks = 0
         EchoelCrashLog.breadcrumb("rPPG: camera session recovered after stall — re-locking exposure")
     }
 
@@ -408,6 +430,7 @@ public final class CameraRPPGBioPublisher {
         fingerStableTicks = 0
         saturatedTicks = 0
         fingerLostTicks = 0
+        stallTicks = 0
     }
 
 }

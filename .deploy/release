@@ -1,12 +1,13 @@
-build: 2026-07-02 v10.79.31 (Feinschliff 3/4 — ruhige Ansicht, nur Wesentliches offen)
+build: 2026-07-02 v10.79.32 (rPPG frozen-frame fix — sample-pipe stall recovery)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Feinschliff 3/4 (Founder: "eine adaptive Ansicht ohne weitere Untermenüs … nur das
-  Wesentliche sichtbar"). Die Ansicht öffnet jetzt RUHIG: nur das Composition-Panel (Genre ·
-  Key · Tuning · Tempo) ist aufgeklappt; Sound/Effects/Master/Visual/Transpose/Mood sind
-  eingeklappt (ein Tipp entfernt). NICHTS gelöscht — jede Funktion bleibt, nur der erste
-  Eindruck ist entschlackt (voll umkehrbar). Reihenfolge top-down von "was die meisten nutzen"
-  zu "tiefe Tweaks": Composition → Transpose → Sound → Effects → Master → Visual → Mood (das
-  fortgeschrittene Mood-Panel nach ganz unten). Reine Reduktion/Reorder im Body-Zweig (schrumpft
-  den Typ → sicher fürs Metadata-Limit; kein neues Modal), geschützte DSP/Engine unberührt.
-  TEST 10.79.31: App/Instrument öffnet mit nur Composition offen, darunter kompakte Panel-
-  Köpfe; Start erzeugt Musik; Panels per Tipp aufklappen. Fühlt sich der erste Eindruck ruhig an?
+notesT: Frozen-Puls-Fix (Founder-Log 2× gesendet: rPPG-Werte ~13 s byte-identisch,
+  Puls eingefroren). Ursache: der RGB-SAMPLE-Pfad stockte (kein NEUES Bild erreichte den
+  Analyzer), während der bisherige Kamera-Watchdog nur prüfte, ob `captureOutput` überhaupt
+  noch feuert — diese Lücke sah er nicht. NEU: der 10-Hz-Publish-Loop zählt Ticks OHNE neue
+  RGB-Samples; nach ~6 s ohne neues Sample erzwingt er `CameraCapture.recoverFromStall()`
+  (voller Reconfigure, teilt sich den 6-s-Cooldown mit dem Watchdog, kann also nicht
+  thrashen; Torch + Belichtung werden sauber neu gesetzt, Belichtungs-State wird zurück-
+  gesetzt). Keine geschützte DSP/Render-Änderung; rein additiver Recovery-Pfad im Bio-Modul.
+  TEST 10.79.32: Puls lesen starten; wenn die Werte je einfrieren, erholt sich die Kamera
+  nach ~6 s selbst (Breadcrumb "rPPG: no new frames ~6 s — forcing camera recovery") statt
+  dauerhaft eingefroren zu bleiben.
