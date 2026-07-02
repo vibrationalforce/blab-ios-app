@@ -60,12 +60,12 @@ struct MeditationView: View {
 
     private var header: some View {
         HStack {
-            Text("Meditation").font(EchoelTheme.font(16, .semibold)).foregroundStyle(EchoelTheme.text)
+            Text("Coherence Session").font(EchoelTheme.font(16, .semibold)).foregroundStyle(EchoelTheme.text)
             Spacer()
             Button { dismiss() } label: {
                 Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(EchoelTheme.dim)
             }
-            .accessibilityLabel("Close meditation")
+            .accessibilityLabel("Close coherence session")
         }
     }
 
@@ -73,7 +73,7 @@ struct MeditationView: View {
 
     private var setupBody: some View {
         VStack(spacing: 18) {
-            Text("Settle in. Breathe with the circle; watch your coherence rise.")
+            Text("Breathe with the circle. Your coherence is measured live.")
                 .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
                 .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
 
@@ -269,7 +269,7 @@ struct MeditationView: View {
     private func endSession() {
         guard phase == .running else { return }
         pacer.stop()
-        let name = "Meditation \(minutes) min"
+        let name = "Coherence \(minutes) min"
         lastSummary = recorder.stop(name: name)
         phase = .summary
     }

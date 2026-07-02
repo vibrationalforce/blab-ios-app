@@ -521,7 +521,7 @@ struct EchoelStudioView: View {
             ToolItem(id: "audioin", title: "Audio In", icon: "mic", cat: .audioBio),
             ToolItem(id: "audioclip", title: "Audio Clip", icon: "waveform", cat: .audioBio),
             // "Breathing" lives on the Bio surface (the one body/breath home) — not duplicated here.
-            ToolItem(id: "meditation", title: "Meditation", icon: "figure.mind.and.body", cat: .audioBio),
+            ToolItem(id: "meditation", title: "Coherence", icon: "waveform.path.ecg", cat: .audioBio),
             ToolItem(id: "routing", title: "Routing",
                      icon: "point.3.connected.trianglepath.dotted", cat: .connect),
             ToolItem(id: "plugins", title: "Plugins", icon: "puzzlepiece.extension", cat: .connect),
