@@ -2162,6 +2162,11 @@ struct EchoelStudioView: View {
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
         beatPlayer.pattern.setTempo(tempo)
+        // GROOVE CYCLE 2: apply the genre's swing so odd 16ths land late for a
+        // rolling, human feel (jazz/rock'n'roll shuffle, reggae bounce, dance push,
+        // straight genres stay 0). Melody + any drums ride the same clock, so the
+        // whole take swings together instead of sitting dead-on-grid.
+        beatPlayer.pattern.setSwing(style.swing)
         metronome.bpm = tempo   // keep the click on the live transport tempo
         session.adopt(key: key)
         hasComposed = true

@@ -195,6 +195,33 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// Genre swing (shuffle) amount, 0…0.5 — GROOVE CYCLE 2. Fed to
+    /// `PatternEngine.setSwing` on Generate so odd 16ths land late for a rolling,
+    /// human feel instead of dead-on-grid (the "sounds like a machine" tell). The
+    /// melody rides the same clock, so it swings with the beat. Values are musical:
+    /// jazz/rock'n'roll shuffle hard (~2:1 triplet at 0.33), the reggae family
+    /// (ska/rocksteady) bounces, dance genres get a subtle push, and rigid genres
+    /// (psytrance, rock, metal, classical rubato, ambient) stay straight at 0.
+    public var swing: Double {
+        switch self {
+        case .jazz:               return 0.34   // the defining swung-8th feel (~2:1)
+        case .rocknroll:          return 0.28   // heavy shuffle
+        case .rocksteady:         return 0.22   // laid-back reggae bounce
+        case .klezmer:            return 0.20
+        case .ska:                return 0.18   // offbeat skank lift
+        case .vaporwave:          return 0.15   // dragged, behind the beat
+        case .disco:              return 0.14
+        case .trap:               return 0.12   // subtle hat/triplet lean
+        case .oriental:           return 0.10
+        case .dubTechno:          return 0.08   // near-straight, tiny push
+        case .eighties:           return 0.06
+        case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
+             .esotericMeditation, .classical, .punk, .rock, .heavyMetal,
+             .doom, .selfObservation:
+            return 0.0                          // straight / free — grid swing would hurt these
+        }
+    }
+
     /// The dark/bright, genre-appropriate scale a take defaults to.
     public var scale: Scale {
         switch self {
