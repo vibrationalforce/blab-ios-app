@@ -212,6 +212,11 @@ public final class PianoRollModel {
         (role == .lead) ? (lead ?? voice) : voice
     }
 
+    /// Whether a note actually plays on the SEPARATE lead voice (only when a lead
+    /// voice exists). Used to group note-offs so a shared pitch on the two timbres
+    /// is released independently.
+    private func usesLeadVoice(_ role: NoteRole) -> Bool { role == .lead && lead != nil }
+
     /// Each tick: release notes ending now, then start notes beginning now.
     /// `endStep % stepCount` so a note ending on the bar line releases at the
     /// loop wrap (step 0), giving correct sustain + retrigger.
@@ -240,11 +245,11 @@ public final class PianoRollModel {
         let ending = active.filter { $0.value.endStep % Self.stepCount == step }
         for id in ending.keys { active[id] = nil }
         for note in ending.values {
-            let target = outputVoice(for: note.role)
             // Release this pitch on its voice only when no surviving note still holds
             // it ON THE SAME VOICE (the two timbres can hold a shared pitch apart).
-            if !active.values.contains(where: { $0.pitch == note.pitch && outputVoice(for: $0.role) === target }) {
-                target?.noteOff(pitch: note.pitch)
+            let onLead = usesLeadVoice(note.role)
+            if !active.values.contains(where: { $0.pitch == note.pitch && usesLeadVoice($0.role) == onLead }) {
+                outputVoice(for: note.role)?.noteOff(pitch: note.pitch)
             }
             // MIDI/AU mirror the whole song regardless of the internal voice split.
             if !active.values.contains(where: { $0.pitch == note.pitch }) {

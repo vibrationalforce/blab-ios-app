@@ -118,7 +118,10 @@ public final class CameraRPPGBioPublisher {
     // finger scene means torch light is flooding the lens; locking there captured a
     // washed frame that never produced a pulse (device log 2026-07-02: locked at
     // bright=0.62, bpm=0 the whole session). Healthy PPG brightness is ~0.1–0.4.
-    private static let maxLockBrightness: Float = 0.6
+    // `nonisolated` so the `nonisolated static func canLockNow` (and its tests) can
+    // read it — the class is @MainActor, which would otherwise isolate this constant
+    // and break the nonisolated reference (CLAUDE.md: @MainActor prop from nonisolated).
+    nonisolated private static let maxLockBrightness: Float = 0.6
 
     // MARK: - Pure lock predicates (extracted so the state machine is unit-tested)
 
