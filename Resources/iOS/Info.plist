@@ -59,7 +59,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Echoel uses the microphone to turn live audio into sound, processed on your device. Audio is not recorded or sent anywhere unless you export it yourself.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Echoel reads heart rate and HRV to drive sound, image and light in real time. This data stays on your device and is used only for creative control — never for diagnosis.</string>
+	<string>Echoel reads heart rate and HRV to drive sound, image and light in real time. Data stays on your device for creative control and is never used for diagnosis; if you turn on OSC or ADM output, the current bio values are also sent over your local network to the devices you choose.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>If you turn on "Save to Apple Health", Echoel writes the heart rate and respiratory rate it measures (camera or Bluetooth sensor) to Apple Health. This is off by default and you can turn it off anytime.</string>
 	<key>NSCameraUsageDescription</key>
@@ -69,7 +69,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth MIDI controllers for music creation.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Echoelmusic uses local network for DMX lighting control, Art-Net, and connecting to external audio interfaces.</string>
+	<string>Echoelmusic uses the local network for Art-Net &amp; sACN lighting control and external audio interfaces, and — when you enable OSC or ADM output — to send live bio values (heart rate, HRV, breath, coherence) to the devices you choose.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>

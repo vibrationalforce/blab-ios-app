@@ -221,5 +221,30 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         XCTAssertEqual(A.refractorySeconds(autoBPM: 45), 0.6, accuracy: 0.0001)   // 0.5*60/45=0.667→0.6
         XCTAssertEqual(A.refractorySeconds(autoBPM: 150), 0.3, accuracy: 0.0001)  // 0.5*60/150=0.2→0.3
     }
+
+    // MARK: - Physiological slew limiter (audit 2026-07-02, P0.1)
+
+    func testSlew_clampsImplausibleJumpUp() {
+        // The acf=0 runaway: estimate 60, a bad window wants 140. Over ~0.27 s
+        // (a typical window cadence) at 8 bpm/s the committed value can move ≤ ~2.16.
+        let out = A.slewLimited(previous: 60, target: 140, maxDelta: 8.0 * 0.27)
+        XCTAssertEqual(out, 62.16, accuracy: 0.001)
+    }
+
+    func testSlew_clampsImplausibleJumpDown() {
+        let out = A.slewLimited(previous: 120, target: 40, maxDelta: 8.0 * 0.5)
+        XCTAssertEqual(out, 116.0, accuracy: 0.001) // 120 - 4
+    }
+
+    func testSlew_passesPlausibleChange() {
+        // A change within the allowed delta is untouched — a genuine ramp still tracks.
+        XCTAssertEqual(A.slewLimited(previous: 60, target: 63, maxDelta: 8.0), 63, accuracy: 0.001)
+        XCTAssertEqual(A.slewLimited(previous: 60, target: 55, maxDelta: 8.0), 55, accuracy: 0.001)
+    }
+
+    func testSlew_zeroDeltaIsNoLimit() {
+        // No elapsed time (or first commit) → the limiter must not clamp.
+        XCTAssertEqual(A.slewLimited(previous: 60, target: 140, maxDelta: 0), 140, accuracy: 0.001)
+    }
 }
 #endif

@@ -1,16 +1,15 @@
-build: 2026-07-02 v10.79.16 (Mix-Glue — Bus-Level pro Genre)
+build: 2026-07-02 v10.79.17 (rPPG-Puls-Glättung + Audit-Fixes P0.1/P0.3 + Marke)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: 79.15 (bewegte Basslinie) ist CI-grün + hochgeladen. Diese Runde: jedes Genre bekommt
-  ein eigenes Lautstärke-Verhältnis der Rollen (Bass · Harmonie/Pad · Lead), umgesetzt als
-  reine Velocity-Skalierung beim Generieren (audio-thread-sicher, kein Eingriff im Render):
-  - Synth-Genres (Synthwave/Eighties/Vaporwave/Futuristic/SciFi/Psytrance): Lead vorne
-  - Dub/Trap + Rock/Metal/Punk: Bass fester
-  - dichte Genres: Pad einen Tick zurück, damit Lead + Bass klar bleiben
-  - akustisch (Classical/Jazz/Klezmer/Oriental): ausgewogen, Lead leicht präsent
-  - alle Faktoren sanft (0.85–1.2), auf [0,1] geklemmt → nichts clippt oder verschwindet
-  WICHTIG (Beobachtung aus deinem letzten Log): jedes „generate" zeigte GENAU 6 Noten —
-  das ist das alte, sparsame 79.7-Verhalten. Bitte prüfe in TestFlight die installierte
-  Build-NUMMER: steht da noch 2112 (79.7)? Dann sind Sound/Groove/Melodie/Puls/Multitimbral/
-  Bass NOCH NICHT auf dem Gerät — bitte auf 79.16 aktualisieren. Erst dann klingt es wie geplant.
-  TEST 10.79.16: nach Update — Compose in Synthwave vs. Jazz vs. Trap: sitzt die Balance
-  je Genre stimmig (Lead vs. Bass vs. Pad), und zeigt „generate" jetzt DEUTLICH mehr Noten?
+notesT: Erste Runde aus dem 8-Perspektiven-Voll-Audit (scratchpads/AUDIT_2026-07-02_FULL_
+  MULTIPERSPECTIVE.md). Stabiler Code + Apple-Konventionen + Marke:
+  - P0.1 rPPG-BPM-GLÄTTUNG: physiologischer Slew-Limiter (max ±8 bpm/s über echte Zeit)
+    im CameraAnalyzer. Genau dein 60→140-Zappeln aus den Logs: wenn die Autokorrelation
+    ausfällt (acf=0), kann der Puls-Wert nicht mehr davonlaufen — echte Anstiege gehen
+    durch, ein Runaway wird gekappt. Beim Kappen sinkt zusätzlich die Confidence (kein
+    „fester" Falschwert mehr). Der Erst-Lock/Re-Lock schnappt weiter normal ein.
+  - P0.3 HealthKit-Ehrlichkeit: Berechtigungstexte (Health + Local Network) sagen jetzt
+    offen, dass bei aktivem OSC/ADM-Out die Bio-Werte übers lokale Netz gesendet werden.
+  - Marke: Visual-Preset „Aura" → „Halo" (kein Esoterik-Begriff user-facing).
+  TEST 10.79.17 (BITTE Build-Nummer prüfen — vorher warst du auf 79.7/2112!):
+  Bio → rPPG: bleibt der Puls-Wert jetzt RUHIG (kein Sprung auf 120–140 bei ruhigem
+  Finger), und lockt er weiterhin sauber ein? Bitte wieder ein Log schicken.
