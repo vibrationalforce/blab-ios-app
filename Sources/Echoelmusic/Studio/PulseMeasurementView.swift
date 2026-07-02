@@ -36,10 +36,12 @@ struct PulseMeasurementView: View {
                     .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
                 Text(statusText).font(.caption.weight(.semibold)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
-                if cameraRPPG.detectedBPM > 0, cameraRPPG.detectedBPM.isFinite {
-                    // .isFinite guard: Int(Float) traps on NaN/+Inf, which an rPPG
-                    // BPM can briefly be before lock (upstream divide-by-zero).
-                    Text("\(Int(cameraRPPG.detectedBPM)) bpm")
+                // Calm display value (holds the last confident reading through noisy
+                // patches) so the number doesn't bounce; falls back to the live value only
+                // until the first confident lock. .isFinite guard: Int() traps on NaN/+Inf.
+                let shownBPM = cameraRPPG.displayBPM > 0 ? cameraRPPG.displayBPM : cameraRPPG.detectedBPM
+                if shownBPM > 0, shownBPM.isFinite {
+                    Text("\(Int(shownBPM)) bpm")
                         .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(EchoelTheme.text)
                 }
             }

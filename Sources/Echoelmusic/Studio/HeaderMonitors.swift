@@ -88,8 +88,10 @@ struct PulseMonitorMini: View {
 struct PulseMonitorMiniLive: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     var body: some View {
+        // `displayBPM` is the CALM value (holds the last confident reading through noisy
+        // patches) so the glanceable number doesn't bounce; the waveform/lock stay live.
         PulseMonitorMini(waveform: cameraRPPG.waveform,
-                         bpm: cameraRPPG.detectedBPM,
+                         bpm: cameraRPPG.displayBPM,
                          locked: cameraRPPG.isLocked)
     }
 }

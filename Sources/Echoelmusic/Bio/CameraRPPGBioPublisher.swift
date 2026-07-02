@@ -74,6 +74,15 @@ public final class CameraRPPGBioPublisher {
     public private(set) var signalQuality: Double = 0   // 0...1
     public private(set) var confidence: Double = 0      // 0...1 — pulse-lock progress
     public private(set) var detectedBPM: Double = 0
+    /// A CALM BPM for on-screen display (founder 2026-07-02: "ruhige Anzeige"). It updates
+    /// only on a CONFIDENT reading and EMA-smooths, HOLDING the last good value through
+    /// low-confidence patches — so the glanceable number stops bouncing (e.g. 55↔98 during
+    /// a marginal grip). The measurement (`detectedBPM`) and the bus-published HR stay
+    /// honest and untouched; this is display-only.
+    public private(set) var displayBPM: Double = 0
+    /// Only readings at/above this confidence move `displayBPM` (higher than `lockThreshold`
+    /// so the noisy 0.35–0.55 band holds instead of wandering).
+    static let displayThreshold = 0.6
     /// Live bandpass-filtered pulse waveform (~[-1,1]) for the "Stimmungsbild".
     public private(set) var waveform: [Float] = []
     /// Lock threshold — also the bus-publish gate.
@@ -224,6 +233,12 @@ public final class CameraRPPGBioPublisher {
                 self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)
                 self.confidence = min(max(self.analyzer.bpmConfidence, 0), 1)
                 self.detectedBPM = self.analyzer.estimatedBPM
+                // Calm display value: advance only on a confident reading (EMA), else hold.
+                if self.detectedBPM > 0 && self.confidence >= Self.displayThreshold {
+                    self.displayBPM = self.displayBPM == 0
+                        ? self.detectedBPM
+                        : self.displayBPM * 0.6 + self.detectedBPM * 0.4
+                }
                 self.waveform = self.analyzer.recentWaveform
 
                 // EXPOSURE: lock once the finger has covered the lens for ~1.2 s (so
@@ -387,6 +402,7 @@ public final class CameraRPPGBioPublisher {
         signalQuality = 0
         confidence = 0
         detectedBPM = 0
+        displayBPM = 0
         waveform = []
         exposureLocked = false
         fingerStableTicks = 0

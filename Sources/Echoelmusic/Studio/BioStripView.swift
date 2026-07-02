@@ -184,6 +184,13 @@ struct BioStripView: View {
     // MARK: - Formatting
 
     private var hrString: String {
+        // While the camera is the live source, show the CALM display value (holds the last
+        // confident reading through noisy patches) so this number matches the header monitor
+        // and doesn't bounce. Music still uses the honest bus HR internally; other sources
+        // (BLE/HealthKit) and the pre-lock phase fall back to the bus value.
+        if cameraRPPG.isRunning, cameraRPPG.displayBPM > 0 {
+            return String(format: "%.0f", cameraRPPG.displayBPM)
+        }
         guard let v = bus.latestBio?.heartRateBPM else { return "—" }
         return String(format: "%.1f", v)
     }
