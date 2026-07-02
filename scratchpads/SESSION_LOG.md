@@ -4004,3 +4004,40 @@ Founder to steer: Harmonic mapping vs LinkKit (needs dep OK) vs per-track Kammer
 
 **Founder device note:** logs through this session were still build 79.7 ("6 notes"); must update
 TestFlight to 79.20 to hear/see any of the above.
+
+---
+
+## Session 2026-07-02 (cont.) — Radical refocus + whole-experience optimization
+
+**Strategic pivot (Council-confirmed 1A+2A):** reduce SURFACE, keep ENGINE (reversible, no
+delete). Founder: "radikal reduzieren auf qualitative Biofeedback Musik" + "eine adaptive
+Ansicht ohne weitere Untermenüs" + "alles weg außer visuals" + "MIDI Quatsch kann auch weg".
+
+**Shipped this session (CI-verified green through 79.31):**
+- ONE adaptive view: removed tab bar, Studio door, Tools grid, MIDI export; panels collapse
+  to only Composition open (calm first impression). WorkspaceView = topBar + transport +
+  EchoelStudioView + floating visual overlay.
+- Floating visual window (FloatingVisualWindow.swift): draggable, resizable (S/M/L), show/hide,
+  MP4 record with descriptive name (Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4), Look-cycle
+  button, REC badge. Reads shared @AppStorage visual design keys (live design).
+- Calm display BPM (79.30): displayBPM holds last confident reading (EMA, conf>=0.6), routes
+  to all header/strip readouts. Music still uses honest bus HR.
+- Descriptive WAV export names (key/tempo/tuning/genre).
+
+**79.32 — rPPG frozen-pulse fix:** publisher-side sample-pipe stall guard. Diagnosed from a
+founder log re-sent twice: analyzer output byte-identical ~13s while the capture-layer watchdog
+(only checks captureOutput fires) stayed happy. publishTask now counts ticks with zero drained
+RGB samples; after ~6s forces CameraCapture.recoverFromStall() (full reconfigure, shares 6s
+restart cooldown, re-arms torch/exposure). Files: CameraRPPGBioPublisher.swift, CameraCapture.swift.
+
+**Whole-experience optimization ("UI, Sound, visuals, Steuerung"):**
+- Visuals: saturation default 1.0→0.82 (professional not neon), style default 0→5 (Aurora),
+  duplicate factory preset "Halo"(id aura)→"Aura", Show/Hide visual-window button in visualPanel,
+  !hasComposed export caption.
+- Sound (from 3-agent audit, all deterministic/in-key, no Rausch/audio-thread): (1) inner pulse
+  voiced octave-up over the pad (kills mud + pad voice-stealing across ~15 genres); (2) dub techno
+  gets a real octave-2 .bass sub (was no low end in generative path); (3) drum groove velocity —
+  metric weighting + bounded ±6% jitter replacing flat 0.82 (kills machine-gun hats).
+
+**Deploy:** bundling all above into one TestFlight build (79.33) once head compile-check green.
+Founder MUST update TestFlight to see any of it (device logs still showed old builds).
