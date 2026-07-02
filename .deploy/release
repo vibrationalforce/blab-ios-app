@@ -1,15 +1,13 @@
-build: 2026-07-02 v10.79.17 (rPPG-Puls-Glättung + Audit-Fixes P0.1/P0.3 + Marke)
+build: 2026-07-02 v10.79.18 (Audit P0.2 — DrumSynth Cross-Thread-Race behoben)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Erste Runde aus dem 8-Perspektiven-Voll-Audit (scratchpads/AUDIT_2026-07-02_FULL_
-  MULTIPERSPECTIVE.md). Stabiler Code + Apple-Konventionen + Marke:
-  - P0.1 rPPG-BPM-GLÄTTUNG: physiologischer Slew-Limiter (max ±8 bpm/s über echte Zeit)
-    im CameraAnalyzer. Genau dein 60→140-Zappeln aus den Logs: wenn die Autokorrelation
-    ausfällt (acf=0), kann der Puls-Wert nicht mehr davonlaufen — echte Anstiege gehen
-    durch, ein Runaway wird gekappt. Beim Kappen sinkt zusätzlich die Confidence (kein
-    „fester" Falschwert mehr). Der Erst-Lock/Re-Lock schnappt weiter normal ein.
-  - P0.3 HealthKit-Ehrlichkeit: Berechtigungstexte (Health + Local Network) sagen jetzt
-    offen, dass bei aktivem OSC/ADM-Out die Bio-Werte übers lokale Netz gesendet werden.
-  - Marke: Visual-Preset „Aura" → „Halo" (kein Esoterik-Begriff user-facing).
-  TEST 10.79.17 (BITTE Build-Nummer prüfen — vorher warst du auf 79.7/2112!):
-  Bio → rPPG: bleibt der Puls-Wert jetzt RUHIG (kein Sprung auf 120–140 bei ruhigem
-  Finger), und lockt er weiterhin sauber ein? Bitte wieder ein Log schicken.
+notesT: Stabiler Code (Audit-Fund P0.2, HIGH). DrumSynthVoice hat bisher den Modal-Bank
+  auf dem MAIN-Thread angeschlagen/konfiguriert, während der Audio-Thread dieselben
+  Mode-Arrays las/schrieb — eine echte Cross-Thread-Race (gleiche Klasse wie die
+  absichtlich abgeschaltete DDSP-Convolution-Race). Fix: fire()/configure() melden jetzt
+  nur noch lock-frei einen Request (atomarer Zähler + Skalar-Felder, das SamplerVoice-
+  Muster); der Audio-Thread wendet Anschlag UND Konfiguration in render() an — beide
+  Modal-Bank-Operationen sind in-place/alloc-frei, laufen jetzt nur noch auf dem Audio-
+  Thread und können den Render nicht mehr zerreißen. Kein hörbarer „glitchy Hit" mehr
+  bei dichten Synth-Drum-Stellen / Live-Pad-Edits.
+  TEST 10.79.18: Synth-Drums / Beat-Genres (DubTechno/Trap) — saubere, konsistente
+  Schläge auch bei dichten Patterns? (Betrifft nur Synth-Pads, nicht die Melodie.)

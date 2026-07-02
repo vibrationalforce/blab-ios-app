@@ -4,11 +4,13 @@
 // AVAudioSourceNode. The sample-based SamplerVoice and this synth voice are the
 // two layers a pad can use (sample / synth / blend).
 //
-// Triggering: PatternEngine.onStep fires on the MAIN thread, so `fire(gain:)`
-// strikes the modal bank on the main thread (how EchoelModalBank is designed to
-// be driven). render() runs on the audio thread and only advances the mode
-// decay — the same control-thread-strike / audio-thread-render split used by
-// SoundscapeEngine. Mode params are Float-width (atomic on Apple).
+// Triggering: PatternEngine.onStep fires on the MAIN thread. `fire(gain:)` and
+// `configure(_:)` do NOT touch the modal bank directly — they record a lock-free
+// request (an atomic-width counter + scalar fields, the SamplerVoice pattern) and
+// the AUDIO thread applies it inside render() before generating the block. This
+// keeps every read-modify-write of the modal-bank mode arrays (excite / material
+// reconfigure — both in-place, allocation-free) on the audio thread, so the main
+// thread never mutates render state concurrently (audit 2026-07-02 P0.2 race fix).
 
 #if canImport(AVFoundation) && canImport(Accelerate)
 import AVFoundation
@@ -40,24 +42,16 @@ public final class DrumSynthVoice: @unchecked Sendable {
         self.state = DrumRenderState(sampleRate: Float(Self.sampleRate))
     }
 
-    /// Apply editable params to the modal bank. Main thread only.
+    /// Request editable params. Main thread; the audio thread applies them (the
+    /// modal-bank reconfigure runs there, never concurrently with render).
     public func configure(_ params: DrumSynthParams) {
-        let bank = state.modalBank
-        if let material = EchoelModalBank.MaterialPreset(rawValue: params.material) {
-            bank.material = material
-        }
-        bank.frequency = params.frequency
-        bank.damping = params.damping
-        bank.stiffness = params.stiffness
-        bank.brightness = params.brightness
-        bank.strikePosition = params.strikePosition
-        bank.size = params.size
-        state.level = max(0, params.level)
+        state.requestConfig(params)
     }
 
-    /// Strike the drum. Main thread only (called from PatternEngine.onStep).
+    /// Strike the drum. Main thread (called from PatternEngine.onStep). Lock-free:
+    /// records the hit; the audio thread performs the excite on its next callback.
     public func fire(gain: Float = 1.0) {
-        state.modalBank.noteOn(velocity: min(max(gain, 0), 1))
+        state.requestStrike(gain: gain)
     }
 
     /// Set the per-channel insert FX (filter type + cutoff + resonance + drive).
@@ -91,6 +85,27 @@ private final class DrumRenderState: @unchecked Sendable {
     /// Output gain (main-thread set, audio-thread read; atomic-width).
     var level: Float = 1.0
 
+    // Strike request (main thread → audio thread). A UInt32 counter + a Float gain,
+    // both atomic-width on Apple platforms, so no lock. The audio thread compares the
+    // counter to `lastSeenStrike` and, on a change, performs the in-place excite.
+    private var strikeCount: UInt32 = 0
+    private var lastSeenStrike: UInt32 = 0
+    private var strikeGain: Float = 1.0
+
+    // Config request (main thread → audio thread). A version counter + scalar fields
+    // (the MaterialPreset is a simple String-raw enum → an atomic-width tag). On a
+    // version change the audio thread applies them, so the modal-bank array reconfigure
+    // (in-place, allocation-free) never races the render read.
+    private var cfgVersion: UInt32 = 0
+    private var lastSeenCfg: UInt32 = 0
+    private var cfgMaterial: EchoelModalBank.MaterialPreset = .drum
+    private var cfgFrequency: Float = 90
+    private var cfgDamping: Float = 0.4
+    private var cfgStiffness: Float = 0
+    private var cfgBrightness: Float = 0.5
+    private var cfgStrikePosition: Float = 0.2
+    private var cfgSize: Float = 1.0
+
     // Per-channel INSERT FX params (main-thread set, audio-thread read; atomic-width).
     // Filter state lives only on the audio thread; coefficients recompute ≤1×/block.
     var fxType: Int = 0
@@ -109,6 +124,47 @@ private final class DrumRenderState: @unchecked Sendable {
         self.insertFX = ChannelInsertFX(sampleRate: sampleRate)
         self.modalBank.material = .drum
         self.modalBank.frequency = 90
+    }
+
+    /// Main thread. Record a strike; the audio thread excites the bank on its next block.
+    func requestStrike(gain: Float) {
+        strikeGain = min(max(gain, 0), 1)
+        strikeCount &+= 1
+    }
+
+    /// Main thread. Record new params; the audio thread applies them on its next block.
+    /// Resolve the material string here (main thread) into the atomic-width enum tag.
+    func requestConfig(_ params: DrumSynthParams) {
+        if let m = EchoelModalBank.MaterialPreset(rawValue: params.material) { cfgMaterial = m }
+        cfgFrequency = params.frequency
+        cfgDamping = params.damping
+        cfgStiffness = params.stiffness
+        cfgBrightness = params.brightness
+        cfgStrikePosition = params.strikePosition
+        cfgSize = params.size
+        level = max(0, params.level)
+        cfgVersion &+= 1
+    }
+
+    /// Audio thread. Apply any pending config, then any pending strike — both do the
+    /// modal-bank read-modify-write here so it never races the render read below.
+    private func applyPendingRequests() {
+        let cfg = cfgVersion
+        if cfg != lastSeenCfg {
+            lastSeenCfg = cfg
+            modalBank.material = cfgMaterial     // in-place reconfigure (allocation-free)
+            modalBank.frequency = cfgFrequency
+            modalBank.damping = cfgDamping
+            modalBank.stiffness = cfgStiffness
+            modalBank.brightness = cfgBrightness
+            modalBank.strikePosition = cfgStrikePosition
+            modalBank.size = cfgSize
+        }
+        let strike = strikeCount
+        if strike != lastSeenStrike {
+            lastSeenStrike = strike
+            modalBank.noteOn(velocity: strikeGain)   // in-place excite
+        }
     }
 
     /// Audio thread. Apply the insert-FX params (recompute coeffs only on change)
@@ -131,6 +187,7 @@ private final class DrumRenderState: @unchecked Sendable {
         let dst = raw.assumingMemoryBound(to: Float.self)
         let count = min(frameCount, scratch.count)
 
+        applyPendingRequests()   // audio-thread: apply config + strike before rendering
         modalBank.render(buffer: &scratch, frameCount: count)
 
         let g = level
