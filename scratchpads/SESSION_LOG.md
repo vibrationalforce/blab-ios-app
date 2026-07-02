@@ -36,6 +36,14 @@ now **Arrange · Clips · Compose · Mix · Bio · Browse**.
   left the Compose session `running`; the ~25–45 s evolve tick then resurrected playback.
   `generate(startTransport:)` now starts the transport ONLY for the user-initiated first
   generate; all re-seeds pass `false`. Shipped in v10.78.1.
+- **Coherence fix (3da5800):** transport-bar Tempo edit now mirrors into `MetronomeVoice.bpm`
+  (Compose only synced the click on generate/lockBPM) — an armed click stays in time. v10.78.2.
+- **Coherence fix (1779a3a):** the global transport Stop calls `PatternEngine.stop()` directly,
+  which left `ArrangementPlayer.isPlaying` stuck true (frozen song, wrong button, lit playhead).
+  Added a `Transport.addStopSubscriber("arrangement")` → `handleTransportStopped()` (guards on
+  isPlaying, no recursion; mirrors the shipping haptics step-subscriber). Concurrency-reviewed
+  clean. Now every surface's play/stop is coherent with the one transport (Compose ✓, Arrange ✓,
+  Clips has no play-state, Mix/Bio/Browse have none). Batched as v10.78.2.
 - **⚑ FOUNDER-CONFIRM (deliberate default, low-med):** transport-bar Stop stops PLAYBACK
   only; it does NOT end the Compose bio session (camera/evolve/bio-mod stay armed) — so the
   global Stop and Compose's own Start/Stop have DIFFERENT scope (transport = clock, Compose
