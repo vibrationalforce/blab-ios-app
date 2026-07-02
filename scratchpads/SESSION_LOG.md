@@ -3969,3 +3969,38 @@ CLAUDE.md "ONE .sheet" presentation note to the real as-shipped AnyView-per-moda
 .sheet(item:) consolidation, NOT by appending modifiers); confirm 10.76.37 smoothness +
 whether "verkrauteter" sound persists; roadmap items #2 projection, #4 more looks, #12
 tools/HUD unification.
+
+---
+
+## 2026-07-02 — Music program + full audit + legacy triage (v10.79.8 → 79.20)
+
+**Shipped to TestFlight (all CI-verified green):**
+- Music: real instrument timbres+unison (79.8), per-genre swing (79.9), melody motifs +
+  inner pulse (79.13), multitimbral per-genre LEAD voice (79.14), moving bass line (79.15),
+  per-genre mix glue (79.16). NOTE: 79.10-12 failed CI (actor-isolation) — device stayed on
+  79.7 during those; fixed in 79.13.
+- Audit fixes (from the 8-perspective full audit): rPPG physiological slew-limiter +
+  soft-confidence gate (79.17, fixes the acf=0 60→140 BPM runaway), DrumSynthVoice
+  cross-thread race → SPSC handoff (79.18), HealthKit/LocalNetwork OSC-disclosure copy (79.17),
+  brand: "Aura"→"Halo" (79.17) + "Meditation"→"Coherence Session" (79.19), EchoelDDSP
+  anti-denormal floor (79.20).
+- Website (docs/): claim-honesty — Art-Net/sACN + Metal-visual marked LIVE consistently,
+  removed overclaims (clinical/validated/SDK/laser/fake a11y toggles), fixed removed-module refs.
+
+**Docs/knowledge added:**
+- `scratchpads/AUDIT_2026-07-02_FULL_MULTIPERSPECTIVE.md` — 8-agent audit (verdict: healthy,
+  ship-safe, protected triad intact). P0/P1/P2 all code-addressed except P1.5 modal-chain
+  consolidation (deferred — risky, do only when next modal is added) + Studio/ relocation (owner-run).
+- `docs/dev/COLLAB_SYNC_TRIAGE.md` — founder-curated legacy braindump triage (ADOPT: LinkKit,
+  local Multipeer sync, bio→harmonic mapping, note→colour; REJECT: 432/528/therapy/JUCE/WebRTC).
+- `memory/inspiration_intake.md` — triaged ~27 uploaded legacy files (BLAB/SYNG archive):
+  net salvage = Atmos/ADM integration story, per-track Kammerton, Ableton Link, facial-expression
+  bio-input, shared-coherence multiplayer. Rest = banned brand / discarded stack / already-built.
+- Hygiene grep clean: no 432-claim/528/Schumann/therapy leaks in Sources/.
+
+**Next (planned, not started):** `scratchpads/PLAN_HARMONIC_MAPPING.md` — Harmonic-Series bio
+mapping preset, MUST integrate with existing ModulationMatrix/applyBioReactive (not a new module).
+Founder to steer: Harmonic mapping vs LinkKit (needs dep OK) vs per-track Kammerton.
+
+**Founder device note:** logs through this session were still build 79.7 ("6 notes"); must update
+TestFlight to 79.20 to hear/see any of the above.
