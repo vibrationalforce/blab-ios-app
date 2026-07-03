@@ -118,6 +118,16 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Per-sample one-pole decay of the brightness envelope (~0.9998 ≈ ~100 ms to 1/e at 48 k).
     public var filterEnvDecay: Float = 0.9998
 
+    /// Per-note ONSET-noise envelope (1 at attack → fast decay). Adds a brief pick/bow/breath
+    /// "chiff" transient at the note start — the 10–40 ms burst the ear relies on to identify a
+    /// REAL instrument (absent in a pure additive tone). Re-armed in noteOn, decayed per-sample.
+    /// Audio-thread: single Float, atomic-width (same convention as noteVelocity/filterEnvValue).
+    private var onsetNoiseEnv: Float = 0
+    /// Level of the onset chiff (0 = off). Conservative default — a hint of attack noise, not hiss.
+    public var onsetNoiseAmount: Float = 0.35
+    /// Per-sample decay of the onset-noise env (~0.9993 ≈ ~30 ms to 1/e at 48 k — a short chiff).
+    public var onsetNoiseDecay: Float = 0.9993
+
     /// Attack time (seconds)
     public var attack: Float = 0.5            // Half second — audible but smooth
 
@@ -606,6 +616,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         let vel = min(1, max(0, noteVelocity))
         velAttackScale = 1 - percussiveness * 0.7 * vel
         filterEnvValue = 1                 // re-arm the per-note brightness envelope (attack = bright)
+        onsetNoiseEnv = 1                  // re-arm the onset chiff (pick/bow/breath transient)
         envelopeStage = .attack
         envelopeSamples = 0
     }
@@ -745,7 +756,11 @@ public final class EchoelDDSP: @unchecked Sendable {
             // effectively zero (the common case for tonal patches) the 65-band
             // bank would otherwise add a faint correlated hiss bed and burn CPU.
             var noiseSample: Float = 0
-            if noiseLevel > 0.0005 {
+            onsetNoiseEnv *= onsetNoiseDecay   // fast per-sample decay of the attack chiff
+            if onsetNoiseEnv < 1e-20 { onsetNoiseEnv = 0 }   // floor: no denormal churn on held notes
+            // Compute the shaped noise when the steady bed OR the onset chiff needs it — so a
+            // fully-tonal pluck (noiseLevel≈0) still gets its attack transient for the first ~30 ms.
+            if noiseLevel > 0.0005 || onsetNoiseEnv > 0.001 {
                 let whiteNoise = nextNoiseSample()
                 // Multi-band spectral shaping via weighted filter bank: each band
                 // tracks its own one-pole state, forming a spectral envelope.
@@ -766,8 +781,15 @@ public final class EchoelDDSP: @unchecked Sendable {
             if smoothedNoiseLevel < 0 { smoothedNoiseLevel = noiseLevel }
             smoothedHarmonicity += 0.01 * (harmonicity - smoothedHarmonicity)
             smoothedNoiseLevel  += 0.01 * (noiseLevel  - smoothedNoiseLevel) + antiDenormal
-            // Mix harmonic + noise based on the smoothed harmonicity
-            let mixed = harmonicSample * smoothedHarmonicity + noiseSample * smoothedNoiseLevel * (1.0 - smoothedHarmonicity)
+            // Mix harmonic + noise based on the smoothed harmonicity, PLUS a brief onset chiff
+            // (pick/bow/breath transient) added on top — NOT gated by harmonicity, so even a
+            // pure-tonal pluck gets the attack burst that makes it read as a real instrument.
+            // Velocity-scaled (harder hit = louder chiff); env decays to 0 in ~30 ms → steady
+            // state is bit-identical to before.
+            let onsetVel: Float = 0.3 + 0.7 * min(1, max(0, noteVelocity))
+            let mixed = harmonicSample * smoothedHarmonicity
+                      + noiseSample * smoothedNoiseLevel * (1.0 - smoothedHarmonicity)
+                      + noiseSample * onsetNoiseEnv * onsetNoiseAmount * onsetVel
 
             // Apply envelope and gain. Per-sample smooth the master gain so a new
             // note's velocity and the 10 Hz bio amplitude pulse glide in instead of
@@ -784,6 +806,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             // instrument, scaled by velocity (Anschlagdynamik: a harder hit is brighter, not just
             // louder). One-pole decay, pure arithmetic; env/amount/velocity 0 leaves timbre as-is.
             filterEnvValue *= filterEnvDecay
+            if filterEnvValue < 1e-20 { filterEnvValue = 0 }   // floor: no denormal churn on held notes
             let brightBoost = 1.0 + filterEnvAmount * filterEnvValue * (0.4 + 0.6 * min(1, max(0, noteVelocity)))
             let modulatedCutoff = max(20, min(filterCutoff * renderCutoffScale * (1.0 + lfoMod * lfoToFilterDepth) * brightBoost, 18000))
             // One-pole smooth the target so bio/LFO cutoff steps don't zipper the SVF.
