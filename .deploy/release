@@ -1,19 +1,18 @@
-build: 2026-07-03 v10.79.50 (Nur noch EINE Puls- und EINE Tempo-Anzeige — Schluss mit doppelten BPM-Zahlen)
+build: 2026-07-03 v10.79.51 (HRV & Co. erklaert — ein Tipp aufs ⓘ erklaert alle Koerper-Werte)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Feedback: "Bpm sind zu viele Anzeigen, die verschiedene Dinge anzeigen. eine reicht."
-  Stimmt — es liefen ZWEI verschiedene BPM-Werte durcheinander, jeder mehrfach:
-  • gemessener PULS (Herz, z.B. 54): oben im Header, im Bio-Strip (HR) UND in der Mess-Karte
-  • musikalisches TEMPO (z.B. 51): in der Transportleiste UND nochmal als eigenes Feld im Compose
-  Nebeneinander las sich das als "die BPM springt/widerspricht sich" — dabei sind es zwei
-  verschiedene Dinge (Herz vs. Takt), je doppelt.
-  Deine Wahl: JE EINE. Umgesetzt:
-  • PULS erscheint jetzt nur noch EINMAL — im Bio-Strip (HR-Zelle). Header-Puls entfernt; die
-    Mess-Karte zeigt nur noch die Aufnahme-Rueckmeldung (Status · Coaching · Wellenform ·
-    Konfidenz), KEINE zweite Zahl mehr. Klare Trennung: Karte = "wird gelockt", Strip = "der Wert".
-  • TEMPO erscheint nur noch EINMAL — in der Transportleiste (immer sichtbar, voll lock-faehig,
-    Tippen/Editieren persistiert den Lock). Das doppelte Tempo-Feld im Compose-Panel ist raus;
-    Lock-Schalter + Tap-Tempo bleiben (das sind Bedien-Elemente, keine zweite Anzeige).
-  Nichts an der Funktion geaendert — nur die doppelten ZAHLEN entfernt. Reine UI-Reduktion,
-  render-safe (nur Reads entfernt, keine neuen). Header-Puls-Views bleiben im Code (reversibel).
-  TEST 10.79.50: Ein Blick auf den Screen — siehst du jetzt genau EINE Puls-Zahl (im Strip) und
-  EINE Tempo-Zahl (Transportleiste), ohne konkurrierende BPM-Anzeigen? Ruhiger, klarer?
+notesT: Dein Wunsch: "HRV etc. soll erklaert werden." Die Erklaerungen gab es schon (jede Zahl im
+  Bio-Strip war antippbar → Klartext-Erklaerung), aber niemand SIEHT das — die Werte sahen nicht
+  antippbar aus. Also fehlte die Auffindbarkeit, nicht der Inhalt.
+  NEU: ein kleines ⓘ links im Bio-Strip. Ein Tipp oeffnet eine Uebersicht, die ALLE Werte auf
+  einmal erklaert — Herzfrequenz, HRV, Kohaerenz, Atmung — in einfacher Sprache, science-first,
+  mit dem Hinweis "nur zur Selbstbeobachtung, kein Medizingeraet". Zusaetzlich bleibt jede
+  einzelne Zahl weiterhin direkt antippbar fuer die Detail-Erklaerung (die Uebersicht sagt das
+  auch). So versteht man auf einen Blick, was HRV & Co. bedeuten.
+  Der Erklaer-Text war schon getestet (jede Metrik hat eine echte Erklaerung >40 Zeichen,
+  brand-safe ohne Esoterik) — die Uebersicht nutzt genau diesen Text wieder. 3 Dateien
+  (BioMetricInfo Uebersicht + BioStrip ⓘ), render-safe.
+  Log-Check nebenbei (79.50-Stand): sauberer Start (kein SAFE MODE), Puls rastete bei ~60 und
+  hielt die ganze Session stabil (60–63). Eine milde acf=0-Delle (amp 0,028) erholte sich in ~4 s
+  selbst und liegt unter der Ripple-Schwelle — Anzeige blieb ruhig. Alles im gruenen Bereich.
+  TEST 10.79.51: Tippe im Bio-Strip auf das ⓘ (links) — kommt die Uebersicht, die HRV, Kohaerenz &
+  Co. verstaendlich erklaert? Und tippt sich jede einzelne Zahl weiterhin zur Detail-Erklaerung?

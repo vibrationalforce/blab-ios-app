@@ -32,6 +32,9 @@ struct BioStripView: View {
 
     /// Tapped metric → its plain-language explanation sheet ("app as a school").
     @State private var explain: BioMetric?
+    /// The leading ⓘ → an overview that explains ALL the numbers at once (founder:
+    /// "HRV etc. soll erklärt werden"). Makes the tap-to-learn discoverable.
+    @State private var showGuide = false
 
     var body: some View {
         // Equal-width metric cells that always fit the screen — no left-packing, so a
@@ -39,6 +42,8 @@ struct BioStripView: View {
         // its neighbours or overflow the edge (the old "wobble"). The source tag sits
         // in a bounded slot; everything scales down on narrow phones (adaptive).
         HStack(spacing: 6) {
+            infoButton
+            divider
             metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
                 .frame(maxWidth: .infinity)
             divider
@@ -54,6 +59,7 @@ struct BioStripView: View {
                 .frame(width: 96, alignment: .trailing)
         }
         .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
+        .sheet(isPresented: $showGuide) { BioMetricsGuideView() }
         .lineLimit(1)
         .minimumScaleFactor(0.6)
         .font(.system(size: 12, weight: .medium, design: .monospaced))
@@ -66,6 +72,23 @@ struct BioStripView: View {
                 .fill(EchoelTheme.text.opacity(0.08))
                 .frame(height: 1)
         }
+    }
+
+    // MARK: - Info affordance
+
+    /// Makes the tap-to-learn discoverable: a muted ⓘ at the strip's leading edge that opens
+    /// the overview of ALL bio numbers. (Each metric cell is also individually tappable for a
+    /// deep-dive — the guide's subtitle says so.) Founder 2026-07-03: "HRV etc. soll erklärt
+    /// werden" — the explanations existed but were invisible.
+    private var infoButton: some View {
+        Button { showGuide = true } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 12))
+                .foregroundStyle(EchoelTheme.dim)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("What these bio numbers mean")
+        .accessibilityHint("Opens a plain-language guide to heart rate, HRV, coherence and breathing")
     }
 
     // MARK: - Metric cells

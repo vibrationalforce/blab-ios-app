@@ -129,4 +129,70 @@ struct BioMetricInfoView: View {
         .accessibilityLabel("\(metric.title). \(metric.detail). \(BioMetric.disclaimer)")
     }
 }
+
+/// One place that explains ALL the live bio numbers at once (founder 2026-07-03:
+/// "HRV etc. soll erklärt werden"). Opened from the bio strip's info affordance; the
+/// per-cell tap still deep-links to a single metric. Lists exactly the metrics the strip
+/// shows (HR · HRV · Coherence · Breath) so the guide matches what's on screen.
+struct BioMetricsGuideView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    /// The metrics actually shown in the strip, in display order (RMSSD/SDNN/pNN50 are
+    /// sub-measures of HRV, not separate cells, so they stay out of the overview).
+    private let shown: [BioMetric] = [.heartRate, .hrv, .coherence, .breath]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("What your body is showing")
+                    .font(EchoelTheme.font(18, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                Spacer()
+                Button("Done") { dismiss() }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .padding(.bottom, 4)
+
+            Text("Tap any value in the strip to revisit its explanation.")
+                .font(EchoelTheme.font(12))
+                .foregroundStyle(EchoelTheme.dim)
+                .padding(.bottom, 12)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    ForEach(shown) { m in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(m.title)
+                                    .font(EchoelTheme.font(15, .semibold))
+                                    .foregroundStyle(EchoelTheme.text)
+                                Text(m.unit)
+                                    .font(EchoelTheme.font(11))
+                                    .foregroundStyle(EchoelTheme.dim)
+                            }
+                            Text(m.detail)
+                                .font(EchoelTheme.font(13))
+                                .foregroundStyle(EchoelTheme.dim)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(m.title). \(m.detail)")
+                    }
+
+                    Divider().overlay(EchoelTheme.border)
+                    Text(BioMetric.disclaimer)
+                        .font(EchoelTheme.font(12))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.bottom, 8)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(EchoelTheme.bg)
+        .presentationDetents([.medium, .large])
+    }
+}
 #endif
