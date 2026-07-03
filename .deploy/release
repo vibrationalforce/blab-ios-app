@@ -1,18 +1,22 @@
-build: 2026-07-03 v10.79.37 (Stabiler Beat — keine 196-bpm-Sprünge beim Musikmachen)
+build: 2026-07-03 v10.79.38 (Puls bugfrei ohne Sprünge + Tempo lockt nur bei sicherem Puls)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein blockierendes Problem: „Springt ständig auf 196 bpm ich will Musik machen. Bei
-  diesen Sprüngen funktioniert das nicht." Ursache gefunden: der Body hat den Tempo bei JEDEM
-  Evolve-/Re-Seed-Tick neu abgeleitet — wenn der rPPG-Puls sich verdoppelt (196 ≈ 2×98),
-  schlug der Beat mitten im Take auf Doppeltempo um.
-  • SEED-ONCE-THEN-HOLD: Der Body seedet den Tempo jetzt EINMAL zu Beginn eines Takes, danach
-    HÄLT der Beat. Evolve-/Re-Seed-Ticks entwickeln nur noch die MELODIE — nie mehr den Beat.
-    Beim Stop wird zurückgesetzt → der nächste Take seedet aus frischem Puls.
-  • OKTAV-FALTUNG des Seeds: ein verdoppelter Puls (>130) wird halbiert (clamp 50…160) — kein
-    Runaway-Tempo mehr möglich.
-  • ANZEIGE-Faltung: der gezeigte Puls faltet zur etablierten Rate (>1.6× → /2, <0.6× → ×2),
-    springt also nicht mehr zwischen 98 und 196 (nur Display, physiologische Kontinuität).
-  • Lock-BPM + Transport-Tempofeld überschreiben JEDERZEIT — du behältst die volle Kontrolle.
-  Compile-Check-Review grün (statisch, Typ-konsistent). CI bestätigt final.
-  TEST 10.79.37: Generate starten mit Puls am Sensor → bleibt das Tempo jetzt STABIL, auch
-  wenn der gemessene Puls kurz auf ~196 springt? Läuft der Beat durch, ohne auf Doppeltempo
-  umzuschlagen? Kannst du jetzt in Ruhe Musik machen?
+notesT: Loop-Mode Zyklus 1 — deine drei Punkte in einem Zug (Puls bugfrei · Tempo-Lock
+  vertrauenswürdig · BPM-Lock global · Modulation bleibt von Bio):
+  • GEMESSENER PULS bugfrei ohne unrealistische Sprünge: die angezeigte BPM bekommt einen
+    physiologischen „Slew-Cap" (max ~2 bpm pro Messtick / ~20 bpm/s). Ein rPPG-Glitch oder
+    Oktavfehler (z. B. 70→133) GLEITET jetzt über Sekunden statt zu springen. Ein echter
+    Pulsanstieg kommt problemlos durch, ein Teleport wird abgefangen.
+  • TEMPO lockt nur noch bei SICHEREM Puls: der Body setzt das Take-Tempo erst, wenn die
+    Messung wirklich vertrauenswürdig eingeschwungen ist (Confidence ≥ 0,6) — nicht mehr beim
+    ersten wackeligen 0,35-Wert. Solange der Puls noch einschwingt, hält der Beat ein stabiles
+    Tempo statt dem Rauschen zu folgen. Danach: gelockt und durchlaufend.
+  • BPM-LOCK bleibt GLOBAL: dein manueller Lock (Toggle / Tap-Tempo / Transport-Feld) gewinnt
+    weiterhin über jedes Body-Seeding — unverändert, überall.
+  • MODULATION bleibt LIVE von Biofeedback: der an die Klang-/Visual-Engine gelieferte Bio-Frame
+    ist unberührt — nur die ANZEIGE und die Tempo-Lock-Regel wurden stabilisiert. Dein Körper
+    moduliert Timbre/Visuals weiterhin in Echtzeit.
+  Compile-Review grün (2 Dateien, typ-konsistent). CI bestätigt final.
+  TEST 10.79.38: Finger am Sensor, Generate starten → springt die angezeigte BPM noch
+  unrealistisch, oder gleitet sie sauber? Bleibt das Tempo stabil, auch während der Puls
+  einschwingt? BPM-Lock testen (Toggle/Tap) → hält er global? Nächster Zyklus: Klang soll
+  echter nach Instrument klingen.
