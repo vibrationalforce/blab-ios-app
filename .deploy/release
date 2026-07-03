@@ -1,18 +1,19 @@
-build: 2026-07-03 v10.79.44 (Visuals: kein Doppel-Render/Black-Screen — nur EIN Visual aktiv)
+build: 2026-07-03 v10.79.45 (Fable-Zyklus: Aufräumen · Tests · Visual-Parität · ehrliche Website)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Volle Autonomie („du entscheidest, grab all tasks") → ich arbeite den Visual-Strang ab.
-  Ein Visual-Audit fand die Architektur solide (kein Audio-Thread-/NaN-Problem, Governor ok),
-  aber EINEN echten Korrektheits-Bug:
-  • BLACK-SCREEN-BUG behoben: Das Vollbild-Visual (Tools → Visual) mountete eine ZWEITE
-    Render-Engine, während das schwebende Visual-Fenster darunter WEITER rendert. Zwei laufende
-    Metal-Views hungern die GPU aus → das immersive Bild wird sekundenlang schwarz; außerdem nahm
-    der Recorder doppelt auf. Jetzt: das schwebende Fenster blendet sich aus, solange das Vollbild
-    offen ist, und kommt beim Schließen zurück → immer nur EINE Render-Engine aktiv (Projektions-
-    Vollbild bleibt erhalten).
-  • Kleiner freier Perf-Gewinn: Bildrate nur bei echtem Tier-Wechsel neu setzen statt 60×/s (spart
-    über lange Installations-Läufe).
-  Zurückgestellt (brauchen Geräte-Test): FPS-Pause bei Reduce-Motion, framebufferOnly-Feinschliff.
-  Compile-Review grün, kein Audio-Thread/Bio-DSP berührt.
-  NÄCHST im Strang: schwebendes Fenster „bearbeiten" + externe Displays (dormant+abgesichert).
-  TEST 10.79.44: Vollbild-Visual öffnen/schließen (Tools → Visual) → bleibt es stabil (kein
-  Schwarz mehr), und das schwebende Fenster ist danach wie vorher da?
+notesT: Fable 5, Ralph-Ultrathink-Modus („du entscheidest … aufräum, testsimulation, debug,
+  testflight deploy — vermeide slop"). Drei Zyklen in diesem Build:
+  • AUFRÄUMEN + TESTS: die Anti-Sprung-Tempologik ist jetzt als CI-Tests festgeschrieben —
+    die 196→98-Oktavfaltung, „Glide springt NIE synchron während des Spielens", „setTempo
+    gewinnt sofort", „Stop friert ein". Diese Verträge laufen ab jetzt bei JEDEM Push auf CI
+    (bereits grün gelaufen). Die Tempo-Mathematik ist dafür in die getestete Produktions-Mathe-
+    Heimat (StudioCalculator) gezogen — kein Verhalten geändert.
+  • VISUAL-PARITÄT: das schwebende Visual-Fenster folgt jetzt der gewählten Tonart-Farbe
+    (statt hartem C4 im Idle) und pulsiert mit einem gearmten Brainwave-Entrainment — exakt
+    wie das Vollbild. Die sichtbare Drift zwischen Fenster und Vollbild ist weg.
+  • WEBSITE EHRLICH GEMACHT (echoelmusic.com, live nach Merge): Ableton-Link-Overclaim entfernt
+    (war als „live" verkauft — ist Roadmap); nicht-existente Touch-Instrumente ehrlich gemacht;
+    UND die echten Differenzierer werden endlich behauptet: Visuals (10 GPU-Looks) + Art-Net/
+    sACN-Licht sind LIVE, „drum-free" überall raus (die App hat längst Beat/Drums). FAQ-Schema
+    validiert, Seiten render-geprüft.
+  TEST 10.79.45: Tonart wechseln → nimmt das schwebende Fenster die Farbe an? Entrainment
+  armen → pulsiert das Fenster mit? Tempo-Verhalten unverändert stabil (79.42-Fix)?

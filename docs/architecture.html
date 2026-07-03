@@ -246,7 +246,7 @@
             <!-- GENERATIVE COMPOSITION -->
             <section id="seq">
                 <h2>Generative Composition <span class="tag">LIVE</span></h2>
-                <p>Echoelmusic is <strong>drum-free</strong> by design. Your biometrics compose harmonic and melodic loops in any key and BPM, which you render to .wav and MIDI for your DAW.</p>
+                <p>Your biometrics compose harmonic, melodic and rhythmic loops in any key and BPM — with an optional beat layer blending samples and physical-model drum synthesis — which you render to .wav and MIDI for your DAW.</p>
                 <div class="data-row"><div class="k">BioComposer</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity, automation and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Voice triggering</div><div class="v">Notes are fired lock-free via an atomic trigger counter (no allocation on the audio thread) into the bio-reactive synth voices. A drum/sampler track and a step sequencer are <span class="tag">ROADMAP</span>, not in the app today.</div></div>
             </section>
@@ -344,7 +344,7 @@
                 <h2>Module Map</h2>
                 <p>How the product surface (the 12 <a href="tools.html">Echoel engines</a>) maps onto real source modules:</p>
                 <div class="data-row"><div class="k">EchoelSynth <span class="tag">LIVE</span></div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank</div></div>
-                <div class="data-row"><div class="k">EchoelGen <span class="tag">LIVE</span></div><div class="v">Bio-driven drum-free generative composition — harmonic &amp; melodic loops in any key and BPM → .wav / MIDI export</div></div>
+                <div class="data-row"><div class="k">EchoelGen <span class="tag">LIVE</span></div><div class="v">Bio-driven generative composition — harmonic, melodic &amp; rhythmic loops in any key and BPM → .wav / MIDI export</div></div>
                 <div class="data-row"><div class="k">EchoelFX <span class="tag">LIVE</span></div><div class="v">EchoelVDSPKit · EchoelSVFilter · EchoelLFO · AutoMixChain · DDSP convolution reverb</div></div>
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
@@ -372,7 +372,7 @@
                             <li>DDSP / Cellular / Modal synthesis</li>
                             <li>Convolution reverb · 4-band EQ · LUFS</li>
                             <li>AudioEngine + 30s RetroCapture</li>
-                            <li>Drum-free generative composition (any key/BPM)</li>
+                            <li>Generative composition (any key/BPM)</li>
                             <li>AUv3 generator plugin (8 params)</li>
                             <li>WAV/AAC + MIDI export</li>
                             <li>OSC + ADM-OSC out (EchoelSync)</li>
@@ -386,12 +386,10 @@
                         <h3>On the roadmap</h3>
                         <ul>
                             <li>MPE channel pressure + zone detection</li>
-                            <li>Step sequencer / drum &amp; sampler track</li>
                             <li>Generative automation / Euclidean / polyrhythm</li>
                             <li>Multi-track recorder</li>
                             <li>Delay / modulation / compressor / limiter</li>
                             <li>Richer Metal visuals + chroma key</li>
-                            <li>Short-form MP4 video export</li>
                             <li>Video NLE + ProRes + color grading</li>
                             <li>RTMP streaming (HaishinKit, v1.1)</li>
                             <li>EchoelLux — DMX-512 / HomeKit (Art-Net + sACN live)</li>

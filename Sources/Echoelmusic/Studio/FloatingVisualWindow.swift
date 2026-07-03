@@ -65,6 +65,10 @@ struct FloatingVisualWindow: View {
     #if canImport(AVFoundation)
     @Environment(VisualRecorder.self) private var recorder
     @Environment(AudioEngine.self) private var audioEngine
+    /// For idle-tone colour + entrainment pulse parity with the fullscreen visual (audit #5:
+    /// the floating window fell back to C4 and ignored an ARMED entrainment). Both reads are
+    /// LOW-frequency (user-set toggles/keys) — safe in this leaf body per the freeze rule.
+    @Environment(PolySynthVoice.self) private var synth
     // For a fitting MP4 name (founder: "Session Recording für video und auch passender
     // Name") — same convention as the WAV: Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4.
     @Environment(SessionContext.self) private var session
@@ -92,6 +96,10 @@ struct FloatingVisualWindow: View {
     @AppStorage("visual.spread") private var visualSpread = 1.0
     @AppStorage("visual.hue") private var visualHue = 0.0
     @AppStorage("visual.saturation") private var visualSaturation = 0.82
+
+    /// The Studio's key root — same key + default as EchoelStudioView, so the IDLE tint of
+    /// this window matches the fullscreen visual's tonic instead of a hardcoded C4.
+    @AppStorage("studio.rootIndex") private var rootIndex = 0
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -127,6 +135,29 @@ struct FloatingVisualWindow: View {
     private let margin: CGFloat = 12
     private let handleHeight: CGFloat = 30
 
+    /// Tonic frequency for the IDLE tint (when nothing sounds the renderer falls back to this;
+    /// while music plays it pulls the live tone itself from the bus). Mirrors the fullscreen
+    /// visual's mapping minus the per-take transpose (a @State there, irrelevant while idle).
+    private var idleToneHz: Double {
+        #if canImport(AVFoundation)
+        return session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0) / 12.0)
+        #else
+        return 261.63
+        #endif
+    }
+
+    /// Armed brainwave-entrainment visual pulse — same LOW-frequency guard as the fullscreen
+    /// path (never the 10 Hz auto target), so the floating picture breathes with an armed
+    /// entrainment exactly like the fullscreen one. 0 = none.
+    private var entrainmentPulse: Double {
+        #if canImport(AVFoundation)
+        guard synth.entrainmentEnabled, let band = synth.entrainmentManualBand else { return 0 }
+        return BioEntrainmentDirector.visualHz(for: band)
+        #else
+        return 0
+        #endif
+    }
+
 
     var body: some View {
         GeometryReader { geo in
@@ -152,11 +183,12 @@ struct FloatingVisualWindow: View {
             // recording (it is the only Metal path, so no double-capture). The look params
             // are the SHARED design keys (style/blend + the six energy/palette params), so
             // every tweak in the Visual panel shows here live.
-            MetalBioView(capturesVideo: true, reduceMotion: reduceMotion,
+            MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: idleToneHz,
                          intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
                          motion: Float(visualMotion), spread: Float(visualSpread),
                          hueShift: Float(visualHue), saturation: Float(visualSaturation),
-                         style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend))
+                         style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
+                         entrainmentPulseHz: entrainmentPulse)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
                 #if canImport(AVFoundation)
