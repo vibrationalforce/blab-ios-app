@@ -176,15 +176,39 @@ private struct TransportBar: View {
 @MainActor
 private struct TransportPositionView: View {
     @Environment(Transport.self) private var transport
+    /// The loop size (shared @AppStorage with the Compose panel). Read here so the chrome
+    /// always SHOWS how big the loop is + where we are inside it (founder: "optische Anzeige,
+    /// je nachdem wie groß der Loop umgestellt ist"). Low-frequency — safe in this leaf.
+    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
 
     var body: some View {
         let pos = transport.position
+        let bars = max(1, loopBars.rawValue)
+        let barInLoop = pos.bar % bars                 // 0-based bar within the current loop
         let sixteenth = pos.step % Transport.stepsPerBeat
-        Text(String(format: "%d.%d.%d", pos.bar + 1, pos.beat + 1, sixteenth + 1))
-            .font(EchoelTheme.font(14, .medium).monospacedDigit())
-            .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
-            .accessibilityLabel("Position")
-            .accessibilityValue("Bar \(pos.bar + 1), beat \(pos.beat + 1)")
+        // Fraction through the whole loop (bars × 16 steps) — drives the slim progress bar.
+        let loopFraction = Double(barInLoop * Transport.stepsPerBar + pos.step)
+            / Double(bars * Transport.stepsPerBar)
+        return HStack(spacing: 8) {
+            // Slim loop-progress bar: fills once per loop so the loop length is legible at a
+            // glance (opacity/fill only — no glow, per the UI rules).
+            ZStack(alignment: .leading) {
+                Capsule().fill(EchoelTheme.text.opacity(0.12)).frame(width: 44, height: 4)
+                Capsule().fill(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
+                    .frame(width: 44 * max(0.02, loopFraction), height: 4)
+            }
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(String(format: "%d.%d.%d", barInLoop + 1, pos.beat + 1, sixteenth + 1))
+                    .font(EchoelTheme.font(14, .medium).monospacedDigit())
+                    .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
+                Text("loop \(barInLoop + 1)/\(bars)")
+                    .font(EchoelTheme.font(10).monospacedDigit())
+                    .foregroundStyle(EchoelTheme.dim)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Position")
+        .accessibilityValue("Bar \(barInLoop + 1) of \(bars), beat \(pos.beat + 1)")
     }
 }
 #endif
