@@ -218,17 +218,23 @@ public final class PianoRollModel {
             self?.automation?.applyStep(step)
             self?.trigger(step)
         }
-        // Any stop (from any view) flushes held notes — no caller can forget.
-        pattern.onStop = { [weak self] in self?.allNotesOff() }
+        // Any stop (from any view) flushes held notes AND resets the loop phase — this hook
+        // fires on EVERY stop path (pattern.stop() → onStop), unlike stop(pattern:) which is
+        // not wired. Resetting here keeps a replay in sync: the transport rewinds position.bar
+        // to 0 on stop, so playedBars must rewind too, or the next Play starts on the wrong
+        // bar with a permanent phase offset vs the "bar N/M" indicator.
+        pattern.onStop = { [weak self] in
+            guard let self else { return }
+            self.pendingNotes = nil
+            self.playedBars = 0
+            if self.arrangementBars.count > 1 { self.notes = self.arrangementBars[0] }
+            self.allNotesOff()
+        }
     }
 
     public func stop(pattern: PatternEngine) {
         pattern.onTick = nil
         pendingNotes = nil
-        // Reset the loop phase so a replay starts on bar 0, in sync with the transport's
-        // bar counter (which also resets on stop). Rewind the roll to bar 0 when cycling.
-        playedBars = 0
-        if arrangementBars.count > 1 { notes = arrangementBars[0] }
         allNotesOff()
     }
 
