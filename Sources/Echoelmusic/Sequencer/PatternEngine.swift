@@ -216,9 +216,13 @@ public final class PatternEngine {
     /// If the engine is playing, the timer restarts at the new interval.
     public func setTempo(_ bpm: Double) {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
+        // Relay to the authoritative Transport FIRST, before the no-op early return below.
+        // If Transport.tempo ever diverged (a write before the relay was wired, or a direct
+        // Transport edit), a subsequent same-value setTempo must still re-sync the displayed
+        // value — otherwise the transport bar keeps showing a stale tempo forever.
+        transport?.setTempo(clamped)
         guard clamped != tempo else { return }
         tempo = clamped
-        transport?.setTempo(clamped)
         // Re-arm at the new rate if playing, otherwise the already-scheduled tick
         // would still fire at the OLD interval (one lagged step after a tempo
         // change / regenerate). scheduleTick invalidates the old timer first.

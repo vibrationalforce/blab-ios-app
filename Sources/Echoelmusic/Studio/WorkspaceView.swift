@@ -113,6 +113,11 @@ private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
     @Environment(MetronomeVoice.self) private var metronome
+    // Shared with the Compose panel (same @AppStorage keys + defaults). Read here so a
+    // transport-bar tempo edit while LOCKED also persists the locked value — otherwise the
+    // next generate() would snap the clock back to the stale lockedBPM.
+    @AppStorage("studio.lockBPM") private var lockBPM = false
+    @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
 
     /// Writes tempo through PatternEngine.setTempo (which clamps AND relays into
     /// Transport), reads back the authoritative Transport tempo, and keeps the
@@ -124,6 +129,7 @@ private struct TransportBar: View {
                 set: {
                     player.pattern.setTempo($0)
                     metronome.bpm = transport.tempo   // clamped, authoritative value
+                    if lockBPM { lockedBPM = transport.tempo }   // keep the locked copy in step
                 })
     }
 

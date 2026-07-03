@@ -873,22 +873,35 @@ struct EchoelStudioView: View {
             }
             .tint(EchoelTheme.accent)
             .onChange(of: lockBPM) { _, on in
-                // Enabling the lock ADOPTS the body's current tempo instead of
-                // snapping to a stale value — so the take (and the tempo-driven
-                // immersive circles) stay continuous through the toggle. Falls back
-                // to the existing lockedBPM when no fresh bio frame is available.
-                if on, let hr = bus.freshBio()?.heartRateBPM, hr >= 40, hr <= 240 {
-                    lockedBPM = (Double(hr) * 10).rounded() / 10
-                    if running { beatPlayer.pattern.setTempo(lockedBPM); metronome.bpm = lockedBPM }
+                // Enabling the lock ADOPTS the body's current tempo (whole BPM) as the locked
+                // value, then reflects it in the CLOCK immediately so the transport bar, this
+                // field and the click all show the same number at once. Falls back to the
+                // saved lockedBPM when no fresh bio frame is available.
+                if on {
+                    if let hr = bus.freshBio()?.heartRateBPM, hr >= 40, hr <= 240 {
+                        lockedBPM = Double(hr).rounded()
+                    }
+                    beatPlayer.pattern.setTempo(lockedBPM)
+                    metronome.bpm = beatPlayer.pattern.tempo
                 }
                 recomposeIfRunning()
             }
             .accessibilityHint("When on, the loop locks to your current heart-rate tempo for tight loops")
 
             if lockBPM {
-                EchoelValueField(label: "Tempo", value: $lockedBPM, range: 40...240, unit: "BPM",
-                                 onChange: { if running { beatPlayer.pattern.setTempo(lockedBPM); metronome.bpm = lockedBPM } },
-                                 onCommit: { recomposeIfRunning() })
+                // Bind to the AUTHORITATIVE clock (pattern.tempo), not the parallel lockedBPM
+                // copy, so this field can never disagree with the transport bar. Every edit
+                // pushes the clock AND persists lockedBPM (so a later generate/relaunch keeps
+                // the locked value instead of snapping back).
+                EchoelValueField(label: "Tempo", value: Binding(
+                    get: { beatPlayer.pattern.tempo },
+                    set: { v in
+                        beatPlayer.pattern.setTempo(v)
+                        lockedBPM = beatPlayer.pattern.tempo    // clamped, authoritative
+                        metronome.bpm = beatPlayer.pattern.tempo
+                    }),
+                    range: 40...240, unit: "BPM",
+                    onCommit: { recomposeIfRunning() })
             }
 
             tapTempoRow
@@ -1680,8 +1693,13 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// Current effective tempo (locked BPM or the body-driven pattern tempo).
-    private var currentTempo: Double { lockBPM ? min(max(lockedBPM, 40), 240) : beatPlayer.pattern.tempo }
+    /// Current effective tempo. ALWAYS the authoritative clock (`pattern.tempo`, relayed to
+    /// Transport) — never a parallel `lockedBPM` copy. `lockBPM` only decides whether
+    /// `generate()` re-locks the clock to the saved tempo or follows the body; while locked,
+    /// every edit path keeps `lockedBPM` in lockstep with `pattern.tempo`, so this single
+    /// reader matches the transport bar, the compose field, the click, the export and the
+    /// filename — the fix for "die BPM ist nicht überall konsistent".
+    private var currentTempo: Double { beatPlayer.pattern.tempo }
 
     /// Stamp the chosen effect character on the live FX chain (independent of genre).
     private func applyFX() {
@@ -2169,8 +2187,10 @@ struct EchoelStudioView: View {
         synth.setTuning(a4Hz: session.a4Hz)
         subBass.setTuning(a4Hz: session.a4Hz)
         synth.apply(currentPatch)
-        // Locked tempo wins for tight loops; otherwise the body sets the pace.
-        let tempo = lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo
+        // Locked tempo wins for tight loops; otherwise the body sets the pace. Rounded to a
+        // WHOLE BPM so the clock, the transport bar (0 decimals), the click and the export
+        // filename all show the identical number — no "87 here / 87.3 there" split.
+        let tempo = (lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo).rounded()
         // Push the live musical context so the roll's per-tick MusicalFrame carries the
         // current key/scale/tempo/concert-pitch → renderers colour by the right key.
         pianoRoll.musicalA4Hz = session.a4Hz
@@ -2374,6 +2394,13 @@ struct EchoelStudioView: View {
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
+        // Everything that mirrors tempo must follow a loaded take, or the click and the
+        // visual/OSC frame keep the OLD project's BPM (Finding F). Route through the
+        // authoritative clock value (clamped) so all readers show one number.
+        let loadedTempo = beatPlayer.pattern.tempo
+        metronome.bpm = loadedTempo
+        pianoRoll.musicalTempoBPM = loadedTempo
+        lockedBPM = loadedTempo
         hasComposed = true
         // Re-push the microtonal retune for the restored root. onChange(of:rootIndex)
         // won't fire if the opened key matches the current one, so do it explicitly
