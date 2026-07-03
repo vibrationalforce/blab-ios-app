@@ -54,6 +54,11 @@ struct FloatingVisualWindow: View {
     /// Show/hide — owned by WorkspaceView (persisted there), toggled from the header.
     @Binding var isPresented: Bool
 
+    /// Honour the system Reduce Motion setting here too (the fullscreen path already did) —
+    /// otherwise the floating visual keeps animating for a user who asked motion to stop.
+    /// Accessibility + consistency parity fix (visuals audit 2026-07-03).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MP4 capture (founder 2026-07-02: "WAV und MP4 sind die Formate der Wahl"). The
     // window's MetalBioView is the single Metal path, so it is the one capture instance;
     // tapping record writes the bio-reactive visual (+ the live audio) to an .mp4 to share.
@@ -147,7 +152,7 @@ struct FloatingVisualWindow: View {
             // recording (it is the only Metal path, so no double-capture). The look params
             // are the SHARED design keys (style/blend + the six energy/palette params), so
             // every tweak in the Visual panel shows here live.
-            MetalBioView(capturesVideo: true,
+            MetalBioView(capturesVideo: true, reduceMotion: reduceMotion,
                          intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
                          motion: Float(visualMotion), spread: Float(visualSpread),
                          hueShift: Float(visualHue), saturation: Float(visualSaturation),

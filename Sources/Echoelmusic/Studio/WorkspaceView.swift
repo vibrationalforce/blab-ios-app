@@ -24,7 +24,10 @@ struct WorkspaceView: View {
 
     /// The immersive visual rides along as a FLOATING, resizable, show/hide window
     /// (founder 2026-07-02) — toggled from the header monitor, persisted across launches.
-    @AppStorage("visual.floating.visible") private var floatingVisualVisible = false
+    /// Default TRUE so the living Aurora greets the user immediately ("wow von Sekunde 1",
+    /// Council 2026-07-03); it's flash-safe + reduce-motion-aware and one tap to hide, and
+    /// @AppStorage remembers a user who hides it (only fresh installs auto-show).
+    @AppStorage("visual.floating.visible") private var floatingVisualVisible = true
 
     var body: some View {
         VStack(spacing: 0) {
