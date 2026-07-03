@@ -1,19 +1,18 @@
-build: 2026-07-03 v10.79.36 (Bar-Cycling — Komposition stellt sich je nach Loop-Größe um)
+build: 2026-07-03 v10.79.37 (Stabiler Beat — keine 196-bpm-Sprünge beim Musikmachen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Der hörbare Teil deines Loop-Wunsches (nach der optischen Anzeige in 79.35): die
-  Komposition spielt jetzt WIRKLICH so viele verschiedene Takte, wie die Loop-Größe sagt —
-  nicht mehr denselben Takt N-mal.
-  • generate() baut `loopBars` verschiedene, aber ZUSAMMENGEHÖRIGE Takte (gleicher Struktur-
-    Seed → sie klingen wie EIN Stück; pro-Takt-Detail-Seed → jeder Takt ist anders). Die
-    Piano-Roll zykliert einen Takt pro Loop und tauscht sie NAHTLOS am bestehenden Takt-
-    Übergang (kein Schnitt, keine neue Uhr, kein stepCount-Umbau).
-  • Audio bleibt IN SYNC mit der „Takt N/M"-Anzeige (bewiesen: bei Transport-Takt k klingt
-    Takt k mod N). Live-Neugenerierung, Stop→Play und Loop-Größe-Wechsel während des Spielens
-    halten die Phase (adversariale Logikprüfung: 1 Bug gefunden + gefixt — Phasen-Reset in den
-    onStop-Hook verschoben; Loop-Größe-Picker regeneriert jetzt beim Spielen).
-  • 1 Takt / leer = klassisches Verhalten (keine Regression). Drums bleiben im Generativ-Pfad
-    stumm (unverändert).
-  Compile-Check grün (5bdf18b). Das LOOP-TIMING kann nur dein Gerät final bestätigen.
-  TEST 10.79.36: Generate starten → hörst du über die Loop-Länge mehrere verschiedene Takte,
-  die sich zu einem Stück fügen und sauber loopen? Stimmt die „Takt N/M"-Anzeige mit dem
-  gehörten Takt überein? Loop-Größe umstellen (2/4/8…) → ändert sich Länge + Inhalt sauber?
+notesT: Dein blockierendes Problem: „Springt ständig auf 196 bpm ich will Musik machen. Bei
+  diesen Sprüngen funktioniert das nicht." Ursache gefunden: der Body hat den Tempo bei JEDEM
+  Evolve-/Re-Seed-Tick neu abgeleitet — wenn der rPPG-Puls sich verdoppelt (196 ≈ 2×98),
+  schlug der Beat mitten im Take auf Doppeltempo um.
+  • SEED-ONCE-THEN-HOLD: Der Body seedet den Tempo jetzt EINMAL zu Beginn eines Takes, danach
+    HÄLT der Beat. Evolve-/Re-Seed-Ticks entwickeln nur noch die MELODIE — nie mehr den Beat.
+    Beim Stop wird zurückgesetzt → der nächste Take seedet aus frischem Puls.
+  • OKTAV-FALTUNG des Seeds: ein verdoppelter Puls (>130) wird halbiert (clamp 50…160) — kein
+    Runaway-Tempo mehr möglich.
+  • ANZEIGE-Faltung: der gezeigte Puls faltet zur etablierten Rate (>1.6× → /2, <0.6× → ×2),
+    springt also nicht mehr zwischen 98 und 196 (nur Display, physiologische Kontinuität).
+  • Lock-BPM + Transport-Tempofeld überschreiben JEDERZEIT — du behältst die volle Kontrolle.
+  Compile-Check-Review grün (statisch, Typ-konsistent). CI bestätigt final.
+  TEST 10.79.37: Generate starten mit Puls am Sensor → bleibt das Tempo jetzt STABIL, auch
+  wenn der gemessene Puls kurz auf ~196 springt? Läuft der Beat durch, ohne auf Doppeltempo
+  umzuschlagen? Kannst du jetzt in Ruhe Musik machen?
