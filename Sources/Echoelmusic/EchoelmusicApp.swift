@@ -382,9 +382,22 @@ struct EchoelmusicApp: App {
                 bioFeedback.start(publishingFrom: bus)
 
                 // Modulation routing: empty matrix → no behaviour change until the
-                // user adds a route. Tempo handler scales [0..1] into [30..300] BPM.
+                // user adds a route. Tempo handler scales [0..1] into [30..300] BPM raw,
+                // then octave-folds into the playable window.
+                //
+                // THIS handler was the founder's "in dem Moment wo bpm locked springt die
+                // bpm nach oben" (video, 79.45): a Body→Tempo route fires the instant the
+                // pulse locks (first published frames) and the old raw setTempo BYPASSED
+                // the global BPM lock and SNAPPED the clock (75 → 195.5 = 30+0.613×270).
+                // Three rules now, matching the app-wide tempo philosophy:
+                //   1. the user's BPM lock wins GLOBALLY — a locked take ignores the route;
+                //   2. octave-fold the target (StudioCalculator.seedTempo) so a normalized
+                //      signal can never demand an absurd 196–300 bpm;
+                //   3. GLIDE, never snap — the beat eases toward the body (advance() ticks).
                 modulationEngine.register(ModDestinationKey.tempo) { [weak beatPlayer] value in
-                    beatPlayer?.pattern.setTempo(30 + Double(value) * 270)
+                    guard !UserDefaults.standard.bool(forKey: "studio.lockBPM") else { return }
+                    let raw = 30 + Double(value) * 270
+                    beatPlayer?.pattern.glideTempo(to: StudioCalculator.seedTempo(raw))
                 }
                 modulationEngine.start(subscribing: bus)
                 // Non-essential I/O (BLE straps, external MIDI, OSC/ADM/Art-Net/sACN

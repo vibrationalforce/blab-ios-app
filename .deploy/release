@@ -1,17 +1,18 @@
-build: 2026-07-03 v10.79.46 (Lock springt nicht mehr nach oben — beide Lock-Wege repariert)
+build: 2026-07-03 v10.79.47 (Der Video-Fund: Modulations-Route umging deinen BPM-Lock — behoben)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Feuerwehr: „In dem Moment wo bpm locked springt die bpm nach oben." Dein Log hat es
-  bewiesen (Lock latchte 87, während der Puls noch auf 69 fiel). ZWEI Ursachen, beide behoben:
-  • MANUELLER BPM-LOCK (Toggle/Tap): übernahm beim Einschalten den ROHEN Puls-Messwert — bei
-    einem Oktavfehler das Doppelte, und immer als harter Sprung. Jetzt: der Lock FRIERT das
-    Tempo ein, das GERADE LÄUUFT — exakt das, was du hörst. Ein Sprung ist damit per
-    Konstruktion unmöglich. (Tap-Tempo setzt die Uhr jetzt vor dem Lock — auch im Stand korrekt.)
-  • BODY-LOCK: der Sicherheits-Gate feuerte auf dem FALLENDEN Teil der Einschwingkurve — sicher
-    genug, aber noch nicht unten angekommen. Neu: gelockt wird erst, wenn der Puls „settled" ist —
-    sicher UND ~3 Sekunden FLACH (±3 bpm). Erst wenn die Kurve wirklich unten ist, übernimmt der
-    Body das Tempo (und gleitet sanft, wie seit 79.42). Nie settled → der Take behält sein Tempo.
-  Die Anti-Sprung-Verträge aus 79.45 (CI-Tests) bleiben aktiv; Brustgurt/HealthKit locken wie
-  gehabt sofort (deren Werte sind stabil).
-  TEST 10.79.46: 1) Generate starten, Finger drauf, warten → übernimmt der Beat den Puls jetzt
-  ERST wenn die Zahl wirklich ruhig steht (kein Hochspringen mehr im Lock-Moment)? 2) Lock-BPM-
-  Toggle während des Spielens einschalten → bleibt das Tempo exakt da, wo es gerade ist?
+notesT: Dein Video war der Durchbruch. Frame bei ~11 s: im Puls-Lock-Moment springt das Tempo
+  75 → 196, OBWOHL Lock BPM an ist. Die Zahl 195.5119 im Tempo-Feld hat den Täter mathematisch
+  verraten: 30 + 0,613 × 270 — die Formel der Modulations-Engine. Du hast eine Body→Tempo-
+  Modulationsroute aktiv (gewollt!), aber ihr Handler schrieb das Tempo DIREKT an der Uhr —
+  an deinem globalen BPM-Lock vorbei, ungefaltet, als harter Sprung. Sie feuert genau dann,
+  wenn der Puls lockt (erste Bio-Frames) — daher „in dem Moment wo bpm locked springt die bpm".
+  Der dritte und letzte Tempo-Schreibpfad, jetzt mit denselben Regeln wie alle anderen:
+  • DEIN BPM-LOCK GEWINNT GLOBAL: ist Lock an, ignoriert die Route das Tempo komplett.
+  • OKTAV-FALTUNG: die Route kann nie mehr absurde 196–300 bpm anfordern (195,5 → ~98).
+  • GLEITEN statt springen: ohne Lock folgt der Beat dem Körper sanft.
+  Die Modulation selbst bleibt voll aktiv (Body treibt weiter Sound/Visuals — dein Wunsch).
+  Dazu aus 79.46 (im selben TestFlight-Stand): manueller Lock friert das laufende Tempo ein
+  (kein Roh-Puls-Snap), Body-Lock wartet auf settled (sicher UND ~3 s flach).
+  TEST 10.79.47: Dasselbe Szenario wie dein Video — Lock BPM an, Generate, Finger drauf,
+  warten bis „Locked" → bleibt das Tempo jetzt FELSENFEST bei deinem Wert? Und ohne Lock:
+  gleitet der Beat sanft Richtung Puls statt zu springen?
