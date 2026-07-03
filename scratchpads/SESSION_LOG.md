@@ -4056,3 +4056,46 @@ Founder MUST update TestFlight to see any of it (device logs still showed old bu
   WorkspaceView/FloatingVisualWindow observation all verified clean. Finding 3 (EchoelStudioView
   modal chain at the metadata ceiling) = informational, no action, DO NOT grow it.
 - CI note: GitHub auth expired mid-session; both audit agents substituted for the compile-check.
+
+---
+
+## Session 2026-07-03 — Deep-audit pass ("Alles überarbeiten … Wow ab Sekunde 1")
+
+Founder: rework + stabilize for consistent wow from second 1; composition loop-conform +
+reconfigure per loop size (optical indicator); BPM inconsistent; optimize visuals; deep-audit
+architecture + hardcode for best-possible accessibility.
+
+**4 parallel deep-audits** (BPM · Loop · Visuals · Architecture/Accessibility; + hardcode
+sub-sweep) → prioritized fixes. Council-gated the 2 hard-to-reverse calls (multi-bar loop;
+visual-on-by-default). All CI-compile verified.
+
+**Shipped (79.35, CI-green 0b7b92b):**
+- BPM single-source-of-truth: currentTempo→clock; applied tempo rounded to whole BPM;
+  compose field binds to clock (no snap-back); lockedBPM persists on every edit path;
+  loadProject syncs click/frame; relay-hole fix. (BioComposer/PatternEngine/Transport untouched
+  in logic — just routing.)
+- Wow from second 1: floating visual shown by DEFAULT; heartbeat legible (bloom brightens +
+  expands per beat); idle attract drift (palette/coherence/breath when no bio+no music).
+- Visuals: floating window honours Reduce Motion; skip style-B when blend≈0 (perf).
+- Loop-size indicator (1a): transport shows bar N/M + loop progress bar (loop-relative).
+- Accessibility: onboarding contrast→WCAG AA; EchoelTheme.success/.warning/.radiusSmall tokens
+  (replaced inline orange/green/amber); decorative waveform accessibilityHidden.
+
+**Bar-cycling (1b, 79.36 — implemented, adversarially reviewed, needs DEVICE loop-timing verify):**
+- generate() builds loopBars distinct-but-cohesive bars (shared structureSeed, per-bar detail
+  seed = evolvingSeed &+ barIndex); PianoRollModel cycles one bar per loop via the existing
+  step-0 pendingNotes boundary swap. playedBars mirrors transport wraps → audio stays in sync
+  with the bar N/M indicator (proven: sounding = bars[k%N] at position.bar=k). NOT a stepCount
+  lift (Council). Single/empty bar = classic (no regression).
+- Adversarial logic review: Q1/Q2/Q3/Q5 confirmed OK; Q4 BUG found + fixed — phase reset was in
+  DEAD stop(pattern:); moved to onStop hook (fires on every stop path). Loop-size picker now
+  regenerates while playing so audio+indicator stay in sync.
+
+**Decisions logged:** bar-cycling-not-stepCount-lift; visual-on-by-default; blind-ship-with-audit
+substitute (decisions.csv). Plan: scratchpads/PLAN_BAR_CYCLING_1B.md.
+**Founder must update TestFlight to 79.36 to hear multi-bar loops (device confirms loop timing).**
+
+**79.36 SHIPPED (bar-cycling):** compile-check 5bdf18b GREEN → deployed. Composition now plays
+loopBars distinct-but-cohesive bars, cycling in sync with the bar N/M indicator. Awaiting
+founder device verification of the loop timing (the one thing CI can't check). This also
+delivers the long-pending M2 "multi-bar arrangement" task.

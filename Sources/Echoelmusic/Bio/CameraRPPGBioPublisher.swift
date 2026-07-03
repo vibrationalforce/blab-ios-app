@@ -298,9 +298,18 @@ public final class CameraRPPGBioPublisher {
                 self.detectedBPM = self.analyzer.estimatedBPM
                 // Calm display value: advance only on a confident reading (EMA), else hold.
                 if self.detectedBPM > 0 && self.confidence >= Self.displayThreshold {
+                    var bpm = self.detectedBPM
+                    // OCTAVE-FOLD toward the established rate: rPPG often reports 2× (or ½) the
+                    // true pulse (founder: "springt ständig auf 196 bpm"). Once a stable value
+                    // exists, fold a doubled/halved estimate back so the SHOWN number doesn't
+                    // yank between 98 and 196 — physiological continuity, display-only.
+                    if self.displayBPM > 0 {
+                        if bpm > self.displayBPM * 1.6 { bpm /= 2 }
+                        else if bpm < self.displayBPM * 0.6 { bpm *= 2 }
+                    }
                     self.displayBPM = self.displayBPM == 0
-                        ? self.detectedBPM
-                        : self.displayBPM * 0.6 + self.detectedBPM * 0.4
+                        ? bpm
+                        : self.displayBPM * 0.6 + bpm * 0.4
                 }
                 self.waveform = self.analyzer.recentWaveform
 
