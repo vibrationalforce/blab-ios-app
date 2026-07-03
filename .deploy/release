@@ -1,16 +1,20 @@
-build: 2026-07-03 v10.79.41 (Produktions-Härtung: Speicher-Sicherheit im Pre-Roll-Writer)
+build: 2026-07-03 v10.79.42 (BPM springt nicht mehr — Zahl geglättet + Tempo gleitet)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Loop-Mode Zyklus 4 — Produktions-Crash-Safety. Ich habe einen Security-Audit über alle
-  ~212 Swift-Dateien laufen lassen (Force-Unwraps, Division durch 0, Array-Grenzen, NaN in den
-  Audio-Buffer). Gutes Ergebnis: die App ist gegen diese Crash-Klassen bereits sauber gehärtet —
-  0 bestätigte Crash-Bomben. Die „CLEAR SOFTWARE"-Disziplin ist real umgesetzt, nicht nur Doku.
-  • Der EINE reale Rest-Fund: der Pre-Roll-Writer (RetroCapture) deinterleavt den Stereo-Ring in
-    Kanal 0 UND 1 — der Zugriff auf Kanal 1 ist rohe Pointer-Indizierung, NICHT grenzengeprüft.
-    Ein Mono-Format hätte den Speicher überschrieben (kein nil-Guard hätte gegriffen). Jetzt: ein
-    expliziter Entry-Guard (Format muss stereo sein), sonst klarer Fehler statt Speicherkorruption.
-    Latentes „eine-Änderung-vom-Crash"-Risiko geschlossen.
-  Alles andere (Audio-Buffer-Zugriffe, Tempo-/Frequenz-Divisionen, MIDI-File-Parser, LUFS-Int-
-  Konvertierung) ist bereits korrekt geguardet — der Audit hat es Stelle für Stelle bestätigt.
-  Compile via CI verifiziert. Keine funktionale Änderung spürbar — reine Härtung.
-  (Kein Gerätetest nötig — CI-verifiziert. Deine Ohren brauche ich weiter für 79.40: klingen die
-  Stimmen jetzt echter?)
+notesT: Feuerwehr: „bpm springt immer noch" auf 79.41 — und zwar BEIDE (die angezeigte Puls-Zahl
+  UND das Musik-Tempo). Beide Ursachen gefunden und behoben:
+  ZAHL (angezeigter Puls):
+  • Der Mess-Screen zeigte im Aufwärmlauf noch den ROHEN Puls als Fallback — raus. Jetzt
+    überall strikt der geglättete Wert; vor dem ersten sicheren Lock steht keine Zahl (der
+    Hinweis sagt eh „messe…"). So zappelt nichts mehr los.
+  • Die Glättung selbst beruhigt: max ~10 bpm/s Änderung statt ~20 — ein Ruhepuls-Readout
+    twitcht nicht mehr, ein echter Anstieg kommt trotzdem in ~2 s durch.
+  TEMPO (Beat der Musik):
+  • Wenn der Körper das Tempo neu setzt, GLEITET der Beat jetzt sanft ins neue Tempo (~2 s)
+    statt zu springen. Beim Start snappt es sofort (kein Warten); im Lauf gleitet es. Nach dem
+    einmaligen Body-Lock hält das Tempo — danach kein weiteres Gleiten/Springen.
+  • Dein manueller BPM-Lock (Toggle/Tap/Transport-Feld) bleibt exakt und sofort — der gleitet
+    nicht, der sitzt. BPM-Lock funktioniert global wie gehabt.
+  Compile-Review grün (4 Dateien). CI bestätigt final.
+  TEST 10.79.42: Puls messen → bleibt die angezeigte Zahl jetzt ruhig (kein Zappeln)? Und wenn
+  der Körper das Tempo übernimmt — gleitet der Beat sanft rüber statt zu springen? Danach:
+  Klang weiter (Inharmonizität), Ziel acestudio.ai-Niveau.
