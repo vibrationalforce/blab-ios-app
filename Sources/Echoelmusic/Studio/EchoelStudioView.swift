@@ -2204,34 +2204,47 @@ struct EchoelStudioView: View {
         // thread). The sub-bass follows automatically — it derives from note.pitch-12
         // in the trigger — so synth + sub stay locked an octave apart. Clamp to MIDI.
         let semis = Int(transposeSemitones.rounded())
-        var notes: [Note] = semis == 0 ? composition.notes : composition.notes.map {
-            var n = $0; n.pitch = min(127, max(0, n.pitch + semis)); return n
-        }
         // Per-genre MIX GLUE: nudge relative role levels so each genre sits right
         // (lead forward in synth genres, bass firmer in dub/heavy, pad back in
         // dense takes). Velocity scales each voice's amplitude, so this is a pure,
         // audio-thread-safe level move at the one point all notes exist as an array.
         let mix = style.mixLevels
-        notes = notes.map { n in
-            var m = n
-            let f: Float
-            switch n.role {
-            case .bass:    f = mix.bass
-            case .lead:    f = mix.lead
-            case .harmony: f = mix.harmony
+        // Turn one raw composed bar into final notes: global transpose THEN the mix glue.
+        func finish(_ raw: [Note]) -> [Note] {
+            let shifted = semis == 0 ? raw : raw.map {
+                var n = $0; n.pitch = min(127, max(0, n.pitch + semis)); return n
             }
-            m.velocity = min(1, max(0, n.velocity * f))
-            return m
+            return shifted.map { n in
+                var m = n
+                let f: Float
+                switch n.role {
+                case .bass:    f = mix.bass
+                case .lead:    f = mix.lead
+                case .harmony: f = mix.harmony
+                }
+                m.velocity = min(1, max(0, n.velocity * f))
+                return m
+            }
         }
-        // While the transport is already playing (live evolution), stage the new
-        // notes and swap them in at the next loop boundary so a held note is never
-        // cut mid-bar (no click). On the first generate (not yet playing) load now
-        // so notes are present before playback starts.
-        if running, beatPlayer.pattern.isPlaying {
-            pianoRoll.loadAtBoundary(notes)
-        } else {
-            pianoRoll.load(notes)
+        // LOOP-CONFORM ARRANGEMENT (1b, founder: "je nachdem wie groß der Loop umgestellt
+        // ist"): build `loopBars` distinct bars that the roll cycles through — a different
+        // bar each loop. Every bar shares the STRUCTURE seed (cohesive — "same piece
+        // breathing") but uses a per-bar DETAIL seed (distinct), so a 4-bar loop really is
+        // four bars, not one repeated. bar 0 = the take just composed. barCount 1 = classic.
+        let barCount = max(1, loopBars.rawValue)
+        var bars: [[Note]] = [finish(composition.notes)]
+        if barCount > 1 {
+            bars.reserveCapacity(barCount)
+            for b in 1..<barCount {
+                var barInput = input
+                barInput.seed = evolvingSeed &+ UInt64(b)
+                bars.append(finish(BioComposer.compose(barInput).notes))
+            }
         }
+        // Playing → hot-swap at the seamless boundary (no cut); stopped → load bar 0 now so
+        // it's present before playback starts. The cycler advances one bar per loop, in sync
+        // with the transport's "bar N/M" indicator.
+        pianoRoll.loadArrangement(bars, playing: running && beatPlayer.pattern.isPlaying)
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
