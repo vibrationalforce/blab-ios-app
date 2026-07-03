@@ -4181,3 +4181,35 @@ sampler). Compositions: better voice-leading/arrangement. Awaiting founder A/B +
 randomization (#4) marginal. Reverb re-enable (needs lock-free command queue) is the bigger DSP lever.
 **Open founder threads:** visuals optimize/debug/UI-integrate; adaptive floating window (move/hide/
 edit); external display support. Queued as a separate strand.
+
+## 2026-07-03 (cont.) — 79.44 visual black-screen fix + strand decisions
+
+Founder: "Du entscheidest Grab all tasks" (full autonomy). Then two forks answered.
+
+**79.44 — visual black-screen double-render fix, CI green 92b3640:** Visual audit found the
+system solid (no audio-thread/NaN, governor good) but ONE correctness bug: the fullscreen visual
+cover (Tools→Visual/showVisual) mounts a 2nd MetalBioView while the floating window keeps
+rendering underneath → GPU starvation (black immersive) + double VisualRecorder capture. Fix:
+showVisual onChange hides the floating window while the cover is up, restores prior state on
+dismiss → single MetalBioView (GPU rule); fullscreen projection mode preserved. Also #6: guard
+preferredFramesPerSecond write to tier-change only (not per-frame). Deferred from the audit: #2
+static pipeline cache (Swift6 concurrency surface), #3 FPS-pause on reduce-motion + #4
+framebufferOnly (device-gated), #5 tone/entrainment threading (marginal idle-only drift).
+
+**Founder decisions (both = safe/test-first):**
+- **External displays → AirPlay path.** True separate-window needs UIApplicationSupportsMultipleScenes
+  flip (gated Info.plist + lifecycle risk + hardware verify). Not built. Fullscreen visual + AirPlay
+  works today, stabilized by 79.44. True-window is a planned cycle IF founder OKs Info.plist + tests
+  on a beamer.
+- **Sound → hear 79.43 first, then DSP.** 3 realism layers shipped; holding further blind DSP for
+  device ears; samples (B) only on explicit go.
+
+**Session build tally (all CI-green): 79.37 seed-once-hold · 79.38 slew+conf-lock · 79.39 brightness
+env · 79.40 onset chiff+floor · 79.41 pre-roll memory-safety · 79.42 bpm-no-jump(number+glide) ·
+79.43 inharmonicity · 79.44 visual black-screen.** 8 builds, every one compile-green (79.38-40 also
+full-test-suite green).
+
+**PARKED pending founder device feedback:** sound amounts (79.39/40/43), bpm feel (79.42), visual
+stability (79.44). **PARKED pending founder go:** true external windows (Info.plist), sample
+instruments. **Deferred device-gated:** visual FPS-pause/framebufferOnly, floating-window edit
+(contradicts logged 'fewer settings' pref — confirm intent first).
