@@ -4099,3 +4099,53 @@ substitute (decisions.csv). Plan: scratchpads/PLAN_BAR_CYCLING_1B.md.
 loopBars distinct-but-cohesive bars, cycling in sync with the bar N/M indicator. Awaiting
 founder device verification of the loop timing (the one thing CI can't check). This also
 delivers the long-pending M2 "multi-bar arrangement" task.
+
+---
+
+## 2026-07-03 — RALPH QUANTUM HEALING LOOP (79.37 → 79.41, all CI-green)
+
+Founder: "Tiefer in die Heilung gehen ... Ralph Quantum healing Feuerwehr lambda bis alles
+auf Produktionslevel ist Loop Mode." + refinement: "Gemessener Puls bugfrei ohne unrealistische
+Sprünge. Bpm lock global. Modulation weiterhin von Bio. Musik klingt noch nicht nach
+realistischem Instrument." One focused fix per cycle, CI compile-check verify each.
+
+**79.37 — seed-once-then-hold tempo (fixes "springt ständig auf 196 bpm"):**
+- generate(): `tempoSeededFromBody` — body seeds tempo ONCE per take, then HOLDS; evolve/re-seed
+  ticks evolve only melody. Reset in stopEverything(). seedTempo() octave-folds (>130 → /2, clamp
+  50–160). CameraRPPGBioPublisher displayBPM octave-fold guard. CI green 23f1aeae.
+
+**79.38 — pulse slew-cap + confidence-gated tempo lock (founder points 1-3 in one):**
+- CameraRPPGBioPublisher: displayBPM gets a physiological SLEW cap (maxDisplayStep=2 bpm/~100ms,
+  ~20 bpm/s). A glitch/octave teleport (70→133) now GLIDES over seconds. First confident reading
+  adopted as-is, then EMA+slew.
+- EchoelStudioView: body locks take tempo only at trustworthy confidence (tempoLockConfidence=0.6,
+  BioSource-aware via bodyTempoTrustworthy(); BLE/HealthKit lock on first frame). Until then holds
+  steady, doesn't chase noise. snapToLockWhenReady waits for ≥0.6 (timeout 8→30s).
+- BPM lock stays GLOBAL (lockBPM = first generate() branch, unchanged; transport/tap route through
+  pattern.setTempo). Bio modulation LIVE (published frame untouched — only display + lock policy
+  stabilized). CI green 93cc9540.
+
+**79.39 — per-note brightness envelope (sound realism #1):** EchoelDDSP filterEnvValue opens the
+cutoff at attack, settles darker over ~100ms ("bright attack → mellow body"); velocity→brightness
+(Anschlagdynamik). Pure Float in render(); audio-thread + compile review green. CI green df126007.
+
+**79.40 — onset chiff transient (sound realism #2) + denormal floor:** onsetNoiseEnv adds a
+~30ms pick/bow/breath noise burst at attack, velocity-scaled, NOT gated by harmonicity (even a
+pure-tonal pluck gets its transient); reuses the 65-band noise bank. Denormal floor (<1e-20 → 0)
+on BOTH envelopes (onset + brightness) for held-note CPU hygiene. CI green b1206b69.
+
+**79.41 — pre-roll writer memory safety (crash-safety hardening):** Security audit over ~212
+files found the codebase ALREADY production-hardened (0 confirmed crash bombs — force-unwrap/div0/
+bounds discipline is real). The one real latent risk: RetroCapture.writePreRollToFile's
+`floatChannelData?[1]` is unchecked pointer indexing → mono format would corrupt memory. Added
+entry guard `format.channelCount >= 2`. CI: 2c3fec5a (verifying).
+
+**Sound-realism sub-loop remaining (NEEDS DEVICE EARS before continuing):** #3 inharmonicity/detune
+table (analog life), #4 per-note phase randomization (anti machine-gun). Held pending founder's
+read on 79.39/79.40 to avoid tuning blind. filterEnvAmount/Decay + onsetNoiseAmount/Decay are
+public → tunable per-patch/character later.
+
+**Key facts reaffirmed:** no local swift toolchain (CI + device logs = only ground truth); deploy
+via .deploy/release edit → testflight.yml; MCP actions_list overflows → parse saved file with
+python. EngineBus.usableBio() gates on freshness only; rPPG publishes at conf≥0.35 (lockThreshold),
+displayBPM moves at conf≥0.6 (displayThreshold).
