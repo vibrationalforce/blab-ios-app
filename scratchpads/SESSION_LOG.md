@@ -4094,3 +4094,8 @@ visual-on-by-default). All CI-compile verified.
 **Decisions logged:** bar-cycling-not-stepCount-lift; visual-on-by-default; blind-ship-with-audit
 substitute (decisions.csv). Plan: scratchpads/PLAN_BAR_CYCLING_1B.md.
 **Founder must update TestFlight to 79.36 to hear multi-bar loops (device confirms loop timing).**
+
+**79.36 SHIPPED (bar-cycling):** compile-check 5bdf18b GREEN → deployed. Composition now plays
+loopBars distinct-but-cohesive bars, cycling in sync with the bar N/M indicator. Awaiting
+founder device verification of the loop timing (the one thing CI can't check). This also
+delivers the long-pending M2 "multi-bar arrangement" task.
