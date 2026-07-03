@@ -95,6 +95,19 @@ public final class CameraRPPGBioPublisher {
     /// True once a confident pulse is locked.
     public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
 
+    /// True once the pulse is confident AND FLAT — display-grade confidence with the calm
+    /// displayBPM moving ≤ ~3 bpm over ~3 s. This is the gate for LATCHING the take tempo:
+    /// confidence alone fires on the falling tail of the warm-up curve (device log: locked 87
+    /// while the pulse was still descending 125→…→69 — "in dem Moment wo bpm locked springt
+    /// die bpm nach oben"). Settled = the descent has actually finished.
+    public private(set) var isSettled = false
+    /// Reference value + start time of the current flat window (tracked in the 10 Hz tick).
+    private var settleRef: Double = -1
+    private var settleSince: CFAbsoluteTime = 0
+    /// Flat-window parameters: ≤3 bpm drift sustained for ≥3 s.
+    private static let settleTolerance = 3.0
+    private static let settleSeconds = 3.0
+
     /// Live, specific placement guidance — turns the internal amplitude/exposure
     /// diagnostics into user coaching so the lens reaches a lockable signal, instead
     /// of a flat "Acquiring…". Pure derived state, read on the main actor by the UI.
@@ -327,6 +340,22 @@ public final class CameraRPPGBioPublisher {
                         self.displayBPM += step
                     }
                 }
+                // SETTLED tracking: the tempo-latch gate. Confident + the calm displayBPM flat
+                // (≤settleTolerance) for settleSeconds → the warm-up descent is over. Any move
+                // beyond tolerance or a confidence drop restarts the window (and un-settles).
+                let nowT = CFAbsoluteTimeGetCurrent()
+                if self.displayBPM > 0 && self.confidence >= Self.displayThreshold {
+                    if self.settleRef < 0 || abs(self.displayBPM - self.settleRef) > Self.settleTolerance {
+                        self.settleRef = self.displayBPM
+                        self.settleSince = nowT
+                        self.isSettled = false
+                    } else if nowT - self.settleSince >= Self.settleSeconds {
+                        self.isSettled = true
+                    }
+                } else {
+                    self.settleRef = -1
+                    self.isSettled = false
+                }
                 self.waveform = self.analyzer.recentWaveform
 
                 // EXPOSURE: lock once the finger has covered the lens for ~1.2 s (so
@@ -496,6 +525,8 @@ public final class CameraRPPGBioPublisher {
         confidence = 0
         detectedBPM = 0
         displayBPM = 0
+        isSettled = false          // next take must re-prove a flat pulse before tempo latches
+        settleRef = -1
         waveform = []
         exposureLocked = false
         fingerStableTicks = 0

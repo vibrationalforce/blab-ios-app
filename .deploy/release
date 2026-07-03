@@ -1,19 +1,17 @@
-build: 2026-07-03 v10.79.45 (Fable-Zyklus: Aufräumen · Tests · Visual-Parität · ehrliche Website)
+build: 2026-07-03 v10.79.46 (Lock springt nicht mehr nach oben — beide Lock-Wege repariert)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Fable 5, Ralph-Ultrathink-Modus („du entscheidest … aufräum, testsimulation, debug,
-  testflight deploy — vermeide slop"). Drei Zyklen in diesem Build:
-  • AUFRÄUMEN + TESTS: die Anti-Sprung-Tempologik ist jetzt als CI-Tests festgeschrieben —
-    die 196→98-Oktavfaltung, „Glide springt NIE synchron während des Spielens", „setTempo
-    gewinnt sofort", „Stop friert ein". Diese Verträge laufen ab jetzt bei JEDEM Push auf CI
-    (bereits grün gelaufen). Die Tempo-Mathematik ist dafür in die getestete Produktions-Mathe-
-    Heimat (StudioCalculator) gezogen — kein Verhalten geändert.
-  • VISUAL-PARITÄT: das schwebende Visual-Fenster folgt jetzt der gewählten Tonart-Farbe
-    (statt hartem C4 im Idle) und pulsiert mit einem gearmten Brainwave-Entrainment — exakt
-    wie das Vollbild. Die sichtbare Drift zwischen Fenster und Vollbild ist weg.
-  • WEBSITE EHRLICH GEMACHT (echoelmusic.com, live nach Merge): Ableton-Link-Overclaim entfernt
-    (war als „live" verkauft — ist Roadmap); nicht-existente Touch-Instrumente ehrlich gemacht;
-    UND die echten Differenzierer werden endlich behauptet: Visuals (10 GPU-Looks) + Art-Net/
-    sACN-Licht sind LIVE, „drum-free" überall raus (die App hat längst Beat/Drums). FAQ-Schema
-    validiert, Seiten render-geprüft.
-  TEST 10.79.45: Tonart wechseln → nimmt das schwebende Fenster die Farbe an? Entrainment
-  armen → pulsiert das Fenster mit? Tempo-Verhalten unverändert stabil (79.42-Fix)?
+notesT: Feuerwehr: „In dem Moment wo bpm locked springt die bpm nach oben." Dein Log hat es
+  bewiesen (Lock latchte 87, während der Puls noch auf 69 fiel). ZWEI Ursachen, beide behoben:
+  • MANUELLER BPM-LOCK (Toggle/Tap): übernahm beim Einschalten den ROHEN Puls-Messwert — bei
+    einem Oktavfehler das Doppelte, und immer als harter Sprung. Jetzt: der Lock FRIERT das
+    Tempo ein, das GERADE LÄUUFT — exakt das, was du hörst. Ein Sprung ist damit per
+    Konstruktion unmöglich. (Tap-Tempo setzt die Uhr jetzt vor dem Lock — auch im Stand korrekt.)
+  • BODY-LOCK: der Sicherheits-Gate feuerte auf dem FALLENDEN Teil der Einschwingkurve — sicher
+    genug, aber noch nicht unten angekommen. Neu: gelockt wird erst, wenn der Puls „settled" ist —
+    sicher UND ~3 Sekunden FLACH (±3 bpm). Erst wenn die Kurve wirklich unten ist, übernimmt der
+    Body das Tempo (und gleitet sanft, wie seit 79.42). Nie settled → der Take behält sein Tempo.
+  Die Anti-Sprung-Verträge aus 79.45 (CI-Tests) bleiben aktiv; Brustgurt/HealthKit locken wie
+  gehabt sofort (deren Werte sind stabil).
+  TEST 10.79.46: 1) Generate starten, Finger drauf, warten → übernimmt der Beat den Puls jetzt
+  ERST wenn die Zahl wirklich ruhig steht (kein Hochspringen mehr im Lock-Moment)? 2) Lock-BPM-
+  Toggle während des Spielens einschalten → bleibt das Tempo exakt da, wo es gerade ist?

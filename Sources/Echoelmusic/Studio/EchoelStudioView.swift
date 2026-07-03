@@ -195,11 +195,8 @@ struct EchoelStudioView: View {
     /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
     /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
     private let minAutoSeedGap: TimeInterval = 6.0
-    /// rPPG confidence required before a body reading may LOCK the take tempo. The raw camera
-    /// bpm is noisy while the pulse settles (first ~13 s it bounces, e.g. 133→70); locking on
-    /// the first 0.35-confidence frame would freeze a too-fast beat. At/above this the reading
-    /// has settled near the true resting pulse. (BLE/HealthKit are stable → they lock at once.)
-    private static let tempoLockConfidence: Double = 0.6
+    // (Tempo-latch gating moved into CameraRPPGBioPublisher.isSettled — confident + FLAT,
+    //  because confidence alone latches on the falling warm-up tail. See bodyTempoTrustworthy.)
 
     // Sheets / dialogs
     @State private var showOpen = false
@@ -899,20 +896,22 @@ struct EchoelStudioView: View {
             }
             .tint(EchoelTheme.accent)
             .onChange(of: lockBPM) { _, on in
-                // Enabling the lock ADOPTS the body's current tempo (whole BPM) as the locked
-                // value, then reflects it in the CLOCK immediately so the transport bar, this
-                // field and the click all show the same number at once. Falls back to the
-                // saved lockedBPM when no fresh bio frame is available.
+                // Enabling the lock FREEZES the tempo you are hearing RIGHT NOW: it adopts the
+                // running clock (already body-seeded, octave-folded and glided) — NOT a raw bio
+                // frame. The old raw `freshBio()?.heartRateBPM` adoption made the beat JUMP UP
+                // at the very moment of locking (founder: "in dem Moment wo bpm locked springt
+                // die bpm nach oben") — a raw rPPG octave artifact (2×) or any pulse above the
+                // musical tempo snapped the clock instantly. Locking what already plays is a
+                // no-op for the clock by construction → zero jump, ever. setTempo also cancels
+                // any in-flight glide, so the frozen value is exactly the audible one.
                 if on {
-                    if let hr = bus.freshBio()?.heartRateBPM, hr >= 40, hr <= 240 {
-                        lockedBPM = Double(hr).rounded()
-                    }
+                    lockedBPM = beatPlayer.pattern.tempo.rounded()
                     beatPlayer.pattern.setTempo(lockedBPM)
                     metronome.bpm = beatPlayer.pattern.tempo
                 }
                 recomposeIfRunning()
             }
-            .accessibilityHint("When on, the loop locks to your current heart-rate tempo for tight loops")
+            .accessibilityHint("When on, the loop freezes at the tempo currently playing, for tight loops")
 
             if lockBPM {
                 // Bind to the AUTHORITATIVE clock (pattern.tempo), not the parallel lockedBPM
@@ -985,10 +984,15 @@ struct EchoelStudioView: View {
             Button {
                 if let bpm = tapTempo.tap(at: ProcessInfo.processInfo.systemUptime) {
                     lastTappedBPM = bpm
-                    lockBPM = true
                     lockedBPM = (bpm * 10).rounded() / 10
                     metronome.bpm = lockedBPM
-                    if running { beatPlayer.pattern.setTempo(lockedBPM) }
+                    // ALWAYS push the clock (not only while running): the lockBPM onChange
+                    // below freezes at the CLOCK's current tempo, so the clock must already
+                    // carry the tapped value when that fires — otherwise tapping while
+                    // stopped would freeze a stale tempo instead of the tap. setTempo while
+                    // stopped just stores the value (no tick scheduling), safe.
+                    beatPlayer.pattern.setTempo(lockedBPM)
+                    lockBPM = true   // AFTER the clock carries the tap (onChange adopts clock)
                 }
             } label: {
                 Label("Tap tempo", systemImage: "hand.tap")
@@ -2049,17 +2053,18 @@ struct EchoelStudioView: View {
         lockSnapTask?.cancel()
         lockSnapTask = Task { @MainActor in
             let start = Date()
-            // Wait until the pulse is CONFIDENTLY locked (not merely past the 0.35 publish gate)
-            // so the body re-seed — which also locks the take tempo — uses a settled reading. The
-            // raw rPPG bpm is noisy for the first ~13 s, so a low-confidence snap would freeze a
-            // too-fast beat. Generous timeout: a confident lock can take ~20 s.
-            while cameraRPPG.confidence < Self.tempoLockConfidence || cameraRPPG.detectedBPM <= 0 {
+            // Wait until the pulse is SETTLED — confident AND flat for ~3 s — so the body
+            // re-seed (which latches the take tempo) uses a reading whose warm-up descent has
+            // actually FINISHED. Confidence alone fires on the falling tail (device log:
+            // locked 87 → pulse kept dropping to 69 → "springt nach oben"). Generous timeout:
+            // settling can take ~25 s on a slow lock; past that we keep the current take.
+            while !cameraRPPG.isSettled {
                 guard running, !Task.isCancelled else { return }
-                if Date().timeIntervalSince(start) > 30 { return }   // no confident lock → keep current take
+                if Date().timeIntervalSince(start) > 45 { return }   // never settled → keep current take
                 try? await Task.sleep(for: .milliseconds(150))
             }
             guard running, !Task.isCancelled else { return }
-            EchoelCrashLog.breadcrumb("rPPG confidently locked → snap re-seed bpm=\(Int(cameraRPPG.displayBPM))")
+            EchoelCrashLog.breadcrumb("rPPG settled → snap re-seed bpm=\(Int(cameraRPPG.displayBPM))")
             scheduleGenerate(auto: true)   // re-seed (rate-limited; coalesces with the evolve tick)
         }
         #endif
@@ -2355,7 +2360,10 @@ struct EchoelStudioView: View {
     /// stable enough to trust on the first frame. A nil frame = no body yet → not trustworthy.
     private func bodyTempoTrustworthy(_ frame: BioSampleFrame?) -> Bool {
         guard let frame else { return false }
-        if frame.source == .cameraPPG { return cameraRPPG.confidence >= Self.tempoLockConfidence }
+        // Camera rPPG must be SETTLED (confident + flat ~3 s), not merely confident: the
+        // first confidence crossing lands on the falling warm-up tail (device log: latched 87
+        // while the pulse was still descending to 69 — the "lock springt nach oben" bug).
+        if frame.source == .cameraPPG { return cameraRPPG.isSettled }
         return true
     }
 

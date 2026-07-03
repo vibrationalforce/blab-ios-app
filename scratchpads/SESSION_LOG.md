@@ -4213,3 +4213,39 @@ full-test-suite green).
 stability (79.44). **PARKED pending founder go:** true external windows (Info.plist), sample
 instruments. **Deferred device-gated:** visual FPS-pause/framebufferOnly, floating-window edit
 (contradicts logged 'fewer settings' pref — confirm intent first).
+
+## 2026-07-03 (Fable 5) — Ralph Ultrathink: Aufräumen · Tests · Website · Deploy (→79.45)
+
+Founder switched model to Fable 5: "du entscheidest … baust sowohl App als auch Website …
+aufräum, testsimulation, debug und testflight deploy Mode. Vermeide slop und unzureichende UX."
+
+**Cycle A — cleanup + test-simulation (CI-EXECUTED green, 0334588):** seedTempo moved off the
+SwiftUI view into Foundation-only StudioCalculator (pure musical math home; Linux CI can RUN its
+tests). NEW TempoStabilityTests.swift (ungated): SeedTempoTests (196→98 fold = the founder case,
+multi-fold, resting passthrough 50–130, clamps) + TempoGlideTests (snap-when-stopped, clamp,
+NEVER-jumps-synchronously-while-playing = THE anti-jump contract, setTempo cancels+wins, stop
+freezes). ci.yml ran them: SUCCESS. No behavior change.
+
+**Cycle B — website echoelmusic.com honest both directions (f57f24d, via echoel-marketing skill):**
+Audit found little slop BUT: (1) OVERCLAIM killed — Ableton Link sold as live in tools.html
+meta/OG/tagline/capability-card + index open-spine + FAQ collaborate → everywhere roadmap; the
+capability card now describes the REAL live feature (virtual MIDI/MPE source). Non-existent touch
+instruments (Chord Pad/XY/Keyboard/Strum) made honest → body + external MPE + drum pads + piano
+roll + patch editor today. (2) UNDERCLAIM killed — FAQ claimed visuals + lighting "roadmap, not in
+the app today" (contradicting architecture.html): now EchoelVis LIVE (10 GPU looks, floating/
+fullscreen, <3Hz, Reduce Motion) + EchoelLux LIVE (Art-Net + sACN; DMX-512/smart-home stay
+roadmap; AirPlay projection hint). "drum-free by design" removed site-wide (app has beat layer:
+samples + physical-model drum synth). architecture roadmap pruned of 2 shipped items (step
+sequencer/sampler, short-MP4 export). JSON-LD validated; pages render-verified (headless chromium).
+RTMP/video/multitrack stay correctly roadmap. NOTE: site goes live only when branch merges to main.
+
+**Cycle C — floating-window parity (last visual-audit item #5):** idleToneHz from studio.rootIndex
++ session.a4Hz (idle tint = chosen key, not hardcoded C4); entrainmentPulse with the same
+low-frequency guard as fullscreen → floating window breathes with armed entrainment. Memberwise
+order verified against MetalBioView declarations. Deployed as **79.45** (00f81f8).
+
+**Fable decisions:** sound cycles stay parked for founder ears (79.43); external windows stay
+AirPlay (Info.plist gate); website honesty > website redesign (claims first, no slop rebuild).
+Screenshot artifacts: scratchpad/site-{index,faq}.png. Known pre-existing site nit: header logo
+text overlaps nav at ~1280px in headless shot (not from these edits — CSS, separate cycle if
+founder wants).
