@@ -113,6 +113,11 @@ public final class CameraRPPGBioPublisher {
     /// Capture-queue → main-actor sample hand-off (no per-frame Task hop). See
     /// RGBSampleQueue: this is the fix for the menu freeze during biofeedback.
     @ObservationIgnored private let sampleQueue = RGBSampleQueue()
+    /// Monotonic token identifying the CURRENT start() call. Bumped by every start() and
+    /// by stop(); a start() that resumes from its `await` only proceeds if it is still the
+    /// latest generation — so a Start→Stop or Start→Stop→Start interleave during the camera
+    /// config window can't resurrect a stopped camera or orphan a second publish loop.
+    @ObservationIgnored private var startGeneration = 0
 
     // Exposure-lock state machine (10 Hz). Lock against the FINGER-covered scene,
     // not the dim finger-less one; re-settle if a lock saturates.
@@ -124,6 +129,12 @@ public final class CameraRPPGBioPublisher {
     /// stalls (analyzer frozen while the capture watchdog stays happy — device log
     /// 2026-07-02), this crosses the threshold and forces a full camera recovery.
     @ObservationIgnored private var stallTicks = 0
+    /// Consecutive publisher-forced recoveries WITHOUT any frames returning in between.
+    /// Capped so a camera that starts but never yields a usable sample can't be
+    /// reconfigured forever (each reconfigure delays frames further — thermal/battery
+    /// churn, permanently "acquiring"). Reset to 0 the instant samples flow again.
+    @ObservationIgnored private var forcedRecoveries = 0
+    private static let maxForcedRecoveries = 3
     private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
     private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
     private static let relockOnLossTicks = 30   // ~3 s without finger → allow re-lock
@@ -156,6 +167,16 @@ public final class CameraRPPGBioPublisher {
     /// confident pulse estimates to the bus. No-op if already running.
     public func start(publishing bus: EngineBus) async {
         guard !isRunning else { return }
+        // Claim the running state + a fresh generation token SYNCHRONOUSLY, before the
+        // first `await` below. Camera permission + session config is a suspension window of
+        // seconds on first run; without this a Start→Stop (or Start→Stop→Start) during that
+        // window would let this task resume past the await and re-arm torch/analyzer/
+        // publishTask AFTER stop() — resurrecting a stopped camera (stuck torch, bio still
+        // publishing) or orphaning a second 10 Hz loop. The generation check after the await
+        // makes only the LATEST start() the authoritative owner.
+        startGeneration += 1
+        let gen = startGeneration
+        isRunning = true
         self.bus = bus
 
         let sampleQueue = self.sampleQueue
@@ -202,17 +223,29 @@ public final class CameraRPPGBioPublisher {
             try await capture.start()
         } catch {
             log.log(.warning, category: .biofeedback, "Camera rPPG failed to start: \(error.localizedDescription)")
-            capture.onFrame = nil
+            // Only undo state if WE are still the latest start (a newer start/stop that
+            // superseded us during the await owns the state now — don't clobber it).
+            if gen == startGeneration {
+                isRunning = false
+                capture.onFrame = nil
+                capture.onSessionReset = nil
+            }
             return
         }
+
+        // A stop() or a newer start() ran DURING the await above. stop() and every start()
+        // bump `startGeneration`, so if ours is stale we are no longer the owner: the latest
+        // start() (or stop's teardown) is authoritative — return without touching the shared
+        // camera/torch/publishTask. This closes both "stop undone" and the orphan-loop leak.
+        guard gen == startGeneration else { return }
 
         // Finger-on-lens PPG needs the back-camera torch to illuminate the
         // fingertip — without it there is no red-channel pulse signal. Driven on
         // the session's own running device for reliability.
         capture.setTorch(true)
         analyzer.startPulseDetection()
-        isRunning = true
         stallTicks = 0
+        forcedRecoveries = 0
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
         // Exposure is now locked from the publish loop ONLY once the finger is
@@ -243,11 +276,20 @@ public final class CameraRPPGBioPublisher {
                     self.stallTicks += 1
                     if self.stallTicks >= 60 {          // ~6 s at 10 Hz
                         self.stallTicks = 0
-                        EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery")
-                        self.capture.recoverFromStall()
+                        if self.forcedRecoveries < Self.maxForcedRecoveries {
+                            self.forcedRecoveries += 1
+                            EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery (\(self.forcedRecoveries)/\(Self.maxForcedRecoveries))")
+                            self.capture.recoverFromStall()
+                        } else {
+                            // Persistent stall: stop reconfiguring (it only delays frames
+                            // further). The capture-layer frame watchdog + session observers
+                            // keep running; surface it once instead of thrashing the camera.
+                            EchoelCrashLog.breadcrumb("rPPG: still no frames after \(Self.maxForcedRecoveries) forced recoveries — leaving it to the watchdog")
+                        }
                     }
                 } else {
                     self.stallTicks = 0
+                    self.forcedRecoveries = 0        // frames flowing again → refill the recovery budget
                 }
                 // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
@@ -406,10 +448,14 @@ public final class CameraRPPGBioPublisher {
         saturatedTicks = 0
         fingerLostTicks = 0
         stallTicks = 0
+        forcedRecoveries = 0
         EchoelCrashLog.breadcrumb("rPPG: camera session recovered after stall — re-locking exposure")
     }
 
     public func stop() {
+        // Bump the generation so any start() still suspended in its camera-config `await`
+        // bails on resume instead of resurrecting the camera we're tearing down here.
+        startGeneration += 1
         publishTask?.cancel()
         publishTask = nil
         capture.onSessionReset = nil
@@ -431,6 +477,7 @@ public final class CameraRPPGBioPublisher {
         saturatedTicks = 0
         fingerLostTicks = 0
         stallTicks = 0
+        forcedRecoveries = 0
     }
 
 }

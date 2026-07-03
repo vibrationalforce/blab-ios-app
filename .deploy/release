@@ -1,20 +1,18 @@
-build: 2026-07-02 v10.79.33 (Gesamt-Erlebnis: Stabilität + ruhige UI + reichere Visuals + vollerer Sound)
+build: 2026-07-02 v10.79.34 (Gesamt-Erlebnis + 2 rPPG-Korrektheitsfixes aus dem Audit)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: EIN Build über alle vier Achsen (Founder: "Das gesamte Erlebnis optimieren. UI, Sound
-  und Komposition, visuals, Steuerung"). NICHTS gelöscht, alles additiv/umkehrbar.
-  • STEUERUNG/Stabilität — rPPG Frozen-Puls-Fix: der Publish-Loop zählt jetzt Ticks OHNE neue
-    RGB-Samples; nach ~6 s ohne neues Bild erzwingt er eine volle Kamera-Erholung
-    (recoverFromStall, teilt den 6-s-Cooldown mit dem Watchdog, Torch+Belichtung neu gesetzt).
-    Behebt das eingefrorene Puls-Log (Werte ~13 s byte-identisch, Kamera-Watchdog blieb "happy").
-  • UI — Visual-Panel hat jetzt einen klaren "Show/Hide visual window"-Button; Export/Save zeigen
-    einen Hinweis "Erst Generate tippen" statt still ausgegraut zu wirken.
-  • VISUALS — schöner ab Werk: Sättigung 0.82 (professionell, nicht neon), Standard-Look Aurora
-    statt flacher Ringe, doppelter Preset "Halo" → "Aura" umbenannt.
-  • SOUND/KOMPOSITION (deterministisch, in-key, geschützte DSP unberührt): (1) innere Puls-Ebene
-    liegt jetzt eine Oktave ÜBER dem Pad (weniger Matsch, kein Voice-Stealing über ~15 Genres);
-    (2) Dub Techno bekommt echten Sub-Bass (Oktave 2) — vorher kein Tiefton im Generativ-Pfad;
-    (3) Drum-Groove: Nicht-Akzent-Schläge mit metrischer Gewichtung + ±6% Jitter statt flacher
-    0.82 (kein "Maschinengewehr"-HiHat mehr).
-  TEST 10.79.33: Puls lesen (friert es je ein, erholt sich die Kamera nach ~6 s selbst); ruhige
-  erste Ansicht; Visual-Fenster per Panel-Button ein/aus; Genre wechseln (Dub hat jetzt Bass,
-  Pads klarer, Drums grooven). Klingt/fühlt sich das Gesamt-Erlebnis runder an?
+notesT: 79.34 = 79.33 (Stabilität + ruhige UI + reichere Visuals + vollerer Sound) PLUS zwei
+  echte rPPG-Fehler, die ein Korrektheits-Audit fand:
+  • rPPG Start/Stop-Race (HIGH): der `guard !isRunning` deckte das `await` beim Kamera-Start
+    nicht ab — ein Stop WÄHREND des Startfensters (oder Start→Stop→Start) konnte die gestoppte
+    Kamera/Torch/den 10-Hz-Loop wieder aufwecken bzw. einen zweiten Loop lecken. Fix: jeder
+    start()/stop() vergibt ein Generations-Token; nur der JÜNGSTE Start ist Eigentümer, ältere
+    brechen nach dem await sauber ab (kein Zombie-Torch, kein Doppel-Loop mehr).
+  • rPPG Stall-Guard-Endlosschleife (MEDIUM): die neue Sample-Pipe-Erholung konnte auf einer
+    Kamera, die nie ein brauchbares Bild liefert, ewig rekonfigurieren (6-s-Drossel = 6-s-Takt).
+    Fix: max. 3 erzwungene Erholungen ohne zwischenzeitliche Frames, danach dem Watchdog
+    überlassen; das Budget füllt sich sofort auf, sobald wieder Frames fließen.
+  Alles additiv/umkehrbar; geschützte DSP/Render unberührt. Compile-Safety + Korrektheit je von
+  einem Audit-Agent geprüft (CI-Auth war in dieser Session abgelaufen).
+  TEST 10.79.34: Puls schnell Start/Stop/Start tippen → Torch bleibt korrekt an/aus, kein
+  Doppel-Puls; friert es ein, erholt sich die Kamera max. 3× und bleibt dann ruhig; ruhige
+  erste Ansicht; Dub hat Bass, Pads klarer, Drums grooven; Visual-Fenster per Panel-Button.
