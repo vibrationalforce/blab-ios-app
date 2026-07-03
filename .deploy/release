@@ -1,19 +1,24 @@
-build: 2026-07-03 v10.79.48 (Klang lebt: analoger Pitch-Drift — Akkorde schweben statt digital-steif)
+build: 2026-07-03 v10.79.49 (Puls-Sprung bei Fingerwackeln behoben — Bewegung taeuscht keinen Takt mehr vor)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Tempo ist bestätigt fest — jetzt die letzte offene Produktions-Front: Klang-Realismus
-  (dein acestudio-Ziel). Nach Timbre (Helligkeits-Huellkurve), Anschlag (Onset-Chiff) und
-  Inharmonizitaet fehlte dem additiven Synth noch die EINE Sache, die "lebendig" von "tot"
-  trennt: MIKRO-TONHOEHEN-LEBEN. Jede Note sass bisher auf mathematisch perfekter, komplett
-  starrer Tonhoehe — darum klangen Akkorde steif und Flaechen synthetisch-rein.
-  NEU: analoger Pitch-Drift. Ein langsames, aperiodisches Wandern der Grundtonhoehe um wenige
-  Cent (Standard ~3 Cent, pro Note neu von der Tonhoehe aus). Echte Spieler/Saiten sind nie
-  perfekt stabil — dieses Wandern laesst AKKORDE SCHWEBEN (Schwebungen) und Flaechen atmen,
-  statt digital-eingefroren zu klingen. Unterscheidet sich vom Vibrato (periodisch) — dies
-  ist ein sanfter Zufalls-Random-Walk. Winziger Standardwert, damit JEDE Stimme profitiert
-  (wie schon bei der Inharmonizitaet); 0 = perfekt stabil (bit-identisch zu vorher).
-  Technisch: audio-thread-sicher (kein malloc/lock/GCD), nutzt den vorhandenen xorshift-PRNG,
-  denormal-gefloort, EIN pow() gemeinsam mit dem Vibrato. Neue CI-Tests: Standard subtil,
-  deaktiviert=bit-identisch, gleicher Seed=deterministisch, aktiv=veraendert-aber-endlich-und-subtil.
-  HOERTEST 10.79.48: Generate, halte einen laengeren Ton / einen Akkord — schwebt/atmet er jetzt
-  leicht (lebendiger, "analoger"), ohne verstimmt zu klingen? Klingt der Gesamteindruck naeher
-  an einem echten Instrument als in 79.47?
+notesT: Dein Session-Log war sauber — Tempo hat bei ~51 (dein echter Ruhepuls) gerastet, KEIN
+  196-Sprung mehr, Sound lief, sauberer Stopp. Der analoge Pitch-Drift (79.48) ist an Bord.
+  EINE Stelle im Log zeigte noch einen unrealistischen Puls-Sprung (dein Kernziel): bei ~11 s
+  vor Ende wackelte kurz der Finger — Amplitude ~0,06, aber die Autokorrelation fand NULL
+  Periodizitaet (acf=0,00). Der Peak-Zaehler machte aus dem Wackeln trotzdem eine "regelmaessige"
+  Rate, die von 54 auf 82 bpm driftete, und weil jedes Fenster mit der (mit-driftenden)
+  Schaetzung uebereinstimmte, kletterte die Konfidenz auf 0,78 — sichtbarer Puls-Sprung.
+  Die harte Bewegungs-Sperre greift erst ab Amplitude 0,20; dieses Wackeln lag knapp darunter
+  und rutschte durch.
+  FIX: neue "unkorroborierte-Ripple"-Sperre. Erkennungsmerkmal (aus DEINEM Log): jeder ECHTE
+  Lock trug eine echte Autokorrelation (auto 51–56, acf 0,3–0,8) — nur Bewegung liefert
+  Amplitude MIT null Periodizitaet. Also: Amplitude klar ueber dem Ruhepuls-AC (>0,05) UND quasi
+  keine Autokorrelation (acf<0,15) → Fenster wird uebersprungen (Schaetzung HAELT statt zu driften)
+  und die Konfidenz blutet sanft (×0,9/Sample) unter das Anzeige-Gate. Ein echter Puls traegt
+  immer Autokorrelation und faellt NIE in dieses Band — bleibt unangetastet. Ruhepuls-Lock
+  (amp 0,017–0,026) liegt darunter, Erst-Lock (amp 0,11 / acf 0,32) hat starke acf: beide sicher.
+  1 Datei (CameraAnalyzer) + reine, getestete Hilfsfunktion (isUncorroboratedRipple) + Grenzfall-Tests.
+  Auch gesehen (kein Code): Start ging kurz in SAFE MODE (ein frueherer Start ~16 min davor hatte
+  sich nicht als gesund bestaetigt — vermutlich vom iOS im Hintergrund beendet); das Selbstheil-Netz
+  hat sauber recovered und "launch confirmed healthy" gemeldet. Ohne Crash-Log nichts zu fixen.
+  TEST 10.79.49: Finger auflegen, lock lassen, dann bewusst leicht wackeln/Druck aendern —
+  bleibt die angezeigte Puls-Zahl jetzt ruhig (haelt/erholt sich) statt kurz nach oben zu springen?

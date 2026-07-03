@@ -477,6 +477,18 @@ final class CameraAnalyzer {
             bpmConfidence *= Self.motionBleed(autoStrength: lastAutoStrength)
             return
         }
+        // SOFT motion: elevated amplitude with NO corroborating periodicity (a wobble the
+        // peak-counter self-agrees into a false, drifting rate — device log 2026-07-03,
+        // 54→82 at amp≈0.06/acf=0). SKIP the window (so the estimate holds instead of
+        // drifting) and bleed confidence GENTLY per sample — a sustained ripple falls below
+        // the display/lock gate within a second or two, while a single-window blip on a real
+        // lock barely dents (0.9 vs the hard gate's 0.6). Real locks carry autocorrelation
+        // and never enter this band, so a genuine pulse is untouched.
+        if Self.isUncorroboratedRipple(amplitude: amplitude, autoStrength: lastAutoStrength) {
+            lastPeakCount = 0
+            bpmConfidence *= 0.9
+            return
+        }
         let threshold = minAmp + amplitude * 0.55
 
         // Minimum inter-beat interval — ADAPTIVE refractory (rejects the dicrotic notch;
@@ -695,6 +707,27 @@ final class CameraAnalyzer {
     /// without rejecting any observed real pulse. Pure → Linux-testable.
     nonisolated static func isMotionAmplitude(_ amplitude: Float) -> Bool {
         amplitude > 0.20
+    }
+
+    /// A mid-amplitude window with NO corroborating periodicity — a MOTION RIPPLE the
+    /// peak-counter can still turn into a steady, self-agreeing (false) rate. Device log
+    /// 2026-07-03: with a good lock already at 54 bpm, a finger wobble produced amp≈0.06 /
+    /// acf=0.00 / auto=0, the peak-count drifted 54→69→82, and because each window agreed
+    /// with the (also drifting) estimate, `agreement` pushed confidence to 0.78 — a visible
+    /// pulse jump. It sits BELOW the hard motion gate (0.20) so `isMotionAmplitude` misses it.
+    ///
+    /// Discriminator: on this device EVERY real lock — even at low SNR — carried a real
+    /// autocorrelation (auto 51–56, acf 0.3–0.8); only motion gives meaningful amplitude with
+    /// ZERO periodicity. So the gate is amplitude clearly above the resting-lock AC (≈0.025)
+    /// AND essentially no autocorrelation. The AND keeps a genuine pulse out of the band:
+    /// a low-amplitude steady lock (amp < 0.05) and any window with some periodicity
+    /// (autoStrength ≥ 0.15) both pass through untouched. Pure → Linux-testable.
+    ///
+    /// NOTE (device-verify): a hypothetical device whose real pulse has BOTH elevated
+    /// amplitude AND ~zero autocorrelation would be bled here; none observed (this device's
+    /// real locks always corroborate). Reversible if a future log shows a real lock caught.
+    nonisolated static func isUncorroboratedRipple(amplitude: Float, autoStrength: Double) -> Bool {
+        amplitude > 0.05 && amplitude <= 0.20 && autoStrength < 0.15
     }
 
     /// Per-sample confidence multiplier for a motion-amplitude window. Applied once per

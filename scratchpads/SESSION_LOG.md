@@ -4300,3 +4300,26 @@ JEDE Stimme profitiert (wie Inharmonizität). 1 Datei (EchoelDDSP.swift) + Tests
 aktiv=verändert-aber-endlich-und-subtil-≤25%-RMS). **audio-thread-reviewer: CLEAN** (kein malloc/
 lock/GCD/ObjC/IO, denormal-gefloort wie onsetNoiseEnv/filterEnvValue, deterministisch, powf auf SAFE-Liste).
 Awaiting founder device listen: schwebt ein gehaltener Ton/Akkord jetzt leicht ohne verstimmt zu klingen?
+
+## 2026-07-03 (Opus 4.8, cont.) — 79.48 field-verified + rPPG uncorroborated-ripple guard (79.49)
+
+**79.48 pitch drift CI-verified green** (e3798db, compile + ci.yml incl. EchoelDDSPPitchDriftTests).
+Founder device log (1783110809–1783111919, ~2.5 min): tempo settled at true resting 51 (breadcrumb
+`rPPG settled → snap re-seed bpm=51`), ZERO 196-jumps, sound played, clean stopEverything. Tempo/
+drift work confirmed healthy in the field.
+
+**79.49 — rPPG uncorroborated-ripple guard (pulse-jump on finger wobble):** The one blemish in the
+log — at ~1783111906 a finger wobble gave amp≈0.06 / acf=0.00 / auto=0 (autocorrelation found NO
+periodicity), yet the peak-counter drifted 54→69→82 bpm and `agreement` (self-consistency) pushed
+conf to 0.78 → a visible pulse jump (the founder's explicit #1 goal: no unrealistic jumps). The hard
+motion gate `isMotionAmplitude` only fires >0.20, so this mid-amp wobble slipped through as "valid".
+FIX: new pure `CameraAnalyzer.isUncorroboratedRipple(amplitude>0.05 && <=0.20 && autoStrength<0.15)`
+→ skip the window (estimate HOLDS, no drift) + gentle conf bleed (×0.9/sample) below the display gate.
+Discriminator from the log: every REAL lock on this device carried real autocorrelation (auto 51–56,
+acf 0.3–0.8) — only motion gives amplitude with ZERO periodicity. Verified against every log window:
+catches the 4 artifact windows, spares all resting locks (amp 0.017–0.026), first-lock (amp 0.11/
+acf 0.32), and recovery windows. 1 file (CameraAnalyzer) + CameraAnalyzerRippleTests (boundaries).
+Device-verify caveat noted in code+notes: a hypothetical device with elevated-amp AND zero-acf real
+pulse would be bled here; none observed, reversible. Also logged (no code): launch briefly SAFE MODE
+(a prior launch ~16 min earlier didn't confirm healthy — likely OS jettison in background); the
+self-healing net recovered cleanly to "launch confirmed healthy". No crash log → nothing to fix.
