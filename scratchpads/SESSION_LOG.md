@@ -4149,3 +4149,35 @@ public → tunable per-patch/character later.
 via .deploy/release edit → testflight.yml; MCP actions_list overflows → parse saved file with
 python. EngineBus.usableBio() gates on freshness only; rPPG publishes at conf≥0.35 (lockThreshold),
 displayBPM moves at conf≥0.6 (displayThreshold).
+
+## 2026-07-03 (cont.) — 79.42/79.43 + acestudio.ai bar
+
+Founder on 79.41: "bpm springt immer noch" → clarified via AskUserQuestion: BOTH the displayed
+number AND the music tempo. Next focus chosen: "Klang weiter (Inharmonizität)". New bar: "Die
+Instrumente und Kompositionen sollen mindestens auf dem Level von acestudio.ai sein."
+
+**79.42 — bpm springt (BOTH), CI green 6d3d5a6:**
+- NUMBER: PulseMeasurementView dropped its raw detectedBPM fallback (showed jumpy raw during
+  warmup) → strictly displayBPM (no number until first confident lock). displayBPM slew calmed
+  2.0→1.0 bpm/tick (~10 bpm/s). Header/BioStrip already used displayBPM.
+- TEMPO: PatternEngine.glideTempo(to:) + one-pole ease in advance() (~0.15/tick, ~2 s); generate()
+  uses glideTempo (snaps when stopped, glides while playing). setTempo/stop() cancel an in-flight
+  glide. After the lock latches, generate holds tempo → glideTempo(to: same) → diff≈0 → NO glide.
+  So exactly ONE ~2 s glide per take (the body-lock), not recurring churn. lockBPM stays global.
+
+**79.43 — inharmonicity (sound realism #3), CI green b57fc0b:**
+- EchoelDDSP partialStretch[] table (piano stretch √(1+B·i²), fundamental exact), rebuilt on
+  control thread via inharmonicity.didSet; render multiplies partialFreq by partialStretch[i]
+  (in-bounds, 1 Float mul). Default B=0.0001 (light string) so every voice breathes without
+  detuning; patch-tunable. Audio-thread + compile review clean.
+
+**acestudio.ai framing (given to founder):** ACE Studio = cloud NEURAL vocal synth; Echoel = real-
+time on-device bio-driven DSP — different category, DSP won't hit neural-vocal fidelity 1:1. Two
+levers offered: (A) deepen DSP (reverb currently OFF is the next real lever + velocity layers +
+phase), (B) sample-based instrument layers for exposed voices (bigger, Council-level, uses existing
+sampler). Compositions: better voice-leading/arrangement. Awaiting founder A/B + device listen on 79.43.
+
+**Sound-realism status:** 3 of 4 audit layers shipped (brightness/chiff/inharmonicity); phase
+randomization (#4) marginal. Reverb re-enable (needs lock-free command queue) is the bigger DSP lever.
+**Open founder threads:** visuals optimize/debug/UI-integrate; adaptive floating window (move/hide/
+edit); external display support. Queued as a separate strand.

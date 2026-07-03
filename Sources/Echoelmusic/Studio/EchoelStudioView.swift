@@ -230,6 +230,9 @@ struct EchoelStudioView: View {
     /// Drives the project-import file picker in the Open-project sheet.
     @State private var projectImportPresented = false
     @State private var showVisual = false
+    /// Remembers whether the floating visual was showing before the fullscreen cover took over,
+    /// so dismissing the cover restores it (single-MetalBioView / GPU rule — see onChange).
+    @State private var floatingWasVisible = false
     @State private var showMeditation = false
     @State private var showLiveColabo = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
@@ -358,7 +361,20 @@ struct EchoelStudioView: View {
         .onChange(of: transport.isPlaying) { _, playing in
             if !playing && running { stopEverything() }
         }
-        .onChange(of: showVisual) { _, _ in updateKeepAwake() }
+        .onChange(of: showVisual) { _, isUp in
+            updateKeepAwake()
+            // GPU rule: only ONE MetalBioView may render at a time. The fullscreen visual
+            // cover mounts its own MetalBioView, so HIDE the floating window while it's up
+            // (otherwise both MTKViews drive CADisplayLinks → GPU starvation / black immersive,
+            // AND both feed the recorder → double-capture). Restore the floating window's prior
+            // state on dismiss so the user gets back exactly what they had.
+            if isUp {
+                floatingWasVisible = floatingVisualVisible
+                floatingVisualVisible = false
+            } else {
+                floatingVisualVisible = floatingWasVisible
+            }
+        }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(); disableKeepAwake() }
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll

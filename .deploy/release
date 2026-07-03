@@ -1,17 +1,18 @@
-build: 2026-07-03 v10.79.43 (Klang: Inharmonizität — Teiltöne atmen wie ein echtes Instrument)
+build: 2026-07-03 v10.79.44 (Visuals: kein Doppel-Render/Black-Screen — nur EIN Visual aktiv)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Loop-Fokus (deine Wahl): Klang weiter, Ziel acestudio.ai-Niveau. Dritte große Realismus-
-  Schicht nach Anschlags-Brightness (79.39) und Anschlags-Chiff (79.40): INHARMONIZITÄT.
-  • Bisher lagen die Teiltöne auf EXAKT ganzzahligen Vielfachen der Grundfrequenz — mathematisch
-    perfekt, aber genau das klingt „elektronisch/steril". Echte Saiten und Klaviere sind
-    inharmonisch: die oberen Teiltöne driften leicht nach oben und schweben gegen die Grundreihe.
-    Das ist ein großer Teil dessen, was „echtes Instrument" ausmacht.
-  • Jetzt: eine Klavier-Formel-Streckung pro Teilton (fn = n·f0·√(1+B·n²)). Der GRUNDTON bleibt
-    exakt (Tonhöhe unverändert), nur die oberen Teiltöne stretchen leicht → der Ton lebt/atmet.
-  • Konservativ dosiert (leichte-Saite-Default): hörbar lebendiger, ohne zu verstimmen. Der Wert
-    ist patch-fähig — später pro Instrument von „Saite" bis „Klavier/metallisch" einstellbar.
-  Audio-thread- + Compile-Review grün, reine Float-Arithmetik, Bio-DSP-Triade unberührt.
-  Die drei Schichten zusammen (heller Anschlag · Chiff · Inharmonizität) sind der DSP-Weg Richtung
-  „klingt nach echtem Instrument". Ehrlich zu acestudio.ai unten im Chat.
-  TEST 10.79.43: Generate → klingen die Stimmen jetzt reicher/lebendiger, mit dem leichten
-  „Schweben" echter Saiten — weniger steril? Zu viel Verstimmung irgendwo, oder genau richtig?
+notesT: Volle Autonomie („du entscheidest, grab all tasks") → ich arbeite den Visual-Strang ab.
+  Ein Visual-Audit fand die Architektur solide (kein Audio-Thread-/NaN-Problem, Governor ok),
+  aber EINEN echten Korrektheits-Bug:
+  • BLACK-SCREEN-BUG behoben: Das Vollbild-Visual (Tools → Visual) mountete eine ZWEITE
+    Render-Engine, während das schwebende Visual-Fenster darunter WEITER rendert. Zwei laufende
+    Metal-Views hungern die GPU aus → das immersive Bild wird sekundenlang schwarz; außerdem nahm
+    der Recorder doppelt auf. Jetzt: das schwebende Fenster blendet sich aus, solange das Vollbild
+    offen ist, und kommt beim Schließen zurück → immer nur EINE Render-Engine aktiv (Projektions-
+    Vollbild bleibt erhalten).
+  • Kleiner freier Perf-Gewinn: Bildrate nur bei echtem Tier-Wechsel neu setzen statt 60×/s (spart
+    über lange Installations-Läufe).
+  Zurückgestellt (brauchen Geräte-Test): FPS-Pause bei Reduce-Motion, framebufferOnly-Feinschliff.
+  Compile-Review grün, kein Audio-Thread/Bio-DSP berührt.
+  NÄCHST im Strang: schwebendes Fenster „bearbeiten" + externe Displays (dormant+abgesichert).
+  TEST 10.79.44: Vollbild-Visual öffnen/schließen (Tools → Visual) → bleibt es stabil (kein
+  Schwarz mehr), und das schwebende Fenster ist danach wie vorher da?
