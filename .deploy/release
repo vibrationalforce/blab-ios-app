@@ -1,20 +1,18 @@
-build: 2026-07-03 v10.79.39 (Klang: Stimmen klingen echter nach Instrument — Anschlags-Brightness)
+build: 2026-07-03 v10.79.40 (Klang: Anschlags-Transient — Pick/Bogen/Atem-Chiff)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Loop-Mode Zyklus 2 — dein vierter Punkt: „Musik klingt insgesamt noch nicht so richtig
-  nach realistischen Instrument." DSP-Audit ergab die Hauptursache: die Synth-Stimme
-  (EchoelDDSP) hielt das Klangspektrum für die GANZE Note eingefroren — nur ein Lautstärke-
-  Hüllkurven-Gate über einem statischen Ton. Das ist der klassische „elektronische Orgel"-
-  Klang. Echte gezupfte/angeschlagene Instrumente starten HELL und werden im Ausklang dunkler.
-  • PRO-NOTE-BRIGHTNESS-HÜLLKURVE: der Filter öffnet jetzt am Anschlag und settelt über ~100 ms
-    zum Grund-Klang zurück — „heller Anschlag → weicher Körper", der Fingerabdruck eines echten
-    Instruments.
-  • VELOCITY → BRIGHTNESS (Anschlagdynamik): ein härter gespielter Ton ist jetzt HELLER, nicht
-    nur lauter. Dynamik klingt wie ein echt gespieltes Instrument statt wie ein Lautstärkeregler.
-  • Reine Float-Arithmetik im bestehenden Audio-Render (keine Allokation/Locks) — Audio-thread-
-    Review grün. Sub-Bass, Drums (physikalische Modal-Resonatoren) und die geschützte Bio-DSP-
-    Triade bleiben unberührt.
-  Nächste Klang-Zyklen (geplant): Anschlags-Geräusch/Transient (Pick/Bogen/Atem), leichte
-  Inharmonizität/Detune für „analoges Leben", Pro-Note-Phasenvariation gegen den Machine-Gun-
-  Effekt. Compile + Audio-thread-Review grün. CI bestätigt final.
-  TEST 10.79.39: Generate starten → klingen die Melodie-Stimmen jetzt lebendiger, mit hellem
-  Anschlag und weicherem Ausklang, weniger nach statischem Synth? Härtere Töne heller?
+notesT: Loop-Mode Zyklus 3 — Klang-Realismus, Fortsetzung. Nach der Anschlags-Brightness (79.39)
+  jetzt der zweite große Realismus-Hebel: der ANSCHLAGS-TRANSIENT. Das Ohr erkennt ein echtes
+  Instrument vor allem an den ersten 10–40 ms — dem Pick der Gitarre, dem Bogen-Ansatz, dem
+  Atem-Ansatz. Reine additive Synth-Töne haben das nicht → sie klingen „synthetisch".
+  • PRO-NOTE ANSCHLAGS-CHIFF: ein kurzer, spektral geformter Rausch-Transient am Attack (~30 ms),
+    velocity-skaliert (härterer Anschlag = deutlicherer Chiff). Nicht von der Harmonizität
+    gegated — auch ein rein tonaler Ton bekommt jetzt seinen Anschlag. Nach ~30 ms ist der
+    Steady-State klanglich identisch wie vorher.
+  • PRODUKTIONS-HÄRTUNG: Denormal-Floor auf beiden neuen Hüllkurven (Brightness + Chiff), damit
+    gehaltene Noten keinen CPU-Slow-Path erzeugen (Akku/CPU-Hygiene, „auf Produktionslevel").
+  Zusammen mit 79.39 (Brightness-Anschlag) sollten die Melodie-Stimmen jetzt deutlich lebendiger
+  und instrumentenhafter klingen. Nächste Klang-Zyklen (geplant): leichte Inharmonizität/Detune
+  für „analoges Leben", Pro-Note-Phasenvariation gegen den Machine-Gun-Effekt.
+  Audio-thread- + Compile-Review grün. CI bestätigt final. Sub-Bass/Drums/Bio-Triade unberührt.
+  TEST 10.79.40: Generate starten → hörst du jetzt einen feinen Anschlag/„Chiff" am Tonbeginn?
+  Klingen die Töne insgesamt echter/lebendiger als vorher? Härtere Töne mit deutlicherem Anschlag?
