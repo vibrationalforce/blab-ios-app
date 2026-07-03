@@ -186,6 +186,11 @@ struct EchoelStudioView: View {
     @State private var lockSnapTask: Task<Void, Never>?
     /// When the last take was composed — the floor for automatic re-seeds.
     @State private var lastSeedAt: Date = .distantPast
+    /// True once the body has seeded the tempo for THIS take (a real bio frame arrived).
+    /// After that the beat HOLDS — evolve/re-seed ticks evolve only the melody, so a noisy
+    /// rPPG octave-error (≈196 ≈ 2×98) can never slam the tempo to double-time mid-take.
+    /// Reset on stop so the next take re-seeds from a fresh pulse. (See generate() tempo block.)
+    @State private var tempoSeededFromBody = false
     /// Minimum seconds between AUTOMATIC re-seeds (evolve/lock). User edits bypass it.
     /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
     /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
@@ -2037,6 +2042,7 @@ struct EchoelStudioView: View {
 
     private func stopEverything() {
         running = false
+        tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
         startTask?.cancel(); startTask = nil
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil
@@ -2191,10 +2197,24 @@ struct EchoelStudioView: View {
         synth.setTuning(a4Hz: session.a4Hz)
         subBass.setTuning(a4Hz: session.a4Hz)
         synth.apply(currentPatch)
-        // Locked tempo wins for tight loops; otherwise the body sets the pace. Rounded to a
-        // WHOLE BPM so the clock, the transport bar (0 decimals), the click and the export
-        // filename all show the identical number — no "87 here / 87.3 there" split.
-        let tempo = (lockBPM ? min(max(lockedBPM, 40), 240) : composition.suggestedTempo).rounded()
+        // TEMPO — stable beat you can actually make music over (founder: "springt ständig auf
+        // 196 bpm … bei diesen Sprüngen funktioniert das nicht"). The body SEEDS the tempo ONCE
+        // at the start of a take; after that it HOLDS. Evolve/re-seed ticks evolve only the
+        // MELODY, never the beat — so a noisy rPPG octave-error can't slam the tempo to
+        // double-time mid-take. The user changes tempo any time via the transport bar / lock.
+        let tempo: Double
+        if lockBPM {
+            tempo = min(max(lockedBPM, 40), 240).rounded()
+        } else if tempoSeededFromBody {
+            tempo = beatPlayer.pattern.tempo          // seeded once → keep the beat steady
+        } else {
+            // Seed from the body, octave-folded so a doubled pulse (196 ≈ 2×98) can't set a
+            // runaway tempo. suggestedTempo is already musical-clamped. Once we have a REAL
+            // body frame (a locked pulse, not the neutral default), LOCK the tempo in so the
+            // beat then holds — before the first lock we keep re-seeding neutrally (still ~72).
+            tempo = Self.seedTempo(composition.suggestedTempo).rounded()
+            if frame != nil { tempoSeededFromBody = true }
+        }
         // Push the live musical context so the roll's per-tick MusicalFrame carries the
         // current key/scale/tempo/concert-pitch → renderers colour by the right key.
         pianoRoll.musicalA4Hz = session.a4Hz
@@ -2284,6 +2304,16 @@ struct EchoelStudioView: View {
     /// across every voice in its render drain.
     private func applySoundLive() {
         synth.apply(currentPatch)
+    }
+
+    /// Octave-fold a body-derived SEED tempo so a doubled rPPG pulse can't set a runaway
+    /// beat. A doubled estimate (≈196 bpm) yields a suggestedTempo ~134–160; a real seated/
+    /// resting body seeds ≤ ~110. So anything above ~130 is almost always a 2× artifact —
+    /// halve it back into the musical range. Pure + deterministic (unit-testable).
+    static func seedTempo(_ t: Double) -> Double {
+        var t = t
+        while t > 130 { t /= 2 }
+        return Swift.max(50, Swift.min(160, t))
     }
 
     /// Impose the global Pluck↔Pad articulation onto the envelope of whatever
