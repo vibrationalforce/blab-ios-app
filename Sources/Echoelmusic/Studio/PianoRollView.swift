@@ -62,6 +62,17 @@ public final class PianoRollModel {
     /// so a live re-seed never cuts a sustaining note mid-bar (no click/gap).
     @ObservationIgnored private var pendingNotes: [Note]?
 
+    // MARK: - Multi-bar arrangement (bar-cycling, 1b)
+    /// The N distinct 16-step bars of the current take. When count > 1 the roll CYCLES
+    /// through them — a different bar each loop — so the composition is "loop-konform und
+    /// je nach Loop-Größe umgestellt" (founder). Empty / single = classic 1-bar loop.
+    @ObservationIgnored private var arrangementBars: [[Note]] = []
+    /// Bars played since transport start — advances at every step-0 wrap, exactly like the
+    /// transport's bar counter, so the sounding bar is `arrangementBars[playedBars % N]`,
+    /// keeping the audio IN SYNC with the transport's "bar N/M" loop indicator (no drift,
+    /// even across a live re-seed which hot-swaps the bars without resetting the phase).
+    @ObservationIgnored private var playedBars = 0
+
     // MARK: - Musical-parameter publishing (DMMW backbone)
     // The roll is the source of "what's sounding now", so it publishes a MusicalFrame
     // on the bus each tick — the music-side mirror of the bio snapshot. Renderers
@@ -112,16 +123,39 @@ public final class PianoRollModel {
     public func clear() {
         notes.removeAll()
         pendingNotes = nil   // else a staged bar would resurrect what was just cleared
+        arrangementBars = [] // stop cycling — a cleared roll is a single (empty) bar
         allNotesOff()        // release anything sounding so clearing never hangs a note
     }
 
     /// Replace all notes (used when launching a melody clip). Flush any notes
     /// currently sounding first, otherwise regenerating mid-playback leaves the
-    /// old notes' entries in `active` → stuck/lingering notes.
+    /// old notes' entries in `active` → stuck/lingering notes. A plain single-bar
+    /// load ENDS any multi-bar cycling (a launched clip / loaded project is one bar).
     public func load(_ newNotes: [Note]) {
         allNotesOff()
         pendingNotes = nil
+        arrangementBars = []
         notes = newNotes
+    }
+
+    /// Load an N-bar arrangement that CYCLES one bar per loop (1b). `playing` = the
+    /// transport is already running (a live re-seed), so hot-swap the bars and stage the
+    /// phase-correct next bar for the upcoming boundary — the sounding bar is never cut.
+    /// When stopped, bar 0 loads now so it is present before playback starts.
+    public func loadArrangement(_ bars: [[Note]], playing: Bool) {
+        guard bars.count > 1 else { load(bars.first ?? []); return }   // 0/1 bar → classic path
+        if playing {
+            arrangementBars = bars
+            // Next boundary already plays NEW content, at the current phase (keeps sync
+            // with the transport's loop indicator; playedBars is NOT reset on re-seed).
+            pendingNotes = bars[playedBars % bars.count]
+        } else {
+            allNotesOff()
+            pendingNotes = nil
+            playedBars = 0
+            arrangementBars = bars
+            notes = bars[0]
+        }
     }
 
     /// Import externally-authored notes (e.g. a Standard MIDI File) onto the
@@ -191,6 +225,10 @@ public final class PianoRollModel {
     public func stop(pattern: PatternEngine) {
         pattern.onTick = nil
         pendingNotes = nil
+        // Reset the loop phase so a replay starts on bar 0, in sync with the transport's
+        // bar counter (which also resets on stop). Rewind the roll to bar 0 when cycling.
+        playedBars = 0
+        if arrangementBars.count > 1 { notes = arrangementBars[0] }
         allNotesOff()
     }
 
@@ -236,9 +274,19 @@ public final class PianoRollModel {
         // an allNotesOff cut. Sustaining notes from the previous bar keep their
         // entries in `active` and release naturally at their own endStep below; the
         // new pattern's notes start via the normal startStep==step path. No gap.
-        if step == 0, let pending = pendingNotes {
-            notes = pending
-            pendingNotes = nil
+        if step == 0 {
+            if let pending = pendingNotes {
+                notes = pending
+                pendingNotes = nil
+            }
+            // Bar-cycling (1b): advance the loop counter (mirrors the transport's bar count)
+            // and STAGE the next bar for the upcoming boundary, so an N-bar arrangement plays
+            // a different bar each loop — seamlessly (same pendingNotes path). Single/empty
+            // arrangement leaves this untouched → classic 1-bar loop.
+            if arrangementBars.count > 1 {
+                playedBars += 1
+                pendingNotes = arrangementBars[playedBars % arrangementBars.count]
+            }
         }
         // Release notes ending now. The engine's noteOff(pitch:) releases EVERY
         // voice of that pitch, so when two notes share a pitch (voice-leading can
