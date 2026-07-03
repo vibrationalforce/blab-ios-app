@@ -2240,7 +2240,7 @@ struct EchoelStudioView: View {
             // frame would freeze a too-fast beat. Until the pulse is confidently settled we hold
             // a steady tempo instead of chasing the noise; once confident we seed from the
             // settled body and lock. (Bio still MODULATES timbre throughout — only TEMPO holds.)
-            let bodySeed = Self.seedTempo(composition.suggestedTempo).rounded()
+            let bodySeed = StudioCalculator.seedTempo(composition.suggestedTempo).rounded()
             if bodyTempoTrustworthy(frame) {
                 tempo = bodySeed
                 tempoSeededFromBody = true
@@ -2347,15 +2347,8 @@ struct EchoelStudioView: View {
         synth.apply(currentPatch)
     }
 
-    /// Octave-fold a body-derived SEED tempo so a doubled rPPG pulse can't set a runaway
-    /// beat. A doubled estimate (≈196 bpm) yields a suggestedTempo ~134–160; a real seated/
-    /// resting body seeds ≤ ~110. So anything above ~130 is almost always a 2× artifact —
-    /// halve it back into the musical range. Pure + deterministic (unit-testable).
-    static func seedTempo(_ t: Double) -> Double {
-        var t = t
-        while t > 130 { t /= 2 }
-        return Swift.max(50, Swift.min(160, t))
-    }
+    // seedTempo moved to StudioCalculator.seedTempo (Foundation-only home → Linux CI
+    // actually EXECUTES its tests; pure musical maths doesn't belong on a SwiftUI view).
 
     /// Whether a body reading may LOCK the take tempo. Camera rPPG must be confidently locked
     /// (its raw bpm is noisy while the pulse settles); other sources (BLE/HealthKit/demo) are
