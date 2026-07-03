@@ -4280,3 +4280,23 @@ intentional, left as-is) · loadProject. Any new writer MUST respect: lock-globa
 **Video analysis technique:** pip install imageio-ffmpeg → bundled ffmpeg binary → extract frames
 (fps=1/2) → Read as images. Video was 480x1042 screen-rec with audio; the 195.5119 four-decimal
 value in EchoelValueField was the mathematical fingerprint identifying the writer.
+
+## 2026-07-03 (Opus 4.8, cont.) — Tempo bestätigt fest → Klang-Realismus #4: analoger Pitch-Drift (79.48)
+
+Founder auf 79.47: "Tempo ok" → Tempo-Front geschlossen (alle drei Schreibpfade themed:
+lock-global > fold > glide). "Greb all tasks" → nächster Ralph-Zyklus auf der letzten offenen
+Produktions-Front: Klang-Realismus (acestudio-Ziel).
+
+**79.48 — analog pitch drift (sound realism #4):** Nach Timbre (79.39 Helligkeits-Env), Anschlag
+(79.40 Onset-Chiff) und Inharmonizität (79.43) fehlte dem additiven Synth die EINE "lebendig vs.
+tot"-Sache: MIKRO-TONHÖHEN-LEBEN. Jede Note saß auf perfekt starrer Tonhöhe → Akkorde steif,
+Flächen synthetisch-rein. NEU in EchoelDDSP: `pitchDriftCents` (Standard 3) — langsames,
+aperiodisches Wandern der Grundtonhöhe um wenige Cent (Random-Walk: alle ~80 ms neues Ziel aus
+dem xorshift-PRNG, one-pole-Glide coeff 0.0006, denormal-gefloort), pro Note von 0 aus re-zentriert.
+Lässt Akkorde SCHWEBEN (Schwebungen) und Flächen atmen. Ins bestehende Vibrato-Pitch-Mod gefaltet
+(EIN pow, Semitone-Akkumulator) → 0 Vibrato + 0 Drift = bit-identisch. Kleiner Standard, damit
+JEDE Stimme profitiert (wie Inharmonizität). 1 Datei (EchoelDDSP.swift) + Tests
+(EchoelDDSPPitchDriftTests: Standard subtil, deaktiviert=bit-identisch, gleicher Seed=deterministisch,
+aktiv=verändert-aber-endlich-und-subtil-≤25%-RMS). **audio-thread-reviewer: CLEAN** (kein malloc/
+lock/GCD/ObjC/IO, denormal-gefloort wie onsetNoiseEnv/filterEnvValue, deterministisch, powf auf SAFE-Liste).
+Awaiting founder device listen: schwebt ein gehaltener Ton/Akkord jetzt leicht ohne verstimmt zu klingen?

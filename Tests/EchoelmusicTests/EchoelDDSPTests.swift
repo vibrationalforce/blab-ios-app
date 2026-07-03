@@ -1521,4 +1521,70 @@ final class EchoelPolyDDSPKeyFollowPanTests: XCTestCase {
     }
 }
 
+// MARK: - Analog Pitch Drift (realism) Tests
+
+/// Guards the per-note analog pitch drift (`pitchDriftCents`): a slow aperiodic
+/// wander that makes chords beat and sustains breathe. Must stay subtle, finite,
+/// deterministic (audio-thread safe), and be a true no-op when disabled.
+final class EchoelDDSPPitchDriftTests: XCTestCase {
+
+    /// Render a pure-tonal note past the onset transient and return the tail buffer.
+    private func renderTail(_ ddsp: EchoelDDSP, frames: Int = 8192) -> [Float] {
+        ddsp.frequency = 220.0
+        ddsp.harmonicity = 1.0      // fully tonal → noise path off (onset chiff decays out)
+        ddsp.noiseLevel = 0.0
+        ddsp.noteOn()
+        var buffer = [Float](repeating: 0, count: frames)
+        ddsp.render(buffer: &buffer, frameCount: frames, stereo: false)
+        return buffer
+    }
+
+    func testDefault_isSubtleNonZero() {
+        // Small default so every voice breathes (mirrors the inharmonicity default),
+        // yet well under a perceptible detune (<10 cents).
+        let ddsp = EchoelDDSP()
+        XCTAssertGreaterThan(ddsp.pitchDriftCents, 0, "default drift should give life")
+        XCTAssertLessThan(ddsp.pitchDriftCents, 10, "default drift must stay imperceptible as detune")
+    }
+
+    func testDriftDisabled_isBitIdenticalAcrossRenders() {
+        // pitchDriftCents 0 → no PRNG use for pitch → perfectly steady, reproducible.
+        let a = EchoelDDSP(); a.pitchDriftCents = 0
+        let b = EchoelDDSP(); b.pitchDriftCents = 0
+        let ra = renderTail(a), rb = renderTail(b)
+        XCTAssertEqual(ra, rb, "disabled drift must be deterministic and identical")
+    }
+
+    func testDriftEnabled_sameSeedIsDeterministic() {
+        // Two voices with the SAME PRNG seed must drift identically — no nondeterminism
+        // / undefined behaviour on the audio thread.
+        let a = EchoelDDSP(); a.pitchDriftCents = 5
+        let b = EchoelDDSP(); b.pitchDriftCents = 5
+        XCTAssertEqual(renderTail(a), renderTail(b), "same seed → same drift")
+    }
+
+    func testDriftEnabled_changesOutputButStaysFiniteAndSubtle() {
+        let dry = renderTail({ let d = EchoelDDSP(); d.pitchDriftCents = 0; return d }())
+        let wet = renderTail({ let d = EchoelDDSP(); d.pitchDriftCents = 6; return d }())
+
+        // The effect is audible (output differs from the perfectly-steady tone)…
+        XCTAssertNotEqual(dry, wet, "drift must actually modulate pitch")
+
+        // …but every sample stays finite and bounded (no NaN/Inf, no runaway).
+        for s in wet {
+            XCTAssertTrue(s.isFinite, "drift output must stay finite")
+            XCTAssertLessThanOrEqual(abs(s), 1.5, "drift must not blow up the level")
+        }
+
+        // …and it is a PITCH effect, not a LEVEL effect: overall energy is ~unchanged.
+        func rms(_ x: [Float]) -> Float {
+            var acc: Float = 0; for v in x { acc += v * v }
+            return (acc / Float(max(1, x.count))).squareRoot()
+        }
+        let rd = rms(dry), rw = rms(wet)
+        XCTAssertGreaterThan(rd, 0, "steady tone should have signal")
+        XCTAssertEqual(rw, rd, accuracy: rd * 0.25 + 1e-6, "drift must stay subtle (energy ~unchanged)")
+    }
+}
+
 #endif

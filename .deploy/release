@@ -1,18 +1,19 @@
-build: 2026-07-03 v10.79.47 (Der Video-Fund: Modulations-Route umging deinen BPM-Lock — behoben)
+build: 2026-07-03 v10.79.48 (Klang lebt: analoger Pitch-Drift — Akkorde schweben statt digital-steif)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Video war der Durchbruch. Frame bei ~11 s: im Puls-Lock-Moment springt das Tempo
-  75 → 196, OBWOHL Lock BPM an ist. Die Zahl 195.5119 im Tempo-Feld hat den Täter mathematisch
-  verraten: 30 + 0,613 × 270 — die Formel der Modulations-Engine. Du hast eine Body→Tempo-
-  Modulationsroute aktiv (gewollt!), aber ihr Handler schrieb das Tempo DIREKT an der Uhr —
-  an deinem globalen BPM-Lock vorbei, ungefaltet, als harter Sprung. Sie feuert genau dann,
-  wenn der Puls lockt (erste Bio-Frames) — daher „in dem Moment wo bpm locked springt die bpm".
-  Der dritte und letzte Tempo-Schreibpfad, jetzt mit denselben Regeln wie alle anderen:
-  • DEIN BPM-LOCK GEWINNT GLOBAL: ist Lock an, ignoriert die Route das Tempo komplett.
-  • OKTAV-FALTUNG: die Route kann nie mehr absurde 196–300 bpm anfordern (195,5 → ~98).
-  • GLEITEN statt springen: ohne Lock folgt der Beat dem Körper sanft.
-  Die Modulation selbst bleibt voll aktiv (Body treibt weiter Sound/Visuals — dein Wunsch).
-  Dazu aus 79.46 (im selben TestFlight-Stand): manueller Lock friert das laufende Tempo ein
-  (kein Roh-Puls-Snap), Body-Lock wartet auf settled (sicher UND ~3 s flach).
-  TEST 10.79.47: Dasselbe Szenario wie dein Video — Lock BPM an, Generate, Finger drauf,
-  warten bis „Locked" → bleibt das Tempo jetzt FELSENFEST bei deinem Wert? Und ohne Lock:
-  gleitet der Beat sanft Richtung Puls statt zu springen?
+notesT: Tempo ist bestätigt fest — jetzt die letzte offene Produktions-Front: Klang-Realismus
+  (dein acestudio-Ziel). Nach Timbre (Helligkeits-Huellkurve), Anschlag (Onset-Chiff) und
+  Inharmonizitaet fehlte dem additiven Synth noch die EINE Sache, die "lebendig" von "tot"
+  trennt: MIKRO-TONHOEHEN-LEBEN. Jede Note sass bisher auf mathematisch perfekter, komplett
+  starrer Tonhoehe — darum klangen Akkorde steif und Flaechen synthetisch-rein.
+  NEU: analoger Pitch-Drift. Ein langsames, aperiodisches Wandern der Grundtonhoehe um wenige
+  Cent (Standard ~3 Cent, pro Note neu von der Tonhoehe aus). Echte Spieler/Saiten sind nie
+  perfekt stabil — dieses Wandern laesst AKKORDE SCHWEBEN (Schwebungen) und Flaechen atmen,
+  statt digital-eingefroren zu klingen. Unterscheidet sich vom Vibrato (periodisch) — dies
+  ist ein sanfter Zufalls-Random-Walk. Winziger Standardwert, damit JEDE Stimme profitiert
+  (wie schon bei der Inharmonizitaet); 0 = perfekt stabil (bit-identisch zu vorher).
+  Technisch: audio-thread-sicher (kein malloc/lock/GCD), nutzt den vorhandenen xorshift-PRNG,
+  denormal-gefloort, EIN pow() gemeinsam mit dem Vibrato. Neue CI-Tests: Standard subtil,
+  deaktiviert=bit-identisch, gleicher Seed=deterministisch, aktiv=veraendert-aber-endlich-und-subtil.
+  HOERTEST 10.79.48: Generate, halte einen laengeren Ton / einen Akkord — schwebt/atmet er jetzt
+  leicht (lebendiger, "analoger"), ohne verstimmt zu klingen? Klingt der Gesamteindruck naeher
+  an einem echten Instrument als in 79.47?

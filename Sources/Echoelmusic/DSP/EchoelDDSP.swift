@@ -224,6 +224,17 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Vibrato depth in semitones
     public var vibratoDepth: Float = 0
 
+    /// Analog pitch drift — peak micro-detune in CENTS (100 cents = 1 semitone).
+    /// A slow, band-limited random wander of the fundamental, re-centred per note.
+    /// This is the "alive vs. dead" lever additive synthesis most lacks: real
+    /// players/strings are never perfectly steady, so a few cents of slow drift
+    /// makes CHORDS BEAT and sustained tones breathe instead of sounding sterile
+    /// and mathematically pure. Distinct from `vibratoDepth` (periodic) — this is
+    /// aperiodic (a smoothed random walk). Small default so every voice benefits
+    /// (like `inharmonicity`); 0 = perfectly steady pitch (bit-identical to before).
+    /// Audio-thread: read-only in render; the wander uses the per-voice xorshift PRNG.
+    public var pitchDriftCents: Float = 3
+
     // MARK: - Timbre Transfer
 
     /// Timbre profile — per-harmonic amplitude template from target instrument
@@ -334,6 +345,14 @@ public final class EchoelDDSP: @unchecked Sendable {
 
     /// Vibrato phase accumulator
     private var vibratoPhase: Float = 0
+
+    /// Analog pitch-drift state (see `pitchDriftCents`). A slow random walk: every
+    /// ~80 ms a fresh target in [-1,1] is drawn from the PRNG; `pitchDriftValue`
+    /// one-pole glides toward it (~a few-Hz wander). Re-centred to 0 at each noteOn
+    /// so a note starts in tune and drifts from there. Audio-thread: index writes only.
+    private var pitchDriftValue: Float = 0
+    private var pitchDriftTarget: Float = 0
+    private var pitchDriftCounter: Int = 0
 
     /// Current envelope value
     private var envelopeValue: Float = 0
@@ -650,6 +669,9 @@ public final class EchoelDDSP: @unchecked Sendable {
         velAttackScale = 1 - percussiveness * 0.7 * vel
         filterEnvValue = 1                 // re-arm the per-note brightness envelope (attack = bright)
         onsetNoiseEnv = 1                  // re-arm the onset chiff (pick/bow/breath transient)
+        pitchDriftValue = 0                // start in tune; analog drift accrues from here
+        pitchDriftTarget = 0
+        pitchDriftCounter = 0              // draw a fresh drift target on the first render sample
         envelopeStage = .attack
         envelopeSamples = 0
     }
@@ -722,13 +744,32 @@ public final class EchoelDDSP: @unchecked Sendable {
             if smoothedFreq < 0 { smoothedFreq = frequency }
             smoothedFreq += 0.01 * (frequency - smoothedFreq)
 
-            // Apply vibrato (bio: heart rate → vibrato rate)
+            // Apply pitch modulation (vibrato + analog drift) — accumulate both as
+            // semitone offsets and apply with ONE pow so a note that has neither is
+            // bit-identical to before (offset stays 0 → pow(2,0)=1).
             var currentFreq = smoothedFreq
+            var pitchModSemitones: Float = 0
+            // Vibrato (bio: heart rate → vibrato rate) — periodic.
             if vibratoRate > 0 && vibratoDepth > 0 {
                 vibratoPhase += vibratoRate / sampleRate * 2.0 * .pi
                 if vibratoPhase > 2.0 * .pi { vibratoPhase -= 2.0 * .pi }
-                let vibratoSemitones = sin(vibratoPhase) * vibratoDepth
-                currentFreq = smoothedFreq * pow(2.0, vibratoSemitones / 12.0)
+                pitchModSemitones += sin(vibratoPhase) * vibratoDepth
+            }
+            // Analog pitch drift — aperiodic, a slow random walk (few-cent wander)
+            // that makes chords beat and sustains breathe like a real instrument.
+            if pitchDriftCents > 0 {
+                pitchDriftCounter -= 1
+                if pitchDriftCounter <= 0 {
+                    pitchDriftTarget = nextNoiseSample()          // fresh target in [-1,1]
+                    pitchDriftCounter = Int(0.08 * sampleRate)    // new target ~every 80 ms
+                }
+                // Slow one-pole glide toward the target → a ~few-Hz aperiodic wander.
+                pitchDriftValue += 0.0006 * (pitchDriftTarget - pitchDriftValue)
+                if pitchDriftValue < 1e-20 && pitchDriftValue > -1e-20 { pitchDriftValue = 0 }
+                pitchModSemitones += pitchDriftValue * pitchDriftCents * 0.01   // cents → semitones
+            }
+            if pitchModSemitones != 0 {
+                currentFreq = smoothedFreq * pow(2.0, pitchModSemitones / 12.0)
             }
 
             // Smooth amplitude transitions (exponential smoothing). The `+ antiDenormal`
