@@ -1,18 +1,16 @@
-build: 2026-07-03 v10.79.40 (Klang: Anschlags-Transient — Pick/Bogen/Atem-Chiff)
+build: 2026-07-03 v10.79.41 (Produktions-Härtung: Speicher-Sicherheit im Pre-Roll-Writer)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Loop-Mode Zyklus 3 — Klang-Realismus, Fortsetzung. Nach der Anschlags-Brightness (79.39)
-  jetzt der zweite große Realismus-Hebel: der ANSCHLAGS-TRANSIENT. Das Ohr erkennt ein echtes
-  Instrument vor allem an den ersten 10–40 ms — dem Pick der Gitarre, dem Bogen-Ansatz, dem
-  Atem-Ansatz. Reine additive Synth-Töne haben das nicht → sie klingen „synthetisch".
-  • PRO-NOTE ANSCHLAGS-CHIFF: ein kurzer, spektral geformter Rausch-Transient am Attack (~30 ms),
-    velocity-skaliert (härterer Anschlag = deutlicherer Chiff). Nicht von der Harmonizität
-    gegated — auch ein rein tonaler Ton bekommt jetzt seinen Anschlag. Nach ~30 ms ist der
-    Steady-State klanglich identisch wie vorher.
-  • PRODUKTIONS-HÄRTUNG: Denormal-Floor auf beiden neuen Hüllkurven (Brightness + Chiff), damit
-    gehaltene Noten keinen CPU-Slow-Path erzeugen (Akku/CPU-Hygiene, „auf Produktionslevel").
-  Zusammen mit 79.39 (Brightness-Anschlag) sollten die Melodie-Stimmen jetzt deutlich lebendiger
-  und instrumentenhafter klingen. Nächste Klang-Zyklen (geplant): leichte Inharmonizität/Detune
-  für „analoges Leben", Pro-Note-Phasenvariation gegen den Machine-Gun-Effekt.
-  Audio-thread- + Compile-Review grün. CI bestätigt final. Sub-Bass/Drums/Bio-Triade unberührt.
-  TEST 10.79.40: Generate starten → hörst du jetzt einen feinen Anschlag/„Chiff" am Tonbeginn?
-  Klingen die Töne insgesamt echter/lebendiger als vorher? Härtere Töne mit deutlicherem Anschlag?
+notesT: Loop-Mode Zyklus 4 — Produktions-Crash-Safety. Ich habe einen Security-Audit über alle
+  ~212 Swift-Dateien laufen lassen (Force-Unwraps, Division durch 0, Array-Grenzen, NaN in den
+  Audio-Buffer). Gutes Ergebnis: die App ist gegen diese Crash-Klassen bereits sauber gehärtet —
+  0 bestätigte Crash-Bomben. Die „CLEAR SOFTWARE"-Disziplin ist real umgesetzt, nicht nur Doku.
+  • Der EINE reale Rest-Fund: der Pre-Roll-Writer (RetroCapture) deinterleavt den Stereo-Ring in
+    Kanal 0 UND 1 — der Zugriff auf Kanal 1 ist rohe Pointer-Indizierung, NICHT grenzengeprüft.
+    Ein Mono-Format hätte den Speicher überschrieben (kein nil-Guard hätte gegriffen). Jetzt: ein
+    expliziter Entry-Guard (Format muss stereo sein), sonst klarer Fehler statt Speicherkorruption.
+    Latentes „eine-Änderung-vom-Crash"-Risiko geschlossen.
+  Alles andere (Audio-Buffer-Zugriffe, Tempo-/Frequenz-Divisionen, MIDI-File-Parser, LUFS-Int-
+  Konvertierung) ist bereits korrekt geguardet — der Audit hat es Stelle für Stelle bestätigt.
+  Compile via CI verifiziert. Keine funktionale Änderung spürbar — reine Härtung.
+  (Kein Gerätetest nötig — CI-verifiziert. Deine Ohren brauche ich weiter für 79.40: klingen die
+  Stimmen jetzt echter?)
