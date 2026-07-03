@@ -107,6 +107,17 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// 1 = full patch attack (default / pads); <1 = snappier onset on a hard hit.
     private var velAttackScale: Float = 1
 
+    /// Per-note BRIGHTNESS envelope value (1 at onset → decays to 0). Opens the filter
+    /// cutoff at the attack and lets it settle darker as the note rings — the "bright
+    /// attack → mellow body" fingerprint of a real plucked/struck instrument. Set to 1 in
+    /// noteOn, decayed per-sample in render. Audio-thread: single Float, atomic-width.
+    private var filterEnvValue: Float = 0
+    /// How much the brightness envelope opens the cutoff at the onset (0 = static timbre,
+    /// ~2 = strong pluck). Public so a patch/character can dial it later; conservative default.
+    public var filterEnvAmount: Float = 1.6
+    /// Per-sample one-pole decay of the brightness envelope (~0.9998 ≈ ~100 ms to 1/e at 48 k).
+    public var filterEnvDecay: Float = 0.9998
+
     /// Attack time (seconds)
     public var attack: Float = 0.5            // Half second — audible but smooth
 
@@ -594,6 +605,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         let percussiveness = max(0, 1 - attack / 0.15)
         let vel = min(1, max(0, noteVelocity))
         velAttackScale = 1 - percussiveness * 0.7 * vel
+        filterEnvValue = 1                 // re-arm the per-note brightness envelope (attack = bright)
         envelopeStage = .attack
         envelopeSamples = 0
     }
@@ -767,7 +779,13 @@ public final class EchoelDDSP: @unchecked Sendable {
             // --- Resonant Filter (SVF) ---
             // LFO modulates filter cutoff around the base cutoff
             let lfoMod = filterLFO.next()  // [-depth, +depth]
-            let modulatedCutoff = max(20, min(filterCutoff * renderCutoffScale * (1.0 + lfoMod * lfoToFilterDepth), 18000))
+            // Per-note brightness envelope: open the cutoff at the onset and settle darker as
+            // the note sustains — the "bright attack → mellow body" of a real plucked/struck
+            // instrument, scaled by velocity (Anschlagdynamik: a harder hit is brighter, not just
+            // louder). One-pole decay, pure arithmetic; env/amount/velocity 0 leaves timbre as-is.
+            filterEnvValue *= filterEnvDecay
+            let brightBoost = 1.0 + filterEnvAmount * filterEnvValue * (0.4 + 0.6 * min(1, max(0, noteVelocity)))
+            let modulatedCutoff = max(20, min(filterCutoff * renderCutoffScale * (1.0 + lfoMod * lfoToFilterDepth) * brightBoost, 18000))
             // One-pole smooth the target so bio/LFO cutoff steps don't zipper the SVF.
             // Seed on first sample to avoid a startup sweep. coeff ~0.01 ≈ a few-ms glide.
             if smoothedCutoff < 0 { smoothedCutoff = modulatedCutoff }
