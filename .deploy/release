@@ -1,18 +1,23 @@
-build: 2026-07-02 v10.79.34 (Gesamt-Erlebnis + 2 rPPG-Korrektheitsfixes aus dem Audit)
+build: 2026-07-03 v10.79.35 (Deep-Audit-Durchgang: Wow ab Sekunde 1 · BPM konsistent · Visuals · Loop-Anzeige · Accessibility)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: 79.34 = 79.33 (Stabilität + ruhige UI + reichere Visuals + vollerer Sound) PLUS zwei
-  echte rPPG-Fehler, die ein Korrektheits-Audit fand:
-  • rPPG Start/Stop-Race (HIGH): der `guard !isRunning` deckte das `await` beim Kamera-Start
-    nicht ab — ein Stop WÄHREND des Startfensters (oder Start→Stop→Start) konnte die gestoppte
-    Kamera/Torch/den 10-Hz-Loop wieder aufwecken bzw. einen zweiten Loop lecken. Fix: jeder
-    start()/stop() vergibt ein Generations-Token; nur der JÜNGSTE Start ist Eigentümer, ältere
-    brechen nach dem await sauber ab (kein Zombie-Torch, kein Doppel-Loop mehr).
-  • rPPG Stall-Guard-Endlosschleife (MEDIUM): die neue Sample-Pipe-Erholung konnte auf einer
-    Kamera, die nie ein brauchbares Bild liefert, ewig rekonfigurieren (6-s-Drossel = 6-s-Takt).
-    Fix: max. 3 erzwungene Erholungen ohne zwischenzeitliche Frames, danach dem Watchdog
-    überlassen; das Budget füllt sich sofort auf, sobald wieder Frames fließen.
-  Alles additiv/umkehrbar; geschützte DSP/Render unberührt. Compile-Safety + Korrektheit je von
-  einem Audit-Agent geprüft (CI-Auth war in dieser Session abgelaufen).
-  TEST 10.79.34: Puls schnell Start/Stop/Start tippen → Torch bleibt korrekt an/aus, kein
-  Doppel-Puls; friert es ein, erholt sich die Kamera max. 3× und bleibt dann ruhig; ruhige
-  erste Ansicht; Dub hat Bass, Pads klarer, Drums grooven; Visual-Fenster per Panel-Button.
+notesT: Großer Deep-Audit-Durchgang (Founder: "Alles überarbeiten und stabilisieren für
+  konsistentes Wow ab Sekunde 1"). Vier parallele Fach-Audits (BPM · Loop · Visuals ·
+  Architektur/Accessibility) → priorisierte, risikoarme Fixes. Geschützte DSP unberührt.
+  • BPM KONSISTENT (Single Source of Truth): der Takt (PatternEngine.tempo → Transport) ist
+    die eine Autorität. currentTempo liest immer den Takt; angewandtes Tempo wird auf ganze BPM
+    gerundet (kein "87 hier / 87,3 da"); das Compose-Tempo-Feld bindet an den Takt (nie mehr
+    ein Rück-Snap nach Generate); Metronom + Visual-Frame folgen beim Laden. (Founder: "BPM ist
+    nicht überall konsistent" — behoben.)
+  • WOW AB SEKUNDE 1: das Visual-Fenster ist jetzt standardmäßig sichtbar (Aurora, flash-sicher,
+    Reduce-Motion-aware, ausblendbar). Herzschlag deutlich sichtbar (Bloom pulst heller UND
+    größer pro Schlag). Ruhe-Bild driftet sanft (Palette/Kohärenz/Atem) statt eingefroren.
+  • VISUALS: Floating-Fenster respektiert Reduce Motion; Style-B wird bei blend≈0 übersprungen
+    (Performance/Thermik).
+  • LOOP-ANZEIGE: die Transport-Leiste zeigt jetzt Loop-Größe + Position darin (Takt N/M + ein
+    Fortschrittsbalken pro Loop). (Die hörbare Umstellung der Komposition pro Loop-Größe folgt im
+    nächsten Build — bewusst getrennt, weil größerer Eingriff.)
+  • ACCESSIBILITY: Onboarding-Text lesbar (Kontrast WCAG AA statt fast unsichtbar); Status-Farben
+    als zentrale Theme-Tokens; dekorative Wellenform für VoiceOver ausgeblendet.
+  Compile-Safety + Korrektheit dieses Durchgangs sind Audit-geprüft; CI-Compile-Check verifiziert.
+  TEST 10.79.35: App öffnet mit lebendigem Aurora-Visual; Puls sichtbar; BPM überall gleich (auch
+  nach Tempo-Edit + Generate); Loop-Größe sichtbar in der Transportleiste; Onboarding lesbar.
