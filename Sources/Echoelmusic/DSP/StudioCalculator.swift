@@ -120,4 +120,18 @@ public struct StudioCalculator: Sendable, Equatable {
     public func loopSamples(bars: Int) -> Int {
         Int((loopSeconds(bars: bars) * sampleRate).rounded())
     }
+
+    // MARK: - Body-seeded tempo
+
+    /// Octave-fold a body-derived SEED tempo so a doubled rPPG pulse can't set a runaway
+    /// beat (founder: "springt ständig auf 196 bpm"). A doubled estimate (≈196 bpm) yields
+    /// a suggested tempo ~134–160; a real seated/resting body seeds ≤ ~110. So anything
+    /// above ~130 is almost always a 2× artifact — halve it back into the musical range,
+    /// then clamp to a playable window. Pure + deterministic (unit-tested in
+    /// SeedTempoTests; lives here — not on the SwiftUI view — so Linux CI executes it).
+    public static func seedTempo(_ t: Double) -> Double {
+        var t = t
+        while t > 130 { t /= 2 }
+        return Swift.max(50, Swift.min(160, t))
+    }
 }
