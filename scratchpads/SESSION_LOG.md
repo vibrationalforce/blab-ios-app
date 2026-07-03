@@ -4041,3 +4041,18 @@ restart cooldown, re-arms torch/exposure). Files: CameraRPPGBioPublisher.swift, 
 
 **Deploy:** bundling all above into one TestFlight build (79.33) once head compile-check green.
 Founder MUST update TestFlight to see any of it (device logs still showed old builds).
+
+**79.34 — 2 rPPG correctness fixes (from code-reviewer audit, "alle Probleme beheben"):**
+- HIGH: start() async re-entrancy — `guard !isRunning` didn't cover the `await capture.start()`
+  window (isRunning set true only after). Start→Stop (or Start→Stop→Start) during the camera-
+  config window could resurrect a stopped camera/torch/loop or orphan a 2nd publishTask. Fixed
+  with a monotonic `startGeneration` token bumped by every start()/stop(); a start() resuming
+  from its await proceeds only if still the latest generation, else returns untouched.
+- MEDIUM: the new sample-pipe stall guard could reconfigure the camera unboundedly if it never
+  yields a usable sample (6 s throttle == re-fire cadence). Capped at `maxForcedRecoveries=3`
+  without frames returning; budget resets the instant samples flow.
+- Compile-safety audit (build-error-resolver) over the whole 79.33 diff: CLEAN. Correctness
+  audit (code-reviewer): only these 2 actionable; BioComposer pitch range, PatternEngine timing,
+  WorkspaceView/FloatingVisualWindow observation all verified clean. Finding 3 (EchoelStudioView
+  modal chain at the metadata ceiling) = informational, no action, DO NOT grow it.
+- CI note: GitHub auth expired mid-session; both audit agents substituted for the compile-check.
