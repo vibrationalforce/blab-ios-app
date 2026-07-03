@@ -36,10 +36,11 @@ struct PulseMeasurementView: View {
                     .overlay(Circle().strokeBorder(EchoelTheme.border, lineWidth: 1))
                 Text(statusText).font(.caption.weight(.semibold)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
-                // Calm display value (holds the last confident reading through noisy
-                // patches) so the number doesn't bounce; falls back to the live value only
-                // until the first confident lock. .isFinite guard: Int() traps on NaN/+Inf.
-                let shownBPM = cameraRPPG.displayBPM > 0 ? cameraRPPG.displayBPM : cameraRPPG.detectedBPM
+                // ONLY the calm, slew-limited displayBPM — never the raw per-reading value.
+                // Before the first confident lock displayBPM is 0, so we show no number at all
+                // (the coaching hint already says "Acquiring…"); this stops the readout from
+                // bouncing on the noisy warmup estimates. .isFinite guard: Int() traps on NaN/+Inf.
+                let shownBPM = cameraRPPG.displayBPM
                 if shownBPM > 0, shownBPM.isFinite {
                     Text("\(Int(shownBPM)) bpm")
                         .font(.caption.weight(.semibold)).monospacedDigit().foregroundStyle(EchoelTheme.text)
