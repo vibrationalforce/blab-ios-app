@@ -83,6 +83,10 @@ public final class CameraRPPGBioPublisher {
     /// Only readings at/above this confidence move `displayBPM` (higher than `lockThreshold`
     /// so the noisy 0.35–0.55 band holds instead of wandering).
     static let displayThreshold = 0.6
+    /// Max change of the shown pulse per ~100 ms tick — a physiological slew cap so a glitchy
+    /// rPPG estimate can never make the displayed BPM jump unrealistically (~20 bpm/s ceiling,
+    /// faster than any real heart-rate change, far slower than an octave/teleport glitch).
+    static let maxDisplayStep = 2.0
     /// Live bandpass-filtered pulse waveform (~[-1,1]) for the "Stimmungsbild".
     public private(set) var waveform: [Float] = []
     /// Lock threshold — also the bus-publish gate.
@@ -307,9 +311,20 @@ public final class CameraRPPGBioPublisher {
                         if bpm > self.displayBPM * 1.6 { bpm /= 2 }
                         else if bpm < self.displayBPM * 0.6 { bpm *= 2 }
                     }
-                    self.displayBPM = self.displayBPM == 0
-                        ? bpm
-                        : self.displayBPM * 0.6 + bpm * 0.4
+                    if self.displayBPM == 0 {
+                        self.displayBPM = bpm                       // first confident reading: adopt as-is
+                    } else {
+                        // EMA micro-smoothing, THEN a physiological SLEW cap so the shown pulse
+                        // can never JUMP unrealistically (founder: "gemessener Puls … ohne
+                        // unrealistische Sprünge"). A real heart rate changes a few bpm/s at most;
+                        // anything faster is an rPPG glitch. ≤maxDisplayStep per ~100 ms tick glides
+                        // through genuine changes and rejects teleports — a 70→133 octave/glitch
+                        // eases over ~seconds instead of snapping.
+                        let smoothed = self.displayBPM * 0.6 + bpm * 0.4
+                        let step = Swift.max(-Self.maxDisplayStep,
+                                             Swift.min(Self.maxDisplayStep, smoothed - self.displayBPM))
+                        self.displayBPM += step
+                    }
                 }
                 self.waveform = self.analyzer.recentWaveform
 

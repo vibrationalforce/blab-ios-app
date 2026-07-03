@@ -195,6 +195,11 @@ struct EchoelStudioView: View {
     /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
     /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
     private let minAutoSeedGap: TimeInterval = 6.0
+    /// rPPG confidence required before a body reading may LOCK the take tempo. The raw camera
+    /// bpm is noisy while the pulse settles (first ~13 s it bounces, e.g. 133→70); locking on
+    /// the first 0.35-confidence frame would freeze a too-fast beat. At/above this the reading
+    /// has settled near the true resting pulse. (BLE/HealthKit are stable → they lock at once.)
+    private static let tempoLockConfidence: Double = 0.6
 
     // Sheets / dialogs
     @State private var showOpen = false
@@ -2028,13 +2033,17 @@ struct EchoelStudioView: View {
         lockSnapTask?.cancel()
         lockSnapTask = Task { @MainActor in
             let start = Date()
-            while !cameraRPPG.isLocked {
+            // Wait until the pulse is CONFIDENTLY locked (not merely past the 0.35 publish gate)
+            // so the body re-seed — which also locks the take tempo — uses a settled reading. The
+            // raw rPPG bpm is noisy for the first ~13 s, so a low-confidence snap would freeze a
+            // too-fast beat. Generous timeout: a confident lock can take ~20 s.
+            while cameraRPPG.confidence < Self.tempoLockConfidence || cameraRPPG.detectedBPM <= 0 {
                 guard running, !Task.isCancelled else { return }
-                if Date().timeIntervalSince(start) > 8 { return }   // no lock → keep current take
+                if Date().timeIntervalSince(start) > 30 { return }   // no confident lock → keep current take
                 try? await Task.sleep(for: .milliseconds(150))
             }
             guard running, !Task.isCancelled else { return }
-            EchoelCrashLog.breadcrumb("rPPG locked → snap re-seed bpm=\(Int(cameraRPPG.detectedBPM))")
+            EchoelCrashLog.breadcrumb("rPPG confidently locked → snap re-seed bpm=\(Int(cameraRPPG.displayBPM))")
             scheduleGenerate(auto: true)   // re-seed (rate-limited; coalesces with the evolve tick)
         }
         #endif
@@ -2208,12 +2217,24 @@ struct EchoelStudioView: View {
         } else if tempoSeededFromBody {
             tempo = beatPlayer.pattern.tempo          // seeded once → keep the beat steady
         } else {
-            // Seed from the body, octave-folded so a doubled pulse (196 ≈ 2×98) can't set a
-            // runaway tempo. suggestedTempo is already musical-clamped. Once we have a REAL
-            // body frame (a locked pulse, not the neutral default), LOCK the tempo in so the
-            // beat then holds — before the first lock we keep re-seeding neutrally (still ~72).
-            tempo = Self.seedTempo(composition.suggestedTempo).rounded()
-            if frame != nil { tempoSeededFromBody = true }
+            // Not yet locked to the body for this take. Seed the tempo from the body's musical
+            // mapping (octave-folded so a doubled pulse 196 ≈ 2×98 can't set a runaway tempo) —
+            // but only LOCK it (hold for the rest of the take) once the reading is TRUSTWORTHY.
+            // Camera rPPG is noisy for the first ~13 s; locking on the first 0.35-confidence
+            // frame would freeze a too-fast beat. Until the pulse is confidently settled we hold
+            // a steady tempo instead of chasing the noise; once confident we seed from the
+            // settled body and lock. (Bio still MODULATES timbre throughout — only TEMPO holds.)
+            let bodySeed = Self.seedTempo(composition.suggestedTempo).rounded()
+            if bodyTempoTrustworthy(frame) {
+                tempo = bodySeed
+                tempoSeededFromBody = true
+            } else if frame != nil {
+                // Pulse present but still settling → hold current tempo, don't chase rPPG noise.
+                tempo = beatPlayer.pattern.tempo >= 50 ? beatPlayer.pattern.tempo : bodySeed
+            } else {
+                // No body yet → neutral body-mapped seed (~72).
+                tempo = bodySeed
+            }
         }
         // Push the live musical context so the roll's per-tick MusicalFrame carries the
         // current key/scale/tempo/concert-pitch → renderers colour by the right key.
@@ -2314,6 +2335,15 @@ struct EchoelStudioView: View {
         var t = t
         while t > 130 { t /= 2 }
         return Swift.max(50, Swift.min(160, t))
+    }
+
+    /// Whether a body reading may LOCK the take tempo. Camera rPPG must be confidently locked
+    /// (its raw bpm is noisy while the pulse settles); other sources (BLE/HealthKit/demo) are
+    /// stable enough to trust on the first frame. A nil frame = no body yet → not trustworthy.
+    private func bodyTempoTrustworthy(_ frame: BioSampleFrame?) -> Bool {
+        guard let frame else { return false }
+        if frame.source == .cameraPPG { return cameraRPPG.confidence >= Self.tempoLockConfidence }
+        return true
     }
 
     /// Impose the global Pluck↔Pad articulation onto the envelope of whatever
