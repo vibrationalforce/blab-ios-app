@@ -162,6 +162,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var target = BioUniforms()
     private var hasTarget = false
     private var reduceMotion = false
+    /// Last FPS pushed to the MTKView — so we only reassign `preferredFramesPerSecond`
+    /// (which reconfigures the CADisplayLink) when the governor's tier actually changes it,
+    /// not on every one of the 60 frames/s (free win over a long installation run).
+    private var lastAppliedFPS: Int = -1
     private let startTime = CFAbsoluteTimeGetCurrent()
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
     /// The resource governor receives each frame's timestamp so a sustained FPS drop
@@ -309,7 +313,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let ds = view.drawableSize
             if ds.height > 0 { uniforms.aspect = Float(ds.width / ds.height) }
             let q = governor?.settings
-            if let q { view.preferredFramesPerSecond = q.targetFPS }
+            if let q, q.targetFPS != lastAppliedFPS {
+                view.preferredFramesPerSecond = q.targetFPS
+                lastAppliedFPS = q.targetFPS
+            }
             let detailScale = q?.visualDetailScale ?? 1
             let effectiveReduceMotion = lookReduceMotionAccessibility || (q?.reduceMotion ?? false)
             let bio = bus?.freshBio()
