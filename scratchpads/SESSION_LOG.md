@@ -4342,3 +4342,17 @@ Cuts (3 files, UI-only, render-safe — only REMOVED views/reads, no new modals/
 - HeaderMonitors PulseMonitorMini/Live kept but marked UNMOUNTED (reversible).
 
 Result: exactly ONE pulse number (strip HR) + ONE tempo number (transport bar). Awaiting device look.
+
+## 2026-07-03 (Opus 4.8, cont.) — Bio-Metriken erklärt / auffindbar gemacht (79.51)
+
+Founder: "Hrv etc. soll erklärt werden." The explanations already existed (BioMetric.summary/detail
++ BioMetricInfoView, opened by tapping a strip cell) — the gap was DISCOVERABILITY: the strip values
+didn't look tappable, and there was no single "what do these all mean?" entry.
+FIX (3 files, render-safe): new `BioMetricsGuideView` (overview of HR · HRV · Coherence · Breath in
+one scrollable sheet, reusing the already-tested BioMetric copy + disclaimer) + a leading ⓘ button in
+BioStripView that opens it; per-cell deep-tap preserved (guide subtitle points to it). Two sheets on
+the leaf strip (fine — leaf, not the EchoelStudioView body; independent triggers). Content already
+covered by BioMetricInfoTests (every metric has a real >40-char explanation, brand-safe).
+Log triage (79.50 build): clean launch (no SAFE MODE), pulse locked ~60 and held 60–63 the whole
+session. One mild acf=0 delle (amp 0.028, below the 0.05 ripple gate) self-recovered in ~4 s; display
+stayed calm. No new bug — no chase (lowering the ripple gate toward 0.028 would risk resting locks 0.017–0.026).
