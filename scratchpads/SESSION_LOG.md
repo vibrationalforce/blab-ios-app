@@ -4323,3 +4323,22 @@ Device-verify caveat noted in code+notes: a hypothetical device with elevated-am
 pulse would be bled here; none observed, reversible. Also logged (no code): launch briefly SAFE MODE
 (a prior launch ~16 min earlier didn't confirm healthy — likely OS jettison in background); the
 self-healing net recovered cleanly to "launch confirmed healthy". No crash log → nothing to fix.
+
+## 2026-07-03 (Opus 4.8, cont.) — BPM-Anzeigen auf JE EINE reduziert (79.50)
+
+Founder: "Bpm sind zu viele Anzeigen, die verschiedene Dinge anzeigen. eine reicht." The screen
+stacked TWO different BPM concepts, each duplicated: measured PULSE (displayBPM) in the header
+(PulseMonitorMiniLive) + bio-strip HR + PulseMeasurementView; musical TEMPO in the TransportBar +
+a duplicate Compose tempo field. Pulse (54) next to tempo (51) read as "the BPM contradicts itself".
+AskUserQuestion → founder chose "Je eine: Puls + Tempo" (keep both concepts, one each).
+
+Cuts (3 files, UI-only, render-safe — only REMOVED views/reads, no new modals/10Hz reads):
+- WorkspaceView.topBar: removed `PulseMonitorMiniLive()` → pulse leaves the top chrome (kept
+  `cameraRPPG` env, still read for the low-freq isRunning on the visual monitor).
+- EchoelStudioView.tempoRow: removed the `if lockBPM { EchoelValueField(Tempo) }` duplicate →
+  tempo only in the TransportBar (which is fully lock-aware: setTempo + persists lockedBPM).
+- PulseMeasurementView: removed the `displayBPM` number → card shows only acquisition feedback
+  (status · coaching · waveform · confidence). Pulse NUMBER now lives once, in the bio-strip HR.
+- HeaderMonitors PulseMonitorMini/Live kept but marked UNMOUNTED (reversible).
+
+Result: exactly ONE pulse number (strip HR) + ONE tempo number (transport bar). Awaiting device look.

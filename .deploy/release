@@ -1,24 +1,19 @@
-build: 2026-07-03 v10.79.49 (Puls-Sprung bei Fingerwackeln behoben — Bewegung taeuscht keinen Takt mehr vor)
+build: 2026-07-03 v10.79.50 (Nur noch EINE Puls- und EINE Tempo-Anzeige — Schluss mit doppelten BPM-Zahlen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Session-Log war sauber — Tempo hat bei ~51 (dein echter Ruhepuls) gerastet, KEIN
-  196-Sprung mehr, Sound lief, sauberer Stopp. Der analoge Pitch-Drift (79.48) ist an Bord.
-  EINE Stelle im Log zeigte noch einen unrealistischen Puls-Sprung (dein Kernziel): bei ~11 s
-  vor Ende wackelte kurz der Finger — Amplitude ~0,06, aber die Autokorrelation fand NULL
-  Periodizitaet (acf=0,00). Der Peak-Zaehler machte aus dem Wackeln trotzdem eine "regelmaessige"
-  Rate, die von 54 auf 82 bpm driftete, und weil jedes Fenster mit der (mit-driftenden)
-  Schaetzung uebereinstimmte, kletterte die Konfidenz auf 0,78 — sichtbarer Puls-Sprung.
-  Die harte Bewegungs-Sperre greift erst ab Amplitude 0,20; dieses Wackeln lag knapp darunter
-  und rutschte durch.
-  FIX: neue "unkorroborierte-Ripple"-Sperre. Erkennungsmerkmal (aus DEINEM Log): jeder ECHTE
-  Lock trug eine echte Autokorrelation (auto 51–56, acf 0,3–0,8) — nur Bewegung liefert
-  Amplitude MIT null Periodizitaet. Also: Amplitude klar ueber dem Ruhepuls-AC (>0,05) UND quasi
-  keine Autokorrelation (acf<0,15) → Fenster wird uebersprungen (Schaetzung HAELT statt zu driften)
-  und die Konfidenz blutet sanft (×0,9/Sample) unter das Anzeige-Gate. Ein echter Puls traegt
-  immer Autokorrelation und faellt NIE in dieses Band — bleibt unangetastet. Ruhepuls-Lock
-  (amp 0,017–0,026) liegt darunter, Erst-Lock (amp 0,11 / acf 0,32) hat starke acf: beide sicher.
-  1 Datei (CameraAnalyzer) + reine, getestete Hilfsfunktion (isUncorroboratedRipple) + Grenzfall-Tests.
-  Auch gesehen (kein Code): Start ging kurz in SAFE MODE (ein frueherer Start ~16 min davor hatte
-  sich nicht als gesund bestaetigt — vermutlich vom iOS im Hintergrund beendet); das Selbstheil-Netz
-  hat sauber recovered und "launch confirmed healthy" gemeldet. Ohne Crash-Log nichts zu fixen.
-  TEST 10.79.49: Finger auflegen, lock lassen, dann bewusst leicht wackeln/Druck aendern —
-  bleibt die angezeigte Puls-Zahl jetzt ruhig (haelt/erholt sich) statt kurz nach oben zu springen?
+notesT: Dein Feedback: "Bpm sind zu viele Anzeigen, die verschiedene Dinge anzeigen. eine reicht."
+  Stimmt — es liefen ZWEI verschiedene BPM-Werte durcheinander, jeder mehrfach:
+  • gemessener PULS (Herz, z.B. 54): oben im Header, im Bio-Strip (HR) UND in der Mess-Karte
+  • musikalisches TEMPO (z.B. 51): in der Transportleiste UND nochmal als eigenes Feld im Compose
+  Nebeneinander las sich das als "die BPM springt/widerspricht sich" — dabei sind es zwei
+  verschiedene Dinge (Herz vs. Takt), je doppelt.
+  Deine Wahl: JE EINE. Umgesetzt:
+  • PULS erscheint jetzt nur noch EINMAL — im Bio-Strip (HR-Zelle). Header-Puls entfernt; die
+    Mess-Karte zeigt nur noch die Aufnahme-Rueckmeldung (Status · Coaching · Wellenform ·
+    Konfidenz), KEINE zweite Zahl mehr. Klare Trennung: Karte = "wird gelockt", Strip = "der Wert".
+  • TEMPO erscheint nur noch EINMAL — in der Transportleiste (immer sichtbar, voll lock-faehig,
+    Tippen/Editieren persistiert den Lock). Das doppelte Tempo-Feld im Compose-Panel ist raus;
+    Lock-Schalter + Tap-Tempo bleiben (das sind Bedien-Elemente, keine zweite Anzeige).
+  Nichts an der Funktion geaendert — nur die doppelten ZAHLEN entfernt. Reine UI-Reduktion,
+  render-safe (nur Reads entfernt, keine neuen). Header-Puls-Views bleiben im Code (reversibel).
+  TEST 10.79.50: Ein Blick auf den Screen — siehst du jetzt genau EINE Puls-Zahl (im Strip) und
+  EINE Tempo-Zahl (Transportleiste), ohne konkurrierende BPM-Anzeigen? Ruhiger, klarer?

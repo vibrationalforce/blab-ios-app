@@ -49,6 +49,11 @@ struct PulseTrace: View {
 }
 
 /// Compact header pulse monitor: live EKG trace + BPM. Accessible as one element.
+///
+/// NOTE (2026-07-03): currently UNMOUNTED. The header used to host `PulseMonitorMiniLive`,
+/// but the founder asked for ONE BPM readout ("zu viele BPM-Anzeigen, eine reicht"), so the
+/// live pulse number now lives only in the bio strip's HR cell and the tempo only in the
+/// transport bar. These two structs are kept (reversible) in case the header pulse returns.
 @MainActor
 struct PulseMonitorMini: View {
     let waveform: [Float]

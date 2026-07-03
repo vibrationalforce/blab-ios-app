@@ -913,21 +913,12 @@ struct EchoelStudioView: View {
             }
             .accessibilityHint("When on, the loop freezes at the tempo currently playing, for tight loops")
 
-            if lockBPM {
-                // Bind to the AUTHORITATIVE clock (pattern.tempo), not the parallel lockedBPM
-                // copy, so this field can never disagree with the transport bar. Every edit
-                // pushes the clock AND persists lockedBPM (so a later generate/relaunch keeps
-                // the locked value instead of snapping back).
-                EchoelValueField(label: "Tempo", value: Binding(
-                    get: { beatPlayer.pattern.tempo },
-                    set: { v in
-                        beatPlayer.pattern.setTempo(v)
-                        lockedBPM = beatPlayer.pattern.tempo    // clamped, authoritative
-                        metronome.bpm = beatPlayer.pattern.tempo
-                    }),
-                    range: 40...240, unit: "BPM",
-                    onCommit: { recomposeIfRunning() })
-            }
+            // The Tempo NUMBER lives in EXACTLY ONE place — the always-on transport bar
+            // (founder 2026-07-03: "zu viele BPM-Anzeigen, eine reicht"). This panel used to
+            // repeat an identical Tempo field while locked, bound to the same pattern.tempo,
+            // which duplicated the transport-bar value directly below the chrome. The Lock
+            // toggle + tap-tempo below remain (they are CONTROLS, not a second readout); the
+            // transport-bar field is fully lock-aware, so editing tempo there persists lockedBPM.
 
             tapTempoRow
             metronomeRow
