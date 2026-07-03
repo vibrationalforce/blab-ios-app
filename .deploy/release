@@ -1,23 +1,19 @@
-build: 2026-07-03 v10.79.35 (Deep-Audit-Durchgang: Wow ab Sekunde 1 · BPM konsistent · Visuals · Loop-Anzeige · Accessibility)
+build: 2026-07-03 v10.79.36 (Bar-Cycling — Komposition stellt sich je nach Loop-Größe um)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Großer Deep-Audit-Durchgang (Founder: "Alles überarbeiten und stabilisieren für
-  konsistentes Wow ab Sekunde 1"). Vier parallele Fach-Audits (BPM · Loop · Visuals ·
-  Architektur/Accessibility) → priorisierte, risikoarme Fixes. Geschützte DSP unberührt.
-  • BPM KONSISTENT (Single Source of Truth): der Takt (PatternEngine.tempo → Transport) ist
-    die eine Autorität. currentTempo liest immer den Takt; angewandtes Tempo wird auf ganze BPM
-    gerundet (kein "87 hier / 87,3 da"); das Compose-Tempo-Feld bindet an den Takt (nie mehr
-    ein Rück-Snap nach Generate); Metronom + Visual-Frame folgen beim Laden. (Founder: "BPM ist
-    nicht überall konsistent" — behoben.)
-  • WOW AB SEKUNDE 1: das Visual-Fenster ist jetzt standardmäßig sichtbar (Aurora, flash-sicher,
-    Reduce-Motion-aware, ausblendbar). Herzschlag deutlich sichtbar (Bloom pulst heller UND
-    größer pro Schlag). Ruhe-Bild driftet sanft (Palette/Kohärenz/Atem) statt eingefroren.
-  • VISUALS: Floating-Fenster respektiert Reduce Motion; Style-B wird bei blend≈0 übersprungen
-    (Performance/Thermik).
-  • LOOP-ANZEIGE: die Transport-Leiste zeigt jetzt Loop-Größe + Position darin (Takt N/M + ein
-    Fortschrittsbalken pro Loop). (Die hörbare Umstellung der Komposition pro Loop-Größe folgt im
-    nächsten Build — bewusst getrennt, weil größerer Eingriff.)
-  • ACCESSIBILITY: Onboarding-Text lesbar (Kontrast WCAG AA statt fast unsichtbar); Status-Farben
-    als zentrale Theme-Tokens; dekorative Wellenform für VoiceOver ausgeblendet.
-  Compile-Safety + Korrektheit dieses Durchgangs sind Audit-geprüft; CI-Compile-Check verifiziert.
-  TEST 10.79.35: App öffnet mit lebendigem Aurora-Visual; Puls sichtbar; BPM überall gleich (auch
-  nach Tempo-Edit + Generate); Loop-Größe sichtbar in der Transportleiste; Onboarding lesbar.
+notesT: Der hörbare Teil deines Loop-Wunsches (nach der optischen Anzeige in 79.35): die
+  Komposition spielt jetzt WIRKLICH so viele verschiedene Takte, wie die Loop-Größe sagt —
+  nicht mehr denselben Takt N-mal.
+  • generate() baut `loopBars` verschiedene, aber ZUSAMMENGEHÖRIGE Takte (gleicher Struktur-
+    Seed → sie klingen wie EIN Stück; pro-Takt-Detail-Seed → jeder Takt ist anders). Die
+    Piano-Roll zykliert einen Takt pro Loop und tauscht sie NAHTLOS am bestehenden Takt-
+    Übergang (kein Schnitt, keine neue Uhr, kein stepCount-Umbau).
+  • Audio bleibt IN SYNC mit der „Takt N/M"-Anzeige (bewiesen: bei Transport-Takt k klingt
+    Takt k mod N). Live-Neugenerierung, Stop→Play und Loop-Größe-Wechsel während des Spielens
+    halten die Phase (adversariale Logikprüfung: 1 Bug gefunden + gefixt — Phasen-Reset in den
+    onStop-Hook verschoben; Loop-Größe-Picker regeneriert jetzt beim Spielen).
+  • 1 Takt / leer = klassisches Verhalten (keine Regression). Drums bleiben im Generativ-Pfad
+    stumm (unverändert).
+  Compile-Check grün (5bdf18b). Das LOOP-TIMING kann nur dein Gerät final bestätigen.
+  TEST 10.79.36: Generate starten → hörst du über die Loop-Länge mehrere verschiedene Takte,
+  die sich zu einem Stück fügen und sauber loopen? Stimmt die „Takt N/M"-Anzeige mit dem
+  gehörten Takt überein? Loop-Größe umstellen (2/4/8…) → ändert sich Länge + Inhalt sauber?
