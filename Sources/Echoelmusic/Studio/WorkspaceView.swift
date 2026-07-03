@@ -15,9 +15,9 @@ import SwiftUI
 @MainActor
 struct WorkspaceView: View {
 
-    /// Header pulse/visual monitors read the publisher only for a LOW-frequency flag
-    /// (isRunning). The live ~10 Hz waveform stays inside the PulseMonitorMiniLive leaf
-    /// (never this body) so the instrument below never rebuilds at 10 Hz (freeze rule).
+    /// The header's immersive-visual monitor reads the publisher only for a LOW-frequency
+    /// flag (isRunning) — never a ~10 Hz value in this body, so the instrument below never
+    /// rebuilds at 10 Hz (freeze rule). The live pulse number lives in the bio strip's own leaf.
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
@@ -52,9 +52,9 @@ struct WorkspaceView: View {
     }
 
     /// Persistent brand header — always on screen (founder: "oben die Leiste soll immer
-    /// sichtbar sein"). Centre: "Echoelmusic" + the running version/build. Left: app mark +
-    /// glanceable live pulse. Right: the immersive-visual monitor, which shows/hides the
-    /// floating visual. Uncodixfy-compliant (solid bg, 1px border, no glow).
+    /// sichtbar sein"). Centre: "Echoelmusic" + the running version/build. Left: app mark
+    /// (the live pulse number lives once in the bio strip, not here). Right: the immersive-
+    /// visual monitor, which shows/hides the floating visual. Uncodixfy-compliant.
     private var topBar: some View {
         ZStack {
             VStack(spacing: 1) {
@@ -67,12 +67,12 @@ struct WorkspaceView: View {
                     .accessibilityLabel("Version \(Self.versionString)")
             }
             HStack(spacing: 8) {
-                // LEFT: app mark + glanceable live pulse (status only — arming happens in
-                // the instrument's Start flow, so no separate navigation is needed).
+                // LEFT: app mark only. The live PULSE number now lives in EXACTLY ONE place —
+                // the bio strip's HR cell (founder 2026-07-03: "zu viele BPM-Anzeigen, eine
+                // reicht"). The header used to repeat displayBPM here, which competed with the
+                // musical TEMPO in the transport bar right below (two different BPM numbers in
+                // the same chrome). Pulse → strip, Tempo → transport; each shown once.
                 EchoelLogoMark().frame(width: 22, height: 22)
-                #if canImport(AVFoundation)
-                PulseMonitorMiniLive()
-                #endif
                 Spacer(minLength: 0)
                 // RIGHT: immersive-visual monitor — tap to show/hide the floating visual.
                 // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
