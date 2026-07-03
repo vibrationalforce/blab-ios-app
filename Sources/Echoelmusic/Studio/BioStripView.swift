@@ -126,14 +126,14 @@ struct BioStripView: View {
         }
         .lineLimit(1)
         .padding(.horizontal, 6).padding(.vertical, 2)
-        .background(Color.green.opacity(0.22))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .foregroundStyle(Color.green)
+        .background(EchoelTheme.success.opacity(0.22))
+        .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
+        .foregroundStyle(EchoelTheme.success)
         .accessibilityLabel("Bio source: \(sourceText)")
     }
 
     private var measuringTag: some View {
-        let amber = Color(red: 0.90, green: 0.62, blue: 0.20)
+        let amber = EchoelTheme.warning
         let finger = cameraRPPG.fingerDetected
         return HStack(spacing: 4) {
             Image(systemName: "heart.fill").font(.system(size: 9))
@@ -143,7 +143,7 @@ struct BioStripView: View {
         .lineLimit(1)
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(amber.opacity(0.20))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
         .foregroundStyle(amber)
         .accessibilityLabel(finger ? "Reading your pulse" : "Cover the rear camera and flash to read your pulse")
     }
