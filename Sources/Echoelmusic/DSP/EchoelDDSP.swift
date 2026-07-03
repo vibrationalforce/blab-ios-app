@@ -71,6 +71,13 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Index 0 = fundamental, index 1 = 2nd harmonic, etc.
     public var harmonicAmplitudes: [Float]
 
+    /// Per-partial frequency STRETCH table (index i multiplies the i-th partial's frequency).
+    /// Encodes INHARMONICITY — real strings/piano partials drift slightly sharp of exact integer
+    /// ratios, which makes the tone beat/breathe instead of sounding mathematically sterile.
+    /// Fundamental (i=0) is always 1.0 → the played PITCH stays exact; only upper partials stretch.
+    /// Rebuilt on the control thread when `inharmonicity` changes; render() only READS it.
+    public private(set) var partialStretch: [Float]
+
     /// Global harmonic amplitude (0-1)
     public var harmonicLevel: Float = 0.8
 
@@ -188,6 +195,17 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Spectral brightness (0 = dark, 1 = bright)
     public var brightness: Float = 0.25 {     // Dark trance character
         didSet { updateSpectralEnvelope() }
+    }
+
+    /// Inharmonicity coefficient B (piano-style partial stretch: fₙ ≈ n·f0·√(1 + B·n²)).
+    /// 0 = exact integer harmonics (sterile, "electronic"). Tiny values give the tone real-
+    /// instrument life: upper partials drift slightly sharp and beat against the harmonic
+    /// series. ~0.0001 = light string, ~0.0005 = piano, ~0.001 = very taut/metallic. The
+    /// fundamental never shifts (pitch stays exact). didSet rebuilds the table on the CONTROL
+    /// thread; the audio render only reads `partialStretch`. Small default so every voice
+    /// benefits without detuning — patches can push it further.
+    public var inharmonicity: Float = 0.0001 {
+        didSet { rebuildPartialStretch() }
     }
 
     // MARK: - Spectral Morphing
@@ -381,6 +399,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         self.prngState = noiseSeed == 0 ? 0x12345678 : noiseSeed
 
         self.harmonicAmplitudes = [Float](repeating: 0, count: harmonicCount)
+        self.partialStretch = [Float](repeating: 1, count: harmonicCount)   // filled by rebuildPartialStretch() below
         self.noiseMagnitudes = [Float](repeating: 0, count: noiseBandCount)
         self.phases = [Float](repeating: 0, count: harmonicCount)
         self.smoothedAmplitudes = [Float](repeating: 0, count: harmonicCount)
@@ -425,6 +444,20 @@ public final class EchoelDDSP: @unchecked Sendable {
         // Initialize with natural spectral envelope
         updateSpectralEnvelope()
         updateNoiseProfile()
+        rebuildPartialStretch()   // fill the inharmonicity table from the default coefficient
+    }
+
+    /// Rebuild the per-partial frequency STRETCH table from `inharmonicity` (control thread ONLY —
+    /// never the audio thread; render just reads `partialStretch`). Uses n = 0-based partial index
+    /// so the fundamental (n=0) stays exactly 1.0 (played pitch unchanged) while upper partials
+    /// drift progressively sharp: stretchᵢ = √(1 + B·i²). Pure arithmetic, no allocation beyond the
+    /// pre-sized table.
+    private func rebuildPartialStretch() {
+        let b = Swift.max(0, inharmonicity)
+        for i in 0..<partialStretch.count {
+            let n = Float(i)
+            partialStretch[i] = (1 + b * n * n).squareRoot()
+        }
     }
 
     /// Generate synthetic impulse response for convolution reverb
@@ -723,7 +756,10 @@ public final class EchoelDDSP: @unchecked Sendable {
             let aaStart = nyquist * 0.85
             let aaRange = nyquist - aaStart   // > 0 (nyquist > 0)
             for i in 0..<harmonicCount {
-                let partialFreq = currentFreq * Float(i + 1)
+                // Inharmonicity: multiply the exact integer partial by its precomputed stretch
+                // (√(1+B·i²), fundamental = 1) so upper partials drift slightly sharp like a real
+                // string/piano. partialStretch.count == harmonicCount → index always in bounds.
+                let partialFreq = currentFreq * Float(i + 1) * partialStretch[i]
                 if partialFreq >= nyquist { break }
                 activeCount = i + 1
 

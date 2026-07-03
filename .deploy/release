@@ -1,20 +1,17 @@
-build: 2026-07-03 v10.79.42 (BPM springt nicht mehr — Zahl geglättet + Tempo gleitet)
+build: 2026-07-03 v10.79.43 (Klang: Inharmonizität — Teiltöne atmen wie ein echtes Instrument)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Feuerwehr: „bpm springt immer noch" auf 79.41 — und zwar BEIDE (die angezeigte Puls-Zahl
-  UND das Musik-Tempo). Beide Ursachen gefunden und behoben:
-  ZAHL (angezeigter Puls):
-  • Der Mess-Screen zeigte im Aufwärmlauf noch den ROHEN Puls als Fallback — raus. Jetzt
-    überall strikt der geglättete Wert; vor dem ersten sicheren Lock steht keine Zahl (der
-    Hinweis sagt eh „messe…"). So zappelt nichts mehr los.
-  • Die Glättung selbst beruhigt: max ~10 bpm/s Änderung statt ~20 — ein Ruhepuls-Readout
-    twitcht nicht mehr, ein echter Anstieg kommt trotzdem in ~2 s durch.
-  TEMPO (Beat der Musik):
-  • Wenn der Körper das Tempo neu setzt, GLEITET der Beat jetzt sanft ins neue Tempo (~2 s)
-    statt zu springen. Beim Start snappt es sofort (kein Warten); im Lauf gleitet es. Nach dem
-    einmaligen Body-Lock hält das Tempo — danach kein weiteres Gleiten/Springen.
-  • Dein manueller BPM-Lock (Toggle/Tap/Transport-Feld) bleibt exakt und sofort — der gleitet
-    nicht, der sitzt. BPM-Lock funktioniert global wie gehabt.
-  Compile-Review grün (4 Dateien). CI bestätigt final.
-  TEST 10.79.42: Puls messen → bleibt die angezeigte Zahl jetzt ruhig (kein Zappeln)? Und wenn
-  der Körper das Tempo übernimmt — gleitet der Beat sanft rüber statt zu springen? Danach:
-  Klang weiter (Inharmonizität), Ziel acestudio.ai-Niveau.
+notesT: Loop-Fokus (deine Wahl): Klang weiter, Ziel acestudio.ai-Niveau. Dritte große Realismus-
+  Schicht nach Anschlags-Brightness (79.39) und Anschlags-Chiff (79.40): INHARMONIZITÄT.
+  • Bisher lagen die Teiltöne auf EXAKT ganzzahligen Vielfachen der Grundfrequenz — mathematisch
+    perfekt, aber genau das klingt „elektronisch/steril". Echte Saiten und Klaviere sind
+    inharmonisch: die oberen Teiltöne driften leicht nach oben und schweben gegen die Grundreihe.
+    Das ist ein großer Teil dessen, was „echtes Instrument" ausmacht.
+  • Jetzt: eine Klavier-Formel-Streckung pro Teilton (fn = n·f0·√(1+B·n²)). Der GRUNDTON bleibt
+    exakt (Tonhöhe unverändert), nur die oberen Teiltöne stretchen leicht → der Ton lebt/atmet.
+  • Konservativ dosiert (leichte-Saite-Default): hörbar lebendiger, ohne zu verstimmen. Der Wert
+    ist patch-fähig — später pro Instrument von „Saite" bis „Klavier/metallisch" einstellbar.
+  Audio-thread- + Compile-Review grün, reine Float-Arithmetik, Bio-DSP-Triade unberührt.
+  Die drei Schichten zusammen (heller Anschlag · Chiff · Inharmonizität) sind der DSP-Weg Richtung
+  „klingt nach echtem Instrument". Ehrlich zu acestudio.ai unten im Chat.
+  TEST 10.79.43: Generate → klingen die Stimmen jetzt reicher/lebendiger, mit dem leichten
+  „Schweben" echter Saiten — weniger steril? Zu viel Verstimmung irgendwo, oder genau richtig?
