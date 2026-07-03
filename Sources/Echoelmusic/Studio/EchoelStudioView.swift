@@ -1894,6 +1894,10 @@ struct EchoelStudioView: View {
             .pickerStyle(.segmented)
             .disabled(isExporting)
             .accessibilityLabel("Loop length in bars")
+            // Changing the loop size rebuilds the arrangement to that many bars so the change
+            // takes musical effect at once AND the audio stays in sync with the "bar N/M"
+            // indicator (which switches to the new N immediately). No-op when not playing.
+            .onChange(of: loopBars) { _, _ in recomposeIfRunning() }
         }
     }
 
