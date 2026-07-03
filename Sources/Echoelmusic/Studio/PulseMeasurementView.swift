@@ -26,7 +26,7 @@ struct PulseMeasurementView: View {
     var body: some View {
         let locked = cameraRPPG.isLocked
         let lightColor: Color = !cameraRPPG.fingerDetected ? EchoelTheme.dim
-            : (locked ? EchoelTheme.accent : Color.orange)
+            : (locked ? EchoelTheme.accent : EchoelTheme.warning)
         // Specific, live coaching ("Press lighter" / "Hold still…") instead of a
         // flat "Acquiring…", so a placed-but-unlockable finger gets actionable help.
         let statusText = cameraRPPG.coachingHint
@@ -46,8 +46,9 @@ struct PulseMeasurementView: View {
                 }
             }
             pulseWaveform
+                .accessibilityHidden(true)   // decorative waveform — not a VoiceOver control
             ProgressView(value: locked ? 1 : min(max(cameraRPPG.confidence, 0), 1))
-                .tint(locked ? EchoelTheme.accent : Color.orange)
+                .tint(locked ? EchoelTheme.accent : EchoelTheme.warning)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))

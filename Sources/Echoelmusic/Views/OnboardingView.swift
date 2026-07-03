@@ -53,7 +53,7 @@ struct OnboardingView: View {
 
             Text("Bio-reactive, drum-free generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
                 .font(EchoelTheme.font(15))
-                .foregroundStyle(EchoelTheme.text.opacity(0.35))
+                .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.35)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -85,7 +85,7 @@ struct OnboardingView: View {
 
             Text("This release is the bio-reactive instrument. Visuals, light, video and broadcast are in active development.")
                 .font(EchoelTheme.font(13))
-                .foregroundStyle(EchoelTheme.text.opacity(0.25))
+                .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.25 — near-invisible)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
@@ -110,7 +110,7 @@ struct OnboardingView: View {
 
             Text("Breathe, lock a key and BPM, and let your body compose. Export to your DAW.")
                 .font(EchoelTheme.font(15))
-                .foregroundStyle(EchoelTheme.text.opacity(0.4))
+                .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.4)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 

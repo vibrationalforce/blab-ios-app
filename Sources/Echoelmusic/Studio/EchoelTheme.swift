@@ -29,8 +29,15 @@ enum EchoelTheme {
     static let accent  = Color(red: 0.30, green: 0.85, blue: 0.55)            // bio-green (signal only)
     static let onPrimary = Color.black                                         // label on a `.text`-filled button
     static let danger  = Color(red: 0.90, green: 0.30, blue: 0.30)
+    /// A live/positive bio state (green). Same hue as `accent` — named so status UI reads
+    /// by MEANING, and contrast can be tuned in one place.
+    static let success = accent
+    /// An in-progress / acquiring state (amber). Centralises the ad-hoc `Color.orange` and
+    /// the inline `Color(red:0.90,0.62,0.20)` that meant "measuring" in the bio views.
+    static let warning = Color(red: 0.90, green: 0.62, blue: 0.20)
 
     // MARK: Radii (≤ 12 per CLAUDE.md UI constraints)
+    static let radiusSmall: CGFloat = 4
     static let radius:      CGFloat = 8
     static let radiusLarge: CGFloat = 12
 

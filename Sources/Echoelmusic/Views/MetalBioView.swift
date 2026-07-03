@@ -315,12 +315,21 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let bio = bus?.freshBio()
             let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
             // Colour follows the MUSIC when sounding (loudest live note), else the tonic.
-            let liveTone = bus?.freshMusical(maxAge: 1.5)
+            let musicTone = bus?.freshMusical(maxAge: 1.5)
                 .flatMap { $0.notes.max(by: { $0.amplitude < $1.amplitude })?.frequencyHz }
-                ?? lookToneFallbackHz
+            // IDLE ATTRACT: with NO bio and NO music, the resting picture would sit on one
+            // frozen colour + coherence — pretty but static. Slowly drift the palette, breath
+            // and coherence over ~20–60 s so the first seconds feel ALIVE and inviting ("wow
+            // von Sekunde 1"). Only when truly idle; frozen under Reduce Motion.
+            let idle = (bio == nil) && (musicTone == nil)
+            let idleT: Double = effectiveReduceMotion ? 0 : (CFAbsoluteTimeGetCurrent() - startTime)
+            let idleTone: Double  = lookToneFallbackHz * (1.0 + 0.18 * sin(idleT * 0.035))
+            let idleCoh   = Float(0.5 + 0.25 * sin(idleT * 0.06))
+            let idleBreath = Float(0.5 + 0.35 * sin(idleT * 0.09))
+            let liveTone = musicTone ?? (idle ? idleTone : lookToneFallbackHz)
             update(hr: bio?.heartRateBPM ?? 60,
-                   coherence: bio?.coherence ?? 0.5,
-                   breath: bio?.breathPhase ?? 0.5,
+                   coherence: bio?.coherence ?? (idle ? idleCoh : 0.5),
+                   breath: bio?.breathPhase ?? (idle ? idleBreath : 0.5),
                    toneHz: liveTone,
                    intensity: lookIntensity, ringDensity: lookRingDensity * detailScale,
                    motion: lookMotion, spread: lookSpread,
@@ -770,16 +779,25 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // 1 = pure B, anything between = a true overlap of the two physical fields.
         float blend = clamp(u.blend, 0.0, 1.0);
         float2 fa = styleField(u.style,  d, pf, density, u.toneHz, phase, coh, u.breath, spread);
-        float2 fb = styleField(u.styleB, d, pf, density, u.toneHz, phase, coh, u.breath, spread);
+        // Only evaluate the SECOND look when actually blending. At the default blend = 0 the
+        // B field is fully masked by mix(), so computing it is pure waste — and B can be a
+        // heavy look (Fractal/Depth), doubling fragment cost for nothing. Skip it below the
+        // blend threshold; this is the common single-style case (perf/thermal win).
+        float2 fb = (blend > 0.001)
+            ? styleField(u.styleB, d, pf, density, u.toneHz, phase, coh, u.breath, spread)
+            : fa;
         float field    = mix(fa.x, fb.x, blend);
         float vignette = mix(fa.y, fb.y, blend);
-        // Breath → a soft central bloom that swells on the inhale (light pressure).
-        float bloom = (0.08 + 0.16 * u.breath) * smoothstep(0.5 * spread, 0.0, d);
-        // HEARTBEAT (V3): the central bloom gently throbs once per pulse, so the body
-        // VISIBLY drives the visual ("your heartbeat", not a generic visualizer). Flash-safe:
-        // `phase` is integrated from a ≤2.5 Hz clock (< WCAG 3 Hz) and the swing is gentle.
+        // HEARTBEAT (V3, deepened): the body must VISIBLY drive the picture ("dein Herzschlag
+        // treibt es an", not a faint flicker). Breath sets the resting glow; each heartbeat
+        // both BRIGHTENS the central bloom AND EXPANDS its radius, so the pulse reads as a
+        // clear expanding bloom. Flash-safe: `phase` is integrated from a ≤2.5 Hz clock
+        // (< WCAG 3 Hz), so even the larger swing can never strobe.
         float beat = 0.5 - 0.5 * cos(phase);            // 0…1 once per heartbeat
-        bloom *= (0.80 + 0.20 * beat);
+        float restGlow = 0.07 + 0.14 * u.breath;        // breath = resting swell
+        float beatGain = 0.55 + 0.80 * beat;            // ~0.55…1.35 (was 0.80…1.00 — 4× swing)
+        float bloomEdge = (0.44 + 0.24 * beat) * spread; // radius pulses with the beat
+        float bloom = restGlow * beatGain * smoothstep(bloomEdge, 0.0, d);
 
         // Colour = drifting CLOUDS of the tone's harmonic colours distributed across the
         // frame (founder: "verschiedene Farbwolken in Kombination … nicht zu einer
