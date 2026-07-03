@@ -4249,3 +4249,34 @@ AirPlay (Info.plist gate); website honesty > website redesign (claims first, no 
 Screenshot artifacts: scratchpad/site-{index,faq}.png. Known pre-existing site nit: header logo
 text overlaps nav at ~1280px in headless shot (not from these edits — CSS, separate cycle if
 founder wants).
+
+## 2026-07-03 (Fable, cont.) — "Lock springt nach oben" GELÖST via Founder-Video (79.46+79.47)
+
+Founder: "In dem Moment wo bpm locked springt die bpm nach oben." THREE tempo-write paths existed;
+the first two were already themed, the third was invisible until the founder's screen recording.
+
+**79.46 (aea7d0d, CI green) — paths 1+2:**
+- Manual lockBPM toggle adopted RAW bus HR (octave-doubled → jump) as instant snap → now FREEZES
+  the running clock (already seeded/folded/glided = the audible tempo); zero-jump by construction.
+  Tap-tempo reordered (clock carries tap BEFORE lockBPM=true fires onChange; setTempo-while-stopped safe).
+- Body-lock confidence gate (≥0.6) fired on the FALLING warm-up tail (log: latched 87, pulse fell to 69).
+  New CameraRPPGBioPublisher.isSettled = display-confidence AND displayBPM flat ≤3bpm for ≥3s (reset on
+  conf drop + stop()). bodyTempoTrustworthy + snapToLockWhenReady gate on isSettled (timeout 45s).
+  tempoLockConfidence removed.
+
+**79.47 (677d906, CI green) — path 3, THE VIDEO FIND:**
+- Founder video (18s, 79.45 UI): at pulse-lock moment tempo 75 → 196 WITH lock ON. Field showed
+  195.5119 = 30 + 0.613×270 — the ModulationEngine tempo-handler formula. An ACTIVE Body→Tempo
+  modulation route fires the instant first bio frames publish (= lock moment) and called
+  pattern.setTempo directly: bypassing the global BPM lock, unfolded, snapping.
+- Handler now: (1) guard studio.lockBPM → lock wins GLOBALLY; (2) StudioCalculator.seedTempo fold
+  (195.5→98); (3) glideTempo not setTempo (also less Observable churn: target-write instead of
+  10Hz setTempo while playing). Modulation stays live (founder wants body-drive).
+
+**LESSON (add to future tempo work): ALL tempo writers = generate()/glide · user edits (toggle/
+tap/field/transport) · ModulationEngine route · AutomationPlayer .tempo lane (user-authored,
+intentional, left as-is) · loadProject. Any new writer MUST respect: lock-global > fold > glide.**
+
+**Video analysis technique:** pip install imageio-ffmpeg → bundled ffmpeg binary → extract frames
+(fps=1/2) → Read as images. Video was 480x1042 screen-rec with audio; the 195.5119 four-decimal
+value in EchoelValueField was the mathematical fingerprint identifying the writer.
