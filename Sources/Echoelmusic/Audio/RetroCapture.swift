@@ -203,6 +203,14 @@ final class RetroCapture {
     /// Deinterleave ring buffer data and write to file in 8192-frame chunks.
     /// Must be called BEFORE activating the live tap to preserve correct chronological order.
     private func writePreRollToFile(_ file: AVAudioFile, format: AVAudioFormat, seconds: Int) throws {
+        // This writer deinterleaves the STEREO ring buffer (L,R,L,R) into channels 0 AND 1.
+        // `floatChannelData?[1]` is raw pointer indexing, NOT bounds-checked — a mono format
+        // would make [1] a garbage pointer and corrupt memory. Guard the invariant explicitly
+        // so a future caller passing a mono format fails loudly instead of scribbling memory.
+        guard format.channelCount >= 2 else {
+            throw NSError(domain: "RetroCapture", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "pre-roll writer requires a stereo (2-channel) format"])
+        }
         let totalFrames = min(Int(Double(seconds) * captureSampleRate), ringCapacity)
         let endFrame   = Int(ringWriteFrame.pointee)
         let startFrame = max(0, endFrame - totalFrames)
