@@ -55,6 +55,11 @@ public final class PatternEngine {
     /// Beats per minute, clamped to [`minTempo`, `maxTempo`].
     public private(set) var tempo: Double = PatternEngine.defaultTempo
 
+    /// Target tempo for a smooth GLIDE (0 = no glide in flight). When >0, `advance()` eases
+    /// `tempo` toward it each tick so a body re-seed slides in instead of jumping ("bpm springt").
+    /// Set via `glideTempo(to:)`; any explicit `setTempo` cancels it (an edit is precise/instant).
+    @ObservationIgnored private var tempoGlideTarget: Double = 0
+
     /// Swing amount [0...0.5]. Lengthens the gap before off-beat (odd) 16ths,
     /// shortening the following gap so overall tempo is preserved. 0 = straight.
     public private(set) var swing: Double = 0
@@ -216,6 +221,7 @@ public final class PatternEngine {
     /// If the engine is playing, the timer restarts at the new interval.
     public func setTempo(_ bpm: Double) {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
+        tempoGlideTarget = 0   // an explicit edit is precise + instant → cancel any in-flight glide
         // Relay to the authoritative Transport FIRST, before the no-op early return below.
         // If Transport.tempo ever diverged (a write before the relay was wired, or a direct
         // Transport edit), a subsequent same-value setTempo must still re-sync the displayed
@@ -233,6 +239,17 @@ public final class PatternEngine {
         }
     }
 
+    /// Smoothly GLIDE the tempo to `bpm` over ~2 s instead of snapping — used when the body
+    /// re-seeds the take tempo, so the beat eases into the new pulse rather than jumping
+    /// ("bpm springt"). `advance()` does the per-tick easing. When stopped there are no ticks
+    /// to glide on, so it snaps immediately. User/transport edits keep using `setTempo`
+    /// (instant + precise). Values are clamped to [minTempo, maxTempo].
+    public func glideTempo(to bpm: Double) {
+        let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
+        guard isPlaying else { setTempo(clamped); return }
+        tempoGlideTarget = clamped
+    }
+
     /// Start the timer from step 0. Idempotent: calling while playing is a no-op.
     public func play() {
         guard !isPlaying else { return }
@@ -248,6 +265,7 @@ public final class PatternEngine {
         timer = nil
         currentStep = 0
         isPlaying = false
+        tempoGlideTarget = 0   // drop any in-flight glide so the next take starts clean
         transport?.stop()
         onStop?()   // flush held notes so nothing drones after stop
     }
@@ -311,6 +329,20 @@ public final class PatternEngine {
         }
         onTick?(step)
         currentStep = (step + 1) % PatternEngine.stepCount
+
+        // Ease the tempo toward a body-seeded glide target so a re-seed SLIDES in instead of
+        // jumping ("bpm springt"). One-pole (~0.15/tick → ~2 s settle); snaps + clears when
+        // within 0.5 bpm. Relay each step so the transport bar / click glide in lockstep.
+        if tempoGlideTarget > 0 {
+            let diff = tempoGlideTarget - tempo
+            if abs(diff) <= 0.5 {
+                tempo = tempoGlideTarget
+                tempoGlideTarget = 0
+            } else {
+                tempo += diff * 0.15
+            }
+            transport?.setTempo(tempo)
+        }
 
         // Gap to the NEXT step. Swing lengthens the gap that follows a downbeat
         // (even step), delaying the off-beat; the following gap shortens to keep

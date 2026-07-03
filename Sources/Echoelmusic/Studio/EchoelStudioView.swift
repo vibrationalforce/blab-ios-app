@@ -2293,7 +2293,11 @@ struct EchoelStudioView: View {
         // Drum-free: clear every cell; the transport only clocks the melody.
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
-        beatPlayer.pattern.setTempo(tempo)
+        // GLIDE the tempo (not snap) so a body re-seed eases in instead of jumping ("bpm
+        // springt"). When the take isn't playing yet (initial generate) glideTempo snaps
+        // instantly; while playing (evolve/lock re-seed) it slides over ~2 s. lockBPM already
+        // resolved `tempo` to the locked value above, so a locked take just glides to/holds it.
+        beatPlayer.pattern.glideTempo(to: tempo)
         // GROOVE CYCLE 2: apply the genre's swing so odd 16ths land late for a
         // rolling, human feel (jazz/rock'n'roll shuffle, reggae bounce, dance push,
         // straight genres stay 0). Melody + any drums ride the same clock, so the

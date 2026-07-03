@@ -83,10 +83,11 @@ public final class CameraRPPGBioPublisher {
     /// Only readings at/above this confidence move `displayBPM` (higher than `lockThreshold`
     /// so the noisy 0.35–0.55 band holds instead of wandering).
     static let displayThreshold = 0.6
-    /// Max change of the shown pulse per ~100 ms tick — a physiological slew cap so a glitchy
-    /// rPPG estimate can never make the displayed BPM jump unrealistically (~20 bpm/s ceiling,
-    /// faster than any real heart-rate change, far slower than an octave/teleport glitch).
-    static let maxDisplayStep = 2.0
+    /// Max change of the shown pulse per ~100 ms tick — a physiological slew cap so the
+    /// displayed BPM can never jump. 1.0 bpm/tick ≈ 10 bpm/s: calm enough that a resting
+    /// readout doesn't visibly twitch, still fast enough to track a genuine rise/fall within
+    /// a couple seconds. (Was 2.0 — founder: "bpm springt"; the readout was still too lively.)
+    static let maxDisplayStep = 1.0
     /// Live bandpass-filtered pulse waveform (~[-1,1]) for the "Stimmungsbild".
     public private(set) var waveform: [Float] = []
     /// Lock threshold — also the bus-publish gate.
