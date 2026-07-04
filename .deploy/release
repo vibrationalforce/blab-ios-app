@@ -1,19 +1,20 @@
-build: 2026-07-04 v10.79.65 (B4+B5: Genre-Tempo + Genre-Drums — Loops klingen nach ihrem Genre)
+build: 2026-07-04 v10.79.66 (C6/C7: WAV-Loop sitzt exakt auf dem DAW-Raster — nahtlos loopbar)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Der naechste Schritt aus dem Sound-Audit — Genre-Identitaet im Live-Pfad:
-  1) GENRE-TEMPO (B4): Bisher wurde JEDES Genre aufs Ruhepuls-Fenster 50-130 gefaltet —
-     Trap/Punk/Psytrance waren unmoeglich. Jetzt wird dein Puls per Oktave IN das
-     Genre-Fenster gefaltet: Puls 66 → Trap 132 (gleicher Puls, double-time), Punk
-     startet bei 160+, Meditation bleibt beim Herzschlag. Alle Schutzmechanismen
-     bleiben: Trust-Gate, max ±8 BPM pro Tick, Glide (springt nie), Lock gewinnt immer.
-  2) GENRE-DRUMS (B5): generate() hat bisher ALLE Drums stummgeschaltet — selbst Trap
-     und Dub Techno spielten ohne ihren Beat. Jetzt traegt jedes Beat-Genre seinen
-     definierenden Groove: Dub/Trap ihre Signature-Beats, Disco/80s/Psytrance/Synthwave
-     Four-on-the-Floor, Rock/Punk/Metal/Jazz Backbeat, Ska/Rocksteady/Klezmer Offbeat-
-     Skank, Doom/Vaporwave/Sci-Fi Half-Time. Bio-reaktiv wie gehabt: mehr Herz-Drive =
-     mehr Bewegung, hohe Kohaerenz = der Groove settelt (Extras fallen weg, Rueckgrat
-     bleibt). Klassik/Meditation/Self-Observation bleiben bewusst drum-frei.
-  3) MIDI-Export nimmt die Genre-Drums automatisch mit (Akzente inklusive).
-  TEST 10.79.65: Trap waehlen → laeuft es endlich bei ~130-150 mit 808-Beat? Punk →
-  schnell + Backbeat? Disco → Four-on-the-Floor? Klassik → weiterhin ohne Drums?
-  Und mit Finger auf der Kamera: settelt der Groove, wenn du ruhig wirst?
+notesT: Das letzte gebrochene Stueck des DAW-Versprechens ist repariert — die Loop-WAV
+  loopt jetzt nahtlos in Ableton/Logic/FL:
+  1) EXAKTE LAENGE (C6): Der geplante Export ("Loop → WAV") schrieb bisher 30 s ALTES
+     Audio davor (Pre-Roll-Bug) + Loop + 0,4 s Ueberhang — und die Lautheits-Normali-
+     sierung mass diesen Muell mit. Jetzt: Aufnahme ohne Pre-Roll, der Hall-/Delay-
+     Ausklang wird weiter natuerlich mitgeschnitten, aber die Datei wird auf EXAKT
+     N Takte getrimmt (taktgenau am Downbeat geschnitten) und NUR dieses Fenster
+     normalisiert. Ergebnis: Datei = exakt Loop-Laenge, sitzt auf dem Raster.
+  2) DOWNBEAT-SNAP (C7): "Behalten" (die Stelle war gut) schnitt bisher ein Fenster,
+     das einfach JETZT endete — mitten in der Phrase, Knack an der Loop-Naht. Jetzt
+     rastet das Fenster auf den letzten Downbeat ein (die Uhr stempelt jeden Takt-
+     anfang). Laeuft nichts, bleibt der Schnitt wie gehabt.
+  3) Beide Pfade bekommen ~4 ms Mikro-Fades an den Schnittkanten — toetet Rest-Knackser,
+     unhoerbar als Einbruch. Ehrliche Grenze: "Behalten" kann max ~30 s Historie
+     (Ring-Puffer) — laengere Loops bitte ueber den geplanten Export (unbegrenzt).
+  TEST 10.79.66: Loop → WAV exportieren, in die DAW ziehen (Warp/Stretch AUS): faellt
+  die Datei exakt auf N Takte? Loop aktivieren: naht-frei, kein Knack, kein Versatz?
+  Und einmal "Behalten" waehrend es laeuft: startet der Loop auf der Eins?

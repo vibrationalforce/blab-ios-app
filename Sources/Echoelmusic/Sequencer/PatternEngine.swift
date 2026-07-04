@@ -52,6 +52,13 @@ public final class PatternEngine {
     /// Current 16th-note position, 0..<stepCount. Resets to 0 on `stop()`.
     public private(set) var currentStep: Int = 0
 
+    /// Wall-clock time (CFAbsoluteTimeGetCurrent) of the most recent DOWNBEAT tick
+    /// (step 0). Lets the WAV loop exporter cut its capture bar-aligned (audit C7:
+    /// "keep last" grabbed an arbitrary-phase window → seam click in the DAW).
+    /// Polled imperatively at export time, never rendered — hence ignored by
+    /// observation so the 1-per-bar write can't churn any view.
+    @ObservationIgnored public private(set) var lastBarStartAt: CFAbsoluteTime = 0
+
     /// Beats per minute, clamped to [`minTempo`, `maxTempo`].
     public private(set) var tempo: Double = PatternEngine.defaultTempo
 
@@ -381,6 +388,7 @@ public final class PatternEngine {
         guard isPlaying else { return }
 
         let step = currentStep
+        if step == 0 { lastBarStartAt = CFAbsoluteTimeGetCurrent() }   // downbeat stamp (C7)
         // Relay this pulse into the authoritative clock FIRST, so any Transport
         // subscriber sees the new position before the legacy onStep/onTick consumers
         // act on it (priority ordering lives in Transport). Zero-cost when unwired.

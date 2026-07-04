@@ -4457,3 +4457,13 @@ Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
   a8c2bc9 vom 13.06. auf Founder-Wunsch auf). isBeatDriven jetzt = beatArchetype != .none (nur
   Klassik/Meditation/SelfObservation drum-frei). Tests: genreTempo (Fold/Clamp/Terminierung/NaN),
   Archetyp-Grooves (Disco-Kick, Rock-Backbeat, Ska-Skank, Doom-HalfTime, Determinismus+Settle-Subset).
+- 79.66 (C6/C7, Founder: "Weiter mit C6/C7 WAV-Loop-Trim"): WAV-Export sitzt exakt auf dem
+  DAW-Raster. NEBENFUND: exportWav nutzte startRecording() mit BEDINGUNGSLOSEM 30-s-Pre-Roll —
+  die geplante Loop-WAV enthielt 30 s altes Audio + Loop + 0,4 s Tail, LUFS ueber alles gemessen.
+  Fix-Architektur: PatternEngine.lastBarStartAt (Downbeat-Stempel im advance()), RetroCapture.
+  startRecording(preRoll:) (0 fuer Loop-Export), SingleExport.trimLengthSeconds/trimFromEndSeconds/
+  edgeFadeSeconds (reader.timeRange + Session-Start am Fensteranfang + LUFS NUR im Fenster +
+  ~4 ms Kanten-Fades), StudioCalculator.loopTrimWindow (pure, Linux-CI-getestet). Beide Pfade
+  (geplant + "Behalten") schneiden bar-aligned; "Behalten" ehrlich auf ~30 s Ring begrenzt
+  (laenger → klare Meldung statt stiller Truncation), geplanter Export unbegrenzt (Datei-Pfad).
+  Kein Render-Thread-Code beruehrt. Tests: loopTrimWindow (Schnitt/Nil/NaN), Reset-clears-Trim.

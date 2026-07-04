@@ -67,6 +67,17 @@ final class SingleExport {
     var outputFormat: OutputFormat = .aac
     var targetLUFS: Float = -14
 
+    // Bar-aligned loop trim (audit C6/C7). When `trimLengthSeconds` is set, ONLY
+    // the window [duration − trimFromEnd − length, +length] of the source is
+    // measured AND rendered — the exact loop, cut from the end of the capture
+    // (window math: StudioCalculator.loopTrimWindow). Falls back to an unaligned
+    // end cut, then to the untrimmed file, when the capture is too short.
+    var trimLengthSeconds: Double?
+    var trimFromEndSeconds: Double = 0
+    /// Micro fade at the trimmed edges — kills residual seam ticks without an
+    /// audible dip (~4 ms). Applied only when a trim window is active.
+    var edgeFadeSeconds: Double = 0
+
     // MARK: - Export
 
     func export(sourceURL: URL) async {
@@ -76,14 +87,16 @@ final class SingleExport {
 
         do {
             let outputURL = try makeOutputURL(sourceURL: sourceURL)
-            let gainDB = try await measureLUFS(sourceURL: sourceURL)
+            let timeRange = try await resolveTrimRange(sourceURL: sourceURL)
+            let gainDB = try await measureLUFS(sourceURL: sourceURL, timeRange: timeRange)
             let normalizeGain = targetLUFS - gainDB    // positive = boost, negative = cut
             let clampedGain = Swift.min(Swift.max(normalizeGain, -12), 12)
 
             exportState = .exporting(progress: 0)
             log.log(.info, category: .audio, "SingleExport: gain \(String(format: "%.1f", clampedGain))dB → \(outputFormat.label)")
 
-            try await renderWithGain(sourceURL: sourceURL, outputURL: outputURL, gainDB: clampedGain)
+            try await renderWithGain(sourceURL: sourceURL, outputURL: outputURL,
+                                     gainDB: clampedGain, timeRange: timeRange)
             exportState = .done(outputURL)
             log.log(.info, category: .audio, "SingleExport complete → \(outputURL.lastPathComponent)")
         } catch {
@@ -94,11 +107,38 @@ final class SingleExport {
 
     func reset() {
         exportState = .idle
+        trimLengthSeconds = nil
+        trimFromEndSeconds = 0
+        edgeFadeSeconds = 0
+    }
+
+    /// The CMTimeRange to read, honouring the loop-trim window. nil = whole file.
+    private func resolveTrimRange(sourceURL: URL) async throws -> CMTimeRange? {
+        guard let length = trimLengthSeconds else { return nil }
+        let asset = AVAsset(url: sourceURL)
+        let fileDuration = CMTimeGetSeconds(try await asset.load(.duration))
+        // Bar-aligned first; unaligned end cut second; untrimmed as the last resort
+        // (an untrimmed export is today's behaviour — never fail the whole export
+        // just because the capture came up short).
+        let window = StudioCalculator.loopTrimWindow(fileDuration: fileDuration,
+                                                     loopSeconds: length,
+                                                     secondsSinceBarStart: trimFromEndSeconds)
+            ?? StudioCalculator.loopTrimWindow(fileDuration: fileDuration,
+                                               loopSeconds: length,
+                                               secondsSinceBarStart: 0)
+        guard let window else {
+            log.log(.error, category: .audio,
+                    "SingleExport: capture (\(String(format: "%.2f", fileDuration))s) shorter than loop — exporting untrimmed")
+            return nil
+        }
+        let scale: CMTimeScale = 44_100
+        return CMTimeRange(start: CMTime(seconds: window.start, preferredTimescale: scale),
+                           duration: CMTime(seconds: window.duration, preferredTimescale: scale))
     }
 
     // MARK: - LUFS measurement (BS.1770 approximation via RMS)
 
-    private func measureLUFS(sourceURL: URL) async throws -> Float {
+    private func measureLUFS(sourceURL: URL, timeRange: CMTimeRange?) async throws -> Float {
         let asset = AVAsset(url: sourceURL)
         guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
             throw ExportError.noAudioTrack
@@ -106,6 +146,9 @@ final class SingleExport {
         _ = track   // confirm audio track present
 
         let reader = try AVAssetReader(asset: asset)
+        // Measure ONLY the loop window (C6): normalising against audio outside the
+        // final cut would set the wrong gain for what actually ships in the file.
+        if let timeRange { reader.timeRange = timeRange }
         let outputSettings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: 44100,
@@ -159,7 +202,8 @@ final class SingleExport {
 
     // MARK: - Render with gain
 
-    private func renderWithGain(sourceURL: URL, outputURL: URL, gainDB: Float) async throws {
+    private func renderWithGain(sourceURL: URL, outputURL: URL, gainDB: Float,
+                                timeRange: CMTimeRange?) async throws {
         let asset = AVAsset(url: sourceURL)
         guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
             throw ExportError.noAudioTrack
@@ -167,6 +211,9 @@ final class SingleExport {
 
         let duration = try await asset.load(.duration)
         let reader = try AVAssetReader(asset: asset)
+        // Render ONLY the loop window (C6/C7): the output file is exactly one
+        // bar-aligned loop, so it sits on the DAW grid and loops seamlessly.
+        if let timeRange { reader.timeRange = timeRange }
         let inputSettings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: 44100,
@@ -186,10 +233,21 @@ final class SingleExport {
 
         guard reader.startReading() else { throw ExportError.cannotReadSource }
         writer.startWriting()
-        writer.startSession(atSourceTime: .zero)
+        // With a trim window the reader delivers buffers stamped at their ORIGINAL
+        // source times — the session must start at the window start or every
+        // sample would be offset (silence at the head, tail cut off).
+        writer.startSession(atSourceTime: timeRange?.start ?? .zero)
 
         let linearGain = pow(10, gainDB / 20)
-        let durationSeconds = CMTimeGetSeconds(duration)
+        let windowStartSeconds = timeRange.map { CMTimeGetSeconds($0.start) } ?? 0
+        let durationSeconds = timeRange.map { CMTimeGetSeconds($0.duration) }
+            ?? CMTimeGetSeconds(duration)
+        // Micro edge fades (loop seam safety): frame counts at the 44.1 kHz LPCM
+        // reader rate, applied over interleaved stereo. Only the first/last
+        // buffers ever intersect the fade zones, so the per-sample loop is cheap.
+        let totalFrames = Int(durationSeconds * 44_100)
+        let fadeFrames = edgeFadeSeconds > 0 ? Int(edgeFadeSeconds * 44_100) : 0
+        var framesWritten = 0
 
         await withCheckedContinuation { continuation in
             writerInput.requestMediaDataWhenReady(on: DispatchQueue(label: "com.echoelmusic.export")) {
@@ -200,6 +258,9 @@ final class SingleExport {
                         return
                     }
 
+                    let bufferFrames = CMSampleBufferGetNumSamples(sampleBuffer)
+                    let bufferStartFrame = framesWritten
+
                     // Apply gain in-place on the PCM data
                     if let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) {
                         // Walk segments by offset — applying gain to totalLength/4 from
@@ -207,6 +268,7 @@ final class SingleExport {
                         // segmented block. Loops once for the usual single-segment buffer.
                         var offset = 0
                         var totalLength = 0
+                        var segmentStartFloat = 0
                         repeat {
                             var lengthAtOffset = 0
                             var dataPointer: UnsafeMutablePointer<Int8>?
@@ -219,16 +281,40 @@ final class SingleExport {
                             let floatPtr = UnsafeMutableRawPointer(ptr).bindMemory(to: Float.self, capacity: n)
                             var gain = linearGain
                             vDSP_vsmul(floatPtr, 1, &gain, floatPtr, 1, vDSP_Length(n))
+
+                            // Edge fades — interleaved stereo: float i belongs to
+                            // frame (bufferStartFrame + (segmentStartFloat + i) / 2).
+                            if fadeFrames > 0 {
+                                let segStartFrame = bufferStartFrame + segmentStartFloat / 2
+                                let segEndFrame = bufferStartFrame + (segmentStartFloat + n) / 2
+                                if segStartFrame < fadeFrames || segEndFrame > totalFrames - fadeFrames {
+                                    for i in 0..<n {
+                                        let frame = bufferStartFrame + (segmentStartFloat + i) / 2
+                                        var g: Float = 1
+                                        if frame < fadeFrames {
+                                            g = Float(frame) / Float(fadeFrames)
+                                        }
+                                        let fromEnd = totalFrames - 1 - frame
+                                        if fromEnd < fadeFrames {
+                                            g = Swift.min(g, Float(Swift.max(fromEnd, 0)) / Float(fadeFrames))
+                                        }
+                                        if g < 1 { floatPtr[i] *= g }
+                                    }
+                                }
+                            }
+                            segmentStartFloat += n
                             offset += lengthAtOffset
                         } while offset < totalLength
                     }
+                    framesWritten = bufferStartFrame + bufferFrames
 
-                    // Update progress
+                    // Update progress (relative to the trimmed window when set)
                     let pts = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
-                    let progress = durationSeconds > 0 ? Float(pts / durationSeconds) : 0
+                    let progress = durationSeconds > 0
+                        ? Float((pts - windowStartSeconds) / durationSeconds) : 0
                     Task { @MainActor [weak self] in
                         if case .exporting = self?.exportState {
-                            self?.exportState = .exporting(progress: Swift.min(progress, 0.99))
+                            self?.exportState = .exporting(progress: Swift.min(Swift.max(progress, 0), 0.99))
                         }
                     }
 
