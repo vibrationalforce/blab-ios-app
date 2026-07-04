@@ -345,6 +345,11 @@ extension SynthPatch {
         synth.harmonicLevel = harmonicLevel
         synth.brightness = brightness
         synth.noiseLevel = noiseLevel
+        // Capture the patch's designed character as the bio baseline: biofeedback modulates
+        // subtly AROUND these instead of overwriting them, so the chosen sound survives.
+        synth.bioBaseHarmonicity = harmonicity
+        synth.bioBaseNoiseLevel = noiseLevel
+        synth.bioBaseReverbMix = reverbMix
         if let color = SynthPatch.match(noiseColor, EchoelDDSP.NoiseColor.allCases) { synth.noiseColor = color }
         if let shape = SynthPatch.match(spectralShape, EchoelDDSP.SpectralShape.allCases) { synth.spectralShape = shape }
         // Acoustic instrument spectrum (timbre transfer). Case-insensitive name →

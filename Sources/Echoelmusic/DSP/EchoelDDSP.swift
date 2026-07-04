@@ -1049,6 +1049,15 @@ public final class EchoelDDSP: @unchecked Sendable {
     private var _spectralUpdateCounter: Int = 0
     private var _lfoPhase: Float = 0  // Internal LFO for filter sweep
 
+    /// Patch-baseline timbre values, captured in `SynthPatch.apply(to:)`. Biofeedback
+    /// modulates SUBTLY AROUND these (founder: "Biofeedback ändert dann nur subtil die Filter
+    /// etc.") instead of overwriting them — so the character of the patch you chose survives,
+    /// and the body only gently colours it (filter first, character a touch). Default to the
+    /// synth's own defaults so a bio frame before any patch still behaves.
+    public var bioBaseHarmonicity: Float = 0.88
+    public var bioBaseNoiseLevel: Float = 0.01
+    public var bioBaseReverbMix: Float = 0.25
+
     public func applyBioReactive(
         coherence: Float,
         hrvVariability: Float = 0.5,
@@ -1104,23 +1113,23 @@ public final class EchoelDDSP: @unchecked Sendable {
         _smoothedAmplitude = _smoothedAmplitude * smoothCoeff + ampPulse * (1.0 - smoothCoeff)
         amplitude = _smoothedAmplitude
 
-        // 3. Heart rate → Vibrato depth (calm = gentle drift, excited = audible wobble)
-        vibratoDepth = 0.01 + heartRate * 0.08  // 1 cent → 9 cent (clearly audible at top)
+        // 3. Heart rate → Vibrato depth — GENTLE drift, not a wobble (founder: bio should be
+        //    subtle). ~0.4 cent at rest → ~2.4 cent when active, a fraction of the old range.
+        vibratoDepth = 0.004 + heartRate * 0.02
         vibratoRate = 0.05 + heartRate * 0.15   // Very slow → moderate
 
-        // 4. Coherence → Harmonicity (low = gritty/tense, high = pure/resolved)
-        harmonicity = 0.45 + coherence * 0.45   // 0.45 (rough) → 0.90 (pure)
-
-        // 5. HRV → Reverb + spatial character
-        //    Low HRV = dry, tense, close | High HRV = spacious, open, lush
-        reverbMix = 0.20 + hrvVariability * 0.35  // 0.20 → 0.55 (floor raised for meditation)
-        // Note: reverb DECAY is intentionally NOT bio-modulated here — rebuilding
-        // the convolution IR allocates and would click the tail if done per bio
-        // frame. The spacious/dry HRV character comes from reverbMix above; decay
-        // is set once via updateReverbDecay(). (Was a dead assignment before.)
-
-        // 6. Coherence → Noise (low coherence = texture/tension, high = clean)
-        noiseLevel = 0.01 + (1.0 - coherence) * 0.12  // 0.01 → 0.13
+        // 4-6. CHARACTER (harmonicity · reverb · noise) — modulate SUBTLY AROUND the patch's own
+        //      values, never overwrite them (founder: "Biofeedback ändert dann nur subtil die
+        //      Filter etc."; audit A8: the old absolute assignments plastered every patch toward
+        //      one neutral timbre). The FILTER above stays the main bio expression; these only
+        //      gently colour the sound so the character you chose survives. Small, clamped
+        //      deviations centred on the captured baseline.
+        harmonicity = (bioBaseHarmonicity + (coherence - 0.5) * 0.12).clamped(to: 0.05...0.98)
+        reverbMix   = (bioBaseReverbMix + (hrvVariability - 0.5) * 0.12).clamped(to: 0...0.9)
+        noiseLevel  = Swift.max(0, bioBaseNoiseLevel + (0.5 - coherence) * 0.06)
+        // Note: reverb DECAY is intentionally NOT bio-modulated (rebuilding the convolution IR
+        // allocates and would click the tail per frame); the spatial character comes from
+        // reverbMix, decay is set once via updateReverbDecay().
 
         // 7. Breath phase → Filter LFO depth (breathing modulates filter movement)
         lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
