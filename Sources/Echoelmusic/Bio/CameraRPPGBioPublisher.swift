@@ -167,8 +167,19 @@ public final class CameraRPPGBioPublisher {
     /// Consecutive publisher-forced recoveries WITHOUT any frames returning in between.
     /// Capped so a camera that starts but never yields a usable sample can't be
     /// reconfigured forever (each reconfigure delays frames further — thermal/battery
-    /// churn, permanently "acquiring"). Reset to 0 the instant samples flow again.
+    /// churn, permanently "acquiring"). Refilled only after SUSTAINED flow (see
+    /// healthyTicks) — the brief trickle right after a recovery (exposure re-lock
+    /// frames) must NOT reset it, or a recurring stall thrashes at "1/3" forever and
+    /// never escalates (device log 1783177538: six recoveries all logged as 1/3,
+    /// 45 s of dead pulse).
     @ObservationIgnored private var forcedRecoveries = 0
+    /// Consecutive publish ticks WITH samples — the "flow is really healthy again"
+    /// counter that refills the recovery budget after ~3 s of sustained samples.
+    @ObservationIgnored private var healthyTicks = 0
+    /// One-shot final escalation: when in-place recoveries are exhausted, do a FULL
+    /// cold stop→start of the capture once (the founder's manual Stop→Start healed
+    /// exactly the stall the in-place recovery could not — same log).
+    @ObservationIgnored private var didColdRestart = false
     private static let maxForcedRecoveries = 3
     private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
     private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
@@ -281,6 +292,8 @@ public final class CameraRPPGBioPublisher {
         analyzer.startPulseDetection()
         stallTicks = 0
         forcedRecoveries = 0
+        healthyTicks = 0
+        didColdRestart = false
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
         // Exposure is now locked from the publish loop ONLY once the finger is
@@ -308,6 +321,7 @@ public final class CameraRPPGBioPublisher {
                 // we're running, the RGB path (not just the raw session) has stalled: force a
                 // full camera recovery. Cooldown lives in CameraCapture.recoverFromStall().
                 if drained.isEmpty {
+                    self.healthyTicks = 0
                     self.stallTicks += 1
                     if self.stallTicks >= 60 {          // ~6 s at 10 Hz
                         self.stallTicks = 0
@@ -315,16 +329,36 @@ public final class CameraRPPGBioPublisher {
                             self.forcedRecoveries += 1
                             EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery (\(self.forcedRecoveries)/\(Self.maxForcedRecoveries))")
                             self.capture.recoverFromStall()
+                        } else if !self.didColdRestart {
+                            // FINAL ESCALATION (once): in-place reconfigures didn't bring the
+                            // sample pipe back, but a full cold stop→start does — the founder's
+                            // manual Stop→Start healed exactly this stall (log 1783177700:
+                            // immediately healthy after 45 s of thrash). Rebuild the whole
+                            // session from scratch: inputs, outputs, torch, exposure.
+                            self.didColdRestart = true
+                            EchoelCrashLog.breadcrumb("rPPG: recoveries exhausted — cold camera restart")
+                            self.capture.stop()
+                            try? await Task.sleep(for: .milliseconds(800))
+                            guard self.isRunning, !Task.isCancelled else { break }
+                            try? await self.capture.start()
+                            self.capture.setTorch(true)
+                            self.handleCameraSessionReset()   // drop stale exposure lock → re-lock on finger
                         } else {
-                            // Persistent stall: stop reconfiguring (it only delays frames
-                            // further). The capture-layer frame watchdog + session observers
-                            // keep running; surface it once instead of thrashing the camera.
-                            EchoelCrashLog.breadcrumb("rPPG: still no frames after \(Self.maxForcedRecoveries) forced recoveries — leaving it to the watchdog")
+                            // Cold restart also failed: stop reconfiguring (it only delays
+                            // frames further). The capture-layer watchdog + observers keep
+                            // running; the honest UI state stays "acquiring", never a fake number.
+                            EchoelCrashLog.breadcrumb("rPPG: still no frames after cold restart — leaving it to the watchdog")
                         }
                     }
                 } else {
                     self.stallTicks = 0
-                    self.forcedRecoveries = 0        // frames flowing again → refill the recovery budget
+                    self.healthyTicks += 1
+                    // Refill the recovery budget only after ~3 s of SUSTAINED flow — not on
+                    // the first post-recovery trickle (that reset was the "stuck at 1/3" bug).
+                    if self.healthyTicks >= 30 {
+                        self.forcedRecoveries = 0
+                        self.didColdRestart = false
+                    }
                 }
                 // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
