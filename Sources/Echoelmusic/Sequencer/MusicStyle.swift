@@ -1,18 +1,18 @@
 // MusicStyle.swift
-// Echoel — the curated genre identity behind the bio-generative engine. Echoel is
-// NOT a beat-maker; it generates the harmonic/melodic STARTING MATERIAL for a
-// professional production — pads, chords, leads, arps, atmospheres — across many
-// genres, driven by the body. Two genres carry a beat (Dub Techno, Trap); all the
-// rest are non-beat layers you finish in your DAW.
+// Echoel — the curated genre identity behind the bio-generative engine. It
+// generates DAW-ready STARTING MATERIAL — harmony, melody AND the genre's
+// defining groove — across many genres, driven by the body.
 //
-//   Beat-driven:
+//   Signature beats (hand-built):
 //     • Dub Techno — deep dub chords, tape echo, sub-bass
 //     • Trap       — booming 808 sub-bass, crisp hats, dark melody
-//   Non-beat harmonic material (pads · chords · leads · arps · FX):
-//     • Vaporwave · 80s Synth-Pop · Disco · Synthwave · Early Synth (Berlin
-//       School) · Futuristic · Sci-Fi · Psytrance · Deep Ambient
-//   Bio-ambient:
-//     • Self-Observation — no drums, breath-paced, sync-free
+//   Archetype beats (audit B5, 2026-07-04 — every beat-driven genre now carries
+//   its groove via `beatArchetype`: four-on-floor / backbeat / offbeat / half-time):
+//     • Disco · 80s · Early Synth · Futuristic · Psytrance · Synthwave (floor)
+//     • Rock · Punk · Rock'n'Roll · Heavy Metal · Jazz · Oriental (backbeat)
+//     • Ska · Rocksteady · Klezmer (offbeat skank)  ·  Doom · Vaporwave · Sci-Fi (half-time)
+//   Drum-free by design:
+//     • Classical · Meditation · Self-Observation (breath-paced, sync-free)
 //
 // Genre subtitles are descriptive sound characters only — no artist, label, or
 // film names anywhere user-facing (App Store-safe, no implied endorsement).
@@ -134,6 +134,33 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .heavyMetal:         return "Dark phrygian · low power chords"
         case .doom:               return "Crushing slow · downtuned drone"
         case .selfObservation:    return "Ambient · breath-paced · sync-free"
+        }
+    }
+
+    /// The rhythmic skeleton a genre's generated beat is built on (audit B5).
+    /// `signature` = the genre has its own hand-built beat function (dub, trap);
+    /// `none` = deliberately drum-free (classical, meditation, self-observation).
+    public enum BeatArchetype: Sendable, Equatable {
+        case none
+        case signature
+        case fourOnFloor   // kick every beat, offbeat hats, backbeat clap
+        case backbeat      // kick 1(+3), snare 2 & 4, driving 8th hats
+        case offbeat       // kick anchor, skank stabs on the offbeats
+        case halfTime      // sparse kick, snare on 3, heavy air
+    }
+
+    /// Which groove skeleton this genre carries. Drives the generic beat
+    /// builders in `BioComposer`; tempo feel comes from `tempoRange` (B4).
+    public var beatArchetype: BeatArchetype {
+        switch self {
+        case .dubTechno, .trap:                                 return .signature
+        case .disco, .eighties, .earlySynth, .futuristic,
+             .psytrance, .synthwave:                            return .fourOnFloor
+        case .rock, .punk, .rocknroll, .heavyMetal,
+             .jazz, .oriental:                                  return .backbeat
+        case .ska, .rocksteady, .klezmer:                       return .offbeat
+        case .doom, .vaporwave, .sciFi:                         return .halfTime
+        case .classical, .esotericMeditation, .selfObservation: return .none
         }
     }
 
@@ -304,9 +331,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// Whether the style carries drums (only the two beat genres do).
+    /// Whether the style carries drums. Since audit B5 (2026-07-04) this is every
+    /// genre whose archetype isn't `.none` — only classical/meditation/
+    /// self-observation stay drum-free by design.
     public var isBeatDriven: Bool {
-        self == .dubTechno || self == .trap
+        beatArchetype != .none
     }
 
     /// How a non-beat style voices its harmony. Beat genres + self-observation

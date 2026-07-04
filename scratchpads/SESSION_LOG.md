@@ -4449,3 +4449,11 @@ Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
   2 Code-Kommentare bereinigt (SoundscapeEngine/BioSourceManager-Referenzen). Website = sauber.
 - Log-Triage 1783179820: gesund — Generate-Pacing exakt am 2-s-User-Floor (kein Storm), Kamera stabil,
   Trust-Gate hielt acf-0.00-Strecken korrekt (kein falsches Settle).
+- 79.65 (B4+B5, Founder: "Weiter mit B4/B5 Genre-Tempo und Drums"): StudioCalculator.genreTempo
+  faltet den Puls per Oktave INS Genre-Fenster (66→Trap 132, Punk 160+; beide generate()-Stellen);
+  MusicStyle.beatArchetype (fourOnFloor/backbeat/offbeat/halfTime/signature/none) + 4 generische
+  bio-reaktive Beat-Builder in BioComposer (Grammatik wie dub/trap: energy=Bewegung, calm>0.7=
+  Subset); generate() laedt composition.drumSteps statt silentDrums (hebt den "drum-free"-Beschluss
+  a8c2bc9 vom 13.06. auf Founder-Wunsch auf). isBeatDriven jetzt = beatArchetype != .none (nur
+  Klassik/Meditation/SelfObservation drum-frei). Tests: genreTempo (Fold/Clamp/Terminierung/NaN),
+  Archetyp-Grooves (Disco-Kick, Rock-Backbeat, Ska-Skank, Doom-HalfTime, Determinismus+Settle-Subset).

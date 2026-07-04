@@ -60,4 +60,45 @@ final class StudioCalculatorTests: XCTestCase {
         // 60 / 128.37 = 0.46740… s per quarter.
         XCTAssertEqual(c.seconds(.quarter), 60.0 / 128.37, accuracy: 1e-9)
     }
+
+    // MARK: - Genre tempo fold (audit B4 — body tempo INTO the genre window)
+
+    func testGenreTempoPassesThroughWhenInRange() {
+        XCTAssertEqual(StudioCalculator.genreTempo(120, into: 110...155), 120)
+        XCTAssertEqual(StudioCalculator.genreTempo(66, into: 50...100), 66)
+    }
+
+    func testGenreTempoFoldsBodyPulseUpIntoTrap() {
+        // Resting pulse 66 → double-time 132 lands inside Trap's 130–150.
+        XCTAssertEqual(StudioCalculator.genreTempo(66, into: 130...150), 132)
+        XCTAssertEqual(StudioCalculator.genreTempo(72, into: 130...150), 144)
+    }
+
+    func testGenreTempoFoldsRunawayEstimateBackDown() {
+        // The 2× rPPG artifact (196) folds down to 98, then clamps to the window edge.
+        XCTAssertEqual(StudioCalculator.genreTempo(196, into: 115...125), 115)
+        XCTAssertEqual(StudioCalculator.genreTempo(196, into: 110...155), 110)
+    }
+
+    func testGenreTempoClampsWhenNoOctaveLandsInside() {
+        // 66 → 132 → 264: neither octave is inside Punk 160–210 → nearest edge.
+        XCTAssertEqual(StudioCalculator.genreTempo(66, into: 160...210), 160)
+        // 90 doubles cleanly into the window.
+        XCTAssertEqual(StudioCalculator.genreTempo(90, into: 160...210), 180)
+    }
+
+    func testGenreTempoTerminatesOnNarrowWindows() {
+        // Windows narrower than an octave (ratio < 2) must still terminate + clamp.
+        for t in [1.0, 40, 65.4321, 100, 133, 500, 10_000] {
+            let r = StudioCalculator.genreTempo(t, into: 140...150)
+            XCTAssertTrue((140...150).contains(r), "t=\(t) → \(r) must land in 140–150")
+        }
+    }
+
+    func testGenreTempoGuardsDegenerateInput() {
+        XCTAssertEqual(StudioCalculator.genreTempo(0, into: 130...150), 130)
+        XCTAssertEqual(StudioCalculator.genreTempo(-20, into: 130...150), 130)
+        XCTAssertEqual(StudioCalculator.genreTempo(.infinity, into: 130...150), 130)
+        XCTAssertEqual(StudioCalculator.genreTempo(.nan, into: 130...150), 130)
+    }
 }
