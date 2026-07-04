@@ -45,16 +45,30 @@ GESICHERTE FAKTEN (Research 2026-07-04):
 - CLAUDE.md-Bau-Regeln: #if canImport(WeatherKit) + @available; Info.plist-Änderung
   (Location-Usage-String) NUR nach Founder-Freigabe (Regel: Info.plist fragen).
 
-DESIGN-SKIZZE (Minimal, dem Bio-Muster folgend — Details nach Repo-Audit-Agent):
-EnvironmentContext (@MainActor @Observable, poll ~1×/15 min):
-  → condition (clear/rain/storm/snow/fog), tempC, pressureTrend, isDay/goldenHour
-  → mappt auf BioComposer.Input-Erweiterung (moodTint / scale-Bias / detail-Dichte):
-    Regen → weichere Attacks, mehr Raum; Sturm/Druckabfall → dunklerer Modus, mehr
-    Spannung; klarer Morgen → heller, offener; Nacht → tiefer, langsamer.
-  → OPT-IN Toggle "Umwelt färbt die Musik" im Composition-Panel (aus = exakt heutiges
-    Verhalten), Anzeige der Quelle ehrlich ("Rain · 14° · Hamburg approx.").
-GATE: Council vor Implementierung (Entitlement + Info.plist + neues Permission-Prompt =
-Founder-Entscheidung). Aufwand: ~2 Zyklen (Provider+Bus · Mapping+UI).
+REPO-AUDIT-BEFUND (2026-07-04): Der alte WeatherProvider (entfernt in cf21ff3) hatte
+NIE echtes WeatherKit — der Fetch war ein auskommentierter Stub, geliefert wurde nur
+ein Tageszeit-Sinus-Fallback. Es gibt also keinen "Restore"-Shortcut; aber die
+WeatherSnapshot-Form (temperature/condition/wind/humidity, normalisiert 0–1) ist ein
+bewährtes Muster zum Wiederverwenden. CoreLocation wird heute NIRGENDS benutzt —
+das ist eine komplett neue Permission-Oberfläche.
+
+MINIMAL-DESIGN (verifiziert gegen die echte Architektur):
+1. Core/EnvironmentContextProvider.swift: @MainActor @Observable, CoreLocation mit
+   kCLLocationAccuracyReduced (approximate!) + WeatherKit-Fetch ~alle 10 min →
+   normalisierter WeatherSnapshot. #if canImport(WeatherKit/CoreLocation).
+2. Verdrahtung = EIN Blend an der EINEN Input-Stelle: in generate() (EchoelStudioView
+   :2215) bei aktivem Opt-in-Toggle mood.darkness/tension/liveliness begrenzt biasen
+   (±0.15) + optional Scale-Vorschlag (Sturm→Moll). Pure testbare Funktion
+   `tinted(mood, by: snapshot)`. KEIN Bus-Umbau, KEIN ModulationEngine-Umbau.
+3. Später (nur wenn Visuals/Licht es wollen): latestEnvironment auf dem Bus nach dem
+   latestMusical-Muster + env.weather-Port im SignalRouter.
+FRIKTION (Founder-Gates): Info.plist braucht NSLocationWhenInUseUsageDescription
+(existiert nicht); Entitlements brauchen WeatherKit — und WICHTIG: die Capability MUSS
+ZUERST im Developer-Portal an der App-ID registriert werden, sonst blockiert die
+Provisionierung den TestFlight-Upload (exakt das passierte mit CloudKit — deshalb ist
+dessen Entitlement heute auskommentiert). Ehrliches Privacy-Framing: "Apple-Dienst,
+ungefährer Standort, kein Drittserver, kein Konto" — nicht "völlig offline".
+Aufwand: ~2 Zyklen (Provider · Blend+UI+Attribution).
 
 ## 2 · MONETARISIERUNG (IAP)
 
@@ -63,18 +77,37 @@ GESICHERTE FAKTEN:
   respektierte iOS-Instrumente (Moog, Korg, Loopy Pro) = Einmalkauf/Unlock.
 - Apple 2026: volle Preistransparenz vor Kauf; bereits gekaufte Funktionalität darf
   nie wieder weggenommen werden (bindet: was einmal frei ist, bleibt frei).
-EMPFEHLUNG (vorbehaltlich Marketing-Agent + Founder):
-- Modell: EIN non-consumable "Echoel Pro" Unlock (StoreKit 2, Transaction.
-  currentEntitlements) statt Abo. Kern-Instrument bleibt frei & vollwertig (Instrument-
-  Glaubwürdigkeit + Viralität der Exporte), Pro gated ERWEITERUNGEN, nie den Kern.
-- Kandidaten fürs Gating (Repo-Audit-Agent verifiziert): erweiterte Patch-/Look-
-  Bibliothek, zusätzliche Genres/FX-Charaktere, erweiterte Export-Optionen (Stems,
-  ACID-WAV), Community-Slots. NIEMALS gaten: Bio-Kern, Basis-Export (teilen = Marketing),
-  Sicherheit/Accessibility.
-GATE: Council + Founder für Preis & Schnitt. Aufwand: ~2 Zyklen (Store-Kern+Tests ·
-Gates+Paywall-UI) + App-Store-Connect-Produktanlage (Founder).
+REPO-AUDIT-BEFUND (Überraschung): `Core/EchoelStore.swift` EXISTIERT BEREITS — ein
+kompletter, schlafender StoreKit-2-Manager (@MainActor @Observable, purchase/restore/
+Transaction.currentEntitlements/updates-Listener), in EchoelmusicApp verdrahtet und
+beim Start geladen — aber von NULL Views konsumiert, kein Gate, kein Paywall, keine
+Tests. Er trägt ABO-IDs (monthly 4,99 / yearly 39,99) — das widerspricht der
+Instrument-Positionierung ("kein Abo") und sollte auf den Einmalkauf umgestellt werden.
+
+EMPFEHLUNG (Marketing-Brainstorm + Audit einig):
+- Modell: EIN non-consumable "Echoel Pro" (com.echoelmusic.app.pro) statt Abo. Store-
+  Änderung ist WINZIG: neue Produkt-ID + isPro aus currentEntitlements; Klassenform
+  bleibt exakt. Kern-Instrument bleibt frei & vollwertig; Pro gated ERWEITERUNGEN.
+- Gate-Stellen (verifiziert): exportMIDI() · LoopExporter-Render · optional User-Patch-
+  Limit in PatchStore.save — `guard store.isPro else { showPaywall }`. NIEMALS gaten:
+  Bio-Messung, Klang-Erzeugung (CLEAR-SOFTWARE Regel 4), Sicherheit/Accessibility.
+- WARNUNG (render-safety): Paywall-Präsentation MUSS einen bestehenden Sheet-Slot in
+  EchoelStudioView wiederverwenden oder im Export-Flow-Sheet leben — NIE ein neues
+  .sheet anhängen (Metadaten-Limit → Black-Screen-Klasse).
+GATE: Council + Founder für Preis & Schnitt; ASC-Produktanlage + .storekit-Testconfig.
+Aufwand: ~2 Zyklen.
 
 ## 3 · PUSH + MAIL
+
+REPO-BEFUND (Audit 2026-07-04):
+- IN-APP: NULL Push-Code. Kein `registerForRemoteNotifications`, kein UNUserNotificationCenter-
+  Flow, kein Token-Upload, kein `aps-environment`-Entitlement. Der APNs-Key des Founders
+  (Key-ID LBY89HTN2C) hat heute KEINEN Empfänger.
+- CI: `.github/workflows/send-push.yml` war ein toter Sender mit FALSCHEN Behauptungen
+  ("Device tokens are stored in CloudKit public database" — es gibt keinerlei Token-
+  Registrierung) und MARKEN-VERSTOSS (Kategorien `ECHOEL_WELLNESS`/`ECHOEL_BIO_ALERT`,
+  Deep-Link `/wellness`). → GELÖSCHT 2026-07-04 (reversibel via Git-History); neu bauen
+  erst, wenn ein echtes Server-Feature Push rechtfertigt — dann ohne Wellness-Framing.
 
 GESICHERTE FAKTEN:
 - Apple 4.5.4: Marketing-Push NUR mit explizitem In-App-Opt-in + Opt-out-Weg; Push darf
@@ -174,6 +207,24 @@ DANN (neue Achsen, jede hinter Council-Gate):
  5. IAP "Echoel Pro" (2 Zyklen + ASC-Produktanlage)
  6. Marketing-Execution (Website/ASO/Launch — PIPELINE, nie Sources/)
 SPÄTER: A5/A6 Synth-Drums · C6/C7 WAV-Align · Makro-Artikulation · P3 Video · P4 Broadcast.
+
+## 7 · QUERSCHNITT: GEFUNDENE UNGENAUIGKEITEN (Aufräum-Liste, Stand 2026-07-04)
+
+Beim Deep Audit für diesen Plan gefundene Widersprüche Doku ↔ Code (Founder-Direktive
+"zu viele Ungenauigkeiten"):
+1. ✅ CLAUDE.md "KEY TESTS (15 files)" listete 11 NICHT existierende Testdateien
+   (BusinessTests, MIDITests, RecordingTests, …) — Realität: 140 Testdateien.
+   → korrigiert 2026-07-04.
+2. ✅ EchoelStore (StoreKit-2-Abo-Gerüst, in EchoelmusicApp verdrahtet, NULL Konsumenten)
+   war NIRGENDS dokumentiert — Überraschungsfund. → in CLAUDE.md "Absent" vermerkt;
+   Abo-IDs widersprechen der Instrument-Positionierung (Abschnitt 2: ein Pro-Unlock).
+3. ✅ send-push.yml: falsche CloudKit-Behauptung + ECHOEL_WELLNESS (Markenverstoß),
+   ohne jeden In-App-Empfänger. → gelöscht (Abschnitt 3).
+4. Offen: Konsistenz-Vollaudit (Docs/Website/FEATURE_MATRIX/CLAUDE.md vs Code) läuft
+   als Agent; Ergebnisse werden hier bzw. direkt als Fixes nachgetragen.
+Regel für alle Achsen dieses Plans: KEINE neuen Dependencies, KEINE neuen Top-Level-
+Verzeichnisse, jede Achse hinter Council-Gate, Render-Safety-Regeln gelten (Paywall/
+Umwelt-UI = bestehenden Sheet-Slot wiederverwenden, nie Kette verlängern).
 
 ## 6 · ENTSCHEIDUNGEN FÜR DEN FOUNDER (bewusst offen)
 - Umwelt-Quelle bauen? (Entitlement + Location-Permission + Info.plist = deine Freigabe)
