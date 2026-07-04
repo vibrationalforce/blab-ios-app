@@ -129,6 +129,50 @@ final class StudioCalculatorTests: XCTestCase {
                                                      secondsSinceBarStart: 0))
     }
 
+    // MARK: - Evolve hold ("halten wenn eingerastet")
+
+    func testEvolveHold_unsettledAlwaysHolds() {
+        // A wobbling / warming pulse must never re-seed — hold, don't chase noise.
+        XCTAssertFalse(StudioCalculator.shouldReseedOnEvolve(
+            settled: false, hasBaseline: true,
+            currentBPM: 90, baselineBPM: 56, currentCoherence: 0.2, baselineCoherence: 0.8))
+    }
+
+    func testEvolveHold_settledNoBaselineReseeds() {
+        // First settle with no captured baseline → re-seed to lock the phrase in.
+        XCTAssertTrue(StudioCalculator.shouldReseedOnEvolve(
+            settled: true, hasBaseline: false,
+            currentBPM: 56, baselineBPM: 0, currentCoherence: 0.7, baselineCoherence: 0))
+    }
+
+    func testEvolveHold_settledStableHolds() {
+        // The log case: settled 56, wobbling 56–59 (drift 3 < 5) → HOLD.
+        XCTAssertFalse(StudioCalculator.shouldReseedOnEvolve(
+            settled: true, hasBaseline: true,
+            currentBPM: 59, baselineBPM: 56, currentCoherence: 0.72, baselineCoherence: 0.70))
+    }
+
+    func testEvolveHold_settledBPMShiftReseeds() {
+        // A real heart-rate move (56 → 64, drift 8 ≥ 5) → re-seed; the body changed.
+        XCTAssertTrue(StudioCalculator.shouldReseedOnEvolve(
+            settled: true, hasBaseline: true,
+            currentBPM: 64, baselineBPM: 56, currentCoherence: 0.7, baselineCoherence: 0.7))
+    }
+
+    func testEvolveHold_settledCoherenceShiftReseeds() {
+        // Coherence climbed (0.5 → 0.7, drift 0.2 ≥ 0.15) → re-seed toward the calmer state.
+        XCTAssertTrue(StudioCalculator.shouldReseedOnEvolve(
+            settled: true, hasBaseline: true,
+            currentBPM: 57, baselineBPM: 56, currentCoherence: 0.72, baselineCoherence: 0.50))
+    }
+
+    func testEvolveHold_nonFiniteReseeds() {
+        // A NaN reading can't prove stability → re-seed rather than freeze on junk.
+        XCTAssertTrue(StudioCalculator.shouldReseedOnEvolve(
+            settled: true, hasBaseline: true,
+            currentBPM: .nan, baselineBPM: 56, currentCoherence: 0.7, baselineCoherence: 0.7))
+    }
+
     func testLoopTrimWindow_guardsDegenerateInput() {
         XCTAssertNil(StudioCalculator.loopTrimWindow(fileDuration: 0, loopSeconds: 4,
                                                      secondsSinceBarStart: 0))

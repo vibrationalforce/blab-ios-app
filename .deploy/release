@@ -1,18 +1,18 @@
-build: 2026-07-04 v10.79.68 (DEINE EIGENEN DRUMS + echte Instrumente — dein Sound-Material im Beat)
+build: 2026-07-04 v10.79.69 (HALTEN wenn eingerastet — die Musik wuerfelt nicht mehr staendig neu)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine eigene Sample-Bibliothek ist jetzt IN der App — kombiniert mit den echten
-  Instrumenten aus dem letzten Build:
-  1) DEINE DRUMS IN JEDEM BEAT: Die 8 Standard-Drums der App sind durch deine eigenen
-     Sounds ersetzt (909-Kick, Cassette-Snare, 909-HiHats, dein Clap, Claves-Perc,
-     808-Sub, Ambi-Plop-FX) — aus der Bibliothek, die du geteilt hast. Jeder Genre-Beat
-     (Disco/Rock/Trap/Dub...) spielt ab jetzt DEINE Drum-Machines statt Platzhalter.
-  2) DAZU eine kategorisierte Bibliothek deiner Sounds in der App (Kick/Snare/Hat/Clap/
-     Perc/Cymbal/Bass/Chords) — im naechsten Schritt zum Durchhoeren + pro Pad tauschen.
-  3) Melodie/Harmonien weiter als echte Instrumente (Klavier + Streicher, umschaltbar
-     auf Classic Synth) aus dem letzten Build.
-  Ehrlich: von deinen ~4800 Samples habe ich ein schlankes, sinnvolles Kit kuratiert
-  (nicht 876 MB reingeworfen) — nach Namen, weil ich hier nicht reinhoeren kann. Was dir
-  nicht passt, tauschst du. 20 der geplanten Bibliotheks-Files sind bei der Konvertierung
-  durchgefallen (hole ich nach); die 8 Haupt-Drums + je 2-3 pro Kategorie sind drin.
-  TEST 10.79.68: Start druecken, Beat laufen lassen (z.B. Genre mit Drums wie Disco/Rock/
-  Trap). Klingen die Drums jetzt nach DEINEN Sounds — druckvoller, echter?
+notesT: Dein "nervig" an der Wurzel: Bisher hat die Musik ALLE ~25-45 Sekunden neu
+  komponiert — auch wenn dein Puls ruhig eingerastet war. Kein meditativer Sog konnte
+  entstehen, weil sich staendig alles aenderte. Ab jetzt:
+  1) EINGERASTET = HALTEN: Wenn dein Puls settled ist (sicher + ruhig ~3s) und sich dein
+     Koerper NICHT wesentlich aendert, HAELT der Take. Die Phrase darf sich setzen, statt
+     alle 30s neu zu wuerfeln. (Im Log sichtbar: settled 56-59 BPM = Halten.)
+  2) NUR bei echter Koerper-Aenderung neu: Erst wenn sich dein Puls wirklich bewegt
+     (>=5 BPM) oder deine Kohaerenz springt (>=0.15), komponiert es neu — dann folgt die
+     Musik deinem Koerper, wie es soll.
+  3) Waehrend der Puls noch wackelt/aufwaermt: HALTEN (kein Jagen von Rausch). Der erste
+     Lock rastet ein wie gehabt; deine eigenen Edits (Genre/Tonart/Tempo) wirken sofort.
+  Das ist der direkte Fix gegen "staendig neu / nervig" — die Basis fuer einen ruhigen,
+  meditativen Zustand. (Enthaelt weiter: deine Drums + echte Instrumente.)
+  TEST 10.79.69: Start, Finger ruhig auf die Kamera, warten bis der Puls einrastet.
+  Bleibt die Musik dann RUHIG bei einer Phrase (statt sich staendig zu aendern)? Und wenn
+  du dich bewegst/den Puls aenderst — folgt sie dann?

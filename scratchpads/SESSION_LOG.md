@@ -4484,3 +4484,11 @@ Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
   Founder-Drums + echte Instrumente. NÄCHSTE: SampleBrowser an bundled Kategorien wiren (das "Tool"),
   Chords/Bass als gepitchte Instrumente, 20 Missing nachladen. Log 1783183190: schlechtes Finger-
   Signal, Puls nie gelockt, Trust-Gate hielt (kein falsches Settle) → TODO "hold take when no lock".
+- 79.69 HOLD-FIX (Founder: "Bau den Hold-Fix — halten wenn eingerastet"): der Evolve-Loop würfelte
+  bedingungslos alle 25-45s neu, auch bei ruhig gelocktem Puls (= "nervig", kein meditativer Sog).
+  NEU: StudioCalculator.shouldReseedOnEvolve (pure, Linux-CI-getestet) — unsettled→HALTEN (kein Rausch
+  jagen), settled ohne Baseline→re-seed (erster Lock), settled+stabil→HALTEN, nur bei echter Änderung
+  (ΔBPM≥5 oder ΔCoh≥0.15) neu; NaN→re-seed statt einfrieren. View: lastGenBody-Baseline in generate()
+  aufgezeichnet, in stopEverything() genullt; evolveShouldReseed() (no-body→lebendig halten, sonst pure
+  Regel via cameraRPPG.isSettled). User-Edits + snapToLock-erster-Lock bypassen das Gate. 6 CI-Tests.
+  Enthält 79.67 echte Instrumente + 79.68 Founder-Drums.
