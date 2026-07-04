@@ -688,6 +688,37 @@ public final class AudioEngine {
         log.audio("Source node detached from master engine")
     }
 
+    /// Attach a self-rendering instrument AU (e.g. AVAudioUnitSampler for the
+    /// real-instrument voices) additively into the master mix — the exact
+    /// pause→attach→connect→restart pattern of `attachSourceNode`. The AU does
+    /// its own rendering; nothing is added to our render path.
+    func attachInstrument(_ node: AVAudioUnit) {
+        prepareGraph()
+        let wasRunning = masterEngine.isRunning
+        if wasRunning { masterEngine.pause() }
+        masterEngine.attach(node)
+        let format = node.outputFormat(forBus: 0)
+        if format.sampleRate > 0, format.channelCount > 0 {
+            masterEngine.connect(node, to: masterMixer, format: format)
+            log.audio("Instrument AU attached to master engine (\(format.sampleRate)Hz, \(format.channelCount)ch)")
+        } else {
+            let fallback = masterMixer.outputFormat(forBus: 0)
+            if fallback.sampleRate > 0, fallback.channelCount > 0 {
+                masterEngine.connect(node, to: masterMixer, format: fallback)
+                log.audio("Instrument AU attached to master engine (fallback format)")
+            } else {
+                // No early return — the restart below must still run or a
+                // paused engine would stay paused after a failed attach.
+                log.audio("Cannot attach instrument AU — no valid audio format", level: .error)
+                masterEngine.detach(node)
+            }
+        }
+        if wasRunning {
+            do { try masterEngine.start() }
+            catch { log.audio("Failed to restart engine after instrument attach: \(error)", level: .error) }
+        }
+    }
+
     /// Attach an AVAudioPlayerNode additively into the master mix (same safe
     /// pause/attach/connect pattern as `attachSourceNode`). Used by AudioClipPlayer
     /// — a clip plays into `masterMixer` like any voice, never touching the master

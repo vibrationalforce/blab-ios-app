@@ -4467,3 +4467,10 @@ Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
   (geplant + "Behalten") schneiden bar-aligned; "Behalten" ehrlich auf ~30 s Ring begrenzt
   (laenger → klare Meldung statt stiller Truncation), geplanter Export unbegrenzt (Datei-Pfad).
   Kein Render-Thread-Code beruehrt. Tests: loopTrimWindow (Schnitt/Nil/NaN), Reset-clears-Trim.
+- REAL INSTRUMENTS Push A (Founder: "klingt alles mega scheiße" → AskUser: schlimmster Punkt
+  "Alles zusammen", Fix "Ja, bauen"): SampledInstrumentVoice (AVAudioUnitSampler, GM aus
+  GeneralUser GS, graceful absence) · AudioEngine.attachInstrument · NoteVoice-Protokoll +
+  Identitäts-Grouping in PianoRollModel (Real: lead=Piano, harmony=Strings, bass=Synth+Sub) ·
+  "Sound"-Picker im Composition-Panel (nur sichtbar wenn Asset da) · fetch-instruments.yml
+  (Founder-approved CI-Beschaffung, Sandbox-Download 403-verifiziert). Release-Bump ERST nach
+  Asset-Landung (Push B), sonst hört der Founder keinen Unterschied. PLAN_REAL_INSTRUMENTS.md.
