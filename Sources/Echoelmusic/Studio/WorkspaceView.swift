@@ -157,6 +157,8 @@ private struct TransportBar: View {
                              range: Transport.minTempo...Transport.maxTempo,
                              unit: "BPM", decimals: 0, boxWidth: 78)
 
+            lockButton
+
             Spacer(minLength: 0)
 
             TransportPositionView()
@@ -164,6 +166,34 @@ private struct TransportBar: View {
         .padding(.horizontal, 12)
         .frame(height: 44)
         .background(EchoelTheme.bg)
+    }
+
+    /// FIX the tempo, one tap, always reachable (founder: "Tempo fixen muss aber auch immer
+    /// gehen"). Locking freezes the tempo you're hearing right now and stops the body's gentle
+    /// tempo-follow — from then on biofeedback only shapes the SOUND (filter/timbre), never the
+    /// beat. Same `studio.lockBPM`/`lockedBPM` state as the Composition panel's toggle, so both
+    /// stay in sync; freezing here captures the live tempo directly (robust even when that panel
+    /// is collapsed and its onChange isn't mounted).
+    private var lockButton: some View {
+        Button {
+            lockBPM.toggle()
+            if lockBPM {
+                lockedBPM = transport.tempo.rounded()
+                player.pattern.setTempo(lockedBPM)   // freeze exactly what's playing (no jump)
+                metronome.bpm = transport.tempo
+            }
+        } label: {
+            Image(systemName: lockBPM ? "lock.fill" : "lock.open")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(lockBPM ? EchoelTheme.accent : EchoelTheme.dim)
+                .frame(width: 34, height: 32)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(lockBPM ? "Tempo locked — tap to let it follow the body" : "Lock tempo")
+        .accessibilityHint("When locked, the beat holds and biofeedback only shapes the sound")
     }
 
     private func toggle() {
