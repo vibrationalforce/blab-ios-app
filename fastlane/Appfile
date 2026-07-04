@@ -1,11 +1,12 @@
 # =============================================================================
-# ECHOELMUSIC - FASTLANE APPFILE
+# ECHOELMUSIC — FASTLANE APPFILE
 # =============================================================================
-# Multi-Platform Configuration for TestFlight Deployment
-# Version: 3.0.0 - Phase 10000 ULTIMATE MODE
+# Identity of record: docs/dev/APP_STORE_CONNECT.md
+# Apple App ID: 6757957358 · SKU: Simsalabimbam
 #
-# Apple App ID: 6757957358
-# Security Score: 100/100 A+++
+# Hygiene pass 2026-07-04: removed `for_lane` blocks for lanes that do not
+# exist in the Fastfile (beta, beta_watchos, beta_tvos, beta_visionos) and the
+# old slop headers. The remaining mappings match the ACTUAL lanes.
 # =============================================================================
 
 # Apple Developer Team ID (from environment)
@@ -18,42 +19,26 @@ itc_team_id ENV["APPLE_TEAM_ID"]
 apple_id "6757957358"
 
 # =============================================================================
-# Bundle Identifiers by Platform
+# Bundle Identifiers by Platform/Lane
 # =============================================================================
 
-# iOS App (iPhone + iPad)
+# iOS App (default for all lanes unless overridden below)
 app_identifier "com.echoelmusic.app"
 
-# iOS AUv3 Audio Unit Extension
-for_lane :beta do
-  app_identifier "com.echoelmusic.app"
-end
-
-# macOS App (unified bundle ID for universal purchase)
+# macOS (unified bundle ID for universal purchase; mac upload lane exists,
+# no macOS target ships in v10 — iPhone-first)
 for_platform :mac do
   app_identifier "com.echoelmusic.app"
 end
 
-# watchOS App (companion to iOS app)
-for_lane :beta_watchos do
-  app_identifier "com.echoelmusic.app.watchkitapp"
-end
-
+# watchOS companion (scaffold target; not embedded yet — C6b blocker)
 for_lane :upload_watchos do
   app_identifier "com.echoelmusic.app.watchkitapp"
 end
 
-# tvOS App (unified bundle ID for universal purchase)
-for_lane :beta_tvos do
-  app_identifier "com.echoelmusic.app"
-end
-
+# tvOS / visionOS upload lanes (unified bundle ID; no such targets in v10 —
+# lanes exist because testflight.yml can dispatch those platform jobs)
 for_lane :upload_tvos do
-  app_identifier "com.echoelmusic.app"
-end
-
-# visionOS App (unified bundle ID for universal purchase)
-for_lane :beta_visionos do
   app_identifier "com.echoelmusic.app"
 end
 
@@ -62,26 +47,12 @@ for_lane :upload_visionos do
 end
 
 # =============================================================================
-# All Bundle Identifiers (for reference)
-# =============================================================================
-#
-# UNIFIED BUNDLE ID STRATEGY (enables Universal Purchase):
-# All platforms use com.echoelmusic.app for Universal Purchase support.
-# This allows customers to buy once and get the app on all Apple platforms.
-#
-# Main Apps (Universal Purchase enabled):
-#   - com.echoelmusic.app              (iOS, macOS, tvOS, visionOS)
-#
-# Extensions & Clips:
-#   - com.echoelmusic.app.auv3         (iOS + macOS AUv3 - embedded extension)
-#   - com.echoelmusic.app.watchkitapp  (watchOS companion app)
-#   - com.echoelmusic.app.widgets      (iOS Widgets extension)
-#   - com.echoelmusic.app.clip         (iOS App Clip)
-#
-# Note: AUv3 is embedded inside the main app bundle on both iOS and macOS.
-#       Notification service: com.echoelmusic.app.notification-service
-#
-# App Groups:
-#   - group.com.echoelmusic            (shared data between apps & extensions)
-#
+# Bundle-ID reference (identity map lives in docs/dev/APP_STORE_CONNECT.md):
+#   com.echoelmusic.app                       main app (universal purchase)
+#   com.echoelmusic.app.auv3                  AUv3 extension (embedded, ships)
+#   com.echoelmusic.app.widgets               WidgetKit extension (embedded, ships)
+#   com.echoelmusic.app.watchkitapp           watchOS companion (NOT embedded yet)
+#   com.echoelmusic.app.clip                  App Clip (deferred, no target)
+#   com.echoelmusic.app.notification-service  (deferred, no target)
+#   group.com.echoelmusic                     shared App Group
 # =============================================================================
