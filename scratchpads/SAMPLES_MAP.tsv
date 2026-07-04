@@ -1,0 +1,63 @@
+# Echoel — curated sample map (founder's own library → app assets)
+# Phase 2 of fetch-samples.yml: <src relative to archive root> TAB <dst repo path>
+# ffmpeg converts each to 16-bit / 44.1k PCM WAV. "Nur samples verwenden, wirklich Sinn machen":
+# a TIGHT curated kit, not the 876 MB dump. Picks are by name/format (not auditioned) — the
+# founder swaps any via the sample browser. Classic 707/808/909 + Cassette/EMU character.
+#
+# === THE 8 DEFAULT DRUMS (overwrite Resources/Drums — every beat immediately uses these) ===
+EchoelmusicSamples/Sample Bulk/BD/909KICK.WAV	Sources/Echoelmusic/Resources/Drums/Kick.wav
+EchoelmusicSamples/Sample Bulk/SnareRim/Cassette808_Snr01.wav	Sources/Echoelmusic/Resources/Drums/Snare.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/909Ch.wav	Sources/Echoelmusic/Resources/Drums/ClosedHat.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/909Oh.wav	Sources/Echoelmusic/Resources/Drums/OpenHat.wav
+EchoelmusicSamples/Sample Bulk/Clap/Clap 2.wav	Sources/Echoelmusic/Resources/Drums/Clap.wav
+EchoelmusicSamples/Sample Bulk/Perc/Claves.wav	Sources/Echoelmusic/Resources/Drums/Perc.wav
+EchoelmusicSamples/Sample Bulk/BD/808 Bass.wav	Sources/Echoelmusic/Resources/Drums/Bass.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Ambi Plop.wav	Sources/Echoelmusic/Resources/Drums/LeadFX.wav
+#
+# === CATEGORIZED LIBRARY (browsable/assignable per pad) ===
+# -- Kick --
+EchoelmusicSamples/Sample Bulk/BD/909KICK.WAV	Sources/Echoelmusic/Resources/Samples/Kick/909 Kick.wav
+EchoelmusicSamples/Sample Bulk/BD/808bott.wav	Sources/Echoelmusic/Resources/Samples/Kick/808 Bottom.wav
+EchoelmusicSamples/Sample Bulk/BD/B 005 Deep.wav	Sources/Echoelmusic/Resources/Samples/Kick/Deep Kick.wav
+EchoelmusicSamples/Sample Bulk/BD/707_BD0.WAV	Sources/Echoelmusic/Resources/Samples/Kick/707 Kick.wav
+EchoelmusicSamples/Sample Bulk/BD/808 Bass.wav	Sources/Echoelmusic/Resources/Samples/Kick/808 Sub.wav
+# -- Snare --
+EchoelmusicSamples/Sample Bulk/SnareRim/Cassette808_Snr01.wav	Sources/Echoelmusic/Resources/Samples/Snare/Cassette Snare 1.wav
+EchoelmusicSamples/Sample Bulk/SnareRim/Cassette808_Snr02.wav	Sources/Echoelmusic/Resources/Samples/Snare/Cassette Snare 2.wav
+EchoelmusicSamples/Sample Bulk/SnareRim/EMU Snare.wav	Sources/Echoelmusic/Resources/Samples/Snare/EMU Snare.wav
+EchoelmusicSamples/Sample Bulk/SnareRim/707_SD0.WAV	Sources/Echoelmusic/Resources/Samples/Snare/707 Snare.wav
+EchoelmusicSamples/Sample Bulk/SnareRim/707_RIM.WAV	Sources/Echoelmusic/Resources/Samples/Snare/707 Rim.wav
+# -- Hat --
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/909Ch.wav	Sources/Echoelmusic/Resources/Samples/Hat/909 Closed.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/909Oh.wav	Sources/Echoelmusic/Resources/Samples/Hat/909 Open.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/808 Chh.wav	Sources/Echoelmusic/Resources/Samples/Hat/808 Closed.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/808OpenP.wav	Sources/Echoelmusic/Resources/Samples/Hat/808 Open.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/707_HHC.WAV	Sources/Echoelmusic/Resources/Samples/Hat/707 Closed.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/707_HHO.WAV	Sources/Echoelmusic/Resources/Samples/Hat/707 Open.wav
+# -- Clap --
+EchoelmusicSamples/Sample Bulk/Clap/Clap 2.wav	Sources/Echoelmusic/Resources/Samples/Clap/Clap 1.wav
+EchoelmusicSamples/Sample Bulk/Clap/Clap 6.wav	Sources/Echoelmusic/Resources/Samples/Clap/Clap 2.wav
+EchoelmusicSamples/Sample Bulk/Clap/707_HCP.WAV	Sources/Echoelmusic/Resources/Samples/Clap/707 Clap.wav
+# -- Perc --
+EchoelmusicSamples/Sample Bulk/Perc/Claves.wav	Sources/Echoelmusic/Resources/Samples/Perc/Claves.wav
+EchoelmusicSamples/Sample Bulk/Perc/Clave 2.wav	Sources/Echoelmusic/Resources/Samples/Perc/Clave 2.wav
+EchoelmusicSamples/Sample Bulk/Perc/Agogo1.wav	Sources/Echoelmusic/Resources/Samples/Perc/Agogo.wav
+EchoelmusicSamples/Sample Bulk/Perc/808 cowbell mod.WAV	Sources/Echoelmusic/Resources/Samples/Perc/808 Cowbell.wav
+EchoelmusicSamples/Sample Bulk/Perc/707_COW.WAV	Sources/Echoelmusic/Resources/Samples/Perc/707 Cowbell.wav
+# -- Cymbal --
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/707_CRS.WAV	Sources/Echoelmusic/Resources/Samples/Cymbal/707 Crash.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/Crash A.wav	Sources/Echoelmusic/Resources/Samples/Cymbal/Crash A.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/Cassette808_Cym01.wav	Sources/Echoelmusic/Resources/Samples/Cymbal/Cassette Cymbal.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/707_RID.WAV	Sources/Echoelmusic/Resources/Samples/Cymbal/707 Ride.wav
+EchoelmusicSamples/Sample Bulk/CymShakeTamb/707_TAM.WAV	Sources/Echoelmusic/Resources/Samples/Cymbal/707 Tambourine.wav
+# -- Bass (melodic one-shots) --
+EchoelmusicSamples/Sample Bulk/Bass/Classic Bass.wav	Sources/Echoelmusic/Resources/Samples/Bass/Classic Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/Short Stab Bass.wav	Sources/Echoelmusic/Resources/Samples/Bass/Short Stab Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/Double Bass Short (JW2).wav	Sources/Echoelmusic/Resources/Samples/Bass/Double Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/JP-8 FILTH BASS_ms0_048_c2.wav	Sources/Echoelmusic/Resources/Samples/Bass/JP-8 Filth C2.wav
+# -- Chords (melodic one-shots) --
+EchoelmusicSamples/Sample Bulk/Chords/Piano Chord 2.wav	Sources/Echoelmusic/Resources/Samples/Chords/Piano Chord.wav
+EchoelmusicSamples/Sample Bulk/Chords/Old Hammond.wav	Sources/Echoelmusic/Resources/Samples/Chords/Old Hammond.wav
+EchoelmusicSamples/Sample Bulk/Chords/Short Bellz.wav	Sources/Echoelmusic/Resources/Samples/Chords/Short Bells.wav
+EchoelmusicSamples/Sample Bulk/Chords/VMH1_SYNTH_SHOTS_021.WAV	Sources/Echoelmusic/Resources/Samples/Chords/Synth Stab 1.wav
+EchoelmusicSamples/Sample Bulk/Chords/VMH1_SYNTH_SHOTS_062.WAV	Sources/Echoelmusic/Resources/Samples/Chords/Synth Stab 2.wav
