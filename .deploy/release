@@ -1,18 +1,18 @@
-build: 2026-07-04 v10.79.59 (Tempo fixen — Schloss direkt in der Transportleiste, immer erreichbar)
+build: 2026-07-04 v10.79.60 (Biofeedback jetzt SUBTIL — färbt den Sound, plättet ihn nicht mehr)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Tempo fixen muss aber auch immer gehen" — umgesetzt: ein SCHLOSS-Knopf sitzt jetzt
-  direkt neben dem Tempo in der immer sichtbaren Transportleiste (vorher nur versteckt im
-  Composition-Panel). Ein Tipp:
-  • friert das Tempo ein, das du GERADE hoerst (kein Sprung),
-  • stoppt das sanfte Puls-Folgen — ab jetzt aendert Biofeedback NUR noch den Klang
-    (Filter/Timbre), NIE den Beat,
-  • gleicher Zustand wie der Composition-Schalter (beide synchron).
-  Nochmal antippen = Schloss auf → Tempo folgt wieder sanft dem Koerper. So ist Fixen von
-  ueberall aus einen Fingertipp entfernt, egal was gerade offen ist.
-  NAECHSTER SCHRITT (schon eingeplant): "Biofeedback aendert dann nur SUBTIL die Filter etc." —
-  aktuell UEBERSCHREIBT die Bio-Modulation noch die Patch-Parameter (Deep-Audit-Fund A8) und
-  plaettet den Charakter deines Sounds. Ich mache die Bio-Modulation im naechsten Build wirklich
-  subtil und filter-fokussiert (relativ zum Patch, nicht drueberbuegeln) — mit DSP-Review, damit
-  es gut klingt statt schnell.
-  TEST 10.79.59: Schloss in der Transportleiste antippen → haelt das Tempo fest? Aendert der
-  Puls dann nur noch den Klang, nicht mehr das Tempo? Nochmal tippen → folgt es wieder?
+notesT: "Biofeedback ändert dann nur subtil die Filter etc." — umgesetzt (Deep-Audit-Fund A8).
+  Vorher hat die Bio-Modulation die Patch-Parameter UEBERSCHRIEBEN (Harmonizitaet, Hall, Noise
+  absolut gesetzt) → jeder gewaehlte Sound wurde Richtung EINEM neutralen Timbre geplaettet.
+  Jetzt:
+  • Beim Laden eines Patch wird sein Charakter als BASIS gemerkt.
+  • Biofeedback moduliert nur noch SANFT um diese Basis herum (Harmonizitaet ±0.06, Hall ±0.06,
+    Noise ±0.03) statt drueberzubuegeln — der Charakter deines Sounds bleibt erhalten.
+  • Der FILTER bleibt die Haupt-Bio-Achse (oeffnet mit Coherence), aber alles andere nur ein
+    Hauch. Vibrato deutlich sanfter (0.4→2.4 Cent statt bis 9 Cent — kein Wobble mehr).
+  Ergebnis: dein Instrument klingt nach DEINEM Patch, der Koerper faerbt es nur fein — genau
+  wie du es wolltest. Zusammen mit dem Tempo-Schloss (79.59): Tempo fix → Puls aendert dann nur
+  noch den Klang, subtil.
+  HINWEIS: Ohne lokalen Build sind die genauen Staerken geschaetzt. Sag mir am Geraet, ob es
+  jetzt zu subtil (Koerper kaum hoerbar) oder genau richtig ist — ich justiere die Tiefe dann.
+  TEST 10.79.60: Ein Patch mit deutlichem Charakter waehlen, Biofeedback laufen lassen — bleibt
+  der Charakter erhalten und der Koerper faerbt nur fein (v.a. Filter), statt alles zu plaetten?
