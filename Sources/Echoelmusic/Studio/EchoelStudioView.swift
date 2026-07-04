@@ -899,34 +899,16 @@ struct EchoelStudioView: View {
 
     private var tempoRow: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: $lockBPM) {
-                Text("Lock BPM (tight loops)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
-            }
-            .tint(EchoelTheme.accent)
-            .onChange(of: lockBPM) { _, on in
-                // Enabling the lock FREEZES the tempo you are hearing RIGHT NOW: it adopts the
-                // running clock (already body-seeded, octave-folded and glided) — NOT a raw bio
-                // frame. The old raw `freshBio()?.heartRateBPM` adoption made the beat JUMP UP
-                // at the very moment of locking (founder: "in dem Moment wo bpm locked springt
-                // die bpm nach oben") — a raw rPPG octave artifact (2×) or any pulse above the
-                // musical tempo snapped the clock instantly. Locking what already plays is a
-                // no-op for the clock by construction → zero jump, ever. setTempo also cancels
-                // any in-flight glide, so the frozen value is exactly the audible one.
-                if on {
-                    lockedBPM = beatPlayer.pattern.tempo.rounded()
-                    beatPlayer.pattern.setTempo(lockedBPM)
-                    metronome.bpm = beatPlayer.pattern.tempo
-                }
-                recomposeIfRunning()
-            }
-            .accessibilityHint("When on, the loop freezes at the tempo currently playing, for tight loops")
-
-            // The Tempo NUMBER lives in EXACTLY ONE place — the always-on transport bar
-            // (founder 2026-07-03: "zu viele BPM-Anzeigen, eine reicht"). This panel used to
-            // repeat an identical Tempo field while locked, bound to the same pattern.tempo,
-            // which duplicated the transport-bar value directly below the chrome. The Lock
-            // toggle + tap-tempo below remain (they are CONTROLS, not a second readout); the
-            // transport-bar field is fully lock-aware, so editing tempo there persists lockedBPM.
+            // THE tempo control (founder 2026-07-04: "zwei Anzeigen irritieren immernoch"):
+            // one Kammerton-style row whose number RUNS ALONG with the live biofeedback BPM
+            // (4 decimals) and freezes on lock — see BodyTempoField. The transport bar shows
+            // NO tempo number anymore; the strip's pulse is the one live number in the chrome.
+            // BodyTempoField is a LEAF so its ~10 Hz pulse read never rebuilds this panel
+            // (freeze rule — the genre/key Pickers above must stay stable).
+            // NOTE: lock adoption now happens INSIDE the controls (BodyTempoField, transport
+            // lock button, tap tempo) — the old onChange here would have overwritten a
+            // body-value lock with the clock tempo an instant later.
+            BodyTempoField(onLockChanged: { recomposeIfRunning() })
 
             tapTempoRow
             metronomeRow
