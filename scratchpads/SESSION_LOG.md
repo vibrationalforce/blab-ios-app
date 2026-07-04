@@ -4356,3 +4356,24 @@ covered by BioMetricInfoTests (every metric has a real >40-char explanation, bra
 Log triage (79.50 build): clean launch (no SAFE MODE), pulse locked ~60 and held 60–63 the whole
 session. One mild acf=0 delle (amp 0.028, below the 0.05 ripple gate) self-recovered in ~4 s; display
 stayed calm. No new bug — no chase (lowering the ripple gate toward 0.028 would risk resting locks 0.017–0.026).
+
+## 2026-07-04 (Opus 4.8) — NEUSTART: Prioritäten-Reframe + Schritt 1 (rPPG Trust-Gate, 79.52)
+
+Founder: "wir haben uns verlaufen … Neustart." Diagnosed honestly (chat): NOT a code rewrite —
+the engine is good; the loss was priorities (app spread across DAW+bio+visuals+broadcast while
+the CORE input, camera rPPG, is the least reliable part → every session fought the pulse). Agreed
+4-pillar reframe (scratchpads/PLAN_NEUSTART.md, memory/decisions.md, decisions.csv):
+P1 pulse earns trust / BLE preferred / camera "≈"; P2 music robust to noisy pulse (trend not raw
+number); P3 one screen doing one thing perfectly; P4 honesty everywhere.
+
+**79.52 = P1 Step 1 — rPPG trust-gate.** Device log 2026-07-04 (1783152xxx): poor finger placement
+(R saturated 0.7–0.8), acf mostly 0.0–0.29, but peak-count self-agreement pushed conf to 0.90 and
+the app SETTLED at a WRONG 79 bpm (true pulse ~54, visible later same session at acf 0.78); shown
+pulse then bounced 53↔106. FIX: `CameraRPPGBioPublisher.pulseTrustworthy(confidence, autoStrength)`
+= confidence ≥ displayThreshold(0.6) AND autoStrength ≥ trustAutoFloor(0.4). Gate BOTH the display-
+adopt and the settle/tempo-latch on it (read analyzer.lastAutoStrength). A weak-acf reading now
+HOLDS ("acquiring") instead of moving the number or seeding the tempo. Verified vs the log: the
+bad phase (acf<0.4) shows nothing/acquiring; settle fires only at the true ~54 (acf 0.57–0.78).
+Real locks on this device always ≥0.57; junk ≤0.29 → 0.4 separates cleanly. Field-finding-device
+caveat (acf≈0 clean pulse) accepted + reversible; BLE-first (next step) is the answer for such devices.
+1 file + CameraRPPGTrustTests (real lock, bad reading, low conf, boundaries).
