@@ -187,7 +187,25 @@ public extension MusicStyle {
 
     /// The effect space this genre is generated through. Applied to the melody
     /// voice on Generate, then editable in the FX tool.
+    ///
+    /// ROOM FLOOR (audit A3 — "instrument is bone dry, in a box"): every REAL production
+    /// happens in SOME space; 12 of the genre presets specified no reverb at all, which
+    /// left jazz/klezmer/rock playing in a vacuum — the "buzzy/flat" additive fingerprint.
+    /// Genres that DESIGN their reverb keep it exactly; the dry ones get a subtle room
+    /// (mix 0.10 — felt as depth, not heard as hall). Character presets (telephone,
+    /// cassette …) are a different path and stay intentionally dry.
     var fxPreset: GenreFXPreset {
+        var p = rawFXPreset
+        if !p.reverbEnabled {
+            p.reverbEnabled = true
+            p.reverbMix = 0.10
+            p.reverbRoom = 0.48
+            p.reverbDamping = 0.55
+        }
+        return p
+    }
+
+    private var rawFXPreset: GenreFXPreset {
         switch self {
         case .dubTechno:
             // The signature: a long, dark, swung dub delay with high feedback,
