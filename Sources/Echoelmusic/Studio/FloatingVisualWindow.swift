@@ -113,23 +113,27 @@ struct FloatingVisualWindow: View {
     @State private var dragAnchor: CGPoint?
 
     enum WindowSize: Int, CaseIterable {
-        case small, medium, large
+        case small, medium, large, fullscreen
         var next: WindowSize { WindowSize(rawValue: (rawValue + 1) % WindowSize.allCases.count) ?? .small }
-        /// Width / height as a fraction of the available space.
+        /// Width / height as a fraction of the available space. Fullscreen fills everything
+        /// (handled specially in `size(in:)`), so its fraction is unused.
         var fraction: (w: CGFloat, h: CGFloat) {
             switch self {
-            case .small:  return (0.38, 0.30)
-            case .medium: return (0.62, 0.42)
-            case .large:  return (0.92, 0.62)
+            case .small:      return (0.38, 0.30)
+            case .medium:     return (0.62, 0.42)
+            case .large:      return (0.92, 0.62)
+            case .fullscreen: return (1.0, 1.0)
             }
         }
         var label: String {
             switch self {
-            case .small:  return "Small"
-            case .medium: return "Medium"
-            case .large:  return "Large"
+            case .small:      return "Small"
+            case .medium:     return "Medium"
+            case .large:      return "Large"
+            case .fullscreen: return "Fullscreen"
             }
         }
+        var isFullscreen: Bool { self == .fullscreen }
     }
 
     private let margin: CGFloat = 12
@@ -161,12 +165,20 @@ struct FloatingVisualWindow: View {
 
     var body: some View {
         GeometryReader { geo in
+            let full = windowSize.isFullscreen
             let sz = size(in: geo.size)
-            let c = clamp(center ?? defaultCenter(in: geo.size, card: sz), in: geo.size, card: sz)
+            // Fullscreen: pin to the exact centre (no drag/clamp). Else: the dragged/docked spot.
+            let c = full
+                ? CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+                : clamp(center ?? defaultCenter(in: geo.size, card: sz), in: geo.size, card: sz)
             card(size: sz, in: geo.size)
                 .frame(width: sz.width, height: sz.height)
                 .position(c)
         }
+        // Fullscreen bleeds to the sides + under the home indicator, but KEEPS the top safe
+        // area so the toolbar (change-look / record / exit) never hides under the notch —
+        // you must still be able to manipulate the visual (founder). Floating sizes: no bleed.
+        .ignoresSafeArea(edges: windowSize.isFullscreen ? [.bottom, .horizontal] : [])
         .transition(.opacity)
         #if canImport(AVFoundation)
         .sheet(item: $recordedClip) { clip in ShareSheet(url: clip.url) }
@@ -200,8 +212,13 @@ struct FloatingVisualWindow: View {
                 #endif
         }
         .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        // No rounded corners / border in fullscreen — a true edge-to-edge picture.
+        .clipShape(RoundedRectangle(cornerRadius: windowSize.isFullscreen ? 0 : 12))
+        .overlay {
+            if !windowSize.isFullscreen {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(EchoelTheme.border, lineWidth: 1)
+            }
+        }
         .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Floating visual")
@@ -238,13 +255,17 @@ struct FloatingVisualWindow: View {
             .accessibilityLabel(recorder.isRecording ? "Stop recording" : "Record MP4 video")
             #endif
             Button { cycleSize() } label: {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                // Cycles Small → Medium → Large → Fullscreen → Small. Shows a "contract"
+                // glyph in fullscreen so it's obvious the next tap leaves fullscreen.
+                Image(systemName: windowSize.isFullscreen
+                      ? "arrow.down.right.and.arrow.up.left"
+                      : "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(EchoelTheme.text)
                     .frame(width: 28, height: 22)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Resize visual")
+            .accessibilityLabel(windowSize.isFullscreen ? "Exit fullscreen" : "Resize visual")
             .accessibilityValue(windowSize.label)
             Button { withAnimation(.easeInOut(duration: 0.15)) { isPresented = false } } label: {
                 Image(systemName: "xmark")
@@ -329,6 +350,7 @@ struct FloatingVisualWindow: View {
     // MARK: - Geometry
 
     private func size(in bounds: CGSize) -> CGSize {
+        if windowSize.isFullscreen { return bounds }   // edge-to-edge, no margin
         let f = windowSize.fraction
         let w = max(140, bounds.width * f.w)
         let h = max(120, bounds.height * f.h)

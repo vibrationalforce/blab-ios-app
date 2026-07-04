@@ -113,12 +113,14 @@ struct MetalBioView: UIViewRepresentable {
         view.delegate = context.coordinator
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         view.colorPixelFormat = .bgra8Unorm
-        // The capture instance keeps its drawable blit-readable for the whole time it is
-        // mounted (fullscreen VJ only), so recording never has to flip this mid-frame —
-        // flipping it in the same draw that then reads `drawable.texture` would leave the
-        // first recorded frame's drawable framebuffer-only (Metal validation failure).
-        // Non-capturing instances keep the framebuffer-only optimization.
-        view.framebufferOnly = !capturesVideo
+        // START on the FAST path (framebufferOnly = true). A blit-readable drawable
+        // (framebufferOnly = false) is EXPENSIVE and is only needed WHILE actually recording,
+        // so `draw(in:)` flips it false just for the recording frames and back to true after.
+        // Keeping it false permanently — which the always-mounted floating capture instance
+        // did — disabled Metal's fast path every frame and STUTTERED ("hakelt"). draw(in:)
+        // only reads `drawable.texture` on a frame whose drawable was ALREADY readable, so the
+        // flip never triggers the mid-frame validation failure that made this permanent before.
+        view.framebufferOnly = true
         view.preferredFramesPerSecond = 60
         view.isPaused = false
         view.enableSetNeedsDisplay = false
@@ -297,6 +299,18 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     }
 
     func draw(in view: MTKView) {
+        // STUTTER FIX ("hakelt"): keep the FAST path (framebufferOnly=true) unless actually
+        // recording. Only capture on a frame whose drawable was ALREADY blit-readable coming in
+        // (readyToCapture) — so the flip never leaves the texture we read framebuffer-only (the
+        // validation failure that once forced this to be permanently false). The single first
+        // frame after record-start is skipped (~16 ms, imperceptible). Runs on the main-thread
+        // draw loop, so the MTKView property write is main-actor-safe.
+        let readyToCapture: Bool = MainActor.assumeIsolated {
+            let wantCapture = capturesVideo && (visualRecorder?.isRecording ?? false)
+            let ready = wantCapture && !view.framebufferOnly
+            view.framebufferOnly = !wantCapture
+            return ready
+        }
         // Pull the live governor + bio HERE — the CADisplayLink draw loop runs on the main
         // thread (so `assumeIsolated` is a safe no-op assertion) and is OFF the SwiftUI
         // dependency graph, so these ~10 Hz `@Observable` reads no longer re-run
@@ -423,9 +437,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         }
 
         // Video tap: blit this exact rendered frame into the recorder (same command
-        // buffer, before present). Runs on main (this draw loop is the CADisplayLink),
-        // so the @MainActor call is a safe no-op assertion. No-op unless recording.
-        if capturesVideo, let vr = visualRecorder {
+        // buffer, before present). Only when recording AND the drawable was already
+        // blit-readable coming into this frame (readyToCapture) — otherwise the fast-path
+        // (framebufferOnly) drawable can't be read. Runs on main (CADisplayLink loop).
+        if readyToCapture, let vr = visualRecorder {
             MainActor.assumeIsolated {
                 vr.capture(from: drawable.texture, in: buffer, device: drawable.texture.device)
             }

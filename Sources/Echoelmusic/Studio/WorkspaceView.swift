@@ -30,23 +30,26 @@ struct WorkspaceView: View {
     @AppStorage("visual.floating.visible") private var floatingVisualVisible = true
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            Divider().overlay(EchoelTheme.border)
-            TransportBar()
-            Divider().overlay(EchoelTheme.border)
-            // The ONE adaptive view: the bio-generative instrument. The floating visual
-            // rides OVER its content area only (never the chrome), so it can't block the
-            // transport. One Metal path app-wide (GPU rule).
-            EchoelStudioView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay {
-                    #if canImport(MetalKit) && canImport(UIKit)
-                    if floatingVisualVisible {
-                        FloatingVisualWindow(isPresented: $floatingVisualVisible)
-                    }
-                    #endif
-                }
+        ZStack {
+            VStack(spacing: 0) {
+                topBar
+                Divider().overlay(EchoelTheme.border)
+                TransportBar()
+                Divider().overlay(EchoelTheme.border)
+                // The ONE adaptive view: the bio-generative instrument.
+                EchoelStudioView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            // The immersive visual floats ABOVE the whole screen so its FULLSCREEN size can
+            // cover the chrome too (true Vollbild — founder: "lässt sich nicht im Vollbild
+            // betreiben"). In the floating sizes it docks bottom-trailing; its transparent
+            // area never blocks the header/transport (an empty GeometryReader installs no hit
+            // target). One Metal path app-wide (GPU rule).
+            #if canImport(MetalKit) && canImport(UIKit)
+            if floatingVisualVisible {
+                FloatingVisualWindow(isPresented: $floatingVisualVisible)
+            }
+            #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
     }

@@ -1,22 +1,20 @@
-build: 2026-07-04 v10.79.52 (NEUSTART Schritt 1 — der Puls muss Vertrauen VERDIENEN, keine Fantasie-Zahl mehr)
+build: 2026-07-04 v10.79.53 (Visual: echtes Vollbild + kein Ruckeln — Look bleibt im Vollbild bedienbar)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Neustart" — kein Code-Wegwerfen (die Engine bleibt das Gute), sondern ein PRIORITAETEN-
-  Neustart. Wir haben uns verlaufen, weil die App alles gleichzeitig wollte, waehrend der KERN-
-  Eingang (Kamera-Puls am Finger) der unzuverlaessigste Teil ist — darum ging fast jede Session
-  fuer den Puls drauf statt fuer Musik. Vier Saeulen (siehe scratchpads/PLAN_NEUSTART.md):
-  1) Puls muss Vertrauen VERDIENEN — Kamera ist der "ca."-Notnagel, BLE-Gurt wird bevorzugt.
-  2) Musik robust gegen wackeligen Puls (Trend, nie die rohe Zahl).
-  3) EIN Bildschirm, der EINE Sache perfekt macht — dann erweitern.
-  4) Ehrlichkeit ueberall.
-  SCHRITT 1 (dieser Build): das Trust-Gate. Dein letzter Log war der Beweis — schlechte Finger-
-  lage (R uebersteuert 0,7–0,8), Autokorrelation fand fast nichts (acf 0,14), aber der Peak-
-  Zaehler stimmte mit sich selbst ueberein → die App "settlete" bei FALSCHEN 79 bpm, obwohl dein
-  echter Puls ~54 war (spaeter im selben Log bei acf 0,78 sichtbar). NEU: eine Messung darf die
-  Zahl NUR bewegen und das Tempo NUR seeden, wenn sie sicher UND durch echte Periodizitaet
-  (acf >= 0,4) bestaetigt ist. Eine schlechte Messung HAELT jetzt ("wird gemessen…") statt eine
-  Fantasie-Zahl zu zeigen. Echte Locks auf deinem Geraet haben immer starke acf (0,57–0,84);
-  Muell liegt <= 0,29 — sauber getrennt. 1 Datei (CameraRPPGBioPublisher) + reine, getestete
-  Hilfsfunktion (pulseTrustworthy) + Grenzfall-Tests.
-  TEST 10.79.52: Finger bewusst schlecht/zu fest auflegen → zeigt die App jetzt ehrlich "wird
-  gemessen…" statt einer falschen hohen Zahl? Und bei GUTER Lage: rastet sie sauber auf deinen
-  echten Ruhepuls (~54–60) und das Tempo bleibt dort?
+notesT: Dein Video war klar: das Visual "hakelt" und "laesst sich nicht im Vollbild betreiben",
+  und man soll es trotzdem manipulieren koennen. Drei Ursachen gefunden und behoben:
+  1) RUCKELN behoben: die Metal-Ansicht lief DAUERHAFT im langsamen Modus (framebufferOnly=false,
+     eigentlich nur fuers Aufnehmen noetig) — weil das schwebende Fenster immer als Aufnahme-
+     Instanz montiert ist. Jetzt: SCHNELLER Pfad immer, langsam NUR waehrend echter MP4-Aufnahme
+     (der eine erste Aufnahme-Frame wird uebersprungen, unhoerbar). Dazu: im Vollbild rendert
+     Metal die ganze Flaeche, es liegt keine scrollende Liste mehr darunter → deutlich glatter.
+  2) ECHTES VOLLBILD: der Vergroessern-Knopf (⤢) hatte bisher nur 3 Stufen (max 92% x 62%). Neu
+     ist eine 4. Stufe "Vollbild", die den GANZEN Bildschirm fuellt (auch ueber Kopf-/Transport-
+     leiste). ⤢ schaltet: Klein → Mittel → Gross → Vollbild → Klein (Symbol wird zum "Verkleinern").
+  3) IM VOLLBILD WEITER BEDIENBAR: die Werkzeugleiste (Look wechseln = Palette, Aufnahme, Vollbild
+     ein/aus, schliessen) bleibt oben sichtbar — bewusst UNTER der Notch, damit du sie erreichst.
+     Look-Wechsel im Vollbild aendert den Stil sofort. Ein Metal-Pfad app-weit bleibt gewahrt.
+  Technik: 3 Dateien (MetalBioView framebufferOnly-Gate, FloatingVisualWindow Vollbild-Groesse,
+  WorkspaceView haengt das Visual ganz oben in einen ZStack). Render-safe, environment aus dem
+  App-Root (kein fehlendes environment).
+  TEST 10.79.53: Visual oeffnen, ⤢ mehrfach tippen bis "Vollbild" → fuellt es den ganzen Schirm?
+  Ruckelt es noch (ohne Aufnahme)? Und kannst du im Vollbild oben per Palette den Look wechseln?

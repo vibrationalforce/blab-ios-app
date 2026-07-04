@@ -4377,3 +4377,27 @@ bad phase (acf<0.4) shows nothing/acquiring; settle fires only at the true ~54 (
 Real locks on this device always ≥0.57; junk ≤0.29 → 0.4 separates cleanly. Field-finding-device
 caveat (acf≈0 clean pulse) accepted + reversible; BLE-first (next step) is the answer for such devices.
 1 file + CameraRPPGTrustTests (real lock, bad reading, low conf, boundaries).
+
+## 2026-07-04 (Opus 4.8) — Visual: true fullscreen + stutter fix (79.53)
+
+Founder video (79.52 build 2157): the visual "hakelt" (stutters) and "lässt sich nicht im Vollbild
+betreiben", and must stay manipulable. Diagnosed via frame extraction:
+- The floating visual maxes at "large" (92%×62%) — no true fullscreen; ⤢ only cycles size.
+- Stutter root: MetalBioView.makeUIView set `framebufferOnly = !capturesVideo`; the floating
+  window is ALWAYS mounted with capturesVideo=true → framebufferOnly=false permanently → Metal
+  fast path disabled every frame. Plus the Metal layer composited over the scrolling list.
+FIX (3 files):
+1. MetalBioView: `framebufferOnly` starts true (fast); draw(in:) flips it false ONLY while
+   actually recording, and only captures on a frame whose drawable was already blit-readable
+   (readyToCapture) → no mid-frame validation failure (skips 1 first frame, ~16 ms).
+2. FloatingVisualWindow: added a 4th WindowSize `.fullscreen` (fills bounds edge-to-edge, no
+   corners/border, ignoresSafeArea [.bottom,.horizontal] — keeps top safe area so the TOOLBAR
+   stays reachable = "manipulieren"). ⤢ cycles small→medium→large→fullscreen→small.
+3. WorkspaceView: hoisted the FloatingVisualWindow from EchoelStudioView's .overlay into a
+   top-level ZStack so fullscreen covers the chrome too. Verified safe: all its @Environment
+   (VisualRecorder/AudioEngine/PolySynthVoice/SessionContext/Transport) come from the app root,
+   EchoelStudioView injects none → no missing-environment crash. Transparent GeometryReader
+   doesn't block chrome touches in the floating sizes. One Metal path preserved (fullscreen just
+   resizes the same instance). Fullscreen also removes the scroll-compositing cost → smoother.
+Awaiting founder device test (fullscreen fills screen? no stutter without recording? look
+changeable in fullscreen?).
