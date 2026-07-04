@@ -103,6 +103,48 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    // MARK: - Archetype grooves (audit B5 — track indices: 0 kick · 1 snare · 2 hat · 5 perc)
+
+    func testFourOnFloorKicksEveryBeat() {
+        let comp = BioComposer.compose(input(hr: 100, style: .disco))
+        for s in [0, 4, 8, 12] { XCTAssertTrue(comp.drumSteps[0][s], "disco kick on step \(s)") }
+        XCTAssertTrue(comp.drumSteps[4][4] && comp.drumSteps[4][12], "disco backbeat clap on 2 & 4")
+    }
+
+    func testBackbeatSnareOnTwoAndFour() {
+        let comp = BioComposer.compose(input(hr: 100, style: .rock))
+        XCTAssertTrue(comp.drumSteps[1][4] && comp.drumSteps[1][12], "rock snare on 2 & 4")
+        XCTAssertTrue(comp.drumAccents[1][4] && comp.drumAccents[1][12], "backbeat is accented")
+        XCTAssertTrue(comp.drumSteps[0][0], "rock kick anchors the 1")
+    }
+
+    func testOffbeatSkankOnTheOffbeats() {
+        let comp = BioComposer.compose(input(hr: 100, style: .ska))
+        for s in [2, 6, 10, 14] { XCTAssertTrue(comp.drumSteps[5][s], "ska skank stab on step \(s)") }
+    }
+
+    func testHalfTimeSnareOnBeatThree() {
+        let comp = BioComposer.compose(input(hr: 100, style: .doom))
+        XCTAssertTrue(comp.drumSteps[1][8], "half-time snare on beat 3")
+        XCTAssertTrue(comp.drumAccents[1][8], "the beat-3 hit carries the accent")
+        XCTAssertFalse(comp.drumSteps[1][4], "no backbeat snare on 2 — this is half-time")
+    }
+
+    func testArchetypeBeatIsDeterministicAndSettlesWithCoherence() {
+        // Same seed → identical groove; a settled body (calm > 0.7) must produce a
+        // SUBSET of the energetic take's hits (the backbone stays, extras drop).
+        let a = BioComposer.compose(input(coherence: 0.2, hr: 110, style: .punk, seed: 7))
+        let b = BioComposer.compose(input(coherence: 0.2, hr: 110, style: .punk, seed: 7))
+        XCTAssertEqual(a.drumSteps, b.drumSteps)
+        let settled = BioComposer.compose(input(coherence: 0.9, hr: 60, style: .punk, seed: 7))
+        for t in 0..<8 {
+            for s in 0..<16 where settled.drumSteps[t][s] {
+                XCTAssertTrue(a.drumSteps[t][s],
+                              "settled hit (\(t),\(s)) must exist in the energetic take too")
+            }
+        }
+    }
+
     func testHarmonicGenresProduceLayeredMaterial() {
         // A pad/chord genre yields several simultaneous notes (a chord), not a
         // single line — that's the production starting material.

@@ -2243,9 +2243,12 @@ struct EchoelStudioView: View {
         if lockBPM {
             tempo = min(max(lockedBPM, 40), 240).rounded()
         } else if tempoSeededFromBody {
-            // Ease toward the current body-mapped tempo (octave-folded), at most ±step per tick.
+            // Ease toward the current body-mapped tempo (octave-folded INTO the genre's
+            // window, B4 — the pulse drives the beat at the genre's rhythmic level, so
+            // Trap really runs 130–150 and Punk 160+), at most ±step per tick.
             if bodyTempoTrustworthy(frame) {
-                let target = StudioCalculator.seedTempo(composition.suggestedTempo).rounded()
+                let target = StudioCalculator.genreTempo(composition.suggestedTempo,
+                                                         into: style.tempoRange).rounded()
                 let current = beatPlayer.pattern.tempo
                 let delta = max(-Self.tempoConvergeStep, min(Self.tempoConvergeStep, target - current))
                 tempo = (current + delta).rounded()
@@ -2260,7 +2263,8 @@ struct EchoelStudioView: View {
             // frame would freeze a too-fast beat. Until the pulse is confidently settled we hold
             // a steady tempo instead of chasing the noise; once confident we seed from the
             // settled body and lock. (Bio still MODULATES timbre throughout — only TEMPO holds.)
-            let bodySeed = StudioCalculator.seedTempo(composition.suggestedTempo).rounded()
+            let bodySeed = StudioCalculator.genreTempo(composition.suggestedTempo,
+                                                       into: style.tempoRange).rounded()
             if bodyTempoTrustworthy(frame) {
                 tempo = bodySeed
                 tempoSeededFromBody = true
@@ -2326,9 +2330,13 @@ struct EchoelStudioView: View {
         // it's present before playback starts. The cycler advances one bar per loop, in sync
         // with the transport's "bar N/M" indicator.
         pianoRoll.loadArrangement(bars, playing: running && beatPlayer.pattern.isPlaying)
-        // Drum-free: clear every cell; the transport only clocks the melody.
-        let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
-        beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
+        // GENRE DRUMS (audit B5, founder 2026-07-04 "Weiter mit B4/B5"): load the
+        // composer's groove — every beat-driven genre carries its defining rhythm
+        // (four-on-floor/backbeat/offbeat/half-time archetypes + the dub/trap
+        // signatures); classical/meditation/self-observation return empty grids and
+        // stay drum-free by design. This supersedes the 2026-06-13 "drum-free"
+        // decision (a8c2bc9) at the founder's explicit ask.
+        beatPlayer.pattern.load(steps: composition.drumSteps, accents: composition.drumAccents)
         // GLIDE the tempo (not snap) so a body re-seed eases in instead of jumping ("bpm
         // springt plötzlich"). glideTempo now eases whether the take is PLAYING (advance()
         // ticks) OR STOPPED (a small main-queue timer) — a re-seed landing on a paused take no

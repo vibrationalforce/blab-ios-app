@@ -362,14 +362,27 @@ public enum BioComposer {
                                   breathDepth: input.breathDepth, mood: effMood, rng: &rng)
             (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
         default:
-            // The non-beat harmonic genres: pads/chords/arps + an optional lead,
-            // the starting material for a professional production. No drums.
+            // The harmonic genres: pads/chords/arps + an optional lead — PLUS the
+            // genre's groove skeleton (audit B5: every beat-driven genre now carries
+            // its defining rhythm; classical/meditation stay drum-free by design).
+            // Beat is drawn AFTER the melody so existing seeds reproduce their notes.
             notes = composeHarmonic(key: input.key, profile: input.style.harmonicProfile,
                                     calm: calm, busy: busy,
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
                                     rng: &rng, structureRNG: &structureRNG)
-            (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
+            switch input.style.beatArchetype {
+            case .fourOnFloor:
+                (drumSteps, drumAccents) = fourOnFloorBeat(energy: energy, calm: calm, rng: &rng)
+            case .backbeat:
+                (drumSteps, drumAccents) = backbeatBeat(energy: energy, calm: calm, rng: &rng)
+            case .offbeat:
+                (drumSteps, drumAccents) = offbeatBeat(energy: energy, calm: calm, rng: &rng)
+            case .halfTime:
+                (drumSteps, drumAccents) = halfTimeBeat(energy: energy, calm: calm, rng: &rng)
+            case .none, .signature:
+                (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
+            }
         }
 
         return BioComposition(
@@ -386,6 +399,130 @@ public enum BioComposer {
 
     private static func emptyGrid() -> [[Bool]] {
         Array(repeating: Array(repeating: false, count: stepCount), count: trackCount)
+    }
+
+    // MARK: - Archetype beats (audit B5 — the genre grooves for the harmonic genres)
+    //
+    // Same bio-reactive grammar as dubBeat/trapBeat: `energy` (heart drive) adds
+    // movement, high coherence (`calm` > 0.7, "spacious") strips the seeded extras
+    // so a settled body earns a settled groove — and every rng draw happens
+    // UNCONDITIONALLY so a spacious take is a strict subset of the same seed.
+
+    /// Kick on every beat, offbeat hats, backbeat clap — disco/synth-pop/psy drive.
+    private static func fourOnFloorBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+        let spacious = calm > 0.7
+
+        for s in stride(from: 0, to: stepCount, by: 4) { steps[Track.kick][s] = true }
+        accents[Track.kick][0] = true
+        accents[Track.kick][8] = true
+
+        // Backbeat clap on 2 & 4 — the dancefloor snap.
+        steps[Track.clap][4] = true
+        steps[Track.clap][12] = true
+        accents[Track.clap][12] = true
+
+        // Offbeat closed hats (the disco "&"), 16th fill only with real drive.
+        for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = true }
+        if energy > 0.55 && !spacious {
+            for s in stride(from: 0, to: stepCount, by: 2) { steps[Track.closedHat][s] = true }
+        }
+
+        // Open-hat lift into the loop + a seeded perc push.
+        let pOpen = rng.unit()
+        if energy > 0.35 && !spacious && pOpen < 0.7 { steps[Track.openHat][14] = true }
+        let pPerc = rng.unit()
+        if !spacious && pPerc < 0.5 { steps[Track.perc][pPerc < 0.25 ? 7 : 15] = true }
+
+        return (steps, accents)
+    }
+
+    /// Kick 1 (+3), snare 2 & 4, driving 8th hats — rock/punk/metal backbone.
+    private static func backbeatBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+        let spacious = calm > 0.7
+
+        steps[Track.kick][0] = true
+        steps[Track.kick][8] = true
+        accents[Track.kick][0] = true
+        if energy > 0.45 { steps[Track.kick][10] = true }   // the push into beat 4
+        let pKick = rng.unit()
+        if !spacious && pKick < 0.4 { steps[Track.kick][6] = true }
+
+        // THE backbeat: snare on 2 & 4, always accented.
+        steps[Track.snare][4] = true
+        steps[Track.snare][12] = true
+        accents[Track.snare][4] = true
+        accents[Track.snare][12] = true
+
+        // Driving 8th closed hats; open hat crash-lift only when really moving.
+        for s in stride(from: 0, to: stepCount, by: 2) { steps[Track.closedHat][s] = true }
+        let pOpen = rng.unit()
+        if energy > 0.6 && !spacious && pOpen < 0.6 { steps[Track.openHat][14] = true }
+
+        return (steps, accents)
+    }
+
+    /// Kick anchor on 1 & 3, skank stabs on every offbeat — ska/rocksteady/klezmer.
+    private static func offbeatBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+        let spacious = calm > 0.7
+
+        steps[Track.kick][0] = true
+        steps[Track.kick][8] = true
+        accents[Track.kick][0] = true
+
+        // The skank: percussive stabs on the offbeats carry the genre.
+        for s in [2, 6, 10, 14] {
+            steps[Track.perc][s] = true
+            accents[Track.perc][s] = true
+        }
+
+        // Soft snare on 3 (one-drop lean); quarter-note hats keep time underneath.
+        steps[Track.snare][8] = true
+        for s in stride(from: 0, to: stepCount, by: 4) { steps[Track.closedHat][s] = true }
+
+        // Energy doubles the skank with closed hats; a seeded clap answers on 4.
+        if energy > 0.5 && !spacious {
+            for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = true }
+        }
+        let pClap = rng.unit()
+        if !spacious && pClap < 0.4 { steps[Track.clap][12] = true }
+
+        return (steps, accents)
+    }
+
+    /// Sparse kick, big snare on 3, air between the hits — doom/vaporwave/sci-fi.
+    private static func halfTimeBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+        let spacious = calm > 0.7
+
+        steps[Track.kick][0] = true
+        accents[Track.kick][0] = true
+        let pKick = rng.unit()
+        if energy > 0.4 && pKick < 0.6 { steps[Track.kick][7] = true }   // the drag hit
+
+        // Half-time snare on beat 3 — the whole genre leans on this one hit.
+        steps[Track.snare][8] = true
+        accents[Track.snare][8] = true
+
+        // Quarter hats for pulse; 8ths only when the body drives, never when settled.
+        for s in stride(from: 0, to: stepCount, by: 4) { steps[Track.closedHat][s] = true }
+        if energy > 0.6 && !spacious {
+            for s in stride(from: 0, to: stepCount, by: 2) { steps[Track.closedHat][s] = true }
+        }
+        let pOpen = rng.unit()
+        if !spacious && pOpen < 0.35 { steps[Track.openHat][15] = true } // tail lift
+
+        return (steps, accents)
     }
 
     // MARK: - Dub Techno (deep dub chords · tape echo · sub-bass)

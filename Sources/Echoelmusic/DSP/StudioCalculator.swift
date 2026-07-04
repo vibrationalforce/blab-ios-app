@@ -134,4 +134,22 @@ public struct StudioCalculator: Sendable, Equatable {
         while t > 130 { t /= 2 }
         return Swift.max(50, Swift.min(160, t))
     }
+
+    /// Octave-fold a body tempo INTO a genre's BPM window (audit B4). `seedTempo`
+    /// folds everything to 50–130, which made every genre play at resting-heart
+    /// tempo — Punk (160–210) or Trap (130–150) were unreachable. Here the pulse
+    /// still DRIVES the beat, but at the genre's rhythmic level: doubling/halving
+    /// preserves the felt relationship to the heart (66 bpm body → 132 bpm Trap =
+    /// the same pulse, double-time), and the final clamp guarantees the genre's
+    /// identity window. Same runaway-safety as seedTempo: a 2× rPPG artifact folds
+    /// back down instead of slamming the clock. Both while-loops terminate for any
+    /// positive input (each strictly approaches the range from one side). Pure +
+    /// deterministic (Linux-CI-tested in StudioCalculatorTests).
+    public static func genreTempo(_ t: Double, into range: ClosedRange<Double>) -> Double {
+        guard t.isFinite, t > 0, range.lowerBound > 0 else { return range.lowerBound }
+        var t = t
+        while t < range.lowerBound { t *= 2 }
+        while t > range.upperBound { t /= 2 }
+        return Swift.max(range.lowerBound, Swift.min(range.upperBound, t))
+    }
 }

@@ -18,16 +18,23 @@ final class MusicStyleTests: XCTestCase {
         XCTAssertTrue(required.isSubset(of: Set(MusicStyle.allCases)))
     }
 
-    func testOnlyTwoStylesAreBeatDriven() {
-        let beat = MusicStyle.allCases.filter { $0.isBeatDriven }
-        XCTAssertEqual(Set(beat), [.dubTechno, .trap],
-                       "all genres except Dub Techno and Trap are non-beat material")
+    func testDrumFreeStylesAreExactlyTheContemplativeThree() {
+        // Audit B5: every beat-driven genre carries its groove; only the
+        // contemplative genres stay drum-free by design.
+        let drumFree = MusicStyle.allCases.filter { !$0.isBeatDriven }
+        XCTAssertEqual(Set(drumFree), [.classical, .esotericMeditation, .selfObservation],
+                       "drum-free = classical + meditation + self-observation, nothing else")
+        // The two signature beats keep their hand-built builders.
+        XCTAssertEqual(MusicStyle.dubTechno.beatArchetype, .signature)
+        XCTAssertEqual(MusicStyle.trap.beatArchetype, .signature)
     }
 
     func testEveryHarmonicGenreVoicesAChord() {
-        // Non-beat, non-self genres must produce a usable chord (>= 1 tone) and a
-        // valid progression.
-        for style in MusicStyle.allCases where !style.isBeatDriven && style != .selfObservation {
+        // Every genre except the two bespoke-melody signature beats and
+        // self-observation voices its harmony through harmonicProfile — the
+        // archetype-beat genres (rock, disco, …) DO use it.
+        for style in MusicStyle.allCases
+        where style.beatArchetype != .signature && style != .selfObservation {
             let p = style.harmonicProfile
             XCTAssertFalse(p.chordTones.isEmpty, "\(style) needs chord tones")
             XCTAssertFalse(p.progression.isEmpty, "\(style) needs a progression")

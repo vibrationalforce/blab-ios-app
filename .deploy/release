@@ -1,21 +1,19 @@
-build: 2026-07-04 v10.79.64 (EINE Tempo-Anzeige: läuft mit deinem Puls mit, 4 Dezimalstellen, lockbar)
+build: 2026-07-04 v10.79.65 (B4+B5: Genre-Tempo + Genre-Drums — Loops klingen nach ihrem Genre)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine ueberarbeitete Version der Tempo-Anzeige — genau wie beschrieben:
-  1) DIE ZWEI ANZEIGEN SIND WEG: Die Tempo-Zahl ist aus der oberen Leiste ENTFERNT. Im Chrome
-     lebt nur noch EINE Live-Zahl: dein PULS im Bio-Streifen. (Das Schloss bleibt oben fuer
-     schnelles Fixieren; die Loop-Anzeige rechts ist Position, keine BPM.)
-  2) NEU IM COMPOSITION-PANEL (beim Kammerton): die EINE Tempo-Anzeige im Kammerton-Stil —
-     sie LAEUFT MIT deiner Biofeedback-BPM-Rate mit (vier Stellen nach dem Komma, z.B.
-     67.2841), gruen wenn der Puls live fuehrt. Schloss antippen → die gezeigte Zahl friert
-     ein und wird das Musik-Tempo (die Uhr GLEITET dorthin, springt nie). Im gesperrten
-     Zustand exakt editierbar bis 0.0001 BPM ueber das Echoel-Nummernpad — wie der Kammerton.
-     Schloss wieder auf → die Anzeige folgt wieder deinem Puls.
-  3) Render-sicher gebaut: die 10-Hz-Puls-Anzeige ist ein eigenes Blatt-View — die Genre/
-     Tonart-Menues im Panel bleiben stabil (Freeze-Regel).
-  AUSSERDEM IN DIESEM BUILD (Klang, Audit-Fund A3): RAUM-FLOOR — 12 von 23 Genres spielten
-  in NULL Raum (Jazz/Klezmer/Rock/Trap knochentrocken = "flach/buzzy"). Genres mit designtem
-  Hall behalten ihn exakt; die trockenen bekommen einen dezenten Grundraum (Mix 0.10 — als
-  Tiefe fuehlbar, nicht als Hall hoerbar). Telephone/Cassette-Charaktere bleiben trocken.
-  TEST 10.79.64: Composition oeffnen → laeuft die Tempo-Zahl mit deinem Puls mit (4 Dezimal-
-  stellen)? Schloss zu → friert sie ein und die Musik gleitet sanft dorthin? Oben in der
-  Leiste: keine zweite BPM-Zahl mehr? Und: klingt Jazz/Rock jetzt raeumlicher, weniger flach?
+notesT: Der naechste Schritt aus dem Sound-Audit — Genre-Identitaet im Live-Pfad:
+  1) GENRE-TEMPO (B4): Bisher wurde JEDES Genre aufs Ruhepuls-Fenster 50-130 gefaltet —
+     Trap/Punk/Psytrance waren unmoeglich. Jetzt wird dein Puls per Oktave IN das
+     Genre-Fenster gefaltet: Puls 66 → Trap 132 (gleicher Puls, double-time), Punk
+     startet bei 160+, Meditation bleibt beim Herzschlag. Alle Schutzmechanismen
+     bleiben: Trust-Gate, max ±8 BPM pro Tick, Glide (springt nie), Lock gewinnt immer.
+  2) GENRE-DRUMS (B5): generate() hat bisher ALLE Drums stummgeschaltet — selbst Trap
+     und Dub Techno spielten ohne ihren Beat. Jetzt traegt jedes Beat-Genre seinen
+     definierenden Groove: Dub/Trap ihre Signature-Beats, Disco/80s/Psytrance/Synthwave
+     Four-on-the-Floor, Rock/Punk/Metal/Jazz Backbeat, Ska/Rocksteady/Klezmer Offbeat-
+     Skank, Doom/Vaporwave/Sci-Fi Half-Time. Bio-reaktiv wie gehabt: mehr Herz-Drive =
+     mehr Bewegung, hohe Kohaerenz = der Groove settelt (Extras fallen weg, Rueckgrat
+     bleibt). Klassik/Meditation/Self-Observation bleiben bewusst drum-frei.
+  3) MIDI-Export nimmt die Genre-Drums automatisch mit (Akzente inklusive).
+  TEST 10.79.65: Trap waehlen → laeuft es endlich bei ~130-150 mit 808-Beat? Punk →
+  schnell + Backbeat? Disco → Four-on-the-Floor? Klassik → weiterhin ohne Drums?
+  Und mit Finger auf der Kamera: settelt der Groove, wenn du ruhig wirst?
