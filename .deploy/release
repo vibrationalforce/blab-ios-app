@@ -1,15 +1,23 @@
-build: 2026-07-04 v10.79.61 (Warm-up bleibt EIN Stück — kein Neu-Würfeln bei jedem Tipp vor dem Puls-Lock)
+build: 2026-07-04 v10.79.62 (Kamera-Stall heilt sich jetzt selbst + kein Recompose-Sturm beim Menü-Scrollen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log (…7486) zeigte: 4× "generate" in 11 s — und JEDES davon war ein komplett
-  anderes Stück. Ursache gefunden: bevor der Puls lockt (die ersten ~15 s) liefert der Bio-Bus
-  noch kein Frame, und der Struktur-Seed wurde dann bei JEDEM Recompose NEU GEWUERFELT. Folge:
-  jeder Regler-Tipp im Warm-up (Genre/Key/etc. aendern loest by-design ein Recompose aus) warf
-  die komplette musikalische Idee weg — neue Harmonie, neue Struktur, fremdes Stück. Genau das
-  Gegenteil von "Loops muessen von Anfang an Sinn ergeben".
-  FIX: der No-Body-Seed wird jetzt EINMAL pro Take gezogen (beim Start) und bleibt dann stabil.
-  Im Warm-up verfeinern deine Edits also DASSELBE Stück (nur der geaenderte Parameter wirkt),
-  statt es neu zu wuerfeln. Sobald der echte Puls uebernimmt, fuehrt wie bisher der Koerper.
-  Ausserdem im Log gesehen (alles gesund): der Trust-Gate hielt korrekt — 6 s Bewegungs-
-  amplitude (amp 0.27, acf 0.11) abgewiesen, bpm=74 bei conf 0.26 nie angezeigt. Richtig so.
-  TEST 10.79.61: Start → waehrend der Messung (vor dem Lock) Genre oder Key aendern → bleibt
-  es dasselbe Stück (nur Genre/Key aendert sich), statt jedes Mal voellig neu zu klingen?
+notesT: Dein Log (…7538) zeigte 45 s toten Puls trotz 6 "camera recovery"-Versuchen — und dein
+  manueller Stop→Start hat es sofort geheilt. Beides gefixt:
+  1) KAMERA-STALL-SCHLEIFE: Der Recovery-Zaehler wurde schon beim ERSTEN wieder eintreffenden
+     Frame-Haeppchen zurueckgesetzt (deshalb stand er ewig auf "1/3" und eskalierte nie).
+     Jetzt: Budget fuellt sich erst nach ~3 s ECHTEM Datenfluss wieder auf — und wenn die
+     3 In-Place-Recoveries nicht helfen, macht die App EINMAL genau das, was bei dir half:
+     kompletter Kalt-Neustart der Kamera (Stop → 0,8 s → Start, Torch + Belichtung neu).
+     Kein 45-s-Loch mehr; danach ehrlich "acquiring" statt endlosem Thrash.
+  2) RECOMPOSE-STURM: Beim Scrollen durchs Genre-Menue feuerte jeder markierte Eintrag ein
+     Recompose (5 Stueck in 4 s — hoerbares Chaos). Jetzt: 0,45 s Ruhefenster + hoechstens ein
+     Edit-Recompose alle ~2 s; die LETZTE Auswahl gewinnt immer. Ein einzelner Tipp fuehlt
+     sich weiter sofort an.
+  Dazu gestern/heute schon: Warm-up bleibt EIN Stueck (79.61), Bio moduliert subtil um den
+  Patch (79.60), Tempo-Schloss in der Transportleiste (79.59).
+  ZUR "BioNeuralDriver"-DIREKTIVE: Der Kern existiert bereits im Repo (EMA-geglaettete
+  Bio→Klang-Mappings, nichtlineare Kurven, Analog-Drift/Jitter, Humanizer) — ich baue KEIN
+  Duplikat-Modul, sondern erweitere gezielt: naechster Sound-Zyklus = Mikro-Drift auch auf
+  Helligkeit/Pegel (der "ACE-Faktor" auf Timbre), im bestehenden Drift-Pattern, audio-thread-safe.
+  TEST 10.79.62: Wenn der Puls mal haengt (kein Signal >20 s): heilt er sich jetzt selbst,
+  ohne dass du Stop/Start druecken musst? Und beim Durchscrollen der Genres: nur noch EIN
+  Wechsel nach dem Loslassen?

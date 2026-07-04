@@ -1785,7 +1785,11 @@ struct EchoelStudioView: View {
     /// structurally impossible rather than merely unlikely.
     private func scheduleGenerate(auto: Bool = false) {
         regenTask?.cancel()
-        var delay = 0.140
+        // 0.45 s quiet window for user edits: one decisive tap still lands fast, but
+        // SCROLLING through a Picker (each highlighted option fires onChange) coalesces
+        // into ONE recompose after the hand settles — device log 1783177585: five
+        // generates in four seconds while browsing the genre menu, audible chaos.
+        var delay = 0.45
         if auto {
             let since = Date().timeIntervalSince(lastSeedAt)
             if since < minAutoSeedGap { delay = max(delay, minAutoSeedGap - since) }
@@ -1795,6 +1799,14 @@ struct EchoelStudioView: View {
             // floor to this reseed's run time makes the next auto trigger compute a
             // full gap and collapse into it — no rapid burst of re-seeds.
             lastSeedAt = Date().addingTimeInterval(delay)
+        } else {
+            // User edits get their own gentler floor: at most one recompose every ~2 s.
+            // Taps 0.7–1.5 s apart (browsing options) would slip past the quiet window
+            // alone — the same log shows they did. The LAST edit always wins (each call
+            // cancels the pending task), so the sound lands on what the user chose.
+            let since = Date().timeIntervalSince(lastSeedAt)
+            let minUserGap = 2.0
+            if since < minUserGap { delay = max(delay, minUserGap - since) }
         }
         regenTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(delay))
