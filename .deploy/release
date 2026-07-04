@@ -1,19 +1,18 @@
-build: 2026-07-04 v10.79.58 (Tempo folgt dem Körper sanft — kein eingefrorener Start-Wert mehr)
+build: 2026-07-04 v10.79.59 (Tempo fixen — Schloss direkt in der Transportleiste, immer erreichbar)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine eingekreiste Tempo-Zahl (98 bei Puls 65.8): behoben. Ursache war Absicht, aber
-  zu streng — das Tempo wurde beim Start EINMAL vom Koerper gesetzt und dann fuer immer
-  GEHALTEN. Beim Start war dein Puls hoeher (~124, Bewegung/Anspannung) → Tempo 98 eingefroren,
-  waehrend der Puls sich auf 66 einpegelte. Ergebnis: dauerhafte Diskrepanz.
-  NEU: das Tempo FOLGT dem Koerper jetzt SANFT — bei jedem Evolve-Tick (~alle 30 s) gleitet es
-  hoechstens ±8 BPM Richtung aktuellem, eingepegeltem Puls-Tempo. So konvergiert ein zu hoher
-  Start-Wert (98) in ~2 min zum echten Ruhepuls (~66), OHNE je zu springen. Drei Schutz-
-  schichten gegen das alte "springt auf 196": (1) nur ein VERTRAUENSWUERDIGER, eingepegelter
-  Puls bewegt es, (2) max ±8 BPM pro Schritt, (3) gleitet ueber ~2 s. Lock BPM / Tap / manuelles
-  Editieren gewinnen weiter sofort und exakt.
-  HINWEIS: Ich wollte dich eigentlich fragen, ob das Tempo dem Puls FOLGEN oder stabil HALTEN
-  soll — die Rückfrage ging technisch nicht durch. Ich habe die bio-reaktivste, sicherste
-  Variante gewaehlt (sanftes Folgen, garantiert sprungfrei). Wenn du lieber "einmal setzen &
-  stabil halten" oder "Tempo ist nur meine Wahl (Koerper formt nur den Klang)" willst — ein
-  Wort, und ich stelle es um.
-  TEST 10.79.58: Start bei Bewegung → Puls pegelt sich runter → gleitet das Tempo langsam
-  Richtung Ruhepuls, ganz ohne Sprung? Und bleibt Lock/Tap sofort exakt?
+notesT: "Tempo fixen muss aber auch immer gehen" — umgesetzt: ein SCHLOSS-Knopf sitzt jetzt
+  direkt neben dem Tempo in der immer sichtbaren Transportleiste (vorher nur versteckt im
+  Composition-Panel). Ein Tipp:
+  • friert das Tempo ein, das du GERADE hoerst (kein Sprung),
+  • stoppt das sanfte Puls-Folgen — ab jetzt aendert Biofeedback NUR noch den Klang
+    (Filter/Timbre), NIE den Beat,
+  • gleicher Zustand wie der Composition-Schalter (beide synchron).
+  Nochmal antippen = Schloss auf → Tempo folgt wieder sanft dem Koerper. So ist Fixen von
+  ueberall aus einen Fingertipp entfernt, egal was gerade offen ist.
+  NAECHSTER SCHRITT (schon eingeplant): "Biofeedback aendert dann nur SUBTIL die Filter etc." —
+  aktuell UEBERSCHREIBT die Bio-Modulation noch die Patch-Parameter (Deep-Audit-Fund A8) und
+  plaettet den Charakter deines Sounds. Ich mache die Bio-Modulation im naechsten Build wirklich
+  subtil und filter-fokussiert (relativ zum Patch, nicht drueberbuegeln) — mit DSP-Review, damit
+  es gut klingt statt schnell.
+  TEST 10.79.59: Schloss in der Transportleiste antippen → haelt das Tempo fest? Aendert der
+  Puls dann nur noch den Klang, nicht mehr das Tempo? Nochmal tippen → folgt es wieder?
