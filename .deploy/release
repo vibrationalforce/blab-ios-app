@@ -1,20 +1,18 @@
-build: 2026-07-04 v10.79.66 (C6/C7: WAV-Loop sitzt exakt auf dem DAW-Raster — nahtlos loopbar)
+build: 2026-07-04 v10.79.67 (ECHTE INSTRUMENTE: Klavier + Streicher statt Synthesizer — der Fundament-Tausch)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Das letzte gebrochene Stueck des DAW-Versprechens ist repariert — die Loop-WAV
-  loopt jetzt nahtlos in Ableton/Logic/FL:
-  1) EXAKTE LAENGE (C6): Der geplante Export ("Loop → WAV") schrieb bisher 30 s ALTES
-     Audio davor (Pre-Roll-Bug) + Loop + 0,4 s Ueberhang — und die Lautheits-Normali-
-     sierung mass diesen Muell mit. Jetzt: Aufnahme ohne Pre-Roll, der Hall-/Delay-
-     Ausklang wird weiter natuerlich mitgeschnitten, aber die Datei wird auf EXAKT
-     N Takte getrimmt (taktgenau am Downbeat geschnitten) und NUR dieses Fenster
-     normalisiert. Ergebnis: Datei = exakt Loop-Laenge, sitzt auf dem Raster.
-  2) DOWNBEAT-SNAP (C7): "Behalten" (die Stelle war gut) schnitt bisher ein Fenster,
-     das einfach JETZT endete — mitten in der Phrase, Knack an der Loop-Naht. Jetzt
-     rastet das Fenster auf den letzten Downbeat ein (die Uhr stempelt jeden Takt-
-     anfang). Laeuft nichts, bleibt der Schnitt wie gehabt.
-  3) Beide Pfade bekommen ~4 ms Mikro-Fades an den Schnittkanten — toetet Rest-Knackser,
-     unhoerbar als Einbruch. Ehrliche Grenze: "Behalten" kann max ~30 s Historie
-     (Ring-Puffer) — laengere Loops bitte ueber den geplanten Export (unbegrenzt).
-  TEST 10.79.66: Loop → WAV exportieren, in die DAW ziehen (Warp/Stretch AUS): faellt
-  die Datei exakt auf N Takte? Loop aktivieren: naht-frei, kein Knack, kein Versatz?
-  Und einmal "Behalten" waehrend es laeuft: startet der Loop auf der Eins?
+notesT: Dein Urteil ("klingt alles mega scheisse") hat das Fundament getauscht — dieser
+  Build klingt anders als alles davor:
+  1) ECHTE INSTRUMENTE SIND JETZT DER STANDARD-KLANG: Die Melodie spielt ein echtes
+     KLAVIER, die Harmonien spielen echte STREICHER (gesampelte Instrumente ueber
+     Apples eingebauten Profi-Sampler, GeneralUser-GS-Bank, frei lizenziert). Der
+     Bass bleibt der tiefe Synth-Sub — sauberes Low-End. Der bisherige Synthesizer
+     ist NICHT weg: im Composition-Panel gibt es jetzt "Sound" mit Real instruments /
+     Classic synth zum Umschalten.
+  2) Biofeedback wirkt weiter: Herz/Atem/Kohaerenz formen die FX-Kette (Raum, Filter,
+     Charakter) — jetzt eben um echte Instrumente herum statt um Synthesizer-Toene.
+  3) Die App ist dadurch ~32 MB groesser (das Instrumenten-Set, von dir freigegeben).
+  DER EINE TEST 10.79.67: Start druecken, 30 Sekunden zuhoeren. Klingt es zum ersten
+  Mal nach MUSIK (Klavier + Streicher) statt nach Synthesizer-Demo? Dann im Panel
+  einmal auf "Classic synth" zurueckschalten und den Unterschied hoeren.
+  (Ehrlich offen: Komposition B1-B3 und echte Drums sind die naechsten zwei Zyklen
+  derselben Baustelle — heute tauschen wir die Klangquelle.)
