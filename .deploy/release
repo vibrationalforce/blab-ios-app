@@ -1,23 +1,20 @@
-build: 2026-07-04 v10.79.62 (Kamera-Stall heilt sich jetzt selbst + kein Recompose-Sturm beim Menü-Scrollen)
+build: 2026-07-04 v10.79.63 (ACE-Faktor: analoger Pegel-Drift — Sustains atmen wie gespielt)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log (…7538) zeigte 45 s toten Puls trotz 6 "camera recovery"-Versuchen — und dein
-  manueller Stop→Start hat es sofort geheilt. Beides gefixt:
-  1) KAMERA-STALL-SCHLEIFE: Der Recovery-Zaehler wurde schon beim ERSTEN wieder eintreffenden
-     Frame-Haeppchen zurueckgesetzt (deshalb stand er ewig auf "1/3" und eskalierte nie).
-     Jetzt: Budget fuellt sich erst nach ~3 s ECHTEM Datenfluss wieder auf — und wenn die
-     3 In-Place-Recoveries nicht helfen, macht die App EINMAL genau das, was bei dir half:
-     kompletter Kalt-Neustart der Kamera (Stop → 0,8 s → Start, Torch + Belichtung neu).
-     Kein 45-s-Loch mehr; danach ehrlich "acquiring" statt endlosem Thrash.
-  2) RECOMPOSE-STURM: Beim Scrollen durchs Genre-Menue feuerte jeder markierte Eintrag ein
-     Recompose (5 Stueck in 4 s — hoerbares Chaos). Jetzt: 0,45 s Ruhefenster + hoechstens ein
-     Edit-Recompose alle ~2 s; die LETZTE Auswahl gewinnt immer. Ein einzelner Tipp fuehlt
-     sich weiter sofort an.
-  Dazu gestern/heute schon: Warm-up bleibt EIN Stueck (79.61), Bio moduliert subtil um den
-  Patch (79.60), Tempo-Schloss in der Transportleiste (79.59).
-  ZUR "BioNeuralDriver"-DIREKTIVE: Der Kern existiert bereits im Repo (EMA-geglaettete
-  Bio→Klang-Mappings, nichtlineare Kurven, Analog-Drift/Jitter, Humanizer) — ich baue KEIN
-  Duplikat-Modul, sondern erweitere gezielt: naechster Sound-Zyklus = Mikro-Drift auch auf
-  Helligkeit/Pegel (der "ACE-Faktor" auf Timbre), im bestehenden Drift-Pattern, audio-thread-safe.
-  TEST 10.79.62: Wenn der Puls mal haengt (kein Signal >20 s): heilt er sich jetzt selbst,
-  ohne dass du Stop/Start druecken musst? Und beim Durchscrollen der Genres: nur noch EIN
-  Wechsel nach dem Loslassen?
+notesT: Der Sound-Schritt aus deinem Strategie-Plan ("Jitter-Engine / organische Fehler"),
+  direkt in der BESTEHENDEN Engine umgesetzt statt als neues Duplikat-Modul:
+  ANALOGER PEGEL-DRIFT: Kein Mensch haelt einen Ton auf exakt konstantem Pegel — Atem- und
+  Bogendruck wandern immer leicht. Jede Stimme bekommt jetzt einen langsamen, aperiodischen
+  ±5%-Pegel-Wander (~±0.4 dB): eigener Zufalls-Random-Walk (~alle 120 ms neues Ziel, sanfter
+  One-Pole-Glide), bewusst UNKORRELIERT zum Pitch-Drift von 79.48 — wie eine echte Hand.
+  Sustains und Pads atmen dadurch wie gespielte Toene statt wie Testtoene zu stehen.
+  Audio-thread-sicher: reine Arithmetik, das bewaehrte Drift-Pattern, 0 = bitidentisch aus.
+  DIE 4 KRITISCHSTEN PM-PARAMETER (deine Frage) sind damit alle organisch:
+  ① Filter/Helligkeit = Bogendruck (Bio-Hauptachse, subtil seit 79.60)
+  ② Pegel = Atem-/Bogendruck (JETZT mit Mikro-Drift)
+  ③ Tonhoehe = Intonations-Drift (79.48)  ④ Noise = Atemgeraeusch (subtil seit 79.60)
+  ZUM VORSCHLAG "BioNeuralDriver-Grundstruktur erstellen": schon beantwortet — der Kern
+  existiert im Repo (EMA-Mapping, nichtlineare Kurven, Arousal aus HR/HRV/Coherence). Statt
+  einer leeren Interface-Klasse habe ich das fehlende Stueck GEBAUT. EDA-Sensor haben wir
+  nicht — ehrlich bleiben: HR/HRV/Atem/Coherence sind die Inputs.
+  TEST 10.79.63: Einen langen Pad-/Sustain-Ton halten — atmet er jetzt ganz leicht (lebendig),
+  statt statisch zu stehen? Und ist es dezent genug (kein hoerbares Tremolo)?
