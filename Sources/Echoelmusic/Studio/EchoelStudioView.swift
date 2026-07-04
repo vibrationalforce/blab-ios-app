@@ -196,6 +196,9 @@ struct EchoelStudioView: View {
     /// rPPG octave-error (≈196 ≈ 2×98) can never slam the tempo to double-time mid-take.
     /// Reset on stop so the next take re-seeds from a fresh pulse. (See generate() tempo block.)
     @State private var tempoSeededFromBody = false
+    /// The no-body structure seed for THIS take — drawn once per Start, stable until the
+    /// next take. Keeps the piece coherent through the pre-lock warm-up (see bioSeed).
+    @State private var takeFallbackSeed: UInt64 = 1
     /// Minimum seconds between AUTOMATIC re-seeds (evolve/lock). User edits bypass it.
     /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
     /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
@@ -2023,6 +2026,9 @@ struct EchoelStudioView: View {
     private func startBiofeedback() {
         EchoelCrashLog.breadcrumb("Start tapped")
         running = true
+        // One fresh musical identity PER TAKE: the pre-lock (no-body) structure seed is
+        // drawn here once and then held, so warm-up recomposes/edits stay the same piece.
+        takeFallbackSeed = UInt64.random(in: 1...UInt64.max)
         startTask?.cancel()
         startTask = Task { @MainActor in
             // Start the camera/bio source publishing, but DO NOT block on a pulse
@@ -2136,8 +2142,16 @@ struct EchoelStudioView: View {
     /// A stable-but-individual seed derived from the live body. The same body state
     /// yields the same musical signature; as HRV/heart/breath drift, the music
     /// evolves. Uses wrapping arithmetic so it can never overflow-trap.
+    ///
+    /// NO-BODY CASE (device log 1783177486, "generate 4× in 11 s = 4 fremde Stücke"):
+    /// before the pulse locks (the common first ~15 s), `usableBio()` is nil. Returning a
+    /// FRESH random here made every warm-up generate — including each control tap, which
+    /// recomposes — a completely different piece (new structure/harmony), breaking the
+    /// "same piece breathing" cohesion right at the start of every take. Now the fallback
+    /// seed is drawn ONCE per take (`takeFallbackSeed`, re-rolled in startEverything), so
+    /// the piece stays ITSELF until the real body takes over — edits refine, never re-roll.
     private func bioSeed(_ f: BioSampleFrame?) -> UInt64 {
-        guard let f = f else { return UInt64.random(in: UInt64.min...UInt64.max) }
+        guard let f = f else { return takeFallbackSeed }
         // NaN/Inf must be dropped to 0 BEFORE clamping: a clamp via max/min passes
         // NaN through unchanged, and UInt64(Float.nan) TRAPS. rPPG/BLE sources can
         // legitimately emit NaN (dropped lock, upstream divide-by-zero), so guard

@@ -1,18 +1,15 @@
-build: 2026-07-04 v10.79.60 (Biofeedback jetzt SUBTIL — färbt den Sound, plättet ihn nicht mehr)
+build: 2026-07-04 v10.79.61 (Warm-up bleibt EIN Stück — kein Neu-Würfeln bei jedem Tipp vor dem Puls-Lock)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Biofeedback ändert dann nur subtil die Filter etc." — umgesetzt (Deep-Audit-Fund A8).
-  Vorher hat die Bio-Modulation die Patch-Parameter UEBERSCHRIEBEN (Harmonizitaet, Hall, Noise
-  absolut gesetzt) → jeder gewaehlte Sound wurde Richtung EINEM neutralen Timbre geplaettet.
-  Jetzt:
-  • Beim Laden eines Patch wird sein Charakter als BASIS gemerkt.
-  • Biofeedback moduliert nur noch SANFT um diese Basis herum (Harmonizitaet ±0.06, Hall ±0.06,
-    Noise ±0.03) statt drueberzubuegeln — der Charakter deines Sounds bleibt erhalten.
-  • Der FILTER bleibt die Haupt-Bio-Achse (oeffnet mit Coherence), aber alles andere nur ein
-    Hauch. Vibrato deutlich sanfter (0.4→2.4 Cent statt bis 9 Cent — kein Wobble mehr).
-  Ergebnis: dein Instrument klingt nach DEINEM Patch, der Koerper faerbt es nur fein — genau
-  wie du es wolltest. Zusammen mit dem Tempo-Schloss (79.59): Tempo fix → Puls aendert dann nur
-  noch den Klang, subtil.
-  HINWEIS: Ohne lokalen Build sind die genauen Staerken geschaetzt. Sag mir am Geraet, ob es
-  jetzt zu subtil (Koerper kaum hoerbar) oder genau richtig ist — ich justiere die Tiefe dann.
-  TEST 10.79.60: Ein Patch mit deutlichem Charakter waehlen, Biofeedback laufen lassen — bleibt
-  der Charakter erhalten und der Koerper faerbt nur fein (v.a. Filter), statt alles zu plaetten?
+notesT: Dein Log (…7486) zeigte: 4× "generate" in 11 s — und JEDES davon war ein komplett
+  anderes Stück. Ursache gefunden: bevor der Puls lockt (die ersten ~15 s) liefert der Bio-Bus
+  noch kein Frame, und der Struktur-Seed wurde dann bei JEDEM Recompose NEU GEWUERFELT. Folge:
+  jeder Regler-Tipp im Warm-up (Genre/Key/etc. aendern loest by-design ein Recompose aus) warf
+  die komplette musikalische Idee weg — neue Harmonie, neue Struktur, fremdes Stück. Genau das
+  Gegenteil von "Loops muessen von Anfang an Sinn ergeben".
+  FIX: der No-Body-Seed wird jetzt EINMAL pro Take gezogen (beim Start) und bleibt dann stabil.
+  Im Warm-up verfeinern deine Edits also DASSELBE Stück (nur der geaenderte Parameter wirkt),
+  statt es neu zu wuerfeln. Sobald der echte Puls uebernimmt, fuehrt wie bisher der Koerper.
+  Ausserdem im Log gesehen (alles gesund): der Trust-Gate hielt korrekt — 6 s Bewegungs-
+  amplitude (amp 0.27, acf 0.11) abgewiesen, bpm=74 bei conf 0.26 nie angezeigt. Richtig so.
+  TEST 10.79.61: Start → waehrend der Messung (vor dem Lock) Genre oder Key aendern → bleibt
+  es dasselbe Stück (nur Genre/Key aendert sich), statt jedes Mal voellig neu zu klingen?
