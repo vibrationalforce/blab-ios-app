@@ -1,8 +1,12 @@
 # =============================================================================
-# ECHOELMUSIC - FASTLANE DELIVERFILE
+# ECHOELMUSIC — FASTLANE DELIVERFILE
 # =============================================================================
-# App Store Connect Metadata Configuration
-# Version: 3.0.0 - Phase 10000 ULTIMATE MODE
+# App Store Connect metadata configuration. Used only by the
+# `upload_screenshots` lane (upload_to_app_store) — the screenshots pipeline
+# is currently broken upstream (see fastlane/Pluginfile note), so this file is
+# effectively dormant until that repair. CAUTION when reviving: with
+# skip_metadata false and an EMPTY fastlane/metadata/ directory, verify deliver
+# does not clobber live App Store Connect metadata before running for real.
 # =============================================================================
 
 # App Store Connect App Identifier
@@ -24,7 +28,8 @@ itc_team_id ENV["APPLE_TEAM_ID"]
 # METADATA CONFIGURATION
 # =============================================================================
 
-# Skip automatic metadata upload (manage manually in App Store Connect)
+# false = deliver DOES upload metadata from fastlane/metadata/ (currently an
+# empty directory — see the caution in the header before reviving this).
 skip_metadata false
 
 # Skip binary upload (handled by TestFlight lanes)

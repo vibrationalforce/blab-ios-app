@@ -23,7 +23,10 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     PRODUCT_NAME: $(TARGET_NAME)
-    MARKETING_VERSION: "10.76.1"
+    # Fallback only — every TestFlight run seds this to the version in
+    # .deploy/release (testflight.yml "DEPLOY_VER"), so bump it when it drifts
+    # far behind; a manual/local archive would otherwise ship the stale number.
+    MARKETING_VERSION: "10.79.66"
     CURRENT_PROJECT_VERSION: "${BUILD_NUMBER:=1}"
     ENABLE_BITCODE: NO
     ALWAYS_SEARCH_USER_PATHS: NO
@@ -250,14 +253,12 @@ targets:
   # ===========================================================================
   # EchoelmusicWidgets — WidgetKit Extension (glanceable live vitals)
   # ===========================================================================
-  # Cycle C2 of the Apple-ecosystem loop. Dependency is intentionally OFF the
-  # main app (not embedded yet) so the app archive cannot build/sign it — the
-  # signing-safe pattern (PLAN_ECOSYSTEM_LOOP.md §0.2). Compile-verify in
-  # isolation via the EchoelmusicWidgets scheme. TO SHIP (cycle C3): confirm
-  # com.echoelmusic.app.widgets has an App-Group provisioning profile, then add
-  #   dependencies:
-  #     - target: EchoelmusicWidgets
-  # to the Echoelmusic target above and archive embeds + signs it.
+  # SHIPPED (cycle C3 done): the widget IS embedded — the Echoelmusic target
+  # lists `- target: EchoelmusicWidgets` above, com.echoelmusic.app.widgets is
+  # provisioned by the archive (build 1543+ ships app + widget + AUv3). The
+  # isolated EchoelmusicWidgets scheme below remains for CI compile checks.
+  # (This block previously still described the pre-C3 "dependency OFF" state —
+  # corrected 2026-07-04, build-setup hygiene pass.)
   EchoelmusicWidgets:
     type: app-extension
     platform: iOS

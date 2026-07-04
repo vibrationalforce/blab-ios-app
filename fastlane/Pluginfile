@@ -1,17 +1,21 @@
 # Echoelmusic Fastlane Plugins
-# Security Score: 100/100
+#
+# Hygiene pass 2026-07-04: this file was INERT — the Gemfile never evaluated
+# it (no `plugins_path` block), so none of these plugins was ever installed
+# anywhere. Removed the four with zero call sites in the Fastfile/workflows:
+#   fastlane-plugin-firebase_app_distribution  — no Firebase anywhere in the repo
+#   fastlane-plugin-match_keychain             — signing uses cert/sigh via ASC
+#                                                API key, not match
+#   fastlane-plugin-badge                      — no badge/add_badge call
+#   fastlane-plugin-versioning                 — versions come from
+#                                                .deploy/release + BUILD_NUMBER env
+# Restore any of them from git history if a lane actually adopts them.
 
-# Firebase Crashlytics for crash reporting
-gem 'fastlane-plugin-firebase_app_distribution'
-
-# Code signing management
-gem 'fastlane-plugin-match_keychain'
-
-# Badge icons for beta builds
-gem 'fastlane-plugin-badge'
-
-# Versioning
-gem 'fastlane-plugin-versioning'
-
-# App Store screenshots
+# App Store screenshot framing (Framefile.json). NOTE: the screenshots pipeline
+# is currently broken upstream of this plugin — screenshots.yml calls a
+# `frame_screenshots` lane that does not exist, and capture_screenshots targets
+# the scheme "EchoelmusicScreenshots" which is not defined in project.yml.
+# Kept because Framefile.json exists and the repair will need it — note the
+# repair must ALSO wire this file into the Gemfile (plugins_path eval) or the
+# plugin still won't install.
 gem 'fastlane-plugin-frameit_chrome'

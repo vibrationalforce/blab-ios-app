@@ -286,26 +286,9 @@ platform :mac do
     upload_to_testflight_with_retry(api_key, "macOS Build #{BUILD_NUMBER}")
   end
 
-  desc "Just build macOS without signing"
-  lane :build_only do
-    build_app(
-      project: "Echoelmusic.xcodeproj",
-      scheme: "Echoelmusic-macOS",
-      configuration: "Release",
-      clean: false,
-      skip_codesigning: true,
-      skip_archive: true,
-      derived_data_path: "./build/DerivedData"
-    )
-  end
-
-  desc "Run macOS tests"
-  lane :test do
-    run_tests(
-      project: "Echoelmusic.xcodeproj",
-      scheme: "Echoelmusic-macOS",
-      clean: false,
-      derived_data_path: "./build/DerivedData"
-    )
-  end
+  # Removed (build-setup hygiene 2026-07-04): `mac build_only` and `mac test`
+  # referenced the scheme "Echoelmusic-macOS", which does not exist in
+  # project.yml (iPhone-first v10 — no macOS target), and no workflow called
+  # them. `mac setup_signing`/`mac upload` above stay: testflight.yml calls
+  # them when a mac platform job is dispatched.
 end
