@@ -2432,14 +2432,24 @@ struct EchoelStudioView: View {
     /// tempo) so it opens with pitch + timing in any DAW. Engine already exists
     /// (MIDIFileExporter); this writes it to a temp file and opens the share sheet.
     private func exportMIDI() {
-        let notes = pianoRoll.notes
-        let steps = beatPlayer.pattern.steps
-        // Export the WHOLE take (melody ch.1 + drums ch.10) as one multi-track SMF,
-        // so nothing is dropped when it opens in a DAW.
-        guard !notes.isEmpty || steps.contains(where: { $0.contains(true) }) else { return }
-        let data = MIDIFileExporter.exportCombined(notes: notes, steps: steps,
-                                                   tempo: beatPlayer.pattern.tempo)
-        let stem = session.sessionName(bpm: beatPlayer.pattern.tempo)
+        // Export the WHOLE take as a bar-aligned N-bar region (founder: "8/16-Takt-Loop …
+        // in der DAW weiterarbeiten"). The melody is the full arrangement (N distinct bars,
+        // not just the one sounding bar); the 1-bar drum grid is tiled to the same N bars so
+        // melody and drums line up. The exporter anchors End-of-Track to N×4 quarters and
+        // writes tempo + 4/4 + key-signature so the clip drops onto the DAW grid in the right
+        // Tonart and loops seamlessly.
+        let (arrangedNotes, bars) = pianoRoll.arrangementForExport()
+        let steps = LoopCutter.tile(grid: beatPlayer.pattern.steps, bars: bars)
+        let accents = LoopCutter.tile(grid: beatPlayer.pattern.accents, bars: bars)
+        guard !arrangedNotes.isEmpty || steps.contains(where: { $0.contains(true) }) else { return }
+        let data = MIDIFileExporter.exportCombined(
+            notes: arrangedNotes, steps: steps, accents: accents,
+            tempo: beatPlayer.pattern.tempo, bars: bars,
+            keyRootPitchClass: rootIndex, keyIsMinor: scale.isMinorTonality)
+        // Name carries key + tempo + tuning + genre, like the WAV export.
+        let stem = "\(session.sessionName(bpm: beatPlayer.pattern.tempo))_\(style.displayName)"
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>| "))
+            .filter { !$0.isEmpty }.joined(separator: "-")
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(stem).mid")
         do {
             try data.write(to: url, options: .atomic)

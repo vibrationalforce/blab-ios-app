@@ -55,6 +55,60 @@ final class MIDIFileImporterTests: XCTestCase {
         XCTAssertTrue(try MIDIFileImporter.notes(from: data).isEmpty)
     }
 
+    // MARK: - DAW-usable N-bar loop export
+
+    /// A saved 8/16-bar loop must export as N bars, not 1 — the founder's core requirement.
+    /// A 4-bar melody with one note per bar must round-trip to its absolute bar positions.
+    func testCombined_NBarRegion_keepsAbsoluteBarPositions() throws {
+        let melody = [
+            Note(pitch: 60, startStep: 0,  lengthSteps: 2),
+            Note(pitch: 62, startStep: 16, lengthSteps: 2),   // bar 2
+            Note(pitch: 64, startStep: 32, lengthSteps: 2),   // bar 3
+            Note(pitch: 67, startStep: 48, lengthSteps: 2)    // bar 4
+        ]
+        let grid = [[Bool]](repeating: [Bool](repeating: false, count: 16), count: 8)
+        let data = MIDIFileExporter.exportCombined(notes: melody, steps: grid, tempo: 120, bars: 4)
+        let back = try MIDIFileImporter.notes(from: data)
+        XCTAssertEqual(back.map(\.startStep), [0, 16, 32, 48],
+                       "notes keep their bar positions across a 4-bar region")
+    }
+
+    /// The exported file carries a key-signature meta (FF 59 02 sf mi) so the DAW shows the
+    /// Tonart. D minor → relative major F (1 flat) → sf = -1 (0xFF), mi = 1.
+    func testCombined_writesKeySignatureMeta() {
+        let data = MIDIFileExporter.exportCombined(
+            notes: [Note(pitch: 62, startStep: 0)], steps: [], tempo: 120, bars: 1,
+            keyRootPitchClass: 2, keyIsMinor: true)
+        XCTAssertNotNil(subsequenceIndex([0xFF, 0x59, 0x02, 0xFF, 0x01], in: [UInt8](data)),
+                        "D-minor key signature meta present")
+    }
+
+    /// C major → 0 sharps/flats, mi = 0.
+    func testCombined_keySignature_CMajor() {
+        let data = MIDIFileExporter.exportCombined(
+            notes: [Note(pitch: 60, startStep: 0)], steps: [], tempo: 120, bars: 1,
+            keyRootPitchClass: 0, keyIsMinor: false)
+        XCTAssertNotNil(subsequenceIndex([0xFF, 0x59, 0x02, 0x00, 0x00], in: [UInt8](data)),
+                        "C-major key signature meta present")
+    }
+
+    /// A 4/4 time-signature meta (FF 58 04 04 02 18 08) anchors the DAW grid.
+    func testCombined_writesTimeSignatureMeta() {
+        let data = MIDIFileExporter.exportCombined(
+            notes: [Note(pitch: 60, startStep: 0)], steps: [], tempo: 120, bars: 2)
+        XCTAssertNotNil(subsequenceIndex([0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08], in: [UInt8](data)),
+                        "4/4 time signature meta present")
+    }
+
+    /// Find `needle` as a contiguous subsequence of `haystack` (nil if absent).
+    private func subsequenceIndex(_ needle: [UInt8], in haystack: [UInt8]) -> Int? {
+        guard !needle.isEmpty, haystack.count >= needle.count else { return nil }
+        for i in 0...(haystack.count - needle.count) where Array(haystack[i..<i + needle.count]) == needle {
+            return i
+        }
+        return nil
+    }
+
     // MARK: - Drum grid (GM channel 10 → BeatPlayer grid)
 
     func testDrumTrackMapping() {

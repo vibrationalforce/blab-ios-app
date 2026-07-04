@@ -68,6 +68,11 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    /// True when the tonic triad is minor (the scale has a minor third and no major
+    /// third) — used to tag the exported MIDI key-signature's major/minor byte so a DAW
+    /// shows the right key. Ambiguous scales (chromatic, whole-tone: both thirds) report major.
+    public var isMinorTonality: Bool { intervals.contains(3) && !intervals.contains(4) }
+
     /// Human label.
     public var displayName: String {
         switch self {

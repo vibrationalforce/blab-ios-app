@@ -107,6 +107,23 @@ public final class PianoRollModel {
         return note
     }
 
+    /// The WHOLE take flattened to absolute ticks for export (founder: "einen 8/16-Takt-Loop
+    /// … in der DAW weiterarbeiten"). When the roll is cycling N distinct bars, each bar `b`
+    /// is offset by `b` whole bars so the exported region is really N bars long — not the
+    /// single sounding bar. Falls back to the current 1-bar `notes` when not cycling.
+    /// Returns `(notes, bars)` so the exporter can anchor the region to exactly N bars.
+    public func arrangementForExport() -> (notes: [Note], bars: Int) {
+        guard arrangementBars.count > 1 else { return (notes, 1) }
+        let barTicks = Self.stepCount * Note.ticksPerStep   // 16 steps × 120 ticks = 1920 / bar
+        var out: [Note] = []
+        out.reserveCapacity(arrangementBars.reduce(0) { $0 + $1.count })
+        for (b, bar) in arrangementBars.enumerated() {
+            let offset = b * barTicks
+            for n in bar { out.append(n.nudged(byTicks: offset)) }
+        }
+        return (out, arrangementBars.count)
+    }
+
     public func remove(id: UUID) { notes.removeAll { $0.id == id } }
 
     public func setLength(id: UUID, lengthSteps: Int) {
