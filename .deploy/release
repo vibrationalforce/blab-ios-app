@@ -1,26 +1,17 @@
-build: 2026-07-04 v10.79.56 (DAW-Export: gespeicherter 8/16-Takt-Loop ist jetzt WIRKLICH N Takte)
+build: 2026-07-04 v10.79.57 (Atem-Anzeige ehrlich + Visual zittert beim Verschieben nicht mehr)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deep-Audit-Fund C (dein Kernwunsch "einen 8/16-Takt-Loop speichern und in der DAW
-  vernuenftig weiterarbeiten") — der MIDI-Export war KAPUTT: er schrieb IMMER nur 1 TAKT,
-  egal ob du 8 oder 16 eingestellt hattest (die N verschiedenen Takte des Loops leben intern
-  gebuendelt; der Export nahm nur den einen gerade klingenden Takt). Behoben — und gleich mit
-  allem, was ein Loop fuer die DAW braucht:
-  1) VOLLE N TAKTE: der Export nimmt jetzt die ganze Arrangement-Spur (alle N verschiedenen
-     Takte, Melodie), und das 1-Takt-Drumraster wird auf dieselben N Takte gekachelt — Melodie
-     und Drums liegen deckungsgleich. (Nutzt LoopCutter, der genau dafuer gebaut, aber nie
-     verdrahtet war.)
-  2) TONART IM FILE: echtes Key-Signature-Meta (FF 59) aus deiner eingestellten Tonart +
-     Dur/Moll — die DAW zeigt die richtige Tonart an. Dazu Taktart-Meta (4/4) und Spurnamen
-     (Echoel / Melody / Drums).
-  3) SAUBERE LOOP-LAENGE: End-of-Track ist jetzt exakt auf N×4 Viertel verankert — der Clip ist
-     genau N Takte lang und loopt nahtlos auf dem Raster (vorher endete er am letzten Ton →
-     abgeschnittener Schwanz, kein sauberer Loop).
-  4) DRUM-DYNAMIK: Akzente werden als lautere Velocity exportiert (vorher alles gleich laut).
-  5) DATEINAME: jetzt inkl. Genre, wie beim WAV (Echoel_Datum_Tonart_bpm_A440_Genre.mid).
-  Verifiziert per CI-Tests (MIDIFileImporterTests): 4-Takt-Region behaelt Taktpositionen,
-  Key-Signature (D-Moll, C-Dur) + Taktart-Meta vorhanden.
-  KONTEXT: Fund C1-C5 des Deep Audits. Als naechstes: Genre-Tempo + Genre-Drums im Live-Pfad
-  (Trap/Punk klingen dann wie ihr Genre), dann Loop-Form/Kadenz (Motiv wiederkehrt statt jede
-  Bar neu), dann echter Klangraum/Filter. Plan: scratchpads/PLAN_SOUND_AND_LOOP_QUALITY.md.
-  TEST 10.79.56: 8- oder 16-Takt-Loop generieren → als MIDI exportieren → in Ableton/Logic
-  ziehen: sind es wirklich 8/16 Takte, in der richtigen Tonart, sauber am Raster, nahtlos?
+notesT: Zwei klare Probleme aus deinem Screenshot behoben:
+  1) "Br 0.0 /min" war Unsinn — 0 Atemzuege/min ist unmoeglich (die Kamera misst KEINEN Atem,
+     also stand da faelschlich 0.0). Jetzt steht "—" wenn kein plausibler Atem (3–40/min)
+     vorliegt — ehrlich, genau wie Coherence/HRV es schon machen. Kein Fake-Nullwert mehr.
+  2) VISUAL ZITTERT BEIM VERSCHIEBEN: die Ziehen-Geste hat die Bewegung im EIGENEN Rahmen des
+     Griffs gemessen — der sich beim Ziehen mitbewegt. Dadurch speiste sich die gemessene
+     Verschiebung selbst zurueck → das Fenster zitterte, waehrend man es zog. Jetzt wird im
+     festen Bildschirm-Raum gemessen (.global) → ruckelfreies, ruhiges Verschieben.
+  NOCH OFFEN (deine eingekreiste Tempo-Zahl 98 bei Puls 65.8): das ist eine bewusste Design-
+  Entscheidung ("Tempo EINMAL vom Koerper setzen, dann HALTEN", damit ein zappelnder Puls den
+  Beat nicht springen laesst) — deshalb haelt es den beim Start (Puls war da hoeher, ~124)
+  gesetzten Wert. Ob das Tempo dem Puls sanft NACHFOLGEN soll oder stabil HALTEN, frage ich
+  dich getrennt und baue es dann exakt so — kein Blindschuss an der empfindlichsten Stelle.
+  TEST 10.79.57: Visual-Fenster am ≡-Griff verschieben — ruhig ohne Zittern? Und steht bei
+  Atem jetzt "—" statt "0.0"?

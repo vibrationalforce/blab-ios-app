@@ -239,8 +239,13 @@ struct BioStripView: View {
         return "ms"
     }
 
+    /// Physiologically plausible breathing-rate window (breaths/min). A camera pulse read
+    /// does not derive respiration, so it publishes 0 — and "0.0 /min" is impossible (you
+    /// can't breathe zero times a minute). Show a real number only inside the plausible
+    /// window, otherwise "—" (honest: not measured), matching how coherence/HRV behave.
+    private static let plausibleBreath: ClosedRange<Float> = 3...40
     private var breathString: String {
-        guard let v = bus.latestBio?.breathRate else { return "—" }
+        guard let v = bus.latestBio?.breathRate, Self.plausibleBreath.contains(v) else { return "—" }
         return String(format: "%.1f", v)
     }
 

@@ -238,7 +238,12 @@ struct FloatingVisualWindow: View {
                 .frame(width: 40, height: handleHeight)
                 .contentShape(Rectangle())
                 .gesture(
-                    DragGesture()
+                    // MUST be `.global`: the default `.local` space measures the drag inside
+                    // the handle's OWN frame, which MOVES as the window follows the drag — so
+                    // the reported translation feeds back on itself and the window trembles
+                    // while you move it (founder: "zittert, wenn man es verschiebt"). A fixed
+                    // (screen) space gives a stable translation → smooth drag.
+                    DragGesture(coordinateSpace: .global)
                         .onChanged { value in
                             let base = dragAnchor ?? (center ?? defaultCenter(in: bounds, card: card))
                             if dragAnchor == nil { dragAnchor = base }
