@@ -559,7 +559,12 @@ public final class CameraRPPGBioPublisher {
         saturatedTicks = 0
         fingerLostTicks = 0
         stallTicks = 0
-        forcedRecoveries = 0
+        // Do NOT reset forcedRecoveries here: every forced recovery fires this very
+        // callback ~20 ms later, so zeroing the budget here made each recovery erase
+        // its own count — "(1/3)" forever, cold restart unreachable (device log
+        // 1783201461: four recoveries all logged 1/3 while the analyzer stayed
+        // frozen). The budget refills ONLY on ~3 s of sustained frame flow
+        // (healthyTicks in the publish loop) or a full stop().
         EchoelCrashLog.breadcrumb("rPPG: camera session recovered after stall — re-locking exposure")
     }
 
