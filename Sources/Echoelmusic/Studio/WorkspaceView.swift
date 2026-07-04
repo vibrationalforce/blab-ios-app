@@ -125,20 +125,6 @@ private struct TransportBar: View {
     @AppStorage("studio.lockBPM") private var lockBPM = false
     @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
 
-    /// Writes tempo through PatternEngine.setTempo (which clamps AND relays into
-    /// Transport), reads back the authoritative Transport tempo, and keeps the
-    /// metronome click in time — otherwise a tempo change from the bar would leave an
-    /// armed click running at the old BPM (Compose only synced the click on generate /
-    /// lockBPM, never on a raw transport-bar tempo edit).
-    private var tempoBinding: Binding<Double> {
-        Binding(get: { transport.tempo },
-                set: {
-                    player.pattern.setTempo($0)
-                    metronome.bpm = transport.tempo   // clamped, authoritative value
-                    if lockBPM { lockedBPM = transport.tempo }   // keep the locked copy in step
-                })
-    }
-
     var body: some View {
         HStack(spacing: 12) {
             Button { toggle() } label: {
@@ -153,9 +139,11 @@ private struct TransportBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel(transport.isPlaying ? "Stop" : "Play")
 
-            EchoelValueField(label: "Tempo", value: tempoBinding,
-                             range: Transport.minTempo...Transport.maxTempo,
-                             unit: "BPM", decimals: 0, boxWidth: 78)
+            // NO tempo number here anymore (founder 2026-07-04: "zwei Anzeigen irritieren
+            // immernoch") — the chrome's one live number is the PULSE in the bio strip. The
+            // musical tempo lives in the Composition panel's BodyTempoField (runs along with
+            // the biofeedback rate, 4 decimals, lockable). The lock stays here for one-tap
+            // freezing from anywhere; its state mirrors the panel (same @AppStorage).
 
             lockButton
 
