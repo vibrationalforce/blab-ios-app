@@ -1,16 +1,17 @@
-build: 2026-07-04 v10.79.71 (FIX: echte Instrumente + Drums waren nie im App-Bundle — jetzt schon)
+build: 2026-07-04 v10.79.72 (FIX: Kamera-Hänger heilt sich jetzt wirklich — Neustart-Eskalation griff nie)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: WICHTIG — dein Log 1783199053 hat den wahren Grund verraten, warum es immer noch
-  nach dem alten Synth klingt: die 32 MB Soundfont (echte Instrumente) UND die Drum-WAVs
-  waren nie ins App-Bundle kopiert. Der Xcode/TestFlight-Build (project.yml) hat nur
-  Assets/Fonts gebündelt, NICHT den Instruments/Drums/Samples-Ordner. Ergebnis auf dem
-  Gerät: Soundfont = nicht gefunden → alles fiel still zurück auf den additiven Synth
-  (im Log sichtbar: "polyVoice.noteOn"). In den Tests (swift test) war die Soundfont da
-  (anderer Bundle-Mechanismus), deshalb ist es nie aufgefallen.
-  FIX: Instruments (Soundfont) + Drums + Samples werden jetzt korrekt ins App-Bundle
-  gepackt. Ab diesem Build laden Lead/Harmonie WIRKLICH als echte Instrumente (Piano/
-  Strings) statt Synth, und die Drums klingen nach echten Samples.
-  (Enthält weiter: Drone wenn ruhig · Halten wenn eingerastet · weniger Verzerrung.)
-  TEST 10.79.71: Start, Play. Klingt Lead/Harmonie jetzt nach ECHTEM Instrument (Piano/
-  Strings) statt nach dem alten Synth? Und schick mir wieder ein Log — es sollte jetzt
-  "SampledInstrument: loaded" beim Start zeigen (statt nur polyVoice).
+notesT: Dein Log 1783201461 — erstmal die GUTE Nachricht: der Halten-Fix funktioniert auf
+  dem Gerät! Puls eingerastet bei 48 BPM (Konfidenz bis 0.98), und die Musik hat über
+  ~80 Sekunden 5× HALTEN gemeldet statt neu zu würfeln. Genau so soll es sein.
+  Der BUG am Ende: nach dem Finger-Neuauflegen ist die Kamera-Pipeline eingefroren
+  (identische Werte ~28 s). Der Wächter hat 4× eine Reparatur versucht — aber jede stand
+  im Log als "(1/3)": die Reparatur hat ihren eigenen Zähler wieder auf null gesetzt,
+  darum kam es NIE zur Eskalationsstufe (kompletter Kamera-Kaltstart — genau das, was
+  dein manuelles Stop→Start damals sofort geheilt hat). Fix: der Zähler überlebt jetzt
+  die Reparatur; nach 3 erfolglosen Versuchen macht die App den Kaltstart automatisch.
+  WICHTIG: Dieses Log war noch OHNE den Instrumente-Fix (kein "SampledInstrument: loaded",
+  noch "polyVoice") — 10.79.71 mit den echten Instrumenten war da noch bei Apple in
+  Verarbeitung. Bitte erst auf 10.79.71/72 updaten, dann den Klang beurteilen.
+  TEST 10.79.72: Wie gehabt — Finger drauf, einrasten lassen. Wenn die Kamera hängt
+  (eingefrorene Werte), heilt sie sich jetzt binnen ~30 s von selbst (Log: "cold camera
+  restart"). Und: klingt Lead/Harmonie jetzt nach Piano/Strings?
