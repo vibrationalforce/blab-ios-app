@@ -141,9 +141,10 @@ jobs:
             COUNT=$((COUNT+1))
           done < "$MAP"
           echo "Converted $COUNT files."
+          test "$COUNT" -gt 0 || { echo "::error::0 files converted — check SAMPLES_MAP.tsv src paths against the manifest."; exit 1; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Resources/Samples || git add -A
+          git add Sources/Echoelmusic/Resources
           git commit -m "chore(samples): curated + converted founder sample set (phase 2, $COUNT files)"
           git push origin "HEAD:${{ github.ref_name }}"
 
