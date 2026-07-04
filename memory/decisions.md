@@ -270,3 +270,22 @@ Architectural and strategic decisions with context and rationale.
 - **Wedge feature (post-gate):** clip/session launching (build on existing PatternEngine first) — highest identity-fit, lowest new-engine risk; the live-instrument differentiator. Then audio-track recording + Ableton Link (parity), then arrangement, then video/RTMP, then sACN.
 - **Verified parity gaps (ranked):** audio-track recording · clip/session launch · Ableton Link · arrangement timeline · deeper MIDI+automation · sampler depth · time-stretch · stems.
 - **Review date:** 2026-07-16
+
+### 2026-07-04 NEUSTART — priority reframe (keep engine, fix priorities)
+- **Founder trigger:** "wir haben uns verlaufen … Neustart." NOT a code rewrite — the engine
+  (DSP/generative music/visuals/EngineBus/patch system) is the good part. The problem is
+  priorities: the app spread across DAW + biofeedback + visuals + broadcast while the CORE
+  INPUT (camera rPPG at the fingertip) is the least reliable part, so nearly every device
+  session was consumed fighting the pulse instead of making music.
+- **Agreed reframe (4 pillars, `scratchpads/PLAN_NEUSTART.md`):**
+  - **P1** — the pulse must EARN trust; camera is the APPROXIMATE fallback, not the anchor.
+    BLE HR (already built) becomes the preferred source; camera labeled "≈".
+  - **P2** — the music must be ROBUST to a noisy pulse (drive on the smoothed TREND, never the
+    raw number) so a bad reading can never ruin the take.
+  - **P3** — ONE screen that does ONE thing perfectly (body → one loop → one visual), then expand.
+  - **P4** — honesty everywhere (claim only what ships; "≈" on approximate; not diagnosis).
+- **Executed step 1 (v10.79.52):** rPPG TRUST-GATE — a reading may move the shown pulse / latch
+  the tempo only when confident AND corroborated by real autocorrelation (acf ≥ 0.4). Device log
+  2026-07-04 showed acf 0.14 / conf 0.90 "settling" at a wrong 79 bpm (true pulse ~54); the gate
+  makes a bad reading HOLD ("acquiring") instead of showing/seeding a fantasy number.
+- **Review:** after founder device-verify of 79.52, proceed to P1 (BLE preferred + "≈ camera" label).

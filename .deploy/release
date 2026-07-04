@@ -1,18 +1,22 @@
-build: 2026-07-03 v10.79.51 (HRV & Co. erklaert — ein Tipp aufs ⓘ erklaert alle Koerper-Werte)
+build: 2026-07-04 v10.79.52 (NEUSTART Schritt 1 — der Puls muss Vertrauen VERDIENEN, keine Fantasie-Zahl mehr)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Wunsch: "HRV etc. soll erklaert werden." Die Erklaerungen gab es schon (jede Zahl im
-  Bio-Strip war antippbar → Klartext-Erklaerung), aber niemand SIEHT das — die Werte sahen nicht
-  antippbar aus. Also fehlte die Auffindbarkeit, nicht der Inhalt.
-  NEU: ein kleines ⓘ links im Bio-Strip. Ein Tipp oeffnet eine Uebersicht, die ALLE Werte auf
-  einmal erklaert — Herzfrequenz, HRV, Kohaerenz, Atmung — in einfacher Sprache, science-first,
-  mit dem Hinweis "nur zur Selbstbeobachtung, kein Medizingeraet". Zusaetzlich bleibt jede
-  einzelne Zahl weiterhin direkt antippbar fuer die Detail-Erklaerung (die Uebersicht sagt das
-  auch). So versteht man auf einen Blick, was HRV & Co. bedeuten.
-  Der Erklaer-Text war schon getestet (jede Metrik hat eine echte Erklaerung >40 Zeichen,
-  brand-safe ohne Esoterik) — die Uebersicht nutzt genau diesen Text wieder. 3 Dateien
-  (BioMetricInfo Uebersicht + BioStrip ⓘ), render-safe.
-  Log-Check nebenbei (79.50-Stand): sauberer Start (kein SAFE MODE), Puls rastete bei ~60 und
-  hielt die ganze Session stabil (60–63). Eine milde acf=0-Delle (amp 0,028) erholte sich in ~4 s
-  selbst und liegt unter der Ripple-Schwelle — Anzeige blieb ruhig. Alles im gruenen Bereich.
-  TEST 10.79.51: Tippe im Bio-Strip auf das ⓘ (links) — kommt die Uebersicht, die HRV, Kohaerenz &
-  Co. verstaendlich erklaert? Und tippt sich jede einzelne Zahl weiterhin zur Detail-Erklaerung?
+notesT: "Neustart" — kein Code-Wegwerfen (die Engine bleibt das Gute), sondern ein PRIORITAETEN-
+  Neustart. Wir haben uns verlaufen, weil die App alles gleichzeitig wollte, waehrend der KERN-
+  Eingang (Kamera-Puls am Finger) der unzuverlaessigste Teil ist — darum ging fast jede Session
+  fuer den Puls drauf statt fuer Musik. Vier Saeulen (siehe scratchpads/PLAN_NEUSTART.md):
+  1) Puls muss Vertrauen VERDIENEN — Kamera ist der "ca."-Notnagel, BLE-Gurt wird bevorzugt.
+  2) Musik robust gegen wackeligen Puls (Trend, nie die rohe Zahl).
+  3) EIN Bildschirm, der EINE Sache perfekt macht — dann erweitern.
+  4) Ehrlichkeit ueberall.
+  SCHRITT 1 (dieser Build): das Trust-Gate. Dein letzter Log war der Beweis — schlechte Finger-
+  lage (R uebersteuert 0,7–0,8), Autokorrelation fand fast nichts (acf 0,14), aber der Peak-
+  Zaehler stimmte mit sich selbst ueberein → die App "settlete" bei FALSCHEN 79 bpm, obwohl dein
+  echter Puls ~54 war (spaeter im selben Log bei acf 0,78 sichtbar). NEU: eine Messung darf die
+  Zahl NUR bewegen und das Tempo NUR seeden, wenn sie sicher UND durch echte Periodizitaet
+  (acf >= 0,4) bestaetigt ist. Eine schlechte Messung HAELT jetzt ("wird gemessen…") statt eine
+  Fantasie-Zahl zu zeigen. Echte Locks auf deinem Geraet haben immer starke acf (0,57–0,84);
+  Muell liegt <= 0,29 — sauber getrennt. 1 Datei (CameraRPPGBioPublisher) + reine, getestete
+  Hilfsfunktion (pulseTrustworthy) + Grenzfall-Tests.
+  TEST 10.79.52: Finger bewusst schlecht/zu fest auflegen → zeigt die App jetzt ehrlich "wird
+  gemessen…" statt einer falschen hohen Zahl? Und bei GUTER Lage: rastet sie sauber auf deinen
+  echten Ruhepuls (~54–60) und das Tempo bleibt dort?

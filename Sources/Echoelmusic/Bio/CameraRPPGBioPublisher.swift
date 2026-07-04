@@ -92,6 +92,23 @@ public final class CameraRPPGBioPublisher {
     public private(set) var waveform: [Float] = []
     /// Lock threshold — also the bus-publish gate.
     static let lockThreshold = 0.35
+
+    /// Minimum AUTOCORRELATION strength ("acf") a reading must carry before it may move the
+    /// shown pulse OR latch the tempo. Confidence alone can be inflated by the peak-counter
+    /// SELF-AGREEING on a noisy, poorly-placed finger (device log 2026-07-04: R saturated
+    /// 0.7–0.8, acf 0.14, conf 0.90 → "settled" at a WRONG 79 bpm while the true resting pulse
+    /// was ~54, visible later in the SAME session at acf 0.78). Requiring real periodicity
+    /// means a bad reading now HOLDS ("acquiring") instead of showing/seeding a fantasy number
+    /// — the pulse must EARN trust. On this device real locks always carry strong acf
+    /// (0.57–0.84); junk maxes ~0.29, so 0.4 separates them cleanly. (Camera is the approximate
+    /// fallback — a chest strap gives clean beat-to-beat directly and is the preferred source.)
+    static let trustAutoFloor = 0.4
+
+    /// A reading may move the display / latch the tempo only when it is BOTH confident AND
+    /// corroborated by real periodicity (autocorrelation). Pure → unit-testable.
+    static func pulseTrustworthy(confidence: Double, autoStrength: Double) -> Bool {
+        confidence >= displayThreshold && autoStrength >= trustAutoFloor
+    }
     /// True once a confident pulse is locked.
     public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
 
@@ -314,8 +331,14 @@ public final class CameraRPPGBioPublisher {
                 self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)
                 self.confidence = min(max(self.analyzer.bpmConfidence, 0), 1)
                 self.detectedBPM = self.analyzer.estimatedBPM
-                // Calm display value: advance only on a confident reading (EMA), else hold.
-                if self.detectedBPM > 0 && self.confidence >= Self.displayThreshold {
+                // Autocorrelation strength of the latest window — the corroboration signal that
+                // separates a real pulse (strong periodicity) from a peak-counter self-agreeing
+                // on a noisy finger. Gate both the display and the settle on it (see trustAutoFloor).
+                let autoStrength = self.analyzer.lastAutoStrength
+                // Calm display value: advance only on a TRUSTWORTHY reading (confident AND
+                // corroborated by real periodicity), else hold — so a poorly-placed finger
+                // shows "acquiring" instead of a fantasy number.
+                if self.detectedBPM > 0 && Self.pulseTrustworthy(confidence: self.confidence, autoStrength: autoStrength) {
                     var bpm = self.detectedBPM
                     // OCTAVE-FOLD toward the established rate: rPPG often reports 2× (or ½) the
                     // true pulse (founder: "springt ständig auf 196 bpm"). Once a stable value
@@ -344,7 +367,7 @@ public final class CameraRPPGBioPublisher {
                 // (≤settleTolerance) for settleSeconds → the warm-up descent is over. Any move
                 // beyond tolerance or a confidence drop restarts the window (and un-settles).
                 let nowT = CFAbsoluteTimeGetCurrent()
-                if self.displayBPM > 0 && self.confidence >= Self.displayThreshold {
+                if self.displayBPM > 0 && Self.pulseTrustworthy(confidence: self.confidence, autoStrength: autoStrength) {
                     if self.settleRef < 0 || abs(self.displayBPM - self.settleRef) > Self.settleTolerance {
                         self.settleRef = self.displayBPM
                         self.settleSince = nowT
