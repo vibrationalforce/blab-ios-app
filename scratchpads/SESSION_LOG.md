@@ -4401,3 +4401,36 @@ FIX (3 files):
    resizes the same instance). Fullscreen also removes the scroll-compositing cost → smoother.
 Awaiting founder device test (fullscreen fills screen? no stutter without recording? look
 changeable in fullscreen?).
+
+## 2026-07-04 — Marathon: Stabilität · Deep Audit Klang/Loop/DAW · eine Tempo-Anzeige (79.54–79.64)
+Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
+- 79.54: Tempo gleitet auch im Stop (Stopp-Glide-Timer, PatternEngine) · framebufferOnly nur-bei-Änderung
+  (zittern/Bildfehler) · Palette-Drag nur am ≡-Griff · Bio-Guide-Texte lesbar.
+- DEEP AUDIT (3 parallele Agents + Web-Research): scratchpads/PLAN_SOUND_AND_LOOP_QUALITY.md.
+  Kernfunde: Hüllkurve KONVEX (rückwärts) · MIDI-Export IMMER 1 Takt · LoopCutter toter Code ·
+  keine Tonart/Taktart im SMF · 12/23 Genres ohne Raum · Loop = 1 Vamp × N fremde Melodien ·
+  Genre-Tempo/Drums im Live-Pfad verworfen · Filter 8-kHz-Deckel · Patch-Reverb totes Feld.
+- 79.55: Hüllkurve korrigiert (konkav, echtes −60 dB) — natürlicher Ausklang, wirkungsvollster Einzelfix.
+- 79.56: N-TAKT-MIDI-EXPORT (Founder-Kernwunsch): Arrangement geflattet + LoopCutter verdrahtet,
+  Tonart-/Taktart-/Spurnamen-Meta, EOT auf N×4 Viertel verankert, Akzent-Velocity, Genre im Namen.
+  CI-Tests in MIDIFileImporterTests.
+- 79.57: Br "0.0" → ehrlich "—" (3–40/min-Fenster) · Fenster-Drag .global (kein Zittern beim Verschieben).
+- 79.58: Tempo folgt dem Körper SANFT (±8 BPM/Evolve-Tick, nur bei vertrauenswürdigem Puls, gegleitet)
+  statt Start-Seed einzufrieren (98 vs Puls 66). Rückfrage an Founder scheiterte technisch → sicherste Wahl.
+- 79.59: Tempo-LOCK in der Transportleiste ("Tempo fixen muss immer gehen").
+- 79.60: Bio-Modulation SUBTIL um den Patch (Basis beim Patch-Apply gemerkt; Harmonizität/Hall ±0.06,
+  Noise ±0.03, Vibrato 0.4–2.4 Cent) — überschreibt den Charakter nicht mehr (A8).
+- 79.61: takeFallbackSeed — Warm-up-Recomposes bleiben EIN Stück (bioSeed(nil) war je Aufruf random).
+- 79.62: Kamera-Stall-Selbstheilung (Budget erst nach 3 s echtem Fluss refillt; Kalt-Neustart als letzte
+  Stufe — Founder-Stop/Start bewies die Heilung) · Edit-Recompose-Floor ~2 s (Genre-Scroll-Sturm).
+- 79.63: analoger PEGEL-Drift ±5 % (unkorreliert zum Pitch-Drift) — Sustains atmen ("ACE-Faktor").
+  Externe "BioNeuralDriver/SOTA"-Prompts vision-gegated: Kern existiert; kein Duplikat-Modul.
+  ADOPT vorgemerkt: Power/Soft/Breathy/Chest-Makro-Layer. REJECT/WATCH: Diffusion-NN, Port-Hamiltonian.
+- 79.64: EINE Tempo-Anzeige (BodyTempoField-Leaf im Composition-Panel beim Kammerton): läuft live mit
+  der Biofeedback-Rate mit, 4 Dezimalstellen, lockbar (Uhr GLEITET zum gelockten Wert), gesperrt exakt
+  editierbar; Transportleiste ohne Tempo-Zahl (Chrome = nur Puls) · RAUM-FLOOR für 12 trockene Genres.
+- Push-Key (APNs) erstellt vom Founder: nur Server-seitig relevant, .p8 NIE committen, TestFlight
+  braucht ihn nicht. Profiles-Wildwuchs im Portal = 1 Profil/CI-Lauf, harmlos, Cleanup optional.
+- OFFEN (Roadmap): B4/B5 Genre-Tempo+Drums live · B1–B3 Loop-Form/Motiv/Kadenz · A2/A4 Nyquist-Filter+
+  Filter-EG · A5/A6 Synth-Drum-Realismus · C6/C7 WAV Takt-Trim/Bar-Align · PPQ 480 · Makro-Artikulation ·
+  trustAutoFloor-Watch (0.4→0.45?) · grafische Ausarbeitung beide Orientierungen · externes Display · Video-Page.
