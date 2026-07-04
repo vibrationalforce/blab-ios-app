@@ -163,9 +163,12 @@ final class RetroCapture {
 
     // MARK: - Recording control
 
-    /// Begin a new recording: prepend the last 30s pre-roll from the ring buffer,
-    /// then enable the live tap write. The finished file starts from "now minus 30s".
-    func startRecording() {
+    /// Begin a new recording: prepend the last `preRoll` seconds from the ring
+    /// buffer (default: the full 30 s — "retro" capture), then enable the live tap
+    /// write. Pass `preRoll: 0` for a live-only file that starts NOW — the loop
+    /// exporter needs this (audit C6: the loop WAV silently began with 30 s of
+    /// stale audio, and the LUFS normalisation measured that junk too).
+    func startRecording(preRoll requestedPreRoll: Int? = nil) {
         guard !isRecording else { return }
 
         do {
@@ -179,8 +182,11 @@ final class RetroCapture {
                                        commonFormat: .pcmFormatFloat32,
                                        interleaved: false)
 
-            // Write pre-roll BEFORE enabling live tap — file begins 30s in the past
-            try writePreRollToFile(file, format: format, seconds: preRollSeconds)
+            // Write pre-roll BEFORE enabling live tap — file begins `preRoll`s in the past
+            let preRoll = min(max(requestedPreRoll ?? preRollSeconds, 0), preRollSeconds)
+            if preRoll > 0 {
+                try writePreRollToFile(file, format: format, seconds: preRoll)
+            }
 
             activeFile.pointee = file
             isActive.pointee   = true
@@ -193,7 +199,7 @@ final class RetroCapture {
             }
 
             log.log(.info, category: .audio,
-                    "RetroCapture recording started (+\(preRollSeconds)s pre-roll) → \(url.lastPathComponent)")
+                    "RetroCapture recording started (+\(preRoll)s pre-roll) → \(url.lastPathComponent)")
 
         } catch {
             log.log(.error, category: .audio, "RetroCapture: failed to start — \(error.localizedDescription)")

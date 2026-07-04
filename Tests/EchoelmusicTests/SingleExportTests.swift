@@ -60,6 +60,18 @@ final class SingleExportTests: XCTestCase {
         }
     }
 
+    func testReset_clearsLoopTrimWindow() {
+        // The trim window is per-export state (audit C6/C7) — a stale window from
+        // a loop export must never silently truncate the NEXT caller's file.
+        exporter.trimLengthSeconds = 8
+        exporter.trimFromEndSeconds = 0.4
+        exporter.edgeFadeSeconds = 0.004
+        exporter.reset()
+        XCTAssertNil(exporter.trimLengthSeconds)
+        XCTAssertEqual(exporter.trimFromEndSeconds, 0)
+        XCTAssertEqual(exporter.edgeFadeSeconds, 0)
+    }
+
     // MARK: - Export with invalid URL
 
     func testExport_invalidURL_setsError() async {

@@ -152,4 +152,25 @@ public struct StudioCalculator: Sendable, Equatable {
         while t > range.upperBound { t /= 2 }
         return Swift.max(range.lowerBound, Swift.min(range.upperBound, t))
     }
+
+    // MARK: - Bar-aligned loop trim window (audit C6/C7)
+
+    /// Where to cut EXACTLY one loop out of a longer capture so the written WAV
+    /// loops seamlessly on the DAW grid. The capture ends "now"; the last downbeat
+    /// was `secondsSinceBarStart` ago (PatternEngine stamps it), so the window is
+    /// the `loopSeconds` immediately BEFORE that downbeat:
+    ///   start = fileDuration − secondsSinceBarStart − loopSeconds
+    /// Returns nil when the capture is too short for an aligned cut (caller falls
+    /// back to an unaligned cut or an untrimmed export). Pure + deterministic
+    /// (Linux-CI-tested in StudioCalculatorTests).
+    public static func loopTrimWindow(fileDuration: Double, loopSeconds: Double,
+                                      secondsSinceBarStart: Double)
+        -> (start: Double, duration: Double)? {
+        guard fileDuration.isFinite, fileDuration > 0,
+              loopSeconds.isFinite, loopSeconds > 0 else { return nil }
+        let ago = secondsSinceBarStart.isFinite ? Swift.max(0, secondsSinceBarStart) : 0
+        let start = fileDuration - ago - loopSeconds
+        guard start >= 0 else { return nil }
+        return (start, loopSeconds)
+    }
 }

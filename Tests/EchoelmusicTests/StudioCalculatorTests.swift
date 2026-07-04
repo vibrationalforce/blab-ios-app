@@ -101,4 +101,47 @@ final class StudioCalculatorTests: XCTestCase {
         XCTAssertEqual(StudioCalculator.genreTempo(.infinity, into: 130...150), 130)
         XCTAssertEqual(StudioCalculator.genreTempo(.nan, into: 130...150), 130)
     }
+
+    // MARK: - Bar-aligned loop trim window (audit C6/C7)
+
+    func testLoopTrimWindow_exactCut() {
+        // 8.9 s capture (8 s loop + 0.4 s tail + 0.5 s pre-play), downbeat 0.4 s ago
+        // → the loop is the 8 s ending at that downbeat: [0.5, 8.5].
+        let w = StudioCalculator.loopTrimWindow(fileDuration: 8.9, loopSeconds: 8,
+                                                secondsSinceBarStart: 0.4)
+        XCTAssertNotNil(w)
+        XCTAssertEqual(w?.start ?? -1, 0.5, accuracy: 1e-9)
+        XCTAssertEqual(w?.duration ?? -1, 8.0, accuracy: 1e-9)
+    }
+
+    func testLoopTrimWindow_zeroPhaseEndsAtFileEnd() {
+        let w = StudioCalculator.loopTrimWindow(fileDuration: 10, loopSeconds: 4,
+                                                secondsSinceBarStart: 0)
+        XCTAssertEqual(w?.start ?? -1, 6.0, accuracy: 1e-9)
+        XCTAssertEqual(w?.duration ?? -1, 4.0, accuracy: 1e-9)
+    }
+
+    func testLoopTrimWindow_tooShortReturnsNil() {
+        // Capture shorter than loop + phase → no aligned cut possible.
+        XCTAssertNil(StudioCalculator.loopTrimWindow(fileDuration: 4.2, loopSeconds: 4,
+                                                     secondsSinceBarStart: 0.4))
+        XCTAssertNil(StudioCalculator.loopTrimWindow(fileDuration: 3.9, loopSeconds: 4,
+                                                     secondsSinceBarStart: 0))
+    }
+
+    func testLoopTrimWindow_guardsDegenerateInput() {
+        XCTAssertNil(StudioCalculator.loopTrimWindow(fileDuration: 0, loopSeconds: 4,
+                                                     secondsSinceBarStart: 0))
+        XCTAssertNil(StudioCalculator.loopTrimWindow(fileDuration: 10, loopSeconds: 0,
+                                                     secondsSinceBarStart: 0))
+        XCTAssertNil(StudioCalculator.loopTrimWindow(fileDuration: .nan, loopSeconds: 4,
+                                                     secondsSinceBarStart: 0))
+        // A negative or NaN phase is treated as "no snap", never as extra length.
+        let w = StudioCalculator.loopTrimWindow(fileDuration: 10, loopSeconds: 4,
+                                                secondsSinceBarStart: -3)
+        XCTAssertEqual(w?.start ?? -1, 6.0, accuracy: 1e-9)
+        let w2 = StudioCalculator.loopTrimWindow(fileDuration: 10, loopSeconds: 4,
+                                                 secondsSinceBarStart: .nan)
+        XCTAssertEqual(w2?.start ?? -1, 6.0, accuracy: 1e-9)
+    }
 }
