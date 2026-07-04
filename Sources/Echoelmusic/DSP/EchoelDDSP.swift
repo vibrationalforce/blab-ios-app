@@ -972,11 +972,12 @@ public final class EchoelDDSP: @unchecked Sendable {
             let progress = min(1.0, Float(envelopeSamples) / Float(attackSamples))
             // Click-free onset SHAPE: smoothstep (3p²−2p³). It has zero slope at BOTH
             // ends — continuous from `attackStartLevel` at p=0 and easing into full
-            // level at p=1. The shared exponential curve (correct for decay/release)
-            // is concave: on a short/percussive attack it holds near zero then rises
-            // ~half the level in the final fraction of the window, and that end-edge
-            // is the audible "knack" on the snappier characters. velocity/patch still
-            // sets the attack TIME (attackSamples); smoothstep only fixes the shape.
+            // level at p=1. The shared `applyCurve` exponential is the natural DECAY
+            // shape (fast initial change, slow tail — right for decay/release); applied
+            // to an ATTACK it would jump most of the way up in the first instants then
+            // crawl to full level, which end-edge reads as a "knack" on snappier
+            // characters. velocity/patch still sets the attack TIME (attackSamples);
+            // smoothstep only fixes the shape.
             let eased = progress * progress * (3.0 - 2.0 * progress)
             envelopeValue = attackStartLevel + (1.0 - attackStartLevel) * eased
             if envelopeSamples >= attackSamples {
@@ -1015,8 +1016,15 @@ public final class EchoelDDSP: @unchecked Sendable {
         case .linear:
             t = progress
         case .exponential:
-            // -60dB exponential curve (industry standard)
-            t = (exp(progress * 6.9) - 1.0) / (exp(6.9) - 1.0)
+            // -60 dB exponential DECAY (industry standard), concave: fast initial drop,
+            // long slow tail — how a real string/plucked/analog voice releases. `applyCurve`
+            // is only used for decay + release (attack uses smoothstep), and `t` is PROGRESS
+            // toward the target, so a natural tail needs t to rise FAST then flatten. The old
+            // formula `(exp(6.9p)-1)/(exp(6.9)-1)` was CONVEX (accelerating) → the level hung
+            // near the peak for most of the segment then plummeted at the end ("hang-then-cut",
+            // the most audible un-natural fingerprint). This is the correct exp(-kt) shape:
+            // t(0.5)≈0.97 (97 % gone by half-time), t(0)=0, t(1)=1.
+            t = (1.0 - exp(-progress * 6.9)) / (1.0 - exp(-6.9))
         case .logarithmic:
             // Fast initial change, slow tail
             t = Foundation.log(1.0 + progress * 9.0) / Foundation.log(10.0)
