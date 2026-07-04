@@ -60,6 +60,15 @@ public final class PatternEngine {
     /// Set via `glideTempo(to:)`; any explicit `setTempo` cancels it (an edit is precise/instant).
     @ObservationIgnored private var tempoGlideTarget: Double = 0
 
+    /// A lightweight main-queue timer that eases the tempo toward `tempoGlideTarget` while the
+    /// transport is STOPPED — `advance()` does the easing while playing, but a stopped take has
+    /// no ticks, so a body re-seed would otherwise SNAP the displayed tempo ("bpm springt
+    /// plötzlich"). This keeps the guarantee "the tempo number never jumps, ever": whether
+    /// playing or paused, a glide always slides. Cancelled the moment playback starts (advance()
+    /// takes over) or an explicit edit lands. Same main-queue DispatchSourceTimer pattern as the
+    /// beat clock (see the isolation NOTE on `scheduleTick`).
+    @ObservationIgnored private var stoppedGlideTimer: DispatchSourceTimer?
+
     /// Swing amount [0...0.5]. Lengthens the gap before off-beat (odd) 16ths,
     /// shortening the following gap so overall tempo is preserved. 0 = straight.
     public private(set) var swing: Double = 0
@@ -222,6 +231,7 @@ public final class PatternEngine {
     public func setTempo(_ bpm: Double) {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
         tempoGlideTarget = 0   // an explicit edit is precise + instant → cancel any in-flight glide
+        stopStoppedGlide()     // …including a stopped-glide timer, so the edit lands exactly
         // Relay to the authoritative Transport FIRST, before the no-op early return below.
         // If Transport.tempo ever diverged (a write before the relay was wired, or a direct
         // Transport edit), a subsequent same-value setTempo must still re-sync the displayed
@@ -241,13 +251,62 @@ public final class PatternEngine {
 
     /// Smoothly GLIDE the tempo to `bpm` over ~2 s instead of snapping — used when the body
     /// re-seeds the take tempo, so the beat eases into the new pulse rather than jumping
-    /// ("bpm springt"). `advance()` does the per-tick easing. When stopped there are no ticks
-    /// to glide on, so it snaps immediately. User/transport edits keep using `setTempo`
-    /// (instant + precise). Values are clamped to [minTempo, maxTempo].
+    /// ("bpm springt plötzlich"). While PLAYING, `advance()` does the per-tick easing. While
+    /// STOPPED there are no ticks, so a small main-queue timer eases it instead (it used to
+    /// snap — the founder still saw the transport tempo jump when a re-seed landed on a paused
+    /// take). Either way the number always slides, never jumps. User/transport edits keep using
+    /// `setTempo` (instant + precise). Values are clamped to [minTempo, maxTempo].
     public func glideTempo(to bpm: Double) {
         let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
-        guard isPlaying else { setTempo(clamped); return }
-        tempoGlideTarget = clamped
+        if isPlaying {
+            tempoGlideTarget = clamped
+            stopStoppedGlide()   // ticks are running → advance() eases it
+        } else if abs(clamped - tempo) <= 0.5 {
+            // Already there (the initial generate holds the current tempo) — set exactly, no
+            // timer, no lag. Only a genuine change eases while stopped.
+            tempoGlideTarget = 0
+            stopStoppedGlide()
+            tempo = clamped
+            transport?.setTempo(clamped)
+        } else {
+            tempoGlideTarget = clamped
+            startStoppedGlide()  // no ticks → ease the displayed tempo here
+        }
+    }
+
+    /// Begin (or restart) the stopped-glide timer. ~20 Hz, main queue — a control-plane
+    /// display ease, not audio-thread work. Self-terminates once within 0.5 bpm.
+    private func startStoppedGlide() {
+        stoppedGlideTimer?.cancel()
+        let t = DispatchSource.makeTimerSource(queue: .main)
+        t.schedule(deadline: .now() + 0.05, repeating: 0.05, leeway: .milliseconds(5))
+        t.setEventHandler { [weak self] in
+            MainActor.assumeIsolated { self?.stepStoppedGlide() }
+        }
+        t.resume()
+        stoppedGlideTimer = t
+    }
+
+    /// One easing step of the stopped glide (mirrors `advance()`'s one-pole toward the
+    /// target). Stops itself when playback starts (advance() takes over), when the target is
+    /// cleared, or when it arrives. Relays each step so the transport bar / click stay in sync.
+    private func stepStoppedGlide() {
+        guard !isPlaying, tempoGlideTarget > 0 else { stopStoppedGlide(); return }
+        let diff = tempoGlideTarget - tempo
+        if abs(diff) <= 0.5 {
+            tempo = tempoGlideTarget
+            tempoGlideTarget = 0
+            transport?.setTempo(tempo)
+            stopStoppedGlide()
+        } else {
+            tempo += diff * 0.12               // ~20 Hz → ~2–3 s ease, matching the playing path
+            transport?.setTempo(tempo)
+        }
+    }
+
+    private func stopStoppedGlide() {
+        stoppedGlideTimer?.cancel()
+        stoppedGlideTimer = nil
     }
 
     /// Start the timer from step 0. Idempotent: calling while playing is a no-op.
@@ -255,6 +314,9 @@ public final class PatternEngine {
         guard !isPlaying else { return }
         isPlaying = true
         currentStep = 0
+        // Hand any in-flight stopped-glide over to advance() (which eases toward the same
+        // tempoGlideTarget) so starting playback mid-glide stays seamless, no snap.
+        stopStoppedGlide()
         transport?.play()
         scheduleTick(after: 60.0 / tempo / 4.0)
     }
@@ -266,6 +328,7 @@ public final class PatternEngine {
         currentStep = 0
         isPlaying = false
         tempoGlideTarget = 0   // drop any in-flight glide so the next take starts clean
+        stopStoppedGlide()
         transport?.stop()
         onStop?()   // flush held notes so nothing drones after stop
     }

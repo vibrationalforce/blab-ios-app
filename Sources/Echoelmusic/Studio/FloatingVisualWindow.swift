@@ -228,9 +228,26 @@ struct FloatingVisualWindow: View {
     /// sliders (founder: fewer settings).
     private func handleBar(in bounds: CGSize, card: CGSize) -> some View {
         HStack(spacing: 8) {
+            // Drag ONLY by this handle — NOT the whole bar. A DragGesture spanning the whole
+            // bar competed with the buttons: a tap with the slightest finger move started a
+            // drag and cancelled the button tap, so "die Farbpalette ist nicht anklickbar"
+            // (founder). Confining the drag here frees every toolbar button to receive taps.
             Image(systemName: "line.3.horizontal")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(EchoelTheme.dim)
+                .frame(width: 40, height: handleHeight)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            let base = dragAnchor ?? (center ?? defaultCenter(in: bounds, card: card))
+                            if dragAnchor == nil { dragAnchor = base }
+                            center = CGPoint(x: base.x + value.translation.width,
+                                             y: base.y + value.translation.height)
+                        }
+                        .onEnded { _ in dragAnchor = nil }
+                )
+                .accessibilityLabel("Drag to move the visual")
             Spacer(minLength: 0)
             // Look — cycle the visual style right here, where you see it (founder: design
             // where the visual is). Writes the SHARED visual.style key, so the Visual panel
@@ -280,17 +297,8 @@ struct FloatingVisualWindow: View {
         .frame(height: handleHeight)
         .frame(maxWidth: .infinity)
         .background(EchoelTheme.bg.opacity(0.92))
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    let base = dragAnchor ?? (center ?? defaultCenter(in: bounds, card: card))
-                    if dragAnchor == nil { dragAnchor = base }
-                    center = CGPoint(x: base.x + value.translation.width,
-                                     y: base.y + value.translation.height)
-                }
-                .onEnded { _ in dragAnchor = nil }
-        )
+        // NOTE: the move-drag lives on the ≡ handle only (see above), NOT the whole bar, so it
+        // can never swallow a toolbar-button tap.
     }
 
     private func cycleSize() {

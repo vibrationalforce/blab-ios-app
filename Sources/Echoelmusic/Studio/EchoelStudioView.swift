@@ -2306,9 +2306,11 @@ struct EchoelStudioView: View {
         let silentDrums = composition.drumSteps.map { $0.map { _ in false } }
         beatPlayer.pattern.load(steps: silentDrums, accents: silentDrums)
         // GLIDE the tempo (not snap) so a body re-seed eases in instead of jumping ("bpm
-        // springt"). When the take isn't playing yet (initial generate) glideTempo snaps
-        // instantly; while playing (evolve/lock re-seed) it slides over ~2 s. lockBPM already
-        // resolved `tempo` to the locked value above, so a locked take just glides to/holds it.
+        // springt plötzlich"). glideTempo now eases whether the take is PLAYING (advance()
+        // ticks) OR STOPPED (a small main-queue timer) — a re-seed landing on a paused take no
+        // longer snaps the transport number. The initial generate holds the current tempo
+        // (unchanged value → arrives at once), so it never lags. lockBPM already resolved
+        // `tempo` to the locked value above, so a locked take just glides to/holds it.
         beatPlayer.pattern.glideTempo(to: tempo)
         // GROOVE CYCLE 2: apply the genre's swing so odd 16ths land late for a
         // rolling, human feel (jazz/rock'n'roll shuffle, reggae bounce, dance push,

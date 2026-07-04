@@ -109,14 +109,14 @@ struct BioMetricInfoView: View {
 
             Text(metric.detail)
                 .font(EchoelTheme.font(14))
-                .foregroundStyle(EchoelTheme.dim)
+                .foregroundStyle(EchoelTheme.text)   // legible prose (was dim = 0.55 opacity, too faint)
                 .fixedSize(horizontal: false, vertical: true)
 
             Divider().overlay(EchoelTheme.border)
 
             Text(BioMetric.disclaimer)
                 .font(EchoelTheme.font(12))
-                .foregroundStyle(EchoelTheme.dim)
+                .foregroundStyle(EchoelTheme.text.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
@@ -156,7 +156,7 @@ struct BioMetricsGuideView: View {
 
             Text("Tap any value in the strip to revisit its explanation.")
                 .font(EchoelTheme.font(12))
-                .foregroundStyle(EchoelTheme.dim)
+                .foregroundStyle(EchoelTheme.text.opacity(0.7))
                 .padding(.bottom, 12)
 
             ScrollView {
@@ -173,7 +173,7 @@ struct BioMetricsGuideView: View {
                             }
                             Text(m.detail)
                                 .font(EchoelTheme.font(13))
-                                .foregroundStyle(EchoelTheme.dim)
+                                .foregroundStyle(EchoelTheme.text)   // legible prose (was dim = 0.55, too faint)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .accessibilityElement(children: .combine)
@@ -183,7 +183,7 @@ struct BioMetricsGuideView: View {
                     Divider().overlay(EchoelTheme.border)
                     Text(BioMetric.disclaimer)
                         .font(EchoelTheme.font(12))
-                        .foregroundStyle(EchoelTheme.dim)
+                        .foregroundStyle(EchoelTheme.text.opacity(0.7))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.bottom, 8)
