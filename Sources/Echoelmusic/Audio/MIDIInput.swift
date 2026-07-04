@@ -15,7 +15,7 @@ final class MIDIInput {
     var lastNote: Int = 0
     var lastVelocity: Float = 0
 
-    // MARK: - Callbacks (set by SoundscapeEngine)
+    // MARK: - Callbacks (set by the app's synth wiring via EngineBus/controllerEvents)
 
     /// Note on: (note 0-127, velocity 0-1, channel 0-15)
     var onNoteOn: ((Int, Float, Int) -> Void)?

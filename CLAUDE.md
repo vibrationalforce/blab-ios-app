@@ -94,32 +94,26 @@ Deprecated from main flow: the old SoundscapeEngine, ClipEngine, MomentCaptureVi
 Protected (do not modify without explicit user approval):
   BioEventGraph, HilbertSensorMapper, BioSignalDeconvolver.
 
-### Studio sections (actual, as shipped — `EchoelStudioView.swift`)
+### EchoelStudioView (actual, as shipped — corrected 2026-07-04)
 
-**NOT a TabView.** A single instrument view: always-on `BioStripView` (HR·HRV·Br·Coh,
-tap-to-learn, MIDI/OSC/event dots, play toggle) above Picker-selected sections, a
-one-button generate flow, and a **Tools** menu for the deeper editors.
-
-| Section / Tool | Content |
-|------|---------|
-| Compose | bio-generative one-button flow (in-key melody/rhythm/tempo, 12+ genres) |
-| FX | EchoelFX chain — stamp a character + full per-stage panel; presets (save/recall, curated + community, search, favorites/recents) |
-| Mix | levels / master |
-| Piano-Roll | note editor (also a Tools sheet) |
-| Well | coherence headline · breath pacer · **camera rPPG** · immersive visual |
-| Tools (menu) | Piano Roll · Clips · Sound Editor · **Drum Samples** (preview-before-assign) · Breathing Guide · Audio Input · Immersive Visual · MIDI/MPE out |
-
-*(The earlier `StudioRoot` Beat/Record/Video/Share AND Tools/Works/Sync/Well plans were
-both superseded; Record/Video/Share = ROADMAP, not wired.)*
+**The single Compose instrument, NOT a section shell.** Since the 2026-07-02 founder
+pivot ("Alles weg außer visuals"), the section Picker and the Tools grid are REMOVED
+from the UI — `EchoelStudioView` is the one-button bio-generative flow: always-on
+`BioStripView` (HR·HRV·Br·Coh leaf, tap-to-learn, MIDI/OSC/event dots) above the
+Composition panel (Tonart · Genre · Kammerton · `BodyTempoField` tempo lock ·
+loop size), generate + play, FX character, and the deeper editors reachable only via
+their remaining sheet slots (Piano Roll / patch editor / sample browser / audio clip /
+AUv3 — the `toolsSection` builder + sheets remain in code, reversible, unpresented).
+The old Section/Tools table stood here until 2026-07-04; do not resurrect it as fact.
 
 ---
 
-## TECH STACK — One Dependency Only
+## TECH STACK — Zero Dependencies Today
 
 | Layer | Framework |
 |---|---|
 | Apple (iPhone) | AVFoundation + Accelerate + Metal + CoreMIDI + VideoToolbox + SwiftData |
-| RTMP/RTMPS | HaishinKit (MIT, pinned exact tag) — sole external dependency |
+| RTMP/RTMPS | HaishinKit = **PLANNED** dep for P4 Broadcast — NOT linked (`Package.swift` `dependencies: []`; `BroadcastPublisher` is a `#if canImport(HaishinKit)` scaffold) |
 | Build | XcodeGen (`project.yml`) + Fastlane (TestFlight upload) + GitHub Actions |
 | DSP | Swift (audio-thread-safe, lock-free SPSC queues) |
 
@@ -148,16 +142,16 @@ Sources/Echoelmusic/
                        ← EchoelBioEngine + HealthKitBioPublisher + CameraRPPGBioPublisher (LIVE)
                        ← (BioSourceManager/OuraRingClient/EEGSensorBridge/MotionActivityProvider REMOVED)
   DSP/                 ← EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit (KEEP, reused as synth voices)
-  Views/               ← MomentCaptureView, MasterView, SoundscapeView, MetalBioView,
-                          BioVisualRenderer, OnboardingView, SettingsView, SessionGridView,
-                          SessionHistoryView, SoundDesignView, CameraMeasurementView (DEPRECATED, not in main flow)
+  Sync/                ← OSCSender, ADMOSCSender, Art-Net/sACN (EchoelLux), CloudSync
+  Tools/               ← PolySynthVoice, SubBassVoice, breath/vocal tools
+  Views/               ← MetalBioView + OnboardingView ONLY (the old deprecated-view list is deleted)
 Sources/EchoelmusicAUv3/ ← AUv3 Generator Plugin (deferred, not active in v10)
-Tests/                 ← 9 existing + new SequencerTests, RecorderTests, VideoTests, RTMPTests
+Tests/EchoelmusicTests/ ← 140 test files (see KEY TESTS)
 docs/                  ← Website (GitHub Pages)
 .github/workflows/     ← CI/CD (testflight.yml is primary)
 ```
 
-Allowed new top-level directories under `Sources/Echoelmusic/`: `Sequencer/`, `Stream/`, `Studio/`. No others without approval.
+Existing top-level directories under `Sources/Echoelmusic/`: `Audio/ Bio/ Core/ DSP/ Resources/ Sequencer/ Stream/ Studio/ Sync/ Tools/ Video/ Views/`. No NEW top-level directories without approval.
 
 ---
 
@@ -264,7 +258,7 @@ Priority: Build errors → Test failures → Crash code → Task → Cleanup
   rule was really "no JUCE licence fees" — C++ is permitted ONLY for a **free,
   well-contained, Council-approved** library kept out of the Swift audio core
   (e.g. Ableton Link / LinkKit, which is free). Default stays Swift; deps stay
-  minimal (HaishinKit = sole shipped external dep today).
+  minimal (ZERO external deps shipped today; HaishinKit = the planned RTMP dep, not linked).
 - `///` for public API docs
 
 ---
@@ -353,7 +347,7 @@ list named 11 files that never existed — do not reintroduce it.)
 | `quick-test.yml` | Fast test suite |
 | `pr-check.yml` | PR validation |
 
-> **No JUCE / no CMake / no C++.** Swift 100%, one external dependency (HaishinKit).
+> **No JUCE / no CMake / no C++.** Swift 100%, ZERO external dependencies today (`Package.swift` `dependencies: []`; HaishinKit = planned, compile-guarded only).
 > The old CMake/JUCE/iPlug2 desktop scaffolding (`CMakeLists.txt`, `setup*.sh`,
 > `build.yml`, `desktop_build.yml`, desktop build scripts) was removed 2026-06-19.
 > Legacy/contradictory workflows also removed 2026-06-19: `android-build.yml`,
@@ -391,17 +385,25 @@ GITHUB_TOKEN=$(python3 -c "import json; print(json.load(open('.claude/settings.l
 
 ## OSC (EchoelSync)
 
+Actual address set (source of truth: `Sync/OSCSender.swift` — corrected 2026-07-04;
+the old list named eeg/{band}, audio/rms, audio/pitch which are NEVER sent):
+
 ```
-/echoelmusic/bio/heart/bpm       float [40-200]
-/echoelmusic/bio/heart/hrv       float [0-1]
-/echoelmusic/bio/breath/rate     float [4-30]
+/echoelmusic/bio/heart/bpm       float
+/echoelmusic/bio/heart/hrv       float [0-1] (normalized)
+/echoelmusic/bio/heart/rmssd     float ms   (only when source provides >0)
+/echoelmusic/bio/heart/sdnn      float ms   (   "   )
+/echoelmusic/bio/heart/pnn50     float      (   "   )
+/echoelmusic/bio/breath/rate     float
 /echoelmusic/bio/breath/phase    float [0-1]
 /echoelmusic/bio/coherence       float [0-1]
-/echoelmusic/bio/eeg/{band}      float [0-1]
-/echoelmusic/audio/rms           float [0-1]
-/echoelmusic/audio/pitch         float Hz
+/echoelmusic/bio/motion          float
+/echoelmusic/mod/<key>           float      (modulation-matrix outs, e.g. seq.tempo)
+/echoelmusic/bio/event/heartbeat | breath/inhale | breath/exhale | motion
+                                 | coherence | eeg   (discrete events)
 ```
 
+Plus ADM-OSC immersive object out via `ADMOSCSender`: `/adm/obj/{n}/*`.
 UDP. Target: <5ms LAN.
 
 ---

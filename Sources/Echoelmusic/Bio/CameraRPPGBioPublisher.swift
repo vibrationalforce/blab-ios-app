@@ -7,7 +7,7 @@
 //  BioSampleFrame(source: .cameraPPG) at ~1 Hz when a confident pulse is
 //  detected. Opt-in (started explicitly by the UI), never auto-run.
 //
-//  Concurrency (mirrors the proven BioSourceManager pattern):
+//  Concurrency:
 //  CameraCapture delivers CVPixelBuffers on its capture queue; we average the
 //  center region to 3 Sendable Floats THERE, then hop to the main actor to feed
 //  the @MainActor CameraAnalyzer (CVPixelBuffer is non-Sendable, so it never

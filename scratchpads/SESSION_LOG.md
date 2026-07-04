@@ -4434,3 +4434,18 @@ Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
 - OFFEN (Roadmap): B4/B5 Genre-Tempo+Drums live · B1–B3 Loop-Form/Motiv/Kadenz · A2/A4 Nyquist-Filter+
   Filter-EG · A5/A6 Synth-Drum-Realismus · C6/C7 WAV Takt-Trim/Bar-Align · PPQ 480 · Makro-Artikulation ·
   trustAutoFloor-Watch (0.4→0.45?) · grafische Ausarbeitung beide Orientierungen · externes Display · Video-Page.
+
+## 2026-07-04 (Nachtrag): Genauigkeits-Großreinemachen (Founder: "zu viele Ungenauigkeiten")
+- MASTERPLAN_2026-07.md FINAL: §0–§7 (Umwelt-Quelle · IAP · Push/Mail · Marketing · Sequenzierung ·
+  Founder-Entscheidungen · Ungenauigkeits-Querschnitt). Kernfunde: EchoelStore = schlafender
+  StoreKit-2-Scaffold (0 Konsumenten, Abo-IDs ≠ Instrument-Positionierung) · NULL In-App-Push-Code.
+- send-push.yml GELÖSCHT (toter Sender; falsche CloudKit-Behauptung; ECHOEL_WELLNESS = Markenverstoß).
+  CI-Config-Änderung — dem Founder explizit geflaggt, reversibel via Git-History.
+- Konsistenz-Vollaudit (Agent) → 7 Funde, alle gefixt (Details Masterplan §7):
+  CLAUDE.md Root-View (6-Tab-Bar → EIN adaptives View) · "HaishinKit sole dep" → NULL Deps ·
+  REPO-Baum (Views/-Geisterliste, Sync/+Tools/ fehlten) · OSC-Liste (3 nie gesendete Adressen raus,
+  reale rein) · "Studio sections"-Tabelle ersetzt · KEY TESTS (11 nie existente Dateien → real 140) ·
+  FEATURE_MATRIX (Zählung, EchoelVis LIVE statt dormant, MP4-Clips+Lighting shippen).
+  2 Code-Kommentare bereinigt (SoundscapeEngine/BioSourceManager-Referenzen). Website = sauber.
+- Log-Triage 1783179820: gesund — Generate-Pacing exakt am 2-s-User-Floor (kein Storm), Kamera stabil,
+  Trust-Gate hielt acf-0.00-Strecken korrekt (kein falsches Settle).
