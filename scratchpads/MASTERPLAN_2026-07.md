@@ -220,8 +220,24 @@ Beim Deep Audit für diesen Plan gefundene Widersprüche Doku ↔ Code (Founder-
    Abo-IDs widersprechen der Instrument-Positionierung (Abschnitt 2: ein Pro-Unlock).
 3. ✅ send-push.yml: falsche CloudKit-Behauptung + ECHOEL_WELLNESS (Markenverstoß),
    ohne jeden In-App-Empfänger. → gelöscht (Abschnitt 3).
-4. Offen: Konsistenz-Vollaudit (Docs/Website/FEATURE_MATRIX/CLAUDE.md vs Code) läuft
-   als Agent; Ergebnisse werden hier bzw. direkt als Fixes nachgetragen.
+4. ✅ Konsistenz-Vollaudit gelaufen (Agent, 2026-07-04) — 7 Funde, ALLE gefixt:
+   a) CLAUDE.md Root-View beschrieb noch die 6-Tab-Bar (Shell ist EIN adaptives View
+      seit Pivot 02.07.; verifiziert: null Aufrufstellen für die alten Surfaces).
+   b) "HaishinKit = sole external dependency" an 3 Stellen — Realität: NULL Dependencies
+      (`Package.swift dependencies: []`); HaishinKit nur geplant/compile-guarded.
+   c) REPO-STRUCTURE-Baum: Views/ listete 9 gelöschte Dateien; Sync/ + Tools/ fehlten
+      komplett (Baum + Allowed-Liste korrigiert auf die 12 realen Verzeichnisse).
+   d) OSC-Adressliste nannte eeg/{band}, audio/rms, audio/pitch (werden NIE gesendet)
+      und verschwieg motion, rmssd/sdnn/pnn50, mod/<key>, event/* (jetzt = OSCSender).
+   e) "Studio sections"-Tabelle (Picker + Tools-Menü) — seit Pivot 02.07. überholt;
+      ersetzt durch die reale Single-Compose-Beschreibung.
+   f) 2 Code-Kommentare referenzierten gelöschte Typen (SoundscapeEngine in
+      MIDIInput, BioSourceManager in CameraRPPGBioPublisher) — bereinigt.
+   g) FEATURE_MATRIX: "~133 Swift + 2 Metal" (real: ~214 + 1); EchoelVis-Sektion
+      nannte 3 gelöschte Dateien und stufte das LIVE MetalBioView als dormant ein;
+      "not shipping"-Liste behauptete MP4-Clips + Lighting seien nicht live (sind sie).
+   SAUBER laut Audit: Website (docs/) — RTMP/Video/Multitrack korrekt als ROADMAP
+   markiert, keine Overclaims; @main-Kette; iOS-18-Floor konsistent.
 Regel für alle Achsen dieses Plans: KEINE neuen Dependencies, KEINE neuen Top-Level-
 Verzeichnisse, jede Achse hinter Council-Gate, Render-Safety-Regeln gelten (Paywall/
 Umwelt-UI = bestehenden Sheet-Slot wiederverwenden, nie Kette verlängern).

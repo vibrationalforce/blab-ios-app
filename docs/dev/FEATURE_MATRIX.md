@@ -18,7 +18,7 @@ acceptance line.
 > - **rPPG hardened** (`Bio/CameraRPPGBioPublisher.swift` + `Video/CameraCapture.swift`): session-device torch + exposure lock → reliable lock; peak scan throttled off the main actor (UI no longer stalls).
 > - **New pure tested CORES, built but NOT yet wired** (do NOT claim as shipping): `Studio/BioVisualParams.swift`, `Studio/VocoderCore.swift` (the flagship audiovisual vocoder: voice→sound+visual+light, flash-safe), `Studio/FeedbackGuard.swift` (howlround duck+notch brain), `Studio/BioModulation.swift` (universal `BoundParameter` bio-binding spine + `ClockSource` heartbeat-vs-BPM-lock), `Core/CloudSync.swift` (zero references outside its own file as of the 2026-06-20 obstacle audit — wire or remove before it rots), `Bio/ResonanceFinder.swift` (personalized resonance-frequency core; host orchestration + UI pending).
 > - **Clips/Arrangement:** domain (`Clip`/`Arrangement`/`ArrangementPlayer`/`LaunchQuantizer` + stores) + tests EXIST; the **UI is the open gap** (#1).
-> - **Legal/privacy:** ONE worldwide policy (GDPR/UK + CCPA/CPRA) in American English; `privacy.html` / `impressum.html` / `health.html` corrected to match shipped features. **~133 Swift (Sources) + 2 Metal.**
+> - **Legal/privacy:** ONE worldwide policy (GDPR/UK + CCPA/CPRA) in American English; `privacy.html` / `impressum.html` / `health.html` corrected to match shipped features. **~214 Swift (Sources) + 1 Metal** (count drifts every cycle — verify with `find Sources -name '*.swift' | wc -l`; corrected 2026-07-04, was "~133 + 2 Metal").
 
 > **UPDATE (2026-06-12) — USP focus + bio-generative composer:** the iPhone app
 > is now **Simple-by-default**, reduced to the USP × broad-audience intersection
@@ -125,12 +125,12 @@ acceptance line.
 - **Roadmap:** face tracking (ARKit); raw PPG/ECG waveform; EEG band-power (LSL).
 - **TestFlight acceptance:** `BioStripView` shows live HR/HRV/Br/Coh; camera pulse locks (PPG); BLE strap shows its name; Demo works on Simulator; Widget mirrors vitals.
 
-### 7. EchoelVis — `PARTIAL`
-- **Code (live):** `Studio/BioVisualView.swift` — reachable from Well (fullScreenCover), reads `EngineBus`.
-- **Code (dormant):** `Views/MetalBioView.swift`, `Views/BioVisualRenderer.swift`, `Video/Shaders/*.metal` — only referenced by the deprecated `MomentCaptureView`, NOT in the main flow.
-- **Live:** the Well immersive visual (BioVisualView) responds to coherence/bio.
-- **Roadmap:** wire the Metal renderer (120 fps modes, chroma key, Hilbert-map) into the live flow; generative/AR worlds.
-- **TestFlight acceptance:** Well → Immersive visual presents and reacts to bio.
+### 7. EchoelVis — `LIVE` (corrected 2026-07-04; the old PARTIAL entry named deleted files)
+- **Code (live):** `Views/MetalBioView.swift` (Metal bio visual, inline-compiled shader, AdaptiveQuality FPS/detail tiers, flash-safe ≤3 Hz, Reduce Motion) inside `Studio/FloatingVisualWindow.swift` — the floating/fullscreen window toggled from the WorkspaceView header, with in-fullscreen VJ controls + palette.
+- **Code (live, capture):** `Video/VisualRecorder.swift` + `Video/VideoMuxer.swift` — records the visual to stamped **MP4 clips** (share-ready) from the floating window.
+- **Gone:** `BioVisualView` / `BioVisualRenderer` / `MomentCaptureView` were deleted in cleanup — do not reference them.
+- **Roadmap:** external-display output window; more looks; AR worlds.
+- **TestFlight acceptance:** header monitor toggles the floating visual; it reacts to bio; fullscreen + record work.
 
 ### 8. EchoelVid — `ROADMAP`
 - **Code:** `Video/CameraCapture.swift` (used ONLY by camera rPPG), `Video/CameraAnalyzer.swift` (rPPG). **Audit:** `CameraSession` / `VideoRecorder` / `ClipTrimmer` = 0 instantiations; `ShortContentRenderer` not wired. **No video recording/editing is shipping.**
@@ -194,7 +194,7 @@ Ship only what is `LIVE` or the `LIVE` part of `PARTIAL`. Build #1 = a working
 6. Modulation matrix routes bio→tempo (Sync tab).
 7. Well immersive visual reacts to bio (EchoelVis, BioVisualView).
 
-**Not wired / not shipping** (corrected by the 2026-06-09 audit): multitrack audio export, short-form MP4 video recording, advanced Metal visual modes, RTMP streaming, lighting. `EchoelLux` (Art-Net) is the planned next cycle; `EchoelStage`, `EchoelAI`, and all `Roadmap` rows remain out.
+**Not wired / not shipping** (re-corrected 2026-07-04): multitrack audio export, CAMERA video recording/editing (EchoelVid), RTMP streaming. **Now LIVE (the 2026-06-09 list was stale on these):** MP4 clips of the VISUAL (`VisualRecorder`), the Metal visual itself (MetalBioView, floating window), and lighting (`EchoelLux` Art-Net + sACN unicast). `EchoelStage`, `EchoelAI`, and all `Roadmap` rows remain out.
 
 ### Build/signing config of record (verify before each TestFlight run)
 - **Target:** iOS 18, iPhone. `project.yml` + `Resources/iOS/Info.plist` + `Package.swift` all iOS 18. `MARKETING_VERSION 10.0.0`.
