@@ -928,7 +928,13 @@ public enum BioComposer {
             // a take reads as bass · pad · PULSE · lead, an arrangement, not one static
             // Fläche. Arpeggiated genres already move, so skip them. Chord tones only →
             // always in key; sits at the pad's register, softer than the pad.
-            if !profile.arpeggiated, !voiced.isEmpty {
+            // DRONE WHEN CALM (founder 2026-07-04 "könnte mehr Drone mäßig sein"): the
+            // pulse is the busy/notey layer. As the body settles (coherence high) DROP it
+            // so the texture becomes a sustained pad + bass + sparse lead — a drone. The
+            // calmer you get, the more it becomes a drone (the meditative reward), and the
+            // synth summing thins out too (fewer simultaneous onsets → less saturation).
+            // As arousal returns the pulse comes back for movement.
+            if !profile.arpeggiated, !voiced.isEmpty, calm <= 0.6 {
                 let pulseGap = busy > 0.6 ? 1 : 2                       // 16ths busy, else 8ths
                 let pulseVel = clamp01(padVelocity * 0.55)
                 // Voice the pulse an OCTAVE ABOVE the pad (chord tones + 12, clamped ≤127) —

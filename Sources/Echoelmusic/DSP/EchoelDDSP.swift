@@ -1697,10 +1697,13 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // made the master level jump every time a note started or stopped
         // (audible pumping on chord/arp changes). A constant headroom keeps the
         // level stable and lets the tanh below gently catch peaks on dense chords.
-        // 0.45 leaves enough headroom that the tanh below stays near-linear for
+        // 0.40 leaves enough headroom that the tanh below stays near-linear for
         // typical chords (acting as a safety brick-wall, not a tone-colouring
         // stage) so it doesn't double-saturate with the FX chain's saturation.
-        let gainComp: Float = 0.45
+        // Trimmed 0.45 → 0.40 (founder ear-feedback "klingt noch etwas verzerrt"):
+        // dense 12-voice chords were driving the tanh into audible saturation; the
+        // extra headroom keeps it near-linear (the master −1 dBFS trim holds level).
+        let gainComp: Float = 0.40
         for i in 0..<frameCount {
             let scaledL = mixBufferL[i] * gainComp
             let scaledR = mixBufferR[i] * gainComp
