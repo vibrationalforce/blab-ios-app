@@ -354,6 +354,17 @@ public final class EchoelDDSP: @unchecked Sendable {
     private var pitchDriftTarget: Float = 0
     private var pitchDriftCounter: Int = 0
 
+    /// Analog LEVEL drift — the breath/bow-pressure twin of the pitch drift: no human
+    /// holds a note at a perfectly constant level, so a slow ±few-% aperiodic wander on
+    /// the gain makes sustains breathe like a played instrument instead of a test tone.
+    /// 0 disables (bit-identical render). Deliberately a DIFFERENT cadence (~120 ms) and
+    /// glide than the pitch drift so the two wanders stay uncorrelated, like a real hand.
+    /// Fraction of level, e.g. 0.05 = ±5 % (≈ ±0.4 dB) — felt, not heard as tremolo.
+    public var levelDriftAmount: Float = 0.05
+    private var levelDriftValue: Float = 0
+    private var levelDriftTarget: Float = 0
+    private var levelDriftCounter: Int = 0
+
     /// Current envelope value
     private var envelopeValue: Float = 0
 
@@ -672,6 +683,9 @@ public final class EchoelDDSP: @unchecked Sendable {
         pitchDriftValue = 0                // start in tune; analog drift accrues from here
         pitchDriftTarget = 0
         pitchDriftCounter = 0              // draw a fresh drift target on the first render sample
+        levelDriftValue = 0                // start at nominal level; pressure wander accrues
+        levelDriftTarget = 0
+        levelDriftCounter = 0
         envelopeStage = .attack
         envelopeSamples = 0
     }
@@ -874,6 +888,20 @@ public final class EchoelDDSP: @unchecked Sendable {
             if smoothedGain < 0 { smoothedGain = amplitude }
             smoothedGain += 0.01 * (amplitude - smoothedGain) + antiDenormal
             var sample = mixed * smoothedGain * envelopeValue
+            // Analog LEVEL drift (breath/bow-pressure instability) — same random-walk
+            // pattern as the pitch drift above, but its own slower cadence/glide so the
+            // two wanders stay uncorrelated. ±levelDriftAmount around nominal; 0 = off,
+            // and the multiply-by-1 path is bit-identical. Pure arithmetic, no calls.
+            if levelDriftAmount > 0 {
+                levelDriftCounter -= 1
+                if levelDriftCounter <= 0 {
+                    levelDriftTarget = nextNoiseSample()          // fresh target in [-1,1]
+                    levelDriftCounter = Int(0.12 * sampleRate)    // new target ~every 120 ms
+                }
+                levelDriftValue += 0.0004 * (levelDriftTarget - levelDriftValue)
+                if levelDriftValue < 1e-20 && levelDriftValue > -1e-20 { levelDriftValue = 0 }
+                sample *= 1.0 + levelDriftValue * levelDriftAmount
+            }
 
             // --- Resonant Filter (SVF) ---
             // LFO modulates filter cutoff around the base cutoff
