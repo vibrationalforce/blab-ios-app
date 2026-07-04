@@ -1,26 +1,18 @@
-build: 2026-07-04 v10.79.54 (Kein BPM-Sprung mehr · Visual zittert/glitcht nicht · Palette klickbar)
+build: 2026-07-04 v10.79.55 (Natürlicher Ton: Hüllkurve korrigiert — Töne klingen echt aus)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine vier Punkte, alle vier behoben:
-  1) BPM SPRINGT PLOETZLICH: die Musik-Tempo-Zahl (Transport) glitt bisher nur waehrend LAUFENDER
-     Wiedergabe sanft — wenn ein Koerper-Re-Seed auf eine PAUSIERTE Aufnahme fiel (du hast oben
-     gestoppt, die Puls-Messung laeuft aber weiter), SPRANG die Zahl. Jetzt gleitet das Tempo IMMER
-     sanft, ob spielend oder pausiert (ein leiser Steuer-Timer uebernimmt im Stop). Die Zahl springt
-     nie mehr — nur ein manueller Tap/Edit/Lock setzt sie exakt und sofort.
-  2) EINE BPM LINKS REICHT: die linke Puls-Zahl (Herzschlag) ist weiterhin die eine vertrauens-
-     gepruefte Anzeige (haelt den letzten sicheren Wert, keine Zappelei). Die Transport-Tempo-Zahl
-     ist die MUSIK-Geschwindigkeit (zum Musikmachen noetig: Lock/Tap/Editieren) — sie zeigt jetzt
-     nur noch ruhige, gegleitete Werte, statt mit dem Puls zu konkurrieren.
-  3) VISUALFENSTER ZITTERT: die Metal-Ansicht schrieb eine Drawable-Eigenschaft (framebufferOnly)
-     in JEDEM Frame neu — das konfiguriert die Ebene jedes Mal um und liess das Bild flimmern
-     (schlimmer im Vollbild). Jetzt wird sie NUR beim echten Umschalten (Aufnahme an/aus)
-     geschrieben; im Normalbetrieb bleibt die Ebene unberuehrt → ruhiges Bild.
-  4) PALETTE-KLICK → BILDFEHLER: dieselbe Pro-Frame-Umkonfiguration verursachte den Glitch beim
-     Look-Wechsel; mit (3) behoben. Zusaetzlich: das Verschieben des Fensters haengt jetzt NUR am
-     ≡-Griff (nicht an der ganzen Leiste), damit ein Fingertipper auf die Palette nicht als
-     Ziehen missverstanden wird ("nicht anklickbar"). Und die Info-Texte (HRV etc.) sind auf
-     volle Lesbarkeit hochgezogen.
-  Technik: PatternEngine (Stopp-Glide-Timer, main-queue, gleiche bewaehrte Isolation wie die
-  Beat-Uhr), MetalBioView (framebufferOnly nur-bei-Aenderung), FloatingVisualWindow (Drag am Griff),
-  BioMetricInfo (Kontrast). Tests: TempoStabilityTests auf die neue Glide-Regel angepasst.
-  TEST 10.79.54: Start → oben Stop druecken waehrend die Messung laeuft → springt die Tempo-Zahl
-  noch, wenn der Puls sich einpegelt? Visual im Vollbild: zittert es? Palette antippen: Bildfehler?
+notesT: Deep Audit "natürlicher Klang" — erster und wirkungsvollster Fund, sofort behoben:
+  DIE HÜLLKURVE WAR MATHEMATISCH VERKEHRT HERUM. Die "exponentielle" Decay/Release-Kurve war
+  KONVEX (beschleunigend): jeder Ton hielt fast auf voller Lautstaerke und fiel dann am Ende
+  abrupt ab ("halten-dann-abschneiden") — der auffaelligste unnatuerliche Fingerabdruck des
+  Klangs. Real klingt ein gezupfter/gestrichener/analoger Ton KONKAV aus: schneller erster
+  Abfall, langer leiser Schweif. Korrigiert auf die echte -60-dB-Form (1-exp(-6.9p))/(1-exp(-6.9)).
+  Betrifft NUR Decay + Release (der Attack nutzt weiterhin smoothstep, unveraendert click-frei).
+  Wirkung: jeder Ton — Pad, Lead, Bass, Pluck — klingt jetzt natuerlich aus statt hart
+  abgeschnitten. Eine Zeile, kein Risiko fuer die Audio-Latenz (reine Arithmetik).
+  KONTEXT: Das war Fund A1 von 20+ aus dem Deep Audit (Klang-Realismus · Loop-Sinn · DAW-Export).
+  Die groesste Baustelle kommt als naechstes: ein gespeicherter 8/16-Takt-Loop exportiert
+  aktuell nur 1 Takt MIDI — das behebe ich im naechsten Build mit vollem N-Takt-Export +
+  Tonart/Taktart im File, damit du in der DAW wirklich weiterarbeiten kannst.
+  Plan komplett in scratchpads/PLAN_SOUND_AND_LOOP_QUALITY.md.
+  TEST 10.79.55: Einen Ton/Loop spielen — klingen die Toene jetzt natuerlich AUS (weicher
+  Schweif), statt am Ende abrupt zu verstummen?
