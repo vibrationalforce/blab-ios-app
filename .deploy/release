@@ -1,17 +1,19 @@
-build: 2026-07-04 v10.79.57 (Atem-Anzeige ehrlich + Visual zittert beim Verschieben nicht mehr)
+build: 2026-07-04 v10.79.58 (Tempo folgt dem Körper sanft — kein eingefrorener Start-Wert mehr)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zwei klare Probleme aus deinem Screenshot behoben:
-  1) "Br 0.0 /min" war Unsinn — 0 Atemzuege/min ist unmoeglich (die Kamera misst KEINEN Atem,
-     also stand da faelschlich 0.0). Jetzt steht "—" wenn kein plausibler Atem (3–40/min)
-     vorliegt — ehrlich, genau wie Coherence/HRV es schon machen. Kein Fake-Nullwert mehr.
-  2) VISUAL ZITTERT BEIM VERSCHIEBEN: die Ziehen-Geste hat die Bewegung im EIGENEN Rahmen des
-     Griffs gemessen — der sich beim Ziehen mitbewegt. Dadurch speiste sich die gemessene
-     Verschiebung selbst zurueck → das Fenster zitterte, waehrend man es zog. Jetzt wird im
-     festen Bildschirm-Raum gemessen (.global) → ruckelfreies, ruhiges Verschieben.
-  NOCH OFFEN (deine eingekreiste Tempo-Zahl 98 bei Puls 65.8): das ist eine bewusste Design-
-  Entscheidung ("Tempo EINMAL vom Koerper setzen, dann HALTEN", damit ein zappelnder Puls den
-  Beat nicht springen laesst) — deshalb haelt es den beim Start (Puls war da hoeher, ~124)
-  gesetzten Wert. Ob das Tempo dem Puls sanft NACHFOLGEN soll oder stabil HALTEN, frage ich
-  dich getrennt und baue es dann exakt so — kein Blindschuss an der empfindlichsten Stelle.
-  TEST 10.79.57: Visual-Fenster am ≡-Griff verschieben — ruhig ohne Zittern? Und steht bei
-  Atem jetzt "—" statt "0.0"?
+notesT: Deine eingekreiste Tempo-Zahl (98 bei Puls 65.8): behoben. Ursache war Absicht, aber
+  zu streng — das Tempo wurde beim Start EINMAL vom Koerper gesetzt und dann fuer immer
+  GEHALTEN. Beim Start war dein Puls hoeher (~124, Bewegung/Anspannung) → Tempo 98 eingefroren,
+  waehrend der Puls sich auf 66 einpegelte. Ergebnis: dauerhafte Diskrepanz.
+  NEU: das Tempo FOLGT dem Koerper jetzt SANFT — bei jedem Evolve-Tick (~alle 30 s) gleitet es
+  hoechstens ±8 BPM Richtung aktuellem, eingepegeltem Puls-Tempo. So konvergiert ein zu hoher
+  Start-Wert (98) in ~2 min zum echten Ruhepuls (~66), OHNE je zu springen. Drei Schutz-
+  schichten gegen das alte "springt auf 196": (1) nur ein VERTRAUENSWUERDIGER, eingepegelter
+  Puls bewegt es, (2) max ±8 BPM pro Schritt, (3) gleitet ueber ~2 s. Lock BPM / Tap / manuelles
+  Editieren gewinnen weiter sofort und exakt.
+  HINWEIS: Ich wollte dich eigentlich fragen, ob das Tempo dem Puls FOLGEN oder stabil HALTEN
+  soll — die Rückfrage ging technisch nicht durch. Ich habe die bio-reaktivste, sicherste
+  Variante gewaehlt (sanftes Folgen, garantiert sprungfrei). Wenn du lieber "einmal setzen &
+  stabil halten" oder "Tempo ist nur meine Wahl (Koerper formt nur den Klang)" willst — ein
+  Wort, und ich stelle es um.
+  TEST 10.79.58: Start bei Bewegung → Puls pegelt sich runter → gleitet das Tempo langsam
+  Richtung Ruhepuls, ganz ohne Sprung? Und bleibt Lock/Tap sofort exakt?

@@ -133,6 +133,11 @@ struct EchoelStudioView: View {
 
     private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
 
+    /// Max BPM the take tempo may drift toward the body per evolve tick (~every 30 s), glided.
+    /// Small enough that the beat never lurches, large enough that a stale startup seed
+    /// (e.g. 98 from an elevated launch pulse) converges to the settled pulse within ~2 min.
+    private static let tempoConvergeStep: Double = 8
+
     /// "10.24.0 (1920)" — marketing version + build, read from the bundle so the
     /// running app reports exactly which TestFlight build it is.
     static var appVersionString: String {
@@ -2218,16 +2223,27 @@ struct EchoelStudioView: View {
         synth.setTuning(a4Hz: session.a4Hz)
         subBass.setTuning(a4Hz: session.a4Hz)
         synth.apply(currentPatch)
-        // TEMPO — stable beat you can actually make music over (founder: "springt ständig auf
-        // 196 bpm … bei diesen Sprüngen funktioniert das nicht"). The body SEEDS the tempo ONCE
-        // at the start of a take; after that it HOLDS. Evolve/re-seed ticks evolve only the
-        // MELODY, never the beat — so a noisy rPPG octave-error can't slam the tempo to
-        // double-time mid-take. The user changes tempo any time via the transport bar / lock.
+        // TEMPO — bio-reactive but never jumpy. The body seeds the tempo once the pulse is
+        // trustworthy, then the beat GENTLY CONVERGES toward the body's live trend on each
+        // evolve tick (founder circled "98 bpm vs Puls 66": the first seed captured an elevated
+        // STARTUP pulse (~124) and the old code FROZE it forever while the body settled much
+        // lower). Convergence is safe against the original "springt auf 196" fear by three
+        // independent guards: only a TRUSTWORTHY (settled) reading moves it, each step is capped
+        // to ±`tempoConvergeStep` BPM, and `glideTempo` slides it in over ~2 s — so a noisy rPPG
+        // octave error can never slam the beat, yet the tempo no longer holds a stale value.
         let tempo: Double
         if lockBPM {
             tempo = min(max(lockedBPM, 40), 240).rounded()
         } else if tempoSeededFromBody {
-            tempo = beatPlayer.pattern.tempo          // seeded once → keep the beat steady
+            // Ease toward the current body-mapped tempo (octave-folded), at most ±step per tick.
+            if bodyTempoTrustworthy(frame) {
+                let target = StudioCalculator.seedTempo(composition.suggestedTempo).rounded()
+                let current = beatPlayer.pattern.tempo
+                let delta = max(-Self.tempoConvergeStep, min(Self.tempoConvergeStep, target - current))
+                tempo = (current + delta).rounded()
+            } else {
+                tempo = beatPlayer.pattern.tempo      // no trustworthy body → hold this tick
+            }
         } else {
             // Not yet locked to the body for this take. Seed the tempo from the body's musical
             // mapping (octave-folded so a doubled pulse 196 ≈ 2×98 can't set a runaway tempo) —
