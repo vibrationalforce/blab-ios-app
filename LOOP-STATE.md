@@ -6,6 +6,10 @@ macOS/Xcode (Linux-Container) → `xcodegen generate` + `xcodebuild` laufen als
 CI-Gate `xcode-compile-check.yml`, Build+Tests als `ci.yml`. „Grün" heißt:
 beide Gates grün auf dem gepushten Commit.
 
+**VALIDIERT ✅ (2026-07-04):** Commit `828e17f` — beide CI-Gates grün
+(`xcode-compile-check.yml` = xcodegen generate + xcodebuild auf macOS;
+`ci.yml` = Build + Tests). Der Hygiene-Pass ist damit abgeschlossen.
+
 ## Durchlauf 1 — 2026-07-04 (Hygiene-Pass, ein Commit)
 
 | Bereich | Status | Änderung | Validierung |
