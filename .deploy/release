@@ -1,18 +1,18 @@
-build: 2026-07-04 v10.79.67 (ECHTE INSTRUMENTE: Klavier + Streicher statt Synthesizer — der Fundament-Tausch)
+build: 2026-07-04 v10.79.68 (DEINE EIGENEN DRUMS + echte Instrumente — dein Sound-Material im Beat)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Urteil ("klingt alles mega scheisse") hat das Fundament getauscht — dieser
-  Build klingt anders als alles davor:
-  1) ECHTE INSTRUMENTE SIND JETZT DER STANDARD-KLANG: Die Melodie spielt ein echtes
-     KLAVIER, die Harmonien spielen echte STREICHER (gesampelte Instrumente ueber
-     Apples eingebauten Profi-Sampler, GeneralUser-GS-Bank, frei lizenziert). Der
-     Bass bleibt der tiefe Synth-Sub — sauberes Low-End. Der bisherige Synthesizer
-     ist NICHT weg: im Composition-Panel gibt es jetzt "Sound" mit Real instruments /
-     Classic synth zum Umschalten.
-  2) Biofeedback wirkt weiter: Herz/Atem/Kohaerenz formen die FX-Kette (Raum, Filter,
-     Charakter) — jetzt eben um echte Instrumente herum statt um Synthesizer-Toene.
-  3) Die App ist dadurch ~32 MB groesser (das Instrumenten-Set, von dir freigegeben).
-  DER EINE TEST 10.79.67: Start druecken, 30 Sekunden zuhoeren. Klingt es zum ersten
-  Mal nach MUSIK (Klavier + Streicher) statt nach Synthesizer-Demo? Dann im Panel
-  einmal auf "Classic synth" zurueckschalten und den Unterschied hoeren.
-  (Ehrlich offen: Komposition B1-B3 und echte Drums sind die naechsten zwei Zyklen
-  derselben Baustelle — heute tauschen wir die Klangquelle.)
+notesT: Deine eigene Sample-Bibliothek ist jetzt IN der App — kombiniert mit den echten
+  Instrumenten aus dem letzten Build:
+  1) DEINE DRUMS IN JEDEM BEAT: Die 8 Standard-Drums der App sind durch deine eigenen
+     Sounds ersetzt (909-Kick, Cassette-Snare, 909-HiHats, dein Clap, Claves-Perc,
+     808-Sub, Ambi-Plop-FX) — aus der Bibliothek, die du geteilt hast. Jeder Genre-Beat
+     (Disco/Rock/Trap/Dub...) spielt ab jetzt DEINE Drum-Machines statt Platzhalter.
+  2) DAZU eine kategorisierte Bibliothek deiner Sounds in der App (Kick/Snare/Hat/Clap/
+     Perc/Cymbal/Bass/Chords) — im naechsten Schritt zum Durchhoeren + pro Pad tauschen.
+  3) Melodie/Harmonien weiter als echte Instrumente (Klavier + Streicher, umschaltbar
+     auf Classic Synth) aus dem letzten Build.
+  Ehrlich: von deinen ~4800 Samples habe ich ein schlankes, sinnvolles Kit kuratiert
+  (nicht 876 MB reingeworfen) — nach Namen, weil ich hier nicht reinhoeren kann. Was dir
+  nicht passt, tauschst du. 20 der geplanten Bibliotheks-Files sind bei der Konvertierung
+  durchgefallen (hole ich nach); die 8 Haupt-Drums + je 2-3 pro Kategorie sind drin.
+  TEST 10.79.68: Start druecken, Beat laufen lassen (z.B. Genre mit Drums wie Disco/Rock/
+  Trap). Klingen die Drums jetzt nach DEINEN Sounds — druckvoller, echter?
