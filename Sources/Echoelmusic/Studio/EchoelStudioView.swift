@@ -202,6 +202,11 @@ struct EchoelStudioView: View {
     /// The no-body structure seed for THIS take — drawn once per Start, stable until the
     /// next take. Keeps the piece coherent through the pre-lock warm-up (see bioSeed).
     @State private var takeFallbackSeed: UInt64 = 1
+    /// The body state (HR·coherence) captured at the last take — the baseline the evolve
+    /// HOLD compares against (founder 2026-07-04 "halten wenn eingerastet"): a settled,
+    /// unchanged body holds its phrase instead of re-rolling every ~30 s. nil = the last
+    /// take had no usable body (neutral/demo), so evolve keeps it gently alive.
+    @State private var lastGenBody: (bpm: Double, coherence: Double)? = nil
     /// Minimum seconds between AUTOMATIC re-seeds (evolve/lock). User edits bypass it.
     /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
     /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
@@ -2094,6 +2099,7 @@ struct EchoelStudioView: View {
     private func stopEverything() {
         running = false
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
+        lastGenBody = nil                // next Start re-captures a fresh body baseline (evolve hold)
         startTask?.cancel(); startTask = nil
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil
@@ -2151,9 +2157,36 @@ struct EchoelStudioView: View {
                 let barSpan = min(45.0, max(25.0, beats * 60.0 / max(40.0, beatPlayer.pattern.tempo)))
                 try? await Task.sleep(for: .seconds(barSpan))
                 guard running, !Task.isCancelled else { break }
-                scheduleGenerate(auto: true)   // rate-limited — coalesces with any lock-snap/onChange recompose
+                // HOLD when the body is locked-in (founder "halten wenn eingerastet"):
+                // a settled, unchanged pulse keeps its phrase instead of re-rolling
+                // every tick. Only a meaningful body change (or the pre-lock/no-body
+                // case) re-seeds. User edits + the first lock-snap bypass this entirely.
+                if evolveShouldReseed() {
+                    scheduleGenerate(auto: true)   // rate-limited — coalesces with any lock-snap/onChange recompose
+                } else {
+                    EchoelCrashLog.breadcrumb("evolve: HOLD (settled + stable body)")
+                }
             }
         }
+    }
+
+    /// Decide whether the automatic evolve tick should re-seed or HOLD the take.
+    /// No usable body → keep a demo/neutral loop gently evolving; otherwise defer to
+    /// the pure, tested rule (settled + unchanged body → hold). Only the auto evolve
+    /// path calls this — user edits and the first lock-snap always re-seed.
+    private func evolveShouldReseed() -> Bool {
+        #if canImport(AVFoundation)
+        guard let frame = bus.usableBio() else { return true }   // no body → stay alive
+        return StudioCalculator.shouldReseedOnEvolve(
+            settled: cameraRPPG.isSettled,
+            hasBaseline: lastGenBody != nil,
+            currentBPM: Double(frame.heartRateBPM),
+            baselineBPM: lastGenBody?.bpm ?? 0,
+            currentCoherence: Double(frame.coherence),
+            baselineCoherence: lastGenBody?.coherence ?? 0)
+        #else
+        return true
+        #endif
     }
 
     // MARK: - The individual algorithm: bio → music
@@ -2383,6 +2416,11 @@ struct EchoelStudioView: View {
         metronome.bpm = tempo   // keep the click on the live transport tempo
         session.adopt(key: key)
         hasComposed = true
+        // Capture the body baseline for the evolve HOLD (founder "halten wenn
+        // eingerastet"): the next evolve tick compares the live body against THIS
+        // and only re-seeds if it moved meaningfully. nil frame → no body this take,
+        // so the evolve loop keeps a demo/neutral loop gently alive instead.
+        lastGenBody = frame.map { (bpm: Double($0.heartRateBPM), coherence: Double($0.coherence)) }
         // EchoelAI narrates the live bio→sound mapping in plain technical English.
         if let frame { caption.text = BioExplanation.text(for: frame, tempo: tempo) }
         let wasPlaying = beatPlayer.pattern.isPlaying

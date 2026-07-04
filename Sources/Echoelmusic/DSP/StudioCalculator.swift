@@ -173,4 +173,31 @@ public struct StudioCalculator: Sendable, Equatable {
         guard start >= 0 else { return nil }
         return (start, loopSeconds)
     }
+
+    // MARK: - Evolve hold ("halten wenn eingerastet", founder 2026-07-04)
+
+    /// Whether the ~30 s AUTOMATIC evolve tick should re-seed the take, or HOLD.
+    /// The founder's "nervig": the music re-rolled every evolve tick even when the
+    /// pulse was calmly locked, so a meditative phrase never settled. Rule:
+    ///   • pulse NOT settled → HOLD (don't chase warm-up / motion noise);
+    ///   • settled, no baseline yet → RE-SEED (first lock captures the phrase);
+    ///   • settled WITH a baseline → re-seed ONLY when the body meaningfully moved
+    ///     (heart rate ≥ `bpmThreshold`, or coherence ≥ `coherenceThreshold`),
+    ///     otherwise HOLD the current take.
+    /// The no-body case (no usable frame at all) is handled by the caller, which
+    /// keeps a bodyless demo loop gently evolving. Pure + Linux-CI-tested.
+    public static func shouldReseedOnEvolve(settled: Bool, hasBaseline: Bool,
+                                            currentBPM: Double, baselineBPM: Double,
+                                            currentCoherence: Double, baselineCoherence: Double,
+                                            bpmThreshold: Double = 5,
+                                            coherenceThreshold: Double = 0.15) -> Bool {
+        guard settled else { return false }
+        guard hasBaseline else { return true }
+        let bpmDrift = abs(currentBPM - baselineBPM)
+        let cohDrift = abs(currentCoherence - baselineCoherence)
+        let driftFinite = bpmDrift.isFinite && cohDrift.isFinite
+        // A non-finite reading can't prove stability — re-seed rather than freeze on junk.
+        guard driftFinite else { return true }
+        return bpmDrift >= bpmThreshold || cohDrift >= coherenceThreshold
+    }
 }

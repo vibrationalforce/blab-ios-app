@@ -1,18 +1,18 @@
-build: 2026-07-04 v10.79.67 (ECHTE INSTRUMENTE: Klavier + Streicher statt Synthesizer — der Fundament-Tausch)
+build: 2026-07-04 v10.79.69 (HALTEN wenn eingerastet — die Musik wuerfelt nicht mehr staendig neu)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Urteil ("klingt alles mega scheisse") hat das Fundament getauscht — dieser
-  Build klingt anders als alles davor:
-  1) ECHTE INSTRUMENTE SIND JETZT DER STANDARD-KLANG: Die Melodie spielt ein echtes
-     KLAVIER, die Harmonien spielen echte STREICHER (gesampelte Instrumente ueber
-     Apples eingebauten Profi-Sampler, GeneralUser-GS-Bank, frei lizenziert). Der
-     Bass bleibt der tiefe Synth-Sub — sauberes Low-End. Der bisherige Synthesizer
-     ist NICHT weg: im Composition-Panel gibt es jetzt "Sound" mit Real instruments /
-     Classic synth zum Umschalten.
-  2) Biofeedback wirkt weiter: Herz/Atem/Kohaerenz formen die FX-Kette (Raum, Filter,
-     Charakter) — jetzt eben um echte Instrumente herum statt um Synthesizer-Toene.
-  3) Die App ist dadurch ~32 MB groesser (das Instrumenten-Set, von dir freigegeben).
-  DER EINE TEST 10.79.67: Start druecken, 30 Sekunden zuhoeren. Klingt es zum ersten
-  Mal nach MUSIK (Klavier + Streicher) statt nach Synthesizer-Demo? Dann im Panel
-  einmal auf "Classic synth" zurueckschalten und den Unterschied hoeren.
-  (Ehrlich offen: Komposition B1-B3 und echte Drums sind die naechsten zwei Zyklen
-  derselben Baustelle — heute tauschen wir die Klangquelle.)
+notesT: Dein "nervig" an der Wurzel: Bisher hat die Musik ALLE ~25-45 Sekunden neu
+  komponiert — auch wenn dein Puls ruhig eingerastet war. Kein meditativer Sog konnte
+  entstehen, weil sich staendig alles aenderte. Ab jetzt:
+  1) EINGERASTET = HALTEN: Wenn dein Puls settled ist (sicher + ruhig ~3s) und sich dein
+     Koerper NICHT wesentlich aendert, HAELT der Take. Die Phrase darf sich setzen, statt
+     alle 30s neu zu wuerfeln. (Im Log sichtbar: settled 56-59 BPM = Halten.)
+  2) NUR bei echter Koerper-Aenderung neu: Erst wenn sich dein Puls wirklich bewegt
+     (>=5 BPM) oder deine Kohaerenz springt (>=0.15), komponiert es neu — dann folgt die
+     Musik deinem Koerper, wie es soll.
+  3) Waehrend der Puls noch wackelt/aufwaermt: HALTEN (kein Jagen von Rausch). Der erste
+     Lock rastet ein wie gehabt; deine eigenen Edits (Genre/Tonart/Tempo) wirken sofort.
+  Das ist der direkte Fix gegen "staendig neu / nervig" — die Basis fuer einen ruhigen,
+  meditativen Zustand. (Enthaelt weiter: deine Drums + echte Instrumente.)
+  TEST 10.79.69: Start, Finger ruhig auf die Kamera, warten bis der Puls einrastet.
+  Bleibt die Musik dann RUHIG bei einer Phrase (statt sich staendig zu aendern)? Und wenn
+  du dich bewegst/den Puls aenderst — folgt sie dann?
