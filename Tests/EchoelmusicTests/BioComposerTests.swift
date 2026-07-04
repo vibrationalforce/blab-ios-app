@@ -154,6 +154,23 @@ final class BioComposerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(onDownbeat.count, 2, "chord tones stack on the same step")
     }
 
+    func testCalmBodyDropsThePulseIntoADrone() {
+        // Founder ear-feedback ("könnte mehr Drone mäßig sein"): as the body settles
+        // the busy pulse layer must fall away so the texture becomes a sustained
+        // pad + bass + sparse lead — a drone. A high-coherence (calm) take therefore
+        // carries FEWER notes than a low-coherence (aroused) take of the same genre
+        // and seed, and the difference is exactly the dropped pulse voices.
+        let aroused = BioComposer.compose(
+            input(coherence: 0.2, hr: 96, style: .vaporwave, seed: 7))
+        let calm = BioComposer.compose(
+            input(coherence: 0.95, hr: 58, style: .vaporwave, seed: 7))
+        XCTAssertLessThan(calm.notes.count, aroused.notes.count,
+                          "a calm body drops the pulse layer → fewer notes (drone)")
+        // The drone still has a chord (pad + bass), not silence.
+        XCTAssertGreaterThanOrEqual(calm.notes.count, 4,
+                                    "the calm drone keeps its pad + bass foundation")
+    }
+
     func testHarmonicGenresHaveABassFoundation() {
         // Every harmonic genre now anchors each chord with a bass root an octave
         // below the pad, so the loop reads full, never thin/floating.
