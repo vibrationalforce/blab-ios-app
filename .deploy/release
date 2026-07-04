@@ -1,16 +1,16 @@
-build: 2026-07-04 v10.79.70 (DRONE wenn ruhig — je ruhiger dein Puls, desto mehr Drone; weniger Verzerrung)
+build: 2026-07-04 v10.79.71 (FIX: echte Instrumente + Drums waren nie im App-Bundle — jetzt schon)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Feedback "klingt noch etwas verzerrt, könnte mehr Drone mäßig sein" — zwei
-  direkte Änderungen:
-  1) DRONE WENN RUHIG: Bisher lief IMMER eine "Puls-Ebene" mit (schnelle Achtel/Sechzehntel
-     Akkordtöne über dem Pad) — das war das notige/nervige Element. Ab jetzt: je ruhiger dein
-     Puls (je höher die Kohärenz), desto mehr fällt diese Puls-Ebene WEG. Übrig bleibt ein
-     gehaltener Klang aus Pad + Bass + sparsamer Melodie — ein Drone. Je ruhiger du wirst,
-     desto mehr wird es zum Drone (die meditative Belohnung). Bewegst du dich / wird der Puls
-     wieder aktiver, kommt die Bewegung zurück.
-  2) WENIGER VERZERRUNG: Der Poly-Limiter hatte bei dichten 12-Stimmen-Akkorden zu wenig
-     Headroom → das tanh ging hörbar in Sättigung. Headroom von 0.45 → 0.40 gesenkt; bleibt
-     jetzt näher an linear (der −1 dBFS Master-Trim hält den Pegel).
-  (Enthält weiter: HALTEN wenn eingerastet + deine Drums + echte Instrumente.)
-  TEST 10.79.70: Start, Finger ruhig auf die Kamera. Wird der Klang beim Einrasten RUHIGER /
-  drone-artiger (weniger schnelle Töne)? Und klingt es sauberer / weniger verzerrt als vorher?
+notesT: WICHTIG — dein Log 1783199053 hat den wahren Grund verraten, warum es immer noch
+  nach dem alten Synth klingt: die 32 MB Soundfont (echte Instrumente) UND die Drum-WAVs
+  waren nie ins App-Bundle kopiert. Der Xcode/TestFlight-Build (project.yml) hat nur
+  Assets/Fonts gebündelt, NICHT den Instruments/Drums/Samples-Ordner. Ergebnis auf dem
+  Gerät: Soundfont = nicht gefunden → alles fiel still zurück auf den additiven Synth
+  (im Log sichtbar: "polyVoice.noteOn"). In den Tests (swift test) war die Soundfont da
+  (anderer Bundle-Mechanismus), deshalb ist es nie aufgefallen.
+  FIX: Instruments (Soundfont) + Drums + Samples werden jetzt korrekt ins App-Bundle
+  gepackt. Ab diesem Build laden Lead/Harmonie WIRKLICH als echte Instrumente (Piano/
+  Strings) statt Synth, und die Drums klingen nach echten Samples.
+  (Enthält weiter: Drone wenn ruhig · Halten wenn eingerastet · weniger Verzerrung.)
+  TEST 10.79.71: Start, Play. Klingt Lead/Harmonie jetzt nach ECHTEM Instrument (Piano/
+  Strings) statt nach dem alten Synth? Und schick mir wieder ein Log — es sollte jetzt
+  "SampledInstrument: loaded" beim Start zeigen (statt nur polyVoice).
