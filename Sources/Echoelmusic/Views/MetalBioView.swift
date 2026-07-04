@@ -168,6 +168,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// (which reconfigures the CADisplayLink) when the governor's tier actually changes it,
     /// not on every one of the 60 frames/s (free win over a long installation run).
     private var lastAppliedFPS: Int = -1
+    /// Last `framebufferOnly` value written to the MTKView. Writing the property EVERY frame
+    /// (even to the same value) reconfigures the drawable/CAMetalLayer and made the picture
+    /// shimmer ("Visualfenster zittert") — worse at fullscreen resolution and on a style switch
+    /// (the palette "Bild Fehler"). We only assign it when the desired state actually flips
+    /// (record start / stop), so the steady state never touches the layer config.
+    private var lastFramebufferOnly: Bool = true
     private let startTime = CFAbsoluteTimeGetCurrent()
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
     /// The resource governor receives each frame's timestamp so a sustained FPS drop
@@ -308,7 +314,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         let readyToCapture: Bool = MainActor.assumeIsolated {
             let wantCapture = capturesVideo && (visualRecorder?.isRecording ?? false)
             let ready = wantCapture && !view.framebufferOnly
-            view.framebufferOnly = !wantCapture
+            // Only touch the property when the desired state actually flips — writing it every
+            // frame reconfigures the drawable and made the picture shimmer / glitch (zittert,
+            // Bild-Fehler beim Look-Wechsel). Steady state (not recording) never writes it.
+            let desired = !wantCapture
+            if desired != lastFramebufferOnly {
+                view.framebufferOnly = desired
+                lastFramebufferOnly = desired
+            }
             return ready
         }
         // Pull the live governor + bio HERE — the CADisplayLink draw loop runs on the main

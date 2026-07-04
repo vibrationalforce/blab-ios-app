@@ -1,20 +1,26 @@
-build: 2026-07-04 v10.79.53 (Visual: echtes Vollbild + kein Ruckeln — Look bleibt im Vollbild bedienbar)
+build: 2026-07-04 v10.79.54 (Kein BPM-Sprung mehr · Visual zittert/glitcht nicht · Palette klickbar)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Video war klar: das Visual "hakelt" und "laesst sich nicht im Vollbild betreiben",
-  und man soll es trotzdem manipulieren koennen. Drei Ursachen gefunden und behoben:
-  1) RUCKELN behoben: die Metal-Ansicht lief DAUERHAFT im langsamen Modus (framebufferOnly=false,
-     eigentlich nur fuers Aufnehmen noetig) — weil das schwebende Fenster immer als Aufnahme-
-     Instanz montiert ist. Jetzt: SCHNELLER Pfad immer, langsam NUR waehrend echter MP4-Aufnahme
-     (der eine erste Aufnahme-Frame wird uebersprungen, unhoerbar). Dazu: im Vollbild rendert
-     Metal die ganze Flaeche, es liegt keine scrollende Liste mehr darunter → deutlich glatter.
-  2) ECHTES VOLLBILD: der Vergroessern-Knopf (⤢) hatte bisher nur 3 Stufen (max 92% x 62%). Neu
-     ist eine 4. Stufe "Vollbild", die den GANZEN Bildschirm fuellt (auch ueber Kopf-/Transport-
-     leiste). ⤢ schaltet: Klein → Mittel → Gross → Vollbild → Klein (Symbol wird zum "Verkleinern").
-  3) IM VOLLBILD WEITER BEDIENBAR: die Werkzeugleiste (Look wechseln = Palette, Aufnahme, Vollbild
-     ein/aus, schliessen) bleibt oben sichtbar — bewusst UNTER der Notch, damit du sie erreichst.
-     Look-Wechsel im Vollbild aendert den Stil sofort. Ein Metal-Pfad app-weit bleibt gewahrt.
-  Technik: 3 Dateien (MetalBioView framebufferOnly-Gate, FloatingVisualWindow Vollbild-Groesse,
-  WorkspaceView haengt das Visual ganz oben in einen ZStack). Render-safe, environment aus dem
-  App-Root (kein fehlendes environment).
-  TEST 10.79.53: Visual oeffnen, ⤢ mehrfach tippen bis "Vollbild" → fuellt es den ganzen Schirm?
-  Ruckelt es noch (ohne Aufnahme)? Und kannst du im Vollbild oben per Palette den Look wechseln?
+notesT: Deine vier Punkte, alle vier behoben:
+  1) BPM SPRINGT PLOETZLICH: die Musik-Tempo-Zahl (Transport) glitt bisher nur waehrend LAUFENDER
+     Wiedergabe sanft — wenn ein Koerper-Re-Seed auf eine PAUSIERTE Aufnahme fiel (du hast oben
+     gestoppt, die Puls-Messung laeuft aber weiter), SPRANG die Zahl. Jetzt gleitet das Tempo IMMER
+     sanft, ob spielend oder pausiert (ein leiser Steuer-Timer uebernimmt im Stop). Die Zahl springt
+     nie mehr — nur ein manueller Tap/Edit/Lock setzt sie exakt und sofort.
+  2) EINE BPM LINKS REICHT: die linke Puls-Zahl (Herzschlag) ist weiterhin die eine vertrauens-
+     gepruefte Anzeige (haelt den letzten sicheren Wert, keine Zappelei). Die Transport-Tempo-Zahl
+     ist die MUSIK-Geschwindigkeit (zum Musikmachen noetig: Lock/Tap/Editieren) — sie zeigt jetzt
+     nur noch ruhige, gegleitete Werte, statt mit dem Puls zu konkurrieren.
+  3) VISUALFENSTER ZITTERT: die Metal-Ansicht schrieb eine Drawable-Eigenschaft (framebufferOnly)
+     in JEDEM Frame neu — das konfiguriert die Ebene jedes Mal um und liess das Bild flimmern
+     (schlimmer im Vollbild). Jetzt wird sie NUR beim echten Umschalten (Aufnahme an/aus)
+     geschrieben; im Normalbetrieb bleibt die Ebene unberuehrt → ruhiges Bild.
+  4) PALETTE-KLICK → BILDFEHLER: dieselbe Pro-Frame-Umkonfiguration verursachte den Glitch beim
+     Look-Wechsel; mit (3) behoben. Zusaetzlich: das Verschieben des Fensters haengt jetzt NUR am
+     ≡-Griff (nicht an der ganzen Leiste), damit ein Fingertipper auf die Palette nicht als
+     Ziehen missverstanden wird ("nicht anklickbar"). Und die Info-Texte (HRV etc.) sind auf
+     volle Lesbarkeit hochgezogen.
+  Technik: PatternEngine (Stopp-Glide-Timer, main-queue, gleiche bewaehrte Isolation wie die
+  Beat-Uhr), MetalBioView (framebufferOnly nur-bei-Aenderung), FloatingVisualWindow (Drag am Griff),
+  BioMetricInfo (Kontrast). Tests: TempoStabilityTests auf die neue Glide-Regel angepasst.
+  TEST 10.79.54: Start → oben Stop druecken waehrend die Messung laeuft → springt die Tempo-Zahl
+  noch, wenn der Puls sich einpegelt? Visual im Vollbild: zittert es? Palette antippen: Bildfehler?

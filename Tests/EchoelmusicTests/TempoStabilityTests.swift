@@ -43,21 +43,29 @@ final class SeedTempoTests: XCTestCase {
 @MainActor
 final class TempoGlideTests: XCTestCase {
 
-    func testGlideWhileStopped_snapsImmediately() {
-        // No ticks exist to ease on when the transport is stopped, so the glide
-        // degrades to a precise instant set (initial generate must not lag).
+    func testGlideWhileStopped_easesInsteadOfSnapping() {
+        // A body re-seed landing on a PAUSED take must NOT yank the tempo number
+        // ("bpm springt plötzlich"): a stopped glide now eases over ~2–3 s (a small
+        // main-queue timer) instead of snapping. So the value does not reach the target
+        // in the same instant — exactly like the playing path.
         let pattern = PatternEngine()
         let transport = Transport()
         pattern.transport = transport
-        pattern.glideTempo(to: 150)
-        XCTAssertEqual(pattern.tempo, 150, accuracy: 1e-9)
-        XCTAssertEqual(transport.tempo, 150, accuracy: 1e-9)   // relay intact
+        let before = pattern.tempo
+        pattern.glideTempo(to: before + 40)
+        XCTAssertEqual(pattern.tempo, before, accuracy: 1e-9,
+                       "a stopped glide must ease, not snap")
+        pattern.stop()   // cancel the stopped-glide timer before teardown
     }
 
-    func testGlideWhileStopped_clamps() {
+    func testGlideThenSetTempo_userEditLandsExactly() {
+        // Whatever an in-flight stopped glide is doing, an explicit user edit wins
+        // instantly and clamps — the transport-bar Tempo field stays precise.
         let pattern = PatternEngine()
-        pattern.glideTempo(to: 9_999)
+        pattern.glideTempo(to: 9_999)   // clamped target, easing while stopped
+        pattern.setTempo(9_999)         // user edit cancels the glide + clamps
         XCTAssertEqual(pattern.tempo, PatternEngine.maxTempo, accuracy: 1e-9)
+        pattern.stop()
     }
 
     func testGlideWhilePlaying_neverJumpsSynchronously() {
