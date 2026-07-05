@@ -1,22 +1,23 @@
-build: 2026-07-05 v10.79.73 (NEU: die erste SESSION — Ton atmet mit dir zur Resonanz)
+build: 2026-07-05 v10.79.74 (SESSION jetzt mit LICHT — atmet phasenstarr mit dem Ton)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Der erste erlebbare Baustein des Neustarts, auf den wir uns geeinigt haben
-  ("nur was den Menschen gesundheitlich hilft"): die bio-gepacte SESSION.
-  WAS ES IST: Ein eigener, ruhiger Screen. Start drücken, Finger auf die Kamera —
-  ein sanfter Ton beginnt im Takt DEINER Atmung zu schwellen und führt dich über
-  ~3 Minuten langsam von deinem natürlichen Tempo hinunter Richtung Resonanz-Atmung
-  (~4,5–7 Atemzüge/min — das wissenschaftlich belegte Beruhigungs-Tempo). Er führt
-  NIE nach oben, und wenn dein Körper nicht folgt (Kohärenz niedrig), wartet er —
-  ein Begleiter, kein Metronom. Latenz-kompensiert, damit es sich sofort anfühlt.
-  Beim App-Start ist alles stumm; Ton gibt es NUR in einer laufenden Session.
-  WO: Neuer Button oben in der Kopfleiste (Kreis-im-Kreis-Symbol, links neben dem
-  Visual-Monitor) → "Session" öffnet im Vollbild.
-  TEST 10.79.73:
-  1) Header-Button antippen → Session-Screen öffnet sich?
-  2) Start → Finger ruhig auf die Kamera. Erscheint nach ~15–30 s dein Puls (grüner
-     Punkt + Zahl)?
-  3) Der Ton: schwillt er im Atem-Rhythmus? Wird die angezeigte Atemzahl über die
-     Minuten langsam KLEINER (12 → Richtung 6)?
-  4) Atme bewusst mit dem Ton: fühlt es sich an, als würde er dich "mitnehmen"?
-  5) Ende/X → sofort still?
-  (Licht/Visual atmet in einem der nächsten Builds mit — erst der Ton, dann das Licht.)
+notesT: Die Session ist jetzt komplett erlebbar: Ton UND Licht atmen zusammen mit dir.
+  NEU GEGENÜBER 10.79.73:
+  1) LICHT: In der laufenden Session atmet eine sanfte grüne Scheibe — mit EXAKT
+     derselben Phase wie der Ton (gemeinsamer Zeit-Anker beim Session-Start). Ton-Peak
+     und Licht-Peak fallen zusammen; du kannst mit Augen ODER Ohren folgen.
+  2) SICHERHEIT (Bio-Safety-Review, alle Befunde gefixt): Phasen-Kontinuität — wenn
+     sich dein Tempo-Ziel mitten in der Session ändert, springt das Licht NIE (das war
+     ein echtes WCAG-Loch: Sprünge hätten wie schnelles Flackern wirken können; jetzt
+     mathematisch stetig, mit Test über 10 simulierte Minuten). Flimmer-Envelope bleibt
+     hart (≤3 Hz, nie 4–70 Hz, nie rot). Reduce Motion → Licht bleibt stetig, ohne
+     Pulsieren. Sicherheitshinweis jetzt direkt auf dem Session-Screen ("Nicht beim
+     Autofahren. Kein Medizinprodukt.").
+  WO: Kopfleiste → Kreis-im-Kreis-Button → Session → Start, Finger auf die Kamera.
+  TEST 10.79.74:
+  1) Atmen Ton UND Licht exakt synchron (Peak zusammen)?
+  2) Bleibt das Licht über Minuten RUHIG und stetig — keine Sprünge/kein Zucken, auch
+     wenn der Puls wackelt?
+  3) Wird die Atemzahl langsam kleiner und der Klang/das Licht dabei getragener?
+  4) iOS "Bewegung reduzieren" an → Licht stetig statt pulsierend?
+  Wenn diese Session dich zum ersten Mal wirklich RUNTERBRINGT, ist der Neustart auf
+  Kurs — dann kommen Resonanz-Kalibrierung, Abschluss-Karte und Wetter/Ort-Journal.

@@ -143,20 +143,28 @@ struct EchoelmusicApp: App {
             EchoelCrashLog.breadcrumb("LaunchGuard: SAFE MODE (prior launch did not confirm healthy)")
         }
         log.log(.info, category: .system, "APP INIT [start] — constructing engines (no audio I/O here)")
+        // Stage breadcrumbs (device log 1783269182: the diag ended at "launch" with
+        // NO crash-handler line — an uncatchable kill (watchdog/jetsam) somewhere in
+        // this ~20-constructor chain. These pins name the dying constructor in the
+        // NEXT log instead of leaving a 50-line suspect list.)
+        EchoelCrashLog.breadcrumb("init a: audio core")
         let mic = MicrophoneManager()
         let audio = AudioEngine(microphoneManager: mic)
 
         _microphoneManager = State(wrappedValue: mic)
         _audioEngine = State(wrappedValue: audio)
+        EchoelCrashLog.breadcrumb("init b: store + beat + bus")
         _store = State(wrappedValue: EchoelStore())
         _beatPlayer = State(wrappedValue: BeatPlayer())
         _bus = State(wrappedValue: EngineBus())
+        EchoelCrashLog.breadcrumb("init c: bio publishers")
         #if canImport(HealthKit)
         _healthBio = State(wrappedValue: HealthKitBioPublisher())
         #endif
         #if canImport(CoreBluetooth)
         _polarH10 = State(wrappedValue: PolarH10BioPublisher())
         #endif
+        EchoelCrashLog.breadcrumb("init d: synth voices")
         _bioVoice = State(wrappedValue: BioReactiveSynthVoice())
         // 12 voices: the composer emits up to ~12 notes/bar and the 2 s release
         // tails keep voices ringing across the bar, so 8 was oversubscribed →
@@ -170,6 +178,7 @@ struct EchoelmusicApp: App {
         _subBass = State(wrappedValue: SubBassVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
+        EchoelCrashLog.breadcrumb("init e: midi + osc")
         #if canImport(CoreMIDI)
         let midi = MIDIInput()
         _midiInput = State(wrappedValue: midi)
@@ -178,6 +187,7 @@ struct EchoelmusicApp: App {
         #if canImport(Network)
         _osc = State(wrappedValue: OSCSender())
         #endif
+        EchoelCrashLog.breadcrumb("init f: modulation + stores + roll")
         _modulationEngine = State(wrappedValue: ModulationEngine())
         _patchStore = State(wrappedValue: PatchStore())
         _pianoRoll = State(wrappedValue: PianoRollModel())
