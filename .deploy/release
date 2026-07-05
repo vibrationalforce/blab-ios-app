@@ -1,17 +1,22 @@
-build: 2026-07-04 v10.79.72 (FIX: Kamera-Hänger heilt sich jetzt wirklich — Neustart-Eskalation griff nie)
+build: 2026-07-05 v10.79.73 (NEU: die erste SESSION — Ton atmet mit dir zur Resonanz)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log 1783201461 — erstmal die GUTE Nachricht: der Halten-Fix funktioniert auf
-  dem Gerät! Puls eingerastet bei 48 BPM (Konfidenz bis 0.98), und die Musik hat über
-  ~80 Sekunden 5× HALTEN gemeldet statt neu zu würfeln. Genau so soll es sein.
-  Der BUG am Ende: nach dem Finger-Neuauflegen ist die Kamera-Pipeline eingefroren
-  (identische Werte ~28 s). Der Wächter hat 4× eine Reparatur versucht — aber jede stand
-  im Log als "(1/3)": die Reparatur hat ihren eigenen Zähler wieder auf null gesetzt,
-  darum kam es NIE zur Eskalationsstufe (kompletter Kamera-Kaltstart — genau das, was
-  dein manuelles Stop→Start damals sofort geheilt hat). Fix: der Zähler überlebt jetzt
-  die Reparatur; nach 3 erfolglosen Versuchen macht die App den Kaltstart automatisch.
-  WICHTIG: Dieses Log war noch OHNE den Instrumente-Fix (kein "SampledInstrument: loaded",
-  noch "polyVoice") — 10.79.71 mit den echten Instrumenten war da noch bei Apple in
-  Verarbeitung. Bitte erst auf 10.79.71/72 updaten, dann den Klang beurteilen.
-  TEST 10.79.72: Wie gehabt — Finger drauf, einrasten lassen. Wenn die Kamera hängt
-  (eingefrorene Werte), heilt sie sich jetzt binnen ~30 s von selbst (Log: "cold camera
-  restart"). Und: klingt Lead/Harmonie jetzt nach Piano/Strings?
+notesT: Der erste erlebbare Baustein des Neustarts, auf den wir uns geeinigt haben
+  ("nur was den Menschen gesundheitlich hilft"): die bio-gepacte SESSION.
+  WAS ES IST: Ein eigener, ruhiger Screen. Start drücken, Finger auf die Kamera —
+  ein sanfter Ton beginnt im Takt DEINER Atmung zu schwellen und führt dich über
+  ~3 Minuten langsam von deinem natürlichen Tempo hinunter Richtung Resonanz-Atmung
+  (~4,5–7 Atemzüge/min — das wissenschaftlich belegte Beruhigungs-Tempo). Er führt
+  NIE nach oben, und wenn dein Körper nicht folgt (Kohärenz niedrig), wartet er —
+  ein Begleiter, kein Metronom. Latenz-kompensiert, damit es sich sofort anfühlt.
+  Beim App-Start ist alles stumm; Ton gibt es NUR in einer laufenden Session.
+  WO: Neuer Button oben in der Kopfleiste (Kreis-im-Kreis-Symbol, links neben dem
+  Visual-Monitor) → "Session" öffnet im Vollbild.
+  TEST 10.79.73:
+  1) Header-Button antippen → Session-Screen öffnet sich?
+  2) Start → Finger ruhig auf die Kamera. Erscheint nach ~15–30 s dein Puls (grüner
+     Punkt + Zahl)?
+  3) Der Ton: schwillt er im Atem-Rhythmus? Wird die angezeigte Atemzahl über die
+     Minuten langsam KLEINER (12 → Richtung 6)?
+  4) Atme bewusst mit dem Ton: fühlt es sich an, als würde er dich "mitnehmen"?
+  5) Ende/X → sofort still?
+  (Licht/Visual atmet in einem der nächsten Builds mit — erst der Ton, dann das Licht.)

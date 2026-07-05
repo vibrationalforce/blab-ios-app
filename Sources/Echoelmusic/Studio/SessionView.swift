@@ -99,6 +99,7 @@ struct SessionView: View {
             #if canImport(AVFoundation)
             SessionPulseLeaf()
             #endif
+            SessionGlowLeaf()
             SessionPaceLeaf()
         }
     }
@@ -189,6 +190,40 @@ private struct SessionPaceLeaf: View {
         guard s.isFinite, s >= 0 else { return "0:00" }
         let t = Int(s)
         return String(format: "%d:%02d", t / 60, t % 60)
+    }
+}
+
+/// The breathing LIGHT — the visual layer of the session, phase-locked to the tone.
+/// Both measure from the SAME epoch (`session.startedAtHostTime`; the audio clock is
+/// re-zeroed at start), so the light's swell and the audible swell coincide.
+///
+/// Safety + design, by construction:
+///  • the rate comes from `currentPlan.entrainment` — the flash-safe EntrainmentPlan
+///    (≤3 Hz, outside 4–70 Hz, capped depth; at breath paces it's ~0.1 Hz anyway);
+///  • OPACITY-ONLY animation on a plain accent disc (Uncodixfy: no scale, no glow
+///    stacking, no neon) — a functional guide light, not decoration;
+///  • never saturated red (`allowSaturatedRedFlicker` is always false; accent is green);
+///  • TimelineView(.animation) redraws only THIS leaf; the plan struct is
+///    @ObservationIgnored, so no observation churn reaches any ancestor.
+private struct SessionGlowLeaf: View {
+    @Environment(SessionEngine.self) private var session
+
+    var body: some View {
+        TimelineView(.animation) { ctx in
+            let plan = session.currentPlan.entrainment
+            let now = ctx.date.timeIntervalSinceReferenceDate
+            let t = max(0, now - session.startedAtHostTime)
+            let gate = plan.visualIsSteady
+                ? 0.5
+                : EntrainmentEngine.gate(atSeconds: t, hz: plan.visualPulseHz)
+            // Base visibility + capped modulation depth (≤ maxBrightnessDelta = 0.5).
+            let level = 0.10 + plan.brightnessDelta * gate * 0.8
+            Circle()
+                .fill(EchoelTheme.accent)
+                .opacity(level)
+                .frame(width: 180, height: 180)
+        }
+        .accessibilityHidden(true)   // the pace text below carries the information
     }
 }
 
