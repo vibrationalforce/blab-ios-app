@@ -89,6 +89,14 @@ struct SessionView: View {
                 .foregroundStyle(EchoelTheme.dim)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 36)
+            // Mandated safety line on the feature surface itself (onboarding is
+            // one-time; bio-safety review 2026-07-05).
+            Text("Not while driving or operating machinery. Not a medical device.")
+                .font(EchoelTheme.font(11))
+                .foregroundStyle(EchoelTheme.dim)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
+                .padding(.top, 2)
         }
     }
 
@@ -207,15 +215,22 @@ private struct SessionPaceLeaf: View {
 ///    @ObservationIgnored, so no observation churn reaches any ancestor.
 private struct SessionGlowLeaf: View {
     @Environment(SessionEngine.self) private var session
+    /// Reduce Motion → steady glow, no pulsing (WCAG 2.3.3; matches BreathGuideView/
+    /// FlashGuard convention — bio-safety review 2026-07-05).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.animation) { ctx in
             let plan = session.currentPlan.entrainment
             let now = ctx.date.timeIntervalSinceReferenceDate
             let t = max(0, now - session.startedAtHostTime)
-            let gate = plan.visualIsSteady
+            // visualPhaseOffset keeps the phase CONTINUOUS across pace changes —
+            // without it a rate republish jumps the gate by t·Δhz cycles (the
+            // bio-safety HIGH: discontinuous brightness steps at up to 10 Hz).
+            let gate = (plan.visualIsSteady || reduceMotion)
                 ? 0.5
-                : EntrainmentEngine.gate(atSeconds: t, hz: plan.visualPulseHz)
+                : EntrainmentEngine.gate(atSeconds: t, hz: plan.visualPulseHz,
+                                         phaseOffset: session.visualPhaseOffset)
             // Base visibility + capped modulation depth (≤ maxBrightnessDelta = 0.5).
             let level = 0.10 + plan.brightnessDelta * gate * 0.8
             Circle()

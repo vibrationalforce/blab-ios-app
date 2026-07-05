@@ -112,6 +112,22 @@ public final class SessionEngine {
     /// a TimelineView leaf, never observed.
     @ObservationIgnored public private(set) var startedAtHostTime: Double = 0
 
+    /// PHASE CONTINUITY across pace changes (bio-safety HIGH, review 2026-07-05):
+    /// the gate phase is t·hz + offset. When the tick republishes a new hz, the
+    /// phase would JUMP by t·Δhz cycles (t grows all session, so even tiny coherence
+    /// jitter late in a session lands the gate at a random value → discontinuous
+    /// brightness steps at up to 10 Hz — a real WCAG 2.3.1 escape). Fix: on every
+    /// rate change, fold the jump into an offset so the phase is CONTINUOUS:
+    /// offset += t·(oldHz − newHz), wrapped to [0,1). One offset per modality
+    /// (the visual rate may be an octave-fold of the audio rate).
+    @ObservationIgnored public private(set) var visualPhaseOffset: Double = 0
+    @ObservationIgnored private var lastVisualHz: Double = 0
+    @ObservationIgnored private var audioPhaseOffsetAccum: Double = 0
+    @ObservationIgnored private var lastAudioHz: Double = 0
+    /// Float mirror of the audio phase offset for the render thread (wrapped [0,1),
+    /// so Float precision is ample). Written main, read audio.
+    @ObservationIgnored nonisolated(unsafe) private var audioPhaseOffset: Float = 0
+
     /// Audio-thread-only running state (after attach).
     @ObservationIgnored nonisolated(unsafe) private var sampleClock: UInt64 = 0
     @ObservationIgnored nonisolated(unsafe) private var carrierPhase: Double = 0
@@ -147,6 +163,11 @@ public final class SessionEngine {
         isRunning = true
         hasEverSounded = true          // audio may now sound (launch-silence lifted)
         resetClockRequested = true     // audio + light share the session phase epoch
+        visualPhaseOffset = 0
+        lastVisualHz = 0
+        audioPhaseOffsetAccum = 0
+        lastAudioHz = 0
+        audioPhaseOffset = 0
         loop.start(interval: .milliseconds(100)) { [weak self] in
             self?.tick()
         }
@@ -183,6 +204,17 @@ public final class SessionEngine {
         currentPlan = plan
         currentPaceBpm = plan.paceBpm
 
+        // PHASE CONTINUITY: fold each rate change into the modality's offset BEFORE
+        // publishing the new rate, so the gate never jumps (bio-safety HIGH).
+        let newVisualHz = plan.entrainment.visualIsSteady ? 0 : plan.entrainment.visualPulseHz
+        visualPhaseOffset = Self.continuedPhaseOffset(
+            oldHz: lastVisualHz, newHz: newVisualHz, elapsed: elapsed, current: visualPhaseOffset)
+        lastVisualHz = newVisualHz
+        audioPhaseOffsetAccum = Self.continuedPhaseOffset(
+            oldHz: lastAudioHz, newHz: plan.targetHz, elapsed: elapsed, current: audioPhaseOffsetAccum)
+        lastAudioHz = plan.targetHz
+        audioPhaseOffset = Float(audioPhaseOffsetAccum)
+
         // Push audio mirrors (Float-atomic) for the render thread.
         renderHz = Float(plan.targetHz)
         renderDepth = Float(Swift.min(1, Swift.max(0, intensity)))
@@ -198,6 +230,23 @@ public final class SessionEngine {
                                             perceptualDelaySeconds: 1.0 / 60.0)  // ~1 frame
             visualBrightness = plan.entrainment.brightnessDelta * g
         }
+    }
+
+    /// Phase-continuity law (pure, testable): when the pulse rate changes oldHz→newHz
+    /// at time `elapsed`, the phase t·hz + offset stays CONTINUOUS iff the offset
+    /// absorbs the jump: offset += elapsed·(oldHz − newHz). Wrapped to [0,1) so the
+    /// Float mirror never loses precision. A first publish (oldHz == 0 sentinel with
+    /// no prior gate shown at that rate) still passes through this law harmlessly —
+    /// continuity relative to the (invisible) 0 Hz gate is a constant.
+    public nonisolated static func continuedPhaseOffset(
+        oldHz: Double, newHz: Double, elapsed: Double, current: Double) -> Double {
+        guard oldHz != newHz, elapsed.isFinite, elapsed > 0,
+              oldHz.isFinite, newHz.isFinite, current.isFinite else {
+            return current.isFinite ? current : 0
+        }
+        let raw = current + elapsed * (oldHz - newHz)
+        let frac = raw - raw.rounded(.down)
+        return frac < 0 ? frac + 1 : frac
     }
 
     /// Pure per-tick composition (testable): guide → pace → flash-safe entrainment.
@@ -241,6 +290,7 @@ public final class SessionEngine {
         let hz = Double(renderHz)
         let depth = Double(renderDepth)
         let lat = Double(audioLatency)
+        let phaseOff = Double(audioPhaseOffset)
         let carrierInc = 2 * Double.pi * Self.carrierHz / sr
         let bufs = UnsafeMutableAudioBufferListPointer(abl)
         guard bufs.count > 0, let raw = bufs[0].mData else { return }
@@ -250,7 +300,7 @@ public final class SessionEngine {
         for i in 0..<frameCount {
             let t = Double(clock) / sr
             // Latency-compensated breath swell in [0,1] (raised cosine at hz).
-            let gate = EntrainmentEngine.gate(atSeconds: t + lat, hz: hz)
+            let gate = EntrainmentEngine.gate(atSeconds: t + lat, hz: hz, phaseOffset: phaseOff)
             let amp = Double(Self.baseGain) * ((1 - depth) + depth * gate)
             dst[i] = Float(sin(phase) * amp)
             phase += carrierInc
