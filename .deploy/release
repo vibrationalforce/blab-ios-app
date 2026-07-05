@@ -1,23 +1,19 @@
-build: 2026-07-05 v10.79.74 (SESSION jetzt mit LICHT — atmet phasenstarr mit dem Ton)
+build: 2026-07-05 v10.79.75 (DIAGNOSE: Start-Abbruch in Log 1783269182 wird jetzt exakt verortet)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Die Session ist jetzt komplett erlebbar: Ton UND Licht atmen zusammen mit dir.
-  NEU GEGENÜBER 10.79.73:
-  1) LICHT: In der laufenden Session atmet eine sanfte grüne Scheibe — mit EXAKT
-     derselben Phase wie der Ton (gemeinsamer Zeit-Anker beim Session-Start). Ton-Peak
-     und Licht-Peak fallen zusammen; du kannst mit Augen ODER Ohren folgen.
-  2) SICHERHEIT (Bio-Safety-Review, alle Befunde gefixt): Phasen-Kontinuität — wenn
-     sich dein Tempo-Ziel mitten in der Session ändert, springt das Licht NIE (das war
-     ein echtes WCAG-Loch: Sprünge hätten wie schnelles Flackern wirken können; jetzt
-     mathematisch stetig, mit Test über 10 simulierte Minuten). Flimmer-Envelope bleibt
-     hart (≤3 Hz, nie 4–70 Hz, nie rot). Reduce Motion → Licht bleibt stetig, ohne
-     Pulsieren. Sicherheitshinweis jetzt direkt auf dem Session-Screen ("Nicht beim
-     Autofahren. Kein Medizinprodukt.").
-  WO: Kopfleiste → Kreis-im-Kreis-Button → Session → Start, Finger auf die Kamera.
-  TEST 10.79.74:
-  1) Atmen Ton UND Licht exakt synchron (Peak zusammen)?
-  2) Bleibt das Licht über Minuten RUHIG und stetig — keine Sprünge/kein Zucken, auch
-     wenn der Puls wackelt?
-  3) Wird die Atemzahl langsam kleiner und der Klang/das Licht dabei getragener?
-  4) iOS "Bewegung reduzieren" an → Licht stetig statt pulsierend?
-  Wenn diese Session dich zum ersten Mal wirklich RUNTERBRINGT, ist der Neustart auf
-  Kurs — dann kommen Resonanz-Kalibrierung, Abschluss-Karte und Wetter/Ort-Journal.
+notesT: Dein Log 1783269182 enthielt NUR "launch" — sonst nichts. Das heißt: alle
+  Vorab-Konstruktionen liefen, aber der Prozess starb mitten in der Engine-Kette,
+  OHNE dass der Crash-Handler etwas schreiben konnte → ein nicht abfangbarer Kill
+  (iOS-Watchdog wegen zu langem Start oder Speicher-Kill), KEIN normaler Absturz.
+  Zwischen "launch" und "init done" liegen ~20 Konstruktionen — bisher konnten wir
+  nicht sehen, welche hängt. Ab diesem Build schreiben 6 Etappen-Marker (init a–f:
+  Audio-Kern · Store/Beat/Bus · Bio-Publisher · Synth-Stimmen · MIDI/OSC ·
+  Modulation/Stores/Roll) — wenn es wieder passiert, benennt das Log den Täter.
+  Sonst identisch mit 10.79.74 (Session mit Ton + phasenstarrem Licht).
+  WICHTIGE FRAGEN AN DICH:
+  1) Startet die App aktuell überhaupt? Kam nach dem abgebrochenen Start ein
+     "Safe Mode"-Bildschirm, oder lief sie beim nächsten Öffnen normal?
+  2) Falls sie läuft: War das ein einmaliger Ausrutscher direkt nach der
+     TestFlight-Installation (da ist iOS oft beschäftigt — bekannter Watchdog-Moment)?
+  3) Bitte schick das VOLLE Log der nächsten Session (auch wenn alles läuft) —
+     und teste dann die Session: Kopfleiste → Kreis-Symbol → Start, Finger auf
+     die Kamera. Atmen Ton UND Licht synchron? Bringt es dich runter?
