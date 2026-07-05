@@ -63,6 +63,63 @@ final class SessionEngineTests: XCTestCase {
         XCTAssertLessThan(settled.paceBpm, unsettled.paceBpm)
     }
 
+    func testPhaseOffsetKeepsGateContinuousAcrossRateChanges() {
+        // The bio-safety HIGH: republishing hz jumps the phase by t·Δhz cycles unless
+        // the offset absorbs it. Law: offset' = offset + t·(h1 − h2) makes
+        // gate(t, h2, offset') EXACTLY equal gate(t, h1, offset) at the changeover —
+        // continuity by construction. Sweep a jittering rate for 10 simulated
+        // minutes of 10 Hz ticks and assert the gate never steps discontinuously.
+        var offset = 0.0
+        var hz = 0.2
+        var prevGate: Double? = nil
+        var t = 0.0
+        var i = 0
+        while t < 600 {
+            t += 0.1
+            i += 1
+            // Jitter the rate every few ticks (like coherence-driven pace updates).
+            if i % 7 == 0 {
+                let newHz = 0.075 + 0.15 * Double((i * 37) % 100) / 100.0
+                offset = SessionEngine.continuedPhaseOffset(
+                    oldHz: hz, newHz: newHz, elapsed: t, current: offset)
+                hz = newHz
+            }
+            let g = EntrainmentEngine.gate(atSeconds: t, hz: hz, phaseOffset: offset)
+            if let p = prevGate {
+                // Max slope of the raised cosine is π·hz per second → per 0.1 s tick
+                // the largest legitimate move is π·hzMax·0.1 ≈ 0.071. Allow slack ×2.
+                XCTAssertLessThan(abs(g - p), 0.15,
+                                  "gate stepped discontinuously at t=\(t) (\(p) → \(g))")
+            }
+            prevGate = g
+        }
+    }
+
+    func testContinuedPhaseOffsetLawIsExactAtChangeover() {
+        // gate(t, h2, offset') == gate(t, h1, offset) — the algebraic identity.
+        let t = 312.7, h1 = 0.1833, h2 = 0.0917, offset = 0.42
+        let offset2 = SessionEngine.continuedPhaseOffset(oldHz: h1, newHz: h2,
+                                                         elapsed: t, current: offset)
+        XCTAssertEqual(EntrainmentEngine.gate(atSeconds: t, hz: h2, phaseOffset: offset2),
+                       EntrainmentEngine.gate(atSeconds: t, hz: h1, phaseOffset: offset),
+                       accuracy: 1e-9)
+        // Result is wrapped to [0,1) so the Float mirror keeps full precision.
+        XCTAssertGreaterThanOrEqual(offset2, 0)
+        XCTAssertLessThan(offset2, 1)
+    }
+
+    func testContinuedPhaseOffsetGuardsDegenerateInput() {
+        XCTAssertEqual(SessionEngine.continuedPhaseOffset(oldHz: 0.1, newHz: 0.1,
+                                                          elapsed: 100, current: 0.3),
+                       0.3, accuracy: 1e-12, "no rate change → unchanged")
+        XCTAssertEqual(SessionEngine.continuedPhaseOffset(oldHz: .nan, newHz: 0.1,
+                                                          elapsed: 100, current: 0.3),
+                       0.3, accuracy: 1e-12, "NaN rate → hold current")
+        XCTAssertEqual(SessionEngine.continuedPhaseOffset(oldHz: 0.2, newHz: 0.1,
+                                                          elapsed: 100, current: .nan),
+                       0, accuracy: 1e-12, "NaN accumulator → reset to 0")
+    }
+
     func testIntensityScalesBrightnessDepthWithinCap() {
         let g = guide()
         let soft = SessionEngine.plan(guide: g, elapsedSeconds: 30, coherence: 0.5, intensity: 0.2)
