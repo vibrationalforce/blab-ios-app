@@ -83,9 +83,12 @@ public final class SessionEngine {
 
     // MARK: - Audio (render-thread mirrors — Float-atomic, nonisolated(unsafe))
 
-    @ObservationIgnored private static let sampleRate: Double = 48_000
-    @ObservationIgnored private static let carrierHz: Double = 220.0   // soft A3, neutral (no esoterik)
-    @ObservationIgnored private static let baseGain: Float = 0.16      // gentle; master trim holds level
+    // nonisolated: these constants are read on the audio thread (renderOnAudioThread,
+    // a nonisolated context) — immutable Sendable values, so nonisolated is safe and
+    // required (matches the blessed BioReactiveSynthVoice render-read statics).
+    @ObservationIgnored nonisolated private static let sampleRate: Double = 48_000
+    @ObservationIgnored nonisolated private static let carrierHz: Double = 220.0   // soft A3, neutral (no esoterik)
+    @ObservationIgnored nonisolated private static let baseGain: Float = 0.16      // gentle; master trim holds level
 
     /// Breath pulse rate the audio swell follows (Hz). Written on main, read on audio.
     @ObservationIgnored nonisolated(unsafe) private var renderHz: Float = 0.1
