@@ -99,6 +99,18 @@ public final class SessionEngine {
     @ObservationIgnored nonisolated(unsafe) private var audioLatency: Float = 0.005
     /// Launch-silence: pure zero until the first `arm()`. Written main, read audio.
     @ObservationIgnored nonisolated(unsafe) private var hasEverSounded = false
+    /// Session-epoch handshake: set on start(); the render thread zeroes its sample
+    /// clock and clears the flag. This puts the AUDIO swell and the LIGHT (which
+    /// measures wall time from `startedAtHostTime`) on the SAME phase epoch — without
+    /// it the two would swell at the same rate but up to half a cycle apart (at
+    /// 0.1 Hz that is seconds). Bool is atomic-width; benign if start() re-sets it
+    /// while the render clears (worst case: one extra reset at session start).
+    @ObservationIgnored nonisolated(unsafe) private var resetClockRequested = false
+
+    /// Host time (CFAbsoluteTime) when the running session started — the shared phase
+    /// epoch the visual leaf measures against. @ObservationIgnored: read per-frame in
+    /// a TimelineView leaf, never observed.
+    @ObservationIgnored public private(set) var startedAtHostTime: Double = 0
 
     /// Audio-thread-only running state (after attach).
     @ObservationIgnored nonisolated(unsafe) private var sampleClock: UInt64 = 0
@@ -130,9 +142,11 @@ public final class SessionEngine {
         self.bus = bus
         guide = nil
         sessionStart = CFAbsoluteTimeGetCurrent()
+        startedAtHostTime = sessionStart
         elapsedSeconds = 0
         isRunning = true
         hasEverSounded = true          // audio may now sound (launch-silence lifted)
+        resetClockRequested = true     // audio + light share the session phase epoch
         loop.start(interval: .milliseconds(100)) { [weak self] in
             self?.tick()
         }
@@ -219,6 +233,10 @@ public final class SessionEngine {
     nonisolated(unsafe) private func renderOnAudioThread(
         frameCount: Int, abl: UnsafeMutablePointer<AudioBufferList>) {
         guard hasEverSounded else { Self.silence(abl, frameCount: frameCount); return }
+        if resetClockRequested {
+            resetClockRequested = false
+            sampleClock = 0            // audio-thread-owned; re-zeroed at session start
+        }
         let sr = Self.sampleRate
         let hz = Double(renderHz)
         let depth = Double(renderDepth)
