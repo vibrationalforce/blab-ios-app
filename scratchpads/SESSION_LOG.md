@@ -4506,3 +4506,17 @@ Isolation-Fix 0038a4f) · SessionView + App-Wiring + WorkspaceView-Tür (ERSTES 
 WorkspaceView — EchoelStudioView-Sheet-Kette unangetastet). Plan:
 scratchpads/PLAN_WARM_RESTART_SESSION.md. Parallel: 10.79.70/71/72 geshippt (Drone-when-
 calm · Instruments/Drums/Samples ins Bundle (!) · rPPG-Stall-Eskalations-Fix).
+
+## 2026-07-05 (abends) — Zyklen 5+6 GESHIPPT: die komplette erste Session (Ton + Licht)
+v10.79.73 (Zyklus 5): SessionView — die Session-Tür in der Kopfleiste (circle.circle),
+WorkspaceViews ERSTES fullScreenCover (EchoelStudioView-Kette unangetastet); Start →
+Kamera → launch-stiller 220-Hz-Atem-Ton; Live-Werte NUR in Leafs (SessionPulseLeaf /
+SessionPaceLeaf via TimelineView). 1 Fix: fehlendes #endif (SwiftUI-Guard).
+v10.79.74 (Zyklus 6): das LICHT — SessionGlowLeaf atmet phasenstarr zum Ton (gemeinsamer
+Phasen-Anker: Audio-Sample-Clock wird beim Start genullt, Licht misst gegen
+startedAtHostTime). Bio-Safety-Review: 1 HIGH gefixt (Phasen-Sprung t·Δhz bei Tempo-
+Änderung → continuedPhaseOffset-Gesetz, pure + getestet inkl. 10-min-Jitter-Sweep;
+auch auf das Audio-Gate angewandt) + 2 MEDIUM (Sicherheitszeile auf dem Session-Screen,
+Reduce Motion → stetiges Licht). Beide TestFlight-Runs grün. NÄCHSTER SCHRITT: Founder
+testet die komplette Session auf dem Gerät; danach Zyklus 7 (Abschluss-Karte), dann
+Resonanz-Onboarding · Wetter/Ort-Journal (Founder-Gate Info.plist!) · lokale Push.
