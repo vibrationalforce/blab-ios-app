@@ -4492,3 +4492,17 @@ Alle Builds CI-grün (Compile + Tests) und via TestFlight-Pipeline ausgeliefert.
   aufgezeichnet, in stopEverything() genullt; evolveShouldReseed() (no-body→lebendig halten, sonst pure
   Regel via cameraRPPG.isSettled). User-Edits + snapToLock-erster-Lock bypassen das Gate. 6 CI-Tests.
   Enthält 79.67 echte Instrumente + 79.68 Founder-Drums.
+
+## 2026-07-05 (Fortsetzung) — WARM RESTART: die bio-gepacte Session (Zyklen 1–5)
+Founder: "komplett von vorne" → Grand Council (neuer Skill, aus dem "18 Genies"-Reel) +
+Deep Research (110 Agenten, 22/25 adversarial bestätigt) → Entscheidung WARM restart
+(protokolliert): Session-Erfahrung + ehrliches Closed-Loop-Pacing AUF den bewährten Kernen.
+Forschung: Entrainment-Wirkclaims unhaltbar (binaural/AV-Superiority/SSVEP widerlegt);
+tragfähig = Closed-Loop Herz/Atem-Pacing → Resonanz-Atmung; Flash-Safety hart.
+Gebaut (alle CI-grün): EntrainmentEngine (Safety-Envelope als Invariante) · SessionGuide
+(nie hoch, Rückzug bei Nicht-Folgen) · SessionClock (Latenzausgleich; Founder-Frage
+"realtime?") · SessionEngine (Orchestrator; audio-thread-reviewed CLEAN; 1 Xcode-only
+Isolation-Fix 0038a4f) · SessionView + App-Wiring + WorkspaceView-Tür (ERSTES Cover auf
+WorkspaceView — EchoelStudioView-Sheet-Kette unangetastet). Plan:
+scratchpads/PLAN_WARM_RESTART_SESSION.md. Parallel: 10.79.70/71/72 geshippt (Drone-when-
+calm · Instruments/Drums/Samples ins Bundle (!) · rPPG-Stall-Eskalations-Fix).
