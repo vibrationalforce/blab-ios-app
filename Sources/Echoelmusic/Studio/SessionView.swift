@@ -215,3 +215,4 @@ private struct SessionPulseLeaf: View {
     }
 }
 #endif
+#endif   // canImport(SwiftUI)
