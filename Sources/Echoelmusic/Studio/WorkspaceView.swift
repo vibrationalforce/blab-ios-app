@@ -29,6 +29,11 @@ struct WorkspaceView: View {
     /// @AppStorage remembers a user who hides it (only fresh installs auto-show).
     @AppStorage("visual.floating.visible") private var floatingVisualVisible = true
 
+    /// The bio-paced Session (warm restart). This is WorkspaceView's FIRST and only
+    /// modal — presented here, NOT on EchoelStudioView, whose ~16-modal chain sits at
+    /// the SwiftUI metadata limit (render-safety rule: never grow that chain).
+    @State private var showSession = false
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -52,6 +57,9 @@ struct WorkspaceView: View {
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
+        .fullScreenCover(isPresented: $showSession) {
+            SessionView()
+        }
     }
 
     /// Persistent brand header — always on screen (founder: "oben die Leiste soll immer
@@ -76,6 +84,19 @@ struct WorkspaceView: View {
                 // musical TEMPO in the transport bar right below (two different BPM numbers in
                 // the same chrome). Pulse → strip, Tempo → transport; each shown once.
                 EchoelLogoMark().frame(width: 22, height: 22)
+                // Session door — the bio-paced breathing session (warm restart).
+                // A LOW-frequency toggle; no live bio is read here (freeze rule).
+                Button {
+                    showSession = true
+                } label: {
+                    Image(systemName: "circle.circle")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(EchoelTheme.text)
+                        .frame(width: 30, height: 30)
+                        .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radius))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Start a breathing session")
                 Spacer(minLength: 0)
                 // RIGHT: immersive-visual monitor — tap to show/hide the floating visual.
                 // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the

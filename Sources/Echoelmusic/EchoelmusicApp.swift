@@ -1,5 +1,8 @@
 #if canImport(SwiftUI)
 import SwiftUI
+#if canImport(AVFoundation)
+import AVFoundation   // AVAudioSession — Session-cue Latenzausgleich (outputLatency)
+#endif
 
 /// Echoelmusic — Make Beats. Record Video. Stream Live.
 @main
@@ -105,6 +108,9 @@ struct EchoelmusicApp: App {
 
     // Resonance-breathing guide (the active half of the coherence loop).
     @State private var breathPacer = BreathPacer()
+    // The bio-paced Session (warm restart 2026-07-05): closed-loop breathing cue —
+    // guide → flash-safe entrainment plan → latency-compensated audio swell.
+    @State private var sessionEngine = SessionEngine()
     // Records a meditation/coherence session (HR/HRV/coherence averages + peak) and
     // keeps the history — the dormant SessionRecorder, now wired for the Meditation pillar.
     @State private var sessionRecorder = SessionRecorder()
@@ -296,6 +302,7 @@ struct EchoelmusicApp: App {
             .environment(projectStore)
             .environment(demoSource)
             .environment(breathPacer)
+            .environment(sessionEngine)
             .environment(sessionRecorder)
             .environment(resourceGovernor)
             .environment(fxModulator)
@@ -344,11 +351,20 @@ struct EchoelmusicApp: App {
                 sampledHarmony.attach(to: audioEngine)
                 sampledLead.load(program: .grandPiano)
                 sampledHarmony.load(program: .strings)
+                // Session breathing cue — attached BEFORE start like every voice
+                // (build-1363 rule). Launch-silent until the user starts a session.
+                sessionEngine.attach(to: audioEngine)
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 EchoelCrashLog.breadcrumb("startup 3/4: starting audio engine")
                 audioEngine.start()
                 EchoelCrashLog.breadcrumb("startup 3/4: audio engine started OK")
+                #if canImport(AVFoundation) && os(iOS)
+                // Latenzausgleich: feed the measured audio output delay to the Session
+                // clock so the heard breathing swell lands on the perceptual grid.
+                let av = AVAudioSession.sharedInstance()
+                sessionEngine.setAudioLatency(av.outputLatency + av.ioBufferDuration)
+                #endif
 
                 // The melodic instrument + shared transport — the core sound path.
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
