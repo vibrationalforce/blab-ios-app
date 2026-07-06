@@ -314,7 +314,7 @@ struct FloatingVisualWindow: View {
     /// them so a new look is one tap away in the window.
     private static let styleCount = 10
     private static func styleName(_ i: Int) -> String {
-        let names = ["Rings", "Chladni", "Plasma", "Water", "Prism", "Aurora",
+        let names = ["Rings", "Cymatics", "Plasma", "Water", "Prism", "Aurora",
                      "Lissajous", "Depth", "Oscilloscope", "Fractal"]
         return (i >= 0 && i < names.count) ? names[i] : "Look \(i)"
     }

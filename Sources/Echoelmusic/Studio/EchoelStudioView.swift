@@ -1147,7 +1147,15 @@ struct EchoelStudioView: View {
                 HStack(spacing: 8) {
                     ForEach(VisualPreset.factory) { preset in
                         let selected = visualPresetID == preset.id
-                        Button { applyVisualPreset(preset) } label: {
+                        // Tapping the ACTIVE preset again DESELECTS it (clears the
+                        // highlight; the applied Intensity/Detail/Motion/Spread stay,
+                        // still editable). Fixes the founder's "klickt man an und geht
+                        // nicht mehr weg" — the Blend strip already toggles this way,
+                        // the Preset strip was the one selection that never cleared.
+                        Button {
+                            if selected { visualPresetID = "" }
+                            else { applyVisualPreset(preset) }
+                        } label: {
                             Text(preset.name)
                                 .font(EchoelTheme.font(12, .medium))
                                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
@@ -1158,6 +1166,8 @@ struct EchoelStudioView: View {
                                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
                         }
                         .accessibilityLabel("\(preset.name) visual preset — \(preset.blurb)")
+                        .accessibilityAddTraits(selected ? [.isSelected] : [])
+                        .accessibilityHint(selected ? "Double tap to clear" : "Double tap to apply")
                     }
                 }
             }
@@ -1172,8 +1182,10 @@ struct EchoelStudioView: View {
         // (label, isDonuts, metalStyle). Prism (style 4 — spectral dispersion) is fully
         // implemented in the shader (clamped 0…4) and was simply never surfaced here; it
         // now joins the strip so every shipped look is reachable (10.76.49 visuals tidy).
+        // "Cymatics" is the recognizable name for the Chladni-plate eigenmode field
+        // (founder: "Cymatics fehlen" — it shipped as the unfamiliar "Chladni").
         let looks: [(String, Bool, Int)] = [
-            ("Donuts", true, -1), ("Rings", false, 0), ("Chladni", false, 1),
+            ("Donuts", true, -1), ("Rings", false, 0), ("Cymatics", false, 1),
             ("Plasma", false, 2), ("Water", false, 3), ("Prism", false, 4),
             ("Aurora", false, 5), ("Lissajous", false, 6), ("Depth", false, 7),
             ("Scope", false, 8), ("Fractal", false, 9)
@@ -1196,9 +1208,11 @@ struct EchoelStudioView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(look.0) visual look")
+                    .accessibilityAddTraits(selected ? [.isSelected] : [])
                 }
             }
         }
+        .accessibilityLabel("Visual look — one active at a time")
     }
 
     /// The "mischend" controls: a SECOND look to overlap with the primary, plus a Mix
@@ -1210,7 +1224,7 @@ struct EchoelStudioView: View {
     private var visualBlendControls: some View {
         if !spectralDonuts {
             let bLooks: [(String, Int)] = [
-                ("Rings", 0), ("Chladni", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4),
+                ("Rings", 0), ("Cymatics", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4),
                 ("Aurora", 5), ("Lissajous", 6), ("Depth", 7),
                 ("Scope", 8), ("Fractal", 9)
             ]
@@ -1238,6 +1252,8 @@ struct EchoelStudioView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Blend with \(b.0)")
+                        .accessibilityAddTraits(selected ? [.isSelected] : [])
+                        .accessibilityHint(selected ? "Double tap to remove the blend" : "Double tap to blend")
                     }
                 }
             }
