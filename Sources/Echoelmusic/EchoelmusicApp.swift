@@ -254,9 +254,10 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        // The app home is the calm breathing SESSION (shell flip 2026-07-06);
-        // the generative studio lives behind WorkspaceView's one "Studio" door.
-        // See WorkspaceView + scratchpads/STRATEGY_OPTIMAL_FORM_2026-07-06.md.
+        // The app home is the bio-generative INSTRUMENT (founder re-focus
+        // 2026-07-06B: "keine Atemübung — Performance und Entspannung dadurch,
+        // dass sich die Musik mit dem Biofeedback generativ verändert"). The
+        // breathing-session experiment stays in code, unpresented (reversible).
         WorkspaceView()
             .environment(audioEngine)
             .environment(store)
