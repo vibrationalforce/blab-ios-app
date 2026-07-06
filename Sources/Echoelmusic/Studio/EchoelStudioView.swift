@@ -218,6 +218,12 @@ struct EchoelStudioView: View {
     /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
     /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
     private let minAutoSeedGap: TimeInterval = 6.0
+    /// The floating-visual state (visible/size) before Start staged the immersive
+    /// fullscreen take, so Stop can restore exactly what the user had. nil = no take
+    /// staging in flight. (The keys are @AppStorage-backed in WorkspaceView /
+    /// FloatingVisualWindow; writes here go through the same UserDefaults.)
+    @State private var preTakeVisualVisible: Bool?
+    @State private var preTakeVisualSize: Int?
     // (Tempo-latch gating moved into CameraRPPGBioPublisher.isSettled — confident + FLAT,
     //  because confidence alone latches on the falling warm-up tail. See bodyTempoTrustworthy.)
 
@@ -2114,6 +2120,12 @@ struct EchoelStudioView: View {
     private func startBiofeedback() {
         EchoelCrashLog.breadcrumb("Start tapped")
         running = true
+        // THE PERFORMANCE MOMENT (founder 2026-07-06B: "wow", music + visual as ONE
+        // experience): Start takes the immersive visual FULLSCREEN for the take.
+        // Stop restores what the user had before — unless they changed the window
+        // themselves mid-take (their in-take choice is respected, see stop path).
+        // The fullscreen overlay's size button is the obvious one-tap way out.
+        goImmersiveForTake()
         // One fresh musical identity PER TAKE: the pre-lock (no-body) structure seed is
         // drawn here once and then held, so warm-up recomposes/edits stay the same piece.
         takeFallbackSeed = UInt64.random(in: 1...UInt64.max)
@@ -2178,7 +2190,37 @@ struct EchoelStudioView: View {
         panicAllNotesOff()
         synth.bioModulationEnabled = false   // stop the 10 Hz timbre drive too
         stopBioSource()
+        restorePreTakeVisual()
         EchoelCrashLog.breadcrumb("stopEverything: transport + all voices released")
+    }
+
+    /// Stage the immersive fullscreen visual for a take (Start). Remembers the prior
+    /// window state so Stop can put it back.
+    private func goImmersiveForTake() {
+        #if canImport(MetalKit) && canImport(UIKit)
+        let d = UserDefaults.standard
+        preTakeVisualVisible = d.object(forKey: "visual.floating.visible") as? Bool ?? true
+        preTakeVisualSize = d.object(forKey: "visual.floating.size") as? Int
+        d.set(true, forKey: "visual.floating.visible")
+        d.set(FloatingVisualWindow.WindowSize.fullscreen.rawValue, forKey: "visual.floating.size")
+        #endif
+    }
+
+    /// Restore the pre-take window — but ONLY if the take ended still in the exact
+    /// state Start staged (visible + fullscreen). A user who exited fullscreen or hid
+    /// the window mid-take made a choice; Stop must not override it.
+    private func restorePreTakeVisual() {
+        #if canImport(MetalKit) && canImport(UIKit)
+        defer { preTakeVisualVisible = nil; preTakeVisualSize = nil }
+        guard preTakeVisualVisible != nil || preTakeVisualSize != nil else { return }
+        let d = UserDefaults.standard
+        let visibleNow = d.object(forKey: "visual.floating.visible") as? Bool ?? true
+        let sizeNow = d.object(forKey: "visual.floating.size") as? Int
+        guard visibleNow, sizeNow == FloatingVisualWindow.WindowSize.fullscreen.rawValue else { return }
+        if let v = preTakeVisualVisible { d.set(v, forKey: "visual.floating.visible") }
+        d.set(preTakeVisualSize ?? FloatingVisualWindow.WindowSize.small.rawValue,
+              forKey: "visual.floating.size")
+        #endif
     }
 
     /// Begin publishing a bio signal. Camera rPPG on devices that have it (cover
