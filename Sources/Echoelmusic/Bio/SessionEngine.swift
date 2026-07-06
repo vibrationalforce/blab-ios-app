@@ -161,8 +161,13 @@ public final class SessionEngine {
         startedAtHostTime = sessionStart
         elapsedSeconds = 0
         isRunning = true
-        hasEverSounded = true          // audio may now sound (launch-silence lifted)
-        resetClockRequested = true     // audio + light share the session phase epoch
+        // AUDIO CUE REMOVED (founder 2026-07-06: "Der durchgehende Ton soll komplett
+        // entfernt werden") — the continuous 220 Hz carrier read as an annoying drone,
+        // not a guide. The Session is LIGHT-led now: hasEverSounded stays false, so the
+        // render block emits pure silence forever. The node, mirrors and phase math
+        // stay in place for a future TEXTURED cue (breath-noise/chime), which will be
+        // a separate founder-approved cycle — never a constant tone again.
+        resetClockRequested = true     // light keeps the session phase epoch
         visualPhaseOffset = 0
         lastVisualHz = 0
         audioPhaseOffsetAccum = 0

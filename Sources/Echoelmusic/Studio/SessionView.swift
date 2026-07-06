@@ -81,10 +81,10 @@ struct SessionView: View {
 
     private var idleBody: some View {
         VStack(spacing: 14) {
-            Text("Breathe with the tone")
+            Text("Breathe with the light")
                 .font(EchoelTheme.font(22, .semibold))
                 .foregroundStyle(EchoelTheme.text)
-            Text("Place a finger over the camera. The tone eases from your own pace toward your resonance breathing — and backs off whenever your body isn't following. For self-observation.")
+            Text("Place a finger over the camera. The light breathes with you — easing from your own pace toward your resonance breathing, and backing off whenever your body isn't following. For self-observation.")
                 .font(EchoelTheme.font(13))
                 .foregroundStyle(EchoelTheme.dim)
                 .multilineTextAlignment(.center)
@@ -180,7 +180,7 @@ private struct SessionPaceLeaf: View {
                     .font(EchoelTheme.font(56, .semibold))
                     .foregroundStyle(EchoelTheme.text)
                     .monospacedDigit()
-                Text("breaths / min — follow the tone")
+                Text("breaths / min — follow the light")
                     .font(EchoelTheme.font(12))
                     .foregroundStyle(EchoelTheme.dim)
                 Text(Self.clock(session.elapsedSeconds))
