@@ -1,22 +1,14 @@
-build: 2026-07-05 v10.79.76 (Session ist jetzt GANZ OBEN + Visual-Menü gefixt: Cymatics · Abwählen · VoiceOver)
+build: 2026-07-05 v10.79.77 (Session: durchgehender Ton ENTFERNT — jetzt Licht-geführt)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zwei Dinge aus deinem Feedback:
-  1) DIE SESSION IST JETZT NICHT MEHR VERSTECKT: Der ruhige Atem-Ton + Licht
-     (die eigentliche meditative Erfahrung) war nur hinter dem kleinen Kreis-Icon
-     oben — deshalb bist du immer im Studio gelandet und hast die holprige
-     generative Musik gehört. Jetzt ist eine große "Breathing Session"-Karte das
-     ERSTE ganz oben auf der Seite. Antippen → Ton + Licht atmen mit dir zur
-     Resonanz. Das ist der Wow-/Meditationsmoment. (Studio bleibt direkt darunter.)
-  2) VISUAL-MENÜ (deine Screenshot-Punkte):
-     • CYMATICS ist wieder da — es hieß nur "Chladni" (Chladni-Platte = Cymatics,
-       echte Physik). In allen Menüs auf "Cymatics" umbenannt.
-     • "Klickt man an und geht nicht mehr weg": Die Preset-Leiste ließ sich nicht
-       abwählen. Jetzt: aktiven Preset NOCHMAL antippen → Auswahl geht weg (Werte
-       bleiben, editierbar) — genau wie die Blend-Leiste.
-     • VoiceOver sagt jetzt bei jedem Chip, ob er ausgewählt ist (Accessibility).
-  TEST 10.79.76:
-  A) Oben die "Breathing Session"-Karte antippen. Atmen Ton UND Licht synchron mit
-     dir? Führt die Atemzahl dich langsam runter? Bringt DAS dich zur Ruhe?
-  B) Im Visual-Menü: Cymatics wählbar? Preset zweimal tippen → wird es wieder grau?
-  Bitte schick ein Log aus der SESSION (nicht aus dem Studio) — dann sehe ich, ob
-  der Atem-Ton bei dir sauber läuft.
+notesT: Dein Feedback umgesetzt:
+  DER DURCHGEHENDE TON IST WEG. Die Session ist jetzt rein LICHT-geführt:
+  Du legst den Finger auf die Kamera, das Licht atmet mit dir — von deinem
+  eigenen Tempo langsam Richtung Resonanz-Atmung (~6 Atemzüge/Min), und es
+  zieht sich zurück sobald dein Körper nicht folgt. Kein nerviger Dauerton
+  mehr. Nur du, dein Puls und das ruhige Atem-Licht.
+  TEST 10.79.77:
+  Oben die "Breathing Session"-Karte antippen → Start. Ist es jetzt ruhig
+  (kein durchgehender Ton)? Führt dich das Licht angenehm langsamer? Bringt
+  DAS dich runter? Schick mir bitte ein Log aus der SESSION.
+  (Parallel läuft eine tiefe Produkt-/Markt-Analyse: Was ist Echoelmusic in
+  optimaler Form + wie erzeugt es langfristig solides Einkommen. Kommt separat.)
