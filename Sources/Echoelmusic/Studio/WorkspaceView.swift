@@ -42,7 +42,7 @@ struct WorkspaceView: View {
                 TransportBar()
                 Divider().overlay(EchoelTheme.border)
                 // The ONE adaptive view: the bio-generative instrument.
-                EchoelStudioView()
+                EchoelStudioView(presentSession: $showSession)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             // The immersive visual floats ABOVE the whole screen so its FULLSCREEN size can
