@@ -2458,7 +2458,14 @@ struct EchoelStudioView: View {
         // signatures); classical/meditation/self-observation return empty grids and
         // stay drum-free by design. This supersedes the 2026-06-13 "drum-free"
         // decision (a8c2bc9) at the founder's explicit ask.
-        beatPlayer.pattern.load(steps: composition.drumSteps, accents: composition.drumAccents)
+        // Boundary-staged while playing (2026-07-06B "organisch und professionell"):
+        // the melody already hot-swaps at the loop boundary, but the drum grid used
+        // to cut over IMMEDIATELY — every evolve/lock re-seed chopped the groove
+        // mid-bar while the melody waited for the downbeat (an audible "holprig"
+        // seam). Now drums stage at the same boundary, so the whole re-seed lands
+        // musically, together, on the downbeat. Stopped → loads instantly as before.
+        beatPlayer.pattern.loadAtBoundary(steps: composition.drumSteps,
+                                          accents: composition.drumAccents)
         // GLIDE the tempo (not snap) so a body re-seed eases in instead of jumping ("bpm
         // springt plötzlich"). glideTempo now eases whether the take is PLAYING (advance()
         // ticks) OR STOPPED (a small main-queue timer) — a re-seed landing on a paused take no
