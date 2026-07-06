@@ -4,6 +4,41 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-06 STRATEGIC SYNTHESIS: "optimal form" = the Session IS the app (two adversarial research streams)
+- **Founder trigger:** "Der durchgehende ton soll komplett entfernt werden [erledigt]. Ansonsten
+  Deep Audit und Deep Marketing Research... Was ist Echoelmusic in optimaler Form? Wie generiere ich
+  langfristig solides Einkommen und wie muss sie dafür aufgebaut sein? Ich bin mit der Qualität nicht
+  zufrieden." Full synthesis: `scratchpads/STRATEGY_OPTIMAL_FORM_2026-07-06.md`.
+- **Two verified research streams converged on ONE conclusion — ship ONE excellent thing:**
+  - **Code/UX audit:** root quality problem = the shell is inverted vs. the approved pivot. App still
+    boots into the 2,756-LOC `EchoelStudioView` god-view (89 state, ~20 sheets = black-screen/freeze
+    source); the calm `SessionView` is a hidden fullScreenCover. "Holprig" sound is structural
+    (generative composer re-seeds on noisy pulse — calm can't emerge from a restless engine; the steady
+    `SessionEngine` path exists but is hidden). ~5,000 LOC safely removable (5 unreachable DAW views +
+    domain, dead RTMP, BioModulation/CloudSync 0-refs, DUPLICATE `MeditationView` that already has the
+    summary/history SessionView lacks).
+  - **Market research (107 agents, 18 confirmed / 7 refuted):** consumer wellness market is brutal to
+    monetize (Calm ~2.5% conversion ceiling); abo churn near-irreversible (95% never return → only lever
+    = first-month retention). rPPG reliably reads only avg HR, not individual HRV/"coherence" — BUT
+    contact fingertip PPG (Echoel's modality) is materially more accurate than facial rPPG → valid as a
+    self-observation/guidance tool, NOT a measurement-grade differentiator. US regulatory OK for
+    on-device no-diagnosis self-observation (FDA general-wellness discretion). **EU LAW (GDPR/MDR/DiGA)
+    NOT researched — real gap, founder in Hamburg, must clear before health marketing.**
+- **Recommendation (my rational/critical view, pending founder go on scope):**
+  1. **Flip the shell — Session = home, Studio behind ONE deliberate door** (audit #1, already covered by
+     the 2026-07-02 warm-restart mandate; reversible). This realizes the pivot decided-but-never-shipped.
+  2. **Pricing = one-time Pro unlock + generous free tier, NOT subscription** — a solo dev can't win the
+     abo-churn treadmill; one-time has no churn, preserves win-back optionality, matches privacy-first.
+     Fix `EchoelStore` (subscription IDs contradict this).
+  3. **Positioning = self-observation + breath pacing, NEVER "accurate HRV/coherence measurement"** —
+     protects trust AND stays out of the regulatory zone.
+  4. **Long-term moat = the OSC/ADM-OSC/Art-Net immersive layer** (installation/artist/venue niche pays,
+     less saturated) — Phase 2, after the consumer core is genuinely good.
+- **Status:** analysis delivered to founder; shell-flip execution offered as the immediate next cycle,
+  awaiting founder green-light on scope + pricing direction. Tone-removal shipped v10.79.77 (CI green).
+
+---
+
 ### 2026-07-02 STRATEGIC PIVOT: refocus to a calm shell (reduce surface, keep engine)
 - **Founder trigger:** "Ich empfinde die ganze App als eine sehr komplexe nicht richtig
   funktionierende und irritierende Umgebung." Proposed drastically reducing to: (1) a
