@@ -1,22 +1,20 @@
-build: 2026-07-05 v10.79.80 (Beat-Modus: Aus · Puls (schamanisch, Default) · Genre)
+build: 2026-07-05 v10.79.81 (XY-Mood-Pads: Sound + Visual — Stimmung mit einem Finger)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine Richtung ("Beat ausschaltbar, tendenziell eher schamanisch
-  ur-rhythmisch") ist drin:
-  NEU im Composition-Panel: "Beat" mit drei Stellungen —
-  • AUS: reine Flächen. Keine Drums, nur die vom Biofeedback modulierten
-    Klangflächen + Sub. Der kontemplative Kern.
-  • PULS (neuer Standard): der schamanische Ur-Rhythmus. EINE tiefe Trommel,
-    gleichmäßige, hypnotische Viertel mit dem Herzschlag-"lub-dub" als Zelle.
-    Und: Je ruhiger/kohärenter dein Körper, desto karger wird die Trommel —
-    bis auf den bloßen Puls. Kein Swing, kein Genre-Groove, nichts Trashiges.
-    Die Trommel hält ihren Gang über Re-Seeds hinweg (Struktur-Seed).
-  • GENRE: der bisherige Stil-Groove (für die Performance-Seite).
-  Wechsel greifen musikalisch am nächsten Taktanfang — nie mitten im Takt.
-  Außerdem loggt jeder Re-Seed jetzt seinen Auslöser (generate[start/
-  user-edit/lock-snap/evolve]) — dein letztes Log hatte einen unerklärten.
-  TEST 10.79.80:
-  A) Beat auf AUS: tragen die reinen Flächen ohne Beat? Authentischer?
-  B) Beat auf PULS: fühlt sich die Trommel schamanisch/ur an? Wird sie
-     ruhiger, wenn du zur Ruhe kommst?
-  C) Was fehlt den FLÄCHEN selbst noch zur Tiefe (Klangfarbe/Bewegung)?
-  Bitte ein Log mitschicken.
+notesT: "Tiefe Bewusstseinszustände mit ultraleichter Steuerung" — Schritt 1:
+  ZWEI XY-PADS direkt unter Start (keine Menüs, keine Zahlen):
+  • SOUND-PAD: ← dunkel · hell → / ↓ still · bewegt ↑. Loslassen → die
+    Komposition folgt deiner Stimmung am nächsten Taktanfang (Register,
+    Dichte, Farbe — nie ein Schnitt mitten im Takt).
+  • VISUAL-PAD: ← natürliche Farben · Spektrum → / ↓ ruhig · energetisch ↑.
+    Folgt dem Finger LIVE im schwebenden Visual. Mitte = exakt der bisherige
+    Look (natürliche Farbpalette bleibt der Ausgangspunkt).
+  Beides merkt sich seine Position über App-Starts.
+  Dazu (aus 10.79.80, im selben Build): Beat-Modus Aus · Puls (schamanische
+  Ur-Trommel, wird karger je ruhiger dein Körper) · Genre.
+  TEST 10.79.81:
+  A) Start → mit EINEM Finger auf dem Sound-Pad die Stimmung suchen: findest
+     du intuitiv einen Zustand, der dich reinzieht?
+  B) Visual-Pad im Vollbild: reicht das, um die richtige visuelle Stimmung
+     zu finden — oder fehlt eine Achse?
+  C) Beat Aus + Sound-Pad unten links (dunkel/still): trägt die reine Fläche?
+  Bitte Log mitschicken.
