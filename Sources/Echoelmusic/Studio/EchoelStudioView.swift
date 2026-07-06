@@ -772,7 +772,7 @@ struct EchoelStudioView: View {
                     Text("Breathing Session")
                         .font(EchoelTheme.font(17, .semibold))
                         .foregroundStyle(EchoelTheme.text)
-                    Text("Tone + light breathe with you toward your resonance pace")
+                    Text("The light breathes with you toward your resonance pace")
                         .font(EchoelTheme.font(12))
                         .foregroundStyle(EchoelTheme.dim)
                         .lineLimit(2)
@@ -790,7 +790,7 @@ struct EchoelStudioView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Start a breathing session")
-        .accessibilityHint("A calm session where a tone and light breathe with you.")
+        .accessibilityHint("A calm session where the light breathes with you.")
     }
 
     private var startButton: some View {
