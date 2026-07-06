@@ -3,6 +3,42 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-06 — SHELL FLIP: the Session IS the app (founder "Ja" on the strategy synthesis)
+The decisive cycle of the warm restart. Sequence:
+1. **Tone removed + shipped (v10.79.77, eea45c5/10974b5, CI green)** — founder: "Der
+   durchgehende Ton soll komplett entfernt werden." SessionEngine render now stays silent
+   forever (node/mirrors/phase math kept for a future textured cue); all Session copy is
+   light-led ("Breathe with the light").
+2. **Two adversarial research streams delivered** (founder ask: Deep Audit + Deep Marketing
+   Research → "Was ist Echoelmusic in optimaler Form / solides Einkommen / wie aufgebaut"):
+   - **Code/UX audit** (216 files / 48,556 LOC): root cause = shell inverted vs. the
+     2026-07-02 pivot — the 2,756-LOC `EchoelStudioView` god-view (89 state, ~20 sheets =
+     black-screen/freeze epicenter) was HOME while the calm Session hid behind a header icon.
+     "Holprig" = generative re-seeding on a noisy pulse, structural. ~5,000 LOC dead
+     (5 unreachable DAW views + domain, dead RTMP, BioModulation/CloudSync, duplicate
+     MeditationView that already has summary/history). Verdict: Session = the whole app.
+   - **Market research** (107 agents, 18 confirmed / 7 refuted claims): consumer wellness
+     brutal (Calm ~2.5% conversion ceiling; 95% of cancelled annual subs never return → only
+     lever is first-run/first-month). rPPG = self-observation/guidance tool, NOT
+     measurement-grade (but contact fingertip PPG >> facial rPPG — design validated).
+     **EU law (GDPR/MDR/DiGA) NOT researched — gap to close before health marketing.**
+   - Synthesis + income model: `scratchpads/STRATEGY_OPTIMAL_FORM_2026-07-06.md` (one-time
+     Pro unlock NOT subscription; self-observation positioning; immersive OSC layer = Phase-2
+     moat). Logged in memory/decisions.md + decisions.csv.
+3. **Founder said "Ja" → SHELL FLIP executed (7f09a2f, v10.79.78):**
+   - `WorkspaceView` = `SessionView(presentStudio:)` home + ONE fullScreenCover →
+     new `StudioShellView` (former shell: topBar + TransportBar + EchoelStudioView +
+     FloatingVisualWindow). Cover count still ONE; studio sheet chain untouched.
+   - SessionView home mode: brand header + version + "Studio" door; opening Studio ENDS the
+     session (no camera/torch underneath); closing Studio STOPS the pattern clock (no beat
+     under the calm home). Studio's Breathing-Session card now RETURNS home.
+   - Launch never constructs the studio god-view (smaller first-render metadata).
+   - CLAUDE.md root-view note rewritten so no future session "fixes" the flip backwards.
+NEXT (per synthesis, in order): port session summary/history (SessionRecorder/MeditationView)
+into SessionView → resonance onboarding (ResonanceFinder) → BLE-preferred pulse source →
+breath haptics → dead-code demolition (~5k LOC) → EchoelStore → one-time unlock. EU-law check
+before any health marketing.
+
 ## 2026-07-02 — rPPG CONFIRMED GOOD on device (v10.79.7 / build 2112, torch 0.45)
 Founder device log on build 2112: finger on → R settles to **0.27–0.29** (bright 0.13–0.14,
 no more washout to R 0.7–0.85), locks at **conf 0.95** (~17 s: 10 s buffer fill + acf ramp),
