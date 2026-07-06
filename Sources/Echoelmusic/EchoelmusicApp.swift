@@ -254,9 +254,9 @@ struct EchoelmusicApp: App {
 
     @ViewBuilder
     private var mainContent: some View {
-        // Workstation home: Arrangement/Clips timeline in the foreground, the
-        // bio-compose instrument (EchoelStudioView) hosted as one surface. See
-        // WorkspaceView / docs/dev/DMMW_ARCHITECTURE.md.
+        // The app home is the calm breathing SESSION (shell flip 2026-07-06);
+        // the generative studio lives behind WorkspaceView's one "Studio" door.
+        // See WorkspaceView + scratchpads/STRATEGY_OPTIMAL_FORM_2026-07-06.md.
         WorkspaceView()
             .environment(audioEngine)
             .environment(store)

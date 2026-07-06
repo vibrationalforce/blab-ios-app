@@ -1,14 +1,20 @@
-build: 2026-07-05 v10.79.77 (Session: durchgehender Ton ENTFERNT — jetzt Licht-geführt)
+build: 2026-07-05 v10.79.78 (SHELL-FLIP: Die Session IST jetzt die App — Studio hinter einer Tür)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Feedback umgesetzt:
-  DER DURCHGEHENDE TON IST WEG. Die Session ist jetzt rein LICHT-geführt:
-  Du legst den Finger auf die Kamera, das Licht atmet mit dir — von deinem
-  eigenen Tempo langsam Richtung Resonanz-Atmung (~6 Atemzüge/Min), und es
-  zieht sich zurück sobald dein Körper nicht folgt. Kein nerviger Dauerton
-  mehr. Nur du, dein Puls und das ruhige Atem-Licht.
-  TEST 10.79.77:
-  Oben die "Breathing Session"-Karte antippen → Start. Ist es jetzt ruhig
-  (kein durchgehender Ton)? Führt dich das Licht angenehm langsamer? Bringt
-  DAS dich runter? Schick mir bitte ein Log aus der SESSION.
-  (Parallel läuft eine tiefe Produkt-/Markt-Analyse: Was ist Echoelmusic in
-  optimaler Form + wie erzeugt es langfristig solides Einkommen. Kommt separat.)
+notesT: Die große Entscheidung umgesetzt ("Ja" zur Strategie-Synthese):
+  DIE APP ÖFFNET JETZT DIREKT IN DER BREATHING SESSION. Kein Studio-Gewusel
+  mehr beim Start — nur der ruhige Atem-Screen: Start antippen, Finger auf
+  die Kamera, das Licht atmet mit dir zur Resonanz.
+  • Oben rechts: EIN "Studio"-Button — dahinter liegt das komplette
+    Generative-Musik-Studio (unverändert, alles noch da).
+  • Studio öffnen beendet die Session (Kamera/Taschenlampe laufen nicht
+    heimlich weiter); Studio schließen stoppt die Musik (kein Beat unter
+    dem ruhigen Home).
+  • Die "Breathing Session"-Karte im Studio bringt dich jetzt ZURÜCK zur
+    Session.
+  TEST 10.79.78:
+  A) App starten → landest du direkt im ruhigen Session-Screen? Fühlt sich
+     der ERSTE Moment jetzt richtig an?
+  B) Session starten → Licht atmet mit dir (kein Dauerton)?
+  C) "Studio" oben rechts → ist alles Gewohnte da? Zurück mit dem Pfeil
+     oder der Session-Karte?
+  Bitte ein Log aus der Session schicken.
