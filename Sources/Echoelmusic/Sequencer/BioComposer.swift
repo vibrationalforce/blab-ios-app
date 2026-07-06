@@ -24,6 +24,24 @@ public enum ComposerMode: String, Codable, Sendable {
     case flowFree       // tempo follows the heart, for meditation
 }
 
+/// How the groove layer behaves (founder 2026-07-06C: "Beat soll ausschaltbar
+/// sein und tendenziell eher schamanisch ur-rhythmisch"). Orthogonal to the
+/// genre — the melody/pads always follow the chosen style; this only selects
+/// the DRUM layer: `off` = pure Flächen, `pulse` = the shamanic ur-rhythm
+/// (`BioComposer.shamanicBeat`, the DEFAULT), `genre` = the style's own
+/// archetypal groove.
+public enum BeatMode: String, CaseIterable, Codable, Sendable, Identifiable {
+    case off, pulse, genre
+    public var id: String { rawValue }
+    public var label: String {
+        switch self {
+        case .off:   return "Off"
+        case .pulse: return "Pulse"
+        case .genre: return "Genre"
+        }
+    }
+}
+
 /// A small, fast, fully-deterministic RNG (SplitMix64) so compositions are
 /// reproducible from a seed. Pure value type.
 public struct SeededRNG: Sendable {
@@ -399,6 +417,47 @@ public enum BioComposer {
 
     private static func emptyGrid() -> [[Bool]] {
         Array(repeating: Array(repeating: false, count: stepCount), count: trackCount)
+    }
+
+    /// No drums at all — BeatMode.off (pure Flächen). Public so the studio can
+    /// silence the groove layer without reaching the private emptyGrid.
+    public static func silentBeat() -> (steps: [[Bool]], accents: [[Bool]]) {
+        (emptyGrid(), emptyGrid())
+    }
+
+    /// The shamanic ur-rhythm (BeatMode.pulse — founder 2026-07-06C: "tendenziell
+    /// eher schamanisch ur-rhythmisch"): ONE deep drum walking a steady, hypnotic
+    /// quarter pulse with the cardiac lub-dub as its cell — the drum literally
+    /// walks like a heart. Same bio grammar as the genre beats: `energy` (heart
+    /// drive) adds the soft echo hits, a spacious (high-coherence) body strips
+    /// every extra down to the bare pulse — and every rng draw happens
+    /// UNCONDITIONALLY so a spacious take is a strict subset of the same seed.
+    public static func shamanicBeat(seed: UInt64, energy: Float, calm: Float)
+        -> (steps: [[Bool]], accents: [[Bool]]) {
+        var rng = SeededRNG(seed: seed)
+        var steps = emptyGrid()
+        var accents = emptyGrid()
+        let spacious = calm > 0.7
+
+        // The steady frame-drum quarters — the monotone, trance-inducing base.
+        for s in stride(from: 0, to: stepCount, by: 4) { steps[Track.kick][s] = true }
+        accents[Track.kick][0] = true    // the bar breathes: 1 calls…
+        accents[Track.kick][8] = true    // …3 answers
+
+        // The cardiac "dub": a soft echo one 16th-pair after beats 1 and 3
+        // (lub-DUB … lub-DUB). Earned by body drive, dropped when spacious.
+        let pDub = rng.unit()
+        if energy > 0.3 && !spacious {
+            steps[Track.kick][2] = true
+            if pDub < 0.6 { steps[Track.kick][10] = true }
+        }
+
+        // A rare low perc turn at the bar's end — the drummer's variation,
+        // never a fill. Gone when the body is spacious.
+        let pTurn = rng.unit()
+        if !spacious && pTurn < 0.35 { steps[Track.perc][14] = true }
+
+        return (steps, accents)
     }
 
     // MARK: - Archetype beats (audit B5 — the genre grooves for the harmonic genres)

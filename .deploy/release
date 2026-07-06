@@ -1,24 +1,22 @@
-build: 2026-07-05 v10.79.79 (RE-FOKUS: Instrument = Home · Re-Seeds nur am Taktanfang · Start = Fullscreen-Visual)
+build: 2026-07-05 v10.79.80 (Beat-Modus: Aus · Puls (schamanisch, Default) · Genre)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Feedback ("keine Atemübung — Performance + Entspannung durch
-  bio-generative Musik") komplett umgesetzt:
-  1) HOME = DAS INSTRUMENT. Die App öffnet wieder direkt im bio-generativen
-     Studio (Atem-Session komplett aus der Navigation raus — Code bleibt
-     archiviert). Kein Umweg mehr.
-  2) MUSIK ORGANISCHER: Der hörbarste "holprig"-Schnitt ist weg — bei jedem
-     automatischen Re-Seed (Evolve/Puls-Lock) wechselten die DRUMS sofort
-     mitten im Takt, während die Melodie auf den Taktanfang wartete. Jetzt
-     wechseln Drums UND Melodie zusammen exakt auf der Eins — jeder Übergang
-     landet musikalisch.
-  3) VISUALS KOMMEN AN: Start = Musik + Visual als EIN Moment — das immersive
-     Visual geht beim Start automatisch in den Vollbild-Modus (Ausstieg: der
-     Größen-Button im Overlay, ein Tipp). Stop stellt dein vorheriges Fenster
-     wieder her (außer du hast es währenddessen selbst geändert — dann gilt
-     deine Wahl).
-  TEST 10.79.79:
-  A) App starten → direkt im Instrument? "Create from Within" antippen →
-     Musik + Vollbild-Visual zusammen? Wow-Moment?
-  B) Laufen lassen (~1 Min): Übergänge bei Musik-Änderungen — landen sie
-     jetzt sauber auf dem Takt (kein Stolpern mehr)?
-  C) Klingt es insgesamt organischer? Was stört als Nächstes am meisten?
-  Bitte wieder ein Log schicken.
+notesT: Deine Richtung ("Beat ausschaltbar, tendenziell eher schamanisch
+  ur-rhythmisch") ist drin:
+  NEU im Composition-Panel: "Beat" mit drei Stellungen —
+  • AUS: reine Flächen. Keine Drums, nur die vom Biofeedback modulierten
+    Klangflächen + Sub. Der kontemplative Kern.
+  • PULS (neuer Standard): der schamanische Ur-Rhythmus. EINE tiefe Trommel,
+    gleichmäßige, hypnotische Viertel mit dem Herzschlag-"lub-dub" als Zelle.
+    Und: Je ruhiger/kohärenter dein Körper, desto karger wird die Trommel —
+    bis auf den bloßen Puls. Kein Swing, kein Genre-Groove, nichts Trashiges.
+    Die Trommel hält ihren Gang über Re-Seeds hinweg (Struktur-Seed).
+  • GENRE: der bisherige Stil-Groove (für die Performance-Seite).
+  Wechsel greifen musikalisch am nächsten Taktanfang — nie mitten im Takt.
+  Außerdem loggt jeder Re-Seed jetzt seinen Auslöser (generate[start/
+  user-edit/lock-snap/evolve]) — dein letztes Log hatte einen unerklärten.
+  TEST 10.79.80:
+  A) Beat auf AUS: tragen die reinen Flächen ohne Beat? Authentischer?
+  B) Beat auf PULS: fühlt sich die Trommel schamanisch/ur an? Wird sie
+     ruhiger, wenn du zur Ruhe kommst?
+  C) Was fehlt den FLÄCHEN selbst noch zur Tiefe (Klangfarbe/Bewegung)?
+  Bitte ein Log mitschicken.
