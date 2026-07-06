@@ -4,6 +4,31 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-06B RE-FOCUS (supersedes the same-day shell flip): NO breathing exercise — the product is bio-generative music performance
+- **Founder trigger (verbatim, after testing the Session-as-home build):** "nein die Leute
+  brauchen gar keine Atemübung. Es geht bei der App um eine Performance und
+  Entspannungssteigerung dadurch, dass sich die Musik mit dem Biofeedback generativ verändert
+  und dadurch ein kontemplativerer Zustand entsteht. Die Musik soll dementsprechend organisch
+  und professionell klingen. Bisher haben wir da noch viel Luft nach oben und die visuals sind
+  auch noch nicht ganz angekommen."
+- **What this supersedes:** the 2026-07-06A "Session IS the app" shell flip (and that part of
+  the strategy synthesis). The AUDIT's structural findings remain valid (god-view fragility,
+  dead code, re-seed churn); the MARKET findings remain valid (one-time unlock, first-run is
+  everything, no medical claims). Only the PRODUCT FORM conclusion changed: not a breathing
+  app — a bio-generative music instrument whose quality bar is organic/professional sound +
+  visuals that are part of the experience.
+- **Executed (v10.79.79):** (1) instrument = home again (WorkspaceView restored; Session stack
+  stays in code, compiling, UNPRESENTED — do not re-add without founder ask, do not delete
+  either: it holds the tested flash-safety/latency/pacing laws); (2) drum re-seeds now stage
+  at the loop boundary (PatternEngine.loadAtBoundary) so evolve/lock re-seeds land melody+drums
+  together on the downbeat — the audible mid-bar chop is gone; (3) Start stages the immersive
+  visual fullscreen (Stop restores, user mid-take choice wins).
+- **Standing quality bar (founder):** organic, professional generative music; visuals as part
+  of the experience; wow in the first 10 seconds. Improvements go INTO the instrument, not
+  into new surfaces.
+
+---
+
 ### 2026-07-06 STRATEGIC SYNTHESIS: "optimal form" = the Session IS the app (two adversarial research streams)
 - **Founder trigger:** "Der durchgehende ton soll komplett entfernt werden [erledigt]. Ansonsten
   Deep Audit und Deep Marketing Research... Was ist Echoelmusic in optimaler Form? Wie generiere ich

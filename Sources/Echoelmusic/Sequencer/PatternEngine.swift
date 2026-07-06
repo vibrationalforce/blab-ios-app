@@ -80,6 +80,13 @@ public final class PatternEngine {
     /// shortening the following gap so overall tempo is preserved. 0 = straight.
     public private(set) var swing: Double = 0
 
+    /// Grids staged by `loadAtBoundary`, applied exactly on the next step-0 downbeat
+    /// so a live re-seed never chops the sounding bar (mirrors the roll's
+    /// `pendingNotes`). Imperative staging only — never rendered — so observation-
+    /// ignored; the visible `steps`/`accents` update at the boundary as usual.
+    @ObservationIgnored private var pendingSteps: [[Bool]]?
+    @ObservationIgnored private var pendingAccents: [[Bool]]?
+
     // MARK: - Step-trigger callback
 
     /// Invoked on the main actor for every active cell at every step boundary.
@@ -210,7 +217,10 @@ public final class PatternEngine {
 
     /// Replace the whole grid (steps + accents), e.g. when launching a clip.
     /// Mismatched dimensions are ignored per-track so a bad clip can't crash.
+    /// An explicit immediate load supersedes any groove staged at the boundary.
     public func load(steps newSteps: [[Bool]], accents newAccents: [[Bool]]) {
+        pendingSteps = nil
+        pendingAccents = nil
         guard newSteps.count == PatternEngine.trackCount,
               newAccents.count == PatternEngine.trackCount else { return }
         for t in 0..<PatternEngine.trackCount {
@@ -221,8 +231,22 @@ public final class PatternEngine {
         }
     }
 
+    /// Stage a new groove to land exactly on the NEXT downbeat (step 0) instead of
+    /// chopping the bar that is currently sounding. This mirrors the piano roll's
+    /// `loadAtBoundary` so a live re-seed swaps melody AND drums together, musically
+    /// — the mid-bar drum cut was an audible "holprig" source (founder 2026-07-06B:
+    /// "organisch und professionell klingen"). When stopped, it loads immediately
+    /// (nothing is sounding, and the grid must be present before playback starts).
+    public func loadAtBoundary(steps newSteps: [[Bool]], accents newAccents: [[Bool]]) {
+        guard isPlaying else { load(steps: newSteps, accents: newAccents); return }
+        pendingSteps = newSteps
+        pendingAccents = newAccents
+    }
+
     /// Turn every cell off (steps + accents) without changing transport state.
     public func clear() {
+        pendingSteps = nil    // a cleared grid must not resurrect a staged groove
+        pendingAccents = nil
         for t in 0..<PatternEngine.trackCount {
             for s in 0..<PatternEngine.stepCount {
                 steps[t][s] = false
@@ -334,6 +358,11 @@ public final class PatternEngine {
         timer = nil
         currentStep = 0
         isPlaying = false
+        // A groove staged for the next downbeat must not be lost when the bar never
+        // arrives — apply it now so the next play starts on the newest pattern.
+        if let ps = pendingSteps, let pa = pendingAccents {
+            load(steps: ps, accents: pa)   // load() clears the pending pair
+        }
         tempoGlideTarget = 0   // drop any in-flight glide so the next take starts clean
         stopStoppedGlide()
         transport?.stop()
@@ -388,7 +417,14 @@ public final class PatternEngine {
         guard isPlaying else { return }
 
         let step = currentStep
-        if step == 0 { lastBarStartAt = CFAbsoluteTimeGetCurrent() }   // downbeat stamp (C7)
+        if step == 0 {
+            lastBarStartAt = CFAbsoluteTimeGetCurrent()   // downbeat stamp (C7)
+            // A staged groove lands exactly here — the new bar's step-0 hits come
+            // from the NEW pattern, in sync with the roll's own boundary swap.
+            if let ps = pendingSteps, let pa = pendingAccents {
+                load(steps: ps, accents: pa)   // load() also clears the pending pair
+            }
+        }
         // Relay this pulse into the authoritative clock FIRST, so any Transport
         // subscriber sees the new position before the legacy onStep/onTick consumers
         // act on it (priority ordering lives in Transport). Zero-cost when unwired.
