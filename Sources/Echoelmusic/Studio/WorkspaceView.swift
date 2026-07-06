@@ -2,37 +2,70 @@
 import SwiftUI
 
 // WorkspaceView.swift
-// Echoel — the app HOME. Founder pivot (2026-07-02): "radikal reduzieren auf qualitative
-// Biofeedback Musik … eine adaptive Ansicht ohne weitere Untermenüs." So the shell is now
-// ONE adaptive view — the bio-generative instrument (EchoelStudioView) — with only the
-// always-on chrome above it (brand header + transport) and the immersive visual as a
-// FLOATING window. The former 6-surface tab bar (Arrange/Clips/Mix/Bio/Browse) and the
-// "Studio" door are removed from navigation: those surfaces still exist in code (reversible
-// — restore the bottom bar to bring them back), they are simply no longer front-and-centre.
-// The body arms itself and generates from within EchoelStudioView (Start → camera → music);
-// the visual toggles from the header monitor.
+// Echoel — the app HOME. Shell flip (founder "Ja", 2026-07-06, from the two-stream
+// strategy synthesis in scratchpads/STRATEGY_OPTIMAL_FORM_2026-07-06.md): the calm
+// bio-paced SESSION is now the app — the first and only thing a launch shows. The
+// whole generative studio (header chrome + transport + EchoelStudioView + floating
+// visual) lives behind ONE deliberate "Studio" door as a fullScreenCover. This
+// realizes the 2026-07-02 pivot that had been decided but never flipped in the
+// shell: before this, the 2,756-LOC studio god-view was home and the Session was a
+// hidden modal — exactly inverted. Reversible: swap home/cover back.
+//
+// Render safety (skill: swiftui-render-safety):
+//  • WorkspaceView still owns exactly ONE fullScreenCover (now the studio, was the
+//    session) — EchoelStudioView's own ~16-modal chain is untouched and NOT grown.
+//  • No high-frequency @Observable is read in this body or StudioShellView's body;
+//    live bio stays in leaf views (BioStripView, PulseMonitorMiniLive, Session leaves).
 
 @MainActor
 struct WorkspaceView: View {
 
-    /// The header's immersive-visual monitor reads the publisher only for a LOW-frequency
-    /// flag (isRunning) — never a ~10 Hz value in this body, so the instrument below never
-    /// rebuilds at 10 Hz (freeze rule). The live pulse number lives in the bio strip's own leaf.
+    /// The one door out of the calm home. LOW-frequency state.
+    @State private var showStudio = false
+
+    /// Studio audio must not bleed under the calm Session home: when the studio
+    /// door closes, stop the pattern clock. (BeatPlayer is only *called* in the
+    /// dismiss closure — never read in body, so no observation is registered.)
+    @Environment(BeatPlayer.self) private var player
+    @Environment(Transport.self) private var transport
+
+    var body: some View {
+        SessionView(presentStudio: $showStudio)
+            .background(EchoelTheme.bg.ignoresSafeArea())
+            .fullScreenCover(isPresented: $showStudio, onDismiss: stopStudioAudio) {
+                StudioShellView()
+            }
+    }
+
+    /// The Session home is silent by design — leaving the studio while the beat
+    /// runs would trap the user with playing music and no visible transport.
+    private func stopStudioAudio() {
+        if transport.isPlaying { player.pattern.stop() }
+    }
+}
+
+// MARK: - Studio shell (the second door — the full instrument, unchanged inside)
+
+/// Everything that used to be the shell: brand header + persistent transport +
+/// the bio-generative instrument + the floating immersive visual. Present-only —
+/// the launch path never constructs this view, which also keeps first-render
+/// metadata small (black-screen class shrinks, never grows).
+@MainActor
+private struct StudioShellView: View {
+
+    @Environment(\.dismiss) private var dismiss
+
+    /// LOW-frequency flag only (isRunning = start/stop) — never a ~10 Hz value in
+    /// this body (freeze rule). The live pulse number lives in the bio strip's leaf.
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
 
-    /// The immersive visual rides along as a FLOATING, resizable, show/hide window
-    /// (founder 2026-07-02) — toggled from the header monitor, persisted across launches.
-    /// Default TRUE so the living Aurora greets the user immediately ("wow von Sekunde 1",
-    /// Council 2026-07-03); it's flash-safe + reduce-motion-aware and one tap to hide, and
-    /// @AppStorage remembers a user who hides it (only fresh installs auto-show).
+    /// The immersive visual rides along as a FLOATING, resizable, show/hide window —
+    /// toggled from the header monitor, persisted across launches. Default TRUE so
+    /// the living Aurora greets the user on entering the STUDIO ("wow von Sekunde 1",
+    /// Council 2026-07-03); flash-safe + reduce-motion-aware, one tap to hide.
     @AppStorage("visual.floating.visible") private var floatingVisualVisible = true
-
-    /// The bio-paced Session (warm restart). This is WorkspaceView's FIRST and only
-    /// modal — presented here, NOT on EchoelStudioView, whose ~16-modal chain sits at
-    /// the SwiftUI metadata limit (render-safety rule: never grow that chain).
-    @State private var showSession = false
 
     var body: some View {
         ZStack {
@@ -41,15 +74,18 @@ struct WorkspaceView: View {
                 Divider().overlay(EchoelTheme.border)
                 TransportBar()
                 Divider().overlay(EchoelTheme.border)
-                // The ONE adaptive view: the bio-generative instrument.
-                EchoelStudioView(presentSession: $showSession)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The instrument. Its Session card now RETURNS to the Session home
+                // (dismisses this cover) — same muscle memory, inverted shell.
+                EchoelStudioView(presentSession: Binding(
+                    get: { false },
+                    set: { wantsSession in if wantsSession { dismiss() } }
+                ))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            // The immersive visual floats ABOVE the whole screen so its FULLSCREEN size can
-            // cover the chrome too (true Vollbild — founder: "lässt sich nicht im Vollbild
-            // betreiben"). In the floating sizes it docks bottom-trailing; its transparent
-            // area never blocks the header/transport (an empty GeometryReader installs no hit
-            // target). One Metal path app-wide (GPU rule).
+            // The immersive visual floats ABOVE the whole studio so its FULLSCREEN
+            // size can cover the chrome too (true Vollbild). In the floating sizes it
+            // docks bottom-trailing; its transparent area never blocks the header/
+            // transport. One Metal path app-wide (GPU rule).
             #if canImport(MetalKit) && canImport(UIKit)
             if floatingVisualVisible {
                 FloatingVisualWindow(isPresented: $floatingVisualVisible)
@@ -57,15 +93,10 @@ struct WorkspaceView: View {
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
-        .fullScreenCover(isPresented: $showSession) {
-            SessionView()
-        }
     }
 
-    /// Persistent brand header — always on screen (founder: "oben die Leiste soll immer
-    /// sichtbar sein"). Centre: "Echoelmusic" + the running version/build. Left: app mark
-    /// (the live pulse number lives once in the bio strip, not here). Right: the immersive-
-    /// visual monitor, which shows/hides the floating visual. Uncodixfy-compliant.
+    /// Persistent brand header. Left: back-to-Session door + app mark. Centre:
+    /// "Echoelmusic" + version. Right: the immersive-visual monitor toggle.
     private var topBar: some View {
         ZStack {
             VStack(spacing: 1) {
@@ -78,29 +109,21 @@ struct WorkspaceView: View {
                     .accessibilityLabel("Version \(Self.versionString)")
             }
             HStack(spacing: 8) {
-                // LEFT: app mark only. The live PULSE number now lives in EXACTLY ONE place —
-                // the bio strip's HR cell (founder 2026-07-03: "zu viele BPM-Anzeigen, eine
-                // reicht"). The header used to repeat displayBPM here, which competed with the
-                // musical TEMPO in the transport bar right below (two different BPM numbers in
-                // the same chrome). Pulse → strip, Tempo → transport; each shown once.
-                EchoelLogoMark().frame(width: 22, height: 22)
-                // Session door — the bio-paced breathing session (warm restart).
-                // A LOW-frequency toggle; no live bio is read here (freeze rule).
+                // LEFT: back to the Session (the home). The one way out of the studio.
                 Button {
-                    showSession = true
+                    dismiss()
                 } label: {
-                    Image(systemName: "circle.circle")
-                        .font(.system(size: 15, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(EchoelTheme.text)
                         .frame(width: 30, height: 30)
                         .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radius))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Start a breathing session")
+                .accessibilityLabel("Close studio — back to the session")
+                EchoelLogoMark().frame(width: 22, height: 22)
                 Spacer(minLength: 0)
                 // RIGHT: immersive-visual monitor — tap to show/hide the floating visual.
-                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
-                // live waveform stays in its own leaf.
                 #if canImport(AVFoundation)
                 Button {
                     withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
@@ -119,7 +142,7 @@ struct WorkspaceView: View {
 
     /// Short version + build, e.g. "v10.35.2 (1550)" — from the bundle, so it always
     /// reflects the actual installed build.
-    private static var versionString: String {
+    static var versionString: String {
         let info = Bundle.main.infoDictionary
         let v = info?["CFBundleShortVersionString"] as? String ?? "—"
         let b = info?["CFBundleVersion"] as? String ?? "—"

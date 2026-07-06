@@ -2,10 +2,11 @@
 //  SessionView.swift
 //  Echoelmusic — Studio
 //
-//  THE Session screen (warm-restart cycle 5): one screen, one purpose — start,
-//  put a finger on the camera, and let the tone breathe with you toward your
-//  resonance pace. Presented as WorkspaceView's FIRST fullScreenCover (its own,
-//  small modal — the EchoelStudioView sheet chain is untouched, render-safety rule).
+//  THE Session screen — since the 2026-07-06 shell flip this IS the app home:
+//  one screen, one purpose — start, put a finger on the camera, and let the light
+//  breathe with you toward your resonance pace. When hosted as home (presentStudio
+//  wired) the header shows the brand + the one "Studio" door; the legacy modal
+//  mode (presentStudio == nil → X + dismiss) remains for previews/reversibility.
 //
 //  Render-safety discipline:
 //   • This body reads only LOW-frequency state (isRunning). The live numbers
@@ -23,6 +24,10 @@
 import SwiftUI
 
 struct SessionView: View {
+
+    /// Opens the studio door when this view is the app HOME (shell flip 2026-07-06).
+    /// nil → legacy modal mode (X + dismiss), kept for previews and reversibility.
+    var presentStudio: Binding<Bool>? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(SessionEngine.self) private var session
@@ -56,25 +61,73 @@ struct SessionView: View {
 
     private var header: some View {
         HStack {
-            Text("Session")
-                .font(EchoelTheme.font(16, .semibold))
-                .foregroundStyle(EchoelTheme.text)
-            Spacer()
-            Button {
-                stopSession()
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(EchoelTheme.dim)
-                    .frame(width: 32, height: 32)
-                    .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radius))
+            if presentStudio != nil {
+                // HOME mode: the brand carries the screen; version stays visible for
+                // TestFlight feedback ("welcher Build läuft?").
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Echoelmusic")
+                        .font(EchoelTheme.font(16, .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                    Text(Self.versionString)
+                        .font(EchoelTheme.font(9))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .accessibilityLabel("Version \(Self.versionString)")
+                }
+            } else {
+                Text("Session")
+                    .font(EchoelTheme.font(16, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close session")
+            Spacer()
+            if let presentStudio {
+                // The ONE door to the generative instrument. Opening it ends the
+                // session first — the camera/torch must not keep running (and the
+                // guide law is meaningless) underneath the studio.
+                Button {
+                    stopSession()
+                    presentStudio.wrappedValue = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Studio")
+                            .font(EchoelTheme.font(13, .medium))
+                    }
+                    .foregroundStyle(EchoelTheme.dim)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radius))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .stroke(EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open studio")
+                .accessibilityHint("The generative music instrument. Ends the current session.")
+            } else {
+                Button {
+                    stopSession()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .frame(width: 32, height: 32)
+                        .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radius))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close session")
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+
+    /// Short version + build from the bundle (mirrors the studio header).
+    private static var versionString: String {
+        let info = Bundle.main.infoDictionary
+        let v = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let b = info?["CFBundleVersion"] as? String ?? "—"
+        return "v\(v) (\(b))"
     }
 
     // MARK: - Idle

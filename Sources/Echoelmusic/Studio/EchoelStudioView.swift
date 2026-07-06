@@ -41,10 +41,11 @@ struct SharedEchoelProject: Transferable {
 @MainActor
 struct EchoelStudioView: View {
 
-    /// Opens the calm bio-paced Session (owned by WorkspaceView's fullScreenCover, so
-    /// the studio's own sheet chain never grows — render-safety rule). Optional so
-    /// previews/other hosts still compile; the prominent Session card is only shown
-    /// when a presenter is wired.
+    /// Returns to the calm bio-paced Session — the app HOME since the shell flip
+    /// (2026-07-06): the studio host wires this so setting it true dismisses the
+    /// studio cover. Optional so previews/other hosts still compile; the Session
+    /// card is only shown when a host is wired. (The studio's own sheet chain never
+    /// grows — render-safety rule.)
     var presentSession: Binding<Bool>? = nil
 
     @Environment(EngineBus.self) private var bus
@@ -758,10 +759,10 @@ struct EchoelStudioView: View {
 
     // MARK: - The one button
 
-    /// The prominent Session entry — the first thing on the page, so the calm
-    /// bio-paced breathing experience is never mistaken for the studio instrument
-    /// below (founder: tested the studio, missed the header-icon Session). A single
-    /// large card; tapping it opens the Session fullScreenCover owned by WorkspaceView.
+    /// The Session card — since the shell flip (2026-07-06) the Session IS the app
+    /// home and this card RETURNS to it: the host (StudioShellView) wires the binding
+    /// so setting it true dismisses the studio cover. Same muscle memory, inverted
+    /// shell. Static card, no live bio read here (freeze rule).
     private func sessionEntryCard(_ present: Binding<Bool>) -> some View {
         Button { present.wrappedValue = true } label: {
             HStack(spacing: 14) {
@@ -789,8 +790,8 @@ struct EchoelStudioView: View {
                 .strokeBorder(EchoelTheme.accent.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Start a breathing session")
-        .accessibilityHint("A calm session where the light breathes with you.")
+        .accessibilityLabel("Back to the breathing session")
+        .accessibilityHint("Closes the studio and returns to the calm session.")
     }
 
     private var startButton: some View {

@@ -1,22 +1,20 @@
-build: 2026-07-05 v10.79.76 (Session ist jetzt GANZ OBEN + Visual-Menü gefixt: Cymatics · Abwählen · VoiceOver)
+build: 2026-07-05 v10.79.78 (SHELL-FLIP: Die Session IST jetzt die App — Studio hinter einer Tür)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zwei Dinge aus deinem Feedback:
-  1) DIE SESSION IST JETZT NICHT MEHR VERSTECKT: Der ruhige Atem-Ton + Licht
-     (die eigentliche meditative Erfahrung) war nur hinter dem kleinen Kreis-Icon
-     oben — deshalb bist du immer im Studio gelandet und hast die holprige
-     generative Musik gehört. Jetzt ist eine große "Breathing Session"-Karte das
-     ERSTE ganz oben auf der Seite. Antippen → Ton + Licht atmen mit dir zur
-     Resonanz. Das ist der Wow-/Meditationsmoment. (Studio bleibt direkt darunter.)
-  2) VISUAL-MENÜ (deine Screenshot-Punkte):
-     • CYMATICS ist wieder da — es hieß nur "Chladni" (Chladni-Platte = Cymatics,
-       echte Physik). In allen Menüs auf "Cymatics" umbenannt.
-     • "Klickt man an und geht nicht mehr weg": Die Preset-Leiste ließ sich nicht
-       abwählen. Jetzt: aktiven Preset NOCHMAL antippen → Auswahl geht weg (Werte
-       bleiben, editierbar) — genau wie die Blend-Leiste.
-     • VoiceOver sagt jetzt bei jedem Chip, ob er ausgewählt ist (Accessibility).
-  TEST 10.79.76:
-  A) Oben die "Breathing Session"-Karte antippen. Atmen Ton UND Licht synchron mit
-     dir? Führt die Atemzahl dich langsam runter? Bringt DAS dich zur Ruhe?
-  B) Im Visual-Menü: Cymatics wählbar? Preset zweimal tippen → wird es wieder grau?
-  Bitte schick ein Log aus der SESSION (nicht aus dem Studio) — dann sehe ich, ob
-  der Atem-Ton bei dir sauber läuft.
+notesT: Die große Entscheidung umgesetzt ("Ja" zur Strategie-Synthese):
+  DIE APP ÖFFNET JETZT DIREKT IN DER BREATHING SESSION. Kein Studio-Gewusel
+  mehr beim Start — nur der ruhige Atem-Screen: Start antippen, Finger auf
+  die Kamera, das Licht atmet mit dir zur Resonanz.
+  • Oben rechts: EIN "Studio"-Button — dahinter liegt das komplette
+    Generative-Musik-Studio (unverändert, alles noch da).
+  • Studio öffnen beendet die Session (Kamera/Taschenlampe laufen nicht
+    heimlich weiter); Studio schließen stoppt die Musik (kein Beat unter
+    dem ruhigen Home).
+  • Die "Breathing Session"-Karte im Studio bringt dich jetzt ZURÜCK zur
+    Session.
+  TEST 10.79.78:
+  A) App starten → landest du direkt im ruhigen Session-Screen? Fühlt sich
+     der ERSTE Moment jetzt richtig an?
+  B) Session starten → Licht atmet mit dir (kein Dauerton)?
+  C) "Studio" oben rechts → ist alles Gewohnte da? Zurück mit dem Pfeil
+     oder der Session-Karte?
+  Bitte ein Log aus der Session schicken.
