@@ -129,6 +129,11 @@ struct EchoelStudioView: View {
 
     /// Continuous mood/character controls that shape the composition (blend with bio).
     @State private var mood = MoodProfile()
+    /// The SOUND mood pad's position (persisted). X right = brighter (darkness = 1−x),
+    /// Y up = more movement (liveliness = y). Written on drag END only — one
+    /// invalidation + one coalesced recompose per gesture (ultraleichte Steuerung).
+    @AppStorage("mood.sound.x") private var soundMoodX = 0.5
+    @AppStorage("mood.sound.y") private var soundMoodY = 0.5
     /// Saved/curated moods (factory + user + community), same library pattern as FX/sound.
     @State private var moodStore = MoodPresetStore()
     /// Identity of the currently-loaded mood (nil = an unsaved "Custom" edit).
@@ -347,6 +352,10 @@ struct EchoelStudioView: View {
                     // stays right below.
                     if let presentSession { AnyView(sessionEntryCard(presentSession)) }
                     AnyView(startButton)
+                    // Mood pads (founder 2026-07-06D: "ultraleichte Steuerung … ein
+                    // XY Pad für den Sound … und für visuals auch") — the primary,
+                    // intuitive way into the right state, directly under Start.
+                    AnyView(moodPadsSection)
                     AnyView(nonStandardTuningBanner)
                     #if canImport(AVFoundation)
                     if running { AnyView(PulseMeasurementView()) }
@@ -372,6 +381,10 @@ struct EchoelStudioView: View {
             // preset, else the genre's own patch.
             currentPatch = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
                 ? SynthPatch.factory[presetIndex] : style.synthPatch
+            // The sound mood pad survives relaunch: seed the composition mood from
+            // the persisted pad position (the pad and the take must agree on launch).
+            mood.darkness = Float(1 - soundMoodX)
+            mood.liveliness = Float(soundMoodY)
             applyArticulation()                // impose the persisted Pluck↔Pad envelope
             applyTuning()                      // 12-TET default = no-op; restores any selected system
             // Restore the last-picked immersive visual look so an installation /
@@ -806,6 +819,30 @@ struct EchoelStudioView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Back to the breathing session")
         .accessibilityHint("Closes the studio and returns to the calm session.")
+    }
+
+    /// The two mood pads, side by side — SOUND (composition mood: dark↔bright ·
+    /// still↔moving; recomposes at the loop boundary on release) and VISUAL
+    /// (palette + energy, live under the finger via its own leaf). No numbers,
+    /// no menus: drag until it feels right.
+    private var moodPadsSection: some View {
+        HStack(alignment: .top, spacing: 12) {
+            MoodXYPad(title: "Sound",
+                      xCaption: "dark · bright",
+                      yCaption: "still · moving",
+                      live: false,
+                      x: $soundMoodX, y: $soundMoodY,
+                      onEnded: { x, y in
+                          mood.darkness = Float(1 - x)
+                          mood.liveliness = Float(y)
+                          // A pad gesture is a custom edit — the loaded preset no
+                          // longer describes the sound (same rule as the mood editor).
+                          moodPresetID = nil
+                          moodPresetName = "Custom"
+                          recomposeIfRunning()
+                      })
+            VisualMoodPadLeaf()
+        }
     }
 
     private var startButton: some View {
