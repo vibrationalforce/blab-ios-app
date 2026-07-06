@@ -168,6 +168,10 @@ struct EchoelStudioView: View {
     @AppStorage("toneSystemID") private var tuningID = "edo12"
     @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
     @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
+    /// Drum layer (founder 2026-07-06C: "Beat soll ausschaltbar sein und tendenziell
+    /// eher schamanisch ur-rhythmisch"): Off = pure Flächen, Pulse = the deep shamanic
+    /// heartbeat drum (DEFAULT), Genre = the style's own archetypal groove.
+    @AppStorage("studio.beatMode") private var beatMode: BeatMode = .pulse
     /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
     /// the envelope for EVERY character (genre/preset = timbre, this = onset/dynamics).
     /// Persisted; re-imposed whenever a character or genre loads. Drives the per-note
@@ -883,11 +887,35 @@ struct EchoelStudioView: View {
     private var compositionPanel: some View {
         panel("Composition", "Genre · key · tuning · tempo", isExpanded: $showComposition) {
             genrePicker
+            beatModeRow
             soundSourceRow
             tonartRow
             kammertonRow
             tuningRow
             tempoRow
+        }
+    }
+
+    /// The drum layer, one segmented choice (founder: "Beat soll ausschaltbar sein
+    /// und tendenziell eher schamanisch ur-rhythmisch"). Off = pure Flächen; Pulse =
+    /// the deep, steady shamanic heartbeat drum (default); Genre = the style's own
+    /// groove. Takes musical effect at the next loop boundary (never a mid-bar cut).
+    private var beatModeRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            labeledRow("Beat") {
+                Picker("Beat", selection: $beatMode) {
+                    ForEach(BeatMode.allCases) { m in Text(m.label).tag(m) }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: beatMode) { _, _ in recomposeIfRunning() }
+                .accessibilityLabel("Beat mode")
+                .accessibilityHint("Off is pure textures, Pulse is a deep steady heartbeat drum, Genre is the style's own rhythm")
+            }
+            if beatMode == .pulse {
+                Text("A deep, steady drum — it thins out as your body settles.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -2516,8 +2544,26 @@ struct EchoelStudioView: View {
         // mid-bar while the melody waited for the downbeat (an audible "holprig"
         // seam). Now drums stage at the same boundary, so the whole re-seed lands
         // musically, together, on the downbeat. Stopped → loads instantly as before.
-        beatPlayer.pattern.loadAtBoundary(steps: composition.drumSteps,
-                                          accents: composition.drumAccents)
+        //
+        // BEAT MODE (founder 2026-07-06C): Off = pure Flächen; Pulse (default) = the
+        // shamanic ur-rhythm — seeded from the STRUCTURE seed (body-only, no
+        // evolution nonce) so the drum holds its walk across evolve re-seeds while
+        // melody detail evolves above it; Genre = the style's archetypal groove.
+        let groove: (steps: [[Bool]], accents: [[Bool]])
+        switch beatMode {
+        case .off:
+            groove = BioComposer.silentBeat()
+        case .pulse:
+            let state = BioComposer.musicalState(
+                coherence: liveCoh,
+                hrvNormalized: fin(frame?.hrvNormalized, 0.5),
+                heartRateBPM: Double(fin(frame?.heartRateBPM, 70)))
+            groove = BioComposer.shamanicBeat(seed: structureSeed,
+                                              energy: state.energy, calm: state.calm)
+        case .genre:
+            groove = (composition.drumSteps, composition.drumAccents)
+        }
+        beatPlayer.pattern.loadAtBoundary(steps: groove.steps, accents: groove.accents)
         // GLIDE the tempo (not snap) so a body re-seed eases in instead of jumping ("bpm
         // springt plötzlich"). glideTempo now eases whether the take is PLAYING (advance()
         // ticks) OR STOPPED (a small main-queue timer) — a re-seed landing on a paused take no
@@ -2529,7 +2575,9 @@ struct EchoelStudioView: View {
         // rolling, human feel (jazz/rock'n'roll shuffle, reggae bounce, dance push,
         // straight genres stay 0). Melody + any drums ride the same clock, so the
         // whole take swings together instead of sitting dead-on-grid.
-        beatPlayer.pattern.setSwing(style.swing)
+        // Pulse/Off modes run STRAIGHT: the shamanic pulse must walk evenly (a swung
+        // ur-drum reads as a genre shuffle), and pure Flächen have nothing to swing.
+        beatPlayer.pattern.setSwing(beatMode == .genre ? style.swing : 0)
         // MULTITIMBRAL Step 2b: give the LEAD voice a genre-appropriate timbre so
         // the lead line reads as its own instrument (synth lead vs jazz Rhodes vs
         // klezmer clarinet) over the pad/bass. Falls back to "Bright Lead".
