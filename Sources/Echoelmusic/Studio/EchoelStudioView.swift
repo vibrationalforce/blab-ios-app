@@ -201,6 +201,10 @@ struct EchoelStudioView: View {
     @State private var lockSnapTask: Task<Void, Never>?
     /// When the last take was composed — the floor for automatic re-seeds.
     @State private var lastSeedAt: Date = .distantPast
+    /// WHY the next generate() runs ("start" · "user-edit" · "lock-snap" · "evolve") —
+    /// carried into the generate breadcrumb so device logs can attribute every re-seed
+    /// (log 1783370283 had a mid-take thinning nobody could explain).
+    @State private var pendingGenerateReason = "start"
     /// True once the body has seeded the tempo for THIS take (a real bio frame arrived).
     /// After that the beat HOLDS — evolve/re-seed ticks evolve only the melody, so a noisy
     /// rPPG octave-error (≈196 ≈ 2×98) can never slam the tempo to double-time mid-take.
@@ -1854,7 +1858,7 @@ struct EchoelStudioView: View {
     /// (style→scale→preset→patch), each firing onChange — without coalescing that
     /// regenerated the whole pattern 2–4× within milliseconds → audible stutter.
     private func recomposeIfRunning() {
-        if running { scheduleGenerate() } else { applySoundLive() }
+        if running { scheduleGenerate(reason: "user-edit") } else { applySoundLive() }
     }
 
     /// Coalesce rapid recompose requests into a single `generate()` after a short
@@ -1865,7 +1869,12 @@ struct EchoelStudioView: View {
     /// than a musical phrase, no matter how many automatic triggers fire. A user
     /// edit (`auto: false`) stays instant (140 ms). This makes a re-seed "flood"
     /// structurally impossible rather than merely unlikely.
-    private func scheduleGenerate(auto: Bool = false) {
+    private func scheduleGenerate(auto: Bool = false, reason: String) {
+        // Remember WHY for the breadcrumb (device log 1783370283: an unexplained
+        // "generate: 8 notes" mid-take — the log could not say what triggered it).
+        // Coalescing means the LAST scheduled reason wins, which is also the one
+        // whose parameters the generate actually uses.
+        pendingGenerateReason = reason
         regenTask?.cancel()
         // 0.45 s quiet window for user edits: one decisive tap still lands fast, but
         // SCROLLING through a Picker (each highlighted option fires onChange) coalesces
@@ -2141,6 +2150,7 @@ struct EchoelStudioView: View {
             // between re-seeds — the sound hugs the live heartbeat/HRV in realtime
             // instead of staying static until the next ~6 s recompose.
             synth.bioModulationEnabled = true
+            pendingGenerateReason = "start"
             generate()              // immediate first sound — no lock-wait stall
             startEvolving()
             snapToLockWhenReady()   // non-blocking re-seed once the heartbeat locks
@@ -2167,7 +2177,7 @@ struct EchoelStudioView: View {
             }
             guard running, !Task.isCancelled else { return }
             EchoelCrashLog.breadcrumb("rPPG settled → snap re-seed bpm=\(Int(cameraRPPG.displayBPM))")
-            scheduleGenerate(auto: true)   // re-seed (rate-limited; coalesces with the evolve tick)
+            scheduleGenerate(auto: true, reason: "lock-snap")   // re-seed (rate-limited; coalesces with the evolve tick)
         }
         #endif
     }
@@ -2268,7 +2278,7 @@ struct EchoelStudioView: View {
                 // every tick. Only a meaningful body change (or the pre-lock/no-body
                 // case) re-seeds. User edits + the first lock-snap bypass this entirely.
                 if evolveShouldReseed() {
-                    scheduleGenerate(auto: true)   // rate-limited — coalesces with any lock-snap/onChange recompose
+                    scheduleGenerate(auto: true, reason: "evolve")   // rate-limited — coalesces with any lock-snap/onChange recompose
                 } else {
                     EchoelCrashLog.breadcrumb("evolve: HOLD (settled + stable body)")
                 }
@@ -2543,7 +2553,7 @@ struct EchoelStudioView: View {
             beatPlayer.pattern.play()
             metronome.resync()   // align the click's downbeat to the start
         }
-        EchoelCrashLog.breadcrumb("generate: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying)")
+        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying)")
     }
 
     /// Apply the live timbre (`currentPatch`) to the running synth without
