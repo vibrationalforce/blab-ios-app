@@ -41,6 +41,12 @@ struct SharedEchoelProject: Transferable {
 @MainActor
 struct EchoelStudioView: View {
 
+    /// Opens the calm bio-paced Session (owned by WorkspaceView's fullScreenCover, so
+    /// the studio's own sheet chain never grows — render-safety rule). Optional so
+    /// previews/other hosts still compile; the prominent Session card is only shown
+    /// when a presenter is wired.
+    var presentSession: Binding<Bool>? = nil
+
     @Environment(EngineBus.self) private var bus
     @Environment(AudioEngine.self) private var audioEngine
     @Environment(BeatPlayer.self) private var beatPlayer
@@ -319,6 +325,12 @@ struct EchoelStudioView: View {
                     // non-generic boundary at each heavy branch so the decoder never
                     // recurses into the sub-tree. The cost is negligible here (these
                     // are page-level containers, not tight-loop rows).
+                    // Session first (founder: "wow in den ersten 10 Sekunden ·
+                    // meditativ"): the calm bio-paced breathing Session is the
+                    // unmissable entry ABOVE the studio instrument. Reversible — a
+                    // static card, no live bio read here (freeze rule); the studio
+                    // stays right below.
+                    if let presentSession { AnyView(sessionEntryCard(presentSession)) }
                     AnyView(startButton)
                     AnyView(nonStandardTuningBanner)
                     #if canImport(AVFoundation)
@@ -745,6 +757,41 @@ struct EchoelStudioView: View {
     }
 
     // MARK: - The one button
+
+    /// The prominent Session entry — the first thing on the page, so the calm
+    /// bio-paced breathing experience is never mistaken for the studio instrument
+    /// below (founder: tested the studio, missed the header-icon Session). A single
+    /// large card; tapping it opens the Session fullScreenCover owned by WorkspaceView.
+    private func sessionEntryCard(_ present: Binding<Bool>) -> some View {
+        Button { present.wrappedValue = true } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "circle.circle")
+                    .font(.system(size: 26, weight: .regular))
+                    .foregroundStyle(EchoelTheme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Breathing Session")
+                        .font(EchoelTheme.font(17, .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                    Text("Tone + light breathe with you toward your resonance pace")
+                        .font(EchoelTheme.font(12))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).fill(EchoelTheme.surface))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
+                .strokeBorder(EchoelTheme.accent.opacity(0.35), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Start a breathing session")
+        .accessibilityHint("A calm session where a tone and light breathe with you.")
+    }
 
     private var startButton: some View {
         Button { toggleBiofeedback() } label: {
