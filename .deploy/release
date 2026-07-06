@@ -1,19 +1,22 @@
-build: 2026-07-05 v10.79.75 (DIAGNOSE: Start-Abbruch in Log 1783269182 wird jetzt exakt verortet)
+build: 2026-07-05 v10.79.76 (Session ist jetzt GANZ OBEN + Visual-Menü gefixt: Cymatics · Abwählen · VoiceOver)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log 1783269182 enthielt NUR "launch" — sonst nichts. Das heißt: alle
-  Vorab-Konstruktionen liefen, aber der Prozess starb mitten in der Engine-Kette,
-  OHNE dass der Crash-Handler etwas schreiben konnte → ein nicht abfangbarer Kill
-  (iOS-Watchdog wegen zu langem Start oder Speicher-Kill), KEIN normaler Absturz.
-  Zwischen "launch" und "init done" liegen ~20 Konstruktionen — bisher konnten wir
-  nicht sehen, welche hängt. Ab diesem Build schreiben 6 Etappen-Marker (init a–f:
-  Audio-Kern · Store/Beat/Bus · Bio-Publisher · Synth-Stimmen · MIDI/OSC ·
-  Modulation/Stores/Roll) — wenn es wieder passiert, benennt das Log den Täter.
-  Sonst identisch mit 10.79.74 (Session mit Ton + phasenstarrem Licht).
-  WICHTIGE FRAGEN AN DICH:
-  1) Startet die App aktuell überhaupt? Kam nach dem abgebrochenen Start ein
-     "Safe Mode"-Bildschirm, oder lief sie beim nächsten Öffnen normal?
-  2) Falls sie läuft: War das ein einmaliger Ausrutscher direkt nach der
-     TestFlight-Installation (da ist iOS oft beschäftigt — bekannter Watchdog-Moment)?
-  3) Bitte schick das VOLLE Log der nächsten Session (auch wenn alles läuft) —
-     und teste dann die Session: Kopfleiste → Kreis-Symbol → Start, Finger auf
-     die Kamera. Atmen Ton UND Licht synchron? Bringt es dich runter?
+notesT: Zwei Dinge aus deinem Feedback:
+  1) DIE SESSION IST JETZT NICHT MEHR VERSTECKT: Der ruhige Atem-Ton + Licht
+     (die eigentliche meditative Erfahrung) war nur hinter dem kleinen Kreis-Icon
+     oben — deshalb bist du immer im Studio gelandet und hast die holprige
+     generative Musik gehört. Jetzt ist eine große "Breathing Session"-Karte das
+     ERSTE ganz oben auf der Seite. Antippen → Ton + Licht atmen mit dir zur
+     Resonanz. Das ist der Wow-/Meditationsmoment. (Studio bleibt direkt darunter.)
+  2) VISUAL-MENÜ (deine Screenshot-Punkte):
+     • CYMATICS ist wieder da — es hieß nur "Chladni" (Chladni-Platte = Cymatics,
+       echte Physik). In allen Menüs auf "Cymatics" umbenannt.
+     • "Klickt man an und geht nicht mehr weg": Die Preset-Leiste ließ sich nicht
+       abwählen. Jetzt: aktiven Preset NOCHMAL antippen → Auswahl geht weg (Werte
+       bleiben, editierbar) — genau wie die Blend-Leiste.
+     • VoiceOver sagt jetzt bei jedem Chip, ob er ausgewählt ist (Accessibility).
+  TEST 10.79.76:
+  A) Oben die "Breathing Session"-Karte antippen. Atmen Ton UND Licht synchron mit
+     dir? Führt die Atemzahl dich langsam runter? Bringt DAS dich zur Ruhe?
+  B) Im Visual-Menü: Cymatics wählbar? Preset zweimal tippen → wird es wieder grau?
+  Bitte schick ein Log aus der SESSION (nicht aus dem Studio) — dann sehe ich, ob
+  der Atem-Ton bei dir sauber läuft.
