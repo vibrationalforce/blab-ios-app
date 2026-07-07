@@ -100,6 +100,9 @@ struct FloatingVisualWindow: View {
     /// The Studio's key root — same key + default as EchoelStudioView, so the IDLE tint of
     /// this window matches the fullscreen visual's tonic instead of a hardcoded C4.
     @AppStorage("studio.rootIndex") private var rootIndex = 0
+    /// The Studio's scale — the fullscreen play surface quantizes touches into
+    /// this key (same key + default as EchoelStudioView). Low-frequency reads.
+    @AppStorage("studio.scale") private var touchScale: Scale = .minor
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -203,6 +206,21 @@ struct FloatingVisualWindow: View {
                          entrainmentPulseHz: entrainmentPulse)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
+                #if canImport(UIKit) && canImport(AVFoundation)
+                // FULLSCREEN = PLAY SURFACE (founder 2026-07-07: "das Visual in ein
+                // Multi-Touch Instrument umwandeln … wie mit den Fingern durchs
+                // Wasser"). Touches become scale-quantized notes on the take's own
+                // synth patch (coherent by construction) + water rings under the
+                // fingers. Fullscreen only — the floating sizes keep move/resize UX.
+                // UIKit-gated: the multi-touch layer is a UIView (macOS CI has none).
+                .overlay {
+                    if windowSize.isFullscreen {
+                        TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
+                                            synth: synth,
+                                            reduceMotion: reduceMotion)
+                    }
+                }
+                #endif
                 #if canImport(AVFoundation)
                 // Recording feedback — a red REC pill with elapsed time, top-leading over
                 // the visual so it's clear a clip is being captured.
