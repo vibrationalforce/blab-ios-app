@@ -105,7 +105,12 @@ struct EchoelStudioView: View {
     // adaptive Ansicht ohne weitere Untermenüs … nur das Wesentliche sichtbar"): the view
     // now opens CALM — only Composition (genre/key/tempo) expanded; every other panel is
     // one tap away, nothing removed (function preserved, reversible).
-    @State private var showComposition = true
+    /// Panels start COLLAPSED (founder 2026-07-06E: "Das soll natürlich alles
+    /// minimal sein aber trotzdem funktionieren") — the default view is Bio strip ·
+    /// Start · the two mood pads; everything else is one tap away behind its
+    /// compact header. Persisted so a user who opens a panel keeps it open.
+    @AppStorage("studio.showComposition") private var showComposition = false
+    @AppStorage("studio.showExport") private var showExport = false
     @State private var showMood = false
     @State private var showSound = false
     @State private var showEffects = false
@@ -1975,7 +1980,11 @@ struct EchoelStudioView: View {
 
     // MARK: - Utilities (export · projects)
 
+    /// Export lives behind ONE compact header (minimal-but-works, 2026-07-06E):
+    /// the default page shows only Bio strip · Start · pads; capturing a loop is
+    /// a deliberate act, one tap away.
     private var utilityRow: some View {
+        panel("Export", "WAV loop · keep what just played", isExpanded: $showExport) {
         VStack(spacing: 10) {
             if !hasComposed {
                 // The export/keep/save buttons below are disabled until there's a take —
@@ -2038,6 +2047,7 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
         }
+        }   // panel("Export")
     }
 
     // MARK: - Diagnostics
