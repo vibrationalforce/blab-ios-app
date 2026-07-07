@@ -47,4 +47,47 @@ final class RPPGExposureLockTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Strict→permissive lock ceiling (device log 1783401421: lock at
+    // bright=0.34 froze a too-bright exposure — acf ≈ 0 the whole take)
+
+    func testStrictCeiling_blocksTheBadLock_allowsTheGoodOne() {
+        let early = P.lockBrightnessCeiling(fingerPresentTicks: 10)
+        XCTAssertLessThan(Float(0.19), early, "the proven-good dark lock (0.19) must pass the strict phase")
+        XCTAssertGreaterThanOrEqual(Float(0.34), early, "the proven-bad bright lock (0.34) must WAIT in the strict phase")
+    }
+
+    func testCeiling_fallsBackToPermissiveAfterStrictWindow() {
+        let late = P.lockBrightnessCeiling(fingerPresentTicks: P.strictLockWindowTicks)
+        XCTAssertLessThan(Float(0.34), late, "after the strict window, 0.34 may lock (late soft lock beats none)")
+        XCTAssertFalse(P.canLockNow(fingerDetected: true, brightness: 0.62),
+                       "the permissive fallback still refuses a washed frame")
+    }
+
+    // MARK: - Bright-lock recovery (weak periodicity on a full window)
+
+    func testWeakTicks_notDiagnosticUntilWindowFull_orWhenSettled() {
+        XCTAssertEqual(P.weakTicksStep(current: 50, windowFull: false, acf: 0.0, settled: false), 0,
+                       "a filling window is not evidence — reset")
+        XCTAssertEqual(P.weakTicksStep(current: 50, windowFull: true, acf: 0.0, settled: true), 0,
+                       "a settled pulse is never disturbed")
+    }
+
+    func testWeakTicks_accumulateOnWeak_decayFastOnStrong_holdBetween() {
+        XCTAssertEqual(P.weakTicksStep(current: 3, windowFull: true, acf: 0.05, settled: false), 4)
+        XCTAssertEqual(P.weakTicksStep(current: 4, windowFull: true, acf: 0.81, settled: false), 2,
+                       "strong acf pays the counter down twice as fast")
+        XCTAssertEqual(P.weakTicksStep(current: 4, windowFull: true, acf: 0.3, settled: false), 4,
+                       "between floor and strong: hold")
+        XCTAssertEqual(P.weakTicksStep(current: 1, windowFull: true, acf: 0.9, settled: false), 0,
+                       "decay never goes negative")
+    }
+
+    func testWeakRelock_firesAtThreshold_andIsBounded() {
+        XCTAssertFalse(P.weakLockNeedsResettle(weakTicks: P.weakRelockAfterTicks - 1, relocksUsed: 0))
+        XCTAssertTrue(P.weakLockNeedsResettle(weakTicks: P.weakRelockAfterTicks, relocksUsed: 0))
+        XCTAssertTrue(P.weakLockNeedsResettle(weakTicks: P.weakRelockAfterTicks, relocksUsed: P.maxWeakRelocks - 1))
+        XCTAssertFalse(P.weakLockNeedsResettle(weakTicks: 10_000, relocksUsed: P.maxWeakRelocks),
+                       "the budget is hard — an inherently weak placement can never thrash the lock")
+    }
 }

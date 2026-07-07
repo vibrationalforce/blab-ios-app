@@ -1,16 +1,22 @@
-build: 2026-07-05 v10.79.82 (MINIMAL: Startseite = Bio · Start · zwei Pads — Rest hinter kompakten Zeilen)
+build: 2026-07-05 v10.79.83 (rPPG: dunkler Lock bevorzugt + Hell-Lock-Erholung — dein Log-Befund behoben)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Minimal, aber alles funktioniert" — umgesetzt:
-  Die Seite zeigt jetzt standardmäßig NUR noch das Wesentliche:
-  Bio-Leiste · Start · Sound-Pad · Visual-Pad.
-  Alles andere (Composition mit Genre/Beat/Tonart/Stimmung, Export/Loop,
-  Transpose, Master, Effekte, Visual-Einstellungen) steht als je EINE
-  kompakte Zeile darunter — ein Tipp öffnet, alles funktioniert wie vorher,
-  nichts wurde entfernt. Wer ein Panel öffnet, behält es offen (gemerkt).
-  Enthält außerdem 10.79.80/81: Beat Aus·Puls·Genre + die zwei XY-Pads.
-  TEST 10.79.82:
-  A) Erster Eindruck beim Öffnen: ruhig und klar? Fehlt etwas Wichtiges auf
-     der obersten Ebene?
-  B) Der Kern-Flow: Start → Pads → Vollbild-Visual. Reicht das als ganze App?
-  C) Beat AUS + dunkel/still: trägt die reine Fläche?
-  Log bitte mitschicken.
+notesT: Dein letztes Log war sehr aufschlussreich — zwei Befunde:
+  1) Die neuen generate[...]-Marker zeigen: die Re-Seeds in deinem Lauf waren
+     deine eigenen Bedienungen (user-edit, vermutlich das Sound-Pad). Das
+     Rätsel von gestern ist gelöst — kein Geister-Re-Seed.
+  2) DER PULS KAM NIE ZUR RUHE, und das Log zeigt exakt warum: Die Belichtung
+     hat bei einer zu HELLEN Fingerszene eingerastet (0.34 statt der guten
+     0.19 von gestern) und blieb dort eingefroren → die Pulswelle blieb
+     schwach (acf ~0), das Tempo wurde nie vom Körper gesetzt. FIX:
+     • Die ersten ~6 s wartet der Lock jetzt auf eine richtig DUNKLE Szene
+       (unter 0.28) — da leben die guten Locks. Danach erst greift die alte
+       tolerante Schwelle (später weicher Lock ist besser als keiner).
+     • NEU: Erkennt die App nach dem Lock anhaltend schwache Pulswelle bei
+       voller Analyse (der Zustand aus deinem Log), gibt sie die Belichtung
+       einmalig zurück an Automatik und rastet dunkler neu ein (max. 2×,
+       nie endlos).
+  TEST 10.79.83:
+  Start → Finger drauf → im Log sollte "exposure locked" jetzt bei bright
+  ≤0.28 stehen und der Puls wie vorgestern settlen (acf hoch, bpm ruhig).
+  Danach die drei Fragen von 10.79.82 (Minimal-Seite · Pads · trägt die
+  reine Fläche bei Beat AUS?). Log bitte mitschicken.
