@@ -1342,40 +1342,64 @@ struct EchoelStudioView: View {
     /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
     private var visualLookStrip: some View {
-        // (label, isDonuts, metalStyle). MINIMIZED (founder 2026-07-07: "die visuals
-        // nochmal überarbeiten … das Prisma Ding ist manchmal ein bisschen viel da und
-        // geht erst nach viel herumklicken weg … das gesamte Ding minimalisieren").
-        // Only the calm, liquid looks remain surfaced — Donuts + Water · Aurora · Depth
-        // Caustics · Plasma. The busy/technical ones (Rings/Cymatics/Prism/Lissajous/
-        // Scope/Fractal) stay in the shader (indices unchanged, reversible) but are no
-        // longer clickable here, so nobody has to tap past Prism to reach calm.
-        let looks: [(String, Bool, Int)] = [
-            ("Donuts", true, -1), ("Water", false, 3), ("Aurora", false, 5),
-            ("Depth", false, 7), ("Plasma", false, 2)
-        ]
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(looks.indices, id: \.self) { i in
-                    let look = looks[i]
-                    let selected = look.1 ? spectralDonuts : (!spectralDonuts && visualStyle == look.2)
-                    Button {
-                        if look.1 { spectralDonuts = true }
-                        else { spectralDonuts = false; visualStyle = look.2 }
-                    } label: {
-                        Text(look.0)
-                            .font(EchoelTheme.font(12, .semibold))
-                            .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
-                            .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(RoundedRectangle(cornerRadius: 8)
-                                .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(look.0) visual look")
-                    .accessibilityAddTraits(selected ? [.isSelected] : [])
-                }
+        // ALIGNED with the Visual window's top-bar slider (founder 2026-07-07: "das
+        // hauptmenü dementsprechend angleichen"): a Donuts pill (a different renderer) +
+        // a slider that scrubs the calm metal looks — SAME handling in both places, fewer
+        // buttons than the old labelled strip. The busy/technical looks (Rings/Cymatics/
+        // Prism/Lissajous/Scope/Fractal) stay in the shader (indices unchanged, reversible)
+        // but aren't surfaced here, so nobody has to tap past Prism to reach calm. Writes
+        // the shared visual.style / visual.spectralDonuts keys (single source of truth).
+        HStack(spacing: 10) {
+            Button { spectralDonuts = true } label: {
+                Text("Donuts")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(spectralDonuts ? EchoelTheme.onPrimary : EchoelTheme.text)
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                    .background(RoundedRectangle(cornerRadius: 8)
+                        .fill(spectralDonuts ? EchoelTheme.accent : EchoelTheme.fill))
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Donuts visual look")
+            .accessibilityAddTraits(spectralDonuts ? [.isSelected] : [])
+
+            // Dragging the slider picks a calm metal look AND turns Donuts off (see setter),
+            // so the two controls never both claim "active".
+            Slider(value: lookScrub, in: 0...Double(Self.calmMetalStyles.count - 1), step: 1)
+                .tint(EchoelTheme.accent)
+                .accessibilityLabel("Visual look")
+                .accessibilityValue(currentLookName)
+
+            Text(spectralDonuts ? "Donuts" : currentLookName)
+                .font(EchoelTheme.font(12, .medium))
+                .foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1)
+                .frame(width: 54, alignment: .trailing)
         }
-        .accessibilityLabel("Visual look — one active at a time")
+    }
+
+    /// Slider position ⇄ current calm look, mirroring FloatingVisualWindow.lookScrub. The
+    /// setter also clears Donuts so scrubbing the look always lands on a metal field.
+    private var lookScrub: Binding<Double> {
+        Binding(
+            get: { Double(Self.calmMetalStyles.firstIndex(of: visualStyle) ?? 0) },
+            set: { v in
+                let i = min(Self.calmMetalStyles.count - 1, max(0, Int(v.rounded())))
+                spectralDonuts = false
+                let s = Self.calmMetalStyles[i]
+                if s != visualStyle { visualStyle = s }
+            }
+        )
+    }
+
+    /// Display name of the active calm look (the slider has no per-stop labels).
+    private var currentLookName: String {
+        switch visualStyle {
+        case 3: return "Water"
+        case 5: return "Aurora"
+        case 7: return "Depth"
+        case 2: return "Plasma"
+        default: return "Water"
+        }
     }
 
     /// The "mischend" controls: a SECOND look to overlap with the primary, plus a Mix
