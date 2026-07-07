@@ -1,27 +1,22 @@
-build: 2026-07-07 v10.79.96 (Melodien warm & entspannt · Echoel-Logo statt Burger)
+build: 2026-07-07 v10.79.97 (Weicher Trance: Ton-Dichte runter + warme leise Leads)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine 2 Videos: "Die Melodien sind bei manchen Genres super laut und
-  unangenehm im Ohr, kein angenehmes Spektrum … die meisten Genres hauen ihre
-  Melodie unangenehm heraus. Das soll schön und entspannt sein." + "Im Visual-
-  Fenster soll man das Logo sehen, oben links — anstatt das Burgermenü."
-  Gates grün: Xcode ✅ CI ✅.
-  1) MELODIEN WARM & LEISER (in jedem Genre):
-     • Harsche Leads RAUS: "Bright Lead" (spectralShape bright + Resonanz +
-       Vibrato, sustain 0.7), "Glass Bell" (0.8 hell), "Vapor Lead" (hell) —
-       weg aus ALLEN Genres. Nur noch warme, weiche Leads: Soft Keys · Warm
-       Strings · Hollow Reed · Pluck · Choir Vox · Deep Sub. Sanftes Höhenbild,
-       kein schrilles Spektrum.
-     • Lead-PEGEL überall zurück: die Melodie saß bei den Synth-Genres +5…+18%
-       nach VORNE — jetzt 0.85–0.92, also UNTER die Fläche getuckt. Melodie
-       stützt die Textur, statt rauszuhauen. Bass/Pad unverändert.
-  2) ECHOEL-LOGO STATT BURGER: das ≡ oben links im Visual-Fenster ist jetzt das
-     Echoel-Logo (gleiche Zieh-Funktion zum Verschieben) — gebrandet, kein
-     nutzloses Burger mehr.
-  HINWEIS: das Logo IM aufgenommenen Video (Upload Quer/Hochkant) kommt als
-  eigener Metal-Schritt als Nächstes — der MP4-Export nimmt die Metal-Textur
-  direkt auf, ein SwiftUI-Logo ist on-screen/AirPlay sichtbar, aber nicht im
-  Export. Braucht Geräte-Check.
-  TEST 10.79.96:
-  A) Genres durchtippen (Disco/Synthwave/Psy/Rock): klingt die Melodie jetzt
-     warm, weich und LEISER — fügt sich in die Fläche statt rauszuhauen?
-  B) Visual-Fenster oben links: Echoel-Logo statt Burger? Verschieben geht noch?
+notesT: Deine Ansage: "Ton-Dichte runter und vor allem die lauten unangenehmen mit
+  unnatürlichem Sound weg. Ich will angenehmen weichen Trance-Sound." Gates grün:
+  Xcode ✅ CI ✅. Dieser Build hat BEIDES zusammen:
+  1) TON-DICHTE RUNTER (alle drei "notigen" Schichten ausgedünnt; die Meditations-
+     Genres bleiben unberührt — die haben eh keine davon):
+     • Arpeggios: 16tel/8tel → 8tel/Viertel (atmet statt zu rattern)
+     • Innerer Puls: geviertelt (Viertel statt 16tel) + leiser + fällt früher
+       zur reinen Drone weg, wenn der Körper ruhiger wird
+     • Lead-Melodie: grob halbiert — sparsame singende Linie statt geschäftigem Lauf
+     Device-Logs zeigten 18–32 Noten/Loop → jetzt deutlich sparsamer.
+  2) WARME, LEISE LEADS (aus 79.96, jetzt zusammen im Build): schrille Leads
+     (Bright Lead / Glass Bell / Vapor Lead) raus aus JEDEM Genre → nur warme
+     (Soft Keys · Warm Strings · Hollow Reed · Pluck · Choir Vox · Deep Sub);
+     Lead-Pegel überall zurück (war +5…+18% vorne → jetzt 0.85–0.92, unter die
+     Fläche getuckt). Plus Echoel-Logo statt Burger im Visual-Fenster.
+  = kein schrilles/unnatürliches Geballer mehr, sondern weicher Trance.
+  TEST 10.79.97:
+  A) Genres durchtippen (Disco/Synthwave/Psy/Rock): warm, weich, SPARSAM,
+     entspannt — fügt sich alles in die Fläche?
+  B) Falls noch zu viel: sag Bescheid, dann Dichte noch weiter runter / Pads wärmer.
