@@ -27,9 +27,14 @@ final class NoteRoleTests: XCTestCase {
         XCTAssertTrue(roles.contains(.bass), "trap 808 is the bass")
     }
 
-    func testAmbientLineIsLead() {
+    func testSelfObservationIsADroneNotALead() {
+        // Founder 2026-07-07 ("laute quakige Töne … soll sich in den Trance-Pad-Ambient
+        // einfügen"): selfObservation is now a pure sustained Fläche — a drone pad + one
+        // grounding bass root, NO lead line (it used to route to `ambientMelody`, a bare
+        // exposed .lead tune). See BioComposer.compose.
         let roles = Set(BioComposer.compose(input(.selfObservation)).notes.map { $0.role })
-        XCTAssertTrue(roles.contains(.lead), "the ambient breath line is the lead")
+        XCTAssertFalse(roles.contains(.lead), "the meditative drone carries no lead line")
+        XCTAssertTrue(roles.contains(.bass), "the drone keeps a grounding bass root")
     }
 
     func testDefaultRoleIsHarmony() {

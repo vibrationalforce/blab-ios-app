@@ -92,7 +92,7 @@ final class BioComposerTests: XCTestCase {
 
     func testSelfObservationHasNoDrums() {
         let comp = BioComposer.compose(input(hr: 90, style: .selfObservation, mode: .flowFree))
-        XCTAssertFalse(comp.hasDrums, "self-observation stays ambient — melody only")
+        XCTAssertFalse(comp.hasDrums, "self-observation stays ambient — a pure sustained drone, no drums")
     }
 
     func testSustainedDroneStaysStill_evenWhenTheBodyIsAroused() {

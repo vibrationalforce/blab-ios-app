@@ -394,10 +394,11 @@ struct EchoelmusicApp: App {
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
-                // Give the lead voice a distinct, cutting timbre so .lead notes read as
-                // a separate instrument over the (per-genre) harmony voice. Fixed for
-                // now; a per-genre lead patch is the next step.
-                if let leadPatch = SynthPatch.factory.first(where: { $0.name == "Bright Lead" }) {
+                // WARM default lead timbre (founder 2026-07-07: "warmen Synth-Sound …
+                // quakige Töne raus"). The per-genre `leadPatchName` overrides this on
+                // generate; this is just the pre-generate default, so it's warm, not the
+                // old bright/cutting "Bright Lead" that read as nasal on the first sound.
+                if let leadPatch = SynthPatch.factory.first(where: { $0.name == "Soft Keys" }) {
                     leadVoice.apply(leadPatch)
                 }
 
