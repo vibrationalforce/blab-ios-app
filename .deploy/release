@@ -1,22 +1,24 @@
-build: 2026-07-05 v10.79.90 (Weniger, echter: die Meditations-Fläche ist jetzt eine reine gehaltene Drone — kein Genudel mehr)
+build: 2026-07-05 v10.79.91 (Beat komplett raus + die Fläche ATMET jetzt medizinisch mit dir — 0,1 Hz)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log hat es verraten und deine Worte bestätigt: die Fläche hat
-  27 Noten pro Loop erzeugt — eine busy 8tel/16tel-Puls-Schicht + eine
-  laufende Bass-Linie, die ansprangen, sobald der Körper NICHT ruhig war.
-  Das war das "rudimentär / Genudel".
-  Du hast gesagt: "die Trancepads im Hintergrund sind teilweise schon sehr
-  gut" + "alles reduzieren dafür qualitativ hochwertiger". Genau das:
-  Die Meditations-Fläche (Self-Observation + Deep Ambient) ist jetzt eine
-  ECHTE gehaltene DRONE — ein gehaltener Akkord + ein Sub-Bass, voll
-  ausgehalten, IMMER (egal wie aufgeregt der Körper ist). Kein Puls-Geklimper,
-  kein Walking-Bass. Von 27 Noten auf ~5. Die guten Pads bleiben — nur das
-  Drumherum ist weg. Bewegung kommt jetzt aus dem langsamen Weiterentwickeln,
-  dem Tape+Hall-Raum und deinem Körper — nicht aus Notendichte.
-  TEST 10.79.90:
-  A) Start, Beat aus: klingt die Fläche jetzt RUHIGER und hochwertiger —
-     eine tragende Drone statt Genudel? Bleiben die guten Pads?
+notesT: Zwei Dinge, beide auf deiner Linie:
+  1) BEAT KOMPLETT RAUS: Dein gespeicherter Beat-Modus stand noch auf "Pulse"
+     (alter Default) — deshalb lief unter der Fläche ein schamanischer Puls-
+     Drum. Der ist jetzt WEG. Kein Beat mehr, nirgends. Der Beat-Regler ist aus
+     der Oberfläche raus. Reine meditative Flächen, Punkt. Und: die Fläche
+     entwickelt sich jetzt IMMER sanft weiter (kein Einfrieren, wenn der Körper
+     ruhig ist).
+  2) DIE FLÄCHE ATMET (der medizinische Kern): Ein langsames An- und
+     Abschwellen mit 6 Atemzügen pro Minute (0,1 Hz — die Resonanz-Frequenz).
+     Das ist die evidenz-STÄRKSTE Kohärenz-Funktion aus der Research: eine
+     Musik, die mit 0,1 Hz atmet, verlangsamt nachweislich die Atmung des
+     Hörers und maximiert die HRV (Herzraten-Variabilität). Genau das macht
+     aus "schön" → "medizinisch wirksam". Sanft (±11 %), click-frei, nur auf
+     den Meditations-Flächen aktiv.
+  Dein letztes Log war übrigens die BESTE Session bisher: dunkler Lock (0.12),
+  Puls sauber gesettelt bei 60–61 bpm, Konfidenz 0.9+. Der Klang-Kern sitzt.
+  TEST 10.79.91:
+  A) Start, Augen zu, 2–3 Min: KEIN Beat mehr? Spürst du das langsame Atmen
+     der Fläche (alle 10 s ein sanftes Auf und Ab)? Beruhigt es?
+  B) Trägt die reduzierte Drone (aus .90) jetzt sauber?
   Log bitte wieder.
-  (Als Nächstes, fokussiert: (1) MEDIZINISCH — der 0.1-Hz-Atem-Swell, die
-   evidenz-stärkste Kohärenz-Funktion; (2) WASSER — das Touch-Visual soll
-   sich nach echtem Wasser anfühlen, nicht nach Ringen. Beides braucht
-   Audio-/Shader-Sorgfalt, deshalb je ein eigener sauberer Schritt.)
+  (Als Nächstes: das Touch-Visual soll sich nach echtem Wasser anfühlen.)
