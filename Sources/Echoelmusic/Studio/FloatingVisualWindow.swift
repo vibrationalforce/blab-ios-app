@@ -328,16 +328,23 @@ struct FloatingVisualWindow: View {
         withAnimation(.easeInOut(duration: 0.18)) { sizeRaw = windowSize.next.rawValue }
     }
 
-    /// The MetalBioView styles (index space matches `visual.style`). Cycling steps through
-    /// them so a new look is one tap away in the window.
-    private static let styleCount = 10
+    /// The MetalBioView styles (index space matches `visual.style`).
     private static func styleName(_ i: Int) -> String {
         let names = ["Rings", "Cymatics", "Plasma", "Water", "Prism", "Aurora",
                      "Lissajous", "Depth", "Oscilloscope", "Fractal"]
         return (i >= 0 && i < names.count) ? names[i] : "Look \(i)"
     }
+    /// MINIMIZED (founder 2026-07-07): the Look button only cycles the calm, liquid
+    /// looks — Water · Aurora · Depth Caustics · Plasma — so you never have to tap
+    /// past Prism to reach calm. From any retired/busy look, one tap jumps to Water.
+    /// MUST match EchoelStudioView.calmMetalStyles + the visualLookStrip list.
+    private static let calmLooks = [3, 5, 7, 2]
     private func cycleLook() {
-        visualStyle = (visualStyle + 1) % Self.styleCount
+        if let pos = Self.calmLooks.firstIndex(of: visualStyle) {
+            visualStyle = Self.calmLooks[(pos + 1) % Self.calmLooks.count]
+        } else {
+            visualStyle = Self.calmLooks[0]   // retired look → calm default (Water)
+        }
     }
 
     #if canImport(AVFoundation)

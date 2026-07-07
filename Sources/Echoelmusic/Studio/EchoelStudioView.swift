@@ -124,6 +124,10 @@ struct EchoelStudioView: View {
     @AppStorage("visual.styleB") private var visualStyleB = 0
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
     @AppStorage("visual.blend") private var visualBlend = 0.0
+    /// The calm, liquid Metal styles kept on the surface after the 2026-07-07 minimize:
+    /// Water (3) · Aurora (5) · Depth Caustics (7) · Plasma (2). MUST match
+    /// FloatingVisualWindow.calmLooks and the visualLookStrip list.
+    private static let calmMetalStyles = [3, 5, 7, 2]
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -406,6 +410,13 @@ struct EchoelStudioView: View {
                let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
                 applyVisualPreset(p)
             }
+            // Visual minimize (founder 2026-07-07): retire the busy looks from the
+            // surface. Snap a persisted busy style (e.g. Prism) to a calm one so
+            // nobody relaunches stuck on it, and clear any lingering A/B blend now
+            // that the "mischend" control is gone.
+            if !spectralDonuts, !Self.calmMetalStyles.contains(visualStyle) { visualStyle = 3 } // → Water
+            visualBlend = 0
+            visualStyleB = 0
             surfacePriorCrashIfAny()
             handlePendingIntent()
         }
@@ -1244,7 +1255,9 @@ struct EchoelStudioView: View {
             .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
-            visualBlendControls
+            // visualBlendControls REMOVED from the surface (founder 2026-07-07:
+            // minimize — the A/B "mischend" mix was extra clicking). Still defined
+            // below, reversible; the migration in onAppear clears any lingering blend.
             visualPresetRow
             musicColourRow
             visualAdjustFields
@@ -1307,16 +1320,16 @@ struct EchoelStudioView: View {
     /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
     private var visualLookStrip: some View {
-        // (label, isDonuts, metalStyle). Prism (style 4 — spectral dispersion) is fully
-        // implemented in the shader (clamped 0…4) and was simply never surfaced here; it
-        // now joins the strip so every shipped look is reachable (10.76.49 visuals tidy).
-        // "Cymatics" is the recognizable name for the Chladni-plate eigenmode field
-        // (founder: "Cymatics fehlen" — it shipped as the unfamiliar "Chladni").
+        // (label, isDonuts, metalStyle). MINIMIZED (founder 2026-07-07: "die visuals
+        // nochmal überarbeiten … das Prisma Ding ist manchmal ein bisschen viel da und
+        // geht erst nach viel herumklicken weg … das gesamte Ding minimalisieren").
+        // Only the calm, liquid looks remain surfaced — Donuts + Water · Aurora · Depth
+        // Caustics · Plasma. The busy/technical ones (Rings/Cymatics/Prism/Lissajous/
+        // Scope/Fractal) stay in the shader (indices unchanged, reversible) but are no
+        // longer clickable here, so nobody has to tap past Prism to reach calm.
         let looks: [(String, Bool, Int)] = [
-            ("Donuts", true, -1), ("Rings", false, 0), ("Cymatics", false, 1),
-            ("Plasma", false, 2), ("Water", false, 3), ("Prism", false, 4),
-            ("Aurora", false, 5), ("Lissajous", false, 6), ("Depth", false, 7),
-            ("Scope", false, 8), ("Fractal", false, 9)
+            ("Donuts", true, -1), ("Water", false, 3), ("Aurora", false, 5),
+            ("Depth", false, 7), ("Plasma", false, 2)
         ]
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -1404,10 +1417,10 @@ struct EchoelStudioView: View {
                     // Pick the visual LOOK (engine), then the scene preset (parameters).
                     Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
                     visualLookStrip
-                    visualBlendControls
-                    // SAME controls as the inline Visual panel — one definition each
-                    // (visualPresetRow + visualAdjustFields), so the immersive overlay and the
-                    // Compose panel can never drift apart ("easy to understand/control").
+                    // visualBlendControls REMOVED here too (founder 2026-07-07 minimize) —
+                    // the fullscreen VJ overlay mirrors the inline panel, so both drop the
+                    // A/B blend. SAME definitions as the inline panel (visualPresetRow +
+                    // visualAdjustFields) so the two surfaces can never drift apart.
                     visualPresetRow
                     visualAdjustFields
                     // Projection output: this chrome-free, keep-awake canvas IS the beamer
