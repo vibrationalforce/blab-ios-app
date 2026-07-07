@@ -968,7 +968,11 @@ public enum BioComposer {
             }
 
             if profile.arpeggiated {
-                let arpStep = busy > 0.5 ? 1 : 2
+                // SOFT TRANCE (founder 2026-07-07: "Ton-Dichte runter … ich will
+                // angenehmen weichen Trance-Sound"). Arps were 16ths when busy, 8ths
+                // when calm — a machine-gun, unnatural top layer. Halved to 8ths /
+                // quarter-notes so the arp breathes instead of rattling.
+                let arpStep = busy > 0.6 ? 2 : 4
                 var s = secStart
                 var t = 0
                 while s < secEnd {
@@ -999,9 +1003,13 @@ public enum BioComposer {
             // calmer you get, the more it becomes a drone (the meditative reward), and the
             // synth summing thins out too (fewer simultaneous onsets → less saturation).
             // As arousal returns the pulse comes back for movement.
-            if !profile.arpeggiated, !profile.sustained, !voiced.isEmpty, calm <= 0.6 {
-                let pulseGap = busy > 0.6 ? 1 : 2                       // 16ths busy, else 8ths
-                let pulseVel = clamp01(padVelocity * 0.55)
+            if !profile.arpeggiated, !profile.sustained, !voiced.isEmpty, calm <= 0.5 {
+                // SOFT TRANCE (founder 2026-07-07): the pulse is the busy layer, so it
+                // now only appears when the body is more aroused (calm ≤ 0.5, was
+                // 0.6 → drops to a drone sooner) and it's HALVED to 8ths / quarters
+                // (was 16ths / 8ths) and quieter, so even when present it just breathes.
+                let pulseGap = busy > 0.7 ? 2 : 4                       // 8ths busy, else quarters
+                let pulseVel = clamp01(padVelocity * 0.45)
                 // Voice the pulse an OCTAVE ABOVE the pad (chord tones + 12, clamped ≤127) —
                 // a comp/shimmer sits over the held chord like a real player, it doesn't
                 // re-articulate the pad's exact fundamentals in the same register. Same-pitch
@@ -1030,7 +1038,10 @@ public enum BioComposer {
         if profile.leadDensity > 0 {
             // Liveliness scales how many lead notes; darkness drops the register.
             let lively = 0.6 + 0.8 * clamp01(mood.liveliness)
-            let count = max(2, Int((profile.leadDensity * (4 + busy * 4) * lively).rounded()))
+            // SOFT TRANCE (founder 2026-07-07: "Ton-Dichte runter"): fewer lead notes —
+            // the melody is a sparse, singing line over the pad, not a busy run. Roughly
+            // halved (was 4 + busy·4).
+            let count = max(2, Int((profile.leadDensity * (2 + busy * 2.5) * lively).rounded()))
             var lastStart = -1
             // Seed-vary the opening tone so the lead doesn't always begin on the same
             // pitch (a big part of "it's the same tune again"). Breath still biases
