@@ -374,11 +374,15 @@ public enum BioComposer {
                                breathPhase: input.breathPhase,
                                breathDepth: input.breathDepth, rng: &rng)
             (drumSteps, drumAccents) = trapBeat(energy: energy, calm: calm, rng: &rng)
-        case .selfObservation:
-            notes = ambientMelody(key: input.key, calm: calm, busy: busy,
-                                  breathPhase: input.breathPhase,
-                                  breathDepth: input.breathDepth, mood: effMood, rng: &rng)
-            (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
+        // .selfObservation is NO LONGER intercepted here (founder 2026-07-07: "in der
+        // Hauptmelodie sehr laute quakige Töne … es soll sich mehr in den weichen
+        // Trance-Pad-Ambient einfügen"). It used to route to `ambientMelody`, a BARE
+        // monophonic .lead line with NO pad under it — a thin, exposed, formant-y tune,
+        // exactly the loud "quakig" melody. Its harmonicProfile has ALWAYS been a lush
+        // sustained drone (leadDensity 0), IDENTICAL to esotericMeditation (the pad the
+        // founder likes) — but that profile was never reached. Falling through to the
+        // `default:` composeHarmonic path finally plays that drone Fläche. `ambientMelody`
+        // stays defined below (unused, reversible) in case a gentle melodic mode returns.
         default:
             // The harmonic genres: pads/chords/arps + an optional lead — PLUS the
             // genre's groove skeleton (audit B5: every beat-driven genre now carries
