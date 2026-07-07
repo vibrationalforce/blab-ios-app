@@ -838,10 +838,11 @@ public enum BioComposer {
     private static func appendBass(into notes: inout [Note], key: MusicalKey,
                                    rootDegree: Int, nextRoot: Int, octave: Int,
                                    secStart: Int, len: Int, busy: Float, calm: Float,
-                                   velocity: Float, rng: inout SeededRNG) {
+                                   velocity: Float, sustained: Bool, rng: inout SeededRNG) {
         let motion = clamp01(busy * 0.7 + (1 - calm) * 0.4)
-        // Spacious / short sections keep the grounding single sustained root.
-        guard motion > 0.32, len >= 4 else {
+        // A sustained drone (or a spacious / short section) keeps the grounding
+        // single held root — no walking line, whatever the body is doing.
+        guard !sustained, motion > 0.32, len >= 4 else {
             notes.append(Note(id: nextUUID(&rng),
                               pitch: key.degree(rootDegree, octave: octave),
                               startStep: secStart, lengthSteps: len,
@@ -940,7 +941,8 @@ public enum BioComposer {
             let nextRoot = prog[(idx + 1) % prog.count]
             appendBass(into: &notes, key: key, rootDegree: rootDegree, nextRoot: nextRoot,
                        octave: bassOct, secStart: secStart, len: len,
-                       busy: busy, calm: calm, velocity: bassVelocity, rng: &rng)
+                       busy: busy, calm: calm, velocity: bassVelocity,
+                       sustained: profile.sustained, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
@@ -993,7 +995,7 @@ public enum BioComposer {
             // calmer you get, the more it becomes a drone (the meditative reward), and the
             // synth summing thins out too (fewer simultaneous onsets → less saturation).
             // As arousal returns the pulse comes back for movement.
-            if !profile.arpeggiated, !voiced.isEmpty, calm <= 0.6 {
+            if !profile.arpeggiated, !profile.sustained, !voiced.isEmpty, calm <= 0.6 {
                 let pulseGap = busy > 0.6 ? 1 : 2                       // 16ths busy, else 8ths
                 let pulseVel = clamp01(padVelocity * 0.55)
                 // Voice the pulse an OCTAVE ABOVE the pad (chord tones + 12, clamped ≤127) —

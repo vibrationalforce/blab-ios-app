@@ -1,22 +1,22 @@
-build: 2026-07-05 v10.79.89 (Homogen: eine kohärente Vaporwave-Welt — "Vapor"-Look als Default, Klang + Bild greifen ineinander)
+build: 2026-07-05 v10.79.90 (Weniger, echter: die Meditations-Fläche ist jetzt eine reine gehaltene Drone — kein Genudel mehr)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Schritt Richtung "alles passt zueinander":
-  VAPOR-WELT: Es gibt einen neuen Visual-Look "Vapor" — dreamy, langsam,
-  weit, mit einer verträumten Vaporwave-Palette (Magenta/Violett-Verschiebung
-  + sanfter Sättigungs-Lift für den kitschigen, aber gegradeten Glow — kein
-  Neon-Amateur). EIN Tap = eine ganze Welt: dazu die Drone-Fläche durch
-  Tape-Delay + großen Hall aus .87. Klang und Bild lesen sich jetzt als EINE
-  nostalgische Stimmung.
-  DEFAULT: Frische Installation startet direkt in dieser Vapor-Welt.
-  Falls du auf deinem Gerät noch die alte Palette siehst (deine gespeicherten
-  Werte gewinnen): Visual auf VOLLBILD → einmal aufs Bild tippen (Controls
-  einblenden) → in der "Preset"-Reihe "Vapor" antippen. Ab dann ist es die
-  verträumte Welt. Die physikalisch-korrekte Farbe ("die Farbe ist der Ton")
-  bleibt immer einen Tap entfernt (Hue auf 0 oder anderes Preset).
-  TEST 10.79.89:
-  A) Vapor-Look wählen (oder frisch installieren): passt Klang + Bild jetzt
-     als eine Vaporwave-Stimmung zusammen? Kitschig-schön, aber edel?
-  B) Trägt die Drone-Fläche weiter? Puls schneller da (Fix aus .88)?
-  Log + kurzes Video bitte.
-  (Nächster Schritt: die Steuerung selbst weiter VEREINFACHEN + freie
-   CC0-Klangschalen/Natur via VCSL — beides fokussiert danach.)
+notesT: Dein Log hat es verraten und deine Worte bestätigt: die Fläche hat
+  27 Noten pro Loop erzeugt — eine busy 8tel/16tel-Puls-Schicht + eine
+  laufende Bass-Linie, die ansprangen, sobald der Körper NICHT ruhig war.
+  Das war das "rudimentär / Genudel".
+  Du hast gesagt: "die Trancepads im Hintergrund sind teilweise schon sehr
+  gut" + "alles reduzieren dafür qualitativ hochwertiger". Genau das:
+  Die Meditations-Fläche (Self-Observation + Deep Ambient) ist jetzt eine
+  ECHTE gehaltene DRONE — ein gehaltener Akkord + ein Sub-Bass, voll
+  ausgehalten, IMMER (egal wie aufgeregt der Körper ist). Kein Puls-Geklimper,
+  kein Walking-Bass. Von 27 Noten auf ~5. Die guten Pads bleiben — nur das
+  Drumherum ist weg. Bewegung kommt jetzt aus dem langsamen Weiterentwickeln,
+  dem Tape+Hall-Raum und deinem Körper — nicht aus Notendichte.
+  TEST 10.79.90:
+  A) Start, Beat aus: klingt die Fläche jetzt RUHIGER und hochwertiger —
+     eine tragende Drone statt Genudel? Bleiben die guten Pads?
+  Log bitte wieder.
+  (Als Nächstes, fokussiert: (1) MEDIZINISCH — der 0.1-Hz-Atem-Swell, die
+   evidenz-stärkste Kohärenz-Funktion; (2) WASSER — das Touch-Visual soll
+   sich nach echtem Wasser anfühlen, nicht nach Ringen. Beides braucht
+   Audio-/Shader-Sorgfalt, deshalb je ein eigener sauberer Schritt.)
