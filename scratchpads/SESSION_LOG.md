@@ -3,6 +3,25 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-07 (Forts. 3) — Weicher Trance: Ton-Dichte runter (v10.79.97) + SLM=WATCH
+Founder (nach 2 Videos + Log): „Ton-Dichte runter und vor allem die lauten unangenehmen mit
+unnatürlichem Sound weg. Ich will angenehmen weichen Trance-Sound." + Frage „SLMs die Zukunft?".
+- **Dichte-Cut (2542a01, `BioComposer.composeHarmonic`):** alle drei Moving-Layer ausgedünnt
+  (Meditations-Genres unberührt — kein arp/pulse/lead): Arps 16tel/8tel→8tel/Viertel (arpStep
+  busy?2:4); innerer Puls geviertelt (gap busy?2:4) + leiser (vel×0.45) + fällt früher zur Drone
+  (calm≤0.5, war 0.6); Lead ~halbiert (leadDensity×(2+busy·2.5), war (4+busy·4)). Bestehende
+  Note-Count-Tests halten (coh-0.4-Inputs triggern die Layer noch; coh-0.95 droppt Puls; busy≥calm;
+  notes>onsets). Threshold bewusst 0.5 statt 0.4 (coh-0.4-Testgrenze sicher). Device zeigte 18–32
+  Noten/Loop → jetzt sparsam. Stackt auf 79.96 warme Leads = weicher Trance.
+- **Puls-Diagnose:** ein Log zeigte Kamera-Stall (~36s, Finger-Weg+Torch) → Selbstheilung (3
+  Recoveries → cold restart) griff, aber langsam. Angeboten: Recovery straffen (Stall früher →
+  ~5–8s statt 36s) — offen, Founder-Steuer. Anderer Log: stabile 5-Noten-Drone (79.95-Fix live).
+- **SLM-Frage** (= „sml" aufgeklärt): Small Language Models. Vision-Gate-Verdict **WATCH** —
+  philosophisch on-brand (on-device/privat = Echoel-Ethos), aber KEIN Sprachmodell in den DSP/
+  Musik-Kern (Stärke, bleibt rein). EINE spätere Anwendung: on-device Text→Sound/Mood via APPLES
+  On-Device-Modell (kein Bundle-Bloat, wir haben grad 31MB Soundfont raus). Nicht jetzt — erst
+  Sound/Visual-Kern fertig. Kein AI/AGI-Overclaim im Marketing.
+
 ## 2026-07-07 (Forts. 2) — Warme leise Leads + Logo statt Burger + App-Store-Felder + „sml"-Frage (v10.79.96)
 Founder (2 Videos): „Melodien bei manchen Genres super laut + unangenehm im Ohr, kein angenehmes
 Spektrum … die meisten Genres hauen ihre Melodie unangenehm heraus. Soll schön und entspannt sein."
