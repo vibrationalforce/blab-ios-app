@@ -48,11 +48,11 @@ private struct RecordingBadge: View {
     }
 }
 
-/// A COMPACT position/loop readout for over the visual (founder 2026-07-07: "sowas in klein" —
-/// a small version of the transport bar's loop indicator, inside the Visual Instrument). Mirrors
-/// `TransportPositionView` (bar.beat.step + a slim loop-progress capsule) at a smaller size. Its
-/// OWN leaf so the ~10 Hz `transport.position` read stays confined here and never rebuilds the
-/// floating window (freeze rule); reads only low-frequency `loopBars` besides.
+/// A COMPACT position/loop readout for the Visual Instrument's TOP BAR (founder 2026-07-07:
+/// "sowas in klein" + "Das muss mit nach oben in die Leiste"). Mirrors `TransportPositionView`
+/// (bar.beat.step + a slim loop-progress capsule) at a smaller size. Its OWN leaf so the ~10 Hz
+/// `transport.position` read stays confined here and never rebuilds the floating window (freeze
+/// rule); reads only low-frequency `loopBars` besides.
 @MainActor
 private struct MiniTransportView: View {
     @Environment(Transport.self) private var transport
@@ -78,8 +78,6 @@ private struct MiniTransportView: View {
                 .font(EchoelTheme.font(9).monospacedDigit())
                 .foregroundStyle(Color.white.opacity(0.6))
         }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.55)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Loop position")
     }
@@ -237,23 +235,12 @@ struct FloatingVisualWindow: View {
         #endif
     }
 
-    // MARK: - Performance HUD (small position readout + WAV record)
+    // MARK: - Toolbar controls (position readout + WAV record)
 
     #if canImport(AVFoundation)
-    /// Bottom strip over the visual: compact position on the left, WAV record on the right.
-    @ViewBuilder private var performanceHUD: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            MiniTransportView()
-                .allowsHitTesting(false)   // display only — never eats a touch on the play surface
-            Spacer(minLength: 0)
-            wavRecordControl
-        }
-        .padding(.horizontal, 10)
-        .padding(.bottom, 8)
-    }
-
-    /// Lossless-WAV record button + live elapsed time. Distinct waveform glyph so it reads as
-    /// AUDIO next to the top toolbar's video glyph (founder: both recorders must be recognizable).
+    /// Lossless-WAV record button + live elapsed time, sized to sit in the top bar next to the
+    /// video button. Distinct waveform glyph so it reads as AUDIO vs. the video glyph (founder:
+    /// both recorders must be recognizable).
     @ViewBuilder private var wavRecordControl: some View {
         HStack(spacing: 5) {
             if wavRecording {
@@ -270,15 +257,14 @@ struct FloatingVisualWindow: View {
             }
             Button { toggleWavRecording() } label: {
                 Image(systemName: wavRecording ? "stop.circle.fill" : "waveform.circle")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(wavRecording ? Color.red : (wavExporting ? EchoelTheme.dim : EchoelTheme.text))
+                    .frame(width: 28, height: 22)
             }
             .buttonStyle(.plain)
             .disabled(wavExporting)
             .accessibilityLabel(wavRecording ? "Stop WAV audio recording" : "Record lossless WAV audio")
         }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.55)))
     }
 
     private func recTimeString(_ s: TimeInterval) -> String {
@@ -326,13 +312,6 @@ struct FloatingVisualWindow: View {
                 .overlay(alignment: .topLeading) {
                     if recorder.isRecording { RecordingBadge(start: recordStart) }
                 }
-                // Performance HUD along the bottom edge: a SMALL transport-position readout
-                // (founder 2026-07-07: "sowas in klein" — the loop/position indicator inside
-                // the visual) on the left, the lossless-WAV record control on the right. The
-                // position lives in its own leaf (`MiniTransportView` reads Transport itself)
-                // so its ~10 Hz updates never rebuild this window (freeze rule); the readout
-                // is non-interactive so it never steals a touch from the play surface.
-                .overlay(alignment: .bottom) { performanceHUD }
                 #endif
         }
         .background(Color.black)
@@ -381,21 +360,22 @@ struct FloatingVisualWindow: View {
                 )
                 .accessibilityLabel("Echoel — drag to move the visual")
             Spacer(minLength: 0)
-            // Look — cycle the visual style right here, where you see it (founder: design
-            // where the visual is). Writes the SHARED visual.style key, so the Visual panel
-            // stays in sync.
-            Button { cycleLook() } label: {
-                Image(systemName: "paintpalette")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 26, height: 22)
+            // The transport-position readout + WAV control live UP HERE in the bar now
+            // (founder 2026-07-07: "Das muss mit nach oben in die Leiste") — not floating over
+            // the picture. Position is its own leaf (`MiniTransportView` reads Transport itself)
+            // so its ~10 Hz updates never rebuild this window (freeze rule); display-only, so it
+            // never steals a touch from the play surface. (The palette/Look button was removed
+            // on the same ask — "Die Farbpalette raus"; the look is set from the Visual panel.)
+            // The position readout needs a little width to stay legible — show it from Medium
+            // up (and fullscreen). On the Small window it would crowd the record/resize buttons.
+            if windowSize != .small {
+                MiniTransportView()
+                    .allowsHitTesting(false)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Change look")
-            .accessibilityValue(Self.styleName(visualStyle))
             #if canImport(AVFoundation)
-            // MP4 VIDEO capture. Distinct "video" glyph (vs. the WAV button's waveform in the
-            // bottom HUD) so the two recorders are recognizable at a glance (founder: "Video
+            wavRecordControl
+            // MP4 VIDEO capture. Distinct "video" glyph (vs. the WAV button's waveform)
+            // so the two recorders are recognizable at a glance (founder: "Video
             // und wav Aufnahme muss … erkennbar sein").
             Button { toggleRecording() } label: {
                 Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
@@ -438,25 +418,6 @@ struct FloatingVisualWindow: View {
 
     private func cycleSize() {
         withAnimation(.easeInOut(duration: 0.18)) { sizeRaw = windowSize.next.rawValue }
-    }
-
-    /// The MetalBioView styles (index space matches `visual.style`).
-    private static func styleName(_ i: Int) -> String {
-        let names = ["Rings", "Cymatics", "Plasma", "Water", "Prism", "Aurora",
-                     "Lissajous", "Depth", "Oscilloscope", "Fractal"]
-        return (i >= 0 && i < names.count) ? names[i] : "Look \(i)"
-    }
-    /// MINIMIZED (founder 2026-07-07): the Look button only cycles the calm, liquid
-    /// looks — Water · Aurora · Depth Caustics · Plasma — so you never have to tap
-    /// past Prism to reach calm. From any retired/busy look, one tap jumps to Water.
-    /// MUST match EchoelStudioView.calmMetalStyles + the visualLookStrip list.
-    private static let calmLooks = [3, 5, 7, 2]
-    private func cycleLook() {
-        if let pos = Self.calmLooks.firstIndex(of: visualStyle) {
-            visualStyle = Self.calmLooks[(pos + 1) % Self.calmLooks.count]
-        } else {
-            visualStyle = Self.calmLooks[0]   // retired look → calm default (Water)
-        }
     }
 
     #if canImport(AVFoundation)
