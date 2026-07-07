@@ -1,20 +1,26 @@
-build: 2026-07-05 v10.79.92 (Warmer Synth-Sound: alle Real-Instrument-Emulationen raus)
+build: 2026-07-07 v10.79.93 (Real Instruments ganz raus + Schalter weg · Wasser-Touch · Header→Website · Visual Touch Instrument nach unten)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine Ansage: "Real Instruments raus, das klingt trashig … wir wollen
-  den warmen Synth-Sound, vermeide plastisch und verzerrt klingende Real-
-  Instrument-Emulationen." Umgesetzt:
-  1) SPEKTRAL-BLENDS RAUS: Vier Genres (Disco/Klassik/Klezmer/Oriental) haben
-     ein echtes Instrumenten-Spektrum in den Synth gemischt (Violine/Cello/
-     Klarinette/Oboe) — genau das plastische Emulieren. Komplett entfernt.
-     Alle Genres sind jetzt reiner warmer Synth; der Genre-Charakter kommt aus
-     der Synth-Hüllkurve + Klangfarbe selbst (deine "Nuance im Basis-Synth").
-  2) REAL-INSTRUMENT-LEADS RAUS: Die Lead-Stimme lief bei manchen Genres über
-     Trompete/Geige/Klarinette/Oboe/Flöte/Metallic-Emulationen. Jetzt überall
-     warme Synth-Leads (Bright Lead / Soft Keys / Choir Vox / Pluck / Deep Sub).
-  Die Meditations-Flächen (dein Hauptsound) waren ohnehin schon reiner warmer
-  Synth ("Calm Pad" / "Deep Drone") — die bleiben unverändert schön.
-  TEST 10.79.92:
-  A) Fläche wie gewohnt: klingt weiterhin warm (unverändert)?
-  B) Falls du ein anderes Genre antippst (Disco/Klassik): klingt es jetzt nach
-     warmem Synth statt nach plastischem "echten" Instrument?
-  (Als Nächstes: das Touch-Visual → echtes Wasser-Gefühl.)
+notesT: Vier Punkte aus deiner Ansage + Screenshot umgesetzt (Gates grün: Xcode ✅ CI ✅).
+  1) REAL INSTRUMENTS KOMPLETT RAUS + SCHALTER WEG. Die letzte Runde hat nur die
+     Spektral-Blends aus den Genres genommen — jetzt ist der GANZE sampled Pfad weg:
+     der Apple-Sampler + die 31-MB-Soundfont (GeneralUser GS) sind gelöscht, der
+     "Sound: Real / Classic synth"-Schalter in der Composition ist entfernt, und
+     das Routing dahinter. Jede Stimme ist jetzt reiner WARMER SYNTH — kein
+     sampled Instrument, kein Fallback, kein Schalter. (Bundle ~31 MB leichter.)
+  2) WASSER-GEFÜHL beim Touch-Instrument: eine Berührung ist jetzt ein Tropfen —
+     mehrere konzentrische Wellenfronten laufen gestaffelt nach außen (statt einem
+     flachen Ring), zart aqua-weiß. Wie Finger durchs Wasser.
+  3) HEADER → WEBSITE: Tippen auf das E-Logo oder auf "Echoelmusic"/Version öffnet
+     echoelmusic.com im Standard-Browser (dort kommen Versions-Notiz + TestFlight).
+  4) "Visual" heißt jetzt "VISUAL TOUCH INSTRUMENT" (es ist ein spielbares
+     Touch-Instrument) und sitzt GANZ UNTEN auf der Seite (unter Export).
+  TEST 10.79.93:
+  A) Genre wechseln (Disco/Klassik): klingt jetzt überall warmer Synth, KEIN
+     plastisches "echtes" Instrument mehr, und der Sound-Schalter ist weg?
+  B) Fullscreen-Visual mit den Fingern spielen: fühlt sich das Wasser-Ripple
+     jetzt weicher/tiefer an?
+  C) Auf "Echoelmusic" oben tippen → öffnet sich echoelmusic.com im Browser?
+  D) Ganz unten: "Visual Touch Instrument"-Panel an richtiger Stelle?
+  (TestFlight öffentlich freigeben: siehe Chat — ich brauche von dir nur den
+   Public Link aus App Store Connect, dann baue ich den "Beta beitreten"-Button
+   + Versions-Notiz auf echoelmusic.com.)

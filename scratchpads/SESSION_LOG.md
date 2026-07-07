@@ -3,6 +3,29 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-07 — Real Instruments ganz raus + Schalter weg · Wasser-Touch · Header→Web · Visual Touch Instrument (v10.79.93)
+Vier Founder-Punkte in einem grünen Build (Xcode ✅ CI ✅, TestFlight getriggert):
+1. **"Real Instruments Komplett raus. Auch den Schalter weg."** → die VORIGE Runde
+   (79.92) nahm nur die Spektral-Blends aus den Genres; diese Runde reißt den GANZEN
+   sampled Pfad raus: `SampledInstrumentVoice` + Test gelöscht, der Apple-Sampler,
+   die 31-MB-Soundfont (`GeneralUserGS.sf2`) + project.yml-Bundle-Eintrag + der
+   Composition-"Sound: Real/Classic"-Schalter (`soundSourceRow`, `studio.realSound`)
+   entfernt; `PianoRollView.outputVoice` ist synth-only; `EchoelmusicApp` konstruiert/
+   attached/lädt nichts Sampled mehr; die `fetch-instruments.yml`-Workflow + Trigger
+   raus (hätten die Soundfont sonst neu geholt). Jede Stimme = reiner warmer Synth.
+   Bundle ~31 MB leichter. Commit 6c9258b. Concurrency-review: 0 Findings.
+2. **Wasser-Gefühl** (mein offener Punkt aus 79.90): `TouchInstrumentView.spawnRing`
+   von einem flachen Ring auf mehrere gestaffelte konzentrische Wellenfronten
+   (`spawnWavefront`, `CACurrentMediaTime` + future `beginTime`), zart aqua-weiß.
+   Reine CAShapeLayer/GPU, per-Wellenfront-Cleanup, reduceMotion respektiert. Commit f39d1ca.
+3. **Header → Website** (Screenshot-Punkt 1): E-Logo + "Echoelmusic"/Version tippbar,
+   `@Environment(\.openURL)` → echoelmusic.com im Standard-Browser. Commit cdda959.
+4. **"Visual" → "Visual Touch Instrument", ganz nach unten** (Screenshot-Punkt 3):
+   umbenannt + aus `soundControls` ans Body-Ende (nach `utilityRow`/Export) verschoben.
+Offen (Founder-Aufgabe): TestFlight PUBLIC LINK in App Store Connect aktivieren
+(External Testing → Gruppe → Beta-Review → Enable Public Link) → dann baue ich
+"Beta beitreten" + Versions-Notiz auf echoelmusic.com. Instruktionen im Chat gegeben.
+
 ## 2026-07-06 (Abend) — Bewusstseins-Fokus: BeatMode + XY-Mood-Pads (v10.79.80/.81)
 Founder-Arc in drei Schlägen, jeweils sofort gebaut + geshippt:
 1. **"Projekt bisher eher trashig; reine Flächen = authentischer"** → Analyse bestätigt
