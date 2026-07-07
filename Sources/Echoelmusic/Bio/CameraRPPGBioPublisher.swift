@@ -160,6 +160,13 @@ public final class CameraRPPGBioPublisher {
     @ObservationIgnored private var fingerStableTicks = 0
     @ObservationIgnored private var saturatedTicks = 0
     @ObservationIgnored private var fingerLostTicks = 0
+    /// Ticks the finger has been CONTINUOUSLY present (regardless of brightness) —
+    /// drives the strict→permissive lock-ceiling decay (prefer a dark lock).
+    @ObservationIgnored private var fingerPresentTicks = 0
+    /// Accumulated full-window weak-periodicity ticks while locked (bright-lock
+    /// recovery) and the bounded number of weak re-locks used this placement.
+    @ObservationIgnored private var weakAcfTicks = 0
+    @ObservationIgnored private var weakRelocksUsed = 0
     /// Counts publish-loop ticks with ZERO drained RGB samples. When the RGB pipe
     /// stalls (analyzer frozen while the capture watchdog stays happy — device log
     /// 2026-07-02), this crosses the threshold and forces a full camera recovery.
@@ -199,6 +206,50 @@ public final class CameraRPPGBioPublisher {
     /// the scene is dark enough for PPG — never lock a bright/flooded frame.
     nonisolated static func canLockNow(fingerDetected: Bool, brightness: Float) -> Bool {
         fingerDetected && brightness < maxLockBrightness
+    }
+
+    // PREFER A DARK LOCK (device log 1783401421 vs 1783370283): a lock at
+    // bright=0.19 produced acf 0.8+ and a settled pulse; a lock at bright=0.34
+    // (well under the permissive 0.6 cap) froze a too-bright exposure — the
+    // window filled but acf never rose above ~0.4, the pulse NEVER settled, and
+    // the tempo never body-seeded for the whole take. So the first seconds hold
+    // a STRICT ceiling while the AGC pulls the torch-lit scene down; only after
+    // that do we fall back to the permissive cap (a late soft lock still beats
+    // no lock on unusual skin/devices).
+    nonisolated static let strictLockBrightness: Float = 0.28
+    nonisolated static let strictLockWindowTicks = 60   // ~6 s at the 10 Hz poll
+
+    /// The brightness ceiling a lock must satisfy, given how long the finger has
+    /// been continuously present. Pure → unit-tested.
+    nonisolated static func lockBrightnessCeiling(fingerPresentTicks: Int) -> Float {
+        fingerPresentTicks < strictLockWindowTicks ? strictLockBrightness : maxLockBrightness
+    }
+
+    // BRIGHT-LOCK RECOVERY: a lock that is bright-but-not-washed-out (0.34 << the
+    // 0.72 washout line) shows a FULL analysis window with ~zero periodicity —
+    // the saturation path never fires, so without this the take sits unsettled
+    // forever. Sustained weak acf while unsettled → hand exposure back to auto so
+    // the strict dark gate can re-lock. Bounded per placement (never thrashes).
+    nonisolated static let weakRelockAcfFloor: Float = 0.2
+    nonisolated static let weakRelockAcfStrong: Float = 0.4
+    nonisolated static let weakRelockAfterTicks = 120   // ~12 s of accumulated weakness
+    nonisolated static let maxWeakRelocks = 2
+
+    /// One 10 Hz step of the weak-periodicity counter. Not diagnostic until the
+    /// window is FULL; a settled pulse is never disturbed; intermittent "acf=0"
+    /// no-estimate markers accumulate, genuinely strong acf pays the counter
+    /// back down twice as fast. Pure → unit-tested.
+    nonisolated static func weakTicksStep(current: Int, windowFull: Bool,
+                                          acf: Float, settled: Bool) -> Int {
+        guard windowFull, !settled else { return 0 }
+        if acf < weakRelockAcfFloor { return current + 1 }
+        if acf >= weakRelockAcfStrong { return max(0, current - 2) }
+        return current
+    }
+
+    /// Whether a locked-but-weak exposure should be handed back to auto. Pure.
+    nonisolated static func weakLockNeedsResettle(weakTicks: Int, relocksUsed: Int) -> Bool {
+        weakTicks >= weakRelockAfterTicks && relocksUsed < maxWeakRelocks
     }
 
     /// A locked scene is washed out (AC pulse swamped) once it drifts too bright or
@@ -507,7 +558,13 @@ public final class CameraRPPGBioPublisher {
             // (device log 2026-07-02: locked at bright=0.62 → no pulse all session).
             // If the finger is present but the scene is too bright, keep auto-exposure
             // running so the AGC pulls the exposure down before we freeze it.
-            fingerStableTicks = Self.canLockNow(fingerDetected: fingerDetected, brightness: bright)
+            // The ceiling is STRICT for the first ~6 s of finger presence (prefer the
+            // dark, high-AC lock the good sessions live in), then falls back to the
+            // permissive cap so unusual skin/devices still lock eventually.
+            fingerPresentTicks = fingerDetected ? (fingerPresentTicks + 1) : 0
+            let ceiling = Self.lockBrightnessCeiling(fingerPresentTicks: fingerPresentTicks)
+            fingerStableTicks = (Self.canLockNow(fingerDetected: fingerDetected, brightness: bright)
+                                 && bright < ceiling)
                 ? (fingerStableTicks + 1) : 0
             if fingerStableTicks >= Self.lockAfterTicks {
                 capture.lockExposure()
@@ -515,6 +572,7 @@ public final class CameraRPPGBioPublisher {
                 exposureLocked = true
                 saturatedTicks = 0
                 fingerLostTicks = 0
+                weakAcfTicks = 0
                 EchoelCrashLog.breadcrumb(String(format:
                     "rPPG: exposure locked on finger (bright=%.2f R=%.2f)", bright, red))
             }
@@ -537,6 +595,30 @@ public final class CameraRPPGBioPublisher {
             saturatedTicks = max(0, saturatedTicks - 1)
         }
 
+        // BRIGHT-LOCK RECOVERY (device log 1783401421: locked at bright=0.34 —
+        // legal under the old 0.6 cap, far from the 0.72 washout line — and the
+        // full window then read acf ≈ 0–0.4 for the entire take; the pulse never
+        // settled, so the tempo never body-seeded). Sustained ~zero periodicity
+        // on a FULL window while unsettled → hand exposure back to auto so the
+        // strict dark gate above re-locks properly. Bounded per placement.
+        weakAcfTicks = Self.weakTicksStep(current: weakAcfTicks,
+                                          windowFull: analyzer.lastWindowSize >= 140,
+                                          acf: Float(analyzer.lastAutoStrength),
+                                          settled: isSettled)
+        if Self.weakLockNeedsResettle(weakTicks: weakAcfTicks, relocksUsed: weakRelocksUsed) {
+            weakRelocksUsed += 1
+            capture.unlockExposure()
+            exposureLocked = false
+            fingerStableTicks = 0
+            fingerPresentTicks = 0   // restart the strict dark window — the point of the re-lock
+            saturatedTicks = 0
+            weakAcfTicks = 0
+            EchoelCrashLog.breadcrumb(String(format:
+                "rPPG: re-settling exposure — weak periodicity on a bright lock (bright=%.2f acf=%.2f, relock %d/%d)",
+                bright, Float(analyzer.lastAutoStrength), weakRelocksUsed, Self.maxWeakRelocks))
+            return
+        }
+
         // Finger gone for a while → drop the lock so the next placement re-locks
         // against the new (possibly different) finger pressure/position.
         fingerLostTicks = fingerDetected ? 0 : (fingerLostTicks + 1)
@@ -546,6 +628,9 @@ public final class CameraRPPGBioPublisher {
             fingerStableTicks = 0
             saturatedTicks = 0
             fingerLostTicks = 0
+            fingerPresentTicks = 0
+            weakAcfTicks = 0
+            weakRelocksUsed = 0   // a NEW placement earns a fresh re-lock budget
         }
     }
 
@@ -558,6 +643,9 @@ public final class CameraRPPGBioPublisher {
         fingerStableTicks = 0
         saturatedTicks = 0
         fingerLostTicks = 0
+        fingerPresentTicks = 0
+        weakAcfTicks = 0
+        weakRelocksUsed = 0   // fresh capture session = fresh re-lock budget
         stallTicks = 0
         // Do NOT reset forcedRecoveries here: every forced recovery fires this very
         // callback ~20 ms later, so zeroing the budget here made each recovery erase
