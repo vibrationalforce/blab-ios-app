@@ -1,22 +1,21 @@
-build: 2026-07-07 v10.79.97 (Weicher Trance: Ton-Dichte runter + warme leise Leads)
+build: 2026-07-07 v10.79.98 (Bio-Infos vollständig lesbar + EchoelAI-Text besser platziert)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine Ansage: "Ton-Dichte runter und vor allem die lauten unangenehmen mit
-  unnatürlichem Sound weg. Ich will angenehmen weichen Trance-Sound." Gates grün:
-  Xcode ✅ CI ✅. Dieser Build hat BEIDES zusammen:
-  1) TON-DICHTE RUNTER (alle drei "notigen" Schichten ausgedünnt; die Meditations-
-     Genres bleiben unberührt — die haben eh keine davon):
-     • Arpeggios: 16tel/8tel → 8tel/Viertel (atmet statt zu rattern)
-     • Innerer Puls: geviertelt (Viertel statt 16tel) + leiser + fällt früher
-       zur reinen Drone weg, wenn der Körper ruhiger wird
-     • Lead-Melodie: grob halbiert — sparsame singende Linie statt geschäftigem Lauf
-     Device-Logs zeigten 18–32 Noten/Loop → jetzt deutlich sparsamer.
-  2) WARME, LEISE LEADS (aus 79.96, jetzt zusammen im Build): schrille Leads
-     (Bright Lead / Glass Bell / Vapor Lead) raus aus JEDEM Genre → nur warme
-     (Soft Keys · Warm Strings · Hollow Reed · Pluck · Choir Vox · Deep Sub);
-     Lead-Pegel überall zurück (war +5…+18% vorne → jetzt 0.85–0.92, unter die
-     Fläche getuckt). Plus Echoel-Logo statt Burger im Visual-Fenster.
-  = kein schrilles/unnatürliches Geballer mehr, sondern weicher Trance.
-  TEST 10.79.97:
-  A) Genres durchtippen (Disco/Synthwave/Psy/Rock): warm, weich, SPARSAM,
-     entspannt — fügt sich alles in die Fläche?
-  B) Falls noch zu viel: sag Bescheid, dann Dichte noch weiter runter / Pads wärmer.
+notesT: Zwei UI-Fixes aus deinem Feedback (2026-07-07). Gates: CI ✅ (voller
+  iOS-Build auf iPhone 16 Pro + iPhone SE grün, tvOS/watchOS/visionOS/macOS/Lint
+  ebenfalls grün). Der Xcode-Compile-Check-Runner hing diesmal (45 min statt 4,5 —
+  reine Infra-Panne, kein Code-Problem: derselbe Commit baut in CI für iOS sauber).
+  1) "Die Infos sind immer noch abgeschnitten. Wir wollen alles lesen und nicht
+     nur bis zu den Punkten." — im Erklär-Sheet ("What your body is showing")
+     wurde jeder Metrik-Text mit "…" abgeschnitten. Ursache: ein vertikaler
+     ScrollView gibt seinem Inhalt KEINE feste Breite vor, also legte jeder Text
+     sich einzeilig auf Idealbreite und wurde gekappt. Fix: die Textspalte auf
+     volle Breite gepinnt → jede Zeile bricht sauber um, ALLES ist lesbar.
+  2) "Das ist hier ungeschickt platziert." — der Live-EchoelAI-Text (die
+     Klartext-Erklärung, wie dein Körper gerade den Sound formt) hing als nackter
+     Absatz zwischen den Karten "Mood" und "Export" — wirkte verloren. Jetzt sitzt
+     er GANZ OBEN, direkt unter der Bio-Leiste (bei den Zahlen, die er erklärt),
+     in einem dezenten Rahmen wie die anderen Karten → wirkt gewollt, nicht verirrt.
+  TEST 10.79.98:
+  A) Bio-Wert antippen → Sheet: sind ALLE Erklärungen vollständig lesbar (kein "…")?
+  B) Play drücken → sitzt der EchoelAI-Satz jetzt oben unter der Bio-Leiste,
+     ordentlich gerahmt, statt zwischen Mood und Export zu schweben?
