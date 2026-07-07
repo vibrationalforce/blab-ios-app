@@ -36,6 +36,12 @@ struct WorkspaceView: View {
     /// remembers a user who hides it (only fresh installs auto-show).
     @AppStorage("visual.floating.visible") private var floatingVisualVisible = true
 
+    /// Tapping the brand (mark + name) opens the website in the system default
+    /// browser (founder 2026-07-07) — where the current version + TestFlight
+    /// signup live.
+    @Environment(\.openURL) private var openURL
+    private static let websiteURL = URL(string: "https://echoelmusic.com")
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -66,17 +72,25 @@ struct WorkspaceView: View {
     /// visual. Uncodixfy-compliant.
     private var topBar: some View {
         ZStack {
-            VStack(spacing: 1) {
-                Text("Echoelmusic")
-                    .font(EchoelTheme.font(14, .semibold))
-                    .foregroundStyle(EchoelTheme.text)
-                Text(Self.versionString)
-                    .font(EchoelTheme.font(9))
-                    .foregroundStyle(EchoelTheme.dim)
-                    .accessibilityLabel("Version \(Self.versionString)")
+            Button { openWebsite() } label: {
+                VStack(spacing: 1) {
+                    Text("Echoelmusic")
+                        .font(EchoelTheme.font(14, .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                    Text(Self.versionString)
+                        .font(EchoelTheme.font(9))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Echoelmusic \(Self.versionString)")
+            .accessibilityHint("Opens echoelmusic.com — release notes and TestFlight signup")
             HStack(spacing: 8) {
-                EchoelLogoMark().frame(width: 22, height: 22)
+                Button { openWebsite() } label: {
+                    EchoelLogoMark().frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Echoelmusic website")
                 Spacer(minLength: 0)
                 // RIGHT: immersive-visual monitor — tap to show/hide the floating visual.
                 // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
@@ -95,6 +109,13 @@ struct WorkspaceView: View {
         .padding(.horizontal, 12)
         .frame(height: 50)
         .background(EchoelTheme.bg)
+    }
+
+    /// Open the website in the system default browser (no-op if the URL fails to
+    /// parse, which it can't for the constant above — defensive).
+    private func openWebsite() {
+        guard let url = Self.websiteURL else { return }
+        openURL(url)
     }
 
     /// Short version + build, e.g. "v10.35.2 (1550)" — from the bundle, so it always

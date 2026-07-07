@@ -375,6 +375,9 @@ struct EchoelStudioView: View {
                     #endif
                     AnyView(soundControls)
                     AnyView(utilityRow)
+                    // Visual Touch Instrument sits at the very bottom of the page
+                    // (founder 2026-07-07: "das müsste ganz nach unten").
+                    AnyView(visualPanel)
                     // Tools grid removed (founder 2026-07-02: "Alles weg außer visuals").
                     // The whole editors/utilities pile is gone from the one adaptive view;
                     // the Visual stays as the floating window (header monitor toggle). The
@@ -928,8 +931,9 @@ struct EchoelStudioView: View {
             soundPanel
             effectsPanel
             masterPanel
-            visualPanel
             moodPanel
+            // visualPanel moved to the very bottom of the page (founder 2026-07-07:
+            // "Visual … das müsste ganz nach unten") — rendered after utilityRow.
             // Entrainment now lives on the Bio page (its home) — not duplicated here.
             if running {
                 StudioCaptionView(caption: caption)
@@ -1220,7 +1224,7 @@ struct EchoelStudioView: View {
     // MARK: Panel — Visual (immersive sound→light)
 
     private var visualPanel: some View {
-        panel("Visual", "Immersive sound→light — show it in a floating window you can move + resize", isExpanded: $showVisualSettings) {
+        panel("Visual Touch Instrument", "Play it with your fingers — immersive sound↔light in a floating window you can move + resize", isExpanded: $showVisualSettings) {
             Button {
                 floatingVisualVisible.toggle()
             } label: {
