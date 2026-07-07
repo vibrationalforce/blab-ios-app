@@ -189,7 +189,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .rocksteady:         return 80...110
         case .heavyMetal:         return 130...185
         case .doom:               return 50...80
-        case .selfObservation:    return 50...100
+        // Fläche window (founder 2026-07-07 "langsamere Vibes"): the ceiling
+        // drops 100 -> 78 so an elevated pulse octave-folds DOWN — the pad can
+        // never race; the floor still admits a deep resting pulse (46).
+        case .selfObservation:    return 46...78
         }
     }
 
@@ -218,7 +221,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .rocksteady:         return 95
         case .heavyMetal:         return 160
         case .doom:               return 62
-        case .selfObservation:    return 70
+        case .selfObservation:    return 58
         }
     }
 

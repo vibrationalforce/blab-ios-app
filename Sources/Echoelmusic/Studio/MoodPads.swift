@@ -71,10 +71,12 @@ struct MoodXYPad: View {
                             // doesn't spam UserDefaults/invalidations.
                             guard abs(nx - localX) > 0.01 || abs(ny - localY) > 0.01 else { return }
                             localX = nx; localY = ny
-                            if live {
-                                x = nx; y = ny
-                                onChanged?(nx, ny)
-                            }
+                            // onChanged fires on EVERY (delta-gated) drag move so a
+                            // linked consumer (sound pad → visual) can follow the
+                            // finger live; the BINDINGS write through only when
+                            // `live` (the pad's own committed value).
+                            if live { x = nx; y = ny }
+                            onChanged?(nx, ny)
                         }
                         .onEnded { _ in
                             dragging = false
@@ -108,6 +110,31 @@ struct MoodXYPad: View {
     }
 }
 
+/// One shared sound-mood → visual-mood mapping (founder 2026-07-07: "Xy Sound
+/// und visuals verknüpfen"): the SOUND pad drives these too, live during the
+/// drag, so one gesture moves the whole atmosphere. Piecewise-neutral: centre =
+/// today's defaults, X away from 0 sweeps the palette off the physical colours.
+enum VisualMoodMap {
+    static func hue(forX x: Double) -> Double { x }
+    static func motion(forY y: Double) -> Double {
+        y <= 0.5 ? 0.3 + 1.4 * y : 1.0 + 1.0 * (y - 0.5)
+    }
+    static func intensity(forY y: Double) -> Double {
+        y <= 0.5 ? 0.4 + 1.2 * y : 1.0 + 1.0 * (y - 0.5)
+    }
+
+    /// Write the full mapping (and the visual pad's own dot position, so the two
+    /// pads visibly agree) straight into the shared UserDefaults keys.
+    static func apply(x: Double, y: Double) {
+        let d = UserDefaults.standard
+        d.set(x, forKey: "mood.visual.x")
+        d.set(y, forKey: "mood.visual.y")
+        d.set(hue(forX: x), forKey: "visual.hue")
+        d.set(motion(forY: y), forKey: "visual.motion")
+        d.set(intensity(forY: y), forKey: "visual.intensity")
+    }
+}
+
 /// The VISUAL mood pad — a self-contained leaf that owns the @AppStorage writes,
 /// so the floating visual follows the finger live while ancestors stay still.
 /// X sweeps the palette away from the physical-colour default (hue 0); Y sets
@@ -130,12 +157,13 @@ struct VisualMoodPadLeaf: View {
                   onEnded: { apply($0, $1) })
     }
 
-    /// Piecewise-neutral mapping: centre (0.5) = exactly 1.0 (today's default),
-    /// bottom eases to a resting minimum, top reaches the panel's own 1.5 cap.
+    /// Piecewise-neutral mapping (shared with the sound-pad link): centre (0.5) =
+    /// exactly 1.0 (today's default), bottom eases to a resting minimum, top
+    /// reaches the panel's own 1.5 cap.
     private func apply(_ x: Double, _ y: Double) {
-        visualHue = x
-        visualMotion = y <= 0.5 ? 0.3 + 1.4 * y : 1.0 + 1.0 * (y - 0.5)
-        visualIntensity = y <= 0.5 ? 0.4 + 1.2 * y : 1.0 + 1.0 * (y - 0.5)
+        visualHue = VisualMoodMap.hue(forX: x)
+        visualMotion = VisualMoodMap.motion(forY: y)
+        visualIntensity = VisualMoodMap.intensity(forY: y)
     }
 }
 #endif

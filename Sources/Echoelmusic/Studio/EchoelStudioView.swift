@@ -843,7 +843,16 @@ struct EchoelStudioView: View {
                       yCaption: "still · moving",
                       live: false,
                       x: $soundMoodX, y: $soundMoodY,
+                      // LINKED (founder 2026-07-07: "Xy Sound und visuals
+                      // verknüpfen"): while the finger moves, the VISUAL mood
+                      // follows live (hue/motion/intensity + the visual pad's
+                      // dot); the SOUND itself commits on release, at the loop
+                      // boundary — one gesture moves the whole atmosphere.
+                      onChanged: { x, y in
+                          VisualMoodMap.apply(x: x, y: y)
+                      },
                       onEnded: { x, y in
+                          VisualMoodMap.apply(x: x, y: y)
                           mood.darkness = Float(1 - x)
                           mood.liveliness = Float(y)
                           // A pad gesture is a custom edit — the loaded preset no
@@ -2372,6 +2381,13 @@ struct EchoelStudioView: View {
     /// the pure, tested rule (settled + unchanged body → hold). Only the auto evolve
     /// path calls this — user edits and the first lock-snap always re-seed.
     private func evolveShouldReseed() -> Bool {
+        // Pure Flächen always breathe onward (founder 2026-07-07: "Es soll sich
+        // natürlich auch was verändern"): with no groove to protect, the gentle
+        // ~30 s boundary re-seed IS the natural evolution — the STRUCTURE seed
+        // keeps it the same piece, the advancing detail seed moves the clouds.
+        // The HOLD law remains for beat modes, where a settled body earns a
+        // settled groove.
+        if beatMode == .off { return true }
         #if canImport(AVFoundation)
         guard let frame = bus.usableBio() else { return true }   // no body → stay alive
         return StudioCalculator.shouldReseedOnEvolve(

@@ -1,19 +1,23 @@
-build: 2026-07-05 v10.79.84 (DEFAULT = reine meditative Flächen: Beat AUS · Self-Observation · Pad)
+build: 2026-07-05 v10.79.85 (Flächen-Atmosphäre: Tape-Delay + großer Hall · langsamer · Pads verknüpft · lebendig)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Tendenziell alles eher ohne Beat und reine meditative Flächen" — die
-  App startet jetzt genau so:
-  • Beat: AUS (Puls/Genre bleiben einen Tipp entfernt im Composition-Panel)
-  • Genre: Self-Observation — atem-getaktete Ambient-Flächen, ohne Drums
-  • Artikulation: Pad (langsames Anschwellen, langes Ausklingen)
-  WICHTIG: Wenn du Beat/Genre beim Testen schon mal umgestellt hast, merkt
-  sich die App DEINE Wahl — einmal auf "Off" + "Self-Observation" stellen,
-  dann bleibt es.
-  Enthält außerdem den rPPG-Fix aus 10.79.83 (dunkler Belichtungs-Lock +
-  Hell-Lock-Erholung — dein "Puls settled nie"-Log ist damit behoben).
-  TEST 10.79.84:
-  A) Frisch starten → Start → Finger drauf: reine Fläche, kein Beat, Puls
-     settled (Log: "exposure locked" bei bright ≤0.28, acf hoch)?
-  B) Die Fläche selbst: trägt sie? Was fehlt ihr zur Tiefe — Klangfarbe,
-     langsame Bewegung, Raum, Sub-Fundament? (Das ist der nächste Zyklus.)
-  C) Sound-Pad: dunkel/still ↔ hell/bewegt — führt es dich intuitiv?
+notesT: Deine vier Punkte, alle drin:
+  1) ATMOSPHÄRE: Die Fläche läuft jetzt durch ein langsames TAPE-DELAY
+     (halbe Note ≈ 2 s, leichtes Band-Wobbeln, warme Sättigung) in einen
+     GROSSEN dunklen Hall (Mix 0.44, Raum 0.94). Das Pad blüht in den Raum,
+     statt trocken zu stehen.
+  2) LANGSAMER: Das Flächen-Tempofenster ist enger (46–78 statt 50–100) —
+     ein erhöhter Puls faltet sich nach UNTEN, die Fläche kann nie rennen.
+     Start-Tempo 58.
+  3) VERKNÜPFT: Das SOUND-Pad zieht beim Bewegen LIVE das Visual mit
+     (Farbe + Energie folgen dem Finger, der Punkt im Visual-Pad wandert
+     mit). Loslassen → der Klang folgt am Taktanfang. Eine Geste = die
+     ganze Atmosphäre. (Das Visual-Pad bleibt für Fein-Tuning nur am Bild.)
+  4) ES VERÄNDERT SICH: Reine Flächen (Beat AUS) entwickeln sich jetzt
+     IMMER sanft weiter (~alle 30 s am Taktanfang, gleiche Struktur, neue
+     Details — "dieselbe Wolke, neue Form"). Kein Einfrieren mehr, wenn der
+     Körper ruhig ist.
+  TEST 10.79.85:
+  A) Beat AUS, Start, Augen zu: trägt die Fläche jetzt? Tape-Echo + Hall
+     spürbar? Verändert sie sich über 2–3 Minuten natürlich?
+  B) Sound-Pad langsam ziehen: wandern Klangfarbe UND Bild zusammen?
   Log bitte mitschicken.

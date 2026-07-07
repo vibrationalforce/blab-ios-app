@@ -369,13 +369,19 @@ public extension MusicStyle {
                 saturation: 0.55,
                 reverbEnabled: true, reverbMix: 0.24, reverbRoom: 0.86, reverbDamping: 0.62)
         case .selfObservation:
-            // Subtle and clean — a calm quarter-note space, gentle width.
+            // THE Fläche (founder 2026-07-07: "Mehr atmosphärische Stimmung durch
+            // Hall und Tape Delay, langsamere Vibes"): a slow, wide TAPE echo —
+            // half note at ~58 BPM ≈ 2 s, gentle wow so the repeats breathe like
+            // tape, a touch of drive for warmth — blooming into a big, dark hall.
+            // Feedback stays < 0.5 so the tail washes without ever building up;
+            // the slow chorus keeps the pad's stereo width alive between echoes.
             return GenreFXPreset(
-                delayEnabled: true, delayMode: .digital,
-                delaySync: TempoSyncOption(.quarter),
-                delayMix: 0.24, delayFeedback: 0.30, delayTone: 0.35, delaySpread: 0.3,
-                chorusEnabled: true, chorusRate: 0.2, chorusDepth: 0.4, chorusMix: 0.3,
-                reverbEnabled: true, reverbMix: 0.30, reverbRoom: 0.84, reverbDamping: 0.55)
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.half),
+                delayMix: 0.34, delayFeedback: 0.45, delayTone: 0.28, delaySpread: 0.45,
+                delayWow: 0.25, delayDrive: 0.15,
+                chorusEnabled: true, chorusRate: 0.12, chorusDepth: 0.35, chorusMix: 0.25,
+                reverbEnabled: true, reverbMix: 0.44, reverbRoom: 0.94, reverbDamping: 0.42)
         }
     }
 }

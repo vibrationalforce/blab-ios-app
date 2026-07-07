@@ -289,7 +289,7 @@ final class BioComposerTests: XCTestCase {
                        "a BPM inside the window is kept")
         XCTAssertEqual(BioComposer.tempo(for: input(style: .selfObservation, mode: .studioLocked,
                                                     lockedTempo: 75)), 75,
-                       "self-observation window (50–100) keeps 75")
+                       "self-observation window (46–78) keeps 75")
     }
 
     func testFlowTempoFollowsHeart() {
