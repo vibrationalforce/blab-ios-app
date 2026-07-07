@@ -1,23 +1,17 @@
-build: 2026-07-05 v10.79.85 (Flächen-Atmosphäre: Tape-Delay + großer Hall · langsamer · Pads verknüpft · lebendig)
+build: 2026-07-05 v10.79.86 (Puls-Fix: Konfidenz zählt als Evidenz — kein Relock mehr auf laufenden Puls)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine vier Punkte, alle drin:
-  1) ATMOSPHÄRE: Die Fläche läuft jetzt durch ein langsames TAPE-DELAY
-     (halbe Note ≈ 2 s, leichtes Band-Wobbeln, warme Sättigung) in einen
-     GROSSEN dunklen Hall (Mix 0.44, Raum 0.94). Das Pad blüht in den Raum,
-     statt trocken zu stehen.
-  2) LANGSAMER: Das Flächen-Tempofenster ist enger (46–78 statt 50–100) —
-     ein erhöhter Puls faltet sich nach UNTEN, die Fläche kann nie rennen.
-     Start-Tempo 58.
-  3) VERKNÜPFT: Das SOUND-Pad zieht beim Bewegen LIVE das Visual mit
-     (Farbe + Energie folgen dem Finger, der Punkt im Visual-Pad wandert
-     mit). Loslassen → der Klang folgt am Taktanfang. Eine Geste = die
-     ganze Atmosphäre. (Das Visual-Pad bleibt für Fein-Tuning nur am Bild.)
-  4) ES VERÄNDERT SICH: Reine Flächen (Beat AUS) entwickeln sich jetzt
-     IMMER sanft weiter (~alle 30 s am Taktanfang, gleiche Struktur, neue
-     Details — "dieselbe Wolke, neue Form"). Kein Einfrieren mehr, wenn der
-     Körper ruhig ist.
-  TEST 10.79.85:
-  A) Beat AUS, Start, Augen zu: trägt die Fläche jetzt? Tape-Echo + Hall
-     spürbar? Verändert sie sich über 2–3 Minuten natürlich?
+notesT: Dein Log (Build 2190) hat den letzten Puls-Bug gezeigt — und er ist gefixt:
+  Die Kamera hat deinen Puls GEFUNDEN (76–83 bpm, Konfidenz bis 0.78), aber die
+  Notfall-Rettung für schlechte Belichtungs-Locks hat nur auf EIN Signal
+  (Autokorrelation) geschaut, das bei deinem Gerät oft flach bleibt — und hat
+  den funktionierenden Puls nach ~20 s wieder zerstört (Relock 2/2 im Log).
+  Jetzt zählt Konfidenz als Beweis: ein Lock, der sichere Puls-Werte liefert,
+  wird NIE mehr angefasst. Die Rettung greift nur noch, wenn BEIDE Kanäle tot
+  sind (genau der Fall, in dem sie deine Session bei Relock 1/2 gerettet hat).
+  TEST 10.79.86 (die Fragen von .85 stehen noch offen):
+  A) Beat AUS, Start, 2–3 MINUTEN Augen zu: trägt die Fläche? Tape-Echo +
+     großer Hall spürbar? Verändert sie sich von selbst (~alle 30 s)?
   B) Sound-Pad langsam ziehen: wandern Klangfarbe UND Bild zusammen?
+  C) Finger ruhig auf der Kamera lassen: bleibt der Puls jetzt STEHEN,
+     statt nach ~20 s wieder auf 0 zu fallen?
   Log bitte mitschicken.

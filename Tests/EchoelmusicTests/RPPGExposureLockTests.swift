@@ -67,20 +67,38 @@ final class RPPGExposureLockTests: XCTestCase {
     // MARK: - Bright-lock recovery (weak periodicity on a full window)
 
     func testWeakTicks_notDiagnosticUntilWindowFull_orWhenSettled() {
-        XCTAssertEqual(P.weakTicksStep(current: 50, windowFull: false, acf: 0.0, settled: false), 0,
+        XCTAssertEqual(P.weakTicksStep(current: 50, windowFull: false, acf: 0.0, confidence: 0.0, settled: false), 0,
                        "a filling window is not evidence — reset")
-        XCTAssertEqual(P.weakTicksStep(current: 50, windowFull: true, acf: 0.0, settled: true), 0,
+        XCTAssertEqual(P.weakTicksStep(current: 50, windowFull: true, acf: 0.0, confidence: 0.0, settled: true), 0,
                        "a settled pulse is never disturbed")
     }
 
     func testWeakTicks_accumulateOnWeak_decayFastOnStrong_holdBetween() {
-        XCTAssertEqual(P.weakTicksStep(current: 3, windowFull: true, acf: 0.05, settled: false), 4)
-        XCTAssertEqual(P.weakTicksStep(current: 4, windowFull: true, acf: 0.81, settled: false), 2,
+        XCTAssertEqual(P.weakTicksStep(current: 3, windowFull: true, acf: 0.05, confidence: 0.0, settled: false), 4)
+        XCTAssertEqual(P.weakTicksStep(current: 4, windowFull: true, acf: 0.81, confidence: 0.0, settled: false), 2,
                        "strong acf pays the counter down twice as fast")
-        XCTAssertEqual(P.weakTicksStep(current: 4, windowFull: true, acf: 0.3, settled: false), 4,
+        XCTAssertEqual(P.weakTicksStep(current: 4, windowFull: true, acf: 0.3, confidence: 0.0, settled: false), 4,
                        "between floor and strong: hold")
-        XCTAssertEqual(P.weakTicksStep(current: 1, windowFull: true, acf: 0.9, settled: false), 0,
+        XCTAssertEqual(P.weakTicksStep(current: 1, windowFull: true, acf: 0.9, confidence: 0.0, settled: false), 0,
                        "decay never goes negative")
+    }
+
+    // MARK: - Confidence counts as pulse evidence (device log 1783410930: relock 2/2
+    // fired on acf≈0 while the analyzer read a real 76–83 bpm at conf 0.6–0.78 —
+    // the relock collapsed a WORKING signal to conf 0.03)
+
+    func testWeakTicks_confidentPulseIsNotWeak_evenWithZeroAcf() {
+        XCTAssertEqual(P.weakTicksStep(current: 40, windowFull: true, acf: 0.0, confidence: 0.78, settled: false), 38,
+                       "conf 0.78 with acf 0 is a working pulse — pay the counter DOWN (the relock-2/2 kill)")
+        XCTAssertEqual(P.weakTicksStep(current: 40, windowFull: true, acf: 0.0, confidence: 0.45, settled: false), 40,
+                       "middling confidence: hold, don't accumulate toward a relock")
+    }
+
+    func testWeakTicks_stillAccumulatesWhenBothChannelsAreDead() {
+        // The case the recovery exists for (log 1783401421 + relock 1/2 of 1783410930):
+        // full window, acf ≈ 0 AND conf ≈ 0 → no pulse evidence at all → accumulate.
+        XCTAssertEqual(P.weakTicksStep(current: 40, windowFull: true, acf: 0.03, confidence: 0.0, settled: false), 41,
+                       "acf and confidence both dead → the lock IS bad, keep counting")
     }
 
     func testWeakRelock_firesAtThreshold_andIsBounded() {
