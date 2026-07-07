@@ -48,6 +48,43 @@ private struct RecordingBadge: View {
     }
 }
 
+/// A COMPACT position/loop readout for over the visual (founder 2026-07-07: "sowas in klein" —
+/// a small version of the transport bar's loop indicator, inside the Visual Instrument). Mirrors
+/// `TransportPositionView` (bar.beat.step + a slim loop-progress capsule) at a smaller size. Its
+/// OWN leaf so the ~10 Hz `transport.position` read stays confined here and never rebuilds the
+/// floating window (freeze rule); reads only low-frequency `loopBars` besides.
+@MainActor
+private struct MiniTransportView: View {
+    @Environment(Transport.self) private var transport
+    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
+
+    var body: some View {
+        let pos = transport.position
+        let bars = max(1, loopBars.rawValue)
+        let barInLoop = pos.bar % bars
+        let sixteenth = pos.step % Transport.stepsPerBeat
+        let loopFraction = Double(barInLoop * Transport.stepsPerBar + pos.step)
+            / Double(bars * Transport.stepsPerBar)
+        return HStack(spacing: 6) {
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.18)).frame(width: 34, height: 3)
+                Capsule().fill(transport.isPlaying ? EchoelTheme.accent : Color.white.opacity(0.5))
+                    .frame(width: 34 * max(0.02, loopFraction), height: 3)
+            }
+            Text(String(format: "%d.%d.%d", barInLoop + 1, pos.beat + 1, sixteenth + 1))
+                .font(EchoelTheme.font(10, .medium).monospacedDigit())
+                .foregroundStyle(.white)
+            Text("\(barInLoop + 1)/\(bars)")
+                .font(EchoelTheme.font(9).monospacedDigit())
+                .foregroundStyle(Color.white.opacity(0.6))
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.55)))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loop position")
+    }
+}
+
 @MainActor
 struct FloatingVisualWindow: View {
 
@@ -77,6 +114,17 @@ struct FloatingVisualWindow: View {
     @State private var recordedClip: RecordedClip?
     /// When recording started — drives the on-screen REC elapsed time.
     @State private var recordStart: Date?
+
+    // WAV audio capture (founder 2026-07-07: "ein wav Aufnahme Knopf wäre auch im Visual
+    // Instrument gut" + "Video und wav Aufnahme muss Natürlichkeit erkennbar sein"). The MP4
+    // above muxes lossy AAC audio; this writes a LOSSLESS WAV of the same performance so the
+    // organic, natural character of the bio-generative take survives (WAV = PCM; only a LUFS
+    // gain is applied, never a lossy codec). Independent of the MP4 path — the MP4 grabs the
+    // ring at stop, this uses RetroCapture's live-file write — so you can arm BOTH for one take.
+    @State private var wavRecording = false
+    @State private var wavRecordStart: Date?
+    @State private var wavClip: RecordedClip?
+    @State private var wavExporting = false
     #endif
 
     // Visual DESIGN (founder: "Visual Design muss möglich sein" + "Feinschliff, alles
@@ -185,8 +233,59 @@ struct FloatingVisualWindow: View {
         .transition(.opacity)
         #if canImport(AVFoundation)
         .sheet(item: $recordedClip) { clip in ShareSheet(url: clip.url) }
+        .sheet(item: $wavClip) { clip in ShareSheet(url: clip.url) }
         #endif
     }
+
+    // MARK: - Performance HUD (small position readout + WAV record)
+
+    #if canImport(AVFoundation)
+    /// Bottom strip over the visual: compact position on the left, WAV record on the right.
+    @ViewBuilder private var performanceHUD: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            MiniTransportView()
+                .allowsHitTesting(false)   // display only — never eats a touch on the play surface
+            Spacer(minLength: 0)
+            wavRecordControl
+        }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
+    }
+
+    /// Lossless-WAV record button + live elapsed time. Distinct waveform glyph so it reads as
+    /// AUDIO next to the top toolbar's video glyph (founder: both recorders must be recognizable).
+    @ViewBuilder private var wavRecordControl: some View {
+        HStack(spacing: 5) {
+            if wavRecording {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let elapsed = max(0, wavRecordStart.map { context.date.timeIntervalSince($0) } ?? 0)
+                    Text("WAV \(recTimeString(elapsed))")
+                        .font(EchoelTheme.font(10, .semibold).monospacedDigit())
+                        .foregroundStyle(.white)
+                }
+            } else if wavExporting {
+                Text("WAV …")
+                    .font(EchoelTheme.font(10, .semibold).monospacedDigit())
+                    .foregroundStyle(.white)
+            }
+            Button { toggleWavRecording() } label: {
+                Image(systemName: wavRecording ? "stop.circle.fill" : "waveform.circle")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(wavRecording ? Color.red : (wavExporting ? EchoelTheme.dim : EchoelTheme.text))
+            }
+            .buttonStyle(.plain)
+            .disabled(wavExporting)
+            .accessibilityLabel(wavRecording ? "Stop WAV audio recording" : "Record lossless WAV audio")
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.55)))
+    }
+
+    private func recTimeString(_ s: TimeInterval) -> String {
+        let t = Int(s)
+        return String(format: "%d:%02d", t / 60, t % 60)
+    }
+    #endif
 
     // MARK: - Card
 
@@ -227,6 +326,13 @@ struct FloatingVisualWindow: View {
                 .overlay(alignment: .topLeading) {
                     if recorder.isRecording { RecordingBadge(start: recordStart) }
                 }
+                // Performance HUD along the bottom edge: a SMALL transport-position readout
+                // (founder 2026-07-07: "sowas in klein" — the loop/position indicator inside
+                // the visual) on the left, the lossless-WAV record control on the right. The
+                // position lives in its own leaf (`MiniTransportView` reads Transport itself)
+                // so its ~10 Hz updates never rebuild this window (freeze rule); the readout
+                // is non-interactive so it never steals a touch from the play surface.
+                .overlay(alignment: .bottom) { performanceHUD }
                 #endif
         }
         .background(Color.black)
@@ -288,14 +394,17 @@ struct FloatingVisualWindow: View {
             .accessibilityLabel("Change look")
             .accessibilityValue(Self.styleName(visualStyle))
             #if canImport(AVFoundation)
+            // MP4 VIDEO capture. Distinct "video" glyph (vs. the WAV button's waveform in the
+            // bottom HUD) so the two recorders are recognizable at a glance (founder: "Video
+            // und wav Aufnahme muss … erkennbar sein").
             Button { toggleRecording() } label: {
-                Image(systemName: recorder.isRecording ? "stop.circle.fill" : "record.circle")
+                Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(recorder.isRecording ? Color.red : EchoelTheme.text)
                     .frame(width: 28, height: 22)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(recorder.isRecording ? "Stop recording" : "Record MP4 video")
+            .accessibilityLabel(recorder.isRecording ? "Stop video recording" : "Record MP4 video")
             #endif
             Button { cycleSize() } label: {
                 // Cycles Small → Medium → Large → Fullscreen → Small. Shows a "contract"
@@ -365,6 +474,43 @@ struct FloatingVisualWindow: View {
         } else {
             recordStart = Date()
             recorder.start(audio: audioEngine)
+        }
+    }
+
+    /// Start/stop a LOSSLESS WAV recording of the live performance. Uses RetroCapture's
+    /// live-file write (independent of the MP4 path, which snapshots the ring at stop — so
+    /// both can be armed for one take), then converts the float32 CAF to a .wav via
+    /// SingleExport (PCM out, LUFS gain only — the natural character is preserved, founder:
+    /// "Natürlichkeit … erkennbar"). On stop, present the share sheet.
+    private func toggleWavRecording() {
+        if wavRecording {
+            wavRecording = false
+            wavRecordStart = nil
+            audioEngine.retroCapture.stopRecording { url in
+                Task { @MainActor in await exportWav(from: url) }
+            }
+        } else {
+            // A studio export (LoopExporter) also drives RetroCapture's live file; if one is
+            // mid-capture, don't start a second (it would no-op in RetroCapture anyway).
+            guard !audioEngine.retroCapture.isRecording else { return }
+            audioEngine.retroCapture.startRecording(preRoll: 0)   // live from NOW, arbitrary length
+            wavRecording = true
+            wavRecordStart = Date()
+        }
+    }
+
+    /// Convert the captured CAF to a shareable, naturally-preserved .wav.
+    private func exportWav(from cafURL: URL) async {
+        wavExporting = true
+        defer { wavExporting = false }
+        let ex = audioEngine.singleExport
+        ex.reset()
+        ex.outputFormat = .wav          // lossless PCM — no codec artifacts
+        ex.targetLUFS = -14             // loudness match only (gain), character intact
+        ex.trimLengthSeconds = nil      // keep the WHOLE take (no bar-grid trim here)
+        await ex.export(sourceURL: cafURL)
+        if let url = ex.exportState.exportedURL {
+            wavClip = RecordedClip(url: renamedForShare(url))
         }
     }
 
