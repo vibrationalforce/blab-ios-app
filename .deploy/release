@@ -1,24 +1,20 @@
-build: 2026-07-07 v10.79.101 (Kamera-Stall: Wärme-Ursache angegangen — Torch thermisch geregelt)
+build: 2026-07-07 v10.79.102 (Ehrlicher Kamera-Hinweis + Visual-Leiste aufgeräumt)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log auf 10.79.99 hat die Ursache des chronischen Kamera-Stalls verraten,
-  und du hast "Wärme/Torch-Ursache angehen" freigegeben. Gates grün: CI ✅ (macOS
-  Build+Test kompiliert die AVFoundation-Datei inkl. Tests, visionOS/tvOS, Lint, Security).
-  BEFUND: Der Puls-Recovery-Fix (10.79.99) greift — das Analyse-Fenster wird nach einem
-  Stall sauber geleert (win=0), nicht mehr eingefroren. ABER: nach ~110 s stirbt die
-  Kamera KOMPLETT ("still no frames after cold restart" ~40 s, kein Neustart hilft, dann
-  heilt sie von selbst). Diese Signatur = THERMISCH: Dauer-Torch-LED + Kamera + Audio +
-  Metal treiben das Gerät in die Drossel, die die Frame-Lieferung stumm aussetzt. Einen
-  gedrosselten Chip neu zu starten hilft nicht — die Hitze ist das Problem.
-  FIX: Die Torch-LED (größte steuerbare Wärmequelle) wird jetzt THERMISCH heruntergeregelt
-  — je heißer (ProcessInfo.thermalState), desto weniger Licht: 0.45 (normal) → 0.28 (heiß)
-  → 0.18 (sehr heiß), und passt sich SOFORT an, sobald es warm wird. Das bricht den
-  Hitze→Stall-Kreislauf. Weniger Licht = mehr Puls-Kontrast, der Puls liest also weiter
-  (oft besser). Root-cause statt Neustart-Pflaster.
-  FOLGT (von dir freigegeben, nächster Zyklus): ehrliche Einblendung "Kamera erholt sich /
-  Gerät kühlt ab", damit ein Rest-Stall nicht stumm/verwirrend ist.
-  TEST 10.79.101:
-  A) Länger spielen (3-5 min): kommt der ~40-80-s-Komplettausfall der Kamera seltener/gar
-     nicht mehr? (Der Puls sollte durchhalten statt nach ~2 min ganz zu sterben.)
-  B) Fühlt sich das Gerät weniger heiß an? Puls-Qualität weiter ok?
-  C) Falls es doch noch stallt: schick das Log — dann kommt der ehrliche Hinweis + ich
-     schaue, ob die Torch noch weiter runter muss.
+notesT: Zwei Sachen in diesem Build.
+  1) EHRLICHER KAMERA-HINWEIS: Wenn die Kamera nach einem Stall neu startet, steht
+     jetzt kurz "Kamera erholt sich…" über der Bio-Leiste; wird das Gerät thermisch
+     gedrosselt (dieselbe Wärme, die die Torch dimmt), steht "Gerät kühlt ab — Puls
+     hält kurz". Kein stummes Einfrieren mehr — du siehst, was passiert. Der Hinweis
+     ist ein eigenes Blatt (ändert sich nur beim Übergang, nicht 10×/s), also friert
+     kein Menü ein.
+  2) VISUAL-INSTRUMENT LEISTE: Die kleine Positions-Anzeige und der WAV-Aufnahme-Knopf
+     sind aus dem unteren Rand NACH OBEN in die Leiste gewandert (neben Video/Größe/X),
+     genau wie du es markiert hast. Die Farbpalette (Look-Knopf) ist raus — den Look
+     stellst du weiter im Visual-Panel ein. Die Positions-Anzeige erscheint ab Größe M
+     (auf dem kleinen Fenster würde sie die Knöpfe zu eng machen).
+  TEST 10.79.102:
+  A) Visual Instrument öffnen (Vollbild): sitzen Position + WAV-Knopf oben in der Leiste?
+     Palette-Knopf weg? WAV-Aufnahme startet/stoppt + teilt die .wav?
+  B) Falls die Kamera doch mal stallt: kommt jetzt der Hinweis "Kamera erholt sich…"?
+  C) Thermik: fühlt sich das Gerät mit dem Torch-Fix (10.79.101) weiter besser an,
+     stirbt die Kamera seltener/gar nicht mehr nach ~2 min?
