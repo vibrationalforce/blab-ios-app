@@ -54,15 +54,18 @@ final class GenrePatchesTests: XCTestCase {
         }
     }
 
-    func testAcousticGenresCarryRealInstrumentSpectra() {
-        // The intent of the cycle: the acoustic-leaning genres are voiced through
-        // the built-in instrument spectra, not the bare synth. Lock it in.
-        let expected: [MusicStyle: String] = [
-            .classical: "Cello", .disco: "Violin", .klezmer: "Clarinet", .oriental: "Oboe"
-        ]
-        for (style, timbre) in expected {
-            XCTAssertEqual(style.synthPatch.timbreProfile, timbre,
-                           "\(style) should be voiced through the \(timbre) spectrum")
+    func testNoGenreEmulatesARealInstrument() {
+        // Founder 2026-07-07: "Real Instruments raus, das klingt trashig … wir wollen
+        // tendenziell den warmen Synth-Sound, vermeide plastisch und verzerrt klingende
+        // Real-Instrument-Emulationen." The real-instrument spectral BLEND (SOUND
+        // CYCLE 1) is gone from every genre — the sound is pure warm synth, and genre
+        // character comes from the synth's own envelope/brightness. Locks it in so a
+        // future cycle can't quietly re-introduce a plastic instrument emulation.
+        for style in MusicStyle.allCases {
+            XCTAssertTrue(style.synthPatch.timbreProfile.isEmpty,
+                          "\(style) must be pure warm synth — no real-instrument spectrum (got '\(style.synthPatch.timbreProfile)')")
+            XCTAssertEqual(style.synthPatch.timbreBlend, 0,
+                           "\(style) must not blend any real-instrument spectrum")
         }
     }
 

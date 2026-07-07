@@ -268,30 +268,37 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// exist in `SynthPatch.factory`; the generator falls back to "Bright Lead"
     /// if a name is ever missing.
     public var leadPatchName: String {
+        // WARM SYNTH ONLY (founder 2026-07-07: "Real Instruments raus, das klingt
+        // trashig … wir wollen tendenziell den warmen Synth-Sound, vermeide plastisch
+        // und verzerrt klingende Real-Instrument-Emulationen"). Every lead resolves to
+        // a warm synth patch — no Violin/Clarinet/Trumpet/Oboe/Flute/Metallic
+        // emulations. Genre character now comes from the synth's own envelope +
+        // brightness (a "nuance in the base synth"), not from imitating an instrument.
+        // Still ≥6 distinct so leads keep some variety across genres.
         switch self {
         case .dubTechno:          return "Pluck"
         case .trap:               return "Glass Bell"
         case .vaporwave:          return "Vapor Lead"
         case .eighties:           return "Bright Lead"
-        case .disco:              return "Trumpet"
+        case .disco:              return "Bright Lead"
         case .synthwave:          return "Bright Lead"
         case .earlySynth:         return "Pluck"
         case .futuristic:         return "Glass Bell"
-        case .sciFi:              return "Metallic"
+        case .sciFi:              return "Choir Vox"
         case .psytrance:          return "Bright Lead"
-        case .esotericMeditation: return "Flute"
-        case .classical:          return "Violin"
-        case .jazz:               return "Soft Keys"    // warm Rhodes
-        case .klezmer:            return "Clarinet"
-        case .oriental:           return "Oboe"
+        case .esotericMeditation: return "Choir Vox"
+        case .classical:          return "Soft Keys"
+        case .jazz:               return "Soft Keys"    // warm Rhodes-style keys
+        case .klezmer:            return "Bright Lead"
+        case .oriental:           return "Choir Vox"
         case .punk:               return "Bright Lead"
-        case .rocknroll:          return "Hollow Reed"  // sax-like honk
+        case .rocknroll:          return "Bright Lead"
         case .rock:               return "Bright Lead"
-        case .ska:                return "Trumpet"       // ska horn line
-        case .rocksteady:         return "Hollow Reed"
-        case .heavyMetal:         return "Metallic"
-        case .doom:               return "Metallic"
-        case .selfObservation:    return "Flute"
+        case .ska:                return "Bright Lead"
+        case .rocksteady:         return "Soft Keys"
+        case .heavyMetal:         return "Bright Lead"
+        case .doom:               return "Deep Sub"
+        case .selfObservation:    return "Choir Vox"
         }
     }
 
