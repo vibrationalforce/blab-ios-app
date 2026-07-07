@@ -62,6 +62,28 @@ private final class RGBSampleQueue: @unchecked Sendable {
     }
 }
 
+/// Honest, glanceable state for a live camera stall — so a mid-session freeze is
+/// never silent/confusing (founder-approved: "ehrlicher Hinweis"). Low-frequency:
+/// it only changes on a recovery/thermal transition, NOT every 10 Hz tick, so a leaf
+/// that reads ONLY this property doesn't churn (per-property @Observable tracking).
+public enum RPPGRecoveryState: Equatable, Sendable {
+    /// Frames flowing normally — no banner.
+    case healthy
+    /// A stall was detected; the camera is restarting itself.
+    case recovering
+    /// The device is thermally throttled (torch dimmed); frames may pause until it cools.
+    case cooling
+
+    /// Short user-facing line for the bio strip (nil when nothing to show).
+    public var userHint: String? {
+        switch self {
+        case .healthy:    return nil
+        case .recovering: return "Kamera erholt sich…"
+        case .cooling:    return "Gerät kühlt ab — Puls hält kurz"
+        }
+    }
+}
+
 @MainActor
 @Observable
 public final class CameraRPPGBioPublisher {
@@ -90,6 +112,13 @@ public final class CameraRPPGBioPublisher {
     static let maxDisplayStep = 1.0
     /// Live bandpass-filtered pulse waveform (~[-1,1]) for the "Stimmungsbild".
     public private(set) var waveform: [Float] = []
+    /// Honest recovery/cooling state for the UI (see RPPGRecoveryState). Changes only on a
+    /// stall/recover/thermal transition — read it in a LEAF view (BioStripView) so the low-freq
+    /// banner never registers the root body as a 10 Hz observer.
+    public private(set) var recoveryState: RPPGRecoveryState = .healthy
+    /// Ticks remaining to keep showing "recovering" after a restart is triggered (~10 Hz).
+    /// Decays so a brief hiccup's banner doesn't linger once frames return.
+    @ObservationIgnored private var recoveringTicks = 0
     /// Lock threshold — also the bus-publish gate.
     static let lockThreshold = 0.35
 
@@ -367,6 +396,8 @@ public final class CameraRPPGBioPublisher {
         forcedRecoveries = 0
         healthyTicks = 0
         didColdRestart = false
+        recoveringTicks = 0
+        recoveryState = .healthy
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
         // Exposure is now locked from the publish loop ONLY once the finger is
@@ -398,6 +429,7 @@ public final class CameraRPPGBioPublisher {
                     self.stallTicks += 1
                     if self.stallTicks >= 60 {          // ~6 s at 10 Hz
                         self.stallTicks = 0
+                        self.recoveringTicks = 40   // ~4 s banner: "Kamera erholt sich…"
                         if self.forcedRecoveries < Self.maxForcedRecoveries {
                             self.forcedRecoveries += 1
                             EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery (\(self.forcedRecoveries)/\(Self.maxForcedRecoveries))")
@@ -433,6 +465,22 @@ public final class CameraRPPGBioPublisher {
                         self.didColdRestart = false
                     }
                 }
+                // Honest recovery/cooling banner state (low-freq): a fresh restart shows
+                // "recovering" for a few seconds; a thermally-throttled device shows "cooling"
+                // (the same heat that dims the torch can pause frames). Only assign on CHANGE so
+                // the @Observable doesn't notify unless the banner actually flips.
+                if self.recoveringTicks > 0 { self.recoveringTicks -= 1 }
+                let newRecovery: RPPGRecoveryState
+                if self.recoveringTicks > 0 {
+                    newRecovery = .recovering
+                } else {
+                    switch ProcessInfo.processInfo.thermalState {
+                    case .serious, .critical: newRecovery = .cooling
+                    default:                  newRecovery = .healthy
+                    }
+                }
+                if newRecovery != self.recoveryState { self.recoveryState = newRecovery }
+
                 // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
                 self.signalQuality = min(max(self.analyzer.signalQuality, 0), 1)

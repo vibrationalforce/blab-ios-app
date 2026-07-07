@@ -37,6 +37,35 @@ struct BioStripView: View {
     @State private var showGuide = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            recoveryBanner
+            strip
+        }
+    }
+
+    /// Honest, quiet line when the camera is recovering from a stall or the device is
+    /// cooling — so a mid-session pause is never silent/confusing (founder-approved:
+    /// "ehrlicher Hinweis"). `recoveryState` changes only on a transition (not 10 Hz),
+    /// and it's read HERE in the leaf, so it never churns the parent body.
+    @ViewBuilder private var recoveryBanner: some View {
+        if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
+            HStack(spacing: 5) {
+                Image(systemName: "camera.metering.center.weighted")
+                    .font(.system(size: 10))
+                Text(hint)
+                    .font(.system(size: 11, weight: .medium))
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(EchoelTheme.warning)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(EchoelTheme.warning.opacity(0.14))
+            .accessibilityLabel(hint)
+        }
+    }
+
+    private var strip: some View {
         // Equal-width metric cells that always fit the screen — no left-packing, so a
         // value changing digit-count (or the source tag toggling width) can't reflow
         // its neighbours or overflow the edge (the old "wobble"). The source tag sits
