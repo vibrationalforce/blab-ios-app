@@ -1,20 +1,22 @@
-build: 2026-07-05 v10.79.88 (Puls zeigt schneller: starke Periodizität allein reicht als Beweis)
+build: 2026-07-05 v10.79.89 (Homogen: eine kohärente Vaporwave-Welt — "Vapor"-Look als Default, Klang + Bild greifen ineinander)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log (Build 2192) war eigentlich GUT — der Puls wurde erfasst,
-  hat sich gesettelt und den Takt geseedet (51 bpm). Aber eine Stelle hat
-  mich gestört: ~10 Sekunden lang war dein Puls eindeutig ECHT (starke
-  Periodizität, stabile 56 bpm), trotzdem stand die App auf "acquiring",
-  weil der Display-Filter Periodizität UND einen zweiten Konfidenz-Wert
-  verlangte — und der hing hinterher.
-  FIX: Starke Periodizität allein (der stärkere Beweis) reicht jetzt, um den
-  Puls zu zeigen und den Takt zu seeden. Der alte Junk-Fall (hohe Konfidenz,
-  aber KEINE echte Periodizität — die Ursache für falsche Werte) wird weiter
-  abgewiesen. Konkret: der Puls sollte jetzt ein paar Sekunden FRÜHER
-  erscheinen und ruhiger stehen.
-  (Der Sound- und Visual-Umbau aus .87 — Drone-Fläche + spielbares
-   Multi-Touch-Visual — ist unverändert drin.)
-  TEST 10.79.88:
-  A) Start, Finger ruhig auflegen: erscheint der Puls jetzt schneller?
-  B) Drone-Fläche: trägt sie? Vollbild-Visual mit mehreren Fingern spielen:
-     kohärent + Wasser-Ringe?
-  Log bitte wieder mitschicken.
+notesT: Schritt Richtung "alles passt zueinander":
+  VAPOR-WELT: Es gibt einen neuen Visual-Look "Vapor" — dreamy, langsam,
+  weit, mit einer verträumten Vaporwave-Palette (Magenta/Violett-Verschiebung
+  + sanfter Sättigungs-Lift für den kitschigen, aber gegradeten Glow — kein
+  Neon-Amateur). EIN Tap = eine ganze Welt: dazu die Drone-Fläche durch
+  Tape-Delay + großen Hall aus .87. Klang und Bild lesen sich jetzt als EINE
+  nostalgische Stimmung.
+  DEFAULT: Frische Installation startet direkt in dieser Vapor-Welt.
+  Falls du auf deinem Gerät noch die alte Palette siehst (deine gespeicherten
+  Werte gewinnen): Visual auf VOLLBILD → einmal aufs Bild tippen (Controls
+  einblenden) → in der "Preset"-Reihe "Vapor" antippen. Ab dann ist es die
+  verträumte Welt. Die physikalisch-korrekte Farbe ("die Farbe ist der Ton")
+  bleibt immer einen Tap entfernt (Hue auf 0 oder anderes Preset).
+  TEST 10.79.89:
+  A) Vapor-Look wählen (oder frisch installieren): passt Klang + Bild jetzt
+     als eine Vaporwave-Stimmung zusammen? Kitschig-schön, aber edel?
+  B) Trägt die Drone-Fläche weiter? Puls schneller da (Fix aus .88)?
+  Log + kurzes Video bitte.
+  (Nächster Schritt: die Steuerung selbst weiter VEREINFACHEN + freie
+   CC0-Klangschalen/Natur via VCSL — beides fokussiert danach.)

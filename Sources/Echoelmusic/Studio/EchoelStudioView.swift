@@ -323,8 +323,14 @@ struct EchoelStudioView: View {
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
-    /// four live sliders below; "" = none/custom after a manual tweak.
-    @AppStorage("visual.preset") private var visualPresetID = ""
+    /// four live sliders below; "" = none/custom after a manual tweak. DEFAULT
+    /// "vapor" (founder 2026-07-07: "mehr kitschige Vaporwave-Ästhetik … alles soll
+    /// zueinander passen"): a fresh install opens on the coherent dreamy vaporwave
+    /// world (applied in onAppear), so sound + picture read as ONE nostalgic mood
+    /// out of the box. A user who tweaks any field clears this back to "" (custom),
+    /// and picking another look — or setting Hue 0 — restores the physical tone
+    /// colour, so the science-first palette is always one tap away.
+    @AppStorage("visual.preset") private var visualPresetID = "vapor"
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
@@ -1472,6 +1478,11 @@ struct EchoelStudioView: View {
         visualDetail = Double(p.detail)
         visualMotion = Double(p.motion)
         visualSpread = Double(p.spread)
+        // A palette LOOK (e.g. Vapor) carries hue/saturation and applies them too, so
+        // one tap sets a full coherent world. Presets that leave these nil keep the
+        // physical tone→light colour untouched ("the colour is the heard tone").
+        if let h = p.hue { visualHue = Double(h) }
+        if let s = p.saturation { visualSaturation = Double(s) }
         visualPresetID = p.id
     }
 

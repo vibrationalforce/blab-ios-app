@@ -38,4 +38,25 @@ final class VisualPresetTests: XCTestCase {
         let ids = VisualPreset.factory.map(\.id)
         XCTAssertEqual(Set(ids).count, ids.count, "preset ids are unique (stable selection)")
     }
+
+    func testVaporIsACoherentPaletteLook() {
+        // Founder 2026-07-07: a one-tap dreamy vaporwave world. Vapor must carry a
+        // palette (hue/saturation) — the ONLY factory preset that does — so selecting
+        // it sets sound-matching colour, while every other preset leaves the physical
+        // tone→light colour untouched ("the colour is the heard tone").
+        guard let vapor = VisualPreset.factory.first(where: { $0.id == "vapor" }) else {
+            return XCTFail("Vapor preset must exist")
+        }
+        XCTAssertNotNil(vapor.hue, "Vapor defines a dreamy hue")
+        XCTAssertNotNil(vapor.saturation, "Vapor defines a saturation lift")
+        XCTAssertLessThanOrEqual(vapor.motion, 0.6, "vaporwave is calm/flash-safe, not energetic")
+        // Palette stays inside the clamped, flash-safe ranges.
+        if let h = vapor.hue { XCTAssert((0...1).contains(h)) }
+        if let s = vapor.saturation { XCTAssert((0...2).contains(s), "graded, not blown-out") }
+        // Every OTHER preset keeps the physical colour (nil palette) — the promise holds.
+        for p in VisualPreset.factory where p.id != "vapor" {
+            XCTAssertNil(p.hue, "\(p.name) must keep the physical tone colour (nil hue)")
+            XCTAssertNil(p.saturation, "\(p.name) must keep physical saturation (nil)")
+        }
+    }
 }

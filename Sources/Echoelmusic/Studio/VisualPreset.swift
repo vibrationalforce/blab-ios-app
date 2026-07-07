@@ -27,17 +27,29 @@ public struct VisualPreset: Identifiable, Sendable, Equatable {
     public let motion: Float
     /// Field spread, 0.5…1.5 (matches the Spread slider range).
     public let spread: Float
+    /// OPTIONAL palette — hue rotation [0…1] (0 = physical tone colour) and
+    /// saturation [0…2]. `nil` (the default for every science-first preset) keeps
+    /// the physical tone→light colour untouched, so "the colour is the heard tone"
+    /// still holds everywhere. A preset that DOES define these is a deliberate
+    /// palette LOOK (e.g. "Vapor" — the dreamy magenta/cyan vaporwave world the
+    /// founder asked for, 2026-07-07: "mehr kitschige Vaporwave-Ästhetik … Brand
+    /// fit"), applied as one coherent tap so sound + visual read as one world.
+    public let hue: Float?
+    public let saturation: Float?
     /// One-line character note for the picker.
     public let blurb: String
 
     public init(id: String, name: String, intensity: Float, detail: Float,
-                motion: Float, spread: Float, blurb: String) {
+                motion: Float, spread: Float, blurb: String,
+                hue: Float? = nil, saturation: Float? = nil) {
         self.id = id
         self.name = name
         self.intensity = Swift.min(1.5, Swift.max(0, intensity))
         self.detail = Swift.min(90, Swift.max(8, detail))
         self.motion = Swift.min(1.5, Swift.max(0, motion))
         self.spread = Swift.min(1.5, Swift.max(0.5, spread))
+        self.hue = hue.map { Swift.min(1, Swift.max(0, $0)) }
+        self.saturation = saturation.map { Swift.min(2, Swift.max(0, $0)) }
         self.blurb = blurb
     }
 
@@ -48,6 +60,16 @@ public struct VisualPreset: Identifiable, Sendable, Equatable {
                      spread: 1.35, blurb: "soft, sparse, slow aura"),
         VisualPreset(id: "drift", name: "Drift", intensity: 0.75, detail: 20, motion: 0.4,
                      spread: 1.4, blurb: "calm, wide and gentle"),
+        // Vapor — the coherent dreamy vaporwave world (founder 2026-07-07: "mehr
+        // kitschige Vaporwave-Ästhetik … Brand fit"). Soft, slow and wide like
+        // Aura/Drift, but it ALSO sets a dreamy palette: a hue rotation toward
+        // magenta/purple + a gentle saturation lift for the kitschy (yet graded,
+        // not neon) vaporwave glow. One tap = sound (drone + tape + hall) and
+        // picture read as one nostalgic world. Flash-safe (low motion). Sits in the
+        // calm cluster by energy, so the "softest→most energetic" order still holds.
+        VisualPreset(id: "vapor", name: "Vapor", intensity: 0.95, detail: 24, motion: 0.42,
+                     spread: 1.35, blurb: "dreamy nostalgic vaporwave glow",
+                     hue: 0.82, saturation: 1.12),
         VisualPreset(id: "bloom", name: "Bloom", intensity: 1.1, detail: 28, motion: 0.7,
                      spread: 1.2, blurb: "blossoming mid-density"),
         VisualPreset(id: "halo", name: "Halo", intensity: 1.3, detail: 24, motion: 0.6,
