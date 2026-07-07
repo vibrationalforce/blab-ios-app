@@ -250,9 +250,12 @@ struct FloatingVisualWindow: View {
             // bar competed with the buttons: a tap with the slightest finger move started a
             // drag and cancelled the button tap, so "die Farbpalette ist nicht anklickbar"
             // (founder). Confining the drag here frees every toolbar button to receive taps.
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(EchoelTheme.dim)
+            // The Echoel LOGO is the drag handle now (founder 2026-07-07: "im Visual
+            // Fenster soll man das Logo sehen, oben links — anstatt das Burgermenü,
+            // das keinen Nutzen hat"). Same 40-wide hit target + drag gesture as the
+            // old ≡, so move-by-handle still works; the window is just branded now.
+            EchoelLogoMark()
+                .frame(width: 20, height: 20)
                 .frame(width: 40, height: handleHeight)
                 .contentShape(Rectangle())
                 .gesture(
@@ -270,7 +273,7 @@ struct FloatingVisualWindow: View {
                         }
                         .onEnded { _ in dragAnchor = nil }
                 )
-                .accessibilityLabel("Drag to move the visual")
+                .accessibilityLabel("Echoel — drag to move the visual")
             Spacer(minLength: 0)
             // Look — cycle the visual style right here, where you see it (founder: design
             // where the visual is). Writes the SHARED visual.style key, so the Visual panel
