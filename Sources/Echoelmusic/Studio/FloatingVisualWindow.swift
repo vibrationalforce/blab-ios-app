@@ -188,19 +188,20 @@ struct FloatingVisualWindow: View {
     private let margin: CGFloat = 12
     private let handleHeight: CGFloat = 30
 
-    /// Calm liquid looks the top-bar slider scrubs (Water · Aurora · Depth · Plasma) — the
-    /// same set the removed Look button cycled. MUST match EchoelStudioView.calmMetalStyles.
-    private static let calmLooks = [3, 5, 7, 2]
-
-    /// Slider position ⇄ current look. Scrubbing snaps `visual.style` to a calm look, live
-    /// (founder 2026-07-07: "die visuals oben in der Leiste mit einem slider geändert …
-    /// während des Spielens" — better handling than tap-cycling).
+    /// Slider position ⇄ current look, STUFENLOS (founder 2026-07-07: "langem slider,
+    /// der durch alle Modi stufenlos überblendet"). A continuous position crossfades
+    /// between neighbouring looks via the renderer's style/styleB/blend (already eased
+    /// in the shader path, so scrubbing MORPHS live). Mapping lives in LookBlendMap
+    /// (pure, unit-tested, single source of the look order); writes the SHARED design
+    /// keys so the main menu stays in sync.
     private var lookScrub: Binding<Double> {
         Binding(
-            get: { Double(Self.calmLooks.firstIndex(of: visualStyle) ?? 0) },
+            get: { LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend)) },
             set: { v in
-                let i = min(Self.calmLooks.count - 1, max(0, Int(v.rounded())))
-                if Self.calmLooks[i] != visualStyle { visualStyle = Self.calmLooks[i] }
+                let m = LookBlendMap.blend(at: v)
+                if visualStyle != m.a { visualStyle = m.a }
+                if visualStyleB != m.b { visualStyleB = m.b }
+                visualBlend = Double(m.frac)
             }
         )
     }
@@ -378,16 +379,18 @@ struct FloatingVisualWindow: View {
                 )
                 .accessibilityLabel("Echoel — drag to move the visual")
             Spacer(minLength: 0)
-            // Live LOOK slider (founder 2026-07-07: "die visuals oben in der Leiste mit einem
-            // slider geändert … während des Spielens" — better handling than the tap-cycle Look
-            // button that was here). Scrubs the calm looks. The founder's explicit "slider" ask
-            // overrides the EchoelValueField default: this is a live VJ control over the visual,
-            // not a Studio parameter row. Fullscreen only — that's where the bar has the width.
+            // Live LOOK slider, STUFENLOS (founder 2026-07-07: "langem slider, der durch
+            // alle Modi stufenlos überblendet … während des Spielens"). Dragging morphs
+            // continuously between the looks (crossfade in the renderer), no steps. The
+            // founder's explicit "slider" ask overrides the EchoelValueField default:
+            // this is a live VJ control over the visual, not a Studio parameter row.
+            // Fullscreen only — that's where the bar has the width for a LONG slider.
             if windowSize.isFullscreen {
-                Slider(value: lookScrub, in: 0...Double(Self.calmLooks.count - 1), step: 1)
+                Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition)
                     .tint(EchoelTheme.accent)
-                    .frame(width: 72)
+                    .frame(minWidth: 90, maxWidth: 170)
                     .accessibilityLabel("Visual look")
+                    .accessibilityValue(LookBlendMap.nearestName(at: lookScrub.wrappedValue))
             }
             // The transport-position readout + WAV control live UP HERE in the bar now
             // (founder 2026-07-07: "Das muss mit nach oben in die Leiste") — not floating over

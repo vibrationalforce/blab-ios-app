@@ -125,9 +125,9 @@ struct EchoelStudioView: View {
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
     @AppStorage("visual.blend") private var visualBlend = 0.0
     /// The calm, liquid Metal styles kept on the surface after the 2026-07-07 minimize:
-    /// Water (3) · Aurora (5) · Depth Caustics (7) · Plasma (2). MUST match
-    /// FloatingVisualWindow.calmLooks and the visualLookStrip list.
-    private static let calmMetalStyles = [3, 5, 7, 2]
+    /// Water (3) · Aurora (5) · Depth Caustics (7) · Plasma (2). Sourced from
+    /// LookBlendMap.looks — the ONE look-order list both sliders share.
+    private static let calmMetalStyles = LookBlendMap.looks
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -414,12 +414,17 @@ struct EchoelStudioView: View {
                 applyVisualPreset(p)
             }
             // Visual minimize (founder 2026-07-07): retire the busy looks from the
-            // surface. Snap a persisted busy style (e.g. Prism) to a calm one so
-            // nobody relaunches stuck on it, and clear any lingering A/B blend now
-            // that the "mischend" control is gone.
-            if !spectralDonuts, !Self.calmMetalStyles.contains(visualStyle) { visualStyle = 3 } // → Water
-            visualBlend = 0
-            visualStyleB = 0
+            // surface — snap a persisted busy style (e.g. Prism) to a calm one so
+            // nobody relaunches stuck on it. Blend is NOT cleared any more: the
+            // stufenlos look slider drives style/styleB/blend as one control, and a
+            // mid-blend position must survive relaunch (clearing it here would snap
+            // the slider back to a stop on every appear). A blend onto a retired
+            // B-style is reset along with the A-snap.
+            if !spectralDonuts, !Self.calmMetalStyles.contains(visualStyle) {
+                visualStyle = 3   // → Water
+                visualStyleB = 0
+                visualBlend = 0
+            }
             surfacePriorCrashIfAny()
             handlePendingIntent()
         }
@@ -1362,9 +1367,10 @@ struct EchoelStudioView: View {
             .accessibilityLabel("Donuts visual look")
             .accessibilityAddTraits(spectralDonuts ? [.isSelected] : [])
 
-            // Dragging the slider picks a calm metal look AND turns Donuts off (see setter),
-            // so the two controls never both claim "active".
-            Slider(value: lookScrub, in: 0...Double(Self.calmMetalStyles.count - 1), step: 1)
+            // Dragging the slider morphs STUFENLOS between the looks (continuous crossfade
+            // via style/styleB/blend, mapping in LookBlendMap) AND turns Donuts off (see
+            // setter), so the two controls never both claim "active".
+            Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition)
                 .tint(EchoelTheme.accent)
                 .accessibilityLabel("Visual look")
                 .accessibilityValue(currentLookName)
@@ -1377,29 +1383,26 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// Slider position ⇄ current calm look, mirroring FloatingVisualWindow.lookScrub. The
+    /// Slider position ⇄ current look state, mirroring FloatingVisualWindow.lookScrub
+    /// (same LookBlendMap, same shared keys — the two sliders are one control). The
     /// setter also clears Donuts so scrubbing the look always lands on a metal field.
     private var lookScrub: Binding<Double> {
         Binding(
-            get: { Double(Self.calmMetalStyles.firstIndex(of: visualStyle) ?? 0) },
+            get: { LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend)) },
             set: { v in
-                let i = min(Self.calmMetalStyles.count - 1, max(0, Int(v.rounded())))
                 spectralDonuts = false
-                let s = Self.calmMetalStyles[i]
-                if s != visualStyle { visualStyle = s }
+                let m = LookBlendMap.blend(at: v)
+                if visualStyle != m.a { visualStyle = m.a }
+                if visualStyleB != m.b { visualStyleB = m.b }
+                visualBlend = Double(m.frac)
             }
         )
     }
 
-    /// Display name of the active calm look (the slider has no per-stop labels).
+    /// Display name of the look nearest the slider position (no per-stop labels).
     private var currentLookName: String {
-        switch visualStyle {
-        case 3: return "Water"
-        case 5: return "Aurora"
-        case 7: return "Depth"
-        case 2: return "Plasma"
-        default: return "Water"
-        }
+        LookBlendMap.nearestName(at:
+            LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend)))
     }
 
     /// The "mischend" controls: a SECOND look to overlap with the primary, plus a Mix
