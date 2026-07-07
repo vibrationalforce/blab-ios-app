@@ -1,20 +1,17 @@
-build: 2026-07-07 v10.79.102 (Ehrlicher Kamera-Hinweis + Visual-Leiste aufgeräumt)
+build: 2026-07-07 v10.79.103 (Visual Touch Instrument in JEDER Fenstergröße spielbar)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zwei Sachen in diesem Build.
-  1) EHRLICHER KAMERA-HINWEIS: Wenn die Kamera nach einem Stall neu startet, steht
-     jetzt kurz "Kamera erholt sich…" über der Bio-Leiste; wird das Gerät thermisch
-     gedrosselt (dieselbe Wärme, die die Torch dimmt), steht "Gerät kühlt ab — Puls
-     hält kurz". Kein stummes Einfrieren mehr — du siehst, was passiert. Der Hinweis
-     ist ein eigenes Blatt (ändert sich nur beim Übergang, nicht 10×/s), also friert
-     kein Menü ein.
-  2) VISUAL-INSTRUMENT LEISTE: Die kleine Positions-Anzeige und der WAV-Aufnahme-Knopf
-     sind aus dem unteren Rand NACH OBEN in die Leiste gewandert (neben Video/Größe/X),
-     genau wie du es markiert hast. Die Farbpalette (Look-Knopf) ist raus — den Look
-     stellst du weiter im Visual-Panel ein. Die Positions-Anzeige erscheint ab Größe M
-     (auf dem kleinen Fenster würde sie die Knöpfe zu eng machen).
-  TEST 10.79.102:
-  A) Visual Instrument öffnen (Vollbild): sitzen Position + WAV-Knopf oben in der Leiste?
-     Palette-Knopf weg? WAV-Aufnahme startet/stoppt + teilt die .wav?
-  B) Falls die Kamera doch mal stallt: kommt jetzt der Hinweis "Kamera erholt sich…"?
-  C) Thermik: fühlt sich das Gerät mit dem Torch-Fix (10.79.101) weiter besser an,
-     stirbt die Kamera seltener/gar nicht mehr nach ~2 min?
+notesT: Du hast gefragt: Hinweis "nur im Vollbild spielbar" ODER auch in den kleinen
+  Ansichten spielbar. Ich habe das Zweite gewählt — es IST das Visual Touch Instrument,
+  und ein toter Touch (nichts passiert beim Tippen) ist genau das Verwirrende, das weg
+  muss. Die Touch-Ebene ist jetzt in JEDER Größe aktiv: Small, Medium, Large und Vollbild.
+  Tippen/Wischen erzeugt überall Noten (skalen-gebunden, klingt immer stimmig) + Wasser-
+  Ringe unter den Fingern. Verschoben wird das Fenster weiter über das Logo oben links,
+  also stört die Spiel-Ebene das Bewegen/Größe-Ändern nicht.
+  MITGELIEFERT AUS 10.79.102 (falls noch nicht getestet): ehrlicher Kamera-Hinweis
+  ("Kamera erholt sich…" / "Gerät kühlt ab") + Positions-Anzeige & WAV-Knopf oben in der
+  Leiste, Palette-Knopf raus.
+  TEST 10.79.103:
+  A) Visual Instrument in Small/Medium/Large öffnen (nicht Vollbild): kannst du jetzt
+     auf dem Bild spielen (Noten + Wasser-Ringe)?
+  B) Fenster per Logo verschieben geht weiter reibungslos?
+  C) Vollbild spielt wie gehabt?
