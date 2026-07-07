@@ -170,7 +170,11 @@ struct EchoelStudioView: View {
     // Derived / persisted musical state. Genre, key and scale survive relaunch so
     // the studio reopens on the setup you left it in (MusicStyle / Scale are
     // String-backed enums → @AppStorage stores the rawValue directly).
-    @AppStorage("studio.genre") private var style: MusicStyle = .vaporwave
+    // Default identity (founder 2026-07-07: "Tendenziell alles eher ohne Beat und
+    // reine meditative Flächen"): the app opens as breath-paced ambient TEXTURES —
+    // Self-Observation genre, no drums, pad articulation. Every genre/beat remains
+    // one tap away; users who already changed these keep their stored choice.
+    @AppStorage("studio.genre") private var style: MusicStyle = .selfObservation
     @AppStorage("studio.rootIndex") private var rootIndex = 0
     @AppStorage("studio.scale") private var scale: Scale = .minor
     /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
@@ -178,15 +182,17 @@ struct EchoelStudioView: View {
     @AppStorage("toneSystemID") private var tuningID = "edo12"
     @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
     @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
-    /// Drum layer (founder 2026-07-06C: "Beat soll ausschaltbar sein und tendenziell
-    /// eher schamanisch ur-rhythmisch"): Off = pure Flächen, Pulse = the deep shamanic
-    /// heartbeat drum (DEFAULT), Genre = the style's own archetypal groove.
-    @AppStorage("studio.beatMode") private var beatMode: BeatMode = .pulse
+    /// Drum layer: Off = pure Flächen (DEFAULT — founder 2026-07-07: "Tendenziell
+    /// alles eher ohne Beat und reine meditative Flächen"), Pulse = the deep
+    /// shamanic heartbeat drum (2026-07-06C), Genre = the style's archetypal groove.
+    @AppStorage("studio.beatMode") private var beatMode: BeatMode = .off
     /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
     /// the envelope for EVERY character (genre/preset = timbre, this = onset/dynamics).
     /// Persisted; re-imposed whenever a character or genre loads. Drives the per-note
     /// velocity sensitivity automatically (short attack ⇒ percussive ⇒ touch-responsive).
-    @AppStorage("studio.articulation") private var articulation: Double = 0.4
+    /// Default 0.15 = clearly PAD (slow swell, long release) — the meditative-Fläche
+    /// identity (2026-07-07); was 0.4. Pluckier characters stay one drag away.
+    @AppStorage("studio.articulation") private var articulation: Double = 0.15
     @State private var currentPatch = SynthPatch(name: "Init")
     /// Whether anything has been composed yet (gates the export/save buttons). A plain
     /// Bool that only ever flips false→true ONCE — it used to be `lastNoteCount: Int?`
