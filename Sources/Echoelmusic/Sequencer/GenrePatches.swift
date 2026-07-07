@@ -84,7 +84,7 @@ public extension MusicStyle {
                 harm: 0.92, hl: 0.80, bright: 0.42, noise: 0.015, color: "Pink", shape: "Natural",
                 cutoff: 2800, res: 0.12, lfoAmt: 0.10, lfoRate: 0.24, lfoDepth: 0.22,
                 revMix: 0.46, revDecay: 3.0, vibRate: 5, vibDepth: 0.07,
-                timbre: "Violin", tblend: 0.45, uni: 3, det: 12)  // real string spectrum, ensemble
+                uni: 3, det: 12)   // warm synth ensemble — no real-instrument spectrum (founder 2026-07-07)
         case .synthwave:
             return patch("D7", "Neon Lead",
                 a: 0.02, d: 0.5, s: 0.72, r: 1.8,
@@ -133,7 +133,7 @@ public extension MusicStyle {
                 harm: 0.90, hl: 0.82, bright: 0.34, noise: 0.02, color: "Pink", shape: "Natural",
                 cutoff: 2600, res: 0.08, lfoAmt: 0.06, lfoRate: 0.10, lfoDepth: 0.15,
                 revMix: 0.50, revDecay: 3.8, vibRate: 5, vibDepth: 0.10,
-                timbre: "Cello", tblend: 0.55, uni: 3, det: 12)   // real string section
+                uni: 3, det: 12)   // warm synth strings — no real-instrument spectrum
         case .jazz:
             return patch("E2", "Warm Rhodes",
                 a: 0.02, d: 0.9, s: 0.60, r: 1.8,
@@ -146,15 +146,14 @@ public extension MusicStyle {
                 a: 0.04, d: 0.5, s: 0.70, r: 1.4,
                 harm: 0.92, hl: 0.80, bright: 0.50, noise: 0.02, color: "Pink", shape: "Natural",
                 cutoff: 3400, res: 0.12, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
-                revMix: 0.38, revDecay: 2.4, vibRate: 5.5, vibDepth: 0.12,
-                timbre: "Clarinet", tblend: 0.70)                // real reed spectrum (mono voice → no unison)
+                revMix: 0.38, revDecay: 2.4, vibRate: 5.5, vibDepth: 0.12)   // warm synth reed — no real-instrument spectrum
         case .oriental:
             return patch("E4", "Reed Strings",
                 a: 0.08, d: 0.8, s: 0.72, r: 2.2,
                 harm: 0.90, hl: 0.80, bright: 0.46, noise: 0.02, color: "Pink", shape: "Natural",
                 cutoff: 3000, res: 0.12, lfoAmt: 0.10, lfoRate: 0.20, lfoDepth: 0.25,
                 revMix: 0.46, revDecay: 3.2, vibRate: 5, vibDepth: 0.10,
-                timbre: "Oboe", tblend: 0.55, uni: 2, det: 10)    // real double-reed
+                uni: 2, det: 10)   // warm synth reed — no real-instrument spectrum
         case .punk:
             return patch("E5", "Buzz Saw",
                 a: 0.005, d: 0.3, s: 0.60, r: 0.6,
