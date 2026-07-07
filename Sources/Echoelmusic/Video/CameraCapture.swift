@@ -155,8 +155,12 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                 // Torch level 0.45 (was 0.6): device logs 2026-07-02 showed the finger washing
                 // to R≈0.7–0.85 with a tiny pulsatile AC (amp≈0.01–0.05) — too much light
                 // saturates the capillary DC and crushes the pulse. A lower level keeps more AC
-                // contrast and headroom before washout. Clamped to the device max.
-                try device.setTorchModeOn(level: min(0.45, AVCaptureDevice.maxAvailableTorchLevel))
+                // contrast and headroom before washout. THERMALLY SCALED (see thermalTorchLevel):
+                // the continuous LED is the biggest controllable heat source, and heat is the
+                // root cause of the ~40–80 s mid-session camera stalls that no restart could
+                // revive (device log 1783445611). Backing the torch off as the phone warms
+                // relieves that — and less light KEEPS more pulsatile AC, so signal doesn't suffer.
+                try device.setTorchModeOn(level: min(thermalTorchLevel(), AVCaptureDevice.maxAvailableTorchLevel))
             } else {
                 device.torchMode = .off
             }
@@ -165,6 +169,21 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                     "Torch \(torchDesired ? "on" : "off"), active=\(device.isTorchActive)")
         } catch {
             log.log(.warning, category: .biofeedback, "Torch control failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Torch level, scaled DOWN as the device heats. After a couple of minutes the LED +
+    /// camera + audio + Metal pipeline pushes the phone into thermal throttling, and a
+    /// throttled camera silently stops delivering frames — the ~40–80 s stalls in the device
+    /// logs that survived every restart (the heat, not the session, was dead). Relieving the
+    /// biggest controllable heat source when hot lets the camera keep/resume delivery. Less
+    /// light also preserves pulsatile AC contrast (see applyTorch), so the pulse still reads.
+    private func thermalTorchLevel() -> Float {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal, .fair: return 0.45     // normal — full working level
+        case .serious:        return 0.28     // getting hot — back off to shed heat
+        case .critical:       return 0.18     // very hot — minimum that still lights the finger
+        @unknown default:     return 0.45
         }
     }
 
@@ -243,7 +262,19 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                 log.log(.info, category: .biofeedback, "Camera session resumed after interruption")
             }
         }
-        sessionObservers = [rt, intr, ended]
+        // Thermal-state changes: re-apply the torch at the level for the NEW state, so the
+        // LED backs off the instant the phone gets hot (breaking the heat→stall loop) and
+        // restores full level once it cools. object is nil (ProcessInfo posts globally).
+        let thermal = nc.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification,
+                                     object: nil, queue: nil) { [weak self] _ in
+            self?.sessionQueue.async {
+                guard let self else { return }
+                log.log(.info, category: .biofeedback,
+                        "Thermal state → \(ProcessInfo.processInfo.thermalState.rawValue) — re-applying torch")
+                self.applyTorch()
+            }
+        }
+        sessionObservers = [rt, intr, ended, thermal]
     }
 
     /// On a runtime error (notably `.mediaServicesWereReset`, which invalidates the

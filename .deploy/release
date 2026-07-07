@@ -1,27 +1,26 @@
-build: 2026-07-07 v10.79.99 (Puls kommt nach Kamera-Stall zurück statt tot zu bleiben)
+build: 2026-07-07 v10.79.100 (Visual Instrument: kleine Positions-Anzeige + WAV-Aufnahme)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Aus deinem Device-Log (1783442844) einen echten Bug gefunden + gefixt.
-  Gates grün: CI ✅ (macOS Build+Test, tvOS, watchOS, visionOS, Lint, Security;
-  iOS-Build lief beim Deploy noch, TestFlight kompiliert iOS ohnehin voll nach).
-  BEFUND: Der Puls rastet erst sauber ein (nach ~23 s conf 0.90, 62 bpm). Dann
-  bei ~53 s STOCKT die Kamera (6 s keine Frames) und macht Recovery — aber DANACH
-  kommt der Puls NIE zurück: amp friert exakt auf 0.3618, conf bleibt 0.00, bpm
-  hängt auf dem letzten Wert, dieselben Zahlen wiederholen sich durch jeden
-  Recovery-Zyklus, bis du den Finger weggenommen hast.
-  URSACHE: Die Recovery hat Kamera-Session + Belichtung zurückgesetzt, aber das
-  ANALYSE-FENSTER nicht geleert. Also lag da noch der alte Kram + der Helligkeits-
-  SPRUNG drin, den das erneute Belichtungs-Lock reinhaut (genau das amp=0.3618) —
-  das vergiftet die Confidence für ein ganzes ~10-s-Fenster, und weil die Kamera
-  alle paar Sekunden weiter stockte, wurde das Fenster nie leer. Beim App-START
-  ging's ja: da fing das Fenster LEER an und rastete sauber ein.
-  FIX: Bei jeder Kamera-Recovery wird das Analyse-Fenster jetzt frisch geleert →
-  die Messung akquiriert danach genauso sauber wie beim Start. Die angezeigte
-  Pulszahl bleibt derweil stehen (fällt nicht auf 0), bis der neue Lock reinkommt.
-  EHRLICH: Behebt die Hälfte "Puls stirbt und bleibt tot". Das chronische Stocken
-  SELBST (Frames brechen alle paar Sekunden ab — riecht nach Wärme/Torch) ist ein
-  separater, schwierigerer Fix. Auf dem Gerät nicht testbar hier, nur CI-kompiliert.
-  TEST 10.79.99:
-  A) Finger auf Kamera, Play, ~1-2 min laufen lassen: wenn die Kamera zwischendurch
-     stockt — kommt der Puls danach wieder zurück (conf steigt, echte bpm)?
-  B) Oder bleibt er weiterhin tot? Dann brauche ich das nächste Log — dann geht's
-     ans chronische Stocken selbst.
+notesT: Deine Ansage (Screenshot mit eingekreister Loop-Anzeige): "Sowas in klein und
+  ein wav Aufnahme Knopf wäre auch im Visual Instrument gut" + "Video und wav Aufnahme
+  muss Natürlichkeit erkennbar sein." Gates grün: CI ✅ (visionOS kompiliert die
+  UIKit+MetalKit-Datei inkl. der Änderungen; macOS Build+Test, Lint, Security grün).
+  Beides ist jetzt im Visual Touch Instrument (schwebendes Fenster), unten über dem Bild:
+  1) KLEINE POSITIONS-ANZEIGE (dein eingekreistes Element, in klein): schmaler
+     Loop-Fortschrittsbalken + Takt.Beat.Step + Loop-Zähler (z.B. "3.2.1  2/4").
+     Eigener Leaf → 10-Hz-Updates bauen das Fenster nicht neu (kein Freeze), und
+     NICHT anklickbar → klaut keinen Finger auf der Wasser-Spielfläche.
+  2) WAV-AUFNAHME-KNOPF (verlustfrei): Start/Stop mit mitlaufender Zeit. Schreibt
+     eine lossless WAV (PCM, nur Lautheits-Gain, KEIN verlustbehafteter Codec) →
+     die Natürlichkeit der organischen Musik bleibt erhalten (genau das, was die
+     AAC-Spur der MP4 verliert). Läuft UNABHÄNGIG von der Video-Aufnahme → du kannst
+     für eine Performance BEIDE gleichzeitig scharf schalten.
+  ERKENNBARKEIT: Video-Knopf oben = klares Video-Icon, WAV-Knopf unten = Wellenform-
+  Icon → die zwei Aufnahmen sind auf einen Blick auseinanderzuhalten.
+  Reine additive Änderung, nutzt die geprüfte Aufnahme-Infrastruktur (RetroCapture +
+  SingleExport, dieselbe wie beim Studio-WAV-Export). Auf dem Gerät ungetestet.
+  TEST 10.79.100:
+  A) Visual-Fenster öffnen, Play: siehst du unten links die kleine Positions-Anzeige,
+     die mit dem Loop mitläuft?
+  B) WAV-Knopf (Wellenform, unten rechts) drücken → Zeit läuft; nochmal drücken →
+     Share-Sheet mit einer .wav. Klingt sie natürlich/sauber?
+  C) Passt die Platzierung (Position + WAV unten, Video oben), oder lieber anders?
