@@ -156,9 +156,9 @@ public extension MusicStyle {
                 uni: 2, det: 10)   // warm synth reed — no real-instrument spectrum
         case .punk:
             return patch("E5", "Buzz Saw",
-                a: 0.005, d: 0.3, s: 0.60, r: 0.6,
-                harm: 0.95, hl: 0.80, bright: 0.62, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 4200, res: 0.22, lfoAmt: 0.05, lfoRate: 0.20, lfoDepth: 0.10,
+                a: 0.010, d: 0.3, s: 0.60, r: 0.6,   // softer attack (was 0.005) — no cold stab
+                harm: 0.95, hl: 0.80, bright: 0.52, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 3400, res: 0.22, lfoAmt: 0.05, lfoRate: 0.20, lfoDepth: 0.10,
                 revMix: 0.22, revDecay: 1.2, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 10)                                 // wide buzzsaw
         case .rocknroll:
@@ -191,9 +191,9 @@ public extension MusicStyle {
                 uni: 2, det: 8)
         case .heavyMetal:
             return patch("EA", "Metal Rig",
-                a: 0.004, d: 0.4, s: 0.55, r: 0.8,
+                a: 0.010, d: 0.4, s: 0.55, r: 0.8,   // softer attack (was 0.004) — tame the stab
                 harm: 0.95, hl: 0.82, bright: 0.50, noise: 0.0, color: "Pink", shape: "Dark",
-                cutoff: 3000, res: 0.24, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                cutoff: 3000, res: 0.18, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
                 revMix: 0.26, revDecay: 1.6, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 9)                                  // wide detuned guitar wall
         case .doom:
@@ -229,13 +229,14 @@ public extension MusicStyle {
                        revMix: Float, revDecay: Float, vibRate: Float, vibDepth: Float,
                        timbre: String = "", tblend: Float = 0,
                        uni: Int? = nil, det: Float? = nil) -> SynthPatch {
-        // Brighter/livelier default voicing (founder direction): lift the per-genre
-        // brightness and upper-partial body — but ADAPTIVELY. The lift scales with how
-        // dull the genre already is (×(1-bright)/×(1-hl)), so dull genres get the full
-        // lift (read less dull on device) while already-bright genres are barely
-        // touched — avoiding the harsh/forward top end a uniform +0.10 gave them.
-        let liftedBright = min(1, bright + 0.12 * (1 - bright))
-        let liftedHL     = min(1, hl + 0.06 * (1 - hl))
+        // Gentle default voicing: lift the per-genre brightness/upper-partial body only
+        // ADAPTIVELY (×(1-bright)/×(1-hl)) so a dull genre reads less dull on device while
+        // an already-bright genre is barely touched. Coefficients TRIMMED 2026-07-07
+        // (founder: "einige Sounds stechen kalt aus dem mix raus vermeide das") from
+        // 0.12/0.06 — the earlier "brighter/livelier" lift pushed the top end forward and
+        // made some voices read cold; the smaller lift keeps life without the glassy edge.
+        let liftedBright = min(1, bright + 0.05 * (1 - bright))
+        let liftedHL     = min(1, hl + 0.03 * (1 - hl))
         return SynthPatch(
             id: UUID(uuidString: "00000000-0000-0000-0000-0000000000\(suffix)") ?? UUID(),
             name: name,

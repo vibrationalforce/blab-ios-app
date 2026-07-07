@@ -120,8 +120,10 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// noteOn, decayed per-sample in render. Audio-thread: single Float, atomic-width.
     private var filterEnvValue: Float = 0
     /// How much the brightness envelope opens the cutoff at the onset (0 = static timbre,
-    /// ~2 = strong pluck). Public so a patch/character can dial it later; conservative default.
-    public var filterEnvAmount: Float = 1.6
+    /// ~2 = strong pluck). Public so a patch/character can dial it later. Softened 2026-07-07
+    /// (founder: sounds "stechen kalt aus dem mix raus") from 1.6 — keeps the "bright attack →
+    /// mellow body" life but stops the top-end jab poking out of the mix.
+    public var filterEnvAmount: Float = 1.0
     /// Per-sample one-pole decay of the brightness envelope (~0.9998 ≈ ~100 ms to 1/e at 48 k).
     public var filterEnvDecay: Float = 0.9998
 
@@ -130,8 +132,9 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// REAL instrument (absent in a pure additive tone). Re-armed in noteOn, decayed per-sample.
     /// Audio-thread: single Float, atomic-width (same convention as noteVelocity/filterEnvValue).
     private var onsetNoiseEnv: Float = 0
-    /// Level of the onset chiff (0 = off). Conservative default — a hint of attack noise, not hiss.
-    public var onsetNoiseAmount: Float = 0.35
+    /// Level of the onset chiff (0 = off). Trimmed 2026-07-07 (warmth pass) from 0.35 — a
+    /// fainter attack noise so the transient tick doesn't poke out on the soft/pad genres.
+    public var onsetNoiseAmount: Float = 0.20
     /// Per-sample decay of the onset-noise env (~0.9993 ≈ ~30 ms to 1/e at 48 k — a short chiff).
     public var onsetNoiseDecay: Float = 0.9993
 
