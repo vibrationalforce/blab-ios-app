@@ -160,6 +160,12 @@ struct BioMetricsGuideView: View {
                 .padding(.bottom, 12)
 
             ScrollView {
+                // maxWidth: .infinity is REQUIRED (founder 2026-07-07: "die Infos
+                // sind abgeschnitten … wir wollen alles lesen"): a vertical ScrollView
+                // proposes an UNSPECIFIED width to its content, so each `Text` lays out
+                // on one line at its ideal width and gets clipped to "…" — even with
+                // `.fixedSize(vertical: true)`. Pinning the column to the full width
+                // gives the Texts a width to wrap against, so every line shows in full.
                 VStack(alignment: .leading, spacing: 18) {
                     ForEach(shown) { m in
                         VStack(alignment: .leading, spacing: 4) {
@@ -186,6 +192,7 @@ struct BioMetricsGuideView: View {
                         .foregroundStyle(EchoelTheme.text.opacity(0.7))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 8)
             }
         }

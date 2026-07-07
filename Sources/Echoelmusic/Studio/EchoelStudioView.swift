@@ -377,6 +377,9 @@ struct EchoelStudioView: View {
                     #if canImport(AVFoundation)
                     if running { AnyView(PulseMeasurementView()) }
                     #endif
+                    // EchoelAI's live narration sits right under the bio, next to the
+                    // numbers it explains (moved up 2026-07-07 from between Mood/Export).
+                    AnyView(liveNarrationBanner)
                     AnyView(soundControls)
                     AnyView(utilityRow)
                     // Visual Touch Instrument sits at the very bottom of the page
@@ -946,9 +949,28 @@ struct EchoelStudioView: View {
             // visualPanel moved to the very bottom of the page (founder 2026-07-07:
             // "Visual … das müsste ganz nach unten") — rendered after utilityRow.
             // Entrainment now lives on the Bio page (its home) — not duplicated here.
-            if running {
-                StudioCaptionView(caption: caption)
-            }
+            // The EchoelAI live caption used to sit HERE — a bare paragraph wedged
+            // between the Mood and Export cards (founder 2026-07-07: "Das ist hier
+            // ungeschickt platziert"). It now lives at the TOP, right under the live
+            // bio (`liveNarrationBanner`), where a "what your body is doing to the
+            // sound" line belongs — paired with the numbers it explains, in a proper
+            // container instead of orphaned between two cards.
+        }
+    }
+
+    /// EchoelAI's plain-English narration of the live bio→sound mapping, shown while a
+    /// take plays — directly under the bio strip so the sentence sits next to the numbers
+    /// it explains (moved here 2026-07-07 from between the Mood/Export cards, where it read
+    /// as orphaned text). Wrapped in the standard subtle container so it looks intentional.
+    /// The changing text is observed ONLY by the `StudioCaptionView` leaf (freeze rule).
+    @ViewBuilder private var liveNarrationBanner: some View {
+        if running {
+            StudioCaptionView(caption: caption)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .stroke(EchoelTheme.border, lineWidth: 1))
         }
     }
 
