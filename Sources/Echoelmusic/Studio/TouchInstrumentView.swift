@@ -22,9 +22,9 @@
 //
 
 import Foundation
-import CoreGraphics
 
-/// Pure touch→music mapping — no UIKit, so it unit-tests on Linux CI.
+/// Pure touch→music mapping — Foundation-only (no UIKit/CoreGraphics), so it
+/// unit-tests without an Apple UI stack.
 public enum TouchPitchMap {
     /// Octave bands bottom→top. Around the composer's pad register (padOctave
     /// ~3–4, lead ~5): low third of the surface = 3, middle = 4, top = 5.
@@ -107,7 +107,7 @@ final class TouchInstrumentUIView: UIView {
         accessibilityHint = "Touch and slide to play notes in the current key"
     }
 
-    required init?(coder: NSCoder) { nil }   // never instantiated from a nib
+    required init?(coder: NSCoder) { return nil }   // never instantiated from a nib
 
     // MARK: - Touches
 
