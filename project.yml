@@ -68,15 +68,9 @@ targets:
           - "**/*.md"
     resources:
       - path: Sources/Echoelmusic/Resources/Assets.xcassets
-      # Sampled instruments (GeneralUser GS soundfont) — WITHOUT this the app
-      # bundle has no .sf2, Bundle.main.url returns nil, SampledInstrumentVoice
-      # is unavailable and every voice silently falls back to the additive synth
-      # (device log 1783199053 showed polyVoice on the generate path). SwiftPM's
-      # .process("Resources") bundled it for `swift test` (Bundle.module), which
-      # masked the gap — the Xcode/TestFlight app reads Bundle.main. Group =
-      # flattened to bundle root so url(forResource:"GeneralUserGS") resolves.
-      - path: Sources/Echoelmusic/Resources/Instruments
-        type: group
+      # (Removed 2026-07-07: the GeneralUser GS soundfont bundle entry — the
+      # sampled-instrument voice is gone entirely, founder "Real Instruments
+      # komplett raus", so the 31 MB .sf2 no longer ships.)
       # Drum + sample WAVs — folder references preserve the Drums/ · Samples/
       # subdirectories BeatPlayer looks them up by (subdirectory:"Drums") and
       # avoid filename collisions between the two libraries.

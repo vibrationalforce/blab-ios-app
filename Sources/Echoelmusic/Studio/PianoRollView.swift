@@ -12,9 +12,8 @@ import Foundation
 // (chords), and note-offs fire at note END (length), scheduled on the ONE shared
 // PatternEngine clock via `pattern.onTick` — drums + melody stay on one transport.
 
-/// The minimal note interface the roll routes through — lets the classic
-/// PolySynthVoice and the real-instrument SampledInstrumentVoice sit behind
-/// the ONE `outputVoice(for:)` router (2026-07-04 real-instruments cycle).
+/// The minimal note interface the roll routes through — every voice the roll
+/// plays sits behind the ONE `outputVoice(for:)` router.
 @MainActor
 public protocol NoteVoice: AnyObject {
     func noteOn(pitch: Int, velocity: Float)
@@ -22,9 +21,6 @@ public protocol NoteVoice: AnyObject {
     func allNotesOff()
 }
 extension PolySynthVoice: NoteVoice {}
-#if canImport(AVFoundation)
-extension SampledInstrumentVoice: NoteVoice {}
-#endif
 
 /// Editable polyphonic melodic pattern + its trigger logic.
 @MainActor
@@ -46,15 +42,6 @@ public final class PianoRollModel {
     /// so a take reads as separate instruments instead of one surface. nil → the lead
     /// falls back to `voice` (single-timbre behaviour, unchanged).
     @ObservationIgnored private weak var lead: PolySynthVoice?
-    /// REAL instruments (2026-07-04, founder: sampled instruments become the
-    /// default sound): when `useSampledSound` is on AND a sampler is loaded,
-    /// .lead routes to `sampledLead` (piano) and .harmony to `sampledHarmony`
-    /// (strings); .bass stays on the classic synth + felt sub (clean low end).
-    /// Missing/not-ready samplers fall back to the classic synth per role.
-    @ObservationIgnored private weak var sampledLead: SampledInstrumentVoice?
-    @ObservationIgnored private weak var sampledHarmony: SampledInstrumentVoice?
-    /// The user's sound-source choice (Composition panel "Sound": Real/Synth).
-    public var useSampledSound = true
     /// Optional sub-bass voice — the lowest notes of each take also drive this an
     /// octave down so the bass can be FELT (sub/headphones/haptics). nil = no sub.
     @ObservationIgnored private weak var subVoice: SubBassVoice?
@@ -241,13 +228,9 @@ public final class PianoRollModel {
                       lead: PolySynthVoice? = nil,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
                       arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
-                      auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil,
-                      sampledLead: SampledInstrumentVoice? = nil,
-                      sampledHarmony: SampledInstrumentVoice? = nil) {
+                      auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil) {
         self.voice = voice
         self.lead = lead
-        self.sampledLead = sampledLead
-        self.sampledHarmony = sampledHarmony
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
@@ -288,28 +271,15 @@ public final class PianoRollModel {
         currentSubPitch = nil
         voice?.allNotesOff()
         lead?.allNotesOff()
-        sampledLead?.allNotesOff()
-        sampledHarmony?.allNotesOff()
         subVoice?.allNotesOff()
         midiOut?.allNotesOff()
         auHost?.allNotesOff()
     }
 
-    /// The instrument voice a note plays through, by role (multitimbral routing).
-    /// REAL-instrument mode first (piano lead / strings harmony via loaded
-    /// samplers; .bass always classic synth + felt sub), then the classic split:
-    /// `.lead` → dedicated lead voice when present, else the main voice.
+    /// The instrument voice a note plays through, by role (multitimbral routing):
+    /// `.lead` → the dedicated lead voice when present, else the main voice;
+    /// everything else → the main voice. All warm synth (no real instruments).
     private func outputVoice(for role: NoteRole) -> (any NoteVoice)? {
-        if useSampledSound {
-            switch role {
-            case .lead:
-                if let s = sampledLead, s.isReady { return s }
-            case .harmony:
-                if let s = sampledHarmony, s.isReady { return s }
-            case .bass:
-                break   // clean low end: classic synth + SubBassVoice
-            }
-        }
         return (role == .lead) ? (lead ?? voice) : voice
     }
 

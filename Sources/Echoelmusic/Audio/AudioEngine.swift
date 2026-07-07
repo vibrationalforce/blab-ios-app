@@ -688,8 +688,8 @@ public final class AudioEngine {
         log.audio("Source node detached from master engine")
     }
 
-    /// Attach a self-rendering instrument AU (e.g. AVAudioUnitSampler for the
-    /// real-instrument voices) additively into the master mix — the exact
+    /// Attach a self-rendering instrument AU (any `AVAudioUnit`, e.g. a hosted
+    /// AUv3 or an AVAudioUnitSampler) additively into the master mix — the exact
     /// pause→attach→connect→restart pattern of `attachSourceNode`. The AU does
     /// its own rendering; nothing is added to our render path.
     func attachInstrument(_ node: AVAudioUnit) {

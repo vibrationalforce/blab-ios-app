@@ -94,9 +94,6 @@ struct EchoelStudioView: View {
     // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
     @AppStorage("studio.lockBPM") private var lockBPM = false
     @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
-    /// Sound source: true = real sampled instruments (default once the bank
-    /// ships), false = classic DDSP synth. Same key the app startup reads.
-    @AppStorage("studio.realSound") private var realSound = true
     /// Tap-tempo estimator (performance staple) + the last value it produced for display.
     @State private var tapTempo = TapTempo()
     @State private var lastTappedBPM: Double? = nil
@@ -378,6 +375,9 @@ struct EchoelStudioView: View {
                     #endif
                     AnyView(soundControls)
                     AnyView(utilityRow)
+                    // Visual Touch Instrument sits at the very bottom of the page
+                    // (founder 2026-07-07: "das müsste ganz nach unten").
+                    AnyView(visualPanel)
                     // Tools grid removed (founder 2026-07-02: "Alles weg außer visuals").
                     // The whole editors/utilities pile is gone from the one adaptive view;
                     // the Visual stays as the floating window (header monitor toggle). The
@@ -931,8 +931,9 @@ struct EchoelStudioView: View {
             soundPanel
             effectsPanel
             masterPanel
-            visualPanel
             moodPanel
+            // visualPanel moved to the very bottom of the page (founder 2026-07-07:
+            // "Visual … das müsste ganz nach unten") — rendered after utilityRow.
             // Entrainment now lives on the Bio page (its home) — not duplicated here.
             if running {
                 StudioCaptionView(caption: caption)
@@ -948,7 +949,9 @@ struct EchoelStudioView: View {
             // beatModeRow REMOVED (founder 2026-07-07: "Schmeiß den Beat komplett
             // raus") — pure meditative Flächen only. The row stays defined below,
             // just unpresented (reversible).
-            soundSourceRow
+            // soundSourceRow REMOVED (founder 2026-07-07: "Real Instruments komplett
+            // raus. Also auch den Schalter weg") — pure warm synth, no Real/Synth
+            // switch and no sampled-instrument path anywhere.
             tonartRow
             kammertonRow
             tuningRow
@@ -975,27 +978,6 @@ struct EchoelStudioView: View {
                 Text("A deep, steady drum — it thins out as your body settles.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    /// Sound source (2026-07-04, founder: "klingt alles mega scheiße" → real
-    /// instruments become the default): Real = Apple-sampled piano/strings from
-    /// the bundled GeneralUser GS bank; Synth = the classic DDSP voices. Only
-    /// shown once the soundfont asset actually ships in the build — before
-    /// that the roll silently keeps the classic synth (honest UI, no dead knob).
-    @ViewBuilder private var soundSourceRow: some View {
-        if SampledInstrumentVoice.isAvailable {
-            labeledRow("Sound") {
-                Picker("Sound", selection: $realSound) {
-                    Text("Real instruments").tag(true)
-                    Text("Classic synth").tag(false)
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: realSound) { _, on in
-                    pianoRoll.allNotesOff()          // no stuck notes across the swap
-                    pianoRoll.useSampledSound = on
-                }
             }
         }
     }
@@ -1242,7 +1224,7 @@ struct EchoelStudioView: View {
     // MARK: Panel — Visual (immersive sound→light)
 
     private var visualPanel: some View {
-        panel("Visual", "Immersive sound→light — show it in a floating window you can move + resize", isExpanded: $showVisualSettings) {
+        panel("Visual Touch Instrument", "Play it with your fingers — immersive sound↔light in a floating window you can move + resize", isExpanded: $showVisualSettings) {
             Button {
                 floatingVisualVisible.toggle()
             } label: {
