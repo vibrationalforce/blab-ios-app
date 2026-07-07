@@ -1,24 +1,16 @@
-build: 2026-07-07 v10.79.104 (Ralph-Runde: Zucken behoben · Live-Look-Slider · wärmere Sounds · Touch lauter · Lock-Hinweis)
+build: 2026-07-07 v10.79.105 (Visual-Feinschliff: Farb-Wackeln weg)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Große Runde — sechs Sachen, alle Gates grün (CI: iPhone 16 Pro + SE Build+Test,
-  macOS/visionOS/tvOS/watchOS, Lint, Security, Performance/Memory).
-  1) VISUALS ZUCKEN behoben: Ursache war der Ressourcen-Governor, der an der Wärme-Grenze
-     flackerte und ständig die Framerate umschrieb (120↔60) → CADisplayLink-Ruckler. Jetzt
-     asymmetrische Hysterese: runter sofort (bei Hitze/Akku), rauf erst nach 6 s stabil.
-     Plus: Puls-Start beim Launch sauber (kein Ruckel-Ramp mehr).
-  2) LIVE-LOOK-SLIDER: oben in der Vollbild-Leiste ein Slider, der die Looks live wechselt
-     (Water/Aurora/Depth/Plasma) — „während des Spielens", bessere Handhabung.
-  3) HAUPTMENÜ ANGEGLICHEN: die Look-Steuerung im Hauptmenü nutzt jetzt dieselbe Slider-
-     Logik (Donuts-Pill + Look-Slider + Namen), weniger Buttons.
-  4) SOUNDS WÄRMER: alle Genres. Globale Hebel (Brightness-Lift, Onset-Stab, Master-Air
-     runter) + kalte Ausreißer (punk/heavyMetal) entschärft. Kein Sound sticht mehr kalt raus.
-  5) TOUCH-INSTRUMENT LAUTER: setzt sich im Mix etwas mehr durch (Velocity angehoben).
-  6) LOCK-HINWEIS: „Puls erkannt — du kannst loslassen & spielen" beim Settle. Lehrt: erst
-     locken (Finger ruhig ~15-20 s), dann frei spielen — dann bleibt das Tempo gelatcht.
-  TEST 10.79.104:
-  A) Visual länger laufen lassen: ruckelt/zuckt es noch, auch wenn's warm wird?
-  B) Vollbild: Look-Slider oben — wechselt er die Optik flüssig live?
-  C) Hauptmenü: fühlt sich die Look-Steuerung stimmig an (Donuts + Slider)?
-  D) Sounds: klingt alles wärmer/runder? Sticht noch irgendein Genre kalt raus? (welches?)
-  E) Touch-Instrument: hörbar präsenter im Mix?
-  F) Erst Finger ruhig halten bis „Puls erkannt", dann loslassen & spielen — hält das Tempo?
+notesT: Weiter am Visual optimiert. Nach dem Zucken-Fix (10.79.104) war noch ein feineres
+  Problem drin: die FARBE folgt dem lautesten Ton, aber pro Frame neu berechnet — bei Akkorden/
+  Arpeggios mit fast gleich lauten Tönen sprang die Farbe zwischen den Tönen hin und her
+  (leichtes Farb-Wackeln). Jetzt mit Hysterese: die Farbe hält den aktuellen Ton und wechselt
+  erst, wenn ein anderer deutlich (≥30 %) lauter ist — die Farbe GLEITET zwischen Tönen statt
+  zu flackern. Dazu ein Rand-Fix im Shader-Fallback (Puls aus integrierter Phase statt
+  time×Frequenz, damit auch dort nichts springt).
+  ENTHALTEN (aus 10.79.104, falls noch nicht getestet): Zucken-Fix (Governor-Hysterese),
+  Live-Look-Slider oben in der Leiste, Hauptmenü angeglichen, wärmere Genre-Sounds, Touch-
+  Instrument lauter, Lock-Hinweis „Puls erkannt — loslassen & spielen".
+  TEST 10.79.105:
+  A) Musik spielen + aufs Visual schauen: gleitet die Farbe jetzt ruhig mit, statt zu wackeln?
+  B) Gesamt-Eindruck Visual: ruhig, flüssig, „wow"?
+  C) Sounds weiter beobachten — sticht noch ein Genre kalt raus? (welches, dann justiere ich es)
