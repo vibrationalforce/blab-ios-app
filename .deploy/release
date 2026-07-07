@@ -1,29 +1,27 @@
-build: 2026-07-07 v10.79.95 (Drone-Fläche statt lauter quakiger Melodie · Visual minimalisiert)
+build: 2026-07-07 v10.79.96 (Melodien warm & entspannt · Echoel-Logo statt Burger)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine Ansage: "In der Hauptmelodie sehr laute quakige Töne. Die Melodien sind
-  nicht schön und zu laut, es soll sich mehr in den weichen Trance-Pad-Ambient
-  einfügen. Checke auch den Musiktheorie-Apparat." Gates grün: Xcode ✅ CI ✅.
-  ROOT-CAUSE-FIX (war ein echter Bug, kein Geschmack):
-  Der Home-Default "Self-Observation" wurde im Composer abgefangen und auf eine
-  NACKTE einstimmige Lead-Linie OHNE Pad darunter geleitet — eine dünne, frei-
-  liegende, formant-hafte Melodie = genau das "quakige", und laut weil sie der
-  ganze Sound war. Deine 79.90-Drone-Fläche für Self-Observation war längst
-  definiert (identisch zu "Deep Ambient", den du gelobt hast), wurde aber NIE
-  erreicht. Jetzt behoben:
-  1) Self-Observation spielt seine ECHTE Drone-Fläche (Pad + ein Bass-Grundton,
-     kein Melodie-Genudel, keine Drums) — dieselbe Engine wie "Deep Ambient".
-     Die laute quakige Melodie ist WEG.
-  2) Vor-Generate-Default-Lead: "Bright Lead" (cutting) → "Soft Keys" (warm),
-     damit der erste Ton nie nasal ist.
-  MUSIKTHEORIE-AUDIT: Apparat ist stark (24 Skalen, Voice-Leading, 7ths, Motiv-
-  Kontur chord-tone-locked, JI/Maqam/Gamelan-Tunings). Nächste risikoarme
-  Ergänzungen fürs Ambient-Ziel (kommen als eigene Zyklen, sobald du 79.95 hörst):
-  Sus2/Sus4/Add9/Quartal-Voicings · meditative Pentatoniken (Hirajōshi/In-sen/…)
-  · Pedalton-Drone-Bass.
-  AUCH DRIN: Visual minimalisiert — nur ruhige flüssige Looks (Donuts · Water ·
-  Aurora · Depth · Plasma), Prism + busy Looks raus der Bedienung (kein Tippen
-  mehr an Prism vorbei), A/B-Mix-Regler weg.
-  TEST 10.79.95:
-  A) Start (Self-Observation): kommt jetzt eine ruhige, warme Drone-FLÄCHE statt
-     einer lauten quakigen Melodie? Fügt sich alles in den Trance-Pad-Vibe?
-  B) Visual: nur noch ruhige Looks, Prism weg, weniger Rumklicken?
+notesT: Deine 2 Videos: "Die Melodien sind bei manchen Genres super laut und
+  unangenehm im Ohr, kein angenehmes Spektrum … die meisten Genres hauen ihre
+  Melodie unangenehm heraus. Das soll schön und entspannt sein." + "Im Visual-
+  Fenster soll man das Logo sehen, oben links — anstatt das Burgermenü."
+  Gates grün: Xcode ✅ CI ✅.
+  1) MELODIEN WARM & LEISER (in jedem Genre):
+     • Harsche Leads RAUS: "Bright Lead" (spectralShape bright + Resonanz +
+       Vibrato, sustain 0.7), "Glass Bell" (0.8 hell), "Vapor Lead" (hell) —
+       weg aus ALLEN Genres. Nur noch warme, weiche Leads: Soft Keys · Warm
+       Strings · Hollow Reed · Pluck · Choir Vox · Deep Sub. Sanftes Höhenbild,
+       kein schrilles Spektrum.
+     • Lead-PEGEL überall zurück: die Melodie saß bei den Synth-Genres +5…+18%
+       nach VORNE — jetzt 0.85–0.92, also UNTER die Fläche getuckt. Melodie
+       stützt die Textur, statt rauszuhauen. Bass/Pad unverändert.
+  2) ECHOEL-LOGO STATT BURGER: das ≡ oben links im Visual-Fenster ist jetzt das
+     Echoel-Logo (gleiche Zieh-Funktion zum Verschieben) — gebrandet, kein
+     nutzloses Burger mehr.
+  HINWEIS: das Logo IM aufgenommenen Video (Upload Quer/Hochkant) kommt als
+  eigener Metal-Schritt als Nächstes — der MP4-Export nimmt die Metal-Textur
+  direkt auf, ein SwiftUI-Logo ist on-screen/AirPlay sichtbar, aber nicht im
+  Export. Braucht Geräte-Check.
+  TEST 10.79.96:
+  A) Genres durchtippen (Disco/Synthwave/Psy/Rock): klingt die Melodie jetzt
+     warm, weich und LEISER — fügt sich in die Fläche statt rauszuhauen?
+  B) Visual-Fenster oben links: Echoel-Logo statt Burger? Verschieben geht noch?
