@@ -670,6 +670,14 @@ public final class CameraRPPGBioPublisher {
         weakAcfTicks = 0
         weakRelocksUsed = 0   // fresh capture session = fresh re-lock budget
         stallTicks = 0
+        // Flush the analyzer's rolling window so the pulse RE-ACQUIRES from clean, exactly
+        // like startup (which locked to conf 0.90 in ~20 s). Without this the post-stall
+        // window kept the pre-stall samples + the brightness STEP the exposure re-lock
+        // injects, freezing amp=0.3618 / conf=0.00 for the whole window; with the camera
+        // re-stalling every few seconds it never flushed and the pulse never came back
+        // (device log 1783442844). displayBPM is held by the publish loop (it never advances
+        // on bpm=0), so the SHOWN pulse holds through re-acquire instead of dropping to 0.
+        analyzer.resetForRecovery()
         // Do NOT reset forcedRecoveries here: every forced recovery fires this very
         // callback ~20 ms later, so zeroing the budget here made each recovery erase
         // its own count — "(1/3)" forever, cold restart unreachable (device log

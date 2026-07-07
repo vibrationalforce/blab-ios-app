@@ -317,6 +317,19 @@ final class CameraAnalyzer {
         isPulseDetecting = false
     }
 
+    /// Flush the rolling pulse window WITHOUT toggling detection off — for use after a
+    /// camera stall recovery (device log 1783442844: after a stall + exposure re-lock,
+    /// the window held pre-stall samples PLUS the huge brightness-step artifact the
+    /// re-lock injected, so `amp` froze at 0.3618 and confidence stayed 0.00 for the
+    /// whole ~10 s window; with the camera re-stalling every few seconds it never
+    /// flushed, so the pulse — locked cleanly at conf 0.90 before the stall — never
+    /// came back). Startup began from an EMPTY window and locked fine; a recovery must
+    /// do the same. Only meaningful while detecting (no-op otherwise).
+    func resetForRecovery() {
+        guard isPulseDetecting else { return }
+        resetPulseState()
+    }
+
     private func resetPulseState() {
         rawRedSignal.removeAll()
         filteredRedSignal.removeAll()
