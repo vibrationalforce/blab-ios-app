@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-07 (Forts. 2) — Warme leise Leads + Logo statt Burger + App-Store-Felder + „sml"-Frage (v10.79.96)
+Founder (2 Videos): „Melodien bei manchen Genres super laut + unangenehm im Ohr, kein angenehmes
+Spektrum … die meisten Genres hauen ihre Melodie unangenehm heraus. Soll schön und entspannt sein."
++ „Im Visual-Fenster Logo oben links statt Burgermenü." + App-Store-Felder mit Zeichenlimits.
+- **Sound (adae7cc, `MusicStyle.swift`):** (1) leadPatchName — harsche Bright-Leads RAUS aus JEDEM
+  Genre („Bright Lead"/„Glass Bell"/„Vapor Lead" → Soft Keys/Warm Strings/Hollow Reed/Pluck/Choir
+  Vox/Deep Sub, 6 distinct, alle pure warm synth, keine real-instrument-Blends). (2) mixLevels —
+  Lead-Pegel überall zurück: war +5…+18% forward → jetzt 0.85–0.92, unter die Fläche getuckt.
+- **Logo statt Burger (6e56fe0, `FloatingVisualWindow.swift`):** das ≡-Drag-Handle oben links ist
+  jetzt `EchoelLogoMark()` (gleiche 40-wide Hit-Area + Drag-Gesture). WICHTIG: der MP4-Export
+  (`VisualRecorder.capture`) blittet die DRAWABLE-TEXTUR direkt → SwiftUI-Overlays (Logo/Badge)
+  sind NICHT im Export, nur on-screen/AirPlay. Logo-im-Video = eigener Metal-Schritt (offen).
+- **App-Store-Copy** geliefert: Werbetext 155/170, Keywords 99/100, Beschreibung ~1520/4000.
+  Regel: Keywords voll ausnutzen, Rest knapp. Open-Standards/MIDI-Export RAUS (nicht erreichbar).
+- **„sml"-Frage** beantwortet (kein Standardbegriff): SPL (Lautheit — wir nutzen LUFS/R128, besser),
+  S/M/L (Visual-Fenstergrößen, drin), MSL (Metal Shading Language — unser Visual-Motor, relevant
+  für Logo-im-Video + Touch→Visual). Rückfrage welches gemeint war.
+- **OFFEN (nächste Zyklen):** Logo ins aufgenommene MP4 (Metal-Draw in die Textur) · Touch verändert
+  das Visual (lokale Wasser-Verdrängung im Shader) · Musiktheorie-Enrichment (Sus/Quartal-Voicings,
+  Pentatoniken, Pedalton) — alle brauchen Geräte-Check bzw. sind Daten-only.
+
 ## 2026-07-07 (Forts.) — Drone-Fläche-ROOT-FIX + Visual-Minimize + App-Store-Copy (v10.79.94/.95)
 Founder: "In der Hauptmelodie sehr laute quakige Töne … es soll sich mehr in den weichen
 Trance-Pad-Ambient einfügen. Checke auch den Musiktheorie-Apparat." + "Visual überarbeiten,
