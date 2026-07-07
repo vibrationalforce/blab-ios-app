@@ -1,17 +1,24 @@
-build: 2026-07-07 v10.79.103 (Visual Touch Instrument in JEDER Fenstergröße spielbar)
+build: 2026-07-07 v10.79.104 (Ralph-Runde: Zucken behoben · Live-Look-Slider · wärmere Sounds · Touch lauter · Lock-Hinweis)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Du hast gefragt: Hinweis "nur im Vollbild spielbar" ODER auch in den kleinen
-  Ansichten spielbar. Ich habe das Zweite gewählt — es IST das Visual Touch Instrument,
-  und ein toter Touch (nichts passiert beim Tippen) ist genau das Verwirrende, das weg
-  muss. Die Touch-Ebene ist jetzt in JEDER Größe aktiv: Small, Medium, Large und Vollbild.
-  Tippen/Wischen erzeugt überall Noten (skalen-gebunden, klingt immer stimmig) + Wasser-
-  Ringe unter den Fingern. Verschoben wird das Fenster weiter über das Logo oben links,
-  also stört die Spiel-Ebene das Bewegen/Größe-Ändern nicht.
-  MITGELIEFERT AUS 10.79.102 (falls noch nicht getestet): ehrlicher Kamera-Hinweis
-  ("Kamera erholt sich…" / "Gerät kühlt ab") + Positions-Anzeige & WAV-Knopf oben in der
-  Leiste, Palette-Knopf raus.
-  TEST 10.79.103:
-  A) Visual Instrument in Small/Medium/Large öffnen (nicht Vollbild): kannst du jetzt
-     auf dem Bild spielen (Noten + Wasser-Ringe)?
-  B) Fenster per Logo verschieben geht weiter reibungslos?
-  C) Vollbild spielt wie gehabt?
+notesT: Große Runde — sechs Sachen, alle Gates grün (CI: iPhone 16 Pro + SE Build+Test,
+  macOS/visionOS/tvOS/watchOS, Lint, Security, Performance/Memory).
+  1) VISUALS ZUCKEN behoben: Ursache war der Ressourcen-Governor, der an der Wärme-Grenze
+     flackerte und ständig die Framerate umschrieb (120↔60) → CADisplayLink-Ruckler. Jetzt
+     asymmetrische Hysterese: runter sofort (bei Hitze/Akku), rauf erst nach 6 s stabil.
+     Plus: Puls-Start beim Launch sauber (kein Ruckel-Ramp mehr).
+  2) LIVE-LOOK-SLIDER: oben in der Vollbild-Leiste ein Slider, der die Looks live wechselt
+     (Water/Aurora/Depth/Plasma) — „während des Spielens", bessere Handhabung.
+  3) HAUPTMENÜ ANGEGLICHEN: die Look-Steuerung im Hauptmenü nutzt jetzt dieselbe Slider-
+     Logik (Donuts-Pill + Look-Slider + Namen), weniger Buttons.
+  4) SOUNDS WÄRMER: alle Genres. Globale Hebel (Brightness-Lift, Onset-Stab, Master-Air
+     runter) + kalte Ausreißer (punk/heavyMetal) entschärft. Kein Sound sticht mehr kalt raus.
+  5) TOUCH-INSTRUMENT LAUTER: setzt sich im Mix etwas mehr durch (Velocity angehoben).
+  6) LOCK-HINWEIS: „Puls erkannt — du kannst loslassen & spielen" beim Settle. Lehrt: erst
+     locken (Finger ruhig ~15-20 s), dann frei spielen — dann bleibt das Tempo gelatcht.
+  TEST 10.79.104:
+  A) Visual länger laufen lassen: ruckelt/zuckt es noch, auch wenn's warm wird?
+  B) Vollbild: Look-Slider oben — wechselt er die Optik flüssig live?
+  C) Hauptmenü: fühlt sich die Look-Steuerung stimmig an (Donuts + Slider)?
+  D) Sounds: klingt alles wärmer/runder? Sticht noch irgendein Genre kalt raus? (welches?)
+  E) Touch-Instrument: hörbar präsenter im Mix?
+  F) Erst Finger ruhig halten bis „Puls erkannt", dann loslassen & spielen — hält das Tempo?
