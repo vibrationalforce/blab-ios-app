@@ -1,17 +1,28 @@
-build: 2026-07-05 v10.79.86 (Puls-Fix: Konfidenz zählt als Evidenz — kein Relock mehr auf laufenden Puls)
+build: 2026-07-05 v10.79.87 (Sphärisch: reine Drone-Fläche + Visual wird spielbares Multi-Touch-Instrument · XY-Pads raus)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Log (Build 2190) hat den letzten Puls-Bug gezeigt — und er ist gefixt:
-  Die Kamera hat deinen Puls GEFUNDEN (76–83 bpm, Konfidenz bis 0.78), aber die
-  Notfall-Rettung für schlechte Belichtungs-Locks hat nur auf EIN Signal
-  (Autokorrelation) geschaut, das bei deinem Gerät oft flach bleibt — und hat
-  den funktionierenden Puls nach ~20 s wieder zerstört (Relock 2/2 im Log).
-  Jetzt zählt Konfidenz als Beweis: ein Lock, der sichere Puls-Werte liefert,
-  wird NIE mehr angefasst. Die Rettung greift nur noch, wenn BEIDE Kanäle tot
-  sind (genau der Fall, in dem sie deine Session bei Relock 1/2 gerettet hat).
-  TEST 10.79.86 (die Fragen von .85 stehen noch offen):
-  A) Beat AUS, Start, 2–3 MINUTEN Augen zu: trägt die Fläche? Tape-Echo +
-     großer Hall spürbar? Verändert sie sich von selbst (~alle 30 s)?
-  B) Sound-Pad langsam ziehen: wandern Klangfarbe UND Bild zusammen?
-  C) Finger ruhig auf der Kamera lassen: bleibt der Puls jetzt STEHEN,
-     statt nach ~20 s wieder auf 0 zu fallen?
-  Log bitte mitschicken.
+notesT: Drei Dinge aus deinen letzten Nachrichten:
+  1) SPHÄRISCHER SOUND: Die Fläche war bisher eine MELODIE über einem
+     Akkordwechsel (teilte sich das Profil mit Dub-Techno/Trap) — das war
+     das "nicht sphärisch / trashig". Jetzt ist sie eine ECHTE DRONE: ein
+     gehaltener Grundton (kein Akkordwechsel = maximal ruhig + kohärent),
+     ein breiter, offener Klang (7er-Voicing), eine Oktave tiefer für Wärme
+     und KEINE Melodie mehr (reine Fläche, kein Genudel). Zusammen mit dem
+     Tape-Delay + großen Hall aus .85 sollte sie jetzt tragen. Basiert auf
+     der Deep Research: Tempo (nicht Genre) treibt die Erregung — eine stille
+     Drone bei ~58 bpm ist das ruhigste mögliche Startmaterial.
+  2) VISUAL = INSTRUMENT: Im Vollbild ist das Visual jetzt ein MULTI-TOUCH-
+     INSTRUMENT. Mehrere Finger spielen Töne — Position (links→rechts =
+     Tonleiter, unten→oben = Oktave), Kontaktfläche + Druck = Anschlag.
+     ALLES ist in die Tonart quantisiert, also klingt es nie falsch, und
+     spielt über denselben Synth wie die Fläche (immer kohärent). Unter den
+     Fingern blühen Wasser-Ringe auf — wie wenn man durchs Wasser fährt.
+  3) XY-PADS RAUS: komplett entfernt, wie gewünscht.
+  TEST 10.79.87:
+  A) Start (Beat aus): trägt die Drone-Fläche jetzt? Sphärisch, ruhig, warm?
+  B) Visual auf Vollbild (Monitor-Icon oben → Größe zykeln bis Vollbild),
+     dann mit mehreren Fingern übers Bild fahren: klingt es kohärent zur
+     Fläche? Wasser-Ringe sichtbar?
+  Log + kurzes Video bitte mitschicken.
+  (Genre-/Sound-Einstellungen + freie Klangschalen/Natur-Samples via VCSL/CC0
+   + ruhigere Visuals kommen als nächste, fokussierte Schritte — die Research
+   dazu liegt in scratchpads/RESEARCH_MEDITATION_ALGORITHM_2026-07-07.md.)

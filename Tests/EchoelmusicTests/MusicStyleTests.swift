@@ -43,6 +43,22 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
+    func testSelfObservationIsATrueDrone() {
+        // Founder 2026-07-07: the Fläche must be "sphärisch und beruhigend … reine
+        // meditative Flächen … kohärentes Timbre am Start". A drone = one sustained
+        // tonic (no chord movement) and NO lead line, so the take opens still and
+        // coherent instead of noodling a melody over a chord change.
+        let p = MusicStyle.selfObservation.harmonicProfile
+        XCTAssertEqual(p.progression, [0], "a drone holds ONE tonic — no chord movement")
+        XCTAssertEqual(p.leadDensity, 0, "pure Fläche — no lead/melody line")
+        XCTAssertFalse(p.arpeggiated, "sustained pad, not an arpeggio")
+        XCTAssertTrue(p.chordTones.contains(6), "lush open 7th voicing for a wide, still pad")
+        // It must NOT share dub/trap's melody-over-chord-change profile any more.
+        XCTAssertNotEqual(p.progression, MusicStyle.dubTechno.harmonicProfile.progression)
+        // Still calm at the source: the tempo window tops out slow.
+        XCTAssertLessThanOrEqual(MusicStyle.selfObservation.tempoRange.upperBound, 78)
+    }
+
     func testEveryStyleHasTitleAndLineage() {
         for style in MusicStyle.allCases {
             XCTAssertFalse(style.displayName.isEmpty, "\(style) needs a title")
