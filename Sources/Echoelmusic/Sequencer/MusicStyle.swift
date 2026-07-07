@@ -38,15 +38,24 @@ public struct HarmonicProfile: Sendable, Equatable {
     public var arpeggiated: Bool
     /// 0 = no lead (drone), 1 = a busy lead line.
     public var leadDensity: Float
+    /// A TRUE sustained drone: hold ONE root and the full chord for the whole
+    /// section — NO walking bass, NO inner 8th/16th pulse layer, regardless of the
+    /// body's arousal. For the meditative Fläche the stillness IS the quality
+    /// (founder 2026-07-07: "echte Musik … nach echtem Wasser … alles reduzieren
+    /// dafür qualitativ hochwertiger"). Movement comes from the slow evolve, the
+    /// tape+hall space and the body — not from note density.
+    public var sustained: Bool
 
     public init(progression: [Int], chordTones: [Int], padOctave: Int,
-                leadOctave: Int, arpeggiated: Bool, leadDensity: Float) {
+                leadOctave: Int, arpeggiated: Bool, leadDensity: Float,
+                sustained: Bool = false) {
         self.progression = progression
         self.chordTones = chordTones
         self.padOctave = padOctave
         self.leadOctave = leadOctave
         self.arpeggiated = arpeggiated
         self.leadDensity = leadDensity
+        self.sustained = sustained
     }
 }
 
@@ -372,7 +381,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
                                    padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.7)
         case .esotericMeditation:
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4, 6],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
         case .classical:
             return HarmonicProfile(progression: [0, 3, 4, 0], chordTones: [0, 2, 4],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.45)
@@ -423,7 +433,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // still drone at ~58 bpm is the calmest possible starting material.
             // See scratchpads/RESEARCH_MEDITATION_ALGORITHM_2026-07-07.md.
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4, 6],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
         }
     }
 

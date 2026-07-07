@@ -95,6 +95,41 @@ final class BioComposerTests: XCTestCase {
         XCTAssertFalse(comp.hasDrums, "self-observation stays ambient — melody only")
     }
 
+    func testSustainedDroneStaysStill_evenWhenTheBodyIsAroused() {
+        // Founder 2026-07-07: "echte Musik … alles reduzieren dafür qualitativ
+        // hochwertiger" + "die Trancepads im Hintergrund sind teilweise schon sehr
+        // gut". A HIGH heart rate + LOW coherence = an aroused body (calm ≤ 0.6),
+        // exactly the state that used to switch on the busy 8th/16th inner pulse +
+        // walking bass (device log 1783424951: 27 notes). The meditative Fläche must
+        // now stay a still, sustained drone regardless of arousal — the good pad
+        // held, the noodle gone.
+        for style in [MusicStyle.selfObservation, .esotericMeditation] {
+            let comp = BioComposer.compose(
+                input(coherence: 0.05, hr: 130, style: style, mode: .flowFree))
+            let pitched = comp.notes
+            // Reduced: a held chord (≤4 tones) + one bass, not a 27-note noodle.
+            XCTAssertLessThanOrEqual(pitched.count, 8,
+                                     "\(style): a drone is a handful of held notes, not a pulse grid")
+            // Exactly one grounding bass root — no walking line.
+            let bass = pitched.filter { $0.role == .bass }
+            XCTAssertEqual(bass.count, 1, "\(style): one sustained bass root, not a walking line")
+            // NOTHING is a short 8th/16th stab — every note is sustained (the pulse
+            // layer produced lengthSteps 1–2; a held pad spans most of the bar).
+            for n in pitched {
+                XCTAssertGreaterThanOrEqual(n.lengthSteps, 4,
+                    "\(style): sustained drone has no short pulse notes (got len \(n.lengthSteps))")
+            }
+        }
+    }
+
+    func testSustainedIsOnlyTheContemplativeGenres() {
+        for style in MusicStyle.allCases {
+            let expected = (style == .selfObservation || style == .esotericMeditation)
+            XCTAssertEqual(style.harmonicProfile.sustained, expected,
+                           "\(style): sustained-drone flag is only for the meditative Flächen")
+        }
+    }
+
     func testOnlyBeatGenresCarryDrums() {
         for style in MusicStyle.allCases {
             let comp = BioComposer.compose(input(hr: 100, style: style))
