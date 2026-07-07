@@ -161,6 +161,46 @@ public final class PolySynthVoice {
         isFXEnabled = on
     }
 
+    // MARK: - Breath swell (0.1 Hz coherence pacing — the medical core)
+
+    /// A slow amplitude swell at 6 breaths/min (0.1 Hz). Applied to the whole voice
+    /// output, it paces the listener's breathing toward the cardiorespiratory
+    /// resonance frequency — the single most evidence-backed lever for raising HRV
+    /// and parasympathetic tone (Shaffer & Meehan 2020; Leslie/Picard 2019 showed a
+    /// 0.1 Hz amplitude modulation measurably slows breathing and lowers arousal).
+    /// See scratchpads/RESEARCH_MEDITATION_ALGORITHM_2026-07-07.md.
+    /// 6 breaths/min = 0.1 Hz = a 10 s cycle.
+    @ObservationIgnored
+    nonisolated public static let breathSwellHz: Float = 0.1
+    /// TARGET swell depth [0…0.6]; 0 = off. The render ramps toward it (click-free).
+    @ObservationIgnored
+    nonisolated(unsafe) private var breathSwellTargetDepth: Float = 0
+    /// Smoothed depth actually applied on the audio thread.
+    @ObservationIgnored
+    nonisolated(unsafe) private var breathSwellDepth: Float = 0
+    /// Breath phase accumulator (radians) — audio-thread only, wrapped each block.
+    @ObservationIgnored
+    nonisolated(unsafe) private var breathPhase: Float = 0
+    /// Observable mirror for the UI ("the sound is breathing with you").
+    public private(set) var isBreathSwellActive = false
+
+    /// Set the breath-swell depth (0 = off). Low-rate control call (per generate /
+    /// mode change). The audio thread ramps to it, so changing it never clicks.
+    public func setBreathSwell(depth: Float) {
+        let d = Swift.min(Swift.max(depth, 0), 0.6)
+        breathSwellTargetDepth = d
+        isBreathSwellActive = d > 0
+    }
+
+    /// Pure per-sample breath gain from the accumulator phase — a raised-cosine
+    /// swell riding between `(1 - depth)` and `1` across each cycle (phase 0 = full,
+    /// phase π = the trough). `depth` 0 → always 1.0 (no-op). Audio-thread safe
+    /// (one cosf, no allocation). Pure → unit-tested on Linux.
+    nonisolated public static func breathGain(phase: Float, depth: Float) -> Float {
+        let swell = (1 - cosf(phase)) * 0.5          // ∈ [0,1]
+        return 1 - depth * swell                     // ∈ [1-depth, 1]
+    }
+
     public init(maxVoices: Int = 8) {
         // Performance regulation (10.76.49 — "Audio Aussetzer / Kratzen vermeiden"):
         // worst-case additive cost is voices × harmonics. Capping voices 12→8 and
@@ -392,6 +432,25 @@ public final class PolySynthVoice {
         // lets the Effects panel bypass the entire chain.
         if fxEnabled {
             fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
+        }
+
+        // BREATH SWELL (0.1 Hz coherence pacing — the medical core). Ramp the applied
+        // depth toward its target so enabling/disabling never clicks, then multiply a
+        // per-frame raised-cosine gain into the block. Pure arithmetic (one cosf per
+        // sample) — no allocation, no locks: audio-thread safe. Skipped entirely when
+        // off (depth ~0), so it is a true no-op unless the Fläche armed it.
+        breathSwellDepth += (breathSwellTargetDepth - breathSwellDepth) * 0.05
+        if breathSwellDepth > 0.0005 {
+            let inc = 2 * Float.pi * Self.breathSwellHz / Float(Self.sampleRate)
+            let depth = breathSwellDepth
+            var ph = breathPhase
+            for i in 0..<count {
+                let g = Self.breathGain(phase: ph, depth: depth)
+                scratchL[i] *= g
+                scratchR[i] *= g
+                ph += inc
+            }
+            breathPhase = ph.truncatingRemainder(dividingBy: 2 * Float.pi)
         }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)

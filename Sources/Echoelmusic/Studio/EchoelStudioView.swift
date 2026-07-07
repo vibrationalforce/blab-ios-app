@@ -945,7 +945,9 @@ struct EchoelStudioView: View {
     private var compositionPanel: some View {
         panel("Composition", "Genre · key · tuning · tempo", isExpanded: $showComposition) {
             genrePicker
-            beatModeRow
+            // beatModeRow REMOVED (founder 2026-07-07: "Schmeiß den Beat komplett
+            // raus") — pure meditative Flächen only. The row stays defined below,
+            // just unpresented (reversible).
             soundSourceRow
             tonartRow
             kammertonRow
@@ -2295,6 +2297,7 @@ struct EchoelStudioView: View {
         pianoRoll.allNotesOff()
         panicAllNotesOff()
         synth.bioModulationEnabled = false   // stop the 10 Hz timbre drive too
+        synth.setBreathSwell(depth: 0)       // stop the 0.1 Hz breath pacing
         stopBioSource()
         restorePreTakeVisual()
         EchoelCrashLog.breadcrumb("stopEverything: transport + all voices released")
@@ -2387,25 +2390,14 @@ struct EchoelStudioView: View {
     /// the pure, tested rule (settled + unchanged body → hold). Only the auto evolve
     /// path calls this — user edits and the first lock-snap always re-seed.
     private func evolveShouldReseed() -> Bool {
-        // Pure Flächen always breathe onward (founder 2026-07-07: "Es soll sich
-        // natürlich auch was verändern"): with no groove to protect, the gentle
-        // ~30 s boundary re-seed IS the natural evolution — the STRUCTURE seed
-        // keeps it the same piece, the advancing detail seed moves the clouds.
-        // The HOLD law remains for beat modes, where a settled body earns a
-        // settled groove.
-        if beatMode == .off { return true }
-        #if canImport(AVFoundation)
-        guard let frame = bus.usableBio() else { return true }   // no body → stay alive
-        return StudioCalculator.shouldReseedOnEvolve(
-            settled: cameraRPPG.isSettled,
-            hasBaseline: lastGenBody != nil,
-            currentBPM: Double(frame.heartRateBPM),
-            baselineBPM: lastGenBody?.bpm ?? 0,
-            currentCoherence: Double(frame.coherence),
-            baselineCoherence: lastGenBody?.coherence ?? 0)
-        #else
+        // The BEAT IS GONE (founder 2026-07-07: "Schmeiß den Beat komplett raus") —
+        // the product is nothing but pure meditative Flächen now, so a take ALWAYS
+        // breathes gently onward ("Es soll sich natürlich auch was verändern"): the
+        // ~30 s boundary re-seed IS the natural evolution — the STRUCTURE seed keeps
+        // it the same piece, the advancing detail seed moves the clouds. (The old
+        // HOLD-when-settled law only ever guarded a groove; with no groove there is
+        // nothing to protect. StudioCalculator.shouldReseedOnEvolve stays for reuse.)
         return true
-        #endif
     }
 
     // MARK: - The individual algorithm: bio → music
@@ -2624,21 +2616,19 @@ struct EchoelStudioView: View {
         // shamanic ur-rhythm — seeded from the STRUCTURE seed (body-only, no
         // evolution nonce) so the drum holds its walk across evolve re-seeds while
         // melody detail evolves above it; Genre = the style's archetypal groove.
-        let groove: (steps: [[Bool]], accents: [[Bool]])
-        switch beatMode {
-        case .off:
-            groove = BioComposer.silentBeat()
-        case .pulse:
-            let state = BioComposer.musicalState(
-                coherence: liveCoh,
-                hrvNormalized: fin(frame?.hrvNormalized, 0.5),
-                heartRateBPM: Double(fin(frame?.heartRateBPM, 70)))
-            groove = BioComposer.shamanicBeat(seed: structureSeed,
-                                              energy: state.energy, calm: state.calm)
-        case .genre:
-            groove = (composition.drumSteps, composition.drumAccents)
-        }
+        // BEAT REMOVED (founder 2026-07-07: "Schmeiß den Beat komplett raus"). The
+        // product is pure meditative Flächen — NO drum layer, ever, whatever the
+        // stored beatMode or the genre says. The BeatMode enum, the beatModeRow
+        // control and the shamanic/genre groove builders stay compiling (reversible),
+        // but generation is unconditionally silent. This also removes the shamanic
+        // pulse drum that a stale stored beatMode = .pulse was still playing under
+        // the Fläche (device log 1783426400).
+        let groove: (steps: [[Bool]], accents: [[Bool]]) = BioComposer.silentBeat()
         beatPlayer.pattern.loadAtBoundary(steps: groove.steps, accents: groove.accents)
+        // BREATH SWELL (0.1 Hz medical coherence pacer): arm it for the sustained
+        // meditative Flächen (where the whole point is to pace the breath toward
+        // resonance), off for the other genres. The synth ramps to it click-free.
+        synth.setBreathSwell(depth: style.harmonicProfile.sustained ? 0.22 : 0)
         // GLIDE the tempo (not snap) so a body re-seed eases in instead of jumping ("bpm
         // springt plötzlich"). glideTempo now eases whether the take is PLAYING (advance()
         // ticks) OR STOPPED (a small main-queue timer) — a re-seed landing on a paused take no
@@ -2652,7 +2642,7 @@ struct EchoelStudioView: View {
         // whole take swings together instead of sitting dead-on-grid.
         // Pulse/Off modes run STRAIGHT: the shamanic pulse must walk evenly (a swung
         // ur-drum reads as a genre shuffle), and pure Flächen have nothing to swing.
-        beatPlayer.pattern.setSwing(beatMode == .genre ? style.swing : 0)
+        beatPlayer.pattern.setSwing(0)   // no beat → nothing to swing (pure Flächen run straight)
         // MULTITIMBRAL Step 2b: give the LEAD voice a genre-appropriate timbre so
         // the lead line reads as its own instrument (synth lead vs jazz Rhodes vs
         // klezmer clarinet) over the pad/bass. Falls back to "Bright Lead".
