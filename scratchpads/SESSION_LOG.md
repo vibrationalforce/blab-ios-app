@@ -3,6 +3,36 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-07 (Forts.) — Drone-Fläche-ROOT-FIX + Visual-Minimize + App-Store-Copy (v10.79.94/.95)
+Founder: "In der Hauptmelodie sehr laute quakige Töne … es soll sich mehr in den weichen
+Trance-Pad-Ambient einfügen. Checke auch den Musiktheorie-Apparat." + "Visual überarbeiten,
+das Prisma-Ding ist zu viel da, minimalisieren." + App-Store-Felder (Werbetext/Beschreibung/
+Keywords mit Zeichenlimits) + Frage ob Open-Standards/MIDI-Export im Werbetext bleiben sollen.
+- **ROOT-CAUSE (Musiktheorie-Audit via Subagent):** der HOME-Default `.selfObservation` wurde
+  in `BioComposer.compose` abgefangen → `ambientMelody` = NACKTE einstimmige `.lead`-Linie OHNE
+  Pad = dünn/formant/"quakig" + laut (war der ganze Sound). Seine `harmonicProfile` war seit
+  79.90 die satte Sustained-Drone (leadDensity 0, IDENTISCH zu esotericMeditation, das der
+  Founder lobt) — aber nie erreicht. FIX (b572cd6): `.selfObservation`-Interception raus →
+  fällt auf `composeHarmonic` → echte Drone-Fläche (Pad + 1 Bass, kein Lead, keine Drums).
+  `ambientMelody` bleibt definiert (unused, reversibel). EchoelmusicApp Vor-Generate-Lead
+  "Bright Lead"→"Soft Keys". Tests: NoteRoleTests testAmbientLineIsLead→testSelfObservationIsA
+  DroneNotALead; entlarvt testSustainedDroneStaysStill (erwartete 1 Bass, lief vorher heimlich
+  auf Fehler unter dem soft-gated macOS-Job).
+- **Visual minimalisiert (df55cf3):** Look-Strip 11→5 ruhige (Donuts·Water·Aurora·Depth·Plasma),
+  Fenster-cycleLook nur die 4 ruhigen (kein Tippen an Prism vorbei), onAppear snapt persistierten
+  busy-Look→Water + löscht A/B-Blend, `visualBlendControls` aus beiden Flächen raus (reversibel).
+  Neu: `calmMetalStyles`/`calmLooks = [3,5,7,2]`. `styleCount` entfernt.
+- **Open-Standards-Klärung:** Founder hatte recht — außer WAV-Export ist NICHTS davon erreichbar
+  (MIDI-Export-Button raus seit 79.x "Midi Quatsch", OSC/ADM/Art-Net-UII = unpräsentierte
+  Connect-Fläche). Entscheidung: aus dem App-Store-Text RAUS; Code drin lassen; als eigener
+  "Connect/Pro"-Zyklus später zurück, wenn der Consumer-Kern rund ist.
+- **App-Store-Copy geliefert** (im Chat, ehrlich, keine Streaming/Video/OSC/Medizin-Claims):
+  Werbetext 155/170, Keywords 99/100, Beschreibung ~1520/4000. Regel: Keywords voll ausnutzen,
+  Werbetext+Beschreibung knapp.
+- **Music-theory Next (audit, risikoarm, Daten-only):** Sus2/Sus4/Add9/Quartal-Voicings ·
+  meditative Pentatoniken (Hirajōshi/In-sen/Iwato/Kumoi/Ritusen) · Pedalton-Drone-Bass ·
+  ggf. Home-Skala .minor→.dorian. Rausch-Triade unangetastet.
+
 ## 2026-07-07 — Real Instruments ganz raus + Schalter weg · Wasser-Touch · Header→Web · Visual Touch Instrument (v10.79.93)
 Vier Founder-Punkte in einem grünen Build (Xcode ✅ CI ✅, TestFlight getriggert):
 1. **"Real Instruments Komplett raus. Auch den Schalter weg."** → die VORIGE Runde

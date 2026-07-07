@@ -275,49 +275,61 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // emulations. Genre character now comes from the synth's own envelope +
         // brightness (a "nuance in the base synth"), not from imitating an instrument.
         // Still ≥6 distinct so leads keep some variety across genres.
+        // ANGENEHMES SPEKTRUM (founder 2026-07-07: "die Melodien sind bei manchen
+        // Genres super laut und unangenehm im Ohr, kein angenehmes Spektrum … die
+        // meisten Genres hauen ihre Melodie unangenehm heraus. Das soll schön und
+        // entspannt sein"). The piercing bright leads — "Bright Lead" (spectralShape
+        // bright, resonance + vibrato, sustain 0.7), "Glass Bell" (brightness 0.8),
+        // "Vapor Lead" (bright, resonance) — are gone from EVERY genre. Warm, mellow
+        // leads only (Soft Keys / Warm Strings / Hollow Reed / Pluck / Choir Vox /
+        // Deep Sub): pure warm synth, gentle top end, no shrill spectrum. Genre
+        // character comes from envelope + progression, not a piercing lead.
         switch self {
         case .dubTechno:          return "Pluck"
-        case .trap:               return "Glass Bell"
-        case .vaporwave:          return "Vapor Lead"
-        case .eighties:           return "Bright Lead"
-        case .disco:              return "Bright Lead"
-        case .synthwave:          return "Bright Lead"
+        case .trap:               return "Soft Keys"     // was Glass Bell (glassy 0.8)
+        case .vaporwave:          return "Warm Strings"  // was Vapor Lead (bright)
+        case .eighties:           return "Soft Keys"     // was Bright Lead
+        case .disco:              return "Soft Keys"     // was Bright Lead
+        case .synthwave:          return "Warm Strings"  // was Bright Lead
         case .earlySynth:         return "Pluck"
-        case .futuristic:         return "Glass Bell"
+        case .futuristic:         return "Hollow Reed"   // was Glass Bell
         case .sciFi:              return "Choir Vox"
-        case .psytrance:          return "Bright Lead"
+        case .psytrance:          return "Pluck"         // was Bright Lead — plucky, not shrill
         case .esotericMeditation: return "Choir Vox"
         case .classical:          return "Soft Keys"
-        case .jazz:               return "Soft Keys"    // warm Rhodes-style keys
-        case .klezmer:            return "Bright Lead"
+        case .jazz:               return "Soft Keys"     // warm Rhodes-style keys
+        case .klezmer:            return "Hollow Reed"   // was Bright Lead — reedy + warm
         case .oriental:           return "Choir Vox"
-        case .punk:               return "Bright Lead"
-        case .rocknroll:          return "Bright Lead"
-        case .rock:               return "Bright Lead"
-        case .ska:                return "Bright Lead"
+        case .punk:               return "Soft Keys"     // was Bright Lead
+        case .rocknroll:          return "Soft Keys"     // was Bright Lead
+        case .rock:               return "Soft Keys"     // was Bright Lead
+        case .ska:                return "Soft Keys"     // was Bright Lead
         case .rocksteady:         return "Soft Keys"
-        case .heavyMetal:         return "Bright Lead"
+        case .heavyMetal:         return "Hollow Reed"   // was Bright Lead
         case .doom:               return "Deep Sub"
-        case .selfObservation:    return "Choir Vox"
+        case .selfObservation:    return "Choir Vox"     // (drone: leadDensity 0, unused)
         }
     }
 
     /// Per-genre MIX GLUE (relative role levels, applied as velocity multipliers
     /// at generate time — velocity scales each voice's amplitude, so this is a
-    /// pure level move, no audio-thread change). Keeps each genre balanced: bass
-    /// firmer in dub/trap/heavy, lead forward in synth genres, pads back in dense
-    /// takes, everything gentle (0.85–1.2) so nothing clips or disappears.
+    /// pure level move, no audio-thread change). LEAD PULLED BACK across the board
+    /// (founder 2026-07-07: "die meisten Genres hauen ihre Melodie unangenehm
+    /// heraus … soll schön und entspannt sein") — the lead used to sit +5…+18%
+    /// FORWARD in the synth genres; now it's tucked UNDER the pad (0.85–0.92)
+    /// everywhere, so the melody supports the texture instead of blasting over it.
+    /// Bass/pad glue unchanged. Everything stays gentle (0.85–1.18), no clip.
     public var mixLevels: (bass: Float, harmony: Float, lead: Float) {
         switch self {
-        case .dubTechno, .trap:                       return (1.18, 0.92, 1.00)
-        case .ska, .rocksteady, .disco:               return (1.12, 0.95, 1.05)
+        case .dubTechno, .trap:                       return (1.18, 0.94, 0.88)
+        case .ska, .rocksteady, .disco:               return (1.10, 0.96, 0.90)
         case .synthwave, .eighties, .vaporwave, .earlySynth:
-                                                      return (1.00, 0.90, 1.15)
-        case .futuristic, .sciFi, .psytrance:         return (1.00, 0.88, 1.18)
-        case .classical, .jazz, .klezmer, .oriental:  return (1.00, 1.00, 1.06)
+                                                      return (1.00, 0.94, 0.90)
+        case .futuristic, .sciFi, .psytrance:         return (1.00, 0.92, 0.88)
+        case .classical, .jazz, .klezmer, .oriental:  return (1.00, 1.00, 0.90)
         case .punk, .rock, .rocknroll, .heavyMetal, .doom:
-                                                      return (1.12, 0.90, 1.10)
-        case .esotericMeditation, .selfObservation:   return (0.95, 1.05, 0.98)
+                                                      return (1.10, 0.92, 0.90)
+        case .esotericMeditation, .selfObservation:   return (0.95, 1.05, 0.85)
         }
     }
 
