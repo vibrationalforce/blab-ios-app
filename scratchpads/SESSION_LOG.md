@@ -4580,3 +4580,5 @@ auch auf das Audio-Gate angewandt) + 2 MEDIUM (Sicherheitszeile auf dem Session-
 Reduce Motion → stetiges Licht). Beide TestFlight-Runs grün. NÄCHSTER SCHRITT: Founder
 testet die komplette Session auf dem Gerät; danach Zyklus 7 (Abschluss-Karte), dann
 Resonanz-Onboarding · Wetter/Ort-Journal (Founder-Gate Info.plist!) · lokale Push.
+
+**2026-07-07 (Verifikation v10.79.85, 02fd1fe):** alle drei Gates grün — xcode-compile-check ✅ · ci.yml ✅ (run 28846555088) · testflight.yml ✅ (#2190, run 28846555063). Build ist bei App Store Connect hochgeladen; TestFlight-Verarbeitung läuft. Warte auf Founder-Gerätetest (A: Fläche tragen? B: Pads verknüpft?) + Log.
