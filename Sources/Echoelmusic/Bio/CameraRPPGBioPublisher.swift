@@ -234,16 +234,25 @@ public final class CameraRPPGBioPublisher {
     nonisolated static let weakRelockAcfStrong: Float = 0.4
     nonisolated static let weakRelockAfterTicks = 120   // ~12 s of accumulated weakness
     nonisolated static let maxWeakRelocks = 2
+    // Confidence counts as pulse evidence too (device log 1783410930: the analyzer
+    // was reading a real 76–83 bpm at conf 0.6–0.78 while acf sat at ~0 — this
+    // device shows periodicity through the peak counter, not always through acf —
+    // and relock 2/2 fired anyway, collapsing a WORKING signal to conf 0.03).
+    // A lock that is producing confident estimates is not a bad lock.
+    nonisolated static let weakRelockConfFloor: Float = 0.35
+    nonisolated static let weakRelockConfStrong: Float = 0.6
 
     /// One 10 Hz step of the weak-periodicity counter. Not diagnostic until the
-    /// window is FULL; a settled pulse is never disturbed; intermittent "acf=0"
-    /// no-estimate markers accumulate, genuinely strong acf pays the counter
-    /// back down twice as fast. Pure → unit-tested.
+    /// window is FULL; a settled pulse is never disturbed; weakness means NO pulse
+    /// evidence at all (acf AND confidence both low) — genuinely strong evidence on
+    /// either channel pays the counter back down twice as fast. Pure → unit-tested.
     nonisolated static func weakTicksStep(current: Int, windowFull: Bool,
-                                          acf: Float, settled: Bool) -> Int {
+                                          acf: Float, confidence: Float, settled: Bool) -> Int {
         guard windowFull, !settled else { return 0 }
-        if acf < weakRelockAcfFloor { return current + 1 }
-        if acf >= weakRelockAcfStrong { return max(0, current - 2) }
+        if acf >= weakRelockAcfStrong || confidence >= weakRelockConfStrong {
+            return max(0, current - 2)
+        }
+        if acf < weakRelockAcfFloor && confidence < weakRelockConfFloor { return current + 1 }
         return current
     }
 
@@ -604,6 +613,7 @@ public final class CameraRPPGBioPublisher {
         weakAcfTicks = Self.weakTicksStep(current: weakAcfTicks,
                                           windowFull: analyzer.lastWindowSize >= 140,
                                           acf: Float(analyzer.lastAutoStrength),
+                                          confidence: Float(confidence),
                                           settled: isSettled)
         if Self.weakLockNeedsResettle(weakTicks: weakAcfTicks, relocksUsed: weakRelocksUsed) {
             weakRelocksUsed += 1
@@ -614,8 +624,8 @@ public final class CameraRPPGBioPublisher {
             saturatedTicks = 0
             weakAcfTicks = 0
             EchoelCrashLog.breadcrumb(String(format:
-                "rPPG: re-settling exposure — weak periodicity on a bright lock (bright=%.2f acf=%.2f, relock %d/%d)",
-                bright, Float(analyzer.lastAutoStrength), weakRelocksUsed, Self.maxWeakRelocks))
+                "rPPG: re-settling exposure — weak periodicity on a bright lock (bright=%.2f acf=%.2f conf=%.2f, relock %d/%d)",
+                bright, Float(analyzer.lastAutoStrength), Float(confidence), weakRelocksUsed, Self.maxWeakRelocks))
             return
         }
 
