@@ -108,4 +108,20 @@ final class RPPGExposureLockTests: XCTestCase {
         XCTAssertFalse(P.weakLockNeedsResettle(weakTicks: 10_000, relocksUsed: P.maxWeakRelocks),
                        "the budget is hard — an inherently weak placement can never thrash the lock")
     }
+
+    func testPhantomBackoff_stretchesRequiredStableTime_andIsCapped() {
+        // Device log 2026-07-07 (~890 s on): with NO finger, ambient light re-armed the
+        // lock every ~9 s. Each quick-fail must stretch the next lock's stable window.
+        let base = 12
+        XCTAssertEqual(P.requiredStableTicks(base: base, quickFails: 0), base,
+                       "no failures → the fast base lock (~1.2 s) stays")
+        XCTAssertEqual(P.requiredStableTicks(base: base, quickFails: 1), base * 2)
+        XCTAssertEqual(P.requiredStableTicks(base: base, quickFails: 3), base * 4)
+        XCTAssertEqual(P.requiredStableTicks(base: base, quickFails: 5), base * 6,
+                       "cap: ~7.2 s — longer than ambient flicker, easy for a real finger")
+        XCTAssertEqual(P.requiredStableTicks(base: base, quickFails: 99), base * 6,
+                       "beyond the cap the requirement stops growing")
+        XCTAssertEqual(P.requiredStableTicks(base: base, quickFails: -2), base,
+                       "garbage input clamps to the base")
+    }
 }
