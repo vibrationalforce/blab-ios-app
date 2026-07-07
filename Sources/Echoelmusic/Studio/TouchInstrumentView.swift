@@ -127,6 +127,9 @@ final class TouchInstrumentUIView: UIView {
             let pitch = pitch(at: p)
             held[id] = pitch
             synth?.noteOn(pitch: pitch, velocity: velocity(of: touch))
+            // Playing feeds the picture: each note pumps excitation into the Metal
+            // visual (swells intensity/motion), so the fingers visibly shape the light.
+            TouchVisualEnergy.shared.excite(0.35)
             spawnRing(at: p, strong: true)
             lastRing[id] = p
         }
@@ -142,6 +145,7 @@ final class TouchInstrumentUIView: UIView {
                 synth?.noteOff(pitch: old)
                 synth?.noteOn(pitch: new, velocity: velocity(of: touch))
                 held[id] = new
+                TouchVisualEnergy.shared.excite(0.15)   // slides keep the picture alive
             }
             // Wake trail — a small ring roughly every 14 pt of travel.
             if let last = lastRing[id], hypot(p.x - last.x, p.y - last.y) > 14 {
@@ -177,6 +181,7 @@ final class TouchInstrumentUIView: UIView {
             for pitch in held.values { synth?.noteOff(pitch: pitch) }
             held.removeAll()
             lastRing.removeAll()
+            TouchVisualEnergy.shared.reset()   // no lingering swell after dismissal
         }
     }
 

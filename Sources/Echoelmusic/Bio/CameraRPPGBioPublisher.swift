@@ -200,6 +200,10 @@ public final class CameraRPPGBioPublisher {
     // not the dim finger-less one; re-settle if a lock saturates.
     @ObservationIgnored private var exposureLocked = false
     @ObservationIgnored private var fingerStableTicks = 0
+    /// Ticks the CURRENT lock has been held — a lock that dies young is a phantom.
+    @ObservationIgnored private var lockAgeTicks = 0
+    /// Consecutive locks that quick-failed (finger lost within quickFailWindowTicks).
+    @ObservationIgnored private var quickFailLocks = 0
     @ObservationIgnored private var saturatedTicks = 0
     @ObservationIgnored private var fingerLostTicks = 0
     /// Ticks the finger has been CONTINUOUSLY present (regardless of brightness) —
@@ -265,6 +269,24 @@ public final class CameraRPPGBioPublisher {
     /// been continuously present. Pure → unit-tested.
     nonisolated static func lockBrightnessCeiling(fingerPresentTicks: Int) -> Float {
         fingerPresentTicks < strictLockWindowTicks ? strictLockBrightness : maxLockBrightness
+    }
+
+    // PHANTOM-LOCK BACKOFF (device log 2026-07-07, ~890 s onward): with NO finger on
+    // the lens, ambient light flicked the finger detector on (R≈0.41) just long enough
+    // to lock — the lock itself then DARKENED the scene (R→0.15), the "finger" vanished,
+    // the unlock re-brightened it, and the cycle repeated every ~9 s indefinitely (torch
+    // hot, exposure churn, UI flicker). Discriminator: a REAL finger survives a lock for
+    // many seconds/minutes; these phantom locks die within a few. So a lock that loses
+    // its finger inside `quickFailWindowTicks` counts as a quick-fail, and each
+    // consecutive quick-fail stretches the NEXT lock's required stable time — the
+    // oscillation self-extinguishes while a genuine placement is barely delayed.
+    nonisolated static let quickFailWindowTicks = 60   // lock died within ~6 s = phantom
+
+    /// Stable ticks required before the next lock, given how many consecutive locks
+    /// quick-failed. 0 fails → base (~1.2 s); each fail adds one base step, capped at
+    /// 6× (~7.2 s) — longer than any ambient flicker, easy for a real steady finger.
+    nonisolated static func requiredStableTicks(base: Int, quickFails: Int) -> Int {
+        base * (1 + min(max(quickFails, 0), 5))
     }
 
     // BRIGHT-LOCK RECOVERY: a lock that is bright-but-not-washed-out (0.34 << the
@@ -636,18 +658,27 @@ public final class CameraRPPGBioPublisher {
             fingerStableTicks = (Self.canLockNow(fingerDetected: fingerDetected, brightness: bright)
                                  && bright < ceiling)
                 ? (fingerStableTicks + 1) : 0
-            if fingerStableTicks >= Self.lockAfterTicks {
+            // Phantom-lock backoff: consecutive quick-failed locks stretch the stable
+            // time the next lock must earn (see requiredStableTicks) — so ambient
+            // flicker can't re-arm the lock↔unlock oscillation.
+            if fingerStableTicks >= Self.requiredStableTicks(base: Self.lockAfterTicks,
+                                                             quickFails: quickFailLocks) {
                 capture.lockExposure()
                 capture.setTorch(true)              // exposure reconfig can drop torch
                 exposureLocked = true
                 saturatedTicks = 0
                 fingerLostTicks = 0
                 weakAcfTicks = 0
+                lockAgeTicks = 0
                 EchoelCrashLog.breadcrumb(String(format:
                     "rPPG: exposure locked on finger (bright=%.2f R=%.2f)", bright, red))
             }
             return
         }
+        lockAgeTicks += 1
+        // A lock that survives past the phantom window proves a real placement —
+        // clear the backoff so a later genuine re-grip locks at the fast base time.
+        if lockAgeTicks == Self.quickFailWindowTicks { quickFailLocks = 0 }
 
         // Locked. If it saturates for a sustained spell, the AC pulse is swamped →
         // hand exposure back to auto so it re-settles, then the loop re-locks.
@@ -694,6 +725,14 @@ public final class CameraRPPGBioPublisher {
         // against the new (possibly different) finger pressure/position.
         fingerLostTicks = fingerDetected ? 0 : (fingerLostTicks + 1)
         if fingerLostTicks >= Self.relockOnLossTicks {
+            // A lock that died young (finger lost within the phantom window) was almost
+            // certainly ambient flicker, not a hand — count it toward the backoff. Note
+            // the age includes the ~3 s loss wait, so the window comfortably covers it.
+            if lockAgeTicks < Self.quickFailWindowTicks {
+                quickFailLocks += 1
+            } else {
+                quickFailLocks = 0
+            }
             capture.unlockExposure()
             exposureLocked = false
             fingerStableTicks = 0
@@ -717,6 +756,8 @@ public final class CameraRPPGBioPublisher {
         fingerPresentTicks = 0
         weakAcfTicks = 0
         weakRelocksUsed = 0   // fresh capture session = fresh re-lock budget
+        lockAgeTicks = 0
+        quickFailLocks = 0    // fresh session = fresh phantom-backoff state
         stallTicks = 0
         // Flush the analyzer's rolling window so the pulse RE-ACQUIRES from clean, exactly
         // like startup (which locked to conf 0.90 in ~20 s). Without this the post-stall
@@ -761,6 +802,8 @@ public final class CameraRPPGBioPublisher {
         fingerStableTicks = 0
         saturatedTicks = 0
         fingerLostTicks = 0
+        lockAgeTicks = 0
+        quickFailLocks = 0
         stallTicks = 0
         forcedRecoveries = 0
     }

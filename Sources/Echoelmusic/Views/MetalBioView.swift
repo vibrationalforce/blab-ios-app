@@ -68,6 +68,48 @@ private struct BioUniforms {
     var blend: Float = 0
 }
 
+/// Touch → visual excitation channel (founder 2026-07-07: "das Spiel mit den Fingern
+/// beeinflusst die visuals noch mehr"). The play surface (TouchInstrumentView) pushes
+/// energy in on every note; the renderer's draw loop consumes it per frame, boosting
+/// intensity/motion so the picture visibly SWELLS under the fingers and relaxes when
+/// they rest. Lock-protected + decayed on read (same hand-off pattern as the rPPG
+/// RGBSampleQueue) — zero SwiftUI invalidations, safe from any thread, and the boost
+/// rides through the renderer's existing eased targets, so it glides rather than snaps.
+/// Flash-safety unaffected: the pulse/flash rate is capped downstream regardless.
+final class TouchVisualEnergy: @unchecked Sendable {
+    static let shared = TouchVisualEnergy()
+    private let lock = NSLock()
+    private var energy: Float = 0
+    private var lastRead: CFTimeInterval = 0
+
+    /// Add excitation (touch began ≈ 0.35, slide re-trigger ≈ 0.15). Clamped to 1.
+    func excite(_ amount: Float) {
+        lock.lock()
+        energy = min(1, energy + max(0, amount))
+        lock.unlock()
+    }
+
+    /// Current energy, decayed exponentially (~1.2 s time constant) since the last
+    /// read — called once per rendered frame, so the swell breathes out naturally.
+    func value(now: CFTimeInterval) -> Float {
+        lock.lock()
+        defer { lock.unlock() }
+        if lastRead == 0 { lastRead = now }
+        let dt = Float(max(0, now - lastRead))
+        lastRead = now
+        energy = max(0, energy * exp(-dt / 1.2))
+        return energy
+    }
+
+    /// Drop all energy (session stop / window dismissed).
+    func reset() {
+        lock.lock()
+        energy = 0
+        lastRead = 0
+        lock.unlock()
+    }
+}
+
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
 @MainActor
 struct MetalBioView: UIViewRepresentable {
@@ -382,12 +424,19 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let idleCoh   = Float(0.5 + 0.25 * sin(idleT * 0.06))
             let idleBreath = Float(0.5 + 0.35 * sin(idleT * 0.09))
             let liveTone = musicTone ?? (idle ? idleTone : lookToneFallbackHz)
+            // Finger-play excitation: notes on the play surface pump energy in; the
+            // picture SWELLS (brighter, livelier, wider) under the hands and breathes
+            // back out over ~a second when they rest. Rides the eased targets below,
+            // so it glides. Flash rate stays capped inside update() regardless.
+            let touchE = TouchVisualEnergy.shared.value(now: nowGov)
             update(hr: bio?.heartRateBPM ?? 60,
                    coherence: bio?.coherence ?? (idle ? idleCoh : 0.5),
                    breath: bio?.breathPhase ?? (idle ? idleBreath : 0.5),
                    toneHz: liveTone,
-                   intensity: lookIntensity, ringDensity: lookRingDensity * detailScale,
-                   motion: lookMotion, spread: lookSpread,
+                   intensity: lookIntensity * (1 + 0.45 * touchE),
+                   ringDensity: lookRingDensity * detailScale,
+                   motion: lookMotion * (1 + 0.30 * touchE),
+                   spread: lookSpread * (1 + 0.20 * touchE),
                    // Armed entrainment overrides the HR-derived pulse so the visual
                    // breathes at the brainwave band's flash-safe sub-harmonic (still
                    // re-capped ≤3 Hz inside update()).
