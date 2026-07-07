@@ -36,33 +36,62 @@ struct BioStripView: View {
     /// "HRV etc. soll erklärt werden"). Makes the tap-to-learn discoverable.
     @State private var showGuide = false
 
+    /// Brief "pulse locked — you can lift and play now" confirmation. Teaches the
+    /// lock-THEN-play flow (device log 2026-07-07: the user played the touch instrument
+    /// immediately, so the finger kept lifting and the read never locked). Shown for a few
+    /// seconds when the pulse settles, then it gets out of the way. Low-frequency @State.
+    @State private var lockedCueVisible = false
+    /// Generation token so a later settle cancels an earlier auto-hide (no flicker).
+    @State private var lockedCueToken = 0
+
     var body: some View {
         VStack(spacing: 0) {
-            recoveryBanner
+            statusBanner
             strip
+        }
+        // When the pulse settles, flash a brief "locked — you can lift & play" cue so the
+        // user learns to LOCK first, THEN play (the take tempo is latched, so lifting the
+        // finger to play no longer perturbs it). `isSettled` is low-frequency.
+        .onChange(of: cameraRPPG.isSettled) { _, settled in
+            guard settled, cameraRPPG.isRunning else { return }
+            lockedCueToken += 1
+            let token = lockedCueToken
+            withAnimation(.easeInOut(duration: 0.2)) { lockedCueVisible = true }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(6))
+                if token == lockedCueToken {
+                    withAnimation(.easeInOut(duration: 0.2)) { lockedCueVisible = false }
+                }
+            }
         }
     }
 
-    /// Honest, quiet line when the camera is recovering from a stall or the device is
-    /// cooling — so a mid-session pause is never silent/confusing (founder-approved:
-    /// "ehrlicher Hinweis"). `recoveryState` changes only on a transition (not 10 Hz),
-    /// and it's read HERE in the leaf, so it never churns the parent body.
-    @ViewBuilder private var recoveryBanner: some View {
+    /// The one status line above the strip. Recovery/cooling (urgent) wins; otherwise the
+    /// brief "pulse locked" confirmation. Both read low-frequency state in THIS leaf, so
+    /// they never churn the parent body (freeze rule).
+    @ViewBuilder private var statusBanner: some View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
-            HStack(spacing: 5) {
-                Image(systemName: "camera.metering.center.weighted")
-                    .font(.system(size: 10))
-                Text(hint)
-                    .font(.system(size: 11, weight: .medium))
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(EchoelTheme.warning)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(EchoelTheme.warning.opacity(0.14))
-            .accessibilityLabel(hint)
+            banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
+        } else if lockedCueVisible {
+            banner("Puls erkannt — du kannst loslassen & spielen",
+                   color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
         }
+    }
+
+    private func banner(_ text: String, color: Color, systemImage: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10))
+            Text(text)
+                .font(.system(size: 11, weight: .medium))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.14))
+        .accessibilityLabel(text)
     }
 
     private var strip: some View {
