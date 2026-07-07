@@ -29,11 +29,6 @@ struct EchoelmusicApp: App {
     /// through this with its own timbre so a take reads as separate instruments
     /// (bass · harmony · LEAD), not one surface. Small pool — the lead is few-note.
     @State private var leadVoice: PolySynthVoice
-    /// REAL instruments (Apple sampler + bundled GeneralUser GS): the default
-    /// sound source once the asset ships — piano lead, strings harmony. The
-    /// classic DDSP voices above stay as the "Synth" choice + silent fallback.
-    @State private var sampledLead: SampledInstrumentVoice
-    @State private var sampledHarmony: SampledInstrumentVoice
     @State private var subBass: SubBassVoice
     /// Steady click track — production/performance metronome (self-driving, silent
     /// until armed). Synced to the transport tempo by the studio view.
@@ -173,8 +168,6 @@ struct EchoelmusicApp: App {
         _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 12))
         // Lead voice: small pool (the melody is few-note) to keep the added CPU low.
         _leadVoice = State(wrappedValue: PolySynthVoice(maxVoices: 3))
-        _sampledLead = State(wrappedValue: SampledInstrumentVoice())
-        _sampledHarmony = State(wrappedValue: SampledInstrumentVoice())
         _subBass = State(wrappedValue: SubBassVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
@@ -354,14 +347,6 @@ struct EchoelmusicApp: App {
                 leadVoice.attach(to: audioEngine)
                 subBass.attach(to: audioEngine)
                 metronome.attach(to: audioEngine)
-                // REAL instruments (2026-07-04): Apple sampler nodes, attached
-                // before engine start like every voice. Loading the GM programs
-                // is a no-op until the CI-fetched soundfont ships in the bundle
-                // (isReady stays false → roll routes to the classic synth).
-                sampledLead.attach(to: audioEngine)
-                sampledHarmony.attach(to: audioEngine)
-                sampledLead.load(program: .grandPiano)
-                sampledHarmony.load(program: .strings)
                 // Session breathing cue — attached BEFORE start like every voice
                 // (build-1363 rule). Launch-silent until the user starts a session.
                 sessionEngine.attach(to: audioEngine)
@@ -407,10 +392,7 @@ struct EchoelmusicApp: App {
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer, sampledLead: sampledLead, sampledHarmony: sampledHarmony)
-                // Honor the persisted sound-source choice (Composition panel
-                // "Sound" — Real instruments by default once the asset ships).
-                pianoRoll.useSampledSound = UserDefaults.standard.object(forKey: "studio.realSound") as? Bool ?? true
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
                 // Give the lead voice a distinct, cutting timbre so .lead notes read as
                 // a separate instrument over the (per-genre) harmony voice. Fixed for
