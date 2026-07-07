@@ -212,6 +212,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// instead of stuttering with beat-to-beat noise. The measurement stays honest; only
     /// the VISUAL is smoothed (CameraAnalyzer untouched).
     private var smoothedPulseTarget: Float = 0
+    /// The frequency currently driving the COLOUR. A per-frame `argmax` over note amplitudes
+    /// hops between near-tied notes (chords/arpeggios) and made the colour wobble as it chased
+    /// a jumpy target. We hold the chosen note and only hand off when a challenger is clearly
+    /// louder (see the margin in `draw`), so the colour glides between notes instead of flicking.
+    private var colorToneHz: Double = 0
 
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
@@ -352,9 +357,21 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let effectiveReduceMotion = lookReduceMotionAccessibility || (q?.reduceMotion ?? false)
             let bio = bus?.freshBio()
             let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
-            // Colour follows the MUSIC when sounding (loudest live note), else the tonic.
-            let musicTone = bus?.freshMusical(maxAge: 1.5)
-                .flatMap { $0.notes.max(by: { $0.amplitude < $1.amplitude })?.frequencyHz }
+            // Colour follows the MUSIC when sounding, else the tonic. HYSTERESIS: keep the
+            // current colour note and only hand off to the loudest one when it's clearly louder
+            // (≥30 %) than the note currently driving the colour — so chords/arpeggios with
+            // near-tied amplitudes don't make the colour flick between pitches (the wobble).
+            var musicTone: Double?
+            if let frame = bus?.freshMusical(maxAge: 1.5), let loudest = frame.notes.max(by: { $0.amplitude < $1.amplitude }) {
+                let currentAmp = frame.notes.first(where: { abs($0.frequencyHz - colorToneHz) < 0.5 })?.amplitude ?? 0
+                if colorToneHz == 0 || loudest.amplitude > currentAmp * 1.3 {
+                    colorToneHz = loudest.frequencyHz
+                }
+                musicTone = colorToneHz
+            } else {
+                colorToneHz = 0            // music stopped — release, so the next note adopts cleanly
+                musicTone = nil
+            }
             // IDLE ATTRACT: with NO bio and NO music, the resting picture would sit on one
             // frozen colour + coherence — pretty but static. Slowly drift the palette, breath
             // and coherence over ~20–60 s so the first seconds feel ALIVE and inviting ("wow
@@ -443,11 +460,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
         } else {
-            // Fallback: gentle clear-colour pulse (shader absent). Same flash-safe
-            // pulse the main path uses, sourced from BioVisualParams/FlashGuard.
-            let pulseHz = Double(uniforms.pulseHz)
-            let t = reduceMotion ? 0 : (CFAbsoluteTimeGetCurrent() - startTime)
-            let beat = 0.15 + 0.12 * (0.5 + 0.5 * sin(2 * .pi * t * pulseHz))
+            // Fallback: gentle clear-colour pulse (shader absent). Drive it from the
+            // INTEGRATED pulsePhase (same as the main path) — NOT `time × pulseHz`, which
+            // snaps the phase whenever pulseHz changes (the very jump the main path was
+            // rewritten to avoid). Frozen under Reduce Motion via the phase not advancing.
+            let beat = 0.15 + 0.12 * (0.5 + 0.5 * sin(2 * .pi * Double(uniforms.pulsePhase)))
             pass.colorAttachments[0].clearColor =
                 MTLClearColor(red: beat * 0.4, green: beat * 0.2, blue: beat, alpha: 1)
             buffer.makeRenderCommandEncoder(descriptor: pass)?.endEncoding()
