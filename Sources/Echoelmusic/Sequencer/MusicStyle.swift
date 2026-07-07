@@ -406,9 +406,24 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:
             return HarmonicProfile(progression: [0], chordTones: [0, 4],
                                    padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.2)
-        case .dubTechno, .trap, .selfObservation:
+        case .dubTechno, .trap:
             return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.3)
+        case .selfObservation:
+            // A TRUE DRONE, not a melody-over-chord-change (founder 2026-07-07:
+            // "der Sound ist noch nicht sphärisch und beruhigend … reine
+            // meditative Flächen … kohärentes Timbre am Start"). One sustained
+            // tonic (no chord movement = maximally still + coherent), a lush open
+            // 7th voicing, dropped an octave for warmth, and NO lead line
+            // (leadDensity 0 = pure Fläche, no noodling). This is the single
+            // biggest fix for "trashig/nicht sphärisch": the take opens on a
+            // stable, wide, still pad instead of a wandering tune. AESTHETIC
+            // (timbre evidence is thin) but consistent with the replicated
+            // finding that tempo — not melodic activity — drives arousal, so a
+            // still drone at ~58 bpm is the calmest possible starting material.
+            // See scratchpads/RESEARCH_MEDITATION_ALGORITHM_2026-07-07.md.
+            return HarmonicProfile(progression: [0], chordTones: [0, 2, 4, 6],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         }
     }
 
