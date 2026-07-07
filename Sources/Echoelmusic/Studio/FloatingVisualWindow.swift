@@ -292,18 +292,19 @@ struct FloatingVisualWindow: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
                 #if canImport(UIKit) && canImport(AVFoundation)
-                // FULLSCREEN = PLAY SURFACE (founder 2026-07-07: "das Visual in ein
-                // Multi-Touch Instrument umwandeln … wie mit den Fingern durchs
-                // Wasser"). Touches become scale-quantized notes on the take's own
-                // synth patch (coherent by construction) + water rings under the
-                // fingers. Fullscreen only — the floating sizes keep move/resize UX.
-                // UIKit-gated: the multi-touch layer is a UIView (macOS CI has none).
+                // PLAY SURFACE at EVERY size (founder 2026-07-07: "das Visual in ein
+                // Multi-Touch Instrument umwandeln … wie mit den Fingern durchs Wasser" +
+                // "in den anderen kleinen Ansichten auch spielbar"). Touches become
+                // scale-quantized notes on the take's own synth patch (coherent by
+                // construction) + water rings under the fingers — no dead-touch state to
+                // explain, so no "only in fullscreen" hint is needed. Was fullscreen-only,
+                // but the window is moved by the LOGO handle (not the visual body), so the
+                // play layer never competes with drag/resize. UIKit-gated: the multi-touch
+                // layer is a UIView (macOS CI has none).
                 .overlay {
-                    if windowSize.isFullscreen {
-                        TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
-                                            synth: synth,
-                                            reduceMotion: reduceMotion)
-                    }
+                    TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
+                                        synth: synth,
+                                        reduceMotion: reduceMotion)
                 }
                 #endif
                 #if canImport(AVFoundation)
