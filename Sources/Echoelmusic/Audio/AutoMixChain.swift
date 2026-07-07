@@ -136,17 +136,19 @@ final class AutoMixChain {
         eq.bands[1].gain        = -1.5
         eq.bands[1].bypass      = false
 
-        // Band 2: Presence BOOST +2 dB at 2.8 kHz (clarity/definition; was a -1.5 dB dip).
+        // Band 2: Presence boost +1.5 dB at 2.8 kHz (clarity/definition). Trimmed 2026-07-07
+        // (warmth pass) from +2 dB so the master doesn't push voices forward/cold.
         eq.bands[2].filterType  = .parametric
         eq.bands[2].frequency   = 2800
         eq.bands[2].bandwidth   = 1.5
-        eq.bands[2].gain        = 2.0
+        eq.bands[2].gain        = 1.5
         eq.bands[2].bypass      = false
 
-        // Band 3: Air shelf +3.5 dB at 9 kHz (openness — the mix had no top end).
+        // Band 3: Air shelf +2.5 dB at 9 kHz (openness). Trimmed 2026-07-07 (warmth pass)
+        // from +3.5 dB — the glassy 9 kHz air was what made bright voices read cold.
         eq.bands[3].filterType  = .highShelf
         eq.bands[3].frequency   = 9000
-        eq.bands[3].gain        = 3.5
+        eq.bands[3].gain        = 2.5
         eq.bands[3].bypass      = false
     }
 
@@ -159,8 +161,8 @@ final class AutoMixChain {
         switch preset {
         case .balanced:
             eq.bands[1].gain = -1.5
-            eq.bands[2].gain =  2.0
-            eq.bands[3].gain =  3.5
+            eq.bands[2].gain =  1.5
+            eq.bands[3].gain =  2.5
         case .warm:
             eq.bands[1].gain =  1.5
             eq.bands[2].gain =  0.5

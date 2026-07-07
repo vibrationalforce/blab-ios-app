@@ -188,6 +188,23 @@ struct FloatingVisualWindow: View {
     private let margin: CGFloat = 12
     private let handleHeight: CGFloat = 30
 
+    /// Calm liquid looks the top-bar slider scrubs (Water · Aurora · Depth · Plasma) — the
+    /// same set the removed Look button cycled. MUST match EchoelStudioView.calmMetalStyles.
+    private static let calmLooks = [3, 5, 7, 2]
+
+    /// Slider position ⇄ current look. Scrubbing snaps `visual.style` to a calm look, live
+    /// (founder 2026-07-07: "die visuals oben in der Leiste mit einem slider geändert …
+    /// während des Spielens" — better handling than tap-cycling).
+    private var lookScrub: Binding<Double> {
+        Binding(
+            get: { Double(Self.calmLooks.firstIndex(of: visualStyle) ?? 0) },
+            set: { v in
+                let i = min(Self.calmLooks.count - 1, max(0, Int(v.rounded())))
+                if Self.calmLooks[i] != visualStyle { visualStyle = Self.calmLooks[i] }
+            }
+        )
+    }
+
     /// Tonic frequency for the IDLE tint (when nothing sounds the renderer falls back to this;
     /// while music plays it pulls the live tone itself from the bus). Mirrors the fullscreen
     /// visual's mapping minus the per-take transpose (a @State there, irrelevant while idle).
@@ -361,12 +378,22 @@ struct FloatingVisualWindow: View {
                 )
                 .accessibilityLabel("Echoel — drag to move the visual")
             Spacer(minLength: 0)
+            // Live LOOK slider (founder 2026-07-07: "die visuals oben in der Leiste mit einem
+            // slider geändert … während des Spielens" — better handling than the tap-cycle Look
+            // button that was here). Scrubs the calm looks. The founder's explicit "slider" ask
+            // overrides the EchoelValueField default: this is a live VJ control over the visual,
+            // not a Studio parameter row. Fullscreen only — that's where the bar has the width.
+            if windowSize.isFullscreen {
+                Slider(value: lookScrub, in: 0...Double(Self.calmLooks.count - 1), step: 1)
+                    .tint(EchoelTheme.accent)
+                    .frame(width: 72)
+                    .accessibilityLabel("Visual look")
+            }
             // The transport-position readout + WAV control live UP HERE in the bar now
             // (founder 2026-07-07: "Das muss mit nach oben in die Leiste") — not floating over
             // the picture. Position is its own leaf (`MiniTransportView` reads Transport itself)
             // so its ~10 Hz updates never rebuild this window (freeze rule); display-only, so it
-            // never steals a touch from the play surface. (The palette/Look button was removed
-            // on the same ask — "Die Farbpalette raus"; the look is set from the Visual panel.)
+            // never steals a touch from the play surface.
             // The position readout needs a little width to stay legible — show it from Medium
             // up (and fullscreen). On the Small window it would crowd the record/resize buttons.
             if windowSize != .small {

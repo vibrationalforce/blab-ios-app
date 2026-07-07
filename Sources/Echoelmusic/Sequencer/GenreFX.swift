@@ -326,7 +326,7 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth),
                 delayMix: 0.10, delayFeedback: 0.12, delayTone: 0.60, delaySpread: 0.15,
-                saturation: 0.60)
+                saturation: 0.45)   // trimmed from 0.60 (warmth pass) — driven, not harsh
         case .rocknroll:
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
@@ -358,7 +358,7 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth),
                 delayMix: 0.12, delayFeedback: 0.18, delayTone: 0.50, delaySpread: 0.20,
-                saturation: 0.68)
+                saturation: 0.50)   // trimmed from 0.68 (warmth pass) — still driven, less brittle
         case .doom:
             // Thick, slow wall of drive.
             return GenreFXPreset(

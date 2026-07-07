@@ -44,19 +44,20 @@ final class TouchInstrumentTests: XCTestCase {
     }
 
     func testVelocity_floorsCapsAndRespondsToAreaAndForce() {
-        // Feather touch (no force hardware, tiny radius) is audible but soft.
+        // Feather touch (no force hardware, tiny radius) is audible but soft. Range was
+        // lifted so played notes cut through the mix a bit more (floor 0.3, cap 0.95).
         let feather = TouchPitchMap.velocity(forceNorm: 0, radiusPoints: 5)
-        XCTAssertEqual(feather, 0.35, accuracy: 0.001)
+        XCTAssertEqual(feather, 0.45, accuracy: 0.001)
         // Flat finger (big contact area) plays louder even with zero force reading.
         let flat = TouchPitchMap.velocity(forceNorm: 0, radiusPoints: 30)
         XCTAssertGreaterThan(flat, feather)
-        XCTAssertLessThanOrEqual(flat, 0.85)
+        XCTAssertLessThanOrEqual(flat, 0.95)
         // Hard press wins over area; everything stays under the cap.
         let press = TouchPitchMap.velocity(forceNorm: 1.0, radiusPoints: 8)
-        XCTAssertEqual(press, 0.85, accuracy: 0.001)
+        XCTAssertEqual(press, 0.95, accuracy: 0.001)
         // Garbage inputs stay clamped.
-        XCTAssertGreaterThanOrEqual(TouchPitchMap.velocity(forceNorm: -3, radiusPoints: -10), 0.2)
-        XCTAssertLessThanOrEqual(TouchPitchMap.velocity(forceNorm: 9, radiusPoints: 900), 0.85)
+        XCTAssertGreaterThanOrEqual(TouchPitchMap.velocity(forceNorm: -3, radiusPoints: -10), 0.3)
+        XCTAssertLessThanOrEqual(TouchPitchMap.velocity(forceNorm: 9, radiusPoints: 900), 0.95)
     }
 
     func testSlideRetriggersOnlyOnPitchChange() {

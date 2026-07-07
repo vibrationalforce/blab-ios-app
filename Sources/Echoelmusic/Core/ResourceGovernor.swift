@@ -165,18 +165,46 @@ public final class ResourceGovernor {
     // MARK: - Recompute
 
     private func recompute() {
-        let next: QualitySettings
-        if isAutomatic {
-            next = AdaptiveQuality.settings(thermal: thermal, lowPower: lowPower,
-                                            batteryLevel: batteryLevel, charging: charging,
-                                            measuredFPS: smoothedFPS)
+        guard isAutomatic else {
+            apply(AdaptiveQuality.settings(for: manualTier))   // pinned: immediate, no dwell
+            return
+        }
+        let raw = AdaptiveQuality.settings(thermal: thermal, lowPower: lowPower,
+                                           batteryLevel: batteryLevel, charging: charging,
+                                           measuredFPS: smoothedFPS)
+        // ASYMMETRIC HYSTERESIS (founder "Visuals Zucken noch"). A DEMOTION (more
+        // conservative) applies immediately — if the device is stressed, back off now.
+        // A PROMOTION (more expensive: higher targetFPS/detail) must PERSIST for
+        // promoteDwellSeconds before we adopt it. Without this, a charging device warming
+        // and cooling across the nominal↔fair thermal boundary flapped the tier, which
+        // rewrote MTKView.preferredFramesPerSecond (120↔60) and reconfigured the
+        // CADisplayLink — a visible frame-pacing hitch. The renderer's easing is already
+        // frame-rate-independent, so holding a stable FPS costs nothing visually.
+        if raw.tier > settings.tier {
+            let now = CFAbsoluteTimeGetCurrent()
+            if pendingPromoteTier != raw.tier {
+                pendingPromoteTier = raw.tier
+                pendingPromoteSince = now
+            }
+            guard now - pendingPromoteSince >= Self.promoteDwellSeconds else {
+                return   // hold the current tier until the better condition proves stable
+            }
+            pendingPromoteTier = nil
         } else {
-            next = AdaptiveQuality.settings(for: manualTier)
+            pendingPromoteTier = nil   // demotion / no change → clear any pending promotion
         }
-        if next != settings {
-            settings = next
-            log.log(.info, category: .system,
-                    "ResourceGovernor → \(next.tier.label) (fps target \(next.targetFPS), detail \(next.visualDetailScale))")
-        }
+        apply(raw)
+    }
+
+    /// Minimum seconds a better (more expensive) tier must persist before it's adopted.
+    private static let promoteDwellSeconds: CFTimeInterval = 6
+    @ObservationIgnored private var pendingPromoteTier: QualityTier?
+    @ObservationIgnored private var pendingPromoteSince: CFTimeInterval = 0
+
+    private func apply(_ next: QualitySettings) {
+        guard next != settings else { return }
+        settings = next
+        log.log(.info, category: .system,
+                "ResourceGovernor → \(next.tier.label) (fps target \(next.targetFPS), detail \(next.visualDetailScale))")
     }
 }

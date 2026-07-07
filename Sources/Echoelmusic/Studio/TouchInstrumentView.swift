@@ -50,12 +50,14 @@ public enum TouchPitchMap {
 
     /// Velocity from contact: whichever of pressure (0…1, 0 where the hardware
     /// has no force sensing) and contact radius (points; fingertip ≈ 8, flat
-    /// finger ≈ 25+) says MORE intent wins. Floor keeps a feather touch audible;
-    /// cap leaves headroom over the generative loop.
+    /// finger ≈ 25+) says MORE intent wins. Floor keeps a feather touch audible.
+    /// Range lifted 2026-07-07 (founder: "der Sound … könnte sich im mix ein bisschen
+    /// mehr durchsetzen") so a played note sits slightly ON TOP of the generative loop
+    /// instead of under it — feather ≈ 0.45, firm ≈ 0.95 (was 0.35 / 0.85).
     public static func velocity(forceNorm: Double, radiusPoints: Double) -> Float {
         let area = min(max((radiusPoints - 6) / 22, 0), 1)
         let intent = max(min(max(forceNorm, 0), 1), area)
-        return Float(min(max(0.35 + 0.5 * intent, 0.2), 0.85))
+        return Float(min(max(0.45 + 0.5 * intent, 0.3), 0.95))
     }
 
     /// A slide re-triggers only when it crosses into a new quantized pitch —

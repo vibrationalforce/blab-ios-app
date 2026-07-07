@@ -287,6 +287,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let phase = uniforms.pulsePhase
             uniforms = target
             uniforms.pulsePhase = phase
+            // Seed the pulse slew-follower at the real target too — else it starts at 0 and
+            // the very next frame eases pulseHz back down toward 0 and ramps up over ~3 s,
+            // so the breathing visibly stalls-then-ramps at launch (undercuts "wow ab Sek. 1").
+            smoothedPulseTarget = target.pulseHz
             hasTarget = true
         }
     }
