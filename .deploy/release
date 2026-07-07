@@ -1,22 +1,19 @@
-build: 2026-07-05 v10.79.83 (rPPG: dunkler Lock bevorzugt + Hell-Lock-Erholung — dein Log-Befund behoben)
+build: 2026-07-05 v10.79.84 (DEFAULT = reine meditative Flächen: Beat AUS · Self-Observation · Pad)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein letztes Log war sehr aufschlussreich — zwei Befunde:
-  1) Die neuen generate[...]-Marker zeigen: die Re-Seeds in deinem Lauf waren
-     deine eigenen Bedienungen (user-edit, vermutlich das Sound-Pad). Das
-     Rätsel von gestern ist gelöst — kein Geister-Re-Seed.
-  2) DER PULS KAM NIE ZUR RUHE, und das Log zeigt exakt warum: Die Belichtung
-     hat bei einer zu HELLEN Fingerszene eingerastet (0.34 statt der guten
-     0.19 von gestern) und blieb dort eingefroren → die Pulswelle blieb
-     schwach (acf ~0), das Tempo wurde nie vom Körper gesetzt. FIX:
-     • Die ersten ~6 s wartet der Lock jetzt auf eine richtig DUNKLE Szene
-       (unter 0.28) — da leben die guten Locks. Danach erst greift die alte
-       tolerante Schwelle (später weicher Lock ist besser als keiner).
-     • NEU: Erkennt die App nach dem Lock anhaltend schwache Pulswelle bei
-       voller Analyse (der Zustand aus deinem Log), gibt sie die Belichtung
-       einmalig zurück an Automatik und rastet dunkler neu ein (max. 2×,
-       nie endlos).
-  TEST 10.79.83:
-  Start → Finger drauf → im Log sollte "exposure locked" jetzt bei bright
-  ≤0.28 stehen und der Puls wie vorgestern settlen (acf hoch, bpm ruhig).
-  Danach die drei Fragen von 10.79.82 (Minimal-Seite · Pads · trägt die
-  reine Fläche bei Beat AUS?). Log bitte mitschicken.
+notesT: "Tendenziell alles eher ohne Beat und reine meditative Flächen" — die
+  App startet jetzt genau so:
+  • Beat: AUS (Puls/Genre bleiben einen Tipp entfernt im Composition-Panel)
+  • Genre: Self-Observation — atem-getaktete Ambient-Flächen, ohne Drums
+  • Artikulation: Pad (langsames Anschwellen, langes Ausklingen)
+  WICHTIG: Wenn du Beat/Genre beim Testen schon mal umgestellt hast, merkt
+  sich die App DEINE Wahl — einmal auf "Off" + "Self-Observation" stellen,
+  dann bleibt es.
+  Enthält außerdem den rPPG-Fix aus 10.79.83 (dunkler Belichtungs-Lock +
+  Hell-Lock-Erholung — dein "Puls settled nie"-Log ist damit behoben).
+  TEST 10.79.84:
+  A) Frisch starten → Start → Finger drauf: reine Fläche, kein Beat, Puls
+     settled (Log: "exposure locked" bei bright ≤0.28, acf hoch)?
+  B) Die Fläche selbst: trägt sie? Was fehlt ihr zur Tiefe — Klangfarbe,
+     langsame Bewegung, Raum, Sub-Fundament? (Das ist der nächste Zyklus.)
+  C) Sound-Pad: dunkel/still ↔ hell/bewegt — führt es dich intuitiv?
+  Log bitte mitschicken.
