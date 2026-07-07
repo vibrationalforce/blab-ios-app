@@ -1,20 +1,16 @@
-build: 2026-07-05 v10.79.81 (XY-Mood-Pads: Sound + Visual — Stimmung mit einem Finger)
+build: 2026-07-05 v10.79.82 (MINIMAL: Startseite = Bio · Start · zwei Pads — Rest hinter kompakten Zeilen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Tiefe Bewusstseinszustände mit ultraleichter Steuerung" — Schritt 1:
-  ZWEI XY-PADS direkt unter Start (keine Menüs, keine Zahlen):
-  • SOUND-PAD: ← dunkel · hell → / ↓ still · bewegt ↑. Loslassen → die
-    Komposition folgt deiner Stimmung am nächsten Taktanfang (Register,
-    Dichte, Farbe — nie ein Schnitt mitten im Takt).
-  • VISUAL-PAD: ← natürliche Farben · Spektrum → / ↓ ruhig · energetisch ↑.
-    Folgt dem Finger LIVE im schwebenden Visual. Mitte = exakt der bisherige
-    Look (natürliche Farbpalette bleibt der Ausgangspunkt).
-  Beides merkt sich seine Position über App-Starts.
-  Dazu (aus 10.79.80, im selben Build): Beat-Modus Aus · Puls (schamanische
-  Ur-Trommel, wird karger je ruhiger dein Körper) · Genre.
-  TEST 10.79.81:
-  A) Start → mit EINEM Finger auf dem Sound-Pad die Stimmung suchen: findest
-     du intuitiv einen Zustand, der dich reinzieht?
-  B) Visual-Pad im Vollbild: reicht das, um die richtige visuelle Stimmung
-     zu finden — oder fehlt eine Achse?
-  C) Beat Aus + Sound-Pad unten links (dunkel/still): trägt die reine Fläche?
-  Bitte Log mitschicken.
+notesT: "Minimal, aber alles funktioniert" — umgesetzt:
+  Die Seite zeigt jetzt standardmäßig NUR noch das Wesentliche:
+  Bio-Leiste · Start · Sound-Pad · Visual-Pad.
+  Alles andere (Composition mit Genre/Beat/Tonart/Stimmung, Export/Loop,
+  Transpose, Master, Effekte, Visual-Einstellungen) steht als je EINE
+  kompakte Zeile darunter — ein Tipp öffnet, alles funktioniert wie vorher,
+  nichts wurde entfernt. Wer ein Panel öffnet, behält es offen (gemerkt).
+  Enthält außerdem 10.79.80/81: Beat Aus·Puls·Genre + die zwei XY-Pads.
+  TEST 10.79.82:
+  A) Erster Eindruck beim Öffnen: ruhig und klar? Fehlt etwas Wichtiges auf
+     der obersten Ebene?
+  B) Der Kern-Flow: Start → Pads → Vollbild-Visual. Reicht das als ganze App?
+  C) Beat AUS + dunkel/still: trägt die reine Fläche?
+  Log bitte mitschicken.
