@@ -4582,3 +4582,5 @@ testet die komplette Session auf dem Gerät; danach Zyklus 7 (Abschluss-Karte), 
 Resonanz-Onboarding · Wetter/Ort-Journal (Founder-Gate Info.plist!) · lokale Push.
 
 **2026-07-07 (Verifikation v10.79.85, 02fd1fe):** alle drei Gates grün — xcode-compile-check ✅ · ci.yml ✅ (run 28846555088) · testflight.yml ✅ (#2190, run 28846555063). Build ist bei App Store Connect hochgeladen; TestFlight-Verarbeitung läuft. Warte auf Founder-Gerätetest (A: Fläche tragen? B: Pads verknüpft?) + Log.
+
+**2026-07-07 (v10.79.86, 0a37a55):** Founder-Log 1783410930 (Build 2190) triagiert — Evolution läuft (evolve@25s/50s ✅), Relock 1/2 rettete die Session ✅, aber Relock 2/2 zerstörte einen LAUFENDEN Puls (76–83 bpm, conf bis 0.78, acf≈0 — dieses Gerät zeigt Periodizität über den Peak-Zähler, nicht immer über acf). Fix: weakTicksStep bekommt confidence — schwach nur wenn acf UND conf tot; starke Evidenz auf einem Kanal zahlt den Zähler ab. Breadcrumb loggt jetzt conf. 2 neue Tests (Kill-Fall + erhaltener Rettungs-Fall). Gates: xcode ✅ ci ✅ testflight #2191 ✅.

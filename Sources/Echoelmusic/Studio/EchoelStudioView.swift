@@ -363,10 +363,9 @@ struct EchoelStudioView: View {
                     // stays right below.
                     if let presentSession { AnyView(sessionEntryCard(presentSession)) }
                     AnyView(startButton)
-                    // Mood pads (founder 2026-07-06D: "ultraleichte Steuerung … ein
-                    // XY Pad für den Sound … und für visuals auch") — the primary,
-                    // intuitive way into the right state, directly under Start.
-                    AnyView(moodPadsSection)
+                    // Mood pads REMOVED from the surface (founder 2026-07-07:
+                    // "Xy Pads komplett wieder herausnehmen"). The builder +
+                    // MoodPads.swift stay in code, unpresented (reversible).
                     AnyView(nonStandardTuningBanner)
                     #if canImport(AVFoundation)
                     if running { AnyView(PulseMeasurementView()) }
@@ -392,10 +391,6 @@ struct EchoelStudioView: View {
             // preset, else the genre's own patch.
             currentPatch = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
                 ? SynthPatch.factory[presetIndex] : style.synthPatch
-            // The sound mood pad survives relaunch: seed the composition mood from
-            // the persisted pad position (the pad and the take must agree on launch).
-            mood.darkness = Float(1 - soundMoodX)
-            mood.liveliness = Float(soundMoodY)
             applyArticulation()                // impose the persisted Pluck↔Pad envelope
             applyTuning()                      // 12-TET default = no-op; restores any selected system
             // Restore the last-picked immersive visual look so an installation /
@@ -832,10 +827,10 @@ struct EchoelStudioView: View {
         .accessibilityHint("Closes the studio and returns to the calm session.")
     }
 
-    /// The two mood pads, side by side — SOUND (composition mood: dark↔bright ·
-    /// still↔moving; recomposes at the loop boundary on release) and VISUAL
-    /// (palette + energy, live under the finger via its own leaf). No numbers,
-    /// no menus: drag until it feels right.
+    /// UNPRESENTED (founder 2026-07-07: "Xy Pads komplett wieder herausnehmen") —
+    /// kept compiling for reversibility, no body branch mounts it. The two mood
+    /// pads, side by side — SOUND (composition mood; recomposes at the loop
+    /// boundary on release) and VISUAL (palette + energy, live via its own leaf).
     private var moodPadsSection: some View {
         HStack(alignment: .top, spacing: 12) {
             MoodXYPad(title: "Sound",
