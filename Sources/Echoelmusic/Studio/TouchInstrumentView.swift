@@ -16,9 +16,15 @@
 //  = velocity. Slides glide through the scale like trailing a hand in water.
 //
 //  Render safety: pure UIKit. Touch handling never touches SwiftUI state; the
-//  water-ring feedback is CAShapeLayer animation (GPU-composited, removed on
+//  water-ripple feedback is CAShapeLayer animation (GPU-composited, removed on
 //  completion) — zero body invalidations at any touch rate. Sound goes through
 //  PolySynthVoice.noteOn/noteOff, which are lock-free SPSC enqueues.
+//
+//  Water feel (founder: "es soll sich nach echtem Wasser anfühlen"): a touch is
+//  a DROP — it sends out several concentric wavefronts, each starting a beat
+//  after the last, so the ripple spreads outward the way water does rather than
+//  as one flat ring. Tinted soft aqua-white so it reads as water/light on the
+//  immersive visual (vaporwave-fit), not a hard UI stroke.
 //
 
 import Foundation
@@ -188,33 +194,57 @@ final class TouchInstrumentUIView: UIView {
                                       radiusPoints: Double(touch.majorRadius))
     }
 
-    // MARK: - Water rings (CAShapeLayer — GPU, no SwiftUI invalidation)
+    // MARK: - Water ripples (CAShapeLayer — GPU, no SwiftUI invalidation)
 
+    /// Soft aqua-white — reads as water/light on the immersive visual, not a
+    /// hard UI stroke. (Vaporwave-fit; brand chrome stays clean elsewhere.)
+    private static let rippleTint = UIColor(red: 0.72, green: 0.92, blue: 1.0, alpha: 1)
+
+    /// A touch is a drop: emit several concentric wavefronts, each starting a
+    /// beat after the last and reaching a little farther, so the ripple SPREADS
+    /// outward like real water instead of one flat expanding ring.
     private func spawnRing(at p: CGPoint, strong: Bool) {
         guard !reduceMotion else { return }
-        let radius: CGFloat = strong ? 60 : 34
+        let wavefronts = strong ? 3 : 2
+        let baseRadius: CGFloat = strong ? 58 : 34
+        let baseAlpha: Float = strong ? 0.40 : 0.24
+        let stagger: CFTimeInterval = 0.16
+        let now = CACurrentMediaTime()
+        for i in 0..<wavefronts {
+            let t = Float(i) / Float(wavefronts)           // 0 = leading front
+            spawnWavefront(at: p,
+                           radius: baseRadius * CGFloat(1 + 0.35 * Double(i)),
+                           alpha: baseAlpha * (1 - 0.55 * t), // outer fronts fainter
+                           duration: (strong ? 1.0 : 0.7) + Double(i) * 0.12,
+                           beginAt: now + Double(i) * stagger)
+        }
+    }
+
+    private func spawnWavefront(at p: CGPoint, radius: CGFloat, alpha: Float,
+                                duration: CFTimeInterval, beginAt: CFTimeInterval) {
         let ring = CAShapeLayer()
         ring.path = UIBezierPath(ovalIn: CGRect(x: -radius, y: -radius,
                                                 width: radius * 2, height: radius * 2)).cgPath
         ring.position = p
         ring.fillColor = nil
-        ring.strokeColor = UIColor.white.withAlphaComponent(strong ? 0.38 : 0.22).cgColor
+        ring.strokeColor = Self.rippleTint.cgColor
         ring.lineWidth = 1.5
+        ring.opacity = 0   // model value: invisible until its wavefront begins (no pre-begin flash)
         layer.addSublayer(ring)
 
-        let duration: CFTimeInterval = strong ? 0.9 : 0.6
         let scale = CABasicAnimation(keyPath: "transform.scale")
-        scale.fromValue = 0.12
+        scale.fromValue = 0.08
         scale.toValue = 1.0
         let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = 1.0
+        fade.fromValue = alpha
         fade.toValue = 0.0
         let group = CAAnimationGroup()
         group.animations = [scale, fade]
+        group.beginTime = beginAt
         group.duration = duration
         group.timingFunction = CAMediaTimingFunction(name: .easeOut)
         group.isRemovedOnCompletion = false
-        group.fillMode = .forwards
+        group.fillMode = .forwards   // .forwards only — holds the END value (opacity 0) after; before beginTime the model value (0) shows, so no early flash
         // Remove the layer when the animation finishes — bounded sublayer count.
         // A CATransaction completion block runs on the main thread and (unlike
         // DispatchQueue.asyncAfter) is NOT a @Sendable closure, so capturing the
