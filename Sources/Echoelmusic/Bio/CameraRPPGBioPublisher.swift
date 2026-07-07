@@ -104,10 +104,23 @@ public final class CameraRPPGBioPublisher {
     /// fallback — a chest strap gives clean beat-to-beat directly and is the preferred source.)
     static let trustAutoFloor = 0.4
 
-    /// A reading may move the display / latch the tempo only when it is BOTH confident AND
-    /// corroborated by real periodicity (autocorrelation). Pure → unit-testable.
+    /// STRONG autocorrelation that, on its OWN, proves a real pulse regardless of the
+    /// confidence metric (device log 1783420026: acf climbed to 0.59–0.72 with a
+    /// rock-stable 56 bpm for ~10 s while conf sat at 0.01 — a genuine, strongly
+    /// periodic pulse that the display refused to show because it also demanded
+    /// confidence). The confidence channel (peak-counter based) and the acf channel
+    /// don't always rise together; strong periodicity is the STRONGER evidence, so it
+    /// should not have to wait for confidence to catch up. Set well above the junk
+    /// ceiling (~0.29, see trustAutoFloor note) so the high-conf/low-acf self-agreeing
+    /// junk case can never reach it.
+    static let strongAutoFloor = 0.6
+
+    /// A reading may move the display / latch the tempo when it is EITHER confident AND
+    /// corroborated by real periodicity, OR carries strong periodicity on its own. The
+    /// junk case (conf high, acf ~0.14) still fails BOTH clauses. Pure → unit-testable.
     static func pulseTrustworthy(confidence: Double, autoStrength: Double) -> Bool {
-        confidence >= displayThreshold && autoStrength >= trustAutoFloor
+        (confidence >= displayThreshold && autoStrength >= trustAutoFloor)
+            || autoStrength >= strongAutoFloor
     }
     /// True once a confident pulse is locked.
     public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
