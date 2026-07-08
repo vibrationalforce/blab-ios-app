@@ -181,10 +181,12 @@ final class TouchInstrumentUIView: UIView {
             // visual (swells intensity/motion), so the fingers visibly shape the light.
             TouchVisualEnergy.shared.excite(0.35)
             // The played tone becomes the picture's COLOUR (physical octave
-            // transposition into visible light — performer priority in the renderer).
+            // transposition into visible light — performer priority in the renderer;
+            // HELD, so a chord paints all its colours until the fingers lift).
             // CFAbsoluteTime — MUST match the draw loop's `nowGov` clock (CACurrentMediaTime
             // is a DIFFERENT epoch; mixing them would read every note as stale).
-            TouchToneChannel.shared.play(hz: frequency(of: pitch), at: CFAbsoluteTimeGetCurrent())
+            TouchToneChannel.shared.noteOn(pitch: pitch, hz: frequency(of: pitch),
+                                           at: CFAbsoluteTimeGetCurrent())
             spawnRing(at: p, strong: true, pitch: pitch, velocity: vel)
             lastRing[id] = p
         }
@@ -203,7 +205,9 @@ final class TouchInstrumentUIView: UIView {
                 synth?.noteOn(pitch: new, velocity: vel)
                 held[id] = new
                 TouchVisualEnergy.shared.excite(0.15)   // slides keep the picture alive
-                TouchToneChannel.shared.play(hz: frequency(of: new), at: CFAbsoluteTimeGetCurrent())
+                let now = CFAbsoluteTimeGetCurrent()
+                TouchToneChannel.shared.noteOff(pitch: old, at: now)
+                TouchToneChannel.shared.noteOn(pitch: new, hz: frequency(of: new), at: now)
             }
             // Wake trail — a small ring roughly every 14 pt of travel, in the colour
             // of the note the finger is sounding right now.
@@ -227,6 +231,9 @@ final class TouchInstrumentUIView: UIView {
             let id = ObjectIdentifier(touch)
             if let pitch = held.removeValue(forKey: id) {
                 synth?.noteOff(pitch: pitch)
+                // Colour follows the fingers: lifting releases this note's cloud;
+                // the last lift starts the ~1.2 s afterglow back to the bed.
+                TouchToneChannel.shared.noteOff(pitch: pitch, at: CFAbsoluteTimeGetCurrent())
             }
             lastRing.removeValue(forKey: id)
         }
