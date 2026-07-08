@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 — Slider-Look-Customizer + Genre-Wärme 2 + Senior-Review (v10.79.107)
+Founder: „das menü überarbeiten damit man das was im slider passiert selbst customizen kann
+(mehr Optionen)" + „alle musik Genres angenehmer wärmer" + „Visuals insgesamt stabilisieren …
+höchstes Ralph Senior Developer Level".
+- **Look-Slider-Customizer (600d26e, `LookBlendMap`/`EchoelStudioView`/`FloatingVisualWindow`):**
+  Der stufenlose Look-Slider blendet jetzt durch eine USER-GEWÄHLTE Sequenz statt einer festen
+  Liste. `LookBlendMap` neu: volle 10-Look-`library`, `defaultSequence` [3,5,7,2], kompakte
+  "3,5,7,2"-Persistenz (shared key `visual.sliderLooks`), `sequence(from:)`/`string(from:)`/
+  `toggling(_:in:)` (kanonische Ordnung, nie leer), und `blend`/`position`/`nearestName`/
+  `maxPosition` nehmen jetzt die aktive Sequenz. Beide Slider (Menü + Vollbild-Leiste) teilen die
+  Sequenz; Slider versteckt bei nur 1 Look (kein 0…0-Range). Neue „Slider looks"-Chip-Reihe im
+  Visual-Menü togglet jeden der 10 Looks rein/raus mit Fade-Reihenfolge-Badge. Tests neu geschrieben.
+- **Genre-Wärme Pass 2 (a3aafa0):** synthwave/futuristic/psytrance/rocknroll/rock/ska/klezmer
+  Bright runter (.48–.46), Cutoffs 3100–3300, Attacks weicher — kein kaltes Herausstechen mehr.
+- **Senior-Review (Agent, clean):** KEINE critical/high Bugs. Die acf-Normalisierung (Flag #3,
+  höchstes Risiko) verifiziert mathematisch sicher — verschiebt echte Pulse NACH OBEN, Rauschen/Junk
+  bleiben unter den Trust-Floors (0.2/0.4/0.6), Trennung sogar breiter. L3-Hardening (0672a97):
+  `lockAgeTicks` an allen Unlock-Pfaden zurückgesetzt. L5: stale Blend beim Relaunch gecleart.
+- Alle 10 CI-Gates grün außer iOS (läuft noch beim Schreiben); macOS Build&Test grün = Code
+  kompiliert + Tests (inkl. LookBlendMapTests) laufen durch.
+
 ## 2026-07-07 (Forts. 3) — Weicher Trance: Ton-Dichte runter (v10.79.97) + SLM=WATCH
 Founder (nach 2 Videos + Log): „Ton-Dichte runter und vor allem die lauten unangenehmen mit
 unnatürlichem Sound weg. Ich will angenehmen weichen Trance-Sound." + Frage „SLMs die Zukunft?".
