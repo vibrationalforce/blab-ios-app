@@ -119,6 +119,20 @@ public final class CameraRPPGBioPublisher {
     /// Ticks remaining to keep showing "recovering" after a restart is triggered (~10 Hz).
     /// Decays so a brief hiccup's banner doesn't linger once frames return.
     @ObservationIgnored private var recoveringTicks = 0
+    /// EMA of the INBOUND camera sample rate (Hz), measured from what the publish loop
+    /// actually drains. Device log 1783506447: after a stall recovery the analyzer window
+    /// sat at win=0 for 10 s while finger/R stayed live — consistent with the camera
+    /// delivering a thermally-throttled trickle (frames arrive, far too few for the pulse
+    /// band). This measurement makes that state visible in the diag line and drives the
+    /// honest "cooling" banner below ~6 Hz (pulse extraction needs the 0.7–4 Hz band —
+    /// at a few fps the measurement is physically impossible, so say so instead of
+    /// showing a silent dead readout). Seeded at nominal so startup never false-flags.
+    @ObservationIgnored private var inboundRateEMA: Double = 15
+    /// Publish-loop ticks since start — grace window so the cooling banner can't fire
+    /// during camera warm-up.
+    @ObservationIgnored private var loopTicks = 0
+    /// Below this sustained inbound rate the pulse band is unmeasurable → honest cooling.
+    static let minMeasurableInboundHz = 6.0
     /// Lock threshold — also the bus-publish gate.
     static let lockThreshold = 0.35
 
@@ -441,6 +455,9 @@ public final class CameraRPPGBioPublisher {
                 for s in drained {
                     self.analyzer.processExtractedRGB(avgR: s.r, avgG: s.g, avgB: s.b, timestamp: s.t)
                 }
+                // Measured inbound rate (drained-per-100ms-tick × 10 = Hz), EMA-smoothed.
+                self.loopTicks += 1
+                self.inboundRateEMA = self.inboundRateEMA * 0.9 + Double(drained.count) * 10.0 * 0.1
                 // Sample-pipe stall guard (device log 2026-07-02: analyzer output frozen
                 // byte-identical for ~13 s — no NEW RGB reached it — while the capture-layer
                 // watchdog saw frames and stayed happy). If NO samples arrive for ~6 s while
@@ -495,6 +512,11 @@ public final class CameraRPPGBioPublisher {
                 let newRecovery: RPPGRecoveryState
                 if self.recoveringTicks > 0 {
                     newRecovery = .recovering
+                } else if self.loopTicks > 50,
+                          self.inboundRateEMA < Self.minMeasurableInboundHz {
+                    // Camera delivers a trickle (thermal throttle): frames arrive, but far
+                    // too few for the 0.7–4 Hz pulse band — be honest instead of silent.
+                    newRecovery = .cooling
                 } else {
                     switch ProcessInfo.processInfo.thermalState {
                     case .serious, .critical: newRecovery = .cooling
@@ -577,12 +599,12 @@ public final class CameraRPPGBioPublisher {
                     // decent acf, the peak-count rate is HALVED (octave error); if they
                     // agree, the rate is genuine. Diagnoses the halving without a reference.
                     EchoelCrashLog.breadcrumb(String(format:
-                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f auto=%.0f rate=%.1f win=%d bpm=%.0f conf=%.2f",
+                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f auto=%.0f rate=%.1f in=%.1f win=%d bpm=%.0f conf=%.2f",
                         self.fingerDetected ? "yes" : "no",
                         self.analyzer.redChannel, self.analyzer.brightness, self.signalQuality,
                         self.analyzer.lastFilteredAmplitude, self.analyzer.lastPeakCount,
                         self.analyzer.lastAutoStrength, self.analyzer.lastAutoBPM,
-                        self.analyzer.lastActualRate,
+                        self.analyzer.lastActualRate, self.inboundRateEMA,
                         self.analyzer.lastWindowSize, self.detectedBPM, self.confidence))
                 }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
@@ -809,6 +831,10 @@ public final class CameraRPPGBioPublisher {
         quickFailLocks = 0
         stallTicks = 0
         forcedRecoveries = 0
+        inboundRateEMA = 15      // re-seed at nominal so the next start never false-flags
+        loopTicks = 0
+        recoveringTicks = 0
+        recoveryState = .healthy
     }
 
 }
