@@ -1,23 +1,23 @@
-build: 2026-07-07 v10.79.106 (Stufenlos-Look-Slider · Finger formen das Licht · Phantom-Lock weg)
+build: 2026-07-08 v10.79.107 (Slider-Looks selbst wählen · Genres wärmer · Senior-Debug)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine Visual-Steuerungs-Idee ist drin — plus ein Fix aus deinem letzten Log.
-  1) STUFENLOSER LOOK-SLIDER: Der Slider (oben in der Visual-Leiste UND im Hauptmenü —
-     dieselbe Steuerung) blendet jetzt KONTINUIERLICH durch die Modi: zwischen zwei
-     Looks überblendet das Bild live (Water ⇄ Aurora ⇄ Depth ⇄ Plasma). Kein Stufen-
-     Schalten mehr — du morphst das Bild beim Spielen. Position bleibt beim Neustart.
-  2) FINGER FORMEN DAS LICHT: Das Spiel auf dem Touch-Instrument pumpt jetzt Energie
-     ins Visual — unter den Fingern schwillt das Bild an (heller, lebendiger, weiter)
-     und atmet in ~1 Sekunde wieder aus, wenn du loslässt. Notenspiel und Bild sind
-     jetzt EIN Instrument. (Flash-Sicherheit ≤3 Hz bleibt hart begrenzt.)
-  3) PHANTOM-LOCK FIX (dein Log): Ohne Finger auf der Linse hat Umgebungslicht den
-     Belichtungs-Lock alle ~9 s an/aus getriggert (Torch heiß, UI-Flackern). Jetzt:
-     ein Lock, der nach Sekunden stirbt, zählt als Phantom — jeder Fehlversuch macht
-     den nächsten Lock anspruchsvoller, die Schleife erlischt von selbst. Ein echter
-     Finger merkt davon nichts. (Dein Log zeigte auch: Settle→Latch bei 71 bpm hat
-     funktioniert, und die Kamera lief die GANZE Session ohne Ausfall.)
-  TEST 10.79.106:
-  A) Vollbild: Slider langsam ziehen — morpht das Bild flüssig zwischen den Looks?
-  B) Auf dem Bild spielen: schwillt das Visual unter den Fingern an und beruhigt sich
-     wieder? Fühlt es sich wie EIN Instrument an?
-  C) Kamera an, Finger NICHT auflegen, Handy hinlegen: bleibt das Flackern/Relock-
-     Spiel jetzt aus?
+notesT: Dein Wunsch „das Menü überarbeiten, damit man selbst customizen kann, was im Slider
+  passiert (mehr Optionen)" ist drin — plus wärmere Genres und ein sauberer Senior-Debug-Durchlauf.
+  1) SLIDER-LOOKS SELBST WÄHLEN: Unter dem Look-Slider (im Hauptmenü) ist jetzt eine Reihe
+     „Slider looks" — tippe einen der 10 Looks an, um ihn in den Slider AUFZUNEHMEN oder
+     RAUSZUNEHMEN. Die kleine Zahl am Chip zeigt die REIHENFOLGE, in der der Slider durchblendet
+     (links → rechts). So baust du dir deinen eigenen Fade — z. B. nur Water⇄Aurora, oder alle
+     10 Looks nacheinander. Deine Auswahl gilt für BEIDE Slider (Menü + Vollbild-Leiste) und
+     bleibt beim Neustart. Nimmst du den gerade sichtbaren Look raus, springt das Bild sofort
+     auf den nächsten in deiner Liste.
+  2) GENRES WÄRMER (Runde 2): synthwave, futuristic, psytrance, rock'n'roll, rock, ska und
+     klezmer klingen jetzt weicher — weniger kalt-stechende Leads, dunklere Filter, weichere
+     Anschläge. Baut auf der ersten Wärme-Runde auf.
+  3) SENIOR-DEBUG: Das ganze Projekt einmal von einem strengen Review durchleuchtet — KEINE
+     kritischen Bugs. Der riskanteste Punkt (die Puls-Erkennung acf) wurde mathematisch
+     nachgerechnet und ist sauber: echte Pulse werden jetzt eher angezeigt, Rauschen weiter
+     zuverlässig abgewiesen. Kleinere Robustheits-Fixes an der Kamera-Belichtung mitgenommen.
+  TEST 10.79.107:
+  A) Menü öffnen → „Slider looks": ein paar Looks an/aus tippen. Ändert sich, wodurch der
+     Slider blendet? Zeigen die Zahlen die richtige Reihenfolge?
+  B) Slider ziehen: blendet er jetzt genau durch DEINE gewählten Looks?
+  C) Genres durchspielen: klingen synthwave/rock/psytrance/ska wärmer, weniger stechend?
