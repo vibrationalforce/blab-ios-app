@@ -1662,6 +1662,62 @@ final class EchoelDDSPPitchDriftTests: XCTestCase {
                           "a slow-attack pad must start far quieter than a pluck onset")
         for v in [pluck, pad] { XCTAssertTrue(v.isFinite, "onset energy must stay finite") }
     }
+
+    // MARK: - Slide expression (touch gesture -> vibrato/ensemble) + portamento
+
+    func testSlideExpression_zeroIsBitIdentical_nonZeroChangesOutput() {
+        func makeVoice(_ express: Float) -> EchoelDDSP {
+            let d = EchoelDDSP()
+            d.pitchDriftCents = 0; d.levelDriftAmount = 0; d.partialShimmer = 0
+            d.expressVibrato = express
+            d.expressChorus = express
+            return d
+        }
+        // OFF must remain a true no-op path (bit-identical across voices)...
+        XCTAssertEqual(renderTail(makeVoice(0)), renderTail(makeVoice(0)),
+                       "expression 0 must be a true no-op path")
+        // ...and ON must audibly modulate, while staying finite and bounded.
+        let dry = renderTail(makeVoice(0))
+        let wet = renderTail(makeVoice(0.8))
+        XCTAssertNotEqual(dry, wet, "expression must change the rendered samples")
+        for v in wet {
+            XCTAssertTrue(v.isFinite)
+            XCTAssertLessThan(abs(v), 2.0, "expression stays a subtle pitch wobble, never a blow-up")
+        }
+    }
+
+    func testSlideNote_movesTheHeldNoteWithoutRetrigger() {
+        let p = EchoelPolyDDSP(maxVoices: 4)
+        p.noteOn(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 1)
+        p.slideNote(from: 60, to: 62)
+        // The voice now belongs to the NEW pitch: releasing the old one is a
+        // no-op, releasing the new one frees the voice.
+        p.noteOff(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 1, "the slid voice must not release via its old pitch")
+        p.noteOff(note: 62)
+        XCTAssertEqual(p.activeVoiceCount, 0, "the slid voice releases via its new pitch")
+    }
+
+    func testSlideNote_ontoAGoneNote_fallsBackToNoteOn() {
+        let p = EchoelPolyDDSP(maxVoices: 4)
+        p.slideNote(from: 60, to: 64)   // nothing holds 60 -> plain noteOn(64)
+        XCTAssertEqual(p.activeVoiceCount, 1)
+        p.noteOff(note: 64)
+        XCTAssertEqual(p.activeVoiceCount, 0)
+    }
+
+    func testPortamento_mapsTimeToClampedCoefficient() {
+        let p = EchoelPolyDDSP(maxVoices: 2)
+        XCTAssertEqual(p.portamentoCoeff, 0.01, "default = the legacy ~2 ms micro-glide")
+        p.setPortamento(seconds: 0)                 // off -> legacy
+        XCTAssertEqual(p.portamentoCoeff, 0.01)
+        p.setPortamento(seconds: 0.2)               // musical glide -> slower coefficient
+        XCTAssertLessThan(p.portamentoCoeff, 0.01)
+        XCTAssertGreaterThan(p.portamentoCoeff, 0)
+        p.setPortamento(seconds: .nan)              // garbage -> safe legacy value
+        XCTAssertEqual(p.portamentoCoeff, 0.01)
+    }
 }
 
 #endif

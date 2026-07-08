@@ -164,6 +164,12 @@ struct FloatingVisualWindow: View {
     /// Fretboard grid over the play surface (founder 2026-07-08: "eine Art
     /// Griffbrett einblenden … Gitter mit Feldern in den passenden Farben").
     @AppStorage("touch.showGrid") private var touchShowGrid = false
+    /// Slide-expression depths + glide for the play surface (founder 2026-07-08:
+    /// "hin und her sliden verändert den Sound … Glide bzw. Portamento kann man
+    /// auch einstellen"). Same keys + defaults as EchoelStudioView's menu.
+    @AppStorage("touch.slideVibrato") private var touchSlideVibrato = 0.35
+    @AppStorage("touch.slideChorus") private var touchSlideChorus = 0.30
+    @AppStorage("touch.glide") private var touchGlide = 0.0
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -339,7 +345,10 @@ struct FloatingVisualWindow: View {
                                         synth: touchSynth ?? synth,
                                         reduceMotion: reduceMotion,
                                         morphDepth: touchMorphDepth,
-                                        showGrid: touchShowGrid)
+                                        showGrid: touchShowGrid,
+                                        slideVibrato: touchSlideVibrato,
+                                        slideChorus: touchSlideChorus,
+                                        glide: touchGlide)
                 }
                 #endif
                 #if canImport(AVFoundation)

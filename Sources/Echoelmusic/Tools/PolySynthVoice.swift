@@ -249,6 +249,55 @@ public final class PolySynthVoice {
         _ = noteCommands.tryEnqueue(NoteCommand(kind: .off, pitch: Int32(pitch), velocity: 0))
     }
 
+    /// GLIDE a held note to a new pitch WITHOUT retriggering (founder 2026-07-08:
+    /// "Glide bzw. Portamento … kann man auch einstellen"). The voice(s) holding
+    /// `oldPitch` keep their running envelope and slide to the new frequency at the
+    /// portamento time set via `setPortamento(seconds:)` — true legato under a
+    /// travelling finger. If the old note is already gone, a normal noteOn fires.
+    public func slide(from oldPitch: Int, to newPitch: Int, velocity: Float = 0.8) {
+        _ = noteCommands.tryEnqueue(NoteCommand(kind: .slide, pitch: Int32(newPitch),
+                                                velocity: min(max(velocity, 0), 1),
+                                                pitch2: Int32(oldPitch)))
+    }
+
+    /// Portamento/glide time in seconds for slid notes (0 = the legacy ~2 ms
+    /// micro-glide, i.e. effectively off). Atomic fan-out to the poly engine.
+    public func setPortamento(seconds: Float) {
+        poly.setPortamento(seconds: seconds)
+    }
+
+    // MARK: - Slide expression (touch-performance gesture)
+
+    /// User depths for the slide gesture (set from the Play-surface-sound menu;
+    /// low-rate writes). 0 disables the respective dimension.
+    @ObservationIgnored public var slideVibratoDepth: Float = 0.35
+    @ObservationIgnored public var slideChorusDepth: Float = 0.30
+    @ObservationIgnored private var slideEnergy: Float = 0
+    @ObservationIgnored private var slideStamp: CFAbsoluteTime = 0
+
+    /// Push slide-gesture energy (called from touch-move events on the main
+    /// thread). Energy decays with a ~0.45 s time constant between pushes, so a
+    /// travelling finger keeps the expression alive and a resting one lets it
+    /// settle; the resulting vibrato/chorus amounts are fanned to the audio
+    /// engine as atomic floats.
+    public func pushSlideExpression(_ amount: Float) {
+        let now = CFAbsoluteTimeGetCurrent()
+        if slideStamp > 0 {
+            slideEnergy *= Float(exp(-(now - slideStamp) / 0.45))
+        }
+        slideStamp = now
+        slideEnergy = min(1, slideEnergy + max(0, min(amount, 0.5)))
+        poly.setSlideExpression(vibrato: slideEnergy * slideVibratoDepth,
+                                chorus: slideEnergy * slideChorusDepth)
+    }
+
+    /// Kill the slide expression (all fingers lifted / surface dismissed).
+    public func clearSlideExpression() {
+        slideEnergy = 0
+        slideStamp = 0
+        poly.setSlideExpression(vibrato: 0, chorus: 0)
+    }
+
     /// Release every held note (release tails fade naturally).
     public func allNotesOff() {
         _ = noteCommands.tryEnqueue(NoteCommand(kind: .allOff, pitch: 0, velocity: 0))
@@ -426,6 +475,9 @@ public final class PolySynthVoice {
                 poly.noteOff(note: Int(cmd.pitch))
             case .allOff:
                 poly.allNotesOff()
+            case .slide:
+                hasEverSounded = true   // a slide's noteOn-fallback must not be muted
+                poly.slideNote(from: Int(cmd.pitch2), to: Int(cmd.pitch), velocity: cmd.velocity)
             }
         }
         guard hasEverSounded else {
@@ -509,8 +561,10 @@ private final class WeakBox<T: AnyObject>: @unchecked Sendable {
 /// A note event passed from the control thread to the audio thread via a
 /// lock-free queue. Trivial value type (no ARC) → safe to hand across threads.
 private struct NoteCommand: Sendable {
-    enum Kind: UInt8 { case on, off, allOff }
+    enum Kind: UInt8 { case on, off, allOff, slide }
     let kind: Kind
     let pitch: Int32
     let velocity: Float
+    /// Auxiliary pitch — only used by `.slide` (the note being slid FROM).
+    var pitch2: Int32 = 0
 }

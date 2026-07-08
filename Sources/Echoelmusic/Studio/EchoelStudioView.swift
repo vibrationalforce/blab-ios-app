@@ -62,6 +62,13 @@ struct EchoelStudioView: View {
     @AppStorage("touch.patchID") private var touchPatchID = ""
     /// How much sliding UP the play surface brightens the tone (0 = off … 1 = ±1 octave).
     @AppStorage("touch.morphDepth") private var touchMorphDepth = 0.6
+    /// Slide-expression depths + glide for the play surface (founder 2026-07-08:
+    /// "hin und her sliden verändert den Sound: Filter, ein bisschen Vibrato,
+    /// Chorus … Glide bzw. Portamento kann man auch einstellen"). Same keys +
+    /// defaults as FloatingVisualWindow, which passes them into the surface.
+    @AppStorage("touch.slideVibrato") private var touchSlideVibrato = 0.35
+    @AppStorage("touch.slideChorus") private var touchSlideChorus = 0.30
+    @AppStorage("touch.glide") private var touchGlide = 0.0
     @Environment(SubBassVoice.self) private var subBass
     @Environment(MetronomeVoice.self) private var metronome
     // The one shared transport. Read ONLY via `.onChange(of: transport.isPlaying)` (a
@@ -1353,6 +1360,21 @@ struct EchoelStudioView: View {
             }
             EchoelValueField(label: "Position morph", value: $touchMorphDepth,
                              range: 0...1, unit: "", decimals: 2)
+            // SLIDE EXPRESSION (founder 2026-07-08: "Auf dem Gitter hin und her
+            // sliden verändert den Sound: Filter, ein bisschen Vibrato, Chorus …
+            // Glide bzw. Portamento kann man auch einstellen"): a travelling
+            // finger opens vibrato + ensemble on the touch voice (decays when the
+            // finger rests); Glide > 0 turns fret-crossing retriggers into a
+            // singing portamento. All per-take live values, flash/audio-safe.
+            Text("Sliding the finger opens vibrato and ensemble width; Glide makes slides sing between notes instead of re-striking.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            EchoelValueField(label: "Slide vibrato", value: $touchSlideVibrato,
+                             range: 0...1, unit: "", decimals: 2)
+            EchoelValueField(label: "Slide ensemble", value: $touchSlideChorus,
+                             range: 0...1, unit: "", decimals: 2)
+            EchoelValueField(label: "Glide", value: $touchGlide,
+                             range: 0...0.4, unit: "s", decimals: 2)
         }
     }
 
