@@ -1,16 +1,17 @@
-build: 2026-07-08 v10.79.113 (Per-Partial-Shimmer — der Sustain lebt)
+build: 2026-07-08 v10.79.114 (Pads/Drone ohne digitalen Anschlag-Tick)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Erster Schritt gegen "klingt wie ein billig Instrument" — die Physik des
-  Billig-Klangs war: das RELATIVE Spektrum stand im Sustain still (Orgel-Effekt).
-  1) PER-PARTIAL-SHIMMER: Jeder Oberton atmet jetzt unabhängig (langsame, nie
-     synchron laufende Wellen 0,3–3 Hz; der Grundton bleibt verankert, die oberen
-     Teiltöne bewegen sich am meisten — wie bei jedem gestrichenen/geblasenen/
-     gesungenen Ton). Gilt für ALLE Synth-Stimmen: Lead, Pads, Touch-Instrument,
-     Drone. Dezent (±10 %) — fühlbar, kein Tremolo.
-  2) Enthält v10.79.112 (falls übersprungen): Kästchen-Flacker-Fix (Farb-Crossfade),
-     Stimmung überall (Pythagoreisch/Just/Maqām auch im Touch-Instrument), Drone-Patch.
-  TEST 10.79.113:
-  A) Einen Ton/Akkord LANGE halten (Pad oder Drone): lebt der Klang jetzt im
-     Ausklang — leichtes inneres Schimmern statt eingefrorener Fläche?
-  B) A/B-Gefühl gegen 112: klingt der gleiche Take voller/organischer?
-  C) Kein neues Artefakt: kein hörbares Tremolo/Pumpen auf gehaltenen Tönen?
+notesT: Sound-Zyklus 2 gegen "billig Instrument" — der Anschlag passt jetzt zum Instrument.
+  1) ONSET-CHIFF GEKOPPELT: Der kurze Anschlag-Rauschburst (Pick/Bow/Breath-Transient,
+     der Plucks und Keys "echt" macht) lag bisher mit festem Pegel auf JEDER Note —
+     auch auf Pads und dem Drone (3,5 s Attack). Ein Klang, der über Sekunden
+     aufblüht, hat physikalisch keinen Anschlag; das fixe Chiff war dort ein kleines
+     digitales "pff" am Notenanfang. Jetzt: Chiff skaliert mit der Perkussivität —
+     voll bei Plucks/Keys (Attack ≤ 0,15 s), sanft auf null bei langen Attacks.
+  2) Enthält v10.79.113: Per-Partial-Shimmer (der Sustain lebt) — falls übersprungen.
+  TEST 10.79.114:
+  A) Preset "Drone" oder ein Pad wählen, Note anschlagen: startet der Ton komplett
+     weich (kein "pff"/Tick am Anfang), blüht nur auf?
+  B) Gegenprobe Pluck/Glass Keys: hat der Anschlag weiterhin seinen Charakter
+     (Attack-Transient unverändert da)?
+  C) Zusammen mit dem Shimmer: klingt ein gehaltener Drone jetzt hochwertig —
+     weicher Start, lebendiger Sustain, langer Ausklang?
