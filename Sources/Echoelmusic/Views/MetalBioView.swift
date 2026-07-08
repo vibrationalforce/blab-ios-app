@@ -77,17 +77,30 @@ private struct BioUniforms {
     var colorToneB: Float = 261.63
     var colorFade: Float = 1
     /// Anti-strobe law, part 2 — the CLOUDS (the default colour of every look): five
-    /// RGB triples, the odd harmonics 1,3,5,7,9 of the current note, EASED PER-CHANNEL
-    /// ON THE CPU (SpectralColor twins the shader's CIE fit). A colour that CHASES its
-    /// target can never jump, no matter how fast notes retrigger — the A/B crossfade
-    /// alone was retargeted faster than it could complete on fast finger slides, and
-    /// every retarget flashed the stale A end for a frame (the fullscreen "Bildfehler"
-    /// while playing the touch instrument).
+    /// RGB triples, one per REALLY-SOUNDING note (see cc*x/y/w below), EASED
+    /// PER-CHANNEL ON THE CPU (SpectralColor twins the shader's CIE fit). A colour
+    /// that CHASES its target can never jump, no matter how fast notes retrigger —
+    /// the A/B crossfade alone was retargeted faster than it could complete on fast
+    /// finger slides, and every retarget flashed the stale A end for a frame (the
+    /// fullscreen "Bildfehler" while playing the touch instrument).
     var cc0r: Float = 0; var cc0g: Float = 0; var cc0b: Float = 0
     var cc1r: Float = 0; var cc1g: Float = 0; var cc1b: Float = 0
     var cc2r: Float = 0; var cc2g: Float = 0; var cc2b: Float = 0
     var cc3r: Float = 0; var cc3g: Float = 0; var cc3b: Float = 0
     var cc4r: Float = 0; var cc4g: Float = 0; var cc4b: Float = 0
+    /// Per-cloud PLACEMENT + PRESENCE (founder 2026-07-08: "die Farben nur erscheinen
+    /// und an der richtigen Stelle, wenn die entsprechenden Töne auch kommen — egal
+    /// ob vom Visual Touch Instrument selbst oder von den anderen Sound Quellen").
+    /// Each cloud is a SLOT for one really-sounding note: anchored at the note's
+    /// pitch-space position (x = within-octave, y = octave height — the fretboard's
+    /// layout, +y up) and weighted by how loudly that note sounds RIGHT NOW (touch
+    /// notes at full weight, generative bus notes at their amplitude). All weights
+    /// 0 = silence → the shader shows a warm neutral: no tone, no colour.
+    var cc0x: Float = 0; var cc0y: Float = 0; var cc0w: Float = 0
+    var cc1x: Float = 0; var cc1y: Float = 0; var cc1w: Float = 0
+    var cc2x: Float = 0; var cc2y: Float = 0; var cc2w: Float = 0
+    var cc3x: Float = 0; var cc3y: Float = 0; var cc3w: Float = 0
+    var cc4x: Float = 0; var cc4y: Float = 0; var cc4w: Float = 0
 }
 
 /// Touch → visual excitation channel (founder 2026-07-07: "das Spiel mit den Fingern
@@ -352,6 +365,22 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// CPU-eased cloud colours (see BioUniforms.cc*) — chase the target, never jump.
     private var cloudRGB = [SIMD3<Float>](repeating: .zero, count: 5)
     private var cloudSeeded = false
+    /// Cloud SLOTS (see BioUniforms.cc*x/y/w): each of the 5 clouds holds ONE
+    /// really-sounding note across frames. Identity = nearest semitone (so a held
+    /// note keeps its slot, colour and place), anchor = the note's pitch-space
+    /// position, weight eases in on note-on and out on note-off/silence.
+    private var cloudID = [Int](repeating: Int.min, count: 5)
+    private var cloudHzSlot = [Double](repeating: 0, count: 5)
+    private var cloudPos = [SIMD2<Float>](repeating: .zero, count: 5)
+    private var cloudW = [Float](repeating: 0, count: 5)
+
+    /// Slot identity for a sounding frequency: its nearest semitone (A4 = 440 ref —
+    /// only an ID, the exact Hz still drives colour/place, so any Kammerton/tuning
+    /// keeps its true colour). Int.min = invalid/free.
+    private static func noteID(_ hz: Double) -> Int {
+        guard hz.isFinite, hz > 0 else { return Int.min }
+        return Int((12.0 * Foundation.log2(hz / 440.0) + 69.0).rounded())
+    }
 
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
@@ -491,6 +520,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // colour easing further down (outside the assumeIsolated closure).
         // Lock-protected channel, no actor hop needed.
         let playedNotes = TouchToneChannel.shared.activeHz(now: nowGov)
+        // EVERY really-sounding note from EVERY source (founder 2026-07-08: colours
+        // only when/where tones come, "egal ob vom Visual Touch Instrument selbst
+        // oder von den anderen Sound Quellen"): touch notes first at full weight,
+        // then the generative bed's notes at their live amplitude. Declared at
+        // function scope (compile lesson 8873363); FILLED inside the MainActor
+        // block below because the bus's musical snapshot is @MainActor.
+        var soundingNotes: [(id: Int, hz: Double, amp: Float)] = []
         MainActor.assumeIsolated {
             // Aspect EVERY frame from the LIVE drawable size, so the rings are concentric from
             // the FIRST frame. It used to be set only in drawableSizeWillChange, which on launch
@@ -528,6 +564,29 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             } else {
                 colorToneHz = 0            // music stopped — release, so the next note adopts cleanly
                 musicTone = nil
+            }
+            // Gather the sounding notes for the cloud slots. Touch notes carry full
+            // weight (a finger IS the performance); the generative roll's chord
+            // arrives with each note's real velocity→amplitude (perceptual sqrt).
+            // Deduped by nearest semitone, capped at the 5 cloud slots.
+            for hz in playedNotes {
+                guard soundingNotes.count < 5 else { break }
+                let id = Self.noteID(hz)
+                guard id != Int.min else { continue }
+                if !soundingNotes.contains(where: { $0.id == id }) {
+                    soundingNotes.append((id, hz, 1.0))
+                }
+            }
+            if soundingNotes.count < 5, let mf = bus?.freshMusical(maxAge: 0.5) {
+                for n in mf.notes.sorted(by: { $0.amplitude > $1.amplitude }) {
+                    guard soundingNotes.count < 5 else { break }
+                    guard n.amplitude > 0.02 else { continue }
+                    let id = Self.noteID(n.frequencyHz)
+                    guard id != Int.min else { continue }
+                    if !soundingNotes.contains(where: { $0.id == id }) {
+                        soundingNotes.append((id, n.frequencyHz, Float(n.amplitude.squareRoot())))
+                    }
+                }
             }
             // IDLE ATTRACT: with NO bio and NO music, the resting picture would sit on one
             // frozen colour + coherence — pretty but static. Slowly drift the palette, breath
@@ -584,31 +643,60 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.breath    = Self.ease(uniforms.breath,    target.breath,    tau: 0.35, dt: dt)
             uniforms.toneHz    = Self.ease(uniforms.toneHz,    target.toneHz,    tau: 0.45, dt: dt)
             // COLOUR (anti-strobe law; eased toneHz above drives GEOMETRY only):
-            // 1) CLOUDS — each harmonic's colour is eased PER-CHANNEL in RGB toward
-            //    its physically exact target (Swift SpectralColor twins the shader's
-            //    CIE fit). A chasing colour cannot jump at ANY retrigger rate — the
-            //    pure A/B crossfade flashed its stale A end on every fast-slide
-            //    retarget (the fullscreen "Bildfehler" while playing).
-            // Cloud TARGETS (founder: "100 % der Sound in den richtigen Farben …
-            // chords"): with fingers down, the first clouds are the HELD notes'
-            // fundamentals — a chord literally shows its actual note colours side
-            // by side; remaining clouds carry odd harmonics of the newest note so
-            // the picture stays varied. No fingers → the bed note's odd-harmonic
-            // series (the unchanged generative look).
-            let noteHz = Double(target.toneHz)
-            var cloudHz = [Double](repeating: noteHz, count: 5)
-            if playedNotes.isEmpty {
-                for k in 0..<5 { cloudHz[k] = noteHz * Double(1 + 2 * k) }
-            } else {
-                let m = min(playedNotes.count, 5)
-                for i in 0..<m { cloudHz[i] = playedNotes[i] }
-                for k in m..<5 { cloudHz[k] = playedNotes[0] * Double(1 + 2 * (k - m + 1)) }
+            // 1) CLOUDS — each sounding note's colour is eased PER-CHANNEL in RGB
+            //    toward its physically exact target (Swift SpectralColor twins the
+            //    shader's CIE fit). A chasing colour cannot jump at ANY retrigger
+            //    rate — the pure A/B crossfade flashed its stale A end on every
+            //    fast-slide retarget (the fullscreen "Bildfehler" while playing).
+            // Cloud SLOTS (founder 2026-07-08: "die Farben nur erscheinen und an der
+            // richtigen Stelle, wenn die entsprechenden Töne auch kommen — egal von
+            // welcher Quelle"): each of the 5 clouds holds ONE really-sounding note.
+            // A slot keeps its note across frames (identity = nearest semitone), its
+            // anchor is the note's pitch-space position (SpectralColor.notePosition —
+            // the fretboard's layout: within-octave → x, octave height → y), and its
+            // weight EASES in on note-on / out on note-off, so colour appears exactly
+            // when and where a tone sounds and breathes away when it stops. No
+            // decorative harmonics anymore — silence means neutral, never fake colour.
+            var slotTaken = [Bool](repeating: false, count: 5)
+            var slotSeeded = [Bool](repeating: false, count: 5)
+            var noteConsumed = [Bool](repeating: false, count: soundingNotes.count)
+            var targetW = [Float](repeating: 0, count: 5)
+            // 1) Slots keep the note they already hold (stable colour + place).
+            for k in 0..<5 where cloudID[k] != Int.min {
+                if let i = soundingNotes.indices.first(where: { !noteConsumed[$0] && soundingNotes[$0].id == cloudID[k] }) {
+                    noteConsumed[i] = true
+                    slotTaken[k] = true
+                    cloudHzSlot[k] = soundingNotes[i].hz
+                    targetW[k] = soundingNotes[i].amp
+                }
             }
+            // 2) New notes claim the quietest free slot. The claimed slot restarts at
+            //    weight 0 and fades in — a note-on reads as an appearing cloud, never
+            //    as a colour snap on a still-visible one.
+            for i in soundingNotes.indices where !noteConsumed[i] {
+                let free = (0..<5).filter { !slotTaken[$0] }
+                guard let k = free.min(by: { cloudW[$0] < cloudW[$1] }) else { break }
+                slotTaken[k] = true
+                slotSeeded[k] = true
+                cloudID[k] = soundingNotes[i].id
+                cloudHzSlot[k] = soundingNotes[i].hz
+                cloudW[k] = 0
+                targetW[k] = soundingNotes[i].amp
+                let p = SpectralColor.notePosition(forHz: soundingNotes[i].hz)
+                cloudPos[k] = SIMD2(Float(p.x), Float(p.y))
+            }
+            // 3) Ease weights (fast in — a played note must answer NOW; softer out)
+            //    and chase each held slot's exact note colour per-channel (anti-strobe
+            //    law: a chasing colour can never jump, at any retrigger rate).
             for k in 0..<5 {
-                let wl = SpectralColor.visibleWavelength(forToneHz: cloudHz[k])
+                let up = targetW[k] > cloudW[k]
+                cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? 0.09 : 0.35, dt: dt)
+                if !slotTaken[k], cloudW[k] < 0.004 { cloudID[k] = Int.min }   // slot free again
+                guard cloudHzSlot[k] > 0 else { continue }
+                let wl = SpectralColor.visibleWavelength(forToneHz: cloudHzSlot[k])
                 let c = SpectralColor.wavelengthToLinearRGB(wl)
                 let t = SIMD3<Float>(Float(c.r), Float(c.g), Float(c.b))
-                cloudRGB[k] = cloudSeeded
+                cloudRGB[k] = (cloudSeeded && !slotSeeded[k])
                     ? SIMD3<Float>(Self.ease(cloudRGB[k].x, t.x, tau: 0.18, dt: dt),
                                    Self.ease(cloudRGB[k].y, t.y, tau: 0.18, dt: dt),
                                    Self.ease(cloudRGB[k].z, t.z, tau: 0.18, dt: dt))
@@ -620,6 +708,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             (uniforms.cc2r, uniforms.cc2g, uniforms.cc2b) = (cloudRGB[2].x, cloudRGB[2].y, cloudRGB[2].z)
             (uniforms.cc3r, uniforms.cc3g, uniforms.cc3b) = (cloudRGB[3].x, cloudRGB[3].y, cloudRGB[3].z)
             (uniforms.cc4r, uniforms.cc4g, uniforms.cc4b) = (cloudRGB[4].x, cloudRGB[4].y, cloudRGB[4].z)
+            (uniforms.cc0x, uniforms.cc0y, uniforms.cc0w) = (cloudPos[0].x, cloudPos[0].y, cloudW[0])
+            (uniforms.cc1x, uniforms.cc1y, uniforms.cc1w) = (cloudPos[1].x, cloudPos[1].y, cloudW[1])
+            (uniforms.cc2x, uniforms.cc2y, uniforms.cc2w) = (cloudPos[2].x, cloudPos[2].y, cloudW[2])
+            (uniforms.cc3x, uniforms.cc3y, uniforms.cc3w) = (cloudPos[3].x, cloudPos[3].y, cloudW[3])
+            (uniforms.cc4x, uniforms.cc4y, uniforms.cc4w) = (cloudPos[4].x, cloudPos[4].y, cloudW[4])
             // 2) PRISM keeps the discrete A→B fade (its colour is a continuous octave
             //    fan of the note Hz — not reducible to one RGB). Retargets are GATED
             //    until the running fade passes 0.6 (the newest target wins next frame,
@@ -712,7 +805,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float styleB; float blend; float colorToneA; float colorToneB; float colorFade;
                       float cc0r; float cc0g; float cc0b; float cc1r; float cc1g; float cc1b;
                       float cc2r; float cc2g; float cc2b; float cc3r; float cc3g; float cc3b;
-                      float cc4r; float cc4g; float cc4b; };
+                      float cc4r; float cc4g; float cc4b;
+                      float cc0x; float cc0y; float cc0w; float cc1x; float cc1y; float cc1w;
+                      float cc2x; float cc2y; float cc2w; float cc3x; float cc3y; float cc3w;
+                      float cc4x; float cc4y; float cc4w; };
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -775,37 +871,44 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         return wavelengthToRGB(clamp(toneWavelengthNm(toneHz), 380.0, 780.0));
     }
 
-    // Multiple drifting COLOUR CLOUDS so the picture is varied ("verschiedene Farbwolken
-    // in Kombination") instead of one flat hue or one muddy average. Each cloud is a
-    // HARMONIC of the played tone (1st..5th) rendered as its TRUE light colour, placed at
-    // its own slowly-drifting centre with a soft Gaussian falloff. The per-pixel colour is
-    // the weight-DOMINANT cloud (weighted average, but sharp falloffs mean each region
-    // keeps its own cloud's colour — only overlaps blend, never a global average). `glow`
-    // returns the summed cloud density so the clouds can softly self-illuminate. Drift is
-    // slow (flash-safe); each cloud's colour is fixed, so no colour flashing.
+    // COLOUR CLOUDS = the really-sounding notes, each AT ITS PITCH-SPACE PLACE
+    // (founder 2026-07-08: "die Farben nur erscheinen und an der richtigen Stelle,
+    // wenn die entsprechenden Töne auch kommen — egal von welcher Quelle"). Each
+    // cloud is one sounding note: its colour arrives PRE-EASED from the CPU (per-
+    // channel RGB chase toward the exact note colour — SpectralColor twins this
+    // shader's CIE fit, the anti-strobe law), its anchor is the note's position
+    // (x = within-octave, y = octave height — the fretboard's layout) and its
+    // weight is how loudly the note sounds RIGHT NOW (eased in/out on the CPU).
+    // A silent slot (weight ~0) contributes NOTHING — no tone, no colour. A tiny
+    // flash-safe breathing around the anchor keeps a held note alive without
+    // moving it off its place. `glow` returns the summed weighted density so the
+    // fragment can gate colour to where notes actually are.
     float3 toneCloudColour(float2 q, float phase, constant Uniforms& u,
                            float spread, thread float& glow) {
-        // ODD harmonics 1,3,5,7,9 → five DISTINCT pitch classes (tonic, fifth, third,
-        // seventh, second). Their colours arrive PRE-EASED from the CPU (per-channel
-        // RGB chase toward the exact note colour — SpectralColor twins this shader's
-        // CIE fit), so no retrigger rate and no band-edge octave-fold can ever make a
-        // cloud snap colour. This function only PLACES the clouds.
         float3 cols[5];
         cols[0] = float3(u.cc0r, u.cc0g, u.cc0b);
         cols[1] = float3(u.cc1r, u.cc1g, u.cc1b);
         cols[2] = float3(u.cc2r, u.cc2g, u.cc2b);
         cols[3] = float3(u.cc3r, u.cc3g, u.cc3b);
         cols[4] = float3(u.cc4r, u.cc4g, u.cc4b);
+        float2 anchors[5];
+        anchors[0] = float2(u.cc0x, u.cc0y);
+        anchors[1] = float2(u.cc1x, u.cc1y);
+        anchors[2] = float2(u.cc2x, u.cc2y);
+        anchors[3] = float2(u.cc3x, u.cc3y);
+        anchors[4] = float2(u.cc4x, u.cc4y);
+        float wgts[5] = { u.cc0w, u.cc1w, u.cc2w, u.cc3w, u.cc4w };
         float3 acc = float3(0.0);
         float w = 0.0;
-        float radius = 0.45 * spread;
+        float radius = 0.42 * spread;
         float r2 = max(radius * radius, 1e-4);
         for (int k = 0; k < 5; k++) {
+            if (wgts[k] < 0.004) continue;                        // note not sounding → no colour
             float h = float(1 + 2 * k);
-            float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe drift
-            float2 ctr = float2(cos(a * 0.7 + h), sin(a + h * 2.0)) * (0.5 * spread);
+            float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe breathing
+            float2 ctr = anchors[k] + 0.06 * float2(cos(a * 0.7 + h), sin(a + h * 2.0));
             float2 dq = q - ctr;
-            float wk = exp(-dot(dq, dq) / r2);
+            float wk = wgts[k] * exp(-dot(dq, dq) / r2);
             acc += cols[k] * wk;
             w += wk;
         }
@@ -1084,10 +1187,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float bloomEdge = (0.44 + 0.24 * beat) * spread; // radius pulses with the beat
         float bloom = restGlow * beatGain * smoothstep(bloomEdge, 0.0, d);
 
-        // Colour = drifting CLOUDS of the tone's harmonic colours distributed across the
-        // frame (founder: "verschiedene Farbwolken in Kombination … nicht zu einer
-        // Mischung") — a varied, bunt picture where each region keeps its own colour,
-        // anchored to the heard tone's overtone series. `cloudGlow` lets them softly glow.
+        // Colour = CLOUDS of the really-sounding notes, each anchored at its pitch-
+        // space place (founder 2026-07-08) — a chord paints its actual note colours
+        // side by side WHERE those notes live; regions with no sounding note stay
+        // neutral (gated below). `cloudGlow` = the summed weighted density, used for
+        // both the soft self-illumination and the colour-truth gate.
         float cloudGlow = 0.0;
         float tfade = clamp(u.colorFade, 0.0, 1.0);
         float3 col = toneCloudColour(pf, phase, u, spread, cloudGlow);
@@ -1098,6 +1202,16 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // is rendered as warm daylight, not neon.
         float prismW = clamp(step(3.5, u.style) * (1.0 - blend) + step(3.5, u.styleB) * blend, 0.0, 1.0);
         if (prismW > 0.0) { col = mix(col, prismColour(pf, u.colorToneA, u.colorToneB, tfade, phase, coh), prismW); }
+        // COLOUR TRUTH GATE (founder 2026-07-08): colour exists ONLY when and WHERE
+        // a tone is really sounding. The clouds' summed LOCAL density (each already
+        // weighted by its note's live level) gates the cloud colour per-pixel — the
+        // colour sits at the note's place and fades to a warm neutral away from it.
+        // The prism fan is a fullscreen dispersion of the tone, so it gates on the
+        // GLOBAL presence of any sounding note instead. Silence → a warm neutral
+        // field: the structure stays alive, the colour waits for the music.
+        float presence = clamp((u.cc0w + u.cc1w + u.cc2w + u.cc3w + u.cc4w) * 1.8, 0.0, 1.0);
+        float colourOn = mix(clamp(cloudGlow * 1.6, 0.0, 1.0), presence, prismW);
+        col = mix(float3(0.60, 0.56, 0.50), col, colourOn);
         // NATURAL WARM LIGHT (founder): pure spectral colours look "neon"; nature's light
         // — a prism/rainbow in warm daylight — is warmer and a touch less saturated. Pull
         // gently toward a warm white point (~3500 K) and ease the saturation, keeping the
