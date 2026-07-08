@@ -304,12 +304,23 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (spectral dispersion)
         // · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
         let s = Float(min(max(style, 0), 9))
+        let sb = Float(min(max(styleB, 0), 9))
+        // "Grafikterror" fix (founder 2026-07-08): when the (A,B) STYLE PAIR changes —
+        // scrubbing the stufenlos slider across a segment boundary — the styles snap
+        // but the eased `blend` still holds the OLD pair's mix for ~0.3–1 s, so the
+        // picture flashes ~100% of a look the user never steered to (e.g. crossing
+        // Aurora→Depth briefly renders Plasma), and fast scrubbing strobes wrong
+        // fields. The slider hand-off is continuous BY CONSTRUCTION (old pair at
+        // blend≈1 ≡ new pair at blend≈0 — both are the SAME pure look), so the only
+        // correct behaviour is to snap blend WITH the pair. Easing remains for
+        // within-pair morphs (the smooth A↔B crossfade the slider is for).
+        let pairChanged = hasTarget && (uniforms.style != s || uniforms.styleB != sb)
         target.style = s
         uniforms.style = s
-        let sb = Float(min(max(styleB, 0), 9))
         target.styleB = sb
         uniforms.styleB = sb
         target.blend = min(max(blend.isFinite ? blend : 0, 0), 1)
+        if pairChanged { uniforms.blend = target.blend }
         target.hr = min(max(hr.isFinite ? hr : 60, 40), 200)
         target.coherence = min(max(coherence.isFinite ? coherence : 0.5, 0), 1)
         target.breath = min(max(breath.isFinite ? breath : 0.5, 0), 1)

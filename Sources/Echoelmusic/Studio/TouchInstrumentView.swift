@@ -154,6 +154,10 @@ final class TouchInstrumentUIView: UIView {
         super.init(frame: frame)
         isMultipleTouchEnabled = true
         backgroundColor = .clear
+        // Water-ring layers must stay INSIDE the visual card: UIView does not clip
+        // sublayers by default, so at the floating sizes rings near the edge were
+        // drawn OVER the surrounding Studio UI (play-at-every-size made this visible).
+        clipsToBounds = true
         isAccessibilityElement = true
         accessibilityLabel = "Play surface"
         accessibilityHint = "Touch and slide to play notes in the current key"
