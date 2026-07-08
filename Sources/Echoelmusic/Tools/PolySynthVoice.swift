@@ -266,11 +266,18 @@ public final class PolySynthVoice {
         poly.a4Hz = Float(min(max(a4Hz, 380), 500))
     }
 
+    /// Main-actor mirror of the active retune table so UI code (the touch
+    /// instrument's note→colour mapping) can compute the SOUNDING frequency of a
+    /// pitch — including Pythagorean/just/maqām offsets — without touching the
+    /// audio-thread table. Rare writes (tone-system change), imperative reads.
+    @ObservationIgnored public private(set) var uiTuningCents: [Float] = Array(repeating: 0, count: 12)
+
     /// Install a microtonal pitch-class retune table (12 entries, cents from 12-TET).
     /// All zeros = standard equal temperament. Safe to call while a loop plays;
     /// takes effect on the next note.
     public func setTuningCents(_ cents: [Float]) {
         poly.setTuningCents(cents)
+        if cents.count == 12 { uiTuningCents = cents }
     }
 
     // MARK: - Patch recall

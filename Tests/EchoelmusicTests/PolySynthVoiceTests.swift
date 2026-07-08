@@ -91,5 +91,20 @@ final class PolySynthVoiceTests: XCTestCase {
         XCTAssertFalse(voice.bioModulationEnabled,
                        "designed patch defines timbre; bio is opt-in for the poly voice")
     }
+
+    func testTuningCentsMirrorTracksTheAudioTable() {
+        let voice = PolySynthVoice(maxVoices: 2)
+        XCTAssertEqual(voice.uiTuningCents, Array(repeating: 0, count: 12), "default is 12-TET")
+        // Pythagorean-style offsets land in the UI mirror (colour math reads it).
+        var cents = [Float](repeating: 0, count: 12)
+        cents[4] = 7.82   // Pythagorean major third (81:64) vs 12-TET
+        cents[7] = 1.955  // pure fifth (3:2) vs 12-TET
+        voice.setTuningCents(cents)
+        XCTAssertEqual(voice.uiTuningCents[4], 7.82, accuracy: 0.001)
+        XCTAssertEqual(voice.uiTuningCents[7], 1.955, accuracy: 0.001)
+        // A malformed table must not corrupt the mirror (audio side ignores it too).
+        voice.setTuningCents([1, 2, 3])
+        XCTAssertEqual(voice.uiTuningCents[4], 7.82, accuracy: 0.001, "wrong count is a no-op")
+    }
 }
 #endif

@@ -275,9 +275,13 @@ final class TouchInstrumentUIView: UIView {
 
     /// Sounding frequency of a MIDI pitch at the take's concert pitch (the touch
     /// synth is tuned by the Studio, so read its live A4 — not a hardcoded 440).
+    /// Includes the active tone system's per-pitch-class cents (Pythagorean, just,
+    /// maqām …) — same formula as the synth's noteOn — so the colour octave is
+    /// transposed from the frequency the ear actually hears, in every tuning.
     private func frequency(of pitch: Int) -> Double {
         let a4 = Double(synth?.poly.a4Hz ?? 440)
-        return a4 * pow(2.0, (Double(pitch) - 69.0) / 12.0)
+        let cents = Double(synth?.uiTuningCents[((pitch % 12) + 12) % 12] ?? 0)
+        return a4 * pow(2.0, (Double(pitch) - 69.0 + cents / 100.0) / 12.0)
     }
 
     // MARK: - Water ripples (CAShapeLayer — GPU, no SwiftUI invalidation)

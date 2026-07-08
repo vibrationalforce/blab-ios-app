@@ -1068,6 +1068,9 @@ struct EchoelStudioView: View {
     private func applyTuning() {
         let cents = TuningSystem.named(tuningID).pitchClassCents(root: rootIndex).map { Float($0) }
         synth.setTuningCents(cents)
+        // The touch instrument plays the same tone system — and its note→colour
+        // mapping reads this table, so the colour follows the SOUNDING pitch.
+        touchSynth?.setTuningCents(cents)
     }
 
     private var genrePicker: some View {
