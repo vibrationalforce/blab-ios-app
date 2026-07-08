@@ -1415,8 +1415,16 @@ struct EchoelStudioView: View {
                         let pos = sliderLooks.firstIndex(of: look.index)
                         let on = pos != nil
                         Button {
-                            sliderLooksRaw = LookBlendMap.string(
-                                from: LookBlendMap.toggling(look.index, in: sliderLooks))
+                            let next = LookBlendMap.toggling(look.index, in: sliderLooks)
+                            sliderLooksRaw = LookBlendMap.string(from: next)
+                            // If the removed look was the one on screen, snap the visual to a
+                            // look still in the sequence right away (don't wait for a drag), so
+                            // the customizer feels live. Donuts stays whatever it was.
+                            if !spectralDonuts, !next.contains(visualStyle) {
+                                visualStyle = next.first ?? visualStyle
+                                visualStyleB = 0
+                                visualBlend = 0
+                            }
                         } label: {
                             HStack(spacing: 5) {
                                 if let pos { Text("\(pos + 1)").font(EchoelTheme.font(10, .bold).monospacedDigit()) }
