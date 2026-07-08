@@ -1,26 +1,19 @@
-build: 2026-07-08 v10.79.109 (Touch instrument: own voice · position morph · own presets)
+build: 2026-07-08 v10.79.110 (Grafikterror fix — clean look hand-off + clipped rings)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine drei Touch-Instrument-Wünsche sind drin — plus ein Kamera-Fix aus deinem Log.
-  1) GLITCHES WEG (eigene Stimme): Bisher teilten sich deine Finger und der generative
-     Loop DENSELBEN Stimmen-Pool — jede gespielte Note konnte einer klingenden Loop-
-     Stimme mitten im Ton die Stimme stehlen (die "komischen Glitches", das Hakeln am
-     Anfang). Das Play-Surface hat jetzt seinen EIGENEN Synth: Fingerspiel und Bett
-     können sich nicht mehr gegenseitig abschneiden.
-  2) MORPHBAR NACH POSITION: Die Höhe deines Fingers auf dem Bild morpht den Klang
-     jetzt KONTINUIERLICH — unten dunkler/runder, oben heller/offener, live beim
-     Sliden (zusätzlich zu Oktavlage und Anschlagstärke). Wie eine Hand, die durchs
-     Wasser Richtung Licht steigt.
-  3) EIGENE PRESETS: Neu im Visual-Menü: "Play surface sound" — "Take sound" (folgt
-     der generierten Musik, wie bisher) ODER jeder Patch aus deiner Library, plus
-     "Position morph"-Regler (0 = aus). Der Hall/Delay-Charakter des Takes bleibt
-     erhalten, damit gespielte Noten im selben Raum sitzen. Auswahl überlebt Neustart.
-  4) KAMERA (dein Log): Nach der Hitze-Recovery lieferte die Kamera zu WENIGE Frames
-     für die Puls-Messung (thermische Drosselung) — die App sagt das jetzt ehrlich
-     ("Device cooling down") statt still zu schweigen, und das Log misst die echte
-     Frame-Rate (in=) für die nächste Diagnose.
-  TEST 10.79.109:
-  A) Fullscreen spielen, auch während der Loop läuft: sind die Glitches/das Hakeln
-     weg? Schneidet das Bett nicht mehr ab?
-  B) Finger von unten nach oben sliden: wird der Ton hörbar heller/offener?
-  C) Menü → "Play surface sound": einen anderen Patch wählen — klingen die Finger
-     jetzt anders als der Loop? "Take sound" = wieder wie die Musik?
+notesT: Dein "Grafikterror im Fullscreen" ist gefunden und behoben — zwei Ursachen aus
+  demselben Build wie die Alle-Größen-Spielbarkeit:
+  1) FALSCHE LOOKS BLITZTEN AUF: Beim Ziehen des Look-Sliders über eine Look-Grenze
+     wechselten die beiden Look-Selektoren SOFORT, aber die Überblendung glitt weich
+     hinterher — für ~1 Sekunde zeigte das Bild fast 100% eines Looks, den du nie
+     angesteuert hast (z.B. Plasma mitten zwischen Aurora und Depth). Schnelles
+     Scrubben strobte wild durch falsche Felder. Jetzt snappt die Überblendung beim
+     Grenzübertritt mit (die Grenze ist nahtlos — gleiches Bild davor und danach);
+     das weiche Morphen INNERHALB eines Segments bleibt genau wie gewollt.
+  2) RINGE ÜBER DEM UI: Bei den kleinen Fenstergrößen zeichneten die Wasser-Ringe
+     der Finger über den Kartenrand hinaus ins Studio-UI. Jetzt bleiben sie sauber
+     im Fenster.
+  TEST 10.79.110:
+  A) Fullscreen, Slider LANGSAM über eine Look-Grenze ziehen: kein Aufblitzen eines
+     fremden Looks mehr? Übergang nahtlos?
+  B) Slider SCHNELL hin und her scrubben: bleibt das Bild ruhig statt zu stroben?
+  C) Kleines Fenster, auf dem Bild spielen: bleiben die Wasser-Ringe im Fenster?
