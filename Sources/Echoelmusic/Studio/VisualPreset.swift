@@ -55,33 +55,28 @@ public struct VisualPreset: Identifiable, Sendable, Equatable {
 
     /// Curated set spanning the calm/sparse → intense/dense range the founder framed
     /// as "von Aura bis Zentrifuge". Ordered from softest to most energetic.
+    /// CURATION 2026-07-08 (founder: "Weniger ist mehr … wir brauchen auch nicht so
+    /// viel verschiedene Presets"): 10 → 5, one clear stop per energy register.
+    /// RETIRED (reversible by re-adding a row; a persisted retired id simply shows
+    /// no selection, the applied values stay editable): Drift (≈Aura), Halo, Cinder,
+    /// Nebula, Vortex — mid-range near-duplicates that made the strip a search task.
     public static let factory: [VisualPreset] = [
         VisualPreset(id: "aura", name: "Aura", intensity: 0.8, detail: 14, motion: 0.45,
                      spread: 1.35, blurb: "soft, sparse, slow aura"),
-        VisualPreset(id: "drift", name: "Drift", intensity: 0.75, detail: 20, motion: 0.4,
-                     spread: 1.4, blurb: "calm, wide and gentle"),
         // Vapor — the coherent dreamy vaporwave world (founder 2026-07-07: "mehr
-        // kitschige Vaporwave-Ästhetik … Brand fit"). Soft, slow and wide like
-        // Aura/Drift, but it ALSO sets a dreamy palette: a hue rotation toward
-        // magenta/purple + a gentle saturation lift for the kitschy (yet graded,
-        // not neon) vaporwave glow. One tap = sound (drone + tape + hall) and
-        // picture read as one nostalgic world. Flash-safe (low motion). Sits in the
-        // calm cluster by energy, so the "softest→most energetic" order still holds.
+        // kitschige Vaporwave-Ästhetik … Brand fit"). Soft, slow and wide like Aura,
+        // but it ALSO sets a dreamy palette: a hue rotation toward magenta/purple +
+        // a gentle saturation lift for the kitschy (yet graded, not neon) vaporwave
+        // glow. One tap = sound (drone + tape + hall) and picture read as one
+        // nostalgic world. Flash-safe (low motion). Sits in the calm cluster by
+        // energy, so the "softest→most energetic" order still holds.
         VisualPreset(id: "vapor", name: "Vapor", intensity: 0.95, detail: 24, motion: 0.42,
                      spread: 1.35, blurb: "dreamy nostalgic vaporwave glow",
                      hue: 0.82, saturation: 1.12),
         VisualPreset(id: "bloom", name: "Bloom", intensity: 1.1, detail: 28, motion: 0.7,
                      spread: 1.2, blurb: "blossoming mid-density"),
-        VisualPreset(id: "halo", name: "Halo", intensity: 1.3, detail: 24, motion: 0.6,
-                     spread: 0.85, blurb: "bright, tight, focused"),
-        VisualPreset(id: "cinder", name: "Cinder", intensity: 1.2, detail: 50, motion: 0.9,
-                     spread: 0.95, blurb: "warm, dense, close embers"),
         VisualPreset(id: "pulse", name: "Pulse", intensity: 1.2, detail: 32, motion: 1.1,
                      spread: 1.0, blurb: "heartbeat-forward"),
-        VisualPreset(id: "nebula", name: "Nebula", intensity: 1.0, detail: 72, motion: 0.6,
-                     spread: 1.5, blurb: "vast, finely detailed field"),
-        VisualPreset(id: "vortex", name: "Vortex", intensity: 1.15, detail: 60, motion: 1.3,
-                     spread: 1.1, blurb: "fast, swirling, energetic"),
         VisualPreset(id: "zentrifuge", name: "Zentrifuge", intensity: 1.4, detail: 86, motion: 1.4,
                      spread: 1.2, blurb: "maximal — dense, fast, centrifugal")
     ]

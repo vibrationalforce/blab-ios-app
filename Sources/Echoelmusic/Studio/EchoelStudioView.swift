@@ -133,10 +133,10 @@ struct EchoelStudioView: View {
     @AppStorage("visual.blend") private var visualBlend = 0.0
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
-    /// as a compact "3,5,7,2" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
+    /// as a compact "3,5,1,4" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
     /// Same key + default in both views so an absent key resolves identically. Replaces the
     /// old fixed `calmMetalStyles` list — the surfaced looks are now whatever the user picks.
-    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,7,2"
+    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,1,4"
     private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
@@ -1546,11 +1546,10 @@ struct EchoelStudioView: View {
     @ViewBuilder
     private var visualBlendControls: some View {
         if !spectralDonuts {
-            let bLooks: [(String, Int)] = [
-                ("Rings", 0), ("Cymatics", 1), ("Plasma", 2), ("Water", 3), ("Prism", 4),
-                ("Aurora", 5), ("Lissajous", 6), ("Depth", 7),
-                ("Scope", 8), ("Fractal", 9)
-            ]
+            // ONE source of truth for the look roster: LookBlendMap.library (curated,
+            // founder 2026-07-08 "weniger ist mehr") — this strip can never drift from
+            // the slider/customizer again.
+            let bLooks: [(String, Int)] = LookBlendMap.library.map { ($0.name, $0.index) }
             Text("Blend with").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
