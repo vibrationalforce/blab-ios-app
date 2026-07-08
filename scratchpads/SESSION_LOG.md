@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 3) — "Grafikterror" im Fullscreen: Blend-Snap beim Paar-Wechsel (v10.79.110)
+Founder: "Im fullscreen Modus gibt es Grafikterror seitdem … in den kleineren Fenstern
+gespielt werden kann." Ursache NICHT die Spielbarkeit selbst — zwei Bugs aus demselben Build:
+- **HAUPTBUG (cf2fe0b, MetalBioView.update):** style/styleB SNAPPEN sofort, `blend` wird
+  geeast (τ 0.3) → beim Slider-Scrub über eine Segment-Grenze zeigt das Bild ~0.3–1 s lang
+  ~100 % eines NIE angesteuerten Looks (altes blend≈1 auf neuem B-Style), schnelles Scrubben
+  strobt falsche Felder. Fix: `pairChanged` → `uniforms.blend = target.blend` (Grenze ist per
+  Konstruktion kontinuierlich: altes Paar@1 ≡ neues Paar@0). **REGEL: eine geeaste Mix-Größe
+  darf einen diskreten Selektor-Wechsel NIE überleben — beim Selektor-Snap den Mix mitsnappen.**
+- Nebenbug: TouchInstrumentUIView ohne clipsToBounds → Wasser-Ringe bluteten bei S/M/L über
+  den Kartenrand ins Studio-UI (UIView clippt Sublayer nicht per Default).
+- Log 1783511179 (10.79.109 verifiziert, `in=` aktiv): Kamera stabil 15–16 Hz, Lock in 4 s,
+  conf 0.81, kein Relock-Churn, ehrliches Finger-weg-Clearing. Watch: acf max 0.36 < 0.4-Floor
+  (Anzeige blieb ehrlich leer — bei wiederholtem "kein Puls trotz gutem Kontakt" Floor prüfen).
+
 ## 2026-07-08 (Forts. 2) — Touch-Instrument: eigene Stimme, Positions-Morph, eigene Presets (v10.79.109)
 Founder (Log 1783506447 + Text): Touch-Instrument "stabilisieren, debuggen … komische
 glitches, hakelt am Anfang" + "Sound morphbar, je nach Position + Presets/Charakter/Effekte
