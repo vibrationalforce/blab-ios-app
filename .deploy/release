@@ -1,4 +1,4 @@
-build: 2026-07-08 v10.79.115 (Touch-Instrument: Akkordfarben · Wolken · Griffbrett · blitzerfrei)
+build: 2026-07-08 v10.79.115r2 (Touch-Instrument: Akkordfarben · Wolken · Griffbrett · blitzerfrei)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
 notesT: Der große Touch-Instrument-Umbau — alle drei Wünsche in einem Build.
   1) BILDFEHLER-URSACHE GEFUNDEN + ELIMINIERT: Beim schnellen Spielen/Sliden kamen
