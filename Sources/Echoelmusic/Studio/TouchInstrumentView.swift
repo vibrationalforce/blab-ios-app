@@ -116,6 +116,9 @@ struct TouchInstrumentView: UIViewRepresentable {
     var reduceMotion: Bool = false
     /// Position-morph amount (0 = off … 1 = ±1 octave of filter travel).
     var morphDepth: Double = 0.6
+    /// Fretboard grid (founder 2026-07-08: "eine Art Griffbrett einblenden …
+    /// Gitter mit Feldern in den passenden Farben"): show which note lives where.
+    var showGrid: Bool = false
 
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
@@ -123,6 +126,7 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.key = key
         v.reduceMotion = reduceMotion
         v.morphDepth = morphDepth
+        v.showGrid = showGrid
         return v
     }
 
@@ -131,16 +135,27 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.synth = synth
         uiView.reduceMotion = reduceMotion
         uiView.morphDepth = morphDepth
+        uiView.showGrid = showGrid
     }
 }
 
 /// UIKit view doing the actual multi-touch → notes + water rings.
 final class TouchInstrumentUIView: UIView {
-    weak var synth: PolySynthVoice?
-    var key = MusicalKey(root: 0, scale: .minor)
+    weak var synth: PolySynthVoice? {
+        didSet { if synth !== oldValue { setNeedsGridRebuild() } }   // colours read its A4/cents
+    }
+    var key = MusicalKey(root: 0, scale: .minor) {
+        didSet { if key != oldValue { setNeedsGridRebuild() } }
+    }
     var reduceMotion = false
     /// Position-morph amount for the vertical filter travel (0 = off).
     var morphDepth: Double = 0.6
+    /// The fretboard grid — one field per playable note (columns = scale degrees,
+    /// rows = octave bands), each tinted with ITS note's physical colour, exactly
+    /// the mapping `pitch(at:)` uses. Display-only CALayers under the ripples.
+    var showGrid = false {
+        didSet { if showGrid != oldValue { setNeedsGridRebuild() } }
+    }
 
     /// Sounding pitch per active touch. Capped so the play surface can never
     /// starve the generative loop of voices (PolySynthVoice steals oldest).
@@ -149,6 +164,10 @@ final class TouchInstrumentUIView: UIView {
     /// Last ring position per touch — a slide drops a new ring only every ~14 pt
     /// (a wake, not a smear).
     private var lastRing: [ObjectIdentifier: CGPoint] = [:]
+    /// Host layer for the fretboard grid — sits UNDER the ripple layers.
+    private let gridLayer = CALayer()
+    private var gridBuiltForSize: CGSize = .zero
+    private var gridDirty = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -161,9 +180,72 @@ final class TouchInstrumentUIView: UIView {
         isAccessibilityElement = true
         accessibilityLabel = "Play surface"
         accessibilityHint = "Touch and slide to play notes in the current key"
+        layer.addSublayer(gridLayer)   // first sublayer → ripples always render above
     }
 
     required init?(coder: NSCoder) { return nil }   // never instantiated from a nib
+
+    // MARK: - Fretboard grid
+
+    private func setNeedsGridRebuild() {
+        gridDirty = true
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if gridDirty || gridBuiltForSize != bounds.size { rebuildGrid() }
+    }
+
+    /// One field per playable note — columns = the key's scale degrees (X mapping),
+    /// rows = the octave bands (Y mapping, bottom = low) — each filled + hairlined
+    /// in ITS note's physical colour and labeled with the note name. Static
+    /// display-only layers (rebuilt only on key/size/toggle change, never per
+    /// frame or per touch), so the grid costs nothing while playing.
+    private func rebuildGrid() {
+        gridDirty = false
+        gridBuiltForSize = bounds.size
+        gridLayer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        gridLayer.frame = bounds
+        guard showGrid, bounds.width > 60, bounds.height > 60 else { return }
+
+        let n = max(1, key.degreesPerOctave)
+        let bands = TouchPitchMap.octaveBands
+        let cellW = bounds.width / CGFloat(n)
+        let cellH = bounds.height / CGFloat(bands.count)
+        let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+        let labelSize: CGFloat = min(11, cellH * 0.2)
+
+        for d in 0..<n {
+            for b in bands.indices {
+                let pitch = key.degree(d, octave: bands[b])
+                let tint = Self.noteTint(hz: frequency(of: pitch))
+                // Band 0 is the LOW octave = BOTTOM row (UIKit y grows downward).
+                let cellFrame = CGRect(x: CGFloat(d) * cellW,
+                                       y: bounds.height - CGFloat(b + 1) * cellH,
+                                       width: cellW, height: cellH)
+                    .insetBy(dx: 1.5, dy: 1.5)
+                let cell = CALayer()
+                cell.frame = cellFrame
+                cell.backgroundColor = tint.withAlphaComponent(0.10).cgColor
+                cell.borderColor = tint.withAlphaComponent(0.38).cgColor
+                cell.borderWidth = 1
+                cell.cornerRadius = 6
+                gridLayer.addSublayer(cell)
+
+                let label = CATextLayer()
+                label.string = names[((pitch % 12) + 12) % 12] + "\(pitch / 12 - 1)"
+                label.fontSize = labelSize
+                label.foregroundColor = tint.withAlphaComponent(0.75).cgColor
+                label.alignmentMode = .left
+                label.contentsScale = window?.screen.scale ?? 3
+                label.frame = CGRect(x: cellFrame.minX + 6,
+                                     y: cellFrame.maxY - labelSize - 6,
+                                     width: cellFrame.width - 8, height: labelSize + 3)
+                gridLayer.addSublayer(label)
+            }
+        }
+    }
 
     // MARK: - Touches
 
