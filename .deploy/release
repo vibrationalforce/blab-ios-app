@@ -1,20 +1,26 @@
-build: 2026-07-08 v10.79.119 (Prism entfernt — fünf klare, sound-gebundene Looks)
+build: 2026-07-08 v10.79.120 (Slide-Expression: Vibrato · Ensemble · einstellbares Glide/Portamento)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: "Prism soll weg" — erledigt.
-  Das Look-Roster ist jetzt: Rings (Herzschlag-Interferenz) · Cymatics
-  (Tonhöhe → Plattenmuster) · Water (Atem) · Aurora (ruhiger Standard) ·
-  Lissajous (Ton-Figuren). Der Standard-Slider fährt Water → Aurora →
-  Cymatics. Ein auf deinem Gerät gespeicherter Prism-Look wird beim
-  nächsten Start automatisch auf den ersten Slider-Look migriert; der
-  Shader-Code bleibt rückholbar im Repo.
-  Enthält v10.79.118, falls übersprungen: Sound-Wahrheit auf jedem Look
-  (der Prisma-Farb-Hijack auf Aurora/Lissajous & Co. ist gefixt — jeder
-  Look malt jetzt die klingenden Noten an ihren Plätzen) + Bild-Energie
-  atmet mit dem Musik-Pegel + kuratierte Presets (Aura · Vapor · Bloom ·
-  Pulse · Zentrifuge).
-  TEST 10.79.119:
-  A) Look-Leiste: nur noch 5 Looks, kein Prism mehr — auch nicht im
-     Vollbild-Slider und in "Blend with"?
-  B) Falls du Prism aktiv hattest: startet die App auf Water statt Prism?
-  C) Fühlen sich die 5 Looks jetzt klar unterscheidbar an, jeder mit
-     eigenem Sound-Bezug?
+notesT: Das Touch-Instrument bekommt Ausdruck unter den Fingern:
+  1) SLIDEN VERÄNDERT DEN SOUND: Bewegt sich der Finger auf dem Gitter,
+     öffnet sich der Klang — ein feines Vibrato (bis ~18 Cent, zusätzlich
+     zum Charakter des gewählten Instruments) und eine Ensemble-Breite
+     (jede Stimme eines Akkords wobbelt eigenständig — der Klang wird
+     dicker, wie ein Ensemble das sich hineinlehnt). Ruht der Finger,
+     klingt es in ~einer halben Sekunde wieder ab; beim Loslassen sofort.
+     Der Höhen-Filter (oben = heller) bleibt wie gehabt.
+  2) GLIDE / PORTAMENTO EINSTELLBAR: Mit Glide > 0 rutscht eine gehaltene
+     Note SINGEND zur nächsten (die Hüllkurve läuft weiter, kein neuer
+     Anschlag) — echtes Legato wie auf einer Saite. Glide 0 = das bisherige
+     Neu-Anschlagen pro Feld.
+  3) MENÜ GRÖSSER: "Play surface sound" hat jetzt Slide vibrato · Slide
+     ensemble · Glide (Sekunden) als Zahlenfelder — pro Geschmack und
+     Instrument einstellbar, gespeichert über Neustarts.
+  Audio-Thread-Review: CLEAN. Enthält v10.79.119 (Prism entfernt).
+  TEST 10.79.120:
+  A) Note halten und KREISEN: öffnet sich Vibrato/Breite spürbar und
+     beruhigt sich, wenn der Finger still liegt?
+  B) Glide auf 0.15 s stellen, über mehrere Felder ziehen: singt die Note
+     die Tonhöhen entlang statt neu anzuschlagen?
+  C) Verschiedene Instrumente (Patch-Chips) probieren: fühlt sich die
+     Expression je Instrument anders an?
+  D) Alles auf 0: spielt sich die Fläche exakt wie vorher?
