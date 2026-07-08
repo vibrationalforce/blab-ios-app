@@ -1,23 +1,16 @@
-build: 2026-07-08 v10.79.112 (Kästchen-Flackern gefixt · Stimmung überall · Drone-Patch)
+build: 2026-07-08 v10.79.113 (Per-Partial-Shimmer — der Sustain lebt)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Video hat den Flacker-Bug überführt — plus Stimmungs-Korrektheit und der
-  erste echte Ambient-Drone.
-  1) KÄSTCHEN-FLACKERN GEFIXT: Die Farbwolken berechneten ihre Farbe aus der GLEITENDEN
-     Tonfrequenz; beim Überqueren der Oktavgrenze des sichtbaren Bands klappte die
-     Wellenlänge in EINEM Frame von Rot nach Violett/Grün um (dein Video: linke/rechte
-     Bildhälfte tauschen schlagartig Grün↔Rot). Jetzt: Farb-CROSSFADE — pro Pixel wird
-     von der Farbe der vorherigen Note zur Farbe der aktuellen Note übergeblendet
-     (~0,2 s), beide Enden physikalisch exakt. Kann prinzipiell nie mehr stroben.
-  2) STIMMUNG ÜBERALL KONSISTENT: Tonsystem (Pythagoreisch, Just, Maqām …) wirkt jetzt
-     auch auf das Touch-Instrument — Klang UND Notenfarbe folgen der tatsächlich
-     klingenden Frequenz (vorher blieb das Touch-Spiel heimlich in 12-TET).
-  3) NEUER "DRONE"-PATCH (dein Ambient-Rezept): 3,5 s Attack, 6 s Release, dunkler
-     gehaltener Körper, langsame Filter-Bewegung (0,07 Hz), tiefer Raum. In den
-     Sound-Presets UND als Touch-Instrument-Sound wählbar.
-  TEST 10.79.112:
-  A) Fullscreen laufen lassen (mehrere Noten/Loop): kein schlagartiger Farb-Flip mehr —
-     Farben blenden weich von Note zu Note?
-  B) Tonsystem auf Pythagoreisch stellen, Touch spielen: klingt anders als 12-TET
-     (Terzen schärfer) und Farben folgen mit?
-  C) Sound-Preset "Drone" wählen, Note halten: blüht über Sekunden auf, Filter wandert
-     langsam, langer Ausklang?
+notesT: Erster Schritt gegen "klingt wie ein billig Instrument" — die Physik des
+  Billig-Klangs war: das RELATIVE Spektrum stand im Sustain still (Orgel-Effekt).
+  1) PER-PARTIAL-SHIMMER: Jeder Oberton atmet jetzt unabhängig (langsame, nie
+     synchron laufende Wellen 0,3–3 Hz; der Grundton bleibt verankert, die oberen
+     Teiltöne bewegen sich am meisten — wie bei jedem gestrichenen/geblasenen/
+     gesungenen Ton). Gilt für ALLE Synth-Stimmen: Lead, Pads, Touch-Instrument,
+     Drone. Dezent (±10 %) — fühlbar, kein Tremolo.
+  2) Enthält v10.79.112 (falls übersprungen): Kästchen-Flacker-Fix (Farb-Crossfade),
+     Stimmung überall (Pythagoreisch/Just/Maqām auch im Touch-Instrument), Drone-Patch.
+  TEST 10.79.113:
+  A) Einen Ton/Akkord LANGE halten (Pad oder Drone): lebt der Klang jetzt im
+     Ausklang — leichtes inneres Schimmern statt eingefrorener Fläche?
+  B) A/B-Gefühl gegen 112: klingt der gleiche Take voller/organischer?
+  C) Kein neues Artefakt: kein hörbares Tremolo/Pumpen auf gehaltenen Tönen?
