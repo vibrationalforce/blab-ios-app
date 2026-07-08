@@ -55,6 +55,13 @@ struct EchoelStudioView: View {
     @Environment(MIDIOutput.self) private var midiOut
     @Environment(AUv3Host.self) private var auHost
     @Environment(PolySynthVoice.self) private var synth
+    /// The PLAY-SURFACE voice (fullscreen visual touch instrument) — its own instance,
+    /// so its patch/morph never re-timbre the generative bed and vice versa.
+    @Environment(\.touchSynth) private var touchSynth
+    /// Patch id for the play surface: "" = follow the take's sound (default).
+    @AppStorage("touch.patchID") private var touchPatchID = ""
+    /// How much sliding UP the play surface brightens the tone (0 = off … 1 = ±1 octave).
+    @AppStorage("touch.morphDepth") private var touchMorphDepth = 0.6
     @Environment(SubBassVoice.self) private var subBass
     @Environment(MetronomeVoice.self) private var metronome
     // The one shared transport. Read ONLY via `.onChange(of: transport.isPlaying)` (a
@@ -438,6 +445,10 @@ struct EchoelStudioView: View {
             }
             surfacePriorCrashIfAny()
             handlePendingIntent()
+            // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
+            // no action here (currentPatch is still the Init placeholder pre-generate —
+            // the app startup already gave both voices the warm default).
+            if !touchPatchID.isEmpty { syncTouchSound() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
@@ -506,6 +517,7 @@ struct EchoelStudioView: View {
             AnyView(PatchEditorView(initial: currentPatch) { p in
                 currentPatch = p
                 synth.apply(p)   // editor changes hit the live voice immediately
+                syncTouchSound() // play surface follows unless it has its own patch
             }
             .echoelSheetPanel())
         }
@@ -1101,7 +1113,7 @@ struct EchoelStudioView: View {
         // Standard 440.00; the saved preference persists. (Slider + chips removed
         // to save space.)
         return EchoelValueField(label: "Concert pitch A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
-                                onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
+                                onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
     }
 
     private var tempoRow: some View {
@@ -1303,7 +1315,58 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone transposed into visible light (physically correct); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            touchSoundSection
         }
+    }
+
+    /// PLAY-SURFACE SOUND (founder 2026-07-08: "man soll auch Presets bzw. Sound-
+    /// Charakter … individuell einstellen können" + "morphbar … je nachdem wo man
+    /// sich befindet"). The fullscreen visual is a touch instrument with its OWN
+    /// voice: pick its sound here (default: follow the take), and set how much
+    /// sliding up the surface opens the tone (the position morph). Inline — no new
+    /// sheet (the modifier-chain metadata rule).
+    private var touchSoundSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Play surface sound")
+                .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                .padding(.top, 4)
+            Text("What your fingers sound like on the fullscreen visual. Take sound follows the generated music; pick a patch to give the surface its own voice.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    touchPatchChip(name: "Take sound", selected: touchPatchID.isEmpty) {
+                        touchPatchID = ""
+                        syncTouchSound()
+                    }
+                    ForEach(patchStore.patches) { p in
+                        touchPatchChip(name: p.name, selected: touchPatchID == p.id.uuidString) {
+                            touchPatchID = p.id.uuidString
+                            touchSynth?.apply(p)
+                        }
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+            EchoelValueField(label: "Position morph", value: $touchMorphDepth,
+                             range: 0...1, unit: "", decimals: 2)
+        }
+    }
+
+    private func touchPatchChip(name: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(name)
+                .font(EchoelTheme.font(12, .medium))
+                .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
+                .padding(.horizontal, 11).frame(height: 30)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(name) play-surface sound")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 
     // MARK: Panel — Entrainment (biofeedback-driven brainwave stimulus)
@@ -2023,6 +2086,7 @@ struct EchoelStudioView: View {
     /// Stamp the chosen effect character on the live FX chain (independent of genre).
     private func applyFX() {
         fxCharacter.apply(to: synth.fxChain, bpm: currentTempo, genre: style)
+        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: currentTempo, genre: style) }   // same room for played notes
         applyDelaySync(bpm: currentTempo)
     }
 
@@ -2607,10 +2671,12 @@ struct EchoelStudioView: View {
             structureSeed: structureSeed
         )
         let composition = BioComposer.compose(input)
-        // Honor the user's Kammerton (concert pitch) + live timbre on the next notes.
+        // Honor the user's concert pitch + live timbre on the next notes.
         synth.setTuning(a4Hz: session.a4Hz)
         subBass.setTuning(a4Hz: session.a4Hz)
+        touchSynth?.setTuning(a4Hz: session.a4Hz)
         synth.apply(currentPatch)
+        syncTouchSound()
         // TEMPO — bio-reactive but never jumpy. The body seeds the tempo once the pulse is
         // trustworthy, then the beat GENTLY CONVERGES toward the body's live trend on each
         // evolve tick (founder circled "98 bpm vs Puls 66": the first seed captured an elevated
@@ -2663,6 +2729,7 @@ struct EchoelStudioView: View {
         pianoRoll.musicalScaleName = scale.rawValue
         pianoRoll.musicalTempoBPM = tempo
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
+        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: tempo, genre: style) }   // same room for played notes
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
         // Global transpose: shift every generated pitch by the user's semitones at the
         // single point where all notes exist as one array (main actor, not the audio
@@ -2785,6 +2852,22 @@ struct EchoelStudioView: View {
     /// across every voice in its render drain.
     private func applySoundLive() {
         synth.apply(currentPatch)
+        syncTouchSound()
+    }
+
+    /// Keep the play surface's voice in sync with the take sound — unless the user
+    /// picked a dedicated touch patch ("touch.patchID"), which always wins. Called
+    /// wherever the take patch changes (generate / editor / preset recall).
+    private func syncTouchSound() {
+        guard let touchSynth else { return }
+        if touchPatchID.isEmpty {
+            touchSynth.apply(currentPatch)
+        } else if let id = UUID(uuidString: touchPatchID),
+                  let p = patchStore.patches.first(where: { $0.id == id }) {
+            touchSynth.apply(p)
+        } else {
+            touchSynth.apply(currentPatch)   // stale selection → follow the take again
+        }
     }
 
     // seedTempo moved to StudioCalculator.seedTempo (Foundation-only home → Linux CI
@@ -2932,8 +3015,11 @@ struct EchoelStudioView: View {
         session.a4Hz = p.a4Hz
         synth.setTuning(a4Hz: p.a4Hz)
         subBass.setTuning(a4Hz: p.a4Hz)
+        touchSynth?.setTuning(a4Hz: p.a4Hz)
         synth.apply(p.patch)
+        syncTouchSound()
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: p.style)
+        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: p.bpm, genre: p.style) }   // same room for played notes
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)

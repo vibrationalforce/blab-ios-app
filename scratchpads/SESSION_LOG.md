@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts.) — Alles Englisch + Software heißt Echoelmusic (v10.79.108)
+Founder (Screenshot von 10.79.107 live auf Gerät): „Alles auf Englisch, außerdem Echoelmusic
+nicht Echoel. Ich bin der Künstler aber die Domain und die Software heißt Echoelmusic."
+- **Sprach-/Namens-Sweep (03b1cf1, 21 Dateien, nur String-Literale):** (1) letzte deutsche
+  UI-Texte → Englisch: Recovery-Banner (CameraRPPGBioPublisher userHint), Puls-Lock-Cue
+  (BioStripView), „Kammerton A4" → „Concert pitch A4" (EchoelStudioView). (2) Produktname in
+  ALLEN User-Strings → Echoelmusic (BioMetricInfo, MusicTheoryPrimer, LightScienceInfo,
+  SafeModeView, EchoelAppIntents, MultipeerSession, Widgets, Watch, MIDI-Conductor-Track,
+  Preset-Mail-Subjects, a11y-Labels). **BEWUSST unverändert:** „Curated by Echoel" (KÜNSTLER-
+  Credit — genau die Unterscheidung des Founders), Artist-Fallback in Dateinamen, und der
+  interne App-Group-Pfad `AppGroupStore(subdirectory: "Echoel")` (Ändern würde persistierte
+  Daten verwaisen — NIE umbenennen). Typnamen (EchoelTheme etc.) unberührt.
+- **REGEL (persistent):** Der Founder ist der Künstler „Echoel"; Domain + Software heißen
+  „Echoelmusic". User-facing Copy: IMMER Englisch, IMMER Echoelmusic für das Produkt.
+
 ## 2026-07-08 — Slider-Look-Customizer + Genre-Wärme 2 + Senior-Review (v10.79.107)
 Founder: „das menü überarbeiten damit man das was im slider passiert selbst customizen kann
 (mehr Optionen)" + „alle musik Genres angenehmer wärmer" + „Visuals insgesamt stabilisieren …

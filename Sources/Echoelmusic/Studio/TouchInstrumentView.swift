@@ -65,23 +65,62 @@ public enum TouchPitchMap {
     public static func slideRetriggers(oldPitch: Int, newPitch: Int) -> Bool {
         oldPitch != newPitch
     }
+
+    /// POSITION MORPH (founder 2026-07-08: "Der Sound … soll auch morphbar sein.
+    /// Je nachdem wo man sich befindet ändert sich der Sound"): the vertical
+    /// position continuously morphs the touch voice's filter — low on the surface
+    /// = darker/rounder, high = brighter/opener — riding ON TOP of the octave
+    /// bands, so a slide upward both climbs the register AND opens the timbre,
+    /// like a hand rising through water toward light. `depth` 0 = off (scale 1);
+    /// depth 1 = ±1 octave of cutoff (0.5×…2×). Exponential so it's perceptually
+    /// even; pure → unit-tested.
+    public static func morphCutoffScale(normY: Double, depth: Double) -> Float {
+        let y = min(max(normY.isFinite ? normY : 0.5, 0), 1)
+        let d = min(max(depth.isFinite ? depth : 0, 0), 1)
+        return Float(pow(2.0, (y - 0.5) * 2.0 * d))
+    }
 }
+
+#if canImport(SwiftUI)
+import SwiftUI
+
+/// The touch instrument's OWN synth (founder 2026-07-08: presets/character must be
+/// individually settable, and the play surface must not glitch the generative bed).
+/// A dedicated PolySynthVoice instance means (a) touch notes never STEAL voices from
+/// the generative loop mid-sustain — the "komische glitches" — and (b) the touch
+/// sound can carry its own patch + position morph without re-patching the whole take.
+/// nil (default) = fall back to the shared take voice (pre-wiring behaviour).
+/// SwiftUI-only guard (no UIKit): EchoelmusicApp injects this on EVERY platform,
+/// even where the UIKit play surface below doesn't compile (macOS CI).
+private struct TouchSynthKey: EnvironmentKey {
+    static let defaultValue: PolySynthVoice? = nil
+}
+
+extension EnvironmentValues {
+    var touchSynth: PolySynthVoice? {
+        get { self[TouchSynthKey.self] }
+        set { self[TouchSynthKey.self] = newValue }
+    }
+}
+#endif
 
 #if canImport(UIKit) && canImport(SwiftUI)
 import UIKit
-import SwiftUI
 
 /// Transparent multi-touch layer mounted over the fullscreen immersive visual.
 struct TouchInstrumentView: UIViewRepresentable {
     let key: MusicalKey
     let synth: PolySynthVoice
     var reduceMotion: Bool = false
+    /// Position-morph amount (0 = off … 1 = ±1 octave of filter travel).
+    var morphDepth: Double = 0.6
 
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
         v.synth = synth
         v.key = key
         v.reduceMotion = reduceMotion
+        v.morphDepth = morphDepth
         return v
     }
 
@@ -89,6 +128,7 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.key = key
         uiView.synth = synth
         uiView.reduceMotion = reduceMotion
+        uiView.morphDepth = morphDepth
     }
 }
 
@@ -97,6 +137,8 @@ final class TouchInstrumentUIView: UIView {
     weak var synth: PolySynthVoice?
     var key = MusicalKey(root: 0, scale: .minor)
     var reduceMotion = false
+    /// Position-morph amount for the vertical filter travel (0 = off).
+    var morphDepth: Double = 0.6
 
     /// Sounding pitch per active touch. Capped so the play surface can never
     /// starve the generative loop of voices (PolySynthVoice steals oldest).
@@ -126,6 +168,7 @@ final class TouchInstrumentUIView: UIView {
             let p = touch.location(in: self)
             let pitch = pitch(at: p)
             held[id] = pitch
+            applyMorph(at: p)   // set the position timbre BEFORE the note speaks
             synth?.noteOn(pitch: pitch, velocity: velocity(of: touch))
             // Playing feeds the picture: each note pumps excitation into the Metal
             // visual (swells intensity/motion), so the fingers visibly shape the light.
@@ -140,6 +183,7 @@ final class TouchInstrumentUIView: UIView {
             let id = ObjectIdentifier(touch)
             guard let old = held[id] else { continue }
             let p = touch.location(in: self)
+            applyMorph(at: p)   // CONTINUOUS morph while the finger travels (not just at retriggers)
             let new = pitch(at: p)
             if TouchPitchMap.slideRetriggers(oldPitch: old, newPitch: new) {
                 synth?.noteOff(pitch: old)
@@ -181,6 +225,7 @@ final class TouchInstrumentUIView: UIView {
             for pitch in held.values { synth?.noteOff(pitch: pitch) }
             held.removeAll()
             lastRing.removeAll()
+            synth?.setCutoffScale(1)           // no lingering morph after dismissal
             TouchVisualEnergy.shared.reset()   // no lingering swell after dismissal
         }
     }
@@ -199,6 +244,17 @@ final class TouchInstrumentUIView: UIView {
             ? Double(touch.force / touch.maximumPossibleForce) : 0
         return TouchPitchMap.velocity(forceNorm: forceNorm,
                                       radiusPoints: Double(touch.majorRadius))
+    }
+
+    /// Vertical position → continuous filter morph on the touch synth. An atomic
+    /// param write consumed by the render block (same discipline as setTuning) —
+    /// safe at any touch-event rate. With a DEDICATED touch synth this shapes only
+    /// the played notes; the generative bed's timbre is untouched.
+    private func applyMorph(at p: CGPoint) {
+        guard morphDepth > 0.001 else { return }
+        let h = max(bounds.height, 1)
+        let normY = Double(1 - p.y / h)   // UIKit y is down; up = brighter
+        synth?.setCutoffScale(TouchPitchMap.morphCutoffScale(normY: normY, depth: morphDepth))
     }
 
     // MARK: - Water ripples (CAShapeLayer — GPU, no SwiftUI invalidation)

@@ -104,6 +104,11 @@ struct FloatingVisualWindow: View {
     /// the floating window fell back to C4 and ignored an ARMED entrainment). Both reads are
     /// LOW-frequency (user-set toggles/keys) — safe in this leaf body per the freeze rule.
     @Environment(PolySynthVoice.self) private var synth
+    /// The play surface's DEDICATED voice (own patch + position morph; never steals
+    /// from the generative bed). Falls back to the shared voice if absent.
+    @Environment(\.touchSynth) private var touchSynth
+    /// Position-morph amount for the play surface (shared key with the Studio panel).
+    @AppStorage("touch.morphDepth") private var touchMorphDepth = 0.6
     // For a fitting MP4 name (founder: "Session Recording für video und auch passender
     // Name") — same convention as the WAV: Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4.
     @Environment(SessionContext.self) private var session
@@ -328,8 +333,9 @@ struct FloatingVisualWindow: View {
                 // layer is a UIView (macOS CI has none).
                 .overlay {
                     TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
-                                        synth: synth,
-                                        reduceMotion: reduceMotion)
+                                        synth: touchSynth ?? synth,
+                                        reduceMotion: reduceMotion,
+                                        morphDepth: touchMorphDepth)
                 }
                 #endif
                 #if canImport(AVFoundation)

@@ -66,6 +66,26 @@ final class TouchInstrumentTests: XCTestCase {
         XCTAssertTrue(TouchPitchMap.slideRetriggers(oldPitch: 60, newPitch: 62))
     }
 
+    func testMorphCutoffScale_positionShapesTheTone() {
+        // Centre of the surface = neutral (scale 1), regardless of depth.
+        XCTAssertEqual(TouchPitchMap.morphCutoffScale(normY: 0.5, depth: 1), 1, accuracy: 0.001)
+        // Full depth: bottom = half the cutoff (darker), top = double (brighter).
+        XCTAssertEqual(TouchPitchMap.morphCutoffScale(normY: 0, depth: 1), 0.5, accuracy: 0.001)
+        XCTAssertEqual(TouchPitchMap.morphCutoffScale(normY: 1, depth: 1), 2.0, accuracy: 0.001)
+        // Depth 0 = morph off: always neutral.
+        XCTAssertEqual(TouchPitchMap.morphCutoffScale(normY: 0.9, depth: 0), 1, accuracy: 0.001)
+        // Monotonic: higher on the surface is never darker.
+        var prev: Float = 0
+        for yi in 0...10 {
+            let s = TouchPitchMap.morphCutoffScale(normY: Double(yi) / 10, depth: 0.6)
+            XCTAssertGreaterThanOrEqual(s, prev)
+            prev = s
+        }
+        // Garbage inputs clamp instead of exploding the filter.
+        XCTAssertEqual(TouchPitchMap.morphCutoffScale(normY: .nan, depth: .infinity), 1, accuracy: 0.001)
+        XCTAssertEqual(TouchPitchMap.morphCutoffScale(normY: 99, depth: 5), 2.0, accuracy: 0.001)
+    }
+
     func testEdgeInputsNeverCrash_andStayInKey() {
         let key = MusicalKey(root: 11, scale: .harmonicMinor)  // B, awkward root
         for (x, y) in [(-1.0, -1.0), (2.0, 2.0), (0.0, 1.0), (1.0, 0.0), (0.5, 1.0)] {

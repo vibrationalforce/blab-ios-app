@@ -29,6 +29,11 @@ struct EchoelmusicApp: App {
     /// through this with its own timbre so a take reads as separate instruments
     /// (bass · harmony · LEAD), not one surface. Small pool — the lead is few-note.
     @State private var leadVoice: PolySynthVoice
+    /// Dedicated TOUCH-INSTRUMENT voice (founder 2026-07-08: the play surface's sound
+    /// must be individually settable and must not glitch the bed). Its own pool means
+    /// touch notes never steal a generative voice mid-sustain (the audible "glitch"),
+    /// and its patch/morph are independent of the take. Small pool: 4 touches max.
+    @State private var touchVoice: PolySynthVoice
     @State private var subBass: SubBassVoice
     /// Steady click track — production/performance metronome (self-driving, silent
     /// until armed). Synced to the transport tempo by the studio view.
@@ -168,6 +173,8 @@ struct EchoelmusicApp: App {
         _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 12))
         // Lead voice: small pool (the melody is few-note) to keep the added CPU low.
         _leadVoice = State(wrappedValue: PolySynthVoice(maxVoices: 3))
+        // Touch voice: 6 slots for max 4 fingers + release tails (steals only its own).
+        _touchVoice = State(wrappedValue: PolySynthVoice(maxVoices: 6))
         _subBass = State(wrappedValue: SubBassVoice())
         _bioEvents = State(wrappedValue: BioEventPublisher())
         _bioFeedback = State(wrappedValue: BioFeedbackPublisher())
@@ -258,6 +265,9 @@ struct EchoelmusicApp: App {
             .environment(bus)
             .environment(bioVoice)
             .environment(polyVoice)
+            // Touch instrument's own voice — custom key: a second `.environment(PolySynthVoice)`
+            // would silently REPLACE polyVoice for every consumer (last-writer-wins per type).
+            .environment(\.touchSynth, touchVoice)
             .environment(subBass)
             .environment(metronome)
             .environment(bioEvents)
@@ -345,6 +355,7 @@ struct EchoelmusicApp: App {
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
                 leadVoice.attach(to: audioEngine)
+                touchVoice.attach(to: audioEngine)
                 subBass.attach(to: audioEngine)
                 metronome.attach(to: audioEngine)
                 // Session breathing cue — attached BEFORE start like every voice
@@ -387,6 +398,7 @@ struct EchoelmusicApp: App {
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 leadVoice.start(subscribing: bus)
+                touchVoice.start(subscribing: bus)   // touch notes breathe with the body too
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
                 // the ~30 Hz control loop (idle until the user adds modulation routes).
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
@@ -394,6 +406,9 @@ struct EchoelmusicApp: App {
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
+                // Touch voice pre-generate default: warm, mirrors the take default; the
+                // generate path re-syncs it (or the user's own touch patch overrides).
+                if let firstPatch = patchStore.patches.first { touchVoice.apply(firstPatch) }
                 // WARM default lead timbre (founder 2026-07-07: "warmen Synth-Sound …
                 // quakige Töne raus"). The per-genre `leadPatchName` overrides this on
                 // generate; this is just the pre-generate default, so it's warm, not the
