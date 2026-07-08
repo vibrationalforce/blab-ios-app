@@ -119,6 +119,11 @@ struct TouchInstrumentView: UIViewRepresentable {
     /// Fretboard grid (founder 2026-07-08: "eine Art Griffbrett einblenden …
     /// Gitter mit Feldern in den passenden Farben"): show which note lives where.
     var showGrid: Bool = false
+    /// Slide-expression depths + glide (founder 2026-07-08: "hin und her sliden
+    /// verändert den Sound … Glide bzw. Portamento kann man auch einstellen").
+    var slideVibrato: Double = 0.35
+    var slideChorus: Double = 0.30
+    var glide: Double = 0
 
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
@@ -127,6 +132,9 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.reduceMotion = reduceMotion
         v.morphDepth = morphDepth
         v.showGrid = showGrid
+        v.slideVibrato = slideVibrato
+        v.slideChorus = slideChorus
+        v.glideSeconds = glide
         return v
     }
 
@@ -136,13 +144,21 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.reduceMotion = reduceMotion
         uiView.morphDepth = morphDepth
         uiView.showGrid = showGrid
+        uiView.slideVibrato = slideVibrato
+        uiView.slideChorus = slideChorus
+        uiView.glideSeconds = glide
     }
 }
 
 /// UIKit view doing the actual multi-touch → notes + water rings.
 final class TouchInstrumentUIView: UIView {
     weak var synth: PolySynthVoice? {
-        didSet { if synth !== oldValue { setNeedsGridRebuild() } }   // colours read its A4/cents
+        didSet {
+            if synth !== oldValue {
+                setNeedsGridRebuild()            // colours read its A4/cents
+                applyExpressionSettings()        // depths/glide land on the new voice
+            }
+        }
     }
     var key = MusicalKey(root: 0, scale: .minor) {
         didSet { if key != oldValue { setNeedsGridRebuild() } }
@@ -150,6 +166,27 @@ final class TouchInstrumentUIView: UIView {
     var reduceMotion = false
     /// Position-morph amount for the vertical filter travel (0 = off).
     var morphDepth: Double = 0.6
+    /// Slide-expression depths (founder 2026-07-08: "hin und her sliden verändert
+    /// den Sound: Filter, ein bisschen Vibrato, Chorus"): how much a travelling
+    /// finger opens vibrato / ensemble on the touch voice. User-set in the
+    /// Play-surface-sound menu; forwarded to the synth on change.
+    var slideVibrato: Double = 0.35 {
+        didSet { if slideVibrato != oldValue { applyExpressionSettings() } }
+    }
+    var slideChorus: Double = 0.30 {
+        didSet { if slideChorus != oldValue { applyExpressionSettings() } }
+    }
+    /// Glide/portamento time (s). ≥ ~5 ms switches slides from retrigger to a
+    /// true singing glide (same envelope, frequency slides).
+    var glideSeconds: Double = 0 {
+        didSet { if glideSeconds != oldValue { applyExpressionSettings() } }
+    }
+
+    private func applyExpressionSettings() {
+        synth?.slideVibratoDepth = Float(min(max(slideVibrato, 0), 1))
+        synth?.slideChorusDepth = Float(min(max(slideChorus, 0), 1))
+        synth?.setPortamento(seconds: Float(min(max(glideSeconds, 0), 0.6)))
+    }
     /// The fretboard grid — one field per playable note (columns = scale degrees,
     /// rows = octave bands), each tinted with ITS note's physical colour, exactly
     /// the mapping `pitch(at:)` uses. Display-only CALayers under the ripples.
@@ -164,6 +201,9 @@ final class TouchInstrumentUIView: UIView {
     /// Last ring position per touch — a slide drops a new ring only every ~14 pt
     /// (a wake, not a smear).
     private var lastRing: [ObjectIdentifier: CGPoint] = [:]
+    /// Last touch position per finger for the slide-expression gesture (every
+    /// move event, unlike lastRing's 14 pt quantum).
+    private var lastExprPos: [ObjectIdentifier: CGPoint] = [:]
     /// Host layer for the fretboard grid — sits UNDER the ripple layers.
     private let gridLayer = CALayer()
     private var gridBuiltForSize: CGSize = .zero
@@ -298,6 +338,7 @@ final class TouchInstrumentUIView: UIView {
                                            at: CFAbsoluteTimeGetCurrent())
             spawnRing(at: p, strong: true, pitch: pitch, velocity: vel)
             lastRing[id] = p
+            lastExprPos[id] = p
         }
     }
 
@@ -307,11 +348,28 @@ final class TouchInstrumentUIView: UIView {
             guard let old = held[id] else { continue }
             let p = touch.location(in: self)
             applyMorph(at: p)   // CONTINUOUS morph while the finger travels (not just at retriggers)
+            // Slide-expression gesture (founder 2026-07-08: "hin und her sliden
+            // verändert den Sound"): finger travel pumps vibrato/ensemble energy
+            // into the touch voice; it decays (~0.45 s) when the finger rests and
+            // clears when the fingers lift. Atomic param writes — touch-rate-safe.
+            if let lp = lastExprPos[id] {
+                let travel = Double(hypot(p.x - lp.x, p.y - lp.y))
+                if travel > 0.5 {
+                    synth?.pushSlideExpression(Float(min(0.35, travel / 320.0)))
+                }
+            }
+            lastExprPos[id] = p
             let new = pitch(at: p)
             if TouchPitchMap.slideRetriggers(oldPitch: old, newPitch: new) {
-                synth?.noteOff(pitch: old)
                 let vel = velocity(of: touch)
-                synth?.noteOn(pitch: new, velocity: vel)
+                if glideSeconds >= 0.005 {
+                    // GLIDE (portamento on): the held voice keeps its envelope and
+                    // SLIDES to the new pitch — no retrigger, a singing legato.
+                    synth?.slide(from: old, to: new, velocity: vel)
+                } else {
+                    synth?.noteOff(pitch: old)
+                    synth?.noteOn(pitch: new, velocity: vel)
+                }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
                 hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))
                 held[id] = new
@@ -347,7 +405,11 @@ final class TouchInstrumentUIView: UIView {
                 TouchToneChannel.shared.noteOff(pitch: pitch, at: CFAbsoluteTimeGetCurrent())
             }
             lastRing.removeValue(forKey: id)
+            lastExprPos.removeValue(forKey: id)
         }
+        // All fingers lifted → the slide expression settles immediately (no
+        // lingering vibrato/ensemble on the release tails).
+        if held.isEmpty { synth?.clearSlideExpression() }
     }
 
     /// Leaving the window (exit fullscreen mid-touch, dismissal) must not leave
@@ -358,7 +420,9 @@ final class TouchInstrumentUIView: UIView {
             for pitch in held.values { synth?.noteOff(pitch: pitch) }
             held.removeAll()
             lastRing.removeAll()
+            lastExprPos.removeAll()
             synth?.setCutoffScale(1)           // no lingering morph after dismissal
+            synth?.clearSlideExpression()      // no lingering vibrato/ensemble either
             TouchVisualEnergy.shared.reset()   // no lingering swell after dismissal
             TouchToneChannel.shared.reset()    // colour hands back to the bed
         }

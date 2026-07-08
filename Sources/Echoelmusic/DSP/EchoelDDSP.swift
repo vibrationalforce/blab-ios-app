@@ -238,6 +238,36 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Audio-thread: read-only in render; the wander uses the per-voice xorshift PRNG.
     public var pitchDriftCents: Float = 3
 
+    // MARK: - Slide Expression (touch-performance gesture)
+
+    /// EXPRESSION vibrato depth 0…1 (founder 2026-07-08: "Auf dem Gitter hin und
+    /// her sliden verändert den Sound: … ein bisschen Vibrato"). ADDS a fixed-rate
+    /// (~5.2 Hz) vibrato of up to ~18 cents ON TOP of the patch's own vibrato, so
+    /// the gesture composes with each instrument's character instead of replacing
+    /// it. Fanned per render block from EchoelPolyDDSP (renderCutoffScale pattern);
+    /// 0 (default) is bit-identical to before. Atomic-Float discipline.
+    public var expressVibrato: Float = 0
+
+    /// EXPRESSION ensemble/chorus amount 0…1: a slow (~0.5–0.8 Hz, per-voice
+    /// de-phased via `expressSeed`) pitch wobble of up to ±10 cents. Voices of a
+    /// chord/unison stack wobble independently → the sound visibly thickens under
+    /// a travelling finger, like an ensemble leaning in. Independent of the FX
+    /// chain, so no patch/genre chorus setting is ever stomped. 0 = bit-identical.
+    public var expressChorus: Float = 0
+
+    /// Per-voice de-phasing seed for the expression chorus (set once at pool init,
+    /// golden-angle spacing). Not audio-thread-mutated.
+    public var expressSeed: Float = 0
+
+    /// Per-sample one-pole coefficient for the base-frequency glide (see
+    /// `smoothedFreq` in render). Default 0.01 = the legacy ~2 ms micro-glide;
+    /// fanned from EchoelPolyDDSP.portamentoCoeff so slid notes get a musical
+    /// portamento. Atomic-Float discipline.
+    public var glideCoeff: Float = 0.01
+
+    private var expressVibPhase: Float = 0
+    private var expressChorusPhase: Float = 0
+
     // MARK: - Timbre Transfer
 
     /// Timbre profile — per-harmonic amplitude template from target instrument
@@ -798,9 +828,11 @@ public final class EchoelDDSP: @unchecked Sendable {
             // Glide the base frequency per-sample so a stolen/reused voice doesn't
             // jump pitch instantly (the audible "phase jump"/click on a still-loud
             // voice). Fresh idle voices seed smoothedFreq in prepareForNote so they
-            // snap to pitch; only reused voices glide. ~2 ms one-pole.
+            // snap to pitch; only reused voices glide. Coefficient default 0.01
+            // (~2 ms, the legacy micro-glide); `glideCoeff` is fanned from the poly
+            // engine's portamento setting so slid notes SING between pitches.
             if smoothedFreq < 0 { smoothedFreq = frequency }
-            smoothedFreq += 0.01 * (frequency - smoothedFreq)
+            smoothedFreq += glideCoeff * (frequency - smoothedFreq)
 
             // Apply pitch modulation (vibrato + analog drift) — accumulate both as
             // semitone offsets and apply with ONE pow so a note that has neither is
@@ -812,6 +844,23 @@ public final class EchoelDDSP: @unchecked Sendable {
                 vibratoPhase += vibratoRate / sampleRate * 2.0 * .pi
                 if vibratoPhase > 2.0 * .pi { vibratoPhase -= 2.0 * .pi }
                 pitchModSemitones += sin(vibratoPhase) * vibratoDepth
+            }
+            // Slide-expression vibrato (touch gesture) — fixed ~5.2 Hz, up to ~18
+            // cents, ADDED to (never replacing) the patch vibrato. Pure sinf on the
+            // voice's own phase; 0 depth skips entirely (bit-identical).
+            if expressVibrato > 0.0005 {
+                expressVibPhase += 5.2 / sampleRate * 2.0 * .pi
+                if expressVibPhase > 2.0 * .pi { expressVibPhase -= 2.0 * .pi }
+                pitchModSemitones += sin(expressVibPhase) * expressVibrato * 0.18
+            }
+            // Slide-expression ensemble/chorus — slow per-voice-de-phased wobble
+            // (rate 0.5–0.8 Hz from the golden-angle seed) up to ±10 cents, so a
+            // chord's voices thicken independently under a travelling finger.
+            if expressChorus > 0.0005 {
+                let rate = 0.5 + 0.3 * (expressSeed - floorf(expressSeed))
+                expressChorusPhase += rate / sampleRate * 2.0 * .pi
+                if expressChorusPhase > 2.0 * .pi { expressChorusPhase -= 2.0 * .pi }
+                pitchModSemitones += sin(expressChorusPhase + expressSeed) * expressChorus * 0.10
             }
             // Analog pitch drift — aperiodic, a slow random walk (few-cent wander)
             // that makes chords beat and sustains breathe like a real instrument.
@@ -1464,8 +1513,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         self.voices = (0..<maxVoices).map { index in
             // Distinct noise seed per voice (golden-ratio step) so summed voices
             // don't share an identical noise sequence.
-            EchoelDDSP(harmonicCount: harmonicCount, sampleRate: sampleRate, frameSize: frameSize,
-                       noiseSeed: 0x12345678 &+ UInt32(index) &* 0x9E3779B9)
+            let v = EchoelDDSP(harmonicCount: harmonicCount, sampleRate: sampleRate, frameSize: frameSize,
+                               noiseSeed: 0x12345678 &+ UInt32(index) &* 0x9E3779B9)
+            // De-phase the slide-expression chorus per voice (golden-angle spacing)
+            // so a chord's voices wobble independently, never in lockstep.
+            v.expressSeed = Float(index) * 2.399963
+            return v
         }
         self.voiceNotes = [Int](repeating: -1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
@@ -1504,6 +1557,54 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     public var cutoffScale: Float = 1.0
     public func setCutoffScale(_ scale: Float) {
         cutoffScale = min(max(scale.isFinite ? scale : 1, 0.1), 8)
+    }
+
+    /// Slide-expression amounts (touch gesture), fanned to every voice in the render
+    /// exactly like `cutoffScale`. Written from the main actor (atomic Floats), read
+    /// on the audio thread; 0/0 (default) is bit-identical to before.
+    public var expressVibrato: Float = 0
+    public var expressChorus: Float = 0
+    public func setSlideExpression(vibrato: Float, chorus: Float) {
+        expressVibrato = min(max(vibrato.isFinite ? vibrato : 0, 0), 1)
+        expressChorus = min(max(chorus.isFinite ? chorus : 0, 0), 1)
+    }
+
+    /// Per-sample one-pole coefficient for each voice's base-frequency glide,
+    /// fanned in the render like `cutoffScale`. Default 0.01 = the legacy ~2 ms
+    /// micro-glide (bit-identical). `setPortamento` maps a musical glide time onto
+    /// it; clamped so it can neither snap (audible step) nor stall forever.
+    public var portamentoCoeff: Float = 0.01
+
+    /// Portamento/glide time in seconds for slid notes. 0 (or < 5 ms) restores the
+    /// legacy micro-glide; longer times make `slideNote` a true singing portamento.
+    /// coeff ≈ 1/(τ·sampleRate) for the one-pole; atomic-Float discipline.
+    public func setPortamento(seconds: Float) {
+        let s = min(max(seconds.isFinite ? seconds : 0, 0), 0.6)
+        portamentoCoeff = s < 0.005 ? 0.01 : min(0.01, max(1.0 / (s * sampleRate), 0.00004))
+    }
+
+    /// GLIDE every voice holding `oldNote` to `newNote` WITHOUT retriggering: the
+    /// envelope keeps running and only the frequency target moves (each stacked
+    /// unison voice keeps its detune ratio), so the note SLIDES at the portamento
+    /// time instead of re-attacking — true legato for the touch surface. Runs on
+    /// the AUDIO thread (called from the note-command drain, same discipline as
+    /// noteOn/noteOff). If nothing holds `oldNote` any more, a normal noteOn fires.
+    public func slideNote(from oldNote: Int, to newNote: Int, velocity: Float = 1.0) {
+        guard oldNote != newNote else { return }
+        let newCents = tuningCents[((newNote % 12) + 12) % 12]
+        let newBase = a4Hz * pow(2.0, (Float(newNote - 69) + newCents / 100.0) / 12.0)
+        let oldCents = tuningCents[((oldNote % 12) + 12) % 12]
+        let oldBase = a4Hz * pow(2.0, (Float(oldNote - 69) + oldCents / 100.0) / 12.0)
+        let ratio = newBase / max(oldBase, 1e-3)
+        var moved = false
+        for i in 0..<maxVoices where voiceNotes[i] == oldNote {
+            voices[i].frequency *= ratio        // smoothedFreq glides there per-sample
+            voiceNotes[i] = newNote
+            ageCounter += 1
+            voiceAges[i] = ageCounter
+            moved = true
+        }
+        if !moved { noteOn(note: newNote, velocity: velocity) }
     }
 
     // MARK: - Note Control
@@ -1696,8 +1797,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // tails of notes already noteOff'd (voiceNotes == -1 but still ringing).
             guard voiceNotes[i] >= 0 || voices[i].isActive else { continue }
 
-            // Fan the global cutoff scale (automation) to the voice before it renders.
+            // Fan the global cutoff scale (automation) + slide expression +
+            // portamento to the voice before it renders (all on the one audio thread).
             voices[i].renderCutoffScale = cutoffScale
+            voices[i].expressVibrato = expressVibrato
+            voices[i].expressChorus = expressChorus
+            voices[i].glideCoeff = portamentoCoeff
 
             // Render voice mono
             memset(&voiceBuffer, 0, frameCount * MemoryLayout<Float>.size)
