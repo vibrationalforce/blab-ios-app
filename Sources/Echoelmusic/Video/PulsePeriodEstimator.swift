@@ -39,11 +39,21 @@ public enum PulsePeriodEstimator {
         for v in x { energy += v * v }
         guard energy > 1e-9 else { return nil }
 
-        // Lag range that maps to the allowed BPM band.
-        let minLag = max(1, Int((60.0 / maxBPM) * sampleRate))
+        // Lag range that maps to the allowed BPM band. CEIL on the short edge: plain
+        // Int() truncation let the shortest searched lag map ABOVE maxBPM (at 15 Hz:
+        // Int(4.5) = 4 → 225 bpm), so whenever short-lag interference (flicker/noise)
+        // carried the strongest correlation, the final band guard threw the WHOLE
+        // estimate away — the analyzer then read acf=0.00/auto=0 for the entire stretch
+        // and a genuinely confident pulse could never pass the display trust gate
+        // (device log 2026-07-08: stable ~71 bpm, conf 0.91, never shown). Every
+        // searched lag must itself be a legal answer.
+        let minLag = max(1, Int(((60.0 / maxBPM) * sampleRate).rounded(.up)))
         let maxLag = min(n - 1, Int((60.0 / minBPM) * sampleRate))
         guard maxLag > minLag else { return nil }
 
+        // Per-lag NORMALIZED sums (÷ number of terms): the raw sum has n−lag terms,
+        // so short lags carried systematically more energy and could outvote the true
+        // pulse peak at ~1 s lags. The unbiased estimate makes all lags comparable.
         var corr = [Double](repeating: 0, count: maxLag + 1)
         var bestLag = -1
         var bestCorr = 0.0
@@ -51,6 +61,7 @@ public enum PulsePeriodEstimator {
             var c = 0.0
             var i = lag
             while i < n { c += x[i] * x[i - lag]; i += 1 }
+            c /= Double(n - lag)
             corr[lag] = c
             if c > bestCorr { bestCorr = c; bestLag = lag }
         }
@@ -66,9 +77,13 @@ public enum PulsePeriodEstimator {
         }
         guard lagF > 0 else { return nil }
 
-        let bpm = 60.0 * sampleRate / lagF
-        guard bpm >= minBPM && bpm <= maxBPM else { return nil }
-        let strength = max(0, min(1, bestCorr / energy))
+        // Every searched lag is in-band by construction now; interpolation can push at
+        // most half a lag past an edge — CLAMP instead of discarding the measurement
+        // (returning nil here was the second path that zeroed the acf channel).
+        let bpm = min(max(60.0 * sampleRate / lagF, minBPM), maxBPM)
+        // Strength vs. the per-sample energy (bestCorr is per-term now) — still 0…1,
+        // 1 = perfectly periodic.
+        let strength = max(0, min(1, bestCorr / (energy / Double(n))))
         return (bpm, strength)
     }
 }

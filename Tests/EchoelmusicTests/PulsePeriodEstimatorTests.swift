@@ -70,4 +70,31 @@ final class PulsePeriodEstimatorTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(r.bpm, 40)
         }
     }
+
+    func testShortLagInterference_neverNilsTheEstimate_atRPPGRate() {
+        // Regression (device log 2026-07-08): at the real 15 Hz rate, Int() truncation
+        // made the shortest searched lag map to 225 bpm — when flicker/noise put the
+        // strongest correlation there, the band guard returned nil and the analyzer
+        // read acf=0.00 for whole stretches, blocking a genuinely confident pulse
+        // from the display trust gate. Strong out-of-band interference + a real
+        // in-band pulse must still yield an in-band measurement, never nil.
+        let pulse = sine(hz: 70.0 / 60.0, rate: 15, seconds: 10)              // 70 bpm
+        let flicker = sine(hz: 3.6, rate: 15, seconds: 10)                    // 216 bpm
+        let s = zip(pulse, flicker).map { $0 + 1.5 * $1 }
+        let r = PulsePeriodEstimator.dominantBPM(s, sampleRate: 15)
+        XCTAssertNotNil(r, "short-lag interference must not zero the acf channel")
+        if let r {
+            XCTAssertGreaterThanOrEqual(r.bpm, 40)
+            XCTAssertLessThanOrEqual(r.bpm, 200)
+        }
+    }
+
+    func testPulseBeatsShortLagBias_withNormalizedLags() {
+        // With per-lag normalization, a real pulse must win against mild broadband
+        // noise instead of losing to the extra terms short lags used to accumulate.
+        let s = sine(hz: 1.2, rate: 15, seconds: 10, noise: 0.3)              // 72 bpm
+        let r = PulsePeriodEstimator.dominantBPM(s, sampleRate: 15)
+        XCTAssertNotNil(r)
+        XCTAssertEqual(r!.bpm, 72, accuracy: 6)
+    }
 }

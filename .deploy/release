@@ -1,16 +1,23 @@
-build: 2026-07-07 v10.79.105 (Visual-Feinschliff: Farb-Wackeln weg)
+build: 2026-07-07 v10.79.106 (Stufenlos-Look-Slider · Finger formen das Licht · Phantom-Lock weg)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Weiter am Visual optimiert. Nach dem Zucken-Fix (10.79.104) war noch ein feineres
-  Problem drin: die FARBE folgt dem lautesten Ton, aber pro Frame neu berechnet — bei Akkorden/
-  Arpeggios mit fast gleich lauten Tönen sprang die Farbe zwischen den Tönen hin und her
-  (leichtes Farb-Wackeln). Jetzt mit Hysterese: die Farbe hält den aktuellen Ton und wechselt
-  erst, wenn ein anderer deutlich (≥30 %) lauter ist — die Farbe GLEITET zwischen Tönen statt
-  zu flackern. Dazu ein Rand-Fix im Shader-Fallback (Puls aus integrierter Phase statt
-  time×Frequenz, damit auch dort nichts springt).
-  ENTHALTEN (aus 10.79.104, falls noch nicht getestet): Zucken-Fix (Governor-Hysterese),
-  Live-Look-Slider oben in der Leiste, Hauptmenü angeglichen, wärmere Genre-Sounds, Touch-
-  Instrument lauter, Lock-Hinweis „Puls erkannt — loslassen & spielen".
-  TEST 10.79.105:
-  A) Musik spielen + aufs Visual schauen: gleitet die Farbe jetzt ruhig mit, statt zu wackeln?
-  B) Gesamt-Eindruck Visual: ruhig, flüssig, „wow"?
-  C) Sounds weiter beobachten — sticht noch ein Genre kalt raus? (welches, dann justiere ich es)
+notesT: Deine Visual-Steuerungs-Idee ist drin — plus ein Fix aus deinem letzten Log.
+  1) STUFENLOSER LOOK-SLIDER: Der Slider (oben in der Visual-Leiste UND im Hauptmenü —
+     dieselbe Steuerung) blendet jetzt KONTINUIERLICH durch die Modi: zwischen zwei
+     Looks überblendet das Bild live (Water ⇄ Aurora ⇄ Depth ⇄ Plasma). Kein Stufen-
+     Schalten mehr — du morphst das Bild beim Spielen. Position bleibt beim Neustart.
+  2) FINGER FORMEN DAS LICHT: Das Spiel auf dem Touch-Instrument pumpt jetzt Energie
+     ins Visual — unter den Fingern schwillt das Bild an (heller, lebendiger, weiter)
+     und atmet in ~1 Sekunde wieder aus, wenn du loslässt. Notenspiel und Bild sind
+     jetzt EIN Instrument. (Flash-Sicherheit ≤3 Hz bleibt hart begrenzt.)
+  3) PHANTOM-LOCK FIX (dein Log): Ohne Finger auf der Linse hat Umgebungslicht den
+     Belichtungs-Lock alle ~9 s an/aus getriggert (Torch heiß, UI-Flackern). Jetzt:
+     ein Lock, der nach Sekunden stirbt, zählt als Phantom — jeder Fehlversuch macht
+     den nächsten Lock anspruchsvoller, die Schleife erlischt von selbst. Ein echter
+     Finger merkt davon nichts. (Dein Log zeigte auch: Settle→Latch bei 71 bpm hat
+     funktioniert, und die Kamera lief die GANZE Session ohne Ausfall.)
+  TEST 10.79.106:
+  A) Vollbild: Slider langsam ziehen — morpht das Bild flüssig zwischen den Looks?
+  B) Auf dem Bild spielen: schwillt das Visual unter den Fingern an und beruhigt sich
+     wieder? Fühlt es sich wie EIN Instrument an?
+  C) Kamera an, Finger NICHT auflegen, Handy hinlegen: bleibt das Flackern/Relock-
+     Spiel jetzt aus?

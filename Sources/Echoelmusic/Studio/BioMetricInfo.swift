@@ -121,6 +121,7 @@ struct BioMetricInfoView: View {
 
             Spacer(minLength: 0)
         }
+        .lineLimit(nil)   // hard override: never inherit a lineLimit(1) from the presenter
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(EchoelTheme.bg)
@@ -196,6 +197,7 @@ struct BioMetricsGuideView: View {
                 .padding(.bottom, 8)
             }
         }
+        .lineLimit(nil)   // hard override: never inherit a lineLimit(1) from the presenter
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(EchoelTheme.bg)
