@@ -150,9 +150,9 @@ struct FloatingVisualWindow: View {
 
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
-    /// as a compact "3,5,1" string, SHARED with the main-menu customizer, parsed by
+    /// as a compact "3,5,7" string, SHARED with the main-menu customizer, parsed by
     /// LookBlendMap. Same key + default in both views so an absent key resolves identically.
-    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,1"
+    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,7"
     private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
 
     /// The Studio's key root — same key + default as EchoelStudioView, so the IDLE tint of
@@ -181,6 +181,9 @@ struct FloatingVisualWindow: View {
     @State private var center: CGPoint?
     /// Drag anchor so a move continues from where the card currently sits.
     @State private var dragAnchor: CGPoint?
+    /// Stable-resize dip (see `cycleSize`): true for the instant of the one-step
+    /// size snap, easing back to full brightness right after.
+    @State private var resizeDip = false
 
     enum WindowSize: Int, CaseIterable {
         case small, medium, large, fullscreen
@@ -262,6 +265,10 @@ struct FloatingVisualWindow: View {
             card(size: sz, in: geo.size)
                 .frame(width: sz.width, height: sz.height)
                 .position(c)
+                // Stable-resize dip: the picture eases back in AFTER the one-step
+                // size snap (see cycleSize) — the single drawable reconfiguration
+                // happens while dimmed, so no raw glitch frame is ever visible.
+                .opacity(resizeDip ? 0.2 : 1)
         }
         // Fullscreen bleeds to the sides + under the home indicator, but KEEPS the top safe
         // area so the toolbar (change-look / record / exit) never hides under the notch —
@@ -485,8 +492,24 @@ struct FloatingVisualWindow: View {
         // can never swallow a toolbar-button tap.
     }
 
+    /// STABLE resize (founder 2026-07-08: "die Funktion zum Vergrößern des Fensters
+    /// ist schuld an den Glitches im Bild — erneuere diese Funktion mit einer
+    /// stabileren Variante"): the size SNAPS in one step instead of animating.
+    /// Animating the frame re-allocated the MTKView's Metal drawable on EVERY
+    /// animation frame (~11× in 0.18 s) while the shader rendered with a
+    /// per-frame-changing aspect — the resize glitches. One snap = ONE drawable
+    /// re-allocation; a brief content dip (see `resizeDip`) covers that single
+    /// reconfiguration frame so the change reads soft, not raw.
     private func cycleSize() {
-        withAnimation(.easeInOut(duration: 0.18)) { sizeRaw = windowSize.next.rawValue }
+        resizeDip = true
+        // Two frames later: apply the snap while the content is dimmed, then ease
+        // the picture back in. No frame animation ever touches the Metal view.
+        DispatchQueue.main.async {
+            var tx = Transaction()
+            tx.disablesAnimations = true
+            withTransaction(tx) { sizeRaw = windowSize.next.rawValue }
+            withAnimation(.easeOut(duration: 0.22)) { resizeDip = false }
+        }
     }
 
     #if canImport(AVFoundation)

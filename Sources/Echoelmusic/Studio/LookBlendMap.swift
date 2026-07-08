@@ -21,22 +21,23 @@ enum LookBlendMap {
 
     /// The CURATED library of Metal field looks (style index → display name), canonical
     /// order. Indices match MetalBioView's `style` selector. CURATION (founder
-    /// 2026-07-08: "Weniger ist mehr … wir brauchen auch nicht so viele Looks", then
-    /// "Prism soll weg"): five looks, each with a real sound/bio link — Rings
-    /// (heartbeat interference), Cymatics (pitch → plate modes), Water (breath),
-    /// Aurora (calm immersive default), Lissajous (tone-frequency figures).
-    /// RETIRED from the UI (still compiled in the shader, reversible by re-adding a
-    /// row): 2 Plasma, 4 Prism, 7 Depth, 8 Scope, 9 Fractal; `sequence(from:)` drops
-    /// their persisted indices gracefully and the onAppear migration snaps a
-    /// persisted retired style to the sequence's first look.
+    /// 2026-07-08, three passes: "Weniger ist mehr", "Prism soll weg", "Cymatics und
+    /// Lissajous passt nicht zum Vibe"): four CALM, IMMERSIVE looks — the vibe is
+    /// soft liquid light, not technical figures — each still bio/sound-linked:
+    /// Rings (heartbeat interference), Water (breath ripples), Aurora (calm
+    /// default), Depth (underwater light caustics — returned from retirement as
+    /// the founder asked for other visuals in this register). All flash-safe,
+    /// slow-motion fields: the calm register IS the health consideration.
+    /// RETIRED from the UI (still compiled in the shader, reversible by re-adding
+    /// a row): 1 Cymatics, 2 Plasma, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal;
+    /// `sequence(from:)` drops their persisted indices gracefully and the onAppear
+    /// migration snaps a persisted retired style to the sequence's first look.
     static let library: [(index: Int, name: String)] = [
-        (0, "Rings"), (1, "Cymatics"), (3, "Water"),
-        (5, "Aurora"), (6, "Lissajous")
+        (0, "Rings"), (3, "Water"), (5, "Aurora"), (7, "Depth")
     ]
 
-    /// Default slider sequence — calm to structural, each stop sound-linked
-    /// (Water · Aurora · Cymatics).
-    static let defaultSequence = [3, 5, 1]
+    /// Default slider sequence — the calm liquid arc (Water · Aurora · Depth).
+    static let defaultSequence = [3, 5, 7]
 
     /// The @AppStorage key both sliders read for the custom sequence.
     static let storageKey = "visual.sliderLooks"
