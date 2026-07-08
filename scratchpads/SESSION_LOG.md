@@ -3,6 +3,22 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 9) — Touch-Instrument-Umbau: Akkordfarben · Wolken · Griffbrett (v10.79.115)
+**Bildfehler-Wurzel Nr. 2 gefunden (1177ee4):** Der A/B-Farb-Crossfade (10.79.112) wurde bei
+schnellen Slides (Retrigger alle 50–100 ms) schneller retargetet als er fertig wurde — jeder
+Retarget setzte fade=0 und BLITZTE einen Frame lang 100 % der alten A-Farbe. **FIX + REGEL:
+Wolkenfarben werden CPU-seitig PRO KANAL in RGB geglättet (jagen ihr Ziel, tau 0.18) — eine
+jagende Farbe ist bei JEDER Retrigger-Rate stetig.** SpectralColor (Swift) = Zwilling des
+Shader-CIE-Fits; 15 float-Uniforms (cc0r…cc4b, Layout beidseitig 35 floats!). Prism behält
+A/B-Fade, Retargets gegated bis fade≥0.6. **Founder-Auftrag komplett (2d062ef/8a2421c/4b938e9):**
+(1) TouchToneChannel hält ALLE Finger-Noten (noteOn/noteOff per pitch, Afterglow 1.2 s,
+30-s-Staleness-Netz) → Akkorde malen ihre echten Farben (Clouds: erst gehaltene Fundamentale,
+Rest ungerade Harmonische der neuesten). (2) Ringe → WOLKEN: CAGradientLayer-Radialblob in
+Notenfarbe + 1 Wellenfront (statt 3 Ringe). (3) GRIFFBRETT: CALayer-Gitter unter den Ripples
+(Spalten = Skalenstufen, Zeilen = Oktavbänder, Felder in Notenfarbe + Name, honoriert
+Kammerton/Tonsystem), Rebuild nur bei Key/Size/Toggle, @AppStorage touch.showGrid, Button in
+der FloatingVisualWindow-Leiste. Alle CI grün. → v10.79.115 (enthält auch launch-v-Zeile).
+
 ## 2026-07-08 (Forts. 8) — Onset-Chiff an Perkussivität gekoppelt (v10.79.114) + Fable-5-Doc-Gate
 **Chiff-Fix (1df9adb, CI ✅):** onsetNoiseEnv wurde in noteOn fix mit 1 gearmt — der
 Pick/Bow/Breath-Transient lag auf JEDER Note, auch Pads/Drone (3,5 s Attack) → digitales
