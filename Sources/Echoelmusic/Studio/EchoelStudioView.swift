@@ -2669,6 +2669,17 @@ struct EchoelStudioView: View {
         // shifts, the structure evolves with it; with no signal both are random.
         let structureSeed = bioSeed(frame)
         let evolvingSeed = structureSeed ^ (evolution &* 0x9E3779B97F4A7C15)
+        // BODY CONTINUITY (founder 2026-07-08: "Wenn ich ein Genre auswähle, ändert
+        // sich eine Weile der entspannte Vibe zu angestrengtem Gedödel"): operating
+        // a menu usually means LIFTING the finger off the camera, so at the moment a
+        // genre-change re-seed fires, `usableBio()` is often nil — and the composer
+        // used to fall back to a NEUTRAL body (HR 70, coherence 0.5), audibly faster
+        // and denser than the real resting body (e.g. HR 55, coh 0.9), until the
+        // pulse re-locked ("eine Weile"). Fall back to the LAST TAKE'S measured body
+        // instead: the music stays in the register the body actually earned through
+        // any brief signal gap. Neutral defaults remain the last resort (no body at
+        // all this session); Stop clears the held body, so a new session re-baselines.
+        let heldBody = lastGenBody
         // Dynamic depth from the body (was a flat 0.5, which left velocity dead):
         // a calm, coherent state breathes fuller/louder, an aroused one lighter, so
         // dynamics actually track the live signal instead of sitting constant.
@@ -2676,12 +2687,14 @@ struct EchoelStudioView: View {
         // measures it, and the camera path reports 0 until enough beats accrue. The
         // composer reads coherence as calmness, so a literal 0 would be misread as
         // "maximally incoherent" and pin the arrangement to a sparse, frozen take
-        // (the 8-min "stuck at 6 notes" after a pulse episode). Treat 0 as neutral.
-        let rawCoh = fin(frame?.coherence, 0.5)
-        let liveCoh = rawCoh > 0 ? rawCoh : 0.5
+        // (the 8-min "stuck at 6 notes" after a pulse episode). Treat 0 as neutral —
+        // preferring the held body's coherence over the hardcoded 0.5 when we have one.
+        let heldCoh: Float? = heldBody.flatMap { $0.coherence > 0 ? Float($0.coherence) : nil }
+        let rawCoh = fin(frame?.coherence, heldCoh ?? 0.5)
+        let liveCoh = rawCoh > 0 ? rawCoh : (heldCoh ?? 0.5)
         let dynamicDepth = min(1, max(0.2, 0.3 + 0.5 * liveCoh))
         let input = BioComposer.Input(
-            heartRateBPM: fin(frame?.heartRateBPM, 70),
+            heartRateBPM: fin(frame?.heartRateBPM, heldBody.map { Float($0.bpm) } ?? 70),
             hrvNormalized: fin(frame?.hrvNormalized, 0.5),
             coherence: liveCoh,
             breathPhase: fin(frame?.breathPhase, 0),
@@ -2858,7 +2871,10 @@ struct EchoelStudioView: View {
         // eingerastet"): the next evolve tick compares the live body against THIS
         // and only re-seeds if it moved meaningfully. nil frame → no body this take,
         // so the evolve loop keeps a demo/neutral loop gently alive instead.
-        lastGenBody = frame.map { (bpm: Double($0.heartRateBPM), coherence: Double($0.coherence)) }
+        // Keep the last MEASURED body through signal gaps (finger lifted to use a
+        // menu): a nil frame no longer erases the baseline — the body-continuity
+        // fallback above needs it. Stop() still clears it, so sessions re-baseline.
+        lastGenBody = frame.map { (bpm: Double($0.heartRateBPM), coherence: Double($0.coherence)) } ?? lastGenBody
         // EchoelAI narrates the live bio→sound mapping in plain technical English.
         if let frame { caption.text = BioExplanation.text(for: frame, tempo: tempo) }
         let wasPlaying = beatPlayer.pattern.isPlaying
