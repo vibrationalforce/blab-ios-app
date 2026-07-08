@@ -133,10 +133,10 @@ struct EchoelStudioView: View {
     @AppStorage("visual.blend") private var visualBlend = 0.0
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
-    /// as a compact "3,5,1,4" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
+    /// as a compact "3,5,1" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
     /// Same key + default in both views so an absent key resolves identically. Replaces the
     /// old fixed `calmMetalStyles` list — the surfaced looks are now whatever the user picks.
-    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,1,4"
+    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,1"
     private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),

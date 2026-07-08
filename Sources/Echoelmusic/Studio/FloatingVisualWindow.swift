@@ -150,9 +150,9 @@ struct FloatingVisualWindow: View {
 
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
-    /// as a compact "3,5,1,4" string, SHARED with the main-menu customizer, parsed by
+    /// as a compact "3,5,1" string, SHARED with the main-menu customizer, parsed by
     /// LookBlendMap. Same key + default in both views so an absent key resolves identically.
-    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,1,4"
+    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,1"
     private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
 
     /// The Studio's key root — same key + default as EchoelStudioView, so the IDLE tint of

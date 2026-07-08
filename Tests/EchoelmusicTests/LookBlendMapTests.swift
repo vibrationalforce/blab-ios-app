@@ -10,7 +10,7 @@ import XCTest
 
 final class LookBlendMapTests: XCTestCase {
 
-    private let seq = LookBlendMap.defaultSequence   // [3, 5, 1, 4] — Water · Aurora · Cymatics · Prism
+    private let seq = LookBlendMap.defaultSequence   // [3, 5, 1] — Water · Aurora · Cymatics
 
     func testExactStops_renderPureLooks() {
         for (i, style) in seq.enumerated() {
@@ -48,7 +48,7 @@ final class LookBlendMapTests: XCTestCase {
     func testStyleNotInSequence_readsAsPositionZero() {
         // A persisted look that isn't on the current slider sequence (retired, or the
         // sequence was edited) reads as position 0 — never a crash or a bogus position.
-        // 0 = Rings, not in the default [3,5,1,4] sequence.
+        // 0 = Rings, not in the default [3,5,1] sequence.
         XCTAssertEqual(LookBlendMap.position(a: 0, b: 3, frac: 0, sequence: seq), 0)
     }
 
@@ -61,7 +61,7 @@ final class LookBlendMapTests: XCTestCase {
     // MARK: - Customizable sequence
 
     func testSequenceParse_dropsGarbageAndDeduplicates() {
-        XCTAssertEqual(LookBlendMap.sequence(from: "3,5,1,4"), [3, 5, 1, 4])
+        XCTAssertEqual(LookBlendMap.sequence(from: "3,5,1"), [3, 5, 1])
         XCTAssertEqual(LookBlendMap.sequence(from: " 3 , 5 ,5, x, 99 "), [3, 5],
                        "trims spaces, drops dupes, drops out-of-range & non-numeric")
         XCTAssertEqual(LookBlendMap.sequence(from: ""), LookBlendMap.defaultSequence,
@@ -70,25 +70,27 @@ final class LookBlendMapTests: XCTestCase {
     }
 
     func testSequenceParse_dropsRetiredLookIndices() {
-        // Pre-curation persisted sequences may carry retired looks (2 Plasma, 7 Depth,
-        // 8 Scope, 9 Fractal) — they are dropped gracefully, the rest stays.
+        // Pre-curation persisted sequences may carry retired looks (2 Plasma, 4 Prism,
+        // 7 Depth, 8 Scope, 9 Fractal) — they are dropped gracefully, the rest stays.
         XCTAssertEqual(LookBlendMap.sequence(from: "3,5,7,2"), [3, 5],
                        "the old default keeps its curated survivors")
-        XCTAssertEqual(LookBlendMap.sequence(from: "7,8,9,2"), LookBlendMap.defaultSequence,
+        XCTAssertEqual(LookBlendMap.sequence(from: "3,5,1,4"), [3, 5, 1],
+                       "the brief Prism-era default drops Prism, keeps the rest")
+        XCTAssertEqual(LookBlendMap.sequence(from: "7,8,9,2,4"), LookBlendMap.defaultSequence,
                        "an all-retired sequence falls back to the default")
     }
 
     func testStringRoundTrip() {
-        let s = LookBlendMap.string(from: [3, 5, 1, 4])
-        XCTAssertEqual(s, "3,5,1,4")
-        XCTAssertEqual(LookBlendMap.sequence(from: s), [3, 5, 1, 4])
+        let s = LookBlendMap.string(from: [3, 5, 1])
+        XCTAssertEqual(s, "3,5,1")
+        XCTAssertEqual(LookBlendMap.sequence(from: s), [3, 5, 1])
     }
 
     func testToggling_addsInCanonicalOrder_andRemoves() {
-        // Add 0 (Rings) to [3,5,1,4] → canonical library order puts it first.
-        XCTAssertEqual(LookBlendMap.toggling(0, in: [3, 5, 1, 4]), [0, 1, 3, 4, 5])
+        // Add 0 (Rings) to [3,5,1] → canonical library order puts it first.
+        XCTAssertEqual(LookBlendMap.toggling(0, in: [3, 5, 1]), [0, 1, 3, 5])
         // Remove an existing look.
-        XCTAssertEqual(LookBlendMap.toggling(5, in: [3, 5, 1, 4]), [3, 1, 4])
+        XCTAssertEqual(LookBlendMap.toggling(5, in: [3, 5, 1]), [3, 1])
     }
 
     func testToggling_neverEmptiesTheSequence() {
@@ -99,7 +101,7 @@ final class LookBlendMapTests: XCTestCase {
 
     func testMaxPosition_isZeroForSingleLook() {
         XCTAssertEqual(LookBlendMap.maxPosition(for: [3]), 0)
-        XCTAssertEqual(LookBlendMap.maxPosition(for: [3, 5, 1, 4]), 3)
+        XCTAssertEqual(LookBlendMap.maxPosition(for: [3, 5, 1]), 2)
     }
 
     func testEmptySequence_fallsBackGracefully() {
@@ -109,10 +111,11 @@ final class LookBlendMapTests: XCTestCase {
     }
 
     func testLibrary_isTheCuratedSoundLinkedRoster() {
-        // Curation 2026-07-08 ("weniger ist mehr"): six looks, each sound/bio-linked,
-        // in canonical (ascending) order. Retired: 2 Plasma, 7 Depth, 8 Scope,
-        // 9 Fractal (still compiled in the shader, reversible).
-        XCTAssertEqual(LookBlendMap.library.map(\.index), [0, 1, 3, 4, 5, 6])
+        // Curation 2026-07-08 ("weniger ist mehr" + "Prism soll weg"): five looks,
+        // each sound/bio-linked, in canonical (ascending) order. Retired: 2 Plasma,
+        // 4 Prism, 7 Depth, 8 Scope, 9 Fractal (still compiled in the shader,
+        // reversible).
+        XCTAssertEqual(LookBlendMap.library.map(\.index), [0, 1, 3, 5, 6])
         XCTAssertEqual(LookBlendMap.library.map(\.index), LookBlendMap.library.map(\.index).sorted(),
                        "canonical order stays ascending so toggling() inserts sensibly")
         // The default sequence only uses curated looks.
