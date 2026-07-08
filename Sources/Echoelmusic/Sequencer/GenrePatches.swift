@@ -88,8 +88,8 @@ public extension MusicStyle {
         case .synthwave:
             return patch("D7", "Neon Lead",
                 a: 0.02, d: 0.5, s: 0.72, r: 1.8,
-                harm: 0.94, hl: 0.78, bright: 0.56, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 3600, res: 0.16, lfoAmt: 0.18, lfoRate: 0.18, lfoDepth: 0.28,
+                harm: 0.94, hl: 0.78, bright: 0.48, noise: 0.0, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3300, res: 0.16, lfoAmt: 0.18, lfoRate: 0.18, lfoDepth: 0.28,
                 revMix: 0.44, revDecay: 3.4, vibRate: 4.5, vibDepth: 0.10,
                 uni: 2, det: 11)
         case .earlySynth:
@@ -102,8 +102,8 @@ public extension MusicStyle {
         case .futuristic:
             return patch("D9", "Crystal Air",
                 a: 0.10, d: 1.0, s: 0.70, r: 3.2,
-                harm: 0.88, hl: 0.78, bright: 0.58, noise: 0.01, color: "Pink", shape: "Natural",
-                cutoff: 3800, res: 0.10, lfoAmt: 0.12, lfoRate: 0.12, lfoDepth: 0.22,
+                harm: 0.88, hl: 0.78, bright: 0.48, noise: 0.01, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3200, res: 0.10, lfoAmt: 0.12, lfoRate: 0.12, lfoDepth: 0.22,
                 revMix: 0.58, revDecay: 4.8, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 10)
         case .sciFi:
@@ -115,9 +115,9 @@ public extension MusicStyle {
                 uni: 3, det: 14)                                 // widest — deep-space pad
         case .psytrance:
             return patch("DB", "Psy Pluck",
-                a: 0.01, d: 0.4, s: 0.55, r: 1.0,
-                harm: 0.94, hl: 0.78, bright: 0.56, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 3400, res: 0.22, lfoAmt: 0.26, lfoRate: 0.55, lfoDepth: 0.45,
+                a: 0.015, d: 0.4, s: 0.55, r: 1.0,
+                harm: 0.94, hl: 0.78, bright: 0.48, noise: 0.0, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3200, res: 0.16, lfoAmt: 0.26, lfoRate: 0.55, lfoDepth: 0.45,
                 revMix: 0.40, revDecay: 2.6, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 8)
         case .esotericMeditation:
@@ -144,8 +144,8 @@ public extension MusicStyle {
         case .klezmer:
             return patch("E3", "Clarinet Reed",
                 a: 0.04, d: 0.5, s: 0.70, r: 1.4,
-                harm: 0.92, hl: 0.80, bright: 0.50, noise: 0.02, color: "Pink", shape: "Natural",
-                cutoff: 3400, res: 0.12, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
+                harm: 0.92, hl: 0.80, bright: 0.44, noise: 0.02, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3100, res: 0.12, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
                 revMix: 0.38, revDecay: 2.4, vibRate: 5.5, vibDepth: 0.12)   // warm synth reed — no real-instrument spectrum
         case .oriental:
             return patch("E4", "Reed Strings",
@@ -163,23 +163,23 @@ public extension MusicStyle {
                 uni: 2, det: 10)                                 // wide buzzsaw
         case .rocknroll:
             return patch("E6", "Twang",
-                a: 0.008, d: 0.4, s: 0.50, r: 0.9,
-                harm: 0.93, hl: 0.78, bright: 0.58, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 3800, res: 0.18, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                a: 0.012, d: 0.4, s: 0.50, r: 0.9,
+                harm: 0.93, hl: 0.78, bright: 0.48, noise: 0.0, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3200, res: 0.18, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
                 revMix: 0.30, revDecay: 1.6, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 8)
         case .rock:
             return patch("E7", "Driven Lead",
-                a: 0.006, d: 0.4, s: 0.60, r: 1.0,
-                harm: 0.94, hl: 0.80, bright: 0.56, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 3600, res: 0.20, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                a: 0.012, d: 0.4, s: 0.60, r: 1.0,
+                harm: 0.94, hl: 0.80, bright: 0.48, noise: 0.0, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3300, res: 0.20, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
                 revMix: 0.30, revDecay: 1.8, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 9)
         case .ska:
             return patch("E8", "Skank Organ",
-                a: 0.004, d: 0.25, s: 0.40, r: 0.5,
-                harm: 0.92, hl: 0.78, bright: 0.54, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 3400, res: 0.16, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
+                a: 0.012, d: 0.25, s: 0.40, r: 0.5,
+                harm: 0.92, hl: 0.78, bright: 0.46, noise: 0.0, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 3100, res: 0.16, lfoAmt: 0.06, lfoRate: 0.20, lfoDepth: 0.12,
                 revMix: 0.28, revDecay: 1.4, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 8)                                  // organ needs ensemble body
         case .rocksteady:
