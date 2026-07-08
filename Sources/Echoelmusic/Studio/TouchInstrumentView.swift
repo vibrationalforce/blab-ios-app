@@ -168,6 +168,10 @@ final class TouchInstrumentUIView: UIView {
     private let gridLayer = CALayer()
     private var gridBuiltForSize: CGSize = .zero
     private var gridDirty = true
+    /// Per-note haptic (Vibration is a core Echoel dimension): a light impact on
+    /// every note-on, intensity following the played velocity — the finger FEELS
+    /// the note speak, which also makes the instrument playable without hearing.
+    private let hapticGenerator = UIImpactFeedbackGenerator(style: .light)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -180,7 +184,14 @@ final class TouchInstrumentUIView: UIView {
         isAccessibilityElement = true
         accessibilityLabel = "Play surface"
         accessibilityHint = "Touch and slide to play notes in the current key"
+        // DIRECT INTERACTION — the accessibility standard for musical instruments
+        // (GarageBand model): a VoiceOver user double-taps the surface once, then
+        // touches play IMMEDIATELY (no element-by-element navigation between the
+        // fingers and the music). Combined with the note grid + per-note haptics,
+        // the instrument is playable without sight.
+        accessibilityTraits = [.allowsDirectInteraction]
         layer.addSublayer(gridLayer)   // first sublayer → ripples always render above
+        hapticGenerator.prepare()
     }
 
     required init?(coder: NSCoder) { return nil }   // never instantiated from a nib
@@ -207,6 +218,11 @@ final class TouchInstrumentUIView: UIView {
         gridBuiltForSize = bounds.size
         gridLayer.sublayers?.forEach { $0.removeFromSuperlayer() }
         gridLayer.frame = bounds
+        // VoiceOver knows the terrain even without the visual grid: key, layout,
+        // and how the surface is organised (kept current on every key change).
+        let rootName = ["C", "C sharp", "D", "D sharp", "E", "F", "F sharp",
+                        "G", "G sharp", "A", "A sharp", "B"][((key.root % 12) + 12) % 12]
+        accessibilityValue = "Root \(rootName), \(key.degreesPerOctave) notes per octave, three octave rows, low at the bottom"
         guard showGrid, bounds.width > 60, bounds.height > 60 else { return }
 
         let n = max(1, key.degreesPerOctave)
@@ -214,12 +230,13 @@ final class TouchInstrumentUIView: UIView {
         let cellW = bounds.width / CGFloat(n)
         let cellH = bounds.height / CGFloat(bands.count)
         let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
-        let labelSize: CGFloat = min(11, cellH * 0.2)
+        let labelSize: CGFloat = min(12, max(9, cellH * 0.16))
 
         for d in 0..<n {
             for b in bands.indices {
                 let pitch = key.degree(d, octave: bands[b])
                 let tint = Self.noteTint(hz: frequency(of: pitch))
+                let isRoot = d == 0
                 // Band 0 is the LOW octave = BOTTOM row (UIKit y grows downward).
                 let cellFrame = CGRect(x: CGFloat(d) * cellW,
                                        y: bounds.height - CGFloat(b + 1) * cellH,
@@ -227,16 +244,25 @@ final class TouchInstrumentUIView: UIView {
                     .insetBy(dx: 1.5, dy: 1.5)
                 let cell = CALayer()
                 cell.frame = cellFrame
-                cell.backgroundColor = tint.withAlphaComponent(0.10).cgColor
-                cell.borderColor = tint.withAlphaComponent(0.38).cgColor
-                cell.borderWidth = 1
+                // AUTHENTIC READ: the fill deepens toward the LOW octave (bottom
+                // row darkest — low notes carry more visual weight, like thick
+                // strings) and the ROOT column is anchored with a stronger border,
+                // the way every fretboard marks its tonal home. Fills stay subtle
+                // so the living visual underneath remains the star.
+                let octaveWeight = 0.14 - 0.03 * CGFloat(b)          // 0.14 · 0.11 · 0.08
+                cell.backgroundColor = tint.withAlphaComponent(octaveWeight).cgColor
+                cell.borderColor = tint.withAlphaComponent(isRoot ? 0.70 : 0.30).cgColor
+                cell.borderWidth = isRoot ? 1.5 : 1
                 cell.cornerRadius = 6
                 gridLayer.addSublayer(cell)
 
+                // Label: near-white for WCAG-solid contrast on the dark field (the
+                // pure tint was unreadable for dim colours); the note's colour
+                // stays on the field + border, so nothing is lost.
                 let label = CATextLayer()
                 label.string = names[((pitch % 12) + 12) % 12] + "\(pitch / 12 - 1)"
                 label.fontSize = labelSize
-                label.foregroundColor = tint.withAlphaComponent(0.75).cgColor
+                label.foregroundColor = UIColor.white.withAlphaComponent(isRoot ? 0.9 : 0.62).cgColor
                 label.alignmentMode = .left
                 label.contentsScale = window?.screen.scale ?? 3
                 label.frame = CGRect(x: cellFrame.minX + 6,
@@ -259,6 +285,7 @@ final class TouchInstrumentUIView: UIView {
             applyMorph(at: p)   // set the position timbre BEFORE the note speaks
             let vel = velocity(of: touch)
             synth?.noteOn(pitch: pitch, velocity: vel)
+            hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
             // Playing feeds the picture: each note pumps excitation into the Metal
             // visual (swells intensity/motion), so the fingers visibly shape the light.
             TouchVisualEnergy.shared.excite(0.35)
@@ -285,6 +312,8 @@ final class TouchInstrumentUIView: UIView {
                 synth?.noteOff(pitch: old)
                 let vel = velocity(of: touch)
                 synth?.noteOn(pitch: new, velocity: vel)
+                // Slides tick more softly than fresh strikes — a fret-crossing feel.
+                hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))
                 held[id] = new
                 TouchVisualEnergy.shared.excite(0.15)   // slides keep the picture alive
                 let now = CFAbsoluteTimeGetCurrent()
