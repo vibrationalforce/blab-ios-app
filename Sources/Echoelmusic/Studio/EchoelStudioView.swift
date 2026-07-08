@@ -124,10 +124,13 @@ struct EchoelStudioView: View {
     @AppStorage("visual.styleB") private var visualStyleB = 0
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
     @AppStorage("visual.blend") private var visualBlend = 0.0
-    /// The calm, liquid Metal styles kept on the surface after the 2026-07-07 minimize:
-    /// Water (3) · Aurora (5) · Depth Caustics (7) · Plasma (2). Sourced from
-    /// LookBlendMap.looks — the ONE look-order list both sliders share.
-    private static let calmMetalStyles = LookBlendMap.looks
+    /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
+    /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
+    /// as a compact "3,5,7,2" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
+    /// Same key + default in both views so an absent key resolves identically. Replaces the
+    /// old fixed `calmMetalStyles` list — the surfaced looks are now whatever the user picks.
+    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,7,2"
+    private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
     /// re-applied after genre/character FX so the pick is never clobbered.
@@ -420,8 +423,16 @@ struct EchoelStudioView: View {
             // mid-blend position must survive relaunch (clearing it here would snap
             // the slider back to a stop on every appear). A blend onto a retired
             // B-style is reset along with the A-snap.
-            if !spectralDonuts, !Self.calmMetalStyles.contains(visualStyle) {
-                visualStyle = 3   // → Water
+            // If the persisted primary style is no longer in the user's slider sequence
+            // (retired look, or the sequence was edited), snap to the first look of the
+            // active sequence so the slider is never stuck on an unreachable stop. Also
+            // clear a stale blend onto a now-absent B-style (review L5) so the renderer
+            // matches the slider immediately, not only after the first drag.
+            if !spectralDonuts, !sliderLooks.contains(visualStyle) {
+                visualStyle = sliderLooks.first ?? 3   // → first look (default Water)
+                visualStyleB = 0
+                visualBlend = 0
+            } else if !spectralDonuts, visualBlend > 0, !sliderLooks.contains(visualStyleB) {
                 visualStyleB = 0
                 visualBlend = 0
             }
@@ -1282,6 +1293,7 @@ struct EchoelStudioView: View {
             .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             visualLookStrip
+            visualLookCustomizer
             // visualBlendControls REMOVED from the surface (founder 2026-07-07:
             // minimize — the A/B "mischend" mix was extra clicking). Still defined
             // below, reversible; the migration in onAppear clears any lingering blend.
@@ -1370,10 +1382,12 @@ struct EchoelStudioView: View {
             // Dragging the slider morphs STUFENLOS between the looks (continuous crossfade
             // via style/styleB/blend, mapping in LookBlendMap) AND turns Donuts off (see
             // setter), so the two controls never both claim "active".
-            Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition)
-                .tint(EchoelTheme.accent)
-                .accessibilityLabel("Visual look")
-                .accessibilityValue(currentLookName)
+            if LookBlendMap.maxPosition(for: sliderLooks) > 0 {
+                Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition(for: sliderLooks))
+                    .tint(EchoelTheme.accent)
+                    .accessibilityLabel("Visual look")
+                    .accessibilityValue(currentLookName)
+            }
 
             Text(spectralDonuts ? "Donuts" : currentLookName)
                 .font(EchoelTheme.font(12, .medium))
@@ -1383,15 +1397,59 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// CUSTOMIZE what the slider fades through (founder 2026-07-08: "das menü überarbeiten
+    /// damit man das was im slider passiert selbst customizen kann … mehr Optionen"). Every
+    /// look in the full library is a toggle chip; selected chips form the slider's sequence
+    /// (canonical order), persisted in the shared `visual.sliderLooks` key so BOTH sliders
+    /// (this menu + the fullscreen window bar) fade through the same custom set. At least one
+    /// look always stays on (LookBlendMap.toggling refuses to empty the set). The little
+    /// index badge shows the fade ORDER so the user reads left→right what the slider will do.
+    private var visualLookCustomizer: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Slider looks — tap to add or remove; the slider fades through these in order")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(LookBlendMap.library, id: \.index) { look in
+                        let pos = sliderLooks.firstIndex(of: look.index)
+                        let on = pos != nil
+                        Button {
+                            sliderLooksRaw = LookBlendMap.string(
+                                from: LookBlendMap.toggling(look.index, in: sliderLooks))
+                        } label: {
+                            HStack(spacing: 5) {
+                                if let pos { Text("\(pos + 1)").font(EchoelTheme.font(10, .bold).monospacedDigit()) }
+                                Text(look.name).font(EchoelTheme.font(12, .medium))
+                            }
+                            .foregroundStyle(on ? EchoelTheme.onPrimary : EchoelTheme.text)
+                            .padding(.horizontal, 11).frame(height: 30)
+                            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                .fill(on ? EchoelTheme.accent : EchoelTheme.fill))
+                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(look.name) look")
+                        .accessibilityValue(on ? "in the slider, position \((pos ?? 0) + 1)" : "not in the slider")
+                        .accessibilityAddTraits(on ? [.isSelected] : [])
+                        .accessibilityHint(on ? "Double tap to remove from the slider" : "Double tap to add to the slider")
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
     /// Slider position ⇄ current look state, mirroring FloatingVisualWindow.lookScrub
     /// (same LookBlendMap, same shared keys — the two sliders are one control). The
     /// setter also clears Donuts so scrubbing the look always lands on a metal field.
     private var lookScrub: Binding<Double> {
         Binding(
-            get: { LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend)) },
+            get: { LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend), sequence: sliderLooks) },
             set: { v in
                 spectralDonuts = false
-                let m = LookBlendMap.blend(at: v)
+                let m = LookBlendMap.blend(at: v, sequence: sliderLooks)
                 if visualStyle != m.a { visualStyle = m.a }
                 if visualStyleB != m.b { visualStyleB = m.b }
                 visualBlend = Double(m.frac)
@@ -1401,8 +1459,9 @@ struct EchoelStudioView: View {
 
     /// Display name of the look nearest the slider position (no per-stop labels).
     private var currentLookName: String {
-        LookBlendMap.nearestName(at:
-            LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend)))
+        LookBlendMap.nearestName(
+            at: LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend), sequence: sliderLooks),
+            sequence: sliderLooks)
     }
 
     /// The "mischend" controls: a SECOND look to overlap with the primary, plus a Mix

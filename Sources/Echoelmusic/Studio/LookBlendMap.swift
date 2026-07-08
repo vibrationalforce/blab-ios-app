@@ -6,25 +6,76 @@
 //  einfache Steuerung per langem slider, der durch alle Modi stufenlos überblendet").
 //  The Metal renderer already crossfades two looks (style + styleB + blend), so a
 //  continuous slider position maps to a (a, b, frac) triple: position 1.4 renders
-//  40 % of the way from look 1 into look 2. Pure value maths — unit-tested, and the
-//  SINGLE source of truth for the surfaced look order (was duplicated as `calmLooks`
-//  in FloatingVisualWindow + EchoelStudioView).
+//  40 % of the way from look 1 into look 2.
+//
+//  CUSTOMIZABLE sequence (founder 2026-07-08: "das menü überarbeiten damit man das
+//  was im slider passiert selbst customizen kann … mehr Optionen"): the SEQUENCE the
+//  slider fades through is user-chosen from the full look library, persisted as a
+//  compact "3,5,7,2" string. All mapping is pure value maths — unit-tested — and takes
+//  the active sequence as a parameter, so the same functions serve any custom order.
 //
 
 import Foundation
 
 enum LookBlendMap {
 
-    /// The surfaced looks, in slider order — the calm, liquid fields:
-    /// Water · Aurora · Depth Caustics · Plasma (MetalBioView style indices).
-    /// The busy/technical looks stay in the shader but aren't on the slider.
-    static let looks = [3, 5, 7, 2]
+    /// The FULL library of Metal field looks (style index → display name), canonical order.
+    /// Indices match MetalBioView's `style` selector; every look can go into the slider.
+    static let library: [(index: Int, name: String)] = [
+        (0, "Rings"), (1, "Chladni"), (2, "Plasma"), (3, "Water"), (4, "Prism"),
+        (5, "Aurora"), (6, "Lissajous"), (7, "Depth"), (8, "Scope"), (9, "Fractal")
+    ]
 
-    /// Display names matching `looks` (the slider itself has no per-stop labels).
-    static let names = ["Water", "Aurora", "Depth", "Plasma"]
+    /// Default slider sequence — the calm, liquid looks (Water · Aurora · Depth · Plasma).
+    static let defaultSequence = [3, 5, 7, 2]
 
-    /// The slider's full range: 0 … count-1 (3.0 for four looks).
-    static var maxPosition: Double { Double(looks.count - 1) }
+    /// The @AppStorage key both sliders read for the custom sequence.
+    static let storageKey = "visual.sliderLooks"
+
+    /// Display name for a style index (falls back gracefully for an unknown index).
+    static func name(for index: Int) -> String {
+        library.first { $0.index == index }?.name ?? "Look \(index)"
+    }
+
+    /// Parse the persisted "3,5,7,2" string into a valid, de-duplicated sequence of
+    /// KNOWN look indices. Empty/garbage falls back to the calm default so the slider
+    /// is never broken by a bad stored value.
+    static func sequence(from raw: String) -> [Int] {
+        var seen = Set<Int>()
+        var out: [Int] = []
+        for token in raw.split(separator: ",") {
+            guard let i = Int(token.trimmingCharacters(in: .whitespaces)),
+                  library.contains(where: { $0.index == i }),
+                  !seen.contains(i) else { continue }
+            seen.insert(i)
+            out.append(i)
+        }
+        return out.isEmpty ? defaultSequence : out
+    }
+
+    /// Serialize a sequence back to the compact storage string.
+    static func string(from sequence: [Int]) -> String {
+        sequence.map(String.init).joined(separator: ",")
+    }
+
+    /// Toggle a look in/out of a sequence, keeping canonical (library) order and never
+    /// dropping below one look (a zero-look slider has nothing to fade). Returns the new
+    /// sequence.
+    static func toggling(_ index: Int, in sequence: [Int]) -> [Int] {
+        if sequence.contains(index) {
+            let next = sequence.filter { $0 != index }
+            return next.isEmpty ? sequence : next          // keep at least one
+        }
+        // Insert in canonical library order so the slider reads left→right sensibly.
+        let order = library.map(\.index)
+        return order.filter { sequence.contains($0) || $0 == index }
+    }
+
+    /// The slider's full range for a sequence: 0 … count-1. 0 when only one look is
+    /// selected (callers should then show the single look, not a degenerate slider).
+    static func maxPosition(for sequence: [Int]) -> Double {
+        Double(max(1, sequence.count) - 1)
+    }
 
     /// A continuous slider position resolved into the renderer's crossfade triple.
     struct Blend: Equatable {
@@ -33,22 +84,25 @@ enum LookBlendMap {
         var frac: Float   // 0 = pure a … 1 = pure b
     }
 
-    /// Map a slider position (0…maxPosition, clamped) to the crossfade triple.
-    static func blend(at position: Double) -> Blend {
-        let p = min(max(position.isFinite ? position : 0, 0), maxPosition)
+    /// Map a slider position (0…maxPosition, clamped) to the crossfade triple for the
+    /// given sequence.
+    static func blend(at position: Double, sequence: [Int]) -> Blend {
+        let looks = sequence.isEmpty ? defaultSequence : sequence
+        let maxP = Double(looks.count - 1)
+        let p = min(max(position.isFinite ? position : 0, 0), max(0, maxP))
         let i = min(looks.count - 1, Int(p))
         let frac = Float(p - Double(i))
-        // At (or numerically at) a stop, render the pure look — no wasted B pass.
         if frac < 0.001 || i >= looks.count - 1 {
-            return Blend(a: looks[i], b: looks[i], frac: 0)
+            return Blend(a: looks[i], b: looks[i], frac: 0)   // pure look, no B pass
         }
         return Blend(a: looks[i], b: looks[i + 1], frac: frac)
     }
 
-    /// Reconstruct the slider position from persisted style/styleB/blend state —
-    /// so the slider reopens where the user left it. A style that isn't on the
-    /// slider (retired/busy look) reads as position 0.
-    static func position(a: Int, b: Int, frac: Float) -> Double {
+    /// Reconstruct the slider position from persisted style/styleB/blend against a
+    /// sequence — so the slider reopens where the user left it. A style not in the
+    /// sequence (e.g. after the sequence was edited) reads as position 0.
+    static func position(a: Int, b: Int, frac: Float, sequence: [Int]) -> Double {
+        let looks = sequence.isEmpty ? defaultSequence : sequence
         guard let i = looks.firstIndex(of: a) else { return 0 }
         let f = min(max(frac.isFinite ? frac : 0, 0), 1)
         guard f > 0.001, i < looks.count - 1, looks[i + 1] == b else { return Double(i) }
@@ -56,9 +110,11 @@ enum LookBlendMap {
     }
 
     /// Name of the look nearest a slider position (for the readout label).
-    static func nearestName(at position: Double) -> String {
-        let p = min(max(position.isFinite ? position : 0, 0), maxPosition)
-        let i = min(names.count - 1, Int(p.rounded()))
-        return names[max(0, i)]
+    static func nearestName(at position: Double, sequence: [Int]) -> String {
+        let looks = sequence.isEmpty ? defaultSequence : sequence
+        let maxP = Double(looks.count - 1)
+        let p = min(max(position.isFinite ? position : 0, 0), max(0, maxP))
+        let i = min(looks.count - 1, Int(p.rounded()))
+        return name(for: looks[max(0, i)])
     }
 }

@@ -143,6 +143,13 @@ struct FloatingVisualWindow: View {
     @AppStorage("visual.hue") private var visualHue = 0.0
     @AppStorage("visual.saturation") private var visualSaturation = 0.82
 
+    /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
+    /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
+    /// as a compact "3,5,7,2" string, SHARED with the main-menu customizer, parsed by
+    /// LookBlendMap. Same key + default in both views so an absent key resolves identically.
+    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,7,2"
+    private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
+
     /// The Studio's key root — same key + default as EchoelStudioView, so the IDLE tint of
     /// this window matches the fullscreen visual's tonic instead of a hardcoded C4.
     @AppStorage("studio.rootIndex") private var rootIndex = 0
@@ -196,9 +203,9 @@ struct FloatingVisualWindow: View {
     /// keys so the main menu stays in sync.
     private var lookScrub: Binding<Double> {
         Binding(
-            get: { LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend)) },
+            get: { LookBlendMap.position(a: visualStyle, b: visualStyleB, frac: Float(visualBlend), sequence: sliderLooks) },
             set: { v in
-                let m = LookBlendMap.blend(at: v)
+                let m = LookBlendMap.blend(at: v, sequence: sliderLooks)
                 if visualStyle != m.a { visualStyle = m.a }
                 if visualStyleB != m.b { visualStyleB = m.b }
                 visualBlend = Double(m.frac)
@@ -385,12 +392,14 @@ struct FloatingVisualWindow: View {
             // founder's explicit "slider" ask overrides the EchoelValueField default:
             // this is a live VJ control over the visual, not a Studio parameter row.
             // Fullscreen only — that's where the bar has the width for a LONG slider.
-            if windowSize.isFullscreen {
-                Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition)
+            // A single-look sequence has no range to fade — guard against a degenerate
+            // 0...0 Slider (founder's customizer can trim the sequence down to one look).
+            if windowSize.isFullscreen, LookBlendMap.maxPosition(for: sliderLooks) > 0 {
+                Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition(for: sliderLooks))
                     .tint(EchoelTheme.accent)
                     .frame(minWidth: 90, maxWidth: 170)
                     .accessibilityLabel("Visual look")
-                    .accessibilityValue(LookBlendMap.nearestName(at: lookScrub.wrappedValue))
+                    .accessibilityValue(LookBlendMap.nearestName(at: lookScrub.wrappedValue, sequence: sliderLooks))
             }
             // The transport-position readout + WAV control live UP HERE in the bar now
             // (founder 2026-07-07: "Das muss mit nach oben in die Leiste") — not floating over
