@@ -3,6 +3,22 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 8) — Onset-Chiff an Perkussivität gekoppelt (v10.79.114) + Fable-5-Doc-Gate
+**Chiff-Fix (1df9adb, CI ✅):** onsetNoiseEnv wurde in noteOn fix mit 1 gearmt — der
+Pick/Bow/Breath-Transient lag auf JEDER Note, auch Pads/Drone (3,5 s Attack) → digitales
+"pff" am Anfang jedes Pad-Tons. Jetzt `onsetNoiseEnv = percussiveness` (der in noteOn
+bereits berechnete Wert: attack ≤ 0.15 s → 1, lang → 0). Test gepinnt
+(testOnsetChiff_slowAttackStartsSilent_pluckDoesNot). → v10.79.114.
+Sound-Zyklen heute: Shimmer (Sustain) → Chiff (Attack). Offen aus der Diagnose: nichts
+Blindes mehr — Master-EQ (Mud/Air) existiert bereits (AutoMixChain 4-Band); nächste
+Kalibrierung nur nach Founder-Ohr-Feedback zu .113/.114.
+**Founder-Doc "Echoelmusic x Fable 5 Architektur" gegatet (8bbf324):** REJECT in-app
+Agent-Harness/OpenRouter/Agenten-Konsole (Kategorienfehler: Harness = Pipeline, wo wir
+es schon fahren; EngineBus IST die Orchestrierung; OpenRouter bräche die Bio-Privacy;
+Konsole widerspricht dem Visuals-Pivot; "Anna Wellness" = gebannte Rahmung). WATCH der
+eine Kern: Cross-Session-Memory des BioMusicDirector (on-device, "was hat DICH beruhigt").
+Modell-Tiering existiert schon (EchoelAIRouter).
+
 ## 2026-07-08 (Forts. 7) — Shimmer-Zyklus + WWDC26-Gesamtgate + gesundes Log (v10.79.113)
 **Shimmer (f90b632, CI ✅):** EchoelDDSP.partialShimmer (default 0.10) — per-Partial
 inkohärente Block-Rate-Sinusoids (0,3–3 Hz, Golden-Angle-Seeds, Depth rampt über den
