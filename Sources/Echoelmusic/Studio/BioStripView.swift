@@ -116,11 +116,17 @@ struct BioStripView: View {
             sourceControl
                 .frame(width: 96, alignment: .trailing)
         }
-        .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
-        .sheet(isPresented: $showGuide) { BioMetricsGuideView() }
+        // lineLimit/scale/font BEFORE the sheets: these are ENVIRONMENT values, and sheet
+        // content inherits the environment at the .sheet attachment point — with the old
+        // order (sheets first, lineLimit after) every Text INSIDE the info sheets rendered
+        // one line, shrunk to 60 %, truncated to "…" (founder, twice: "die Infos über HRV
+        // kann man immer noch nicht lesen. Wegen den …"). The width fix in the sheet could
+        // never cure that. Strip-only modifiers must sit INSIDE the sheet attachments.
         .lineLimit(1)
         .minimumScaleFactor(0.6)
         .font(.system(size: 12, weight: .medium, design: .monospaced))
+        .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
+        .sheet(isPresented: $showGuide) { BioMetricsGuideView() }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(red: 0.07, green: 0.07, blue: 0.09))
