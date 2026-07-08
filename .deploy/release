@@ -1,19 +1,22 @@
-build: 2026-07-08 v10.79.110 (Grafikterror fix — clean look hand-off + clipped rings)
+build: 2026-07-08 v10.79.111 (Played notes paint their physical colours · Cousto credit)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein "Grafikterror im Fullscreen" ist gefunden und behoben — zwei Ursachen aus
-  demselben Build wie die Alle-Größen-Spielbarkeit:
-  1) FALSCHE LOOKS BLITZTEN AUF: Beim Ziehen des Look-Sliders über eine Look-Grenze
-     wechselten die beiden Look-Selektoren SOFORT, aber die Überblendung glitt weich
-     hinterher — für ~1 Sekunde zeigte das Bild fast 100% eines Looks, den du nie
-     angesteuert hast (z.B. Plasma mitten zwischen Aurora und Depth). Schnelles
-     Scrubben strobte wild durch falsche Felder. Jetzt snappt die Überblendung beim
-     Grenzübertritt mit (die Grenze ist nahtlos — gleiches Bild davor und danach);
-     das weiche Morphen INNERHALB eines Segments bleibt genau wie gewollt.
-  2) RINGE ÜBER DEM UI: Bei den kleinen Fenstergrößen zeichneten die Wasser-Ringe
-     der Finger über den Kartenrand hinaus ins Studio-UI. Jetzt bleiben sie sauber
-     im Fenster.
-  TEST 10.79.110:
-  A) Fullscreen, Slider LANGSAM über eine Look-Grenze ziehen: kein Aufblitzen eines
-     fremden Looks mehr? Übergang nahtlos?
-  B) Slider SCHNELL hin und her scrubben: bleibt das Bild ruhig statt zu stroben?
-  C) Kleines Fenster, auf dem Bild spielen: bleiben die Wasser-Ringe im Fenster?
+notesT: Dein Farb-Wunsch ist drin — gespielte Töne werden in die physikalisch korrekten
+  Farben übersetzt — plus die Cousto-Erwähnung.
+  1) DEINE NOTEN FÄRBEN DAS BILD: Solange du auf dem Visual spielst, nimmt das ganze
+     Bild die PHYSIKALISCHE Farbe deiner Note an (Ton oktavtransponiert ins sichtbare
+     Licht, exakt die Cousto-Rechnung, gerendert über die vermessene Augen-Empfindlichkeit
+     CIE 1931). Dein Finger hat Vorrang vor dem generativen Bett; ~1 Sekunde nach dem
+     Loslassen übernimmt die Musik wieder. Berücksichtigt deinen Kammerton live.
+  2) RINGE IN NOTENFARBE + TIGHTER: Jeder Wassertropfen leuchtet jetzt in der Farbe
+     seiner Note (statt einheitlich aqua). Größe und Strichstärke folgen der
+     Anschlagstärke — fester Ton = größerer, satterer Tropfen. Timing gestrafft.
+  3) HANS COUSTO CREDIT: In den Licht-Infos und im Visual-Menü wird das Oktav-
+     Transpositions-Konzept jetzt Hans Cousto ("The Cosmic Octave", 1978) zugeschrieben —
+     wissenschaftlich sauber formuliert (exakte Mathematik, künstlerische Konvention,
+     kein Heils-Claim). Rechtlich sind wir sauber: wir übernehmen keine seiner Tabellen/
+     Texte, die Nennung ist freiwillige gute Praxis.
+  TEST 10.79.111:
+  A) Fullscreen spielen: färbt sich das Bild pro Note um (tiefe Noten rötlicher, hohe
+     grüner/bläulicher)? Übernimmt das Bett die Farbe ~1s nach dem Loslassen wieder?
+  B) Ringe: leuchten sie in der Notenfarbe? Größer bei festem Anschlag?
+  C) Licht-Info öffnen: liest sich der Cousto-Credit gut und ehrlich?
