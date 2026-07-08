@@ -247,6 +247,19 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             spectralShape: "formant", filterCutoff: 4200, filterResonance: 0.12,
             reverbMix: 0.32, reverbDecay: 1.9, vibratoRate: 5, vibratoDepth: 0.1,
             timbreProfile: "Oboe", timbreBlend: 0.9
+        ),
+        // Ambient drone: notes bloom in over seconds and take just as long to
+        // leave, while a very slow LFO drifts the low-pass cutoff — the classic
+        // pad/drone recipe (3–6 s attack, long release, slow filter motion).
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000B3"),
+            name: "Drone",
+            attack: 3.5, decay: 1.0, sustain: 0.9, release: 6.0,
+            harmonicity: 0.9, harmonicLevel: 0.85, brightness: 0.35, noiseLevel: 0.03,
+            spectralShape: "dark", filterCutoff: 1800, filterResonance: 0.15,
+            filterLFORate: 0.07, filterLFODepth: 0.5,
+            reverbMix: 0.6, reverbDecay: 4.5, vibratoRate: 0, vibratoDepth: 0,
+            unisonVoices: 2, unisonDetuneCents: 7
         )
     ]
 }

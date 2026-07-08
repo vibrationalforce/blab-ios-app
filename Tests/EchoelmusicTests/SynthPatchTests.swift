@@ -48,6 +48,21 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertEqual(Set(a).count, a.count, "factory ids are unique")
     }
 
+    func testFactoryDrone_isASlowAttackDrone() {
+        guard let drone = SynthPatch.factory.first(where: { $0.name == "Drone" }) else {
+            return XCTFail("factory must contain a Drone patch")
+        }
+        // The ambient recipe: seconds-long attack, even longer release,
+        // sustained body, and a slow LFO moving the low-pass cutoff.
+        XCTAssertGreaterThanOrEqual(drone.attack, 3.0, "drone attack blooms over seconds")
+        XCTAssertGreaterThanOrEqual(drone.release, 5.0, "drone release outlasts the attack")
+        XCTAssertGreaterThanOrEqual(drone.sustain, 0.8, "drone holds a sustained body")
+        XCTAssertLessThanOrEqual(drone.filterLFORate, 0.1, "filter motion is slow (sub-0.1 Hz)")
+        XCTAssertGreaterThanOrEqual(drone.filterLFODepth, 0.4, "filter motion is audible")
+        XCTAssertGreaterThanOrEqual(drone.reverbMix, 0.5, "drone lives in space")
+        XCTAssertEqual(drone.vibratoRate, 0, "no vibrato — stillness is the character")
+    }
+
     func testCommunityIssueURL_isWellFormed_withEmbeddedJSON() {
         let patch = SynthPatch.factory[0]
         guard let url = patch.communityIssueURL() else { return XCTFail("nil URL") }
