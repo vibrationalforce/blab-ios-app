@@ -110,6 +110,44 @@ final class TouchVisualEnergy: @unchecked Sendable {
     }
 }
 
+/// The tone the PERFORMER'S FINGER is sounding right now (founder 2026-07-08: "die
+/// Töne die gespielt werden sollen in die physikalisch hochglanzpolierten Farben
+/// übersetzt werden"). Touch notes play on their own synth and never pass through
+/// the bus's musical frames (those come from the piano-roll tick), so without this
+/// channel the picture's tone→colour could not see the played note. Same lock-safe
+/// leaf pattern as TouchVisualEnergy; the draw loop polls it once per frame and the
+/// finger takes PERFORMER PRIORITY over the generative bed while fresh (~1.2 s).
+final class TouchToneChannel: @unchecked Sendable {
+    static let shared = TouchToneChannel()
+    private let lock = NSLock()
+    private var hz: Double = 0
+    private var stamp: CFTimeInterval = 0
+
+    /// A played/slid note: remember its frequency + when.
+    func play(hz: Double, at now: CFTimeInterval) {
+        guard hz.isFinite, hz > 0 else { return }
+        lock.lock()
+        self.hz = hz
+        self.stamp = now
+        lock.unlock()
+    }
+
+    /// The finger tone if it is still fresh, else nil (hand back to the bed).
+    func current(now: CFTimeInterval, maxAge: CFTimeInterval = 1.2) -> Double? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard hz > 0, now - stamp <= maxAge else { return nil }
+        return hz
+    }
+
+    func reset() {
+        lock.lock()
+        hz = 0
+        stamp = 0
+        lock.unlock()
+    }
+}
+
 /// SwiftUI host for the Metal bio visual. iPhone-only surface.
 @MainActor
 struct MetalBioView: UIViewRepresentable {
@@ -415,7 +453,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // (≥30 %) than the note currently driving the colour — so chords/arpeggios with
             // near-tied amplitudes don't make the colour flick between pitches (the wobble).
             var musicTone: Double?
-            if let frame = bus?.freshMusical(maxAge: 1.5), let loudest = frame.notes.max(by: { $0.amplitude < $1.amplitude }) {
+            if let played = TouchToneChannel.shared.current(now: nowGov) {
+                // PERFORMER PRIORITY (founder: played notes → their physical colours):
+                // while a finger note is fresh, the picture's tone IS that note — the
+                // colour becomes the played tone octave-transposed into visible light.
+                // Also seeds the hysteresis holder so the hand-back to the bed is clean.
+                colorToneHz = played
+                musicTone = played
+            } else if let frame = bus?.freshMusical(maxAge: 1.5), let loudest = frame.notes.max(by: { $0.amplitude < $1.amplitude }) {
                 let currentAmp = frame.notes.first(where: { abs($0.frequencyHz - colorToneHz) < 0.5 })?.amplitude ?? 0
                 if colorToneHz == 0 || loudest.amplitude > currentAmp * 1.3 {
                     colorToneHz = loudest.frequencyHz

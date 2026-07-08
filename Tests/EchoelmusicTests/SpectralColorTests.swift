@@ -95,5 +95,50 @@ final class SpectralColorTests: XCTestCase {
         XCTAssertGreaterThan(n.r, 0.0)
         XCTAssertLessThan(n.r, 1.0)
     }
+
+    // MARK: - Cousto table verification (founder 2026-07-08: "ist die Liste von Hans
+    // Cousto physikalisch mathematisch korrekt oder haben wir unser eigenes besseres
+    // System?"). Answer, pinned as tests: his table IS pure octave doubling (f x 2^40)
+    // at Kammerton ~432 — arithmetically exact — and our visibleWavelength() reproduces
+    // it for every in-band entry. Ours GENERALIZES it: continuous in frequency (any
+    // detune/microtone), Kammerton-aware, and octave-CONSISTENT at the band edges
+    // (Cousto's fixed 2^40 maps the same pitch class F to red-violet at 363 Hz but
+    // near-UV at 726 Hz because visible light spans ~1.04 octaves; our nearest-green
+    // rounding keeps one pitch class = one colour).
+
+    func testCousto_a432_matchesOurPhysics() {
+        // Cousto row a = 432 Hz <-> 475 THz. lambda = c/f = 2.998e17 / 4.75e14 = 631 nm.
+        let wl = SpectralColor.visibleWavelength(forToneHz: 432)
+        let coustoWl = 2.99792458e17 / (432.0 * pow(2.0, 40))
+        XCTAssertEqual(wl, coustoWl, accuracy: 0.5, "our transposition IS Cousto's x2^40 here")
+        XCTAssertEqual(wl, 631.2, accuracy: 1.0)
+    }
+
+    func testCousto_f363_deepRed_matches() {
+        // Cousto row f = 363 Hz <-> 399 THz -> ~751 nm deep red.
+        let wl = SpectralColor.visibleWavelength(forToneHz: 363)
+        XCTAssertEqual(wl, 2.99792458e17 / (363.0 * pow(2.0, 40)), accuracy: 0.5)
+        XCTAssertEqual(wl, 751.0, accuracy: 1.5)
+    }
+
+    func testOctaveConsistency_beatsCoustoAtTheBandEdge() {
+        // 363 Hz and 726 Hz are the SAME pitch class (F). Cousto's fixed 2^40 sends
+        // 726 to ~375 nm (violet, outside 380-780); our rounding picks 2^39 so both
+        // octaves land on the SAME colour — octave equivalence, as an instrument needs.
+        let low = SpectralColor.visibleWavelength(forToneHz: 363)
+        let high = SpectralColor.visibleWavelength(forToneHz: 726)
+        XCTAssertEqual(low, high, accuracy: 0.5, "one pitch class -> one colour, any octave")
+        XCTAssertGreaterThanOrEqual(high, 380)
+        XCTAssertLessThanOrEqual(high, 780)
+    }
+
+    func testKammertonAwareness_beyondTheFixedTable() {
+        // The table is frozen at one Kammerton; our mapping shifts with the real
+        // played frequency (A4=440 vs 432 must give measurably different colours).
+        let wl440 = SpectralColor.visibleWavelength(forToneHz: 440)
+        let wl432 = SpectralColor.visibleWavelength(forToneHz: 432)
+        XCTAssertLessThan(wl440, wl432, "higher tone -> shorter wavelength")
+        XCTAssertGreaterThan(wl432 - wl440, 5, "the Kammerton difference is visible, not noise")
+    }
 }
 #endif

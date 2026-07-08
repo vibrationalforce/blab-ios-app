@@ -175,11 +175,17 @@ final class TouchInstrumentUIView: UIView {
             let pitch = pitch(at: p)
             held[id] = pitch
             applyMorph(at: p)   // set the position timbre BEFORE the note speaks
-            synth?.noteOn(pitch: pitch, velocity: velocity(of: touch))
+            let vel = velocity(of: touch)
+            synth?.noteOn(pitch: pitch, velocity: vel)
             // Playing feeds the picture: each note pumps excitation into the Metal
             // visual (swells intensity/motion), so the fingers visibly shape the light.
             TouchVisualEnergy.shared.excite(0.35)
-            spawnRing(at: p, strong: true)
+            // The played tone becomes the picture's COLOUR (physical octave
+            // transposition into visible light — performer priority in the renderer).
+            // CFAbsoluteTime — MUST match the draw loop's `nowGov` clock (CACurrentMediaTime
+            // is a DIFFERENT epoch; mixing them would read every note as stale).
+            TouchToneChannel.shared.play(hz: frequency(of: pitch), at: CFAbsoluteTimeGetCurrent())
+            spawnRing(at: p, strong: true, pitch: pitch, velocity: vel)
             lastRing[id] = p
         }
     }
@@ -193,13 +199,16 @@ final class TouchInstrumentUIView: UIView {
             let new = pitch(at: p)
             if TouchPitchMap.slideRetriggers(oldPitch: old, newPitch: new) {
                 synth?.noteOff(pitch: old)
-                synth?.noteOn(pitch: new, velocity: velocity(of: touch))
+                let vel = velocity(of: touch)
+                synth?.noteOn(pitch: new, velocity: vel)
                 held[id] = new
                 TouchVisualEnergy.shared.excite(0.15)   // slides keep the picture alive
+                TouchToneChannel.shared.play(hz: frequency(of: new), at: CFAbsoluteTimeGetCurrent())
             }
-            // Wake trail — a small ring roughly every 14 pt of travel.
+            // Wake trail — a small ring roughly every 14 pt of travel, in the colour
+            // of the note the finger is sounding right now.
             if let last = lastRing[id], hypot(p.x - last.x, p.y - last.y) > 14 {
-                spawnRing(at: p, strong: false)
+                spawnRing(at: p, strong: false, pitch: held[id] ?? old, velocity: velocity(of: touch))
                 lastRing[id] = p
             }
         }
@@ -233,6 +242,7 @@ final class TouchInstrumentUIView: UIView {
             lastRing.removeAll()
             synth?.setCutoffScale(1)           // no lingering morph after dismissal
             TouchVisualEnergy.shared.reset()   // no lingering swell after dismissal
+            TouchToneChannel.shared.reset()    // colour hands back to the bed
         }
     }
 
@@ -263,41 +273,67 @@ final class TouchInstrumentUIView: UIView {
         synth?.setCutoffScale(TouchPitchMap.morphCutoffScale(normY: normY, depth: morphDepth))
     }
 
+    /// Sounding frequency of a MIDI pitch at the take's concert pitch (the touch
+    /// synth is tuned by the Studio, so read its live A4 — not a hardcoded 440).
+    private func frequency(of pitch: Int) -> Double {
+        let a4 = Double(synth?.poly.a4Hz ?? 440)
+        return a4 * pow(2.0, (Double(pitch) - 69.0) / 12.0)
+    }
+
     // MARK: - Water ripples (CAShapeLayer — GPU, no SwiftUI invalidation)
 
-    /// Soft aqua-white — reads as water/light on the immersive visual, not a
-    /// hard UI stroke. (Vaporwave-fit; brand chrome stays clean elsewhere.)
-    private static let rippleTint = UIColor(red: 0.72, green: 0.92, blue: 1.0, alpha: 1)
+    /// The ring glows in the PLAYED NOTE'S physical colour (founder 2026-07-08: the
+    /// played tones translated into the "physikalisch hochglanzpolierten Farben"):
+    /// tone → octave-transposed into visible light → CIE-1931 colorimetric RGB
+    /// (SpectralColor — the same maths as the immersive field and the donuts, so
+    /// every surface agrees on a note's colour). Linear→sRGB-encoded for UIKit with
+    /// a small white lift so deep red/violet still reads as glossy light on the
+    /// dark field instead of vanishing.
+    private static func noteTint(hz: Double) -> UIColor {
+        let rgb = SpectralColor.wavelengthToLinearRGB(SpectralColor.visibleWavelength(forToneHz: hz))
+        func enc(_ c: Double) -> CGFloat {
+            CGFloat(0.22 + 0.78 * pow(min(max(c, 0), 1), 1.0 / 2.2))
+        }
+        return UIColor(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b), alpha: 1)
+    }
 
     /// A touch is a drop: emit several concentric wavefronts, each starting a
     /// beat after the last and reaching a little farther, so the ripple SPREADS
-    /// outward like real water instead of one flat expanding ring.
-    private func spawnRing(at p: CGPoint, strong: Bool) {
+    /// outward like real water instead of one flat expanding ring. TIGHTER since
+    /// 2026-07-08: radius/weight scale with the played VELOCITY (a firm note makes
+    /// a bigger, bolder drop; a feather touch a small precise one) and every front
+    /// carries the note's physical colour.
+    private func spawnRing(at p: CGPoint, strong: Bool, pitch: Int, velocity: Float) {
         guard !reduceMotion else { return }
+        let tint = Self.noteTint(hz: frequency(of: pitch))
+        let velScale = CGFloat(0.75 + 0.5 * Double(min(max(velocity, 0), 1)))   // 0.75…1.25
         let wavefronts = strong ? 3 : 2
-        let baseRadius: CGFloat = strong ? 58 : 34
-        let baseAlpha: Float = strong ? 0.40 : 0.24
-        let stagger: CFTimeInterval = 0.16
+        let baseRadius: CGFloat = (strong ? 58 : 34) * velScale
+        let baseAlpha: Float = strong ? 0.45 : 0.26
+        let stagger: CFTimeInterval = 0.13
         let now = CACurrentMediaTime()
         for i in 0..<wavefronts {
             let t = Float(i) / Float(wavefronts)           // 0 = leading front
             spawnWavefront(at: p,
                            radius: baseRadius * CGFloat(1 + 0.35 * Double(i)),
                            alpha: baseAlpha * (1 - 0.55 * t), // outer fronts fainter
-                           duration: (strong ? 1.0 : 0.7) + Double(i) * 0.12,
-                           beginAt: now + Double(i) * stagger)
+                           duration: (strong ? 0.9 : 0.6) + Double(i) * 0.1,
+                           beginAt: now + Double(i) * stagger,
+                           tint: tint,
+                           lineWidth: 1.2 + CGFloat(velocity) * 1.0)
         }
     }
 
     private func spawnWavefront(at p: CGPoint, radius: CGFloat, alpha: Float,
-                                duration: CFTimeInterval, beginAt: CFTimeInterval) {
+                                duration: CFTimeInterval, beginAt: CFTimeInterval,
+                                tint: UIColor, lineWidth: CGFloat) {
         let ring = CAShapeLayer()
         ring.path = UIBezierPath(ovalIn: CGRect(x: -radius, y: -radius,
                                                 width: radius * 2, height: radius * 2)).cgPath
         ring.position = p
         ring.fillColor = nil
-        ring.strokeColor = Self.rippleTint.cgColor
-        ring.lineWidth = 1.5
+        ring.strokeColor = tint.cgColor
+        ring.lineWidth = lineWidth
         ring.opacity = 0   // model value: invisible until its wavefront begins (no pre-begin flash)
         layer.addSublayer(ring)
 
