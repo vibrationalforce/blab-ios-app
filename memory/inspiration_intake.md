@@ -305,3 +305,25 @@ The in-file "TherapeuticEffects→HarmonicEffects" rename just confirms the de-m
 (3) worldwide-styles/harmony DB [genre depth], (4) Ableton Link, (5) facial-expression bio-input,
 (6) shared-coherence multiplayer. Everything else = BLAB/SYNG banned brand / discarded stack /
 wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-scan + bucket only.
+
+### 2026-07-08 — Ambient-Tool-Links (Void&Vista · 10K Gyro · Eraform) + Ambient-Rezept + Cousto-Attribution
+- **Void & Vista (FOLDS/STRANDS/FRAMES)** — REJECT als Produktmodell (Kontakt-Sample-Libraries,
+  25GB-Assets ≠ synthesis-first/zero-deps); ihre UI-als-Kunst-Messlatte = Validierung unseres
+  Visual-first-Anspruchs.
+- **10K Audio Gyro (ex-NI)** — WATCH/Strukturvalidierung: generative Loops + reaktive GPU-Visuals
+  = unser nächster kommerzieller Verwandter, aber MAUS-gesteuert. Body-as-controller bleibt das
+  Alleinstellungsmerkmal auf exakt diesem Feld. Nuggets: kuratierte Chord-Packs, Half-Time-FX.
+- **Eraform Fraction** — ADOPT-PIPELINE (Pricing): One-time-Payment + wachsende Gratis-Inhalte
+  bestätigt MASTERPLAN §2 wörtlich.
+- **Ambient-Rezept (Founder):** Slow-Attack-Drone (3–6 s Attack, max Release) = ADOPT-PRODUCT,
+  als nächster Sound-Zyklus eingeplant (reine SynthPatch-Params, dient "weicher/wärmer").
+  Shimmer/Wash-Reverb + Micro-Harmonizer = WATCH (FX-Workstream; sanftes 2-Voice/7¢-Unison ist
+  schon die dezente Harmonizer-Stufe). Field-Recordings/Vinyl-Beds = WATCH nur als SYNTHESE
+  (noiseColor/Cellular), keine Sample-Beds (SoundscapeEngine bleibt tot), kein Wellness-Framing.
+- **Cousto-Attribution (Founder: "er will erwähnt werden"):** Credit-Zeile in LightScienceInfo
+  (.scope) + Visual-Panel-Caption ergänzt — science-first formuliert (Konzept-Credit, mathematisch
+  exakt, "artistic convention", KEIN kosmisch/therapeutischer Claim). Rechtslage: Oktav-MATHE ist
+  als Methode nicht schutzfähig, wir reproduzieren keine Cousto-TEXTE/Tabellen/Grafiken →
+  keine CC-Pflicht entsteht; die Nennung ist freiwillige, korrekte Wissenschaftspraxis. Seine
+  Markenbegriffe ("Kosmische Oktave" als Produktname, "Planetentöne"-Branding) NICHT als
+  Feature-Namen verwenden — nur beschreibend/attributiv.
