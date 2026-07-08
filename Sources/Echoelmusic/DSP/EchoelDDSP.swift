@@ -368,6 +368,19 @@ public final class EchoelDDSP: @unchecked Sendable {
     private var levelDriftTarget: Float = 0
     private var levelDriftCounter: Int = 0
 
+    /// Per-partial amplitude SHIMMER — each overtone's level wanders independently
+    /// (incoherent slow sinusoids, upper partials more than the fundamental), the
+    /// partial-level fluctuation every bowed/blown/sung sustain has. The pitch/level
+    /// drifts above move ALL partials together; with a frozen RELATIVE spectrum a
+    /// sustain still reads as "organ/cheap synth". Value = peak fractional wobble of
+    /// the highest partials (0.10 ≈ ±10 %, ≈ ±0.8 dB — felt as life, not tremolo).
+    /// 0 disables (bit-identical render). Updated at block rate (0.3–3 Hz motion
+    /// needs no per-sample trig); the per-sample one-pole on `smoothedAmplitudes`
+    /// glides over the block-rate steps, so there is no zipper.
+    public var partialShimmer: Float = 0.10
+    private var shimmerPhases: [Float]
+    private var shimmerWeights: [Float]
+
     /// Current envelope value
     private var envelopeValue: Float = 0
 
@@ -436,6 +449,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         self.noiseMagnitudes = [Float](repeating: 0, count: noiseBandCount)
         self.phases = [Float](repeating: 0, count: harmonicCount)
         self.smoothedAmplitudes = [Float](repeating: 0, count: harmonicCount)
+        // Shimmer phases start spread by the golden angle (deterministic, maximally
+        // incommensurate) so the partial wobbles never line up into a tremolo.
+        self.shimmerPhases = (0..<harmonicCount).map { Float($0) * 2.399963 }
+        self.shimmerWeights = [Float](repeating: 1, count: harmonicCount)
         self.aaWeights = [Float](repeating: 0, count: harmonicCount)
 
         // vDSP scratch buffers
@@ -750,6 +767,25 @@ public final class EchoelDDSP: @unchecked Sendable {
         let nyquist = sampleRate * 0.5
         let twoPiOverSR = 2.0 * Float.pi / sampleRate
 
+        // --- Per-partial shimmer (block rate — see `partialShimmer`) ---
+        // Each partial advances its own phase at a deterministic, incommensurate
+        // rate (spread over ~0.3–3 Hz) so the wobbles never synchronise. The
+        // fundamental stays anchored (depth ramps in across the first partials);
+        // uppers breathe the most, like a real sustained note. Pure arithmetic +
+        // one sinf per partial per BLOCK — negligible against the per-sample path.
+        if partialShimmer > 0 {
+            let blockDt = Float(frameCount) / sampleRate
+            for i in shimmerPhases.indices {
+                let rate: Float = 0.3 + 0.37 * Float(i % 7) + 0.11 * Float(i % 3)
+                shimmerPhases[i] += 2.0 * .pi * rate * blockDt
+                if shimmerPhases[i] > 2.0 * .pi { shimmerPhases[i] -= 2.0 * .pi }
+                let depth = partialShimmer * min(1.0, Float(i) * 0.34)
+                shimmerWeights[i] = 1.0 + depth * sinf(shimmerPhases[i])
+            }
+        } else if shimmerWeights.last != 1 {
+            for i in shimmerWeights.indices { shimmerWeights[i] = 1 }   // off → bit-identical
+        }
+
         for frame in 0..<frameCount {
             // Update envelope
             updateEnvelope()
@@ -798,7 +834,9 @@ public final class EchoelDDSP: @unchecked Sendable {
             let oneMinusSmooth: Float = 0.005
             let antiDenormal: Float = 1e-25
             for i in 0..<harmonicCount {
-                let target = harmonicAmplitudes[i] * harmonicLevel
+                // shimmerWeights = 1 when shimmer is off (bit-identical); otherwise the
+                // per-partial block-rate wobble rides in here and the one-pole glides it.
+                let target = harmonicAmplitudes[i] * harmonicLevel * shimmerWeights[i]
                 smoothedAmplitudes[i] = smoothedAmplitudes[i] * smoothCoeff + target * oneMinusSmooth + antiDenormal
             }
 
