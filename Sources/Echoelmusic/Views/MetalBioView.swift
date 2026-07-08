@@ -485,6 +485,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // `updateUIView`/the fullscreen overlay (the visual-instability churn). The governor
         // sets the frame rate + detail tier; the bus gives the freshest bio + live note.
         let nowGov = CFAbsoluteTimeGetCurrent()
+        // PERFORMER PRIORITY input (founder: played notes → their physical colours,
+        // "chords etc."): every HELD finger note, most-recent-first. Declared at
+        // function scope — read here for the tone selection below AND by the cloud
+        // colour easing further down (outside the assumeIsolated closure).
+        // Lock-protected channel, no actor hop needed.
+        let playedNotes = TouchToneChannel.shared.activeHz(now: nowGov)
         MainActor.assumeIsolated {
             // Aspect EVERY frame from the LIVE drawable size, so the rings are concentric from
             // the FIRST frame. It used to be set only in drawableSizeWillChange, which on launch
@@ -508,11 +514,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // (≥30 %) than the note currently driving the colour — so chords/arpeggios with
             // near-tied amplitudes don't make the colour flick between pitches (the wobble).
             var musicTone: Double?
-            // PERFORMER PRIORITY (founder: played notes → their physical colours,
-            // "chords etc."): every HELD finger note, most-recent-first — a chord
-            // paints all its colours (cloud assignment below), the newest note
-            // drives the geometry tone and seeds the hysteresis holder.
-            let playedNotes = TouchToneChannel.shared.activeHz(now: nowGov)
+            // The newest finger note drives the geometry tone and seeds the
+            // hysteresis holder; the full chord feeds the cloud colours below.
             if let played = playedNotes.first {
                 colorToneHz = played
                 musicTone = played
