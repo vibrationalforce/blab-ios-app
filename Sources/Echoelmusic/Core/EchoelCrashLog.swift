@@ -79,7 +79,13 @@ enum EchoelCrashLog {
         previousSession = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         fd = open(url.path, O_CREAT | O_TRUNC | O_WRONLY, 0o644)
         installHandlers()
-        breadcrumb("launch")
+        // Name the build in the first line: every pasted diag log identifies its
+        // version (triage step 1 — "is the fix you're verifying IN this build?"),
+        // instead of guessing from timestamps against TestFlight upload times.
+        let info = Bundle.main.infoDictionary
+        let v = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let b = info?["CFBundleVersion"] as? String ?? "?"
+        breadcrumb("launch v\(v) (\(b))")
     }
 
     /// Append a timestamped step marker. Best-effort, any thread, no throw.
