@@ -682,24 +682,30 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                     targetW[k] = soundingNotes[i].amp
                 }
             }
-            // 2) New notes claim the quietest free slot. The claimed slot restarts at
-            //    weight 0 and fades in — a note-on reads as an appearing cloud, never
-            //    as a colour snap on a still-visible one.
+            // 2) New notes claim the quietest free slot. A TRULY free slot (weight
+            //    ~0) snaps colour+place invisibly and fades in. A still-VISIBLE slot
+            //    being reassigned (all 5 occupied — e.g. a dense bed + new touch
+            //    note) is NEVER cut: it keeps its weight, and the per-channel colour
+            //    chase (tau 0.18) + position chase (tau 0.25, step 3) carry it over
+            //    to the new note — the anti-strobe law holds under stealing too
+            //    (review 2026-07-08: the old weight-to-0 cut popped a visible cloud
+            //    out in one frame, the exact class this design exists to prevent).
             for i in soundingNotes.indices where !noteConsumed[i] {
                 let free = (0..<5).filter { !slotTaken[$0] }
                 guard let k = free.min(by: { cloudW[$0] < cloudW[$1] }) else { break }
                 slotTaken[k] = true
-                slotSeeded[k] = true
                 cloudID[k] = soundingNotes[i].id
                 cloudHzSlot[k] = soundingNotes[i].hz
-                cloudW[k] = 0
                 targetW[k] = soundingNotes[i].amp
-                let p = SpectralColor.notePosition(forHz: soundingNotes[i].hz)
-                cloudPos[k] = SIMD2(Float(p.x), Float(p.y))
+                if cloudW[k] < 0.004 {
+                    slotSeeded[k] = true      // invisible: snap colour + place, fade in
+                    cloudW[k] = 0
+                }
             }
             // 3) Ease weights (fast in — a played note must answer NOW; softer out)
-            //    and chase each held slot's exact note colour per-channel (anti-strobe
-            //    law: a chasing colour can never jump, at any retrigger rate).
+            //    and chase each held slot's exact note colour per-channel AND its
+            //    pitch-space place (anti-strobe law: neither colour nor position can
+            //    ever jump on a visible cloud, at any retrigger/steal rate).
             for k in 0..<5 {
                 let up = targetW[k] > cloudW[k]
                 cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? 0.09 : 0.35, dt: dt)
@@ -708,11 +714,16 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 let wl = SpectralColor.visibleWavelength(forToneHz: cloudHzSlot[k])
                 let c = SpectralColor.wavelengthToLinearRGB(wl)
                 let t = SIMD3<Float>(Float(c.r), Float(c.g), Float(c.b))
-                cloudRGB[k] = (cloudSeeded && !slotSeeded[k])
-                    ? SIMD3<Float>(Self.ease(cloudRGB[k].x, t.x, tau: 0.18, dt: dt),
+                let p = SpectralColor.notePosition(forHz: cloudHzSlot[k])
+                let tp = SIMD2<Float>(Float(p.x), Float(p.y))
+                let snap = !cloudSeeded || slotSeeded[k]
+                cloudRGB[k] = snap ? t
+                    : SIMD3<Float>(Self.ease(cloudRGB[k].x, t.x, tau: 0.18, dt: dt),
                                    Self.ease(cloudRGB[k].y, t.y, tau: 0.18, dt: dt),
                                    Self.ease(cloudRGB[k].z, t.z, tau: 0.18, dt: dt))
-                    : t
+                cloudPos[k] = snap ? tp
+                    : SIMD2<Float>(Self.ease(cloudPos[k].x, tp.x, tau: 0.25, dt: dt),
+                                   Self.ease(cloudPos[k].y, tp.y, tau: 0.25, dt: dt))
             }
             cloudSeeded = true
             (uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = (cloudRGB[0].x, cloudRGB[0].y, cloudRGB[0].z)
