@@ -3,6 +3,31 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 6) — Video-Beweis: Farbwolken-Strobe + Stimmungs-Lücke (v10.79.112)
+Founder-Video (4,3 s Screenrecording) frame-diffed: zwischen 2 Frames (33 ms) tauschen
+Bildhälften Grün↔Rot. **Ursache (907aaba):** Wolken-/Prisma-Farbe kam aus der GEEASTEN
+toneHz (tau 0.45); beim Gleiten zwischen Noten kreuzt jede Harmonische die Oktavgrenze
+des sichtbaren Bands zu ihrem eigenen Zeitpunkt → round(log2(...)) in toneWavelengthNm
+klappt die Wellenlänge Rot↔Violett in EINEM Frame (halbe Bildfläche = eine Wolke).
+**FIX + REGEL: Farbe NIE aus einer geglätteten FREQUENZ berechnen** — Farb-Crossfade
+(colorToneA/B + colorFade, tau 0.18) zwischen den DISKRETEN Noten, RGB-Mix im Shader
+(Clouds + Prism); geeaste toneHz bleibt NUR für Geometrie (log2-Felder sind stetig).
+Uniforms-Struct BEIDSEITIG erweitert (Swift 20 floats ≡ MSL 20 floats — Reihenfolge!).
+**Stimmungs-Frage des Founders deckte 2. Bug auf (dd16a84):** applyTuning() schickte die
+Mikrotuning-Tabelle nur an den Lead-Synth — Touch-Instrument blieb 12-TET und seine
+Farb-Rechnung auch. Jetzt: touchSynth bekommt die Cents, PolySynthVoice spiegelt sie
+(@ObservationIgnored uiTuningCents) und frequency(of:) rechnet die KLINGENDE Frequenz
+(exakt die noteOn-Formel). Antwort an Founder: Oktav-Transposition ist stimmungs-
+agnostisch korrekt (2:1 ist in JEDER Stimmung rein; Pythagoreisch = 3:2+2:1 per
+Definition); nur die Zwischentöne verschieben sich (~8 Cent ≈ 2–3 nm) — korrekt so.
+Sound-Analyse des Videos (Spektrogramm): "billig"-Signatur = klickige Breitband-Attacks
++ dumpfer Sustain + Low-Mid-Matsch + flache Dynamik → NÄCHSTER Sound-Zyklus.
+Google-Link "instant ambient composing" gegatet: WATCH Wotja-Endlos-Modus, REJECT
+Cloud-AI-Generatoren. Audit für Founder-Fragen: LoopExporter hat DAW-Grid-Garantie
+(bar-exakt, Downbeat-Snap, 4-ms-Edge-Fades, LUFS −14, WAV 44.1k/24-bit); EchoelAI =
+Provider-Router (deterministisch → Apple FM iOS 26 → Cloud-Opt-in, Bio nie in Cloud);
+Prompt→Style-Übersetzung (Artist-Vibes → unser Vokabular) als Zyklus gequeued.
+
 ## 2026-07-08 (Forts. 5) — Ambient-Inspirationen gegatet + Drone-Factory-Patch (v10.79.112)
 Founder: 3 URLs (voidandvista.com · 10k.audio · eraformaudio.com) + Ambient-Rezept
 ("Sind da noch Inspirationen bei für unsere Tools?") → vision-gate (6 Zeilen in
