@@ -66,6 +66,16 @@ private struct BioUniforms {
     /// Blend (Mix) ratio between `style` (0) and `styleB` (1) — the overlapping/
     /// "mischend" control. EASED so changing the mix or B morphs smoothly. 0 = pure A.
     var blend: Float = 0
+    /// COLOUR CROSSFADE pair (anti-strobe law): the picture's colour is a per-pixel
+    /// RGB fade from the PREVIOUS note's colour field (A) to the CURRENT note's (B) —
+    /// NEVER computed from an eased frequency. Gliding Hz sweeps the hue through every
+    /// colour between two notes, and when the glide crosses the visible-band edge the
+    /// octave-fold in toneWavelengthNm wraps red↔violet in ONE frame — whole harmonic
+    /// clouds (half the screen) snapped colour ("Kästchen flackern"). A and B are
+    /// discrete note frequencies (each colour physically exact); only the MIX eases.
+    var colorToneA: Float = 261.63
+    var colorToneB: Float = 261.63
+    var colorFade: Float = 1
 }
 
 /// Touch → visual excitation channel (founder 2026-07-07: "das Spiel mit den Fingern
@@ -297,6 +307,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// a jumpy target. We hold the chosen note and only hand off when a challenger is clearly
     /// louder (see the margin in `draw`), so the colour glides between notes instead of flicking.
     private var colorToneHz: Double = 0
+    /// Colour-crossfade state (see BioUniforms.colorToneA/B): the discrete note pair
+    /// whose colour fields the shader mixes, and the eased 0→1 fade between them.
+    private var colorNoteFrom: Float = 261.63
+    private var colorNoteTo: Float = 261.63
+    private var colorNoteFade: Float = 1
 
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
@@ -524,6 +539,21 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.coherence = Self.ease(uniforms.coherence, target.coherence, tau: 0.6,  dt: dt)
             uniforms.breath    = Self.ease(uniforms.breath,    target.breath,    tau: 0.35, dt: dt)
             uniforms.toneHz    = Self.ease(uniforms.toneHz,    target.toneHz,    tau: 0.45, dt: dt)
+            // COLOUR CROSSFADE (the "Kästchen flackern" fix): the eased toneHz above
+            // now drives GEOMETRY only (log2 fields — continuous under easing). The
+            // COLOUR is a fade between the discrete note pair: on a new note, the old
+            // target becomes the fade base (once the previous fade is past halfway,
+            // so retargets stay near-continuous) and the mix restarts. Each end is a
+            // physically exact note colour; the octave-fold wrap can never strobe.
+            if abs(target.toneHz - colorNoteTo) > 0.5 {
+                if colorNoteFade > 0.5 { colorNoteFrom = colorNoteTo }
+                colorNoteTo = target.toneHz
+                colorNoteFade = 0
+            }
+            colorNoteFade = Self.ease(colorNoteFade, 1, tau: 0.18, dt: dt)
+            uniforms.colorToneA = colorNoteFrom
+            uniforms.colorToneB = colorNoteTo
+            uniforms.colorFade = colorNoteFade
             uniforms.intensity = Self.ease(uniforms.intensity, target.intensity, tau: 0.4,  dt: dt)
             uniforms.ringDensity = Self.ease(uniforms.ringDensity, target.ringDensity, tau: 0.7, dt: dt)
             uniforms.motion    = Self.ease(uniforms.motion,    target.motion,    tau: 0.4,  dt: dt)
@@ -599,7 +629,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
                       float pulseHz; float hueShift; float saturation; float pulsePhase; float style;
-                      float styleB; float blend; };
+                      float styleB; float blend; float colorToneA; float colorToneB; float colorFade; };
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -670,7 +700,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // keeps its own cloud's colour — only overlaps blend, never a global average). `glow`
     // returns the summed cloud density so the clouds can softly self-illuminate. Drift is
     // slow (flash-safe); each cloud's colour is fixed, so no colour flashing.
-    float3 toneCloudColour(float2 q, float phase, float toneHz, float spread, thread float& glow) {
+    float3 toneCloudColour(float2 q, float phase, float toneA, float toneB, float fade,
+                           float spread, thread float& glow) {
         float3 acc = float3(0.0);
         float w = 0.0;
         float radius = 0.45 * spread;
@@ -680,7 +711,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // seventh, second). Even harmonics are octaves of these and octave-fold to the
             // same colour, which would collapse the variety — odd harmonics stay bunt.
             float h = float(1 + 2 * k);
-            float3 ck = wavelengthToRGB(clamp(toneWavelengthNm(toneHz * h), 380.0, 780.0));   // each harmonic → its true light colour
+            // Each harmonic's colour is an RGB CROSSFADE between the previous and current
+            // note (both physically exact) — never a colour of an eased in-between
+            // frequency, whose octave-fold would snap this whole cloud red↔violet the
+            // frame it crossed the visible-band edge (the "Kästchen flackern").
+            float3 cka = wavelengthToRGB(clamp(toneWavelengthNm(toneA * h), 380.0, 780.0));
+            float3 ckb = wavelengthToRGB(clamp(toneWavelengthNm(toneB * h), 380.0, 780.0));
+            float3 ck = mix(cka, ckb, fade);
             float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe drift
             float2 ctr = float2(cos(a * 0.7 + h), sin(a + h * 2.0)) * (0.5 * spread);
             float2 dq = q - ctr;
@@ -699,12 +736,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // (flash-safe: the colour at each location is fixed, only the band slides gently);
     // coherence narrows the spread to a tighter, purer spectrum. The downstream warm-
     // desaturation + luminance floor render it as NATURAL daylight, not neon.
-    float3 prismColour(float2 q, float toneHz, float phase, float coh) {
+    float3 prismColour(float2 q, float toneA, float toneB, float fade, float phase, float coh) {
         float span   = mix(1.5, 0.7, coh);                       // octaves fanned across frame
         float x      = q.x * 0.5 + 0.05 * sin(phase * 0.3 + q.y * 1.5);   // slow refraction drift
         float octave = clamp(x * span, -4.0, 4.0);               // guard exp2 range
-        float hz     = max(toneHz, 1.0) * exp2(octave);
-        float3 c     = wavelengthToRGB(clamp(toneWavelengthNm(hz), 380.0, 780.0));   // disperse by true light wavelength
+        // Same anti-strobe crossfade as the clouds: fan BOTH note spectra and mix in RGB.
+        float hzA    = max(toneA, 1.0) * exp2(octave);
+        float hzB    = max(toneB, 1.0) * exp2(octave);
+        float3 c     = mix(wavelengthToRGB(clamp(toneWavelengthNm(hzA), 380.0, 780.0)),
+                           wavelengthToRGB(clamp(toneWavelengthNm(hzB), 380.0, 780.0)), fade);
         float band   = 0.85 + 0.15 * cos(q.y * 3.14159265);      // luminous band, not flat fill
         return c * band;
     }
@@ -965,14 +1005,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Mischung") — a varied, bunt picture where each region keeps its own colour,
         // anchored to the heard tone's overtone series. `cloudGlow` lets them softly glow.
         float cloudGlow = 0.0;
-        float3 col = toneCloudColour(pf, phase, u.toneHz, spread, cloudGlow);
+        float tfade = clamp(u.colorFade, 0.0, 1.0);
+        float3 col = toneCloudColour(pf, phase, u.colorToneA, u.colorToneB, tfade, spread, cloudGlow);
         // PRISM look: replace the cloud colour with a spatial spectral dispersion (a
         // rainbow refraction of the sounding tone). Weighted by how much the active
         // look(s) are Prism (style/styleB == 4), so blending Prism↔another look cross-
         // fades the colour too. Injected BEFORE the natural-light block so the rainbow
         // is rendered as warm daylight, not neon.
         float prismW = clamp(step(3.5, u.style) * (1.0 - blend) + step(3.5, u.styleB) * blend, 0.0, 1.0);
-        if (prismW > 0.0) { col = mix(col, prismColour(pf, u.toneHz, phase, coh), prismW); }
+        if (prismW > 0.0) { col = mix(col, prismColour(pf, u.colorToneA, u.colorToneB, tfade, phase, coh), prismW); }
         // NATURAL WARM LIGHT (founder): pure spectral colours look "neon"; nature's light
         // — a prism/rainbow in warm daylight — is warmer and a touch less saturated. Pull
         // gently toward a warm white point (~3500 K) and ease the saturation, keeping the
