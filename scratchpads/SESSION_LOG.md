@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 2) — Touch-Instrument: eigene Stimme, Positions-Morph, eigene Presets (v10.79.109)
+Founder (Log 1783506447 + Text): Touch-Instrument "stabilisieren, debuggen … komische
+glitches, hakelt am Anfang" + "Sound morphbar, je nach Position + Presets/Charakter/Effekte
+individuell einstellen".
+- **Log-Triage:** Nach Stall-Recovery blieb win=0 für 10 s bei finger=yes + lebenden R-Werten
+  und OHNE zweiten Stall-Alarm → Kamera liefert thermisch gedrosselten Frame-TRICKLE (zu wenig
+  für das 0.7–4-Hz-Pulsband, genug für den Stall-Zähler). Fix (d2b0587): Publish-Loop misst die
+  ECHTE Inbound-Rate (EMA, `in=` im Diag) + ehrliches Cooling-Banner bei <6 Hz sustained.
+- **TouchSynth-Trennung (6ce8011):** EIGENE PolySynthVoice (6 Stimmen) fürs Play-Surface —
+  Touch-Noten stehlen dem generativen Bett keine Stimmen mehr mid-sustain (die "glitches");
+  Injection via custom `\.touchSynth` EnvironmentKey (zweites `.environment(PolySynthVoice)`
+  würde polyVoice ERSETZEN — last-writer-wins pro Typ!). Key im SwiftUI-only-Guard (macOS-CI).
+- **Positions-Morph:** `TouchPitchMap.morphCutoffScale` (pure, getestet): Y-Position öffnet/
+  dunkelt das Filter kontinuierlich (±1 Oktave bei Tiefe 1), gesetzt via atomarem
+  setCutoffScale vor noteOn + kontinuierlich beim Sliden. `touch.morphDepth` @AppStorage.
+- **Eigener Sound:** "Play surface sound"-Sektion im Visual-Panel — "Take sound" (Default,
+  folgt Generate/Editor/Preset via syncTouchSound()) oder eigener Patch aus dem PatchStore;
+  INLINE, KEIN neues Sheet (Metadata-Regel). FX-Charakter wird an allen 3 Apply-Stellen auf
+  die Touch-Chain gespiegelt (gleicher Raum, sonst wären gespielte Noten plötzlich trocken).
+- v10.79.108 (Englisch/Echoelmusic) erfolgreich auf TestFlight.
+
 ## 2026-07-08 (Forts.) — Alles Englisch + Software heißt Echoelmusic (v10.79.108)
 Founder (Screenshot von 10.79.107 live auf Gerät): „Alles auf Englisch, außerdem Echoelmusic
 nicht Echoel. Ich bin der Künstler aber die Domain und die Software heißt Echoelmusic."

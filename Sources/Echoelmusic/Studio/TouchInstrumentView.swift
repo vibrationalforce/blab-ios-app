@@ -93,7 +93,9 @@ import SwiftUI
 /// SwiftUI-only guard (no UIKit): EchoelmusicApp injects this on EVERY platform,
 /// even where the UIKit play surface below doesn't compile (macOS CI).
 private struct TouchSynthKey: EnvironmentKey {
-    static let defaultValue: PolySynthVoice? = nil
+    // Computed (not a stored `static let`): a stored non-Sendable static is a
+    // Swift 6 strict-concurrency error; a computed nil default has no shared state.
+    static var defaultValue: PolySynthVoice? { nil }
 }
 
 extension EnvironmentValues {
