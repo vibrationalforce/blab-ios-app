@@ -308,31 +308,67 @@ final class TouchInstrumentUIView: UIView {
         return UIColor(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b), alpha: 1)
     }
 
-    /// A touch is a drop: emit several concentric wavefronts, each starting a
-    /// beat after the last and reaching a little farther, so the ripple SPREADS
-    /// outward like real water instead of one flat expanding ring. TIGHTER since
-    /// 2026-07-08: radius/weight scale with the played VELOCITY (a firm note makes
-    /// a bigger, bolder drop; a feather touch a small precise one) and every front
-    /// carries the note's physical colour.
+    /// A touch is a drop of COLOURED LIGHT (founder 2026-07-08: "Die Ringe könnten
+    /// mehr Wolken sein"): the body of the feedback is now a soft radial CLOUD in
+    /// the note's physical colour — a glow that blooms out and dissolves like ink
+    /// in water — with ONE thin wavefront ring as its leading edge so the water
+    /// identity stays readable. Radius/weight still scale with the played VELOCITY.
+    /// Fewer layers than the old 3-ring drop (2 vs 3) — cheaper, softer, wolkiger.
     private func spawnRing(at p: CGPoint, strong: Bool, pitch: Int, velocity: Float) {
         guard !reduceMotion else { return }
         let tint = Self.noteTint(hz: frequency(of: pitch))
         let velScale = CGFloat(0.75 + 0.5 * Double(min(max(velocity, 0), 1)))   // 0.75…1.25
-        let wavefronts = strong ? 3 : 2
         let baseRadius: CGFloat = (strong ? 58 : 34) * velScale
-        let baseAlpha: Float = strong ? 0.45 : 0.26
-        let stagger: CFTimeInterval = 0.13
         let now = CACurrentMediaTime()
-        for i in 0..<wavefronts {
-            let t = Float(i) / Float(wavefronts)           // 0 = leading front
-            spawnWavefront(at: p,
-                           radius: baseRadius * CGFloat(1 + 0.35 * Double(i)),
-                           alpha: baseAlpha * (1 - 0.55 * t), // outer fronts fainter
-                           duration: (strong ? 0.9 : 0.6) + Double(i) * 0.1,
-                           beginAt: now + Double(i) * stagger,
-                           tint: tint,
-                           lineWidth: 1.2 + CGFloat(velocity) * 1.0)
+        spawnCloud(at: p,
+                   radius: baseRadius * 1.15,
+                   alpha: strong ? 0.42 : 0.24,
+                   duration: strong ? 1.1 : 0.7,
+                   beginAt: now,
+                   tint: tint)
+        if strong {   // the drop's leading edge — one crisp front, not a ring stack
+            spawnWavefront(at: p, radius: baseRadius, alpha: 0.30,
+                           duration: 0.9, beginAt: now + 0.05,
+                           tint: tint, lineWidth: 1.0 + CGFloat(velocity) * 0.8)
         }
+    }
+
+    /// The cloud body: a radial gradient (note colour → clear) that scales up and
+    /// fades out. GPU-composited CAGradientLayer, removed on completion — same
+    /// bounded-layer discipline as the wavefronts.
+    private func spawnCloud(at p: CGPoint, radius: CGFloat, alpha: Float,
+                            duration: CFTimeInterval, beginAt: CFTimeInterval,
+                            tint: UIColor) {
+        let cloud = CAGradientLayer()
+        cloud.type = .radial
+        cloud.colors = [tint.withAlphaComponent(0.85).cgColor,
+                        tint.withAlphaComponent(0.35).cgColor,
+                        tint.withAlphaComponent(0).cgColor]
+        cloud.locations = [0, 0.45, 1]
+        cloud.startPoint = CGPoint(x: 0.5, y: 0.5)
+        cloud.endPoint = CGPoint(x: 1, y: 1)
+        cloud.frame = CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)
+        cloud.position = p
+        cloud.opacity = 0   // invisible until its animation begins (no pre-begin flash)
+        layer.addSublayer(cloud)
+
+        let scale = CABasicAnimation(keyPath: "transform.scale")
+        scale.fromValue = 0.25
+        scale.toValue = 1.35
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = alpha
+        fade.toValue = 0.0
+        let group = CAAnimationGroup()
+        group.animations = [scale, fade]
+        group.beginTime = beginAt
+        group.duration = duration
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        group.isRemovedOnCompletion = false
+        group.fillMode = .forwards
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { cloud.removeFromSuperlayer() }
+        cloud.add(group, forKey: "cloud")
+        CATransaction.commit()
     }
 
     private func spawnWavefront(at p: CGPoint, radius: CGFloat, alpha: Float,
