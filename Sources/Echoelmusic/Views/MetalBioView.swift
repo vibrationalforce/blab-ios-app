@@ -142,30 +142,55 @@ final class TouchVisualEnergy: @unchecked Sendable {
 final class TouchToneChannel: @unchecked Sendable {
     static let shared = TouchToneChannel()
     private let lock = NSLock()
-    private var hz: Double = 0
-    private var stamp: CFTimeInterval = 0
+    /// HELD notes, most-recent-first (founder 2026-07-08: "100 % der Sound in den
+    /// richtigen Farben … chords etc." — a chord must paint ALL its colours, not
+    /// just the last finger). Capped to the touch surface's max simultaneous
+    /// touches; each entry keeps its pitch (identity for noteOff), frequency and
+    /// last-touch time (staleness safety net if a noteOff ever gets lost).
+    private var held: [(pitch: Int, hz: Double, stamp: CFTimeInterval)] = []
+    private static let maxHeld = 5
+    /// Afterglow: the most recent tone lingers ~1.2 s after ALL fingers lift, so
+    /// the colour hands back to the generative bed softly instead of snapping.
+    private var lastHz: Double = 0
+    private var lastStamp: CFTimeInterval = 0
 
-    /// A played/slid note: remember its frequency + when.
-    func play(hz: Double, at now: CFTimeInterval) {
+    /// A finger note starts (or a slide retriggers into a new pitch).
+    func noteOn(pitch: Int, hz: Double, at now: CFTimeInterval) {
         guard hz.isFinite, hz > 0 else { return }
         lock.lock()
-        self.hz = hz
-        self.stamp = now
+        held.removeAll { $0.pitch == pitch }
+        held.insert((pitch, hz, now), at: 0)
+        if held.count > Self.maxHeld { held.removeLast(held.count - Self.maxHeld) }
+        lastHz = hz
+        lastStamp = now
         lock.unlock()
     }
 
-    /// The finger tone if it is still fresh, else nil (hand back to the bed).
-    func current(now: CFTimeInterval, maxAge: CFTimeInterval = 1.2) -> Double? {
+    /// A finger note ends (lift or slide-away).
+    func noteOff(pitch: Int, at now: CFTimeInterval) {
+        lock.lock()
+        held.removeAll { $0.pitch == pitch }
+        if held.isEmpty { lastStamp = now }   // afterglow starts when the LAST finger lifts
+        lock.unlock()
+    }
+
+    /// Every sounding finger tone, most-recent-first. While notes are held they
+    /// stay (with a 30 s staleness net); when none are held, the most recent tone
+    /// lingers for `maxAge` (afterglow), then empty = hand back to the bed.
+    func activeHz(now: CFTimeInterval, maxAge: CFTimeInterval = 1.2) -> [Double] {
         lock.lock()
         defer { lock.unlock() }
-        guard hz > 0, now - stamp <= maxAge else { return nil }
-        return hz
+        held.removeAll { now - $0.stamp > 30 }   // lost-noteOff safety net
+        if !held.isEmpty { return held.map(\.hz) }
+        guard lastHz > 0, now - lastStamp <= maxAge else { return [] }
+        return [lastHz]
     }
 
     func reset() {
         lock.lock()
-        hz = 0
-        stamp = 0
+        held.removeAll()
+        lastHz = 0
+        lastStamp = 0
         lock.unlock()
     }
 }
@@ -483,11 +508,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // (≥30 %) than the note currently driving the colour — so chords/arpeggios with
             // near-tied amplitudes don't make the colour flick between pitches (the wobble).
             var musicTone: Double?
-            if let played = TouchToneChannel.shared.current(now: nowGov) {
-                // PERFORMER PRIORITY (founder: played notes → their physical colours):
-                // while a finger note is fresh, the picture's tone IS that note — the
-                // colour becomes the played tone octave-transposed into visible light.
-                // Also seeds the hysteresis holder so the hand-back to the bed is clean.
+            // PERFORMER PRIORITY (founder: played notes → their physical colours,
+            // "chords etc."): every HELD finger note, most-recent-first — a chord
+            // paints all its colours (cloud assignment below), the newest note
+            // drives the geometry tone and seeds the hysteresis holder.
+            let playedNotes = TouchToneChannel.shared.activeHz(now: nowGov)
+            if let played = playedNotes.first {
                 colorToneHz = played
                 musicTone = played
             } else if let frame = bus?.freshMusical(maxAge: 1.5), let loudest = frame.notes.max(by: { $0.amplitude < $1.amplitude }) {
@@ -560,10 +586,23 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             //    CIE fit). A chasing colour cannot jump at ANY retrigger rate — the
             //    pure A/B crossfade flashed its stale A end on every fast-slide
             //    retarget (the fullscreen "Bildfehler" while playing).
+            // Cloud TARGETS (founder: "100 % der Sound in den richtigen Farben …
+            // chords"): with fingers down, the first clouds are the HELD notes'
+            // fundamentals — a chord literally shows its actual note colours side
+            // by side; remaining clouds carry odd harmonics of the newest note so
+            // the picture stays varied. No fingers → the bed note's odd-harmonic
+            // series (the unchanged generative look).
             let noteHz = Double(target.toneHz)
+            var cloudHz = [Double](repeating: noteHz, count: 5)
+            if playedNotes.isEmpty {
+                for k in 0..<5 { cloudHz[k] = noteHz * Double(1 + 2 * k) }
+            } else {
+                let m = min(playedNotes.count, 5)
+                for i in 0..<m { cloudHz[i] = playedNotes[i] }
+                for k in m..<5 { cloudHz[k] = playedNotes[0] * Double(1 + 2 * (k - m + 1)) }
+            }
             for k in 0..<5 {
-                let h = Double(1 + 2 * k)
-                let wl = SpectralColor.visibleWavelength(forToneHz: noteHz * h)
+                let wl = SpectralColor.visibleWavelength(forToneHz: cloudHz[k])
                 let c = SpectralColor.wavelengthToLinearRGB(wl)
                 let t = SIMD3<Float>(Float(c.r), Float(c.g), Float(c.b))
                 cloudRGB[k] = cloudSeeded

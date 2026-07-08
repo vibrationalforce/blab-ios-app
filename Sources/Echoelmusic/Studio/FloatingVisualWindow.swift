@@ -161,6 +161,9 @@ struct FloatingVisualWindow: View {
     /// The Studio's scale — the fullscreen play surface quantizes touches into
     /// this key (same key + default as EchoelStudioView). Low-frequency reads.
     @AppStorage("studio.scale") private var touchScale: Scale = .minor
+    /// Fretboard grid over the play surface (founder 2026-07-08: "eine Art
+    /// Griffbrett einblenden … Gitter mit Feldern in den passenden Farben").
+    @AppStorage("touch.showGrid") private var touchShowGrid = false
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -335,7 +338,8 @@ struct FloatingVisualWindow: View {
                     TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
                                         synth: touchSynth ?? synth,
                                         reduceMotion: reduceMotion,
-                                        morphDepth: touchMorphDepth)
+                                        morphDepth: touchMorphDepth,
+                                        showGrid: touchShowGrid)
                 }
                 #endif
                 #if canImport(AVFoundation)
@@ -418,6 +422,16 @@ struct FloatingVisualWindow: View {
                 MiniTransportView()
                     .allowsHitTesting(false)
             }
+            // Fretboard grid toggle — shows which note lives where on the play
+            // surface (fields in each note's physical colour). Display-only aid.
+            Button { touchShowGrid.toggle() } label: {
+                Image(systemName: touchShowGrid ? "square.grid.3x3.fill" : "square.grid.3x3")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(touchShowGrid ? EchoelTheme.accent : EchoelTheme.text)
+                    .frame(width: 28, height: 22)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(touchShowGrid ? "Hide note grid" : "Show note grid")
             #if canImport(AVFoundation)
             wavRecordControl
             // MP4 VIDEO capture. Distinct "video" glyph (vs. the WAV button's waveform)

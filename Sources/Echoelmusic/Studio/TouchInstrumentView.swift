@@ -116,6 +116,9 @@ struct TouchInstrumentView: UIViewRepresentable {
     var reduceMotion: Bool = false
     /// Position-morph amount (0 = off … 1 = ±1 octave of filter travel).
     var morphDepth: Double = 0.6
+    /// Fretboard grid (founder 2026-07-08: "eine Art Griffbrett einblenden …
+    /// Gitter mit Feldern in den passenden Farben"): show which note lives where.
+    var showGrid: Bool = false
 
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
@@ -123,6 +126,7 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.key = key
         v.reduceMotion = reduceMotion
         v.morphDepth = morphDepth
+        v.showGrid = showGrid
         return v
     }
 
@@ -131,16 +135,27 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.synth = synth
         uiView.reduceMotion = reduceMotion
         uiView.morphDepth = morphDepth
+        uiView.showGrid = showGrid
     }
 }
 
 /// UIKit view doing the actual multi-touch → notes + water rings.
 final class TouchInstrumentUIView: UIView {
-    weak var synth: PolySynthVoice?
-    var key = MusicalKey(root: 0, scale: .minor)
+    weak var synth: PolySynthVoice? {
+        didSet { if synth !== oldValue { setNeedsGridRebuild() } }   // colours read its A4/cents
+    }
+    var key = MusicalKey(root: 0, scale: .minor) {
+        didSet { if key != oldValue { setNeedsGridRebuild() } }
+    }
     var reduceMotion = false
     /// Position-morph amount for the vertical filter travel (0 = off).
     var morphDepth: Double = 0.6
+    /// The fretboard grid — one field per playable note (columns = scale degrees,
+    /// rows = octave bands), each tinted with ITS note's physical colour, exactly
+    /// the mapping `pitch(at:)` uses. Display-only CALayers under the ripples.
+    var showGrid = false {
+        didSet { if showGrid != oldValue { setNeedsGridRebuild() } }
+    }
 
     /// Sounding pitch per active touch. Capped so the play surface can never
     /// starve the generative loop of voices (PolySynthVoice steals oldest).
@@ -149,6 +164,10 @@ final class TouchInstrumentUIView: UIView {
     /// Last ring position per touch — a slide drops a new ring only every ~14 pt
     /// (a wake, not a smear).
     private var lastRing: [ObjectIdentifier: CGPoint] = [:]
+    /// Host layer for the fretboard grid — sits UNDER the ripple layers.
+    private let gridLayer = CALayer()
+    private var gridBuiltForSize: CGSize = .zero
+    private var gridDirty = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -161,9 +180,72 @@ final class TouchInstrumentUIView: UIView {
         isAccessibilityElement = true
         accessibilityLabel = "Play surface"
         accessibilityHint = "Touch and slide to play notes in the current key"
+        layer.addSublayer(gridLayer)   // first sublayer → ripples always render above
     }
 
     required init?(coder: NSCoder) { return nil }   // never instantiated from a nib
+
+    // MARK: - Fretboard grid
+
+    private func setNeedsGridRebuild() {
+        gridDirty = true
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if gridDirty || gridBuiltForSize != bounds.size { rebuildGrid() }
+    }
+
+    /// One field per playable note — columns = the key's scale degrees (X mapping),
+    /// rows = the octave bands (Y mapping, bottom = low) — each filled + hairlined
+    /// in ITS note's physical colour and labeled with the note name. Static
+    /// display-only layers (rebuilt only on key/size/toggle change, never per
+    /// frame or per touch), so the grid costs nothing while playing.
+    private func rebuildGrid() {
+        gridDirty = false
+        gridBuiltForSize = bounds.size
+        gridLayer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        gridLayer.frame = bounds
+        guard showGrid, bounds.width > 60, bounds.height > 60 else { return }
+
+        let n = max(1, key.degreesPerOctave)
+        let bands = TouchPitchMap.octaveBands
+        let cellW = bounds.width / CGFloat(n)
+        let cellH = bounds.height / CGFloat(bands.count)
+        let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+        let labelSize: CGFloat = min(11, cellH * 0.2)
+
+        for d in 0..<n {
+            for b in bands.indices {
+                let pitch = key.degree(d, octave: bands[b])
+                let tint = Self.noteTint(hz: frequency(of: pitch))
+                // Band 0 is the LOW octave = BOTTOM row (UIKit y grows downward).
+                let cellFrame = CGRect(x: CGFloat(d) * cellW,
+                                       y: bounds.height - CGFloat(b + 1) * cellH,
+                                       width: cellW, height: cellH)
+                    .insetBy(dx: 1.5, dy: 1.5)
+                let cell = CALayer()
+                cell.frame = cellFrame
+                cell.backgroundColor = tint.withAlphaComponent(0.10).cgColor
+                cell.borderColor = tint.withAlphaComponent(0.38).cgColor
+                cell.borderWidth = 1
+                cell.cornerRadius = 6
+                gridLayer.addSublayer(cell)
+
+                let label = CATextLayer()
+                label.string = names[((pitch % 12) + 12) % 12] + "\(pitch / 12 - 1)"
+                label.fontSize = labelSize
+                label.foregroundColor = tint.withAlphaComponent(0.75).cgColor
+                label.alignmentMode = .left
+                label.contentsScale = window?.screen.scale ?? 3
+                label.frame = CGRect(x: cellFrame.minX + 6,
+                                     y: cellFrame.maxY - labelSize - 6,
+                                     width: cellFrame.width - 8, height: labelSize + 3)
+                gridLayer.addSublayer(label)
+            }
+        }
+    }
 
     // MARK: - Touches
 
@@ -181,10 +263,12 @@ final class TouchInstrumentUIView: UIView {
             // visual (swells intensity/motion), so the fingers visibly shape the light.
             TouchVisualEnergy.shared.excite(0.35)
             // The played tone becomes the picture's COLOUR (physical octave
-            // transposition into visible light — performer priority in the renderer).
+            // transposition into visible light — performer priority in the renderer;
+            // HELD, so a chord paints all its colours until the fingers lift).
             // CFAbsoluteTime — MUST match the draw loop's `nowGov` clock (CACurrentMediaTime
             // is a DIFFERENT epoch; mixing them would read every note as stale).
-            TouchToneChannel.shared.play(hz: frequency(of: pitch), at: CFAbsoluteTimeGetCurrent())
+            TouchToneChannel.shared.noteOn(pitch: pitch, hz: frequency(of: pitch),
+                                           at: CFAbsoluteTimeGetCurrent())
             spawnRing(at: p, strong: true, pitch: pitch, velocity: vel)
             lastRing[id] = p
         }
@@ -203,7 +287,9 @@ final class TouchInstrumentUIView: UIView {
                 synth?.noteOn(pitch: new, velocity: vel)
                 held[id] = new
                 TouchVisualEnergy.shared.excite(0.15)   // slides keep the picture alive
-                TouchToneChannel.shared.play(hz: frequency(of: new), at: CFAbsoluteTimeGetCurrent())
+                let now = CFAbsoluteTimeGetCurrent()
+                TouchToneChannel.shared.noteOff(pitch: old, at: now)
+                TouchToneChannel.shared.noteOn(pitch: new, hz: frequency(of: new), at: now)
             }
             // Wake trail — a small ring roughly every 14 pt of travel, in the colour
             // of the note the finger is sounding right now.
@@ -227,6 +313,9 @@ final class TouchInstrumentUIView: UIView {
             let id = ObjectIdentifier(touch)
             if let pitch = held.removeValue(forKey: id) {
                 synth?.noteOff(pitch: pitch)
+                // Colour follows the fingers: lifting releases this note's cloud;
+                // the last lift starts the ~1.2 s afterglow back to the bed.
+                TouchToneChannel.shared.noteOff(pitch: pitch, at: CFAbsoluteTimeGetCurrent())
             }
             lastRing.removeValue(forKey: id)
         }
@@ -301,31 +390,67 @@ final class TouchInstrumentUIView: UIView {
         return UIColor(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b), alpha: 1)
     }
 
-    /// A touch is a drop: emit several concentric wavefronts, each starting a
-    /// beat after the last and reaching a little farther, so the ripple SPREADS
-    /// outward like real water instead of one flat expanding ring. TIGHTER since
-    /// 2026-07-08: radius/weight scale with the played VELOCITY (a firm note makes
-    /// a bigger, bolder drop; a feather touch a small precise one) and every front
-    /// carries the note's physical colour.
+    /// A touch is a drop of COLOURED LIGHT (founder 2026-07-08: "Die Ringe könnten
+    /// mehr Wolken sein"): the body of the feedback is now a soft radial CLOUD in
+    /// the note's physical colour — a glow that blooms out and dissolves like ink
+    /// in water — with ONE thin wavefront ring as its leading edge so the water
+    /// identity stays readable. Radius/weight still scale with the played VELOCITY.
+    /// Fewer layers than the old 3-ring drop (2 vs 3) — cheaper, softer, wolkiger.
     private func spawnRing(at p: CGPoint, strong: Bool, pitch: Int, velocity: Float) {
         guard !reduceMotion else { return }
         let tint = Self.noteTint(hz: frequency(of: pitch))
         let velScale = CGFloat(0.75 + 0.5 * Double(min(max(velocity, 0), 1)))   // 0.75…1.25
-        let wavefronts = strong ? 3 : 2
         let baseRadius: CGFloat = (strong ? 58 : 34) * velScale
-        let baseAlpha: Float = strong ? 0.45 : 0.26
-        let stagger: CFTimeInterval = 0.13
         let now = CACurrentMediaTime()
-        for i in 0..<wavefronts {
-            let t = Float(i) / Float(wavefronts)           // 0 = leading front
-            spawnWavefront(at: p,
-                           radius: baseRadius * CGFloat(1 + 0.35 * Double(i)),
-                           alpha: baseAlpha * (1 - 0.55 * t), // outer fronts fainter
-                           duration: (strong ? 0.9 : 0.6) + Double(i) * 0.1,
-                           beginAt: now + Double(i) * stagger,
-                           tint: tint,
-                           lineWidth: 1.2 + CGFloat(velocity) * 1.0)
+        spawnCloud(at: p,
+                   radius: baseRadius * 1.15,
+                   alpha: strong ? 0.42 : 0.24,
+                   duration: strong ? 1.1 : 0.7,
+                   beginAt: now,
+                   tint: tint)
+        if strong {   // the drop's leading edge — one crisp front, not a ring stack
+            spawnWavefront(at: p, radius: baseRadius, alpha: 0.30,
+                           duration: 0.9, beginAt: now + 0.05,
+                           tint: tint, lineWidth: 1.0 + CGFloat(velocity) * 0.8)
         }
+    }
+
+    /// The cloud body: a radial gradient (note colour → clear) that scales up and
+    /// fades out. GPU-composited CAGradientLayer, removed on completion — same
+    /// bounded-layer discipline as the wavefronts.
+    private func spawnCloud(at p: CGPoint, radius: CGFloat, alpha: Float,
+                            duration: CFTimeInterval, beginAt: CFTimeInterval,
+                            tint: UIColor) {
+        let cloud = CAGradientLayer()
+        cloud.type = .radial
+        cloud.colors = [tint.withAlphaComponent(0.85).cgColor,
+                        tint.withAlphaComponent(0.35).cgColor,
+                        tint.withAlphaComponent(0).cgColor]
+        cloud.locations = [0, 0.45, 1]
+        cloud.startPoint = CGPoint(x: 0.5, y: 0.5)
+        cloud.endPoint = CGPoint(x: 1, y: 1)
+        cloud.frame = CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)
+        cloud.position = p
+        cloud.opacity = 0   // invisible until its animation begins (no pre-begin flash)
+        layer.addSublayer(cloud)
+
+        let scale = CABasicAnimation(keyPath: "transform.scale")
+        scale.fromValue = 0.25
+        scale.toValue = 1.35
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = alpha
+        fade.toValue = 0.0
+        let group = CAAnimationGroup()
+        group.animations = [scale, fade]
+        group.beginTime = beginAt
+        group.duration = duration
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        group.isRemovedOnCompletion = false
+        group.fillMode = .forwards
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { cloud.removeFromSuperlayer() }
+        cloud.add(group, forKey: "cloud")
+        CATransaction.commit()
     }
 
     private func spawnWavefront(at p: CGPoint, radius: CGFloat, alpha: Float,
