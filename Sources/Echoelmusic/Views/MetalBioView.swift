@@ -66,16 +66,28 @@ private struct BioUniforms {
     /// Blend (Mix) ratio between `style` (0) and `styleB` (1) — the overlapping/
     /// "mischend" control. EASED so changing the mix or B morphs smoothly. 0 = pure A.
     var blend: Float = 0
-    /// COLOUR CROSSFADE pair (anti-strobe law): the picture's colour is a per-pixel
-    /// RGB fade from the PREVIOUS note's colour field (A) to the CURRENT note's (B) —
-    /// NEVER computed from an eased frequency. Gliding Hz sweeps the hue through every
-    /// colour between two notes, and when the glide crosses the visible-band edge the
-    /// octave-fold in toneWavelengthNm wraps red↔violet in ONE frame — whole harmonic
-    /// clouds (half the screen) snapped colour ("Kästchen flackern"). A and B are
-    /// discrete note frequencies (each colour physically exact); only the MIX eases.
+    /// COLOUR CROSSFADE pair (anti-strobe law, part 1 — PRISM only): the prism fan is
+    /// a per-pixel RGB fade from the PREVIOUS note's dispersion (A) to the CURRENT
+    /// note's (B) — NEVER computed from an eased frequency. Gliding Hz sweeps the hue
+    /// through every colour between two notes, and when the glide crosses the
+    /// visible-band edge the octave-fold in toneWavelengthNm wraps red↔violet in ONE
+    /// frame ("Kästchen flackern"). A/B are discrete note frequencies; only the MIX
+    /// eases, and retargets are GATED until the running fade is well past halfway.
     var colorToneA: Float = 261.63
     var colorToneB: Float = 261.63
     var colorFade: Float = 1
+    /// Anti-strobe law, part 2 — the CLOUDS (the default colour of every look): five
+    /// RGB triples, the odd harmonics 1,3,5,7,9 of the current note, EASED PER-CHANNEL
+    /// ON THE CPU (SpectralColor twins the shader's CIE fit). A colour that CHASES its
+    /// target can never jump, no matter how fast notes retrigger — the A/B crossfade
+    /// alone was retargeted faster than it could complete on fast finger slides, and
+    /// every retarget flashed the stale A end for a frame (the fullscreen "Bildfehler"
+    /// while playing the touch instrument).
+    var cc0r: Float = 0; var cc0g: Float = 0; var cc0b: Float = 0
+    var cc1r: Float = 0; var cc1g: Float = 0; var cc1b: Float = 0
+    var cc2r: Float = 0; var cc2g: Float = 0; var cc2b: Float = 0
+    var cc3r: Float = 0; var cc3g: Float = 0; var cc3b: Float = 0
+    var cc4r: Float = 0; var cc4g: Float = 0; var cc4b: Float = 0
 }
 
 /// Touch → visual excitation channel (founder 2026-07-07: "das Spiel mit den Fingern
@@ -312,6 +324,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var colorNoteFrom: Float = 261.63
     private var colorNoteTo: Float = 261.63
     private var colorNoteFade: Float = 1
+    /// CPU-eased cloud colours (see BioUniforms.cc*) — chase the target, never jump.
+    private var cloudRGB = [SIMD3<Float>](repeating: .zero, count: 5)
+    private var cloudSeeded = false
 
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
@@ -539,14 +554,37 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.coherence = Self.ease(uniforms.coherence, target.coherence, tau: 0.6,  dt: dt)
             uniforms.breath    = Self.ease(uniforms.breath,    target.breath,    tau: 0.35, dt: dt)
             uniforms.toneHz    = Self.ease(uniforms.toneHz,    target.toneHz,    tau: 0.45, dt: dt)
-            // COLOUR CROSSFADE (the "Kästchen flackern" fix): the eased toneHz above
-            // now drives GEOMETRY only (log2 fields — continuous under easing). The
-            // COLOUR is a fade between the discrete note pair: on a new note, the old
-            // target becomes the fade base (once the previous fade is past halfway,
-            // so retargets stay near-continuous) and the mix restarts. Each end is a
-            // physically exact note colour; the octave-fold wrap can never strobe.
-            if abs(target.toneHz - colorNoteTo) > 0.5 {
-                if colorNoteFade > 0.5 { colorNoteFrom = colorNoteTo }
+            // COLOUR (anti-strobe law; eased toneHz above drives GEOMETRY only):
+            // 1) CLOUDS — each harmonic's colour is eased PER-CHANNEL in RGB toward
+            //    its physically exact target (Swift SpectralColor twins the shader's
+            //    CIE fit). A chasing colour cannot jump at ANY retrigger rate — the
+            //    pure A/B crossfade flashed its stale A end on every fast-slide
+            //    retarget (the fullscreen "Bildfehler" while playing).
+            let noteHz = Double(target.toneHz)
+            for k in 0..<5 {
+                let h = Double(1 + 2 * k)
+                let wl = SpectralColor.visibleWavelength(forToneHz: noteHz * h)
+                let c = SpectralColor.wavelengthToLinearRGB(wl)
+                let t = SIMD3<Float>(Float(c.r), Float(c.g), Float(c.b))
+                cloudRGB[k] = cloudSeeded
+                    ? SIMD3<Float>(Self.ease(cloudRGB[k].x, t.x, tau: 0.18, dt: dt),
+                                   Self.ease(cloudRGB[k].y, t.y, tau: 0.18, dt: dt),
+                                   Self.ease(cloudRGB[k].z, t.z, tau: 0.18, dt: dt))
+                    : t
+            }
+            cloudSeeded = true
+            (uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = (cloudRGB[0].x, cloudRGB[0].y, cloudRGB[0].z)
+            (uniforms.cc1r, uniforms.cc1g, uniforms.cc1b) = (cloudRGB[1].x, cloudRGB[1].y, cloudRGB[1].z)
+            (uniforms.cc2r, uniforms.cc2g, uniforms.cc2b) = (cloudRGB[2].x, cloudRGB[2].y, cloudRGB[2].z)
+            (uniforms.cc3r, uniforms.cc3g, uniforms.cc3b) = (cloudRGB[3].x, cloudRGB[3].y, cloudRGB[3].z)
+            (uniforms.cc4r, uniforms.cc4g, uniforms.cc4b) = (cloudRGB[4].x, cloudRGB[4].y, cloudRGB[4].z)
+            // 2) PRISM keeps the discrete A→B fade (its colour is a continuous octave
+            //    fan of the note Hz — not reducible to one RGB). Retargets are GATED
+            //    until the running fade passes 0.6 (the newest target wins next frame,
+            //    re-checked here every frame) so fast retriggers can no longer flash
+            //    the stale A end.
+            if abs(target.toneHz - colorNoteTo) > 0.5, colorNoteFade >= 0.6 {
+                colorNoteFrom = colorNoteTo
                 colorNoteTo = target.toneHz
                 colorNoteFade = 0
             }
@@ -629,7 +667,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     struct Uniforms { float time; float hr; float coherence; float breath; float aspect;
                       float toneHz; float intensity; float ringDensity; float motion; float spread;
                       float pulseHz; float hueShift; float saturation; float pulsePhase; float style;
-                      float styleB; float blend; float colorToneA; float colorToneB; float colorFade; };
+                      float styleB; float blend; float colorToneA; float colorToneB; float colorFade;
+                      float cc0r; float cc0g; float cc0b; float cc1r; float cc1g; float cc1b;
+                      float cc2r; float cc2g; float cc2b; float cc3r; float cc3g; float cc3b;
+                      float cc4r; float cc4g; float cc4b; };
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -700,29 +741,30 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // keeps its own cloud's colour — only overlaps blend, never a global average). `glow`
     // returns the summed cloud density so the clouds can softly self-illuminate. Drift is
     // slow (flash-safe); each cloud's colour is fixed, so no colour flashing.
-    float3 toneCloudColour(float2 q, float phase, float toneA, float toneB, float fade,
+    float3 toneCloudColour(float2 q, float phase, constant Uniforms& u,
                            float spread, thread float& glow) {
+        // ODD harmonics 1,3,5,7,9 → five DISTINCT pitch classes (tonic, fifth, third,
+        // seventh, second). Their colours arrive PRE-EASED from the CPU (per-channel
+        // RGB chase toward the exact note colour — SpectralColor twins this shader's
+        // CIE fit), so no retrigger rate and no band-edge octave-fold can ever make a
+        // cloud snap colour. This function only PLACES the clouds.
+        float3 cols[5];
+        cols[0] = float3(u.cc0r, u.cc0g, u.cc0b);
+        cols[1] = float3(u.cc1r, u.cc1g, u.cc1b);
+        cols[2] = float3(u.cc2r, u.cc2g, u.cc2b);
+        cols[3] = float3(u.cc3r, u.cc3g, u.cc3b);
+        cols[4] = float3(u.cc4r, u.cc4g, u.cc4b);
         float3 acc = float3(0.0);
         float w = 0.0;
         float radius = 0.45 * spread;
         float r2 = max(radius * radius, 1e-4);
         for (int k = 0; k < 5; k++) {
-            // ODD harmonics 1,3,5,7,9 → five DISTINCT pitch classes (tonic, fifth, third,
-            // seventh, second). Even harmonics are octaves of these and octave-fold to the
-            // same colour, which would collapse the variety — odd harmonics stay bunt.
             float h = float(1 + 2 * k);
-            // Each harmonic's colour is an RGB CROSSFADE between the previous and current
-            // note (both physically exact) — never a colour of an eased in-between
-            // frequency, whose octave-fold would snap this whole cloud red↔violet the
-            // frame it crossed the visible-band edge (the "Kästchen flackern").
-            float3 cka = wavelengthToRGB(clamp(toneWavelengthNm(toneA * h), 380.0, 780.0));
-            float3 ckb = wavelengthToRGB(clamp(toneWavelengthNm(toneB * h), 380.0, 780.0));
-            float3 ck = mix(cka, ckb, fade);
             float a = phase * 0.3 + h * 1.7;                      // slow, flash-safe drift
             float2 ctr = float2(cos(a * 0.7 + h), sin(a + h * 2.0)) * (0.5 * spread);
             float2 dq = q - ctr;
             float wk = exp(-dot(dq, dq) / r2);
-            acc += ck * wk;
+            acc += cols[k] * wk;
             w += wk;
         }
         glow = w;
@@ -1006,7 +1048,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // anchored to the heard tone's overtone series. `cloudGlow` lets them softly glow.
         float cloudGlow = 0.0;
         float tfade = clamp(u.colorFade, 0.0, 1.0);
-        float3 col = toneCloudColour(pf, phase, u.colorToneA, u.colorToneB, tfade, spread, cloudGlow);
+        float3 col = toneCloudColour(pf, phase, u, spread, cloudGlow);
         // PRISM look: replace the cloud colour with a spatial spectral dispersion (a
         // rainbow refraction of the sounding tone). Weighted by how much the active
         // look(s) are Prism (style/styleB == 4), so blending Prism↔another look cross-
