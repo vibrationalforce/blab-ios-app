@@ -1,26 +1,31 @@
-build: 2026-07-08 v10.79.120 (Slide-Expression: Vibrato · Ensemble · einstellbares Glide/Portamento)
+build: 2026-07-08 v10.79.121 (Stabiler Resize · ruhiges 4er-Roster · Genre behält deine Ruhe · Review-Fixes)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Das Touch-Instrument bekommt Ausdruck unter den Fingern:
-  1) SLIDEN VERÄNDERT DEN SOUND: Bewegt sich der Finger auf dem Gitter,
-     öffnet sich der Klang — ein feines Vibrato (bis ~18 Cent, zusätzlich
-     zum Charakter des gewählten Instruments) und eine Ensemble-Breite
-     (jede Stimme eines Akkords wobbelt eigenständig — der Klang wird
-     dicker, wie ein Ensemble das sich hineinlehnt). Ruht der Finger,
-     klingt es in ~einer halben Sekunde wieder ab; beim Loslassen sofort.
-     Der Höhen-Filter (oben = heller) bleibt wie gehabt.
-  2) GLIDE / PORTAMENTO EINSTELLBAR: Mit Glide > 0 rutscht eine gehaltene
-     Note SINGEND zur nächsten (die Hüllkurve läuft weiter, kein neuer
-     Anschlag) — echtes Legato wie auf einer Saite. Glide 0 = das bisherige
-     Neu-Anschlagen pro Feld.
-  3) MENÜ GRÖSSER: "Play surface sound" hat jetzt Slide vibrato · Slide
-     ensemble · Glide (Sekunden) als Zahlenfelder — pro Geschmack und
-     Instrument einstellbar, gespeichert über Neustarts.
-  Audio-Thread-Review: CLEAN. Enthält v10.79.119 (Prism entfernt).
-  TEST 10.79.120:
-  A) Note halten und KREISEN: öffnet sich Vibrato/Breite spürbar und
-     beruhigt sich, wenn der Finger still liegt?
-  B) Glide auf 0.15 s stellen, über mehrere Felder ziehen: singt die Note
-     die Tonhöhen entlang statt neu anzuschlagen?
-  C) Verschiedene Instrumente (Patch-Chips) probieren: fühlt sich die
-     Expression je Instrument anders an?
-  D) Alles auf 0: spielt sich die Fläche exakt wie vorher?
+notesT: Der Ultrathink-Durchlauf — vier Dinge in einem Build:
+  1) RESIZE STABIL: Deine Diagnose war richtig — das Vergrößern hat die
+     Fenstergröße ANIMIERT und dabei den Metal-Puffer auf jedem Frame neu
+     angelegt (die Glitches). Jetzt schaltet die Größe in EINEM Schritt
+     hinter einem kurzen weichen Dunkel-Dip. Glitchfrei per Konstruktion.
+  2) VIBE-ROSTER: Cymatics + Lissajous raus (zu technisch). Neu dabei:
+     Depth — Unterwasser-Lichtkaustiken, sehr ruhig. Roster: Rings
+     (Herzschlag) · Water (Atem) · Aurora (Standard) · Depth. Slider:
+     Water → Aurora → Depth. Alles langsame, flussartige Felder —
+     das ruhige Register IST der Gesundheits-Aspekt (Flash-Grenze bleibt
+     hart bei ≤2.5 Hz).
+  3) GENRE BEHÄLT DEINE RUHE: Das "angestrengte Gedödel" nach Genre-Wahl
+     kam daher, dass du den Finger von der Kamera nimmst um das Menü zu
+     bedienen — der Composer fiel auf einen Neutral-Körper (Puls 70,
+     Kohärenz 0.5) zurück statt deiner echten 55/0.9. Jetzt trägt er den
+     ZULETZT GEMESSENEN Körper durch die Signallücke — das neue Genre
+     startet in dem ruhigen Register, das dein Körper sich erspielt hat.
+  4) REVIEW-FIXES (Senior-Audit über alles von heute): (a) eine sichtbare
+     Farbwolke wird beim Slot-Wechsel nie mehr hart abgeschnitten — Farbe
+     UND Position gleiten zur neuen Note; (b) die Slide-Expression
+     verklingt jetzt auch bei ruhendem Finger (auf der Audio-Uhr);
+     (c) kein Tonhöhen-Tick mehr auf Ausklang-Tails beim Loslassen.
+  TEST 10.79.121:
+  A) Fenster mehrfach S→M→L→Vollbild durchschalten: keine Bildfehler mehr?
+  B) Ruhig atmen bis der Puls einrastet, DANN Genre wechseln: bleibt der
+     entspannte Vibe erhalten (kein hektisches Gedödel)?
+  C) Die 4 Looks durchfahren: fühlt sich jedes Bild ruhig/immersiv an?
+  D) Akkord halten während die Musik dicht spielt: bleiben alle Wolken
+     weich (kein Aufblitzen/Wegploppen)?
