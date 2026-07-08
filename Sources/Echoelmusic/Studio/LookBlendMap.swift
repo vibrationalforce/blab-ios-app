@@ -19,15 +19,24 @@ import Foundation
 
 enum LookBlendMap {
 
-    /// The FULL library of Metal field looks (style index → display name), canonical order.
-    /// Indices match MetalBioView's `style` selector; every look can go into the slider.
+    /// The CURATED library of Metal field looks (style index → display name), canonical
+    /// order. Indices match MetalBioView's `style` selector. CURATION (founder
+    /// 2026-07-08: "Weniger ist mehr … wir brauchen auch nicht so viele Looks"): six
+    /// looks, each with a real sound/bio link — Rings (heartbeat interference),
+    /// Cymatics (pitch → plate modes), Water (breath), Prism (spectral dispersion of
+    /// the heard tone), Aurora (calm immersive default), Lissajous (tone-frequency
+    /// figures). RETIRED from the UI (still compiled in the shader, reversible by
+    /// re-adding a row): 2 Plasma, 7 Depth, 8 Scope, 9 Fractal — decorative fields
+    /// without a distinct sound link; `sequence(from:)` drops their persisted indices
+    /// gracefully.
     static let library: [(index: Int, name: String)] = [
-        (0, "Rings"), (1, "Chladni"), (2, "Plasma"), (3, "Water"), (4, "Prism"),
-        (5, "Aurora"), (6, "Lissajous"), (7, "Depth"), (8, "Scope"), (9, "Fractal")
+        (0, "Rings"), (1, "Cymatics"), (3, "Water"),
+        (4, "Prism"), (5, "Aurora"), (6, "Lissajous")
     ]
 
-    /// Default slider sequence — the calm, liquid looks (Water · Aurora · Depth · Plasma).
-    static let defaultSequence = [3, 5, 7, 2]
+    /// Default slider sequence — calm to structural, each stop sound-linked
+    /// (Water · Aurora · Cymatics · Prism).
+    static let defaultSequence = [3, 5, 1, 4]
 
     /// The @AppStorage key both sliders read for the custom sequence.
     static let storageKey = "visual.sliderLooks"

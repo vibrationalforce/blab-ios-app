@@ -8,7 +8,9 @@ final class VisualPresetTests: XCTestCase {
 
     func testFactorySpansAuraToZentrifuge() {
         let f = VisualPreset.factory
-        XCTAssertGreaterThanOrEqual(f.count, 8, "a useful spread of presets")
+        // Curation 2026-07-08 (founder "weniger ist mehr"): exactly five presets —
+        // one clear stop per energy register, no mid-range near-duplicates.
+        XCTAssertEqual(f.count, 5, "curated: Aura · Vapor · Bloom · Pulse · Zentrifuge")
         XCTAssertEqual(f.first?.name, "Aura", "ordered softest-first")
         XCTAssertEqual(f.last?.name, "Zentrifuge", "…to most energetic")
         // Ordering intent: energy (intensity·motion·detail) trends upward.
