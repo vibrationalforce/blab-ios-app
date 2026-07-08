@@ -527,6 +527,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // function scope (compile lesson 8873363); FILLED inside the MainActor
         // block below because the bus's musical snapshot is @MainActor.
         var soundingNotes: [(id: Int, hz: Double, amp: Float)] = []
+        // Live musical LEVEL [0,1] (MusicalFrame.masterLevel — published since the
+        // DMMW backbone, unused by the visual until now): the picture's energy
+        // breathes WITH the music's actual density/loudness ("ineinandergreifen"),
+        // exactly like TouchVisualEnergy does for the fingers. Eased downstream
+        // (intensity tau 0.4), so tick-stepped levels read as a musical swell,
+        // never a flicker.
+        var musicLevel: Float = 0
         MainActor.assumeIsolated {
             // Aspect EVERY frame from the LIVE drawable size, so the rings are concentric from
             // the FIRST frame. It used to be set only in drawableSizeWillChange, which on launch
@@ -577,7 +584,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                     soundingNotes.append((id, hz, 1.0))
                 }
             }
-            if soundingNotes.count < 5, let mf = bus?.freshMusical(maxAge: 0.5) {
+            let mf = bus?.freshMusical(maxAge: 0.5)
+            musicLevel = Float(mf?.masterLevel ?? 0)
+            if soundingNotes.count < 5, let mf {
                 for n in mf.notes.sorted(by: { $0.amplitude > $1.amplitude }) {
                     guard soundingNotes.count < 5 else { break }
                     guard n.amplitude > 0.02 else { continue }
@@ -607,7 +616,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    coherence: bio?.coherence ?? (idle ? idleCoh : 0.5),
                    breath: bio?.breathPhase ?? (idle ? idleBreath : 0.5),
                    toneHz: liveTone,
-                   intensity: lookIntensity * (1 + 0.45 * touchE),
+                   // Energy interlocks with what actually SOUNDS: fingers pump touchE,
+                   // the generative music adds its live master level — the picture
+                   // swells with the arrangement and rests in the quiet bars.
+                   intensity: lookIntensity * (1 + 0.45 * touchE + 0.30 * musicLevel),
                    ringDensity: lookRingDensity * detailScale,
                    motion: lookMotion * (1 + 0.30 * touchE),
                    spread: lookSpread * (1 + 0.20 * touchE),
@@ -1197,10 +1209,17 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float3 col = toneCloudColour(pf, phase, u, spread, cloudGlow);
         // PRISM look: replace the cloud colour with a spatial spectral dispersion (a
         // rainbow refraction of the sounding tone). Weighted by how much the active
-        // look(s) are Prism (style/styleB == 4), so blending Prism↔another look cross-
-        // fades the colour too. Injected BEFORE the natural-light block so the rainbow
-        // is rendered as warm daylight, not neon.
-        float prismW = clamp(step(3.5, u.style) * (1.0 - blend) + step(3.5, u.styleB) * blend, 0.0, 1.0);
+        // look(s) are Prism (style/styleB == 4 EXACTLY), so blending Prism↔another
+        // look crossfades the colour too. Injected BEFORE the natural-light block so
+        // the rainbow is rendered as warm daylight, not neon.
+        // FIX (founder 2026-07-08 "eindeutiger zum Sound"): the old `step(3.5, style)`
+        // selected EVERY look ≥ 4 — Aurora/Lissajous/Depth/Scope/Fractal were all
+        // silently prism-coloured, so six of ten looks never showed the placed
+        // note-clouds. Prism colour now belongs to the Prism look ONLY; every other
+        // look paints the sounding notes at their pitch-space places.
+        float isPrismA = step(3.5, u.style)  * step(u.style,  4.5);
+        float isPrismB = step(3.5, u.styleB) * step(u.styleB, 4.5);
+        float prismW = clamp(isPrismA * (1.0 - blend) + isPrismB * blend, 0.0, 1.0);
         if (prismW > 0.0) { col = mix(col, prismColour(pf, u.colorToneA, u.colorToneB, tfade, phase, coh), prismW); }
         // COLOUR TRUTH GATE (founder 2026-07-08): colour exists ONLY when and WHERE
         // a tone is really sounding. The clouds' summed LOCAL density (each already
