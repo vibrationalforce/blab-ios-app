@@ -699,7 +699,12 @@ public final class EchoelDDSP: @unchecked Sendable {
         let vel = min(1, max(0, noteVelocity))
         velAttackScale = 1 - percussiveness * 0.7 * vel
         filterEnvValue = 1                 // re-arm the per-note brightness envelope (attack = bright)
-        onsetNoiseEnv = 1                  // re-arm the onset chiff (pick/bow/breath transient)
+        // Onset chiff = a pick/bow/breath transient — a PERCUSSIVE onset. A slow-attack
+        // pad/drone (attack ≥ 0.15 s) blooms in and physically has NO attack tick, so the
+        // fixed full-level chiff read as a small digital "pff" at the start of every pad
+        // note (audible on the new Drone). Arm it BY percussiveness: full on plucks/keys,
+        // fading to zero as the attack lengthens — the transient matches the instrument.
+        onsetNoiseEnv = percussiveness
         pitchDriftValue = 0                // start in tune; analog drift accrues from here
         pitchDriftTarget = 0
         pitchDriftCounter = 0              // draw a fresh drift target on the first render sample
