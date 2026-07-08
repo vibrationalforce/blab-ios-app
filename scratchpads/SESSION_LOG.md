@@ -3,6 +3,25 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 10) — Instrument-Klasse: VoiceOver-Play · Haptik · Anker-Grid (v10.79.116)
+Founder: "leicht zu bedienen … klasse und authentisch … usability/accessibility nach
+höchsten Maßstäben" + "Passt das mit den Tonarten?" **Tonarten-Antwort: ja, per
+Konstruktion** — Grid und Finger nutzen DIESELBE Mapping-Funktion (TouchPitchMap.pitch;
+Spalten=degreesPerOctave, Zeilen=Oktavbänder), eine Quelle, kein Drift möglich.
+**Zyklus (0cc9c0b, CI ✅):** (1) VoiceOver-DIRECT-INTERACTION auf der Spielfläche
+(GarageBand-Muster: Doppeltipp → direkt spielen) + accessibilityValue nennt Root/Stufen/
+Zeilen (aktualisiert bei Tonartwechsel im rebuildGrid). (2) HAPTIK: UIImpactFeedback-
+Generator .light pro noteOn (Intensität 0.4+0.6·vel), Slides weicher (0.25+0.35·vel) —
+Vibration-Dimension, ohne Gehör spielbar. (3) Grid-Design: Root-Spalte Border 1.5/0.70
+(tonales Zuhause), Oktav-Schattierung 0.14→0.08 (unten satter), Labels fast-weiß
+(WCAG; reine Tint war bei dunklen Farben unlesbar). **DEPLOY-LEKTION (Run #2219 rot):**
+playedNotes war im assumeIsolated-Closure deklariert, Ease-Block liest außerhalb —
+"cannot find in scope" NUR im TestFlight-Device-Compile (die SwiftPM-CI-Matrix
+kompiliert das UIKit-gegatete File nicht!). **REGEL: Änderungen an UIKit-gegateten
+Files (MetalBioView/TouchInstrumentView) verifiziert NUR der TestFlight-Compile-Check
+bzw. xcode-compile-check — ci.yml-Grün reicht dort nicht.** Fix 8873363 (Hoist auf
+Funktionsebene), Redeploy 115r2 = TF #2220 ✅. → v10.79.116.
+
 ## 2026-07-08 (Forts. 9) — Touch-Instrument-Umbau: Akkordfarben · Wolken · Griffbrett (v10.79.115)
 **Bildfehler-Wurzel Nr. 2 gefunden (1177ee4):** Der A/B-Farb-Crossfade (10.79.112) wurde bei
 schnellen Slides (Retrigger alle 50–100 ms) schneller retargetet als er fertig wurde — jeder

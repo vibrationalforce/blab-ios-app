@@ -1,26 +1,22 @@
-build: 2026-07-08 v10.79.115r2 (Touch-Instrument: Akkordfarben · Wolken · Griffbrett · blitzerfrei)
+build: 2026-07-08 v10.79.116 (Instrument-Klasse: VoiceOver spielbar · Haptik · verankertes Griffbrett)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Der große Touch-Instrument-Umbau — alle drei Wünsche in einem Build.
-  1) BILDFEHLER-URSACHE GEFUNDEN + ELIMINIERT: Beim schnellen Spielen/Sliden kamen
-     Retrigger schneller als der Farb-Crossfade fertig wurde — jeder Retrigger
-     blitzte für einen Frame die ALTE Farbe auf. Jetzt JAGEN die Wolkenfarben ihr
-     Ziel pro Farbkanal (CPU-geglättet) — bei jeder Spielgeschwindigkeit stetig,
-     Blitzen ist konstruktiv unmöglich.
-  2) AKKORDE IN ECHTEN FARBEN: Jede gehaltene Finger-Note malt ihre eigene
-     physikalische Farbe als Wolke — ein Dreiklang zeigt seine drei Farben
-     nebeneinander (nicht mehr nur die letzte Note). Loslassen entlässt die
-     Farbe; nach dem letzten Finger ~1 s Nachglühen, dann übernimmt das Bett.
-  3) RINGE → WOLKEN: Der Fingertropfen ist jetzt eine weiche Farbwolke (blüht
-     auf und löst sich wie Tinte im Wasser, Größe nach Anschlagstärke) mit
-     EINER feinen Wellenfront als Vorderkante.
-  4) GRIFFBRETT: Gitter-Button in der Fensterleiste → Felder zeigen, welche Note
-     wo liegt (Spalten = Skalenstufen, 3 Zeilen = Oktaven, unten = tief), jedes
-     Feld in der Farbe SEINER Note + Notenname. Berücksichtigt Tonart, Kammerton
-     und Tonsystem. Kostet beim Spielen nichts.
-  5) Diag-Logs nennen ab jetzt den Build in der ersten Zeile (launch v… (…)).
-  TEST 10.79.115:
-  A) Fullscreen, schnell über die Fläche wischen: Farben fließen, NIE blitzen?
-  B) 2–3 Finger gleichzeitig halten: erscheinen die Akkord-Farben nebeneinander?
-  C) Gitter-Button (⊞) in der Leiste: Griffbrett sichtbar, Farben passen zu den
-     gespielten Tönen (Feld antippen = Farbe der Wolke)?
-  D) Tropfen: weiche Wolke statt harter Ringe?
+notesT: Usability + Accessibility nach höchsten Maßstäben — das Touch-Instrument
+  wird ein vollwertiges, zugängliches Instrument.
+  1) VOICEOVER KANN SPIELEN: Die Fläche nutzt Direct Interaction (das GarageBand-
+     Muster) — einmal Doppeltipp, dann direkt musizieren, ohne Element-Navigation.
+     VoiceOver sagt das Terrain an ("Root C, 7 notes per octave, three octave
+     rows, low at the bottom") und bleibt bei Tonart-Wechseln aktuell.
+  2) HAPTIK PRO NOTE: Jeder Anschlag gibt einen leichten Impuls — Stärke folgt der
+     Anschlagstärke, Slides ticken weicher (Bund-Gefühl). Vibration ist eine
+     Echoel-Kerndimension; das Instrument ist damit auch ohne Gehör spielbar.
+  3) GRIFFBRETT VERANKERT: Wurzel-Spalte mit kräftigerem Rahmen (das tonale
+     Zuhause), Füllungen werden zur tiefen Oktave hin satter (unten = Gewicht,
+     wie dicke Saiten), Notennamen fast-weiß für festen Kontrast. Subtil — das
+     lebende Visual bleibt der Star.
+  4) Enthält v10.79.115 (falls übersprungen): Akkordfarben, Wolken-Tropfen,
+     Griffbrett, blitzerfreie Farbübergänge, Build-Nummer im Log.
+  TEST 10.79.116:
+  A) Note anschlagen: fühlst du den Impuls? Fester = stärker? Slides weicher?
+  B) Gitter an: Wurzel-Spalte klar erkennbar? Unterste Zeile satter? Namen lesbar?
+  C) VoiceOver an (Einstellungen → Bedienungshilfen): Fläche doppeltippen, dann
+     spielen — funktioniert es flüssig?
