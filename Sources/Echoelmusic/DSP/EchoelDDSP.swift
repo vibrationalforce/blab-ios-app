@@ -1788,6 +1788,20 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     public func renderStereo(left: inout [Float], right: inout [Float], frameCount: Int) {
         guard frameCount <= mixBufferL.count else { return }
 
+        // Slide-expression settles HERE, on the audio clock (~0.45 s tau per
+        // block): a resting finger fires no touch events, so without this the
+        // vibrato/ensemble would stay engaged forever once pushed (review
+        // 2026-07-08). Pushes from the main thread simply re-raise the values;
+        // this also makes the lift-off fade a smooth ramp instead of a hard zero
+        // (no cent-step tick on ringing release tails). Pure arithmetic, no
+        // allocation; a lost update against a concurrent main-thread push is at
+        // worst one block of slightly-stale depth (the accepted Float contract).
+        let decay = exp(-Float(frameCount) / sampleRate / 0.45)
+        expressVibrato *= decay
+        expressChorus *= decay
+        if expressVibrato < 0.0005 { expressVibrato = 0 }
+        if expressChorus < 0.0005 { expressChorus = 0 }
+
         // Clear mix buffers
         memset(&mixBufferL, 0, frameCount * MemoryLayout<Float>.size)
         memset(&mixBufferR, 0, frameCount * MemoryLayout<Float>.size)

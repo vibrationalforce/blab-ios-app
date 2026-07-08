@@ -276,10 +276,10 @@ public final class PolySynthVoice {
     @ObservationIgnored private var slideStamp: CFAbsoluteTime = 0
 
     /// Push slide-gesture energy (called from touch-move events on the main
-    /// thread). Energy decays with a ~0.45 s time constant between pushes, so a
-    /// travelling finger keeps the expression alive and a resting one lets it
-    /// settle; the resulting vibrato/chorus amounts are fanned to the audio
-    /// engine as atomic floats.
+    /// thread). The main-side accumulator decays lazily between pushes; the
+    /// ENGINE-side values additionally settle on the audio clock every render
+    /// block (~0.45 s tau, see EchoelPolyDDSP.renderStereo) — so a resting
+    /// finger truly lets the expression fade even though it fires no events.
     public func pushSlideExpression(_ amount: Float) {
         let now = CFAbsoluteTimeGetCurrent()
         if slideStamp > 0 {
@@ -291,11 +291,13 @@ public final class PolySynthVoice {
                                 chorus: slideEnergy * slideChorusDepth)
     }
 
-    /// Kill the slide expression (all fingers lifted / surface dismissed).
+    /// Release the slide expression (all fingers lifted / surface dismissed).
+    /// Only the main-side energy resets; the engine's live values FADE on the
+    /// audio clock (renderStereo's ~0.45 s decay) instead of stepping to zero —
+    /// an instant cut could tick ringing release tails by up to ~28 cents.
     public func clearSlideExpression() {
         slideEnergy = 0
         slideStamp = 0
-        poly.setSlideExpression(vibrato: 0, chorus: 0)
     }
 
     /// Release every held note (release tails fade naturally).
