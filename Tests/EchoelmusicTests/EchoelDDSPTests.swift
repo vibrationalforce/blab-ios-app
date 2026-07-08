@@ -1585,6 +1585,57 @@ final class EchoelDDSPPitchDriftTests: XCTestCase {
         XCTAssertGreaterThan(rd, 0, "steady tone should have signal")
         XCTAssertEqual(rw, rd, accuracy: rd * 0.25 + 1e-6, "drift must stay subtle (energy ~unchanged)")
     }
+
+    func testPartialShimmer_defaultIsSubtleNonZero() {
+        // A frozen RELATIVE spectrum reads as "organ/cheap synth" — every voice
+        // ships with a little per-partial life, well under audible tremolo.
+        let ddsp = EchoelDDSP()
+        XCTAssertGreaterThan(ddsp.partialShimmer, 0, "default shimmer should give the sustain life")
+        XCTAssertLessThanOrEqual(ddsp.partialShimmer, 0.2, "default shimmer must stay felt, not heard")
+    }
+
+    func testPartialShimmer_changesOutputButStaysFiniteAndSubtle() {
+        // Isolate the shimmer: pitch/level drift off on both sides.
+        func makeVoice(_ shimmer: Float) -> EchoelDDSP {
+            let d = EchoelDDSP()
+            d.pitchDriftCents = 0
+            d.levelDriftAmount = 0
+            d.partialShimmer = shimmer
+            return d
+        }
+        let dry = renderTail(makeVoice(0))
+        let wet = renderTail(makeVoice(0.5))
+
+        XCTAssertNotEqual(dry, wet, "shimmer must actually move the partials")
+
+        for s in wet {
+            XCTAssertTrue(s.isFinite, "shimmer output must stay finite")
+            XCTAssertLessThanOrEqual(abs(s), 1.5, "shimmer must not blow up the level")
+        }
+
+        // A SPECTRAL life effect, not a level effect: overall energy ~unchanged.
+        func rms(_ x: [Float]) -> Float {
+            var acc: Float = 0; for v in x { acc += v * v }
+            return (acc / Float(max(1, x.count))).squareRoot()
+        }
+        let rd = rms(dry), rw = rms(wet)
+        XCTAssertGreaterThan(rd, 0, "steady tone should have signal")
+        XCTAssertEqual(rw, rd, accuracy: rd * 0.30 + 1e-6, "shimmer must stay subtle (energy ~unchanged)")
+    }
+
+    func testPartialShimmer_zeroIsBitIdenticalAcrossVoices() {
+        func makeVoice() -> EchoelDDSP {
+            let d = EchoelDDSP()
+            d.pitchDriftCents = 0
+            d.levelDriftAmount = 0
+            d.partialShimmer = 0
+            return d
+        }
+        // Two identically-configured voices with shimmer OFF render the same
+        // samples — the disabled path must stay deterministic (bit-identical).
+        XCTAssertEqual(renderTail(makeVoice()), renderTail(makeVoice()),
+                       "shimmer 0 must be a true no-op path")
+    }
 }
 
 #endif
