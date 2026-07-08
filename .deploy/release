@@ -1,19 +1,26 @@
-build: 2026-07-08 v10.79.108 (All English · the software is Echoelmusic)
+build: 2026-07-08 v10.79.109 (Touch instrument: own voice · position morph · own presets)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Screenshot-Feedback ist umgesetzt — Sprache und Name sind jetzt konsistent.
-  1) ALLES AUF ENGLISCH: Die letzten deutschen Texte sind raus — der Kamera-Hinweis
-     ("Gerät kühlt ab…" → "Device cooling down — pulse holds for a moment"), der
-     Puls-Hinweis ("Puls erkannt…" → "Pulse detected — you can let go & play") und
-     das Feld "Kammerton A4" → "Concert pitch A4". Die App spricht jetzt durchgehend
-     Englisch.
-  2) ECHOELMUSIC, NICHT ECHOEL: Überall, wo die SOFTWARE gemeint ist, steht jetzt
-     Echoelmusic — in den Bio-Erklärungen ("In Echoelmusic your heart rate…"), im
-     Musiktheorie-Guide, in den Licht-Infos, im Safe Mode, in Siri-Shortcuts, im
-     Widget, auf der Watch und im MIDI-Export. NUR "Curated by Echoel" bleibt —
-     das bist DU als Künstler, genau die Unterscheidung, die du gezogen hast.
-  TEST 10.79.108:
-  A) Kamera-Puls starten und Info-Sheet öffnen: alles Englisch, überall
-     "Echoelmusic" statt "Echoel"?
-  B) Finger länger drauf lassen, bis das Gerät warm wird: kommt der Cooling-Hinweis
-     jetzt auf Englisch?
-  C) Irgendwo noch ein deutscher Text oder ein falsches "Echoel"? Screenshot genügt.
+notesT: Deine drei Touch-Instrument-Wünsche sind drin — plus ein Kamera-Fix aus deinem Log.
+  1) GLITCHES WEG (eigene Stimme): Bisher teilten sich deine Finger und der generative
+     Loop DENSELBEN Stimmen-Pool — jede gespielte Note konnte einer klingenden Loop-
+     Stimme mitten im Ton die Stimme stehlen (die "komischen Glitches", das Hakeln am
+     Anfang). Das Play-Surface hat jetzt seinen EIGENEN Synth: Fingerspiel und Bett
+     können sich nicht mehr gegenseitig abschneiden.
+  2) MORPHBAR NACH POSITION: Die Höhe deines Fingers auf dem Bild morpht den Klang
+     jetzt KONTINUIERLICH — unten dunkler/runder, oben heller/offener, live beim
+     Sliden (zusätzlich zu Oktavlage und Anschlagstärke). Wie eine Hand, die durchs
+     Wasser Richtung Licht steigt.
+  3) EIGENE PRESETS: Neu im Visual-Menü: "Play surface sound" — "Take sound" (folgt
+     der generierten Musik, wie bisher) ODER jeder Patch aus deiner Library, plus
+     "Position morph"-Regler (0 = aus). Der Hall/Delay-Charakter des Takes bleibt
+     erhalten, damit gespielte Noten im selben Raum sitzen. Auswahl überlebt Neustart.
+  4) KAMERA (dein Log): Nach der Hitze-Recovery lieferte die Kamera zu WENIGE Frames
+     für die Puls-Messung (thermische Drosselung) — die App sagt das jetzt ehrlich
+     ("Device cooling down") statt still zu schweigen, und das Log misst die echte
+     Frame-Rate (in=) für die nächste Diagnose.
+  TEST 10.79.109:
+  A) Fullscreen spielen, auch während der Loop läuft: sind die Glitches/das Hakeln
+     weg? Schneidet das Bett nicht mehr ab?
+  B) Finger von unten nach oben sliden: wird der Ton hörbar heller/offener?
+  C) Menü → "Play surface sound": einen anderen Patch wählen — klingen die Finger
+     jetzt anders als der Loop? "Take sound" = wieder wie die Musik?
