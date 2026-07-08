@@ -57,9 +57,9 @@ public enum BioMetric: String, CaseIterable, Identifiable, Sendable {
     public var detail: String {
         switch self {
         case .heartRate:
-            return "Beats per minute. It rises with effort, excitement or stress and falls with rest. In Echoel your heart rate sets the energy and tempo of the music."
+            return "Beats per minute. It rises with effort, excitement or stress and falls with rest. In Echoelmusic your heart rate sets the energy and tempo of the music."
         case .hrv:
-            return "The tiny differences in time between one heartbeat and the next. Higher variability generally reflects a relaxed, adaptable state; lower variability often goes with stress or fatigue. Echoel uses it to open or close the timbre. Reliable beat-to-beat HRV needs a chest strap; the camera shows it only when the reading is physiologically plausible, otherwise “—”."
+            return "The tiny differences in time between one heartbeat and the next. Higher variability generally reflects a relaxed, adaptable state; lower variability often goes with stress or fatigue. Echoelmusic uses it to open or close the timbre. Reliable beat-to-beat HRV needs a chest strap; the camera shows it only when the reading is physiologically plausible, otherwise “—”."
         case .rmssd:
             return "Root mean square of successive differences between heartbeats — a standard short-term HRV measure that mostly reflects your parasympathetic ‘rest-and-digest’ activity. Higher values often go with a more relaxed moment."
         case .sdnn:
@@ -67,9 +67,9 @@ public enum BioMetric: String, CaseIterable, Identifiable, Sendable {
         case .pnn50:
             return "The percentage of consecutive heartbeats that differ by more than 50 milliseconds — another marker of parasympathetic activity. Higher values usually accompany a more relaxed moment."
         case .coherence:
-            return "How much of your heart-rate variability gathers into a single slow rhythm. Echoel measures it as a real frequency spectrum of your heartbeat (most accurate with a chest strap), peaking around 0.1 Hz — roughly six breaths a minute. It tends to be highest during slow, steady breathing; higher coherence makes Echoel’s music calmer and more spacious."
+            return "How much of your heart-rate variability gathers into a single slow rhythm. Echoelmusic measures it as a real frequency spectrum of your heartbeat (most accurate with a chest strap), peaking around 0.1 Hz — roughly six breaths a minute. It tends to be highest during slow, steady breathing; higher coherence makes the music calmer and more spacious."
         case .breath:
-            return "Your breathing rate. Slow breathing (about five to six breaths a minute) tends to raise coherence. Echoel’s optional breathing guide paces it for you, and your breath phase shapes how the music moves."
+            return "Your breathing rate. Slow breathing (about five to six breaths a minute) tends to raise coherence. Echoelmusic’s optional breathing guide paces it for you, and your breath phase shapes how the music moves."
         }
     }
 

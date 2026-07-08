@@ -123,7 +123,7 @@ struct EchoelmusicApp: App {
     @State private var fxModulator = FXBioModulator()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
-    /// Set when the user taps "Continue to Echoel" in Safe Mode — renders the full
+    /// Set when the user taps "Continue to Echoelmusic" in Safe Mode — renders the full
     /// app for the rest of this process even though this launch booted into Safe Mode.
     @State private var forceNormalMode = false
     @Environment(\.scenePhase) private var scenePhase

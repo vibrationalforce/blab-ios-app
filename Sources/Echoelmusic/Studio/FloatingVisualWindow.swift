@@ -384,7 +384,7 @@ struct FloatingVisualWindow: View {
                         }
                         .onEnded { _ in dragAnchor = nil }
                 )
-                .accessibilityLabel("Echoel — drag to move the visual")
+                .accessibilityLabel("Echoelmusic — drag to move the visual")
             Spacer(minLength: 0)
             // Live LOOK slider, STUFENLOS (founder 2026-07-07: "langem slider, der durch
             // alle Modi stufenlos überblendet … während des Spielens"). Dragging morphs

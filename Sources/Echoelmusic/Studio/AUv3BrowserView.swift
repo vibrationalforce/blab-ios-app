@@ -188,7 +188,7 @@ struct AUv3BrowserView: View {
             }
             if host.loaded != nil {
                 Toggle(isOn: $host.replaceBuiltInVoice) {
-                    Text("Use plugin instead of Echoel's voice")
+                    Text("Use plugin instead of Echoelmusic's voice")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                 }
                 .tint(EchoelTheme.accent)

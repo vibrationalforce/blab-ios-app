@@ -73,7 +73,7 @@ struct BioStripView: View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
             banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
         } else if lockedCueVisible {
-            banner("Puls erkannt — du kannst loslassen & spielen",
+            banner("Pulse detected — you can let go & play",
                    color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
         }
     }

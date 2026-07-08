@@ -57,7 +57,7 @@ struct WatchBioView: View {
                     metric("Coh", "\(coherencePercent)%")
                 }
             } else {
-                Text("Echoel").font(.headline)
+                Text("Echoelmusic").font(.headline)
                 Text("No session yet")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("Start a session on iPhone.")
