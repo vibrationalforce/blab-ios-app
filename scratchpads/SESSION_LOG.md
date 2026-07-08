@@ -3,6 +3,38 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 5) — Ambient-Inspirationen gegatet + Drone-Factory-Patch (v10.79.112)
+Founder: 3 URLs (voidandvista.com · 10k.audio · eraformaudio.com) + Ambient-Rezept
+("Sind da noch Inspirationen bei für unsere Tools?") → vision-gate (6 Zeilen in
+inspiration.csv/intake): 1× ADOPT→PRODUCT (Slow-Attack-Drone/Pad-Charakter), WATCH:
+Shimmer/Wash-Reverb-Stage · Vinyl-Crackle-Textur · Gyro-Chord-Packs (Review 2026-10-06),
+REJECT: Sample-Pack-Verkauf/fremde Libraries. Dann "Weiter optimieren Ralph" → der
+ADOPT-Zyklus (c19d857): **"Drone"-Patch in SynthPatch.factory** (stableID …B3) nach dem
+Founder-Rezept — Attack 3.5 s, Release 6 s, Sustain 0.9, dunkles Spektrum (brightness
+0.35, "dark", Cutoff 1800), **Filter-LFO 0.07 Hz / Depth 0.5** (die langsame LPF-Bewegung),
+Reverb 0.6/4.5 s, Unison 2/7¢, kein Vibrato. Sofort nutzbar als Take-Sound (Patch-Editor)
+UND als Touch-Instrument-Sound (Chips). Pinned: testFactoryDrone_isASlowAttackDrone.
+Befund dabei: `PatchLibrary.swift` (25 kuratierte Presets inkl. "Deep Drone") wird von
+NIEMANDEM referenziert — schlafende Bibliothek, nicht erreichbar; die echte Preset-Fläche
+ist SynthPatch.factory via PatchStore. (Kandidat für späteres Verdrahten oder Aufräumen.)
+
+## 2026-07-08 (Forts. 4) — Gespielte Töne → physikalische Farben + Cousto-Credit (v10.79.111)
+Founder: Cousto-Farbtabelle (PNG+PDF) + "Töne in die physikalisch hochglanzpolierten Farben
+übersetzen — ist die Cousto-Liste korrekt oder haben wir ein besseres System?" + Folge-Frage
+Legal/Oktavierung. Antwort (verifiziert, als Tests gepinnt in SpectralColorTests):
+- **Coustos Tabelle ist exakt** (feste ×2⁴⁰-Transposition bei Kammerton ~432: 432→631 nm ✅,
+  363→751 nm ✅) — **unser System ist die Verallgemeinerung**: kontinuierlich (jede Frequenz),
+  Kammerton-aware, oktav-konsistent an der Bandkante (363≡726 Hz — dort bricht festes 2⁴⁰),
+  gerendert über CIE 1931 statt Tabellen-RGB. Beides gepinnt inkl. Kammerton-Sensitivität.
+- **Legal:** Mathematik/Naturkonstanten sind nicht schützbar; wir übernehmen keine
+  Tabellen/Texte; freiwilliger Namens-Credit in LightScienceInfo (.scope) + Visual-Caption
+  ("after Hans Cousto's Cosmic Octave, 1978") — ehrlich formuliert (exakte Mathematik,
+  künstlerische Konvention, kein Heils-Claim). Erwähnung reicht; nichts lizenzpflichtig.
+- **Feature (Performer-Priorität):** TouchToneChannel (NSLock, @unchecked Sendable) — gespielte
+  Note übersteuert ~1.2 s lang die generative Farbquelle im Draw-Loop (CFAbsoluteTime-Epoche!),
+  Ringe in Notenfarbe (SpectralColor-Pipeline + White-Lift-Encode), Größe/Strich nach Velocity.
+  TF #2215 ✅ (Run 28943517926, head 77610d2).
+
 ## 2026-07-08 (Forts. 3) — "Grafikterror" im Fullscreen: Blend-Snap beim Paar-Wechsel (v10.79.110)
 Founder: "Im fullscreen Modus gibt es Grafikterror seitdem … in den kleineren Fenstern
 gespielt werden kann." Ursache NICHT die Spielbarkeit selbst — zwei Bugs aus demselben Build:
