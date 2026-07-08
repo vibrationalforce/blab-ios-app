@@ -132,6 +132,46 @@ final class SpectralColorTests: XCTestCase {
         XCTAssertLessThanOrEqual(high, 780)
     }
 
+    // MARK: notePosition — colours at the RIGHT PLACE (pitch-space anchors)
+
+    func testNotePosition_octaveHeight_lowAtBottom() {
+        // Grid law: low notes at the bottom (+y up in the shader field coordinate).
+        let c3 = SpectralColor.notePosition(forHz: 130.81)   // C3
+        let c4 = SpectralColor.notePosition(forHz: 261.63)   // C4
+        let c5 = SpectralColor.notePosition(forHz: 523.25)   // C5
+        XCTAssertLessThan(c3.y, c4.y)
+        XCTAssertLessThan(c4.y, c5.y)
+        XCTAssertEqual(c4.y, 0, accuracy: 1e-6, "octave 4 is the vertical centre")
+    }
+
+    func testNotePosition_withinOctave_risesLeftToRight() {
+        // Column order: C at the left, rising rightward — same note order as the grid.
+        let c = SpectralColor.notePosition(forHz: 261.63)    // C4
+        let e = SpectralColor.notePosition(forHz: 329.63)    // E4
+        let a = SpectralColor.notePosition(forHz: 440.0)     // A4
+        XCTAssertLessThan(c.x, e.x)
+        XCTAssertLessThan(e.x, a.x)
+        XCTAssertEqual(c.x, -0.75, accuracy: 0.02, "C sits at the left edge of the octave")
+    }
+
+    func testNotePosition_sameNoteName_sameColumn_anyOctave() {
+        // A3 and A5 share the x column (pitch-class), only the height differs.
+        let a3 = SpectralColor.notePosition(forHz: 220)
+        let a5 = SpectralColor.notePosition(forHz: 880)
+        XCTAssertEqual(a3.x, a5.x, accuracy: 1e-6)
+        XCTAssertNotEqual(a3.y, a5.y)
+    }
+
+    func testNotePosition_extremeRegisters_stayOnScreen_andInvalidIsCentred() {
+        for hz in [8.2, 20.0, 4186.0, 12543.0] {
+            let p = SpectralColor.notePosition(forHz: hz)
+            XCTAssertLessThanOrEqual(abs(p.x), 0.75 + 1e-9)
+            XCTAssertLessThanOrEqual(abs(p.y), 0.8 + 1e-9)
+        }
+        let bad = SpectralColor.notePosition(forHz: .nan)
+        XCTAssertEqual(bad.x, 0); XCTAssertEqual(bad.y, 0)
+    }
+
     func testKammertonAwareness_beyondTheFixedTable() {
         // The table is frozen at one Kammerton; our mapping shifts with the real
         // played frequency (A4=440 vs 432 must give measurably different colours).

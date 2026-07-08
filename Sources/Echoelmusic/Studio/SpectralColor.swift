@@ -187,6 +187,27 @@ public enum SpectralColor {
         return Swift.min(780.0, Swift.max(380.0, wl))
     }
 
+    // MARK: Pitch → place in the visual field ("an der richtigen Stelle")
+
+    /// Where a sounding note LIVES in the immersive visual's square [-1,1]² field
+    /// coordinate (founder 2026-07-08: colours appear only WHERE the corresponding
+    /// tone sounds — from ANY source). Pure pitch space, source-agnostic (touch
+    /// surface, piano roll, MIDI):
+    ///   • x = the note's position WITHIN its octave (fraction of log2 above C) —
+    ///     C at the left, rising rightward: the fretboard grid's column order.
+    ///   • y = octave HEIGHT — low notes at the bottom like the grid's rows,
+    ///     centred on octave 4 and clamped so extreme registers stay on screen.
+    /// (+y is up, matching the shader's `pf` coordinate.)
+    public static func notePosition(forHz hz: Double) -> (x: Double, y: Double) {
+        guard hz > 0, hz.isFinite else { return (0, 0) }
+        let p = Foundation.log2(hz / c0Hz)            // octaves above C0
+        let oct = p.rounded(.down)
+        let f = p - oct                               // [0,1) within the octave
+        let x = (f - 0.5) * 1.5                       // ±0.75 across the width
+        let y = Swift.min(0.8, Swift.max(-0.8, (oct - 4.0) * 0.55))
+        return (x, y)
+    }
+
     // MARK: OKLab → linear sRGB (Ottosson 2020)
 
     public static func oklabToLinear(_ c: OKLab) -> LinearRGB {
