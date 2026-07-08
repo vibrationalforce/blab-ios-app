@@ -1,25 +1,24 @@
-build: 2026-07-08 v10.79.117 (Farb-Wahrheit: Farben nur wenn und wo Töne wirklich klingen)
+build: 2026-07-08 v10.79.118 (Weniger ist mehr: Sound-Wahrheit auf jedem Look + kuratierte Looks/Presets)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Gesetz umgesetzt: "Die Farben sollen nur erscheinen und an der
-  richtigen Stelle, wenn die entsprechenden Töne auch kommen — egal von
-  welcher Quelle."
-  1) FARBE = NUR KLINGENDE NOTEN: Jede der 5 Farbwolken ist jetzt eine
-     wirklich klingende Note — deine Finger auf dem Touch-Instrument UND
-     die generative Musik (mit ihrer echten Lautstärke pro Note). Die
-     dekorativen Zusatzfarben (Obertonschmuck ohne klingende Note) sind weg.
-  2) AN DER RICHTIGEN STELLE: Jede Wolke sitzt an der Position ihrer Note —
-     links→rechts wie die Griffbrett-Spalten (C links, aufsteigend),
-     unten→oben nach Oktave (tief unten, wie die Grid-Zeilen). Ein Akkord
-     malt seine Farben dort, wo seine Töne wohnen.
-  3) STILLE = WARM-NEUTRAL: Kommt kein Ton, zeigt das Bild ein warmes,
-     neutrales Feld — die Struktur atmet weiter, aber keine Fake-Farbe.
-     Sobald ein Ton kommt, blüht seine Farbe an seiner Stelle auf (90 ms
-     rein, sanft wieder raus beim Loslassen).
-  TEST 10.79.117:
-  A) Vollbild-Visual, NICHTS spielen: warm-neutrales Bild ohne Buntfarben?
-  B) EINE Note unten links halten: blüht genau dort ihre Farbe auf und
-     verschwindet sie nach dem Loslassen weich?
-  C) Akkord greifen: mehrere Farbwolken an den passenden Stellen (tiefe
-     Note weiter unten, hohe weiter oben)?
-  D) Generieren + Play ohne Touch: wandern die Farben mit den klingenden
-     Noten der Musik mit (und nur mit ihnen)?
+notesT: Aufräumen + Ineinandergreifen, wie besprochen. Zwei Dinge:
+  1) SOUND-WAHRHEIT AUF JEDEM LOOK (Bugfix): Bisher haben Aurora, Lissajous,
+     Depth, Scope und Fractal heimlich die Prisma-Farbe benutzt — 6 von 10
+     Looks zeigten die platzierten Noten-Farben NIE (und Aurora ist der
+     Standard-Look!). Jetzt gehört der Regenbogen-Fächer nur noch dem
+     Prisma-Look; jeder andere Look malt die klingenden Noten an ihren
+     Plätzen. Außerdem atmet die Bild-Energie jetzt mit der Musik: laute,
+     dichte Takte = helleres Bild, ruhige Takte = Ruhe (weich, flash-safe).
+  2) KURATIERT — WENIGER IST MEHR: 6 statt 10 Looks, jeder mit echtem
+     Sound-Bezug: Rings (Herzschlag-Interferenz) · Cymatics (Tonhöhe →
+     Plattenmuster) · Water (Atem) · Prism (Spektral-Fächer) · Aurora
+     (ruhiger Standard) · Lissajous (Ton-Figuren). 5 statt 10 Presets:
+     Aura · Vapor · Bloom · Pulse · Zentrifuge — ein klarer Halt pro
+     Energie-Stufe. (Nichts gelöscht — die alten Felder bleiben im Code,
+     rückholbar; gespeicherte alte Auswahlen werden sauber migriert.)
+  TEST 10.79.118:
+  A) Look-Slider durchfahren (Water→Aurora→Cymatics→Prism): zeigt jetzt
+     JEDER Look die Noten-Farben an ihren Plätzen (außer Prism = Fächer)?
+  B) Generieren + Play: wird das Bild in dichten Passagen spürbar
+     lebendiger und in ruhigen Takten stiller?
+  C) Fühlen sich Look-Leiste und Preset-Leiste jetzt übersichtlich an —
+     fehlt dir einer der entfernten Looks/Presets wirklich?
