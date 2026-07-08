@@ -687,6 +687,7 @@ public final class CameraRPPGBioPublisher {
             if saturatedTicks >= Self.resettleAfterTicks {
                 capture.unlockExposure()
                 exposureLocked = false
+                lockAgeTicks = 0
                 fingerStableTicks = 0
                 saturatedTicks = 0
                 EchoelCrashLog.breadcrumb(String(format:
@@ -711,6 +712,7 @@ public final class CameraRPPGBioPublisher {
             weakRelocksUsed += 1
             capture.unlockExposure()
             exposureLocked = false
+            lockAgeTicks = 0
             fingerStableTicks = 0
             fingerPresentTicks = 0   // restart the strict dark window — the point of the re-lock
             saturatedTicks = 0
@@ -735,6 +737,7 @@ public final class CameraRPPGBioPublisher {
             }
             capture.unlockExposure()
             exposureLocked = false
+            lockAgeTicks = 0
             fingerStableTicks = 0
             saturatedTicks = 0
             fingerLostTicks = 0
