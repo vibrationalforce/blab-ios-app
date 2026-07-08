@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-08 (Forts. 7) — Shimmer-Zyklus + WWDC26-Gesamtgate + gesundes Log (v10.79.113)
+**Shimmer (f90b632, CI ✅):** EchoelDDSP.partialShimmer (default 0.10) — per-Partial
+inkohärente Block-Rate-Sinusoids (0,3–3 Hz, Golden-Angle-Seeds, Depth rampt über den
+Partial-Index: Grundton verankert, Uppers atmen). Gegen den "Orgel/billig"-Fingerabdruck
+(eingefrorenes RELATIVES Spektrum im Sustain — Pitch/Level-Drift bewegten alle Partials
+GEMEINSAM). 1 sinf/Partial/BLOCK, kein Alloc; 0 = bitidentisch. 3 Tests. → v10.79.113.
+**WWDC26 komplett gegatet (10 Guides, 14 inspiration-Rows):** iOS 27 bricht NICHTS bei
+uns (kein SiriKit — EchoelAppIntents ist schon der Pflichtweg); FM-Provider-Router
+validiert EchoelLanguageModel; NEU fürs Produkt: Music Understanding fw (Sample-Auto-
+Tagging) + NowPlaying fw (Lock Screen/Dynamic Island) — beide nach Xcode 27 GM;
+Compliance-Deadline Sept 2026: Social-Media-Deklaration in ASC ("Nein" — LiveColabo ist
+lokal); ODR-Deprecation = No-op (Samples gebundelt); MetalFX-Upscaler = AdaptiveQuality-
+Erweiterung (WATCH); visionOS-Pfad bestätigt (CompositorServices jetzt auch macOS,
+ein-Shader-Architektur portiert sauber; Glasses hat KEIN SDK — visionOS ist der Weg);
+watchOS HR-Zonen-API = WATCH für Arousal-Tiers.
+**Founder-Log 1783519521 (gesündeste Session bisher):** Launch 2,7 s bis instrument-live,
+Finger→Lock in 37 s (snap-reseed 64 bpm), conf bis 0,91, in= stabil 15–16 Hz (kein
+Thermal-Trickle), win=150 durchgehend, Evolves+User-Edits sauber verzahnt, 0 Fehler,
+0 Relock-Churn. acf pendelt 0–0,5 während conf hoch bleibt (bekanntes Gerätemuster,
+Peak-Kanal trägt — 10.79.86-Fix arbeitet wie designt).
+
 ## 2026-07-08 (Forts. 6) — Video-Beweis: Farbwolken-Strobe + Stimmungs-Lücke (v10.79.112)
 Founder-Video (4,3 s Screenrecording) frame-diffed: zwischen 2 Frames (33 ms) tauschen
 Bildhälften Grün↔Rot. **Ursache (907aaba):** Wolken-/Prisma-Farbe kam aus der GEEASTEN

@@ -1636,6 +1636,32 @@ final class EchoelDDSPPitchDriftTests: XCTestCase {
         XCTAssertEqual(renderTail(makeVoice()), renderTail(makeVoice()),
                        "shimmer 0 must be a true no-op path")
     }
+
+    /// The onset chiff (attack noise transient) must scale with percussiveness:
+    /// a pluck fires an immediate transient; a slow-attack pad/drone must start
+    /// essentially silent (envelope still ramping AND no percussive chiff), so
+    /// no digital "pff" pokes out of a sound that physically has no attack.
+    func testOnsetChiff_slowAttackStartsSilent_pluckDoesNot() {
+        func onset(_ attack: Float) -> Float {
+            let d = EchoelDDSP()
+            d.pitchDriftCents = 0; d.levelDriftAmount = 0; d.partialShimmer = 0
+            d.frequency = 220.0
+            d.harmonicity = 1.0        // pure tonal → the only onset noise is the chiff
+            d.noiseLevel = 0.0
+            d.attack = attack
+            d.noteOn()
+            var buf = [Float](repeating: 0, count: 256)  // ~5 ms @ 48 k
+            d.render(buffer: &buf, frameCount: 256, stereo: false)
+            var acc: Float = 0; for v in buf { acc += v * v }
+            return (acc / Float(buf.count)).squareRoot()
+        }
+        let pluck = onset(0.004)   // percussive → chiff + fast envelope ⇒ immediate onset
+        let pad   = onset(0.5)     // slow swell → no chiff + tiny envelope ⇒ near-silent
+        XCTAssertGreaterThan(pluck, 0, "a pluck must have an audible onset transient")
+        XCTAssertLessThan(pad, pluck * 0.5,
+                          "a slow-attack pad must start far quieter than a pluck onset")
+        for v in [pluck, pad] { XCTAssertTrue(v.isFinite, "onset energy must stay finite") }
+    }
 }
 
 #endif
