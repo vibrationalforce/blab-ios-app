@@ -305,7 +305,7 @@ public extension SynthPatch {
         comps.scheme = "mailto"
         comps.path = address
         comps.queryItems = [
-            URLQueryItem(name: "subject", value: "Echoel patch: \(name)"),
+            URLQueryItem(name: "subject", value: "Echoelmusic patch: \(name)"),
             URLQueryItem(name: "body", value: body)
         ]
         return comps.url

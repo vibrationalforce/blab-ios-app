@@ -83,11 +83,11 @@ struct EchoelBioWidgetView: View {
 
     private var placeholder: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Echoel").font(.headline).foregroundStyle(.primary)
+            Text("Echoelmusic").font(.headline).foregroundStyle(.primary)
             Spacer(minLength: 0)
             Text("No session yet")
                 .font(.subheadline).foregroundStyle(.secondary)
-            Text("Open Echoel to start.")
+            Text("Open Echoelmusic to start.")
                 .font(.caption).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -148,7 +148,7 @@ struct EchoelBioWidget: Widget {
         StaticConfiguration(kind: kind, provider: BioProvider()) { entry in
             EchoelBioWidgetView(entry: entry)
         }
-        .configurationDisplayName("Echoel Bio")
+        .configurationDisplayName("Echoelmusic Bio")
         .description("Live heart rate, HRV, and coherence from your session.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }

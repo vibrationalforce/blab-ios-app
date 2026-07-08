@@ -31,17 +31,17 @@ struct SafeModeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Echoel started in Safe Mode")
+                    Text("Echoelmusic started in Safe Mode")
                         .font(EchoelTheme.font(20, .semibold))
                         .foregroundStyle(EchoelTheme.text)
 
-                    Text("The last launch ran into a problem before the studio finished loading. To keep you out of a black screen, Echoel opened this recovery screen instead. Your projects and settings are untouched.")
+                    Text("The last launch ran into a problem before the studio finished loading. To keep you out of a black screen, Echoelmusic opened this recovery screen instead. Your projects and settings are untouched.")
                         .font(EchoelTheme.font(13))
                         .foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Button(action: onContinue) {
-                        Text("Continue to Echoel")
+                        Text("Continue to Echoelmusic")
                             .font(EchoelTheme.font(15, .semibold))
                             .foregroundStyle(EchoelTheme.onPrimary)
                             .frame(maxWidth: .infinity).frame(height: 48)

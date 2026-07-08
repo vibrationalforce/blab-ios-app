@@ -431,7 +431,7 @@ public extension FXPreset {
         comps.scheme = "mailto"
         comps.path = address
         comps.queryItems = [
-            URLQueryItem(name: "subject", value: "Echoel FX preset: \(name)"),
+            URLQueryItem(name: "subject", value: "Echoelmusic FX preset: \(name)"),
             URLQueryItem(name: "body", value: body)
         ]
         return comps.url

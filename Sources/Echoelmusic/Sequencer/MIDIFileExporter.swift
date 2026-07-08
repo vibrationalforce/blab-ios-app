@@ -166,7 +166,7 @@ public enum MIDIFileExporter {
         var conductorMeta = tempoMeta(tempo)
         conductorMeta += timeSignatureMeta()
         conductorMeta += keySignatureMeta(rootPitchClass: keyRootPitchClass, minor: keyIsMinor)
-        conductorMeta += trackNameMeta("Echoel")
+        conductorMeta += trackNameMeta("Echoelmusic")
         let conductor = serializeTrack([], leadingMeta: conductorMeta, endTick: regionEndTick)
         let melody = serializeTrack(melodyEvents(notes, humanize: humanize, seed: seed),
                                     leadingMeta: trackNameMeta("Melody"), endTick: regionEndTick)

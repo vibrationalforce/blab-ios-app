@@ -187,7 +187,7 @@ public extension MoodPreset {
         comps.scheme = "mailto"
         comps.path = address
         comps.queryItems = [
-            URLQueryItem(name: "subject", value: "Echoel mood: \(name)"),
+            URLQueryItem(name: "subject", value: "Echoelmusic mood: \(name)"),
             URLQueryItem(name: "body", value: body)
         ]
         return comps.url

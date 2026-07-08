@@ -23,7 +23,7 @@ struct SharedEchoelProject: Transferable {
             let safe = shared.project.name
                 .replacingOccurrences(of: "/", with: "-")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            return "\(safe.isEmpty ? "Echoel Session" : safe).echoel.json"
+            return "\(safe.isEmpty ? "Echoelmusic Session" : safe).echoel.json"
         }
     }
 }
@@ -784,7 +784,7 @@ struct EchoelStudioView: View {
                         gridChip(t.title, t.icon) { openTool(t.id) }
                     }
                 }
-                Text("Echoel \(Self.appVersionString)")
+                Text("Echoelmusic \(Self.appVersionString)")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
         }
@@ -1100,7 +1100,7 @@ struct EchoelStudioView: View {
         // Concert pitch A4 — number-pad entry only, exact to 0.01 Hz (380–500).
         // Standard 440.00; the saved preference persists. (Slider + chips removed
         // to save space.)
-        return EchoelValueField(label: "Kammerton A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
+        return EchoelValueField(label: "Concert pitch A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
                                 onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
     }
 

@@ -38,7 +38,7 @@ struct LiveColaboView: View {
                         if !colab.connectedPeerNames.isEmpty { connectedSection }
                         discoveredSection
                     } else {
-                        Text("Two Echoel devices on the same Wi-Fi find each other here. Go live, connect, and share your session both ways — a starting point to jam from together.")
+                        Text("Two Echoelmusic devices on the same Wi-Fi find each other here. Go live, connect, and share your session both ways — a starting point to jam from together.")
                             .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                             .fixedSize(horizontal: false, vertical: true)
                     }

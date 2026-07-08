@@ -76,7 +76,7 @@ public final class MultipeerSession: NSObject {
         let raw = ProcessInfo.processInfo.hostName
         #endif
         let name = String(raw.prefix(63))
-        let id = MCPeerID(displayName: name.isEmpty ? "Echoel" : name)
+        let id = MCPeerID(displayName: name.isEmpty ? "Echoelmusic" : name)
         self.myPeerID = id
         self.mcSession = MCSession(peer: id, securityIdentity: nil, encryptionPreference: .required)
         super.init()
@@ -97,7 +97,7 @@ public final class MultipeerSession: NSObject {
         adv.startAdvertisingPeer()
         br.startBrowsingForPeers()
         isLive = true
-        status = "Looking for nearby Echoel…"
+        status = "Looking for nearby Echoelmusic…"
     }
 
     public func stop() {
@@ -158,7 +158,7 @@ public final class MultipeerSession: NSObject {
             status = "Connected to \(name)"
         } else {
             connectedPeerNames.removeAll { $0 == name }
-            if connectedPeerNames.isEmpty && isLive { status = "Looking for nearby Echoel…" }
+            if connectedPeerNames.isEmpty && isLive { status = "Looking for nearby Echoelmusic…" }
         }
     }
 

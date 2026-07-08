@@ -72,7 +72,7 @@ public enum LearnLibrary {
         [LearnEntry(
             id: "safety.scope", section: .safety,
             title: "Self-observation, not diagnosis",
-            summary: "What Echoel’s biofeedback is — and is not.",
+            summary: "What Echoelmusic’s biofeedback is — and is not.",
             detail: BioMetric.disclaimer
                 + " Bio readings are most accurate from a chest strap; wrist and "
                 + "camera are estimates. Breathing guides are optional and never forced."

@@ -42,7 +42,7 @@ struct EchoelLogoMark: View {
             ctx.draw(e, at: CGPoint(x: 50 * s, y: 30 * s), anchor: .center)
         }
         .foregroundStyle(color)
-        .accessibilityLabel("Echoel")
+        .accessibilityLabel("Echoelmusic")
     }
 }
 #endif

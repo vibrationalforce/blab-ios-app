@@ -78,8 +78,8 @@ public enum RPPGRecoveryState: Equatable, Sendable {
     public var userHint: String? {
         switch self {
         case .healthy:    return nil
-        case .recovering: return "Kamera erholt sich…"
-        case .cooling:    return "Gerät kühlt ab — Puls hält kurz"
+        case .recovering: return "Camera recovering…"
+        case .cooling:    return "Device cooling down — pulse holds for a moment"
         }
     }
 }

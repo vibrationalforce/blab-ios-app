@@ -36,7 +36,7 @@ enum EchoelIntentInbox {
 }
 
 struct StartEchoelSessionIntent: AppIntent {
-    static let title: LocalizedStringResource = "Start Echoel Session"
+    static let title: LocalizedStringResource = "Start Echoelmusic Session"
     static let description = IntentDescription(
         "Start a bio-reactive session — your body begins making music.")
     static let openAppWhenRun: Bool = true
@@ -48,7 +48,7 @@ struct StartEchoelSessionIntent: AppIntent {
 }
 
 struct StopEchoelSessionIntent: AppIntent {
-    static let title: LocalizedStringResource = "Stop Echoel Session"
+    static let title: LocalizedStringResource = "Stop Echoelmusic Session"
     static let description = IntentDescription("Stop the current bio-reactive session.")
     static let openAppWhenRun: Bool = true
 
