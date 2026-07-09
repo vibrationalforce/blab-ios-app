@@ -39,6 +39,14 @@ notesT: Antwort auf deine Richtung "Ultrahardthink Sync realtime resource und
      aufnimmst oder das Eingangs-Monitoring aktivierst — nicht im Normalbetrieb.
      TEST: Bluetooth-Kopfhörer, Spotify starten, Echoel dazu abspielen —
      Spotify muss in voller Stereo-Qualität bleiben.
+     DAS BEHEBT AUCH DAS LAUTE PIEPEN (dein Hinweis: "beim Lautstärke ändern
+     und beim Start ein lautes Piepen, das tut weh im Ohr"): Ursache war exakt
+     dieselbe — .playAndRecord zwang den Bluetooth-Hörer in den HFP-TELEFON-
+     Modus; in diesem "Anruf-Modus" piept die Hörer-Firmware beim Verbinden
+     (App-Start) und bei jedem Lautstärke-Schritt. Mit .playback bleibt der
+     Hörer im A2DP-Musik-Modus → kein Verbindungs-Piepen beim Start, kein
+     Piepen beim Lautstärke ändern. TEST: mit BT-Hörer Echoel starten und die
+     Lautstärke-Tasten drücken — es darf NICHTS mehr piepen.
 
   (Unter der Haube: interner Reverb-Typ auf die Echoel-CI-Namensgebung
    umgestellt — EchoelSpaceReverb. Rein intern, keine Hörbarkeit.)

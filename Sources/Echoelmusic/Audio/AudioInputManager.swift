@@ -87,10 +87,12 @@ import AVFoundation
 import Observation
 
 /// Live input enumeration + selection. On iOS/tvOS/watchOS/visionOS this reads
-/// `AVAudioSession` (already configured `.playAndRecord` with Bluetooth allowed in
-/// AudioConfiguration) and only chooses which available input is preferred. On
-/// macOS the system manages the input device, so the list is empty (the UI then
-/// shows "managed by the system") — cross-platform so the UI needs no guards.
+/// `AVAudioSession` and only chooses which available input is preferred. The session
+/// is `.playback` by default and is upgraded to `.playAndRecord` (see
+/// AudioConfiguration) only when the user actually records or monitors — so the
+/// input list is meaningful once a mic feature is armed. On macOS the system manages
+/// the input device, so the list is empty (the UI then shows "managed by the
+/// system") — cross-platform so the UI needs no guards.
 @MainActor
 @Observable
 public final class AudioInputManager {
