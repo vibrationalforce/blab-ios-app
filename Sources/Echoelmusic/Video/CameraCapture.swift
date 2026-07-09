@@ -41,6 +41,14 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     /// the old `guard session.isRunning` made it blind exactly when a failed cold
     /// start left the session down (device log 1783588109: 83 s with no reviver).
     private var shouldBeRunning = false
+    /// Whether iOS has INTERRUPTED the session (thermal/system-pressure, another app
+    /// grabbed the camera, backgrounded). Device log 1783603146: bright froze at 0.73
+    /// and frames stopped (`in=0`) for ~2 min while every stall-restart AND cold
+    /// restart failed — the classic signature of an interruption, during which
+    /// startRunning() is a no-op until the OS ends it. The watchdog must NOT thrash
+    /// restarts while interrupted (they can't work and the torch churn only adds heat);
+    /// it waits for `AVCaptureSessionInterruptionEnded`. Set/cleared on sessionQueue.
+    nonisolated(unsafe) private var interrupted = false
 
     /// Whether the session is running
     var isRunning: Bool { session.isRunning }
@@ -255,16 +263,24 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             self?.sessionQueue.async { self?.recoverFromError(code) }
         }
         let intr = nc.addObserver(forName: .AVCaptureSessionWasInterrupted, object: session,
-                                  queue: nil) { note in
+                                  queue: nil) { [weak self] note in
             let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
-            log.log(.warning, category: .biofeedback, "Camera session interrupted (reason \(reason))")
+            // Breadcrumb (not just os_log) so the founder's diag log finally REVEALS why
+            // the camera died — reason 4 = systemPressure (thermal), 2 = inUseByAnother,
+            // 1/3 = backgrounded. This was invisible in every prior stall log.
+            EchoelCrashLog.breadcrumb("rPPG: camera INTERRUPTED (reason \(reason)) — waiting for the OS, not thrashing restarts")
+            self?.sessionQueue.async { self?.interrupted = true }
         }
         let ended = nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session,
                                    queue: nil) { [weak self] _ in
             self?.sessionQueue.async {
-                guard let self, !self.session.isRunning else { return }
-                self.session.startRunning()
+                guard let self else { return }
+                self.interrupted = false
+                EchoelCrashLog.breadcrumb("rPPG: camera interruption ended — resuming")
+                if !self.session.isRunning { self.session.startRunning() }
                 self.lastFrameTime = CFAbsoluteTimeGetCurrent()
+                self.applyTorch()          // an interruption drops the torch
+                self.onSessionReset?()     // owner re-locks exposure cleanly
                 log.log(.info, category: .biofeedback, "Camera session resumed after interruption")
             }
         }
@@ -309,6 +325,11 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         timer.schedule(deadline: .now() + 2, repeating: 2)
         timer.setEventHandler { [weak self] in
             guard let self, self.shouldBeRunning else { return }
+            // While iOS holds the session interrupted (thermal/system-pressure, camera
+            // in use by another app), restarts are futile no-ops and the torch churn
+            // only adds heat — so WAIT for AVCaptureSessionInterruptionEnded instead of
+            // thrashing (device log 1783603146: 4 cold restarts, 0 frames, ~2 min).
+            guard !self.interrupted else { return }
             let now = CFAbsoluteTimeGetCurrent()
             if !self.session.isRunning {
                 // The session DIED while it should be up (failed cold start, runtime
@@ -376,6 +397,9 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     func recoverFromStall() {
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            // Same rule as the watchdog: an OS interruption can't be cleared by a
+            // restart — wait for InterruptionEnded instead of forcing a futile rebuild.
+            guard !self.interrupted else { return }
             let now = CFAbsoluteTimeGetCurrent()
             guard now - self.lastRestartTime > 6.0 else { return }   // shared restart cooldown
             log.log(.warning, category: .biofeedback,
