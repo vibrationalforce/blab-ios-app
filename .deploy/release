@@ -1,25 +1,38 @@
-build: 2026-07-09 v10.79.125 (Kamera-Erholung gibt nie mehr auf)
+build: 2026-07-09 v10.79.126 (Visuals feuern nicht mehr rein · ruhig & ruckelfrei · Echoel AI nur auf Anfrage)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Ein Fix, gezielt gegen den Puls-Ausfall aus deinen letzten drei
-  Sessions (Logs: ~83 s blind, und heute 2× der gleiche Stall am Ende):
-  1) KAMERA-ERHOLUNG OHNE AUFGEBEN: Bisher versuchte die App 3 schnelle
-     Erholungen + EINEN kompletten Kalt-Neustart — schlug der fehl,
-     stand "leaving it to the watchdog" im Log und der Puls blieb blind,
-     bis das System sich irgendwann selbst heilte. Jetzt macht die App
-     unbegrenzt Kalt-Neustarts (alle ~18 s, wie dein manuelles
-     Stop→Start, das den Stall zuverlässig heilt), bis wirklich wieder
-     Bilder fließen. Ein fehlgeschlagener Neustart wird sichtbar
-     geloggt statt verschluckt.
-  2) WACHHUND SIEHT JETZT AUCH EINE TOTE SESSION: Der interne Watchdog
-     reagierte nur, solange die Kamera-Session LIEF — genau wenn ein
-     fehlgeschlagener Neustart sie tot zurückließ, war er blind. Jetzt
-     belebt er auch eine tote Session mit komplettem Neuaufbau wieder.
-  TEST 10.79.125:
-  A) Lange Session (5+ min) mit Finger auf der Kamera: wenn der Puls
-     aussetzt (Zahl friert ein / "erholt sich"), kommt er jetzt von
-     SELBST innerhalb ~20-40 s zurück (vorher: nie, bis manuell
-     Stop→Start)?
-  B) Log danach schicken — ich will die "cold camera restart #N"-Zeilen
-     und ob danach wieder Frames fließen.
-  (Außerdem drin: alles aus 10.79.124 — Taktanfang-Tie, Touch-Visual im
-  Metal-Shader, 42 Tonarten.)
+notesT: Der Aufräum-Zyklus zu deinem Befund "Visuals sind doch noch nicht
+  stabil, irgendwas feuert da rein" — vier bestätigte Quellen, alle behoben:
+  1) TOUCH-LICHTER BLITZEN NICHT MEHR AUF: Jeder Fingertropfen erschien in
+     EINEM Frame auf voller Helligkeit und konnte auf hellen Looks zu
+     weißen Flecken ausbrennen. Jetzt weicher Attack (~0,1 s) + Screen-
+     Blend — Licht wird hell, brennt aber nie mehr weiß aus.
+  2) KEIN MASCHINENGEWEHR BEI SLIDES: Schnelle Slides erzeugten 40-80
+     Trail-Lichter/s und schnitten dabei lebende Lichter hart ab. Trails
+     sind jetzt begrenzt und verdrängen nie ein lebendes Licht.
+  3) KEINE SCHIESSENDEN FARBWOLKEN OHNE BERÜHRUNG: Die generative Musik
+     blies pro Note in ~90 ms halbbildgroße Wolken auf, und bei jedem
+     Akkordwechsel schoss eine sichtbare Wolke quer über den Screen.
+     Jetzt atmet das Bett ein (Finger antworten weiter sofort) und
+     sichtbare Wolken faden an Ort und Stelle aus.
+  4) KEIN ATEM-RUCK: Das Bild sackte einmal pro Atemzyklus ~30 % zusammen
+     (Phasen-Wrap). Jetzt ein glatter Bogen.
+  RUCKELFREI: Das Visual-Panel baute sich beim Spielen 5-8×/s neu (Look-
+  Slider hakte mid-take) — die Music→Colour-Zeile ist jetzt ein eigenes
+  Leaf, nur sie aktualisiert sich.
+  ECHOEL AI NUR AUF ANFRAGE: Die Live-Erklärzeile ist hinter einem ruhigen
+  Aufklapper ("What your body is doing to the sound", standardmäßig zu);
+  der Tuning-Hinweis erscheint nicht mehr ungefragt.
+  BEDIENBARKEIT: 44-pt-Touchziele (Floating-Fenster-Buttons, Play, Lock,
+  Info-ⓘ), Safety-Hinweise im Onboarding lesbar, Export-Hinweis nennt den
+  echten Knopf ("Create from Within").
+  (Enthält auch alles aus 10.79.125: Kamera-Erholung gibt nie mehr auf —
+  falls Build 2230 nicht in TestFlight ankam, ist der Fix hiermit drin.)
+  TEST 10.79.126:
+  A) Fullscreen-Visual, Musik läuft, NICHT berühren: schießen noch Wolken
+     quer durchs Bild bei Akkordwechseln? Feuert noch etwas rein?
+  B) Schnelle Slides mit zwei Fingern auf dem Play-Surface: Flackern?
+     Weiße Flecken?
+  C) Beim Spielen das Visual-Panel öffnen und den Look-Slider ziehen:
+     hakt es noch?
+  D) Lange Bio-Session: kommt der Puls nach einem Aussetzer von selbst
+     zurück (~20-40 s)? Log mit "cold camera restart #N" schicken.
