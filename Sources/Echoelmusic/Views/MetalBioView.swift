@@ -101,6 +101,80 @@ private struct BioUniforms {
     var cc2x: Float = 0; var cc2y: Float = 0; var cc2w: Float = 0
     var cc3x: Float = 0; var cc3y: Float = 0; var cc3w: Float = 0
     var cc4x: Float = 0; var cc4y: Float = 0; var cc4w: Float = 0
+    /// TOUCH RIPPLES (structural rebuild, founder 2026-07-09: "immer noch diese
+    /// grafischen Fehler … strukturiere das Visual Touch Instrument von Anfang an
+    /// neu"). The water feedback is now DRAWN IN THIS SHADER — one pipeline, one
+    /// clock, one drawable — instead of CAShapeLayer/CAGradientLayer animations
+    /// composited OVER the Metal layer (two compositors with independent timing =
+    /// the whole artifact class: mismatched frames during any move/resize, layer
+    /// pop-in/out, animation-clock edge cases). 6 slots; per slot: (x, y) in the
+    /// touch surface's normalized space (x 0…1 left→right, y 0…1 BOTTOM→top —
+    /// the shader's own uv orientation), p = life progress 0…1 (computed on the
+    /// CPU each frame, shader stays stateless), a = amplitude (0 = slot empty),
+    /// rgb = the played note's colour (same CIE fit as everything else).
+    var rp0x: Float = 0; var rp0y: Float = 0; var rp0p: Float = 1; var rp0a: Float = 0
+    var rp0r: Float = 0; var rp0g: Float = 0; var rp0b: Float = 0
+    var rp1x: Float = 0; var rp1y: Float = 0; var rp1p: Float = 1; var rp1a: Float = 0
+    var rp1r: Float = 0; var rp1g: Float = 0; var rp1b: Float = 0
+    var rp2x: Float = 0; var rp2y: Float = 0; var rp2p: Float = 1; var rp2a: Float = 0
+    var rp2r: Float = 0; var rp2g: Float = 0; var rp2b: Float = 0
+    var rp3x: Float = 0; var rp3y: Float = 0; var rp3p: Float = 1; var rp3a: Float = 0
+    var rp3r: Float = 0; var rp3g: Float = 0; var rp3b: Float = 0
+    var rp4x: Float = 0; var rp4y: Float = 0; var rp4p: Float = 1; var rp4a: Float = 0
+    var rp4r: Float = 0; var rp4g: Float = 0; var rp4b: Float = 0
+    var rp5x: Float = 0; var rp5y: Float = 0; var rp5p: Float = 1; var rp5a: Float = 0
+    var rp5r: Float = 0; var rp5g: Float = 0; var rp5b: Float = 0
+}
+
+/// The touch surface's water-drop events for the Metal renderer (structural rebuild
+/// 2026-07-09): the play surface pushes a DROP per note/wake; the renderer reads the
+/// live list once per frame and hands it to the shader as ripple slots. Pure
+/// snapshot reads (no drain) — safe with any number of mounted renderer instances.
+/// Same lock-safe leaf pattern as TouchVisualEnergy/TouchToneChannel; clock is
+/// CFAbsoluteTimeGetCurrent (MUST match the draw loop's frame clock — see
+/// TouchToneChannel's epoch note).
+final class TouchRippleChannel: @unchecked Sendable {
+    static let shared = TouchRippleChannel()
+
+    struct Drop {
+        var x: Float            // 0…1 left→right (touch surface normalized)
+        var y: Float            // 0…1 BOTTOM→top (shader uv orientation)
+        var amp: Float          // brightness of this drop's light
+        var r: Float; var g: Float; var b: Float
+        var birth: CFTimeInterval
+        var duration: CFTimeInterval
+    }
+
+    private let lock = NSLock()
+    private var drops: [Drop] = []
+    /// Matches the shader's slot count — the oldest drop yields when a 7th lands.
+    private static let maxDrops = 6
+
+    func drop(x: Float, y: Float, amp: Float, r: Float, g: Float, b: Float,
+              duration: CFTimeInterval, at now: CFTimeInterval) {
+        guard x.isFinite, y.isFinite, amp.isFinite, amp > 0 else { return }
+        lock.lock()
+        drops.removeAll { now - $0.birth >= $0.duration }
+        if drops.count >= Self.maxDrops { drops.removeFirst() }
+        drops.append(Drop(x: min(max(x, 0), 1), y: min(max(y, 0), 1),
+                          amp: min(amp, 1), r: r, g: g, b: b,
+                          birth: now, duration: max(duration, 0.05)))
+        lock.unlock()
+    }
+
+    /// All live drops (expired ones pruned). Pure value snapshot per frame.
+    func active(now: CFTimeInterval) -> [Drop] {
+        lock.lock()
+        defer { lock.unlock() }
+        drops.removeAll { now - $0.birth >= $0.duration }
+        return drops
+    }
+
+    func reset() {
+        lock.lock()
+        drops.removeAll()
+        lock.unlock()
+    }
 }
 
 /// Touch → visual excitation channel (founder 2026-07-07: "das Spiel mit den Fingern
@@ -777,6 +851,31 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             (uniforms.cc2x, uniforms.cc2y, uniforms.cc2w) = (cloudPos[2].x, cloudPos[2].y, cloudW[2])
             (uniforms.cc3x, uniforms.cc3y, uniforms.cc3w) = (cloudPos[3].x, cloudPos[3].y, cloudW[3])
             (uniforms.cc4x, uniforms.cc4y, uniforms.cc4w) = (cloudPos[4].x, cloudPos[4].y, cloudW[4])
+            // TOUCH RIPPLES (see BioUniforms.rp*): snapshot the shared channel and
+            // compute each drop's life progress HERE, so the shader stays stateless
+            // and every mounted renderer instance shows the identical water. Empty
+            // slots carry amp 0 (progress 1) → the shader skips them. Analytic
+            // progress (no easing state) — a ripple can only ever fade out, so this
+            // adds no strobe surface.
+            var rp = [(x: Float, y: Float, p: Float, a: Float, rgb: SIMD3<Float>)](
+                repeating: (0, 0, 1, 0, .zero), count: 6)
+            let liveDrops = TouchRippleChannel.shared.active(now: nowT)
+            for (i, dr) in liveDrops.prefix(6).enumerated() {
+                let prog = Float(min(max((nowT - dr.birth) / dr.duration, 0), 1))
+                rp[i] = (dr.x, dr.y, prog, dr.amp, SIMD3<Float>(dr.r, dr.g, dr.b))
+            }
+            (uniforms.rp0x, uniforms.rp0y, uniforms.rp0p, uniforms.rp0a) = (rp[0].x, rp[0].y, rp[0].p, rp[0].a)
+            (uniforms.rp0r, uniforms.rp0g, uniforms.rp0b) = (rp[0].rgb.x, rp[0].rgb.y, rp[0].rgb.z)
+            (uniforms.rp1x, uniforms.rp1y, uniforms.rp1p, uniforms.rp1a) = (rp[1].x, rp[1].y, rp[1].p, rp[1].a)
+            (uniforms.rp1r, uniforms.rp1g, uniforms.rp1b) = (rp[1].rgb.x, rp[1].rgb.y, rp[1].rgb.z)
+            (uniforms.rp2x, uniforms.rp2y, uniforms.rp2p, uniforms.rp2a) = (rp[2].x, rp[2].y, rp[2].p, rp[2].a)
+            (uniforms.rp2r, uniforms.rp2g, uniforms.rp2b) = (rp[2].rgb.x, rp[2].rgb.y, rp[2].rgb.z)
+            (uniforms.rp3x, uniforms.rp3y, uniforms.rp3p, uniforms.rp3a) = (rp[3].x, rp[3].y, rp[3].p, rp[3].a)
+            (uniforms.rp3r, uniforms.rp3g, uniforms.rp3b) = (rp[3].rgb.x, rp[3].rgb.y, rp[3].rgb.z)
+            (uniforms.rp4x, uniforms.rp4y, uniforms.rp4p, uniforms.rp4a) = (rp[4].x, rp[4].y, rp[4].p, rp[4].a)
+            (uniforms.rp4r, uniforms.rp4g, uniforms.rp4b) = (rp[4].rgb.x, rp[4].rgb.y, rp[4].rgb.z)
+            (uniforms.rp5x, uniforms.rp5y, uniforms.rp5p, uniforms.rp5a) = (rp[5].x, rp[5].y, rp[5].p, rp[5].a)
+            (uniforms.rp5r, uniforms.rp5g, uniforms.rp5b) = (rp[5].rgb.x, rp[5].rgb.y, rp[5].rgb.z)
             // 2) PRISM keeps the discrete A→B fade (its colour is a continuous octave
             //    fan of the note Hz — not reducible to one RGB). Retargets are GATED
             //    until the running fade passes 0.6 (the newest target wins next frame,
@@ -872,7 +971,55 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float cc4r; float cc4g; float cc4b;
                       float cc0x; float cc0y; float cc0w; float cc1x; float cc1y; float cc1w;
                       float cc2x; float cc2y; float cc2w; float cc3x; float cc3y; float cc3w;
-                      float cc4x; float cc4y; float cc4w; };
+                      float cc4x; float cc4y; float cc4w;
+                      float rp0x; float rp0y; float rp0p; float rp0a; float rp0r; float rp0g; float rp0b;
+                      float rp1x; float rp1y; float rp1p; float rp1a; float rp1r; float rp1g; float rp1b;
+                      float rp2x; float rp2y; float rp2p; float rp2a; float rp2r; float rp2g; float rp2b;
+                      float rp3x; float rp3y; float rp3p; float rp3a; float rp3r; float rp3g; float rp3b;
+                      float rp4x; float rp4y; float rp4p; float rp4a; float rp4r; float rp4g; float rp4b;
+                      float rp5x; float rp5y; float rp5p; float rp5a; float rp5r; float rp5g; float rp5b; };
+
+    // TOUCH RIPPLES — the water feedback drawn IN the field's own pipeline
+    // (structural rebuild 2026-07-09; the old CAShapeLayer sandwich over the Metal
+    // layer was the remaining artifact source). Each live drop renders as a soft
+    // colour CLOUD that blooms + dissolves (ink in water) with ONE thin wavefront
+    // ring as its leading edge — the same water identity as before, now perfectly
+    // frame-locked to the field under it. `uvA` is the aspect-correct coordinate
+    // (x scaled by aspect → circles stay circular on a tall phone). Flash-safe by
+    // construction: every ripple's light decays monotonically over its life and
+    // the sum is clamped before compositing.
+    float3 rippleLight(float2 uvA, constant Uniforms& u) {
+        float rx[6] = { u.rp0x, u.rp1x, u.rp2x, u.rp3x, u.rp4x, u.rp5x };
+        float ry[6] = { u.rp0y, u.rp1y, u.rp2y, u.rp3y, u.rp4y, u.rp5y };
+        float rp[6] = { u.rp0p, u.rp1p, u.rp2p, u.rp3p, u.rp4p, u.rp5p };
+        float ra[6] = { u.rp0a, u.rp1a, u.rp2a, u.rp3a, u.rp4a, u.rp5a };
+        float3 rc[6];
+        rc[0] = float3(u.rp0r, u.rp0g, u.rp0b);
+        rc[1] = float3(u.rp1r, u.rp1g, u.rp1b);
+        rc[2] = float3(u.rp2r, u.rp2g, u.rp2b);
+        rc[3] = float3(u.rp3r, u.rp3g, u.rp3b);
+        rc[4] = float3(u.rp4r, u.rp4g, u.rp4b);
+        rc[5] = float3(u.rp5r, u.rp5g, u.rp5b);
+        float3 acc = float3(0.0);
+        for (int k = 0; k < 6; k++) {
+            float amp = ra[k];
+            float prog = rp[k];
+            if (amp < 0.003 || prog >= 0.999) continue;   // empty / finished slot
+            float life = 1.0 - prog;                       // monotonic fade-out
+            float ease = 1.0 - life * life;                // easeOut expansion
+            float2 ctr = float2(rx[k] * u.aspect, ry[k]);
+            float rd = distance(uvA, ctr);
+            // Cloud body: a gaussian glow that grows while it dissolves.
+            float sigma = mix(0.045, 0.16, ease);
+            float cloud = exp(-rd * rd / (2.0 * sigma * sigma)) * life * 0.34;
+            // Leading wavefront: one thin ring travelling outward.
+            float R = mix(0.02, 0.34, ease);
+            float t = (rd - R) / 0.011;
+            float band = exp(-t * t) * life * life * 0.42;
+            acc += rc[k] * (amp * (cloud + band));
+        }
+        return min(acc, float3(0.85));
+    }
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
     // (explicit dot products to avoid any column/row matrix ambiguity). Both are
@@ -1315,6 +1462,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Premium finish: a gentle filmic S-contrast so the frame reads rich/graded, not flat
         // (deepens shadows, lifts highlights a touch). Cheap, no new uniforms; degrade-safe.
         outCol = clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0);
+        // Touch-ripple light ADDS over the graded field (played water = light ON the
+        // water, frame-locked to it — no second compositor). Clamped inside.
+        outCol += rippleLight(uv, u);
         outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
         return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }
