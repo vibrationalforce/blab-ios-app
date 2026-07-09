@@ -132,4 +132,60 @@ final class PianoRollModelTests: XCTestCase {
         XCTAssertEqual(model.notes.first?.pitch, 72)
     }
 }
+
+/// TIE AT THE WRAP (founder 2026-07-09 "Vermeide stolpern"): the pure matcher
+/// that decides which sounds carry straight across the loop boundary instead of
+/// re-articulating (the every-bar dip/swell + voice-steal clicks on a Fläche).
+@MainActor
+final class WrapTieTests: XCTestCase {
+
+    func testSamePitchSameVoiceTies() {
+        let e = UUID(), s = UUID()
+        let ties = PianoRollModel.wrapTies(ending: [(e, 60, 1)], starting: [(s, 60, 1)])
+        XCTAssertEqual(ties, [PianoRollModel.TiePair(endID: e, startID: s)],
+                       "a pitch ending on the bar line while the same pitch starts = one sound")
+    }
+
+    func testDifferentPitchDoesNotTie() {
+        let ties = PianoRollModel.wrapTies(ending: [(UUID(), 60, 1)],
+                                           starting: [(UUID(), 62, 1)])
+        XCTAssertTrue(ties.isEmpty, "a chord change re-articulates normally")
+    }
+
+    func testDifferentVoiceDoesNotTie() {
+        // Same pitch on the lead voice vs the pad voice = two instruments — the
+        // ending one must release, the starting one must attack.
+        let ties = PianoRollModel.wrapTies(ending: [(UUID(), 60, 1)],
+                                           starting: [(UUID(), 60, 2)])
+        XCTAssertTrue(ties.isEmpty)
+    }
+
+    func testFullBarNotePrefersTyingToItself() {
+        // A full-bar note meets ITSELF at the wrap (same id in ending + starting).
+        // With another same-pitch candidate present it must still self-tie, so the
+        // pairing is stable and the other pair matches each other.
+        let drone = UUID(), otherEnd = UUID(), otherStart = UUID()
+        let ties = PianoRollModel.wrapTies(
+            ending: [(otherEnd, 60, 1), (drone, 60, 1)],
+            starting: [(drone, 60, 1), (otherStart, 60, 1)])
+        XCTAssertEqual(ties.count, 2, "unisons pair one-to-one")
+        XCTAssertTrue(ties.contains(PianoRollModel.TiePair(endID: drone, startID: drone)),
+                      "the continuing note ties to itself")
+        XCTAssertTrue(ties.contains(PianoRollModel.TiePair(endID: otherEnd, startID: otherStart)))
+    }
+
+    func testUnisonPairsOneToOne() {
+        // Two ending unisons + one starting: exactly ONE ties, the other releases.
+        let e1 = UUID(), e2 = UUID(), s1 = UUID()
+        let ties = PianoRollModel.wrapTies(ending: [(e1, 60, 1), (e2, 60, 1)],
+                                           starting: [(s1, 60, 1)])
+        XCTAssertEqual(ties.count, 1)
+        XCTAssertEqual(Set(ties.map(\.endID)).count, 1, "each ending note is consumed at most once")
+    }
+
+    func testEmptySidesProduceNoTies() {
+        XCTAssertTrue(PianoRollModel.wrapTies(ending: [], starting: [(UUID(), 60, 1)]).isEmpty)
+        XCTAssertTrue(PianoRollModel.wrapTies(ending: [(UUID(), 60, 1)], starting: []).isEmpty)
+    }
+}
 #endif

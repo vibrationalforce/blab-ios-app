@@ -349,3 +349,24 @@ Architectural and strategic decisions with context and rationale.
   2026-07-04 showed acf 0.14 / conf 0.90 "settling" at a wrong 79 bpm (true pulse ~54); the gate
   makes a bad reading HOLD ("acquiring") instead of showing/seeding a fantasy number.
 - **Review:** after founder device-verify of 79.52, proceed to P1 (BLE preferred + "≈ camera" label).
+
+### 2026-07-09 Melody OUT — every curated genre is a pure sustained Fläche preset
+- **Founder (verbatim):** "die Melodie in den Genres war zu laut und zu unnatürlich von
+  Klangspektrum so reine Wellen Töne sind eher unangenehmen gerade wenn sie aus dem mix so
+  rausstechen. Es wäre auch besser wenn die komplett weg sind. Dann können wir uns doch drauf
+  einigen, du machst passende presets für Genres in denen wirklich nur chilligenmystische
+  Flächen sind oder? Und trotzdem soll es bei jeder session, jedem User und je nach Biofeedback
+  immer individuell klingen. Wichtig sind die tighten Loops, damit wir die wav Weiterverarbeitung
+  so einfach wie möglich halten."
+- **Executed (v10.79.123):** all 6 curated `harmonicProfile`s → `leadDensity 0, sustained: true`
+  with distinct characters (minor drone · lydian drone · maj7 [0,3] oct4 vaporwave · dorian m7
+  [0,3] oct3 dub · harmonic-minor [0,5] oct3 trap · phrygian [0,1] oct3 sci-fi). Dub/Trap now
+  route through `composeHarmonic` like every harmonic genre — `dubMelody`/`trapMelody` (the
+  offbeat stabs / exposed dark-bell lead) are retired from the flow but stay defined (reversible);
+  their SIGNATURE beats stay hand-built. Breath-swell now applies to all 6 (keys off `sustained`).
+- **Guardrails (tests):** curated = pure Flächen (no `.lead`, no notes <4 steps, bar-tight
+  `startStep+len ≤ 16`, across seeds AND body states); fingerprints (scale|progression|voicing|
+  register) must stay pairwise distinct; `sustained` ⟺ curated membership. Arrangement/pulse
+  invariants moved onto retired melodic profiles (.futuristic/.disco).
+- **Do NOT** re-add a lead line to a curated genre without a founder ask; the reversible path
+  is documented in `BioComposer.compose`.

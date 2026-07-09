@@ -296,9 +296,51 @@ public final class PianoRollModel {
     /// No-op when there is no separate lead voice.
     public func applyLeadPatch(_ patch: SynthPatch) { lead?.apply(patch) }
 
+    /// One wrap-tie: the ending note keeps ringing and the starting note takes
+    /// over its bookkeeping instead of firing a fresh attack.
+    public struct TiePair: Equatable, Sendable {
+        public let endID: UUID
+        public let startID: UUID
+        public init(endID: UUID, startID: UUID) { self.endID = endID; self.startID = startID }
+    }
+
+    /// TIE AT THE WRAP (founder 2026-07-09 "Vermeide stolpern"): pair each note
+    /// starting at the loop boundary with a note ending there that has the SAME
+    /// pitch on the SAME output voice — that sound simply continues (no release,
+    /// no re-attack). Without this the Fläche re-articulated its whole chord every
+    /// bar (audible dip/swell) AND doubled the voice load at the seam (5 releasing
+    /// + 5 attacking > 8 poly voices → stealing clicks). One-to-one matching via
+    /// the used-set so unisons pair off cleanly. Pure + deterministic → unit-tested.
+    public static func wrapTies(
+        ending: [(id: UUID, pitch: Int, voiceKey: Int)],
+        starting: [(id: UUID, pitch: Int, voiceKey: Int)]
+    ) -> [TiePair] {
+        var used = Set<UUID>()
+        var out: [TiePair] = []
+        for s in starting {
+            // Prefer the same note continuing (a full-bar note meets itself at the
+            // wrap), then any same-pitch/same-voice candidate.
+            let match = ending.first { $0.id == s.id && !used.contains($0.id) }
+                ?? ending.first { !used.contains($0.id) && $0.pitch == s.pitch && $0.voiceKey == s.voiceKey }
+            guard let e = match, e.pitch == s.pitch, e.voiceKey == s.voiceKey else { continue }
+            used.insert(e.id)
+            out.append(TiePair(endID: e.id, startID: s.id))
+        }
+        return out
+    }
+
+    /// Stable per-voice identity for tie matching — mirrors `sameVoice` exactly:
+    /// only two voices exist (main, dedicated lead), so the key is 1 iff the role
+    /// routes to a DISTINCT lead voice, else 0.
+    private func voiceKey(_ role: NoteRole) -> Int {
+        guard let lead, lead !== voice else { return 0 }
+        return outputVoice(for: role) === lead ? 1 : 0
+    }
+
     /// Each tick: release notes ending now, then start notes beginning now.
     /// `endStep % stepCount` so a note ending on the bar line releases at the
-    /// loop wrap (step 0), giving correct sustain + retrigger.
+    /// loop wrap (step 0) — unless an identical note starts there, in which case
+    /// the two are TIED and the sound carries straight through (no stumble).
     nonisolated(unsafe) private static var triggerTraced = false
     private func trigger(_ step: Int) {
         if !Self.triggerTraced {
@@ -332,8 +374,27 @@ public final class PianoRollModel {
         // playing) so toggling mid-play never leaves the built-in voice stuck.
         let suppressBuiltIn = auHost?.suppressesBuiltInVoice ?? false
         let ending = active.filter { $0.value.endStep % Self.stepCount == step }
-        for id in ending.keys { active[id] = nil }
-        for note in ending.values {
+        // TIE AT THE WRAP ("Vermeide stolpern"): only at step 0 — the loop is a
+        // circle, so a pitch ending on the bar line while the same pitch starts the
+        // next pass is ONE continuous sound, not a release + re-attack. Mid-bar a
+        // repeated pitch stays two deliberate hits (user-drawn rhythm). This also
+        // makes evolve morphs seamless: pitches the new take keeps just keep ringing.
+        let starting = notes.filter { $0.startStep == step }
+        let ties = step == 0
+            ? Self.wrapTies(
+                ending: ending.map { (id: $0.key, pitch: $0.value.pitch, voiceKey: voiceKey($0.value.role)) },
+                starting: starting.map { (id: $0.id, pitch: $0.pitch, voiceKey: voiceKey($0.role)) })
+            : []
+        let tiedEnd = Set(ties.map(\.endID))
+        let tiedStart = Set(ties.map(\.startID))
+        // Carry each tied sound over: bookkeeping follows the NEW note (its endStep
+        // schedules the eventual release); the voice + MIDI/AU note keep ringing.
+        for tie in ties {
+            active[tie.endID] = nil
+            if let n = starting.first(where: { $0.id == tie.startID }) { active[n.id] = n }
+        }
+        for id in ending.keys where !tiedEnd.contains(id) { active[id] = nil }
+        for (id, note) in ending where !tiedEnd.contains(id) {
             // Release this pitch on its voice only when no surviving note still holds
             // it ON THE SAME VOICE (two instruments can hold a shared pitch apart —
             // identity grouping covers the synth AND sampler routing).
@@ -358,7 +419,9 @@ public final class PianoRollModel {
                                       breathDepth: breathSwell,
                                       hrvNormalized: bio.hrvNormalized)
         }()
-        for note in notes where note.startStep == step {
+        // Tied notes are already carried in `active` and their sound keeps ringing —
+        // only genuinely new notes fire an attack.
+        for note in starting where !tiedStart.contains(note.id) {
             if !suppressBuiltIn { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: note.velocity) }
             midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity, expression: expression)
             auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
