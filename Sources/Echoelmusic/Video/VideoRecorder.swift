@@ -66,7 +66,13 @@ final class VideoRecorder {
     /// (so its dimensions match the real capture). Frames ingested before this,
     /// or after `stopRecording`, are dropped.
     func startRecording() {
-        guard recordState == .idle else { return }
+        // Re-armable from any TERMINAL state (.idle / .done / .error) — only reject
+        // while a capture is still active (.recording / .finishing). The old guard
+        // required exactly `.idle`, but a finished capture leaves `.done(url)`, so a
+        // SECOND start was silently dropped → "kann ich das danach nicht mehr machen".
+        // The finished file's URL is consumed via `stopRecording()`'s return value,
+        // not by observing `.done`, so overwriting that state here loses nothing.
+        guard recordState != .recording, recordState != .finishing else { return }
         lock.lock()
         armed = true
         writer = nil; videoInput = nil; adaptor = nil
