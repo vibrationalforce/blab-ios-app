@@ -181,6 +181,21 @@ public final class CameraRPPGBioPublisher {
     private static let settleTolerance = 3.0
     private static let settleSeconds = 3.0
 
+    /// BIO-STREAM HOLD across brief signal dropouts (founder 2026-07-09: "das
+    /// Flickern im Fullscreen … hängt damit zusammen ob Biofeedback an ist").
+    /// A marginal signal (e.g. exposure drifting bright) makes `bpmConfidence`
+    /// flap around `lockThreshold`; blanking the bus frame on every dip let the
+    /// visual's `freshBio()` go stale and hard-FLIP between bio-mode and idle-mode
+    /// — the flicker, visible only while biofeedback runs — and blanked the pulse
+    /// readout. We re-emit the last good frame (coherence decaying, never a snap
+    /// to 0) for a short grace, so the stream the visual eases over stays
+    /// continuous; only a sustained loss lets it fall to idle, as ONE smooth
+    /// transition instead of a strobe.
+    private var lastGoodBioFrame: BioSampleFrame?
+    private var lastGoodPublishTick = Int.min
+    private var lastValidCoherence: Float = 0
+    private static let bioHoldTicks = 40   // ~4 s at the 10 Hz tick
+
     /// Live, specific placement guidance — turns the internal amplitude/exposure
     /// diagnostics into user coaching so the lens reaches a lockable signal, instead
     /// of a flat "Acquiring…". Pure derived state, read on the main actor by the UI.
@@ -625,7 +640,30 @@ public final class CameraRPPGBioPublisher {
                 }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
-                guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else { continue }
+                guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else {
+                    // Brief dropout: keep the visual + pulse warm by re-emitting the
+                    // last good frame (coherence gently decaying — never a snap to 0)
+                    // until the grace window expires, so a marginal signal can't
+                    // strobe the fullscreen visual bio↔idle. Past the grace the signal
+                    // is genuinely gone → stop; the visual then eases to idle ONCE.
+                    if let held = self.lastGoodBioFrame,
+                       tick - self.lastGoodPublishTick <= Self.bioHoldTicks {
+                        self.lastValidCoherence *= 0.9
+                        bus.publish(bio: BioSampleFrame(
+                            timestamp: CFAbsoluteTimeGetCurrent(),
+                            heartRateBPM: held.heartRateBPM,
+                            hrvNormalized: held.hrvNormalized,
+                            breathRate: 0,
+                            breathPhase: held.breathPhase,
+                            coherence: self.lastValidCoherence,
+                            motionEnergy: 0,
+                            source: .cameraPPG,
+                            hrvRMSSDms: held.hrvRMSSDms,
+                            hrvSDNNms: held.hrvSDNNms,
+                            hrvPNN50: held.hrvPNN50))
+                    }
+                    continue
+                }
                 let rmssdMs = Float(self.analyzer.rmssd)
                 let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
                 // analyzer.rrIntervals are already in milliseconds.
@@ -637,6 +675,13 @@ public final class CameraRPPGBioPublisher {
                 // .cameraPPG), so consumers still gate on the source; the field is now
                 // at least semantically correct. 0 until enough beats/power.
                 let coherence = HRVCoherence.compute(rrMs: rrMs, blend: 1.0)
+                // Hold coherence across TRANSIENT invalidity rather than publishing 0
+                // (line was `coherence.valid ? … : 0`): a single invalid window
+                // otherwise flapped coherence real↔0 at the publish rate, which the
+                // visual renders as a brightness shimmer while bio runs. A valid read
+                // refreshes the held value; an invalid one decays it gently.
+                let cohValue: Float = coherence.valid ? coherence.coherence : self.lastValidCoherence * 0.9
+                if coherence.valid { self.lastValidCoherence = coherence.coherence }
 
                 // Respiration from the RR series via RSA (breathing modulates HR).
                 // Replay the current RR window through a fresh estimator → the current
@@ -650,19 +695,23 @@ public final class CameraRPPGBioPublisher {
                     resp.ingest(heartRate: 60_000.0 / ms, at: tAcc)
                 }
                 let measuredBreath = resp.confidence >= 0.4
-                bus.publish(bio: BioSampleFrame(
+                let frame = BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
                     hrvNormalized: hrv,
                     breathRate: measuredBreath ? Float(resp.ratePerMinute) : 0,
                     breathPhase: measuredBreath ? Float(resp.amplitude) : 0,
-                    coherence: coherence.valid ? coherence.coherence : 0,
+                    coherence: cohValue,
                     motionEnergy: 0,
                     source: .cameraPPG,
                     hrvRMSSDms: rmssdMs,
                     hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
                     hrvPNN50: Float(HRVMetrics.pnn50(rrMs: rrMs))
-                ))
+                )
+                bus.publish(bio: frame)
+                // Anchor the hold to this good frame (see lastGoodBioFrame docs).
+                self.lastGoodBioFrame = frame
+                self.lastGoodPublishTick = tick
             }
         }
     }

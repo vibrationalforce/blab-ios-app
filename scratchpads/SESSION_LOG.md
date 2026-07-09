@@ -3,6 +3,40 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-09 (Forts. 5) — Aufräum-Zyklus: Visual-Feuern behoben · ruckelfrei · AX (v10.79.126)
+Founder-Dreifach-Ask: (1) "einmal richtig aufräumen: Architektur/Design/UI/AX/Experience,
+ruckelfrei und frei von Artefakten", (2) "Ist Echoel AI intelligent genug für Sprach-Prompts?"
+(gruselig/mystisch/soul/trap/romantisch), (3) "Visuals … irgendwas feuert da rein. Behebe."
+**Drei parallele Tiefen-Audits** (Visual-Artefakt-Jagd / UI-AX / Architektur) liefen als
+Agents; Ergebnisse:
+**Artefakt-Jagd — 4 BESTÄTIGTE Quellen, alle gefixt (8e5213f):** (1) Ripple-Onset war der
+EINZIGE un-geglättete Helligkeitspfad (prog=0 → volle Helligkeit in 1 Frame) + raw-ADD nach
+dem Grade clippte weiß → smoothstep-Attack (erste 10 % Life) + SCREEN-Blend. (2) 7. Drop
+schnitt lebendes Licht in 1 Frame; Slides = 40-80 Wake-Drops/s → Wakes rate-capped (50 ms),
+verdrängen NIE; nur Strong-Notes ersetzen den DUNKELSTEN Slot. (3) Generative Note-ons
+bliesen ~8/s Halbbild-Wolken in 90 ms auf; Chord-Change-Slot-Steals ließen sichtbare Wolken
+über den Screen SCHIESSEN → Bett-Tau 0.30 (Finger 0.09, neues cloudTouch[]-Flag), neue Noten
+bevorzugen UNSICHTBARE Slots. (4) breathPhase wrappt 1→0, Shader nutzt als Magnitude →
+sin(π·x)-Bogen am Point-of-Use (PianoRoll-MPE-Fix gespiegelt). REFUTIERT: masterLevel-Steps
+(H5), rPPG-Blowout-Propagation (H8 — Log 1783592394 war NICHT die Ursache). SEKUNDÄR (offen):
+Fullscreen-Cover + Floating rendern DOPPELT, beide capturesVideo → MP4 mit 2 Auflösungen.
+**Ruckelfrei (d0f756c):** musicColourRow las bus.freshMusical im Visual-Panel-Closure →
+ganzes Panel 5-8 Hz Rebuild → eigenes Leaf MusicColourRowView (Ende EchoelStudioView.swift).
+**AX-Quick-Wins (b2b65bc):** Floating-Bar 44 pt + inset-contentShapes (5 Buttons waren
+28×22!), Play/Lock/ⓘ-Targets, Onboarding-Safety 0.5→0.7 (WCAG AA), Export-Hint nennt
+"Create from Within" (kein "Generate" existiert), VJ-Overlay opacity-only, VoiceOver-Logo
+hidden + Confidence-Label. **TestFlight #2230 (10.79.125) "failure" = FALSCH-ROT:** Upload
+ERFOLGREICH, nur der Verify-Schritt starb an Runner-DNS (curl exit 6) + Artifact-Upload-
+Timeout. Build sollte in TF sein. **Arch-Audit-Backlog:** ~20 clamp01-Kopien, ~10 MIDI→Hz-
+Kopien (LATENTER BUG: PolySynthVoice:310 + BioReactiveSynthVoice:195 hart 440 Hz statt
+Kammerton!), Clip-Palette doppelt, 3 Inline-Farben; FOUNDER-GATE: 111 .font(.system)-Stellen
+(Atkinson-Drift), Recording-Token. **AI-Sprach-Antwort an Founder:** heute NEIN (kein Text-
+Eingang), aber MoodProfile deckt sein Beispiel exakt — deterministischer mehrsprachiger
+Keyword→Mood-Mapper als nächster Zyklus vorgeschlagen (wartet auf Go). **Founder-Direktive
+(neu, Architektur-Prompt):** Design-Review VOR großen Umbauten — Review geliefert (Bio→Visual
+strukturell gesund; Web-Parität = Strategiefrage, nicht empfohlen ohne Validierung).
+→ Deploy v10.79.126 (Interactive-AI 82030bd + die 3 Fix-Commits).
+
 ## 2026-07-08 (Forts. 10) — Instrument-Klasse: VoiceOver-Play · Haptik · Anker-Grid (v10.79.116)
 Founder: "leicht zu bedienen … klasse und authentisch … usability/accessibility nach
 höchsten Maßstäben" + "Passt das mit den Tonarten?" **Tonarten-Antwort: ja, per
