@@ -37,6 +37,30 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     case harmonicMajor      // major with ♭6
     case hungarianMinor     // Gypsy minor (♯4 over harmonic minor)
     case doubleHarmonic     // Byzantine / Arabic (Maqam Hijaz-kar)
+    // Tonarten expansion (founder 2026-07-09, deep-research pass): every addition
+    // below is a STANDARD, uncontested catalog definition (Neapolitan/klezmer/
+    // Verdi/Scriabin literature, Japanese koto tunings, suspended pentatonics).
+    // Deliberately NOT added: Ableton-proprietary "Bulgarian"/"Polymode" scale
+    // names — no authoritative interval definition exists outside Live's binary,
+    // and we do not ship guessed music theory (science-first rule).
+    case neapolitanMinor    // harmonic minor with ♭2 — dark classical colour
+    case neapolitanMajor    // major with ♭2+♭3 shape (melodic minor ♭2)
+    case romanianMinor      // Ukrainian Dorian / Misheberak — Dorian ♯4, klezmer
+    case persian            // ♭2 ♯3 ♭5 colour — Persian classical flavour
+    case hirajoshi          // Japanese koto pentatonic (dark)
+    case iwato              // Japanese koto pentatonic (floating/dissonant)
+    case insen              // Japanese pentatonic (In scale family)
+    case yo                 // Japanese folk pentatonic (bright, no semitones)
+    case inSakura           // Japanese In / Sakura tuning
+    case egyptian           // suspended pentatonic (no 3rd — open, ancient)
+    case pelog              // Balinese pelog selisir, 12-TET approximation
+    case enigmatic          // Verdi's scala enigmatica
+    case prometheus         // Scriabin's mystic chord as a scale
+    case augmented          // symmetric hexatonic (aug triads interleaved)
+    case tritone            // symmetric two-triad hexatonic (Petrushka colour)
+    case hungarianMajor     // ♯2 over Lydian dominant — Bartók/folk colour
+    case bebopMajor         // major + ♭6 passing tone (8 notes)
+    case majorLocrian       // major top / Locrian bottom — suspenseful
 
     /// Ascending semitone offsets from the root, one octave.
     public var intervals: [Int] {
@@ -65,6 +89,24 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .harmonicMajor:       return [0, 2, 4, 5, 7, 8, 11]
         case .hungarianMinor:      return [0, 2, 3, 6, 7, 8, 11]
         case .doubleHarmonic:      return [0, 1, 4, 5, 7, 8, 11]
+        case .neapolitanMinor:     return [0, 1, 3, 5, 7, 8, 11]
+        case .neapolitanMajor:     return [0, 1, 3, 5, 7, 9, 11]
+        case .romanianMinor:       return [0, 2, 3, 6, 7, 9, 10]
+        case .persian:             return [0, 1, 4, 5, 6, 8, 11]
+        case .hirajoshi:           return [0, 2, 3, 7, 8]
+        case .iwato:               return [0, 1, 5, 6, 10]
+        case .insen:               return [0, 1, 5, 7, 10]
+        case .yo:                  return [0, 2, 5, 7, 9]
+        case .inSakura:            return [0, 1, 5, 7, 8]
+        case .egyptian:            return [0, 2, 5, 7, 10]
+        case .pelog:               return [0, 1, 3, 7, 8]
+        case .enigmatic:           return [0, 1, 4, 6, 8, 10, 11]
+        case .prometheus:          return [0, 2, 4, 6, 9, 10]
+        case .augmented:           return [0, 3, 4, 7, 8, 11]
+        case .tritone:             return [0, 1, 4, 6, 7, 10]
+        case .hungarianMajor:      return [0, 3, 4, 6, 7, 9, 10]
+        case .bebopMajor:          return [0, 2, 4, 5, 7, 8, 9, 11]
+        case .majorLocrian:        return [0, 2, 4, 5, 6, 8, 10]
         }
     }
 
@@ -100,6 +142,24 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .harmonicMajor:       return "Harmonic Major"
         case .hungarianMinor:      return "Hungarian Minor"
         case .doubleHarmonic:      return "Double Harmonic"
+        case .neapolitanMinor:     return "Neapolitan Minor"
+        case .neapolitanMajor:     return "Neapolitan Major"
+        case .romanianMinor:       return "Romanian Minor"
+        case .persian:             return "Persian"
+        case .hirajoshi:           return "Hirajoshi"
+        case .iwato:               return "Iwato"
+        case .insen:               return "Insen"
+        case .yo:                  return "Yo"
+        case .inSakura:            return "In (Sakura)"
+        case .egyptian:            return "Egyptian"
+        case .pelog:               return "Pelog"
+        case .enigmatic:           return "Enigmatic"
+        case .prometheus:          return "Prometheus"
+        case .augmented:           return "Augmented"
+        case .tritone:             return "Tritone"
+        case .hungarianMajor:      return "Hungarian Major"
+        case .bebopMajor:          return "Bebop Major"
+        case .majorLocrian:        return "Major Locrian"
         }
     }
 
@@ -130,6 +190,24 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .harmonicMajor:       return "harmM"
         case .hungarianMinor:      return "hung"
         case .doubleHarmonic:      return "dblharm"
+        case .neapolitanMinor:     return "neapm"
+        case .neapolitanMajor:     return "neapM"
+        case .romanianMinor:       return "rom"
+        case .persian:             return "prs"
+        case .hirajoshi:           return "hira"
+        case .iwato:               return "iwato"
+        case .insen:               return "insen"
+        case .yo:                  return "yo"
+        case .inSakura:            return "sakura"
+        case .egyptian:            return "egy"
+        case .pelog:               return "pelog"
+        case .enigmatic:           return "enig"
+        case .prometheus:          return "prom"
+        case .augmented:           return "aug"
+        case .tritone:             return "tri"
+        case .hungarianMajor:      return "hungM"
+        case .bebopMajor:          return "bebM"
+        case .majorLocrian:        return "majloc"
         }
     }
 }
