@@ -1,4 +1,4 @@
-// SpaceReverb.swift
+// EchoelSpaceReverb.swift
 // Echoel — the "room-in-room" convolution space (the 4D depth dimension). An inner
 // EARLY-REFLECTION impulse (a small, intimate room: the direct hit + a few sparse
 // decaying reflections in the first tens of ms) sits inside an outer diffuse TAIL
@@ -19,7 +19,7 @@
 import Foundation
 import Accelerate
 
-public final class SpaceReverb: @unchecked Sendable {
+public final class EchoelSpaceReverb: @unchecked Sendable {
 
     private let er: EchoelConvolution      // inner small room (early reflections)
     private let tail: EchoelConvolution    // outer large room (diffuse tail)
@@ -42,20 +42,20 @@ public final class SpaceReverb: @unchecked Sendable {
         self.maxBlock = block
         self.erScratch = [Float](repeating: 0, count: block)
         self.tailScratch = [Float](repeating: 0, count: block)
-        self.mix = SpaceReverb.clamp01(mix)
-        self.blend = SpaceReverb.clamp01(blend)
+        self.mix = EchoelSpaceReverb.clamp01(mix)
+        self.blend = EchoelSpaceReverb.clamp01(blend)
         let erTaps = Swift.max(1, Int(sampleRate * erMillis / 1000))
         let tailTaps = Swift.max(1, Int(sampleRate * tailSeconds))
-        self.er = EchoelConvolution(kernel: SpaceReverb.earlyReflectionIR(taps: erTaps, seed: seed),
+        self.er = EchoelConvolution(kernel: EchoelSpaceReverb.earlyReflectionIR(taps: erTaps, seed: seed),
                                     maxInputLength: block)
-        self.tail = EchoelConvolution(kernel: SpaceReverb.tailIR(taps: tailTaps, seed: seed &+ 1),
+        self.tail = EchoelConvolution(kernel: EchoelSpaceReverb.tailIR(taps: tailTaps, seed: seed &+ 1),
                                       maxInputLength: block)
     }
 
     /// Live macro: dry/wet + room-in-room blend (both clamped). Control-rate.
     public func setSpace(mix: Float, blend: Float) {
-        self.mix = SpaceReverb.clamp01(mix)
-        self.blend = SpaceReverb.clamp01(blend)
+        self.mix = EchoelSpaceReverb.clamp01(mix)
+        self.blend = EchoelSpaceReverb.clamp01(blend)
     }
 
     /// Process a dry block → a wet block of the same length. ALLOCATES — offline /
@@ -68,7 +68,7 @@ public final class SpaceReverb: @unchecked Sendable {
         var out = [Float](repeating: 0, count: n)
         let erGain: Float = 0.7                 // inner room always present
         let tailGain: Float = 0.9 * blend       // outer room scales with the blend
-        let wet = SpaceReverb.clamp01(mix)
+        let wet = EchoelSpaceReverb.clamp01(mix)
         for i in 0..<n {
             let e = i < erOut.count ? erOut[i] : 0
             let t = i < tailOut.count ? tailOut[i] : 0
@@ -91,7 +91,7 @@ public final class SpaceReverb: @unchecked Sendable {
         tail.process(buffer, into: &tailScratch)
         let erGain: Float = 0.7
         let tailGain: Float = 0.9 * blend
-        let wet = SpaceReverb.clamp01(mix)
+        let wet = EchoelSpaceReverb.clamp01(mix)
         for i in 0..<n {
             let w = erGain * erScratch[i] + tailGain * tailScratch[i]
             let v = buffer[i] * (1 - wet) + w * wet

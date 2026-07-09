@@ -1,4 +1,4 @@
-// SpaceReverbTests.swift
+// EchoelSpaceReverbTests.swift
 // Echoel — the "room-in-room" convolution space core: synthetic IRs (early-reflection
 // inner room + diffuse tail outer room) and the parallel blend. Pure + deterministic.
 
@@ -6,12 +6,12 @@
 import XCTest
 @testable import Echoelmusic
 
-final class SpaceReverbTests: XCTestCase {
+final class EchoelSpaceReverbTests: XCTestCase {
 
     // MARK: - Impulse responses
 
     func testEarlyReflectionIR_directHitThenFrontLoadedDecay() {
-        let ir = SpaceReverb.earlyReflectionIR(taps: 256, seed: 1)
+        let ir = EchoelSpaceReverb.earlyReflectionIR(taps: 256, seed: 1)
         XCTAssertEqual(ir.count, 256)
         XCTAssertEqual(ir[0], 1, accuracy: 1e-6, "direct sound at tap 0")
         XCTAssertTrue(ir.allSatisfy { $0.isFinite })
@@ -21,7 +21,7 @@ final class SpaceReverbTests: XCTestCase {
     }
 
     func testTailIR_finiteAndExponentiallyDecaying() {
-        let ir = SpaceReverb.tailIR(taps: 512, seed: 2)
+        let ir = EchoelSpaceReverb.tailIR(taps: 512, seed: 2)
         XCTAssertEqual(ir.count, 512)
         XCTAssertTrue(ir.allSatisfy { $0.isFinite })
         let firstQ = ir[0..<128].reduce(Float(0)) { $0 + $1 * $1 }
@@ -30,16 +30,16 @@ final class SpaceReverbTests: XCTestCase {
     }
 
     func testIRsAreDeterministicBySeed() {
-        XCTAssertEqual(SpaceReverb.tailIR(taps: 64, seed: 7), SpaceReverb.tailIR(taps: 64, seed: 7))
-        XCTAssertNotEqual(SpaceReverb.tailIR(taps: 64, seed: 7), SpaceReverb.tailIR(taps: 64, seed: 8))
-        XCTAssertEqual(SpaceReverb.earlyReflectionIR(taps: 64, seed: 3),
-                       SpaceReverb.earlyReflectionIR(taps: 64, seed: 3))
+        XCTAssertEqual(EchoelSpaceReverb.tailIR(taps: 64, seed: 7), EchoelSpaceReverb.tailIR(taps: 64, seed: 7))
+        XCTAssertNotEqual(EchoelSpaceReverb.tailIR(taps: 64, seed: 7), EchoelSpaceReverb.tailIR(taps: 64, seed: 8))
+        XCTAssertEqual(EchoelSpaceReverb.earlyReflectionIR(taps: 64, seed: 3),
+                       EchoelSpaceReverb.earlyReflectionIR(taps: 64, seed: 3))
     }
 
     // MARK: - Processing
 
-    private func smallSpace(mix: Float, blend: Float) -> SpaceReverb {
-        SpaceReverb(sampleRate: 1000, maxBlock: 64, erMillis: 10, tailSeconds: 0.05,
+    private func smallSpace(mix: Float, blend: Float) -> EchoelSpaceReverb {
+        EchoelSpaceReverb(sampleRate: 1000, maxBlock: 64, erMillis: 10, tailSeconds: 0.05,
                     mix: mix, blend: blend)
     }
 
