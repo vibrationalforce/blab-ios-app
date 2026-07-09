@@ -415,10 +415,6 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var target = BioUniforms()
     private var hasTarget = false
     private var reduceMotion = false
-    /// Last FPS pushed to the MTKView — so we only reassign `preferredFramesPerSecond`
-    /// (which reconfigures the CADisplayLink) when the governor's tier actually changes it,
-    /// not on every one of the 60 frames/s (free win over a long installation run).
-    private var lastAppliedFPS: Int = -1
     /// Last `framebufferOnly` value written to the MTKView. Writing the property EVERY frame
     /// (even to the same value) reconfigures the drawable/CAMetalLayer and made the picture
     /// shimmer ("Visualfenster zittert") — worse at fullscreen resolution and on a style switch
@@ -689,11 +685,17 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             }
             let ds = view.drawableSize
             if ds.height > 0 { uniforms.aspect = Float(ds.width / ds.height) }
+            // Display frame rate is PINNED at 60 (makeUIView) and NEVER reassigned at
+            // runtime. Changing MTKView.preferredFramesPerSecond reconfigures the
+            // CADisplayLink — a visible display-cadence hitch that does NOT appear in a
+            // recording (the recorder pulls rendered texture frames, not display
+            // presents). That is exactly the founder's "Fullscreen flackert, aber in
+            // der Aufnahme nicht" / "knistert hier und da" class. Thermal pressure is
+            // handled by DETAIL scaling + reduce-motion below (both smooth and
+            // frame-rate-independent) and the 15 fps rPPG camera cap — not by toggling
+            // the display's frame rate. `recordFrame` feedback (further down) now drives
+            // DETAIL, not FPS, so a device that can't hold 60 sheds detail smoothly.
             let q = governor?.settings
-            if let q, q.targetFPS != lastAppliedFPS {
-                view.preferredFramesPerSecond = q.targetFPS
-                lastAppliedFPS = q.targetFPS
-            }
             let detailScale = q?.visualDetailScale ?? 1
             let effectiveReduceMotion = lookReduceMotionAccessibility || (q?.reduceMotion ?? false)
             let bio = bus?.freshBio()

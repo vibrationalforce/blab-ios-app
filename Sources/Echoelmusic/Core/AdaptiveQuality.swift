@@ -108,7 +108,13 @@ public enum AdaptiveQuality {
                                    allowSpectralDonuts: true, bioHz: 10, oscHz: 30,
                                    reduceMotion: false)
         case .high:
-            return QualitySettings(tier: .high, targetFPS: 120, visualDetailScale: 1.0,
+            // targetFPS is 60, not 120: the visual display frame rate is pinned at 60
+            // in MetalBioView (a stable CADisplayLink = no cadence flicker), and 60 fps
+            // is the temperature-friendly ceiling. The `high` tier still earns its keep
+            // via full detail + the faster bio/OSC poll rates. (A 120-target here would
+            // also make the pinned-60 display read as "missing target" and spuriously
+            // demote via the measured-FPS feedback.)
+            return QualitySettings(tier: .high, targetFPS: 60, visualDetailScale: 1.0,
                                    allowSpectralDonuts: true, bioHz: 15, oscHz: 60,
                                    reduceMotion: false)
         }
