@@ -365,15 +365,26 @@ public enum BioComposer {
         let drumAccents: [[Bool]]
 
         switch input.style {
-        case .dubTechno:
-            notes = dubMelody(key: input.key, busy: busy,
-                              breathDepth: input.breathDepth, rng: &rng)
-            (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
-        case .trap:
-            notes = trapMelody(key: input.key, busy: busy, calm: calm,
-                               breathPhase: input.breathPhase,
-                               breathDepth: input.breathDepth, rng: &rng)
-            (drumSteps, drumAccents) = trapBeat(energy: energy, calm: calm, rng: &rng)
+        case .dubTechno, .trap:
+            // PURE FLÄCHEN (founder 2026-07-09: "die Melodie in den Genres war zu
+            // laut und zu unnatürlich … reine Wellen-Töne stechen raus … besser
+            // wenn die komplett weg sind — nur chillige mystische Flächen"). The
+            // bespoke dubMelody/trapMelody lines (offbeat stabs / the exposed
+            // dark-bell lead) are RETIRED from the flow: both genres now voice
+            // their sustained, lead-free harmonicProfile through composeHarmonic —
+            // held pad + held bass root, bar-exact for tight WAV loops. Only the
+            // SIGNATURE beats stay hand-built. dubMelody/trapMelody remain defined
+            // below (unused, reversible).
+            notes = composeHarmonic(key: input.key, profile: input.style.harmonicProfile,
+                                    calm: calm, busy: busy,
+                                    breathPhase: input.breathPhase,
+                                    breathDepth: input.breathDepth, mood: effMood,
+                                    rng: &rng, structureRNG: &structureRNG)
+            if input.style == .dubTechno {
+                (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
+            } else {
+                (drumSteps, drumAccents) = trapBeat(energy: energy, calm: calm, rng: &rng)
+            }
         // .selfObservation is NO LONGER intercepted here (founder 2026-07-07: "in der
         // Hauptmelodie sehr laute quakige Töne … es soll sich mehr in den weichen
         // Trance-Pad-Ambient einfügen"). It used to route to `ambientMelody`, a BARE
