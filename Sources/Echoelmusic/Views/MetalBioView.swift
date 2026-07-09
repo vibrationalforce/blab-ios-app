@@ -376,6 +376,20 @@ struct MetalBioView: UIViewRepresentable {
         // re-allocation lands at the final resolution. Glitch-free by
         // construction for every resize path, not just our own buttons.
         view.autoResizeDrawable = false
+        // COMPOSITING-BEAT FIX (founder 2026-07-09: "immer noch random strobe … an den
+        // Punkt zurück, wo wir mehrere Fenstergrößen eingepflegt haben — da ist der Fehler
+        // aufgetreten"). Exactly right: while the visual was FULLSCREEN-only the MTKView
+        // owned the screen and its drawable presented in isolation. Since 56d3fed made it a
+        // FLOATING, RESIZABLE sub-window, the MTKView is composited every frame with the rest
+        // of the SwiftUI layer tree — and the DEFAULT asynchronous present (buffer.present +
+        // commit) hands the drawable to the compositor on the GPU's clock, NOT in lockstep
+        // with UIKit's CATransaction. The two cadences beat → a random strobe that a SCREEN
+        // recording shows but the in-app MP4 (which taps the Metal TEXTURE, not the composited
+        // display) never does — matching every symptom. `presentsWithTransaction = true` makes
+        // us present the drawable SYNCHRONOUSLY inside the current transaction (see draw(in:):
+        // commit → waitUntilScheduled → drawable.present()), so Metal content lands in the same
+        // compositor pass as the surrounding UIKit layers. Safe fullscreen too (just adds sync).
+        view.presentsWithTransaction = true
         return view
     }
 
@@ -1006,8 +1020,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             }
         }
 
-        buffer.present(drawable)
+        // SYNCHRONOUS present in the current CATransaction (presentsWithTransaction = true,
+        // set in makeUIView). Commit the GPU work, block until it is SCHEDULED (fast — not
+        // until completed), then present the drawable directly. This puts the Metal frame in
+        // lockstep with the UIKit compositor and removes the floating-window strobe. NOTE:
+        // must be `drawable.present()` here, NOT `buffer.present(drawable)` — the latter is
+        // the asynchronous path and would defeat the transaction sync.
         buffer.commit()
+        buffer.waitUntilScheduled()
+        drawable.present()
     }
 
     // MARK: - Shader (Metal Shading Language, compiled at runtime)
