@@ -36,6 +36,11 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     /// Called after the session is restarted/reconfigured by recovery, so the owner
     /// (rPPG publisher) can reset its exposure state machine and re-lock cleanly.
     nonisolated(unsafe) var onSessionReset: (() -> Void)?
+    /// Whether the owner WANTS the session running (set by start, cleared by stop;
+    /// sessionQueue-only). The watchdog needs this to revive a session that DIED —
+    /// the old `guard session.isRunning` made it blind exactly when a failed cold
+    /// start left the session down (device log 1783588109: 83 s with no reviver).
+    private var shouldBeRunning = false
 
     /// Whether the session is running
     var isRunning: Bool { session.isRunning }
@@ -63,6 +68,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                     try self.configureSession()
                     self.installSessionObservers()
                     self.session.startRunning()
+                    self.shouldBeRunning = true
                     self.lastFrameTime = CFAbsoluteTimeGetCurrent()   // grace from start
                     self.startWatchdog()
                     continuation.resume()
@@ -302,8 +308,21 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         let timer = DispatchSource.makeTimerSource(queue: sessionQueue)
         timer.schedule(deadline: .now() + 2, repeating: 2)
         timer.setEventHandler { [weak self] in
-            guard let self, self.session.isRunning else { return }
+            guard let self, self.shouldBeRunning else { return }
             let now = CFAbsoluteTimeGetCurrent()
+            if !self.session.isRunning {
+                // The session DIED while it should be up (failed cold start, runtime
+                // teardown). The old `guard session.isRunning` returned here — the
+                // watchdog was blind exactly when it was the last line of defense
+                // (device log 1783588109: rPPG blind ~83 s). Revive with a full
+                // rebuild, cooldown-guarded like every other kick.
+                guard now - self.lastRestartTime > 6.0 else { return }
+                self.stallRestarts += 1
+                log.log(.warning, category: .biofeedback,
+                        "Camera session dead while active — watchdog reviving (attempt \(self.stallRestarts))")
+                self.restartSession(fullReconfigure: true)
+                return
+            }
             if now - self.lastFrameTime <= 4.0 {          // frames flowing → healthy
                 self.stallRestarts = 0
                 return
@@ -372,6 +391,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         // tear it down there too — keeps access serialized, no data race.
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            self.shouldBeRunning = false
             self.watchdog?.cancel()
             self.watchdog = nil
             for o in self.sessionObservers { NotificationCenter.default.removeObserver(o) }
