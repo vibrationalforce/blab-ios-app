@@ -1,4 +1,4 @@
-build: 2026-07-09 v10.79.128 (Temperature-friendly Puls · Kamera-Resilienz · Echoel-Touch-Sound)
+build: 2026-07-09 v10.79.128 (Temperature-friendly Puls · Kamera-Resilienz · Echoel-Touch-Sound · Parallel-Apps ungestört)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
 notesT: Antwort auf deine Richtung "Ultrahardthink Sync realtime resource und
   Akku bei Temperatur freundlich" — dieser Build senkt gezielt die Wärme, die
@@ -25,6 +25,20 @@ notesT: Antwort auf deine Richtung "Ultrahardthink Sync realtime resource und
      eine eigene, RESPONSIVE Default-Stimme statt des trägen Warm-Pad — schneller
      Attack (0,03 s, antwortet dem Finger sofort), warmer Nachklang, dezente
      Unisono-Breite. Reagiert wie ein Instrument, nicht wie ein Nebel.
+
+  4) PARALLEL-APPS UNGESTÖRT (dein Hinweis: "Echoelmusic soll die Sound-
+     qualität von parallel laufenden Programmen nicht beeinflussen").
+     Ursache: Echoel stellte die Audio-Session beim Start auf .playAndRecord.
+     Diese Kategorie sagt iOS "ich brauche das Mikro" — und routet ein
+     verbundenes Bluetooth-Headset SYSTEMWEIT auf HFP (den 8/16-kHz-Mono-
+     Telefon-Codec). Dadurch klang JEDE parallele App (Spotify, Apple Music,
+     YouTube) plötzlich dünn/mono, obwohl Echoel nur abspielte.
+     FIX: Standard ist jetzt .playback (nur Ausgabe) mit A2DP-Stereo in voller
+     Qualität und .mixWithOthers (Echoel legt sich DRÜBER, unterbricht nicht).
+     Das Mikro (.playAndRecord) wird NUR noch eingeschaltet, wenn du bewusst
+     aufnimmst oder das Eingangs-Monitoring aktivierst — nicht im Normalbetrieb.
+     TEST: Bluetooth-Kopfhörer, Spotify starten, Echoel dazu abspielen —
+     Spotify muss in voller Stereo-Qualität bleiben.
 
   (Unter der Haube: interner Reverb-Typ auf die Echoel-CI-Namensgebung
    umgestellt — EchoelSpaceReverb. Rein intern, keine Hörbarkeit.)
