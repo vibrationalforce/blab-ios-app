@@ -112,9 +112,20 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         if device.isExposureModeSupported(.continuousAutoExposure) {
             device.exposureMode = .continuousAutoExposure
         }
-        // Prefer lower frame rate for consistent timing (15–30 fps range)
+        // Lock the capture to 15 fps — the rate the rPPG analyzer is built around.
+        // The pixel feed exists ONLY to read a fingertip pulse (0.7–4 Hz); the visual
+        // is the Metal field and the recorder captures the rendered Metal, not this
+        // camera. CameraAnalyzer processes every delivered frame and its nominal
+        // sample rate IS 15 Hz (Nyquist 7.5 Hz ≫ the 4 Hz pulse band), so 30 fps
+        // buys nothing for the measurement while running the sensor/ISP at ~2× the
+        // power — the heat that trips the thermal stalls (device log 2026-06: camera
+        // dead ~2 min under sustained load). Capping at 15 fps is the single biggest
+        // "temperature friendly" lever here and also matches the analyzer's assumed
+        // rate exactly (faster lock, no runtime bandpass re-tune on a clean device).
+        // The exposure cap (≤ 1/30 s in lockExposure) is INDEPENDENT and preserved —
+        // shutter stays fast for a crisp pulse; only the frame cadence drops.
         if let range = device.activeFormat.videoSupportedFrameRateRanges.first {
-            let targetFPS = min(30.0, range.maxFrameRate)
+            let targetFPS = max(range.minFrameRate, min(15.0, range.maxFrameRate))
             let duration = CMTimeMake(value: 1, timescale: Int32(targetFPS))
             device.activeVideoMinFrameDuration = duration
             device.activeVideoMaxFrameDuration = duration
@@ -216,11 +227,14 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             defer { device.unlockForConfiguration() }
             // Prefer a CUSTOM exposure with a BOUNDED duration over plain `.locked`.
             // `.locked` freezes whatever auto-exposure last chose; in a dim fingertip
-            // scene that is a LONG integration time, and a long exposure forces the
-            // camera to deliver only ~3 fps (device log 2026-06-30: rate collapsed
-            // 15→4.8→3.1). At 3 fps the 15 Hz pulse bandpass can't resolve a heartbeat,
-            // so reacquisition never re-locks. Capping the exposure to ≤ 1/30 s keeps
-            // the frame rate ≥ 30 fps (and curbs the saturation long exposures caused).
+            // scene that is a LONG integration time. Even with the frame cadence pinned
+            // to 15 fps (1/15 s = 66 ms period), an exposure longer than the frame
+            // period would force the camera to skip frames and collapse the real rate
+            // (device log 2026-06-30: rate fell 15→4.8→3.1), below which the pulse
+            // bandpass can't resolve a heartbeat and reacquisition never re-locks.
+            // Capping the exposure to ≤ 1/30 s (33 ms) sits well inside the 66 ms frame
+            // period so the full 15 fps is delivered, and curbs the saturation that long
+            // exposures caused. It is INDEPENDENT of the 15 fps cadence cap in configure().
             if device.isExposureModeSupported(.custom) {
                 let fmt = device.activeFormat
                 var dur = CMTimeMake(value: 1, timescale: 30)        // ≤ 1/30 s → fps ≥ 30

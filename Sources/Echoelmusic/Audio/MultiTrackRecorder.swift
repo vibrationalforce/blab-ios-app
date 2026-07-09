@@ -122,6 +122,12 @@ public final class MultiTrackRecorder {
             log.log(.error, category: .audio, "MultiTrackRecorder: microphone permission not granted")
             return
         }
+        // The default session is .playback (so we never pull other apps' Bluetooth
+        // audio to HFP). Recording needs the input hardware — upgrade to
+        // .playAndRecord now, BEFORE reading inputNode's format (under .playback it
+        // reports sampleRate 0 and the guard below would bail).
+        do { try AudioConfiguration.upgradeToPlayAndRecord() }
+        catch { log.log(.error, category: .audio, "MultiTrackRecorder: session upgrade failed \(error)") }
         #endif
 
         let input = engine.inputNode

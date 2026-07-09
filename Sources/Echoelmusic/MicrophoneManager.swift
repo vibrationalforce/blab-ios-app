@@ -177,15 +177,17 @@ final class MicrophoneManager: NSObject {
         }
 
         do {
-            // DO NOT override audio session category here.
-            // AudioConfiguration.configureAudioSession() already sets .playAndRecord
-            // which supports both mic input and audio output.
-            // Setting .record here would kill ALL audio output (synths, drums, playback).
-            // .measurement mode also disables Bluetooth codec negotiation (A2DP/AAC).
+            // The app's DEFAULT session is now .playback (output only) so it never
+            // drags other apps' Bluetooth audio down to HFP call quality. Recording
+            // needs the mic, so upgrade to .playAndRecord HERE — the moment the user
+            // actually records. (Permission was granted in a prior launch, so
+            // requestPermission's upgrade didn't run this time.) .playAndRecord — not
+            // .record — keeps the synth/drum output alive alongside the mic.
             #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
             if !AudioConfiguration.isSessionConfigured {
                 try AudioConfiguration.configureAudioSession()
             }
+            try AudioConfiguration.upgradeToPlayAndRecord()
             #endif
 
             // Create and configure the audio engine

@@ -88,9 +88,34 @@ enum AudioConfiguration {
     /// Written once during startup, read from multiple threads thereafter.
     nonisolated(unsafe) private(set) static var isSessionConfigured = false
 
+    /// True once a mic-input feature (record / input monitoring) has upgraded the
+    /// session to `.playAndRecord`. `configureAudioSession()` re-runs on a latency
+    /// change and after a media-services reset; without this flag those re-runs
+    /// would silently drop an ACTIVE recording back to `.playback`. When set, a
+    /// reconfigure re-applies the record route instead.
+    nonisolated(unsafe) private(set) static var recordingRouteNeeded = false
+
     /// Configure audio session for real-time performance.
-    /// Falls back to playback-only if `.playAndRecord` fails (e.g. microphone
-    /// permission not yet granted on first launch).
+    ///
+    /// DEFAULT is `.playback` (output only) — NOT `.playAndRecord`. This is the
+    /// single most important choice for "Echoel must not degrade the sound of
+    /// other apps running in parallel" (founder, 2026-07-09):
+    ///   • `.playAndRecord` signals "I need the mic", which makes iOS route a
+    ///     connected Bluetooth headset to HFP (the 8/16 kHz mono call codec)
+    ///     for the WHOLE system — every parallel app (Spotify, Apple Music,
+    ///     YouTube) suddenly plays through that tinny mono route. `.playback`
+    ///     keeps the high-quality A2DP stereo codec for everyone.
+    ///   • We do NOT request `.allowBluetooth` (HFP) here — only
+    ///     `.allowBluetoothA2DP` — so nothing can pull the shared route down to
+    ///     call quality while Echoel is merely playing.
+    ///   • `.mixWithOthers` lets Echoel layer on top of another app's audio
+    ///     instead of interrupting it. No `.defaultToSpeaker` (that is a record-
+    ///     mode routing concern) and no `.duckOthers` (we never duck others).
+    ///
+    /// The mic is engaged ONLY on an explicit user action (record / input
+    /// monitoring), which calls `upgradeToPlayAndRecord()` at that moment. So
+    /// the costly `.playAndRecord` route — and any HFP downgrade — happens only
+    /// while actually recording, never during normal bio-generative playback.
     static func configureAudioSession() throws {
         #if os(macOS)
         // macOS uses HAL (Hardware Abstraction Layer), not AVAudioSession
@@ -100,31 +125,17 @@ enum AudioConfiguration {
         #else
         let audioSession = AVAudioSession.sharedInstance()
 
-        // Try playAndRecord first (needs microphone permission).
-        // If that fails (first launch, permission denied), fall back to playback-only
-        // so the app can at least start without crashing.
-        do {
-            // Use .default mode (NOT .measurement) — .measurement disables audio
-            // post-processing including Bluetooth codec negotiation (A2DP/AAC/aptX),
-            // making Bluetooth headphones silent or disconnecting.
-            // .default mode provides proper Bluetooth support + onboard speaker output.
-            try audioSession.setCategory(
-                .playAndRecord,
-                mode: .default,
-                options: [
-                    .allowBluetooth,
-                    .allowBluetoothA2DP,
-                    .defaultToSpeaker,
-                    .mixWithOthers
-                ]
-            )
-        } catch {
-            log.audio("⚠️ playAndRecord unavailable (mic permission?), falling back to .playback: \(error)", level: .warning)
-            try audioSession.setCategory(
-                .playback,
-                mode: .default,
-                options: [.allowBluetooth, .allowBluetoothA2DP, .mixWithOthers]
-            )
+        if recordingRouteNeeded {
+            // A recording/monitoring session is active — a reconfigure must keep the
+            // record route, not revert to .playback and cut the mic.
+            try audioSession.setCategory(.playAndRecord, mode: .default,
+                                         options: recordOptions)
+        } else {
+            // Output-only, A2DP-quality, mixes with other apps. Use .default mode
+            // (NOT .measurement — that disables Bluetooth codec negotiation and can
+            // silence/disconnect A2DP headphones).
+            try audioSession.setCategory(.playback, mode: .default,
+                                         options: [.allowBluetoothA2DP, .mixWithOthers])
         }
 
         // Set preferred sample rate
@@ -150,25 +161,26 @@ enum AudioConfiguration {
     }
 
 
-    /// Upgrade audio session from .playback to .playAndRecord after mic permission is granted.
-    /// No-op if already using .playAndRecord.
+    #if !os(macOS)
+    /// Record-mode options. `.allowBluetooth` (HFP) is here — and ONLY here — so a
+    /// Bluetooth mic works while recording; that route is call-quality, which is why
+    /// we never request it for plain `.playback`. `.mixWithOthers` keeps other apps
+    /// audible even while we record.
+    private static let recordOptions: AVAudioSession.CategoryOptions =
+        [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker, .mixWithOthers]
+    #endif
+
+    /// Upgrade audio session from .playback to .playAndRecord when the user actually
+    /// records or monitors the mic. No-op if already using .playAndRecord.
     static func upgradeToPlayAndRecord() throws {
         #if os(macOS)
         return
         #else
+        recordingRouteNeeded = true      // so a reconfigure re-applies the record route
         let audioSession = AVAudioSession.sharedInstance()
         guard audioSession.category != .playAndRecord else { return }
 
-        try audioSession.setCategory(
-            .playAndRecord,
-            mode: .default,
-            options: [
-                .allowBluetooth,
-                .allowBluetoothA2DP,
-                .defaultToSpeaker,
-                .mixWithOthers
-            ]
-        )
+        try audioSession.setCategory(.playAndRecord, mode: .default, options: recordOptions)
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         log.audio("Audio session upgraded to .playAndRecord")
         #endif

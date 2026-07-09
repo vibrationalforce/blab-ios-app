@@ -1,36 +1,53 @@
-build: 2026-07-09 v10.79.127 (Fullscreen-Flicker weg — Bio-Stream stabil)
+build: 2026-07-09 v10.79.128 (Temperature-friendly Puls · Kamera-Resilienz · Echoel-Touch-Sound · Parallel-Apps ungestört)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Gezielt gegen deinen Hinweis "Das Flickern im Fullscreenmodus des
-  Visual Touch Instruments hängt damit zusammen ob Biofeedback an ist
-  oder nicht" — genau das war die Spur.
-  WURZEL (aus deinem Device-Log 2231 bestätigt): Wenn das Puls-Signal
-  wackelig wird (z. B. die Belichtung driftet hell), springt die
-  Signal-Sicherheit um die Schwelle und die Kohärenz-Berechnung springt
-  gültig↔ungültig. Zwei Folgen, die NUR sichtbar sind während
-  Biofeedback läuft:
-  1) Die Kohärenz wurde bei jedem ungültigen Fenster als 0 gesendet →
-     sie sprang echt↔0 im Sekundentakt → das Visual (das die Kohärenz
-     glättet) zeigte ein Helligkeits-Flimmern.
-  2) Sobald die Sicherheit unter die Schwelle fiel, RISS der Bio-Strom
-     ganz ab → das Visual klappte hart zwischen Bio-Modus und Ruhe-Modus
-     hin und her — das Flackern.
-  FIX (nur der Bio-Publisher; die belichtungs-Logik blieb unangetastet):
-  Die Kohärenz wird jetzt über kurze ungültige Fenster GEHALTEN (sanftes
-  Ausklingen, nie harter Sprung auf 0), und bei einem kurzen Signal-
-  Wackler wird der letzte gute Wert ~4 s weiter gesendet — der Strom
-  bleibt durchgehend. Erst bei echtem Verlust (Finger länger weg) hört
-  er auf, und das Visual gleitet EINMAL sauber in den Ruhezustand statt
-  zu strobo­skopieren. Nebeneffekt: die Puls-Zahl bleibt über kurze
-  Wackler stabil statt zu blinken.
-  TEST 10.79.127:
-  A) Fullscreen-Visual, Finger auf der Kamera, Musik läuft: flimmert
-     das Bild noch, wenn das Signal mal kurz schwächer wird?
-  B) Vergleich: Fullscreen OHNE Finger (kein Biofeedback) — war ja schon
-     ruhig; bleibt es. Mit Finger sollte es jetzt GENAUSO ruhig sein.
-  C) Wenn du den Finger absichtlich wegnimmst: geht das Bild sanft in
-     den Ruhezustand (kein hartes Umschalten)?
-  (Hinweis: der Belichtungs-Blowout selbst — Helligkeit driftet mit der
-  Zeit hoch — ist ein separates, delikateres Thema; die Erhol-Logik
-  greift schon, ist aber gedeckelt. Wenn der Puls trotz ruhigem Bild
-  noch oft aussetzt, sag Bescheid, dann gehe ich die Belichtung gezielt
-  als eigenen Zyklus an.)
+notesT: Antwort auf deine Richtung "Ultrahardthink Sync realtime resource und
+  Akku bei Temperatur freundlich" — dieser Build senkt gezielt die Wärme, die
+  die Kamera-Aussetzer auslöst, und macht die Puls-Messung robuster.
+
+  1) PULS-KAMERA JETZT 15 fps STATT 30 (der grösste Wärme-Hebel).
+     Der Kamera-Feed existiert AUSSCHLIESSLICH, um am Finger den Puls zu lesen
+     (0,7–4 Hz). Das Visual ist das Metal-Feld, und die Aufnahme filmt das
+     gerenderte Metal — NICHT die Kamera. Der Puls-Analyzer rechnet ohnehin mit
+     15 Hz (Nyquist 7,5 Hz, weit über dem 4-Hz-Puls-Band), also bringen 30 fps
+     der Messung nichts, kosten aber ~doppelte Sensor/ISP-Leistung → genau die
+     Hitze, die unter Dauerlast die Kamera ~2 Min. sterben liess (Device-Log).
+     15 fps ist der grösste "temperatur-freundliche" Hebel hier und trifft die
+     erwartete Rate exakt (schnellerer Lock, kein Nachtunen). Die Belichtungs-
+     Kappung (≤ 1/30 s, scharfer Puls) bleibt unangetastet.
+
+  2) KAMERA-RESILIENZ: Wenn iOS die Kamera-Session unterbricht (Anruf,
+     Kontroll­zentrum, andere App), hörte Echoel vorher auf, im Kreis
+     Neustarts zu feuern — jetzt wartet es sauber auf das "Interruption Ended",
+     re-armt Torch + Belichtung EINMAL und schreibt den Grund als Breadcrumb ins
+     Diagnose-Log. Kein Neustart-Thrashing mehr, das die Hitze weiter anheizt.
+
+  3) ECHOEL-TOUCH-SOUND: die Spielfläche (Visual Touch Instrument) hat jetzt
+     eine eigene, RESPONSIVE Default-Stimme statt des trägen Warm-Pad — schneller
+     Attack (0,03 s, antwortet dem Finger sofort), warmer Nachklang, dezente
+     Unisono-Breite. Reagiert wie ein Instrument, nicht wie ein Nebel.
+
+  4) PARALLEL-APPS UNGESTÖRT (dein Hinweis: "Echoelmusic soll die Sound-
+     qualität von parallel laufenden Programmen nicht beeinflussen").
+     Ursache: Echoel stellte die Audio-Session beim Start auf .playAndRecord.
+     Diese Kategorie sagt iOS "ich brauche das Mikro" — und routet ein
+     verbundenes Bluetooth-Headset SYSTEMWEIT auf HFP (den 8/16-kHz-Mono-
+     Telefon-Codec). Dadurch klang JEDE parallele App (Spotify, Apple Music,
+     YouTube) plötzlich dünn/mono, obwohl Echoel nur abspielte.
+     FIX: Standard ist jetzt .playback (nur Ausgabe) mit A2DP-Stereo in voller
+     Qualität und .mixWithOthers (Echoel legt sich DRÜBER, unterbricht nicht).
+     Das Mikro (.playAndRecord) wird NUR noch eingeschaltet, wenn du bewusst
+     aufnimmst oder das Eingangs-Monitoring aktivierst — nicht im Normalbetrieb.
+     TEST: Bluetooth-Kopfhörer, Spotify starten, Echoel dazu abspielen —
+     Spotify muss in voller Stereo-Qualität bleiben.
+
+  (Unter der Haube: interner Reverb-Typ auf die Echoel-CI-Namensgebung
+   umgestellt — EchoelSpaceReverb. Rein intern, keine Hörbarkeit.)
+
+  TEST 10.79.128:
+  A) Finger auf der Kamera, Musik + Visual an, ~5–10 Min. laufen lassen:
+     wird das Gerät spürbar weniger heiss? Bleibt der Puls durchgehend (kein
+     2-Minuten-Totalausfall der Kamera mehr)?
+  B) Während Puls läuft einen Anruf annehmen / Kontrollzentrum öffnen und
+     zurück: fängt sich die Kamera sauber wieder (Torch geht wieder an)?
+  C) Spielfläche antippen: klingt der Ton sofort da und lebendig (nicht
+     verwaschen/langsam einblendend)?
