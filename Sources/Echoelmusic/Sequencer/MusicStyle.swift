@@ -61,6 +61,21 @@ public struct HarmonicProfile: Sendable, Equatable {
 
 /// The sound world a take is generated in.
 public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
+
+    /// The CURATED roster the Genre picker offers (founder 2026-07-08: "Alle
+    /// Genres smooth und wirklich zum Chillen und Meditieren machen oder raus
+    /// damit"). Six registers that genuinely serve the product truth —
+    /// relaxation through bio-generative music — each softened to its calm
+    /// reading (sparse leads, body-driven tempo): the two true drones, dreamy
+    /// vaporwave, deep dub, dark chill-trap (the founder's Drake/NAV register)
+    /// and spacious sci-fi ambient. Every other case stays compiling (Codable
+    /// stability, reversible) but is NOT offered; a persisted retired style is
+    /// migrated to Self-Observation on appear.
+    public static let curated: [MusicStyle] = [
+        .selfObservation, .esotericMeditation, .vaporwave,
+        .dubTechno, .trap, .sciFi
+    ]
+
     case dubTechno
     case trap
     case vaporwave
@@ -393,8 +408,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
                                    padOctave: 4, leadOctave: 6, arpeggiated: false, leadDensity: 0.3)
         case .sciFi:
+            // Curated-calm (2026-07-08): lead thinned 0.3 → 0.25 — spacious
+            // pads first, only occasional distant motifs.
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.3)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.25)
         case .psytrance:
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4],
                                    padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.7)
@@ -436,8 +453,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0], chordTones: [0, 4],
                                    padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.2)
         case .dubTechno, .trap:
+            // Curated-calm (2026-07-08 "alle Genres smooth"): lead thinned
+            // 0.3 → 0.22 — the chords/echo (dub) and the dark sub (trap) carry
+            // the register; the melody only comments, never noodles.
             return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.3)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.22)
         case .selfObservation:
             // A TRUE DRONE, not a melody-over-chord-change (founder 2026-07-07:
             // "der Sound ist noch nicht sphärisch und beruhigend … reine

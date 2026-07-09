@@ -450,6 +450,10 @@ struct EchoelStudioView: View {
                 visualStyleB = 0
                 visualBlend = 0
             }
+            // Genre curation migration (founder 2026-07-08): a persisted style
+            // that is no longer offered (rock/punk/metal/… retired from the
+            // picker) snaps to the Self-Observation drone — the calmest home.
+            if !MusicStyle.curated.contains(style) { style = .selfObservation }
             surfacePriorCrashIfAny()
             handlePendingIntent()
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
@@ -1083,7 +1087,10 @@ struct EchoelStudioView: View {
     private var genrePicker: some View {
         labeledRow("Genre") {
             Picker("Genre", selection: $style) {
-                ForEach(MusicStyle.allCases) { s in Text(s.displayName).tag(s) }
+                // Curated roster only (founder 2026-07-08: every genre must be
+                // truly chill/meditative — "oder raus damit"). Retired cases
+                // stay in code; a persisted one migrates on appear.
+                ForEach(MusicStyle.curated) { s in Text(s.displayName).tag(s) }
             }
             .pickerStyle(.menu).tint(EchoelTheme.text)
             .onChange(of: style) { _, s in
