@@ -328,6 +328,9 @@ final class TouchInstrumentUIView: UIView {
             let vel = velocity(of: touch)
             synth?.noteOn(pitch: pitch, velocity: vel)
             hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
+            hapticGenerator.prepare()   // re-warm the Taptic engine so the NEXT note (tap or
+                                        // slide-retrigger) fires with minimal latency — a play
+                                        // surface triggers continuously, so it must never idle-sleep.
             // Playing feeds the picture: each note pumps excitation into the Metal
             // visual (swells intensity/motion), so the fingers visibly shape the light.
             TouchVisualEnergy.shared.excite(0.35)
@@ -374,6 +377,7 @@ final class TouchInstrumentUIView: UIView {
                 }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
                 hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))
+                hapticGenerator.prepare()   // keep the Taptic engine warm through a slide's rapid ticks
                 held[id] = new
                 TouchVisualEnergy.shared.excite(0.15)   // slides keep the picture alive
                 let now = CFAbsoluteTimeGetCurrent()
