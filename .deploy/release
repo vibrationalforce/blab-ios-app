@@ -1,20 +1,19 @@
-build: 2026-07-09 v10.79.132 (EchoelTouch-Gefühl: Taptic bleibt warm — konstante Haptik-Latenz)
+build: 2026-07-09 v10.79.133 (EchoelTouch — das Spielfeld heißt jetzt so wie im Code)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Erster sicherer Schritt zu "extrem geile Steuerung die sich perfekt
-  anfühlt" — einer, den ich ohne Gerät als KORREKT belegen kann (kein Raten):
+notesT: Namensangleichung (deine Entscheidung "Klare Namen, Code angleichen"):
+  Das Finger-Spielfeld heißt in der UI jetzt "EchoelTouch" — genau wie im
+  Programmcode. So heißt überall dasselbe gleich (EchoelVis = die Visuals,
+  EchoelTouch = das Spielinstrument).
 
-  Die Taptic-Engine (das Haptik-Feedback) schläft nach ein paar Sekunden Leerlauf
-  ein. Dadurch kam beim ERSTEN Anschlag nach einer kurzen Pause die Vibration
-  verspätet → der Ton fühlte sich "matschig"/träge an. Jetzt wird die Engine nach
-  JEDEM Anschlag (Note UND Slide-Übergang) sofort wieder aufgewärmt — jede Note
-  antwortet mit minimaler, KONSTANTER Latenz. prepare() ist billig und kann die
-  Latenz nur senken, nie erhöhen.
+  - Studio-Panel "Visual Touch Instrument" → "EchoelTouch"
+  - VoiceOver-Ansage "Play surface" → "EchoelTouch play surface"
 
-  (v131 davor: Vollbild-Schatten-Offscreen-Pass raus — bitte weiter gegentesten,
-  ob das Vollbild-Bild jetzt ruhig ist.)
+  Kein Verhalten geändert — nur Beschriftung. (Swift-View-Typnamen bleiben
+  Apple-idiomatisch, nur die sichtbaren Labels + der Instrument-Begriff werden
+  EchoelTouch.)
 
-  SAG MIR ZUM GEFÜHL (dann justiere ich gezielt am Gerät):
-  - Anschlag: reagiert er jetzt sofort/knackig, oder noch träge?
-  - Lautstärke pro Anschlag (Velocity): zu leise/zu laut/zu empfindlich?
-  - Sliden (hin & her): fühlt sich der Glide/Vibrato-Effekt gut an?
-  Nach deinem Feedback: Velocity-Kurve, Slide-Energie, Latenz-Feintuning.
+  BITTE WEITER GEGENTESTEN (offen seit v131/132):
+  - Vollbild EchoelTouch: ist das Bild jetzt ruhig (kein Strobe/Flackern)?
+  - Anschlag-Gefühl (Taptic warm seit v132): sofort/knackig oder noch träge?
+  - Velocity/Sliden: Lautstärke pro Anschlag & Glide-Gefühl ok?
+  Nach deinem Feedback justiere ich gezielt Velocity-Kurve/Slide/Latenz.
