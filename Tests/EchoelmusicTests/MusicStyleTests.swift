@@ -9,13 +9,25 @@ import XCTest
 final class MusicStyleTests: XCTestCase {
 
     func testStyleRoster() {
-        XCTAssertEqual(MusicStyle.allCases.count, 12)
-        // The requested genres are all present.
-        let required: Set<MusicStyle> = [
-            .dubTechno, .trap, .vaporwave, .eighties, .disco, .synthwave,
-            .earlySynth, .futuristic, .sciFi, .psytrance, .esotericMeditation, .selfObservation
-        ]
-        XCTAssertTrue(required.isSubset(of: Set(MusicStyle.allCases)))
+        // The FULL case list stays for Codable/persistence stability (retired
+        // genres keep compiling); the PICKER offers only the curated roster
+        // (founder 2026-07-08: "Alle Genres smooth und wirklich zum Chillen
+        // und Meditieren machen oder raus damit").
+        XCTAssertEqual(MusicStyle.curated, [
+            .selfObservation, .esotericMeditation, .vaporwave,
+            .dubTechno, .trap, .sciFi
+        ])
+        XCTAssertTrue(Set(MusicStyle.curated).isSubset(of: Set(MusicStyle.allCases)))
+    }
+
+    func testCuratedRoster_isActuallyCalm() {
+        // Every offered genre must be smooth: either a true sustained drone or
+        // a sparse lead (no noodling density) — the founder's bar for keeping it.
+        for s in MusicStyle.curated {
+            let p = s.harmonicProfile
+            XCTAssertTrue(p.sustained || p.leadDensity <= 0.25,
+                          "\(s) must be sustained or sparse (got leadDensity \(p.leadDensity))")
+        }
     }
 
     func testDrumFreeStylesAreExactlyTheContemplativeThree() {
