@@ -3,6 +3,29 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-09 (Forts. 7) — EchoelTouch-Naming · Video-Capture-Wiederholung · Anti-Knister-Mitigation
+- **v10.79.133 EchoelTouch-Naming (351a976):** Founder-Entscheidung "Klare Namen, Code angleichen"
+  umgesetzt — Studio-Panel "Visual Touch Instrument" → **"EchoelTouch"**, VoiceOver "Play surface" →
+  "EchoelTouch play surface". `*View`-Swift-Typnamen bleiben Apple-idiomatisch (Naming-Map-Scope).
+  compile-check GRÜN (ce0c243).
+- **v10.79.134 Video-Capture wiederholbar (199093f):** Founder-Bug "Wenn ich einmal Video Capture
+  gemacht habe, kann ich das danach nicht mehr machen." **Root:** `VideoRecorder.startRecording()`
+  guardete `recordState == .idle`, aber nach fertiger Aufnahme steht der State auf `.done(url)` →
+  zweiter Start still verworfen. **Fix:** Re-arm aus jedem TERMINAL-State (.idle/.done/.error);
+  nur während `.recording`/`.finishing` abgelehnt (Doppeltipp-Schutz). Fertige Datei kommt über
+  `stopRecording()`-Rückgabewert, nicht über `.done`-Observation → nichts geht verloren. +2 Tests.
+  compile-check GRÜN (c4e631a). **Braucht Device-Verify:** wiederholt aufnehmen.
+- **v10.79.135 Anti-Knister (a01b831):** Founder "knistert hier und da" (aus derselben Nachricht wie
+  der Vollbild-Flicker). **Audit-Befund:** kompletter Audioweg bereits sauber gehärtet (Denormal-DC in
+  Delay/Reverb, Master-Limiter + −1dBFS True-Peak-Trim, lock-free/no-malloc, IO-Buffer schon 512/
+  10.67ms). Knistern ist KEIN DSP-Defekt → am ehesten last-getriebene Underruns (Vollbild-Metal +
+  Kamera-rPPG + dichte Akkorde). **Mitigation:** Mastering-Metering (EBU-R128 + True-Peak-Oversample)
+  lief AUF JEDEM Buffer, obwohl nur `MasterLoudnessGrid` (standard-zugeklapptes Panel) es liest →
+  hinter atomic Flag gegated (nur an, wenn Grid on-screen; RMS-Pegel + FFT-Ring bleiben always-on).
+  Export-Loudness ist offline/unabhängig. **Braucht Device-Verify:** Knistern seltener? Und Hinweis
+  nötig: bei dichten Akkorden (→ Last) oder unabhängig (→ Route/Thermik)?
+- **OFFEN (Device):** Vollbild-Strobe nach v131? Anschlag-Gefühl nach v132 (warm-Taptic)?
+
 ## 2026-07-09 (Forts. 6) — Fullscreen-Flicker (bio-abhängig) + Kammerton-Fehlalarm korrigiert (v10.79.127)
 Founder-Clue (präzise, wertvoll): "Das Flickern im Fullscreenmodus des Visual Touch Instruments
 scheint damit zusammenzuhängen ob Biofeedback an ist oder nicht." **Root (bestätigt an Device-Log

@@ -11,14 +11,17 @@ import SwiftUI
 // the brief 2026-07-06A shell flip) is REMOVED from navigation — the code
 // stays in the tree, compiling and reversible, but nothing presents it.
 //
-// Shell = brand header (topBar) + persistent TransportBar + EchoelStudioView
-// (the one adaptive instrument) + the floating immersive visual.
+// Shell = brand header (topBar) + persistent TransportBar + SurfaceSwitcherBar
+// + SurfaceHost (Arrange · Clips · Studio · Mix, founder 2026-07-09 restructure:
+// the Arrange timeline becomes the main view; Studio stays one tap away) + the
+// floating immersive visual.
 //
 // Render safety (skill: swiftui-render-safety):
-//  • No modal is owned here — EchoelStudioView's ~16-modal chain is untouched.
+//  • No modal is owned here — EchoelStudioView's ~18-modal chain is untouched.
 //  • No high-frequency @Observable is read in this body; the header monitor
 //    reads only the LOW-frequency isRunning flag. Live bio lives in leaves
 //    (BioStripView, PulseMonitorMiniLive).
+//  • The surface selection is @AppStorage (changes on user tap only).
 
 @MainActor
 struct WorkspaceView: View {
@@ -49,8 +52,12 @@ struct WorkspaceView: View {
                 Divider().overlay(EchoelTheme.border)
                 TransportBar()
                 Divider().overlay(EchoelTheme.border)
-                // The ONE adaptive view: the bio-generative instrument.
-                EchoelStudioView()
+                SurfaceSwitcherBar()
+                Divider().overlay(EchoelTheme.border)
+                // The working surface (Arrange · Clips · Studio · Mix). All four
+                // stay mounted (opacity swap) so switching is instant — see
+                // SurfaceSwitcher.swift.
+                SurfaceHost()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             // The immersive visual floats ABOVE the whole screen so its FULLSCREEN size can
