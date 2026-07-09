@@ -72,6 +72,15 @@ public final class AudioEngine {
     /// MainActor sets true to request a loudness/peak reset; the tap performs the
     /// reset on its own thread (meters are tap-confined) and clears the flag.
     @ObservationIgnored nonisolated(unsafe) private let _resetMeters = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
+    /// Gate for the EXPENSIVE mastering meters (peak/true-peak oversample + EBU
+    /// R128 K-weighting/gating). Only `MasterLoudnessGrid` reads their outputs, and
+    /// it lives in a collapsed-by-default panel — yet the tap ran them on EVERY
+    /// buffer, forever, burning CPU during play (a load contributor to the
+    /// occasional "Knistern"). The cheap RMS level + FFT ring always run (the
+    /// SpectralDonut + immersive visual need them); the heavy meters run ONLY while
+    /// a mastering readout is on screen. Set true `.onAppear`, false `.onDisappear`;
+    /// the 100 ms poll makes the readout live within a frame of opening.
+    @ObservationIgnored nonisolated(unsafe) private let _detailedMetering = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private var meterPollTimer: Timer?
 
     /// Lock-free mono ring of the most recent master-output samples, for the
@@ -160,6 +169,7 @@ public final class AudioEngine {
         _lufsI.initialize(to: EchoelLoudnessMeter.floorLUFS)
         _lra.initialize(to: 0)
         _resetMeters.initialize(to: false)
+        _detailedMetering.initialize(to: false)
         _outputRing.initialize(repeating: 0, count: AudioEngine.outputRingSize)
         _outputRingCount.initialize(to: 0)
 
@@ -345,6 +355,7 @@ public final class AudioEngine {
             let lufsIPtr = _lufsI
             let lraPtr = _lra
             let resetPtr = _resetMeters
+            let detailedPtr = _detailedMetering
             let meter = masterMeter
             let loudness = loudnessMeter
             let ringPtr = _outputRing
@@ -374,21 +385,29 @@ public final class AudioEngine {
 
                 // Peak / true-peak / LUFS — meters are confined to this thread;
                 // only the resulting Floats cross to the poll timer via pointers.
+                // GATED: this is the EXPENSIVE work (true-peak oversampling + EBU
+                // R128 K-weighting/gating). Its only consumer is MasterLoudnessGrid
+                // (a collapsed-by-default panel), so run it ONLY while that readout
+                // is on screen — otherwise it burned CPU every buffer for nothing
+                // (a load contributor to the occasional "Knistern"). The cheap RMS +
+                // FFT ring below always run (SpectralDonut + immersive visual).
                 let n = Int(frameLength)
-                // Explicit UnsafePointer(_:) conversion: Swift's implicit
-                // mutable→immutable pointer conversion only fires at function
-                // argument positions, NOT in a let binding or ternary branch, so
-                // construct the immutable pointer directly.
-                let right: UnsafePointer<Float>? = stereo ? UnsafePointer(channelData[1]) : nil
-                meter.processStereo(left: channelData[0], right: right, frameCount: n)
-                loudness.processStereo(left: channelData[0], right: right, frameCount: n)
-                peakPtr.pointee = meter.peakDb
-                tpPtr.pointee = meter.truePeakDb
-                lufsPtr.pointee = loudness.momentaryLUFS
-                lufsSPtr.pointee = loudness.shortTermLUFS
-                tpMaxPtr.pointee = meter.truePeakMaxDb
-                lufsIPtr.pointee = loudness.integratedLUFS
-                lraPtr.pointee = loudness.loudnessRange
+                if detailedPtr.pointee {
+                    // Explicit UnsafePointer(_:) conversion: Swift's implicit
+                    // mutable→immutable pointer conversion only fires at function
+                    // argument positions, NOT in a let binding or ternary branch, so
+                    // construct the immutable pointer directly.
+                    let right: UnsafePointer<Float>? = stereo ? UnsafePointer(channelData[1]) : nil
+                    meter.processStereo(left: channelData[0], right: right, frameCount: n)
+                    loudness.processStereo(left: channelData[0], right: right, frameCount: n)
+                    peakPtr.pointee = meter.peakDb
+                    tpPtr.pointee = meter.truePeakDb
+                    lufsPtr.pointee = loudness.momentaryLUFS
+                    lufsSPtr.pointee = loudness.shortTermLUFS
+                    tpMaxPtr.pointee = meter.truePeakMaxDb
+                    lufsIPtr.pointee = loudness.integratedLUFS
+                    lraPtr.pointee = loudness.loudnessRange
+                }
 
                 // Capture the mono mix into the lock-free ring for the FFT visual.
                 // Plain index writes only — no allocation, no DSP, audio-safe. The
@@ -506,6 +525,15 @@ public final class AudioEngine {
         _resetMeters.pointee = true
     }
 
+    /// Enable/disable the expensive mastering meters (peak/true-peak + EBU R128).
+    /// Call `true` when a mastering readout (`MasterLoudnessGrid`) appears and
+    /// `false` when it disappears, so the tap only runs that DSP while it is read.
+    /// The cheap RMS level + FFT ring are unaffected (always on). Single-Bool
+    /// cross-thread write, same discipline as `resetMastering`.
+    func setDetailedMetering(_ on: Bool) {
+        _detailedMetering.pointee = on
+    }
+
     private var currentOutputDescription: String {
         #if os(macOS)
         return "macOS HAL"
@@ -539,6 +567,8 @@ public final class AudioEngine {
         _lra.deallocate()
         _resetMeters.deinitialize(count: 1)
         _resetMeters.deallocate()
+        _detailedMetering.deinitialize(count: 1)
+        _detailedMetering.deallocate()
         _outputRing.deinitialize(count: AudioEngine.outputRingSize)
         _outputRing.deallocate()
         _outputRingCount.deinitialize(count: 1)
