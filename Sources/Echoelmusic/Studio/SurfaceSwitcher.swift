@@ -122,10 +122,21 @@ struct SurfaceHost: View {
 
 /// Show/hide a mounted surface: invisible surfaces take no touches and are
 /// silent for VoiceOver, but keep their state (no teardown churn).
+///
+/// SIZE CONTRACT (v136 regression fix — founder screenshots: chrome + content
+/// clipped at BOTH edges on every surface): a ZStack sizes to the UNION of its
+/// children, so ONE sheet-era surface reporting wider-than-screen inflated the
+/// whole workspace VStack (header/transport included) past the display. Pinning
+/// every child to exactly the proposed size (maxWidth/maxHeight .infinity =
+/// adopt the proposal) caps the union at screen size — the modifier the old
+/// shell applied to EchoelStudioView directly. `.clipped()` keeps any internal
+/// overflow inside the surface instead of painting over the chrome.
 private struct SurfaceVisibility: ViewModifier {
     let on: Bool
     func body(content: Content) -> some View {
         content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
             .opacity(on ? 1 : 0)
             .allowsHitTesting(on)
             .accessibilityHidden(!on)
