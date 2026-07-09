@@ -1,24 +1,23 @@
-build: 2026-07-09 v10.79.135 (Weniger Dauerlast im Audio — gegen das Knistern)
+build: 2026-07-09 v10.79.136 (Umbau Stufe 0: Arbeitsflächen-Umschalter — Arrange · Clips · Studio · Mix)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Erster belegbarer Schritt gegen das gelegentliche Knistern.
+notesT: Der große Umbau beginnt (dein Beschluss: Arrange wird die Hauptansicht).
 
-  Befund: Der ganze Audio-Signalweg ist bereits sauber gehärtet (Denormal-
-  Schutz in Delay/Hall, Limiter + True-Peak-Trim am Master, lock-free, kein
-  malloc). Das Knistern kommt daher NICHT von einem DSP-Fehler, sondern am
-  ehesten von Dauerlast unter Vollgas (Vollbild-Metal + Kamera-rPPG + dichte
-  Akkorde) → gelegentliche Audio-Aussetzer.
+  NEU: Unter der Transport-Leiste gibt es jetzt einen Umschalter mit vier
+  Arbeitsflächen:
+  - ARRANGE — die Song-Timeline (heute noch die Abschnitts-Liste; das echte
+    Beat-Grid mit WAV-Wellenform + Snap/stufenlos kommt in den nächsten Stufen)
+  - CLIPS — die startbaren Pattern-Zellen (war fertig gebaut, aber unerreichbar)
+  - STUDIO — das gewohnte Bio-Instrument (bleibt vorerst die Start-Ansicht)
+  - MIX — die Kanal-Pegel (war fertig gebaut, aber unerreichbar) → deine
+    "Levels im Schnellzugriff" sind damit einen Tipp entfernt
 
-  Konkret entfernt: Die aufwändige Mastering-Messung (EBU-R128-Lautheit +
-  True-Peak mit Oversampling) lief AUF JEDEM Audioblock — obwohl sie nur das
-  "Master"-Panel braucht, das standardmäßig ZUGEKLAPPT ist. Diese Rechenlast
-  lief also permanent für nichts. Jetzt läuft sie nur noch, wenn das Master-
-  Panel offen ist. Die einfache Pegelanzeige + das FFT-Bild laufen wie gehabt
-  weiter (die braucht das Visual).
+  Alles bleibt beim Umschalten am Leben (kein Neuladen, sofortiger Wechsel).
+  Bio-Kern + Transport bleiben in JEDER Fläche oben stehen.
 
-  → Bitte im Vollbild-EchoelTouch mit Biofeedback + Spielen gegentesten, ob
-    das Knistern seltener/weg ist. Falls es bleibt, brauche ich einen Hinweis:
-    Tritt es eher bei dichten Akkorden auf, oder unabhängig davon (dann ist es
-    eher Route/Thermik)?
+  → Bitte testen: die vier Flächen durchschalten — startet alles, reagiert
+    alles, friert nichts ein (auch während Biofeedback läuft)?
 
-  (Offen: v134 Video-Capture-Wiederholung + v131–133 Vollbild-Strobe/Anschlag
-  bitte weiter gegentesten.)
+  (Dein Syng-Pitch-Input — Audio-Input/Stimme, Vintage-FX, gute Grund-Pegel,
+  tiefes Eingreifen statt Preset-Klickerei — ist in den Bauplan eingearbeitet;
+  Audio-Input-Kanal kommt als eigene Stufe. Offen zum Gegentesten: v134
+  Video-Capture mehrfach, v135 Knistern seltener?)
