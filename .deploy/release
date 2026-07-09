@@ -1,23 +1,23 @@
-build: 2026-07-09 v10.79.136 (Umbau Stufe 0: Arbeitsflächen-Umschalter — Arrange · Clips · Studio · Mix)
+build: 2026-07-09 v10.79.137 (FIX: abgeschnittene Ränder auf allen Flächen — deine 3 Screenshots)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Der große Umbau beginnt (dein Beschluss: Arrange wird die Hauptansicht).
+notesT: Deine Screenshots ("nicht gut" / "scheiße") — verstanden, und der
+  Kern-Fehler war MEINER aus v136: die gesamte Oberfläche (auch Kopfzeile +
+  Play-Knopf) war an beiden Rändern abgeschnitten. Ursache: der neue
+  Flächen-Stapel nahm die Breite der BREITESTEN alten Fläche an — alles
+  blähte sich über den Bildschirm hinaus. Jetzt ist jede Fläche exakt auf
+  Bildschirmgröße gepinnt. → Bitte prüfen: Ränder überall sauber?
 
-  NEU: Unter der Transport-Leiste gibt es jetzt einen Umschalter mit vier
-  Arbeitsflächen:
-  - ARRANGE — die Song-Timeline (heute noch die Abschnitts-Liste; das echte
-    Beat-Grid mit WAV-Wellenform + Snap/stufenlos kommt in den nächsten Stufen)
-  - CLIPS — die startbaren Pattern-Zellen (war fertig gebaut, aber unerreichbar)
-  - STUDIO — das gewohnte Bio-Instrument (bleibt vorerst die Start-Ansicht)
-  - MIX — die Kanal-Pegel (war fertig gebaut, aber unerreichbar) → deine
-    "Levels im Schnellzugriff" sind damit einen Tipp entfernt
+  EHRLICH zu Clips/Mix/Arrange selbst: das sind die ALTEN, monatelang
+  vergrabenen Flächen (für Sheets gebaut, nie am Gerät poliert). Die grobe
+  Optik ist bekannt und der Umbau ersetzt sie Schritt für Schritt:
+  - Arrange → wird das neue Beat-Grid (WAV-Wellenform, Snap+stufenlos) — im Bau
+  - Mix → bekommt das Schnellzugriff-Redesign (deine Levels/FX-Kontrolle)
+  - Clips → Redesign danach ("MIDI · empty"-Zellen: Aufnahme lief ohne Inhalt)
 
-  Alles bleibt beim Umschalten am Leben (kein Neuladen, sofortiger Wechsel).
-  Bio-Kern + Transport bleiben in JEDER Fläche oben stehen.
+  Dein "das adaptiv bitte" (EchoelTouch-Vollbild, angeschnittene Spalten):
+  notiert als eigener Fix — das Notenraster passt sich dann exakt der
+  Fensterbreite an (keine halben Spalten mehr).
 
-  → Bitte testen: die vier Flächen durchschalten — startet alles, reagiert
-    alles, friert nichts ein (auch während Biofeedback läuft)?
-
-  (Dein Syng-Pitch-Input — Audio-Input/Stimme, Vintage-FX, gute Grund-Pegel,
-  tiefes Eingreifen statt Preset-Klickerei — ist in den Bauplan eingearbeitet;
-  Audio-Input-Kanal kommt als eigene Stufe. Offen zum Gegentesten: v134
-  Video-Capture mehrfach, v135 Knistern seltener?)
+  Die Vorbild-Recherche (Ableton/GarageBand/FinalCut/LumaFusion…) ist fertig:
+  Snap ist standardmäßig AN, Pinch-auf-Maximal-Zoom schaltet stufenlos frei
+  (+ Magnet-Knopf für Profis) — genau so baue ich die Timeline-Gesten.

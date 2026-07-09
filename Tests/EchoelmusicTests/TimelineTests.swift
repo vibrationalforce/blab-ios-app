@@ -104,6 +104,41 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(back, doc)               // stepless positions survive exactly
     }
 
+    // MARK: - Legacy-song migration (Stage 1b)
+
+    func testMigration_sectionsBecomeBarAlignedRegionsOnMIDILane() {
+        let clipA = UUID(), clipB = UUID()
+        let sections = [
+            ArrangementSection(clipID: clipA, name: "Intro", colorIndex: 0, lengthBars: 2),
+            ArrangementSection(clipID: nil,   name: "Gap",   colorIndex: 0, lengthBars: 1),
+            ArrangementSection(clipID: clipB, name: "Drop",  colorIndex: 1, lengthBars: 4),
+        ]
+        let doc = TimelineStore.migrate(sections: sections)
+
+        // Lanes: one MIDI + one empty Audio (multi-lane shape from day one).
+        XCTAssertEqual(doc.lanes.map(\.kind), [.midi, .audio])
+        let midiLane = doc.lanes[0]
+
+        // Regions: gap creates none but advances the cursor; all bar-aligned.
+        let regions = doc.regions(in: midiLane.id)
+        XCTAssertEqual(regions.count, 2)
+        XCTAssertEqual(regions[0].clipID, clipA)
+        XCTAssertEqual(regions[0].startTick, 0)
+        XCTAssertEqual(regions[0].lengthTicks, 2 * TimelineTime.ticksPerBar)
+        XCTAssertEqual(regions[1].clipID, clipB)
+        // Drop starts after Intro (2 bars) + Gap (1 bar) = bar 3.
+        XCTAssertEqual(regions[1].startTick, 3 * TimelineTime.ticksPerBar)
+        XCTAssertEqual(regions[1].lengthTicks, 4 * TimelineTime.ticksPerBar)
+        XCTAssertEqual(doc.regions(in: doc.lanes[1].id), [])
+    }
+
+    func testMigration_emptySong_seedsDefaultLanesOnly() {
+        let doc = TimelineStore.migrate(sections: [])
+        XCTAssertEqual(doc.lanes.count, 2)
+        XCTAssertTrue(doc.regions.isEmpty)
+        XCTAssertEqual(doc.endTick, 0)
+    }
+
     func testSnapResolution_rawValues_stableForPersistence() {
         XCTAssertEqual(SnapResolution.bar.rawValue, "bar")
         XCTAssertEqual(SnapResolution.sixteenth.rawValue, "sixteenth")
