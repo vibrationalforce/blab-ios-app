@@ -1,74 +1,35 @@
-build: 2026-07-09 v10.79.129 (Fullscreen-Flackern weg: FPS fest · Temperatur-freundlich · Parallel-Apps + BT-Piepen weg · Echoel-Touch-Sound)
-notesFlicker: (5) FULLSCREEN-FLACKERN — dein Hinweis "im Fullscreen immer
-  noch nicht weg, in der Aufnahme aber nicht zu sehen" war DER Schlüssel: was
-  in der Aufnahme fehlt, steckt NICHT im gerenderten Bild (der Recorder nimmt
-  die gerenderten Textur-Frames), sondern in der DARSTELLUNG. Ursache: der
-  Ressourcen-Regler schaltete die Display-Bildrate um (120↔60), das baut die
-  Anzeige-Uhr (CADisplayLink) jedes Mal neu auf = ein sichtbarer Ruckler, den
-  keine Aufnahme sieht. FIX: die Display-Bildrate ist jetzt FEST auf 60 —
-  wird zur Laufzeit NIE mehr umgeschaltet. Hitze wird stattdessen über Detail-
-  Reduktion + Reduce-Motion (beide weich) und die neue 15-fps-Kamera geregelt.
-  Nebeneffekt gegen das "Knistern hier und da": 60 statt 120 fps + 15-fps-
-  Kamera senken die GPU/CPU-Last, die mit dem Audio-Thread konkurriert —
-  weniger Aussetzer. Falls es nach diesem Build noch knistert: schick mir ein
-  Device-Log der Stelle, dann gehe ich es gezielt als eigenen Zyklus an.
+build: 2026-07-09 v10.79.130 (Random-Strobe GEFUNDEN: Metal presentiert jetzt im Takt des Compositors)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Antwort auf deine Richtung "Ultrahardthink Sync realtime resource und
-  Akku bei Temperatur freundlich" — dieser Build senkt gezielt die Wärme, die
-  die Kamera-Aussetzer auslöst, und macht die Puls-Messung robuster.
+notesT: Du hast die Ursache exakt lokalisiert: "immer noch random strobe …
+  zurück an den Punkt, wo wir mehrere Fenstergrößen eingepflegt haben — DA
+  ist der Fehler aufgetreten." Genau da war er.
 
-  1) PULS-KAMERA JETZT 15 fps STATT 30 (der grösste Wärme-Hebel).
-     Der Kamera-Feed existiert AUSSCHLIESSLICH, um am Finger den Puls zu lesen
-     (0,7–4 Hz). Das Visual ist das Metal-Feld, und die Aufnahme filmt das
-     gerenderte Metal — NICHT die Kamera. Der Puls-Analyzer rechnet ohnehin mit
-     15 Hz (Nyquist 7,5 Hz, weit über dem 4-Hz-Puls-Band), also bringen 30 fps
-     der Messung nichts, kosten aber ~doppelte Sensor/ISP-Leistung → genau die
-     Hitze, die unter Dauerlast die Kamera ~2 Min. sterben liess (Device-Log).
-     15 fps ist der grösste "temperatur-freundliche" Hebel hier und trifft die
-     erwartete Rate exakt (schnellerer Lock, kein Nachtunen). Die Belichtungs-
-     Kappung (≤ 1/30 s, scharfer Puls) bleibt unangetastet.
+  BEWEIS: git-Historie zeigt, dass die Mehr-Größen-Funktion in Commit 56d3fed
+  kam ("floating, resizable, show/hide visual window"). DAVOR war das Visual
+  NUR Vollbild — die Metal-View besaß den ganzen Bildschirm und präsentierte
+  ihr Bild isoliert. Als schwebendes, größenveränderbares Fenster wird die
+  Metal-View jetzt JEDEN Frame mit der restlichen SwiftUI-Oberfläche
+  zusammengesetzt (composited). Und die Standard-Präsentation von Metal läuft
+  ASYNCHRON — auf der GPU-Uhr, NICHT im Takt des UIKit-Compositors. Die zwei
+  Takte schlagen gegeneinander → genau dein "random strobe".
 
-  2) KAMERA-RESILIENZ: Wenn iOS die Kamera-Session unterbricht (Anruf,
-     Kontroll­zentrum, andere App), hörte Echoel vorher auf, im Kreis
-     Neustarts zu feuern — jetzt wartet es sauber auf das "Interruption Ended",
-     re-armt Torch + Belichtung EINMAL und schreibt den Grund als Breadcrumb ins
-     Diagnose-Log. Kein Neustart-Thrashing mehr, das die Hitze weiter anheizt.
+  Warum in der AUFNAHME nie sichtbar: der App-eigene Recorder greift die Metal-
+  TEXTUR ab (sauber), nicht das zusammengesetzte Display. Nur eine Bildschirm-
+  aufnahme (wie dein Video) zeigt das Schlagen. Passt auf jedes Symptom — und
+  erklärt, warum die FPS-Fixierung vorher NICHT gereicht hat.
 
-  3) ECHOEL-TOUCH-SOUND: die Spielfläche (Visual Touch Instrument) hat jetzt
-     eine eigene, RESPONSIVE Default-Stimme statt des trägen Warm-Pad — schneller
-     Attack (0,03 s, antwortet dem Finger sofort), warmer Nachklang, dezente
-     Unisono-Breite. Reagiert wie ein Instrument, nicht wie ein Nebel.
+  FIX (Apples dokumentierter Weg): presentsWithTransaction = true, und das Bild
+  wird jetzt SYNCHRON in derselben Compositor-Runde präsentiert wie die UIKit-
+  Ebenen drumherum (commit → waitUntilScheduled → drawable.present()). Das
+  Metal-Bild landet im selben Zusammensetz-Durchgang → kein Gegen-den-Takt-
+  Schlagen mehr. Gilt auch für Vollbild (nur zusätzliche Synchronisierung).
 
-  4) PARALLEL-APPS UNGESTÖRT (dein Hinweis: "Echoelmusic soll die Sound-
-     qualität von parallel laufenden Programmen nicht beeinflussen").
-     Ursache: Echoel stellte die Audio-Session beim Start auf .playAndRecord.
-     Diese Kategorie sagt iOS "ich brauche das Mikro" — und routet ein
-     verbundenes Bluetooth-Headset SYSTEMWEIT auf HFP (den 8/16-kHz-Mono-
-     Telefon-Codec). Dadurch klang JEDE parallele App (Spotify, Apple Music,
-     YouTube) plötzlich dünn/mono, obwohl Echoel nur abspielte.
-     FIX: Standard ist jetzt .playback (nur Ausgabe) mit A2DP-Stereo in voller
-     Qualität und .mixWithOthers (Echoel legt sich DRÜBER, unterbricht nicht).
-     Das Mikro (.playAndRecord) wird NUR noch eingeschaltet, wenn du bewusst
-     aufnimmst oder das Eingangs-Monitoring aktivierst — nicht im Normalbetrieb.
-     TEST: Bluetooth-Kopfhörer, Spotify starten, Echoel dazu abspielen —
-     Spotify muss in voller Stereo-Qualität bleiben.
-     DAS BEHEBT AUCH DAS LAUTE PIEPEN (dein Hinweis: "beim Lautstärke ändern
-     und beim Start ein lautes Piepen, das tut weh im Ohr"): Ursache war exakt
-     dieselbe — .playAndRecord zwang den Bluetooth-Hörer in den HFP-TELEFON-
-     Modus; in diesem "Anruf-Modus" piept die Hörer-Firmware beim Verbinden
-     (App-Start) und bei jedem Lautstärke-Schritt. Mit .playback bleibt der
-     Hörer im A2DP-Musik-Modus → kein Verbindungs-Piepen beim Start, kein
-     Piepen beim Lautstärke ändern. TEST: mit BT-Hörer Echoel starten und die
-     Lautstärke-Tasten drücken — es darf NICHTS mehr piepen.
+  TEST 10.79.130:
+  A) Schwebendes Visual in JEDER nicht-Vollbild-Größe (Small/Medium/Large),
+     Musik + Biofeedback an: strobt/flackert es noch zufällig? Sollte weg sein.
+  B) Größe umschalten (Small→Medium→Large→Vollbild) und zurück: sauber?
+  C) Vollbild: weiter ruhig (die FPS-Fixierung von 129 bleibt).
 
-  (Unter der Haube: interner Reverb-Typ auf die Echoel-CI-Namensgebung
-   umgestellt — EchoelSpaceReverb. Rein intern, keine Hörbarkeit.)
-
-  TEST 10.79.128:
-  A) Finger auf der Kamera, Musik + Visual an, ~5–10 Min. laufen lassen:
-     wird das Gerät spürbar weniger heiss? Bleibt der Puls durchgehend (kein
-     2-Minuten-Totalausfall der Kamera mehr)?
-  B) Während Puls läuft einen Anruf annehmen / Kontrollzentrum öffnen und
-     zurück: fängt sich die Kamera sauber wieder (Torch geht wieder an)?
-  C) Spielfläche antippen: klingt der Ton sofort da und lebendig (nicht
-     verwaschen/langsam einblendend)?
+  (Nebenbefund aus deinem Log 2235: der Puls LOCKT jetzt sauber bei 15 fps —
+  conf 0.90–0.94, stabile 62–63 bpm bei gutem Fingerkontakt. Die 15-fps-Kamera
+  bleibt also — sie ist temperatur-freundlich UND misst zuverlässig.)
