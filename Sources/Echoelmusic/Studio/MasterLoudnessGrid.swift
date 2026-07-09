@@ -53,6 +53,17 @@ struct MasterLoudnessGrid: View {
                 readout("Range", lraText(audioEngine.masterLRA), "LU", EchoelTheme.text)
             }
         }
+        // Run the expensive R128/true-peak metering ONLY while this readout is on
+        // screen. Off elsewhere it saved that per-buffer DSP during play (a load
+        // contributor to the occasional crackle). The cheap RMS level bars above
+        // stay live regardless — they read the always-on meter levels.
+        .onAppear {
+            audioEngine.setDetailedMetering(true)
+            // Fresh integration window each open (the meters were paused while hidden,
+            // so the held integrated/true-peak-max would otherwise show stale numbers).
+            audioEngine.resetMastering()
+        }
+        .onDisappear { audioEngine.setDetailedMetering(false) }
     }
 
     /// One channel's level bar — fill proportional to level, turning warning near clip.
