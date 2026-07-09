@@ -265,6 +265,17 @@ struct MetalBioView: UIViewRepresentable {
         view.isPaused = false
         view.enableSetNeedsDisplay = false
         view.isOpaque = true
+        // STRUCTURAL RESIZE SAFETY (founder 2026-07-08: "Bei Vollbild immer noch
+        // Bildfehler … eine andere Programmiertechnik"): the drawable is NEVER
+        // re-allocated by layout. With autoResizeDrawable every bounds change —
+        // fullscreen toggle, safe-area shift, rotation, any system animation —
+        // re-created the Metal drawable mid-motion (the glitch frames). The
+        // renderer now manages `drawableSize` itself in draw(in:): while the size
+        // is moving, the last rendered image simply SCALES on the layer (smooth);
+        // once the size has been stable for a couple of frames, ONE clean
+        // re-allocation lands at the final resolution. Glitch-free by
+        // construction for every resize path, not just our own buttons.
+        view.autoResizeDrawable = false
         return view
     }
 
@@ -314,6 +325,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// (the palette "Bild Fehler"). We only assign it when the desired state actually flips
     /// (record start / stop), so the steady state never touches the layer config.
     private var lastFramebufferOnly: Bool = true
+    /// Settled-size drawable management (autoResizeDrawable = false): the size the
+    /// layout is currently asking for, and how many consecutive frames it has held
+    /// steady. Only a SETTLED size (≥2 stable frames, or the very first nonzero one)
+    /// re-allocates the drawable — never a mid-animation frame.
+    private var pendingDrawableSize: CGSize = .zero
+    private var pendingStableFrames = 0
     private let startTime = CFAbsoluteTimeGetCurrent()
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
     /// The resource governor receives each frame's timestamp so a sustained FPS drop
@@ -541,6 +558,30 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // aspect = 1, which on a tall phone stretches the radial metric into ellipses, so the
             // rings looked non-concentric until a ROTATION forced a resize (founder: "Kreise am
             // Anfang viel, bis man das Handy dreht — sie sollen immer concentrisch sein").
+            // Settled-size drawable management (autoResizeDrawable = false, see
+            // makeUIView): compute the size layout wants; only when it has held
+            // steady for ≥2 frames (or is the FIRST real size at launch) does the
+            // drawable re-allocate — a mid-animation frame only scales the last
+            // image on the layer. This kills the fullscreen/resize glitch class
+            // for EVERY resize path (our snap, safe-area shifts, rotation).
+            let scale = view.window?.screen.scale ?? view.contentScaleFactor
+            let want = CGSize(width: max(1, view.bounds.width * scale),
+                              height: max(1, view.bounds.height * scale))
+            let have = view.drawableSize
+            if abs(want.width - have.width) > 0.5 || abs(want.height - have.height) > 0.5 {
+                if abs(want.width - pendingDrawableSize.width) < 0.5,
+                   abs(want.height - pendingDrawableSize.height) < 0.5 {
+                    pendingStableFrames += 1
+                } else {
+                    pendingDrawableSize = want
+                    pendingStableFrames = 0
+                }
+                if pendingStableFrames >= 2 || have.width <= 2 || have.height <= 2 {
+                    view.drawableSize = want
+                }
+            } else {
+                pendingStableFrames = 0
+            }
             let ds = view.drawableSize
             if ds.height > 0 { uniforms.aspect = Float(ds.width / ds.height) }
             let q = governor?.settings
