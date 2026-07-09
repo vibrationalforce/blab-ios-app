@@ -1,30 +1,20 @@
-build: 2026-07-09 v10.79.131 (EchoelTouch Vollbild: Schatten-Offscreen-Pass raus — direkter Present)
+build: 2026-07-09 v10.79.132 (EchoelTouch-Gefühl: Taptic bleibt warm — konstante Haptik-Latenz)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Dein Hinweis "immer noch am glitchen EchoelTouch im Vollbild" — hier der
-  nächste präzise Schritt.
+notesT: Erster sicherer Schritt zu "extrem geile Steuerung die sich perfekt
+  anfühlt" — einer, den ich ohne Gerät als KORREKT belegen kann (kein Raten):
 
-  GEFUNDEN: Die schwebende Karte hatte einen Schlagschatten (.shadow radius 8),
-  der UNBEDINGT gesetzt war — auch im Vollbild. Ein weicher Schatten zwingt den
-  Compositor, die GANZE randlose Metal-Ebene JEDEN Frame in einen Offscreen-
-  Puffer zu rendern (für den Schatten), und dieser zusätzliche Zusammensetz-
-  Durchgang schlägt gegen das (seit 130 synchronisierte) Metal-Present → genau
-  das Rest-Glitchen im Vollbild.
+  Die Taptic-Engine (das Haptik-Feedback) schläft nach ein paar Sekunden Leerlauf
+  ein. Dadurch kam beim ERSTEN Anschlag nach einer kurzen Pause die Vibration
+  verspätet → der Ton fühlte sich "matschig"/träge an. Jetzt wird die Engine nach
+  JEDEM Anschlag (Note UND Slide-Übergang) sofort wieder aufgewärmt — jede Note
+  antwortet mit minimaler, KONSTANTER Latenz. prepare() ist billig und kann die
+  Latenz nur senken, nie erhöhen.
 
-  FIX (Vereinfachung, wie von dir gewünscht): Schatten gilt jetzt NUR für die
-  schwebende Karte. Im Vollbild → Radius 0 / transparent = kein Offscreen-
-  Durchgang mehr, das Bild wird DIREKT präsentiert. Der Modifier bleibt in der
-  Kette (nur Parameter ändern sich), damit das Umschalten auf Vollbild NIE die
-  View-Identität wechselt — kein MTKView-Neuaufbau, kein Blitz beim Umschalten.
+  (v131 davor: Vollbild-Schatten-Offscreen-Pass raus — bitte weiter gegentesten,
+  ob das Vollbild-Bild jetzt ruhig ist.)
 
-  TEST 10.79.131:
-  A) EchoelTouch im VOLLBILD, Musik + Biofeedback an, mit den Fingern spielen:
-     glitcht/strobt das Bild noch, oder ist es jetzt ruhig?
-  B) Zwischen Vollbild und schwebend hin- und herschalten: sauber, kein Blitz?
-
-  NÄCHSTE PRÄZISE SCHRITTE (Ralph, einzeln, damit dein Geräte-Feedback pro
-  Schritt eindeutig bleibt):
-  - Touch-Synth + Steuerungs-Gefühl ("extrem geile Steuerung"): eigener Zyklus,
-    weil sich das nur am Gerät ERFÜHLEN lässt — ich fasse den Touch-Pfad
-    (Latenz, Velocity-Kurve, Slide/Glide-Gefühl) gezielt an und du testest.
-  - Falls das Vollbild-Bild nach diesem Build noch glitcht: dann ist der
-    Touch-Overlay-Layer selbst dran (nächster Verdächtiger), nicht der Schatten.
+  SAG MIR ZUM GEFÜHL (dann justiere ich gezielt am Gerät):
+  - Anschlag: reagiert er jetzt sofort/knackig, oder noch träge?
+  - Lautstärke pro Anschlag (Velocity): zu leise/zu laut/zu empfindlich?
+  - Sliden (hin & her): fühlt sich der Glide/Vibrato-Effekt gut an?
+  Nach deinem Feedback: Velocity-Kurve, Slide-Energie, Latenz-Feintuning.
