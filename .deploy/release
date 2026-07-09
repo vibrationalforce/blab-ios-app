@@ -1,25 +1,28 @@
-build: 2026-07-09 v10.79.122 (6 Chill-Genres · Vollbild-Bildfehler strukturell unmöglich)
+build: 2026-07-09 v10.79.123 (Melodie komplett raus — reine chillige Flächen-Presets)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Zwei Founder-Asks:
-  1) GENRES — SMOOTH ODER RAUS: Das Genre-Menü bietet nur noch 6 wirklich
-     kontemplative Register: Self-Observation (Drone) · Deep Ambient
-     (Drone) · Vaporwave · Dub Techno · Trap (dunkles Chill-Register) ·
-     Sci-Fi (Weltraum-Ambient). Die behaltenen sind geglättet (weniger
-     Melodie-Dichte — Flächen, Echo und Sub tragen; die Melodie
-     kommentiert nur). Rock/Punk/Metal/Ska/Disco & Co. sind raus (Code
-     bleibt, rückholbar); ein gespeichertes Alt-Genre wechselt beim
-     Start automatisch auf Self-Observation.
-  2) VOLLBILD-BILDFEHLER — NEUE TECHNIK: Wie gewünscht ein anderes
-     Verfahren an der Stelle. Das Layout darf den Metal-Puffer jetzt GAR
-     NICHT mehr anfassen: der Renderer verwaltet die Puffergröße selbst.
-     Während JEDER Größenbewegung (Vollbild-Wechsel, Drehung, System-
-     Animationen) skaliert nur das letzte Bild weich mit; erst wenn die
-     Größe stabil steht, wird der Puffer genau EINMAL sauber in der
-     Zielauflösung neu angelegt. Bildfehler beim Vergrößern sind damit
-     strukturell unmöglich — für jeden Pfad, nicht nur unseren Button.
-  TEST 10.79.122:
-  A) Vollbild rein/raus, mehrfach schnell hintereinander, auch drehen:
-     endlich komplett sauber?
-  B) Genre-Menü: nur noch 6 Einträge? Jedes einzelne durchhören — ist
-     WIRKLICH jedes zum Chillen (sonst sag welches fliegt)?
-  C) Trap bei ruhigem Puls: dunkel und smooth statt hektisch?
+notesT: Der Deal, wie besprochen — die Melodie ist WEG:
+  1) KEINE LEAD-MELODIE MEHR, NIRGENDS: Die lauten, unnatürlich reinen
+     Wellen-Töne, die aus dem Mix herausstachen (v. a. Traps dunkle
+     Glocken-Linie), sind komplett entfernt — nicht leiser gedreht,
+     sondern raus. Alle 6 Genres sind jetzt reine chillig-mystische
+     Flächen: gehaltenes Pad + gehaltener Bass-Grundton, sonst nichts.
+  2) JEDES GENRE BLEIBT EIN EIGENES PRESET: Self-Observation (Moll-
+     Drone) · Deep Ambient (lydische Drone) · Vaporwave (träumerisches
+     maj7-Pendel, eine Oktave heller) · Dub Techno (tiefe dorische
+     m7-Flächen + Tape-Echo, Signature-Beat bleibt) · Trap (dunkles
+     harmonisch-Moll, rauchig-tief, 808-Beat bleibt) · Sci-Fi
+     (phrygisches Halbton-Driften, Weltraum).
+  3) TROTZDEM IMMER INDIVIDUELL: Tempo folgt weiter deinem Puls, der
+     Atem treibt Lautstärke + das Atmen der Fläche (jetzt in ALLEN 6
+     Genres), Kohärenz beruhigt den Beat, und jeder Take rotiert/
+     kadenziert seine Akkordfolge anders — gleiche Session klingt nie
+     zweimal gleich.
+  4) TIGHTE LOOPS: Jede gehaltene Note endet exakt auf der Taktgrenze
+     (per Test über viele Seeds + Körperzustände abgesichert) — die
+     WAV-Weiterverarbeitung bleibt so einfach wie möglich.
+  TEST 10.79.123:
+  A) Jedes der 6 Genres durchhören: wirklich NUR Fläche — sticht
+     nirgends mehr ein einzelner Ton heraus?
+  B) Klingen die 6 klar unterschiedlich (hell/dunkel, ruhig/spacig)?
+  C) Mehrere Takes im selben Genre: individuell, aber gleiche Familie?
+  D) Exportierter Loop: schneidet sauber an der Taktgrenze?
