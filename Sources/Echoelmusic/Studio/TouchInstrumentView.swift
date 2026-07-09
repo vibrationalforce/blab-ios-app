@@ -15,16 +15,18 @@
 //  contact AREA (majorRadius) and PRESSURE (force, where the hardware has it)
 //  = velocity. Slides glide through the scale like trailing a hand in water.
 //
-//  Render safety: pure UIKit. Touch handling never touches SwiftUI state; the
-//  water-ripple feedback is CAShapeLayer animation (GPU-composited, removed on
-//  completion) — zero body invalidations at any touch rate. Sound goes through
+//  Render safety: pure UIKit for INPUT only — touch handling never touches
+//  SwiftUI state, and (structural rebuild 2026-07-09) the water-ripple feedback
+//  is NO LONGER Core Animation at all: every drop goes into TouchRippleChannel
+//  and is drawn by the Metal shader inside the immersive field itself. One
+//  pipeline, one clock, one drawable — the artifact class of a second compositor
+//  layered over the Metal drawable (mismatched frames on any move/resize, layer
+//  pop, animation-clock edges) is gone by construction. Sound goes through
 //  PolySynthVoice.noteOn/noteOff, which are lock-free SPSC enqueues.
 //
 //  Water feel (founder: "es soll sich nach echtem Wasser anfühlen"): a touch is
-//  a DROP — it sends out several concentric wavefronts, each starting a beat
-//  after the last, so the ripple spreads outward the way water does rather than
-//  as one flat ring. Tinted soft aqua-white so it reads as water/light on the
-//  immersive visual (vaporwave-fit), not a hard UI stroke.
+//  a DROP — a colour cloud that blooms and dissolves like ink in water, with one
+//  thin wavefront ring as its leading edge, in the played note's physical colour.
 //
 
 import Foundation
@@ -425,6 +427,7 @@ final class TouchInstrumentUIView: UIView {
             synth?.clearSlideExpression()      // no lingering vibrato/ensemble either
             TouchVisualEnergy.shared.reset()   // no lingering swell after dismissal
             TouchToneChannel.shared.reset()    // colour hands back to the bed
+            TouchRippleChannel.shared.reset()  // water settles instantly too
         }
     }
 
@@ -466,15 +469,12 @@ final class TouchInstrumentUIView: UIView {
         return a4 * pow(2.0, (Double(pitch) - 69.0 + cents / 100.0) / 12.0)
     }
 
-    // MARK: - Water ripples (CAShapeLayer — GPU, no SwiftUI invalidation)
+    // MARK: - Water ripples (drawn by the Metal renderer — structural rebuild 2026-07-09)
 
-    /// The ring glows in the PLAYED NOTE'S physical colour (founder 2026-07-08: the
-    /// played tones translated into the "physikalisch hochglanzpolierten Farben"):
-    /// tone → octave-transposed into visible light → CIE-1931 colorimetric RGB
-    /// (SpectralColor — the same maths as the immersive field and the donuts, so
-    /// every surface agrees on a note's colour). Linear→sRGB-encoded for UIKit with
-    /// a small white lift so deep red/violet still reads as glossy light on the
-    /// dark field instead of vanishing.
+    /// The grid's field tint in the note's physical colour (CIE fit, sRGB-encoded
+    /// for UIKit with a small white lift so deep red/violet still reads on the
+    /// dark field). Used ONLY by the static fretboard grid now — the animated
+    /// water feedback no longer lives in Core Animation at all.
     private static func noteTint(hz: Double) -> UIColor {
         let rgb = SpectralColor.wavelengthToLinearRGB(SpectralColor.visibleWavelength(forToneHz: hz))
         func enc(_ c: Double) -> CGFloat {
@@ -483,103 +483,34 @@ final class TouchInstrumentUIView: UIView {
         return UIColor(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b), alpha: 1)
     }
 
-    /// A touch is a drop of COLOURED LIGHT (founder 2026-07-08: "Die Ringe könnten
-    /// mehr Wolken sein"): the body of the feedback is now a soft radial CLOUD in
-    /// the note's physical colour — a glow that blooms out and dissolves like ink
-    /// in water — with ONE thin wavefront ring as its leading edge so the water
-    /// identity stays readable. Radius/weight still scale with the played VELOCITY.
-    /// Fewer layers than the old 3-ring drop (2 vs 3) — cheaper, softer, wolkiger.
+    /// A touch is a drop of COLOURED LIGHT — pushed into `TouchRippleChannel` and
+    /// DRAWN BY THE METAL SHADER inside the immersive field itself (founder
+    /// 2026-07-09: "immer noch diese grafischen Fehler … strukturiere von Anfang
+    /// an neu"). The old CAShapeLayer/CAGradientLayer animations lived in a SECOND
+    /// compositor over the Metal drawable — two pipelines with independent clocks,
+    /// which is exactly the artifact class the renderer-managed drawable work
+    /// eliminated everywhere else. Now: one pipeline, one clock, one drawable —
+    /// the water is frame-locked to the field by construction. This view keeps
+    /// only input, sound, haptics and the static grid.
     private func spawnRing(at p: CGPoint, strong: Bool, pitch: Int, velocity: Float) {
         guard !reduceMotion else { return }
-        let tint = Self.noteTint(hz: frequency(of: pitch))
-        let velScale = CGFloat(0.75 + 0.5 * Double(min(max(velocity, 0), 1)))   // 0.75…1.25
-        let baseRadius: CGFloat = (strong ? 58 : 34) * velScale
-        let now = CACurrentMediaTime()
-        spawnCloud(at: p,
-                   radius: baseRadius * 1.15,
-                   alpha: strong ? 0.42 : 0.24,
-                   duration: strong ? 1.1 : 0.7,
-                   beginAt: now,
-                   tint: tint)
-        if strong {   // the drop's leading edge — one crisp front, not a ring stack
-            spawnWavefront(at: p, radius: baseRadius, alpha: 0.30,
-                           duration: 0.9, beginAt: now + 0.05,
-                           tint: tint, lineWidth: 1.0 + CGFloat(velocity) * 0.8)
-        }
-    }
-
-    /// The cloud body: a radial gradient (note colour → clear) that scales up and
-    /// fades out. GPU-composited CAGradientLayer, removed on completion — same
-    /// bounded-layer discipline as the wavefronts.
-    private func spawnCloud(at p: CGPoint, radius: CGFloat, alpha: Float,
-                            duration: CFTimeInterval, beginAt: CFTimeInterval,
-                            tint: UIColor) {
-        let cloud = CAGradientLayer()
-        cloud.type = .radial
-        cloud.colors = [tint.withAlphaComponent(0.85).cgColor,
-                        tint.withAlphaComponent(0.35).cgColor,
-                        tint.withAlphaComponent(0).cgColor]
-        cloud.locations = [0, 0.45, 1]
-        cloud.startPoint = CGPoint(x: 0.5, y: 0.5)
-        cloud.endPoint = CGPoint(x: 1, y: 1)
-        cloud.frame = CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)
-        cloud.position = p
-        cloud.opacity = 0   // invisible until its animation begins (no pre-begin flash)
-        layer.addSublayer(cloud)
-
-        let scale = CABasicAnimation(keyPath: "transform.scale")
-        scale.fromValue = 0.25
-        scale.toValue = 1.35
-        let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = alpha
-        fade.toValue = 0.0
-        let group = CAAnimationGroup()
-        group.animations = [scale, fade]
-        group.beginTime = beginAt
-        group.duration = duration
-        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        group.isRemovedOnCompletion = false
-        group.fillMode = .forwards
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { cloud.removeFromSuperlayer() }
-        cloud.add(group, forKey: "cloud")
-        CATransaction.commit()
-    }
-
-    private func spawnWavefront(at p: CGPoint, radius: CGFloat, alpha: Float,
-                                duration: CFTimeInterval, beginAt: CFTimeInterval,
-                                tint: UIColor, lineWidth: CGFloat) {
-        let ring = CAShapeLayer()
-        ring.path = UIBezierPath(ovalIn: CGRect(x: -radius, y: -radius,
-                                                width: radius * 2, height: radius * 2)).cgPath
-        ring.position = p
-        ring.fillColor = nil
-        ring.strokeColor = tint.cgColor
-        ring.lineWidth = lineWidth
-        ring.opacity = 0   // model value: invisible until its wavefront begins (no pre-begin flash)
-        layer.addSublayer(ring)
-
-        let scale = CABasicAnimation(keyPath: "transform.scale")
-        scale.fromValue = 0.08
-        scale.toValue = 1.0
-        let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = alpha
-        fade.toValue = 0.0
-        let group = CAAnimationGroup()
-        group.animations = [scale, fade]
-        group.beginTime = beginAt
-        group.duration = duration
-        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        group.isRemovedOnCompletion = false
-        group.fillMode = .forwards   // .forwards only — holds the END value (opacity 0) after; before beginTime the model value (0) shows, so no early flash
-        // Remove the layer when the animation finishes — bounded sublayer count.
-        // A CATransaction completion block runs on the main thread and (unlike
-        // DispatchQueue.asyncAfter) is NOT a @Sendable closure, so capturing the
-        // non-Sendable CAShapeLayer is clean under Swift 6 strict concurrency.
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { ring.removeFromSuperlayer() }
-        ring.add(group, forKey: "ripple")
-        CATransaction.commit()
+        let w = max(bounds.width, 1), h = max(bounds.height, 1)
+        let rgb = SpectralColor.wavelengthToLinearRGB(SpectralColor.visibleWavelength(forToneHz: frequency(of: pitch)))
+        // Equal-luminance light: normalize so every note's ripple glows visibly —
+        // the shader's cloud luminance floor does not cover this additive light,
+        // and raw deep-red/violet CMF output is otherwise near-invisible.
+        let m = max(rgb.r, max(rgb.g, rgb.b))
+        let s = m > 0.001 ? 0.9 / m : 1
+        let vel = Double(min(max(velocity, 0), 1))
+        TouchRippleChannel.shared.drop(
+            x: Float(p.x / w),
+            y: Float(1 - p.y / h),                    // shader space: y up
+            amp: Float((strong ? 0.5 : 0.28) * (0.6 + 0.4 * vel)),
+            r: Float(rgb.r * s), g: Float(rgb.g * s), b: Float(rgb.b * s),
+            duration: strong ? 1.0 : 0.65,
+            // CFAbsoluteTime — MUST match the draw loop's frame clock (same epoch
+            // rule as TouchToneChannel; CACurrentMediaTime would read as stale).
+            at: CFAbsoluteTimeGetCurrent())
     }
 }
 #endif
