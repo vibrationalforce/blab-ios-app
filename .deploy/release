@@ -1,38 +1,36 @@
-build: 2026-07-09 v10.79.126 (Visuals feuern nicht mehr rein · ruhig & ruckelfrei · Echoel AI nur auf Anfrage)
+build: 2026-07-09 v10.79.127 (Fullscreen-Flicker weg — Bio-Stream stabil)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Der Aufräum-Zyklus zu deinem Befund "Visuals sind doch noch nicht
-  stabil, irgendwas feuert da rein" — vier bestätigte Quellen, alle behoben:
-  1) TOUCH-LICHTER BLITZEN NICHT MEHR AUF: Jeder Fingertropfen erschien in
-     EINEM Frame auf voller Helligkeit und konnte auf hellen Looks zu
-     weißen Flecken ausbrennen. Jetzt weicher Attack (~0,1 s) + Screen-
-     Blend — Licht wird hell, brennt aber nie mehr weiß aus.
-  2) KEIN MASCHINENGEWEHR BEI SLIDES: Schnelle Slides erzeugten 40-80
-     Trail-Lichter/s und schnitten dabei lebende Lichter hart ab. Trails
-     sind jetzt begrenzt und verdrängen nie ein lebendes Licht.
-  3) KEINE SCHIESSENDEN FARBWOLKEN OHNE BERÜHRUNG: Die generative Musik
-     blies pro Note in ~90 ms halbbildgroße Wolken auf, und bei jedem
-     Akkordwechsel schoss eine sichtbare Wolke quer über den Screen.
-     Jetzt atmet das Bett ein (Finger antworten weiter sofort) und
-     sichtbare Wolken faden an Ort und Stelle aus.
-  4) KEIN ATEM-RUCK: Das Bild sackte einmal pro Atemzyklus ~30 % zusammen
-     (Phasen-Wrap). Jetzt ein glatter Bogen.
-  RUCKELFREI: Das Visual-Panel baute sich beim Spielen 5-8×/s neu (Look-
-  Slider hakte mid-take) — die Music→Colour-Zeile ist jetzt ein eigenes
-  Leaf, nur sie aktualisiert sich.
-  ECHOEL AI NUR AUF ANFRAGE: Die Live-Erklärzeile ist hinter einem ruhigen
-  Aufklapper ("What your body is doing to the sound", standardmäßig zu);
-  der Tuning-Hinweis erscheint nicht mehr ungefragt.
-  BEDIENBARKEIT: 44-pt-Touchziele (Floating-Fenster-Buttons, Play, Lock,
-  Info-ⓘ), Safety-Hinweise im Onboarding lesbar, Export-Hinweis nennt den
-  echten Knopf ("Create from Within").
-  (Enthält auch alles aus 10.79.125: Kamera-Erholung gibt nie mehr auf —
-  falls Build 2230 nicht in TestFlight ankam, ist der Fix hiermit drin.)
-  TEST 10.79.126:
-  A) Fullscreen-Visual, Musik läuft, NICHT berühren: schießen noch Wolken
-     quer durchs Bild bei Akkordwechseln? Feuert noch etwas rein?
-  B) Schnelle Slides mit zwei Fingern auf dem Play-Surface: Flackern?
-     Weiße Flecken?
-  C) Beim Spielen das Visual-Panel öffnen und den Look-Slider ziehen:
-     hakt es noch?
-  D) Lange Bio-Session: kommt der Puls nach einem Aussetzer von selbst
-     zurück (~20-40 s)? Log mit "cold camera restart #N" schicken.
+notesT: Gezielt gegen deinen Hinweis "Das Flickern im Fullscreenmodus des
+  Visual Touch Instruments hängt damit zusammen ob Biofeedback an ist
+  oder nicht" — genau das war die Spur.
+  WURZEL (aus deinem Device-Log 2231 bestätigt): Wenn das Puls-Signal
+  wackelig wird (z. B. die Belichtung driftet hell), springt die
+  Signal-Sicherheit um die Schwelle und die Kohärenz-Berechnung springt
+  gültig↔ungültig. Zwei Folgen, die NUR sichtbar sind während
+  Biofeedback läuft:
+  1) Die Kohärenz wurde bei jedem ungültigen Fenster als 0 gesendet →
+     sie sprang echt↔0 im Sekundentakt → das Visual (das die Kohärenz
+     glättet) zeigte ein Helligkeits-Flimmern.
+  2) Sobald die Sicherheit unter die Schwelle fiel, RISS der Bio-Strom
+     ganz ab → das Visual klappte hart zwischen Bio-Modus und Ruhe-Modus
+     hin und her — das Flackern.
+  FIX (nur der Bio-Publisher; die belichtungs-Logik blieb unangetastet):
+  Die Kohärenz wird jetzt über kurze ungültige Fenster GEHALTEN (sanftes
+  Ausklingen, nie harter Sprung auf 0), und bei einem kurzen Signal-
+  Wackler wird der letzte gute Wert ~4 s weiter gesendet — der Strom
+  bleibt durchgehend. Erst bei echtem Verlust (Finger länger weg) hört
+  er auf, und das Visual gleitet EINMAL sauber in den Ruhezustand statt
+  zu strobo­skopieren. Nebeneffekt: die Puls-Zahl bleibt über kurze
+  Wackler stabil statt zu blinken.
+  TEST 10.79.127:
+  A) Fullscreen-Visual, Finger auf der Kamera, Musik läuft: flimmert
+     das Bild noch, wenn das Signal mal kurz schwächer wird?
+  B) Vergleich: Fullscreen OHNE Finger (kein Biofeedback) — war ja schon
+     ruhig; bleibt es. Mit Finger sollte es jetzt GENAUSO ruhig sein.
+  C) Wenn du den Finger absichtlich wegnimmst: geht das Bild sanft in
+     den Ruhezustand (kein hartes Umschalten)?
+  (Hinweis: der Belichtungs-Blowout selbst — Helligkeit driftet mit der
+  Zeit hoch — ist ein separates, delikateres Thema; die Erhol-Logik
+  greift schon, ist aber gedeckelt. Wenn der Puls trotz ruhigem Bild
+  noch oft aussetzt, sag Bescheid, dann gehe ich die Belichtung gezielt
+  als eigenen Zyklus an.)

@@ -260,8 +260,29 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             filterLFORate: 0.07, filterLFODepth: 0.5,
             reverbMix: 0.6, reverbDecay: 4.5, vibratoRate: 0, vibratoDepth: 0,
             unisonVoices: 2, unisonDetuneCents: 7
+        ),
+        // ── The play-surface default (founder 2026-07-09: "Den Synth vom Visual
+        // Touch Instrument auch optimieren"). The touch voice used to launch on
+        // "Warm Pad" (0.5 s attack) — mushy/unresponsive under a finger. This is a
+        // pad you can PLAY: a quick but soft attack so taps answer immediately, a
+        // little unison detune for organic width (the founder's "organisch"), a
+        // gentle filter-LFO drift so held notes breathe, and enough reverb to sit in
+        // the immersive space without washing out. Brand-named per the Echoel* CI.
+        SynthPatch(
+            id: stableID("00000000-0000-0000-0000-0000000000B4"),
+            name: "Echoel Touch",
+            attack: 0.03, decay: 0.4, sustain: 0.72, release: 1.3,
+            harmonicity: 0.9, harmonicLevel: 0.82, brightness: 0.42, noiseLevel: 0.006,
+            spectralShape: "natural", filterCutoff: 3200, filterResonance: 0.12,
+            filterLFORate: 0.12, filterLFODepth: 0.18,
+            reverbMix: 0.34, reverbDecay: 2.2, vibratoRate: 0, vibratoDepth: 0,
+            unisonVoices: 2, unisonDetuneCents: 8
         )
     ]
+
+    /// Stable id of the play-surface default patch ("Echoel Touch"), so the app can
+    /// pick it by identity at launch without depending on array order.
+    public static let touchDefaultID = stableID("00000000-0000-0000-0000-0000000000B4")
 }
 
 public extension SynthPatch {

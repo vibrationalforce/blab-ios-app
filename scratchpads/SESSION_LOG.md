@@ -3,6 +3,25 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-09 (Forts. 6) — Fullscreen-Flicker (bio-abhängig) + Kammerton-Fehlalarm korrigiert (v10.79.127)
+Founder-Clue (präzise, wertvoll): "Das Flickern im Fullscreenmodus des Visual Touch Instruments
+scheint damit zusammenzuhängen ob Biofeedback an ist oder nicht." **Root (bestätigt an Device-Log
+2231):** bei marginalem Signal (Belichtung driftet hell) flappt bpmConfidence um lockThreshold +
+die RR-Kohärenz flappt valid↔invalid → (1) coherence wurde bei jedem invaliden Fenster als 0
+publiziert → flappt real↔0 mit ~1 Hz Publish-Rate → Visual (ease tau 0.6) rendert Helligkeits-
+Shimmer; (2) unter lockThreshold BLANKTE der Frame-Stream ganz → freshBio veraltet → Visual
+hart-flippt bio↔idle. **Fix (40d843d, NUR Publisher — Belichtungs-State-Machine UNANGETASTET,
+ihr weak-relock-Pfad greift schon, nur gedeckelt):** coherence HALTEN über transiente Invalidität
+(0.9-Decay, nie Snap auf 0) + letzten guten Frame ~4 s Gnadenfrist re-emittieren bei kurzem
+Confidence-Dip → Stream bleibt kontinuierlich; echter Verlust >Frist stoppt → Visual gleitet EINMAL
+sauber zu idle. Hält auch die Puls-Anzeige über Wackler warm. **Kammerton-"Bug" = FEHLALARM
+(Arch-Audit korrigiert):** Haupt-Synthpfad ist KORREKT — PolySynthVoice.noteOn enqueued rohe pitch,
+Audio-Thread wendet poly.a4Hz an; das statische PolySynthVoice.frequency(440) ist NUR Test-Helper
+(PolySynthVoiceTests asserted 440). BioReactiveSynthVoice.frequency(440) ist Sekundär-Atemstimme.
+Kein Live-Kammerton-Bug. **clamp01(~20 Files)/MIDI→Hz/Font-Migration(111) = große Strukturänderungen
+→ VERTAGT** per Founder-Direktive ("do not commit to large structural changes until I approve") +
+"avoid breaks" (kein lokaler Compiler). → Deploy v10.79.127.
+
 ## 2026-07-09 (Forts. 5) — Aufräum-Zyklus: Visual-Feuern behoben · ruckelfrei · AX (v10.79.126)
 Founder-Dreifach-Ask: (1) "einmal richtig aufräumen: Architektur/Design/UI/AX/Experience,
 ruckelfrei und frei von Artefakten", (2) "Ist Echoel AI intelligent genug für Sprach-Prompts?"
