@@ -570,7 +570,7 @@ struct EchoelStudioView: View {
                     .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
                 if showVisualControls {
                     visualVJOverlay
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(.opacity)   // Uncodixfy: opacity only, no translation
                 }
                 // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
                 // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
@@ -2229,7 +2229,10 @@ struct EchoelStudioView: View {
             if !hasComposed {
                 // The export/keep/save buttons below are disabled until there's a take —
                 // say WHY, so a first-run user doesn't read the greyed buttons as broken.
-                Text("Tap Generate first — then you can export a WAV loop or record a video.")
+                // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
+                // users hunted for it and read the greyed buttons as broken). Video
+                // recording lives in the floating visual window, not here.
+                Text("Tap 'Create from Within' first — then you can export the loop as a WAV.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)

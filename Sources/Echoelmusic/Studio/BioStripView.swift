@@ -149,6 +149,11 @@ struct BioStripView: View {
             Image(systemName: "info.circle")
                 .font(.system(size: 12))
                 .foregroundStyle(EchoelTheme.dim)
+                // The advertised tap-to-learn affordance was a bare 12 pt glyph —
+                // nearly impossible to hit (AX audit 2026-07-09). Target ≥ the
+                // strip's height; glyph unchanged.
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle().inset(by: -6))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("What these bio numbers mean")

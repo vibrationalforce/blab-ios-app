@@ -210,7 +210,10 @@ struct FloatingVisualWindow: View {
     }
 
     private let margin: CGFloat = 12
-    private let handleHeight: CGFloat = 30
+    /// 44 pt — the HIG/WCAG minimum touch-target height (AX audit 2026-07-09: the
+    /// bar's 28×22 pt buttons sat millimetres apart next to a drag handle; users
+    /// hit record instead of resize). The glyphs stay small; the TARGETS are tall.
+    private let handleHeight: CGFloat = 44
 
     /// Slider position ⇄ current look, STUFENLOS (founder 2026-07-07: "langem slider,
     /// der durch alle Modi stufenlos überblendet"). A continuous position crossfades
@@ -305,7 +308,7 @@ struct FloatingVisualWindow: View {
                 Image(systemName: wavRecording ? "stop.circle.fill" : "waveform.circle")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(wavRecording ? Color.red : (wavExporting ? EchoelTheme.dim : EchoelTheme.text))
-                    .frame(width: 28, height: 22)
+                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
             .disabled(wavExporting)
@@ -444,7 +447,7 @@ struct FloatingVisualWindow: View {
                 Image(systemName: touchShowGrid ? "square.grid.3x3.fill" : "square.grid.3x3")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(touchShowGrid ? EchoelTheme.accent : EchoelTheme.text)
-                    .frame(width: 28, height: 22)
+                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(touchShowGrid ? "Hide note grid" : "Show note grid")
@@ -457,7 +460,7 @@ struct FloatingVisualWindow: View {
                 Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(recorder.isRecording ? Color.red : EchoelTheme.text)
-                    .frame(width: 28, height: 22)
+                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(recorder.isRecording ? "Stop video recording" : "Record MP4 video")
@@ -470,7 +473,7 @@ struct FloatingVisualWindow: View {
                       : "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 28, height: 22)
+                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(windowSize.isFullscreen ? "Exit fullscreen" : "Resize visual")
@@ -479,7 +482,7 @@ struct FloatingVisualWindow: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 28, height: 22)
+                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Hide visual")
