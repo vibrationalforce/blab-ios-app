@@ -122,11 +122,37 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
-    func testSustainedIsOnlyTheContemplativeGenres() {
+    func testSustainedIsExactlyTheCuratedRoster() {
+        // Founder 2026-07-09: every OFFERED genre is a pure sustained Fläche;
+        // the retired (unoffered) genres keep their old melodic profiles.
         for style in MusicStyle.allCases {
-            let expected = (style == .selfObservation || style == .esotericMeditation)
+            let expected = MusicStyle.curated.contains(style)
             XCTAssertEqual(style.harmonicProfile.sustained, expected,
-                           "\(style): sustained-drone flag is only for the meditative Flächen")
+                           "\(style): sustained-Fläche flag ⟺ curated roster membership")
+        }
+    }
+
+    func testCuratedGenresArePureBarTightFlächen() {
+        // The founder's deal (2026-07-09): no lead melody anywhere in the offered
+        // roster, only held pad/bass material — and every note ends exactly inside
+        // the bar so the WAV loop stays tight for post-processing. Checked across
+        // seeds AND body states (an aroused body must not re-awaken a lead).
+        for style in MusicStyle.curated {
+            for seed in UInt64(1)...10 {
+                for (coh, hr) in [(Float(0.9), Float(58)), (Float(0.1), Float(120))] {
+                    let comp = BioComposer.compose(
+                        input(coherence: coh, hr: hr, seed: seed, style: style))
+                    XCTAssertFalse(comp.notes.isEmpty, "\(style): a Fläche still sounds")
+                    for n in comp.notes {
+                        XCTAssertNotEqual(n.role, .lead,
+                            "\(style) seed \(seed): no lead melody in a pure Fläche")
+                        XCTAssertGreaterThanOrEqual(n.lengthSteps, 4,
+                            "\(style) seed \(seed): Flächen hold — no short stabs (len \(n.lengthSteps))")
+                        XCTAssertLessThanOrEqual(n.startStep + n.lengthSteps, BioComposer.stepCount,
+                            "\(style) seed \(seed): note overruns the bar — loop not tight")
+                    }
+                }
+            }
         }
     }
 
@@ -195,10 +221,13 @@ final class BioComposerTests: XCTestCase {
         // pad + bass + sparse lead — a drone. A high-coherence (calm) take therefore
         // carries FEWER notes than a low-coherence (aroused) take of the same genre
         // and seed, and the difference is exactly the dropped pulse voices.
+        // (Uses .futuristic — a RETIRED melodic profile that still carries the
+        // pulse layer. The curated roster is sustained Flächen now, where the
+        // pulse never exists in the first place.)
         let aroused = BioComposer.compose(
-            input(coherence: 0.2, hr: 96, style: .vaporwave, seed: 7))
+            input(coherence: 0.2, hr: 96, seed: 7, style: .futuristic))
         let calm = BioComposer.compose(
-            input(coherence: 0.95, hr: 58, style: .vaporwave, seed: 7))
+            input(coherence: 0.95, hr: 58, seed: 7, style: .futuristic))
         XCTAssertLessThan(calm.notes.count, aroused.notes.count,
                           "a calm body drops the pulse layer → fewer notes (drone)")
         // The drone still has a chord (pad + bass), not silence.
@@ -250,8 +279,9 @@ final class BioComposerTests: XCTestCase {
     }
 
     func testDubSecondChordVariesAcrossSeeds() {
-        // Dub's second-half move was hardcoded i→IV; it now varies by seed while the
-        // first half stays anchored on the tonic.
+        // Individuality survives the Fläche move (founder 2026-07-09: "trotzdem …
+        // immer individuell"): the sustained dub progression still rotates/cadences
+        // by seed, so the second half's chord varies across takes.
         var seconds = Set<Int>()
         for seed in UInt64(1)...UInt64(30) {
             let comp = BioComposer.compose(
@@ -301,12 +331,15 @@ final class BioComposerTests: XCTestCase {
         XCTAssertTrue(busy.drumSteps[0][3], "high energy → syncopated step-3 kick")
     }
 
-    func testDubBusierBodyAddsChordStabs() {
-        // Low coherence + high HR → both offbeats stab (more notes) than calm.
+    func testDubFlächeStaysStillWhateverTheBodyDoes() {
+        // Founder 2026-07-09: dub is a pure sustained Fläche now — the offbeat
+        // stabs are retired. An aroused body must NOT re-densify the texture
+        // (stillness IS the quality); the body speaks through tempo, velocity,
+        // the beat layer and FX instead.
         let calm = BioComposer.compose(input(coherence: 0.95, hr: 70, style: .dubTechno))
         let busy = BioComposer.compose(input(coherence: 0.05, hr: 70, style: .dubTechno))
-        XCTAssertGreaterThan(busy.notes.count, calm.notes.count,
-                             "busier body → more dub chord stabs")
+        XCTAssertEqual(busy.notes.count, calm.notes.count,
+                       "the dub Fläche keeps the same held material at any arousal")
     }
 
     // MARK: - Tempo locks to the style window

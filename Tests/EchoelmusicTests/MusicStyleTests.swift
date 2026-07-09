@@ -21,12 +21,29 @@ final class MusicStyleTests: XCTestCase {
     }
 
     func testCuratedRoster_isActuallyCalm() {
-        // Every offered genre must be smooth: either a true sustained drone or
-        // a sparse lead (no noodling density) — the founder's bar for keeping it.
+        // Founder 2026-07-09: "die Melodie … besser wenn die komplett weg sind …
+        // nur chillige mystische Flächen". Every offered genre is now a PURE
+        // sustained Fläche — NO lead line at all (the pure-wave lead tones stuck
+        // out of the mix), stillness held whatever the body does.
         for s in MusicStyle.curated {
             let p = s.harmonicProfile
-            XCTAssertTrue(p.sustained || p.leadDensity <= 0.25,
-                          "\(s) must be sustained or sparse (got leadDensity \(p.leadDensity))")
+            XCTAssertTrue(p.sustained, "\(s) must be a sustained Fläche")
+            XCTAssertEqual(p.leadDensity, 0,
+                           "\(s) carries NO lead melody (got leadDensity \(p.leadDensity))")
+            XCTAssertFalse(p.arpeggiated, "\(s): a Fläche holds, it doesn't rattle")
+        }
+    }
+
+    func testCuratedFlächenStayDistinct() {
+        // "passende Presets für Genres": each Fläche keeps its own character —
+        // no two curated genres share the same (scale, progression, voicing,
+        // register) fingerprint even with the leads gone.
+        var fingerprints = Set<String>()
+        for s in MusicStyle.curated {
+            let p = s.harmonicProfile
+            let f = "\(s.scale)|\(p.progression)|\(p.chordTones)|\(p.padOctave)"
+            XCTAssertTrue(fingerprints.insert(f).inserted,
+                          "\(s) duplicates another curated genre's sound fingerprint (\(f))")
         }
     }
 

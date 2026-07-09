@@ -21,10 +21,14 @@ final class NoteRoleTests: XCTestCase {
         XCTAssertTrue(roles.contains(.bass),    "a harmonic take needs a bass line")
     }
 
-    func testTrapCarriesLeadAndBass() {
+    func testTrapIsALeadFreeFläche() {
+        // Founder 2026-07-09: the trap dark-bell lead — the exposed pure-wave line
+        // ("zu laut, unangenehm") — is retired. Trap now voices a sustained pad +
+        // held bass root through composeHarmonic; only its signature beat remains.
         let roles = Set(BioComposer.compose(input(.trap)).notes.map { $0.role })
-        XCTAssertTrue(roles.contains(.lead), "trap bell is the lead")
-        XCTAssertTrue(roles.contains(.bass), "trap 808 is the bass")
+        XCTAssertFalse(roles.contains(.lead), "no lead melody in the trap Fläche")
+        XCTAssertTrue(roles.contains(.bass), "trap keeps its grounding bass root")
+        XCTAssertTrue(roles.contains(.harmony), "trap keeps its dark pad")
     }
 
     func testSelfObservationIsADroneNotALead() {

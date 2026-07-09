@@ -14,8 +14,13 @@ final class BioComposerArrangementTests: XCTestCase {
                           style: style, mode: .studioLocked, lockedTempo: 110, seed: seed)
     }
 
+    // Retired MELODIC profiles only — the arrangement invariants (movement, pulse,
+    // walking bass) guard the composeHarmonic machinery itself. The CURATED roster
+    // is pure sustained Flächen since 2026-07-09 (stillness by design, guarded in
+    // BioComposerTests.testCuratedGenresArePureBarTightFlächen), so vaporwave no
+    // longer belongs here.
     private let harmonicStyles: [MusicStyle] =
-        [.classical, .jazz, .synthwave, .vaporwave, .futuristic, .oriental]
+        [.classical, .jazz, .synthwave, .disco, .futuristic, .oriental]
 
     func testHarmonicTakesHaveInternalMovement() {
         // Real arrangement = several distinct note-onset positions across the bar
@@ -61,8 +66,8 @@ final class BioComposerArrangementTests: XCTestCase {
     func testCalmTakeKeepsBassSpacious() {
         // A calm body should keep the bass grounded/sustained — fewer bass onsets
         // than a busy one, so spacious genres stay spacious.
-        let calm = BioComposer.compose(input(.vaporwave, hr: 55, coh: 0.95))
-        let busy = BioComposer.compose(input(.vaporwave, hr: 130, coh: 0.05))
+        let calm = BioComposer.compose(input(.disco, hr: 55, coh: 0.95))
+        let busy = BioComposer.compose(input(.disco, hr: 130, coh: 0.05))
         let calmBass = Set(calm.notes.filter { $0.role == .bass }.map { $0.startStep }).count
         let busyBass = Set(busy.notes.filter { $0.role == .bass }.map { $0.startStep }).count
         XCTAssertLessThanOrEqual(calmBass, busyBass,

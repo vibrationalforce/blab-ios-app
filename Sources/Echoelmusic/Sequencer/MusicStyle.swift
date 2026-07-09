@@ -5,7 +5,7 @@
 //
 //   Signature beats (hand-built):
 //     • Dub Techno — deep dub chords, tape echo, sub-bass
-//     • Trap       — booming 808 sub-bass, crisp hats, dark melody
+//     • Trap       — booming 808 sub-bass, crisp hats, dark pads
 //   Archetype beats (audit B5, 2026-07-04 — every beat-driven genre now carries
 //   its groove via `beatArchetype`: four-on-floor / backbeat / offbeat / half-time):
 //     • Disco · 80s · Early Synth · Futuristic · Psytrance · Synthwave (floor)
@@ -136,7 +136,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var lineage: String {
         switch self {
         case .dubTechno:          return "Deep dub chords · tape echo · sub-bass"
-        case .trap:               return "Booming 808 sub-bass · crisp hats · dark melody"
+        case .trap:               return "Booming 808 sub-bass · crisp hats · dark pads"
         case .vaporwave:          return "Slowed · dreamy · nostalgic maj7 pads"
         case .eighties:           return "Bright analog keys · gated-reverb era"
         case .disco:              return "Lush string stabs · four-on-the-floor era"
@@ -390,8 +390,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var harmonicProfile: HarmonicProfile {
         switch self {
         case .vaporwave:
+            // PURE FLÄCHE (founder 2026-07-09): NO lead, sustained. Character =
+            // the dreamy maj7 I→IV swell one register above the darker genres.
             return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4, 6],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.25)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
         case .eighties:
             return HarmonicProfile(progression: [0, 4, 5, 3], chordTones: [0, 2, 4],
                                    padOctave: 4, leadOctave: 5, arpeggiated: true, leadDensity: 0.5)
@@ -408,10 +411,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
                                    padOctave: 4, leadOctave: 6, arpeggiated: false, leadDensity: 0.3)
         case .sciFi:
-            // Curated-calm (2026-07-08): lead thinned 0.3 → 0.25 — spacious
-            // pads first, only occasional distant motifs.
+            // PURE FLÄCHE (founder 2026-07-09: "reine Wellen-Töne stechen raus …
+            // besser wenn die komplett weg sind — nur chillige mystische Flächen"):
+            // NO lead, sustained. Character = phrygian i→♭II drift in a low
+            // register — the eerie deep-space slide, held, never a tune.
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.25)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
         case .psytrance:
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4],
                                    padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.7)
@@ -452,12 +458,22 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:
             return HarmonicProfile(progression: [0], chordTones: [0, 4],
                                    padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.2)
-        case .dubTechno, .trap:
-            // Curated-calm (2026-07-08 "alle Genres smooth"): lead thinned
-            // 0.3 → 0.22 — the chords/echo (dub) and the dark sub (trap) carry
-            // the register; the melody only comments, never noodles.
-            return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.22)
+        case .dubTechno:
+            // PURE FLÄCHE (founder 2026-07-09): NO lead, sustained — the bespoke
+            // offbeat stabs are retired from the flow (see BioComposer.compose).
+            // Character = deep dorian m7 chords an octave under vaporwave; the
+            // tape echo + the signature dub beat carry the genre.
+            return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4, 6],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
+        case .trap:
+            // PURE FLÄCHE (founder 2026-07-09): the dark-bell lead — the exposed
+            // pure-wave line the founder flagged as "zu laut, unangenehm" — is
+            // GONE. Character = harmonic-minor i→VI in a low, smoky register;
+            // the 808 beat + FX space do the talking.
+            return HarmonicProfile(progression: [0, 5], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
         case .selfObservation:
             // A TRUE DRONE, not a melody-over-chord-change (founder 2026-07-07:
             // "der Sound ist noch nicht sphärisch und beruhigend … reine
