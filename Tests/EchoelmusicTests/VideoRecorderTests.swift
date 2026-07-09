@@ -91,5 +91,29 @@ final class VideoRecorderTests: XCTestCase {
         XCTAssertNil(url)
         XCTAssertEqual(rec.recordState, .idle)
     }
+
+    @MainActor
+    func testStartWhileRecording_isRejected() {
+        // The re-arm guard must still reject an ALREADY-active capture (double-tap
+        // safety): a second start while `.recording` must not tear down writer state.
+        let rec = VideoRecorder()
+        rec.startRecording()
+        XCTAssertEqual(rec.recordState, .recording)
+        rec.startRecording()                       // second call — must be a no-op
+        XCTAssertEqual(rec.recordState, .recording)
+    }
+
+    @MainActor
+    func testReArmAfterTerminalState_returnsToRecording() async {
+        // Regression for "kann ich das danach nicht mehr machen": after a capture
+        // ends (here via the no-frame path → `.idle`, but the guard now also accepts
+        // `.done`/`.error`), a fresh start must re-arm to `.recording`. The old guard
+        // required exactly `.idle`, silently dropping the second capture after `.done`.
+        let rec = VideoRecorder()
+        rec.startRecording()
+        _ = await rec.stopRecording()              // terminal state reached
+        rec.startRecording()                       // must re-arm
+        XCTAssertEqual(rec.recordState, .recording)
+    }
 }
 #endif
