@@ -508,6 +508,10 @@ final class TouchInstrumentUIView: UIView {
             amp: Float((strong ? 0.5 : 0.28) * (0.6 + 0.4 * vel)),
             r: Float(rgb.r * s), g: Float(rgb.g * s), b: Float(rgb.b * s),
             duration: strong ? 1.0 : 0.65,
+            // strong drives the channel's eviction policy: wake (trail) drops are
+            // rate-capped and never evict a live light; only real strikes may
+            // reuse the dimmest slot (artifact audit 2026-07-09 #2).
+            strong: strong,
             // CFAbsoluteTime — MUST match the draw loop's frame clock (same epoch
             // rule as TouchToneChannel; CACurrentMediaTime would read as stale).
             at: CFAbsoluteTimeGetCurrent())
