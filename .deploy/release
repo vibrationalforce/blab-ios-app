@@ -1,4 +1,17 @@
-build: 2026-07-09 v10.79.128 (Temperature-friendly Puls · Kamera-Resilienz · Echoel-Touch-Sound · Parallel-Apps ungestört)
+build: 2026-07-09 v10.79.129 (Fullscreen-Flackern weg: FPS fest · Temperatur-freundlich · Parallel-Apps + BT-Piepen weg · Echoel-Touch-Sound)
+notesFlicker: (5) FULLSCREEN-FLACKERN — dein Hinweis "im Fullscreen immer
+  noch nicht weg, in der Aufnahme aber nicht zu sehen" war DER Schlüssel: was
+  in der Aufnahme fehlt, steckt NICHT im gerenderten Bild (der Recorder nimmt
+  die gerenderten Textur-Frames), sondern in der DARSTELLUNG. Ursache: der
+  Ressourcen-Regler schaltete die Display-Bildrate um (120↔60), das baut die
+  Anzeige-Uhr (CADisplayLink) jedes Mal neu auf = ein sichtbarer Ruckler, den
+  keine Aufnahme sieht. FIX: die Display-Bildrate ist jetzt FEST auf 60 —
+  wird zur Laufzeit NIE mehr umgeschaltet. Hitze wird stattdessen über Detail-
+  Reduktion + Reduce-Motion (beide weich) und die neue 15-fps-Kamera geregelt.
+  Nebeneffekt gegen das "Knistern hier und da": 60 statt 120 fps + 15-fps-
+  Kamera senken die GPU/CPU-Last, die mit dem Audio-Thread konkurriert —
+  weniger Aussetzer. Falls es nach diesem Build noch knistert: schick mir ein
+  Device-Log der Stelle, dann gehe ich es gezielt als eigenen Zyklus an.
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
 notesT: Antwort auf deine Richtung "Ultrahardthink Sync realtime resource und
   Akku bei Temperatur freundlich" — dieser Build senkt gezielt die Wärme, die

@@ -109,7 +109,11 @@ final class AdaptiveQualityTests: XCTestCase {
         XCTAssertFalse(s.reduceMotion)
         XCTAssertTrue(s.allowSpectralDonuts)
         XCTAssertEqual(s.visualDetailScale, 1.0, accuracy: 0.001)
-        XCTAssertEqual(s.targetFPS, 120)
+        // Display FPS is pinned at 60 (MetalBioView) and 60 is the temperature-friendly
+        // ceiling; the high tier earns its keep via full detail + faster bio/OSC polls,
+        // not a 120 Hz display. (A 120 target would also make the pinned-60 display read
+        // as 'missing target' and spuriously demote via measured-FPS feedback.)
+        XCTAssertEqual(s.targetFPS, 60)
     }
 
     // MARK: - Measured-FPS demotion
