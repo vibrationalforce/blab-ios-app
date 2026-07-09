@@ -593,9 +593,15 @@ public final class AudioEngine {
     func setInputMonitoring(_ on: Bool) -> Bool {
         #if os(iOS)
         prepareGraph()
-        let input = masterEngine.inputNode
         if on {
             guard !isInputMonitoring else { return true }
+            // Default session is .playback (output only) so we never drag other
+            // apps' Bluetooth audio to HFP call quality. Monitoring reads the mic,
+            // so upgrade to .playAndRecord first — otherwise inputNode reports
+            // sampleRate 0 and the format guard below bails.
+            do { try AudioConfiguration.upgradeToPlayAndRecord() }
+            catch { log.audio("Input monitoring: session upgrade failed (\(error))", level: .error) }
+            let input = masterEngine.inputNode
             let inFmt = input.inputFormat(forBus: 0)
             guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
                 log.audio("Input monitoring: no valid input format (mic permission?)", level: .error)
