@@ -102,6 +102,49 @@ final class MusicalKeyTests: XCTestCase {
         XCTAssertEqual(Scale.harmonicMajor.intervals,    [0, 2, 4, 5, 7, 8, 11])
         XCTAssertEqual(Scale.hungarianMinor.intervals,   [0, 2, 3, 6, 7, 8, 11])
         XCTAssertEqual(Scale.doubleHarmonic.intervals,   [0, 1, 4, 5, 7, 8, 11])
+        // Tonarten expansion 2026-07-09 (standard catalog definitions only —
+        // Ableton-proprietary "Bulgarian"/"Polymode" deliberately NOT shipped).
+        XCTAssertEqual(Scale.neapolitanMinor.intervals, [0, 1, 3, 5, 7, 8, 11])
+        XCTAssertEqual(Scale.neapolitanMajor.intervals, [0, 1, 3, 5, 7, 9, 11])
+        XCTAssertEqual(Scale.romanianMinor.intervals,   [0, 2, 3, 6, 7, 9, 10])
+        XCTAssertEqual(Scale.persian.intervals,         [0, 1, 4, 5, 6, 8, 11])
+        XCTAssertEqual(Scale.hirajoshi.intervals,       [0, 2, 3, 7, 8])
+        XCTAssertEqual(Scale.iwato.intervals,           [0, 1, 5, 6, 10])
+        XCTAssertEqual(Scale.insen.intervals,           [0, 1, 5, 7, 10])
+        XCTAssertEqual(Scale.yo.intervals,              [0, 2, 5, 7, 9])
+        XCTAssertEqual(Scale.inSakura.intervals,        [0, 1, 5, 7, 8])
+        XCTAssertEqual(Scale.egyptian.intervals,        [0, 2, 5, 7, 10])
+        XCTAssertEqual(Scale.pelog.intervals,           [0, 1, 3, 7, 8])
+        XCTAssertEqual(Scale.enigmatic.intervals,       [0, 1, 4, 6, 8, 10, 11])
+        XCTAssertEqual(Scale.prometheus.intervals,      [0, 2, 4, 6, 9, 10])
+        XCTAssertEqual(Scale.augmented.intervals,       [0, 3, 4, 7, 8, 11])
+        XCTAssertEqual(Scale.tritone.intervals,         [0, 1, 4, 6, 7, 10])
+        XCTAssertEqual(Scale.hungarianMajor.intervals,  [0, 3, 4, 6, 7, 9, 10])
+        XCTAssertEqual(Scale.bebopMajor.intervals,      [0, 2, 4, 5, 7, 8, 9, 11])
+        XCTAssertEqual(Scale.majorLocrian.intervals,    [0, 2, 4, 5, 6, 8, 10])
+    }
+
+    func testEveryScale_quantizeAlwaysLandsInScale() {
+        // The touch surface + composer rely on quantize() reaching an in-scale
+        // note within its ±6 semitone search — must hold for every roster scale,
+        // including the sparse pentatonics (largest gap ≤ 5 semitones).
+        for scale in Scale.allCases {
+            let key = MusicalKey(root: 4, scale: scale)
+            for n in 48...84 {
+                XCTAssertTrue(key.contains(key.quantize(n)),
+                              "\(scale): quantize(\(n)) must land in scale")
+            }
+        }
+    }
+
+    func testEveryScale_intervalsStrictlyAscendingFromZero() {
+        for scale in Scale.allCases {
+            let iv = scale.intervals
+            XCTAssertEqual(iv.first, 0, "\(scale): root must be degree 0")
+            XCTAssertEqual(iv, iv.sorted(), "\(scale): ascending")
+            XCTAssertEqual(Set(iv).count, iv.count, "\(scale): no duplicate degrees")
+            XCTAssertTrue(iv.allSatisfy { (0..<12).contains($0) }, "\(scale): one octave")
+        }
     }
 
     func testNewScale_codableRoundTrip() throws {

@@ -327,3 +327,13 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
   keine CC-Pflicht entsteht; die Nennung ist freiwillige, korrekte Wissenschaftspraxis. Seine
   Markenbegriffe ("Kosmische Oktave" als Produktname, "Planetentöne"-Branding) NICHT als
   Feature-Namen verwenden — nur beschreibend/attributiv.
+
+## 2026-07-09 — Rapidflow Sphere V3 (founder: "evtl als Inspiration interessant?")
+- **Was es ist:** Audio-reaktiver VST-Visualizer (Desktop/DAW): splittet Audio in Frequenzbänder,
+  Modifier per Drag-and-drop auf Visual-Parameter (Zoom/Displacement/Farbe/Bewegung), MIDI-CC,
+  LFO-Modulation, Video-Recording. Kein iOS, kein SDK.
+- **Verdict: WATCH.** Bestätigt die Kategorie (audio-reaktive immersive Visuals) — Echoel macht
+  das nativ UND bio-reaktiv (unser Differenzierer). Die eine übertragbare Idee — PER-BAND-
+  Reaktivität statt nur Master-Level — liegt bereits geparkt ("trackLevels → Element-Reaktivität:
+  Drums/Bass/Lead getrennt", seit v10.79.118; masterLevel→Intensity ist geshippt). Nichts zu
+  adoptieren außer dem geparkten Zyklus; kein Dependency-Kandidat.
