@@ -229,6 +229,11 @@ struct EchoelStudioView: View {
     /// per-re-seed text change is observed ONLY by the leaf `StudioCaptionView` — not the
     /// root body — so re-seeding never rebuilds (and closes) the selection menus.
     @State private var caption = StudioCaption()
+    /// EchoelAI speaks only when ASKED (founder 2026-07-09: "Echoel AI soll
+    /// interaktiver werden und nicht ungefragt Dinge anzeigen"). Default OFF —
+    /// the narration paragraph never appears unprompted; the user opens it via
+    /// the quiet disclosure row and the choice persists.
+    @AppStorage("studio.liveNarration") private var showLiveNarration = false
 
     // Background evolution + bio acquisition.
     @State private var evolveTask: Task<Void, Never>?
@@ -390,7 +395,12 @@ struct EchoelStudioView: View {
                     // Mood pads REMOVED from the surface (founder 2026-07-07:
                     // "Xy Pads komplett wieder herausnehmen"). The builder +
                     // MoodPads.swift stay in code, unpresented (reversible).
-                    AnyView(nonStandardTuningBanner)
+                    // nonStandardTuningBanner REMOVED from presentation (founder
+                    // 2026-07-09: "nicht ungefragt Dinge anzeigen") — the current
+                    // tuning + the way back to 12-TET live where the user set it,
+                    // in the Composition panel's tuning row. Builder stays defined
+                    // below, unpresented (reversible). Removing a body branch only
+                    // SHRINKS the aggregate type (metadata-safe).
                     #if canImport(AVFoundation)
                     if running { AnyView(PulseMeasurementView()) }
                     #endif
@@ -997,19 +1007,46 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// EchoelAI's plain-English narration of the live bio→sound mapping, shown while a
-    /// take plays — directly under the bio strip so the sentence sits next to the numbers
-    /// it explains (moved here 2026-07-07 from between the Mood/Export cards, where it read
-    /// as orphaned text). Wrapped in the standard subtle container so it looks intentional.
-    /// The changing text is observed ONLY by the `StudioCaptionView` leaf (freeze rule).
+    /// EchoelAI's narration of the live bio→sound mapping — ON REQUEST ONLY
+    /// (founder 2026-07-09: "Echoel AI soll interaktiver werden und nicht
+    /// ungefragt Dinge anzeigen"). While a take plays, a single quiet disclosure
+    /// row is the only chrome; the plain-English paragraph appears when the user
+    /// opens it (Apple-native disclosure — content on request, never pushed) and
+    /// the choice persists. The changing text is still observed ONLY by the
+    /// `StudioCaptionView` leaf (freeze rule); the chevron swaps symbols instead
+    /// of rotating (no transform animations — Uncodixfy).
     @ViewBuilder private var liveNarrationBanner: some View {
         if running {
-            StudioCaptionView(caption: caption)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .stroke(EchoelTheme.border, lineWidth: 1))
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    showLiveNarration.toggle()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 12))
+                            .foregroundStyle(EchoelTheme.dim)
+                        Text("What your body is doing to the sound")
+                            .font(EchoelTheme.font(12, .semibold))
+                            .foregroundStyle(EchoelTheme.dim)
+                        Spacer(minLength: 8)
+                        Image(systemName: showLiveNarration ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(EchoelTheme.dim)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Live narration")
+                .accessibilityHint("Shows or hides the plain-language description of how your body shapes the music")
+                if showLiveNarration {
+                    StudioCaptionView(caption: caption)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .stroke(EchoelTheme.border, lineWidth: 1))
         }
     }
 

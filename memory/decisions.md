@@ -370,3 +370,18 @@ Architectural and strategic decisions with context and rationale.
   invariants moved onto retired melodic profiles (.futuristic/.disco).
 - **Do NOT** re-add a lead line to a curated genre without a founder ask; the reversible path
   is documented in `BioComposer.compose`.
+
+### 2026-07-09 Echoel AI: interactive, never unprompted — and Apple-native integration as the bar
+- **Founder (verbatim):** "Echoel AI soll interaktiver werden und nicht ungefragt Dinge
+  anzeigen. Alles soll sich perfekt in die Apple Umgebung integrieren"
+- **Rule going forward:** no UI element appears unprompted over the instrument. Status
+  belongs where the user looks (inline rows, existing panels); explanations/coaching
+  appear on request (disclosure/tap-to-learn) and the choice persists. Apple HIG
+  patterns beat custom chrome wherever Apple has one.
+- **Executed (v10.79.126):** live EchoelAI narration → quiet disclosure row, default OFF,
+  persisted; nonStandardTuningBanner unpresented (builder kept, reversible — the tuning
+  row in Composition is the on-request home). KEPT as-is: rPPG recovery/cooling banner
+  (honest system state during a user-started measurement, not coaching).
+- **Open arc (needs founder-gated scoping):** full HIG pass — Dynamic Type audit, system
+  materials, standard gestures; deeper Apple integration candidates (Shortcuts/App
+  Intents, Widgets already shipped, HealthKit write?) are FEATURES → vision-gate each.

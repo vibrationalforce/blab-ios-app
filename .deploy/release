@@ -1,30 +1,25 @@
-build: 2026-07-09 v10.79.124 (Taktanfang sitzt · Touch-Visual neu strukturiert · 42 Tonarten)
+build: 2026-07-09 v10.79.125 (Kamera-Erholung gibt nie mehr auf)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Drei Founder-Asks in einem Build:
-  1) TAKTANFANG SITZT (kein Stolpern mehr): Am Loop-Übergang wurde bisher
-     jede gehaltene Fläche losgelassen und sofort neu angeschlagen —
-     hörbares Absacken/Anschwellen in jeder Runde plus Klicks durch
-     kurzzeitig doppelte Stimmenlast. Jetzt klingt eine Note, die am
-     Taktstrich endet und am Anfang wieder beginnt, einfach DURCH (Tie).
-     Auch Evolve-Wechsel: unveränderte Töne bleiben stehen, nur neue
-     blenden. Loops schneiden sauber und angenehm.
-  2) VISUAL TOUCH INSTRUMENT — NEU STRUKTURIERT: Die Grafikfehler-Quelle
-     war ein zweiter Render-Pfad: Die Wasserringe waren Core-Animation-
-     Ebenen ÜBER dem Metal-Bild (zwei Uhren, zwei Compositoren). Jetzt
-     zeichnet der Metal-Shader die Tropfen selbst — Farbwolke + eine
-     Wellenfront in der physikalischen Notenfarbe, im selben Bild, auf
-     derselben Uhr. Die Fehlerklasse ist konstruktiv unmöglich.
-  3) 42 TONARTEN (Deep-Research-Pass): 18 neue, sauber belegte Skalen —
-     Neapolitan Minor/Major · Romanian Minor (Klezmer) · Persian ·
-     Hungarian Major · Major Locrian · Enigmatic (Verdi) · Prometheus
-     (Skrjabin) · Bebop Major · Hirajoshi · Iwato · Insen · Yo · In
-     (Sakura) · Egyptian · Pelog · Augmented · Tritone. (Abletons
-     "Bulgarian"/"Polymode" bewusst nicht — keine verlässliche
-     öffentliche Definition, wir raten keine Musiktheorie.)
-  TEST 10.79.124:
-  A) Loop lange laufen lassen: Taktanfang komplett nahtlos (kein
-     Absacken, keine Klicks)? Auch beim Evolve-Wechsel?
-  B) Touch-Instrument im Vollbild spielen, schnell sliden, Fenster
-     vergrößern/drehen währenddessen: Wasser sauber, keine Bildfehler?
-  C) Tonart-Menü: 42 Einträge? Ein paar Exoten anspielen (Hirajoshi,
-     Insen, Persian) — Griffbrett + Farben stimmen mit?
+notesT: Ein Fix, gezielt gegen den Puls-Ausfall aus deinen letzten drei
+  Sessions (Logs: ~83 s blind, und heute 2× der gleiche Stall am Ende):
+  1) KAMERA-ERHOLUNG OHNE AUFGEBEN: Bisher versuchte die App 3 schnelle
+     Erholungen + EINEN kompletten Kalt-Neustart — schlug der fehl,
+     stand "leaving it to the watchdog" im Log und der Puls blieb blind,
+     bis das System sich irgendwann selbst heilte. Jetzt macht die App
+     unbegrenzt Kalt-Neustarts (alle ~18 s, wie dein manuelles
+     Stop→Start, das den Stall zuverlässig heilt), bis wirklich wieder
+     Bilder fließen. Ein fehlgeschlagener Neustart wird sichtbar
+     geloggt statt verschluckt.
+  2) WACHHUND SIEHT JETZT AUCH EINE TOTE SESSION: Der interne Watchdog
+     reagierte nur, solange die Kamera-Session LIEF — genau wenn ein
+     fehlgeschlagener Neustart sie tot zurückließ, war er blind. Jetzt
+     belebt er auch eine tote Session mit komplettem Neuaufbau wieder.
+  TEST 10.79.125:
+  A) Lange Session (5+ min) mit Finger auf der Kamera: wenn der Puls
+     aussetzt (Zahl friert ein / "erholt sich"), kommt er jetzt von
+     SELBST innerhalb ~20-40 s zurück (vorher: nie, bis manuell
+     Stop→Start)?
+  B) Log danach schicken — ich will die "cold camera restart #N"-Zeilen
+     und ob danach wieder Frames fließen.
+  (Außerdem drin: alles aus 10.79.124 — Taktanfang-Tie, Touch-Visual im
+  Metal-Shader, 42 Tonarten.)
