@@ -47,6 +47,7 @@ struct PulseMeasurementView: View {
                 .accessibilityHidden(true)   // decorative waveform — not a VoiceOver control
             ProgressView(value: locked ? 1 : min(max(cameraRPPG.confidence, 0), 1))
                 .tint(locked ? EchoelTheme.accent : EchoelTheme.warning)
+                .accessibilityLabel("Pulse signal confidence")
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))

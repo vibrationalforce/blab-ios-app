@@ -174,14 +174,17 @@ struct OnboardingView: View {
     }
 
     private func safetyRow(_ symbol: String, _ text: String) -> some View {
+        // 0.7 opacity like the page's body copy — at 0.5 the MANDATED safety
+        // warnings were the least legible text in onboarding (~4.3:1, below the
+        // WCAG AA 4.5:1 small-text minimum; AX audit 2026-07-09).
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbol)
                 .font(EchoelTheme.font(11))
                 .frame(width: 16)
-                .foregroundStyle(EchoelTheme.text.opacity(0.45))
+                .foregroundStyle(EchoelTheme.text.opacity(0.6))
             Text(text)
                 .font(EchoelTheme.font(12))
-                .foregroundStyle(EchoelTheme.text.opacity(0.5))
+                .foregroundStyle(EchoelTheme.text.opacity(0.7))
             Spacer(minLength: 0)
         }
     }

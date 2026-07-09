@@ -90,7 +90,9 @@ struct WorkspaceView: View {
                     EchoelLogoMark().frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Echoelmusic website")
+                // The centred title button already announces + opens the website —
+                // two adjacent VoiceOver stops for one action is noise (AX audit).
+                .accessibilityHidden(true)
                 Spacer(minLength: 0)
                 // RIGHT: immersive-visual monitor — tap to show/hide the floating visual.
                 // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
@@ -159,6 +161,9 @@ private struct TransportBar: View {
                         .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit
+            // area fills the bar height (performance control, AX audit 2026-07-09).
+            .contentShape(Rectangle().inset(by: -6))
             .accessibilityLabel(transport.isPlaying ? "Stop" : "Play")
 
             // NO tempo number here anymore (founder 2026-07-04: "zwei Anzeigen irritieren
@@ -202,6 +207,7 @@ private struct TransportBar: View {
                     .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle().inset(by: -6))   // 44 pt-class target (HIG)
         .accessibilityLabel(lockBPM ? "Tempo locked — tap to let it follow the body" : "Lock tempo")
         .accessibilityHint("When locked, the beat holds and biofeedback only shapes the sound")
     }

@@ -570,7 +570,7 @@ struct EchoelStudioView: View {
                     .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
                 if showVisualControls {
                     visualVJOverlay
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(.opacity)   // Uncodixfy: opacity only, no translation
                 }
                 // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
                 // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
@@ -1364,7 +1364,7 @@ struct EchoelStudioView: View {
             // minimize — the A/B "mischend" mix was extra clicking). Still defined
             // below, reversible; the migration in onAppear clears any lingering blend.
             visualPresetRow
-            musicColourRow
+            MusicColourRowView()
             visualAdjustFields
             Text("Colour defaults to the heard tone octave-transposed into visible light (after Hans Cousto's Cosmic Octave, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -1748,37 +1748,11 @@ struct EchoelStudioView: View {
         EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
     }
 
-    /// Live "music → colour": the chord sounding now (published on the bus by the
-    /// piano roll as a MusicalFrame) mapped through SpectralColor (OKLab, octave-
-    /// equivalent hue, amplitude-weighted chord mix). Proves the DMMW promise —
-    /// visuals shaped BY musical parameters — and feeds the immersive visual + light.
-    private var musicColourRow: some View {
-        let frame = bus.freshMusical(maxAge: 1.5)
-        let sounding = frame?.isSounding ?? false
-        let swatch = musicColour(frame) ?? EchoelTheme.fill
-        return HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(swatch)
-                .frame(width: 44, height: 28)
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Music → colour").font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
-                Text(sounding ? "Live chord, mapped by pitch + loudness" : "Plays when the music is sounding")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            }
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Music colour, \(sounding ? "live" : "idle")")
-    }
-
-    /// Bridge the bus's latest MusicalFrame to a SwiftUI colour via SpectralColor.
-    /// Output is LINEAR sRGB, so it's handed to SwiftUI as `.sRGBLinear`.
-    private func musicColour(_ frame: MusicalFrame?) -> Color? {
-        guard let frame, frame.isSounding else { return nil }
-        let rgb = SpectralColor.color(forChord: frame.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
-        return Color(.sRGBLinear, red: rgb.r, green: rgb.g, blue: rgb.b)
-    }
+    // musicColourRow now lives in its OWN leaf (`MusicColourRowView`, end of file):
+    // it reads the bus's MusicalFrame, which republishes on EVERY sequencer step
+    // (~5-8 Hz while playing) — read here it made the whole Visual panel subtree
+    // re-evaluate at that rate (Ruckeln while dragging the look slider mid-take).
+    // THE freeze rule: high-frequency @Observable reads only in leaf bodies.
 
     // MARK: Panel — Mood (character of the composition)
 
@@ -2255,7 +2229,10 @@ struct EchoelStudioView: View {
             if !hasComposed {
                 // The export/keep/save buttons below are disabled until there's a take —
                 // say WHY, so a first-run user doesn't read the greyed buttons as broken.
-                Text("Tap Generate first — then you can export a WAV loop or record a video.")
+                // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
+                // users hunted for it and read the greyed buttons as broken). Video
+                // recording lives in the floating visual window, not here.
+                Text("Tap 'Create from Within' first — then you can export the loop as a WAV.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -3204,6 +3181,47 @@ private struct StudioZoom: ViewModifier {
                 }
                 .onEnded { _ in pinchBase = nil }
         )
+    }
+}
+
+/// Live "music → colour": the chord sounding now (published on the bus by the
+/// piano roll as a MusicalFrame) mapped through SpectralColor (OKLab, octave-
+/// equivalent hue, amplitude-weighted chord mix). Proves the DMMW promise —
+/// visuals shaped BY musical parameters — and feeds the immersive visual + light.
+///
+/// OWN LEAF on purpose (freeze rule, audit 2026-07-09): `freshMusical` republishes
+/// on every sequencer step (~5-8 Hz while playing). Reading it here confines the
+/// churn to this one row — read inside the Visual panel's closure it re-evaluated
+/// the whole panel subtree (look slider, chips, value fields) at step rate.
+private struct MusicColourRowView: View {
+    @Environment(EngineBus.self) private var bus
+
+    var body: some View {
+        let frame = bus.freshMusical(maxAge: 1.5)
+        let sounding = frame?.isSounding ?? false
+        let swatch = musicColour(frame) ?? EchoelTheme.fill
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(swatch)
+                .frame(width: 44, height: 28)
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Music → colour").font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                Text(sounding ? "Live chord, mapped by pitch + loudness" : "Plays when the music is sounding")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Music colour, \(sounding ? "live" : "idle")")
+    }
+
+    /// Bridge the bus's latest MusicalFrame to a SwiftUI colour via SpectralColor.
+    /// Output is LINEAR sRGB, so it's handed to SwiftUI as `.sRGBLinear`.
+    private func musicColour(_ frame: MusicalFrame?) -> Color? {
+        guard let frame, frame.isSounding else { return nil }
+        let rgb = SpectralColor.color(forChord: frame.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
+        return Color(.sRGBLinear, red: rgb.r, green: rgb.g, blue: rgb.b)
     }
 }
 

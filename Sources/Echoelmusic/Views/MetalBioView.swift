@@ -147,19 +147,45 @@ final class TouchRippleChannel: @unchecked Sendable {
 
     private let lock = NSLock()
     private var drops: [Drop] = []
-    /// Matches the shader's slot count — the oldest drop yields when a 7th lands.
+    /// Matches the shader's slot count.
     private static let maxDrops = 6
+    /// Wake (slide-trail) drops are rate-capped: a fast slide spawns one every
+    /// ~14 pt of travel (40–80/s) — unbounded, that recycled all 6 slots every
+    /// ~0.1 s, each light popping in and being CUT out (the machine-gun flicker,
+    /// artifact audit 2026-07-09 #2 — the flash law covers creation rate too).
+    private static let minWakeInterval: CFTimeInterval = 0.05
+    private var lastWakeAccepted: CFTimeInterval = 0
 
     func drop(x: Float, y: Float, amp: Float, r: Float, g: Float, b: Float,
-              duration: CFTimeInterval, at now: CFTimeInterval) {
+              duration: CFTimeInterval, strong: Bool, at now: CFTimeInterval) {
         guard x.isFinite, y.isFinite, amp.isFinite, amp > 0 else { return }
         lock.lock()
+        defer { lock.unlock() }
         drops.removeAll { now - $0.birth >= $0.duration }
-        if drops.count >= Self.maxDrops { drops.removeFirst() }
+        if !strong {
+            // A trail light is decorative — never worth cutting a live light for,
+            // and never faster than the rate cap.
+            guard drops.count < Self.maxDrops,
+                  now - lastWakeAccepted >= Self.minWakeInterval else { return }
+            lastWakeAccepted = now
+        } else if drops.count >= Self.maxDrops {
+            // Full + a real note (7 overlapping strikes — rare): reuse the DIMMEST
+            // light (amp × remaining life), the least-visible swap. NEVER
+            // removeFirst() — that cut a possibly-bright ripple to black in one
+            // frame (the "feuert rein" pop).
+            if let victim = drops.indices.min(by: {
+                remainingLight(drops[$0], now: now) < remainingLight(drops[$1], now: now)
+            }) {
+                drops.remove(at: victim)
+            }
+        }
         drops.append(Drop(x: min(max(x, 0), 1), y: min(max(y, 0), 1),
                           amp: min(amp, 1), r: r, g: g, b: b,
                           birth: now, duration: max(duration, 0.05)))
-        lock.unlock()
+    }
+
+    private func remainingLight(_ d: Drop, now: CFTimeInterval) -> Float {
+        d.amp * Float(max(0, 1 - (now - d.birth) / d.duration))
     }
 
     /// All live drops (expired ones pruned). Pure value snapshot per frame.
@@ -464,6 +490,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var cloudHzSlot = [Double](repeating: 0, count: 5)
     private var cloudPos = [SIMD2<Float>](repeating: .zero, count: 5)
     private var cloudW = [Float](repeating: 0, count: 5)
+    /// Whether the slot's note is a FINGER note (fast ease-in — a touch must answer
+    /// NOW) or a generative-bed note (slower ease-in: the roll's 8 note-ons/s each
+    /// blooming a half-frame cloud in ~90 ms read as rhythmic "shooting", artifact
+    /// audit 2026-07-09 #3 — the bed should breathe in, only the fingers snap).
+    private var cloudTouch = [Bool](repeating: false, count: 5)
 
     /// Slot identity for a sounding frequency: its nearest semitone (A4 = 440 ref —
     /// only an ID, the exact Hz still drives colour/place, so any Kammerton/tuning
@@ -617,7 +648,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // then the generative bed's notes at their live amplitude. Declared at
         // function scope (compile lesson 8873363); FILLED inside the MainActor
         // block below because the bus's musical snapshot is @MainActor.
-        var soundingNotes: [(id: Int, hz: Double, amp: Float)] = []
+        var soundingNotes: [(id: Int, hz: Double, amp: Float, touch: Bool)] = []
         // Live musical LEVEL [0,1] (MusicalFrame.masterLevel — published since the
         // DMMW backbone, unused by the visual until now): the picture's energy
         // breathes WITH the music's actual density/loudness ("ineinandergreifen"),
@@ -696,7 +727,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 let id = Self.noteID(hz)
                 guard id != Int.min else { continue }
                 if !soundingNotes.contains(where: { $0.id == id }) {
-                    soundingNotes.append((id, hz, 1.0))
+                    soundingNotes.append((id, hz, 1.0, true))
                 }
             }
             let mf = bus?.freshMusical(maxAge: 0.5)
@@ -708,7 +739,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                     let id = Self.noteID(n.frequencyHz)
                     guard id != Int.min else { continue }
                     if !soundingNotes.contains(where: { $0.id == id }) {
-                        soundingNotes.append((id, n.frequencyHz, Float(n.amplitude.squareRoot())))
+                        soundingNotes.append((id, n.frequencyHz, Float(n.amplitude.squareRoot()), false))
                     }
                 }
             }
@@ -729,7 +760,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let touchE = TouchVisualEnergy.shared.value(now: nowGov)
             update(hr: bio?.heartRateBPM ?? 60,
                    coherence: bio?.coherence ?? (idle ? idleCoh : 0.5),
-                   breath: bio?.breathPhase ?? (idle ? idleBreath : 0.5),
+                   // breathPhase is a WRAPPING 0→1 phase; the shader uses breath as
+                   // a MAGNITUDE (spread/restGlow), so feeding it raw made the whole
+                   // figure saw-collapse ~30 % at every cycle wrap (audit #4). Shape
+                   // it into a smooth hump — same fix PianoRollView applied to MPE
+                   // press ("swell through the breath, not saw-reset at the wrap").
+                   // The idle fallback is already a wrap-free sine; keep it raw.
+                   breath: bio.map { sin(Float.pi * min(max($0.breathPhase, 0), 1)) }
+                       ?? (idle ? idleBreath : 0.5),
                    toneHz: liveTone,
                    // Energy interlocks with what actually SOUNDS: fingers pump touchE,
                    // the generative music adds its live master level — the picture
@@ -795,6 +833,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                     slotTaken[k] = true
                     cloudHzSlot[k] = soundingNotes[i].hz
                     targetW[k] = soundingNotes[i].amp
+                    cloudTouch[k] = soundingNotes[i].touch
                 }
             }
             // 2) New notes claim the quietest free slot. A TRULY free slot (weight
@@ -807,11 +846,20 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             //    out in one frame, the exact class this design exists to prevent).
             for i in soundingNotes.indices where !noteConsumed[i] {
                 let free = (0..<5).filter { !slotTaken[$0] }
-                guard let k = free.min(by: { cloudW[$0] < cloudW[$1] }) else { break }
+                // Prefer a truly-INVISIBLE slot (snap colour+place, fade in) over
+                // stealing a still-visible one: a stolen visible slot's colour +
+                // position chase the new note, so a cloud visibly DARTED across
+                // half the screen on every chord change (artifact audit 2026-07-09
+                // #3). Now a visible fading cloud finishes fading in place; only
+                // when all five are visibly lit does the quietest carry over.
+                let invisible = free.filter { cloudW[$0] < 0.004 }
+                guard let k = (invisible.isEmpty ? free : invisible)
+                    .min(by: { cloudW[$0] < cloudW[$1] }) else { break }
                 slotTaken[k] = true
                 cloudID[k] = soundingNotes[i].id
                 cloudHzSlot[k] = soundingNotes[i].hz
                 targetW[k] = soundingNotes[i].amp
+                cloudTouch[k] = soundingNotes[i].touch
                 if cloudW[k] < 0.004 {
                     slotSeeded[k] = true      // invisible: snap colour + place, fade in
                     cloudW[k] = 0
@@ -823,7 +871,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             //    ever jump on a visible cloud, at any retrigger/steal rate).
             for k in 0..<5 {
                 let up = targetW[k] > cloudW[k]
-                cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? 0.09 : 0.35, dt: dt)
+                // Ease-in split by source: a FINGER answers now (0.09); the
+                // generative bed breathes in (0.30) — its 16th-note retriggers at
+                // ~8/s otherwise bloom half-frame clouds in ~90 ms each, reading
+                // as rhythmic "shooting" synced to the roll (audit #3).
+                let inTau: Float = cloudTouch[k] ? 0.09 : 0.30
+                cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? inTau : 0.35, dt: dt)
                 if !slotTaken[k], cloudW[k] < 0.004 { cloudID[k] = Int.min }   // slot free again
                 guard cloudHzSlot[k] > 0 else { continue }
                 let wl = SpectralColor.visibleWavelength(forToneHz: cloudHzSlot[k])
@@ -986,7 +1039,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // ring as its leading edge — the same water identity as before, now perfectly
     // frame-locked to the field under it. `uvA` is the aspect-correct coordinate
     // (x scaled by aspect → circles stay circular on a tall phone). Flash-safe by
-    // construction: every ripple's light decays monotonically over its life and
+    // construction: every ripple's light EASES IN over the first ~10 % of its life
+    // (a drop at prog 0 used to appear at FULL brightness in one frame — the
+    // "feuert rein" pop, artifact audit 2026-07-09 #1), then decays monotonically;
     // the sum is clamped before compositing.
     float3 rippleLight(float2 uvA, constant Uniforms& u) {
         float rx[6] = { u.rp0x, u.rp1x, u.rp2x, u.rp3x, u.rp4x, u.rp5x };
@@ -1006,6 +1061,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             float prog = rp[k];
             if (amp < 0.003 || prog >= 0.999) continue;   // empty / finished slot
             float life = 1.0 - prog;                       // monotonic fade-out
+            float att = smoothstep(0.0, 0.10, prog);       // eased onset (~65-100 ms)
             float ease = 1.0 - life * life;                // easeOut expansion
             float2 ctr = float2(rx[k] * u.aspect, ry[k]);
             float rd = distance(uvA, ctr);
@@ -1016,7 +1072,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             float R = mix(0.02, 0.34, ease);
             float t = (rd - R) / 0.011;
             float band = exp(-t * t) * life * life * 0.42;
-            acc += rc[k] * (amp * (cloud + band));
+            acc += rc[k] * (amp * att * (cloud + band));
         }
         return min(acc, float3(0.85));
     }
@@ -1462,9 +1518,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Premium finish: a gentle filmic S-contrast so the frame reads rich/graded, not flat
         // (deepens shadows, lifts highlights a touch). Cheap, no new uniforms; degrade-safe.
         outCol = clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0);
-        // Touch-ripple light ADDS over the graded field (played water = light ON the
-        // water, frame-locked to it — no second compositor). Clamped inside.
-        outCol += rippleLight(uv, u);
+        // Touch-ripple light over the graded field (played water = light ON the
+        // water, frame-locked to it — no second compositor). SCREEN blend, not raw
+        // add: over an already-bright field a raw add clipped to pure white patches
+        // (artifact audit 2026-07-09 #1); screen can approach but never clip white.
+        outCol += rippleLight(uv, u) * (float3(1.0) - outCol);
         outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;   // anti-banding dither
         return float4(clamp(outCol, 0.0, 1.0), 1.0);
     }
