@@ -246,7 +246,15 @@ public final class CameraRPPGBioPublisher {
     /// One-shot final escalation: when in-place recoveries are exhausted, do a FULL
     /// cold stop→start of the capture once (the founder's manual Stop→Start healed
     /// exactly the stall the in-place recovery could not — same log).
-    @ObservationIgnored private var didColdRestart = false
+    /// Cold-restart escalation state. UNLIMITED with a ~18 s backoff (was a ONE-SHOT
+    /// `didColdRestart` flag): device log 1783588109 showed the one cold restart
+    /// failing silently, after which "leaving it to the watchdog" left rPPG blind
+    /// for ~83 s — the capture watchdog only acted on a RUNNING session, so a dead
+    /// session had NO reviver. The founder's manual Stop→Start heals this stall
+    /// class (log 1783177700); the machine now keeps doing exactly that until
+    /// frames actually flow again.
+    @ObservationIgnored private var coldRestarts = 0
+    @ObservationIgnored private var coldCooldownTicks = 0
     private static let maxForcedRecoveries = 3
     private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
     private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
@@ -431,7 +439,8 @@ public final class CameraRPPGBioPublisher {
         stallTicks = 0
         forcedRecoveries = 0
         healthyTicks = 0
-        didColdRestart = false
+        coldRestarts = 0
+        coldCooldownTicks = 0
         recoveringTicks = 0
         recoveryState = .healthy
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
@@ -466,6 +475,7 @@ public final class CameraRPPGBioPublisher {
                 if drained.isEmpty {
                     self.healthyTicks = 0
                     self.stallTicks += 1
+                    if self.coldCooldownTicks > 0 { self.coldCooldownTicks -= 1 }
                     if self.stallTicks >= 60 {          // ~6 s at 10 Hz
                         self.stallTicks = 0
                         self.recoveringTicks = 40   // ~4 s banner: "Kamera erholt sich…"
@@ -473,25 +483,30 @@ public final class CameraRPPGBioPublisher {
                             self.forcedRecoveries += 1
                             EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery (\(self.forcedRecoveries)/\(Self.maxForcedRecoveries))")
                             self.capture.recoverFromStall()
-                        } else if !self.didColdRestart {
-                            // FINAL ESCALATION (once): in-place reconfigures didn't bring the
-                            // sample pipe back, but a full cold stop→start does — the founder's
-                            // manual Stop→Start healed exactly this stall (log 1783177700:
-                            // immediately healthy after 45 s of thrash). Rebuild the whole
-                            // session from scratch: inputs, outputs, torch, exposure.
-                            self.didColdRestart = true
-                            EchoelCrashLog.breadcrumb("rPPG: recoveries exhausted — cold camera restart")
+                        } else if self.coldCooldownTicks == 0 {
+                            // ESCALATION — now UNLIMITED with ~18 s backoff (was one-shot,
+                            // then "leaving it to the watchdog"; device log 1783588109:
+                            // the single cold restart failed SILENTLY and rPPG stayed
+                            // blind ~83 s — the watchdog can't revive a session that never
+                            // came back up). The founder's manual Stop→Start heals this
+                            // stall class; keep doing the machine version — full stop →
+                            // fresh session build (inputs, outputs, torch, exposure) —
+                            // until frames actually flow again. Backoff prevents thrash.
+                            self.coldRestarts += 1
+                            self.coldCooldownTicks = 180   // ~18 s between cold restarts
+                            EchoelCrashLog.breadcrumb("rPPG: recoveries exhausted — cold camera restart #\(self.coldRestarts)")
                             self.capture.stop()
                             try? await Task.sleep(for: .milliseconds(800))
                             guard self.isRunning, !Task.isCancelled else { break }
-                            try? await self.capture.start()
+                            do {
+                                try await self.capture.start()
+                            } catch {
+                                // Visible, never swallowed: a failed cold START was exactly
+                                // the invisible terminal state of the old ladder.
+                                EchoelCrashLog.breadcrumb("rPPG: cold restart #\(self.coldRestarts) start failed: \(error.localizedDescription)")
+                            }
                             self.capture.setTorch(true)
                             self.handleCameraSessionReset()   // drop stale exposure lock → re-lock on finger
-                        } else {
-                            // Cold restart also failed: stop reconfiguring (it only delays
-                            // frames further). The capture-layer watchdog + observers keep
-                            // running; the honest UI state stays "acquiring", never a fake number.
-                            EchoelCrashLog.breadcrumb("rPPG: still no frames after cold restart — leaving it to the watchdog")
                         }
                     }
                 } else {
@@ -501,7 +516,8 @@ public final class CameraRPPGBioPublisher {
                     // the first post-recovery trickle (that reset was the "stuck at 1/3" bug).
                     if self.healthyTicks >= 30 {
                         self.forcedRecoveries = 0
-                        self.didColdRestart = false
+                        self.coldRestarts = 0
+                        self.coldCooldownTicks = 0
                     }
                 }
                 // Honest recovery/cooling banner state (low-freq): a fresh restart shows
