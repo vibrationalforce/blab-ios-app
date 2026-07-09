@@ -406,9 +406,16 @@ struct EchoelmusicApp: App {
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
-                // Touch voice pre-generate default: warm, mirrors the take default; the
-                // generate path re-syncs it (or the user's own touch patch overrides).
-                if let firstPatch = patchStore.patches.first { touchVoice.apply(firstPatch) }
+                // Touch voice pre-generate default: the RESPONSIVE "Echoel Touch" pad
+                // (quick attack + unison width) so the play surface answers a finger
+                // immediately instead of the mushy 0.5 s "Warm Pad" it used to launch
+                // on (founder 2026-07-09: "Den Synth vom Visual Touch Instrument auch
+                // optimieren"). The generate path re-syncs it to the take, or the
+                // user's own touch patch overrides.
+                if let touchPatch = patchStore.patches.first(where: { $0.id == SynthPatch.touchDefaultID })
+                    ?? patchStore.patches.first {
+                    touchVoice.apply(touchPatch)
+                }
                 // WARM default lead timbre (founder 2026-07-07: "warmen Synth-Sound …
                 // quakige Töne raus"). The per-genre `leadPatchName` overrides this on
                 // generate; this is just the pre-generate default, so it's warm, not the
