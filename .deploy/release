@@ -1,19 +1,21 @@
-build: 2026-07-09 v10.79.133 (EchoelTouch — das Spielfeld heißt jetzt so wie im Code)
+build: 2026-07-09 v10.79.134 (Video Capture geht jetzt WIEDERHOLT — nicht mehr nur einmal)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Namensangleichung (deine Entscheidung "Klare Namen, Code angleichen"):
-  Das Finger-Spielfeld heißt in der UI jetzt "EchoelTouch" — genau wie im
-  Programmcode. So heißt überall dasselbe gleich (EchoelVis = die Visuals,
-  EchoelTouch = das Spielinstrument).
+notesT: DEIN BUG behoben: "Wenn ich einmal Video Capture gemacht habe, kann ich
+  das danach nicht mehr machen."
 
-  - Studio-Panel "Visual Touch Instrument" → "EchoelTouch"
-  - VoiceOver-Ansage "Play surface" → "EchoelTouch play surface"
+  Ursache gefunden: Der Rekorder ließ sich nur aus dem Zustand "leer/idle"
+  starten. Nach einer FERTIGEN Aufnahme stand er aber auf "fertig (Datei X)" —
+  der zweite Start wurde deshalb still verworfen, es passierte nichts.
 
-  Kein Verhalten geändert — nur Beschriftung. (Swift-View-Typnamen bleiben
-  Apple-idiomatisch, nur die sichtbaren Labels + der Instrument-Begriff werden
-  EchoelTouch.)
+  Jetzt: der Rekorder lässt sich aus jedem ABGESCHLOSSENEN Zustand neu
+  scharfstellen (leer / fertig / Fehler) — nur WÄHREND einer laufenden Aufnahme
+  wird ein zweiter Start ignoriert (Doppeltipp-Schutz). Die fertige Datei kommt
+  ohnehin über den Rückgabewert beim Stoppen, nicht über den Zustand — es geht
+  also nichts verloren.
 
-  BITTE WEITER GEGENTESTEN (offen seit v131/132):
-  - Vollbild EchoelTouch: ist das Bild jetzt ruhig (kein Strobe/Flackern)?
-  - Anschlag-Gefühl (Taptic warm seit v132): sofort/knackig oder noch träge?
-  - Velocity/Sliden: Lautstärke pro Anschlag & Glide-Gefühl ok?
-  Nach deinem Feedback justiere ich gezielt Velocity-Kurve/Slide/Latenz.
+  → Bitte testen: Video aufnehmen, stoppen, teilen — dann NOCHMAL aufnehmen.
+    Sollte jetzt beliebig oft hintereinander gehen.
+
+  (Offen aus v131–133, bitte weiter gegentesten: Vollbild-EchoelTouch ruhig
+  ohne Strobe? Anschlag-Gefühl knackig? Und das gelegentliche Knistern —
+  daran arbeite ich als Nächstes.)
