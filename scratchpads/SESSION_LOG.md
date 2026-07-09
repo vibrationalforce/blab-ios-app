@@ -3,6 +3,32 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-09 (Forts. 8) — UMBAU-BESCHLUSS: Arrange-Timeline wird Hauptansicht (approved plan) + Stage 0/1a shipped
+- **Founder-Beschlusskette (verbatim in Plan):** Spaces-Modell + fester Bio-Kern (Mockup-Artifact
+  0976e105) → „wie in Ableton MIDI, Audio und Video schneiden … im Takt auf dem Beatgrid" →
+  „ordentliche WAV-Darstellung … Snap-to-Beat aber auch stufenlos … alle Skill-Levels" →
+  **mehrere Lanes · Bio-Spur ja · „alles in dieser Arrange-View als Hauptansicht"**. Approved
+  Plan: `/root/.claude/plans/1-b1-1-piano-roll-delegated-dove.md` (Stages 0–6 + A/V/P-Addenda).
+- **Verifizierte Kernfakten (3 Explore-Agenten):** zwei Zeitwelten (Sections=Int-Takte vs Note=480
+  PPQ je Takt) — song-absolute Tick-Position ist DIE Lücke; ArrangementView/ClipView/
+  ChannelRackView sind `embedded:`-fertig aber ORPHANED (kein Host las `workspace.surface`);
+  WAV-Rendering existiert NICHT (AudioClipView trimmt blind; RetroCapture-RMS wird nie
+  gezeichnet); Video-Timeline existiert NICHT (ClipKind.video isPlayable==false, ehrlich).
+- **v10.79.136 Stage 0 (7b710c6):** SurfaceSwitcherBar + SurfaceHost in WorkspaceView —
+  Arrange · Clips · Studio · Mix, alle gemountet (opacity-Swap), Default bleibt Studio bis
+  Stage 2. Clips+Mix damit erstmals seit Monaten erreichbar. Tests: WorkspaceSurfaceTests.
+- **Stage 1a (12026eb):** `Sequencer/Timeline.swift` (TimelineLane/Region/Document, 480-PPQ-
+  TimelineTime, SnapResolution bar…off, TimelineSnap.snap+magneticSnap) + TimelineTests (Linux-CI).
+- **Addenda eingearbeitet:** Stage A (Audio-Input-Kanal + Vintage-FX-Insert + Gain-Staging-Audit
+  ~−12 dBFS + Anti-Preset, aus Syng_App_Pitch.pdf) · Stage V (Pro-Kamera 1080p/4K WB/Belichtung/
+  Fokus; rPPG-Konflikt-Regel; ChromaKey.metal = FERTIGER 6-Pass-Greenscreen, verwaist!) ·
+  Stage P (MPE-Expression-Lanes — Note trägt nur Velocity; MPE-OUT ist schon voll (Bend+CC74+
+  Pressure+RPN), IN ohne Pressure; Audio-Stretch: TempoMatch berechnet Rate, TimePitch NIE
+  instanziiert) · Website-Fix-Task („MPE in & out" leicht übertrieben).
+- **Deep-Research (wh7dc5fkc, Vorbild-Programme Timeline-UX) läuft noch** → Stage 3/5/6.
+- **Device-Verify v135 (Log 2241):** rPPG@15fps BILDERBUCH — 3,5 min Lock, conf bis 0.99, rate
+  15.0 konstant, keine Interrupts. Knistern-Ohrbefund + v136-Switcher-Test stehen aus.
+
 ## 2026-07-09 (Forts. 7) — EchoelTouch-Naming · Video-Capture-Wiederholung · Anti-Knister-Mitigation
 - **v10.79.133 EchoelTouch-Naming (351a976):** Founder-Entscheidung "Klare Namen, Code angleichen"
   umgesetzt — Studio-Panel "Visual Touch Instrument" → **"EchoelTouch"**, VoiceOver "Play surface" →
