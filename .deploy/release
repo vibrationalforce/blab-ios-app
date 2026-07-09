@@ -1,21 +1,24 @@
-build: 2026-07-09 v10.79.134 (Video Capture geht jetzt WIEDERHOLT — nicht mehr nur einmal)
+build: 2026-07-09 v10.79.135 (Weniger Dauerlast im Audio — gegen das Knistern)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: DEIN BUG behoben: "Wenn ich einmal Video Capture gemacht habe, kann ich
-  das danach nicht mehr machen."
+notesT: Erster belegbarer Schritt gegen das gelegentliche Knistern.
 
-  Ursache gefunden: Der Rekorder ließ sich nur aus dem Zustand "leer/idle"
-  starten. Nach einer FERTIGEN Aufnahme stand er aber auf "fertig (Datei X)" —
-  der zweite Start wurde deshalb still verworfen, es passierte nichts.
+  Befund: Der ganze Audio-Signalweg ist bereits sauber gehärtet (Denormal-
+  Schutz in Delay/Hall, Limiter + True-Peak-Trim am Master, lock-free, kein
+  malloc). Das Knistern kommt daher NICHT von einem DSP-Fehler, sondern am
+  ehesten von Dauerlast unter Vollgas (Vollbild-Metal + Kamera-rPPG + dichte
+  Akkorde) → gelegentliche Audio-Aussetzer.
 
-  Jetzt: der Rekorder lässt sich aus jedem ABGESCHLOSSENEN Zustand neu
-  scharfstellen (leer / fertig / Fehler) — nur WÄHREND einer laufenden Aufnahme
-  wird ein zweiter Start ignoriert (Doppeltipp-Schutz). Die fertige Datei kommt
-  ohnehin über den Rückgabewert beim Stoppen, nicht über den Zustand — es geht
-  also nichts verloren.
+  Konkret entfernt: Die aufwändige Mastering-Messung (EBU-R128-Lautheit +
+  True-Peak mit Oversampling) lief AUF JEDEM Audioblock — obwohl sie nur das
+  "Master"-Panel braucht, das standardmäßig ZUGEKLAPPT ist. Diese Rechenlast
+  lief also permanent für nichts. Jetzt läuft sie nur noch, wenn das Master-
+  Panel offen ist. Die einfache Pegelanzeige + das FFT-Bild laufen wie gehabt
+  weiter (die braucht das Visual).
 
-  → Bitte testen: Video aufnehmen, stoppen, teilen — dann NOCHMAL aufnehmen.
-    Sollte jetzt beliebig oft hintereinander gehen.
+  → Bitte im Vollbild-EchoelTouch mit Biofeedback + Spielen gegentesten, ob
+    das Knistern seltener/weg ist. Falls es bleibt, brauche ich einen Hinweis:
+    Tritt es eher bei dichten Akkorden auf, oder unabhängig davon (dann ist es
+    eher Route/Thermik)?
 
-  (Offen aus v131–133, bitte weiter gegentesten: Vollbild-EchoelTouch ruhig
-  ohne Strobe? Anschlag-Gefühl knackig? Und das gelegentliche Knistern —
-  daran arbeite ich als Nächstes.)
+  (Offen: v134 Video-Capture-Wiederholung + v131–133 Vollbild-Strobe/Anschlag
+  bitte weiter gegentesten.)
