@@ -99,46 +99,37 @@ struct SurfaceSwitcherBar: View {
     }
 }
 
-/// THE one main view (founder 2026-07-10: "Musik und Video Composing Ansicht
-/// als einzige Hauptansicht wie in Ableton die Arrangement View, quer und
-/// hochkant") — the Ableton arrangement layout: timeline on top, the instrument
-/// / detail zone (EchoelStudioView) below it, one screen, no surface switching.
-/// Clips and Mix are no longer separate destinations — their functions dissolve
-/// into the track heads (convergence plan K2); ClipView/ChannelRackView stay in
-/// code, unpresented (reversible). SurfaceSwitcherBar stays in code, unmounted.
+/// NOTBETRIEB Plan B (v10.79.146): v144 AND the v145 AnyView-erasure fix both
+/// crash at first render on device (metadata class, CI-green) — so this is the
+/// pre-agreed fallback, NOT a third blind fix: the EXACT v143 tree, which
+/// demonstrably launched. Byte-identical structure to 12922ca~1 (flat ZStack,
+/// all four surfaces mounted via SurfaceVisibility opacity swap) with ONE
+/// difference: `selected` is pinned to `.compose` (the @AppStorage read is
+/// dropped) so nobody strands on a persisted "arrange" value now that
+/// SurfaceSwitcherBar is unmounted. Effective UI: EchoelStudioView fullscreen.
 ///
-/// Orientation: the split adapts — portrait gives the timeline ~1/3 (controls
-/// need room), landscape ~1/2 (the arrangement is the star). Both columns keep
-/// the v136 size contract (fill + clipped) so nothing inflates past the screen.
+/// The one-main-view Ableton split (timeline over instrument) returns as v147+
+/// ONLY after the founder's Analysedaten screenshots show the real crash frame
+/// — see .deploy/release v146 notes. The founder's one-main-view direction is
+/// unchanged; this is launch-first sequencing, not a scope revert.
 @MainActor
 struct SurfaceHost: View {
+    /// Pinned to Studio (see header). v143's @AppStorage selection stays out —
+    /// with the chip bar unmounted there is no way back from another surface.
+    private var selected: WorkspaceSurface { .compose }
+
     var body: some View {
-        GeometryReader { geo in
-            let landscape = geo.size.width > geo.size.height
-            // Min = toolbar(40) + ruler(20) + two 56-pt lanes — never less than
-            // a readable arrangement; max keeps the instrument reachable.
-            let timelineHeight = max(172, min(380, geo.size.height * (landscape ? 0.5 : 0.34)))
-            VStack(spacing: 0) {
-                // AnyView-ERASED children (v10.79.144 launch-crash fix): the
-                // instrument's body sits AT the SwiftUI metadata-decoder limit
-                // (10.76.34 class — SIGSEGV at first render, CI-green, device-
-                // dead). Erasing here cuts the composed ROOT tree's generic
-                // depth back below the v143 baseline; erasure at this level is
-                // effective because the overweight is in the COMPOSITION, not
-                // inside the child bodies (unlike 10.76.35, where it wasn't).
-                AnyView(
-                    ArrangeTimelineView()
-                        .frame(height: timelineHeight)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                )
-                Divider().overlay(EchoelTheme.border)
-                AnyView(
-                    EchoelStudioView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                )
-            }
+        ZStack {
+            EchoelStudioView()
+                .modifier(SurfaceVisibility(on: selected == .compose))
+            // The beat-grid timeline — mounted-invisible exactly as in v143
+            // (which launched); it returns to the foreground with v147+.
+            ArrangeTimelineView()
+                .modifier(SurfaceVisibility(on: selected == .arrange))
+            ClipView(embedded: true)
+                .modifier(SurfaceVisibility(on: selected == .clips))
+            ChannelRackView(embedded: true)
+                .modifier(SurfaceVisibility(on: selected == .mix))
         }
     }
 }
