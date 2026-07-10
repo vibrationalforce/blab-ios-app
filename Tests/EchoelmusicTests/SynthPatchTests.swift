@@ -48,11 +48,11 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertEqual(Set(a).count, a.count, "factory ids are unique")
     }
 
-    func testEchoelTouch_isTheResponsivePlaySurfaceDefault() {
+    func testEchoelSynth_isTheResponsivePlaySurfaceDefault() {
         guard let touch = SynthPatch.factory.first(where: { $0.id == SynthPatch.touchDefaultID }) else {
-            return XCTFail("factory must contain the Echoel Touch play-surface default")
+            return XCTFail("factory must contain the Echoel Synth play-surface default")
         }
-        XCTAssertEqual(touch.name, "Echoel Touch")
+        XCTAssertEqual(touch.name, "Echoel Synth")
         // The point of this patch: PLAYABLE under a finger — a quick attack (not the
         // old 0.5 s Warm Pad mush) with unison width for an organic pad.
         XCTAssertLessThanOrEqual(touch.attack, 0.1, "touch default answers a finger immediately")

@@ -270,7 +270,7 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         // the immersive space without washing out. Brand-named per the Echoel* CI.
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000B4"),
-            name: "Echoel Touch",
+            name: "Echoel Synth",
             attack: 0.03, decay: 0.4, sustain: 0.72, release: 1.3,
             harmonicity: 0.9, harmonicLevel: 0.82, brightness: 0.42, noiseLevel: 0.006,
             spectralShape: "natural", filterCutoff: 3200, filterResonance: 0.12,
@@ -280,8 +280,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         )
     ]
 
-    /// Stable id of the play-surface default patch ("Echoel Touch"), so the app can
-    /// pick it by identity at launch without depending on array order.
+    /// Stable id of the play-surface default patch ("Echoel Synth", ex "Echoel Touch"
+    /// — id unchanged so saved selections survive), picked by identity at launch.
     public static let touchDefaultID = stableID("00000000-0000-0000-0000-0000000000B4")
 }
 
