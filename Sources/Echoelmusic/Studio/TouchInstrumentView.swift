@@ -224,7 +224,7 @@ final class TouchInstrumentUIView: UIView {
         // drawn OVER the surrounding Studio UI (play-at-every-size made this visible).
         clipsToBounds = true
         isAccessibilityElement = true
-        accessibilityLabel = "EchoelTouch play surface"
+        accessibilityLabel = "EchoelSynth play surface"
         accessibilityHint = "Touch and slide to play notes in the current key"
         // DIRECT INTERACTION — the accessibility standard for musical instruments
         // (GarageBand model): a VoiceOver user double-taps the surface once, then

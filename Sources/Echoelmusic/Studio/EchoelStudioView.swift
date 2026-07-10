@@ -1339,7 +1339,7 @@ struct EchoelStudioView: View {
     // MARK: Panel — Visual (immersive sound→light)
 
     private var visualPanel: some View {
-        panel("EchoelTouch", "Play it with your fingers — immersive sound↔light in a floating window you can move + resize", isExpanded: $showVisualSettings) {
+        panel("EchoelSynth", "Play it with your fingers — immersive sound↔light in a floating window you can move + resize", isExpanded: $showVisualSettings) {
             Button {
                 floatingVisualVisible.toggle()
             } label: {

@@ -380,7 +380,7 @@ struct FloatingVisualWindow: View {
         // Shadow is for the FLOATING card only. In fullscreen a blurred shadow forces an
         // OFFSCREEN render pass of the whole edge-to-edge Metal layer every frame, and that
         // extra compositing pass beats against the MTKView's synchronized present → the
-        // fullscreen EchoelTouch "glitch" (founder 2026-07-09). Radius 0 + clear removes the
+        // fullscreen EchoelSynth "glitch" (founder 2026-07-09). Radius 0 + clear removes the
         // offscreen pass entirely; the modifier stays in the chain (params only) so toggling
         // fullscreen never changes view identity (no MTKView teardown / flash on toggle).
         .shadow(color: .black.opacity(windowSize.isFullscreen ? 0 : 0.35),

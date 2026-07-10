@@ -410,7 +410,7 @@ struct EchoelmusicApp: App {
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
-                // Touch voice pre-generate default: the RESPONSIVE "Echoel Touch" pad
+                // Touch voice pre-generate default: the RESPONSIVE "Echoel Synth" pad
                 // (quick attack + unison width) so the play surface answers a finger
                 // immediately instead of the mushy 0.5 s "Warm Pad" it used to launch
                 // on (founder 2026-07-09: "Den Synth vom Visual Touch Instrument auch
