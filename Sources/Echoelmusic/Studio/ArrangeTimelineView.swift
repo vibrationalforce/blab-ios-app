@@ -284,6 +284,10 @@ struct ArrangeTimelineView: View {
         let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
+        // Tap an AUDIO region = hear its file immediately (founder: "Audio mit
+        // direkt die wav Dateien vorhören") — auditions on BeatPlayer's preview
+        // voice, so the kit and transport are untouched.
+        let auditionURL = clip.flatMap { $0.kind == .audio ? Self.mediaURL($0) : nil }
         return RoundedRectangle(cornerRadius: 6)
             .fill(EchoelTheme.fill)
             .overlay {
@@ -308,7 +312,12 @@ struct ArrangeTimelineView: View {
             }
             .frame(width: w, height: Self.laneHeight - 8)
             .offset(x: x, y: 4)
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .onTapGesture {
+                if let url = auditionURL { beatPlayer.audition(url: url) }
+            }
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
+            .accessibilityHint(auditionURL != nil ? "Plays this audio clip" : "")
     }
 
     /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
