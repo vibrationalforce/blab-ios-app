@@ -1,23 +1,21 @@
-build: 2026-07-09 v10.79.137 (FIX: abgeschnittene Ränder auf allen Flächen — deine 3 Screenshots)
+build: 2026-07-09 v10.79.138 (Die Beat-Grid-Timeline ist da — Arrange zeigt jetzt das echte Raster)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: Deine Screenshots ("nicht gut" / "scheiße") — verstanden, und der
-  Kern-Fehler war MEINER aus v136: die gesamte Oberfläche (auch Kopfzeile +
-  Play-Knopf) war an beiden Rändern abgeschnitten. Ursache: der neue
-  Flächen-Stapel nahm die Breite der BREITESTEN alten Fläche an — alles
-  blähte sich über den Bildschirm hinaus. Jetzt ist jede Fläche exakt auf
-  Bildschirmgröße gepinnt. → Bitte prüfen: Ränder überall sauber?
+notesT: ARRANGE ist jetzt die echte Beat-Grid-Timeline (Stufe 1):
+  - Takt-Lineal + feste Spur-Beschriftung links (MIDI 1 · Audio 1)
+  - Deine bestehenden Song-Abschnitte wurden AUTOMATISCH aufs Raster migriert
+    (taktgenau, verlustfrei — nichts geht verloren)
+  - Pinch = Zoom (Raster dehnt sich), horizontal wischen = durch den Song
+  - Snap-Menü oben rechts: Takt · Beat · 1/8 · 1/16 · Triole · FREI (stufenlos)
+  - Playhead läuft live mit (grün beim Abspielen)
 
-  EHRLICH zu Clips/Mix/Arrange selbst: das sind die ALTEN, monatelang
-  vergrabenen Flächen (für Sheets gebaut, nie am Gerät poliert). Die grobe
-  Optik ist bekannt und der Umbau ersetzt sie Schritt für Schritt:
-  - Arrange → wird das neue Beat-Grid (WAV-Wellenform, Snap+stufenlos) — im Bau
-  - Mix → bekommt das Schnellzugriff-Redesign (deine Levels/FX-Kontrolle)
-  - Clips → Redesign danach ("MIDI · empty"-Zellen: Aufnahme lief ohne Inhalt)
+  Noch NICHT in dieser Stufe (kommt als Nächstes, ehrlich):
+  - Clips ziehen/schneiden (Stufe 3 — mit den recherchierten Gesten:
+    Snap rastet, Pinch-auf-Maximal-Zoom schaltet stufenlos frei)
+  - WAV-Wellenform in Audio-Regionen (Stufe 2 — direkt als Nächstes)
+  - Abspielen bleibt vorerst taktweise (wie bisher)
 
-  Dein "das adaptiv bitte" (EchoelTouch-Vollbild, angeschnittene Spalten):
-  notiert als eigener Fix — das Notenraster passt sich dann exakt der
-  Fensterbreite an (keine halben Spalten mehr).
+  Außerdem in diesem Build: v137-Fix drin (Ränder-Beschnitt auf allen
+  Flächen behoben — bitte gegenprüfen).
 
-  Die Vorbild-Recherche (Ableton/GarageBand/FinalCut/LumaFusion…) ist fertig:
-  Snap ist standardmäßig AN, Pinch-auf-Maximal-Zoom schaltet stufenlos frei
-  (+ Magnet-Knopf für Profis) — genau so baue ich die Timeline-Gesten.
+  → Bitte testen: Arrange öffnen — siehst du deine Abschnitte als Blöcke
+    auf dem Raster? Zoom/Scroll flüssig? Ränder überall sauber?
