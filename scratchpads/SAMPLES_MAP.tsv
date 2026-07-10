@@ -61,3 +61,121 @@ EchoelmusicSamples/Sample Bulk/Chords/Old Hammond.wav	Sources/Echoelmusic/Resour
 EchoelmusicSamples/Sample Bulk/Chords/Short Bellz.wav	Sources/Echoelmusic/Resources/Samples/Chords/Short Bells.wav
 EchoelmusicSamples/Sample Bulk/Chords/VMH1_SYNTH_SHOTS_021.WAV	Sources/Echoelmusic/Resources/Samples/Chords/Synth Stab 1.wav
 EchoelmusicSamples/Sample Bulk/Chords/VMH1_SYNTH_SHOTS_062.WAV	Sources/Echoelmusic/Resources/Samples/Chords/Synth Stab 2.wav
+
+# === ERWEITERUNG 2026-07-10 (Founder: "große übersichtliche Auswahl im Sampler —
+# Stabs, Bässe und andere Töne"): +102 Samples, 8 Kategorien (Bass erweitert;
+# NEU: Stab · Keys · Pad · Tone · Tom · Conga · FX). Benannte Charakter-Sounds
+# bevorzugt; anonyme Pack-Nummern (VMH1_*) bewusst NICHT gebündelt.
+# LEGAL-REVIEW vor App-Store-Submit (Founder): Dateien mit Pack-Signaturen
+# ((JW1/2/3), pfx_*, s950_*) nur bündeln, wenn die Lizenz Redistribution in
+# einer App erlaubt — sonst vor dem Submit aus der Map nehmen.
+# -- Bass --
+EchoelmusicSamples/Sample Bulk/Bass/90S BASS_ms0_060_c3.wav	Sources/Echoelmusic/Resources/Samples/Bass/90s Bass C3.wav
+EchoelmusicSamples/Sample Bulk/Bass/ALPHA JUNO BASS H - 12.wav	Sources/Echoelmusic/Resources/Samples/Bass/Alpha Juno.wav
+EchoelmusicSamples/Sample Bulk/Bass/BASS-AnalogPower6.wav	Sources/Echoelmusic/Resources/Samples/Bass/Analog Power.wav
+EchoelmusicSamples/Sample Bulk/Bass/BASS-Lofunk.wav	Sources/Echoelmusic/Resources/Samples/Bass/Lo Funk.wav
+EchoelmusicSamples/Sample Bulk/Bass/BODY MUSIC BASS - 14.wav	Sources/Echoelmusic/Resources/Samples/Bass/Body Music.wav
+EchoelmusicSamples/Sample Bulk/Bass/DARK RETRO BASS - Velocity 127 - 060 - c3.wav	Sources/Echoelmusic/Resources/Samples/Bass/Dark Retro C3.wav
+EchoelmusicSamples/Sample Bulk/Bass/Deep Bass.wav	Sources/Echoelmusic/Resources/Samples/Bass/Deep Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/DX BASS_ms0_048_c2.wav	Sources/Echoelmusic/Resources/Samples/Bass/DX Bass C2.wav
+EchoelmusicSamples/Sample Bulk/Bass/Fat Double Bass 1.wav	Sources/Echoelmusic/Resources/Samples/Bass/Fat Double.wav
+EchoelmusicSamples/Sample Bulk/Bass/Filta Bass (JW2).wav	Sources/Echoelmusic/Resources/Samples/Bass/Filta Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/Growl Bass (JW1).wav	Sources/Echoelmusic/Resources/Samples/Bass/Growl Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/NORD SUB BASS - 15.wav	Sources/Echoelmusic/Resources/Samples/Bass/Nord Sub.wav
+EchoelmusicSamples/Sample Bulk/Bass/POLY 800 BASS_ms0_060_c3.wav	Sources/Echoelmusic/Resources/Samples/Bass/Poly 800 C3.wav
+EchoelmusicSamples/Sample Bulk/Bass/PRO ONE BASS 3 - 11.wav	Sources/Echoelmusic/Resources/Samples/Bass/Pro One.wav
+EchoelmusicSamples/Sample Bulk/Bass/SH-101 - 14.wav	Sources/Echoelmusic/Resources/Samples/Bass/SH-101.wav
+EchoelmusicSamples/Sample Bulk/Bass/Sub Juno C1.wav	Sources/Echoelmusic/Resources/Samples/Bass/Sub Juno C1.wav
+EchoelmusicSamples/Sample Bulk/Bass/Sub Wobble C2.wav	Sources/Echoelmusic/Resources/Samples/Bass/Sub Wobble C2.wav
+EchoelmusicSamples/Sample Bulk/Bass/Sub Bass (JW2).wav	Sources/Echoelmusic/Resources/Samples/Bass/Sub Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/Reverse Bass.wav	Sources/Echoelmusic/Resources/Samples/Bass/Reverse Bass.wav
+EchoelmusicSamples/Sample Bulk/Bass/Upright Bass.wav	Sources/Echoelmusic/Resources/Samples/Bass/Upright.wav
+# -- Stab --
+EchoelmusicSamples/Sample Bulk/Chords/Chord Stab.wav	Sources/Echoelmusic/Resources/Samples/Stab/Chord Stab.wav
+EchoelmusicSamples/Sample Bulk/Chords/Staby.wav	Sources/Echoelmusic/Resources/Samples/Stab/Staby.wav
+EchoelmusicSamples/Sample Bulk/Chords/Rhodes Chord Stab.wav	Sources/Echoelmusic/Resources/Samples/Stab/Rhodes Stab.wav
+EchoelmusicSamples/Sample Bulk/Chords/AQChord1.wav	Sources/Echoelmusic/Resources/Samples/Stab/AQ Chord 1.wav
+EchoelmusicSamples/Sample Bulk/Chords/AQChord2.wav	Sources/Echoelmusic/Resources/Samples/Stab/AQ Chord 2.wav
+EchoelmusicSamples/Sample Bulk/Chords/EHChord.wav	Sources/Echoelmusic/Resources/Samples/Stab/EH Chord 1.wav
+EchoelmusicSamples/Sample Bulk/Chords/EHChord2.wav	Sources/Echoelmusic/Resources/Samples/Stab/EH Chord 2.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Hi Stab.wav	Sources/Echoelmusic/Resources/Samples/Stab/Hi Stab.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Synth Stab.wav	Sources/Echoelmusic/Resources/Samples/Stab/Synth Stab.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Substain Stab.wav	Sources/Echoelmusic/Resources/Samples/Stab/Sustain Stab.wav
+EchoelmusicSamples/Sample Bulk/One Shots/RAVE CHORD_ms0_060_c3.wav	Sources/Echoelmusic/Resources/Samples/Stab/Rave Chord C3.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Power Stab.wav	Sources/Echoelmusic/Resources/Samples/Stab/Power Stab.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Stab 1 (JW2).wav	Sources/Echoelmusic/Resources/Samples/Stab/Stab A.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Stab 2 (JW2).wav	Sources/Echoelmusic/Resources/Samples/Stab/Stab B.wav
+# -- Keys --
+EchoelmusicSamples/Sample Bulk/Chords/Rhodes Chord 2.wav	Sources/Echoelmusic/Resources/Samples/Keys/Rhodes Chord.wav
+EchoelmusicSamples/Sample Bulk/Chords/Rhodes Tremolo.wav	Sources/Echoelmusic/Resources/Samples/Keys/Rhodes Tremolo.wav
+EchoelmusicSamples/Sample Bulk/Chords/Tremo Rhodes.wav	Sources/Echoelmusic/Resources/Samples/Keys/Tremo Rhodes.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Rhodes Note.wav	Sources/Echoelmusic/Resources/Samples/Keys/Rhodes Note.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Rhodes Hi Note.wav	Sources/Echoelmusic/Resources/Samples/Keys/Rhodes Hi Note.wav
+EchoelmusicSamples/Sample Bulk/Chords/Hammond.wav	Sources/Echoelmusic/Resources/Samples/Keys/Hammond.wav
+EchoelmusicSamples/Sample Bulk/Chords/Substain Organ.wav	Sources/Echoelmusic/Resources/Samples/Keys/Sustain Organ.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Organ Note 1.wav	Sources/Echoelmusic/Resources/Samples/Keys/Organ Note.wav
+EchoelmusicSamples/Sample Bulk/Chords/Piano Chord 1.wav	Sources/Echoelmusic/Resources/Samples/Keys/Piano Chord Long.wav
+EchoelmusicSamples/Sample Bulk/Chords/Piano Chord 2.wav	Sources/Echoelmusic/Resources/Samples/Keys/Piano Chord Short.wav
+# -- Pad --
+EchoelmusicSamples/Sample Bulk/Chords/Ahh Pad (JW3).wav	Sources/Echoelmusic/Resources/Samples/Pad/Ahh Pad.wav
+EchoelmusicSamples/Sample Bulk/Chords/Ambi Pad (JW3).wav	Sources/Echoelmusic/Resources/Samples/Pad/Ambi Pad.wav
+EchoelmusicSamples/Sample Bulk/Chords/Dream Pad.wav	Sources/Echoelmusic/Resources/Samples/Pad/Dream Pad.wav
+EchoelmusicSamples/Sample Bulk/Chords/Glisten Pad.wav	Sources/Echoelmusic/Resources/Samples/Pad/Glisten.wav
+EchoelmusicSamples/Sample Bulk/Chords/Pad Mood 1.wav	Sources/Echoelmusic/Resources/Samples/Pad/Mood Pad.wav
+EchoelmusicSamples/Sample Bulk/Chords/Pad Wash 1.wav	Sources/Echoelmusic/Resources/Samples/Pad/Wash Pad.wav
+EchoelmusicSamples/Sample Bulk/Chords/Phat Choir.wav	Sources/Echoelmusic/Resources/Samples/Pad/Phat Choir.wav
+EchoelmusicSamples/Sample Bulk/Chords/Orchestra.wav	Sources/Echoelmusic/Resources/Samples/Pad/Orchestra.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Dark Pad.wav	Sources/Echoelmusic/Resources/Samples/Pad/Dark Pad.wav
+EchoelmusicSamples/Sample Bulk/One Shots/JUNO CHORUS PAD_ms0_048_c2.wav	Sources/Echoelmusic/Resources/Samples/Pad/Juno Chorus C2.wav
+EchoelmusicSamples/Sample Bulk/One Shots/LUSH PAD_ms0_048_c2.wav	Sources/Echoelmusic/Resources/Samples/Pad/Lush Pad C2.wav
+EchoelmusicSamples/Sample Bulk/One Shots/PROPHET STRINGS - Velocity 127 - 060 - c3.wav	Sources/Echoelmusic/Resources/Samples/Pad/Prophet Strings C3.wav
+EchoelmusicSamples/Sample Bulk/One Shots/PROPHET 80s SYNTH - Velocity 127 - 060 - c3.wav	Sources/Echoelmusic/Resources/Samples/Pad/Prophet 80s C3.wav
+# -- Tone --
+EchoelmusicSamples/Sample Bulk/Chords/Note.wav	Sources/Echoelmusic/Resources/Samples/Tone/Note.wav
+EchoelmusicSamples/Sample Bulk/Chords/Pad Note.wav	Sources/Echoelmusic/Resources/Samples/Tone/Pad Note.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Fuller Note.wav	Sources/Echoelmusic/Resources/Samples/Tone/Fuller Note.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Harp Note.wav	Sources/Echoelmusic/Resources/Samples/Tone/Harp Note.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Bell Vox.wav	Sources/Echoelmusic/Resources/Samples/Tone/Bell Vox.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Bellz.wav	Sources/Echoelmusic/Resources/Samples/Tone/Bells.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Bell Shimmer.wav	Sources/Echoelmusic/Resources/Samples/Tone/Bell Shimmer.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Pluck.wav	Sources/Echoelmusic/Resources/Samples/Tone/Pluck.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Plip 1.wav	Sources/Echoelmusic/Resources/Samples/Tone/Plip.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Flute Lick.wav	Sources/Echoelmusic/Resources/Samples/Tone/Flute Lick.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Timeless C.wav	Sources/Echoelmusic/Resources/Samples/Tone/Timeless C.wav
+EchoelmusicSamples/Sample Bulk/One Shots/Solar System C.wav	Sources/Echoelmusic/Resources/Samples/Tone/Solar System C.wav
+EchoelmusicSamples/Sample Bulk/One Shots/North polez C.wav	Sources/Echoelmusic/Resources/Samples/Tone/North Poles C.wav
+# -- Tom --
+EchoelmusicSamples/Sample Bulk/TomTimbales/707_HT.WAV	Sources/Echoelmusic/Resources/Samples/Tom/707 Tom Hi.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/707_MT.WAV	Sources/Echoelmusic/Resources/Samples/Tom/707 Tom Mid.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/707_LT.WAV	Sources/Echoelmusic/Resources/Samples/Tom/707 Tom Lo.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/EMU tom 1.wav	Sources/Echoelmusic/Resources/Samples/Tom/EMU Tom.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/Cassette808_Tom01.wav	Sources/Echoelmusic/Resources/Samples/Tom/Cassette Tom.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/78hitom.wav	Sources/Echoelmusic/Resources/Samples/Tom/78 Tom Hi.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/78lotom.wav	Sources/Echoelmusic/Resources/Samples/Tom/78 Tom Lo.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/synth tom.wav	Sources/Echoelmusic/Resources/Samples/Tom/Synth Tom.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/Timbale H.wav	Sources/Echoelmusic/Resources/Samples/Tom/Timbale Hi.wav
+EchoelmusicSamples/Sample Bulk/TomTimbales/Timbale L.wav	Sources/Echoelmusic/Resources/Samples/Tom/Timbale Lo.wav
+# -- Conga --
+EchoelmusicSamples/Sample Bulk/BongoConga/Bongo A.wav	Sources/Echoelmusic/Resources/Samples/Conga/Bongo A.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/Bongo H.wav	Sources/Echoelmusic/Resources/Samples/Conga/Bongo Hi.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/Conga H-01.wav	Sources/Echoelmusic/Resources/Samples/Conga/Conga Hi.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/Conga L 2.wav	Sources/Echoelmusic/Resources/Samples/Conga/Conga Lo.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/Conga M.wav	Sources/Echoelmusic/Resources/Samples/Conga/Conga Mid.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/Conga Muted H.wav	Sources/Echoelmusic/Resources/Samples/Conga/Conga Muted.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/pfx_Conga_slap_1.wav	Sources/Echoelmusic/Resources/Samples/Conga/Conga Slap.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/Cassette808_conga01.wav	Sources/Echoelmusic/Resources/Samples/Conga/Cassette Conga.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/s950_lm1_conga_hi.wav	Sources/Echoelmusic/Resources/Samples/Conga/LM-1 Conga Hi.wav
+EchoelmusicSamples/Sample Bulk/BongoConga/s950_lm1_conga_lo.wav	Sources/Echoelmusic/Resources/Samples/Conga/LM-1 Conga Lo.wav
+# -- FX --
+EchoelmusicSamples/Sample Bulk/FX Sounds/Rewind 1.wav	Sources/Echoelmusic/Resources/Samples/FX/Rewind.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Spinback.wav	Sources/Echoelmusic/Resources/Samples/FX/Spinback.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Rise FX.wav	Sources/Echoelmusic/Resources/Samples/FX/Rise.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Low Drop.wav	Sources/Echoelmusic/Resources/Samples/FX/Low Drop.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Zap.wav	Sources/Echoelmusic/Resources/Samples/FX/Zap.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Juno Zap.wav	Sources/Echoelmusic/Resources/Samples/FX/Juno Zap.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Moog Fx.wav	Sources/Echoelmusic/Resources/Samples/FX/Moog FX.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Gong 1.wav	Sources/Echoelmusic/Resources/Samples/FX/Gong.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Church Bell.wav	Sources/Echoelmusic/Resources/Samples/FX/Church Bell.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Wind Chimes.wav	Sources/Echoelmusic/Resources/Samples/FX/Wind Chimes.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Singing Bowl Riser.wav	Sources/Echoelmusic/Resources/Samples/FX/Singing Bowl.wav
+EchoelmusicSamples/Sample Bulk/FX Sounds/Vibes Fx.wav	Sources/Echoelmusic/Resources/Samples/FX/Vibes.wav
