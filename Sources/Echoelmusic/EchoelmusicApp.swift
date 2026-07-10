@@ -101,6 +101,11 @@ struct EchoelmusicApp: App {
     /// Artist · key · Kammerton — the persisted identity stamped on session names
     /// and export filenames.
     @State private var sessionContext = SessionContext()
+    /// Opt-in on-device place token for the session name (default OFF; E2).
+    /// Attached to the session context at startup (see body task).
+    #if canImport(CoreLocation)
+    @State private var locationNamer = LocationNamer(session: nil)
+    #endif
     /// Loop → .wav export (live-capture) and the saved-projects library — the one
     /// window's output + persistence.
     @State private var loopExporter = LoopExporter()
@@ -316,6 +321,9 @@ struct EchoelmusicApp: App {
             .environment(haptics)
             #endif
             .environment(sessionContext)
+            #if canImport(CoreLocation)
+            .environment(locationNamer)
+            #endif
             .environment(loopExporter)
             .environment(projectStore)
             .environment(demoSource)
@@ -501,6 +509,11 @@ struct EchoelmusicApp: App {
                     await store.loadProducts()
                     await store.updateEntitlements()
                 }
+                #if canImport(CoreLocation)
+                // Opt-in place token: attach feeds the session name; resolve()
+                // only acts when the user has the toggle ON (default OFF).
+                locationNamer.attach(session: sessionContext)
+                #endif
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {

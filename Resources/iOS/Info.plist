@@ -68,6 +68,8 @@
 	<string>Echoelmusic connects to Bluetooth MIDI controllers and audio devices for professional music creation.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth MIDI controllers for music creation.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>If you turn on "Place in session name", Echoel looks up your city once to stamp it into the session name (e.g. Echoel_2026-07-10_Hamburg_Am_72bpm_A440). This is off by default; your location is resolved on your device, never stored or sent anywhere.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Echoelmusic uses the local network for Art-Net &amp; sACN lighting control and external audio interfaces, and — when you enable OSC or ADM output — to send live bio values (heart rate, HRV, breath, coherence) to the devices you choose.</string>
 	<key>NSBonjourServices</key>

@@ -76,6 +76,10 @@ struct EchoelStudioView: View {
     // Stop can end the whole bio session; NOT read in `body` (freeze rule).
     @Environment(Transport.self) private var transport
     @Environment(SessionContext.self) private var session
+    /// Opt-in place token (E2). Low-frequency reads only (toggle/one-shot token).
+    #if canImport(CoreLocation)
+    @Environment(LocationNamer.self) private var locationNamer
+    #endif
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
     @Environment(PatchStore.self) private var patchStore
@@ -1065,8 +1069,36 @@ struct EchoelStudioView: View {
             kammertonRow
             tuningRow
             tempoRow
+            #if canImport(CoreLocation)
+            placeRow
+            #endif
         }
     }
+
+    #if canImport(CoreLocation)
+    /// Opt-in place token in the session name (E2, default OFF). One coarse
+    /// city lookup on device; the token lands after the date in every
+    /// session/export name (Echoel_2026-07-10_Hamburg_Am_72bpm_A440).
+    private var placeRow: some View {
+        @Bindable var locationNamer = locationNamer
+        return VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: $locationNamer.enabled) {
+                Text("Place in session name")
+                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            .accessibilityHint("Stamps your city into session and export names. Resolved on this device, never stored or sent anywhere.")
+            if locationNamer.enabled {
+                Text(locationNamer.denied
+                     ? "Location is off for Echoel in Settings — names stay without a place."
+                     : (locationNamer.placeToken.isEmpty ? "Looking up your city…"
+                                                         : locationNamer.placeToken))
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.dim)
+            }
+        }
+    }
+    #endif
 
     /// The drum layer, one segmented choice (founder: "Beat soll ausschaltbar sein
     /// und tendenziell eher schamanisch ur-rhythmisch"). Off = pure Flächen; Pulse =
