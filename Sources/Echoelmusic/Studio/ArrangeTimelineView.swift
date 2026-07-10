@@ -7,6 +7,13 @@ import SwiftUI
 // the foundation the WAV waveform (Stage 2) and touch editing (Stage 3) land on;
 // playback stays with the existing bar-granular ArrangementPlayer for now.
 //
+// Stage 3a (One-View convergence, founder 2026-07-09/-10: "alles läuft über die
+// Spuren"): track headers are DOORS — tap a lane head for its editor (MIDI →
+// Piano Roll, Audio → audio editor), rename, delete-if-empty; "+" adds tracks.
+// This view owns ONE .sheet + ONE rename alert — safe here (the ~18-modal
+// metadata limit is EchoelStudioView's chain, this view had none). Never drive
+// both true at once (each menu action sets exactly one).
+//
 // Render safety: this body reads ONLY low-frequency state (document edits, zoom).
 // The moving playhead lives in its own leaf struct (TimelinePlayhead), exactly
 // like ArrangementPlayhead — the ~8 Hz Transport read never churns the grid.
@@ -16,6 +23,14 @@ struct ArrangeTimelineView: View {
     @Environment(TimelineStore.self) private var timeline
     @Environment(ArrangementStore.self) private var legacySong
     @Environment(ClipStore.self) private var clips
+    @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(PianoRollModel.self) private var pianoRoll
+
+    /// The one editor sheet this surface owns (lane whose editor is open).
+    @State private var editorLane: TimelineLane?
+    /// Rename flow: which lane + the draft name (alert, not a second sheet).
+    @State private var renameLaneID: UUID?
+    @State private var renameText = ""
 
     /// Zoom: screen points per quarter-note beat (Stage 3 couples snap to this).
     @State private var pointsPerBeat: CGFloat = 24
@@ -53,6 +68,40 @@ struct ArrangeTimelineView: View {
         .background(EchoelTheme.bg)
         .task { timeline.bootstrapIfNeeded(sections: legacySong.sections) }
         .gesture(magnify)
+        .sheet(item: $editorLane) { lane in
+            laneEditor(lane).echoelSheetPanel()
+        }
+        .alert("Rename track", isPresented: renameAlertShown) {
+            TextField("Name", text: $renameText)
+            Button("Save") {
+                if let id = renameLaneID {
+                    let trimmed = renameText.trimmingCharacters(in: .whitespaces)
+                    if !trimmed.isEmpty { timeline.renameLane(id: id, to: trimmed) }
+                }
+                renameLaneID = nil
+            }
+            Button("Cancel", role: .cancel) { renameLaneID = nil }
+        }
+    }
+
+    // MARK: - Track doors (Stage 3a)
+
+    /// The editor behind a lane's door. Only kinds with a real engine offer a
+    /// door (menu builders below) — no placeholder screens.
+    @ViewBuilder
+    private func laneEditor(_ lane: TimelineLane) -> some View {
+        switch lane.kind {
+        case .midi:  PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
+        case .audio: AudioClipView()
+        case .video, .visual: EmptyView()   // no engine yet — no door offered
+        }
+    }
+
+    private var renameAlertShown: Binding<Bool> {
+        Binding(
+            get: { renameLaneID != nil },
+            set: { if !$0 { renameLaneID = nil } }
+        )
     }
 
     // MARK: - Toolbar (low-frequency only)
@@ -63,6 +112,24 @@ struct ArrangeTimelineView: View {
                 .font(EchoelTheme.font(14, .semibold))
                 .foregroundStyle(EchoelTheme.text)
             Spacer(minLength: 0)
+            // Add track — MIDI/Audio only (the kinds with a real engine today).
+            Menu {
+                Button { timeline.addLane(kind: .midi) } label: {
+                    Label("MIDI track", systemImage: ClipKind.midi.systemImage)
+                }
+                Button { timeline.addLane(kind: .audio) } label: {
+                    Label("Audio track", systemImage: ClipKind.audio.systemImage)
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .accessibilityLabel("Add track")
             // Snap resolution — the magnet. "Off" = stufenlos everywhere.
             Menu {
                 ForEach(SnapResolution.allCases, id: \.self) { res in
@@ -98,6 +165,42 @@ struct ArrangeTimelineView: View {
         VStack(spacing: 0) {
             Color.clear.frame(width: Self.labelWidth, height: Self.rulerHeight)
             ForEach(timeline.document.lanes) { lane in
+                laneHeader(lane)
+            }
+            Spacer(minLength: 0)
+        }
+        .background(EchoelTheme.bg)
+    }
+
+    /// One track head — a DOOR (Stage 3a): tap for editor / rename / delete.
+    private func laneHeader(_ lane: TimelineLane) -> some View {
+        Menu {
+            if !lane.isBio, lane.kind == .midi {
+                Button { editorLane = lane } label: {
+                    Label("Open Piano Roll", systemImage: ClipKind.midi.systemImage)
+                }
+            }
+            if !lane.isBio, lane.kind == .audio {
+                Button { editorLane = lane } label: {
+                    Label("Open audio editor", systemImage: ClipKind.audio.systemImage)
+                }
+            }
+            Button {
+                renameText = lane.name
+                renameLaneID = lane.id
+            } label: {
+                Label("Rename", systemImage: "pencil")
+            }
+            if timeline.document.regions(in: lane.id).isEmpty,
+               timeline.document.lanes.count > 1 {
+                Button(role: .destructive) {
+                    timeline.removeLaneIfEmpty(id: lane.id)
+                } label: {
+                    Label("Delete empty track", systemImage: "trash")
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
                 VStack(alignment: .leading, spacing: 2) {
                     Image(systemName: lane.kind.systemImage)
                         .font(.system(size: 10))
@@ -107,14 +210,18 @@ struct ArrangeTimelineView: View {
                         .foregroundStyle(EchoelTheme.text)
                         .lineLimit(1)
                 }
-                .frame(width: Self.labelWidth, height: Self.laneHeight, alignment: .leading)
-                .padding(.leading, 10)
-                .frame(width: Self.labelWidth, alignment: .leading)
-                .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .padding(.trailing, 4)
             }
-            Spacer(minLength: 0)
+            .padding(.leading, 10)
+            .frame(width: Self.labelWidth, height: Self.laneHeight, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .background(EchoelTheme.bg)
+        .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
+        .accessibilityLabel("\(lane.name), \(lane.kind.displayName) track")
     }
 
     // MARK: - Grid (ruler + lanes + regions + playhead)
