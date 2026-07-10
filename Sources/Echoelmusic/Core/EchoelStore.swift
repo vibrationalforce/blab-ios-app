@@ -3,21 +3,18 @@ import Foundation
 import StoreKit
 import Observation
 
-/// StoreKit 2 subscription manager for Echoelmusic.
-/// Products: monthly ($4.99) and yearly ($39.99).
+/// StoreKit 2 manager for the ONE-TIME Echoel Pro unlock (non-consumable).
+///
+/// Product: `ProGate.productID` — "Einmal kaufen. Es ist ein Instrument, kein Abo."
+/// What Pro unlocks is decided exclusively by `ProGate`; this class only owns
+/// the purchase state (`isProUnlocked`) via `Transaction.currentEntitlements`.
 @MainActor @Observable
 final class EchoelStore {
 
-    // MARK: - Product IDs
-
-    static let monthlyID = "com.echoelmusic.app.monthly"
-    static let yearlyID = "com.echoelmusic.app.yearly"
-
     // MARK: - State
 
-    var products: [Product] = []
-    var purchasedProductIDs: Set<String> = []
-    var isSubscribed: Bool = false
+    var proProduct: Product?
+    var isProUnlocked: Bool = false
     var isLoading: Bool = false
 
     // MARK: - Init
@@ -34,18 +31,15 @@ final class EchoelStore {
         // Task is self-cancelling when the store is deallocated
     }
 
-    // MARK: - Load Products
+    // MARK: - Load Product
 
     func loadProducts() async {
         isLoading = true
         defer { isLoading = false }
 
         do {
-            products = try await Product.products(for: [
-                Self.monthlyID,
-                Self.yearlyID
-            ])
-            products.sort { $0.price < $1.price }
+            let products = try await Product.products(for: [ProGate.productID])
+            proProduct = products.first { $0.id == ProGate.productID }
             log.log(.info, category: .system, "StoreKit: Loaded \(products.count) products")
         } catch {
             log.log(.error, category: .system, "StoreKit: Failed to load products — \(error.localizedDescription)")
@@ -61,7 +55,7 @@ final class EchoelStore {
         case .success(let verification):
             let transaction = try checkVerified(verification)
             await transaction.finish()
-            await updateSubscriptionStatus()
+            await updateEntitlements()
             log.log(.info, category: .system, "StoreKit: Purchased \(product.id)")
             return true
 
@@ -79,25 +73,28 @@ final class EchoelStore {
 
     func restorePurchases() async {
         try? await AppStore.sync()
-        await updateSubscriptionStatus()
+        await updateEntitlements()
     }
 
-    // MARK: - Subscription Status
+    // MARK: - Entitlements
 
-    func updateSubscriptionStatus() async {
-        var subscribed = false
+    func updateEntitlements() async {
+        var unlocked = false
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-            if transaction.productID == Self.monthlyID || transaction.productID == Self.yearlyID {
-                if transaction.revocationDate == nil {
-                    subscribed = true
-                    purchasedProductIDs.insert(transaction.productID)
-                }
+            if transaction.productID == ProGate.productID,
+               transaction.revocationDate == nil {
+                unlocked = true
             }
         }
 
-        isSubscribed = subscribed
+        isProUnlocked = unlocked
+    }
+
+    /// Whether `feature` is usable right now (policy from `ProGate`).
+    func isUnlocked(_ feature: ProFeature) -> Bool {
+        ProGate.isUnlocked(feature, proPurchased: isProUnlocked)
     }
 
     // MARK: - Transaction Listener
@@ -106,7 +103,7 @@ final class EchoelStore {
         for await result in Transaction.updates {
             guard case .verified(let transaction) = result else { continue }
             await transaction.finish()
-            await updateSubscriptionStatus()
+            await updateEntitlements()
         }
     }
 
@@ -119,16 +116,6 @@ final class EchoelStore {
         case .verified(let safe):
             return safe
         }
-    }
-
-    // MARK: - Convenience
-
-    var monthlyProduct: Product? {
-        products.first { $0.id == Self.monthlyID }
-    }
-
-    var yearlyProduct: Product? {
-        products.first { $0.id == Self.yearlyID }
     }
 }
 #endif
