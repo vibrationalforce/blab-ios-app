@@ -3,6 +3,34 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 13) — PORTAL VERIFIZIERT + E3b Wetter + E4 Push SHIPPED
+- **Portal-Verifikation BESTANDEN:** Founder hatte WeatherKit + iCloud-Container +
+  Push (+ Sign-in-with-Apple) im Developer-Portal eingerichtet. Beweis: TestFlight
+  v10.79.141 (Run 29088154440, a017e16) archivierte + lud MIT aktiven Entitlements
+  (CloudKit `iCloud.com.echoelmusic.app` · `aps-environment production` ·
+  `com.apple.developer.weatherkit`) — der alte Provisioning-Blocker ist Geschichte.
+  Sign-in-with-Apple bleibt bewusst UNGENUTZT (serverlos-Beschluss).
+- **E3b Wetter→Musik shipped (8e3f5d4+9bc0095+620b90f, alle Gates grün):**
+  `LocationNamer.lastFix` (transient) · `Core/WeatherProvider` (WeatherKit, 1 Fetch/
+  Session, 30-min-Cache, in-flight-dedupe, nie throw) · pures Raw-Mapping
+  `Condition(weatherKitRaw:)` +3 Linux-Tests · Wiring: Toggle „Weather shapes the
+  music" (default AUS) + Attribution-Link; Salt XOR NUR auf structureSeed (Himmel
+  färbt das Skelett, Körper bleibt Haupttreiber; Toggle AUS = bit-identisch).
+  LEKTION: static let auf @MainActor-Klasse ist isoliert — `nonisolated static let`
+  für Konstanten, die pure nonisolated-Helfer lesen (620b90f).
+- **E4 Push ohne Konto shipped (efb7034):** `Sync/AnnouncementCenter` — Opt-in-
+  Toggle „News & live events" in LearnView („Stay in the loop"); CKQuerySubscription
+  auf Public-DB `Announcement`, sichtbarer Push via Localization-Args, Abschalten
+  löscht Subscription; ehrlicher Status (denied/error/on). Founder-Anleitung:
+  `docs/dev/CLOUDKIT_ANNOUNCEMENTS.md` (Schema + PRODUCTION-Deploy + Test).
+- **Founder-To-dos jetzt:** (1) CloudKit Dashboard: `Announcement`-Schema anlegen
+  + in Production deployen (Anleitung), dann Push-Test lt. Doc; (2) v141 auf dem
+  Gerät: Weather-Toggle + Ort-Toggle zusammen testen (Descriptor erscheint beim
+  Start); (3) Launch-Schritte aus Forts. 12 (Screenshots/ASC/Submit) unverändert.
+- **Nächster großer Schritt (Founder-Angebot):** Claude Code auf dem Mac +
+  Claude-in-Chrome → Portal/ASC/CloudKit-Dashboard direkt bedienen + LOKALES
+  Xcode (Gerätetests, Screenshots, Watch-Embed-Blocker).
+
 ## 2026-07-10 (Forts. 12) — LAUNCH-KANDIDAT AUF TESTFLIGHT + Listing-Paket + Strategie C
 - **TestFlight v10.79.140 = SUCCESS (Run 29083654775, 5f2139c):** der v1.0-Launch-
   Kandidat ist hochgeladen — alles frei (Kauf-UI raus), Ort-im-Namen (opt-in),
