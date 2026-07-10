@@ -131,6 +131,60 @@ final class PianoRollModelTests: XCTestCase {
         XCTAssertEqual(model.notes.count, 1)
         XCTAssertEqual(model.notes.first?.pitch, 72)
     }
+
+    // MARK: - Multi-bar arrangement (bar-cycling) — the audit-flagged gap
+
+    func testLoadArrangement_stoppedLoadsFirstBar() {
+        let model = PianoRollModel()
+        let bars = [[Note(pitch: 60, startStep: 0)],
+                    [Note(pitch: 62, startStep: 0)],
+                    [Note(pitch: 64, startStep: 0)]]
+        model.loadArrangement(bars, playing: false)
+        XCTAssertEqual(model.notes.count, 1)
+        XCTAssertEqual(model.notes.first?.pitch, 60, "stopped → bar 0 is present before playback")
+    }
+
+    func testLoadArrangement_singleBarFallsBackToPlainLoad() {
+        let model = PianoRollModel()
+        model.loadArrangement([[Note(pitch: 67, startStep: 4)]], playing: false)
+        XCTAssertEqual(model.notes.first?.pitch, 67)
+        // A single-bar arrangement exports as exactly one bar (no cycling).
+        XCTAssertEqual(model.arrangementForExport().bars, 1)
+    }
+
+    func testLoadArrangement_emptyIsSafe() {
+        let model = PianoRollModel()
+        model.loadArrangement([], playing: false)
+        XCTAssertTrue(model.notes.isEmpty)
+        XCTAssertEqual(model.arrangementForExport().bars, 1)
+    }
+
+    func testArrangementForExport_offsetsEachBarByOneWholeBar() {
+        let model = PianoRollModel()
+        // Three distinct 1-note bars; each should land in its own bar on export.
+        let bars = [[Note(pitch: 60, startStep: 0)],
+                    [Note(pitch: 62, startStep: 0)],
+                    [Note(pitch: 64, startStep: 0)]]
+        model.loadArrangement(bars, playing: false)
+        let out = model.arrangementForExport()
+        XCTAssertEqual(out.bars, 3, "an N-bar arrangement exports as N bars")
+        XCTAssertEqual(out.notes.count, 3)
+        let barTicks = PianoRollModel.stepCount * Note.ticksPerStep
+        let byPitch = Dictionary(uniqueKeysWithValues: out.notes.map { ($0.pitch, $0.startTick) })
+        XCTAssertEqual(byPitch[60], 0, "bar 0 stays at tick 0")
+        XCTAssertEqual(byPitch[62], barTicks, "bar 1 is offset one whole bar")
+        XCTAssertEqual(byPitch[64], 2 * barTicks, "bar 2 is offset two whole bars")
+    }
+
+    func testClearStopsCyclingAndEmptiesRoll() {
+        let model = PianoRollModel()
+        model.loadArrangement([[Note(pitch: 60, startStep: 0)],
+                               [Note(pitch: 62, startStep: 0)]], playing: false)
+        model.clear()
+        XCTAssertTrue(model.notes.isEmpty)
+        XCTAssertEqual(model.arrangementForExport().bars, 1,
+                       "a cleared roll is a single (empty) bar, not a stale N-bar cycle")
+    }
 }
 
 /// TIE AT THE WRAP (founder 2026-07-09 "Vermeide stolpern"): the pure matcher
