@@ -355,3 +355,21 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
 - **Fluid Voice — WATCH (Pipeline):** macOS-Diktat-Tool, braucht Apple Silicon — der
   Founder-Laptop kann das nicht; iPhone-Diktat in der Claude-App erfüllt den Job heute.
   Keine Repo-Integration nötig (diktierter Text ist normaler Text).
+
+## 2026-07-10 — AI-Chat "Killer-Prompt" (FL Studio 2026 Gopher/Transmitter, Leapfrogging)
+- **Komplett-Reframe zur macOS-exklusiven Desktop-DAW — REJECT:** widerspricht iPhone-first
+  (Founder-bestätigt) UND dem laufenden Launch; der Founder-Rechner könnte das Produkt nicht
+  einmal bauen. Feature-Krieg gegen FL/Ableton/Reaper/Resolve ist beschieden (2026-07-09:
+  Wedge = Biofeedback + Interop, nicht Parität). Der echte Leapfrog IST unserer: der Körper
+  als Controller + generative Puls-Sync-Kollaboration — von keiner Audio-streamenden DAW
+  kopierbar. AudioKit/SwiftPM/Fluid-Voice-Punkte: bereits am selben Tag gegated (s. o.).
+- **Agentic Command Engine (CoreML/ANE-Voice-Agent) — WATCH:** Copy-Reflex auf ein
+  Konkurrenz-Experiment; unser Interface ist der Körper, nicht Chat. On-device-ML-Schicht
+  bleibt Tier-2 (Latenz-Prototyp zuerst).
+- **⭐ Transient/Sustain-Split (vDSP) — WATCH-ROADMAP:** der brauchbare DSP-Kern. Contained
+  Accelerate-Node für den EchoelFX-Workstream; EchoelBreak plant Transient-Detection ohnehin.
+  Bio-moduliert (Körper → Attack-Anteil) wäre er ein Alleinstellungsmerkmal. Nach dem
+  One-View-Arc.
+- **Metal-Timeline (120fps) — REJECT (jetzt):** prämature Optimierung; SwiftUI trägt unsere
+  Skala, Metal bleibt dem Bio-Visual vorbehalten (ein GPU-Pfad). Audio-Clock treibt
+  Video-Clock = bestätigt den bestehenden Stage-3–5-Plan.
