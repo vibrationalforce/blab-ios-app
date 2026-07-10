@@ -97,6 +97,12 @@ YouTube/Twitch (jede Plattform), nur MITSPIELEN ist Apple-first — ehrlich labe
 **Gate:** proceed für 2–4 (im Rahmen bestehender Beschlüsse); Punkt 3-Zukunft
 (Marktplatz je/nie) = founder-values, bleibt offen bis er real wird.
 
-## Noch NICHT entschieden/gebaut
-Nichts hiervon ist committed als Produkt-Zusage; dieses Doc ist Analyse.
-Founder-Reaktion entscheidet, ob E5b (SharePlay) in den Plan rückt.
+## ENTSCHIEDEN (Founder, noch am selben Tag — 2026-07-10B)
+Der Founder hat auf diese Analyse mit dem Geschäftsmodell v2 geantwortet und drei
+Gabelungen festgelegt (AskUserQuestion): **Alles frei + „Echoel Live"-Jahresabo**
+(~29,99 €/Jahr; Host-Fee ~9,99 €/Event ab v1.2) · **sofort launchen, Live in v1.1** ·
+Zuschauer gratis über YouTube/Insta/TikTok. Wichtigste Korrektur an diesem Doc:
+weltweit-Live ist für Echoel NICHT mehr nur North Star — es ist physik-ehrlich
+machbar, weil generativ (Puls + Partitur taktquantisiert syncen, nicht Audio;
+SharePlay trägt es kostenlos bis 32 Teilnehmer). Eigener Server bleibt gestrichen.
+Siehe memory/decisions.md 2026-07-10B + decisions.csv.

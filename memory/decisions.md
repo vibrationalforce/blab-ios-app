@@ -4,6 +4,31 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-10B GESCHÄFTSMODELL v2 + LAUNCH JETZT (supersedet das Einmal-Pro vom selben Vormittag)
+- **Founder-Vorschlag (verbatim-Kern):** "Vielleicht ist das was man mit Pro freischaltet
+  ein Jahresabo für weltweites Live musizieren und Biofeedback Sessions ansonsten hat man
+  als free User vollen Zugriff… Host fee pro Veranstaltung. Die Konzerte kosten für
+  Zuschauerinnen nichts (YouTube, Insta, TikTok)… das Instrument war bisher perfekt bevor
+  es zu kompliziert wird erstmal launchen."
+- **Drei bestätigte Entscheide (AskUserQuestion):** (1) Alles frei + Live-Abo,
+  (2) sofort launchen — Live in v1.1, (3) Preisrahmen 29,99 €/Jahr + Host-Fee 9,99 €/Event.
+- **Council-Einordnung:** Ein Abo für den laufenden VERBINDUNGS-Dienst widerspricht dem
+  "kein Abo"-Beschluss NICHT — der galt dem Instrument. SharePlay (FaceTime, bis 32,
+  E2E) = Apples kostenlose Realtime-Infrastruktur → das Abo hat fast keine Serverkosten.
+- **Der strategische Durchbruch (hebt die alte North-Star-Einordnung auf):** Weltweites
+  Live-Musizieren ist für Echoel PHYSIK-EHRLICH machbar, weil wir generativ sind — wir
+  syncen **Puls + Partitur (Kontrolldaten, taktquantisiert — NINJAM-Prinzip), nicht
+  Audio**; beide Geräte rendern lokal dieselbe Musik. "Wir streamen nicht Audio, wir
+  streamen den Puls." Kein Audio-streamender Wettbewerber kann das kopieren.
+- **Executed:** Pro-Chip + Unlock-Sheet aus WorkspaceView ENTFERNT (v1.0 zeigt keine
+  Kauf-UI). ProGate/EchoelStore/ProUnlockView bleiben compiling, unpresented — werden in
+  v1.1 auf das auto-renewable "Echoel Live" umgewidmet (nicht löschen, nicht vorher zeigen).
+- **Roadmap:** v1.0 freies Instrument JETZT → v1.1 Echoel Live (SharePlay-Sessions,
+  Jahresabo) → v1.2 Broadcast (P4 RTMP) + Host-Fee + Cause-Events (Partner-Modell
+  United We Stream; kein eigener Server — der bleibt gestrichen).
+- **ASC-To-do geändert:** KEIN non-consumable mehr anlegen; stattdessen (zu v1.1) das
+  Auto-renewable-Abo "Echoel Live".
+
 ### 2026-07-10 ECOSYSTEM: Einkommen zuerst · serverlos ohne Login · Gemeinsam ehrlich (Plan E1–E7)
 - **Founder-Auftrag (verbatim-Kette):** "Echoelmusic langfristig auf stabiles Einkommen,
   Producer, Health, Accessibility zu trainieren" + Apple Login / Wetterdaten (geringes

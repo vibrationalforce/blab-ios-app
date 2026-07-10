@@ -3,6 +3,24 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 11) — GESCHÄFTSMODELL v2 + LAUNCH-Beschluss + E3a/E5 shipped
+- **Founder-Pivot (nachmittags, supersedet Einmal-Pro vom Vormittag):** Instrument
+  komplett frei · "Echoel Live" Jahresabo (~29,99 €) für weltweite Sessions ab v1.1 ·
+  Host-Fee (~9,99 €/Event) ab v1.2 · Zuschauer gratis via YouTube/Insta/TikTok ·
+  **LAUNCH JETZT** (v1.0 = das freie Instrument). Details memory/decisions.md 2026-07-10B.
+- **Kern-Insight:** weltweit-Live ist für Echoel physik-ehrlich — Puls+Partitur syncen
+  (taktquantisierte Kontrolldaten, NINJAM-Prinzip), nicht Audio; SharePlay = kostenlose
+  E2E-Apple-Infra (bis 32 Teilnehmer). Strategie-Recherche in
+  scratchpads/STRATEGY_GLOBAL_LIVE_2026-07-10.md (United We Stream/Endlesss/Resonate/
+  NINJAM/3.1.3(d)-Prior-Art).
+- **Executed:** Pro-Chip + Sheet aus WorkspaceView entfernt (v1.0 ohne Kauf-UI;
+  ProGate/EchoelStore/ProUnlockView bleiben compiling für v1.1-Umwidmung auf
+  auto-renewable). E3a WeatherMood + E5 Nearby-Bio: CI komplett grün.
+- **ASC-To-do GEÄNDERT:** kein non-consumable mehr — stattdessen zu v1.1 das
+  Auto-renewable "Echoel Live". WeatherKit/iCloud-Portal-To-dos unverändert.
+- **Next:** Launch-Vorbereitung v1.0 (Listing/Screenshots/Privacy-Labels/Review-Notes,
+  echoel-marketing-Skill) → danach E5b SharePlay-Sessions als v1.1-Kern.
+
 ## 2026-07-10 (Forts. 10) — ECOSYSTEM-Plan (E1–E7) + Echoel Pro Kauf-Flow shipped (E1a–c)
 - **Founder-Auftrag:** stabiles Einkommen · Producer · Health · Accessibility + Login/
   Wetter/Standort/Push/weltweit-gemeinsam/Bio-Kohärenz-verbinden. 3 Explore-Audits +
