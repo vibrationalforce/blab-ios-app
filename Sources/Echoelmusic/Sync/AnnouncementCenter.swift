@@ -68,7 +68,7 @@ public final class AnnouncementCenter {
 
     private func activate() async {
         let center = UNUserNotificationCenter.current()
-        let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        let granted = (try? await center.requestAuthorization(options: [.alert])) ?? false
         guard granted else {
             status = "denied"
             log.log(.info, category: .system, "Announcements: notification permission denied")
@@ -92,7 +92,10 @@ public final class AnnouncementCenter {
         info.titleLocalizationArgs = ["title"]
         info.alertLocalizationKey = "%1$@"
         info.alertLocalizationArgs = ["body"]
-        info.soundName = "default"
+        // SILENT banner — founder rule: the app makes NO sound except the music.
+        // (A notification tone would also interrupt a live audio session mid-
+        // performance.) The notificationInfo lives SERVER-SIDE in the saved
+        // subscription: existing devices must toggle off→on once to re-save.
         subscription.notificationInfo = info
 
         do {
