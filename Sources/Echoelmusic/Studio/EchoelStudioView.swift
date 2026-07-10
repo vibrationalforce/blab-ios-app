@@ -80,6 +80,16 @@ struct EchoelStudioView: View {
     #if canImport(CoreLocation)
     @Environment(LocationNamer.self) private var locationNamer
     #endif
+    /// Opt-in weather flavour (E3b): one coarse fetch at Start salts the
+    /// STRUCTURE seed — the sky colours the skeleton, the body stays the
+    /// primary driver. Low-frequency reads only.
+    #if canImport(WeatherKit) && canImport(CoreLocation)
+    @Environment(WeatherProvider.self) private var weatherProvider
+    @AppStorage("weather.enabled") private var weatherEnabled = false
+    /// This session's weather salt (0 = none); lands on the next re-seed.
+    @State private var weatherSalt: UInt64 = 0
+    @State private var weatherDescriptor = ""
+    #endif
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
     @Environment(PatchStore.self) private var patchStore
@@ -1072,6 +1082,9 @@ struct EchoelStudioView: View {
             #if canImport(CoreLocation)
             placeRow
             #endif
+            #if canImport(WeatherKit) && canImport(CoreLocation)
+            weatherRow
+            #endif
         }
     }
 
@@ -1096,6 +1109,51 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.dim)
             }
+        }
+    }
+    #endif
+
+    #if canImport(WeatherKit) && canImport(CoreLocation)
+    /// E3b: opt-in weather flavour (default OFF). One coarse fetch at Start
+    /// salts the structural skeleton — the body stays the primary driver.
+    /// Carries the Apple-required Weather attribution.
+    private var weatherRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: $weatherEnabled) {
+                Text("Weather shapes the music")
+                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            .accessibilityHint("One coarse weather lookup per session flavours the composition's structure. The body stays the main driver.")
+            if weatherEnabled {
+                Text(!locationNamer.enabled
+                     ? "Needs \"Place in session name\" for a coarse location."
+                     : (weatherDescriptor.isEmpty ? "Sky flavour arrives at Start."
+                                                  : weatherDescriptor))
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.dim)
+                // Apple WeatherKit attribution requirement.
+                if let attributionURL = URL(string: "https://developer.apple.com/weatherkit/data-source-attribution/") {
+                    Link(" Weather", destination: attributionURL)
+                        .font(EchoelTheme.font(10))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .accessibilityLabel("Apple Weather data attribution")
+                }
+            }
+        }
+    }
+
+    /// E3b: one coarse fetch per session start; the salt lands on the NEXT
+    /// re-seed (evolve/lock-snap) — never blocks the first sound.
+    private func fetchWeatherFlavour() {
+        weatherSalt = 0
+        weatherDescriptor = ""
+        guard weatherEnabled, let fix = locationNamer.lastFix else { return }
+        Task { @MainActor in
+            guard let snap = await weatherProvider.snapshot(for: fix), running else { return }
+            let contribution = WeatherMood.contribution(for: snap)
+            weatherSalt = contribution.structureSalt
+            weatherDescriptor = contribution.descriptor
         }
     }
     #endif
@@ -2488,6 +2546,9 @@ struct EchoelStudioView: View {
         // One fresh musical identity PER TAKE: the pre-lock (no-body) structure seed is
         // drawn here once and then held, so warm-up recomposes/edits stay the same piece.
         takeFallbackSeed = UInt64.random(in: 1...UInt64.max)
+        #if canImport(WeatherKit) && canImport(CoreLocation)
+        fetchWeatherFlavour()   // E3b: non-blocking; salt lands on the next re-seed
+        #endif
         startTask?.cancel()
         startTask = Task { @MainActor in
             // Start the camera/bio source publishing, but DO NOT block on a pulse
@@ -2720,7 +2781,12 @@ struct EchoelStudioView: View {
         // (with the nonce) evolves the melody — consecutive takes feel like the same
         // piece breathing, not a new random one ("homogener klingen"). When the body
         // shifts, the structure evolves with it; with no signal both are random.
-        let structureSeed = bioSeed(frame)
+        var structureSeed = bioSeed(frame)
+        // E3b: the sky flavours the SKELETON only (structure seed) — the detail
+        // seed below stays body+evolution, so weather never outweighs the body.
+        #if canImport(WeatherKit) && canImport(CoreLocation)
+        if weatherEnabled, weatherSalt != 0 { structureSeed ^= weatherSalt }
+        #endif
         let evolvingSeed = structureSeed ^ (evolution &* 0x9E3779B97F4A7C15)
         // BODY CONTINUITY (founder 2026-07-08: "Wenn ich ein Genre auswähle, ändert
         // sich eine Weile der entspannte Vibe zu angestrengtem Gedödel"): operating

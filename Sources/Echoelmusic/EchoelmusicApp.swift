@@ -106,6 +106,11 @@ struct EchoelmusicApp: App {
     #if canImport(CoreLocation)
     @State private var locationNamer = LocationNamer(session: nil)
     #endif
+    /// Opt-in weather flavour for the composer (default OFF; E3b) — one coarse
+    /// WeatherKit fetch per session start, 30-min cache.
+    #if canImport(WeatherKit) && canImport(CoreLocation)
+    @State private var weatherProvider = WeatherProvider()
+    #endif
     /// Loop → .wav export (live-capture) and the saved-projects library — the one
     /// window's output + persistence.
     @State private var loopExporter = LoopExporter()
@@ -323,6 +328,9 @@ struct EchoelmusicApp: App {
             .environment(sessionContext)
             #if canImport(CoreLocation)
             .environment(locationNamer)
+            #if canImport(WeatherKit)
+            .environment(weatherProvider)
+            #endif
             #endif
             .environment(loopExporter)
             .environment(projectStore)
