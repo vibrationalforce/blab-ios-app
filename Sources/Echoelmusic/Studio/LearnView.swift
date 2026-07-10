@@ -93,6 +93,7 @@ struct LearnView: View {
         case "denied": return "Notifications are off for Echoel in Settings."
         case "error": return "Couldn't subscribe — check that iCloud is signed in, then toggle again."
         case "on": return "You'll hear about new features and live events. Nothing else, ever."
+        case "coming-soon": return "Saved — live news arrives with Echoel Live. You'll be in from day one."
         default: return "Off by default. When on, one push per announcement — no account, nothing tracked."
         }
     }

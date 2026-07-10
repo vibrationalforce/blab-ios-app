@@ -153,7 +153,16 @@ def main() -> int:
                 ])
                 report["tuned_cents"] = round(-cents, 1)
 
-    # 4. Level — per-category target
+    # 4. Click guard — BEFORE levelling, so the fades can never shave the
+    #    measured peak afterwards (instant-attack hats hit within 0.3 ms).
+    n_in = min(int(0.0003 * sr), y.shape[1] // 4)
+    n_out = min(int(0.008 * sr), y.shape[1] // 4)
+    if n_in > 0:
+        y[:, :n_in] *= 0.5 - 0.5 * np.cos(np.linspace(0, math.pi, n_in))
+    if n_out > 0:
+        y[:, -n_out:] *= 0.5 + 0.5 * np.cos(np.linspace(0, math.pi, n_out))
+
+    # 5. Level — per-category target
     peak = float(np.max(np.abs(y))) or 1e-12
     if cat in PERC:
         gain = db_to_lin(PEAK_TARGET_PERC_DB) / peak
@@ -167,14 +176,6 @@ def main() -> int:
             gain = db_to_lin(PEAK_CEILING_DB) / peak
     y = y * gain
     report["gain_db"] = round(lin_to_db(gain), 2)
-
-    # 5. Click guard
-    n_in = min(int(0.0003 * sr), y.shape[1] // 4)
-    n_out = min(int(0.008 * sr), y.shape[1] // 4)
-    if n_in > 0:
-        y[:, :n_in] *= 0.5 - 0.5 * np.cos(np.linspace(0, math.pi, n_in))
-    if n_out > 0:
-        y[:, -n_out:] *= 0.5 + 0.5 * np.cos(np.linspace(0, math.pi, n_out))
 
     # 6. 44.1 kHz + 16-bit TPDF dither
     if sr != SR_OUT:
