@@ -3,6 +3,23 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 16) — VISION-REALITÄTS-REPORT + Multi-Interface-Research
+- **Founder:** virtuelle Soundkarte soll das Aggregat-Latenz-Problem umgehen —
+  Deep Research + Lösung; UND: gesamte Vision transparent machen (real vs fehlt).
+  Plan founder-approved (Plan-Datei), reine Docs/Research — kein Sources/-Code.
+- **Part B geliefert: `docs/dev/VISION_REALITY_2026-07.md`** — jede Fähigkeit in
+  genau EINER Stufe (✅ real in v144 / 🔧 gebaut-unverdrahtet / 🗺 Roadmap /
+  ⭐ North Star), gruppiert nach den 5 Dimensionen + One-View K1–K5 + Einkommen
+  v1.0/1.1/1.2 + Launch-Reststrecke (nur noch Founder-Schritte). Stale-Korrektur
+  dabei: FEATURE_MATRIX #4 „Arrangement NOT built" ersetzt durch den 2026-07-10-
+  Ist-Stand (Timeline-Stack LIVE als Hauptansicht; ehrliche Grenzen K2/K3 benannt).
+- **Part A läuft:** deep-research-Workflow (wf_4c2d126f-28c) zu iPhone/iPadOS/
+  macOS-Multi-Interface, virtuellen Soundkarten (Loopback/BlackHole/eigener
+  AudioServerPlugIn), In-App-Multi-Device + Drift; adversarial gegen die Founder-
+  Prämisse „virtuelle Soundkarte umgeht die Clock-Latenz". Ergebnis →
+  `scratchpads/RESEARCH_MULTI_INTERFACE_2026-07-10.md` + Vision-Gate-Zeilen,
+  Verdikt wird in VISION_REALITY §6 nachgetragen.
+
 ## 2026-07-10 (Forts. 15) — FOUNDER-KORREKTUR: EINE Hauptansicht JETZT + stiller Push
 - **Founder-Befund dreifach:** (1) App stürzt bei Announcement-Push ab, (2) „außer
   der Musik keine Töne", (3) Optik gefällt nicht — „Musik und Video Composing

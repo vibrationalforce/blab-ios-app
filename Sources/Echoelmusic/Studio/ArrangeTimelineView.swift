@@ -76,7 +76,9 @@ struct ArrangeTimelineView: View {
         .task { timeline.bootstrapIfNeeded(sections: legacySong.sections) }
         .gesture(magnify)
         .sheet(item: $editorLane) { lane in
-            laneEditor(lane).echoelSheetPanel()
+            // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
+            // the host body's generic signature flat (metadata rule).
+            AnyView(laneEditor(lane).echoelSheetPanel())
         }
         .alert("Rename track", isPresented: renameAlertShown) {
             TextField("Name", text: $renameText)
