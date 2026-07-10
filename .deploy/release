@@ -1,31 +1,29 @@
-build: 2026-07-10 v10.79.148 (DEFINITIVER Crash-Fix: CloudKit in v1.0 komplett aus)
+build: 2026-07-10 v10.79.149 (Nachtlauf: Sampler-Library + eigene Sounds + Humanisierung)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein v147-Log (Build 2253) war entscheidend — und hat meine v147-
-  Theorie widerlegt. Ehrlich: v147 hat den Crash NICHT behoben.
-  Der Stack zeigt jetzt glasklar: Der Absturz passiert INNERHALB des
-  CloudKit-Frameworks selbst (_os_crash tief in CloudKit), aufgerufen
-  von der News-Subscription beim Start — NICHT im async-Thunk, den mein
-  v147-Wrapper umgangen hat. Deshalb half der Wrapper nicht. Der Grund:
-  CloudKit trappt hart, weil der Container / das "Announcement"-Schema
-  noch NICHT in PRODUCTION deployed ist (dein offenes Dashboard-To-do).
+notes: v148 läuft stabil (dein 25-Min-Log = Crash besiegt, danke!). Diese Nacht
+  im Ralph-Modus abgearbeitet — alles CI-grün:
 
-  v148 = die definitive Lösung, kein Rätselraten mehr:
-  Echoel macht in v1.0 GAR KEINE CloudKit-Aufrufe. Ein Schalter
-  (cloudKitConfigured = false) schaltet die komplette Announcement-
-  Maschinerie ab — kein Start-Aufruf, und der News-Schalter merkt sich
-  nur noch deine Auswahl ("Gespeichert — Live-News kommen mit Echoel
-  Live"), ohne CloudKit anzufassen. Null CloudKit = null Crash.
-  Das passt exakt zum Plan: v1.0 = freies Instrument JETZT, Push kommt
-  mit "Echoel Live" in v1.1 (dann wird die eine Zeile auf true gesetzt,
-  im selben Schritt wie das Schema-Deployment).
+  1) SAMPLE-BROWSER nach Kategorie: Im Sample-Browser (Pad antippen →
+     durchblättern) gibt es jetzt Bass · Stab · Keys · Pad · Tone · Tom ·
+     Conga · FX + Drum-Varianten — ▶ zum Vorhören, "Use" legt es auf den Pad.
+  2) +35 EIGENE, LIZENZREINE Sounds (komplett synthetisiert — kein Pack,
+     keine Lizenzfrage): eigener Bass, Rave-Stabs, FM-Rhodes & Glocken,
+     gezupfte Saiten (echtes Physical Modeling) — alle gemastert. Erkennbar
+     am "Echoel"-Namen.
+  3) Deine Pad-Auswahl bleibt jetzt nach Neustart erhalten.
+  4) SOUNDS FÜHLEN SICH ECHTER AN (dein Video "why your sounds feel fake"):
+     Beats bekommen pro Anschlag eine dezente Velocity-Variation — kein
+     Maschinengewehr mehr, es "atmet".
 
-  Die eine Hauptansicht (Timeline über Instrument) bleibt — sie war nie
-  die Ursache.
+  → Test: Sample-Browser öffnen (Pad antippen), durch die Kategorien
+    blättern, ein paar Echoel-Sounds vorhören + auf Pads legen. Beat
+    laufen lassen — klingt er lebendiger/organischer?
 
-  → Test: Öffnet v10.79.148? Diesmal bin ich zuversichtlich, weil die
-    Absturzursache selbst entfernt ist (nicht nur umgangen). Mehrmals
-    starten, offen lassen, drehen, Spur-Köpfe, Piano Roll.
-  → News-Schalter darf an/aus — er speichert nur, kein Crash.
-
-  Wenn v148 öffnet, ziehe ich als Nächstes die kuratierten + gemasterten
-  Samples nach (eigenes Kit steht bereit) und baue den Kategorie-Browser.
+  OFFEN bei dir (Entscheidungen, kein Code):
+  - Lizenz: Die ÄLTEREN Pack-Samples in der Library bräuchten vor dem
+    App-Store-Submit eine Lizenzprüfung. Die neuen Echoel-Sounds sind sauber
+    — wir können den Default-Kit auf die eigenen umstellen, wenn dir die
+    gefallen (dein Ohr entscheidet).
+  - Nächste Zyklen mit deinem Gerät: Pitch-Bewegung pro Note (2. Punkt aus
+    dem Video) + rPPG-Kamera-Stabilität (Finger-Erkennung/Stall aus deinem
+    148-Log) — die fasse ich nur mit deiner Rückmeldung an, nicht blind.
