@@ -97,6 +97,38 @@ YouTube/Twitch (jede Plattform), nur MITSPIELEN ist Apple-first — ehrlich labe
 **Gate:** proceed für 2–4 (im Rahmen bestehender Beschlüsse); Punkt 3-Zukunft
 (Marktplatz je/nie) = founder-values, bleibt offen bis er real wird.
 
+## NACHTRAG C (Founder-Frage 3): Avatare · Fachexperten-Austausch · Arbeitsvermittlung · globale Multi-Musiker-Stream-Events
+
+**Globale Events (mehrere Musiker gleichzeitig, gestreamt): REALISTISCH.**
+Architektur: alle Teilnehmer in einer Live-Session (v1.1 SharePlay, taktquantisierte
+Kontrolldaten — Puls+Partitur, nicht Audio); EIN Gerät ist Broadcast-Host, rendert
+die gemeinsame Session + Visual lokal und streamt via RTMP (v1.2) auf YouTube/
+Twitch/Insta. Ehrliche Grenze 1: FaceTime-Video der Mitspieler ist E2E und kann
+NICHT mitgestreamt werden — der Stream zeigt Musik+Visuals; Musiker-Kameras laufen,
+wenn gewünscht, über Standard-Broadcast-Werkzeuge (OBS/StreamYard, Partner-Workflow).
+Ehrliche Grenze 2: taktquantisiert = gemeinsames Komponieren/Performen im Takt-Raster,
+kein Mikro-Timing-Duett über Ozeane (Physik; bleibt ehrlich kommuniziert).
+
+**Avatare: Echoels natives Konzept statt Metaverse-Kopie.** Der Avatar IST die
+Bio-Signatur — das persönliche Puls/Kohärenz-Visual jedes Performers (MetalBioView-
+Identität pro Peer). Unfälschbar, science-first, keine 3D-Asset-Pipeline, kein
+Uncanny Valley, Uncodixfy-konform. Gesichter/Präsenz: FaceTime/Memoji liefert Apple
+gratis in SharePlay. Generische 3D-Social-Avatare: REJECT (off-vision, teuer).
+
+**Fachexperten-Austausch + Arbeitsvermittlung: Nachfrage validiert, gestuft bauen.**
+Prior Art: SoundBetter (>$80 Mio. an Profis ausgezahlt; 2019 Spotify, 2021 zurück an
+Founder) · Vampr (1 Mio.+ Musiker, „Collabs"-Job-Posts) · BandLab (100 Mio.+ User,
+VC-subventioniertes Social-DAW). Lehren: Markt existiert; Marktplatz-Ops (Escrow,
+Moderation, zwei Seiten kalt starten) = eigenes Unternehmen — nichts für Solo-Founder
+neben dem Instrument. Stufen: (1) Community ZUERST ohne Code (Discord/Website-
+Verzeichnis, Launch-Begleitung); (2) nach E4: CloudKit-„Collab Board" in der App —
+Session posten + „suche Vocalist/Lichtdesigner", Matching ohne Zahlungsabwicklung;
+(3) Bezahlung bleibt extern zwischen den Beteiligten (1:1 erlaubt Apple externe
+Zahlung, 3.1.3(d)); (4) echter Marktplatz mit Vermittlungsgebühr = NUR falls die
+Community es erzwingt — nie vor tragfähigem Live-Abo. Echoels Nische vs. Vampr/
+SoundBetter: Projekte ENTSTEHEN im Instrument (bio-generative Sessions, ADM-OSC/
+Licht-Profis als Zielgruppe) — Vermittlung folgt dem Werk, nicht umgekehrt.
+
 ## ENTSCHIEDEN (Founder, noch am selben Tag — 2026-07-10B)
 Der Founder hat auf diese Analyse mit dem Geschäftsmodell v2 geantwortet und drei
 Gabelungen festgelegt (AskUserQuestion): **Alles frei + „Echoel Live"-Jahresabo**
