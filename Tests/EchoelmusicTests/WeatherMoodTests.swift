@@ -86,4 +86,30 @@ final class WeatherMoodTests: XCTestCase {
         let d = WeatherMood.contribution(for: snap(.storm, temp: -3, day: false)).descriptor
         XCTAssertEqual(d, "storm-night-freezing")
     }
+
+    // MARK: - WeatherKit raw-value mapping (E3b — pure, no WeatherKit import)
+
+    func testKnownWeatherKitRawsMap() {
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "clear"), .clear)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "mostlyClear"), .clear)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "partlyCloudy"), .partlyCloudy)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "cloudy"), .overcast)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "foggy"), .fog)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "drizzle"), .drizzle)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "heavyRain"), .rain)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "thunderstorms"), .storm)
+        XCTAssertEqual(WeatherSnapshot.Condition(weatherKitRaw: "blizzard"), .snow)
+    }
+
+    func testUnknownRawIsNilNotAGuess() {
+        XCTAssertNil(WeatherSnapshot.Condition(weatherKitRaw: "sharknado"))
+        XCTAssertNil(WeatherSnapshot.Condition(weatherKitRaw: ""))
+    }
+
+    func testEveryConditionIsReachableFromSomeRaw() {
+        let raws = ["clear", "partlyCloudy", "cloudy", "foggy", "drizzle",
+                    "rain", "thunderstorms", "snow"]
+        let reached = Set(raws.compactMap { WeatherSnapshot.Condition(weatherKitRaw: $0) })
+        XCTAssertEqual(reached, Set(WeatherSnapshot.Condition.allCases))
+    }
 }

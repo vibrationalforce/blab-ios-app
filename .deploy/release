@@ -1,27 +1,12 @@
-build: 2026-07-10 v10.79.139 (Knister-Fix beim Umschalten + echte WAV-Wellenform + EchoelSynth)
+build: 2026-07-10 v10.79.141 (Capability-Verify: CloudKit + Push + WeatherKit Entitlements aktiv)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: KNISTERN BEIM UMSCHALTEN — Ursache gefunden und gefixt:
-  - Beim Wechsel von Preset/Genre/Character wurden FX-Stufen mitten im
-    Spiel wieder eingeschaltet und ihr EINGEFRORENES altes Audio platzte
-    raus (das Knistern). Jetzt: Stufe wird beim Einschalten sauber geleert.
-  - Zweite Ursache: eine neue Delay-Zeit SPRANG (Klick). Jetzt gleitet sie
-    (~40 ms, wie ein Tape-Delay repitcht) — sauber statt Knack.
-  → Bitte testen: spielen lassen und Genres/Charaktere/Presets schnell
-    durchschalten — knistert es noch? (Jeder Flächenwechsel wird jetzt
-    geloggt, ein Diag-Log zeigt uns künftig WANN du umgeschaltet hast.)
-
-  WAV-WELLENFORM (Stufe 2 der Timeline):
-  - Audio Clip (Import): die Datei zeigt jetzt ihre echte Wellenform,
-    der getrimmte Bereich ist hell, außen abgedunkelt — und du kannst
-    die Trim-Griffe DIREKT auf der Wellenform ziehen (Zahlenfelder
-    bleiben für Präzision).
-  - Arrange: Audio-Regionen zeigen ihre Wellenform, sobald sie eine
-    echte Datei tragen (kommt mit Aufnahme/Import als Nächstes).
-
-  AUSSERDEM:
-  - EchoelSynth: das Spielfeld heißt jetzt EchoelSynth (ex EchoelTouch);
-    dein gespeicherter Sound bleibt erhalten.
-  - Vollbild-Raster ADAPTIV: keine angeschnittenen Spalten mehr unter
-    Notch/Home-Balken — was du siehst, ist exakt was klingt.
-  → Bitte testen: Vollbild spielen — sind alle Spalten voll sichtbar
-    und trifft der Finger das richtige Feld am Rand?
+notesT: TECHNISCHER VERIFIKATIONS-BUILD (identisch zu v140 im Verhalten):
+  - Aktiviert die frisch im Developer-Portal eingerichteten Capabilities
+    im App-Entitlement: iCloud/CloudKit-Container, Push (aps) und
+    WeatherKit. In der App ändert sich NICHTS Sichtbares — dieser Build
+    beweist nur, dass Signing/Provisioning mit den neuen Capabilities
+    durchläuft. Danach bauen wir darauf: Wetter→Musik (E3b) und
+    Push-Ankündigungen ohne Konto (E4).
+  → Bitte testen: einfach normal starten und spielen — verhält sich
+    alles exakt wie v140? (Kein neues Feature, keine neue Berechtigung
+    wird abgefragt.)

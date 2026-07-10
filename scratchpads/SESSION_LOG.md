@@ -3,6 +3,26 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 12) — LAUNCH-KANDIDAT AUF TESTFLIGHT + Listing-Paket + Strategie C
+- **TestFlight v10.79.140 = SUCCESS (Run 29083654775, 5f2139c):** der v1.0-Launch-
+  Kandidat ist hochgeladen — alles frei (Kauf-UI raus), Ort-im-Namen (opt-in),
+  Puls-nebeneinander (Colabo), WeatherMood-Kern. Build-Notes mit Test-Bitten in
+  `.deploy/release`.
+- **Listing-Paket komplett** (`docs/dev/APP_STORE_LISTING_v1.md`, 22a43bc): Name
+  "Echoelmusic: Biofeedback Synth" (30/30) · Subtitle "Your heartbeat makes music" ·
+  Keywords 96/100 B · Beschreibung/Promo/What's-New · Review-Notes (Demo-Modus,
+  rPPG, Location, LAN) · Privacy "Data Not Collected" (begründet) · 8-Screenshot-
+  Drehbuch mit indexierten Captions. Founder: Screenshots + ASC-Copy-Paste + Submit.
+- **Strategie-Nachtrag C** (e79b6a1, auf Founder-Frage 3): globale Multi-Musiker-
+  Stream-Events = realistisch (Host rendert + RTMP; FaceTime-Video NICHT streambar —
+  OBS-Partner-Workflow; taktquantisiert ehrlich) · Avatar = Bio-Signatur-Visual
+  (3D-Metaverse-Avatare REJECT) · Fachexperten/Arbeitsvermittlung = Nachfrage
+  validiert (SoundBetter $80M/Vampr 1M/BandLab 100M), gestuft: Community ohne Code
+  → CloudKit-Collab-Board nach E4 → Zahlungen extern; Gebühren-Marktplatz frühestens
+  nach tragfähigem Live-Abo.
+- **Merksatz des Tages:** „Wir streamen nicht Audio, wir streamen den Puls" —
+  weltweit-Live ist für Echoel physik-ehrlich, WEIL generativ.
+
 ## 2026-07-10 (Forts. 11) — GESCHÄFTSMODELL v2 + LAUNCH-Beschluss + E3a/E5 shipped
 - **Founder-Pivot (nachmittags, supersedet Einmal-Pro vom Vormittag):** Instrument
   komplett frei · "Echoel Live" Jahresabo (~29,99 €) für weltweite Sessions ab v1.1 ·
