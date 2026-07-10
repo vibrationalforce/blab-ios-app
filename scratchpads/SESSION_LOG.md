@@ -3,6 +3,37 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 9) — Knister-URSACHE gefunden (Umschalt-Transienten) + Stage 2 WAV komplett
+- **Founder-Ohrbefund lokalisierte es:** „Ein bisschen hat's noch geknistert **beim Umschalten
+  von Dingen**" — nicht steady-state (v135-Befund bleibt korrekt), sondern SCHALT-Transienten.
+  Zwei Mechanismen code-verifiziert und gefixt:
+  1. **Stale-Buffer-Burst (f77e59e):** Bypassed FXChain-Stage wird komplett übersprungen →
+     Delay-Lines/Filter-States FRIEREN mit altem Audio EIN; Preset/Genre/Character-Wechsel
+     (FXPreset.apply, GenreFX.apply, FXCuratedLibrary, FXBioModulator) re-enablen Stages
+     mitten im Spiel → das eingefrorene Alt-Audio platzt raus. Fix: jedes Enable-Flag reset
+     seine Stage in `willSet` auf der STEIGENDEN Flanke (Flag noch false → Render-Loop fasst
+     die Stage beweisbar nicht an → lockfrei race-frei). Same-value-Writes (Presets schreiben
+     jedes Flag jedes Mal) resetten NICHT — lebender Tail überlebt. +3 Tests.
+  2. **Delay-Zeit-Sprung (286f61f):** `timeSeconds` wurde roh pro Frame gelesen — Preset mit
+     anderer Delay-Zeit springt den Read-Tap mid-buffer = Klick. Fix: ~40 ms One-Pole-Glide
+     (linear interpolierter Tap → sauberer Tape-Repitch statt Sprung); `reset()` snappt.
+     +1 Test (60-Hz-Sinus, nicht-kommensurabel — 50 Hz wäre pathologisch phasen-aligned).
+  - **Breadcrumb (a507220):** Surface-Wechsel loggt jetzt (`Surface switch → x`) — Device-Logs
+    können Knister-Momente endlich mit Umschalt-Momenten korrelieren.
+  - Offen ehrlich: Toggle-AUS einer nassen Stage schneidet den Tail hart ab (milder als der
+    Burst; volles Per-Stage-Crossfade = eigener Zyklus, falls der Founder es noch hört).
+- **Stage 2b WaveformCache (5e75a7d):** chunked AVAudioFile-Reduktion (131072er Chunks,
+  bucket-aligned, nie Volldatei), Stereo→max-Faltung, 2 Mip-Stufen (fein ~256, grob ×16),
+  Binary-plist-Disk-Cache (Caches/Waveforms, Key=Name+Size+mtime als pure FNV-1a, CI-locked),
+  In-Flight-Dedup. WaveformCacheKeyTests (Linux-CI).
+- **Stage 2c (29e2e8d):** `WaveformView` Canvas-Leaf (min/max-Säulen + RMS-Kern pro Pixelspalte,
+  Mip-Wahl >8 Buckets/Spalte, null Observable-Reads) + **AudioClipView: Wellenform + zieh-bare
+  Trim-Griffe** (Region-Außenbereich abgedunkelt, Fat-Finger-Hit-Areas, Drags durch
+  `AudioClipRegion.init` = Clamping hält; Zahlenfelder bleiben für Präzision) + Timeline-Hook
+  (Audio-Region rendert Wellenform sobald Clip echten mediaRef trägt — heute schreibt das noch
+  NICHTS; Stage A/Import füttert es).
+- CI: 286f61f + a507220 GRÜN; 29e2e8d lief bei Log-Zeitpunkt noch. Danach Deploy v10.79.139.
+
 ## 2026-07-09 (Forts. 8) — UMBAU-BESCHLUSS: Arrange-Timeline wird Hauptansicht (approved plan) + Stage 0/1a shipped
 - **Founder-Beschlusskette (verbatim in Plan):** Spaces-Modell + fester Bio-Kern (Mockup-Artifact
   0976e105) → „wie in Ableton MIDI, Audio und Video schneiden … im Takt auf dem Beatgrid" →
