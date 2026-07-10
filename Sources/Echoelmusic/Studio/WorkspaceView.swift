@@ -17,9 +17,10 @@ import SwiftUI
 // floating immersive visual.
 //
 // Render safety (skill: swiftui-render-safety):
-//  • ONE lightweight sheet is owned here (the Echoel Pro unlock) — far from any
-//    metadata limit; EchoelStudioView's ~18-modal chain is untouched. Do not add
-//    more modals here without consolidating first.
+//  • No modal is owned here (the brief Pro-unlock sheet was removed with the
+//    2026-07-10 free-instrument decision) — EchoelStudioView's ~18-modal chain
+//    is untouched. ONE lightweight shell sheet would be safe if v1.1 Live
+//    needs it; never more without consolidating first.
 //  • No high-frequency @Observable is read in this body; the header monitor
 //    reads only the LOW-frequency isRunning flag. Live bio lives in leaves
 //    (BioStripView, PulseMonitorMiniLive).
@@ -47,12 +48,14 @@ struct WorkspaceView: View {
     @Environment(\.openURL) private var openURL
     private static let websiteURL = URL(string: "https://echoelmusic.com")
 
-    /// Echoel Pro unlock (one-time purchase). `isProUnlocked` is a LOW-frequency
-    /// read (changes on purchase/restore only) — safe in this body.
-    #if canImport(StoreKit)
-    @Environment(EchoelStore.self) private var proStore
-    @State private var showProUnlock = false
-    #endif
+    // Monetization (founder 2026-07-10, second decision of the day — supersedes
+    // the same-day one-time-Pro): the INSTRUMENT is fully free; revenue comes in
+    // v1.1 as the "Echoel Live" YEARLY subscription (worldwide SharePlay
+    // sessions, ~29,99 €/y) + a per-event host fee (consumable IAP) in v1.2.
+    // Therefore v1.0 shows NO purchase UI — the Pro chip + sheet that briefly
+    // lived here are removed from presentation. ProUnlockView/EchoelStore/
+    // ProGate stay in code, compiling, to be REPURPOSED for the Live sub —
+    // do not delete, do not re-present before v1.1.
 
     var body: some View {
         ZStack {
@@ -80,9 +83,6 @@ struct WorkspaceView: View {
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
-        #if canImport(StoreKit)
-        .sheet(isPresented: $showProUnlock) { ProUnlockView() }
-        #endif
     }
 
     /// Persistent brand header — always on screen. Centre: "Echoelmusic" + the running
@@ -113,26 +113,8 @@ struct WorkspaceView: View {
                 // two adjacent VoiceOver stops for one action is noise (AX audit).
                 .accessibilityHidden(true)
                 Spacer(minLength: 0)
-                // RIGHT: Pro chip (one-time unlock; accent-bordered once owned), then
-                // the immersive-visual monitor.
-                #if canImport(StoreKit)
-                Button { showProUnlock = true } label: {
-                    Text("Pro")
-                        .font(EchoelTheme.font(11, .semibold))
-                        .foregroundStyle(proStore.isProUnlocked ? EchoelTheme.accent : EchoelTheme.dim)
-                        .padding(.horizontal, 8)
-                        .frame(height: 22)
-                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                            .strokeBorder(proStore.isProUnlocked ? EchoelTheme.accent : EchoelTheme.border,
-                                          lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle().inset(by: -8))
-                .accessibilityLabel(proStore.isProUnlocked ? "Echoel Pro — unlocked" : "Echoel Pro")
-                .accessibilityHint("One-time unlock for Pro extensions")
-                #endif
-                // Immersive-visual monitor — tap to show/hide the floating visual.
+                // RIGHT: the immersive-visual monitor. (No purchase chip in v1.0 —
+                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
                 // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
                 // live waveform stays in its own leaf.
                 #if canImport(AVFoundation)
