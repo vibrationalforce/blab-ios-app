@@ -33,10 +33,16 @@ löst sich als Grid auf.
   (MIDI → Piano Roll, Audio → Audio-Editor, Rename, Delete-if-empty);
   Toolbar „+" = Add Track (MIDI/Audio). EIN .sheet(item:) + EIN Alert auf
   ArrangeTimelineView (NICHT EchoelStudioView — Metadaten-Regel gewahrt).
-- **K2 — Lane↔Engine-Bindung:** TimelineLane bekommt optionale Engine-Referenz
-  (Drum-Kanal-Index / Melodie-Slot); Spur-Kopf zeigt Mute/Solo/Level des
-  gebundenen Kanals (löst Mix in die Spuren auf). Reine Modell-Erweiterung +
-  Header-UI; BeatPlayer unangetastet.
+- **K2 — Lane↔Engine-Bindung (GENERALISIERT, Founder 2026-07-10 abends):** die
+  Spur ist der universelle Mixer-Strip für ALLE Element-Typen — MIDI/Audio/
+  Video/Visual/Light/FX. Jede TimelineLane bekommt Level/Mute/Solo im Spur-Kopf
+  mit typ-spezifischer Semantik (MIDI→Instrument-Gain, Audio→Clip-Gain,
+  Visual/Light→Intensität mit Flash-Safety, Video→Opacity). ChannelRackView
+  wird internes Detail (Drum-Kanäle hängen unter EINER Drums-Spur). Founder
+  zugleich: **Drums SAMPLE-FIRST** (Geräte-/Drive-Samples via Files-Picker —
+  funktioniert heute schon security-scoped; Ordner-Browser + Waveform = der
+  geplante EchoelBeat-Zyklus), prozedurale Kit-Synthese bleibt nur Fallback;
+  **neurale Sample-Synthese GEPARKT** (Tier-2-Latenz-Prototyp-Gate bleibt).
 - **K3 — Region-Editing + Timeline treibt Playback:** Drag/Move/Resize mit
   magneticSnap (Store-APIs existieren), Tap-to-select; ArrangementPlayer liest
   die Timeline statt der Legacy-Sections (Migration ist verlustfrei, reversibel).

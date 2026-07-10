@@ -1,23 +1,30 @@
-build: 2026-07-10 v10.79.145 (LAUNCH-CRASH-FIX für die eine Hauptansicht)
+build: 2026-07-10 v10.79.146 (NOTBETRIEB Plan B — bewährter v143-Baum)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: v144 stürzte SOFORT BEIM ÖFFNEN ab — das ist die bekannte
-  SwiftUI-Metadata-Crashklasse (wie der schwarze Bildschirm 10.76.34):
-  Der Hauptansicht-Umbau hat den Wurzel-Baum zu tief verschachtelt;
-  CI merkt das nicht, nur das Gerät. Fix: die zwei bewährten
-  Gegenmittel (AnyView-Erasure an der neuen Naht + Sheet-Muster).
-  Layout und Funktionen sind UNVERÄNDERT gegenüber v144:
-  Timeline oben, Instrument unten, Spur-Türen, stummer Push.
+notes: v145 stürzte laut Founder weiter beim Öffnen ab → wie vereinbart
+  KEIN dritter Blindfix. v146 = der SurfaceHost-Baum von v143 zurück,
+  der nachweislich auf dem Gerät startete (flacher ZStack, alle vier
+  Surfaces per Opacity gemountet), mit einer Änderung: die Auswahl ist
+  fest auf Studio gepinnt (kein @AppStorage-Read), weil die Chip-Leiste
+  unmounted bleibt. Sichtbar ist also NUR das Instrument im Vollbild —
+  die Timeline bleibt im Code gemountet-unsichtbar, exakt wie in v143.
 
-  → Bitte NUR EINS zuerst testen: Öffnet die App? (mehrmals starten)
-  → Wenn JA: quer/hochkant drehen, Spur-Kopf antippen (Menü),
-    "+" Spur hinzufügen, Piano Roll über die MIDI-Spur öffnen.
-  → Wenn NEIN (crasht weiter): Ich brauche dann den Beweis vom Gerät:
+  Die eine Hauptansicht (Timeline über Instrument) ist NICHT gestrichen
+  — sie kommt als v147+ zurück, sobald die echte Absturzstelle bekannt
+  ist. Auffällig: v143 mountete MEHR Views und startete; der v145-Fix
+  (AnyView-Erasure) half nicht → die Metadata-Hypothese an der
+  SurfaceHost-Naht ist damit geschwächt. Ohne Log rate ich nicht weiter.
+
+  → Test 1: Öffnet v10.79.146? (mehrmals starten; Build-Nummer prüfen)
+  → Wenn JA: Instrument normal benutzbar? Dann bitte TROTZDEM die
+    Analysedaten-Screenshots vom v144/v145-Crash schicken:
     Einstellungen → Datenschutz & Sicherheit → Analyse & Verbesserungen
-    → Analysedaten → Eintrag "Echoelmusic-2026-07-…" öffnen →
-    Screenshots der ersten 2–3 Seiten an mich. Dann sehe ich die
-    exakte Absturzstelle statt zu raten — und als Plan B liegt der
-    garantiert startende v143-Baum bereit (eine Zeile Revert).
+    → Analysedaten → Eintrag "Echoelmusic-2026-07-…" → erste 2–3 Seiten.
+    Damit finde ich die echte Absturzstelle und baue die eine
+    Hauptansicht crash-frei wieder auf.
+  → Wenn NEIN (auch v146 crasht): dann liegt es NICHT am Hauptansicht-
+    Umbau (v143-Baum = bewiesen startfähig) sondern an etwas anderem
+    seit v143 (Kandidat: stiller Push / AnnouncementCenter) — die
+    Screenshots sind dann zwingend, bitte sofort schicken.
 
-  Push-Test (wie gehabt, erst wenn die App öffnet): News-Schalter
-  einmal AUS→AN, dann Test-Record im Dashboard → Push muss STUMM
-  ankommen, App darf nicht crashen.
+  Push-Test (erst wenn die App öffnet): News-Schalter einmal AUS→AN,
+  dann Test-Record im Dashboard → Push muss STUMM ankommen.
