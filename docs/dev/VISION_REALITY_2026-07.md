@@ -80,7 +80,7 @@ noch kein Code) · ⭐ **NORTH STAR** (Konzept, ehrlich fern — nie Produkt-Cop
 | ✅ | Kein Konto, keine Datensammlung („Data Not Collected"), Sign-in-with-Apple bewusst ungenutzt | Beschluss 2026-07-10 |
 | 🗺 | Ableton Link (LinkKit freigegeben, Founder-Ok für Dep nötig) · Watch-Embed (braucht lokales Xcode) | inspiration.csv, FEATURE_MATRIX |
 | 🗺 | Mac (Catalyst) · visionOS/tvOS · App Clip | FEATURE_MATRIX Ecosystem — nur Pfad-Entscheid |
-| 🗺/⭐ | **Mehrere Audio-Interfaces parallel / virtuelle Soundkarte** — Deep-Research läuft (2026-07-10); Verdikt wird hier nachgetragen | `scratchpads/RESEARCH_MULTI_INTERFACE_2026-07-10.md` |
+| 🗺/⭐ | **Mehrere Interfaces parallel:** iPhone = OS-Grenze (kein Weg, belegt); „virtuelle Soundkarte umgeht die Clock-Latenz" = **widerlegt** (verschiebt nur das Resampling); Mac-Version kann das Aggregat **automatisch in-app** bauen (`AudioHardwareCreateAggregateDevice`) → Roadmap am Mac-Entscheid | `scratchpads/RESEARCH_MULTI_INTERFACE_2026-07-10.md` (25 verifizierte Claims, 20 Quellen) |
 
 ## 7 · Video & Broadcast
 
