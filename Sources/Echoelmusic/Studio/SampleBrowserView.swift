@@ -47,6 +47,16 @@ struct SampleBrowserView: View {
                         row(name)
                     }
                 }
+                // Categorized library (Resources/Samples/<Category>/*.wav) — the
+                // big browsable selection: Bass · Stab · Keys · Pad · Tone · Tom ·
+                // Conga · FX · drum variations. Audition ▶ before Use, like above.
+                ForEach(BeatPlayer.library, id: \.category) { group in
+                    Section(group.category) {
+                        ForEach(group.samples) { sample in
+                            libraryRow(sample)
+                        }
+                    }
+                }
                 if let url = pickedURL {
                     Section("Selected from Files") {
                         HStack(spacing: 12) {
@@ -140,6 +150,40 @@ struct SampleBrowserView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { player.auditionBundled(name) }
+    }
+
+    @ViewBuilder
+    private func libraryRow(_ sample: BeatPlayer.LibrarySample) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                player.auditionLibrary(sample)
+            } label: {
+                Image(systemName: "play.circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Preview \(sample.name)")
+
+            Text(sample.name)
+                .font(EchoelTheme.font(14))
+                .foregroundStyle(EchoelTheme.text)
+                .lineLimit(1).truncationMode(.middle)
+
+            Spacer()
+
+            Button {
+                player.assignLibrary(track: track, sample)
+                dismiss()
+            } label: {
+                Text("Use")
+                    .font(EchoelTheme.font(13, .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { player.auditionLibrary(sample) }
     }
 }
 #endif

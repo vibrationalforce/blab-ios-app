@@ -3,6 +3,45 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 18) — ✅ LAUNCH-CRASH BESIEGT (v148 device-verified) + rPPG-Befund
+- **Founder-Log v10.79.148 (Build 2254): KEIN Crash.** Start gesund (alle init+startup
+  Stages, LaunchGuard healthy), dann ~25 Min NUTZUNG (2× Start/generate/evolve, Playhead,
+  polyVoice.noteOn, trigger#1). Der CloudKit-Gate-Fix (cloudKitConfigured=false) ist damit
+  GERÄTE-VERIFIZIERT — die eine Hauptansicht war nie die Ursache (endgültig bestätigt).
+  Reihe der Fehldiagnosen: Metadata (v145/146) FALSCH → CK-Thunk (v147) FALSCH →
+  CK-Aufruf ganz raus (v148) RICHTIG. Lehre: framework-internes _os_crash ⇒ Aufruf
+  weglassen, nicht Aufrufart ändern; und IMMER Build-Nr im Log prüfen.
+- **Nächster echter Befund (rPPG/Kamera, aus demselben Log):** (a) Guter HR-Lock möglich —
+  bei ruhigem Finger 58–73 bpm, conf bis 0.77, q bis 0.88 → Algorithmus funktioniert.
+  ABER (b) früher Kamera-Stall: "INTERRUPTED reason 1" → ~50 s keine Frames → recovery
+  1/2/3 + 2× cold restart, DANN erholt (Resilienz greift, aber langsam). (c) finger=no
+  flappt stark (auch bei plausibel aufliegendem Finger) → bpm resettet ständig auf 0,
+  Lock hält nicht. = der nächste Ralph-Zyklus (Bio/CameraRPPGBioPublisher: Finger-
+  Detektor-Hysterese + Stall-Recovery schneller). NICHT die Rausch-Triade.
+- **Launch-Reststrecke jetzt frei:** Samples (Trigger bereit) + Kategorie-Browser +
+  eigenes Drum-Kit. Founder-Entscheid offen: rPPG-Stabilität ODER Samples zuerst.
+
+## 2026-07-10 (Forts. 17c) — v147 crashte WEITER → DEFINITIVER Fix v148 (CloudKit ganz aus)
+- **Founder-Log v147 (Build 2253) widerlegte v147:** Der Wrapper (Safe-Bridging)
+  behob NICHTS. Neuer Stack ist eindeutiger als der v145: EXC_BREAKPOINT tief
+  **IN CloudKit** (`_os_crash` bei CloudKit+46272, imageIndex 2 = CloudKit für die
+  Top-4-Frames), erreicht vom Launch-Re-Assert — NICHT im async-Thunk. Der Thunk
+  war nie das Problem; **CloudKit trappt selbst hart, weil Container/Schema nicht
+  in PRODUCTION deployed sind**. Schutzschalter griff auf dem ERSTEN v147-Start
+  nicht (ck-inflight war nie gesetzt → activate() lief doch).
+- **fix 3a803a2 → v10.79.148 (3 Dateien, definitiv):** `cloudKitConfigured = false`
+  (v1.0-Ship-Gate) schaltet die GANZE AnnouncementCenter-Maschinerie ab — kein
+  Launch-Aufruf, `enabled.didSet` speichert nur die Präferenz (status
+  "coming-soon"), NULL CloudKit-Aufrufe. LearnView zeigt "Gespeichert — Live-News
+  kommen mit Echoel Live". Flag wird in v1.1 im selben Schritt wie das Schema-
+  Deployment auf true gesetzt. Passt zum Geschäftsmodell (v1.0 frei jetzt, Push =
+  Echoel Live v1.1). Eine Hauptansicht bleibt — war nie die Ursache.
+- **Lektion (verschärft):** Ein Fix, der die Ursache nur UMGEHT statt ENTFERNT,
+  ist eine Wette — v147 umging den Thunk, aber die Ursache (unprovisioniertes
+  CloudKit) blieb. v148 entfernt den Aufruf selbst. Bei framework-internem
+  `_os_crash`: nicht die Aufrufart ändern, den Aufruf weglassen bis die
+  Server-Seite steht.
+
 ## 2026-07-10 (Forts. 17b) — CRASH GELÖST (Log!): CloudKit, NICHT SwiftUI → v147
 - **Founder lieferte das v145-.ips** — Gold wert. Eindeutig: EXC_BREAKPOINT (brk #1)
   Main Thread **IM CloudKit-Framework**, 5,1 s NACH Launch (App rendert erst!),
