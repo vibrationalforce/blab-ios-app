@@ -3,6 +3,20 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 20) — BEWEIS-LOG: die Bio-Schleife funktioniert end-to-end (v149)
+- **Founder-Log v10.79.149 (2255), ~3,5 Min:** sauberer Launch → Exposure-Lock
+  (bright 0.21) → **Puls-Lock 68 bpm in 19 s** → `generate[lock-snap]` = KÖRPER
+  SEEDET DAS TEMPO (Produktkern live bewiesen) → conf bis 0.94/q 0.94/acf 0.95 →
+  evolve alle ~25 s → weak-lock-Relock 1/2 greift wie designt und erholt in 15 s
+  → NULL Stalls/Interruptions/Crashes. Gesündester rPPG-Log bisher.
+- **Konsequenz:** Der aufgeschobene rPPG-Zyklus (Finger-Flap aus dem 148-Log) ist
+  HERABGESTUFT — bei ruhigem Finger hält die Erkennung durchgehend; das Flackern
+  gestern war plausibel echtes Umgreifen. Nicht blind fixen war richtig. Der
+  mittlere bpm-Ausflug (86–95 bei acf 0.34, Druckänderung) wird von displayBPM
+  bereits geglättet → beobachten.
+- Offen beim Founder: Ohr-Urteil Echoel-Sounds/Browser (v149) · Cymatics-Go ·
+  Lizenz-Entscheid Alt-Samples · Per-Note-Pitch-Zyklus.
+
 ## 2026-07-10 (Forts. 19) — RALPH-NACHTLAUF: Sampler-Library + lizenzreine Sounds + Humanisierung
 - **Founder: "Arbeite die ganze Nacht im Ralph-Modus, arbeite alles ab."** 6 Zyklen,
   jeder committet + CI-verifiziert (Quick Test/Xcode/CI/CD grün, auto-merged):
