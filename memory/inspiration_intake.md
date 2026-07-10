@@ -337,3 +337,21 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
   Reaktivität statt nur Master-Level — liegt bereits geparkt ("trackLevels → Element-Reaktivität:
   Drums/Bass/Lead getrennt", seit v10.79.118; masterLevel→Intensity ist geshippt). Nichts zu
   adoptieren außer dem geparkten Zyklus; kein Dependency-Kandidat.
+
+## 2026-07-10 — AI-Chat "Apple-Stack DAW-Plan" + Fluid Voice (founder: "Ist da was brauchbares bei?")
+- **AudioKit-Architektur-Shift — REJECT:** Die Prämisse des Chats (weg von einer Web-DAW)
+  trifft uns nicht — Echoel war nie web-basiert und sitzt bereits DIREKT auf Core Audio/
+  AVAudioEngine mit eigenem lock-freiem DSP-Kern (zero deps, <10 ms). AudioKit wäre ein
+  Wrapper über dieselbe API: nichts gewonnen, eine Dependency verloren.
+- **Empfehlungstabelle des Chats (AVFoundation/Metal/Fastlane) — CONFIRMS:** beschreibt
+  wortwörtlich unseren Ist-Zustand bzw. den bestehenden Video-Plan (Stage 3–5 gegen die
+  Transport-Clock). Externe Validierung, kein neuer Inhalt.
+- **openDAW als Konzept-Referenz — WATCH:** ggf. UX-Referenz für Region-Editing bei K3.
+- **Swift-Packages-Refactor — REJECT (jetzt):** Umbau ohne Ship-Wert mitten im Launch.
+- **⭐ Multichannel-Routing (BiG SiX/Xone 96) — ADOPT-PRODUCT (Roadmap):** der eine echte
+  Nugget. Stems (Drums/Synth/Bass/Master) auf getrennte Kanäle eines class-compliant
+  USB-Interfaces → das Pult wird Summing-Mixer/Insert-Weg. Passt exakt zu "Sämtliche
+  Hardware wird unterstützt"; Zyklus nach den One-View-K-Stufen.
+- **Fluid Voice — WATCH (Pipeline):** macOS-Diktat-Tool, braucht Apple Silicon — der
+  Founder-Laptop kann das nicht; iPhone-Diktat in der Claude-App erfüllt den Job heute.
+  Keine Repo-Integration nötig (diktierter Text ist normaler Text).
