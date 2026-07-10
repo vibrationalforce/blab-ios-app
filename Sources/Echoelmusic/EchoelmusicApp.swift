@@ -499,7 +499,7 @@ struct EchoelmusicApp: App {
                 #endif
                 Task {
                     await store.loadProducts()
-                    await store.updateSubscriptionStatus()
+                    await store.updateEntitlements()
                 }
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
