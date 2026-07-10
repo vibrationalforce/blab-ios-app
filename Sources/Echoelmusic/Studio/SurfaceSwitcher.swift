@@ -110,7 +110,9 @@ struct SurfaceHost: View {
         ZStack {
             EchoelStudioView()
                 .modifier(SurfaceVisibility(on: selected == .compose))
-            ArrangementView(embedded: true)
+            // The beat-grid timeline (Stage 1c) — supersedes the section-list
+            // ArrangementView as the Arrange surface (which stays in code).
+            ArrangeTimelineView()
                 .modifier(SurfaceVisibility(on: selected == .arrange))
             ClipView(embedded: true)
                 .modifier(SurfaceVisibility(on: selected == .clips))
