@@ -2,15 +2,16 @@
 import SwiftUI
 
 // SurfaceSwitcher.swift
-// Echoel — the workspace surface switcher (founder 2026-07-09: "strukturiere so
-// um, dass alles in dieser Arrange-View als Hauptansicht stattfindet"; approved
-// Arrange-timeline plan, Stage 0). The `embedded:` surfaces (ArrangementView,
-// ClipView, ChannelRackView) were built for exactly this host and coordinate via
-// the SAME `@AppStorage("workspace.surface")` key they already read/write — this
-// file adds the missing switcher; WorkspaceView adds the missing mount.
+// Echoel — SurfaceHost is THE one main view (founder 2026-07-10: "Musik und
+// Video Composing Ansicht als einzige Hauptansicht wie in Ableton die
+// Arrangement View… Wo bist du falsch abgebogen?"): the Arrange timeline over
+// the instrument zone, one screen, portrait AND landscape. The former 4-chip
+// surface switching (Stage 0) is REMOVED from navigation — the founder's
+// "kein View-Springen" was the plan all along; SurfaceSwitcherBar and the
+// WorkspaceSurface enum stay in code (the @AppStorage raw values are still
+// written by ArrangementView's legacy navigation), unmounted, reversible.
 //
-// Render safety: the bar reads ONLY the @AppStorage selection (changes on user
-// tap, never per-frame). No bio/transport reads here.
+// Render safety: SurfaceHost reads no observables (geometry only).
 
 /// The workspace surfaces. Raw values are PERSISTED via @AppStorage and must
 /// stay stable — `compose` and `clips` are the values `ArrangementView`'s
@@ -98,30 +99,35 @@ struct SurfaceSwitcherBar: View {
     }
 }
 
-/// Hosts all four surfaces, keeping every surface MOUNTED (opacity swap, the
-/// pattern `ArrangementView` documents at its playhead leaf) so switching is
-/// instant and store/leaf state survives. Hidden surfaces don't hit-test and are
-/// hidden from VoiceOver.
+/// THE one main view (founder 2026-07-10: "Musik und Video Composing Ansicht
+/// als einzige Hauptansicht wie in Ableton die Arrangement View, quer und
+/// hochkant") — the Ableton arrangement layout: timeline on top, the instrument
+/// / detail zone (EchoelStudioView) below it, one screen, no surface switching.
+/// Clips and Mix are no longer separate destinations — their functions dissolve
+/// into the track heads (convergence plan K2); ClipView/ChannelRackView stay in
+/// code, unpresented (reversible). SurfaceSwitcherBar stays in code, unmounted.
+///
+/// Orientation: the split adapts — portrait gives the timeline ~1/3 (controls
+/// need room), landscape ~1/2 (the arrangement is the star). Both columns keep
+/// the v136 size contract (fill + clipped) so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
-    @AppStorage("workspace.surface") private var surfaceRaw = WorkspaceSurface.initial.rawValue
-
-    private var selected: WorkspaceSurface {
-        WorkspaceSurface(rawValue: surfaceRaw) ?? .compose
-    }
-
     var body: some View {
-        ZStack {
-            EchoelStudioView()
-                .modifier(SurfaceVisibility(on: selected == .compose))
-            // The beat-grid timeline (Stage 1c) — supersedes the section-list
-            // ArrangementView as the Arrange surface (which stays in code).
-            ArrangeTimelineView()
-                .modifier(SurfaceVisibility(on: selected == .arrange))
-            ClipView(embedded: true)
-                .modifier(SurfaceVisibility(on: selected == .clips))
-            ChannelRackView(embedded: true)
-                .modifier(SurfaceVisibility(on: selected == .mix))
+        GeometryReader { geo in
+            let landscape = geo.size.width > geo.size.height
+            // Min = toolbar(40) + ruler(20) + two 56-pt lanes — never less than
+            // a readable arrangement; max keeps the instrument reachable.
+            let timelineHeight = max(172, min(380, geo.size.height * (landscape ? 0.5 : 0.34)))
+            VStack(spacing: 0) {
+                ArrangeTimelineView()
+                    .frame(height: timelineHeight)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                Divider().overlay(EchoelTheme.border)
+                EchoelStudioView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            }
         }
     }
 }
