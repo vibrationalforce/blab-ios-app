@@ -39,7 +39,7 @@ struct ArrangeTimelineView: View {
     @AppStorage("timeline.snap") private var snapRaw = SnapResolution.sixteenth.rawValue
 
     private static let laneHeight: CGFloat = 56
-    private static let labelWidth: CGFloat = 76
+    private static let labelWidth: CGFloat = 128
     private static let rulerHeight: CGFloat = 20
 
     private var ppb: CGFloat { min(96, max(8, pointsPerBeat * pinch)) }
@@ -74,6 +74,13 @@ struct ArrangeTimelineView: View {
         }
         .background(EchoelTheme.bg)
         .task { timeline.bootstrapIfNeeded(sections: legacySong.sections) }
+        // K2a lane→engine binding: the roll-slot lane's strip (level/mute/solo)
+        // drives the ONE shared Piano-Roll's attack gain. Mute cuts sounding
+        // notes immediately (allNotesOff); level/solo apply from the next attack.
+        .onChange(of: timeline.document.rollSlotGain, initial: true) { _, gain in
+            pianoRoll.mixGain = gain
+            if gain <= 0.001 { pianoRoll.allNotesOff() }
+        }
         .gesture(magnify)
         .sheet(item: $editorLane) { lane in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
@@ -181,8 +188,19 @@ struct ArrangeTimelineView: View {
         .background(EchoelTheme.bg)
     }
 
-    /// One track head — a DOOR (Stage 3a): tap for editor / rename / delete.
+    /// One track head — a DOOR (Stage 3a) plus the K2a mixer strip (M · S ·
+    /// level). The strip sits BELOW the menu label (buttons inside a Menu label
+    /// never receive taps) and only on media lanes — the bio lane has no gain.
     private func laneHeader(_ lane: TimelineLane) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            laneDoor(lane)
+            if !lane.isBio { laneMixStrip(lane) }
+        }
+        .frame(width: Self.labelWidth, height: Self.laneHeight)
+        .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
+    }
+
+    private func laneDoor(_ lane: TimelineLane) -> some View {
         Menu {
             if !lane.isBio, lane.kind == .midi {
                 Button { editorLane = lane } label: {
@@ -210,15 +228,13 @@ struct ArrangeTimelineView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Image(systemName: lane.kind.systemImage)
-                        .font(.system(size: 10))
-                        .foregroundStyle(EchoelTheme.dim)
-                    Text(lane.name)
-                        .font(EchoelTheme.font(10, .medium))
-                        .foregroundStyle(EchoelTheme.text)
-                        .lineLimit(1)
-                }
+                Image(systemName: lane.kind.systemImage)
+                    .font(.system(size: 9))
+                    .foregroundStyle(EchoelTheme.dim)
+                Text(lane.name)
+                    .font(EchoelTheme.font(10, .medium))
+                    .foregroundStyle(EchoelTheme.text)
+                    .lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 7, weight: .semibold))
@@ -226,11 +242,55 @@ struct ArrangeTimelineView: View {
                     .padding(.trailing, 4)
             }
             .padding(.leading, 10)
-            .frame(width: Self.labelWidth, height: Self.laneHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
         .accessibilityLabel("\(lane.name), \(lane.kind.displayName) track")
+    }
+
+    /// K2a strip: Mute / Solo toggles + the lane level (EchoelValueField — the
+    /// one parameter control app-wide). State lives in TimelineStore (persisted);
+    /// audibility flows via `effectiveGain` → engines (roll slot wired today).
+    private func laneMixStrip(_ lane: TimelineLane) -> some View {
+        HStack(spacing: 3) {
+            mixToggle("M", isOn: lane.isMuted, onTint: EchoelTheme.warning,
+                      hint: "Mute \(lane.name)") {
+                timeline.toggleMute(id: lane.id)
+            }
+            mixToggle("S", isOn: lane.isSoloed, onTint: EchoelTheme.accent,
+                      hint: "Solo \(lane.name)") {
+                timeline.toggleSolo(id: lane.id)
+            }
+            EchoelValueField(
+                label: "",
+                value: Binding(
+                    get: { timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1 },
+                    set: { timeline.setLaneLevel(id: lane.id, $0) }
+                ),
+                range: 0...2, decimals: 2, boxWidth: 40
+            )
+            // The strip is too narrow for a visible "Level" caption — restore the
+            // context for VoiceOver instead (the box shows the bare number).
+            .accessibilityLabel("Level, \(lane.name)")
+        }
+        .padding(.leading, 10).padding(.trailing, 4)
+    }
+
+    private func mixToggle(_ letter: String, isOn: Bool, onTint: Color,
+                           hint: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(letter)
+                .font(EchoelTheme.font(10, .semibold))
+                .foregroundStyle(isOn ? EchoelTheme.onPrimary : EchoelTheme.dim)
+                .frame(width: 21, height: 18)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .fill(isOn ? onTint : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(hint)
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 
     // MARK: - Grid (ruler + lanes + regions + playhead)
@@ -314,6 +374,9 @@ struct ArrangeTimelineView: View {
             .offset(x: x, y: 4)
             .contentShape(RoundedRectangle(cornerRadius: 6))
             .onTapGesture {
+                // A muted (or not-soloed while another solos) lane stays silent —
+                // the strip is honest: what you see on M/S is what you hear.
+                guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
                 if let url = auditionURL { beatPlayer.audition(url: url) }
             }
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")

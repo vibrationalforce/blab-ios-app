@@ -442,3 +442,27 @@ Architectural and strategic decisions with context and rationale.
 - **Open arc (needs founder-gated scoping):** full HIG pass — Dynamic Type audit, system
   materials, standard gestures; deeper Apple integration candidates (Shortcuts/App
   Intents, Widgets already shipped, HealthKit write?) are FEATURES → vision-gate each.
+
+### 2026-07-10C POSITIONIERUNG: „Der Bio-Dirigent oben auf der Profi-Kette" (Grand Council)
+- **Founder-Frage (verbatim-Kern):** „Ich will mit meiner Software einen oben drauf setzen
+  … Film Level Animationen und fx Design … farbwerte, Soundeffekte und midi/mpe per
+  Biofeedback modulieren oder halt ganz normal produzieren. Multidimensional Multimedia
+  in einer Ansicht" — vertraut: Ableton/FL/AUM/InShot; Referenz: Premiere/FinalCut/
+  DaVinci/Reaper/ProTools/Resolume/TouchDesigner/OBS.
+- **Urteil:** Echoel ersetzt die acht Tools nicht — es **dirigiert** sie. Der Körper ist
+  die Modulationsquelle, die keines der acht hat; offene Standards (MIDI/MPE · OSC ·
+  ADM-OSC · Art-Net/sACN · Export; später AUv3/RTMP) sind die Zugbrücken.
+- **Lane-Formel (Definition von „fertig" für die eine Ansicht):** jede Lane kann
+  (a) selbst klingen/leuchten · (b) per Körper moduliert werden · (c) normal automatisiert
+  werden · (d) per offenem Standard ein Profi-Tool fernsteuern · (e) sauber exportieren.
+  „Film-Level" entsteht bei (b) auf EIGENEM Material (Cymatics, Bio-Grade) — nie als NLE-Nachbau.
+- **Via negativa (bindend):** kein Video-NLE (Feinschnitt = InShot/Resolve mit Echoels
+  Export) · kein Broadcast-Mischer (OBS = Partner via RTMP) · kein Compositing/CMS in v1 ·
+  keine Feature-Paritäts-Roadmap.
+- **Dissent protokolliert:** Jobs/Taleb wollten Video ganz delegieren; Auflösung: Video JA
+  als eigene Bio-Dimension (Capture gegen Transport-Clock/Trim/Bio-Farb-Grade/Export),
+  NEIN als NLE-Anspruch.
+- **Reihenfolge bestätigt (kein neuer Plan nötig):** v1.0-Launch → K2a → K2b/B2 → A1/A2 →
+  K3 → Video-Block → v1.1 Live → v1.2 Broadcast. AUv3-Aktivierung = wichtigste künftige
+  Zugbrücke in den AUM-Workflow des Founders (nach v1.0, vision-gate).
+- **Doc:** `scratchpads/STRATEGY_BIO_CONDUCTOR_2026-07-10.md` · Review: 2026-08-09

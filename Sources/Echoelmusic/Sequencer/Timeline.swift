@@ -23,12 +23,33 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// True for the bio lane: it renders an automation curve (recorded from
     /// EngineBus bio frames) instead of media regions.
     public var isBio: Bool
+    /// K2a mixer strip (persisted with the document): fader gain 0…2, 1 = unity.
+    public var level: Float
+    public var isMuted: Bool
+    public var isSoloed: Bool
 
-    public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false) {
+    public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
+                level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false) {
         self.id = id
         self.name = name
         self.kind = kind
         self.isBio = isBio
+        self.level = level
+        self.isMuted = isMuted
+        self.isSoloed = isSoloed
+    }
+
+    /// Backward-compatible decode: documents stored before the K2a mixer strip
+    /// carry no mix keys — they decode to unity/unmuted, not a decode failure.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        kind = try c.decode(ClipKind.self, forKey: .kind)
+        isBio = try c.decodeIfPresent(Bool.self, forKey: .isBio) ?? false
+        level = try c.decodeIfPresent(Float.self, forKey: .level) ?? 1
+        isMuted = try c.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
+        isSoloed = try c.decodeIfPresent(Bool.self, forKey: .isSoloed) ?? false
     }
 }
 
@@ -72,6 +93,26 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
 
     /// Total song length in ticks (end of the last region; ≥ 0).
     public var endTick: Int { regions.map(\.endTick).max() ?? 0 }
+
+    // MARK: - Lane mixer math (K2a — pure, Linux-CI-tested)
+
+    /// A lane's audible gain: 0 when muted (mute wins over its own solo) or when
+    /// any OTHER lane is soloed and this one isn't; otherwise its fader level,
+    /// clamped 0…2. Unknown lane → 0 (nothing to hear).
+    public func effectiveGain(for laneID: UUID) -> Float {
+        guard let lane = lanes.first(where: { $0.id == laneID }) else { return 0 }
+        if lane.isMuted { return 0 }
+        if lanes.contains(where: { $0.isSoloed }) && !lane.isSoloed { return 0 }
+        return max(0, min(2, lane.level))
+    }
+
+    /// The gain the ONE shared Piano-Roll slot plays at: the first non-bio MIDI
+    /// lane owns the roll until A1 (multi-roll) gives every MIDI lane its own.
+    /// No MIDI lane → unity (the roll is not represented on the timeline).
+    public var rollSlotGain: Float {
+        guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 1 }
+        return effectiveGain(for: lane.id)
+    }
 }
 
 // MARK: - Musical constants + conversions

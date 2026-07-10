@@ -95,6 +95,12 @@ public final class PianoRollModel {
     @ObservationIgnored public var musicalRootPitchClass: Int = -1
     @ObservationIgnored public var musicalScaleName: String = ""
     @ObservationIgnored public var musicalTempoBPM: Double = 0
+    /// K2a lane mix: the Arrange track that owns this roll (first non-bio MIDI
+    /// lane until A1 multi-roll) scales every NEW attack — built-in voices, MIDI
+    /// out and the hosted AU alike. 0 = muted: attacks are skipped while releases
+    /// and bookkeeping keep running, so nothing ever hangs. Set by the timeline
+    /// surface from `TimelineDocument.rollSlotGain`; default unity = unchanged.
+    @ObservationIgnored public var mixGain: Float = 1.0
 
     public init() {}
 
@@ -420,11 +426,18 @@ public final class PianoRollModel {
                                       hrvNormalized: bio.hrvNormalized)
         }()
         // Tied notes are already carried in `active` and their sound keeps ringing —
-        // only genuinely new notes fire an attack.
+        // only genuinely new notes fire an attack. The lane mix scales every attack;
+        // a muted lane fires none, but `active` bookkeeping stays intact so releases
+        // (note-offs are harmless when nothing played) and un-mute stay consistent.
+        let laneGain = max(0, min(2, mixGain))
+        let laneAudible = laneGain > 0.001
         for note in starting where !tiedStart.contains(note.id) {
-            if !suppressBuiltIn { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: note.velocity) }
-            midiOut?.noteOn(pitch: note.pitch, velocity: note.velocity, expression: expression)
-            auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(note.velocity))
+            let v = min(1, note.velocity * laneGain)
+            if !suppressBuiltIn, laneAudible { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: v) }
+            if laneAudible {
+                midiOut?.noteOn(pitch: note.pitch, velocity: v, expression: expression)
+                auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(v))
+            }
             active[note.id] = note
         }
 
@@ -433,7 +446,8 @@ public final class PianoRollModel {
         // `active` set. Stateful + symmetric so a re-seed/register shift can never
         // leave a stranded wrong-pitch sub (the old per-tick bassCeiling gate could).
         // The sub voice octave-folds into its felt band, so the pitch class is kept.
-        let desiredSub = suppressBuiltIn ? nil : active.values.map(\.pitch).min().map { $0 - 12 }
+        let desiredSub = (suppressBuiltIn || !laneAudible)
+            ? nil : active.values.map(\.pitch).min().map { $0 - 12 }
         if desiredSub != currentSubPitch {
             if let p = desiredSub { subVoice?.noteOn(pitch: p) }   // monophonic → retunes
             else { subVoice?.allNotesOff() }

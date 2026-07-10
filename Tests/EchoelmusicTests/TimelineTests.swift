@@ -144,4 +144,68 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(SnapResolution.sixteenth.rawValue, "sixteenth")
         XCTAssertEqual(SnapResolution.off.rawValue, "off")
     }
+
+    // MARK: - Lane mixer math (K2a)
+
+    func testEffectiveGain_levelMuteAndClamp() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi),
+            TimelineLane(name: "Audio 1", kind: .audio, level: 0.5),
+        ])
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[0].id), 1)
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[1].id), 0.5)
+        doc.lanes[0].isMuted = true
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[0].id), 0)
+        // Level clamps into 0…2 even if a stored document carries junk.
+        doc.lanes[1].level = 9
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[1].id), 2)
+        // Unknown lane → silent, never a crash.
+        XCTAssertEqual(doc.effectiveGain(for: UUID()), 0)
+    }
+
+    func testEffectiveGain_soloSilencesOthers_muteWinsOverOwnSolo() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "A", kind: .midi),
+            TimelineLane(name: "B", kind: .audio, level: 0.8, isSoloed: true),
+        ])
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[0].id), 0)     // not soloed
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[1].id), 0.8)   // the solo
+        // Mute beats the lane's own solo.
+        doc.lanes[1].isMuted = true
+        XCTAssertEqual(doc.effectiveGain(for: doc.lanes[1].id), 0)
+    }
+
+    func testRollSlotGain_firstNonBioMIDILaneOwnsTheRoll() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "Bio", kind: .midi, isBio: true),
+            TimelineLane(name: "MIDI 1", kind: .midi, level: 0.7),
+            TimelineLane(name: "MIDI 2", kind: .midi, level: 0.2),
+        ])
+        XCTAssertEqual(doc.rollSlotGain, 0.7)                    // bio lane skipped
+        doc.lanes[1].isMuted = true
+        XCTAssertEqual(doc.rollSlotGain, 0)                      // mute reaches the roll
+        // No MIDI lane at all → unity (roll not represented on the timeline).
+        let audioOnly = TimelineDocument(lanes: [TimelineLane(name: "A", kind: .audio)])
+        XCTAssertEqual(audioOnly.rollSlotGain, 1)
+    }
+
+    func testLaneDecode_preK2aDocumentWithoutMixKeys_defaultsToUnity() throws {
+        // A lane persisted BEFORE the mixer strip existed (no level/mute/solo keys)
+        // must decode with unity defaults — nobody's timeline may fail to load.
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","name":"MIDI 1","kind":"midi","isBio":false}
+        """
+        let lane = try JSONDecoder().decode(TimelineLane.self, from: Data(legacyJSON.utf8))
+        XCTAssertEqual(lane.level, 1)
+        XCTAssertFalse(lane.isMuted)
+        XCTAssertFalse(lane.isSoloed)
+    }
+
+    func testLaneMixState_roundTripsThroughCodable() throws {
+        let lane = TimelineLane(name: "A", kind: .audio, level: 1.25,
+                                isMuted: true, isSoloed: true)
+        let data = try JSONEncoder().encode(lane)
+        let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+        XCTAssertEqual(back, lane)
+    }
 }

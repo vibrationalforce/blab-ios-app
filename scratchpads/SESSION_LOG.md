@@ -3,6 +3,23 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 21) — GRAND COUNCIL: „Bio-Dirigent oben auf der Profi-Kette"
+- **Founder-Ask:** Deep Audit + Strategie — „oben drauf setzen" auf Ableton/FL/AUM/
+  InShot + Premiere/FinalCut/Resolve/Reaper/ProTools/Resolume/TouchDesigner/OBS;
+  Film-Level-FX/Farbe/Sound/MIDI-MPE bio-moduliert ODER normal; eine Ansicht —
+  ohne schlechte Kopie von acht Tools zu werden.
+- **Urteil (Panel Christensen/Jobs/Taleb/Munger/Naval/Buffett):** Echoel DIRIGIERT
+  die Profi-Kette statt sie zu ersetzen — Körper = die Modulationsquelle, die keines
+  der acht hat; offene Standards (MIDI/MPE·OSC·ADM-OSC·Art-Net/sACN·Export, später
+  AUv3/RTMP) = Zugbrücken. Lane-Formel (a–e) definiert „fertig" für die eine Ansicht.
+  Via negativa bindend: kein NLE, kein Broadcast-Mischer, kein Compositing, keine
+  Feature-Parität. Video bleibt als EIGENE Bio-Dimension (Capture/Trim/Bio-Grade/
+  Export); Feinschnitt delegiert. Reihenfolge BESTÄTIGT: v1.0-Launch → K2a → K2b/B2
+  → A1/A2 → K3 → Video → v1.1 Live → v1.2 Broadcast.
+- **Artefakte:** `scratchpads/STRATEGY_BIO_CONDUCTOR_2026-07-10.md` · decisions.csv +
+  memory/decisions.md (2026-07-10C). Kein Sources/-Code (PIPELINE-only). Gate: proceed.
+- Nächster Bau-Zyklus unverändert: **K2a Lane-Engine-Bindung** (der Schlüsselstein).
+
 ## 2026-07-11 (Forts. 20) — BEWEIS-LOG: die Bio-Schleife funktioniert end-to-end (v149)
 - **Founder-Log v10.79.149 (2255), ~3,5 Min:** sauberer Launch → Exposure-Lock
   (bright 0.21) → **Puls-Lock 68 bpm in 19 s** → `generate[lock-snap]` = KÖRPER
