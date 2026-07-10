@@ -48,6 +48,12 @@ public final class SessionContext {
         didSet { defaults.set(a4Hz, forKey: Key.a4Hz) }
     }
 
+    /// Optional locality token stamped after the date ("Hamburg"), set by the
+    /// opt-in location namer (E2). TRANSIENT by design — resolved live per
+    /// launch, never persisted (privacy: the only storage is the name string
+    /// of a session the user chose to save). Empty = no place in the name.
+    public var placeToken: String = ""
+
     // MARK: - Init
 
     public init(defaults: UserDefaults = .standard) {
@@ -75,15 +81,17 @@ public final class SessionContext {
     }
 
     /// The automatic session name at a given tempo, e.g.
-    /// `Echoel_2026-06-12_Cm_124bpm_A440`.
+    /// `Echoel_2026-06-12_Cm_124bpm_A440` (with the opt-in place token:
+    /// `Echoel_2026-07-10_Hamburg_Am_72bpm_A440`).
     public func sessionName(bpm: Double, date: Date = Date()) -> String {
-        SessionNaming.stem(artist: artistName, date: date, key: key.shortName, bpm: bpm, a4Hz: a4Hz)
+        SessionNaming.stem(artist: artistName, date: date, key: key.shortName,
+                           bpm: bpm, a4Hz: a4Hz, place: placeToken)
     }
 
     /// An export filename for a part, e.g.
     /// `Echoel_2026-06-12_Cm_124bpm_A440_Drums.mid`.
     public func fileName(part: String, bpm: Double, ext: String = "mid", date: Date = Date()) -> String {
         SessionNaming.fileName(artist: artistName, date: date, key: key.shortName,
-                               bpm: bpm, a4Hz: a4Hz, part: part, ext: ext)
+                               bpm: bpm, a4Hz: a4Hz, part: part, ext: ext, place: placeToken)
     }
 }

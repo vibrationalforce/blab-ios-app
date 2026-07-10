@@ -76,6 +76,43 @@ final class SessionNamingTests: XCTestCase {
                                        key: "Cm", bpm: 124, a4Hz: 440, part: "", ext: "mid")
         XCTAssertEqual(f, "Echoel_2026-06-12_Cm_124bpm_A440.mid")
     }
+
+    // MARK: - Place token (E2: private, on-device location in the session name)
+
+    func testStemWithPlaceInsertsAfterDate() {
+        let s = SessionNaming.stem(artist: "Echoel", date: date(2026, 7, 10),
+                                   key: "Am", bpm: 72, a4Hz: 440, place: "Hamburg")
+        XCTAssertEqual(s, "Echoel_2026-07-10_Hamburg_Am_72bpm_A440")
+    }
+
+    func testEmptyPlaceKeepsClassicFormat() {
+        let s = SessionNaming.stem(artist: "Echoel", date: date(2026, 7, 10),
+                                   key: "Am", bpm: 72, a4Hz: 440, place: "")
+        XCTAssertEqual(s, "Echoel_2026-07-10_Am_72bpm_A440")
+    }
+
+    func testPlaceIsSanitisedToFilenameSafeToken() {
+        let s = SessionNaming.stem(artist: "Echoel", date: date(2026, 7, 10),
+                                   key: "Am", bpm: 72, a4Hz: 440, place: "St. Pauli / Hafen")
+        XCTAssertFalse(s.contains(" "))
+        XCTAssertFalse(s.contains("/"))
+        XCTAssertFalse(s.contains("."))
+        XCTAssertTrue(s.contains("_StPauliHafen_"))
+    }
+
+    func testUnsanitisablePlaceIsOmittedNotFallback() {
+        // A place that sanitises to nothing must vanish, not inject a fallback token.
+        let s = SessionNaming.stem(artist: "Echoel", date: date(2026, 7, 10),
+                                   key: "Am", bpm: 72, a4Hz: 440, place: "***")
+        XCTAssertEqual(s, "Echoel_2026-07-10_Am_72bpm_A440")
+    }
+
+    func testFileNameCarriesPlace() {
+        let f = SessionNaming.fileName(artist: "Echoel", date: date(2026, 7, 10),
+                                       key: "Am", bpm: 72, a4Hz: 440,
+                                       part: "Melody", ext: "mid", place: "Hamburg")
+        XCTAssertEqual(f, "Echoel_2026-07-10_Hamburg_Am_72bpm_A440_Melody.mid")
+    }
 }
 
 final class MusicalKeyShortNameTests: XCTestCase {
@@ -147,5 +184,23 @@ final class SessionContextTests: XCTestCase {
         XCTAssertEqual(second.artistName, "Nova")
         XCTAssertEqual(second.a4Hz, 442)
         XCTAssertEqual(second.key.shortName, "Gmaj")
+    }
+
+    func testPlaceTokenFlowsIntoNameWhenSet() {
+        let c = ctx()
+        c.placeToken = "Hamburg"
+        let name = c.sessionName(bpm: 72, date: Date(timeIntervalSince1970: 1_780_000_000))
+        XCTAssertTrue(name.contains("_Hamburg_"))
+    }
+
+    func testPlaceTokenDefaultsEmptyAndIsTransient() {
+        let suite = "SessionContextTests-place-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        let first = SessionContext(defaults: d)
+        XCTAssertEqual(first.placeToken, "")
+        first.placeToken = "Hamburg"
+        // Location is resolved live per launch (privacy) — never persisted.
+        let second = SessionContext(defaults: d)
+        XCTAssertEqual(second.placeToken, "")
     }
 }
