@@ -433,5 +433,66 @@ public final class BeatPlayer {
             sampleLabels[track] = name
         }
     }
+
+    // MARK: - Categorized library (Resources/Samples/<Category>/*.wav)
+
+    /// One browsable bundled sample, grouped by its category folder. Value type so
+    /// the browser can `ForEach` it directly; `url` points into the app bundle
+    /// (not security-scoped → no bookmark needed to audition/assign).
+    public struct LibrarySample: Identifiable, Hashable, Sendable {
+        public let category: String
+        public let name: String
+        public let url: URL
+        public var id: String { "\(category)/\(name)" }
+    }
+
+    /// The `Samples` resource directory root, resolved for both the SwiftPM
+    /// (`Bundle.module`) and Xcode (folder-ref in `.main`) builds.
+    private static func samplesRoot() -> URL? {
+        let b = resourceBundle
+        if let u = b.url(forResource: "Samples", withExtension: nil) { return u }
+        return b.resourceURL?.appendingPathComponent("Samples")
+    }
+
+    /// All bundled library samples grouped by category (Bass · Stab · Keys · …),
+    /// each sorted by name, categories sorted alphabetically. Computed once
+    /// (static let) so browsing never re-scans the disk — render-safe.
+    public static let library: [(category: String, samples: [LibrarySample])] = {
+        guard let root = samplesRoot() else { return [] }
+        let fm = FileManager.default
+        guard let cats = try? fm.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey]) else { return [] }
+        var out: [(String, [LibrarySample])] = []
+        for catURL in cats.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            let isDir = (try? catURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            guard isDir else { continue }
+            let cat = catURL.lastPathComponent
+            guard let files = try? fm.contentsOfDirectory(
+                at: catURL, includingPropertiesForKeys: nil) else { continue }
+            let samples = files
+                .filter { $0.pathExtension.lowercased() == "wav" }
+                .map { LibrarySample(category: cat,
+                                     name: $0.deletingPathExtension().lastPathComponent,
+                                     url: $0) }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            if !samples.isEmpty { out.append((cat, samples)) }
+        }
+        return out
+    }()
+
+    /// Audition a library sample on the preview voice (does not touch the kit).
+    public func auditionLibrary(_ sample: LibrarySample) {
+        if (try? previewVoice.loadSample(from: sample.url)) != nil { previewVoice.fire() }
+    }
+
+    /// Assign a library sample to a pad (clears any custom bookmark, like
+    /// `assignBundled`). Bundle URL → no security scope needed.
+    public func assignLibrary(track: Int, _ sample: LibrarySample) {
+        guard voices.indices.contains(track) else { return }
+        UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
+        if (try? voices[track].loadSample(from: sample.url)) != nil {
+            sampleLabels[track] = sample.name
+        }
+    }
 }
 #endif
