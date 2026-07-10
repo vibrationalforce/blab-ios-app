@@ -231,20 +231,31 @@ public final class BeatPlayer {
     /// Trigger a pad through its current sound source (sample / synth / blend).
     /// `respectMix` gates on the Channel Rack mute/solo state (sequencer playback);
     /// manual pad auditions pass `false` so an explicit tap always sounds.
+    /// Max downward per-hit velocity variation (founder inspiration 2026-07-10,
+    /// "why your sounds feel fake" — the #1 cause is every hit being identical).
+    /// A small, DOWNWARD-only jitter (never boosts past the intended peak → no
+    /// clipping) so a repeated pad reads like a played part, not a machine-gun.
+    static let humanizeDepth: Float = 0.12
+
     private func trigger(track: Int, gain: Float, respectMix: Bool = true) {
         guard voices.indices.contains(track) else { return }
         // Channel Rack: a muted channel — or a non-soloed one while any solo is
         // active — does not sound. Pure control-plane gate (no audio-graph change).
         if respectMix, !Self.shouldSound(track: track, mutes: mutes, solos: solos) { return }
+        // Sequenced hits get velocity humanization; a manual pad tap (respectMix
+        // false) stays full. This runs on the pattern's main-queue timer, so
+        // Float.random is safe here — the audio thread only reads the lock-free
+        // trigger gain, never generates randomness.
+        let g = respectMix ? gain * (1 - Float.random(in: 0...Self.humanizeDepth)) : gain
         switch modes[track] {
         case .sample:
-            voices[track].fire(gain: gain)
+            voices[track].fire(gain: g)
         case .synth:
-            synthVoices[track].fire(gain: gain)
+            synthVoices[track].fire(gain: g)
         case .blend(let b):
             let bb = min(max(b, 0), 1)
-            voices[track].fire(gain: gain * (1 - bb))
-            synthVoices[track].fire(gain: gain * bb)
+            voices[track].fire(gain: g * (1 - bb))
+            synthVoices[track].fire(gain: g * bb)
         }
     }
 
