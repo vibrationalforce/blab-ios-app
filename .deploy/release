@@ -1,32 +1,31 @@
-build: 2026-07-10 v10.79.147 (ECHTER Crash-Fix: CloudKit, nicht SwiftUI — Hauptansicht ist zurück)
+build: 2026-07-10 v10.79.148 (DEFINITIVER Crash-Fix: CloudKit in v1.0 komplett aus)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Der Founder hat das v145-Crash-Log geliefert — DANKE, damit war es
-  in Minuten eindeutig: Der Absturz ist NICHT der Hauptansicht-Umbau.
-  Beweis aus dem Log: Crash 5,1 s NACH dem Launch (App rendert erst,
-  "kurzes Aufblinken"), EXC_BREAKPOINT auf dem Main Thread INNERHALB
-  des CloudKit-Frameworks, keine einzige SwiftUI-Frame im Stack.
-  Auslöser: AnnouncementCenter re-asserted bei JEDEM Start die News-
-  Subscription (der Toggle ist seit dem Push-Test AN) → CloudKits
-  auto-generierter async-Thunk trappt dabei (CheckedContinuation-
-  Signatur in den Registern). Deshalb crashten v144 UND v145 gleich —
-  und v146/Plan B hätte es auch nicht gefixt.
+notes: Dein v147-Log (Build 2253) war entscheidend — und hat meine v147-
+  Theorie widerlegt. Ehrlich: v147 hat den Crash NICHT behoben.
+  Der Stack zeigt jetzt glasklar: Der Absturz passiert INNERHALB des
+  CloudKit-Frameworks selbst (_os_crash tief in CloudKit), aufgerufen
+  von der News-Subscription beim Start — NICHT im async-Thunk, den mein
+  v147-Wrapper umgangen hat. Deshalb half der Wrapper nicht. Der Grund:
+  CloudKit trappt hart, weil der Container / das "Announcement"-Schema
+  noch NICHT in PRODUCTION deployed ist (dein offenes Dashboard-To-do).
 
-  Fix (AnnouncementCenter.swift):
-  1) CloudKit-Aufrufe umgehen den fehleranfälligen Auto-Thunk jetzt —
-     Completion-API mit eigener Continuation, die JEDEN Ausgang sauber
-     behandelt (auch das pathologische nil+nil).
-  2) Schutzschalter: Stirbt die App je wieder im CloudKit-Call, merkt
-     der nächste Start das und überspringt das Auto-Re-Assert — Status
-     zeigt "error", die App ÖFFNET. News aus→an versucht es erneut.
-  Außerdem: Die eine Hauptansicht (Timeline über Instrument) ist
-  ZURÜCK — das Log entlastet sie vollständig; v146s Notbetrieb war
-  unnötig vorsichtig.
+  v148 = die definitive Lösung, kein Rätselraten mehr:
+  Echoel macht in v1.0 GAR KEINE CloudKit-Aufrufe. Ein Schalter
+  (cloudKitConfigured = false) schaltet die komplette Announcement-
+  Maschinerie ab — kein Start-Aufruf, und der News-Schalter merkt sich
+  nur noch deine Auswahl ("Gespeichert — Live-News kommen mit Echoel
+  Live"), ohne CloudKit anzufassen. Null CloudKit = null Crash.
+  Das passt exakt zum Plan: v1.0 = freies Instrument JETZT, Push kommt
+  mit "Echoel Live" in v1.1 (dann wird die eine Zeile auf true gesetzt,
+  im selben Schritt wie das Schema-Deployment).
 
-  → Test: Öffnet v10.79.147? (mehrmals; auch 10+ Sekunden offen lassen!)
-  → Danach: quer/hochkant, Spur-Kopf-Menü, "+" Spur, Piano Roll.
-  → News-Status in den Einstellungen prüfen: "on" = Subscription neu
-    gespeichert (stumm); "error" = CloudKit hat wieder gezickt, aber
-    die App läuft — dann bitte melden.
-  Hinweis: Der CloudKit-Server-Teil (Announcement-Schema in PRODUCTION
-  deployen) steht weiter bei dir offen — solange das fehlt, kann der
-  Status "error" zeigen. Das ist ab jetzt harmlos (kein Crash mehr).
+  Die eine Hauptansicht (Timeline über Instrument) bleibt — sie war nie
+  die Ursache.
+
+  → Test: Öffnet v10.79.148? Diesmal bin ich zuversichtlich, weil die
+    Absturzursache selbst entfernt ist (nicht nur umgangen). Mehrmals
+    starten, offen lassen, drehen, Spur-Köpfe, Piano Roll.
+  → News-Schalter darf an/aus — er speichert nur, kein Crash.
+
+  Wenn v148 öffnet, ziehe ich als Nächstes die kuratierten + gemasterten
+  Samples nach (eigenes Kit steht bereit) und baue den Kategorie-Browser.

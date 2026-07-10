@@ -33,6 +33,20 @@ public final class AnnouncementCenter {
     public static let recordType = "Announcement"
     static let subscriptionID = "echoel-announcements-v1"
 
+    /// v1.0 SHIP GATE (v10.79.148 — the DEFINITIVE launch-crash fix). The v145
+    /// AND v147 device logs both show a main-thread EXC_BREAKPOINT *inside* the
+    /// CloudKit framework (`_os_crash` at CloudKit+46272), reached from this
+    /// class's launch call — NOT in the Swift async thunk (so v147's safe
+    /// wrapper could not help). CloudKit hard-traps because its container /
+    /// "Announcement" schema is NOT yet deployed to PRODUCTION. Until it is
+    /// (v1.1 "Echoel Live"), Echoel makes ZERO CloudKit calls: no launch
+    /// re-assert, and the News toggle only stores the preference. Flip to
+    /// `true` in the same change that deploys the CloudKit schema to production.
+    /// This mirrors the business model — v1.0 is the free instrument NOW; push
+    /// ships with Echoel Live in v1.1. (ProGate/EchoelStore are dormant the
+    /// same way.)
+    public static let cloudKitConfigured = false
+
     private enum Key {
         static let enabled = "echoel.announcements.enabled"
         /// Set while a CloudKit call is in flight; still true at next launch =
@@ -56,6 +70,13 @@ public final class AnnouncementCenter {
         didSet {
             guard enabled != oldValue else { return }
             defaults.set(enabled, forKey: Key.enabled)
+            // v1.0: store the preference only — no CloudKit until it is
+            // provisioned (see `cloudKitConfigured`). The toggle stays honest:
+            // it remembers the user's choice for when Echoel Live ships.
+            guard Self.cloudKitConfigured else {
+                status = enabled ? "coming-soon" : ""
+                return
+            }
             Task { [weak self] in
                 if self?.enabled == true { await self?.activate() }
                 else { await self?.deactivate() }
@@ -66,19 +87,23 @@ public final class AnnouncementCenter {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.enabled = defaults.bool(forKey: Key.enabled)
-        if enabled {
-            if defaults.bool(forKey: Key.ckInflight) {
-                // CIRCUIT BREAKER: the previous launch died inside the CloudKit
-                // call (see Key.ckInflight). Do NOT re-enter automatically —
-                // the app must open. Toggling News off→on retries once.
-                status = "error"
-                log.log(.error, category: .system,
-                        "Announcements: previous launch died in CloudKit — auto re-assert skipped")
-            } else {
-                // Re-assert on launch: registration is cheap and idempotent, and
-                // the subscription save is keyed (same ID overwrites, never dupes).
-                Task { [weak self] in await self?.activate() }
-            }
+        // v1.0 SHIP GATE: never touch CloudKit at launch — it hard-traps until
+        // the container schema is deployed to production (v145/v147 crash).
+        guard Self.cloudKitConfigured else {
+            if enabled { status = "coming-soon" }
+            return
+        }
+        if defaults.bool(forKey: Key.ckInflight) {
+            // CIRCUIT BREAKER: the previous launch died inside the CloudKit
+            // call (see Key.ckInflight). Do NOT re-enter automatically —
+            // the app must open. Toggling News off→on retries once.
+            status = "error"
+            log.log(.error, category: .system,
+                    "Announcements: previous launch died in CloudKit — auto re-assert skipped")
+        } else if enabled {
+            // Re-assert on launch: registration is cheap and idempotent, and
+            // the subscription save is keyed (same ID overwrites, never dupes).
+            Task { [weak self] in await self?.activate() }
         }
     }
 
