@@ -250,6 +250,22 @@ final class TouchInstrumentUIView: UIView {
         if gridDirty || gridBuiltForSize != bounds.size { rebuildGrid() }
     }
 
+    /// The playable rect: bounds inset to the safe area. Fullscreen, the raw
+    /// bounds run under the Dynamic Island / home indicator / rounded corners —
+    /// the outermost grid columns rendered there but were physically cut off
+    /// (founder screenshot 2026-07-09: "Also das adaptiv bitte"). Grid AND touch
+    /// mapping share this rect so what you see is exactly what plays; in the
+    /// floating window the insets are zero and nothing changes.
+    private var playRect: CGRect {
+        let r = bounds.inset(by: safeAreaInsets)
+        return (r.width > 40 && r.height > 40) ? r : bounds
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        setNeedsGridRebuild()
+    }
+
     /// One field per playable note — columns = the key's scale degrees (X mapping),
     /// rows = the octave bands (Y mapping, bottom = low) — each filled + hairlined
     /// in ITS note's physical colour and labeled with the note name. Static
@@ -267,10 +283,11 @@ final class TouchInstrumentUIView: UIView {
         accessibilityValue = "Root \(rootName), \(key.degreesPerOctave) notes per octave, three octave rows, low at the bottom"
         guard showGrid, bounds.width > 60, bounds.height > 60 else { return }
 
+        let rect = playRect                      // adaptive: never under notch/corners
         let n = max(1, key.degreesPerOctave)
         let bands = TouchPitchMap.octaveBands
-        let cellW = bounds.width / CGFloat(n)
-        let cellH = bounds.height / CGFloat(bands.count)
+        let cellW = rect.width / CGFloat(n)
+        let cellH = rect.height / CGFloat(bands.count)
         let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
         let labelSize: CGFloat = min(12, max(9, cellH * 0.16))
 
@@ -280,8 +297,8 @@ final class TouchInstrumentUIView: UIView {
                 let tint = Self.noteTint(hz: frequency(of: pitch))
                 let isRoot = d == 0
                 // Band 0 is the LOW octave = BOTTOM row (UIKit y grows downward).
-                let cellFrame = CGRect(x: CGFloat(d) * cellW,
-                                       y: bounds.height - CGFloat(b + 1) * cellH,
+                let cellFrame = CGRect(x: rect.minX + CGFloat(d) * cellW,
+                                       y: rect.maxY - CGFloat(b + 1) * cellH,
                                        width: cellW, height: cellH)
                     .insetBy(dx: 1.5, dy: 1.5)
                 let cell = CALayer()
@@ -438,9 +455,12 @@ final class TouchInstrumentUIView: UIView {
     // MARK: - Mapping
 
     private func pitch(at p: CGPoint) -> Int {
-        let w = max(bounds.width, 1), h = max(bounds.height, 1)
-        return TouchPitchMap.pitch(normX: p.x / w,
-                                   normY: 1 - p.y / h,   // UIKit y is down; up = higher
+        // Same rect as the drawn grid — a finger on a visible field always plays
+        // THAT field; touches in the safe-area margin clamp to the edge notes.
+        let rect = playRect
+        let w = max(rect.width, 1), h = max(rect.height, 1)
+        return TouchPitchMap.pitch(normX: Double((p.x - rect.minX) / w),
+                                   normY: Double(1 - (p.y - rect.minY) / h),   // UIKit y is down; up = higher
                                    key: key)
     }
 
@@ -457,8 +477,9 @@ final class TouchInstrumentUIView: UIView {
     /// the played notes; the generative bed's timbre is untouched.
     private func applyMorph(at p: CGPoint) {
         guard morphDepth > 0.001 else { return }
-        let h = max(bounds.height, 1)
-        let normY = Double(1 - p.y / h)   // UIKit y is down; up = brighter
+        let rect = playRect
+        let h = max(rect.height, 1)
+        let normY = Double(min(max(1 - (p.y - rect.minY) / h, 0), 1))   // UIKit y is down; up = brighter
         synth?.setCutoffScale(TouchPitchMap.morphCutoffScale(normY: normY, depth: morphDepth))
     }
 
