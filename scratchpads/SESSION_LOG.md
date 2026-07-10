@@ -25,10 +25,24 @@ This file tracks ALL code healing sessions across Claude Code contexts.
   EchoelStudioViews ~18-Modal-Kette unangetastet; isProUnlocked = Low-Frequency-Read.
 - **Remote-Force-Push-Falle:** Branch war force-updated (v10.79.139) → Rebase = 50+
   add/add-Konflikte. Weg: abort → reset --hard auf origin → cherry-pick. Merken.
-- **Founder-To-do:** non-consumable `com.echoelmusic.app.pro` in App Store Connect
-  anlegen (Preis 14,99–19,99 €) — vorher lädt die Unlock-View kein Produkt.
-- **Next:** CI-Grün auf 1607d7f verifizieren → E2 (Ort in Session-Namen) als
-  nächster Zyklus; dann E3 Wetter, E4 CloudKit-Push, E5 Nearby-Bio.
+- **E2 Ort im Namen — BEIDE Stufen grün:** E2a (f361665) SessionNaming/SessionContext
+  place-Token (nach dem Datum, sanitisiert, nie persistiert, 7 Tests) · E2b (7de3fa0)
+  `Core/LocationNamer` (whenInUse, City-Level, EIN Fix, Geocode → placeToken; Delegate-
+  Pattern wie PolarH10) + Info.plist-String + App-Wiring + Composition-Panel-Toggle
+  (default AUS, denied-Feedback). Alle 4 Workflows grün inkl. Xcode Compile Check.
+- **E3a (443d0ff):** `Core/WeatherMood` — pures Wetter→Musik/Visual-Mapping OHNE
+  WeatherKit (Entitlement braucht erst Portal-Schritt wie CloudKit, sonst
+  TestFlight-Archive-Blocker — siehe auskommentiertes iCloud-Entitlement als
+  Präzedenz). FNV-1a-Structure-Salt stabil pro Wettersituation (Band-Logik) +
+  Opt-in-Palette in VisualPreset-Ranges. 10 Tests.
+- **Founder-To-dos (blockieren die nächsten Stufen):**
+  1. ASC: non-consumable `com.echoelmusic.app.pro` anlegen (14,99–19,99 €) —
+     vorher lädt die Unlock-View kein Produkt (E1-Sandbox-Test).
+  2. Developer-Portal: WeatherKit-Capability für com.echoelmusic.app (E3b Fetch).
+  3. Developer-Portal: iCloud-Container `iCloud.com.echoelmusic.app` + Push
+     (E4 CloudKit-Announcements; Entitlement ist bis dahin bewusst deaktiviert).
+- **Next:** E5 Nearby-Bio (ColabPayload "bio" + PeerBioStore + LiveColaboView
+  nebeneinander — kein Portal-Blocker) · danach E3b/E4 sobald Portal-Schritte da.
 
 ## 2026-07-10 (Forts. 9) — Knister-URSACHE gefunden (Umschalt-Transienten) + Stage 2 WAV komplett
 - **Founder-Ohrbefund lokalisierte es:** „Ein bisschen hat's noch geknistert **beim Umschalten
