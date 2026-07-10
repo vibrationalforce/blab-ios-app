@@ -3,6 +3,33 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 19) — RALPH-NACHTLAUF: Sampler-Library + lizenzreine Sounds + Humanisierung
+- **Founder: "Arbeite die ganze Nacht im Ralph-Modus, arbeite alles ab."** 6 Zyklen,
+  jeder committet + CI-verifiziert (Quick Test/Xcode/CI/CD grün, auto-merged):
+  1. **Kategorie-Sample-Browser** (BeatPlayer.library scannt Resources/Samples/<Cat>/
+     einmal, static let, render-safe; auditionLibrary/assignLibrary; SampleBrowserView
+     zeigt Bass·Stab·Keys·Pad·Tone·Tom·Conga·FX + Drum-Varianten). Löst die "die
+     Bibliothek war unsichtbar"-Lücke.
+  2. **+35 lizenzREINE Original-Sounds** (scratchpads/tools/echoel_tones.py: subtraktiver
+     Bass, Rave-Stabs, FM-Rhodes/Bells, Karplus-Strong-Plucks = echtes PM; + drum_synth
+     13 Drum-Varianten). Alle durch sample_processor.py gemastert. Echoel-Präfix = clean.
+     OFFEN (Founder): die ALTEN Pack-Samples in der Library brauchen Lizenz-Review vor
+     App-Store; diese Originale sind der clean-Ersatzpfad.
+  3. **Bar-Cycling-Tests** (NoteTests: loadArrangement 0/1/N + arrangementForExport
+     N-Takt-Offsets + clear) — die ungetestete Audit-Lücke.
+  4. **Pad-Zuweisungen persistent** (bundledKey "drum:"/"lib:" + restoreBundledAssignment;
+     Import/Reset löschen). Der Browser war sonst nach Neustart wirkungslos.
+  5. **Velocity-Humanisierung** (Founder-Video @sowyliemusic "why your sounds feel fake":
+     jeder Hit identisch = fake). Sequenzierte Hits: dezenter Downward-Gain-Jitter ≤12%
+     (kein Clipping), Main-Queue-Timer → Float.random safe, Audio-Thread liest nur den
+     lock-freien Trigger-Gain. Manuelle Pad-Taps bleiben voll.
+  6. **Inspiration vision-gated** (2 Founder-Reels: "sounds feel fake"→ADOPT-PRODUCT;
+     neuronal-"ALIVE"→WATCH für MetalBioView).
+- **BEWUSST NICHT angefasst (zu riskant ohne Gerätecheck):** die device-getunte rPPG-
+  Lock-State-Machine (CameraRPPGBioPublisher). Finger-Flap/Stall-Glättung + Per-Note-
+  Pitch-Bewegung = die nächsten FOUNDER-VERIFIED Zyklen, kein Blindflug um 4 Uhr.
+- **Kein lokaler Build → CI = Wahrheit.** Alle 6 Zyklen grün. v10.79.149 gebumpt.
+
 ## 2026-07-10 (Forts. 18) — ✅ LAUNCH-CRASH BESIEGT (v148 device-verified) + rPPG-Befund
 - **Founder-Log v10.79.148 (Build 2254): KEIN Crash.** Start gesund (alle init+startup
   Stages, LaunchGuard healthy), dann ~25 Min NUTZUNG (2× Start/generate/evolve, Playhead,
