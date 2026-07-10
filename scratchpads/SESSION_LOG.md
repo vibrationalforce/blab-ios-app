@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 14) — REALISM-AUDIT + One-View-Konvergenz K1 (Spur-Köpfe = Türen)
+- **Founder:** „Überprüfe ganz genau… realistisch und sinnvoll… Strukturiere um,
+  damit wir eine alles vereinende Main View haben." → 2 Explore-Audits (Arrange-
+  Ist-Stand + komplettes Offene-Vorhaben-Inventar A–E) + Council-Synthese in
+  **`scratchpads/PLAN_ONE_VIEW_CONVERGENCE_2026-07-10.md`** (Stufen K1–K5,
+  Realism-Verdikt-Tabelle, Sequenz-Entscheid: Launch-Gesicht bleibt Studio-Home,
+  One-View konvergiert parallel; Default-Flip auf .arrange ERST wenn K3/K4 die
+  Timeline spielbar machen — vorher wäre der Viewer-als-Home eine Regression).
+- **Kernbefund Audit:** ArrangeTimelineView war reiner Viewer; `TimelineLane` hat
+  KEINE Engine-Bindung (BeatPlayer-Kanal/Patch/FX) — DAS ist die Umbau-Lücke.
+  Mix ist schon per-Track (Drum-Kanäle) → K2 löst ihn in Spur-Köpfe auf; Clips
+  sind das Region-Payload (gleiches `Clip`-Modell) → fallen in Lanes.
+- **K1 SHIPPED (ArrangeTimelineView, 1 Datei):** Lane-Header = Menu-Tür (MIDI →
+  Piano Roll, Audio → Audio-Editor, Rename-Alert, Delete-if-empty) + Toolbar-„+"
+  (MIDI/Audio-Track hinzufügen). EIN `.sheet(item:)` + EIN Alert auf DIESER View
+  (nicht EchoelStudioView — Metadaten-Regel); nie beide zugleich true.
+- **v10.79.143 VERIFIZIERT GRÜN:** TestFlight Run #2249 (34f73e1) success + alle
+  Gates (Quick Test #1251 · CI #3932 · Xcode #467). Reorganisations-Build ist auf
+  TestFlight — Founder-Test der 3 Türen (Session/Colabo/Learn) steht aus.
+- K1 fährt im NÄCHSTEN Deploy-Fenster mit (Upload-Quote; v143 war heute).
+
 ## 2026-07-10 (Forts. 13) — PORTAL VERIFIZIERT + E3b Wetter + E4 Push SHIPPED
 - **Portal-Verifikation BESTANDEN:** Founder hatte WeatherKit + iCloud-Container +
   Push (+ Sign-in-with-Apple) im Developer-Portal eingerichtet. Beweis: TestFlight
