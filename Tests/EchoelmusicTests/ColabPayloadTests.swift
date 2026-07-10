@@ -37,4 +37,33 @@ final class ColabPayloadTests: XCTestCase {
         XCTAssertEqual(ColabPayload.decode(data), ping)
         XCTAssertNil(ColabPayload.decode(data)?.project)
     }
+
+    // MARK: - Bio peek (E5: side-by-side live numbers, no cross-person score)
+
+    func testBioPayloadRoundTrips() {
+        let peek = BioPeek(bpm: 72, coherence: 0.61, hrvNormalized: 0.44, breathRate: 5.5)
+        let original = ColabPayload(kind: "bio", senderName: "Stage iPhone", bio: peek)
+        guard let data = original.encoded() else { return XCTFail("encode failed") }
+        let back = ColabPayload.decode(data)
+        XCTAssertEqual(back, original)
+        XCTAssertEqual(back?.bio?.bpm, 72)
+        XCTAssertNil(back?.project, "a bio ping never carries a session")
+    }
+
+    func testOldPayloadWithoutBioFieldStillDecodes() {
+        // Forward compatibility: a pre-E5 sender's JSON has no "bio" key.
+        let legacy = Data(#"{"kind":"session","senderName":"Old"}"#.utf8)
+        let back = ColabPayload.decode(legacy)
+        XCTAssertNotNil(back)
+        XCTAssertNil(back?.bio)
+    }
+
+    func testBioPayloadIsTiny() {
+        // Streams at 2–3 Hz — the wire format must stay a few hundred bytes.
+        let peek = BioPeek(bpm: 72.4, coherence: 0.61, hrvNormalized: 0.44, breathRate: 5.5)
+        let data = ColabPayload(kind: "bio", senderName: String(repeating: "N", count: 63),
+                                bio: peek).encoded()
+        XCTAssertNotNil(data)
+        XCTAssertLessThan(data?.count ?? .max, 512)
+    }
 }

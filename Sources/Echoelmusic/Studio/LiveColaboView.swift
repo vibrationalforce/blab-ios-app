@@ -14,12 +14,18 @@ struct LiveColaboView: View {
 
     @Environment(MultipeerSession.self) private var colab
     @Environment(ProjectStore.self) private var projects
+    @Environment(EngineBus.self) private var bus
     @Environment(\.dismiss) private var dismiss
 
     /// Snapshot of the live session to send (provided by the host view).
     let currentSession: () -> Project
     /// Load a received session into the live instrument.
     let onLoadShared: (Project) -> Void
+
+    /// Opt-in per visit (E5): stream own live bio to connected peers ONLY while
+    /// this view is open and the toggle is on. Deliberately not persisted —
+    /// sharing your pulse is a per-session choice, never a background default.
+    @State private var shareBio = false
 
     var body: some View {
         NavigationStack {
@@ -35,7 +41,10 @@ struct LiveColaboView: View {
 
                     if colab.isLive {
                         shareButton
-                        if !colab.connectedPeerNames.isEmpty { connectedSection }
+                        if !colab.connectedPeerNames.isEmpty {
+                            connectedSection
+                            bioSection
+                        }
                         discoveredSection
                     } else {
                         Text("Two Echoelmusic devices on the same Wi-Fi find each other here. Go live, connect, and share your session both ways — a starting point to jam from together.")
@@ -55,6 +64,22 @@ struct LiveColaboView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
             .onDisappear { colab.stop() }
+            // Own-bio stream: ~2.5 Hz while the toggle is on AND this view is
+            // open (task dies with the view — bio never streams in the
+            // background). Reads the bus snapshot inside the task, so no
+            // high-frequency observation registers on this body (render safety).
+            .task(id: shareBio) {
+                guard shareBio else { return }
+                while !Task.isCancelled {
+                    if let f = bus.latestBio, !colab.connectedPeerNames.isEmpty {
+                        colab.sendBio(BioPeek(bpm: f.heartRateBPM,
+                                              coherence: f.coherence,
+                                              hrvNormalized: f.hrvNormalized,
+                                              breathRate: f.breathRate))
+                    }
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                }
+            }
         }
     }
 
@@ -126,6 +151,31 @@ struct LiveColaboView: View {
         }
     }
 
+    /// Side-by-side live bio (E5): my numbers and each peer's numbers, each
+    /// person's OWN values — deliberately NO combined "group coherence" score
+    /// (decision 2026-06-20: measured, not claimed).
+    private var bioSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $shareBio.animation(.easeInOut(duration: 0.15))) {
+                Text("Share my pulse (live)")
+                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            .accessibilityHint("Streams your heart rate and coherence to connected peers while this screen is open. Everyone sees their own numbers side by side.")
+
+            if shareBio {
+                OwnBioRow()
+            }
+            // Peer rows read colab.peerBio in their OWN leaf (render safety) —
+            // this body must not touch that 2–3 Hz dictionary.
+            PeerBioRows()
+
+            Text("Each person's own numbers, side by side — nothing is combined into a shared score.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private func incomingCard(_ from: String, _ project: Project) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Session from \(from)")
@@ -157,5 +207,61 @@ struct LiveColaboView: View {
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent.opacity(0.12)))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.accent.opacity(0.5), lineWidth: 1))
     }
+}
+
+// MARK: - Bio leaves (render safety: the ~10 Hz own-bio and 2–3 Hz peer-bio
+// reads live in their OWN leaf bodies so only these rows churn, never the
+// sheet's buttons/toggles above.)
+
+/// My own live numbers — reads `bus.latestBio` in ITS body only.
+@MainActor
+private struct OwnBioRow: View {
+    @Environment(EngineBus.self) private var bus
+
+    var body: some View {
+        let f = bus.latestBio
+        bioLine(name: "You",
+                bpm: f?.heartRateBPM ?? 0,
+                coherence: f?.coherence ?? 0,
+                highlight: true)
+    }
+}
+
+/// Connected peers' latest readings — reads `colab.peerBio` in ITS body only.
+@MainActor
+private struct PeerBioRows: View {
+    @Environment(MultipeerSession.self) private var colab
+
+    var body: some View {
+        ForEach(colab.peerBio.keys.sorted(), id: \.self) { name in
+            if let peek = colab.peerBio[name] {
+                bioLine(name: name, bpm: peek.bpm, coherence: peek.coherence, highlight: false)
+            }
+        }
+    }
+}
+
+/// One person's row: name · BPM · coherence (their OWN values; `0` shows as "—",
+/// mirroring BioSampleFrame's "not available"). Legible numbers first.
+@MainActor
+private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool) -> some View {
+    HStack(spacing: 8) {
+        Image(systemName: highlight ? "heart.fill" : "heart")
+            .font(.system(size: 12))
+            .foregroundStyle(highlight ? EchoelTheme.accent : EchoelTheme.dim)
+        Text(name).font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+            .lineLimit(1)
+        Spacer(minLength: 8)
+        Text(bpm > 0 ? String(format: "%.0f bpm", bpm) : "— bpm")
+            .font(EchoelTheme.font(13, .medium).monospacedDigit())
+            .foregroundStyle(EchoelTheme.text)
+        Text(coherence > 0 ? String(format: "coh %.2f", coherence) : "coh —")
+            .font(EchoelTheme.font(12).monospacedDigit())
+            .foregroundStyle(EchoelTheme.dim)
+    }
+    .padding(.vertical, 6).padding(.horizontal, 10)
+    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(name): \(bpm > 0 ? "\(Int(bpm)) beats per minute" : "no pulse yet"), coherence \(coherence > 0 ? String(format: "%.2f", coherence) : "not available")")
 }
 #endif
