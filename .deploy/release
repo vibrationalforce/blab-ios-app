@@ -1,30 +1,32 @@
-build: 2026-07-10 v10.79.146 (NOTBETRIEB Plan B — bewährter v143-Baum)
+build: 2026-07-10 v10.79.147 (ECHTER Crash-Fix: CloudKit, nicht SwiftUI — Hauptansicht ist zurück)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: v145 stürzte laut Founder weiter beim Öffnen ab → wie vereinbart
-  KEIN dritter Blindfix. v146 = der SurfaceHost-Baum von v143 zurück,
-  der nachweislich auf dem Gerät startete (flacher ZStack, alle vier
-  Surfaces per Opacity gemountet), mit einer Änderung: die Auswahl ist
-  fest auf Studio gepinnt (kein @AppStorage-Read), weil die Chip-Leiste
-  unmounted bleibt. Sichtbar ist also NUR das Instrument im Vollbild —
-  die Timeline bleibt im Code gemountet-unsichtbar, exakt wie in v143.
+notes: Der Founder hat das v145-Crash-Log geliefert — DANKE, damit war es
+  in Minuten eindeutig: Der Absturz ist NICHT der Hauptansicht-Umbau.
+  Beweis aus dem Log: Crash 5,1 s NACH dem Launch (App rendert erst,
+  "kurzes Aufblinken"), EXC_BREAKPOINT auf dem Main Thread INNERHALB
+  des CloudKit-Frameworks, keine einzige SwiftUI-Frame im Stack.
+  Auslöser: AnnouncementCenter re-asserted bei JEDEM Start die News-
+  Subscription (der Toggle ist seit dem Push-Test AN) → CloudKits
+  auto-generierter async-Thunk trappt dabei (CheckedContinuation-
+  Signatur in den Registern). Deshalb crashten v144 UND v145 gleich —
+  und v146/Plan B hätte es auch nicht gefixt.
 
-  Die eine Hauptansicht (Timeline über Instrument) ist NICHT gestrichen
-  — sie kommt als v147+ zurück, sobald die echte Absturzstelle bekannt
-  ist. Auffällig: v143 mountete MEHR Views und startete; der v145-Fix
-  (AnyView-Erasure) half nicht → die Metadata-Hypothese an der
-  SurfaceHost-Naht ist damit geschwächt. Ohne Log rate ich nicht weiter.
+  Fix (AnnouncementCenter.swift):
+  1) CloudKit-Aufrufe umgehen den fehleranfälligen Auto-Thunk jetzt —
+     Completion-API mit eigener Continuation, die JEDEN Ausgang sauber
+     behandelt (auch das pathologische nil+nil).
+  2) Schutzschalter: Stirbt die App je wieder im CloudKit-Call, merkt
+     der nächste Start das und überspringt das Auto-Re-Assert — Status
+     zeigt "error", die App ÖFFNET. News aus→an versucht es erneut.
+  Außerdem: Die eine Hauptansicht (Timeline über Instrument) ist
+  ZURÜCK — das Log entlastet sie vollständig; v146s Notbetrieb war
+  unnötig vorsichtig.
 
-  → Test 1: Öffnet v10.79.146? (mehrmals starten; Build-Nummer prüfen)
-  → Wenn JA: Instrument normal benutzbar? Dann bitte TROTZDEM die
-    Analysedaten-Screenshots vom v144/v145-Crash schicken:
-    Einstellungen → Datenschutz & Sicherheit → Analyse & Verbesserungen
-    → Analysedaten → Eintrag "Echoelmusic-2026-07-…" → erste 2–3 Seiten.
-    Damit finde ich die echte Absturzstelle und baue die eine
-    Hauptansicht crash-frei wieder auf.
-  → Wenn NEIN (auch v146 crasht): dann liegt es NICHT am Hauptansicht-
-    Umbau (v143-Baum = bewiesen startfähig) sondern an etwas anderem
-    seit v143 (Kandidat: stiller Push / AnnouncementCenter) — die
-    Screenshots sind dann zwingend, bitte sofort schicken.
-
-  Push-Test (erst wenn die App öffnet): News-Schalter einmal AUS→AN,
-  dann Test-Record im Dashboard → Push muss STUMM ankommen.
+  → Test: Öffnet v10.79.147? (mehrmals; auch 10+ Sekunden offen lassen!)
+  → Danach: quer/hochkant, Spur-Kopf-Menü, "+" Spur, Piano Roll.
+  → News-Status in den Einstellungen prüfen: "on" = Subscription neu
+    gespeichert (stumm); "error" = CloudKit hat wieder gezickt, aber
+    die App läuft — dann bitte melden.
+  Hinweis: Der CloudKit-Server-Teil (Announcement-Schema in PRODUCTION
+  deployen) steht weiter bei dir offen — solange das fehlt, kann der
+  Status "error" zeigen. Das ist ab jetzt harmlos (kein Crash mehr).

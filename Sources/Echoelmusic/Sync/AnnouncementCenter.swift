@@ -33,7 +33,16 @@ public final class AnnouncementCenter {
     public static let recordType = "Announcement"
     static let subscriptionID = "echoel-announcements-v1"
 
-    private enum Key { static let enabled = "echoel.announcements.enabled" }
+    private enum Key {
+        static let enabled = "echoel.announcements.enabled"
+        /// Set while a CloudKit call is in flight; still true at next launch =
+        /// the process DIED inside CloudKit (v10.79.145 device log: main-thread
+        /// EXC_BREAKPOINT inside the CloudKit framework ~5 s after launch, from
+        /// this class's launch re-assert). The circuit breaker below then skips
+        /// the automatic re-assert so a CloudKit-internal trap can never become
+        /// a crash-at-every-launch loop; a manual toggle retries deliberately.
+        static let ckInflight = "echoel.announcements.ck-inflight"
+    }
 
     /// Honest UI state: "", "on", "denied" (notifications off in Settings),
     /// "error" (subscription save failed — e.g. no iCloud account).
@@ -58,9 +67,18 @@ public final class AnnouncementCenter {
         self.defaults = defaults
         self.enabled = defaults.bool(forKey: Key.enabled)
         if enabled {
-            // Re-assert on launch: registration is cheap and idempotent, and
-            // the subscription save is keyed (same ID overwrites, never dupes).
-            Task { [weak self] in await self?.activate() }
+            if defaults.bool(forKey: Key.ckInflight) {
+                // CIRCUIT BREAKER: the previous launch died inside the CloudKit
+                // call (see Key.ckInflight). Do NOT re-enter automatically —
+                // the app must open. Toggling News off→on retries once.
+                status = "error"
+                log.log(.error, category: .system,
+                        "Announcements: previous launch died in CloudKit — auto re-assert skipped")
+            } else {
+                // Re-assert on launch: registration is cheap and idempotent, and
+                // the subscription save is keyed (same ID overwrites, never dupes).
+                Task { [weak self] in await self?.activate() }
+            }
         }
     }
 
@@ -100,10 +118,13 @@ public final class AnnouncementCenter {
 
         do {
             let db = CKContainer(identifier: Self.containerID).publicCloudDatabase
-            _ = try await db.save(subscription)
+            defaults.set(true, forKey: Key.ckInflight)
+            try await Self.saveSubscription(subscription, to: db)
+            defaults.set(false, forKey: Key.ckInflight)
             status = "on"
             log.log(.info, category: .system, "Announcements: subscription saved")
         } catch {
+            defaults.set(false, forKey: Key.ckInflight)
             status = "error"
             log.log(.error, category: .system,
                     "Announcements: subscription failed — \(error.localizedDescription)")
@@ -113,14 +134,60 @@ public final class AnnouncementCenter {
     private func deactivate() async {
         do {
             let db = CKContainer(identifier: Self.containerID).publicCloudDatabase
-            _ = try await db.deleteSubscription(withID: Self.subscriptionID)
+            defaults.set(true, forKey: Key.ckInflight)
+            try await Self.deleteSubscription(id: Self.subscriptionID, from: db)
+            defaults.set(false, forKey: Key.ckInflight)
             log.log(.info, category: .system, "Announcements: subscription removed")
         } catch {
             // Deleting a non-existent subscription is fine — stay quiet.
+            defaults.set(false, forKey: Key.ckInflight)
             log.log(.info, category: .system,
                     "Announcements: unsubscribe note — \(error.localizedDescription)")
         }
         status = ""
+    }
+
+    // MARK: - Safe CloudKit bridging (v10.79.147 crash fix)
+
+    // The v145 device log shows a main-thread EXC_BREAKPOINT INSIDE the
+    // CloudKit framework during this class's subscription call, with a
+    // CheckedContinuation witness table in the crashing registers — the
+    // signature of CloudKit's AUTO-GENERATED async thunk trapping (e.g. on a
+    // pathological nil-result/nil-error completion). These wrappers bypass
+    // that thunk entirely: the classic completion-handler API + our own
+    // continuation, which tolerates every (result, error) combination and
+    // resumes exactly once. We never need the returned value → resume Void
+    // (also keeps non-Sendable CK types off the continuation).
+
+    private static func saveSubscription(_ subscription: CKSubscription,
+                                         to db: CKDatabase) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            db.save(subscription) { saved, error in
+                if let error {
+                    cont.resume(throwing: error)
+                } else if saved != nil {
+                    cont.resume()
+                } else {
+                    // nil result AND nil error — the case the auto-thunk traps on.
+                    cont.resume(throwing: CKError(.internalError))
+                }
+            }
+        }
+    }
+
+    private static func deleteSubscription(id: CKSubscription.ID,
+                                           from db: CKDatabase) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            db.delete(withSubscriptionID: id) { deleted, error in
+                if let error {
+                    cont.resume(throwing: error)
+                } else if deleted != nil {
+                    cont.resume()
+                } else {
+                    cont.resume(throwing: CKError(.internalError))
+                }
+            }
+        }
     }
 }
 #endif
