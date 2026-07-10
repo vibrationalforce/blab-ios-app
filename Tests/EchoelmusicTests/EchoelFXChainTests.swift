@@ -106,6 +106,63 @@ final class EchoelFXChainTests: XCTestCase {
         XCTAssertEqual(r, 0, accuracy: 1e-6)
     }
 
+    // MARK: - Switch declick (founder: "knistert beim Umschalten von Dingen")
+
+    /// A stage disabled while holding audio freezes its delay lines; re-enabling
+    /// it (preset/genre/character switch) must NOT burst that stale audio out.
+    func testReEnableAfterStaleState_delay_emitsNoBurst() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.limiterEnabled = false; fx.saturationEnabled = false; fx.chorusEnabled = false
+        fx.delayEnabled = true
+        fx.delay.mix = 1.0; fx.delay.feedback = 0.7; fx.delay.timeSeconds = 0.01
+        for i in 0..<4800 {                       // fill the line with loud audio
+            let x = 0.9 * sinf(Float(i) * 0.2)
+            _ = fx.processStereo(x, x)
+        }
+        fx.delayEnabled = false                   // freeze (bypassed = no state advance)
+        fx.delayEnabled = true                    // the "Umschalten"
+        for _ in 0..<4800 {                       // silence in → silence out, no stale burst
+            let (l, r) = fx.processStereo(0, 0)
+            XCTAssertEqual(l, 0, accuracy: 1e-4)
+            XCTAssertEqual(r, 0, accuracy: 1e-4)
+        }
+    }
+
+    func testReEnableAfterStaleState_reverb_emitsNoBurst() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.limiterEnabled = false; fx.saturationEnabled = false; fx.chorusEnabled = false
+        fx.reverbEnabled = true
+        fx.reverb.mix = 1.0
+        for i in 0..<9600 {
+            let x = 0.9 * sinf(Float(i) * 0.2)
+            _ = fx.processStereo(x, x)
+        }
+        fx.reverbEnabled = false
+        fx.reverbEnabled = true
+        for _ in 0..<9600 {
+            let (l, r) = fx.processStereo(0, 0)
+            XCTAssertEqual(l, 0, accuracy: 1e-3)
+            XCTAssertEqual(r, 0, accuracy: 1e-3)
+        }
+    }
+
+    /// Re-assigning an ALREADY-enabled flag (presets write every flag every
+    /// time) must not reset — a live delay tail survives a same-value write.
+    func testReassignSameEnabledValue_keepsLiveTail() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.limiterEnabled = false; fx.saturationEnabled = false; fx.chorusEnabled = false
+        fx.delayEnabled = true
+        fx.delay.mix = 1.0; fx.delay.feedback = 0.0; fx.delay.timeSeconds = 0.005 // 240 smp
+        _ = fx.processStereo(1.0, 1.0)            // impulse into the line
+        fx.delayEnabled = true                    // same-value write (preset apply pattern)
+        var laterPeak: Float = 0
+        for _ in 0..<512 {
+            let (l, _) = fx.processStereo(0, 0)
+            laterPeak = Swift.max(laterPeak, abs(l))
+        }
+        XCTAssertGreaterThan(laterPeak, 0.5, "same-value enable write must not clear the tail")
+    }
+
     func testResetClearsDelayTail() {
         let fx = EchoelFXChain(sampleRate: sr)
         fx.delayEnabled = true; fx.limiterEnabled = false
