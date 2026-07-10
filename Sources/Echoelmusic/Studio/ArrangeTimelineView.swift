@@ -57,11 +57,18 @@ struct ArrangeTimelineView: View {
         VStack(alignment: .leading, spacing: 0) {
             toolbar
             Divider().overlay(EchoelTheme.border)
-            HStack(spacing: 0) {
-                laneLabels
-                Divider().overlay(EchoelTheme.border)
-                ScrollView(.horizontal, showsIndicators: true) {
-                    grid
+            // Vertical scroll carries BOTH columns (labels + grid) so any number
+            // of tracks fits the fixed timeline height of the one main view; the
+            // grid keeps its own horizontal scroll (independent axes).
+            ScrollView(.vertical, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 0) {
+                    laneLabels
+                        .overlay(alignment: .trailing) {
+                            Rectangle().fill(EchoelTheme.border).frame(width: 1)
+                        }
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        grid
+                    }
                 }
             }
         }

@@ -3,6 +3,30 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 15) — FOUNDER-KORREKTUR: EINE Hauptansicht JETZT + stiller Push
+- **Founder-Befund dreifach:** (1) App stürzt bei Announcement-Push ab, (2) „außer
+  der Musik keine Töne", (3) Optik gefällt nicht — „Musik und Video Composing
+  Ansicht als einzige Hauptansicht wie in Ableton… war doch der Plan. Wo bist du
+  falsch abgebogen?" → Die Forts.-14-Sequenzierung (Studio-Home bis K3/K4) ist
+  damit FOUNDER-ÜBERSTIMMT; die Chip-Leiste war genau das abgelehnte View-Springen.
+- **fix(push) 28a94e6 — STILLER Push:** `soundName="default"` entfernt + `.sound`
+  aus der Authorization. Der Notification-Ton verletzte die Keine-Töne-Regel UND
+  ist der plausibelste Crash-Trigger (Ton → Audio-Session-Interruption in laufende
+  Engine). WICHTIG: notificationInfo liegt SERVERSEITIG in der gespeicherten
+  Subscription → Gerät muss News-Toggle einmal AUS→AN schalten. Crash-Log vom
+  Founder erbeten, falls es danach noch crasht (Analyse-Daten-Screenshot reicht).
+  Sweep bestätigt: kein weiterer Nicht-Musik-Ton im Code (AudioServices etc. = 0).
+- **feat(shell) 12922ca — EINE Hauptansicht (Ableton-Layout):** `SurfaceHost` =
+  Timeline ÜBER der Instrument-Zone (adaptiver Split ~1/3 hochkant / ~1/2 quer,
+  min 2 Lanes sichtbar, v136-Size-Contract); `SurfaceSwitcherBar` UNMOUNTED
+  (Code bleibt, reversibel); Clips/Mix lösen sich per K2 in Spur-Köpfe auf;
+  Timeline-Lanes scrollen vertikal im festen Split (verschachtelte Achsen).
+  WorkspaceView-Shell: Header + Transport + SurfaceHost — keine Chips mehr.
+- **Lektion (Forts.-14-Fehler):** „Launch-sicher sequenzieren" darf die EXPLIZITE
+  Founder-Richtung (2026-06-17 „in einer Ansicht", 2026-07-09 „einzige Ansicht")
+  nicht überstimmen — Features in Studio-Karten bauen statt die Timeline zum
+  Instrument zu machen war die falsche Abzweigung.
+
 ## 2026-07-10 (Forts. 14) — REALISM-AUDIT + One-View-Konvergenz K1 (Spur-Köpfe = Türen)
 - **Founder:** „Überprüfe ganz genau… realistisch und sinnvoll… Strukturiere um,
   damit wir eine alles vereinende Main View haben." → 2 Explore-Audits (Arrange-

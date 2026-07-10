@@ -11,10 +11,10 @@ import SwiftUI
 // the brief 2026-07-06A shell flip) is REMOVED from navigation — the code
 // stays in the tree, compiling and reversible, but nothing presents it.
 //
-// Shell = brand header (topBar) + persistent TransportBar + SurfaceSwitcherBar
-// + SurfaceHost (Arrange · Clips · Studio · Mix, founder 2026-07-09 restructure:
-// the Arrange timeline becomes the main view; Studio stays one tap away) + the
-// floating immersive visual.
+// Shell = brand header (topBar) + persistent TransportBar + SurfaceHost — which
+// IS the one main view (founder 2026-07-10: the Ableton-arrangement layout,
+// timeline over instrument zone; the 4-chip surface switcher is unmounted) +
+// the floating immersive visual.
 //
 // Render safety (skill: swiftui-render-safety):
 //  • No modal is owned here (the brief Pro-unlock sheet was removed with the
@@ -64,11 +64,8 @@ struct WorkspaceView: View {
                 Divider().overlay(EchoelTheme.border)
                 TransportBar()
                 Divider().overlay(EchoelTheme.border)
-                SurfaceSwitcherBar()
-                Divider().overlay(EchoelTheme.border)
-                // The working surface (Arrange · Clips · Studio · Mix). All four
-                // stay mounted (opacity swap) so switching is instant — see
-                // SurfaceSwitcher.swift.
+                // THE one main view (founder 2026-07-10): Arrange timeline over
+                // the instrument zone — no surface chips, no view-switching.
                 SurfaceHost()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

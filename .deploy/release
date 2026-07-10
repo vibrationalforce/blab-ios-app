@@ -1,29 +1,32 @@
-build: 2026-07-10 v10.79.143 (Reorganisation: alle neuen Features jetzt SICHTBAR)
+build: 2026-07-10 v10.79.144 (EINE Hauptansicht + stiller Push / Crash-Fix)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: DEIN VIDEO-BEFUND IST BEHOBEN — nichts war kaputt, es war unsichtbar
-  verbaut. Jetzt findest du alles ohne Suchen (Studio-Fläche):
+notesT: DEINE DREI PUNKTE:
 
-  NEUE KARTE "SESSION" (direkt unter Composition):
-  - Zeigt LIVE den gestempelten Session-Namen (Artist_Datum_[Stadt]_
-    Tonart_BPM_Kammerton) + die beiden Schalter "Place in session name"
-    und "Weather shapes the music" — vorher versteckt ganz unten in
-    der Composition-Karte hinter Metronom & Co.
-  → Bitte testen: Session-Karte aufklappen → Ort an → erscheint deine
-    Stadt nach ein paar Sekunden IM NAMEN? → Wetter an → Start →
-    erscheint die Wetterlage (z. B. "clear-day-warm") unterm Schalter?
+  1) PUSH-CRASH + TÖNE: Der Announcement-Push spielte den System-Ton —
+     das verletzte "keine Töne außer der Musik" und ist der wahrschein-
+     lichste Crash-Auslöser (Ton unterbricht die laufende Audio-Engine).
+     Der Push ist jetzt STUMM (nur Banner).
+     → WICHTIG: Learn → News-Schalter einmal AUS und wieder AN schalten
+       (die Einstellung liegt serverseitig in der Subscription).
+     → Dann neuen Test-Record im Dashboard anlegen. Falls es NOCH crasht:
+       Einstellungen → Datenschutz → Analyse → Analysedaten → Eintrag
+       "Echoelmusic-…" öffnen → Screenshot(s) an mich.
 
-  NEUE TÜR "LIVE COLABO" (nach der Export-Karte):
-  - Öffnet das Nearby-Teilen: Session teilen + Puls NEBENEINANDER
-    (jede Person die eigenen Zahlen). War seit dem Tools-Raster-Umbau
-    unerreichbar.
-  → Bitte testen (2 Geräte): Go Live → verbinden → "Share my pulse" →
-    sehen beide beide Zeilen?
+  2) EINE HAUPTANSICHT (Ableton-Prinzip): Kein Umschalten mehr zwischen
+     Arrange/Clips/Studio/Mix — die Chip-Leiste ist weg. EIN Bildschirm:
+     oben die Arrangement-Timeline (Takte, Spuren, Playhead), darunter
+     das Instrument (Bio-Strip, Composition, FX, Export …).
+     Quer UND hochkant: quer bekommt die Timeline die halbe Höhe,
+     hochkant ein Drittel.
 
-  NEUE TÜR "LEARN & NEWS" (ganz unten):
-  - Öffnet die Lern-Inhalte + den neuen Schalter "News & live events"
-    (Push-Ankündigungen ohne Konto, Abschnitt "Stay in the loop").
-  → Bitte testen: Schalter an → Mitteilungs-Erlaubnis → Status-Text ok?
-    (Der Push-Ende-zu-Ende-Test braucht danach das CloudKit-Dashboard-
-    Setup aus docs/dev/CLOUDKIT_ANNOUNCEMENTS.md.)
+  3) SPUREN SIND JETZT TÜREN: Spur-Kopf antippen → Menü: MIDI-Spur
+     öffnet das Piano Roll, Audio-Spur den Audio-Editor; Umbenennen;
+     leere Spur löschen. "+" oben rechts fügt Spuren hinzu. Spuren
+     scrollen vertikal, Zoom per Pinch.
+  → Bitte testen: dreht sich das Layout sauber mit? Fühlt sich der
+    Split richtig an (Timeline zu groß/klein)? Was genau stört an der
+    Optik — Screenshot mit einem Satz reicht mir.
 
-  Sonst nichts geändert — Klang, Arrange, Clips, Mix wie v142.
+  Nächste Stufen dort: Mute/Solo/Lautstärke in den Spur-Köpfen (Mix
+  löst sich auf), Regionen anfassen/verschieben, Timeline treibt das
+  Playback.
