@@ -1,27 +1,29 @@
-build: 2026-07-10 v10.79.142 (Wetter formt die Musik + Push-Ankündigungen ohne Konto)
+build: 2026-07-10 v10.79.143 (Reorganisation: alle neuen Features jetzt SICHTBAR)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: ZWEI NEUE OPT-IN-FEATURES (beide standardmäßig AUS):
+notesT: DEIN VIDEO-BEFUND IST BEHOBEN — nichts war kaputt, es war unsichtbar
+  verbaut. Jetzt findest du alles ohne Suchen (Studio-Fläche):
 
-  WETTER FORMT DIE MUSIK (Kompositions-Panel):
-  - Neuer Schalter "Weather shapes the music": EIN grober Wetterabruf
-    beim Start färbt das STRUKTUR-Skelett der Komposition (Himmel =
-    Würze, dein Körper bleibt der Haupttreiber). Braucht den
-    "Place in session name"-Schalter als Koordinatenquelle.
-  - Ehrlicher Status zeigt die Wetterlage (z. B. "rain-day-cold"),
-    dazu die Apple-Wetter-Attribution.
-  → Bitte testen: beide Schalter an → Start → erscheint nach ein paar
-    Sekunden die Wetterlage unterm Schalter? Klingt dieselbe Session
-    bei gleichem Wetter strukturell verwandt? Schalter aus → Musik
-    exakt wie vorher?
+  NEUE KARTE "SESSION" (direkt unter Composition):
+  - Zeigt LIVE den gestempelten Session-Namen (Artist_Datum_[Stadt]_
+    Tonart_BPM_Kammerton) + die beiden Schalter "Place in session name"
+    und "Weather shapes the music" — vorher versteckt ganz unten in
+    der Composition-Karte hinter Metronom & Co.
+  → Bitte testen: Session-Karte aufklappen → Ort an → erscheint deine
+    Stadt nach ein paar Sekunden IM NAMEN? → Wetter an → Start →
+    erscheint die Wetterlage (z. B. "clear-day-warm") unterm Schalter?
 
-  NEWS & LIVE EVENTS (Learn → "Stay in the loop"):
-  - Neuer Schalter "News & live events": ein Push, wenn ein neues
-    Feature shipped oder ein Live-Event startet. Ohne Konto, ohne
-    Server, nichts wird getrackt — läuft über iCloud (CloudKit).
-  → Zum Testen brauchst du einmal das Dashboard-Setup aus
-    docs/dev/CLOUDKIT_ANNOUNCEMENTS.md (Schema anlegen + in
-    PRODUCTION deployen), dann ein Test-Announcement posten →
-    kommt der Push an? Schalter aus → kein Push mehr?
+  NEUE TÜR "LIVE COLABO" (nach der Export-Karte):
+  - Öffnet das Nearby-Teilen: Session teilen + Puls NEBENEINANDER
+    (jede Person die eigenen Zahlen). War seit dem Tools-Raster-Umbau
+    unerreichbar.
+  → Bitte testen (2 Geräte): Go Live → verbinden → "Share my pulse" →
+    sehen beide beide Zeilen?
 
-  UNTER DER HAUBE: CloudKit/Push/WeatherKit-Entitlements sind seit
-  v141 aktiv (Portal-Verifikation bestanden).
+  NEUE TÜR "LEARN & NEWS" (ganz unten):
+  - Öffnet die Lern-Inhalte + den neuen Schalter "News & live events"
+    (Push-Ankündigungen ohne Konto, Abschnitt "Stay in the loop").
+  → Bitte testen: Schalter an → Mitteilungs-Erlaubnis → Status-Text ok?
+    (Der Push-Ende-zu-Ende-Test braucht danach das CloudKit-Dashboard-
+    Setup aus docs/dev/CLOUDKIT_ANNOUNCEMENTS.md.)
+
+  Sonst nichts geändert — Klang, Arrange, Clips, Mix wie v142.
