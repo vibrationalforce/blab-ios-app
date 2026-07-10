@@ -101,6 +101,31 @@ final class EchoelDelayTests: XCTestCase {
         XCTAssertLessThan(echo2, echo1) // each repeat is quieter
     }
 
+    /// Changing `timeSeconds` mid-stream must GLIDE the read tap, not jump it —
+    /// a jump is the sample-to-sample discontinuity the founder hears as
+    /// "Knistern beim Umschalten" when a preset/character lands a new delay time.
+    func testTimeChangeMidStreamGlidesWithoutDiscontinuity() {
+        let d = EchoelDelay(sampleRate: sr)
+        d.mode = .digital; d.mix = 1.0; d.feedback = 0.0
+        d.timeSeconds = 0.01                       // 480 samples
+
+        // 60 Hz sine (period 800 samples — NOT commensurate with either tap, so
+        // a 480→960-sample tap jump lands mid-phase and the discontinuity is
+        // large); the glide keeps the diff near the sine's own slope
+        // (~0.008/sample, ×~1.25 max repitch rate).
+        let omega = 2.0 * Float.pi * 60.0 / sr
+        var prev: Float = 0
+        var maxDiff: Float = 0
+        for i in 0..<19_200 {
+            if i == 9600 { d.timeSeconds = 0.02 }  // the switch
+            let x = sinf(Float(i) * omega)
+            let (l, _) = d.processStereo(x, x)
+            if i > 960 { maxDiff = Swift.max(maxDiff, abs(l - prev)) } // skip fill-in
+            prev = l
+        }
+        XCTAssertLessThan(maxDiff, 0.05, "delay-time switch must repitch smoothly, not click")
+    }
+
     func testHighFeedbackStaysBounded() {
         let d = EchoelDelay(sampleRate: sr)
         d.mode = .tape; d.mix = 0.5; d.feedback = 0.95

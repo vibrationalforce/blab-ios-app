@@ -35,32 +35,66 @@ public final class EchoelFXChain: @unchecked Sendable {
     public let limiter: EchoelLimiter
 
     // MARK: - Per-stage bypass (plain reads on the audio thread)
+    //
+    // SWITCH-CRACKLE RULE (founder: "knistert beim Umschalten von Dingen"): a
+    // bypassed stage is skipped entirely, so its delay lines / filter states
+    // FREEZE holding old audio. Re-enabling it later (preset/genre/character
+    // switch, FX toggle) would burst that stale audio into the mix. Every
+    // enable flag therefore resets its stage's state on the RISING edge —
+    // in `willSet`, while the flag is still false: the audio thread is
+    // skipping the stage at that moment, so the control-plane reset cannot
+    // race the render loop.
 
-    public var filterEnabled: Bool = false
+    public var filterEnabled: Bool = false {
+        willSet { if newValue && !filterEnabled { filterL.reset(); filterR.reset() } }
+    }
     /// Analog warmth. On by default — the additive source is otherwise a sterile
     /// sum of sines; saturation adds the harmonic body that sounds professional.
+    /// (Stateless waveshaper — nothing to reset on enable.)
     public var saturationEnabled: Bool = true
     /// Digital lo-fi (bit-depth + sample-rate crush). Off by default; a character
     /// effect for crushed/vintage textures.
-    public var bitcrushEnabled: Bool = false
+    public var bitcrushEnabled: Bool = false {
+        willSet { if newValue && !bitcrushEnabled { bitcrush.reset() } }
+    }
     /// Pitch-shift harmony voices. Off by default — a character effect surfaced
     /// via the Effects picker (`.harmonizer`).
-    public var harmonizerEnabled: Bool = false
+    public var harmonizerEnabled: Bool = false {
+        willSet { if newValue && !harmonizerEnabled { harmonizer.reset() } }
+    }
     /// Subtle ensemble chorus. On by default at a gentle setting (see init) so
     /// the additive pad/lead reads as lush and wide rather than thin and centred;
     /// the `.clean` character and the sound editor can switch it off.
-    public var chorusEnabled: Bool = true
-    public var flangerEnabled: Bool = false
-    public var phaserEnabled: Bool = false
-    public var tremoloEnabled: Bool = false
-    public var delayEnabled: Bool = false
+    public var chorusEnabled: Bool = true {
+        willSet { if newValue && !chorusEnabled { chorus.reset() } }
+    }
+    public var flangerEnabled: Bool = false {
+        willSet { if newValue && !flangerEnabled { flanger.reset() } }
+    }
+    public var phaserEnabled: Bool = false {
+        willSet { if newValue && !phaserEnabled { phaser.reset() } }
+    }
+    public var tremoloEnabled: Bool = false {
+        willSet { if newValue && !tremoloEnabled { tremolo.reset() } }
+    }
+    public var delayEnabled: Bool = false {
+        willSet { if newValue && !delayEnabled { delay.reset() } }
+    }
     /// Algorithmic room/hall reverb. Off by default; genre presets enable it to
     /// give a take real space (the additive source has no reverb of its own).
-    public var reverbEnabled: Bool = false
+    public var reverbEnabled: Bool = false {
+        willSet { if newValue && !reverbEnabled { reverb.reset() } }
+    }
     /// Stereo widener (M/S). Off by default; widens the modulation/reverb image.
-    public var widenerEnabled: Bool = false
-    public var compressorEnabled: Bool = false
-    public var limiterEnabled: Bool = true
+    public var widenerEnabled: Bool = false {
+        willSet { if newValue && !widenerEnabled { widener.reset() } }
+    }
+    public var compressorEnabled: Bool = false {
+        willSet { if newValue && !compressorEnabled { compressor.reset() } }
+    }
+    public var limiterEnabled: Bool = true {
+        willSet { if newValue && !limiterEnabled { limiter.reset() } }
+    }
 
     // MARK: - Saturation params (plain reads on the audio thread)
 
