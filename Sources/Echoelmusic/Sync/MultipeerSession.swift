@@ -52,6 +52,11 @@ public final class MultipeerSession: NSObject {
     public private(set) var incoming: ColabPayload?
     /// Last status line for the UI (e.g. "Shared with 2 peers").
     public private(set) var status: String = "Off"
+    /// Live bio numbers per connected peer (E5): display name → last reading.
+    /// Shown SIDE BY SIDE with our own — never combined into a cross-person
+    /// score (decision 2026-06-20). Cleared on disconnect/stop. Updates arrive
+    /// at the sender's ~2–3 Hz — read this only in leaf views (render safety).
+    public private(set) var peerBio: [String: BioPeek] = [:]
 
     /// Called when a session payload arrives (e.g. import into the library / load live).
     public var onReceiveSession: ((ColabPayload) -> Void)?
@@ -110,6 +115,7 @@ public final class MultipeerSession: NSObject {
         discovered.removeAll()
         peerIDs.removeAll()
         connectedPeerNames.removeAll()
+        peerBio.removeAll()
         status = "Off"
     }
 
@@ -137,6 +143,17 @@ public final class MultipeerSession: NSObject {
     /// Clear the incoming-session prompt after the UI handles it.
     public func clearIncoming() { incoming = nil }
 
+    /// Stream one live bio reading to every connected peer (E5). Unreliable
+    /// transport by design — a lost 2–3 Hz telemetry frame is worthless a
+    /// moment later; never let it queue behind a session transfer.
+    public func sendBio(_ peek: BioPeek) {
+        let peers = mcSession.connectedPeers
+        guard !peers.isEmpty else { return }
+        let payload = ColabPayload(kind: "bio", senderName: myPeerID.displayName, bio: peek)
+        guard let data = payload.encoded() else { return }
+        try? mcSession.send(data, toPeers: peers, with: .unreliable)
+    }
+
     // MARK: - MainActor handlers (called from the nonisolated delegates)
 
     private func handleFound(_ peerID: MCPeerID) {
@@ -158,12 +175,19 @@ public final class MultipeerSession: NSObject {
             status = "Connected to \(name)"
         } else {
             connectedPeerNames.removeAll { $0 == name }
+            peerBio[name] = nil
             if connectedPeerNames.isEmpty && isLive { status = "Looking for nearby Echoelmusic…" }
         }
     }
 
     private func handleData(_ data: Data) {
         guard let payload = ColabPayload.decode(data) else { return }
+        // Bio pings update the per-peer reading quietly — no incoming prompt,
+        // no status churn (they arrive continuously while a peer shares).
+        if payload.kind == "bio", let peek = payload.bio {
+            peerBio[payload.senderName] = peek
+            return
+        }
         incoming = payload
         onReceiveSession?(payload)
         status = "Session received from \(payload.senderName)"
