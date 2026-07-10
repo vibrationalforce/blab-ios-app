@@ -130,22 +130,35 @@ jobs:
           set -e
           MAP=scratchpads/SAMPLES_MAP.tsv
           test -f "$MAP" || { echo "::error::phase=curate needs scratchpads/SAMPLES_MAP.tsv"; exit 1; }
+          # Mastering-grade conditioning (founder 2026-07-10: "optimieren,
+          # Processing machen, angleichen, mastern"): DC/trim/tune/level/fades
+          # per category — see scratchpads/tools/sample_processor.py. ffmpeg
+          # stays as the fallback so one odd file can never sink the batch.
+          pip install -q numpy librosa soundfile
+          REPORT=scratchpads/SAMPLES_PROCESSING_REPORT.jsonl
+          : > "$REPORT"
           COUNT=0
           while IFS=$'\t' read -r SRC DST; do
             case "$SRC" in ''|'#'*) continue;; esac
             IN="/tmp/ex/$SRC"
             if [ ! -f "$IN" ]; then echo "MISS: $SRC"; continue; fi
             mkdir -p "$(dirname "$DST")"
-            # Normalise to 16-bit / 44.1k PCM WAV; keep channel count (mono stays mono).
-            ffmpeg -y -loglevel error -i "$IN" -acodec pcm_s16le -ar 44100 "$DST"
+            CAT=$(basename "$(dirname "$DST")")
+            if python3 scratchpads/tools/sample_processor.py "$IN" "$DST" --category "$CAT" >> "$REPORT" 2>/dev/null; then
+              :
+            else
+              echo "FALLBACK (plain convert): $SRC"
+              ffmpeg -y -loglevel error -i "$IN" -acodec pcm_s16le -ar 44100 "$DST"
+              echo "{\"src\": \"$SRC\", \"dst\": \"$DST\", \"fallback\": true}" >> "$REPORT"
+            fi
             COUNT=$((COUNT+1))
           done < "$MAP"
-          echo "Converted $COUNT files."
-          test "$COUNT" -gt 0 || { echo "::error::0 files converted — check SAMPLES_MAP.tsv src paths against the manifest."; exit 1; }
+          echo "Processed $COUNT files."
+          test "$COUNT" -gt 0 || { echo "::error::0 files processed — check SAMPLES_MAP.tsv src paths against the manifest."; exit 1; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Sources/Echoelmusic/Resources
-          git commit -m "chore(samples): curated + converted founder sample set (phase 2, $COUNT files)"
+          git add Sources/Echoelmusic/Resources "$REPORT"
+          git commit -m "chore(samples): curated + processed founder sample set (phase 2, $COUNT files — DC/trim/tune/level/fades per category)"
           git push origin "HEAD:${{ github.ref_name }}"
 
       - name: Summary
