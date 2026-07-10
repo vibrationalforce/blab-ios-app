@@ -254,6 +254,11 @@ public final class BeatPlayer {
     }
 
     private static func bookmarkKey(_ track: Int) -> String { "echoel.beat.sample.bookmark.\(track)" }
+    /// Persists a BUNDLED assignment (built-in drum or category-library sample) so a
+    /// pad chosen in the browser survives relaunch — bundle files have no security-
+    /// scoped bookmark, so they need their own tiny reference. Value scheme:
+    /// "drum:<Name>" (Resources/Drums) or "lib:<Category>/<Name>" (Resources/Samples).
+    private static func bundledKey(_ track: Int) -> String { "echoel.beat.sample.bundled.\(track)" }
 
     /// Resource bundle for the drum WAVs. `Bundle.module` exists only when
     /// built via SwiftPM (`SWIFT_PACKAGE` is defined). The XcodeGen-built
@@ -308,7 +313,11 @@ public final class BeatPlayer {
     /// a previous launch, so custom pads persist across app restarts.
     private func restoreCustomSamples() {
         for i in Self.trackNames.indices {
-            guard let data = UserDefaults.standard.data(forKey: Self.bookmarkKey(i)) else { continue }
+            guard let data = UserDefaults.standard.data(forKey: Self.bookmarkKey(i)) else {
+                // No user-imported bookmark → maybe a bundled (browser) assignment.
+                restoreBundledAssignment(i)
+                continue
+            }
             var stale = false
             guard let url = try? URL(
                 resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale
@@ -340,6 +349,8 @@ public final class BeatPlayer {
             if let data = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
                 UserDefaults.standard.set(data, forKey: Self.bookmarkKey(track))
             }
+            // A user import overrides any bundled assignment on this pad.
+            UserDefaults.standard.removeObject(forKey: Self.bundledKey(track))
             sampleLabels[track] = url.deletingPathExtension().lastPathComponent
             return true
         } catch {
@@ -353,6 +364,7 @@ public final class BeatPlayer {
     public func resetSample(track: Int) {
         guard voices.indices.contains(track) else { return }
         UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
+        UserDefaults.standard.removeObject(forKey: Self.bundledKey(track))
         let name = Self.trackNames[track]
         let bundle = Self.resourceBundle
         if let url = bundle.url(forResource: name, withExtension: "wav", subdirectory: "Drums")
@@ -431,6 +443,7 @@ public final class BeatPlayer {
         UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
         if (try? voices[track].loadSample(from: url)) != nil {
             sampleLabels[track] = name
+            UserDefaults.standard.set("drum:\(name)", forKey: Self.bundledKey(track))
         }
     }
 
@@ -486,13 +499,48 @@ public final class BeatPlayer {
     }
 
     /// Assign a library sample to a pad (clears any custom bookmark, like
-    /// `assignBundled`). Bundle URL → no security scope needed.
+    /// `assignBundled`). Bundle URL → no security scope needed. Persists a bundled
+    /// reference so the choice survives relaunch.
     public func assignLibrary(track: Int, _ sample: LibrarySample) {
         guard voices.indices.contains(track) else { return }
         UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
         if (try? voices[track].loadSample(from: sample.url)) != nil {
             sampleLabels[track] = sample.name
+            UserDefaults.standard.set("lib:\(sample.id)", forKey: Self.bundledKey(track))
         }
+    }
+
+    /// Re-load a persisted bundled assignment (built-in drum or library sample)
+    /// on launch. No-op when none is stored or it no longer resolves.
+    private func restoreBundledAssignment(_ track: Int) {
+        guard let ref = UserDefaults.standard.string(forKey: Self.bundledKey(track)) else { return }
+        if let url = Self.bundledAssignmentURL(ref) {
+            if (try? voices[track].loadSample(from: url)) != nil {
+                sampleLabels[track] = url.deletingPathExtension().lastPathComponent
+            }
+        } else {
+            // Stale reference (renamed/removed asset) — drop it so we stop retrying.
+            UserDefaults.standard.removeObject(forKey: Self.bundledKey(track))
+        }
+    }
+
+    /// Resolve a stored bundled reference ("drum:<Name>" or "lib:<Category>/<Name>")
+    /// to a bundle URL. Pure lookup — nil when the asset no longer exists.
+    private static func bundledAssignmentURL(_ ref: String) -> URL? {
+        if let name = ref.stripping(prefix: "drum:") {
+            return bundledSampleURL(name)
+        }
+        if let id = ref.stripping(prefix: "lib:") {
+            return library.flatMap { $0.samples }.first { $0.id == id }?.url
+        }
+        return nil
+    }
+}
+
+private extension String {
+    /// The remainder after `prefix`, or nil when the string doesn't start with it.
+    func stripping(prefix: String) -> String? {
+        hasPrefix(prefix) ? String(dropFirst(prefix.count)) : nil
     }
 }
 #endif
