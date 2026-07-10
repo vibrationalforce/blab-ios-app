@@ -1,12 +1,27 @@
-build: 2026-07-10 v10.79.141 (Capability-Verify: CloudKit + Push + WeatherKit Entitlements aktiv)
+build: 2026-07-10 v10.79.142 (Wetter formt die Musik + Push-Ankündigungen ohne Konto)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: TECHNISCHER VERIFIKATIONS-BUILD (identisch zu v140 im Verhalten):
-  - Aktiviert die frisch im Developer-Portal eingerichteten Capabilities
-    im App-Entitlement: iCloud/CloudKit-Container, Push (aps) und
-    WeatherKit. In der App ändert sich NICHTS Sichtbares — dieser Build
-    beweist nur, dass Signing/Provisioning mit den neuen Capabilities
-    durchläuft. Danach bauen wir darauf: Wetter→Musik (E3b) und
-    Push-Ankündigungen ohne Konto (E4).
-  → Bitte testen: einfach normal starten und spielen — verhält sich
-    alles exakt wie v140? (Kein neues Feature, keine neue Berechtigung
-    wird abgefragt.)
+notesT: ZWEI NEUE OPT-IN-FEATURES (beide standardmäßig AUS):
+
+  WETTER FORMT DIE MUSIK (Kompositions-Panel):
+  - Neuer Schalter "Weather shapes the music": EIN grober Wetterabruf
+    beim Start färbt das STRUKTUR-Skelett der Komposition (Himmel =
+    Würze, dein Körper bleibt der Haupttreiber). Braucht den
+    "Place in session name"-Schalter als Koordinatenquelle.
+  - Ehrlicher Status zeigt die Wetterlage (z. B. "rain-day-cold"),
+    dazu die Apple-Wetter-Attribution.
+  → Bitte testen: beide Schalter an → Start → erscheint nach ein paar
+    Sekunden die Wetterlage unterm Schalter? Klingt dieselbe Session
+    bei gleichem Wetter strukturell verwandt? Schalter aus → Musik
+    exakt wie vorher?
+
+  NEWS & LIVE EVENTS (Learn → "Stay in the loop"):
+  - Neuer Schalter "News & live events": ein Push, wenn ein neues
+    Feature shipped oder ein Live-Event startet. Ohne Konto, ohne
+    Server, nichts wird getrackt — läuft über iCloud (CloudKit).
+  → Zum Testen brauchst du einmal das Dashboard-Setup aus
+    docs/dev/CLOUDKIT_ANNOUNCEMENTS.md (Schema anlegen + in
+    PRODUCTION deployen), dann ein Test-Announcement posten →
+    kommt der Push an? Schalter aus → kein Push mehr?
+
+  UNTER DER HAUBE: CloudKit/Push/WeatherKit-Entitlements sind seit
+  v141 aktiv (Portal-Verifikation bestanden).
