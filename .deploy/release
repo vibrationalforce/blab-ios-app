@@ -1,21 +1,27 @@
-build: 2026-07-09 v10.79.138 (Die Beat-Grid-Timeline ist da — Arrange zeigt jetzt das echte Raster)
+build: 2026-07-10 v10.79.139 (Knister-Fix beim Umschalten + echte WAV-Wellenform + EchoelSynth)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: ARRANGE ist jetzt die echte Beat-Grid-Timeline (Stufe 1):
-  - Takt-Lineal + feste Spur-Beschriftung links (MIDI 1 · Audio 1)
-  - Deine bestehenden Song-Abschnitte wurden AUTOMATISCH aufs Raster migriert
-    (taktgenau, verlustfrei — nichts geht verloren)
-  - Pinch = Zoom (Raster dehnt sich), horizontal wischen = durch den Song
-  - Snap-Menü oben rechts: Takt · Beat · 1/8 · 1/16 · Triole · FREI (stufenlos)
-  - Playhead läuft live mit (grün beim Abspielen)
+notesT: KNISTERN BEIM UMSCHALTEN — Ursache gefunden und gefixt:
+  - Beim Wechsel von Preset/Genre/Character wurden FX-Stufen mitten im
+    Spiel wieder eingeschaltet und ihr EINGEFRORENES altes Audio platzte
+    raus (das Knistern). Jetzt: Stufe wird beim Einschalten sauber geleert.
+  - Zweite Ursache: eine neue Delay-Zeit SPRANG (Klick). Jetzt gleitet sie
+    (~40 ms, wie ein Tape-Delay repitcht) — sauber statt Knack.
+  → Bitte testen: spielen lassen und Genres/Charaktere/Presets schnell
+    durchschalten — knistert es noch? (Jeder Flächenwechsel wird jetzt
+    geloggt, ein Diag-Log zeigt uns künftig WANN du umgeschaltet hast.)
 
-  Noch NICHT in dieser Stufe (kommt als Nächstes, ehrlich):
-  - Clips ziehen/schneiden (Stufe 3 — mit den recherchierten Gesten:
-    Snap rastet, Pinch-auf-Maximal-Zoom schaltet stufenlos frei)
-  - WAV-Wellenform in Audio-Regionen (Stufe 2 — direkt als Nächstes)
-  - Abspielen bleibt vorerst taktweise (wie bisher)
+  WAV-WELLENFORM (Stufe 2 der Timeline):
+  - Audio Clip (Import): die Datei zeigt jetzt ihre echte Wellenform,
+    der getrimmte Bereich ist hell, außen abgedunkelt — und du kannst
+    die Trim-Griffe DIREKT auf der Wellenform ziehen (Zahlenfelder
+    bleiben für Präzision).
+  - Arrange: Audio-Regionen zeigen ihre Wellenform, sobald sie eine
+    echte Datei tragen (kommt mit Aufnahme/Import als Nächstes).
 
-  Außerdem in diesem Build: v137-Fix drin (Ränder-Beschnitt auf allen
-  Flächen behoben — bitte gegenprüfen).
-
-  → Bitte testen: Arrange öffnen — siehst du deine Abschnitte als Blöcke
-    auf dem Raster? Zoom/Scroll flüssig? Ränder überall sauber?
+  AUSSERDEM:
+  - EchoelSynth: das Spielfeld heißt jetzt EchoelSynth (ex EchoelTouch);
+    dein gespeicherter Sound bleibt erhalten.
+  - Vollbild-Raster ADAPTIV: keine angeschnittenen Spalten mehr unter
+    Notch/Home-Balken — was du siehst, ist exakt was klingt.
+  → Bitte testen: Vollbild spielen — sind alle Spalten voll sichtbar
+    und trifft der Finger das richtige Feld am Rand?
