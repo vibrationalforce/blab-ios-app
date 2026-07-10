@@ -21,15 +21,30 @@ public final class TimelineStore {
     @ObservationIgnored private let store = AppGroupStore(subdirectory: "Timeline")
     @ObservationIgnored private static let fileName = "timeline"
 
-    /// Loads the stored document; when none exists, migrates the legacy
-    /// arrangement (pass its sections) or seeds the default lane set.
-    public init(migratingSections sections: [ArrangementSection] = []) {
+    /// True until the one-time legacy migration ran (no stored document yet).
+    @ObservationIgnored private var needsBootstrap: Bool
+
+    /// Loads the stored document. When none exists the document stays empty
+    /// until `bootstrapIfNeeded(sections:)` runs the one-time migration — the
+    /// store is a plain `@State` default in the App, so the legacy sections
+    /// arrive later (from the environment) rather than at init.
+    public init() {
         if let stored = store.load(TimelineDocument.self, name: Self.fileName) {
             self.document = stored
+            self.needsBootstrap = false
         } else {
-            self.document = Self.migrate(sections: sections)
-            persist()
+            self.document = TimelineDocument()
+            self.needsBootstrap = true
         }
+    }
+
+    /// One-time migration of the legacy arrangement (idempotent; call from the
+    /// timeline surface's `.task`). Persists the migrated document.
+    public func bootstrapIfNeeded(sections: [ArrangementSection]) {
+        guard needsBootstrap else { return }
+        needsBootstrap = false
+        document = Self.migrate(sections: sections)
+        persist()
     }
 
     // MARK: - Migration (pure, testable)
