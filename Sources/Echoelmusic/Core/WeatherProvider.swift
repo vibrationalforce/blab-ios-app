@@ -26,7 +26,9 @@ public final class WeatherProvider {
 
     /// Cache lifetime — long enough for a whole session block, short enough
     /// that an evening session after an afternoon one feels the sky change.
-    public static let cacheLifetime: TimeInterval = 30 * 60
+    /// (nonisolated: an immutable Sendable constant, read from the pure
+    /// cache-policy helper.)
+    public nonisolated static let cacheLifetime: TimeInterval = 30 * 60
 
     /// Last successful snapshot + when it was fetched (in-memory only).
     public private(set) var current: WeatherSnapshot?
