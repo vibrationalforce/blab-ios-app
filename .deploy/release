@@ -1,27 +1,28 @@
-build: 2026-07-10 v10.79.139 (Knister-Fix beim Umschalten + echte WAV-Wellenform + EchoelSynth)
+build: 2026-07-10 v10.79.140 (Launch-Kandidat v1.0: alles frei + Ort im Namen + Bio nebeneinander)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: KNISTERN BEIM UMSCHALTEN — Ursache gefunden und gefixt:
-  - Beim Wechsel von Preset/Genre/Character wurden FX-Stufen mitten im
-    Spiel wieder eingeschaltet und ihr EINGEFRORENES altes Audio platzte
-    raus (das Knistern). Jetzt: Stufe wird beim Einschalten sauber geleert.
-  - Zweite Ursache: eine neue Delay-Zeit SPRANG (Klick). Jetzt gleitet sie
-    (~40 ms, wie ein Tape-Delay repitcht) — sauber statt Knack.
-  → Bitte testen: spielen lassen und Genres/Charaktere/Presets schnell
-    durchschalten — knistert es noch? (Jeder Flächenwechsel wird jetzt
-    geloggt, ein Diag-Log zeigt uns künftig WANN du umgeschaltet hast.)
+notesT: LAUNCH-KANDIDAT — das freie Instrument (Geschäftsmodell v2):
+  - ALLES FREI: keine Kauf-UI mehr in der App (der kurze "Pro"-Chip im
+    Header ist wieder raus). Das Live-Jahresabo kommt erst mit v1.1.
+  → Bitte testen: nirgendwo darf ein Kauf/Preis/Abo auftauchen.
 
-  WAV-WELLENFORM (Stufe 2 der Timeline):
-  - Audio Clip (Import): die Datei zeigt jetzt ihre echte Wellenform,
-    der getrimmte Bereich ist hell, außen abgedunkelt — und du kannst
-    die Trim-Griffe DIREKT auf der Wellenform ziehen (Zahlenfelder
-    bleiben für Präzision).
-  - Arrange: Audio-Regionen zeigen ihre Wellenform, sobald sie eine
-    echte Datei tragen (kommt mit Aufnahme/Import als Nächstes).
+  ORT IM SESSION-NAMEN (opt-in, standardmäßig AUS):
+  - Neuer Schalter "Place in session name" im Kompositions-Panel:
+    einmalige City-Abfrage, Name wird z. B.
+    Echoel_2026-07-10_Hamburg_Am_72bpm_A440. Nichts wird gespeichert
+    oder gesendet außer dem Namen selbst; Ablehnung der Berechtigung
+    → Name einfach ohne Ort.
+  → Bitte testen: Schalter an → Berechtigung erlauben → Session
+    speichern/exportieren → steht deine Stadt im Namen? Danach
+    Schalter aus → Name wieder ohne Ort?
 
-  AUSSERDEM:
-  - EchoelSynth: das Spielfeld heißt jetzt EchoelSynth (ex EchoelTouch);
-    dein gespeicherter Sound bleibt erhalten.
-  - Vollbild-Raster ADAPTIV: keine angeschnittenen Spalten mehr unter
-    Notch/Home-Balken — was du siehst, ist exakt was klingt.
-  → Bitte testen: Vollbild spielen — sind alle Spalten voll sichtbar
-    und trifft der Finger das richtige Feld am Rand?
+  GEMEINSAM: PULS NEBENEINANDER (Live Colabo):
+  - Neuer Schalter "Share my pulse (live)" wenn zwei iPhones verbunden
+    sind: jede Person sieht die EIGENEN Zahlen (BPM · Kohärenz)
+    nebeneinander — bewusst KEIN gemeinsamer Score. Streamt nur,
+    solange die Colabo-Ansicht offen ist.
+  → Bitte testen (2 Geräte): verbinden → Puls teilen → sehen beide
+    beide Zeilen? Ansicht schließen → Streaming endet?
+
+  UNTER DER HAUBE (für v1.1 vorbereitet, unsichtbar):
+  - Wetter→Musik/Visual-Mapping als getesteter Kern (WeatherKit folgt).
+  - StoreKit-Struktur für das kommende "Echoel Live"-Jahresabo.
