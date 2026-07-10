@@ -79,6 +79,9 @@ struct EchoelmusicApp: App {
     @State private var clipStore = ClipStore()
     /// Linear song timeline — an ordered chain of sections, each playing a clip.
     @State private var arrangementStore = ArrangementStore()
+    /// Beat-grid Arrange timeline (tick-positioned lanes/regions); migrates the
+    /// legacy section song on first run (bootstrapIfNeeded in the surface).
+    @State private var timelineStore = TimelineStore()
     /// Plays the arrangement back over the shared transport (fed via PianoRollModel).
     @State private var arrangementPlayer = ArrangementPlayer()
     /// Parameter automation (master level / tempo) played over the shared transport.
@@ -301,6 +304,7 @@ struct EchoelmusicApp: App {
             .environment(pianoRoll)
             .environment(clipStore)
             .environment(arrangementStore)
+            .environment(timelineStore)
             .environment(arrangementPlayer)
             .environment(automationPlayer)
             .environment(audioInputs)
