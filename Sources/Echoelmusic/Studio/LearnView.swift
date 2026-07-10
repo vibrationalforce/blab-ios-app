@@ -14,6 +14,13 @@ struct LearnView: View {
     @State private var selected: LearnEntry?
     var embedded = false
 
+    /// E4: opt-in news/event push (CloudKit, serverless, no account). Lives
+    /// here because Learn is the one always-reachable info surface — never
+    /// requested at first launch.
+    #if canImport(CloudKit) && canImport(UserNotifications)
+    @Environment(AnnouncementCenter.self) private var announcements
+    #endif
+
     var body: some View {
         if embedded {
             list
@@ -45,12 +52,51 @@ struct LearnView: View {
                         }
                     }
                 }
+                #if canImport(CloudKit) && canImport(UserNotifications)
+                announcementsSection
+                #endif
             }
             .padding(16)
         }
         .background(EchoelTheme.bg)
         .sheet(item: $selected) { entryDetail($0) }
     }
+
+    #if canImport(CloudKit) && canImport(UserNotifications)
+    /// Opt-in broadcast push for new features and live events. Serverless
+    /// (CloudKit public DB), no account, default OFF — honest status below.
+    private var announcementsSection: some View {
+        @Bindable var announcements = announcements
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Stay in the loop")
+                .font(EchoelTheme.font(13, .semibold))
+                .foregroundStyle(EchoelTheme.dim)
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(isOn: $announcements.enabled) {
+                    Text("News & live events")
+                        .font(EchoelTheme.font(14)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                .accessibilityHint("A push notification when a new feature ships or a live event starts. No account, nothing tracked; turn off anytime.")
+                Text(statusLine)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+    }
+
+    private var statusLine: String {
+        switch announcements.status {
+        case "denied": return "Notifications are off for Echoel in Settings."
+        case "error": return "Couldn't subscribe — check that iCloud is signed in, then toggle again."
+        case "on": return "You'll hear about new features and live events. Nothing else, ever."
+        default: return "Off by default. When on, one push per announcement — no account, nothing tracked."
+        }
+    }
+    #endif
 
     private func row(_ entry: LearnEntry) -> some View {
         Button { selected = entry } label: {

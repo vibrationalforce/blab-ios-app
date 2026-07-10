@@ -111,6 +111,11 @@ struct EchoelmusicApp: App {
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @State private var weatherProvider = WeatherProvider()
     #endif
+    /// Opt-in news/event push via CloudKit public DB (default OFF; E4) —
+    /// serverless, no account; the founder posts in the CloudKit Dashboard.
+    #if canImport(CloudKit) && canImport(UserNotifications)
+    @State private var announcements = AnnouncementCenter()
+    #endif
     /// Loop → .wav export (live-capture) and the saved-projects library — the one
     /// window's output + persistence.
     @State private var loopExporter = LoopExporter()
@@ -331,6 +336,9 @@ struct EchoelmusicApp: App {
             #if canImport(WeatherKit)
             .environment(weatherProvider)
             #endif
+            #endif
+            #if canImport(CloudKit) && canImport(UserNotifications)
+            .environment(announcements)
             #endif
             .environment(loopExporter)
             .environment(projectStore)
