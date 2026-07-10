@@ -44,6 +44,11 @@ public final class LocationNamer: NSObject {
     /// Last resolved locality ("Hamburg"); empty until resolved or when off.
     public private(set) var placeToken: String = ""
 
+    /// Last coarse fix (city-level accuracy), kept for same-session consumers
+    /// that need a coordinate — today: the WeatherKit fetch (E3b). Transient
+    /// like the place token: never persisted, cleared when the toggle goes off.
+    @ObservationIgnored public private(set) var lastFix: CLLocation?
+
     /// True when the user denied/restricted location — the UI can say so
     /// honestly instead of silently showing no place.
     public private(set) var denied = false
@@ -88,6 +93,7 @@ public final class LocationNamer: NSObject {
     private func clear(keepEnabled: Bool = false) {
         placeToken = ""
         session?.placeToken = ""
+        lastFix = nil
         if !keepEnabled { denied = false }
     }
 
@@ -120,6 +126,7 @@ extension LocationNamer: CLLocationManagerDelegate {
         guard let location = locations.last else { return }
         Task { @MainActor [weak self] in
             guard let self, self.enabled else { return }
+            self.lastFix = location
             do {
                 let placemarks = try await self.geocoder.reverseGeocodeLocation(location)
                 // Locality (city) first; fall back to coarser admin area — never

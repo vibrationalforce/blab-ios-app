@@ -46,6 +46,37 @@ public struct WeatherSnapshot: Sendable, Equatable, Codable {
     }
 }
 
+public extension WeatherSnapshot.Condition {
+    /// Maps WeatherKit's `WeatherCondition.rawValue` strings onto our coarse
+    /// 8-case palette. PURE (string in, case out) so Linux CI tests it without
+    /// WeatherKit. Unknown raw values → nil; the provider then falls back to
+    /// `.partlyCloudy` (the least-opinionated flavour) rather than guessing.
+    init?(weatherKitRaw raw: String) {
+        switch raw {
+        case "clear", "mostlyClear", "hot":
+            self = .clear
+        case "partlyCloudy", "breezy", "windy":
+            self = .partlyCloudy
+        case "mostlyCloudy", "cloudy":
+            self = .overcast
+        case "foggy", "haze", "smoky":
+            self = .fog
+        case "drizzle", "freezingDrizzle", "sunShowers":
+            self = .drizzle
+        case "rain", "heavyRain", "freezingRain":
+            self = .rain
+        case "isolatedThunderstorms", "scatteredThunderstorms", "strongStorms",
+             "thunderstorms", "hurricane", "tropicalStorm", "hail":
+            self = .storm
+        case "snow", "heavySnow", "flurries", "sunFlurries", "sleet",
+             "wintryMix", "blizzard", "blowingSnow", "frigid":
+            self = .snow
+        default:
+            return nil
+        }
+    }
+}
+
 /// Deterministic weather → music/visual mapping. Same snapshot in, same
 /// values out — reproducible like everything else in the composer.
 public enum WeatherMood {
