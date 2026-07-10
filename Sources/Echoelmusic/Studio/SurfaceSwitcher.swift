@@ -69,6 +69,10 @@ struct SurfaceSwitcherBar: View {
     private func chip(_ surface: WorkspaceSurface) -> some View {
         let isOn = surface == selected
         return Button {
+            // Breadcrumb: device logs must show WHAT was switched WHEN — the
+            // crackle report ("knistert beim Umschalten") was untriageable
+            // without it.
+            log.log(.info, category: .ui, "Surface switch → \(surface.rawValue)")
             surfaceRaw = surface.rawValue
         } label: {
             HStack(spacing: 5) {
