@@ -114,6 +114,26 @@ public final class TimelineStore {
         persist()
     }
 
+    // MARK: - Lane mixer (K2a) — state only; the SURFACE pushes gains into engines
+
+    public func setLaneLevel(id: UUID, _ level: Float) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].level = max(0, min(2, level))
+        persist()
+    }
+
+    public func toggleMute(id: UUID) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].isMuted.toggle()
+        persist()
+    }
+
+    public func toggleSolo(id: UUID) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].isSoloed.toggle()
+        persist()
+    }
+
     /// Remove an EMPTY lane (regions must move/delete first — no silent data loss).
     public func removeLaneIfEmpty(id: UUID) {
         guard document.regions(in: id).isEmpty else { return }
