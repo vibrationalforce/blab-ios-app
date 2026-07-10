@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 17c) — v147 crashte WEITER → DEFINITIVER Fix v148 (CloudKit ganz aus)
+- **Founder-Log v147 (Build 2253) widerlegte v147:** Der Wrapper (Safe-Bridging)
+  behob NICHTS. Neuer Stack ist eindeutiger als der v145: EXC_BREAKPOINT tief
+  **IN CloudKit** (`_os_crash` bei CloudKit+46272, imageIndex 2 = CloudKit für die
+  Top-4-Frames), erreicht vom Launch-Re-Assert — NICHT im async-Thunk. Der Thunk
+  war nie das Problem; **CloudKit trappt selbst hart, weil Container/Schema nicht
+  in PRODUCTION deployed sind**. Schutzschalter griff auf dem ERSTEN v147-Start
+  nicht (ck-inflight war nie gesetzt → activate() lief doch).
+- **fix 3a803a2 → v10.79.148 (3 Dateien, definitiv):** `cloudKitConfigured = false`
+  (v1.0-Ship-Gate) schaltet die GANZE AnnouncementCenter-Maschinerie ab — kein
+  Launch-Aufruf, `enabled.didSet` speichert nur die Präferenz (status
+  "coming-soon"), NULL CloudKit-Aufrufe. LearnView zeigt "Gespeichert — Live-News
+  kommen mit Echoel Live". Flag wird in v1.1 im selben Schritt wie das Schema-
+  Deployment auf true gesetzt. Passt zum Geschäftsmodell (v1.0 frei jetzt, Push =
+  Echoel Live v1.1). Eine Hauptansicht bleibt — war nie die Ursache.
+- **Lektion (verschärft):** Ein Fix, der die Ursache nur UMGEHT statt ENTFERNT,
+  ist eine Wette — v147 umging den Thunk, aber die Ursache (unprovisioniertes
+  CloudKit) blieb. v148 entfernt den Aufruf selbst. Bei framework-internem
+  `_os_crash`: nicht die Aufrufart ändern, den Aufruf weglassen bis die
+  Server-Seite steht.
+
 ## 2026-07-10 (Forts. 17b) — CRASH GELÖST (Log!): CloudKit, NICHT SwiftUI → v147
 - **Founder lieferte das v145-.ips** — Gold wert. Eindeutig: EXC_BREAKPOINT (brk #1)
   Main Thread **IM CloudKit-Framework**, 5,1 s NACH Launch (App rendert erst!),
