@@ -3,6 +3,28 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 17b) — CRASH GELÖST (Log!): CloudKit, NICHT SwiftUI → v147
+- **Founder lieferte das v145-.ips** — Gold wert. Eindeutig: EXC_BREAKPOINT (brk #1)
+  Main Thread **IM CloudKit-Framework**, 5,1 s NACH Launch (App rendert erst!),
+  CheckedContinuation-witness-table + _os_crash in den Registern, Thread 1 mitten
+  im cloudd-XPC, **NULL SwiftUI-Frames**. Aufrufer: `AnnouncementCenter.activate()`
+  (einziger Live-CK-Caller; re-asserted bei JEDEM Start, News-Toggle seit Push-Test
+  AN; Klasse kam mit v142 → erklärt "v143 lief"). Die Metadata-These (v145-Fix,
+  v146-Plan-B) war FALSCH — beide Layout-Eingriffe waren wirkungslos/unnötig.
+- **fix d662861 → v10.79.147 (3 Dateien):** (1) AnnouncementCenter: CK-Calls
+  umgehen den auto-generierten async-Thunk (Completion-API + eigene Continuation,
+  nil+nil-tolerant, resumed genau 1×); (2) Launch-SCHUTZSCHALTER (`ck-inflight`-
+  Flag): stirbt der Prozess je wieder im CK-Call, überspringt der nächste Start
+  das Auto-Re-Assert (status "error", App öffnet) — nie wieder Crash-Schleife;
+  (3) SurfaceHost zurück auf die eine Hauptansicht (v145-Baum) — vom Log entlastet.
+- **Lektion (dreifach bezahlt):** "stürzt beim Öffnen" ≠ first-render — IMMER
+  uptime im Log prüfen (5 s Foreground = Post-Render-Crash, andere Verdächtige).
+  Ein Fix ohne Log ist eine Wette; der dritte Zyklus mit Log dauerte Minuten.
+- **Restrisiko ehrlich:** Trappt CK TIEFER als im Thunk, verhindert Wrapper den
+  Erst-Crash nicht — aber der Schutzschalter macht jeden Folge-Start lauffähig.
+  CloudKit-Schema in PRODUCTION fehlt weiter (Founder) → status "error" möglich,
+  ab jetzt harmlos.
+
 ## 2026-07-10 (Forts. 17) — v145 CRASHT WEITER → NOTBETRIEB Plan B (v146) + Samples lokalisiert
 - **Founder:** „10.79.145 ist alt und stürzte ab" → NEIN-Pfad des Handoffs. Wie
   vereinbart KEIN dritter Blindfix: **81aa9a5 = Plan B** — SurfaceHost byte-genau
