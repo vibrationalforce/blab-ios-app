@@ -26,7 +26,8 @@ struct AudioClipView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     fileRow
-                    if player.loadedURL != nil {
+                    if let url = player.loadedURL {
+                        WaveformTrimEditor(url: url, region: $region)
                         regionControls
                         transport
                     } else {
@@ -143,6 +144,87 @@ struct AudioClipView: View {
     }
     private var loopBinding: Binding<Bool> {
         Binding(get: { region.loop }, set: { region.loop = $0 })
+    }
+}
+
+// MARK: - Waveform + trim handles (Stage 2c: "Wellenform + Trim-Griffe statt
+// Blind-Zahlen" — the EchoelValueFields below stay for tick-precise entry)
+
+/// The loaded file's waveform with the trimmed region highlighted and two
+/// draggable trim handles. Drags rebuild the region through
+/// `AudioClipRegion.init` so its clamping (start ≥ 0, end > start) holds.
+@MainActor
+private struct WaveformTrimEditor: View {
+    let url: URL
+    @Binding var region: AudioClipRegion
+
+    @State private var data: WaveformData?
+    private static let height: CGFloat = 96
+    private static let handleHitWidth: CGFloat = 34
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = max(1, geo.size.width)
+            let dur = max(0.0001, data?.durationSeconds ?? 0)
+            let x0 = min(w, CGFloat(region.startSeconds / dur) * w)
+            let x1 = min(w, CGFloat(region.endSeconds / dur) * w)
+
+            ZStack(alignment: .topLeading) {
+                if let data {
+                    WaveformView(data: data, tint: EchoelTheme.text)
+                    // Dim everything OUTSIDE the trimmed region.
+                    Rectangle().fill(EchoelTheme.bg.opacity(0.65))
+                        .frame(width: max(0, x0))
+                    Rectangle().fill(EchoelTheme.bg.opacity(0.65))
+                        .frame(width: max(0, w - x1))
+                        .offset(x: x1)
+                    handle(x: x0, width: w, duration: dur, isStart: true)
+                    handle(x: x1, width: w, duration: dur, isStart: false)
+                } else {
+                    Rectangle().fill(EchoelTheme.fill)
+                        .overlay(Image(systemName: "waveform")
+                            .font(.system(size: 12))
+                            .foregroundStyle(EchoelTheme.dim))
+                }
+            }
+            .coordinateSpace(name: "waveform-trim")   // drag maps to waveform x
+        }
+        .frame(height: Self.height)
+        .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        .task(id: url) { data = await WaveformCache.shared.waveform(for: url) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Waveform, trim \(String(format: "%.2f", region.startSeconds)) to \(String(format: "%.2f", region.endSeconds)) seconds")
+    }
+
+    private func handle(x: CGFloat, width: CGFloat, duration: Double, isStart: Bool) -> some View {
+        Rectangle()
+            .fill(EchoelTheme.text)
+            .frame(width: 2, height: Self.height)
+            .overlay(   // fat-finger hit area, invisible
+                Color.clear
+                    .frame(width: Self.handleHitWidth, height: Self.height)
+                    .contentShape(Rectangle())
+                    .gesture(drag(width: width, duration: duration, isStart: isStart))
+            )
+            .offset(x: x - 1)
+    }
+
+    private func drag(width: CGFloat, duration: Double, isStart: Bool) -> some Gesture {
+        DragGesture(minimumDistance: 1, coordinateSpace: .named("waveform-trim"))
+            .onChanged { value in
+                let seconds = Double(min(max(0, value.location.x), width) / width) * duration
+                if isStart {
+                    region = AudioClipRegion(startSeconds: min(seconds, region.endSeconds - 0.01),
+                                             endSeconds: region.endSeconds,
+                                             loop: region.loop, gain: region.gain)
+                } else {
+                    region = AudioClipRegion(startSeconds: region.startSeconds,
+                                             endSeconds: max(seconds, region.startSeconds + 0.01),
+                                             loop: region.loop, gain: region.gain)
+                }
+            }
     }
 }
 #endif

@@ -166,9 +166,21 @@ struct ArrangeTimelineView: View {
     private func regionBlock(_ region: TimelineRegion) -> some View {
         let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb
         let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2)
-        let name = clips.clip(id: region.clipID)?.name ?? "Clip"
+        let clip = clips.clip(id: region.clipID)
+        let name = clip?.name ?? "Clip"
         return RoundedRectangle(cornerRadius: 6)
             .fill(EchoelTheme.fill)
+            .overlay {
+                // Audio regions show their waveform (Stage 2) the moment the
+                // clip references a real file — recording/import (Stage A/3)
+                // feeds this; MIDI/empty regions stay plain blocks.
+                if let clip, clip.kind == .audio, let url = Self.mediaURL(clip) {
+                    FileWaveformView(url: url, tint: EchoelTheme.text)
+                        .padding(.horizontal, 3).padding(.vertical, 8)
+                        .allowsHitTesting(false)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
             .overlay(RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(EchoelTheme.text.opacity(0.35), lineWidth: 1))
             .overlay(alignment: .bottomLeading) {
@@ -181,6 +193,14 @@ struct ArrangeTimelineView: View {
             .frame(width: w, height: Self.laneHeight - 8)
             .offset(x: x, y: 4)
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
+    }
+
+    /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
+    /// nothing writes relative refs yet — extend here when import lands).
+    private static func mediaURL(_ clip: Clip) -> URL? {
+        guard let ref = clip.mediaRef, !ref.isEmpty else { return nil }
+        let url = URL(fileURLWithPath: ref)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
     private var magnify: some Gesture {
