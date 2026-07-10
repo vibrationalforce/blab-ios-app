@@ -1,28 +1,12 @@
-build: 2026-07-10 v10.79.140 (Launch-Kandidat v1.0: alles frei + Ort im Namen + Bio nebeneinander)
+build: 2026-07-10 v10.79.141 (Capability-Verify: CloudKit + Push + WeatherKit Entitlements aktiv)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: LAUNCH-KANDIDAT — das freie Instrument (Geschäftsmodell v2):
-  - ALLES FREI: keine Kauf-UI mehr in der App (der kurze "Pro"-Chip im
-    Header ist wieder raus). Das Live-Jahresabo kommt erst mit v1.1.
-  → Bitte testen: nirgendwo darf ein Kauf/Preis/Abo auftauchen.
-
-  ORT IM SESSION-NAMEN (opt-in, standardmäßig AUS):
-  - Neuer Schalter "Place in session name" im Kompositions-Panel:
-    einmalige City-Abfrage, Name wird z. B.
-    Echoel_2026-07-10_Hamburg_Am_72bpm_A440. Nichts wird gespeichert
-    oder gesendet außer dem Namen selbst; Ablehnung der Berechtigung
-    → Name einfach ohne Ort.
-  → Bitte testen: Schalter an → Berechtigung erlauben → Session
-    speichern/exportieren → steht deine Stadt im Namen? Danach
-    Schalter aus → Name wieder ohne Ort?
-
-  GEMEINSAM: PULS NEBENEINANDER (Live Colabo):
-  - Neuer Schalter "Share my pulse (live)" wenn zwei iPhones verbunden
-    sind: jede Person sieht die EIGENEN Zahlen (BPM · Kohärenz)
-    nebeneinander — bewusst KEIN gemeinsamer Score. Streamt nur,
-    solange die Colabo-Ansicht offen ist.
-  → Bitte testen (2 Geräte): verbinden → Puls teilen → sehen beide
-    beide Zeilen? Ansicht schließen → Streaming endet?
-
-  UNTER DER HAUBE (für v1.1 vorbereitet, unsichtbar):
-  - Wetter→Musik/Visual-Mapping als getesteter Kern (WeatherKit folgt).
-  - StoreKit-Struktur für das kommende "Echoel Live"-Jahresabo.
+notesT: TECHNISCHER VERIFIKATIONS-BUILD (identisch zu v140 im Verhalten):
+  - Aktiviert die frisch im Developer-Portal eingerichteten Capabilities
+    im App-Entitlement: iCloud/CloudKit-Container, Push (aps) und
+    WeatherKit. In der App ändert sich NICHTS Sichtbares — dieser Build
+    beweist nur, dass Signing/Provisioning mit den neuen Capabilities
+    durchläuft. Danach bauen wir darauf: Wetter→Musik (E3b) und
+    Push-Ankündigungen ohne Konto (E4).
+  → Bitte testen: einfach normal starten und spielen — verhält sich
+    alles exakt wie v140? (Kein neues Feature, keine neue Berechtigung
+    wird abgefragt.)
