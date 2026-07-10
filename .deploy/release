@@ -1,32 +1,23 @@
-build: 2026-07-10 v10.79.144 (EINE Hauptansicht + stiller Push / Crash-Fix)
+build: 2026-07-10 v10.79.145 (LAUNCH-CRASH-FIX für die eine Hauptansicht)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notesT: DEINE DREI PUNKTE:
+notesT: v144 stürzte SOFORT BEIM ÖFFNEN ab — das ist die bekannte
+  SwiftUI-Metadata-Crashklasse (wie der schwarze Bildschirm 10.76.34):
+  Der Hauptansicht-Umbau hat den Wurzel-Baum zu tief verschachtelt;
+  CI merkt das nicht, nur das Gerät. Fix: die zwei bewährten
+  Gegenmittel (AnyView-Erasure an der neuen Naht + Sheet-Muster).
+  Layout und Funktionen sind UNVERÄNDERT gegenüber v144:
+  Timeline oben, Instrument unten, Spur-Türen, stummer Push.
 
-  1) PUSH-CRASH + TÖNE: Der Announcement-Push spielte den System-Ton —
-     das verletzte "keine Töne außer der Musik" und ist der wahrschein-
-     lichste Crash-Auslöser (Ton unterbricht die laufende Audio-Engine).
-     Der Push ist jetzt STUMM (nur Banner).
-     → WICHTIG: Learn → News-Schalter einmal AUS und wieder AN schalten
-       (die Einstellung liegt serverseitig in der Subscription).
-     → Dann neuen Test-Record im Dashboard anlegen. Falls es NOCH crasht:
-       Einstellungen → Datenschutz → Analyse → Analysedaten → Eintrag
-       "Echoelmusic-…" öffnen → Screenshot(s) an mich.
+  → Bitte NUR EINS zuerst testen: Öffnet die App? (mehrmals starten)
+  → Wenn JA: quer/hochkant drehen, Spur-Kopf antippen (Menü),
+    "+" Spur hinzufügen, Piano Roll über die MIDI-Spur öffnen.
+  → Wenn NEIN (crasht weiter): Ich brauche dann den Beweis vom Gerät:
+    Einstellungen → Datenschutz & Sicherheit → Analyse & Verbesserungen
+    → Analysedaten → Eintrag "Echoelmusic-2026-07-…" öffnen →
+    Screenshots der ersten 2–3 Seiten an mich. Dann sehe ich die
+    exakte Absturzstelle statt zu raten — und als Plan B liegt der
+    garantiert startende v143-Baum bereit (eine Zeile Revert).
 
-  2) EINE HAUPTANSICHT (Ableton-Prinzip): Kein Umschalten mehr zwischen
-     Arrange/Clips/Studio/Mix — die Chip-Leiste ist weg. EIN Bildschirm:
-     oben die Arrangement-Timeline (Takte, Spuren, Playhead), darunter
-     das Instrument (Bio-Strip, Composition, FX, Export …).
-     Quer UND hochkant: quer bekommt die Timeline die halbe Höhe,
-     hochkant ein Drittel.
-
-  3) SPUREN SIND JETZT TÜREN: Spur-Kopf antippen → Menü: MIDI-Spur
-     öffnet das Piano Roll, Audio-Spur den Audio-Editor; Umbenennen;
-     leere Spur löschen. "+" oben rechts fügt Spuren hinzu. Spuren
-     scrollen vertikal, Zoom per Pinch.
-  → Bitte testen: dreht sich das Layout sauber mit? Fühlt sich der
-    Split richtig an (Timeline zu groß/klein)? Was genau stört an der
-    Optik — Screenshot mit einem Satz reicht mir.
-
-  Nächste Stufen dort: Mute/Solo/Lautstärke in den Spur-Köpfen (Mix
-  löst sich auf), Regionen anfassen/verschieben, Timeline treibt das
-  Playback.
+  Push-Test (wie gehabt, erst wenn die App öffnet): News-Schalter
+  einmal AUS→AN, dann Test-Record im Dashboard → Push muss STUMM
+  ankommen, App darf nicht crashen.

@@ -119,14 +119,25 @@ struct SurfaceHost: View {
             // a readable arrangement; max keeps the instrument reachable.
             let timelineHeight = max(172, min(380, geo.size.height * (landscape ? 0.5 : 0.34)))
             VStack(spacing: 0) {
-                ArrangeTimelineView()
-                    .frame(height: timelineHeight)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
+                // AnyView-ERASED children (v10.79.144 launch-crash fix): the
+                // instrument's body sits AT the SwiftUI metadata-decoder limit
+                // (10.76.34 class — SIGSEGV at first render, CI-green, device-
+                // dead). Erasing here cuts the composed ROOT tree's generic
+                // depth back below the v143 baseline; erasure at this level is
+                // effective because the overweight is in the COMPOSITION, not
+                // inside the child bodies (unlike 10.76.35, where it wasn't).
+                AnyView(
+                    ArrangeTimelineView()
+                        .frame(height: timelineHeight)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                )
                 Divider().overlay(EchoelTheme.border)
-                EchoelStudioView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
+                AnyView(
+                    EchoelStudioView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                )
             }
         }
     }
