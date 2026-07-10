@@ -3,6 +3,31 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 17) — v145 CRASHT WEITER → NOTBETRIEB Plan B (v146) + Samples lokalisiert
+- **Founder:** „10.79.145 ist alt und stürzte ab" → NEIN-Pfad des Handoffs. Wie
+  vereinbart KEIN dritter Blindfix: **81aa9a5 = Plan B** — SurfaceHost byte-genau
+  auf den v143-Baum zurück (flacher ZStack, 4 Surfaces opacity-gemountet, der
+  nachweislich startete), einzige Abweichung: Auswahl fest `.compose` (kein
+  @AppStorage-Read; ohne Chip-Leiste darf niemand auf „arrange" stranden).
+  Sichtbar: NUR EchoelStudioView. `.deploy/release` → **v10.79.146**.
+- **HYPOTHESEN-UPDATE (wichtig für v147):** v143 mountete MEHR Views und startete;
+  die v145-AnyView-Erasure half NICHT → Metadata-These an der SurfaceHost-Naht
+  GESCHWÄCHT. Alternativ-Kandidat: etwas anderes seit v143 (z. B. Announcement-
+  Push-Umbau). Ohne Analysedaten-Log wird NICHT weiter geraten — Screenshots vom
+  Founder sind zweifach erbeten (in v146-Release-Notes + Chat). Eine-Hauptansicht
+  ist NICHT gestrichen, kommt als v147+ nach Log-Triage.
+- **Samples GELÖST-in-Sichtweite:** Der neue Google-Drive-MCP-Connector sieht die
+  Datei: `EchoelmusicSamples.zip`, **876 MB**, ID wie in `.deploy/fetch-samples`.
+  MCP-Download unmöglich (Base64 in Kontext); Sandbox-Proxy blockt Drive weiter
+  (CONNECT 403, live getestet). → Founder: Network-Policy um `drive.google.com` +
+  `drive.usercontent.google.com` erweitern + NEUE Session; Platz reicht (30 GB).
+- **Nebenbei (vor dem Handoff):** unabhängiges Audit der Roll/Clip/Arrange-Flächen
+  bestätigte die K2/K3-Lücke (addRegion ohne Aufrufer etc.); NEUER Befund:
+  Bar-Cycling (`loadArrangement`/`playedBars`/`arrangementForExport`) ist die
+  einzige ungetestete Kniffel-Logik im Roll → TDD-Kandidat nach Crash-Verdikt.
+- **Offen bei Founder:** v146-Gerätetest · Analysedaten-Screenshots · Drive-Policy
+  · CloudKit-Schema/Push-E2E · 8 Screenshots · ASC-Submit.
+
 ## 2026-07-10 (Forts. 16) — VISION-REALITÄTS-REPORT + Multi-Interface-Research
 - **Founder:** virtuelle Soundkarte soll das Aggregat-Latenz-Problem umgehen —
   Deep Research + Lösung; UND: gesamte Vision transparent machen (real vs fehlt).
