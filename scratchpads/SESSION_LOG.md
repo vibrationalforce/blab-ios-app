@@ -3,6 +3,33 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-10 (Forts. 10) — ECOSYSTEM-Plan (E1–E7) + Echoel Pro Kauf-Flow shipped (E1a–c)
+- **Founder-Auftrag:** stabiles Einkommen · Producer · Health · Accessibility + Login/
+  Wetter/Standort/Push/weltweit-gemeinsam/Bio-Kohärenz-verbinden. 3 Explore-Audits +
+  Grand Council + 3 AskUserQuestion-Gabelungen → ECOSYSTEM-Plan E1–E7 (Plan-File;
+  Kern-Entscheide in memory/decisions.md 2026-07-10 + decisions.csv ×3).
+- **Entscheide:** serverlos ohne Login (CloudKit-Push statt Sign-in-with-Apple) ·
+  Pro gated NUR Erweiterungen · Einkommen zuerst · Gemeinsam-Kohärenz = eigene Zahlen
+  nebeneinander (kein Gruppen-Score) · weltweit-Jam = North Star (nie Copy).
+- **E1a+b (69204d4):** `Core/ProGate.swift` (pure Policy: alwaysFree hart codiert =
+  Bio/Klang/Sicherheit/AX; proFeatures = ExportPresets/AUv3/PresetPacks/VideoFX) +
+  `EchoelStore`-Umbau (Abo-IDs raus → non-consumable `com.echoelmusic.app.pro`,
+  `isProUnlocked` via currentEntitlements) + `ProGateTests` (9 Tests: Invarianten,
+  Disjunktheit, Vollklassifikation, Produkt-Identität).
+- **Fix (f4e4384):** App-Init rief noch `updateSubscriptionStatus()` — Linux-CI blind
+  dafür (StoreKit compiled out), Xcode-Check rot → `updateEntitlements()`. LEKTION:
+  StoreKit-Symbole ändern ⇒ IMMER EchoelmusicApp.swift-Call-Sites mitgreppen.
+- **E1c (1607d7f):** `Studio/ProUnlockView.swift` (ehrliche Copy: "Buy once", Kern
+  für immer frei, unshipped Pro-Punkte = "in development"; Buy+Restore, unlocked-State)
+  + Pro-Chip im WorkspaceView-Header. Render-sicher: das EINE Sheet gehört der Shell —
+  EchoelStudioViews ~18-Modal-Kette unangetastet; isProUnlocked = Low-Frequency-Read.
+- **Remote-Force-Push-Falle:** Branch war force-updated (v10.79.139) → Rebase = 50+
+  add/add-Konflikte. Weg: abort → reset --hard auf origin → cherry-pick. Merken.
+- **Founder-To-do:** non-consumable `com.echoelmusic.app.pro` in App Store Connect
+  anlegen (Preis 14,99–19,99 €) — vorher lädt die Unlock-View kein Produkt.
+- **Next:** CI-Grün auf 1607d7f verifizieren → E2 (Ort in Session-Namen) als
+  nächster Zyklus; dann E3 Wetter, E4 CloudKit-Push, E5 Nearby-Bio.
+
 ## 2026-07-10 (Forts. 9) — Knister-URSACHE gefunden (Umschalt-Transienten) + Stage 2 WAV komplett
 - **Founder-Ohrbefund lokalisierte es:** „Ein bisschen hat's noch geknistert **beim Umschalten
   von Dingen**" — nicht steady-state (v135-Befund bleibt korrekt), sondern SCHALT-Transienten.

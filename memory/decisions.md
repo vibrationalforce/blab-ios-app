@@ -4,6 +4,38 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-10 ECOSYSTEM: Einkommen zuerst · serverlos ohne Login · Gemeinsam ehrlich (Plan E1–E7)
+- **Founder-Auftrag (verbatim-Kette):** "Echoelmusic langfristig auf stabiles Einkommen,
+  Producer, Health, Accessibility zu trainieren" + Apple Login / Wetterdaten (geringes
+  Kontingent) → Visuals & Kompositions-Parameter / Standort → private Session-Namen /
+  Push für Features & Online-Events / weltweit gemeinsam realtime musizieren /
+  "biofeedback gemeinsam verbinden für mehr Kohärenz".
+- **Drei bestätigte Gabelungen (AskUserQuestion):**
+  1. **Serverlos ohne Login** — der Job hinter "Login+Push" ist Retention/Events;
+     CloudKit-Public-DB + `CKQuerySubscription` = Broadcast-Push an ALLE Geräte ohne
+     Konto, Server oder laufende Kosten. Sign-in-with-Apple NUR falls später echte
+     Community-Profile kommen. Die dokumentierte Keine-Konten-Privacy bleibt wahr
+     (präzisieren zu: "kein Konto — Push über iCloud").
+  2. **Echoel Pro gated NUR Erweiterungen** — EIN non-consumable
+     `com.echoelmusic.app.pro` (14,99–19,99 €). Frei für immer (hart codiert in
+     `ProGate.alwaysFree`): Bio-Messung, Klangerzeugung, Sicherheit, Accessibility.
+     Pro: Export-Format-Presets, AUv3, erweiterte Preset-Packs, Video-FX. Die toten
+     Abo-IDs (monthly/yearly) sind ENTFERNT — sie widersprachen dem Beschluss
+     2026-07-06 "kein Abo". Unlock-View-Copy ist ehrlich: unshipped = "in development".
+  3. **Einkommen zuerst** — E1 Pro-Flow vor Ort/Wetter/Push/Gemeinsam.
+- **Gemeinsam-Kohärenz aufgelöst gegen 2026-06-20** (nie Cross-Person-Readout):
+  verbunden musizieren JA — aber jeder sieht die EIGENE Zahl, nebeneinander
+  (`LiveColaboView`, Multipeer, ColabPayload kind "bio"). KEIN Gruppen-Sync-Score.
+  Weltweit-Realtime-Jam = NORTH STAR (Physik >50 ms + Server) — nie in Produkt-Copy;
+  Stufen: Multipeer-Tempo-Sync → LinkKit (Founder-Ok nötig, Lizenz frei) → North Star.
+- **Umwelt = zweite physikalische Realität** (Masterplan §1 Vision-Fit JA): E2 Ort in
+  Session-Namen (whenInUse, Toggle default OFF, on-device), E3 WeatherKit 1 Fetch/Session
+  → BioComposer-Seeds + Visual-Palette, Apple-Attribution Pflicht, offline stiller Fallback.
+- **Executed heute:** ProGate + EchoelStore-Umbau + ProUnlockView + Pro-Chip im
+  WorkspaceView-Header (E1a–c). Founder-To-do: Produkt in App Store Connect anlegen.
+- **Plan:** Session-Plan-File (E1–E7) · Guardrails: kein Server, kein Login, kein Abo,
+  kein Cross-Person-Score, keine Wellness-Copy, Entitlements nur die vier genannten.
+
 ### 2026-07-06B RE-FOCUS (supersedes the same-day shell flip): NO breathing exercise — the product is bio-generative music performance
 - **Founder trigger (verbatim, after testing the Session-as-home build):** "nein die Leute
   brauchen gar keine Atemübung. Es geht bei der App um eine Performance und
