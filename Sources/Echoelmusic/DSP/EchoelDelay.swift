@@ -52,6 +52,14 @@ public final class EchoelDelay: @unchecked Sendable {
     private let left: EchoelDelayLine
     private let right: EchoelDelayLine
 
+    /// Smoothed delay time (seconds). `timeSeconds` is the control-plane target;
+    /// the audio path glides toward it (~40 ms one-pole) so a preset/character
+    /// switch slides the read tap instead of jumping it — a jump is a click,
+    /// the glide is the analog "repitch" a tape delay makes. Snapped to the
+    /// target on `reset()` (fresh/empty line has nothing to repitch).
+    private var timeSmoothed: Float = 0.375
+    private let timeGlide: Float
+
     // one-pole feedback dampers (per channel)
     private var lpL: Float = 0
     private var lpR: Float = 0
@@ -76,6 +84,10 @@ public final class EchoelDelay: @unchecked Sendable {
 
         self.maxWowSamples = 0.004 * sampleRate      // ±4 ms slow drift
         self.maxFlutterSamples = 0.0006 * sampleRate // ±0.6 ms fast jitter
+
+        // One-pole coefficient for a ~40 ms time-glide constant.
+        self.timeGlide = 1.0 - expf(-1.0 / (0.040 * sampleRate))
+        self.timeSmoothed = timeSeconds
     }
 
     // MARK: - Process
@@ -86,8 +98,11 @@ public final class EchoelDelay: @unchecked Sendable {
         let fb = Swift.min(Swift.max(feedback, 0.0), 0.95)
         let m  = Swift.min(Swift.max(mix, 0.0), 1.0)
 
+        // Glide the audible time toward the control-plane target (declick).
+        timeSmoothed += timeGlide * (timeSeconds - timeSmoothed)
+
         // Base delay in samples, with optional stereo spread on the right tap.
-        let baseL = Swift.max(1.0, timeSeconds * sr)
+        let baseL = Swift.max(1.0, timeSmoothed * sr)
         let spreadSamples = spread * 0.025 * sr
         let baseR = Swift.max(1.0, baseL + spreadSamples)
 
@@ -154,6 +169,7 @@ public final class EchoelDelay: @unchecked Sendable {
         lpL = 0; lpR = 0
         wowLFO.reset()
         flutterLFO.reset()
+        timeSmoothed = timeSeconds   // empty line: snap, don't glide
     }
 
     // MARK: - Helpers
