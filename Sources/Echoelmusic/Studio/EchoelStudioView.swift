@@ -135,6 +135,8 @@ struct EchoelStudioView: View {
     /// Start · the two mood pads; everything else is one tap away behind its
     /// compact header. Persisted so a user who opens a panel keeps it open.
     @AppStorage("studio.showComposition") private var showComposition = false
+    /// R1 (2026-07-10): the Session card — name preview · place · weather.
+    @AppStorage("studio.showSession") private var showSession = false
     @AppStorage("studio.showExport") private var showExport = false
     @State private var showMood = false
     @State private var showSound = false
@@ -423,9 +425,17 @@ struct EchoelStudioView: View {
                     AnyView(liveNarrationBanner)
                     AnyView(soundControls)
                     AnyView(utilityRow)
+                    // R2 (2026-07-10): Live Colabo entry — the sheet existed but
+                    // nothing presented it after the tools grid was removed.
+                    #if canImport(MultipeerConnectivity)
+                    AnyView(liveColaboRow)
+                    #endif
                     // Visual Touch Instrument sits at the very bottom of the page
                     // (founder 2026-07-07: "das müsste ganz nach unten").
                     AnyView(visualPanel)
+                    // R3 (2026-07-10): Learn & News entry — reaches the school
+                    // content AND the opt-in announcements toggle (E4).
+                    AnyView(learnRow)
                     // Tools grid removed (founder 2026-07-02: "Alles weg außer visuals").
                     // The whole editors/utilities pile is gone from the one adaptive view;
                     // the Visual stays as the floating window (header monitor toggle). The
@@ -1004,6 +1014,7 @@ struct EchoelStudioView: View {
             // Essentials first (Composition open by default), advanced (Mood) last — the
             // view reads top-down from "what most people touch" to "deep tweaks".
             compositionPanel
+            sessionPanel
             transposePanel
             soundPanel
             effectsPanel
@@ -1079,6 +1090,69 @@ struct EchoelStudioView: View {
             kammertonRow
             tuningRow
             tempoRow
+            // placeRow/weatherRow moved to the SESSION card (R1 2026-07-10):
+            // buried at the bottom of this card, the founder couldn't find them.
+        }
+    }
+
+    // MARK: - Entry rows (R2/R3 2026-07-10 — visible doors to existing sheets)
+
+    #if canImport(MultipeerConnectivity)
+    /// Live Colabo door: play together nearby — share the session, see each
+    /// person's own pulse side by side. Presents the EXISTING sheet slot.
+    private var liveColaboRow: some View {
+        entryRow("Live Colabo", "Play together, nearby — session share · pulse side by side",
+                 icon: "dot.radiowaves.left.and.right") { showLiveColabo = true }
+    }
+    #endif
+
+    /// Learn & News door: the school content plus the opt-in "News & live
+    /// events" push toggle (E4). Presents the EXISTING sheet slot.
+    private var learnRow: some View {
+        entryRow("Learn & News", "How it works · safety · stay in the loop",
+                 icon: "book") { showLearn = true }
+    }
+
+    /// Shared chrome for a full-width door row (matches the card look:
+    /// solid fill, 1 px border, chevron — Uncodixfy).
+    private func entryRow(_ title: String, _ subtitle: String, icon: String,
+                          action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
+                    Text(subtitle)
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+            }
+            .padding(14)
+            .contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityHint(subtitle)
+    }
+
+    // MARK: Panel 1b — Session (name preview · place · weather)
+
+    /// The session's identity, made VISIBLE: the live stamped name (the value
+    /// of the place/weather features shows itself — the city appears in the
+    /// name the moment it resolves) plus the two opt-in toggles that feed it.
+    private var sessionPanel: some View {
+        panel("Session", "Name · place · weather", isExpanded: $showSession) {
+            SessionNamePreviewLeaf()
             #if canImport(CoreLocation)
             placeRow
             #endif
@@ -3234,6 +3308,29 @@ private struct ExportedFile: Identifiable {
 
 /// Identifiable wrapper so `.sheet(item:)` can carry a drum track index.
 private struct TrackRef: Identifiable { let id: Int }
+
+/// R1: the live stamped session name (artist · date · [place] · key · BPM ·
+/// Kammerton) — its OWN leaf because the tempo runs along with the body
+/// (freeze rule: only this label churns, never the Session card's toggles).
+@MainActor
+private struct SessionNamePreviewLeaf: View {
+    @Environment(SessionContext.self) private var session
+    @Environment(Transport.self) private var transport
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Every save and export is stamped:")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            Text(session.sessionName(bpm: transport.tempo.rounded()))
+                .font(EchoelTheme.font(12, .medium).monospacedDigit())
+                .foregroundStyle(EchoelTheme.text)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Session name preview: \(session.sessionName(bpm: transport.tempo.rounded()))")
+    }
+}
 
 /// Identifiable wrapper so the diagnostics sheet can present the log text.
 private struct DiagReport: Identifiable {
