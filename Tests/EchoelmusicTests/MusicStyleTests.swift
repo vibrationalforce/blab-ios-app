@@ -72,18 +72,25 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
-    func testSelfObservationIsATrueDrone() {
-        // Founder 2026-07-07: the Fläche must be "sphärisch und beruhigend … reine
-        // meditative Flächen … kohärentes Timbre am Start". A drone = one sustained
-        // tonic (no chord movement) and NO lead line, so the take opens still and
-        // coherent instead of noodling a melody over a chord change.
+    func testSelfObservationIsACalmMovingFläche() {
+        // Founder 2026-07-11 (SUPERSEDES the 2026-07-07 "one frozen tonic" law): "es
+        // soll ja weitergehen und sich mit dem Herzschlag weiterentwickeln" — the
+        // single-chord drone [0] is exactly what "bleibt auf der Fläche liegen". The
+        // Fläche now carries a gentle multi-chord JOURNEY (still sustained, still NO
+        // lead), holding ONE chord per bar but advancing WHICH chord with the
+        // bio-cadenced evolve (BioComposer.progressionPhase). Calm is preserved by
+        // sustained + lead-free + a slow tempo window, not by freezing the harmony.
         let p = MusicStyle.selfObservation.harmonicProfile
-        XCTAssertEqual(p.progression, [0], "a drone holds ONE tonic — no chord movement")
+        XCTAssertGreaterThan(p.progression.count, 1,
+                             "the Fläche must travel through >1 chord — not freeze on the tonic")
+        XCTAssertEqual(p.progression.first, 0, "still opens on the tonic (coherent start)")
         XCTAssertEqual(p.leadDensity, 0, "pure Fläche — no lead/melody line")
         XCTAssertFalse(p.arpeggiated, "sustained pad, not an arpeggio")
-        XCTAssertTrue(p.chordTones.contains(6), "lush open 7th voicing for a wide, still pad")
-        // It must NOT share dub/trap's melody-over-chord-change profile any more.
+        XCTAssertTrue(p.sustained, "held pads (one chord per bar), not a busy pulse")
+        XCTAssertTrue(p.chordTones.contains(6), "lush open 7th voicing for a wide, warm pad")
+        // Still distinct from the other curated Flächen's journeys.
         XCTAssertNotEqual(p.progression, MusicStyle.dubTechno.harmonicProfile.progression)
+        XCTAssertNotEqual(p.progression, MusicStyle.esotericMeditation.harmonicProfile.progression)
         // Still calm at the source: the tempo window tops out slow.
         XCTAssertLessThanOrEqual(MusicStyle.selfObservation.tempoRange.upperBound, 78)
     }

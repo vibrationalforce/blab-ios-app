@@ -122,6 +122,56 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    func testSustainedFlächeJourneysWithProgressionPhase() throws {
+        // Founder 2026-07-11: "bleibt auf Flächen liegen … soll weitergehen und sich
+        // mit dem Herzschlag weiterentwickeln." A sustained Fläche stays STILL within a
+        // bar (one held chord + one held bass), but WHICH chord advances with
+        // progressionPhase — so across bars/evolves the pad travels through its
+        // progression instead of freezing. Verify both halves of that contract.
+        for style in [MusicStyle.selfObservation, .esotericMeditation] {
+            let chordCount = style.harmonicProfile.progression.count
+            XCTAssertGreaterThan(chordCount, 1, "\(style) needs a journey to travel")
+
+            // The held bass root must MOVE as the phase advances through the progression.
+            var roots: Set<Int> = []
+            for phase in 0..<chordCount {
+                var inp = input(hr: 60, style: style, mode: .flowFree)
+                inp.progressionPhase = phase
+                let bass = BioComposer.compose(inp).notes.filter { $0.role == .bass }
+                XCTAssertEqual(bass.count, 1,
+                               "\(style) phase \(phase): still ONE held bass root per bar")
+                let root = try XCTUnwrap(bass.first).pitch
+                roots.insert(root)
+            }
+            XCTAssertGreaterThan(roots.count, 1,
+                                 "\(style): the Fläche must move through >1 chord as the phase advances")
+
+            // Per-bar stillness preserved at a non-zero phase: a handful of held notes,
+            // nothing short (no busy pulse re-introduced by the journey).
+            var inp = input(hr: 60, style: style, mode: .flowFree)
+            inp.progressionPhase = 1
+            let notes = BioComposer.compose(inp).notes
+            XCTAssertLessThanOrEqual(notes.count, 8,
+                                     "\(style): still a handful of held notes, not a pulse grid")
+            for n in notes {
+                XCTAssertGreaterThanOrEqual(n.lengthSteps, 4,
+                    "\(style): journey keeps sustained notes (got len \(n.lengthSteps))")
+            }
+        }
+    }
+
+    func testProgressionPhaseIsInertForMelodicGenresAtZero() {
+        // Backward-compat: phase 0 must reproduce the original take exactly for the
+        // (unoffered) melodic genres, so existing seeds/behaviour are untouched.
+        for style in [MusicStyle.eighties, .classical, .jazz] {
+            var a = input(hr: 80, style: style)
+            a.progressionPhase = 0
+            let b = input(hr: 80, style: style)   // default phase is 0
+            XCTAssertEqual(BioComposer.compose(a), BioComposer.compose(b),
+                           "\(style): phase 0 must equal the default (no behaviour change)")
+        }
+    }
+
     func testSustainedIsExactlyTheCuratedRoster() {
         // Founder 2026-07-09: every OFFERED genre is a pure sustained Fläche;
         // the retired (unoffered) genres keep their old melodic profiles.

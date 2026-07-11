@@ -422,7 +422,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4],
                                    padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.7)
         case .esotericMeditation:
-            return HarmonicProfile(progression: [0], chordTones: [0, 2, 4, 6],
+            // WEITERGEHEN (founder 2026-07-11: "bleibt auf Flächen liegen … soll
+            // weitergehen und sich mit dem Herzschlag weiterentwickeln"). A frozen
+            // single-chord drone [0] can never move; a gentle lydian journey (I → II
+            // → V, the #4 shimmer) lets the held pad TRAVEL. Still sustained + NO lead
+            // — one chord is held per bar (stillness preserved), but WHICH chord
+            // advances with the bio-cadenced evolve (see BioComposer.progressionPhase).
+            return HarmonicProfile(progression: [0, 1, 4], chordTones: [0, 2, 4, 6],
                                    padOctave: 3, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0, sustained: true)
         case .classical:
@@ -487,7 +493,14 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // finding that tempo — not melodic activity — drives arousal, so a
             // still drone at ~58 bpm is the calmest possible starting material.
             // See scratchpads/RESEARCH_MEDITATION_ALGORITHM_2026-07-07.md.
-            return HarmonicProfile(progression: [0], chordTones: [0, 2, 4, 6],
+            // WEITERGEHEN (founder 2026-07-11: "es soll ja weitergehen und sich mit
+            // dem Herzschlag weiterentwickeln"). The single frozen tonic [0] is what
+            // "bleibt auf der Fläche liegen"; a gentle minor journey (i → VI → iv, all
+            // diatonic, resolves back to i at the wrap) lets it TRAVEL while staying
+            // calm. Still one chord HELD per bar (per-bar stillness preserved) + NO
+            // lead — the chord that is held advances with progressionPhase, so the pad
+            // develops across bars/evolves instead of holding one chord forever.
+            return HarmonicProfile(progression: [0, 5, 3], chordTones: [0, 2, 4, 6],
                                    padOctave: 3, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0, sustained: true)
         }
