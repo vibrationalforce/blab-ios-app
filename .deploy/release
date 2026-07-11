@@ -1,28 +1,24 @@
-build: 2026-07-11 v10.79.158 (Alle Genres + Rockakkorde — logisch gruppiert)
+build: 2026-07-11 v10.79.159 (Level pro Instrument — Sounds angeglichen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein "Alles rein. Logisch sortiert. Gehe tief rein" + "Rockakkorde".
-  Bitte auf dem Gerät im Genre-Menü anschauen/anspielen:
+notes: Cycle 1 der Play-Surface-Sound-Überarbeitung (dein "teils zu laut oder zu
+  leise … Level pro Instrument"). Hilft direkt gegen die zu lauten Leads:
 
-  ALLE 23 GENRES, LOGISCH GRUPPIERT: Der Genre-Picker bot bisher nur 6 ruhige
-  Flächen. Jetzt ist die volle Palette da, in 4 Gruppen sortiert:
-    · Meditativ & Ambient (zuerst — bleibt der Ruhe-Standard): Self-Observation,
-      Deep Ambient, Vaporwave, Sci-Fi
-    · Elektronisch & Beats: Dub Techno, Trap, Psytrance, Synthwave, Early Synth,
-      80s, Disco, Futuristic
-    · Rock & Energie: Rock, Punk, Rock'n'Roll, Heavy Metal, Doom
-    · Akustisch & Global: Classical, Jazz, Klezmer, Oriental, Ska, Rocksteady
-  Jedes gewählte Genre bleibt erhalten (kein Zwang-Zurück auf Self-Observation
-  mehr).
+  LEVEL PRO INSTRUMENT + AUTO-ANGLEICH: Jeder Sound hat jetzt einen Output-Level,
+  und die Werks-Sounds werden automatisch laut-angeglichen (helle/Unison-Sounds
+  runter, dunkle rauf). Da die schrillen Lead-Sounds hell sind, werden sie durch
+  den Angleich schon spürbar LEISER getrimmt. Pegel gleitet weich (kein Klick),
+  Standard bit-identisch, alte gespeicherte Sounds unverändert. Im Sound-Editor:
+  neuer "Level"-Regler pro Instrument.
 
-  ECHTE ROCKAKKORDE: Rock / Punk / Metal / Doom spielen jetzt volle Power-Chords
-  (Grundton + Quinte + Oktave) statt nackter Zwei-Ton-Dyaden — der satte,
-  chunky Rock-Sound. (Rock'n'Roll behält seine Boogie-Dreiklänge.)
+  → Klingen die Instrumente jetzt gleichmäßiger laut? Sind die hellen Leads schon
+    etwas gezähmt?
 
-  → Öffne das Genre-Menü: sind die 4 Gruppen klar sortiert? Spiel Rock/Metal an:
-    klingen die Power-Chords voll und rockig (nicht dünn)?
+  WICHTIG (dein Feedback): die hohen Melodien der neuen Genres sind noch zu
+  schrill/laut. Das löse ich strukturell wie von dir vorgeschlagen — die Stimmen
+  auf getrennte, MISCHBARE Spuren (Bass/Pad/Lead/Drums), dann drehst du den Lead
+  einfach runter. Das ist zugleich das erste Modul des umfassenden Interfaces
+  (siehe unten). Der Level-pro-Instrument ist der Baustein dafür.
 
-  Hinweis: Der ruhige Flächen-Klang ist unverändert. Noch zum Antesten offen:
-  v156 (Synth Einzelnote/Akkord-Pegel) und v157 (Herzschlag-Rhythmen in den
-  Flächen). NÄCHSTE KOMPOSITIONS-ZYKLEN: mehr Akkord-Vokabular (sus/add9) ·
-  starke Interpolierung (Voicing-Morph) · modale Genre-Charaktere. Design bleibt
-  adaptiv + professionell.
+  NÄCHSTES: der Misch-Layer (per-Spur-Fader) als erstes Modul der Gesamt-Vision
+  (DAW/Video/Mapping/Light in einem, bio-moduliert, Timeline-Schnitt). Design
+  bleibt adaptiv + professionell.

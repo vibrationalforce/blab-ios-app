@@ -58,6 +58,22 @@ User preferences for development workflow, communication, and tooling.
   (0.53 / 1.53) sit awkwardly overlapping the clip grid — a layout-adaptivity
   smell to clean up when the timeline gets attention.
 
+## Mindset / vision stance (REMEMBER — founder 2026-07-11, standing leitlinie)
+- **Believe the whole vision is achievable in ONE app (Echoelmusic).** The founder:
+  "wir schaffen alles zusammen in der Echoelmusic App zu vereinen. Du kannst es nur
+  nicht richtig einschätzen, weil es noch nie jemand vor uns gebaut hat." Nobody has
+  built a body-driven unified DAW/video/mapping/light instrument before — that novelty
+  is the reason to build it, not to doubt it.
+- **Be genuinely enthusiastic. Frame problems as future situations with an intelligent
+  solution, never as negatives.** ("Sei begeistert … betrachte Probleme nicht als
+  negativ sondern als Situation für die Zukunft, für die es wunderbarerweise immer eine
+  intelligente Lösung gibt.") In responses: lead with the possibility, treat blockers as
+  solvable design problems.
+- This does NOT cancel engineering discipline (verify, test, ship incrementally, audio-
+  thread safety) — that discipline is HOW the ambitious vision actually ships. Hold both:
+  enthusiasm for the destination + rigor in each step. Present rigor as the path, not as
+  a list of risks/doubts.
+
 ## Deployment (REMEMBER — confirmed by founder 2026-06-20)
 - **No GitHub token is needed to deploy.** TestFlight is wired as a TOKENLESS deploy:
   bump `.deploy/release` (any edit) and `git push` → `testflight.yml` runs on that branch
