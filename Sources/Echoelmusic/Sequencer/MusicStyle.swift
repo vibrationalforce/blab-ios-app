@@ -62,19 +62,63 @@ public struct HarmonicProfile: Sendable, Equatable {
 /// The sound world a take is generated in.
 public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
 
-    /// The CURATED roster the Genre picker offers (founder 2026-07-08: "Alle
-    /// Genres smooth und wirklich zum Chillen und Meditieren machen oder raus
-    /// damit"). Six registers that genuinely serve the product truth —
-    /// relaxation through bio-generative music — each softened to its calm
-    /// reading (sparse leads, body-driven tempo): the two true drones, dreamy
-    /// vaporwave, deep dub, dark chill-trap (the founder's Drake/NAV register)
-    /// and spacious sci-fi ambient. Every other case stays compiling (Codable
-    /// stability, reversible) but is NOT offered; a persisted retired style is
-    /// migrated to Self-Observation on appear.
-    public static let curated: [MusicStyle] = [
-        .selfObservation, .esotericMeditation, .vaporwave,
-        .dubTechno, .trap, .sciFi
+    /// The sustained Flächen — the calm genres that hold ONE chord per bar and
+    /// carry NO lead. Kept as the invariant the calm-stillness tests assert against
+    /// (decoupled from the offered roster since 2026-07-11). Source of truth is the
+    /// `sustained` profile flag; this list must equal `allCases.filter { sustained }`
+    /// (guarded in MusicStyleTests).
+    public static let sustainedFlächen: [MusicStyle] = [
+        .selfObservation, .esotericMeditation, .vaporwave, .dubTechno, .trap, .sciFi
     ]
+
+    /// Logical genre groups the Genre picker sorts into (founder 2026-07-11: "Alles
+    /// rein. Logisch sortiert. Gehe tief rein" — SUPERSEDES the 2026-07-08 six-calm
+    /// curation). Every genre is now offered, organised by sound-world so the calm
+    /// meditative identity stays first while rock/energetic/acoustic worlds open up.
+    public enum Category: String, CaseIterable, Identifiable, Sendable {
+        case meditative   // ambient Flächen — the relaxation core, listed first
+        case electronic   // beats & synth grooves
+        case rock         // driven power-chord energy
+        case acoustic     // acoustic / world / modal
+
+        public var id: String { rawValue }
+
+        /// Picker section header.
+        public var title: String {
+            switch self {
+            case .meditative: return "Meditativ & Ambient"
+            case .electronic: return "Elektronisch & Beats"
+            case .rock:       return "Rock & Energie"
+            case .acoustic:   return "Akustisch & Global"
+            }
+        }
+
+        /// The genres in this group, in display order.
+        public var genres: [MusicStyle] {
+            switch self {
+            case .meditative: return [.selfObservation, .esotericMeditation, .vaporwave, .sciFi]
+            case .electronic: return [.dubTechno, .trap, .psytrance, .synthwave,
+                                      .earlySynth, .eighties, .disco, .futuristic]
+            case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
+            case .acoustic:   return [.classical, .jazz, .klezmer, .oriental, .ska, .rocksteady]
+            }
+        }
+    }
+
+    /// Which logical group this genre belongs to (total — every case mapped exactly
+    /// once; guarded in MusicStyleTests).
+    public var category: Category {
+        switch self {
+        case .selfObservation, .esotericMeditation, .vaporwave, .sciFi:
+            return .meditative
+        case .dubTechno, .trap, .psytrance, .synthwave, .earlySynth, .eighties, .disco, .futuristic:
+            return .electronic
+        case .rock, .punk, .rocknroll, .heavyMetal, .doom:
+            return .rock
+        case .classical, .jazz, .klezmer, .oriental, .ska, .rocksteady:
+            return .acoustic
+        }
+    }
 
     case dubTechno
     case trap
@@ -444,13 +488,16 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
                                    padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.7)
         case .punk:
-            return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 4],
+            // Rockakkorde (founder 2026-07-11): a real POWER CHORD = root + fifth +
+            // octave root ([0,4,7]), the chunky rock/punk voicing, not a bare dyad.
+            return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 4, 7],
                                    padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.4)
         case .rocknroll:
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
                                    padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
         case .rock:
-            return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 4],
+            // Rockakkorde (founder 2026-07-11): full power chord (root + fifth + octave).
+            return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 4, 7],
                                    padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
         case .ska:
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
@@ -459,10 +506,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 2, 4],
                                    padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.4)
         case .heavyMetal:
-            return HarmonicProfile(progression: [0, 1, 0], chordTones: [0, 4],
+            // Rockakkorde (founder 2026-07-11): low, dark power chord (root+fifth+octave)
+            // in phrygian — the metal chug.
+            return HarmonicProfile(progression: [0, 1, 0], chordTones: [0, 4, 7],
                                    padOctave: 2, leadOctave: 4, arpeggiated: false, leadDensity: 0.5)
         case .doom:
-            return HarmonicProfile(progression: [0], chordTones: [0, 4],
+            // Rockakkorde (founder 2026-07-11): crushing downtuned power chord.
+            return HarmonicProfile(progression: [0], chordTones: [0, 4, 7],
                                    padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.2)
         case .dubTechno:
             // PURE FLÄCHE (founder 2026-07-09): NO lead, sustained — the bespoke

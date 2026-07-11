@@ -8,24 +8,34 @@ import XCTest
 
 final class MusicStyleTests: XCTestCase {
 
-    func testStyleRoster() {
-        // The FULL case list stays for Codable/persistence stability (retired
-        // genres keep compiling); the PICKER offers only the curated roster
-        // (founder 2026-07-08: "Alle Genres smooth und wirklich zum Chillen
-        // und Meditieren machen oder raus damit").
-        XCTAssertEqual(MusicStyle.curated, [
-            .selfObservation, .esotericMeditation, .vaporwave,
-            .dubTechno, .trap, .sciFi
-        ])
-        XCTAssertTrue(Set(MusicStyle.curated).isSubset(of: Set(MusicStyle.allCases)))
+    func testEveryGenreIsOfferedInExactlyOneCategory() {
+        // Founder 2026-07-11 "Alles rein. Logisch sortiert. Gehe tief rein": every
+        // genre is now offered, grouped into exactly one logical category — the picker
+        // shows the full roster, sorted by sound-world.
+        let grouped = MusicStyle.Category.allCases.flatMap { $0.genres }
+        XCTAssertEqual(Set(grouped), Set(MusicStyle.allCases),
+                       "every genre must appear in some category")
+        XCTAssertEqual(grouped.count, MusicStyle.allCases.count,
+                       "no genre appears in two categories (each offered exactly once)")
+        // The `category` property agrees with the category's own genre list.
+        for cat in MusicStyle.Category.allCases {
+            for s in cat.genres {
+                XCTAssertEqual(s.category, cat, "\(s).category must match the group it is listed in")
+            }
+        }
+        // The calm meditative set stays FIRST so the relaxation identity leads.
+        XCTAssertEqual(MusicStyle.Category.allCases.first, .meditative,
+                       "meditative genres are listed first")
     }
 
-    func testCuratedRoster_isActuallyCalm() {
-        // Founder 2026-07-09: "die Melodie … besser wenn die komplett weg sind …
-        // nur chillige mystische Flächen". Every offered genre is now a PURE
-        // sustained Fläche — NO lead line at all (the pure-wave lead tones stuck
-        // out of the mix), stillness held whatever the body does.
-        for s in MusicStyle.curated {
+    func testSustainedFlächenAreExactlyTheSixCalmGenres() {
+        // The sustained Flächen (calm, one chord per bar, NO lead) are an invariant
+        // decoupled from the offered roster since 2026-07-11. Source of truth = the
+        // `sustained` profile flag.
+        let sustained = MusicStyle.allCases.filter { $0.harmonicProfile.sustained }
+        XCTAssertEqual(Set(sustained), Set(MusicStyle.sustainedFlächen),
+                       "sustainedFlächen must equal the genres whose profile is sustained")
+        for s in MusicStyle.sustainedFlächen {
             let p = s.harmonicProfile
             XCTAssertTrue(p.sustained, "\(s) must be a sustained Fläche")
             XCTAssertEqual(p.leadDensity, 0,
@@ -34,16 +44,24 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
-    func testCuratedFlächenStayDistinct() {
-        // "passende Presets für Genres": each Fläche keeps its own character —
-        // no two curated genres share the same (scale, progression, voicing,
-        // register) fingerprint even with the leads gone.
+    func testSustainedFlächenStayDistinct() {
+        // Each Fläche keeps its own character — no two share the same
+        // (scale, progression, voicing, register) fingerprint.
         var fingerprints = Set<String>()
-        for s in MusicStyle.curated {
+        for s in MusicStyle.sustainedFlächen {
             let p = s.harmonicProfile
             let f = "\(s.scale)|\(p.progression)|\(p.chordTones)|\(p.padOctave)"
             XCTAssertTrue(fingerprints.insert(f).inserted,
-                          "\(s) duplicates another curated genre's sound fingerprint (\(f))")
+                          "\(s) duplicates another Fläche's sound fingerprint (\(f))")
+        }
+    }
+
+    func testRockGenresUseRealPowerChords() {
+        // Founder 2026-07-11 "Rockakkorde": the rock family voices a real power chord
+        // (root + fifth + octave root), not a bare dyad.
+        for s in [MusicStyle.rock, .punk, .heavyMetal, .doom] {
+            XCTAssertEqual(s.harmonicProfile.chordTones, [0, 4, 7],
+                           "\(s) must voice a full power chord [root, fifth, octave]")
         }
     }
 
