@@ -25,6 +25,7 @@ struct ArrangeTimelineView: View {
     @Environment(ClipStore.self) private var clips
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
+    @Environment(TimelineRegionPlayer.self) private var timelinePlayer
 
     /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
     /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
@@ -149,6 +150,35 @@ struct ArrangeTimelineView: View {
 
     private var toolbar: some View {
         HStack(spacing: 10) {
+            // Play / Stop the TIMELINE's regions over the shared transport (reorg P3).
+            // Opt-in and SEPARATE from the instrument's Generate+Play: engaging this
+            // takes the roll/pattern over with the placed regions. Reads only the
+            // low-frequency `isPlaying` (never `currentTick`) so the toolbar's menus
+            // don't churn during playback (render-safe). Disabled with no regions.
+            Button {
+                if timelinePlayer.isPlaying {
+                    timelinePlayer.stop()
+                } else {
+                    timelinePlayer.play(document: timeline.document, clips: clips,
+                                        pattern: beatPlayer.pattern, pianoRoll: pianoRoll)
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: timelinePlayer.isPlaying ? "stop.fill" : "play.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(timelinePlayer.isPlaying ? "Stop" : "Play timeline")
+                        .font(EchoelTheme.font(12, .medium))
+                }
+                .foregroundStyle(timelinePlayer.isPlaying ? EchoelTheme.onPrimary : EchoelTheme.text)
+                .padding(.horizontal, 10).frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(timelinePlayer.isPlaying ? EchoelTheme.accent : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: timelinePlayer.isPlaying ? 0 : 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(timeline.document.regions.isEmpty)
+            .accessibilityLabel(timelinePlayer.isPlaying ? "Stop timeline" : "Play timeline")
             // U1: no "Arrange" label — this IS the app's one view, not a named tab.
             Spacer(minLength: 0)
             // Add track — MIDI/Audio only (the kinds with a real engine today).

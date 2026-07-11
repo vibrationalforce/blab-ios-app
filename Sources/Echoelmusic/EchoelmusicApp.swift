@@ -89,6 +89,9 @@ struct EchoelmusicApp: App {
     @State private var timelineStore = TimelineStore()
     /// Plays the arrangement back over the shared transport (fed via PianoRollModel).
     @State private var arrangementPlayer = ArrangementPlayer()
+    /// Plays the arrange TIMELINE's regions over the shared transport (reorg P3).
+    /// Opt-in: engaged only by the timeline's own Play control; a no-op otherwise.
+    @State private var timelinePlayer = TimelineRegionPlayer()
     /// Parameter automation (master level / tempo) played over the shared transport.
     @State private var automationPlayer = AutomationPlayer()
     /// Selectable recording inputs (mic / interface / Bluetooth) with latency notes.
@@ -329,6 +332,7 @@ struct EchoelmusicApp: App {
             .environment(arrangementStore)
             .environment(timelineStore)
             .environment(arrangementPlayer)
+            .environment(timelinePlayer)
             .environment(automationPlayer)
             .environment(audioInputs)
             .environment(signalRouter)
@@ -431,6 +435,10 @@ struct EchoelmusicApp: App {
                 transport.addStopSubscriber("arrangement") { [weak arrangementPlayer] in
                     arrangementPlayer?.handleTransportStopped()
                 }
+                // Same coherence for the timeline player: any Stop resets its follow-state.
+                transport.addStopSubscriber("timeline") { [weak timelinePlayer] in
+                    timelinePlayer?.handleTransportStopped()
+                }
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 leadVoice.start(subscribing: bus)
@@ -440,7 +448,7 @@ struct EchoelmusicApp: App {
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer, timeline: timelinePlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
                 // Touch voice pre-generate default: the RESPONSIVE "Echoel Synth" pad
                 // (quick attack + unison width) so the play surface answers a finger
