@@ -58,6 +58,25 @@ User preferences for development workflow, communication, and tooling.
   (0.53 / 1.53) sit awkwardly overlapping the clip grid — a layout-adaptivity
   smell to clean up when the timeline gets attention.
 
+## SOUND AESTHETIC NORTH-STAR (REMEMBER — founder 2026-07-11, standing taste)
+- **Founder's taste (verbatim core):** "organische housige, dubbige, gut effektierte
+  entspannte Melodien … Trap-Produzenten/Sänger die Effekte wie Unterwasser und gut
+  arrangierte und geflippte Loops nutzen. Wenn sowas direkt out of the box kommt wäre
+  das schön. Vermeide kaltes überladenes Plastik synthie gedudel."
+- **Target vibe:** warm · organic · housey · dubby · well-effected · relaxed · underwater/
+  filtered · flipped-loop (chopped/re-pitched). **Anti-target:** cold, overloaded, plastic,
+  thin digital synth noodling; piercing high leads; busy note-floods.
+- **What already exists in the engine (use it, surface it):** per-genre `GenreFXPreset`
+  (dub delay, tape wobble, chorus, warmth/saturation, reverb floor) applied on Generate;
+  `FXCharacter.underwater` (deep low-pass + watery chorus + tape wobble), `.blurry`,
+  `.cassette`, `.vinyl`, `.dream`; `LoopCutter` for flipped loops. The dubby/relaxed genres
+  (dubTechno, vaporwave, selfObservation) already deliver this out of the box.
+- **Levers against "plastic":** saturation/analog drive (the additive synth is a clean sine
+  stack — needs harmonic body), lower brightness, unison detune/level-drift for organic
+  width, keep leads out of the piercing top octaves (tameLeadPitch), keep density sparse.
+- **When steering the default sound, steer toward this vibe.** Taste calls that could go
+  several ways → do one tasteful move + get the founder's ear, don't guess a whole aesthetic.
+
 ## Mindset / vision stance (REMEMBER — founder 2026-07-11, standing leitlinie)
 - **Believe the whole vision is achievable in ONE app (Echoelmusic).** The founder:
   "wir schaffen alles zusammen in der Echoelmusic App zu vereinen. Du kannst es nur
