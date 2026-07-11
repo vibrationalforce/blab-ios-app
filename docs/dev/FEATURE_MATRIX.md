@@ -12,6 +12,13 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
+> **UPDATE (2026-07-11) — comprehensive-interface modules + sound (code-truth):**
+> - **Module 1 Mixer LIVE** — `Core/MixerStore.swift`: Bass/Pad/Lead/Drums user levels, persisted, applied at compose time (velocity) + Drums live via `BeatPlayer.masterLevel`.
+> - **Module 2 Per-Track FX (PARTIAL)** — `Core/TrackFXStore.swift` (persisted per-bus insert settings) + `DSP/ChannelInsertFX.swift` (audio-thread-safe resonant filter + drive). **Bass bus** (`SubBassVoice`) and **Melodic bus** (`PolySynthVoice` pad/harmony + the dedicated lead voice via the `\.leadSynth` env key) each have a per-bus insert fed by a lock-free `SPSCQueue<TrackFX>`; UI = "Bass/Melodic filter + drive" in the Mix panel (`EchoelValueField`). Off by default = bit-identical. **Drums bus = ROADMAP** (BeatPlayer is timer-driven, needs a different tap point). Both render-path changes audio-thread-reviewed; UI ui-state-reviewed.
+> - **Bio-tempo model LIVE (model only)** — `Core/BioTempoDirector.swift`: `TempoMode.locked` vs `.bioFollow` (transport tempo glides toward the pulse, pulled to the 72-BPM resonance band by coherence). Pure/tested; **not yet wired to `Transport.tempo`** (that's a device-pass cycle).
+> - **Modulation spine de-duplicated** — `ModulationMatrix.ModSource` is the one canonical bio-source enum; `BioModulation` keeps only its unique `ClockSource` + `BoundParameter` (now `Codable`), re-based onto `ModSource`. The "assign the pulse to any knob" UI is still ROADMAP.
+> - **Sound:** analog-warmth soft-saturation (`EchoelDDSP.analogWarmth`, anti-"plastic") + tempo-adaptive note density (`BioComposer.tempoDensityScale`, less hectic at high BPM) shipped. `CloudSync` reclassified: not dead — a tested Phase-0 CloudKit foundation awaiting the founder's iCloud container (Phase 1).
+>
 > **UPDATE (2026-06-18) — reconciled to code (corrects stale notes below):**
 > - **EchoelVis is LIVE** — `Views/MetalBioView.swift` is the live full-screen bio visual (HR→pulse ≤2.5 Hz WCAG, coherence→hue, breath→spread, honours Reduce Motion). NOT dormant/deprecated. **EchoelSeq = 23 genres** (not 12). **sACN unicast is LIVE** beside Art-Net.
 > - **Real HRV coherence** (`Bio/HRVCoherence.swift`, Lomb-Scargle + Welch) replaced the placeholder; **resonance breath guide**, **tap-to-learn** bio metrics (`Studio/BioMetricInfo.swift` wired into BioStripView) + the "app as a school" layer (`Studio/MusicTheoryPrimer.swift`, `Studio/LearnLibrary.swift`).
