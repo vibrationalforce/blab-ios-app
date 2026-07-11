@@ -1,22 +1,24 @@
-build: 2026-07-11 v10.79.170 (Adaptives Hackbrett — Querformat/iPad 2-spaltig, Reorg P4)
+build: 2026-07-11 v10.79.171 (Master-Stimmen aufs Hackbrett — ein Board, Reorg P1b)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Erster Schritt "adaptives Design horizontal + vertikal" (dein Auftrag).
+notes: Alles Mischbare liest sich jetzt als EIN Board (dein "alles an Ort und
+  Stelle wo es stattfindet").
 
-  NEU: das Hackbrett (Channel Rack im Mix) passt sich der Ausrichtung an:
-  · Querformat / iPad: die Channel-Strips liegen jetzt in 2 Spalten — nutzt
-    die Breite statt einer sehr langen Einzelspalte.
-  · Hochformat (Handy): unverändert eine Spalte → kein Risiko für den
-    Normalfall.
+  NEU: die Mix-Sektion ist 3 Strip-Karten statt einer flachen Regler-Liste:
+  · Bass — Level + eigenes Filter/Drive
+  · Melodic (Pad + Lead) — Pad-Level, Lead-Level + gemeinsames Filter/Drive
+  · Drums — Level + Filter/Drive
+  Im selben Strip-Look wie die Drum-Kanäle direkt darunter → Master-Stimmen und
+  Einzel-Kanäle sind ein durchgehendes Hackbrett.
 
-  Layout-only, render-safe (Size-Class-Reads passieren nur bei Drehung, nie
-  pro Frame; auf einen eigenen Leaf-View begrenzt → kein Ancestor-Churn).
-  ui-state-Review: 0 Risiken. Beide CI-Gates grün.
+  Reine Layout-Umstrukturierung über die BESTEHENDEN Regler — kein neues Audio,
+  FX weiter standardmäßig aus (voll offen / Drive 0) = bit-identisch bis du
+  drehst. ui-state-Review: 0 Risiken. Beide CI-Gates grün.
 
-  Reorg läuft weiter: als Nächstes die Master-Stimmen (Bass/Pad/Lead) als
-  Strips aufs selbe Hackbrett, dann das Wetter-Panel (getrennte Klang+Bild-
-  Parameter), dann adaptives Layout auch für Timeline + Panels.
+  Als Nächstes (autonom): das Wetter-Panel (getrennte Klang- + Bild-Parameter,
+  jeder einzeln mischbar — dein Wunsch), dann adaptives Layout für Timeline +
+  restliche Panels.
 
-  NEEDS-FOUNDER-VERIFY (Feel im Querformat / auf dem iPad).
+  NEEDS-FOUNDER-VERIFY (Feel des Mix-Boards).
 
-  Zum Antesten warten: v167 (Groove „Eins"), v168 (Hackbrett), v169 (Timeline
-  spielt — „Play timeline"), + v162–v166 (Warmth/Tempo/FX).
+  Warten aufs Antesten: v167 Groove „Eins" · v168 Hackbrett · v169 Timeline
+  spielt · v170 adaptiv · (v162–v166 Warmth/Tempo/FX).
