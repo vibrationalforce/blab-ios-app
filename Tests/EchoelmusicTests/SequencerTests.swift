@@ -169,4 +169,21 @@ final class SequencerTests: XCTestCase {
         engine.onStep = { _, _ in }
         XCTAssertNotNil(engine.onStep)
     }
+
+    // MARK: - Groove: the bar's "one" is anchored
+
+    func testGroovedVelocity_theOneIsStrongestBeat() {
+        // Founder ("die Eins zu erkennen"): step 0 (the bar downbeat) must be the
+        // loudest grooved (non-accented) hit — louder than beats 2·3·4 (steps 4·8·12),
+        // an 8th (step 2) and an off-16th (step 1) — so the ear anchors to the one.
+        let one    = PatternEngine.groovedVelocity(track: 0, step: 0)
+        let beat3  = PatternEngine.groovedVelocity(track: 0, step: 8)
+        let eighth = PatternEngine.groovedVelocity(track: 0, step: 2)
+        let ghost  = PatternEngine.groovedVelocity(track: 0, step: 1)
+        XCTAssertGreaterThan(one, beat3)
+        XCTAssertGreaterThan(one, eighth)
+        XCTAssertGreaterThan(one, ghost)
+        XCTAssertGreaterThan(beat3, ghost)
+        XCTAssertLessThanOrEqual(one, PatternEngine.accentVelocity)   // stays under a drawn accent
+    }
 }

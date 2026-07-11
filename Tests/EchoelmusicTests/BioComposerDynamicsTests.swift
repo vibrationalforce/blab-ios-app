@@ -13,15 +13,16 @@ final class BioComposerDynamicsTests: XCTestCase {
 
     // MARK: - barDynamic (the pure multiplier)
 
-    func testBarDynamic_downbeatLouderThanOffbeat16th() {
-        // Downbeat (step 0/8, metric=1) must outweigh a weak 16th offbeat (e.g. step 15).
-        let beat = C.barDynamic(step: 0, stepCount: steps, depth: 0.6)
+    func testBarDynamic_theOneIsTheLoudestEventInTheBar() {
+        // Founder law ("die Eins zu erkennen"): the bar's ONE (step 0) must be the
+        // strongest event — louder than mid-bar (step 8) and any weak 16th (step 15) —
+        // so the ear anchors to the downbeat every bar.
+        let one  = C.barDynamic(step: 0, stepCount: steps, depth: 0.6)
         let mid  = C.barDynamic(step: 8, stepCount: steps, depth: 0.6)
         let weak = C.barDynamic(step: 15, stepCount: steps, depth: 0.6)
-        XCTAssertGreaterThan(beat, weak)
+        XCTAssertGreaterThan(one, mid)   // the one now wins over mid-bar (was reversed)
+        XCTAssertGreaterThan(one, weak)
         XCTAssertGreaterThan(mid, weak)
-        // Mid-bar downbeat is the loudest point (metric=1 AND swell peak).
-        XCTAssertGreaterThan(mid, beat)
     }
 
     func testBarDynamic_metricHierarchy_beatOverEighthOverSixteenth() {

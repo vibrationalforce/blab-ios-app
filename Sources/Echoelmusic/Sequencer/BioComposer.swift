@@ -266,10 +266,20 @@ public enum BioComposer {
         guard stepCount > 1 else { return 1 }
         let s = ((step % stepCount) + stepCount) % stepCount
         let pos = Float(s) / Float(stepCount)                     // 0..<1 across the bar
-        let metric: Float = (s % 4 == 0) ? 1.0 : (s % 2 == 0 ? 0.6 : 0.32)
-        let swell = 0.5 - 0.5 * cos(2 * Float.pi * pos)           // 0 → 1 → 0 hump
-        let shape = 0.6 * metric + 0.4 * swell                    // 0…1
-        return 1 + clamp01(depth) * (shape - 0.5)                 // centred ~1, span ±depth/2
+        // THE ONE (bar downbeat, s==0) is the strongest metric event; the other beats
+        // follow, then 8ths, then 16ths. Founder ("die Eins zu erkennen"): the old curve
+        // gave every quarter metric=1 AND the raised-cosine swell TROUGHED at s=0, so the
+        // bar's energy peaked mid-bar and the "one" was the weakest downbeat — the exact
+        // reason the one was hard to hear. Now a downbeat term lifts s==0 above the swell.
+        let metric: Float
+        if s == 0            { metric = 1.0 }                     // THE ONE
+        else if s % 4 == 0   { metric = 0.72 }                    // other beats (2·3·4)
+        else if s % 2 == 0   { metric = 0.5 }                     // 8ths
+        else                 { metric = 0.32 }                    // 16ths
+        let swell = 0.5 - 0.5 * cos(2 * Float.pi * pos)           // 0 → 1 → 0 bar breath
+        let downbeat: Float = (s == 0) ? 0.28 : 0                 // anchor the one over the swell trough
+        let shape = 0.55 * metric + 0.25 * swell + downbeat       // 0…1, the one wins
+        return 1 + clamp01(depth) * (shape - 0.5)                 // centred ~1, span ≤ ±depth/2
     }
 
     /// Shape a take's dynamics over the bar so the WHOLE texture (pads, bass, lead) rises
