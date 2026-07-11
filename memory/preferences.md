@@ -45,6 +45,19 @@ User preferences for development workflow, communication, and tooling.
 - "12 EchoelTools" is a **taxonomy over real modules**, not 12 Swift types (see FEATURE_MATRIX).
 - Note: user tolerates structured ✅/🔴 status emojis in chat despite the older "no emojis" line.
 
+## Design doctrine (REMEMBER — founder 2026-07-11, standing instruction)
+- **"Design adaptiv halten und professionell."** Every UI change must (a) stay
+  ADAPTIVE — responsive across iPhone/iPad/Mac(Touch)/Vision Pro, no hard-coded
+  fixed layouts that break on a different size class; and (b) look PROFESSIONAL —
+  Uncodixfy discipline (Linear/Raycast/Stripe class: solid fills, ≤12px radii, 1px
+  muted borders, ≤8px shadow, opacity/colour transitions only, no glassmorphism/
+  neon/glow, ≤3 Hz flash). This is a standing bar for ALL surfaces going forward,
+  not a one-off. Ties to the XR/cross-platform vision push — the shared SwiftUI
+  layer must adapt, not be re-hardcoded per device.
+- Screenshot ref (v10.79.155 build 2261): the Timeline track mixer level fields
+  (0.53 / 1.53) sit awkwardly overlapping the clip grid — a layout-adaptivity
+  smell to clean up when the timeline gets attention.
+
 ## Deployment (REMEMBER — confirmed by founder 2026-06-20)
 - **No GitHub token is needed to deploy.** TestFlight is wired as a TOKENLESS deploy:
   bump `.deploy/release` (any edit) and `git push` → `testflight.yml` runs on that branch
