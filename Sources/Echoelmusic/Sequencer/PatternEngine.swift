@@ -197,14 +197,20 @@ public final class PatternEngine {
     /// bounded ±6% hash jitter adds micro-humanity. Centered on `normalVelocity`.
     static func groovedVelocity(track: Int, step: Int) -> Float {
         let base = normalVelocity
-        // Metric weight: on-beat > 8th > 16th. Small spans keep the existing feel.
+        // Metric weight: THE ONE (bar downbeat, step 0) > other beats > 8th > 16th.
+        // Founder ("manchmal ist es schwierig die Eins zu erkennen"): the old curve
+        // pushed beats 1·2·3·4 identically, so nothing marked the bar's "one". Now
+        // step 0 is the strongest grooved hit — the ear anchors to it every bar.
         let metric: Float
-        if step % 4 == 0      { metric =  0.10 }   // downbeat — push
+        if step == 0          { metric =  0.16 }   // THE ONE — strongest, anchors the bar
+        else if step % 4 == 0 { metric =  0.07 }   // other beats (2·3·4) — pushed, but under the one
         else if step % 2 == 0 { metric =  0.02 }   // 8th — slight
         else                  { metric = -0.10 }   // off-16th — ghost
         // Deterministic bounded jitter in [-0.06, 0.06] from a cheap (track,step) hash.
+        // The ONE gets NO jitter — a steady anchor that never wanders below a backbeat,
+        // so the downbeat is reliably the strongest grooved hit (metric gap < jitter span).
         let h = (UInt32(bitPattern: Int32(step &* 73 &+ track &* 19 &+ 1)) &* 2654435761) >> 8
-        let jitter = (Float(h % 1000) / 1000.0 - 0.5) * 0.12   // ±0.06
+        let jitter: Float = step == 0 ? 0 : (Float(h % 1000) / 1000.0 - 0.5) * 0.12   // ±0.06
         let v = base + metric + jitter
         return Swift.min(0.98, Swift.max(0.35, v))             // stay below accent, audible floor
     }
