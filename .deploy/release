@@ -1,23 +1,28 @@
-build: 2026-07-11 v10.79.157 (Herzschlag-Rhythmen — ruhig still, aktiv lebendig)
+build: 2026-07-11 v10.79.158 (Alle Genres + Rockakkorde — logisch gruppiert)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Erster Zyklus deines Kompositions-Auftrags ("nicht statisch im Takt … am
-  Herzschlag orientierte Rhythmen, punktierte und Synkopen"). Bitte auf dem Gerät
-  hören — am besten in Self-Observation / Deep Ambient:
+notes: Dein "Alles rein. Logisch sortiert. Gehe tief rein" + "Rockakkorde".
+  Bitte auf dem Gerät im Genre-Menü anschauen/anspielen:
 
-  RUHIG = STILL, AKTIV = LEBENDIG (je nach Biofeedback): Die Flächen blieben
-  bisher immer gleich liegen. Jetzt gilt: bei RUHIGEM Körper (hohe Kohärenz,
-  niedriger Puls) bleibt die Fläche still gehalten — genau wie du sie mochtest.
-  Wird der Körper AKTIV (Puls hoch, Kohärenz runter), bricht DERSELBE Akkord in
-  einen herzschlag-orientierten Rhythmus auf: erst punktiert (lang-kurz), dann
-  Tresillo (3-3-2, das "Lub-Dub"-Grouping) — synkopiert und lebendig, aber immer
-  in der Tonart und takt-sauber. Kein schriller Wellen-Lead — die Bewegung
-  steckt im Pad-Klang selbst.
-  → Spiel ruhig ein und beweg dich dann / halt den Atem an, bis der Puls steigt:
-    Bleibt es bei Ruhe still, und kommt bei Aktivierung ein musikalisch
-    sinnvoller, synkopierter Puls rein (nicht chaotisch, nicht schrill)?
+  ALLE 23 GENRES, LOGISCH GRUPPIERT: Der Genre-Picker bot bisher nur 6 ruhige
+  Flächen. Jetzt ist die volle Palette da, in 4 Gruppen sortiert:
+    · Meditativ & Ambient (zuerst — bleibt der Ruhe-Standard): Self-Observation,
+      Deep Ambient, Vaporwave, Sci-Fi
+    · Elektronisch & Beats: Dub Techno, Trap, Psytrance, Synthwave, Early Synth,
+      80s, Disco, Futuristic
+    · Rock & Energie: Rock, Punk, Rock'n'Roll, Heavy Metal, Doom
+    · Akustisch & Global: Classical, Jazz, Klezmer, Oriental, Ska, Rocksteady
+  Jedes gewählte Genre bleibt erhalten (kein Zwang-Zurück auf Self-Observation
+  mehr).
 
-  NÄCHSTE KOMPOSITIONS-ZYKLEN (Fahrplan steht): Rockakkorde + Akkord-Vokabular
-  (Power-Chords, sus, add9) · starke Interpolierung (Stimmen gleiten beim
-  Akkordwechsel) · modale/Kirchenton-Genres (42 Skalen sind schon da) · echte
-  Pro-Beat-Orientierung (gemessene RR-Intervalle direkt in die Rhythmik). Design
-  bleibt adaptiv + professionell. Alles kommt allen Devices über den Kern zugute.
+  ECHTE ROCKAKKORDE: Rock / Punk / Metal / Doom spielen jetzt volle Power-Chords
+  (Grundton + Quinte + Oktave) statt nackter Zwei-Ton-Dyaden — der satte,
+  chunky Rock-Sound. (Rock'n'Roll behält seine Boogie-Dreiklänge.)
+
+  → Öffne das Genre-Menü: sind die 4 Gruppen klar sortiert? Spiel Rock/Metal an:
+    klingen die Power-Chords voll und rockig (nicht dünn)?
+
+  Hinweis: Der ruhige Flächen-Klang ist unverändert. Noch zum Antesten offen:
+  v156 (Synth Einzelnote/Akkord-Pegel) und v157 (Herzschlag-Rhythmen in den
+  Flächen). NÄCHSTE KOMPOSITIONS-ZYKLEN: mehr Akkord-Vokabular (sus/add9) ·
+  starke Interpolierung (Voicing-Morph) · modale Genre-Charaktere. Design bleibt
+  adaptiv + professionell.
