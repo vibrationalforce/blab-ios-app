@@ -1,26 +1,22 @@
-build: 2026-07-11 v10.79.155 (Flächen entwickeln sich weiter + Profi-Pegel — kein Pumpen mehr)
+build: 2026-07-11 v10.79.156 (Polyphonie-Headroom — Einzelnote voll, Akkord zerrt nicht)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Zwei Kern-Verbesserungen aus deinem Log + Auftrag. Bitte auf dem Gerät prüfen:
+notes: Profi-Sounddesign-Zyklus 2 am Synth (dein "EchoelSynth rudimentär bei
+  den Levels · da nochmal richtig profi-mäßig ran"). Kommt allen Devices über
+  den geteilten Klang-Kern zugute. Bitte auf dem Gerät hören:
 
-  1) FLÄCHEN ENTWICKELN SICH WEITER (dein "es soll ja weitergehen und sich mit dem
-     Herzschlag weiterentwickeln"): Die meditativen Flächen (Self-Observation, Deep
-     Ambient) waren Ein-Akkord-Drones — sie KONNTEN sich harmonisch nie bewegen.
-     Jetzt tragen sie eine sanfte Akkord-Reise (Moll i–VI–iv bzw. Lydisch I–II–V):
-     pro Takt bleibt EIN Akkord gehalten (die Ruhe bleibt), aber WELCHER Akkord
-     wandert mit jedem Herzschlag-getakteten Weiter-Schritt (~alle 30 s) voran —
-     der Pad reist durch seine Progression statt festzukleben.
-     → Höre 1–2 Minuten in Self-Observation rein: bewegt sich die Harmonie jetzt
-       spürbar weiter, ohne unruhig/gedödelt zu werden?
+  POLYPHONIE-HEADROOM: Bisher lag ein fester Pegel-Deckel (0.40) auf dem
+  Synth — der machte selbst eine EINZELNE Note dünn, und dichte Akkorde haben
+  die Schutz-Sättigung trotzdem angeschlagen (leicht zerrig). Jetzt ist der
+  Makeup-Pegel stimmzahl-bewusst UND weich geglättet:
+    · Eine einzelne Note klingt jetzt VOLL (nicht mehr dünn/leise).
+    · Je dichter der Akkord, desto sanfter wird zurückgenommen (1/√Stimmen) —
+      die Summe zerrt nicht mehr, die Schutz-Sättigung bleibt reine Sicherung.
+    · Der Übergang von Note zu Akkord GLEITET (kein Pegel-Springen/Pumpen beim
+      Anschlagen/Loslassen) — das war früher der Grund, warum es nicht ging.
+  → Spiel EchoelSynth: klingt eine Einzelnote jetzt satt/voll, und bleibt ein
+    voller Akkord sauber (ohne Zerren), ohne dass der Pegel hörbar pumpt?
 
-  2) PROFI-PEGEL — KEIN PUMPEN MEHR (dein "rudimentär bei den Levels"): Der
-     Master-Auto-Gain jagte über ±12 dB auf einem 200-ms-Fenster → der Pegel
-     bewegte sich ständig. Jetzt SETZT er sich statt zu jagen: ±6 dB, sanft und
-     asymmetrisch geglättet (langsam beim Anheben leiser Stellen, damit Lücken
-     nicht hochpumpen; etwas schneller beim Zähmen lauter), mit Dead-Zone gegen
-     Mikro-Zappeln. Die schnelle Peak-Sicherung bleibt separat.
-     → Spielt sich der Gesamtpegel jetzt ruhig/stabil an, ohne Auf-und-Ab-Pumpen?
-
-  NÄCHSTE ZYKLEN am Synth (kommen allen Devices zugute): Polyphonie-Headroom
-  (Einzelnote voll, Akkord zerrt nicht) · Patch-Pegel-Angleich · TPT-Filter
-  (luftige Höhen >8 kHz) · MIDI-Aufnahme. Cross-Platform/Vision-Pro (Visibra):
-  läuft über den geteilten Kern — jeder Sound-Fortschritt landet dort automatisch.
+  NÄCHSTE ZYKLEN am Synth: Patch-Pegel-Angleich · TPT-Filter (luftige Höhen
+  >8 kHz) · MIDI-Aufnahme mit EchoelSynth. Design bleibt adaptiv + professionell
+  (deine stehende Direktive). Cross-Platform/Vision-Pro (Visibra) erbt jeden
+  Klang-Fortschritt automatisch über den geteilten Kern.

@@ -902,6 +902,53 @@ public enum BioComposer {
         }
     }
 
+    /// Heartbeat-oriented rhythmic onsets for ONE held chord section (founder
+    /// 2026-07-11: "Kompositionen müssen nicht statisch im Takt sein … interessante
+    /// am Herzschlag orientierte Rhythmen, punktierte und Synkopen"). This resolves
+    /// the tension with the 2026-07-09 "Flächen still" doctrine as **calm = still,
+    /// active = alive** (the founder's own "je nach Biofeedback individuell"): the
+    /// 2026-07-09 rejection was about the exposed harsh wave-LEAD timbre, not about
+    /// movement — so movement returns in the PAD timbre, never a naked lead.
+    ///
+    /// BIO-SCALED: below the energy threshold it returns a SINGLE onset spanning the
+    /// whole section — bit-identical to the old held Fläche, so the calm default the
+    /// founder liked is fully preserved. As body energy rises the section breaks into
+    /// a dotted (long-short) then tresillo (3-3-2, the lub-dub grouping) pattern of
+    /// shorter re-articulations of the SAME chord. The step grid is the tempo grid,
+    /// which is already heart-rate-derived upstream, so the onsets land on a
+    /// heartbeat-referenced pulse. Deterministic (no RNG → the rhythm tracks the body,
+    /// it doesn't jitter every re-seed) and always inside [secStart, secStart+secLen)
+    /// so the loop stays bar-tight. Pure → unit-testable.
+    static func heartbeatOnsets(secStart: Int, secLen: Int,
+                                energy: Float, syncopation: Float) -> [(start: Int, len: Int)] {
+        // `energy` is the composer's own `busy` activity signal (0…~0.85). Below 0.5 the
+        // body is at rest or only neutrally engaged → ONE held onset (the still Fläche,
+        // unchanged) so typical resting/meditative states keep the stillness the founder
+        // liked. Rhythm only emerges once the body is genuinely activated.
+        guard secLen >= 4, energy >= 0.5 else { return [(secStart, secLen)] }
+        // Syncopation nudges the body toward the more off-beat (tresillo) feel sooner.
+        let e = clamp01(energy + clamp01(syncopation) * 0.15)
+        let strides: [Int]
+        if e < 0.68 {
+            strides = [6, 4]              // dotted-quarter + quarter — a gentle dotted lilt
+        } else if e < 0.82 {
+            strides = [3, 3, 2]           // tresillo — the classic heartbeat-like syncopation
+        } else {
+            strides = [3, 3, 2, 2, 3, 3]  // busier tresillo variant for a fully aroused body
+        }
+        var onsets: [(start: Int, len: Int)] = []
+        let secEnd = secStart + secLen
+        var s = secStart
+        var i = 0
+        while s < secEnd {
+            let stride = strides[i % strides.count]
+            onsets.append((s, Swift.min(stride, secEnd - s)))
+            s += stride
+            i += 1
+        }
+        return onsets.isEmpty ? [(secStart, secLen)] : onsets
+    }
+
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
@@ -1027,6 +1074,25 @@ public enum BioComposer {
                                       startStep: s, lengthSteps: length, velocity: hVel(padVelocity, &rng)))
                     s += arpStep
                     t += 1
+                }
+            } else if profile.sustained {
+                // HEARTBEAT-ORIENTED FLÄCHE (founder 2026-07-11: "nicht statisch im Takt
+                // … am Herzschlag orientierte Rhythmen, punktierte und Synkopen"). The
+                // held chord is re-articulated on a bio-scaled dotted/tresillo grid:
+                // calm body → one onset spanning the section (the still Fläche, unchanged);
+                // active body → the SAME chord voicing punched on a syncopated pulse. Same
+                // pitches (in-key), pad timbre (no lead), all inside the bar. Driven by the
+                // composer's own `busy` activity signal (arousal blended with inverse
+                // coherence, already computed upstream); the still→alive threshold lives in
+                // heartbeatOnsets so a settled body stays still.
+                let onsets = Self.heartbeatOnsets(secStart: secStart, secLen: len,
+                                                  energy: busy, syncopation: mood.syncopation)
+                for pitch in voiced {
+                    for onset in onsets {
+                        notes.append(Note(id: nextUUID(&rng), pitch: pitch,
+                                          startStep: onset.start, lengthSteps: onset.len,
+                                          velocity: hVel(padVelocity, &rng)))
+                    }
                 }
             } else {
                 for pitch in voiced {
