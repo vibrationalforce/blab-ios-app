@@ -1,27 +1,23 @@
-build: 2026-07-11 v10.79.161 (Genres gezähmt + Mixer komplett)
+build: 2026-07-11 v10.79.162 (Analog Warmth — weg vom kalten Plastik)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Zwei Dinge aus deinem Feedback ("überladen und piepsig künstlich" + der
-  komplette Mixer). Bitte hören:
+notes: Dein "kaltes überladenes Plastik synthie gedudel / piepsig künstlich"
+  hat eine klare Ursache — der Synth-Motor ist ein reiner Sinus-Stack (sauber,
+  aber deshalb kalt und dünn). Dieser Build gibt ihm Körper.
 
-  1) GENRES GEZÄHMT (dein "überladen … unangenehm bis piepsig künstlich"):
-     · Weniger dicht: die Lead-Dichte war beim aktiven Körper zu hoch (Notenflut).
-       Deutlich runtergezogen — sparsame, singende Linie statt Gedudel.
-     · Keine schrillen Höhen mehr: der Oktavsprung an Phrasen-Höhepunkten schob die
-       Melodie in stechende Top-Oktaven. Jede Lead-Note über C6 wird jetzt
-       oktavweise nach unten gefaltet — bleibt in der Tonart, aber im warmen
-       Register. Kein dünnes Plastik-Gepiepse mehr.
-     → Spiel die energetischen Genres (Rock/Disco/…): sind sie jetzt aufgeräumt
-       und warm im Register statt überladen/schrill?
+  ANALOG WARMTH:
+  · Eine sanfte Sättigung VOR dem Filter gibt jedem Ton harmonischen Körper —
+    Peaks komprimieren, ungerade Harmonische kommen dazu, der Filter zähmt sie
+    dann zu Wärme statt Kante. Leise Stellen bleiben unberührt (wirkt nur da,
+    wo es zählt), gespeicherte Sounds bleiben exakt wie designt.
+  · Standard-Wärme auf den ganzen Out-of-box-Sound — weg vom kalten Sinus.
+  · Mehr Wärme auf die schrillen Leads (Bright/Vapor Lead, Glass Bell,
+    Metallic) — direkter Treffer auf dein "hohe Melodien schrill".
 
-  2) MIXER KOMPLETT: der Drums-Fader ist dazu — jetzt Bass · Pad · Lead · Drums
-     je ein Fader (Composition → "Mix"). Drums wirken LIVE (nächster Beat).
+  BITTE HÖREN: Sind die energetischen Genres (Rock/Disco/Trap-Lead) jetzt
+  wärmer und runder statt piepsig-künstlich? Sag mir mehr/weniger Wärme —
+  ich dreh die eine Zahl. Und: welches Referenz-Genre soll der Default treffen
+  (Dub Techno = mein wärmster Kandidat)?
 
-  ZU DEINER KLANG-RICHTUNG (warm/dubbig/housig/"Unterwasser"/geflippte Loops):
-  Diese Palette lebt schon im Motor — pro Genre kommen Dub-Delay, Tape-Wobble,
-  Chorus und Wärme automatisch beim Generate; es gibt einen eigenen "Underwater"-
-  Charakter (tiefer Low-Pass + wässriger Chorus + Tape-Wobble) und Cassette/Vinyl/
-  Blurry/Dream. Die dubbigen/entspannten Genres (Dub Techno, Vaporwave, Self-
-  Observation) liefern deinen Vibe out of the box. Ich habe deine Taste als
-  Nordstern festgehalten und schraube den Default weiter genau dahin — weg vom
-  kalten Plastik. Sag mir, welches deiner Referenz-Genres am nächsten dran ist,
-  dann treffe ich deinen Geschmack punktgenau statt zu raten.
+  Ausblick: nächster Zyklus = Per-Track-FX-Inserts (jede Spur ihre Kette,
+  bio-modulierbar) — der Schritt Richtung der einen bio-modulierten Timeline,
+  die alle 8 Tools in EINER Ansicht vereint.
