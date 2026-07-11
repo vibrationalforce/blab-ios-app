@@ -56,6 +56,17 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     public var timbreProfile: String   // EchoelDDSP.InstrumentTimbre rawValue, or "" = none
     public var timbreBlend: Float      // 0 = pure synth shape · 1 = full instrument spectrum
 
+    // Per-instrument output level (loudness trim), 1.0 = unity. Optional so patches
+    // saved before it existed decode (nil = unity). Normalises one sound's overall
+    // loudness against the others (founder 2026-07-11: "Play surface sounds … teils zu
+    // laut oder zu leise … Level pro Instrument") — applied as a voice gain, NOT a
+    // note-velocity change. The factory patches auto-calibrate this (see
+    // `loudnessNormalized()`); users can trim it in the editor.
+    public var outputLevel: Float?
+
+    /// Effective output level (nil → unity).
+    public var level: Float { outputLevel ?? 1.0 }
+
     public init(
         id: UUID = UUID(),
         name: String,
@@ -68,7 +79,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         reverbMix: Float = 0.25, reverbDecay: Float = 2.0,
         vibratoRate: Float = 0, vibratoDepth: Float = 0,
         timbreProfile: String = "", timbreBlend: Float = 0,
-        unisonVoices: Int? = nil, unisonDetuneCents: Float? = nil
+        unisonVoices: Int? = nil, unisonDetuneCents: Float? = nil,
+        outputLevel: Float? = nil
     ) {
         self.id = id
         self.name = name
@@ -84,6 +96,40 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         self.vibratoRate = vibratoRate; self.vibratoDepth = vibratoDepth
         self.timbreProfile = timbreProfile; self.timbreBlend = timbreBlend
         self.unisonVoices = unisonVoices; self.unisonDetuneCents = unisonDetuneCents
+        self.outputLevel = outputLevel
+    }
+
+    // MARK: - Loudness normalisation (founder 2026-07-11 "angleichen")
+
+    /// A rough PERCEPTUAL-loudness estimate from the level-driving params — brighter,
+    /// more-harmonic, higher-sustain, unison-stacked sounds read louder; dark/short
+    /// ones quieter. A heuristic (not a rendered RMS — that needs Accelerate + a device
+    /// pass), but enough to stop one instrument being "teils zu laut oder zu leise"
+    /// against the next. Pure → unit-testable.
+    public static func loudnessEstimate(harmonicLevel: Float, brightness: Float,
+                                        sustain: Float, noiseLevel: Float,
+                                        unisonVoices: Int?) -> Float {
+        let uni = Float(Swift.max(unisonVoices ?? 1, 1))
+        let unisonFactor = uni.squareRoot()            // detuned stack sums ~incoherently
+        let harmonic = harmonicLevel * (0.6 + 0.8 * brightness) * (0.5 + 0.5 * sustain)
+        return harmonic * unisonFactor + noiseLevel * 0.5
+    }
+
+    /// The reference loudness the factory patches are matched to (≈ the Warm-Pad
+    /// default estimate), so a normalised default lands near unity.
+    static let loudnessReference: Float = 0.58
+
+    /// A copy of this patch with `outputLevel` set so its estimated loudness matches
+    /// `loudnessReference` — clamped to a musical trim range so nothing is silenced or
+    /// wildly boosted. Used to auto-calibrate the factory roster.
+    public func loudnessNormalized() -> SynthPatch {
+        let est = Swift.max(SynthPatch.loudnessEstimate(
+            harmonicLevel: harmonicLevel, brightness: brightness, sustain: sustain,
+            noiseLevel: noiseLevel, unisonVoices: unisonVoices), 0.0001)
+        let trim = Swift.min(Swift.max(SynthPatch.loudnessReference / est, 0.45), 1.4)
+        var copy = self
+        copy.outputLevel = trim
+        return copy
     }
 
     /// A stable id from a fixed string (factory presets need identity that
@@ -100,8 +146,14 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         all.first { $0.rawValue.caseInsensitiveCompare(s) == .orderedSame }
     }
 
-    /// Built-in starting points. The first is the warm default pad.
-    public static let factory: [SynthPatch] = [
+    /// Built-in starting points, LOUDNESS-MATCHED (founder 2026-07-11 "angleichen"):
+    /// each is auto-calibrated via `loudnessNormalized()` so no factory sound is much
+    /// louder/quieter than the next. The first is the warm default pad.
+    public static let factory: [SynthPatch] = rawFactory.map { $0.loudnessNormalized() }
+
+    /// The un-normalised factory definitions (timbre design only; output level is
+    /// applied by `factory`).
+    private static let rawFactory: [SynthPatch] = [
         SynthPatch(id: stableID("00000000-0000-0000-0000-0000000000A1"), name: "Warm Pad"),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000A2"),
@@ -409,6 +461,11 @@ extension SynthPatch {
 
         synth.vibratoRate = vibratoRate
         synth.vibratoDepth = vibratoDepth
+
+        // Per-instrument loudness trim (founder 2026-07-11 "Level pro Instrument"). nil
+        // = unity (bit-identical). Folded into the voice's master-gain smoother, so it
+        // glides in without a click.
+        synth.patchOutputLevel = level
     }
 }
 #endif
