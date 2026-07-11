@@ -15,35 +15,12 @@
 
 import Foundation
 
-/// Which live body signal modulates a parameter. `.none` = pure manual control.
-public enum BioModSource: String, CaseIterable, Sendable, Identifiable {
-    case none, heartRate, hrv, breath, coherence, motion
-
-    public var id: String { rawValue }
-
-    public var displayName: String {
-        switch self {
-        case .none:      return "Manual"
-        case .heartRate: return "Heartbeat"
-        case .hrv:       return "HRV"
-        case .breath:    return "Breath"
-        case .coherence: return "Coherence"
-        case .motion:    return "Motion"
-        }
-    }
-
-    /// The signal normalised to 0…1 for this source from a bio frame.
-    public func signal(_ bio: BioSampleFrame) -> Double {
-        switch self {
-        case .none:      return 0
-        case .heartRate: return clamp01((Double(bio.heartRateBPM) - 40) / 160) // 40…200 bpm
-        case .hrv:       return clamp01(Double(bio.hrvNormalized))
-        case .breath:    return clamp01(Double(bio.breathPhase))
-        case .coherence: return clamp01(Double(bio.coherence))
-        case .motion:    return clamp01(Double(bio.motionEnergy))
-        }
-    }
-}
+// Bio SOURCES are the ONE canonical `ModSource` enum in `Core/ModulationMatrix.swift`
+// (Q1 de-duplication 2026-07-11): the former `BioModSource` here was a second, parallel
+// bio-source enum. `ModulationMatrix` (routing, matrix-style, keyed destinations) and this
+// file (per-control binding + master clock) are COMPLEMENTARY halves of one modulation
+// spine — they now share the same source vocabulary so "assign the pulse to this knob"
+// means exactly the same thing everywhere. `nil` source = pure manual control.
 
 /// The master clock: a fixed musical tempo (BPM-lock) OR the live heartbeat.
 public enum ClockSource: Sendable, Equatable {
@@ -74,15 +51,16 @@ public struct BoundParameter: Sendable, Equatable {
     public var base: Double
     /// Valid range for this parameter (clamps the resolved result).
     public var range: ClosedRange<Double>
-    /// Which body signal modulates it (`.none` = pure manual).
-    public var source: BioModSource
+    /// Which body signal modulates it (`nil` = pure manual). The one canonical
+    /// `ModSource` enum, shared with the routing matrix.
+    public var source: ModSource?
     /// Bipolar modulation depth, -1…1, scaled to the range span. + pushes toward
     /// the maximum as the signal rises, − toward the minimum.
     public var amount: Double
 
     public init(base: Double,
                 range: ClosedRange<Double>,
-                source: BioModSource = .none,
+                source: ModSource? = nil,
                 amount: Double = 0) {
         self.base = base
         self.range = range
@@ -91,21 +69,21 @@ public struct BoundParameter: Sendable, Equatable {
     }
 
     /// True when this parameter currently follows the body.
-    public var isBound: Bool { source != .none && amount != 0 }
+    public var isBound: Bool { source != nil && amount != 0 }
 
     /// Resolve to a concrete value for the current bio frame. With no source (or
     /// no frame) it returns the clamped manual base — manual control always works.
     public func resolved(from bio: BioSampleFrame?) -> Double {
         let span = range.upperBound - range.lowerBound
-        guard isBound, let bio, span > 0 else {
+        guard let source, amount != 0, let bio, span > 0 else {
             return clamp(base, range.lowerBound, range.upperBound)
         }
-        let value = base + clamp(amount, -1, 1) * span * source.signal(bio)
+        let signal = Double(source.normalizedValue(from: bio))
+        let value = base + clamp(amount, -1, 1) * span * signal
         return clamp(value, range.lowerBound, range.upperBound)
     }
 }
 
 // MARK: - Pure helpers
 
-private func clamp01(_ x: Double) -> Double { min(max(x, 0), 1) }
 private func clamp(_ x: Double, _ lo: Double, _ hi: Double) -> Double { min(max(x, lo), hi) }
