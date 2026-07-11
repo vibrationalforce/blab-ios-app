@@ -57,6 +57,11 @@ public final class PianoRollModel {
     /// bar boundary and loads the next section's clip BEFORE that bar's notes
     /// trigger. Fed from the same shared `onTick` so the song stays on one clock.
     @ObservationIgnored private weak var arrangement: ArrangementPlayer?
+    /// The arrange TIMELINE player (reorg P3) — fed the SAME shared `onTick` as the
+    /// arrangement, right beside it, so it loads a region's clip BEFORE that step's
+    /// notes trigger (no seam). nil / not-playing = a pure no-op, so the live
+    /// Generate+Play instrument path is untouched.
+    @ObservationIgnored private weak var timeline: TimelineRegionPlayer?
     /// Optional parameter automation — applied each step on this same shared clock
     /// (writes main-thread-safe params: master level / tempo). nil = no-op.
     @ObservationIgnored private weak var automation: AutomationPlayer?
@@ -234,12 +239,14 @@ public final class PianoRollModel {
                       lead: PolySynthVoice? = nil,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
                       arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
-                      auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil) {
+                      auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil,
+                      timeline: TimelineRegionPlayer? = nil) {
         self.voice = voice
         self.lead = lead
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
+        self.timeline = timeline
         self.automation = automation
         self.bus = bus
         self.auHost = auHost
@@ -248,6 +255,7 @@ public final class PianoRollModel {
         // plays from step 0 cleanly and params are set before the notes sound.
         pattern.onTick = { [weak self] step in
             self?.arrangement?.transportStep(step)
+            self?.timeline?.transportStep(step)   // reorg P3: no-op unless timeline play is engaged
             self?.automation?.applyStep(step)
             self?.trigger(step)
         }
