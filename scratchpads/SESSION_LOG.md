@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 22) — K2a: Mixer-Strip pro Spur + Roll-Slot-Bindung (`cd7b9bc`)
+- **Der Schlüsselstein aus PLAN_ARRANGEMENT_FULL:** jede Media-Lane hat jetzt im
+  Spur-Kopf M/S-Toggles + Level (EchoelValueField, boxWidth 40; Kopf 128 pt,
+  Tür-Zeile oben/Strip-Zeile unten — Buttons dürfen nie ins Menu-Label). Zustand
+  persistiert im TimelineDocument; Alt-Dokumente ohne Mix-Keys decoden auf Unity
+  (custom init(from:) + Test).
+- **Reine Mix-Mathematik auf dem Dokument:** `effectiveGain(for:)` (Mute gewinnt
+  über eigenes Solo; irgendein Solo stummt Nicht-Solisten; Level-Clamp 0…2;
+  unbekannte Lane = 0) + `rollSlotGain` (erste Nicht-Bio-MIDI-Lane besitzt das
+  EINE geteilte Roll bis A1 Multi-Roll; keine MIDI-Lane = Unity). 5 neue Tests.
+- **Erste Engine-Bindung:** `PianoRollModel.mixGain` (@ObservationIgnored) —
+  skaliert jede NEUE Attacke (Built-in-Voices, MIDI-Out, AU-Host); Mute überspringt
+  Attacken bei INTAKTER active-Buchführung (Note-Offs bleiben harmlos, kein
+  Hänger), Sub-Bass-Reconciler folgt sofort. Surface wendet per
+  `.onChange(of: rollSlotGain, initial: true)` an; Übergang auf 0 = allNotesOff
+  (Mute schneidet Klingendes sofort). Audio-Region-Audition respektiert
+  effectiveGain (gemutete Spur bleibt still — Strip ist ehrlich).
+- **Bewusst NICHT in diesem Zyklus:** Audio-Lane→AudioClipPlayer-Bindung
+  (der Player ist heute @State in AudioClipView, nicht geteilt — kommt mit K3
+  Timeline-Playback), per-Lane-FX (K2b), Video/Visual-Gain (Engines fehlen).
+
 ## 2026-07-11 (Forts. 21) — GRAND COUNCIL: „Bio-Dirigent oben auf der Profi-Kette"
 - **Founder-Ask:** Deep Audit + Strategie — „oben drauf setzen" auf Ableton/FL/AUM/
   InShot + Premiere/FinalCut/Resolve/Reaper/ProTools/Resolume/TouchDesigner/OBS;

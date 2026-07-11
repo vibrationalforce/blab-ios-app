@@ -1,30 +1,23 @@
-build: 2026-07-10 v10.79.149 (Nachtlauf: Sampler-Library + eigene Sounds + Humanisierung)
+build: 2026-07-10 v10.79.150 (K2a: Mixer pro Spur in der Arrangement-Ansicht)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: v148 läuft stabil (dein 25-Min-Log = Crash besiegt, danke!). Diese Nacht
-  im Ralph-Modus abgearbeitet — alles CI-grün:
+notes: Der Schlüsselstein für "alles läuft über die Spuren" — jede Spur in der
+  Timeline hat jetzt ihren eigenen Mini-Mixer im Spur-Kopf:
 
-  1) SAMPLE-BROWSER nach Kategorie: Im Sample-Browser (Pad antippen →
-     durchblättern) gibt es jetzt Bass · Stab · Keys · Pad · Tone · Tom ·
-     Conga · FX + Drum-Varianten — ▶ zum Vorhören, "Use" legt es auf den Pad.
-  2) ~50 EIGENE, LIZENZREINE Sounds (komplett synthetisiert — kein Pack,
-     keine Lizenzfrage): eigener Bass (Sub/Saw/FM/Reese/Acid), Stabs
-     (Rave/Brass/Moll), Pads (Warm/Glass), FM-Rhodes/Glocken/Marimba/Clav,
-     gezupfte Saiten (echtes Physical Modeling) + Riser-FX — alle gemastert.
-     Erkennbar am "Echoel"-Namen.
-  3) Deine Pad-Auswahl bleibt jetzt nach Neustart erhalten.
-  4) SOUNDS FÜHLEN SICH ECHTER AN (dein Video "why your sounds feel fake"):
-     Beats bekommen pro Anschlag eine dezente Velocity-Variation — kein
-     Maschinengewehr mehr, es "atmet".
+  1) M (Mute) · S (Solo) · Level-Feld pro Spur — gleiche Bedienung wie überall
+     (Zahl antippen = Tastatur, ziehen = Fader). Alles bleibt nach Neustart.
+  2) HÖRBAR verbunden: die erste MIDI-Spur regelt das Piano-Roll — Mute
+     schneidet sofort (nichts hängt nach), Level skaliert die Anschläge,
+     Solo stummt die anderen. Auch MIDI-Out/AUv3 folgen dem Strip.
+  3) Audio-Regionen: Antippen spielt die WAV nur, wenn die Spur nicht
+     gemutet/weggesolot ist — was M/S zeigen, ist was du hörst.
 
-  → Test: Sample-Browser öffnen (Pad antippen), durch die Kategorien
-    blättern, ein paar Echoel-Sounds vorhören + auf Pads legen. Beat
-    laufen lassen — klingt er lebendiger/organischer?
+  → Test: Timeline aufziehen, auf der MIDI-Spur M/S/Level spielen während
+    der Take läuft — schneidet Mute sofort? Fühlt sich das Level-Feld im
+    schmalen Spur-Kopf gut an (Ziehen + Tippen)?
 
-  OFFEN bei dir (Entscheidungen, kein Code):
-  - Lizenz: Die ÄLTEREN Pack-Samples in der Library bräuchten vor dem
-    App-Store-Submit eine Lizenzprüfung. Die neuen Echoel-Sounds sind sauber
-    — wir können den Default-Kit auf die eigenen umstellen, wenn dir die
-    gefallen (dein Ohr entscheidet).
-  - Nächste Zyklen mit deinem Gerät: Pitch-Bewegung pro Note (2. Punkt aus
-    dem Video) + rPPG-Kamera-Stabilität (Finger-Erkennung/Stall aus deinem
-    148-Log) — die fasse ich nur mit deiner Rückmeldung an, nicht blind.
+  Nächster Zyklus (K2b): eigene Insert-FX pro Spur + Bio-Modulation darauf.
+  Danach A1 (eigenes Notenmaterial pro MIDI-Spur) → MPE-Aufnahme auf Spur.
+
+  OFFEN bei dir (unverändert): Ohr-Urteil Echoel-Sounds/Browser · Lizenz-
+  Entscheid Alt-Samples · Cymatics-Go · Per-Note-Pitch + rPPG-Finger nur
+  mit deinem Geräte-Log.

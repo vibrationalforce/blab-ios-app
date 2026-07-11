@@ -1,6 +1,9 @@
 #if canImport(AVFoundation)
 import Foundation
 import AVFoundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Minimal AVCaptureSession for rPPG pulse detection.
 /// Captures low-resolution video frames from the back camera.
@@ -49,6 +52,10 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     /// restarts while interrupted (they can't work and the torch churn only adds heat);
     /// it waits for `AVCaptureSessionInterruptionEnded`. Set/cleared on sessionQueue.
     nonisolated(unsafe) private var interrupted = false
+    /// Owner-visible mirror of the OS interruption, so the PUBLISHER's escalation
+    /// can stop thrashing cold restarts against a held camera (device log
+    /// 1783749556: 8 cold restarts, 0 frames — reason 1 re-fired on every start).
+    var isInterrupted: Bool { interrupted }
 
     /// Whether the session is running
     var isRunning: Bool { session.isRunning }
@@ -73,6 +80,11 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                     return
                 }
                 do {
+                    // Fresh start = fresh interruption state. Without this, an
+                    // interruption whose InterruptionEnded arrived while we were
+                    // STOPPED (observers removed) would wedge every future session
+                    // read-only — watchdog and stall recovery permanently disabled.
+                    self.interrupted = false
                     try self.configureSession()
                     self.installSessionObservers()
                     self.session.startRunning()
@@ -280,9 +292,28 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                                   queue: nil) { [weak self] note in
             let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
             // Breadcrumb (not just os_log) so the founder's diag log finally REVEALS why
-            // the camera died — reason 4 = systemPressure (thermal), 2 = inUseByAnother,
-            // 1/3 = backgrounded. This was invisible in every prior stall log.
-            EchoelCrashLog.breadcrumb("rPPG: camera INTERRUPTED (reason \(reason)) — waiting for the OS, not thrashing restarts")
+            // the camera died. Correct raw values: 1 = videoDeviceNotAvailableInBackground,
+            // 2 = audioDeviceInUseByAnotherClient, 3 = videoDeviceInUseByAnotherClient,
+            // 4 = videoDeviceNotAvailableWithMultipleForegroundApps, 5 = systemPressure.
+            let name: String
+            switch reason {
+            case 1: name = "videoNotAvailableInBackground"
+            case 2: name = "audioInUseByAnotherClient"
+            case 3: name = "videoInUseByAnotherClient"
+            case 4: name = "multipleForegroundApps"
+            case 5: name = "systemPressure"
+            default: name = "unknown"
+            }
+            EchoelCrashLog.breadcrumb("rPPG: camera INTERRUPTED (reason \(reason)=\(name)) — waiting for the OS, not thrashing restarts")
+            #if canImport(UIKit)
+            // Reason 1 claims the app is backgrounded — record what the app itself
+            // believes, so the next device log can confirm or refute the OS's view
+            // (device log 1783749556: reason 1 while the founder was visibly using
+            // the app; ground truth was missing).
+            Task { @MainActor in
+                EchoelCrashLog.breadcrumb("rPPG: app state at interruption = \(UIApplication.shared.applicationState.rawValue) (0=active 1=inactive 2=background)")
+            }
+            #endif
             self?.sessionQueue.async { self?.interrupted = true }
         }
         let ended = nc.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session,
@@ -311,6 +342,26 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             }
         }
         sessionObservers = [rt, intr, ended, thermal]
+        #if canImport(UIKit)
+        // Belt-and-braces resume: a reason-1 interruption ("not available in
+        // background") can only clear once the app is demonstrably foreground-active
+        // — and device log 1783749556 showed InterruptionEnded may never arrive
+        // (reason 1 re-fired on every fresh start, 0 frames for 3 min). When the app
+        // BECOMES active while we're wanted-but-interrupted, retry once ourselves.
+        let active = nc.addObserver(forName: UIApplication.didBecomeActiveNotification,
+                                    object: nil, queue: nil) { [weak self] _ in
+            self?.sessionQueue.async {
+                guard let self, self.shouldBeRunning, self.interrupted else { return }
+                self.interrupted = false
+                EchoelCrashLog.breadcrumb("rPPG: app became active — retrying camera after held interruption")
+                if !self.session.isRunning { self.session.startRunning() }
+                self.lastFrameTime = CFAbsoluteTimeGetCurrent()
+                self.applyTorch()
+                self.onSessionReset?()
+            }
+        }
+        sessionObservers.append(active)
+        #endif
     }
 
     /// On a runtime error (notably `.mediaServicesWereReset`, which invalidates the
@@ -430,6 +481,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         sessionQueue.async { [weak self] in
             guard let self else { return }
             self.shouldBeRunning = false
+            self.interrupted = false          // never carry a held interruption into the next start
             self.watchdog?.cancel()
             self.watchdog = nil
             for o in self.sessionObservers { NotificationCenter.default.removeObserver(o) }

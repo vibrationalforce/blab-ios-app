@@ -73,13 +73,17 @@ public enum RPPGRecoveryState: Equatable, Sendable {
     case recovering
     /// The device is thermally throttled (torch dimmed); frames may pause until it cools.
     case cooling
+    /// iOS holds the session interrupted (backgrounded/system) — restarts are no-ops
+    /// until the OS releases it; be honest instead of silently showing 0 bpm.
+    case interrupted
 
     /// Short user-facing line for the bio strip (nil when nothing to show).
     public var userHint: String? {
         switch self {
-        case .healthy:    return nil
-        case .recovering: return "Camera recovering…"
-        case .cooling:    return "Device cooling down — pulse holds for a moment"
+        case .healthy:     return nil
+        case .recovering:  return "Camera recovering…"
+        case .cooling:     return "Device cooling down — pulse holds for a moment"
+        case .interrupted: return "Camera paused by iOS — waiting to resume"
         }
     }
 }
@@ -493,8 +497,19 @@ public final class CameraRPPGBioPublisher {
                     if self.coldCooldownTicks > 0 { self.coldCooldownTicks -= 1 }
                     if self.stallTicks >= 60 {          // ~6 s at 10 Hz
                         self.stallTicks = 0
-                        self.recoveringTicks = 40   // ~4 s banner: "Kamera erholt sich…"
-                        if self.forcedRecoveries < Self.maxForcedRecoveries {
+                        // While iOS HOLDS the session interrupted, both ladders are
+                        // futile no-ops that only burn the recovery budget, battery and
+                        // heat (device log 1783749556: reason-1 interruption re-fired on
+                        // EVERY fresh start — 3 forced recoveries + 8 cold restarts, 0
+                        // frames, ~3 min). Wait instead; CameraCapture resumes on
+                        // InterruptionEnded or app-became-active, and the banner below
+                        // says so honestly. Budget stays intact for REAL stalls.
+                        if self.capture.isInterrupted {
+                            // No `continue`: fall through to the banner logic below so
+                            // the strip honestly shows the interrupted state each tick.
+                            EchoelCrashLog.breadcrumb("rPPG: no frames ~6 s but iOS holds the camera (interrupted) — waiting, not restarting")
+                        } else if self.forcedRecoveries < Self.maxForcedRecoveries {
+                            self.recoveringTicks = 40   // ~4 s banner: "Kamera erholt sich…"
                             self.forcedRecoveries += 1
                             EchoelCrashLog.breadcrumb("rPPG: no new frames ~6 s — forcing camera recovery (\(self.forcedRecoveries)/\(Self.maxForcedRecoveries))")
                             self.capture.recoverFromStall()
@@ -507,6 +522,7 @@ public final class CameraRPPGBioPublisher {
                             // stall class; keep doing the machine version — full stop →
                             // fresh session build (inputs, outputs, torch, exposure) —
                             // until frames actually flow again. Backoff prevents thrash.
+                            self.recoveringTicks = 40      // same honest banner as branch A
                             self.coldRestarts += 1
                             self.coldCooldownTicks = 180   // ~18 s between cold restarts
                             EchoelCrashLog.breadcrumb("rPPG: recoveries exhausted — cold camera restart #\(self.coldRestarts)")
@@ -541,7 +557,11 @@ public final class CameraRPPGBioPublisher {
                 // the @Observable doesn't notify unless the banner actually flips.
                 if self.recoveringTicks > 0 { self.recoveringTicks -= 1 }
                 let newRecovery: RPPGRecoveryState
-                if self.recoveringTicks > 0 {
+                if self.capture.isInterrupted {
+                    // The OS holds the camera — highest-priority truth: no restart
+                    // banner theater, tell the user why the pulse is paused.
+                    newRecovery = .interrupted
+                } else if self.recoveringTicks > 0 {
                     newRecovery = .recovering
                 } else if self.loopTicks > 50,
                           self.inboundRateEMA < Self.minMeasurableInboundHz {
