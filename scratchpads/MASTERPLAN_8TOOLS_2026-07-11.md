@@ -83,8 +83,13 @@ gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-
       the field reads "no filtering". **Remaining:** melodic-bus FX row (maps to the master
       `fxChain`) + drums (see note above — BeatPlayer is timer-driven, needs a different approach).
       `NEEDS-FOUNDER-VERIFY` (sound + feel); bass stays `.off` until a control moves → cannot regress.
-- [ ] **Q5. Bio-tempo lane (model).** A pure tempo-map: musical-time master + optional bio-tempo
-      source, tests. (The BPM-both decision, already logged.) Pure + CI.
+- [x] **Q5. Bio-tempo lane (model).** DONE 2026-07-11: `BioTempoDirector` (Core/) — pure,
+      Codable, deterministic. `TempoMode.locked` (default, ignores the body) vs `.bioFollow`
+      (transport tempo GLIDES toward the heartbeat, pulled toward the 72-BPM resonance band by
+      coherence). One-pole glide so the beat never lurches; clamped to the musical band;
+      NaN-safe. 9 tests. NOT wired to `Transport.tempo` yet → zero risk; the live wiring is a
+      later DEVICE-PASS cycle. Clarified: `TransportClockSource` (internal/midi/link = sync
+      topology) and `TempoMode` (locked/bioFollow = tempo value) are ORTHOGONAL, not duplicates.
 - [ ] **Q6. Comprehensive interface — render-SAFE re-assembly.** Bring back arrange·clips·mix as
       reachable surfaces via SurfaceHost WITHOUT growing EchoelStudioView's `.sheet` chain and
       WITHOUT any 10 Hz `@Observable` read in an ancestor body (swiftui-render-safety skill).

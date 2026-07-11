@@ -1,23 +1,24 @@
-build: 2026-07-11 v10.79.163 (Tempo-adaptive Spielart — nicht mehr hektisch)
+build: 2026-07-11 v10.79.164 (Per-Track-FX: Bass — dein erstes anfassbares Ergebnis)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein Punkt: "Disco auf 75 ok, auf 132 zu hektisch — je nach bpm adaptiv
-  die Spielart anpassen um immer einen guten Vibe zu kreieren." Gelöst.
+notes: Während du weg warst, habe ich sicher weitergebaut (Modul 2 der 8-Tool-
+  Vision: getrennte, mischbare Spuren mit eigenen Effekten). Das erste, das du
+  ANFASSEN kannst:
 
-  TEMPO-ADAPTIVE SPIELART:
-  · Die Notendichte war tempo-blind — gleiche Noten pro Takt hieß bei doppeltem
-    BPM doppelt so viele Noten pro Sekunde (= hektisch). Jetzt dünnt die
-    Komposition die SCHNELLEN Schichten aus, je höher das Tempo:
-    - Lead-Notenzahl runter, Arps + Pulse gröber (Viertel statt 8tel)
-  · Baseline 84 BPM: alles darunter bleibt EXAKT unverändert → dein gutes
-    Disco@75 klingt genau so gut wie vorher.
-  · Darüber: 132 → ~68% Dichte, 160 → ~58% (konstantere Noten-pro-Sekunde).
-  · Bewusst UNANGETASTET: der Herzschlag-Puls des Pads. Ein erregter Körper darf
-    sich weiter re-artikulieren — nur das tempo-bedingte Gerassel geht raus,
-    nicht das bio-getriebene Leben.
+  PER-TRACK-FX — BASS:
+  · Im Mix-Panel (Composition → "Mix") gibt es jetzt zwei neue Regler:
+    - "Bass filter" (Hz): zieh ihn runter für einen dubbigen Low-Pass auf dem Sub
+    - "Bass drive": sanfte Sättigung/Wärme auf dem Bass
+  · Wirkt LIVE (nächster Render-Block), über einen lock-freien Audio-Pfad —
+    audio-thread-reviewer: sauber. Bleibt gespeichert über Neustart.
+  · WICHTIG: standardmäßig AUS (Filter voll offen, Drive 0) = exakt wie vorher.
+    Es passiert nichts, bis DU einen Regler bewegst → kann nichts kaputt machen.
 
-  BITTE HÖREN: Ist Disco@132 jetzt aufgeräumt statt hektisch? Und fühlt sich der
-  Umschaltpunkt (~84 BPM) richtig an, oder soll die Schwelle höher/tiefer? Das
-  ist die eine Zahl, die ich nach deinem Ohr justiere.
+  Das ist der Anfang der einen bio-modulierten Oberfläche: jede Spur bekommt ihre
+  eigene Kette (Melodic + Drums folgen), später per Biofeedback modulierbar.
 
-  (Läuft parallel zur Warmth v162 — beide warten auf dein Ohr. Währenddessen
-  baue ich autonom weiter an der 8-Tool-Vision; siehe MASTERPLAN.)
+  DREI DINGE WARTEN JETZT AUF DEIN OHR/DEINE HAND:
+  · v162 Analog Warmth (kein Plastik mehr)
+  · v163 Tempo-adaptive Spielart (Disco@132 nicht mehr hektisch)
+  · v164 Bass-FX (dieser Build — zieh den Bass-Filter, hör den Dub)
+
+  Der autonome Bau-Loop läuft weiter (siehe scratchpads/MASTERPLAN_8TOOLS).
