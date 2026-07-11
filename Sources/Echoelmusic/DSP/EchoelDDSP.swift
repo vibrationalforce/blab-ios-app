@@ -1467,6 +1467,14 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     private var voiceAges: [Int]       // Age counter for voice stealing
     private var ageCounter: Int = 0
 
+    /// Smoothed poly makeup gain (audio-thread state) — eased toward the
+    /// voice-count target each render block so a single note sounds FULL while a
+    /// dense chord is backed off before the safety tanh (founder 2026-07-11:
+    /// "EchoelSynth rudimentär bei den Levels · Einzelnote voll, Akkord zerrt
+    /// nicht"). Starts at the single-voice full gain. Read/written only on the
+    /// audio thread in `renderStereo`; reset in `reset()`.
+    private var polyMakeupGain: Float = 0.85
+
     // MARK: - Per-Voice Pan
 
     /// Pan position per voice (-1.0 = left, 0 = center, 1.0 = right)
@@ -1782,6 +1790,31 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         for voice in voices { body(voice) }
     }
 
+    // MARK: - Poly makeup gain (pure, unit-testable)
+
+    /// Target makeup gain for `voiceCount` sounding voices. A single note plays at
+    /// `fullGain` (near-full — the old fixed 0.40 made even one note thin); as more
+    /// voices stack, the gain follows an RMS-style 1/√N law so their coherent sum is
+    /// backed off before the safety tanh instead of slamming it. Clamped to
+    /// [`floorGain`, `fullGain`]. Pure — no state, no allocation, unit-testable.
+    nonisolated static func polyMakeupTarget(voiceCount: Int,
+                                             fullGain: Float = 0.85,
+                                             floorGain: Float = 0.22) -> Float {
+        let n = Swift.max(voiceCount, 1)
+        let g = fullGain / Foundation.sqrt(Float(n))
+        return Swift.min(Swift.max(g, floorGain), fullGain)
+    }
+
+    /// One-pole smoothing step toward `target` (per render block). `coeff` ∈ 0…1 is
+    /// the fraction of the remaining distance closed this block — SMALL = slow = no
+    /// pumping when a note starts/stops (the raw, unsmoothed 1/√N was removed in the
+    /// past precisely because it jumped audibly on every chord/arp change; smoothing
+    /// is what makes the voice-count law usable). Pure — unit-testable.
+    nonisolated static func smoothedMakeup(current: Float, target: Float, coeff: Float) -> Float {
+        let c = Swift.min(Swift.max(coeff, 0), 1)
+        return current + (target - current) * c
+    }
+
     // MARK: - Audio Rendering
 
     /// Render stereo audio from all active voices
@@ -1806,10 +1839,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         memset(&mixBufferL, 0, frameCount * MemoryLayout<Float>.size)
         memset(&mixBufferR, 0, frameCount * MemoryLayout<Float>.size)
 
+        var soundingVoices = 0
         for i in 0..<maxVoices {
             // Render any voice still producing sound — held notes AND release
             // tails of notes already noteOff'd (voiceNotes == -1 but still ringing).
             guard voiceNotes[i] >= 0 || voices[i].isActive else { continue }
+            soundingVoices += 1
 
             // Fan the global cutoff scale (automation) + slide expression +
             // portamento to the voice before it renders (all on the one audio thread).
@@ -1857,18 +1892,22 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             if !mixBufferR[i].isFinite { mixBufferR[i] = 0 }
         }
 
-        // Soft-limiter: tanh saturation to prevent digital clipping.
-        // Fixed headroom gain (NOT voice-count-dependent): a per-block 1/sqrt(N)
-        // made the master level jump every time a note started or stopped
-        // (audible pumping on chord/arp changes). A constant headroom keeps the
-        // level stable and lets the tanh below gently catch peaks on dense chords.
-        // 0.40 leaves enough headroom that the tanh below stays near-linear for
-        // typical chords (acting as a safety brick-wall, not a tone-colouring
-        // stage) so it doesn't double-saturate with the FX chain's saturation.
-        // Trimmed 0.45 → 0.40 (founder ear-feedback "klingt noch etwas verzerrt"):
-        // dense 12-voice chords were driving the tanh into audible saturation; the
-        // extra headroom keeps it near-linear (the master −1 dBFS trim holds level).
-        let gainComp: Float = 0.40
+        // Poly makeup + soft-limiter safety. The makeup gain is now voice-count
+        // aware BUT SMOOTHED (founder 2026-07-11 "Einzelnote voll, Akkord zerrt
+        // nicht"): a single note plays near-full (0.85) instead of the old thin
+        // fixed 0.40, while a dense chord follows a 1/√N law down toward the floor
+        // so its coherent sum is backed off BEFORE the tanh — which returns the
+        // tanh to a pure safety brick-wall (near-linear for typical content), not a
+        // tone-colouring stage. The one-pole (τ ≈ 0.25 s) is the whole reason this
+        // is safe where the raw per-block 1/√N was not: note-on/off no longer jumps
+        // the level (the old "audible pumping on chord/arp changes"). Downstream the
+        // master −1 dBFS trim + AutoMixChain limiter hold the final level.
+        let makeupTau: Float = 0.25
+        let makeupCoeff = 1 - exp(-Float(frameCount) / sampleRate / makeupTau)
+        let makeupTarget = Self.polyMakeupTarget(voiceCount: soundingVoices)
+        polyMakeupGain = Self.smoothedMakeup(current: polyMakeupGain,
+                                             target: makeupTarget, coeff: makeupCoeff)
+        let gainComp = polyMakeupGain
         for i in 0..<frameCount {
             let scaledL = mixBufferL[i] * gainComp
             let scaledR = mixBufferR[i] * gainComp
@@ -1906,6 +1945,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             voiceAges[i] = 0
         }
         ageCounter = 0
+        polyMakeupGain = 0.85   // back to single-voice full gain; render eases from here
     }
 }
 #endif // canImport(Accelerate)
