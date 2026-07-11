@@ -291,6 +291,7 @@ struct EchoelmusicApp: App {
             // Touch instrument's own voice — custom key: a second `.environment(PolySynthVoice)`
             // would silently REPLACE polyVoice for every consumer (last-writer-wins per type).
             .environment(\.touchSynth, touchVoice)
+            .environment(\.leadSynth, leadVoice)
             .environment(subBass)
             .environment(metronome)
             .environment(bioEvents)

@@ -71,18 +71,20 @@ gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-
       IN PROGRESS: **bass bus DONE** 2026-07-11 — `SubBassVoice` gained a per-bus
       `ChannelInsertFX` fed by a lock-free `SPSCQueue<TrackFX>` (`setInsert(_:)`), processed
       per-sample only when active; off = bit-identical. audio-thread-reviewer: CLEAN.
-      Melodic bus already runs through the master `fxChain` (EchoelFXChain) — its per-track
-      insert maps there in Q4. **Remaining:** drums bus (BeatPlayer) insert, and the
-      `TrackFXStore` → `setInsert` binding, which land WITH the UI (Q4) since nothing changes
-      a bus off `.off` until there's a control. `NEEDS-FOUNDER-VERIFY` (sound).
+      **melodic bus DONE** 2026-07-11 — `PolySynthVoice` got its OWN stereo insert (two
+      `ChannelInsertFX`, independent L/R state) AFTER the genre `fxChain` so they don't fight;
+      fed by `SPSCQueue<TrackFX>`/`setInsert`. audio-thread-reviewer: CLEAN. **Remaining:** drums
+      bus (BeatPlayer is timer-driven — needs a different approach). `NEEDS-FOUNDER-VERIFY` (sound).
 - [~] **Q4. Per-track FX UI** — IN PROGRESS: **bass row DONE** 2026-07-11. `TrackFXStore` wired
       into the app (`.environment`); Mix panel gained "Bass filter" + "Bass drive"
       `EchoelValueField`s; bindings persist (`trackFX.set`) AND push to audio (`subBass.setInsert`)
       live; persisted setting re-applied on `.onAppear`; Reset clears it. ui-state-reviewer: CLEAN
       (env intact, low-freq read = render-safe, no `.sheet` growth). `.off` now rests full-open so
-      the field reads "no filtering". **Remaining:** melodic-bus FX row (maps to the master
-      `fxChain`) + drums (see note above — BeatPlayer is timer-driven, needs a different approach).
-      `NEEDS-FOUNDER-VERIFY` (sound + feel); bass stays `.off` until a control moves → cannot regress.
+      the field reads "no filtering". **Melodic row DONE** 2026-07-11 — "Melodic filter/drive"
+      cover BOTH the pad/harmony (`synth`) AND the dedicated `leadSynth` (reached via a new
+      `\.leadSynth` env key), so the shrill lead is actually filtered; ui-state-reviewer: CLEAN.
+      **Remaining:** drums (BeatPlayer timer-driven, needs a different approach).
+      `NEEDS-FOUNDER-VERIFY` (sound + feel); buses stay `.off` until a control moves → cannot regress.
 - [x] **Q5. Bio-tempo lane (model).** DONE 2026-07-11: `BioTempoDirector` (Core/) — pure,
       Codable, deterministic. `TempoMode.locked` (default, ignores the body) vs `.bioFollow`
       (transport tempo GLIDES toward the heartbeat, pulled toward the 72-BPM resonance band by

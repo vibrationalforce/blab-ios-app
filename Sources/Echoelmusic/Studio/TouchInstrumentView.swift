@@ -106,6 +106,20 @@ extension EnvironmentValues {
         set { self[TouchSynthKey.self] = newValue }
     }
 }
+
+/// The dedicated LEAD voice (separate from the main `synth`/polyVoice), injected so the
+/// Studio can reach it for per-track FX — the generated `.lead` notes play through it, so a
+/// "Melodic" insert must cover it too. Same computed-default guard as TouchSynthKey.
+private struct LeadSynthKey: EnvironmentKey {
+    static var defaultValue: PolySynthVoice? { nil }
+}
+
+extension EnvironmentValues {
+    var leadSynth: PolySynthVoice? {
+        get { self[LeadSynthKey.self] }
+        set { self[LeadSynthKey.self] = newValue }
+    }
+}
 #endif
 
 #if canImport(UIKit) && canImport(SwiftUI)
