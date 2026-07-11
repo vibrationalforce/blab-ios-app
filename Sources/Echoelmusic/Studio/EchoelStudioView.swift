@@ -58,6 +58,7 @@ struct EchoelStudioView: View {
     /// The PLAY-SURFACE voice (fullscreen visual touch instrument) — its own instance,
     /// so its patch/morph never re-timbre the generative bed and vice versa.
     @Environment(\.touchSynth) private var touchSynth
+    @Environment(\.leadSynth) private var leadSynth
     /// Patch id for the play surface: "" = follow the take's sound (default).
     @AppStorage("touch.patchID") private var touchPatchID = ""
     /// How much sliding UP the play surface brightens the tone (0 = off … 1 = ±1 octave).
@@ -495,8 +496,11 @@ struct EchoelStudioView: View {
             handlePendingIntent()
             // Apply the persisted Mixer "Drums" level to the beat engine at launch.
             beatPlayer.masterLevel = mixer.drums
-            // Apply the persisted per-track bass insert to the sub voice at launch.
+            // Apply the persisted per-track inserts at launch (bass → sub; melodic → both
+            // the pad/harmony and lead voices).
             subBass.setInsert(trackFX.bass)
+            synth.setInsert(trackFX.melodic)
+            leadSynth?.setInsert(trackFX.melodic)
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
@@ -1109,11 +1113,18 @@ struct EchoelStudioView: View {
                              range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
             EchoelValueField(label: "Bass drive", value: bassDriveBinding,
                              range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            // Melodic bus (pad/harmony + lead voices): a filter/drive AFTER the genre
+            // character. Full-open cutoff = off. Tames a shrill lead directly.
+            EchoelValueField(label: "Melodic filter", value: melodicCutoffBinding,
+                             range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+            EchoelValueField(label: "Melodic drive", value: melodicDriveBinding,
+                             range: TrackFXStore.driveRange, unit: "", decimals: 2)
 
             Button {
                 mixer.resetToUnity()
                 beatPlayer.masterLevel = mixer.drums
                 setBassFX(.off)
+                setMelodicFX(.off)
                 recomposeIfRunning()
             } label: {
                 Text("Reset to genre balance")
@@ -1149,6 +1160,34 @@ struct EchoelStudioView: View {
     private func setBassFX(_ fx: TrackFX) {
         trackFX.set(fx, for: .bass)
         subBass.setInsert(fx)
+    }
+
+    /// Melodic-bus filter cutoff. Full-open (max) disengages; lower engages a low-pass.
+    private var melodicCutoffBinding: Binding<Float> {
+        Binding(get: { trackFX.melodic.cutoffHz },
+                set: { v in
+                    let open = v >= TrackFXStore.cutoffRange.upperBound
+                    setMelodicFX(TrackFX(filter: open ? .off : .lowPass, cutoffHz: v,
+                                         resonance: trackFX.melodic.resonance, drive: trackFX.melodic.drive))
+                })
+    }
+
+    /// Melodic-bus saturation drive (0 = clean).
+    private var melodicDriveBinding: Binding<Float> {
+        Binding(get: { trackFX.melodic.drive },
+                set: { v in
+                    setMelodicFX(TrackFX(filter: trackFX.melodic.filter, cutoffHz: trackFX.melodic.cutoffHz,
+                                         resonance: trackFX.melodic.resonance, drive: v))
+                })
+    }
+
+    /// Persist the melodic insert AND push it to BOTH melodic voices (pad/harmony `synth`
+    /// and the dedicated `leadSynth`), so the whole melody — the shrill lead included — is
+    /// covered by one "Melodic" control.
+    private func setMelodicFX(_ fx: TrackFX) {
+        trackFX.set(fx, for: .melodic)
+        synth.setInsert(fx)
+        leadSynth?.setInsert(fx)
     }
 
     /// A binding to one mixer level that re-balances the running take when changed.

@@ -63,6 +63,20 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private let patchCommands = SPSCQueue<SynthPatch>(capacity: 8)
 
+    /// Per-bus insert FX for the MELODIC bus (Module 2) — SEPARATE from the genre-owned
+    /// master `fxChain` above, placed AFTER it, so a user filter/drive on the melody never
+    /// fights the genre character. Two mono `ChannelInsertFX` (independent L/R biquad state)
+    /// fed from the control thread via `fxCommands` (same lock-free discipline as
+    /// `patchCommands`). Default `.off` = an EXACT passthrough → bit-identical until dialed.
+    @ObservationIgnored
+    nonisolated(unsafe) private let fxCommands = SPSCQueue<TrackFX>(capacity: 8)
+    @ObservationIgnored
+    nonisolated(unsafe) private var insertL = ChannelInsertFX(sampleRate: Float(PolySynthVoice.sampleRate))
+    @ObservationIgnored
+    nonisolated(unsafe) private var insertR = ChannelInsertFX(sampleRate: Float(PolySynthVoice.sampleRate))
+    @ObservationIgnored
+    nonisolated(unsafe) private var insertActive = false
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -356,6 +370,13 @@ public final class PolySynthVoice {
         poly.setUnison(count: count, detuneCents: detuneCents)
     }
 
+    /// Install the melodic bus's per-track insert FX (control thread). `.off`/passthrough
+    /// removes it. Enqueued lock-free; applied on the audio thread at the next render block.
+    /// Off by default → bit-identical until dialed.
+    public func setInsert(_ fx: TrackFX) {
+        _ = fxCommands.tryEnqueue(fx)
+    }
+
     /// Global filter-cutoff multiplier (1 = no change), driven by parameter
     /// automation. Atomic write; takes effect on the next render block.
     public func setCutoffScale(_ scale: Float) {
@@ -464,6 +485,16 @@ public final class PolySynthVoice {
         while let patch = patchCommands.dequeue() {
             poly.forEachVoice { patch.apply(to: $0) }
         }
+        // Drain per-bus insert-FX commands on the audio thread (params + coefficient
+        // recompute here — pure arithmetic, no alloc). Both channels share the params but
+        // keep independent biquad state; a fresh activation resets so there is no stale tail.
+        while let fx = fxCommands.dequeue() {
+            insertL.setParams(type: fx.filter, cutoffHz: fx.cutoffHz, resonance: fx.resonance, drive: fx.drive)
+            insertR.setParams(type: fx.filter, cutoffHz: fx.cutoffHz, resonance: fx.resonance, drive: fx.drive)
+            let nowActive = !fx.isPassthrough
+            if nowActive && !insertActive { insertL.reset(); insertR.reset() }
+            insertActive = nowActive
+        }
         // Drain note commands HERE (audio thread) so all voice mutation is on this
         // one thread — never racing the render. Must run before the silence guard
         // so the first note both flips hasEverSounded and is applied atomically wrt
@@ -493,6 +524,14 @@ public final class PolySynthVoice {
         // lets the Effects panel bypass the entire chain.
         if fxEnabled {
             fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
+        }
+        // Per-track melodic insert (user filter/drive), AFTER the genre fxChain so the two
+        // never fight. Off = untouched (bit-identical). Independent L/R biquad state.
+        if insertActive {
+            for i in 0..<count {
+                scratchL[i] = insertL.process(scratchL[i])
+                scratchR[i] = insertR.process(scratchR[i])
+            }
         }
 
         // BREATH SWELL (0.1 Hz coherence pacing — the medical core). Ramp the applied
