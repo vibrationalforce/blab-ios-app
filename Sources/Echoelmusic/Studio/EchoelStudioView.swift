@@ -2862,6 +2862,12 @@ struct EchoelStudioView: View {
         if weatherEnabled, weatherSalt != 0 { structureSeed ^= weatherSalt }
         #endif
         let evolvingSeed = structureSeed ^ (evolution &* 0x9E3779B97F4A7C15)
+        // WEITERGEHEN (founder 2026-07-11: "es soll ja weitergehen und sich mit dem
+        // Herzschlag weiterentwickeln"). The progression cursor advances with every
+        // evolve tick (the bio-cadenced ~30 s re-seed), so a sustained Fläche TRAVELS
+        // through its chord journey over time instead of holding one chord forever.
+        // Bounded + positive so the composer's modulo indexing stays well-defined.
+        let basePhase = Int(evolution % 1_000_000)
         // BODY CONTINUITY (founder 2026-07-08: "Wenn ich ein Genre auswähle, ändert
         // sich eine Weile der entspannte Vibe zu angestrengtem Gedödel"): operating
         // a menu usually means LIFTING the finger off the camera, so at the moment a
@@ -2898,7 +2904,8 @@ struct EchoelStudioView: View {
             lockedTempo: 90,
             mood: mood,
             seed: evolvingSeed,
-            structureSeed: structureSeed
+            structureSeed: structureSeed,
+            progressionPhase: basePhase
         )
         let composition = BioComposer.compose(input)
         // Honor the user's concert pitch + live timbre on the next notes.
@@ -3000,6 +3007,10 @@ struct EchoelStudioView: View {
             for b in 1..<barCount {
                 var barInput = input
                 barInput.seed = evolvingSeed &+ UInt64(b)
+                // Each bar of the loop sits one step further along the chord journey,
+                // so a multi-bar Fläche moves through its progression WITHIN the loop
+                // (a different held chord per bar), not just across evolves.
+                barInput.progressionPhase = basePhase + b
                 bars.append(finish(BioComposer.compose(barInput).notes))
             }
         }

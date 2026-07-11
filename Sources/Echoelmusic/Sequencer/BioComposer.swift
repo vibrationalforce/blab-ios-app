@@ -139,6 +139,15 @@ public enum BioComposer {
         /// piece evolving (homogeneous), not a new random piece each time. `nil`
         /// (default) makes the skeleton share `seed` — original behaviour.
         public var structureSeed: UInt64?
+        /// Position in the genre's chord progression this take starts on — the "where
+        /// are we in the journey" cursor (founder 2026-07-11: "es soll ja weitergehen
+        /// und sich mit dem Herzschlag weiterentwickeln"). A SUSTAINED Fläche holds ONE
+        /// chord per bar (stillness preserved), but WHICH chord = `progression[phase]`,
+        /// so advancing the phase per bar (multi-bar loop) and per evolve (over time,
+        /// bio-cadenced) makes the pad TRAVEL through its progression instead of
+        /// freezing on one chord. Melodic genres rotate their progression start by it
+        /// too. 0 (default) = the progression's first chord — original behaviour.
+        public var progressionPhase: Int
 
         public init(
             heartRateBPM: Float = 70,
@@ -152,7 +161,8 @@ public enum BioComposer {
             lockedTempo: Double = 124,
             mood: MoodProfile = MoodProfile(),
             seed: UInt64 = 0x5EED,
-            structureSeed: UInt64? = nil
+            structureSeed: UInt64? = nil,
+            progressionPhase: Int = 0
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -166,6 +176,7 @@ public enum BioComposer {
             self.mood = mood
             self.seed = seed
             self.structureSeed = structureSeed
+            self.progressionPhase = progressionPhase
         }
     }
 
@@ -379,6 +390,7 @@ public enum BioComposer {
                                     calm: calm, busy: busy,
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
+                                    progressionPhase: input.progressionPhase,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -403,6 +415,7 @@ public enum BioComposer {
                                     calm: calm, busy: busy,
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
+                                    progressionPhase: input.progressionPhase,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -892,36 +905,57 @@ public enum BioComposer {
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
-                                        mood: MoodProfile, rng: inout SeededRNG,
+                                        mood: MoodProfile, progressionPhase: Int,
+                                        rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
-        // Seed-vary the harmony so a re-seed never replays the identical chord move
-        // ("immer derselbe Tonwechsel"). The genre profile sets the vocabulary; the
-        // seed rotates the progression and, for adventurous moods, borrows an in-key
-        // secondary chord (ii/V/vi) and adds a turnaround so the loop resolves. Every
-        // degree still resolves through MusicalKey.degree → always perfectly in key.
-        // The harmonic skeleton (progression rotation, borrowed chord, cadence) is
-        // drawn from structureRNG so it stays STABLE across evolving takes — the
-        // single biggest "same song?" cue. Only the melody on top evolves.
-        var prog = profile.progression.isEmpty ? [0] : profile.progression
-        if prog.count > 1 {
-            let rot = Int(structureRNG.next() % UInt64(prog.count))
-            prog = Array((prog + prog)[rot..<rot + prog.count])
-        }
-        // Adventurous (weird) moods splice a borrowed secondary chord before the last
-        // chord, so the phrase gets a fresh harmonic colour it didn't have before.
-        if structureRNG.unit() < clamp01(mood.weird) * 0.6 {
-            let candidates = [4, 5, 1].filter { !prog.contains($0) }   // V, vi, ii
-            if !candidates.isEmpty {
-                let extra = candidates[Int(structureRNG.next() % UInt64(candidates.count))]
-                prog.insert(extra, at: max(0, prog.count - 1))
+        let baseProg = profile.progression.isEmpty ? [0] : profile.progression
+        var prog: [Int]
+        if profile.sustained && baseProg.count > 2 {
+            // MEDITATIVE FLÄCHE JOURNEY (founder 2026-07-11: "bleibt auf Flächen liegen
+            // … soll weitergehen und sich mit dem Herzschlag weiterentwickeln"). The two
+            // frozen single-chord drones (Self-Observation, Deep Ambient) now carry a
+            // gentle multi-chord progression, and each BAR holds exactly ONE chord of it
+            // — per-bar stillness (the meditative quality) is fully preserved — while
+            // WHICH chord = `progression[phase]`. The Studio advances the phase per bar
+            // (a multi-bar loop journeys through the chords) AND per evolve (the
+            // bio-cadenced re-seed moves it onward over time), so the pad TRAVELS instead
+            // of holding one chord forever. Deterministic + always in key (one degree →
+            // MusicalKey.degree). The 2-chord Flächen (dub/trap/vaporwave/sci-fi) keep
+            // their existing within-bar move below (they already breathe — "schon sehr
+            // gut") and only pick up the phase rotation for extra evolve-to-evolve life.
+            let i = ((progressionPhase % baseProg.count) + baseProg.count) % baseProg.count
+            prog = [baseProg[i]]
+        } else {
+            // Seed-vary the harmony so a re-seed never replays the identical chord move
+            // ("immer derselbe Tonwechsel"). The genre profile sets the vocabulary; the
+            // seed rotates the progression (and `progressionPhase` advances that rotation
+            // over evolves — inert at phase 0, so existing seeds are untouched) and, for
+            // adventurous moods, borrows an in-key secondary chord (ii/V/vi) and adds a
+            // turnaround so the loop resolves. Every degree still resolves through
+            // MusicalKey.degree → always in key. The harmonic skeleton is drawn from
+            // structureRNG so it stays STABLE across evolving takes — the "same song?" cue.
+            prog = baseProg
+            if prog.count > 1 {
+                let rot = ((Int(structureRNG.next() % UInt64(prog.count)) + progressionPhase)
+                           % prog.count + prog.count) % prog.count
+                prog = Array((prog + prog)[rot..<rot + prog.count])
             }
-        }
-        // Turnaround cadence: on multi-chord takes, end on the dominant (V) some of
-        // the time so the loop pulls back to the tonic at the wrap (V→i), instead of
-        // always closing on the same chord. Seeded + tension-scaled so it varies.
-        if prog.count > 1, prog.last != 4, structureRNG.unit() < 0.35 + 0.4 * clamp01(mood.tension) {
-            prog[prog.count - 1] = 4
+            // Adventurous (weird) moods splice a borrowed secondary chord before the last
+            // chord, so the phrase gets a fresh harmonic colour it didn't have before.
+            if structureRNG.unit() < clamp01(mood.weird) * 0.6 {
+                let candidates = [4, 5, 1].filter { !prog.contains($0) }   // V, vi, ii
+                if !candidates.isEmpty {
+                    let extra = candidates[Int(structureRNG.next() % UInt64(candidates.count))]
+                    prog.insert(extra, at: max(0, prog.count - 1))
+                }
+            }
+            // Turnaround cadence: on multi-chord takes, end on the dominant (V) some of
+            // the time so the loop pulls back to the tonic at the wrap (V→i), instead of
+            // always closing on the same chord. Seeded + tension-scaled so it varies.
+            if prog.count > 1, prog.last != 4, structureRNG.unit() < 0.35 + 0.4 * clamp01(mood.tension) {
+                prog[prog.count - 1] = 4
+            }
         }
         // Guard chord tones symmetrically with the progression (a public
         // HarmonicProfile could be built with empty tones → div-by-zero in the arp).
