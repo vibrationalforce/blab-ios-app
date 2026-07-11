@@ -112,6 +112,17 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// bit-identical to before.
     public var patchOutputLevel: Float = 1.0
 
+    /// Analog-warmth drive (0 = clean, bit-identical). A gentle pre-filter soft-
+    /// saturation that gives the pure additive SINE stack some harmonic body, so it
+    /// stops reading as cold/"plastic" (founder 2026-07-11 sound north-star: warm ·
+    /// organic · dubbig, "kein kaltes überladenes Plastik synthie gedudel"). Set by
+    /// `SynthPatch.apply` off (or on) the audio thread — an aligned Float, atomic-
+    /// width, same discipline as `patchOutputLevel`; read per-sample in `render` and
+    /// fed to the pure `analogWarmth` shaper BEFORE the resonant filter (the filter
+    /// then tames the added harmonics into warmth rather than harshness). 0 = the
+    /// raw synth (all existing DSP golden tests unchanged).
+    public var warmthDrive: Float = 0
+
     /// Velocity of the current note (0-1), used for touch dynamics (Anschlagdynamik).
     /// 0 = "no velocity context" (the mono/bio voice never sets it) → no attack
     /// scaling, behaviour unchanged. The poly engine sets the played velocity so a
@@ -1011,6 +1022,14 @@ public final class EchoelDDSP: @unchecked Sendable {
                 sample *= 1.0 + levelDriftValue * levelDriftAmount
             }
 
+            // --- Analog warmth (pre-filter soft-saturation) ---
+            // Add harmonic body BEFORE the SVF so the filter tames the new harmonics
+            // into warmth, not harshness — the anti-"plastic" lever. warmthDrive 0
+            // (the raw synth default) returns `sample` bit-identically.
+            if warmthDrive > 0 {
+                sample = Self.analogWarmth(sample, drive: warmthDrive)
+            }
+
             // --- Resonant Filter (SVF) ---
             // LFO modulates filter cutoff around the base cutoff
             let lfoMod = filterLFO.next()  // [-depth, +depth]
@@ -1086,6 +1105,24 @@ public final class EchoelDDSP: @unchecked Sendable {
                 buffer[i] = 0
             }
         }
+    }
+
+    // MARK: - Analog warmth (pure, unit-testable)
+
+    /// Gentle analog-style saturation that gives the pure additive sine stack some
+    /// harmonic BODY, so it stops reading as cold/"plastic" (founder 2026-07-11 sound
+    /// north-star). An algebraic soft-clip `x / (1 + a|x|)` — odd, monotonic, bounded
+    /// by `1/a`, with UNITY slope at zero so quiet passages pass through untouched
+    /// while peaks compress and gain odd harmonics — blended with the dry signal by
+    /// `drive`. `drive` ≤ 0 returns the input BIT-IDENTICALLY. The curve is monotonic
+    /// and bounded, so it is safe ahead of the resonant filter. Pure arithmetic (no
+    /// allocation, no calls) — audio-thread safe and Linux-testable.
+    @inline(__always)
+    nonisolated static func analogWarmth(_ x: Float, drive: Float) -> Float {
+        guard drive > 0 else { return x }
+        let a: Float = 1.6                      // saturation amount
+        let shaped = x / (1 + a * abs(x))       // odd · monotonic · |shaped| < 1/a
+        return x + drive * (shaped - x)         // dry/wet blend; slope 1 at x→0
     }
 
     // MARK: - Envelope (Exponential Curves)

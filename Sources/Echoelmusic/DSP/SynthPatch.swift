@@ -67,6 +67,17 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// Effective output level (nil → unity).
     public var level: Float { outputLevel ?? 1.0 }
 
+    // Analog-warmth drive — a gentle pre-filter soft-saturation that gives the pure
+    // additive sine stack harmonic BODY so it stops sounding cold/"plastic" (founder
+    // 2026-07-11 sound north-star: warm · organic · dubbig, "kein kaltes überladenes
+    // Plastik synthie gedudel"). Optional so patches saved before it existed decode
+    // (nil = clean, bit-identical). A mild default warms the whole out-of-box sound;
+    // the brightest/most piercing factory leads carry a touch more.
+    public var warmthDrive: Float?
+
+    /// Effective warmth drive (nil → clean).
+    public var warmth: Float { warmthDrive ?? 0 }
+
     public init(
         id: UUID = UUID(),
         name: String,
@@ -80,7 +91,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         vibratoRate: Float = 0, vibratoDepth: Float = 0,
         timbreProfile: String = "", timbreBlend: Float = 0,
         unisonVoices: Int? = nil, unisonDetuneCents: Float? = nil,
-        outputLevel: Float? = nil
+        outputLevel: Float? = nil,
+        warmthDrive: Float? = 0.22
     ) {
         self.id = id
         self.name = name
@@ -97,6 +109,7 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         self.timbreProfile = timbreProfile; self.timbreBlend = timbreBlend
         self.unisonVoices = unisonVoices; self.unisonDetuneCents = unisonDetuneCents
         self.outputLevel = outputLevel
+        self.warmthDrive = warmthDrive
     }
 
     // MARK: - Loudness normalisation (founder 2026-07-11 "angleichen")
@@ -162,7 +175,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             harmonicity: 0.95, brightness: 0.7, noiseLevel: 0.0,
             spectralShape: "bright", filterCutoff: 4000, filterResonance: 0.2,
             reverbMix: 0.15, reverbDecay: 1.2, vibratoRate: 5, vibratoDepth: 0.15,
-            unisonVoices: 2, unisonDetuneCents: 10
+            unisonVoices: 2, unisonDetuneCents: 10,
+            warmthDrive: 0.30   // extra body — the "schrille hohe Melodie" offender
         ),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000A3"),
@@ -178,7 +192,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             attack: 0.01, decay: 1.5, sustain: 0.2, release: 3.0,
             harmonicity: 0.6, brightness: 0.8, noiseLevel: 0.0,
             spectralShape: "bell", filterCutoff: 6000, filterResonance: 0.1,
-            reverbMix: 0.45, reverbDecay: 3.5
+            reverbMix: 0.45, reverbDecay: 3.5,
+            warmthDrive: 0.28   // rounds the glassy top
         ),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000A5"),
@@ -218,7 +233,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             attack: 0.008, decay: 0.9, sustain: 0.3, release: 1.6,
             harmonicity: 0.7, harmonicLevel: 0.85, brightness: 0.75, noiseLevel: 0.0,
             spectralShape: "metallic", filterCutoff: 6500, filterResonance: 0.2,
-            reverbMix: 0.4, reverbDecay: 2.8
+            reverbMix: 0.4, reverbDecay: 2.8,
+            warmthDrive: 0.30   // tames the clangy upper partials
         ),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000AA"),
@@ -235,7 +251,8 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
             harmonicity: 0.9, harmonicLevel: 0.85, brightness: 0.65, noiseLevel: 0.01,
             spectralShape: "bright", filterCutoff: 5000, filterResonance: 0.22,
             reverbMix: 0.6, reverbDecay: 3.2, vibratoRate: 5.5, vibratoDepth: 0.2,
-            unisonVoices: 3, unisonDetuneCents: 12
+            unisonVoices: 3, unisonDetuneCents: 12,
+            warmthDrive: 0.30   // dubby/vapor lead — keep it thick, not thin
         ),
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000AC"),
@@ -414,7 +431,8 @@ extension SynthPatch {
             lfoToFilterDepth: synth.lfoToFilterDepth,
             filterLFORate: synth.filterLFO.rate, filterLFODepth: synth.filterLFO.depth,
             reverbMix: synth.reverbMix, reverbDecay: synth.reverbDecay,
-            vibratoRate: synth.vibratoRate, vibratoDepth: synth.vibratoDepth
+            vibratoRate: synth.vibratoRate, vibratoDepth: synth.vibratoDepth,
+            warmthDrive: synth.warmthDrive
         )
     }
 
@@ -466,6 +484,10 @@ extension SynthPatch {
         // = unity (bit-identical). Folded into the voice's master-gain smoother, so it
         // glides in without a click.
         synth.patchOutputLevel = level
+
+        // Analog warmth (founder 2026-07-11 "kein kaltes Plastik synthie gedudel"). nil
+        // = clean. A plain Float store — safe on the audio-thread apply path.
+        synth.warmthDrive = warmth
     }
 }
 #endif
