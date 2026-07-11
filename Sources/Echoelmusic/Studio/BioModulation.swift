@@ -46,7 +46,7 @@ public enum ClockSource: Sendable, Equatable {
 /// A bindable parameter: a manual base value (in the parameter's own unit — Hz,
 /// ms, semitones, 0…1, …) plus optional bio modulation. The single type every
 /// module routes its controls through, so binding behaves identically everywhere.
-public struct BoundParameter: Sendable, Equatable {
+public struct BoundParameter: Codable, Sendable, Equatable {
     /// The user's absolute value — full manual control, always meaningful.
     public var base: Double
     /// Valid range for this parameter (clamps the resolved result).

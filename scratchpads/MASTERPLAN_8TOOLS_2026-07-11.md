@@ -60,9 +60,13 @@ gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-
       `ModSource.displayName` for the Q7 UI. Tests updated. 0 app consumers → 0 regression risk.
       NOTE for Q5: a THIRD clock concept `TransportClockSource` exists in Transport.swift — reconcile
       with `ClockSource` when building the bio-tempo lane. CloudSync (0 consumers) still pending.
-- [ ] **Q2. Modulation-matrix model completeness.** Ensure every `ModSource` (incl. bio) can
-      route to a typed destination with a pure `output(for:frame:)`; add depth/curve; tests.
-      No UI yet. Pure + CI.
+- [x] **Q2. Modulation-matrix model completeness.** DONE 2026-07-11: the routing model was
+      already complete + well-tested (`ModRoute` carries depth · curve · invert · trust-gate ·
+      smoothing; `ModulationMatrix.evaluate` sums per destination; 37 tests). Added
+      `BoundParameter: Codable` (+ round-trip tests) so the Q7 bind-a-knob bindings persist.
+      **CloudSync reclassified:** NOT rot — it is a deliberate, unit-tested "Phase 0" CloudKit
+      foundation (`scratchpads/PLAN_CLOUDKIT_SYNC.md`) awaiting the founder registering an iCloud
+      container + entitlement (Phase 1). `DEFERRED to founder`, do NOT delete.
 - [ ] **Q3. Per-track FX audio wiring** (behind `TrackFX.isPassthrough` = bit-identical).
       Install one `ChannelInsertFX` per bus (bass/melodic/drums) from `TrackFXStore`, process
       in each render loop, skip passthrough. audio-thread-review each. `NEEDS-FOUNDER-VERIFY`
