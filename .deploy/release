@@ -1,27 +1,26 @@
-build: 2026-07-11 v10.79.152 (Play-Einstieg: ruhiges Instrument als Startbildschirm)
+build: 2026-07-11 v10.79.153 (Bio-Aktivitätslicht: "treibt mein Körper das gerade?")
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Nach der Zielgruppen-Umfrage der größte UX-Schritt — plus die Arrange-Arbeit
-  seit deinem letzten Test. Bitte auf dem Gerät prüfen:
+notes: Kleiner, aber der eine Wunsch, den ALLE 5 Zielgruppen der Umfrage teilten.
+  Baut auf v152 (Play-Einstieg) auf — der hat auf TestFlight grün gebaut.
+  Bitte auf dem Gerät prüfen:
 
-  1) PLAY-EINSTIEG (das neue Launch-Gesicht): Beim Öffnen landest du jetzt direkt
-     auf dem ruhigen Instrument (Bio-Streifen · Create from Within · Pads · Visual)
-     — NICHT mehr in der DAW-Timeline. Oben eine schlanke Leiste
-     "Timeline · arrangieren": ein Tap klappt die volle Ableton-Timeline auf,
-     nochmal tippen faltet sie weg. Bleibt gemerkt.
-     → Fühlt sich der Einstieg ruhig/einladend an? Geht die Leiste sauber auf/zu?
+  1) BIO-AKTIVITÄTSLICHT (neu, oben links im Bio-Streifen): ein kleiner Punkt
+     ganz vorne, direkt nach dem ⓘ. Er beantwortet auf einen Blick die eine
+     Frage, die alle wollten — "treibt mein Körper die Musik gerade?":
+       · GRÜN gefüllt = ein Take LÄUFT und dein Puls ist frisch & echt → dein
+         Körper formt die laufende generative Musik wirklich.
+       · gedimmter Ring = Signal ist live, aber es spielt gerade nichts.
+       · blasser Ring = kein lebendes Körpersignal.
+     Keine blinkende Deko (A11y/≤3 Hz) — die Farbe allein sagt den Zustand.
+     Tap auf den Punkt öffnet den Klartext-Guide (was HR/HRV/Kohärenz bedeuten).
+     → Ist auf einen Blick klar, ob dein Körper gerade "dran" ist? Wird es grün,
+       wenn du Play drückst UND dein Puls anliegt?
 
-  2) SPUR-MIXER (K2a): In der aufgeklappten Timeline pro Spur M (Mute) · S (Solo)
-     · Level. Mute schneidet das Piano-Roll sofort, Level skaliert die Anschläge.
+  2) WEITERHIN AUS v152 (falls noch nicht geprüft): Play-Einstieg (ruhiges
+     Instrument beim Öffnen, Timeline als aufklappbare Leiste), Spur-Mixer
+     (M/S/Level), Clip lange drücken → Editor, rPPG erholt sich bei OS-Pause.
 
-  3) CLIP LANGE DRÜCKEN (U1): In der Timeline einen Clip lange drücken → Editor
-     (MIDI → Piano Roll, Audio → Audio-Editor). Kurzer Tap auf Audio = vorhören.
-     Das "Arrange"-Label ist weg (die Timeline IST die eine Ansicht).
-
-  4) rPPG-KAMERA (v151): Falls der Puls mal nicht kommt — einmal Kontrollzentrum
-     auf/zu oder App wechseln/zurück: erholt sich die Kamera jetzt von selbst?
-     (Statt der alten Kalt-Restart-Schleife wartet sie bei OS-Unterbrechung und
-     zeigt ehrlich "Camera paused by iOS".)
-
-  OFFEN bei dir (kein Code, Entscheidungen): Ohr-Urteil Sounds · Cymatics-Go ·
-  ob der nächste Schritt das Bio-"mapped"-Aktivitätslicht pro Spur wird (alle 5
-  Umfrage-Zielgruppen wollten genau das). Push/CloudKit bleibt v1.0 bewusst AUS.
+  OFFEN bei dir (Entscheidungen, kein Code): Ohr-Urteil Sounds · Cymatics-Go ·
+  die GROSSEN nächsten Hebel (Perform-Vollbild · vertikale Visual-Aufnahme 9:16 ·
+  Bio-FX-Knopf pro Spur) hebe ich mir für NACH deinem Gerätetest von v152/v153
+  auf — nicht ungetestet auf ein noch nicht bestätigtes Fundament stapeln.
