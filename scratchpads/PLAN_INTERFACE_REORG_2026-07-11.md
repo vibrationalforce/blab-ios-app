@@ -44,20 +44,47 @@ Decoded:
 - **Render-safe surface host:** if bringing back multiple surfaces, do it via ONE consolidated
   `.sheet(item:)`/host, not N appended modifiers. Live bio reads stay in leaves.
 
-## PHASING (ordered; each = one safe, gate-verified, render-audited Ralph cycle)
-> Concrete steps filled after the architecture survey (agent a817… running). Skeleton:
+## GROUND-TRUTH (survey 2026-07-11 — the facts that shape everything)
+- **Root = `WorkspaceView` → `SurfaceHost`** (the real main view; WIRED-FUNCTIONAL, render-safe).
+  `SurfaceHost` (SurfaceSwitcher.swift:114) is the ONLY orientation-aware code: `GeometryReader`,
+  `landscape = width>height`, timeline-height ratio. When `timelineExpanded` it stacks
+  `ArrangeTimelineView` over `EchoelStudioView` (both `AnyView`-erased — deliberate launch-crash fix).
+- **`EchoelStudioView` is AT the ~18-modal metadata-SIGSEGV ceiling** (15 `.sheet` + 2
+  `.fullScreenCover` + `.fileImporter` + 3 `.alert`). **NO new modal here, ever.** New surfaces go
+  through `SurfaceHost` or INLINE panels (behind `AnyView(soundControls)`, line 430 — that boundary
+  keeps inline additions out of body's metadata type).
+- **`ArrangeTimelineView` = the live timeline (WIRED-PARTIAL):** renders `TimelineStore` lanes+regions,
+  pinch-zoom, waveforms, `laneMixStrip` (mute/solo/level → store), its OWN single `.sheet(item:)`.
+  **BUT no region plays** — only `rollSlotGain → pianoRoll.mixGain` reaches audio; playhead is visual-only.
+- **No engine plays `TimelineRegion`s** — THE core gap. Clock infra exists: `Transport` (pure, no timer)
+  driven by `PatternEngine` relay; `PianoRollModel.start` wires `onTick → arrangement.transportStep →
+  automation.applyStep → trigger`. `ArrangementPlayer` plays legacy SECTIONS (tested) but is unreachable
+  and knows nothing of regions.
+- **Track model fragmented:** `TimelineLane` (arrange) vs 8 index-based drum pads (BeatPlayer) vs
+  bass/pad/lead `NoteRole`s (MixerStore→voices). Only `rollSlotGain` bridges lane→audio.
+- **Adaptive essentially unbuilt** except SurfaceHost's height ratio. `EchoelTheme.layout(h:v:)` exists,
+  used only in BioStrip — a ready hook to extend.
+- **Reusable, tested:** `ChannelRackView` (strip UI), `MixerStore`/`TrackFXStore`, `ClipView`
+  capture/launch, `ArrangementPlayer` (section playback + tests), `TimelineStore` mute/solo math.
 
-- [ ] **P0. Ground-truth map** (survey) — surfaces/models/stores state, every `.sheet`, adaptive gaps.
-- [ ] **P1. Channel Rack = the Hackbrett.** Put per-track level + mute/solo + FX on each channel
-      strip (Bass·Pad·Lead·Drums + 8 drum pads). Reuse MixerStore + TrackFXStore + BeatPlayer.
-      Make the Rack a reachable surface (render-safe host). Mix panel becomes the Rack (or forwards to it).
-- [ ] **P2. Unified Track model** (if not already) — one Track type bridging clip-tracks, drum pads,
-      and the bass/pad/lead voices, so timeline + rack + mixer speak the same language.
-- [ ] **P3. Functioning Timeline** — tracks that hold/play/edit clips against the transport clock;
-      track headers carry the co-located controls; ArrangementPlayer actually schedules to audio.
-- [ ] **P4. Adaptive H/V** — landscape/portrait layouts across the shell + timeline + rack.
-- [ ] **P5. Polish + reorg sweep** — move every remaining orphan control to its object; docs/tests.
-- [ ] (folded in) Weather multi-parameter panel — lands in the reorganized "where it happens" home.
+## PHASING (ordered; each = one safe, gate-verified, render-audited Ralph cycle)
+- [x] **P0. Ground-truth map** (survey done).
+- [x] **P1. Hackbrett — Channel Rack inline in the Mix panel.** DONE (ce039fa): `ChannelRackView`
+      embedded (scroll-less) at the bottom of `mixerPanel` — the 8 drum channels' level/mute/solo/FX
+      now reachable in the mix, no new modal. ui-state-reviewer: 0 risks. → v168.
+- [ ] **P1b. Master voices onto the same rack** (optional polish) — render Bass/Pad/Lead/Drums-master
+      as strips in the rack format (MixerStore + TrackFXStore), so ALL levels read as one Hackbrett.
+      Defer behind the timeline (higher value); fold into the adaptive pass.
+- [ ] **P2. TimelineRegionScheduler — PURE engine, TEST-FIRST.** A pure type: (document, transport
+      position) → active regions per lane + resolved gain (mute/solo). No audio wiring yet. Fully
+      unit-tested. The safe foundation for playback. Extends the ArrangementPlayer pattern, doesn't rewrite.
+- [ ] **P3. Wire the scheduler to Transport + engine** (ADDITIVE, opt-in "timeline play"; existing
+      pattern/roll playback unchanged so nothing regresses). MIDI regions → roll/pattern; audio regions
+      → AudioClipPlayer at offset; per-lane level/mute/solo → engine. `NEEDS-FOUNDER-VERIFY` (audio).
+- [ ] **P4. Adaptive H/V** — extend `EchoelTheme.layout(h:v:)` + size-class into the mixer/timeline/panels;
+      landscape = wide rack rows / timeline; portrait = stacked. Layout-only → render-safe.
+- [ ] **P5. Reorg sweep + weather multi-parameter panel** — move remaining orphan controls to their
+      object; land the weather sound+visual params where they belong; docs/tests.
 
 ## Autonomous loop discipline
 Each cycle: build → tests → push → poll both CI gates (python-parse the actions_list overflow file)
