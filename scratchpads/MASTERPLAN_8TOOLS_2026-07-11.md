@@ -67,10 +67,14 @@ gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-
       **CloudSync reclassified:** NOT rot — it is a deliberate, unit-tested "Phase 0" CloudKit
       foundation (`scratchpads/PLAN_CLOUDKIT_SYNC.md`) awaiting the founder registering an iCloud
       container + entitlement (Phase 1). `DEFERRED to founder`, do NOT delete.
-- [ ] **Q3. Per-track FX audio wiring** (behind `TrackFX.isPassthrough` = bit-identical).
-      Install one `ChannelInsertFX` per bus (bass/melodic/drums) from `TrackFXStore`, process
-      in each render loop, skip passthrough. audio-thread-review each. `NEEDS-FOUNDER-VERIFY`
-      (sound), but off-by-default so it cannot regress.
+- [~] **Q3. Per-track FX audio wiring** (behind `TrackFX.isPassthrough` = bit-identical).
+      IN PROGRESS: **bass bus DONE** 2026-07-11 — `SubBassVoice` gained a per-bus
+      `ChannelInsertFX` fed by a lock-free `SPSCQueue<TrackFX>` (`setInsert(_:)`), processed
+      per-sample only when active; off = bit-identical. audio-thread-reviewer: CLEAN.
+      Melodic bus already runs through the master `fxChain` (EchoelFXChain) — its per-track
+      insert maps there in Q4. **Remaining:** drums bus (BeatPlayer) insert, and the
+      `TrackFXStore` → `setInsert` binding, which land WITH the UI (Q4) since nothing changes
+      a bus off `.off` until there's a control. `NEEDS-FOUNDER-VERIFY` (sound).
 - [ ] **Q4. Per-track FX UI** — a per-bus row (filter·cutoff·reso·drive) in the Mix panel using
       `EchoelValueField` only. Adaptive + Uncodixfy. Compiles + design-safe. `NEEDS-FOUNDER-VERIFY`.
 - [ ] **Q5. Bio-tempo lane (model).** A pure tempo-map: musical-time master + optional bio-tempo
