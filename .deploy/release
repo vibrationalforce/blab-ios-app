@@ -1,31 +1,27 @@
-build: 2026-07-11 v10.79.151 (rPPG: OS-Interruption ehrlich behandeln statt Kalt-Restart-Schleife)
+build: 2026-07-11 v10.79.152 (Play-Einstieg: ruhiges Instrument als Startbildschirm)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein v150-Log hat den Kamera-Ausfall überführt: iOS hat die Kamera-Session
-  mit "reason 1" gehalten (Video-Gerät angeblich 'im Hintergrund nicht verfügbar'),
-  das Ende kam nie — und die App hat 3 Minuten lang mit 8 Kalt-Restarts + Torch
-  dagegen angeheizt. Ab diesem Build:
+notes: Nach der Zielgruppen-Umfrage der größte UX-Schritt — plus die Arrange-Arbeit
+  seit deinem letzten Test. Bitte auf dem Gerät prüfen:
 
-  1) Die App KÄMPFT nicht mehr gegen eine vom System gehaltene Kamera —
-     sie wartet, zeigt ehrlich im Bio-Streifen "Camera paused by iOS —
-     waiting to resume" und nimmt die Kamera SELBST wieder auf, sobald
-     die App wieder aktiv ist.
-  2) Das Recovery-Budget bleibt für ECHTE Stalls erhalten (die ~68-s-Freezes
-     von früher werden weiter repariert wie gehabt).
-  3) Fürs nächste Log: die Unterbrechung nennt jetzt ihren NAMEN und was
-     die App selbst über ihren Vordergrund-Status glaubt — damit sehen wir
-     beim nächsten Mal die Ursache schwarz auf weiß.
+  1) PLAY-EINSTIEG (das neue Launch-Gesicht): Beim Öffnen landest du jetzt direkt
+     auf dem ruhigen Instrument (Bio-Streifen · Create from Within · Pads · Visual)
+     — NICHT mehr in der DAW-Timeline. Oben eine schlanke Leiste
+     "Timeline · arrangieren": ein Tap klappt die volle Ableton-Timeline auf,
+     nochmal tippen faltet sie weg. Bleibt gemerkt.
+     → Fühlt sich der Einstieg ruhig/einladend an? Geht die Leiste sauber auf/zu?
 
-  → Test: "Read pulse" starten. Falls der Puls wieder nicht kommt: einmal
-    Control Center öffnen/schließen oder kurz App wechseln und zurück —
-    erholt sich die Kamera jetzt von selbst? Danach bitte Log schicken
-    (es enthält jetzt die Reason-Zeile).
+  2) SPUR-MIXER (K2a): In der aufgeklappten Timeline pro Spur M (Mute) · S (Solo)
+     · Level. Mute schneidet das Piano-Roll sofort, Level skaliert die Anschläge.
 
-  AUSSERDEM in diesem Build (aus v150 übernommen, K2a): Spur-Mixer M·S·Level
-  in der Timeline — Mute schneidet das Piano-Roll sofort, Level skaliert
-  die Anschläge. Hinweis: auf deinem Screenshot stand MIDI 1 auf 0.10 —
-  falls der Take leise war: das war der neue Level-Fader.
+  3) CLIP LANGE DRÜCKEN (U1): In der Timeline einen Clip lange drücken → Editor
+     (MIDI → Piano Roll, Audio → Audio-Editor). Kurzer Tap auf Audio = vorhören.
+     Das "Arrange"-Label ist weg (die Timeline IST die eine Ansicht).
 
-  OFFEN bei dir: One-View-Plan liegt (PLAN_ONE_VIEW_2026-07-11.md) —
-  Entscheid Knopf-Name "EchoelBio" vs "Bio" (Namens-Kollision mit der
-  Bio-Quellen-Gruppe) · Cymatics-Go · ggf. Re-Share der verlorenen
-  Konzepte (adap Rocky, Granular/Quantum, Stem-Separation, Weißabgleich).
+  4) rPPG-KAMERA (v151): Falls der Puls mal nicht kommt — einmal Kontrollzentrum
+     auf/zu oder App wechseln/zurück: erholt sich die Kamera jetzt von selbst?
+     (Statt der alten Kalt-Restart-Schleife wartet sie bei OS-Unterbrechung und
+     zeigt ehrlich "Camera paused by iOS".)
+
+  OFFEN bei dir (kein Code, Entscheidungen): Ohr-Urteil Sounds · Cymatics-Go ·
+  ob der nächste Schritt das Bio-"mapped"-Aktivitätslicht pro Spur wird (alle 5
+  Umfrage-Zielgruppen wollten genau das). Push/CloudKit bleibt v1.0 bewusst AUS.
