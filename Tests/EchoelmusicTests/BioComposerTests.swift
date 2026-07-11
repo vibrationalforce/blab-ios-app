@@ -95,29 +95,43 @@ final class BioComposerTests: XCTestCase {
         XCTAssertFalse(comp.hasDrums, "self-observation stays ambient — a pure sustained drone, no drums")
     }
 
-    func testSustainedDroneStaysStill_evenWhenTheBodyIsAroused() {
-        // Founder 2026-07-07: "echte Musik … alles reduzieren dafür qualitativ
-        // hochwertiger" + "die Trancepads im Hintergrund sind teilweise schon sehr
-        // gut". A HIGH heart rate + LOW coherence = an aroused body (calm ≤ 0.6),
-        // exactly the state that used to switch on the busy 8th/16th inner pulse +
-        // walking bass (device log 1783424951: 27 notes). The meditative Fläche must
-        // now stay a still, sustained drone regardless of arousal — the good pad
-        // held, the noodle gone.
+    func testSustainedFlächeIsStillWhenCalm_AliveWhenAroused() {
+        // Founder 2026-07-11: "Kompositionen müssen nicht statisch im Takt sein … am
+        // Herzschlag orientierte Rhythmen, punktierte und Synkopen" — this SUPERSEDES
+        // the 2026-07-07/09 "still even when aroused" rule. The resolution (his own "je
+        // nach Biofeedback individuell"): a CALM body keeps the still held Fläche the
+        // founder liked; an AROUSED body re-articulates the SAME pad on a dotted/
+        // syncopated pulse — pad timbre only (never the rejected exposed wave-lead),
+        // in-key, bar-tight, one grounding bass root.
         for style in [MusicStyle.selfObservation, .esotericMeditation] {
-            let comp = BioComposer.compose(
-                input(coherence: 0.05, hr: 130, style: style, mode: .flowFree))
-            let pitched = comp.notes
-            // Reduced: a held chord (≤4 tones) + one bass, not a 27-note noodle.
-            XCTAssertLessThanOrEqual(pitched.count, 8,
-                                     "\(style): a drone is a handful of held notes, not a pulse grid")
-            // Exactly one grounding bass root — no walking line.
-            let bass = pitched.filter { $0.role == .bass }
-            XCTAssertEqual(bass.count, 1, "\(style): one sustained bass root, not a walking line")
-            // NOTHING is a short 8th/16th stab — every note is sustained (the pulse
-            // layer produced lengthSteps 1–2; a held pad spans most of the bar).
-            for n in pitched {
+            // CALM: high coherence + low heart rate → the still drone (unchanged).
+            let calm = BioComposer.compose(
+                input(coherence: 0.95, hr: 52, style: style, mode: .flowFree))
+            XCTAssertEqual(calm.notes.filter { $0.role == .bass }.count, 1,
+                           "\(style) calm: one sustained bass root, not a walking line")
+            for n in calm.notes {
                 XCTAssertGreaterThanOrEqual(n.lengthSteps, 4,
-                    "\(style): sustained drone has no short pulse notes (got len \(n.lengthSteps))")
+                    "\(style) calm: a settled body holds the Fläche (got len \(n.lengthSteps))")
+            }
+
+            // AROUSED: low coherence + high heart rate → rhythmic life in the PAD.
+            let aroused = BioComposer.compose(
+                input(coherence: 0.05, hr: 130, style: style, mode: .flowFree))
+            XCTAssertEqual(aroused.notes.filter { $0.role == .bass }.count, 1,
+                           "\(style) aroused: still ONE grounding bass root (no walking line)")
+            XCTAssertFalse(aroused.notes.contains { $0.role == .lead },
+                           "\(style) aroused: the movement is in the pad, never an exposed lead")
+            // The pad MOVES: more onset positions than the calm take, with at least one
+            // short (<4-step) dotted/tresillo re-articulation, all inside the bar.
+            let arousedStarts = Set(aroused.notes.map { $0.startStep }).count
+            let calmStarts = Set(calm.notes.map { $0.startStep }).count
+            XCTAssertGreaterThan(arousedStarts, calmStarts,
+                                 "\(style) aroused: the Fläche breaks into a rhythmic pulse")
+            XCTAssertTrue(aroused.notes.contains { $0.lengthSteps < 4 },
+                          "\(style) aroused: dotted/syncopated re-articulations appear")
+            for n in aroused.notes {
+                XCTAssertLessThanOrEqual(n.startStep + n.lengthSteps, BioComposer.stepCount,
+                    "\(style) aroused: re-articulation stays inside the bar (loop stays tight)")
             }
         }
     }
@@ -183,27 +197,94 @@ final class BioComposerTests: XCTestCase {
     }
 
     func testCuratedGenresArePureBarTightFlächen() {
-        // The founder's deal (2026-07-09): no lead melody anywhere in the offered
-        // roster, only held pad/bass material — and every note ends exactly inside
-        // the bar so the WAV loop stays tight for post-processing. Checked across
-        // seeds AND body states (an aroused body must not re-awaken a lead).
+        // The founder's deal (2026-07-09, refined 2026-07-11): NO lead melody anywhere
+        // in the offered roster (the movement lives in the pad, never an exposed wave-
+        // lead), and every note ends exactly inside the bar so the WAV loop stays tight.
+        // Two body states: a CALM body holds the Fläche (no short stabs); an AROUSED
+        // body may re-articulate the pad on a dotted/syncopated grid — but still no
+        // lead and still bar-tight.
         for style in MusicStyle.curated {
             for seed in UInt64(1)...10 {
-                for (coh, hr) in [(Float(0.9), Float(58)), (Float(0.1), Float(120))] {
-                    let comp = BioComposer.compose(
-                        input(coherence: coh, hr: hr, seed: seed, style: style))
-                    XCTAssertFalse(comp.notes.isEmpty, "\(style): a Fläche still sounds")
-                    for n in comp.notes {
-                        XCTAssertNotEqual(n.role, .lead,
-                            "\(style) seed \(seed): no lead melody in a pure Fläche")
-                        XCTAssertGreaterThanOrEqual(n.lengthSteps, 4,
-                            "\(style) seed \(seed): Flächen hold — no short stabs (len \(n.lengthSteps))")
-                        XCTAssertLessThanOrEqual(n.startStep + n.lengthSteps, BioComposer.stepCount,
-                            "\(style) seed \(seed): note overruns the bar — loop not tight")
-                    }
+                // CALM → held Fläche, no short stabs.
+                let calm = BioComposer.compose(
+                    input(coherence: 0.9, hr: 58, seed: seed, style: style))
+                XCTAssertFalse(calm.notes.isEmpty, "\(style): a Fläche still sounds")
+                for n in calm.notes {
+                    XCTAssertNotEqual(n.role, .lead,
+                        "\(style) seed \(seed) calm: no lead melody in a pure Fläche")
+                    XCTAssertGreaterThanOrEqual(n.lengthSteps, 4,
+                        "\(style) seed \(seed) calm: Flächen hold — no short stabs (len \(n.lengthSteps))")
+                    XCTAssertLessThanOrEqual(n.startStep + n.lengthSteps, BioComposer.stepCount,
+                        "\(style) seed \(seed) calm: note overruns the bar — loop not tight")
+                }
+                // AROUSED → pad may re-articulate (short onsets allowed), but still no
+                // lead and still bar-tight.
+                let aroused = BioComposer.compose(
+                    input(coherence: 0.1, hr: 120, seed: seed, style: style))
+                for n in aroused.notes {
+                    XCTAssertNotEqual(n.role, .lead,
+                        "\(style) seed \(seed) aroused: rhythm stays in the pad, no lead")
+                    XCTAssertLessThanOrEqual(n.startStep + n.lengthSteps, BioComposer.stepCount,
+                        "\(style) seed \(seed) aroused: re-articulation overruns the bar — loop not tight")
                 }
             }
         }
+    }
+
+    // MARK: - Heartbeat-oriented onsets (founder 2026-07-11: "am Herzschlag orientierte
+    // Rhythmen, punktierte und Synkopen" — pure generator, calm=still / active=alive)
+
+    func testHeartbeatOnsets_calmIsOneHeldOnset() {
+        // Below the still→alive threshold the section is one held onset (unchanged Fläche).
+        let onsets = BioComposer.heartbeatOnsets(secStart: 0, secLen: 16, energy: 0.2, syncopation: 0.2)
+        XCTAssertEqual(onsets.count, 1, "a calm body holds the chord as one onset")
+        XCTAssertEqual(onsets[0].start, 0)
+        XCTAssertEqual(onsets[0].len, 16, "the single onset spans the whole section")
+    }
+
+    func testHeartbeatOnsets_shortSectionStaysHeld() {
+        // Too-short a section can't carry a groove — always one onset.
+        let onsets = BioComposer.heartbeatOnsets(secStart: 4, secLen: 3, energy: 0.95, syncopation: 0.5)
+        XCTAssertEqual(onsets.count, 1)
+        XCTAssertEqual(onsets[0].start, 4)
+        XCTAssertEqual(onsets[0].len, 3)
+    }
+
+    func testHeartbeatOnsets_activeSubdividesIntoShortDottedNotes() {
+        // An aroused body breaks the held chord into several shorter (dotted/tresillo)
+        // re-articulations.
+        let onsets = BioComposer.heartbeatOnsets(secStart: 0, secLen: 16, energy: 0.9, syncopation: 0.3)
+        XCTAssertGreaterThan(onsets.count, 1, "an active body re-articulates the chord")
+        XCTAssertTrue(onsets.contains { $0.len < 4 }, "dotted/syncopated short notes appear")
+    }
+
+    func testHeartbeatOnsets_coverTheSectionContiguouslyAndTight() {
+        // Whatever the energy, the onsets tile [secStart, secStart+secLen) exactly —
+        // contiguous, no gaps, nothing overruns the bar (so the WAV loop stays tight).
+        for energy in [Float(0.2), 0.55, 0.75, 0.95] {
+            let start = 0, secLen = 16
+            let onsets = BioComposer.heartbeatOnsets(secStart: start, secLen: secLen,
+                                                     energy: energy, syncopation: 0.4)
+            XCTAssertEqual(onsets.first?.start, start, "starts on the section downbeat")
+            XCTAssertEqual(onsets.reduce(0) { $0 + $1.len }, secLen,
+                           "energy \(energy): onsets sum to exactly the section length")
+            // Contiguity: each onset begins where the previous ended.
+            for i in 1..<onsets.count {
+                XCTAssertEqual(onsets[i].start, onsets[i - 1].start + onsets[i - 1].len,
+                               "energy \(energy): no gap/overlap between onsets")
+            }
+            XCTAssertEqual((onsets.last?.start ?? 0) + (onsets.last?.len ?? 0), start + secLen,
+                           "energy \(energy): the last onset ends exactly at the bar edge")
+        }
+    }
+
+    func testHeartbeatOnsets_moreEnergyIsNotLessMovement() {
+        // Monotonic-ish: a fully aroused body has at least as many onsets as a gently
+        // active one (more life, never less).
+        let gentle = BioComposer.heartbeatOnsets(secStart: 0, secLen: 16, energy: 0.55, syncopation: 0)
+        let aroused = BioComposer.heartbeatOnsets(secStart: 0, secLen: 16, energy: 0.95, syncopation: 0)
+        XCTAssertGreaterThanOrEqual(aroused.count, gentle.count,
+                                    "a busier body carries at least as many re-articulations")
     }
 
     func testOnlyBeatGenresCarryDrums() {
