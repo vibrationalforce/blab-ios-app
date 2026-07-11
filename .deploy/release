@@ -1,24 +1,24 @@
-build: 2026-07-11 v10.79.159 (Level pro Instrument — Sounds angeglichen)
+build: 2026-07-11 v10.79.160 (Mixer — Bass/Pad/Lead je ein Fader)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Cycle 1 der Play-Surface-Sound-Überarbeitung (dein "teils zu laut oder zu
-  leise … Level pro Instrument"). Hilft direkt gegen die zu lauten Leads:
+notes: MODUL 1 des umfassenden Interfaces — der Mixer. Dein "trenne die Stimmen
+  auf mischbare Spuren, dann drehst du den Lead runter" ist jetzt da. Bitte
+  testen (Composition-Bereich → neues Feld "Mix"):
 
-  LEVEL PRO INSTRUMENT + AUTO-ANGLEICH: Jeder Sound hat jetzt einen Output-Level,
-  und die Werks-Sounds werden automatisch laut-angeglichen (helle/Unison-Sounds
-  runter, dunkle rauf). Da die schrillen Lead-Sounds hell sind, werden sie durch
-  den Angleich schon spürbar LEISER getrimmt. Pegel gleitet weich (kein Klick),
-  Standard bit-identisch, alte gespeicherte Sounds unverändert. Im Sound-Editor:
-  neuer "Level"-Regler pro Instrument.
+  PER-SPUR-FADER: Bass · Pad · Lead haben je einen eigenen Level-Fader. Die
+  schrille/laute Genre-Melodie zähmst du jetzt selbst — einfach den LEAD-Fader
+  runterziehen. Bass anheben, Pad zurücknehmen — je nach Genre und Geschmack.
+    · Standard = die Genre-Balance unverändert (nichts geht kaputt).
+    · Dein Mix wird gespeichert und die Musik re-balanciert sich beim nächsten
+      Generate/Evolve.
+    · "Reset to genre balance" holt alles auf null Eingriff zurück.
 
-  → Klingen die Instrumente jetzt gleichmäßiger laut? Sind die hellen Leads schon
-    etwas gezähmt?
+  → Wähle ein Rock/energetisches Genre, zieh den Lead-Fader runter: ist die
+    schrille Melodie jetzt zahm und gut im Mix? Fühlt sich das Mischen natürlich an?
 
-  WICHTIG (dein Feedback): die hohen Melodien der neuen Genres sind noch zu
-  schrill/laut. Das löse ich strukturell wie von dir vorgeschlagen — die Stimmen
-  auf getrennte, MISCHBARE Spuren (Bass/Pad/Lead/Drums), dann drehst du den Lead
-  einfach runter. Das ist zugleich das erste Modul des umfassenden Interfaces
-  (siehe unten). Der Level-pro-Instrument ist der Baustein dafür.
+  STRATEGISCH: Das ist kein Einzel-Feature — es ist das ERSTE Modul des einen
+  Bio-Timeline-Rückgrats. Dieselben per-Spur-Level tragen später die Timeline-
+  Spuren, jede mit eigenen bio-modulierten Effekten. Wir bauen "trennen →
+  sinnvoll zusammensetzen" Schritt für Schritt, solide.
 
-  NÄCHSTES: der Misch-Layer (per-Spur-Fader) als erstes Modul der Gesamt-Vision
-  (DAW/Video/Mapping/Light in einem, bio-moduliert, Timeline-Schnitt). Design
-  bleibt adaptiv + professionell.
+  NÄCHSTE MODULE: Drums-Fader · Bio-Tempo-Spur (Timeline atmet mit dem Puls) ·
+  per-Spur-FX. Design bleibt adaptiv + professionell.
