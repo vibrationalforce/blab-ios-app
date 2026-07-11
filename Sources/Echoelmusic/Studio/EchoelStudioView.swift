@@ -1098,37 +1098,41 @@ struct EchoelStudioView: View {
     /// the next generate/evolve. A menu-free leaf reading only low-frequency stores.
     private var mixerPanel: some View {
         panel("Mix", "Level per part", isExpanded: $showMix) {
-            EchoelValueField(label: "Bass", value: mixBinding(\.bass),
-                             range: MixerStore.range, unit: "", decimals: 2)
-            EchoelValueField(label: "Pad", value: mixBinding(\.pad),
-                             range: MixerStore.range, unit: "", decimals: 2)
-            EchoelValueField(label: "Lead", value: mixBinding(\.lead),
-                             range: MixerStore.range, unit: "", decimals: 2)
-            EchoelValueField(label: "Drums", value: drumsBinding,
-                             range: MixerStore.range, unit: "", decimals: 2)
-
-            // Per-track FX — bass bus insert (Module 2). A dub low-pass + drive on the
-            // sub, applied LIVE (next render block) via the lock-free setInsert path. Full-
-            // open cutoff = filter off; drive 0 = clean → the bus stays bit-identical until
-            // moved. Melodic/drums FX rows follow as their buses are wired.
-            EchoelValueField(label: "Bass filter", value: bassCutoffBinding,
-                             range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-            EchoelValueField(label: "Bass drive", value: bassDriveBinding,
-                             range: TrackFXStore.driveRange, unit: "", decimals: 2)
-            // Melodic bus (pad/harmony + lead voices): a filter/drive AFTER the genre
-            // character. Full-open cutoff = off. Tames a shrill lead directly.
-            EchoelValueField(label: "Melodic filter", value: melodicCutoffBinding,
-                             range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-            EchoelValueField(label: "Melodic drive", value: melodicDriveBinding,
-                             range: TrackFXStore.driveRange, unit: "", decimals: 2)
-            // Drums bus (the whole kit): one filter/drive fanned across all 8 drum
-            // channels. A low-pass here is mathematically a bus filter (the biquad is
-            // LTI, so per-channel == on the sum); drive saturates each hit on its own,
-            // keeping the transients. Full-open cutoff = off → the kit stays untouched.
-            EchoelValueField(label: "Drums filter", value: drumsCutoffBinding,
-                             range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-            EchoelValueField(label: "Drums drive", value: drumsDriveBinding,
-                             range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            // The master mix as per-part STRIPS — the same visual language as the drum
+            // channel strips below, so the whole Mix panel reads as ONE board (founder:
+            // "Mix Level sollten auf dem Hackbrett landen … alles an Ort und Stelle").
+            // Each strip co-locates a part's LEVEL with its own bus FX (filter + drive);
+            // grouping follows the three real FX buses (bass / melodic / drums). Every
+            // binding is the existing one — no new audio wiring. FX default full-open /
+            // drive 0 = bit-identical until moved.
+            mixStripCard("Bass") {
+                EchoelValueField(label: "Level", value: mixBinding(\.bass),
+                                 range: MixerStore.range, unit: "", decimals: 2)
+                EchoelValueField(label: "Filter", value: bassCutoffBinding,
+                                 range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+                EchoelValueField(label: "Drive", value: bassDriveBinding,
+                                 range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            }
+            // Pad + Lead share the melodic FX bus → one strip. The melodic filter tames
+            // a shrill lead directly.
+            mixStripCard("Melodic · Pad + Lead") {
+                EchoelValueField(label: "Pad", value: mixBinding(\.pad),
+                                 range: MixerStore.range, unit: "", decimals: 2)
+                EchoelValueField(label: "Lead", value: mixBinding(\.lead),
+                                 range: MixerStore.range, unit: "", decimals: 2)
+                EchoelValueField(label: "Filter", value: melodicCutoffBinding,
+                                 range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+                EchoelValueField(label: "Drive", value: melodicDriveBinding,
+                                 range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            }
+            mixStripCard("Drums") {
+                EchoelValueField(label: "Level", value: drumsBinding,
+                                 range: MixerStore.range, unit: "", decimals: 2)
+                EchoelValueField(label: "Filter", value: drumsCutoffBinding,
+                                 range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+                EchoelValueField(label: "Drive", value: drumsDriveBinding,
+                                 range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            }
 
             Button {
                 mixer.resetToUnity()
@@ -1153,6 +1157,24 @@ struct EchoelStudioView: View {
             Divider().overlay(EchoelTheme.border).padding(.vertical, 2)
             ChannelRackView(embedded: true)
         }
+    }
+
+    /// A per-part mix STRIP — a titled group (Level + its bus FX) styled like the drum
+    /// channel strips, so the master voices and the drum channels read as one Hackbrett.
+    /// Pure layout over existing bindings; reads only low-frequency stores → render-safe.
+    @ViewBuilder
+    private func mixStripCard<Content: View>(_ title: String,
+                                             @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(EchoelTheme.font(13, .semibold))
+                .foregroundStyle(EchoelTheme.text)
+            content()
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+            .strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
     /// Bass-bus filter cutoff. Full-open (max) disengages the filter; lower engages a
