@@ -15,14 +15,16 @@ import Observation
 public final class MixerStore {
 
     // User level per role, linear (1.0 = the genre's own balance, unchanged). Persisted.
-    public var bass: Float { didSet { persist(Keys.bass, bass) } }
-    public var pad:  Float { didSet { persist(Keys.pad,  pad)  } }   // harmony role
-    public var lead: Float { didSet { persist(Keys.lead, lead) } }
+    public var bass:  Float { didSet { persist(Keys.bass,  bass)  } }
+    public var pad:   Float { didSet { persist(Keys.pad,   pad)   } }   // harmony role
+    public var lead:  Float { didSet { persist(Keys.lead,  lead)  } }
+    public var drums: Float { didSet { persist(Keys.drums, drums) } }   // BeatPlayer master
 
     private enum Keys {
-        static let bass = "mixer.bass"
-        static let pad  = "mixer.pad"
-        static let lead = "mixer.lead"
+        static let bass  = "mixer.bass"
+        static let pad   = "mixer.pad"
+        static let lead  = "mixer.lead"
+        static let drums = "mixer.drums"
     }
 
     private let defaults: UserDefaults
@@ -30,9 +32,10 @@ public final class MixerStore {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         // nil (never set) → unity, so a fresh install mixes exactly like before.
-        bass = MixerStore.read(defaults, Keys.bass)
-        pad  = MixerStore.read(defaults, Keys.pad)
-        lead = MixerStore.read(defaults, Keys.lead)
+        bass  = MixerStore.read(defaults, Keys.bass)
+        pad   = MixerStore.read(defaults, Keys.pad)
+        lead  = MixerStore.read(defaults, Keys.lead)
+        drums = MixerStore.read(defaults, Keys.drums)
     }
 
     private static func read(_ d: UserDefaults, _ key: String) -> Float {
@@ -61,7 +64,7 @@ public final class MixerStore {
 
     /// Reset every fader to unity (the genre's own balance).
     public func resetToUnity() {
-        bass = 1.0; pad = 1.0; lead = 1.0
+        bass = 1.0; pad = 1.0; lead = 1.0; drums = 1.0
     }
 
     /// The user-adjustable range for a fader: 0 (mute) … 1.5 (a little boost).

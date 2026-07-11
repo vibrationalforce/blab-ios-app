@@ -44,6 +44,7 @@ final class MixerStoreTests: XCTestCase {
         XCTAssertEqual(store.bass, 1.0)
         XCTAssertEqual(store.pad, 1.0)
         XCTAssertEqual(store.lead, 1.0)
+        XCTAssertEqual(store.drums, 1.0)
     }
 
     @MainActor
@@ -72,10 +73,19 @@ final class MixerStoreTests: XCTestCase {
     @MainActor
     func testResetToUnity() {
         let store = MixerStore(defaults: freshDefaults())
-        store.bass = 0.2; store.pad = 0.3; store.lead = 0.1
+        store.bass = 0.2; store.pad = 0.3; store.lead = 0.1; store.drums = 0.5
         store.resetToUnity()
         XCTAssertEqual(store.bass, 1.0)
         XCTAssertEqual(store.pad, 1.0)
         XCTAssertEqual(store.lead, 1.0)
+        XCTAssertEqual(store.drums, 1.0)
+    }
+
+    @MainActor
+    func testDrumsLevelPersists() {
+        let defaults = freshDefaults()
+        do { MixerStore(defaults: defaults).drums = 0.6 }
+        XCTAssertEqual(MixerStore(defaults: defaults).drums, 0.6, accuracy: 1e-6,
+                       "the drums fader survives relaunch")
     }
 }
