@@ -69,6 +69,26 @@ final class BioModulationTests: XCTestCase {
         XCTAssertEqual(p.amount, 1, accuracy: 1e-9)
     }
 
+    // MARK: persistence (Q7 bind-a-knob UI must survive relaunch)
+
+    func testBoundParameter_codableRoundTrip() throws {
+        let p = BoundParameter(base: 220, range: 20...2000, source: .coherence, amount: -0.6)
+        let data = try JSONEncoder().encode(p)
+        let back = try JSONDecoder().decode(BoundParameter.self, from: data)
+        XCTAssertEqual(back, p, "a bound parameter round-trips so bindings persist")
+        XCTAssertEqual(back.resolved(from: bio(coherence: 1)),
+                       p.resolved(from: bio(coherence: 1)), accuracy: 1e-9,
+                       "the decoded binding resolves identically")
+    }
+
+    func testBoundParameter_manualCodableRoundTrip() throws {
+        let p = BoundParameter(base: 0.5, range: 0...1)   // source nil = manual
+        let back = try JSONDecoder().decode(BoundParameter.self,
+                                            from: try JSONEncoder().encode(p))
+        XCTAssertEqual(back, p)
+        XCTAssertNil(back.source, "a manual (unbound) parameter stays manual after decode")
+    }
+
     // MARK: clock — heartbeat vs BPM-lock
 
     func testFixedBPMClock() {
