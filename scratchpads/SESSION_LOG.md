@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 27) — UI-Umfrage + Play-Einstieg gebaut (grün)
+- **Founder-Auftrag:** emulierte Zielgruppen-Umfrage zum UI. 5 Persona-Agenten
+  (Producerin/Creator/VJ/Performer/Einsteigerin) → Artifact-Mockup + Synthese
+  (scratchpads/UI_SURVEY_2026-07-11.md). Kern-Spannung Timeline-Glaubwürdigkeit vs
+  Einsteiger-Abschreckung → Auflösung: EIN Screen in drei Verdichtungen
+  (Play/Arrange/Perform); 3 universelle Gesetze (Bio-Aktivitätslicht zuerst /
+  Bio abschaltbar+sturzsicher / Visual muss RAUS vertikal+Projektor); größter
+  Wachstums-Hebel = Visual vertikal aufnehmen (noch nicht gebaut).
+- **Founder-Entscheid:** „Play-Einstieg vorziehen."
+- **Play-Einstieg SHIPPED (`30f6efe`, alle Gates grün):** Erkenntnis — EchoelStudioView
+  IST schon der Play-Instrument-Screen (Bio strip · Start · pads); das Problem war die
+  Timeline standardmäßig darüber. Fix in SurfaceHost: Timeline klappt auf eine dünne
+  „Timeline · arrangieren"-Leiste ein (@AppStorage workspace.timelineExpanded, default
+  false, persistiert); ein Tap expandiert die volle Ableton-Timeline. Kleinster sicherer
+  Weg: keine neue Parallelansicht, keine generate()-Änderung, kein neues Sheet; Default-
+  Launch mountet WENIGER Views (Timeline erst bei Bedarf → weniger Metadata-Druck auf
+  den crash-sensiblen Pfad). Hebt die 2026-07-10-Struktur nicht auf (Timeline bleibt DIE
+  Fläche, nur gefaltet).
+- **BRAUCHT FOUNDER-GERÄTETEST** (ändert das Launch-Gesicht) — noch nicht deployt; wartet.
+- Nächster Kandidat (auf Go): K2b „mapped"-Bio-Aktivitätslicht pro Spur (alle 5 Personas).
+
 ## 2026-07-11 (Forts. 26) — U1 grün + Founder-Pivot: NICHT jetzt shippen, weiterbauen
 - **Founder-Entscheid:** kein erster Test jetzt — „noch nicht zufrieden, will Testern
   nichts geben, was in ein paar Tagen anders aussieht". Mein „jetzt shippen"-Push
