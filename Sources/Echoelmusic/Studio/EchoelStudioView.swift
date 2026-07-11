@@ -93,6 +93,7 @@ struct EchoelStudioView: View {
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
     @Environment(PatchStore.self) private var patchStore
+    @Environment(MixerStore.self) private var mixer
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
@@ -135,6 +136,7 @@ struct EchoelStudioView: View {
     /// Start · the two mood pads; everything else is one tap away behind its
     /// compact header. Persisted so a user who opens a panel keeps it open.
     @AppStorage("studio.showComposition") private var showComposition = false
+    @AppStorage("studio.showMix") private var showMix = false
     /// R1 (2026-07-10): the Session card — name preview · place · weather.
     @AppStorage("studio.showSession") private var showSession = false
     @AppStorage("studio.showExport") private var showExport = false
@@ -1017,6 +1019,7 @@ struct EchoelStudioView: View {
             sessionPanel
             transposePanel
             soundPanel
+            mixerPanel
             effectsPanel
             masterPanel
             moodPanel
@@ -1076,6 +1079,38 @@ struct EchoelStudioView: View {
     }
 
     // MARK: Panel 1 — Composition (genre · key · tuning · tempo)
+
+    /// Module 1 of the comprehensive interface: the per-part MIXER. Each generated
+    /// role (bass · pad · lead) gets a user level layered over the genre balance —
+    /// pull the lead down when a genre's melody is too forward, lift the bass, etc.
+    /// Applied at compose time (velocity scale), so a change re-balances the take on
+    /// the next generate/evolve. A menu-free leaf reading only low-frequency stores.
+    private var mixerPanel: some View {
+        panel("Mix", "Level per part", isExpanded: $showMix) {
+            EchoelValueField(label: "Bass", value: mixBinding(\.bass),
+                             range: MixerStore.range, unit: "", decimals: 2)
+            EchoelValueField(label: "Pad", value: mixBinding(\.pad),
+                             range: MixerStore.range, unit: "", decimals: 2)
+            EchoelValueField(label: "Lead", value: mixBinding(\.lead),
+                             range: MixerStore.range, unit: "", decimals: 2)
+            Button {
+                mixer.resetToUnity()
+                recomposeIfRunning()
+            } label: {
+                Text("Reset to genre balance")
+                    .font(EchoelTheme.font(12, .medium))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Sets every part back to the genre's own balance")
+        }
+    }
+
+    /// A binding to one mixer level that re-balances the running take when changed.
+    private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
+        Binding(get: { mixer[keyPath: keyPath] },
+                set: { mixer[keyPath: keyPath] = $0; recomposeIfRunning() })
+    }
 
     private var compositionPanel: some View {
         panel("Composition", "Genre · key · tuning · tempo", isExpanded: $showComposition) {
@@ -2991,12 +3026,16 @@ struct EchoelStudioView: View {
             }
             return shifted.map { n in
                 var m = n
-                let f: Float
+                // Genre mix glue × the user's per-part MIXER level (Module 1). Unity
+                // mixer = the genre balance unchanged; the user can pull e.g. a shrill
+                // lead down. Still a pure velocity scale — no audio-thread change.
+                let genreF: Float
                 switch n.role {
-                case .bass:    f = mix.bass
-                case .lead:    f = mix.lead
-                case .harmony: f = mix.harmony
+                case .bass:    genreF = mix.bass
+                case .lead:    genreF = mix.lead
+                case .harmony: genreF = mix.harmony
                 }
+                let f = MixerStore.combined(genre: genreF, user: mixer.level(for: n.role))
                 m.velocity = min(1, max(0, n.velocity * f))
                 return m
             }
