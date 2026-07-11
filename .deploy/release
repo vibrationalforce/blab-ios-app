@@ -1,23 +1,23 @@
-build: 2026-07-11 v10.79.162 (Analog Warmth — weg vom kalten Plastik)
+build: 2026-07-11 v10.79.163 (Tempo-adaptive Spielart — nicht mehr hektisch)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein "kaltes überladenes Plastik synthie gedudel / piepsig künstlich"
-  hat eine klare Ursache — der Synth-Motor ist ein reiner Sinus-Stack (sauber,
-  aber deshalb kalt und dünn). Dieser Build gibt ihm Körper.
+notes: Dein Punkt: "Disco auf 75 ok, auf 132 zu hektisch — je nach bpm adaptiv
+  die Spielart anpassen um immer einen guten Vibe zu kreieren." Gelöst.
 
-  ANALOG WARMTH:
-  · Eine sanfte Sättigung VOR dem Filter gibt jedem Ton harmonischen Körper —
-    Peaks komprimieren, ungerade Harmonische kommen dazu, der Filter zähmt sie
-    dann zu Wärme statt Kante. Leise Stellen bleiben unberührt (wirkt nur da,
-    wo es zählt), gespeicherte Sounds bleiben exakt wie designt.
-  · Standard-Wärme auf den ganzen Out-of-box-Sound — weg vom kalten Sinus.
-  · Mehr Wärme auf die schrillen Leads (Bright/Vapor Lead, Glass Bell,
-    Metallic) — direkter Treffer auf dein "hohe Melodien schrill".
+  TEMPO-ADAPTIVE SPIELART:
+  · Die Notendichte war tempo-blind — gleiche Noten pro Takt hieß bei doppeltem
+    BPM doppelt so viele Noten pro Sekunde (= hektisch). Jetzt dünnt die
+    Komposition die SCHNELLEN Schichten aus, je höher das Tempo:
+    - Lead-Notenzahl runter, Arps + Pulse gröber (Viertel statt 8tel)
+  · Baseline 84 BPM: alles darunter bleibt EXAKT unverändert → dein gutes
+    Disco@75 klingt genau so gut wie vorher.
+  · Darüber: 132 → ~68% Dichte, 160 → ~58% (konstantere Noten-pro-Sekunde).
+  · Bewusst UNANGETASTET: der Herzschlag-Puls des Pads. Ein erregter Körper darf
+    sich weiter re-artikulieren — nur das tempo-bedingte Gerassel geht raus,
+    nicht das bio-getriebene Leben.
 
-  BITTE HÖREN: Sind die energetischen Genres (Rock/Disco/Trap-Lead) jetzt
-  wärmer und runder statt piepsig-künstlich? Sag mir mehr/weniger Wärme —
-  ich dreh die eine Zahl. Und: welches Referenz-Genre soll der Default treffen
-  (Dub Techno = mein wärmster Kandidat)?
+  BITTE HÖREN: Ist Disco@132 jetzt aufgeräumt statt hektisch? Und fühlt sich der
+  Umschaltpunkt (~84 BPM) richtig an, oder soll die Schwelle höher/tiefer? Das
+  ist die eine Zahl, die ich nach deinem Ohr justiere.
 
-  Ausblick: nächster Zyklus = Per-Track-FX-Inserts (jede Spur ihre Kette,
-  bio-modulierbar) — der Schritt Richtung der einen bio-modulierten Timeline,
-  die alle 8 Tools in EINER Ansicht vereint.
+  (Läuft parallel zur Warmth v162 — beide warten auf dein Ohr. Währenddessen
+  baue ich autonom weiter an der 8-Tool-Vision; siehe MASTERPLAN.)
