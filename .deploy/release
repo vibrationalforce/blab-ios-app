@@ -1,27 +1,24 @@
-build: 2026-07-11 v10.79.167 (Groove: die "Eins" + lesbarer Session-Name)
+build: 2026-07-11 v10.79.168 (Hackbrett: Channel Rack im Mix — Reorg P1)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Zwei Dinge auf dein Ohr/Auge — direkt aus deinem Feedback.
+notes: Erster Schritt der großen Reorganisation (dein "Mix Level sollten auf dem
+  Hackbrett landen … alles an Ort und Stelle wo es wirklich stattfindet").
 
-  GROOVE — die "Eins" ist jetzt da (dein "manchmal schwierig die Eins zu
-  erkennen. Also Groove ist auch wichtig"):
-  · Der Grund war, dass NICHTS die Eins markiert hat — an zwei Stellen behoben.
-  · Drums: Schlag 1 (die Eins) ist jetzt der STÄRKSTE Groove-Schlag, klar über
-    Beats 2·3·4, und ohne Zufalls-Jitter = ein ruhiger, fester Anker.
-  · Harmonie (Pad/Bass/Lead, immer aktiv): vorher lag das Dynamik-Maximum in
-    der Takt-MITTE und die Eins war der SCHWÄCHSTE Punkt — jetzt hebt sich die
-    Eins klar heraus (lautester Moment im Takt), der Takt atmet trotzdem.
-  · Frage an dich: ist die Eins jetzt fühlbar? Grooved es?
+  NEU: das HACKBRETT (Channel Rack) ist jetzt IM Mix-Panel:
+  · Unten im Mix-Panel liegen jetzt alle 8 Drum-Kanäle als Strips —
+    pro Kanal: Level · Mute/Solo · Insert-Filter (Typ + Cutoff) · Drive.
+  · Das gab es schon als getestete Ansicht, war aber nirgends erreichbar —
+    jetzt sitzt alles Mischbare an EINEM Ort statt verstreut.
+  · Inline eingebettet (kein neues Fenster) → render-sicher; ui-state-Review: 0 Risiken.
 
-  SESSION-NAME lesbar (dein Screenshot):
-  · Statt des rohen Datei-Stempels jetzt lesbare Felder in deiner Reihenfolge:
-    E · Datum · Ort · Tonart ausgeschrieben ("A Harmonic Minor") · BPM ·
-    Kammerton. Der echte Export-Dateiname bleibt gleich (klein als "Datei:").
-  · Ort-Zeile jetzt in JEDEM Zustand klar (aus / sucht / gefunden / verweigert).
+  Damit ist die Basis gelegt. Als Nächstes (autonom, sicher, Gate-verifiziert):
+  · Master-Stimmen (Bass/Pad/Lead) als Strips auf dasselbe Hackbrett
+  · die TIMELINE zum LAUFEN bringen — funktionierende Spuren: ein reiner,
+    getesteter Region-Scheduler (P2), dann additiv an den Ton verdrahtet (P3),
+    damit nichts am startenden Instrument kaputtgeht
+  · adaptives Layout horizontal + vertikal (P4)
 
-  Beides pure/deterministisch, off-render, Tests grün, beide CI-Gates grün.
-  NEEDS-FOUNDER-VERIFY (Ohr/Auge).
+  Kein Audio-Pfad angefasst, kein neues Modal, beide CI-Gates grün.
+  NEEDS-FOUNDER-VERIFY (Handhabung/Feel des Mix-Panels).
 
-  LÄUFT GERADE: die große Reorganisation — Timeline mit funktionierenden
-  Spuren, Mix-Level auf das "Hackbrett" (Channel Rack), alles an seinen Platz,
-  adaptiv horizontal + vertikal. Baue ich die nächsten Stunden autonom, sicher
-  und Gate-verifiziert. Wetter-Panel folgt in dieser Reorganisation.
+  Frühere Builds warten noch auf dein Ohr: v162–v166 (Warmth/Tempo/FX),
+  v167 (Groove „die Eins" + lesbarer Name).
