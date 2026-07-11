@@ -492,6 +492,8 @@ struct EchoelStudioView: View {
             // style is always a valid case now.)
             surfacePriorCrashIfAny()
             handlePendingIntent()
+            // Apply the persisted Mixer "Drums" level to the beat engine at launch.
+            beatPlayer.masterLevel = mixer.drums
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
@@ -1093,8 +1095,11 @@ struct EchoelStudioView: View {
                              range: MixerStore.range, unit: "", decimals: 2)
             EchoelValueField(label: "Lead", value: mixBinding(\.lead),
                              range: MixerStore.range, unit: "", decimals: 2)
+            EchoelValueField(label: "Drums", value: drumsBinding,
+                             range: MixerStore.range, unit: "", decimals: 2)
             Button {
                 mixer.resetToUnity()
+                beatPlayer.masterLevel = mixer.drums
                 recomposeIfRunning()
             } label: {
                 Text("Reset to genre balance")
@@ -1110,6 +1115,13 @@ struct EchoelStudioView: View {
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
         Binding(get: { mixer[keyPath: keyPath] },
                 set: { mixer[keyPath: keyPath] = $0; recomposeIfRunning() })
+    }
+
+    /// The Drums fader drives BeatPlayer's master level LIVE — it multiplies each hit as
+    /// it fires, so no recompose is needed (the change is heard on the next beat).
+    private var drumsBinding: Binding<Float> {
+        Binding(get: { mixer.drums },
+                set: { mixer.drums = $0; beatPlayer.masterLevel = $0 })
     }
 
     private var compositionPanel: some View {

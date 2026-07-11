@@ -21,6 +21,11 @@ public final class BeatPlayer {
         "Clap", "Perc",  "Bass",      "LeadFX"
     ]
 
+    /// Master drum level (the Mixer's "Drums" fader), 1.0 = unity. Multiplied into every
+    /// triggered hit's gain. Written from the main actor (Mixer UI), read on the pattern's
+    /// main-queue trigger timer — never the audio thread — so a plain Float is safe.
+    public var masterLevel: Float = 1.0
+
     /// Per-pad amp-envelope shape (user-editable sound design).
     public struct PadShape: Codable, Sendable, Equatable {
         public var level: Float = 1.0     // gain multiplier (0…2)
@@ -246,7 +251,8 @@ public final class BeatPlayer {
         // false) stays full. This runs on the pattern's main-queue timer, so
         // Float.random is safe here — the audio thread only reads the lock-free
         // trigger gain, never generates randomness.
-        let g = respectMix ? gain * (1 - Float.random(in: 0...Self.humanizeDepth)) : gain
+        let base = respectMix ? gain * (1 - Float.random(in: 0...Self.humanizeDepth)) : gain
+        let g = base * max(masterLevel, 0)   // Mixer "Drums" fader; 1.0 = unity (unchanged)
         switch modes[track] {
         case .sample:
             voices[track].fire(gain: g)
