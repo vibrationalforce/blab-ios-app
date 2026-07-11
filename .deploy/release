@@ -1,24 +1,24 @@
-build: 2026-07-11 v10.79.164 (Per-Track-FX: Bass — dein erstes anfassbares Ergebnis)
+build: 2026-07-11 v10.79.165 (Per-Track-FX: jetzt Bass + Melodic)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Während du weg warst, habe ich sicher weitergebaut (Modul 2 der 8-Tool-
-  Vision: getrennte, mischbare Spuren mit eigenen Effekten). Das erste, das du
-  ANFASSEN kannst:
+notes: Per-Track-FX ist jetzt auf ZWEI Spuren — der nächste Schritt von Modul 2
+  (getrennte, mischbare Spuren mit eigenen Effekten).
 
-  PER-TRACK-FX — BASS:
-  · Im Mix-Panel (Composition → "Mix") gibt es jetzt zwei neue Regler:
-    - "Bass filter" (Hz): zieh ihn runter für einen dubbigen Low-Pass auf dem Sub
-    - "Bass drive": sanfte Sättigung/Wärme auf dem Bass
-  · Wirkt LIVE (nächster Render-Block), über einen lock-freien Audio-Pfad —
-    audio-thread-reviewer: sauber. Bleibt gespeichert über Neustart.
-  · WICHTIG: standardmäßig AUS (Filter voll offen, Drive 0) = exakt wie vorher.
-    Es passiert nichts, bis DU einen Regler bewegst → kann nichts kaputt machen.
+  NEU: MELODIC-FX (im Mix-Panel unter den Bass-Reglern):
+  · "Melodic filter" (Hz): zieh ihn runter für einen Filter über die Melodie
+  · "Melodic drive": Sättigung/Wärme auf der Melodie
+  · WICHTIG: deckt BEIDE melodischen Stimmen ab — Pad/Harmony UND die Lead-Stimme.
+    Damit lässt sich eine zu schrille Lead endlich DIREKT zähmen (dein "hohe
+    Melodien schrill") — dreh den Melodic-Filter runter und die Spitzen sind weg.
+  · Sitzt NACH dem Genre-Charakter, kämpft also nicht mit den Genre-Effekten.
 
-  Das ist der Anfang der einen bio-modulierten Oberfläche: jede Spur bekommt ihre
-  eigene Kette (Melodic + Drums folgen), später per Biofeedback modulierbar.
+  Wie beim Bass: standardmäßig AUS (Filter voll offen, Drive 0) = exakt wie
+  vorher; passiert nichts, bis DU einen Regler bewegst → kann nichts kaputt machen.
+  Läuft über einen lock-freien Audio-Pfad, audio-thread + ui-state Review: sauber.
 
-  DREI DINGE WARTEN JETZT AUF DEIN OHR/DEINE HAND:
-  · v162 Analog Warmth (kein Plastik mehr)
-  · v163 Tempo-adaptive Spielart (Disco@132 nicht mehr hektisch)
-  · v164 Bass-FX (dieser Build — zieh den Bass-Filter, hör den Dub)
+  VIER DINGE WARTEN AUF DEIN OHR/DEINE HAND:
+  · v162 Analog Warmth · v163 Tempo-adaptive Spielart
+  · v164 Bass-FX · v165 Melodic-FX (dieser Build — zieh den Melodic-Filter)
 
-  Der autonome Bau-Loop läuft weiter (siehe scratchpads/MASTERPLAN_8TOOLS).
+  Der autonome Bau-Loop fährt jetzt runter: die verbleibenden Punkte (die eine
+  Ansicht zusammensetzen, Bio-auf-jeden-Regler-UI) hängen an deinem Auge — die
+  bauen wir zusammen. Bis dahin bleibt alles grün und ruhig.
