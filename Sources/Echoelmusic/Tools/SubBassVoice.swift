@@ -65,6 +65,19 @@ public final class SubBassVoice {
     @ObservationIgnored
     nonisolated(unsafe) private let noteCommands = SPSCQueue<SubCommand>(capacity: 64)
 
+    /// Per-bus insert FX (Q3, founder "per-track FX": trenne die Spuren, jede ihre
+    /// eigene Kette). A resonant filter + drive on the sub bus — e.g. a dub low-pass
+    /// on the bass. Params arrive from the control thread via `fxCommands` (same
+    /// lock-free discipline as `noteCommands`); the insert's biquad state lives on the
+    /// audio thread. Default `.off` = an EXACT passthrough, so an un-dialed bass bus is
+    /// bit-identical (the whole feature is off until the founder dials it in the UI).
+    @ObservationIgnored
+    nonisolated(unsafe) private let fxCommands = SPSCQueue<TrackFX>(capacity: 8)
+    @ObservationIgnored
+    nonisolated(unsafe) private var insertFX = ChannelInsertFX(sampleRate: Float(SubBassVoice.sampleRate))
+    @ObservationIgnored
+    nonisolated(unsafe) private var insertActive = false
+
     // MARK: - Audio-thread-only oscillator state
 
     @ObservationIgnored nonisolated(unsafe) private var phase: Float = 0
@@ -113,6 +126,13 @@ public final class SubBassVoice {
     /// Match the instrument's concert pitch so the sub stays in tune with the body.
     public func setTuning(a4Hz: Double) {
         self.a4Hz = Float(min(max(a4Hz, 380), 500))
+    }
+
+    /// Install the per-bus insert FX (control thread). `.off`/passthrough removes it.
+    /// Enqueued lock-free; applied on the audio thread at the next render block, so a
+    /// knob drag never races the render. Off by default → bit-identical until dialed.
+    public func setInsert(_ fx: TrackFX) {
+        _ = fxCommands.tryEnqueue(fx)
     }
 
     private nonisolated func frequency(forMIDINote note: Int32) -> Float {
@@ -166,6 +186,17 @@ public final class SubBassVoice {
             }
         }
 
+        // Drain per-bus FX commands on the audio thread (params + coefficients recompute
+        // here — pure arithmetic, no alloc). A fresh activation resets the biquad state so
+        // there is no stale tail; going passthrough just stops processing.
+        while let fx = fxCommands.dequeue() {
+            insertFX.setParams(type: fx.filter, cutoffHz: fx.cutoffHz,
+                               resonance: fx.resonance, drive: fx.drive)
+            let nowActive = !fx.isPassthrough
+            if nowActive && !insertActive { insertFX.reset() }
+            insertActive = nowActive
+        }
+
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         // Launch/idle silence: pure zero until the first armed note. The felt-sub
         // default gain (0.35) only sets loudness ONCE a bass note plays — nothing
@@ -206,7 +237,9 @@ public final class SubBassVoice {
             let h1 = sinf(phase)
             let h2 = sinf(2 * phase) * 0.32
             let shaped = tanhf((h1 + h2) * 1.05) * 0.6
-            let out = shaped * env * smoothedGain
+            var out = shaped * env * smoothedGain
+            // Per-bus insert (dub filter / drive). Off = untouched (bit-identical).
+            if insertActive { out = insertFX.process(out) }
 
             for buffer in abl {
                 guard let raw = buffer.mData else { continue }
