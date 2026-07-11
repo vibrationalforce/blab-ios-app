@@ -1,22 +1,23 @@
-build: 2026-07-11 v10.79.156 (Polyphonie-Headroom — Einzelnote voll, Akkord zerrt nicht)
+build: 2026-07-11 v10.79.157 (Herzschlag-Rhythmen — ruhig still, aktiv lebendig)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Profi-Sounddesign-Zyklus 2 am Synth (dein "EchoelSynth rudimentär bei
-  den Levels · da nochmal richtig profi-mäßig ran"). Kommt allen Devices über
-  den geteilten Klang-Kern zugute. Bitte auf dem Gerät hören:
+notes: Erster Zyklus deines Kompositions-Auftrags ("nicht statisch im Takt … am
+  Herzschlag orientierte Rhythmen, punktierte und Synkopen"). Bitte auf dem Gerät
+  hören — am besten in Self-Observation / Deep Ambient:
 
-  POLYPHONIE-HEADROOM: Bisher lag ein fester Pegel-Deckel (0.40) auf dem
-  Synth — der machte selbst eine EINZELNE Note dünn, und dichte Akkorde haben
-  die Schutz-Sättigung trotzdem angeschlagen (leicht zerrig). Jetzt ist der
-  Makeup-Pegel stimmzahl-bewusst UND weich geglättet:
-    · Eine einzelne Note klingt jetzt VOLL (nicht mehr dünn/leise).
-    · Je dichter der Akkord, desto sanfter wird zurückgenommen (1/√Stimmen) —
-      die Summe zerrt nicht mehr, die Schutz-Sättigung bleibt reine Sicherung.
-    · Der Übergang von Note zu Akkord GLEITET (kein Pegel-Springen/Pumpen beim
-      Anschlagen/Loslassen) — das war früher der Grund, warum es nicht ging.
-  → Spiel EchoelSynth: klingt eine Einzelnote jetzt satt/voll, und bleibt ein
-    voller Akkord sauber (ohne Zerren), ohne dass der Pegel hörbar pumpt?
+  RUHIG = STILL, AKTIV = LEBENDIG (je nach Biofeedback): Die Flächen blieben
+  bisher immer gleich liegen. Jetzt gilt: bei RUHIGEM Körper (hohe Kohärenz,
+  niedriger Puls) bleibt die Fläche still gehalten — genau wie du sie mochtest.
+  Wird der Körper AKTIV (Puls hoch, Kohärenz runter), bricht DERSELBE Akkord in
+  einen herzschlag-orientierten Rhythmus auf: erst punktiert (lang-kurz), dann
+  Tresillo (3-3-2, das "Lub-Dub"-Grouping) — synkopiert und lebendig, aber immer
+  in der Tonart und takt-sauber. Kein schriller Wellen-Lead — die Bewegung
+  steckt im Pad-Klang selbst.
+  → Spiel ruhig ein und beweg dich dann / halt den Atem an, bis der Puls steigt:
+    Bleibt es bei Ruhe still, und kommt bei Aktivierung ein musikalisch
+    sinnvoller, synkopierter Puls rein (nicht chaotisch, nicht schrill)?
 
-  NÄCHSTE ZYKLEN am Synth: Patch-Pegel-Angleich · TPT-Filter (luftige Höhen
-  >8 kHz) · MIDI-Aufnahme mit EchoelSynth. Design bleibt adaptiv + professionell
-  (deine stehende Direktive). Cross-Platform/Vision-Pro (Visibra) erbt jeden
-  Klang-Fortschritt automatisch über den geteilten Kern.
+  NÄCHSTE KOMPOSITIONS-ZYKLEN (Fahrplan steht): Rockakkorde + Akkord-Vokabular
+  (Power-Chords, sus, add9) · starke Interpolierung (Stimmen gleiten beim
+  Akkordwechsel) · modale/Kirchenton-Genres (42 Skalen sind schon da) · echte
+  Pro-Beat-Orientierung (gemessene RR-Intervalle direkt in die Rhythmik). Design
+  bleibt adaptiv + professionell. Alles kommt allen Devices über den Kern zugute.

@@ -484,10 +484,10 @@ struct EchoelStudioView: View {
                 visualStyleB = 0
                 visualBlend = 0
             }
-            // Genre curation migration (founder 2026-07-08): a persisted style
-            // that is no longer offered (rock/punk/metal/… retired from the
-            // picker) snaps to the Self-Observation drone — the calmest home.
-            if !MusicStyle.curated.contains(style) { style = .selfObservation }
+            // (Founder 2026-07-11 "Alles rein. Logisch sortiert.": every genre is now
+            // offered, grouped by category in the picker — the old curation migration
+            // that snapped retired styles to Self-Observation is removed. A persisted
+            // style is always a valid case now.)
             surfacePriorCrashIfAny()
             handlePendingIntent()
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
@@ -1288,10 +1288,16 @@ struct EchoelStudioView: View {
     private var genrePicker: some View {
         labeledRow("Genre") {
             Picker("Genre", selection: $style) {
-                // Curated roster only (founder 2026-07-08: every genre must be
-                // truly chill/meditative — "oder raus damit"). Retired cases
-                // stay in code; a persisted one migrates on appear.
-                ForEach(MusicStyle.curated) { s in Text(s.displayName).tag(s) }
+                // Founder 2026-07-11 "Alles rein. Logisch sortiert. Gehe tief rein":
+                // every genre offered, grouped by sound-world so the calm meditative
+                // set stays first and rock/electronic/acoustic worlds open up. `.menu`
+                // Picker renders each Section as a grouped header — no new sheet, no
+                // high-frequency bio read, so the render-safety rules hold.
+                ForEach(MusicStyle.Category.allCases) { cat in
+                    Section(cat.title) {
+                        ForEach(cat.genres) { s in Text(s.displayName).tag(s) }
+                    }
+                }
             }
             .pickerStyle(.menu).tint(EchoelTheme.text)
             .onChange(of: style) { _, s in

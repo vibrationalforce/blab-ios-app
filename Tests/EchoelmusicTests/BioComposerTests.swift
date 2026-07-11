@@ -186,13 +186,14 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
-    func testSustainedIsExactlyTheCuratedRoster() {
-        // Founder 2026-07-09: every OFFERED genre is a pure sustained Fläche;
-        // the retired (unoffered) genres keep their old melodic profiles.
+    func testSustainedIsExactlyTheKnownFlächen() {
+        // The sustained-Fläche flag holds for exactly the six calm genres (decoupled
+        // from the offered roster since 2026-07-11 — all genres are offered now, but
+        // only these hold one chord per bar with no lead).
         for style in MusicStyle.allCases {
-            let expected = MusicStyle.curated.contains(style)
+            let expected = MusicStyle.sustainedFlächen.contains(style)
             XCTAssertEqual(style.harmonicProfile.sustained, expected,
-                           "\(style): sustained-Fläche flag ⟺ curated roster membership")
+                           "\(style): sustained-Fläche flag ⟺ membership in sustainedFlächen")
         }
     }
 
@@ -203,7 +204,7 @@ final class BioComposerTests: XCTestCase {
         // Two body states: a CALM body holds the Fläche (no short stabs); an AROUSED
         // body may re-articulate the pad on a dotted/syncopated grid — but still no
         // lead and still bar-tight.
-        for style in MusicStyle.curated {
+        for style in MusicStyle.sustainedFlächen {
             for seed in UInt64(1)...10 {
                 // CALM → held Fläche, no short stabs.
                 let calm = BioComposer.compose(
