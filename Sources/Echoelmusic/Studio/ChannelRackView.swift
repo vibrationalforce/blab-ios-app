@@ -21,10 +21,12 @@ struct ChannelRackView: View {
 
     var body: some View {
         if embedded {
-            content.background(EchoelTheme.bg.ignoresSafeArea())
+            // Inline inside a parent ScrollView (the Mix panel / Hackbrett): NO nested
+            // ScrollView and no full-bleed background — the rows just flow in the host.
+            rackStack
         } else {
             NavigationStack {
-                content
+                ScrollView { rackStack.padding(16) }
                     .background(EchoelTheme.bg.ignoresSafeArea())
                     .navigationTitle("Channel Rack")
                     #if os(iOS)
@@ -44,27 +46,27 @@ struct ChannelRackView: View {
         }
     }
 
-    private var content: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                if embedded {
-                    // Inline header for the mounted Mix surface (no nav bar here).
-                    HStack {
-                        Text("Channel Rack")
-                            .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
-                        Spacer(minLength: 0)
-                        if anySolo {
-                            Button("Clear Solo") { player.clearSolos() }
-                                .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.accent)
-                        }
+    /// The channel strips (optional inline header + one row per channel). Shared by the
+    /// sheet presentation (wrapped in a ScrollView) and the embedded Mix-panel mount
+    /// (rendered directly so it flows in the host's scroll — no nested scrolling).
+    private var rackStack: some View {
+        VStack(spacing: 8) {
+            if embedded {
+                // Inline header for the mounted Mix surface (no nav bar here).
+                HStack {
+                    Text("Channel Rack")
+                        .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
+                    Spacer(minLength: 0)
+                    if anySolo {
+                        Button("Clear Solo") { player.clearSolos() }
+                            .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.accent)
                     }
-                    .padding(.bottom, 2)
                 }
-                ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
-                    channelRow(i)
-                }
+                .padding(.bottom, 2)
             }
-            .padding(16)
+            ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
+                channelRow(i)
+            }
         }
     }
 

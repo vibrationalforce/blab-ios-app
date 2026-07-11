@@ -1144,6 +1144,14 @@ struct EchoelStudioView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Sets every part back to the genre's own balance")
+
+            // The Hackbrett — per-drum-channel strips (level · mute/solo · insert FX),
+            // co-located here so every mixable channel lives in ONE place (founder:
+            // "Mix Level sollten auf dem Hackbrett landen"). Reuses the tested
+            // ChannelRackView against BeatPlayer; embedded = no nested scroll, flows in
+            // the studio's own ScrollView. No new modal — render-safe.
+            Divider().overlay(EchoelTheme.border).padding(.vertical, 2)
+            ChannelRackView(embedded: true)
         }
     }
 
