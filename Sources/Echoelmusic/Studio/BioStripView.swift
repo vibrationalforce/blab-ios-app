@@ -23,6 +23,11 @@ struct BioStripView: View {
     /// select the Tonart anymore" freeze. Confining the read to this Picker-free strip keeps
     /// the high-frequency invalidation off the selection menus.
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
+    /// The shared transport, read HERE (a Picker-free leaf), never in `EchoelStudioView.body`
+    /// (freeze rule). Only `isPlaying` is read — a low-frequency start/stop flag — to answer
+    /// the survey-universal question "is my body driving the sound right now?" (the activity
+    /// light below). `position` (16th-note, high-frequency) is never touched here.
+    @Environment(Transport.self) private var transport
 
     /// True while a camera pulse-read is in progress but no real signal has locked
     /// yet — the strip shows live "reading…" feedback instead of a dead "No signal".
@@ -101,6 +106,7 @@ struct BioStripView: View {
         // in a bounded slot; everything scales down on narrow phones (adaptive).
         HStack(spacing: 6) {
             infoButton
+            drivingIndicator
             divider
             metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
                 .frame(maxWidth: .infinity)
@@ -158,6 +164,42 @@ struct BioStripView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("What these bio numbers mean")
         .accessibilityHint("Opens a plain-language guide to heart rate, HRV, coherence and breathing")
+    }
+
+    // MARK: - Activity light ("is my body driving this?")
+
+    /// The one thing the strip answers FIRST (UI survey 2026-07-11 — all five target
+    /// groups asked for it): is the body shaping the live sound right now? Honest, not
+    /// decorative — GREEN only when a take is PLAYING *and* a fresh, real bio frame exists
+    /// (so the body genuinely drives the running generative composition). A dim hollow ring
+    /// = a real signal is present but nothing is playing (live, not driving). A faint ring =
+    /// no live body. No animation (A11y / ≤3 Hz — the survey's Lena explicitly rejected a
+    /// decorative pulse); colour alone carries the state. Accent green stays reserved for the
+    /// live/playing bio state, which is exactly what this is.
+    private var driving: Bool { transport.isPlaying && hasLiveSignal }
+
+    private var drivingIndicator: some View {
+        // Tap opens the same plain-language guide as the ⓘ (survey law #1: the light shows
+        // ONE thing at a glance; the meaning is one tap away, not always on screen).
+        Button { showGuide = true } label: {
+            Group {
+                if driving {
+                    Circle().fill(EchoelTheme.success)
+                } else if hasLiveSignal {
+                    Circle().strokeBorder(EchoelTheme.dim, lineWidth: 1)
+                } else {
+                    Circle().strokeBorder(EchoelTheme.dim.opacity(0.3), lineWidth: 1)
+                }
+            }
+            .frame(width: 7, height: 7)
+            .frame(width: 20, height: 20)      // 20 pt touch/hit slack; glyph stays 7 pt
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(driving
+            ? "Your body is driving the sound"
+            : (hasLiveSignal ? "Body signal live, not driving yet" : "No live body signal"))
+        .accessibilityHint("Double tap to learn how your body shapes the sound")
     }
 
     // MARK: - Metric cells
