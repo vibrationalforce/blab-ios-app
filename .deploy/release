@@ -1,25 +1,27 @@
-build: 2026-07-11 v10.79.166 (Per-Track-FX komplett: Bass + Melodic + Drums)
+build: 2026-07-11 v10.79.167 (Groove: die "Eins" + lesbarer Session-Name)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Modul 2 (getrennte Spuren mit eigenen Effekten) ist jetzt VOLLSTÄNDIG —
-  alle drei Bus-Reihen im Mix-Panel: Bass · Melodic · Drums.
+notes: Zwei Dinge auf dein Ohr/Auge — direkt aus deinem Feedback.
 
-  NEU: DRUMS-FX (im Mix-Panel unter Melodic):
-  · "Drums filter" (Hz): zieh ihn runter → ein Filter über das GANZE Kit
-  · "Drums drive": Sättigung/Wärme auf den Drums (jeder Hit sättigt einzeln,
-    d.h. die Transienten/der Punch bleiben erhalten)
-  · Technik: ein Insert wird über alle 8 Drum-Kanäle gefächert. Der Tiefpass
-    ist mathematisch EXAKT ein Bus-Filter (Biquad ist LTI). Kein neuer Audio-
-    Code — nutzt den schon getesteten Kanal-FX-Pfad, den die Drums intern hatten.
+  GROOVE — die "Eins" ist jetzt da (dein "manchmal schwierig die Eins zu
+  erkennen. Also Groove ist auch wichtig"):
+  · Der Grund war, dass NICHTS die Eins markiert hat — an zwei Stellen behoben.
+  · Drums: Schlag 1 (die Eins) ist jetzt der STÄRKSTE Groove-Schlag, klar über
+    Beats 2·3·4, und ohne Zufalls-Jitter = ein ruhiger, fester Anker.
+  · Harmonie (Pad/Bass/Lead, immer aktiv): vorher lag das Dynamik-Maximum in
+    der Takt-MITTE und die Eins war der SCHWÄCHSTE Punkt — jetzt hebt sich die
+    Eins klar heraus (lautester Moment im Takt), der Takt atmet trotzdem.
+  · Frage an dich: ist die Eins jetzt fühlbar? Grooved es?
 
-  Wie bei Bass/Melodic: standardmäßig AUS (Filter voll offen, Drive 0) = exakt
-  wie vorher; passiert nichts bis DU einen Regler bewegst → kann nichts kaputt
-  machen. audio-thread + ui-state Review: sauber. Beide CI-Gates grün.
+  SESSION-NAME lesbar (dein Screenshot):
+  · Statt des rohen Datei-Stempels jetzt lesbare Felder in deiner Reihenfolge:
+    E · Datum · Ort · Tonart ausgeschrieben ("A Harmonic Minor") · BPM ·
+    Kammerton. Der echte Export-Dateiname bleibt gleich (klein als "Datei:").
+  · Ort-Zeile jetzt in JEDEM Zustand klar (aus / sucht / gefunden / verweigert).
 
-  FÜNF DINGE WARTEN JETZT AUF DEIN OHR/DEINE HAND:
-  · v162 Analog Warmth · v163 Tempo-adaptive Spielart
-  · v164 Bass-FX · v165 Melodic-FX · v166 Drums-FX (dieser Build)
+  Beides pure/deterministisch, off-render, Tests grün, beide CI-Gates grün.
+  NEEDS-FOUNDER-VERIFY (Ohr/Auge).
 
-  Damit ist der sicher-autonom baubare Teil fast durch. Der Rest (die eine
-  Ansicht zusammensetzen, Bio-auf-jeden-Regler, Bio-Tempo live, Video) hängt an
-  deinem Auge/Ohr — das bauen wir zusammen. Bis dahin: alles grün und ruhig,
-  ich fahre auf stündliche Health-Checks runter.
+  LÄUFT GERADE: die große Reorganisation — Timeline mit funktionierenden
+  Spuren, Mix-Level auf das "Hackbrett" (Channel Rack), alles an seinen Platz,
+  adaptiv horizontal + vertikal. Baue ich die nächsten Stunden autonom, sicher
+  und Gate-verifiziert. Wetter-Panel folgt in dieser Reorganisation.
