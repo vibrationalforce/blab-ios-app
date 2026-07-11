@@ -1350,15 +1350,26 @@ struct EchoelStudioView: View {
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("Stamps your city into session and export names. Resolved on this device, never stored or sent anywhere.")
-            if locationNamer.enabled {
-                Text(locationNamer.denied
-                     ? "Location is off for Echoel in Settings — names stay without a place."
-                     : (locationNamer.placeToken.isEmpty ? "Looking up your city…"
-                                                         : locationNamer.placeToken))
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(EchoelTheme.dim)
-            }
+            // Always say what this does; once on, say clearly what happened.
+            Text(placeStatusLine)
+                .font(EchoelTheme.font(11))
+                .foregroundStyle(EchoelTheme.dim)
         }
+    }
+
+    /// One clear line for the place row in every state (off / looking up /
+    /// resolved / denied) — so it's never ambiguous what the location does.
+    private var placeStatusLine: String {
+        guard locationNamer.enabled else {
+            return "Adds your city to the name — resolved on device, never sent."
+        }
+        if locationNamer.denied {
+            return "Location is off for Echoel in Settings — names stay without a place."
+        }
+        if locationNamer.placeToken.isEmpty {
+            return "Looking up your city…"
+        }
+        return "In the name: \(locationNamer.placeToken)"
     }
     #endif
 
@@ -3513,18 +3524,37 @@ private struct SessionNamePreviewLeaf: View {
     @Environment(SessionContext.self) private var session
     @Environment(Transport.self) private var transport
 
+    /// The name as READABLE fields in the founder's order (E · date · place ·
+    /// key · BPM · Kammerton) instead of the raw underscore filename. Place is
+    /// shown only once it resolves, so the line never carries an empty slot.
+    private var readableFields: [String] {
+        var f: [String] = []
+        let artist = session.artistName.trimmingCharacters(in: .whitespaces)
+        f.append(artist.isEmpty ? "Echoel" : artist)                       // E…
+        f.append(Date().formatted(date: .abbreviated, time: .omitted))     // date
+        if !session.placeToken.isEmpty { f.append(session.placeToken) }    // place
+        f.append(session.key.name)                                         // Tonart, spelled out
+        f.append("\(Int(transport.tempo.rounded())) BPM")                  // tempo
+        f.append("\(Int(session.a4Hz.rounded())) Hz")                      // Kammerton
+        return f
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Every save and export is stamped:")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            Text(session.sessionName(bpm: transport.tempo.rounded()))
-                .font(EchoelTheme.font(12, .medium).monospacedDigit())
+        VStack(alignment: .leading, spacing: 3) {
+            // Human-readable identity — the value of the whole card, made legible.
+            Text(readableFields.joined(separator: "  ·  "))
+                .font(EchoelTheme.font(13, .medium))
                 .foregroundStyle(EchoelTheme.text)
-                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+            // The exact export/save filename, kept for reference but de-emphasised.
+            Text("Datei: \(session.sessionName(bpm: transport.tempo.rounded()))")
+                .font(EchoelTheme.font(10).monospacedDigit())
+                .foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Session name preview: \(session.sessionName(bpm: transport.tempo.rounded()))")
+        .accessibilityLabel("Session: \(readableFields.joined(separator: ", "))")
     }
 }
 

@@ -18,6 +18,7 @@ note disagrees, **the code wins** (see `docs/dev/FEATURE_MATRIX.md`).
 | **Beat maker** | PatternEngine · BeatPlayer · DrumSynthVoice · per-pad sample import · swing/accent | LIVE |
 | **Bio** (heart) | HealthKit + universal BLE HRS + camera rPPG (locks on device) + HRVCoherence (Lomb-Scargle/Welch) | LIVE |
 | **Mixer** (Module 1) | MixerStore — Bass·Pad·Lead·Drums faders, persisted | LIVE |
+| **Per-track FX** (Module 2) | TrackFXStore + ChannelInsertFX — Bass·Melodic·Drums filter+drive, off by default | LIVE (needs founder ear) |
 | **Lighting** | EchoelLux Art-Net + sACN unicast, flash-safe (≤3 Hz WCAG) | LIVE |
 | **Visuals** | MetalBioView (HR→pulse, coherence→hue, breath→spread) + FloatingVisualWindow + VJ overlay | LIVE |
 | **I/O** | OSCSender (`/echoelmusic/bio/*`) · ADMOSCSender (`/adm/obj/*`) · CoreMIDI MPE in/out | LIVE |
@@ -27,7 +28,7 @@ note disagrees, **the code wins** (see `docs/dev/FEATURE_MATRIX.md`).
 ### 🟡 BUILT but UNWIRED / UNPRESENTED — exists, needs assembly (the real frontier)
 | Thing | Code exists | Gap |
 |---|---|---|
-| **Per-track FX** (Module 2) | TrackFXStore + ChannelInsertFX (this session) | audio wiring + UI + bio-mod routing |
+| **Per-track FX bio-mod routing** | TrackFXStore + ModulationMatrix | audio + UI DONE; bio→FX-param routing is the Q7 bind-a-knob UI (founder-eye) |
 | **Clips / Arrangement / Timeline** | ClipView · ArrangementView · ArrangeTimelineView · AutomationView · ClipStore · ArrangementStore · AutomationLane · LaunchQuantizer | not reachable from the shell (surfaces exist, nav removed) |
 | **Comprehensive interface** | SurfaceHost + WorkspaceSurface enum (arrange·clips·compose·mix) + SurfaceSwitcherBar | scaffolding present, bottom bar removed for render-safety — needs a render-SAFE re-assembly |
 | **Modulation matrix** (bio→ANY param) | ModulationMatrix (ModSource→ModRoute) + consumers (FXBioModulator·FXModulation·VisualModulation·ModulationEngine) | no unified "assign bio to this knob" UI |
@@ -67,24 +68,23 @@ gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-
       **CloudSync reclassified:** NOT rot — it is a deliberate, unit-tested "Phase 0" CloudKit
       foundation (`scratchpads/PLAN_CLOUDKIT_SYNC.md`) awaiting the founder registering an iCloud
       container + entitlement (Phase 1). `DEFERRED to founder`, do NOT delete.
-- [~] **Q3. Per-track FX audio wiring** (behind `TrackFX.isPassthrough` = bit-identical).
-      IN PROGRESS: **bass bus DONE** 2026-07-11 — `SubBassVoice` gained a per-bus
-      `ChannelInsertFX` fed by a lock-free `SPSCQueue<TrackFX>` (`setInsert(_:)`), processed
-      per-sample only when active; off = bit-identical. audio-thread-reviewer: CLEAN.
-      **melodic bus DONE** 2026-07-11 — `PolySynthVoice` got its OWN stereo insert (two
-      `ChannelInsertFX`, independent L/R state) AFTER the genre `fxChain` so they don't fight;
-      fed by `SPSCQueue<TrackFX>`/`setInsert`. audio-thread-reviewer: CLEAN. **Remaining:** drums
-      bus (BeatPlayer is timer-driven — needs a different approach). `NEEDS-FOUNDER-VERIFY` (sound).
-- [~] **Q4. Per-track FX UI** — IN PROGRESS: **bass row DONE** 2026-07-11. `TrackFXStore` wired
-      into the app (`.environment`); Mix panel gained "Bass filter" + "Bass drive"
-      `EchoelValueField`s; bindings persist (`trackFX.set`) AND push to audio (`subBass.setInsert`)
-      live; persisted setting re-applied on `.onAppear`; Reset clears it. ui-state-reviewer: CLEAN
-      (env intact, low-freq read = render-safe, no `.sheet` growth). `.off` now rests full-open so
-      the field reads "no filtering". **Melodic row DONE** 2026-07-11 — "Melodic filter/drive"
-      cover BOTH the pad/harmony (`synth`) AND the dedicated `leadSynth` (reached via a new
-      `\.leadSynth` env key), so the shrill lead is actually filtered; ui-state-reviewer: CLEAN.
-      **Remaining:** drums (BeatPlayer timer-driven, needs a different approach).
-      `NEEDS-FOUNDER-VERIFY` (sound + feel); buses stay `.off` until a control moves → cannot regress.
+- [x] **Q3. Per-track FX audio wiring** (behind `TrackFX.isPassthrough` = bit-identical).
+      DONE 2026-07-11 — all three buses: **bass** (`SubBassVoice` per-bus `ChannelInsertFX` fed
+      by a lock-free `SPSCQueue<TrackFX>`/`setInsert`, per-sample only when active) · **melodic**
+      (`PolySynthVoice` OWN stereo insert, two `ChannelInsertFX` with independent L/R state, AFTER
+      the genre `fxChain`) · **drums** (turned out `BeatPlayer` ALREADY had per-CHANNEL insert FX —
+      `ChannelFX` + `configureInsertFX` on each SamplerVoice/DrumSynthVoice, atomic-mirror handoff;
+      no new audio code needed, just fan one insert across all 8 channels). off = bit-identical.
+      audio-thread-reviewer: CLEAN on every bus. `NEEDS-FOUNDER-VERIFY` (sound).
+- [x] **Q4. Per-track FX UI** — DONE 2026-07-11: `TrackFXStore` wired into the app
+      (`.environment`); Mix panel now carries **Bass · Melodic · Drums** filter+drive
+      `EchoelValueField` rows. Each binding persists (`trackFX.set`) AND pushes to audio live
+      (bass→`subBass.setInsert`; melodic→`synth`+`leadSynth` so the shrill lead is covered;
+      drums→fan `beatPlayer.setFX` across all 8 channels — a low-pass this way == a true bus
+      filter since the biquad is LTI). Persisted settings re-applied on `.onAppear`; Reset clears
+      all three. ui-state-reviewer: CLEAN (env intact, low-freq reads = render-safe, no `.sheet`
+      growth). `.off` rests full-open so a field reads "no filtering". `NEEDS-FOUNDER-VERIFY`
+      (sound + feel); buses stay `.off` until a control moves → cannot regress. **Module 2 COMPLETE.**
 - [x] **Q5. Bio-tempo lane (model).** DONE 2026-07-11: `BioTempoDirector` (Core/) — pure,
       Codable, deterministic. `TempoMode.locked` (default, ignores the body) vs `.bioFollow`
       (transport tempo GLIDES toward the heartbeat, pulled toward the 72-BPM resonance band by

@@ -1,24 +1,25 @@
-build: 2026-07-11 v10.79.165 (Per-Track-FX: jetzt Bass + Melodic)
+build: 2026-07-11 v10.79.166 (Per-Track-FX komplett: Bass + Melodic + Drums)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Per-Track-FX ist jetzt auf ZWEI Spuren — der nächste Schritt von Modul 2
-  (getrennte, mischbare Spuren mit eigenen Effekten).
+notes: Modul 2 (getrennte Spuren mit eigenen Effekten) ist jetzt VOLLSTÄNDIG —
+  alle drei Bus-Reihen im Mix-Panel: Bass · Melodic · Drums.
 
-  NEU: MELODIC-FX (im Mix-Panel unter den Bass-Reglern):
-  · "Melodic filter" (Hz): zieh ihn runter für einen Filter über die Melodie
-  · "Melodic drive": Sättigung/Wärme auf der Melodie
-  · WICHTIG: deckt BEIDE melodischen Stimmen ab — Pad/Harmony UND die Lead-Stimme.
-    Damit lässt sich eine zu schrille Lead endlich DIREKT zähmen (dein "hohe
-    Melodien schrill") — dreh den Melodic-Filter runter und die Spitzen sind weg.
-  · Sitzt NACH dem Genre-Charakter, kämpft also nicht mit den Genre-Effekten.
+  NEU: DRUMS-FX (im Mix-Panel unter Melodic):
+  · "Drums filter" (Hz): zieh ihn runter → ein Filter über das GANZE Kit
+  · "Drums drive": Sättigung/Wärme auf den Drums (jeder Hit sättigt einzeln,
+    d.h. die Transienten/der Punch bleiben erhalten)
+  · Technik: ein Insert wird über alle 8 Drum-Kanäle gefächert. Der Tiefpass
+    ist mathematisch EXAKT ein Bus-Filter (Biquad ist LTI). Kein neuer Audio-
+    Code — nutzt den schon getesteten Kanal-FX-Pfad, den die Drums intern hatten.
 
-  Wie beim Bass: standardmäßig AUS (Filter voll offen, Drive 0) = exakt wie
-  vorher; passiert nichts, bis DU einen Regler bewegst → kann nichts kaputt machen.
-  Läuft über einen lock-freien Audio-Pfad, audio-thread + ui-state Review: sauber.
+  Wie bei Bass/Melodic: standardmäßig AUS (Filter voll offen, Drive 0) = exakt
+  wie vorher; passiert nichts bis DU einen Regler bewegst → kann nichts kaputt
+  machen. audio-thread + ui-state Review: sauber. Beide CI-Gates grün.
 
-  VIER DINGE WARTEN AUF DEIN OHR/DEINE HAND:
+  FÜNF DINGE WARTEN JETZT AUF DEIN OHR/DEINE HAND:
   · v162 Analog Warmth · v163 Tempo-adaptive Spielart
-  · v164 Bass-FX · v165 Melodic-FX (dieser Build — zieh den Melodic-Filter)
+  · v164 Bass-FX · v165 Melodic-FX · v166 Drums-FX (dieser Build)
 
-  Der autonome Bau-Loop fährt jetzt runter: die verbleibenden Punkte (die eine
-  Ansicht zusammensetzen, Bio-auf-jeden-Regler-UI) hängen an deinem Auge — die
-  bauen wir zusammen. Bis dahin bleibt alles grün und ruhig.
+  Damit ist der sicher-autonom baubare Teil fast durch. Der Rest (die eine
+  Ansicht zusammensetzen, Bio-auf-jeden-Regler, Bio-Tempo live, Video) hängt an
+  deinem Auge/Ohr — das bauen wir zusammen. Bis dahin: alles grün und ruhig,
+  ich fahre auf stündliche Health-Checks runter.
