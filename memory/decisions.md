@@ -466,3 +466,27 @@ Architectural and strategic decisions with context and rationale.
   K3 → Video-Block → v1.1 Live → v1.2 Broadcast. AUv3-Aktivierung = wichtigste künftige
   Zugbrücke in den AUM-Workflow des Founders (nach v1.0, vision-gate).
 - **Doc:** `scratchpads/STRATEGY_BIO_CONDUCTOR_2026-07-10.md` · Review: 2026-08-09
+
+### 2026-07-11 NFT/Wallet = REJECT · Geld-Pfad = Live-Abo + Verwertungsgesellschaften (Grand Council)
+- **Founder-Frage:** „Die NFT-Integration wieder zurückholen? Kann Echoel gleichzeitig ein
+  Wallet sein, um generiertes Geld umzusetzen? … GEMA/musichub/Rechteverwertung (Wort etc.)?"
+- **Befund:** KEIN NFT/Wallet/Crypto im Code — die alte `security.html` hatte Crypto nur
+  BEHAUPTET (Haftungs-Overclaim, längst entfernt). Nichts „zurückzuholen".
+- **Urteil (Christensen/Taleb/Munger/Buffett/Naval):**
+  - **NFT → REJECT.** Reputativ verbrannt; Apple 3.1.1/3.1.5 (NFTs dürfen keine App-Funktion
+    freischalten, In-App-Digitalverkauf IAP-pflichtig); widerspricht der Seriositäts-Ansage.
+  - **Wallet → REJECT (absehbare Roadmap).** Macht Echoel zum regulierten Finanzdienst
+    (Custody/KYC/AML/Lizenzen je Land) = fetter negativer Tail für Solo-Founder; identisch
+    mit dem in STRATEGY_GLOBAL_LIVE verworfenen „Marktplatz mit Payouts/KYC". Das Geld-Modell
+    steht bereits Apple-konform: v1.1 Live-Abo + v1.2 Host-Fee via Apple-IAP (Apple = Zahlungs-
+    Infrastruktur, kein Wallet nötig).
+  - **GEMA/musichub/VG Wort → ADOPT als METADATA-Export, NICHT als In-App-Fintech.** Passt in
+    Lane-Formel (e) „sauber exportieren". Session-Stempel um ISRC/IPI/Werktitel anreichern →
+    Exporte GEMA/GVL-anmeldefertig. Anmeldung/Release macht der Founder EXTERN (GEMA+GVL,
+    musichub/DistroKid). Keine GEMA-API IN der App (schwerer Server + Rechte-Recht = nein).
+    VG Wort = Text/Wort, für Musik irrelevant.
+- **Dissent (benannt):** Der legitime Kern („wie werde ich bezahlt") ist echt — Antwort ist
+  regulär (Abo + Verwertungsgesellschaften), nicht Krypto.
+- **Gate:** proceed (Reject Krypto, Adopt Rechte-Metadaten-Pfad); Krypto bleibt WATCH,
+  revisitierbar nur falls je Kern-Vision. Nichts gated v1.0. **Signal-Tester-Gruppe** =
+  Geräte-Feedback-Schleife (pro Build ein Test-Fokus posten). Review: 2026-08-10.

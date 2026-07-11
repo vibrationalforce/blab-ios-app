@@ -1,23 +1,31 @@
-build: 2026-07-10 v10.79.150 (K2a: Mixer pro Spur in der Arrangement-Ansicht)
+build: 2026-07-11 v10.79.151 (rPPG: OS-Interruption ehrlich behandeln statt Kalt-Restart-Schleife)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Der Schlüsselstein für "alles läuft über die Spuren" — jede Spur in der
-  Timeline hat jetzt ihren eigenen Mini-Mixer im Spur-Kopf:
+notes: Dein v150-Log hat den Kamera-Ausfall überführt: iOS hat die Kamera-Session
+  mit "reason 1" gehalten (Video-Gerät angeblich 'im Hintergrund nicht verfügbar'),
+  das Ende kam nie — und die App hat 3 Minuten lang mit 8 Kalt-Restarts + Torch
+  dagegen angeheizt. Ab diesem Build:
 
-  1) M (Mute) · S (Solo) · Level-Feld pro Spur — gleiche Bedienung wie überall
-     (Zahl antippen = Tastatur, ziehen = Fader). Alles bleibt nach Neustart.
-  2) HÖRBAR verbunden: die erste MIDI-Spur regelt das Piano-Roll — Mute
-     schneidet sofort (nichts hängt nach), Level skaliert die Anschläge,
-     Solo stummt die anderen. Auch MIDI-Out/AUv3 folgen dem Strip.
-  3) Audio-Regionen: Antippen spielt die WAV nur, wenn die Spur nicht
-     gemutet/weggesolot ist — was M/S zeigen, ist was du hörst.
+  1) Die App KÄMPFT nicht mehr gegen eine vom System gehaltene Kamera —
+     sie wartet, zeigt ehrlich im Bio-Streifen "Camera paused by iOS —
+     waiting to resume" und nimmt die Kamera SELBST wieder auf, sobald
+     die App wieder aktiv ist.
+  2) Das Recovery-Budget bleibt für ECHTE Stalls erhalten (die ~68-s-Freezes
+     von früher werden weiter repariert wie gehabt).
+  3) Fürs nächste Log: die Unterbrechung nennt jetzt ihren NAMEN und was
+     die App selbst über ihren Vordergrund-Status glaubt — damit sehen wir
+     beim nächsten Mal die Ursache schwarz auf weiß.
 
-  → Test: Timeline aufziehen, auf der MIDI-Spur M/S/Level spielen während
-    der Take läuft — schneidet Mute sofort? Fühlt sich das Level-Feld im
-    schmalen Spur-Kopf gut an (Ziehen + Tippen)?
+  → Test: "Read pulse" starten. Falls der Puls wieder nicht kommt: einmal
+    Control Center öffnen/schließen oder kurz App wechseln und zurück —
+    erholt sich die Kamera jetzt von selbst? Danach bitte Log schicken
+    (es enthält jetzt die Reason-Zeile).
 
-  Nächster Zyklus (K2b): eigene Insert-FX pro Spur + Bio-Modulation darauf.
-  Danach A1 (eigenes Notenmaterial pro MIDI-Spur) → MPE-Aufnahme auf Spur.
+  AUSSERDEM in diesem Build (aus v150 übernommen, K2a): Spur-Mixer M·S·Level
+  in der Timeline — Mute schneidet das Piano-Roll sofort, Level skaliert
+  die Anschläge. Hinweis: auf deinem Screenshot stand MIDI 1 auf 0.10 —
+  falls der Take leise war: das war der neue Level-Fader.
 
-  OFFEN bei dir (unverändert): Ohr-Urteil Echoel-Sounds/Browser · Lizenz-
-  Entscheid Alt-Samples · Cymatics-Go · Per-Note-Pitch + rPPG-Finger nur
-  mit deinem Geräte-Log.
+  OFFEN bei dir: One-View-Plan liegt (PLAN_ONE_VIEW_2026-07-11.md) —
+  Entscheid Knopf-Name "EchoelBio" vs "Bio" (Namens-Kollision mit der
+  Bio-Quellen-Gruppe) · Cymatics-Go · ggf. Re-Share der verlorenen
+  Konzepte (adap Rocky, Granular/Quantum, Stem-Separation, Weißabgleich).

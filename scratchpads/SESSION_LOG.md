@@ -3,6 +3,65 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 25) — TestFlight v10.79.151 VERIFIZIERT (intern)
+- TestFlight-Run `ab72451` (v10.79.151, rPPG-Interruption-Fix) = **success** (07:06);
+  Build auf App Store Connect hochgeladen + verarbeitet. Info.plist:
+  ITSAppUsesNonExemptEncryption=false → keine Export-Compliance-Sperre; alle
+  Usage-Strings vorhanden. Bereit zur Tester-Zuweisung (ASC-seitig, founder).
+- Founder aktiv in Ship-Session: erster Test heute → What-to-Test-Notiz liegt in
+  scratchpads/FIRST_TEST_NOTE_2026-07-11.md. Chrome-Extension fürs Deployment =
+  abgeraten (Sicherheitsrisiko für ASC-Session; Pipeline ist tokenlos + fertig).
+- Nächster Bau-Zyklus U1 (PLAN_ONE_VIEW) wartet auf Founder-Go — bewusst hinter
+  dem Launch (North-Star: weniger bauen, mehr fertigstellen).
+
+## 2026-07-11 (Forts. 24) — OPEN-REPO-RESEARCH: 4 verifizierte Panels, Zero-Deps bestätigt
+- **Founder-Auftrag:** alle Open Repos finden, die JETZT weiterhelfen (Apple-Ökosystem,
+  Vision durchdrungen). 4 parallele Agenten (DSP/Synthese · Apple-App-Layer · Visual/
+  Video/Licht · Bio/AI), jede Lizenz aus echter LICENSE-Datei verifiziert, Weights
+  getrennt vom Code geprüft. Schließt die 07-10-Offenen (WORLD/aubio/Spatial/On-Device-AI).
+- **DIE Erkenntnis:** KEIN neuer In-App-Dependency für die ganze U1→K3-Reihenfolge nötig —
+  alle Produkt-Funde first-party (CoreImage/AVFoundation/GroupActivities/CoreMIDI/CoreML)
+  oder Reimplement-aus-Referenz. Alle echten ADOPTs sind PIPELINE. Moat bestätigt: KEINE
+  offene Adaptive-Music-Engine + KEINE offene SwiftUI-DAW-Timeline existieren.
+- **ADOPT-PIPELINE (höchster Hebel, 0 Risiko):** NeuroKit2 (MIT) + PhysioNet (CC0/PDDL)
+  als CI-Beweis-Oracle für unsere HRV/Kohärenz-Mathematik → macht science-first beweisbar.
+  colour-science (BSD-3) LUT-Validator; sACNKit/ADM-OSC/ArtNet + Pangolin /beyond/* als
+  Konformitäts-Oracles/Laser-Ziel.
+- **ADOPT-PRODUCT-CANDIDATE (Founder+Council, nach A1/A2):** Spotify basic-pitch
+  (Apache-2.0, CoreML-Modell im Repo) → „summen → MIDI-Clip auf Spur", reine Instrument-DNA.
+- **REFERENCE-ONLY (Swift-Neuimpl, kein Dep):** Granular = MI Clouds (MIT; GrainSwift GPL
+  → REJECT); STK physical modeling; addiebarron/chladni + kai5z-FEM für Cymatics; Inferno
+  Metal-Shader; Gray-World+AVCaptureDevice-WB statt Afifi-AWB (alle NC → REJECT).
+- **REJECT-Fallen sauber überführt:** MusicGen/open-unmix-umxl/madmom (Weights CC-BY-NC),
+  aubio/Essentia/RAVE (GPL/AGPL/NC-Code), SoundpipeAudioKit (LGPL-Streit trotz MIT-Label),
+  Shadertoy-Shader (CC-BY-NC-SA). YuE-Lizenz korrigiert: Apache-2.0 sauber (nur 7B → WATCH).
+- **Artefakte:** scratchpads/RESEARCH_OPEN_REPOS_2026-07-11.md (voller Folge-Pass) +
+  7 inspiration.csv-Einträge. Nächster Schritt = Founder-Go für die 2 höchsten Hebel.
+
+## 2026-07-11 (Forts. 23) — Founder-Tag: One-View-Direktive + rPPG-Interruption-Fix + Konzept-Ledger
+- **rPPG-Log v150 (1783749556):** Kamera-Session vom OS mit reason 1
+  (videoNotAvailableInBackground) gehalten, InterruptionEnded kam nie — 8 Kalt-
+  Restarts liefen ins Leere. FIX (206688c): Eskalation respektiert isInterrupted
+  (kein Thrash, Budget bleibt), Banner-Zustand .interrupted (ehrlich), Flag-Reset
+  bei start/stop, App-Aktiv-Resume, Reason-NAME + applicationState im Breadcrumb
+  (nächstes Log zeigt die Ground Truth). Device-Verify steht aus.
+- **One-View-Direktive des Founders** (nur die Arrange-View; Clips live performen
+  UND arrangen; per-Spur Bio-Generator-Knopf; quantisierter Jump + Loop; Clip-Tap
+  loopt, Long-Press = Editor): 2 Senior-Pitch-Schleifen gefahren (3 Panels + 1
+  adversariale Verifikation) → PLAN_ONE_VIEW_2026-07-11.md mit Bau-Reihenfolge v3
+  (U1→T1a/b→A1a/b→L1→K2b-1/2/3→B2→A2→K3a/b→L2/C). Kern: Richtung korrekt, ~70 %
+  existiert; Clip-Launch braucht T1+A1 (MIDI) bzw. K3 (Audio); zwei latente
+  Jump-Bugs in PianoRollModel gefunden (playedBars-Zähler, pendingNotes-Staging);
+  LaunchQuantizer ist dead code + lädt Drums mit; rollSlotGain stirbt mit A1.
+  OFFEN (Founder): Name des Per-Spur-Knopfs — „EchoelBio" kollidiert mit Tool #6 +
+  EchoelBioEngine-Klasse (Panel-Vorschlag: „Bio" Off/Live/Hold).
+- **Chat-History-Frage:** ehrlich beantwortet (andere Sessions nicht lesbar; Repo =
+  Gedächtnis) → CONCEPT_LEDGER_2026-07-11.md: geloggt sind Laser(OSC-Relay)/Mapping/
+  physikal. Synthese/Video-AI; NICHT geloggt (verloren, re-share nötig): adap Rocky,
+  Granular-/Quantum-Synthese, Stem-Separation, intelligenter Weißabgleich.
+- Video-Analyse-Pipeline bewährt: imageio-ffmpeg (statisches ffmpeg) extrahiert
+  Frames aus Founder-Uploads, Read zeigt sie — apt ffmpeg ist proxy-blockiert.
+
 ## 2026-07-11 (Forts. 22) — K2a: Mixer-Strip pro Spur + Roll-Slot-Bindung (`cd7b9bc`)
 - **Der Schlüsselstein aus PLAN_ARRANGEMENT_FULL:** jede Media-Lane hat jetzt im
   Spur-Kopf M/S-Toggles + Level (EchoelValueField, boxWidth 40; Kopf 128 pt,

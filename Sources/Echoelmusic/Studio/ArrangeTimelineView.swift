@@ -26,8 +26,11 @@ struct ArrangeTimelineView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
 
-    /// The one editor sheet this surface owns (lane whose editor is open).
-    @State private var editorLane: TimelineLane?
+    /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
+    /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
+    /// Never a second `.sheet` (metadata-SIGSEGV law); EchoelValueField's own keypad
+    /// sheet is a SUBVIEW sheet and does not count against this one slot.
+    @State private var activeModal: ArrangeModal?
     /// Rename flow: which lane + the draft name (alert, not a second sheet).
     @State private var renameLaneID: UUID?
     @State private var renameText = ""
@@ -82,10 +85,10 @@ struct ArrangeTimelineView: View {
             if gain <= 0.001 { pianoRoll.allNotesOff() }
         }
         .gesture(magnify)
-        .sheet(item: $editorLane) { lane in
+        .sheet(item: $activeModal) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
             // the host body's generic signature flat (metadata rule).
-            AnyView(laneEditor(lane).echoelSheetPanel())
+            AnyView(modalEditor(modal).echoelSheetPanel())
         }
         .alert("Rename track", isPresented: renameAlertShown) {
             TextField("Name", text: $renameText)
@@ -100,13 +103,35 @@ struct ArrangeTimelineView: View {
         }
     }
 
-    // MARK: - Track doors (Stage 3a)
+    // MARK: - Track doors (Stage 3a) + region editor (U1)
 
-    /// The editor behind a lane's door. Only kinds with a real engine offer a
-    /// door (menu builders below) — no placeholder screens.
+    /// The one modal the surface can present: a lane's editor (from its head) or a
+    /// region's editor (long-press). Both resolve to the same kind-based editors —
+    /// one sheet slot, two entry points.
+    enum ArrangeModal: Identifiable {
+        case lane(TimelineLane)
+        case region(TimelineRegion)
+        var id: String {
+            switch self {
+            case .lane(let l):   return "lane-\(l.id)"
+            case .region(let r): return "region-\(r.id)"
+            }
+        }
+    }
+
     @ViewBuilder
-    private func laneEditor(_ lane: TimelineLane) -> some View {
-        switch lane.kind {
+    private func modalEditor(_ modal: ArrangeModal) -> some View {
+        switch modal {
+        case .lane(let lane):     editor(forKind: lane.kind)
+        case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
+        }
+    }
+
+    /// The editor behind a door/region, by content kind. Only kinds with a real
+    /// engine offer one — no placeholder screens.
+    @ViewBuilder
+    private func editor(forKind kind: ClipKind) -> some View {
+        switch kind {
         case .midi:  PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         case .audio: AudioClipView()
         case .video, .visual: EmptyView()   // no engine yet — no door offered
@@ -124,9 +149,7 @@ struct ArrangeTimelineView: View {
 
     private var toolbar: some View {
         HStack(spacing: 10) {
-            Text("Arrange")
-                .font(EchoelTheme.font(14, .semibold))
-                .foregroundStyle(EchoelTheme.text)
+            // U1: no "Arrange" label — this IS the app's one view, not a named tab.
             Spacer(minLength: 0)
             // Add track — MIDI/Audio only (the kinds with a real engine today).
             Menu {
@@ -203,12 +226,12 @@ struct ArrangeTimelineView: View {
     private func laneDoor(_ lane: TimelineLane) -> some View {
         Menu {
             if !lane.isBio, lane.kind == .midi {
-                Button { editorLane = lane } label: {
+                Button { activeModal = .lane(lane) } label: {
                     Label("Open Piano Roll", systemImage: ClipKind.midi.systemImage)
                 }
             }
             if !lane.isBio, lane.kind == .audio {
-                Button { editorLane = lane } label: {
+                Button { activeModal = .lane(lane) } label: {
                     Label("Open audio editor", systemImage: ClipKind.audio.systemImage)
                 }
             }
@@ -348,6 +371,10 @@ struct ArrangeTimelineView: View {
         // direkt die wav Dateien vorhören") — auditions on BeatPlayer's preview
         // voice, so the kit and transport are untouched.
         let auditionURL = clip.flatMap { $0.kind == .audio ? Self.mediaURL($0) : nil }
+        // Long-press a region opens its editor (U1, founder: "Lange draufdrücken
+        // öffnet ein Fenster, wo man Audio, MIDI, Video etc bearbeiten kann").
+        // Only kinds with a real engine offer one.
+        let editableKind = clip.map { $0.kind == .midi || $0.kind == .audio } ?? false
         return RoundedRectangle(cornerRadius: 6)
             .fill(EchoelTheme.fill)
             .overlay {
@@ -379,8 +406,17 @@ struct ArrangeTimelineView: View {
                 guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
                 if let url = auditionURL { beatPlayer.audition(url: url) }
             }
+            // Long-press → editor. Registered AFTER the tap so a short tap still
+            // auditions; SwiftUI routes the long hold here without ambiguity.
+            .onLongPressGesture(minimumDuration: 0.4) {
+                if editableKind { activeModal = .region(region) }
+            }
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
-            .accessibilityHint(auditionURL != nil ? "Plays this audio clip" : "")
+            .accessibilityHint(
+                [auditionURL != nil ? "Tap to play this audio clip" : nil,
+                 editableKind ? "Long-press to edit" : nil]
+                    .compactMap { $0 }.joined(separator: ". ")
+            )
     }
 
     /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
