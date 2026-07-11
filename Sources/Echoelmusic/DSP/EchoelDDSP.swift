@@ -102,6 +102,16 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Global amplitude (0-1)
     public var amplitude: Float = 0.5        // Moderate — room for modulation
 
+    /// Per-PATCH output level (loudness trim), 1.0 = unity. DISTINCT from `amplitude`
+    /// (which carries note velocity + the bio pulse): this normalises one instrument's
+    /// overall loudness against the others so the Play-surface sounds match instead of
+    /// some being "teils zu laut oder zu leise" (founder 2026-07-11: "Level pro
+    /// Instrument"). Set by `SynthPatch.apply` off the audio thread (aligned Float,
+    /// atomic-width, same discipline as `amplitude`); read per-sample and folded into
+    /// the master-gain smoother so a patch switch GLIDES instead of clicking. 1.0 =
+    /// bit-identical to before.
+    public var patchOutputLevel: Float = 1.0
+
     /// Velocity of the current note (0-1), used for touch dynamics (Anschlagdynamik).
     /// 0 = "no velocity context" (the mono/bio voice never sets it) → no attack
     /// scaling, behaviour unchanged. The poly engine sets the played velocity so a
@@ -980,8 +990,11 @@ public final class EchoelDDSP: @unchecked Sendable {
             // Apply envelope and gain. Per-sample smooth the master gain so a new
             // note's velocity and the 10 Hz bio amplitude pulse glide in instead of
             // stepping the level (crackle). Seed on first sample to avoid a ramp-up.
-            if smoothedGain < 0 { smoothedGain = amplitude }
-            smoothedGain += 0.01 * (amplitude - smoothedGain) + antiDenormal
+            // Fold the per-patch loudness trim into the master-gain target so it glides
+            // via the existing smoother (no click on a patch switch). 1.0 = unchanged.
+            let gainTarget = amplitude * patchOutputLevel
+            if smoothedGain < 0 { smoothedGain = gainTarget }
+            smoothedGain += 0.01 * (gainTarget - smoothedGain) + antiDenormal
             var sample = mixed * smoothedGain * envelopeValue
             // Analog LEVEL drift (breath/bow-pressure instability) — same random-walk
             // pattern as the pitch drift above, but its own slower cadence/glide so the

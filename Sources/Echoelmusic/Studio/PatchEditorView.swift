@@ -35,6 +35,13 @@ struct PatchEditorView: View {
                 VStack(spacing: 16) {
                     presetBar
                     previewKeys
+                    section("Level") {
+                        // Per-instrument output level (founder 2026-07-11 "Level pro
+                        // Instrument"). 1.00 = unity; the factory sounds are auto-matched,
+                        // trim here to taste.
+                        EchoelValueField(label: "Output", value: levelBinding,
+                                         range: 0.3...1.5, unit: "", decimals: 2)
+                    }
                     section("Envelope") {
                         slider("Attack", $patch.attack, 0.005...3, unit: "s")
                         slider("Decay", $patch.decay, 0.01...2, unit: "s")
@@ -204,6 +211,12 @@ struct PatchEditorView: View {
     private func slider(_ label: String, _ value: Binding<Float>, _ range: ClosedRange<Float>,
                         unit: String = "", decimals: Int = 2) -> some View {
         EchoelValueField(label: label, value: value, range: range, unit: unit, decimals: decimals)
+    }
+
+    // Output level ↔ optional-patch-field bridge (nil = unity → shows as 1.00).
+    private var levelBinding: Binding<Float> {
+        Binding(get: { patch.outputLevel ?? 1.0 },
+                set: { patch.outputLevel = $0 })
     }
 
     // Unison ↔ optional-patch-field bridges (nil = off → shows as 1 voice / 0 cents).
