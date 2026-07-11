@@ -13,11 +13,22 @@ struct ChannelRackView: View {
 
     @Environment(BeatPlayer.self) private var player
     @Environment(\.dismiss) private var dismiss
+    // Orientation-adaptive layout (P4): size-class changes are rare (rotation /
+    // window resize), never per-frame — reading them here is render-safe.
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
     /// When mounted as a WorkspaceView surface (the "Mix" page) rather than presented as a
     /// sheet: drop the NavigationStack/Done toolbar and show a lightweight inline header.
     var embedded: Bool = false
 
     private var anySolo: Bool { player.solos.contains(true) }
+
+    /// Channel-strip columns: wide layouts (iPad `.regular`, or a landscape phone —
+    /// `.compact` height) get 2 columns to use the width; portrait phone stays a
+    /// single column. Mirrors EchoelTheme.Metrics' landscape rule.
+    private var rackColumns: Int {
+        (hSize == .regular || vSize == .compact) ? 2 : 1
+    }
 
     var body: some View {
         if embedded {
@@ -64,8 +75,19 @@ struct ChannelRackView: View {
                 }
                 .padding(.bottom, 2)
             }
-            ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
-                channelRow(i)
+            if rackColumns > 1 {
+                // Landscape / iPad: strips in a grid so the width isn't wasted.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
+                                         count: rackColumns), spacing: 8) {
+                    ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
+                        channelRow(i)
+                    }
+                }
+            } else {
+                // Portrait phone: one tall column (unchanged).
+                ForEach(BeatPlayer.trackNames.indices, id: \.self) { i in
+                    channelRow(i)
+                }
             }
         }
     }
