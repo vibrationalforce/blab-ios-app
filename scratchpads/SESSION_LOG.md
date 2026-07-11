@@ -3,6 +3,17 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 25) — TestFlight v10.79.151 VERIFIZIERT (intern)
+- TestFlight-Run `ab72451` (v10.79.151, rPPG-Interruption-Fix) = **success** (07:06);
+  Build auf App Store Connect hochgeladen + verarbeitet. Info.plist:
+  ITSAppUsesNonExemptEncryption=false → keine Export-Compliance-Sperre; alle
+  Usage-Strings vorhanden. Bereit zur Tester-Zuweisung (ASC-seitig, founder).
+- Founder aktiv in Ship-Session: erster Test heute → What-to-Test-Notiz liegt in
+  scratchpads/FIRST_TEST_NOTE_2026-07-11.md. Chrome-Extension fürs Deployment =
+  abgeraten (Sicherheitsrisiko für ASC-Session; Pipeline ist tokenlos + fertig).
+- Nächster Bau-Zyklus U1 (PLAN_ONE_VIEW) wartet auf Founder-Go — bewusst hinter
+  dem Launch (North-Star: weniger bauen, mehr fertigstellen).
+
 ## 2026-07-11 (Forts. 24) — OPEN-REPO-RESEARCH: 4 verifizierte Panels, Zero-Deps bestätigt
 - **Founder-Auftrag:** alle Open Repos finden, die JETZT weiterhelfen (Apple-Ökosystem,
   Vision durchdrungen). 4 parallele Agenten (DSP/Synthese · Apple-App-Layer · Visual/
