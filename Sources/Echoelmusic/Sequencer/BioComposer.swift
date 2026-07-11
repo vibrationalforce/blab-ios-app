@@ -949,6 +949,16 @@ public enum BioComposer {
         return onsets.isEmpty ? [(secStart, secLen)] : onsets
     }
 
+    /// Fold a lead pitch that has climbed into the piercing top octaves DOWN by whole
+    /// octaves until it sits at/under `ceiling` (keeps the pitch class → always in key).
+    /// Tames the "piepsig künstlich" high synth leads (founder 2026-07-11: "unangenehm
+    /// bis piepsig künstlich") without a register plateau. Pure → unit-testable.
+    static func tameLeadPitch(_ pitch: Int, ceiling: Int = 84) -> Int {
+        var p = pitch
+        while p > ceiling { p -= 12 }
+        return Swift.max(0, p)
+    }
+
     private static func composeHarmonic(key: MusicalKey, profile: HarmonicProfile,
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
@@ -1149,10 +1159,11 @@ public enum BioComposer {
         if profile.leadDensity > 0 {
             // Liveliness scales how many lead notes; darkness drops the register.
             let lively = 0.6 + 0.8 * clamp01(mood.liveliness)
-            // SOFT TRANCE (founder 2026-07-07: "Ton-Dichte runter"): fewer lead notes —
-            // the melody is a sparse, singing line over the pad, not a busy run. Roughly
-            // halved (was 4 + busy·4).
-            let count = max(2, Int((profile.leadDensity * (2 + busy * 2.5) * lively).rounded()))
+            // SPARSE, SINGING LEAD (founder 2026-07-07 "Ton-Dichte runter" → 2026-07-11
+            // "die Genres klingen teilweise überladen"): the melody is a sparse line over
+            // the pad, not a busy run. Density trimmed again (2 + busy·2.5 → 1.6 + busy·1.6)
+            // so an aroused body no longer overloads the newly-opened energetic genres.
+            let count = max(2, Int((profile.leadDensity * (1.6 + busy * 1.6) * lively).rounded()))
             var lastStart = -1
             // Seed-vary the opening tone so the lead doesn't always begin on the same
             // pitch (a big part of "it's the same tune again"). Breath still biases
@@ -1217,14 +1228,14 @@ public enum BioComposer {
                 if length >= 2, startStep + 1 < stepCount, structureRNG.unit() < ornamentP {
                     let gIdx = toneIdx + (rng.unit() < 0.5 ? 1 : -1)
                     let gTone = tones[((gIdx % tones.count) + tones.count) % tones.count]
-                    let gPitch = key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift) + lift
+                    let gPitch = Self.tameLeadPitch(key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift) + lift)
                     notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, gPitch)),
                                       startStep: startStep, lengthSteps: 1,
                                       velocity: hVel(velocity * 0.7, &rng), role: .lead))
                     mainStart = startStep + 1
                     mainLen = max(1, length - 1)
                 }
-                notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, pitch + lift)),
+                notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, Self.tameLeadPitch(pitch + lift))),
                                   startStep: mainStart, lengthSteps: mainLen, velocity: velocity, role: .lead))
                 // Advance along the motif contour (statement→answer, resolving)
                 // instead of a random walk — chord-tone-locked above, so still in key.

@@ -288,6 +288,41 @@ final class BioComposerTests: XCTestCase {
                                     "a busier body carries at least as many re-articulations")
     }
 
+    // MARK: - Lead taming (founder 2026-07-11: "Genres klingen teilweise überladen und
+    // unangenehm bis piepsig künstlich")
+
+    func testTameLeadPitchFoldsPiercingHighsDownKeepingPitchClass() {
+        // Above the ceiling → folded down by whole octaves (pitch class preserved → in key).
+        XCTAssertEqual(BioComposer.tameLeadPitch(96, ceiling: 84), 84, "an octave above C6 folds to C6")
+        XCTAssertEqual(BioComposer.tameLeadPitch(100, ceiling: 84), 76, "folds repeatedly until under the ceiling")
+        XCTAssertEqual(BioComposer.tameLeadPitch(84, ceiling: 84), 84, "at the ceiling is untouched")
+        XCTAssertEqual(BioComposer.tameLeadPitch(72, ceiling: 84), 72, "a note already in range is untouched")
+        // Pitch class always preserved.
+        for p in stride(from: 60, through: 120, by: 1) {
+            XCTAssertEqual(BioComposer.tameLeadPitch(p, ceiling: 84) % 12, p % 12,
+                           "\(p): folding keeps the pitch class (stays in key)")
+        }
+    }
+
+    func testLeadsNeverPierceTheCeilingAcrossGenres() {
+        // No generated lead note sits in the piercing top octaves — even for a busy body
+        // on the brightest/highest genres (this is the "piepsig künstlich" fix).
+        let melodic = MusicStyle.allCases.filter {
+            !$0.harmonicProfile.sustained && $0.harmonicProfile.leadDensity > 0
+        }
+        for style in melodic {
+            for root in [0, 5, 9] {
+                let key = MusicalKey(root: root, scale: style.scale)
+                let comp = BioComposer.compose(
+                    input(coherence: 0.1, hr: 130, key: key, style: style, seed: 3))
+                for n in comp.notes where n.role == .lead {
+                    XCTAssertLessThanOrEqual(n.pitch, 84,
+                        "\(style) root \(root): lead \(n.pitch) is piercingly high (> C6)")
+                }
+            }
+        }
+    }
+
     func testOnlyBeatGenresCarryDrums() {
         for style in MusicStyle.allCases {
             let comp = BioComposer.compose(input(hr: 100, style: style))
