@@ -1,24 +1,28 @@
-build: 2026-07-11 v10.79.168 (Hackbrett: Channel Rack im Mix — Reorg P1)
+build: 2026-07-11 v10.79.169 (Die Timeline SPIELT — funktionierende Spuren, Reorg P3)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Erster Schritt der großen Reorganisation (dein "Mix Level sollten auf dem
-  Hackbrett landen … alles an Ort und Stelle wo es wirklich stattfindet").
+notes: Der große Schritt: die TIMELINE spielt jetzt wirklich.
 
-  NEU: das HACKBRETT (Channel Rack) ist jetzt IM Mix-Panel:
-  · Unten im Mix-Panel liegen jetzt alle 8 Drum-Kanäle als Strips —
-    pro Kanal: Level · Mute/Solo · Insert-Filter (Typ + Cutoff) · Drive.
-  · Das gab es schon als getestete Ansicht, war aber nirgends erreichbar —
-    jetzt sitzt alles Mischbare an EINEM Ort statt verstreut.
-  · Inline eingebettet (kein neues Fenster) → render-sicher; ui-state-Review: 0 Risiken.
+  NEU: "Play timeline"-Knopf im Timeline-Bereich:
+  · Spielt die platzierten Regionen über den geteilten Transport ab —
+    lädt pro Region ihren Clip in Piano-Roll + Pattern (genau der bewährte
+    Lade-Pfad, den die Song-Sektionen/Clips schon nutzen), loopt sauber am
+    Song-Ende (auf ganze Takte gerundet).
+  · OPT-IN und GETRENNT von Generate+Play → das startende Instrument bleibt
+    komplett unberührt (der neue Abspiel-Aufruf ist ein No-Op, solange du die
+    Timeline nicht startest).
 
-  Damit ist die Basis gelegt. Als Nächstes (autonom, sicher, Gate-verifiziert):
-  · Master-Stimmen (Bass/Pad/Lead) als Strips auf dasselbe Hackbrett
-  · die TIMELINE zum LAUFEN bringen — funktionierende Spuren: ein reiner,
-    getesteter Region-Scheduler (P2), dann additiv an den Ton verdrahtet (P3),
-    damit nichts am startenden Instrument kaputtgeht
-  · adaptives Layout horizontal + vertikal (P4)
+  Unter der Haube (alles getestet, alle Gates grün):
+  · P2 — reiner Region-Scheduler (welche Region liegt unter dem Playhead, wann
+    wird umgeschaltet), 16 Unit-Tests.
+  · P3 — TimelineRegionPlayer (reiner Positions-Cursor mit Tests) + Verdrahtung
+    an den Transport; render- + concurrency-audited (Swift-6-clean).
 
-  Kein Audio-Pfad angefasst, kein neues Modal, beide CI-Gates grün.
-  NEEDS-FOUNDER-VERIFY (Handhabung/Feel des Mix-Panels).
+  WICHTIG zum Testen: erstmal EINZELN testen — Timeline ODER Generate+Play,
+  noch nicht beides gleichzeitig (das Zusammenspiel koordiniere ich als
+  Nächstes). NEEDS-FOUNDER-VERIFY: spielen + loopen die Regionen sauber?
 
-  Frühere Builds warten noch auf dein Ohr: v162–v166 (Warmth/Tempo/FX),
-  v167 (Groove „die Eins" + lesbarer Name).
+  Reorg-Fahrplan läuft weiter (autonom, sicher): als Nächstes adaptives Layout
+  horizontal+vertikal, Master-Stimmen aufs Hackbrett, Wetter-Panel.
+
+  Frühere Builds warten noch auf dein Ohr/Auge: v162–v166, v167 (Groove „Eins"),
+  v168 (Hackbrett).
