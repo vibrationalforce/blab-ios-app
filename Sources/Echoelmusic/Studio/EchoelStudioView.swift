@@ -501,6 +501,8 @@ struct EchoelStudioView: View {
             subBass.setInsert(trackFX.bass)
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
+            // Drums bus master → fan the persisted insert across all 8 channels.
+            setDrumsFX(trackFX.drums)
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
@@ -1119,12 +1121,21 @@ struct EchoelStudioView: View {
                              range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
             EchoelValueField(label: "Melodic drive", value: melodicDriveBinding,
                              range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            // Drums bus (the whole kit): one filter/drive fanned across all 8 drum
+            // channels. A low-pass here is mathematically a bus filter (the biquad is
+            // LTI, so per-channel == on the sum); drive saturates each hit on its own,
+            // keeping the transients. Full-open cutoff = off → the kit stays untouched.
+            EchoelValueField(label: "Drums filter", value: drumsCutoffBinding,
+                             range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+            EchoelValueField(label: "Drums drive", value: drumsDriveBinding,
+                             range: TrackFXStore.driveRange, unit: "", decimals: 2)
 
             Button {
                 mixer.resetToUnity()
                 beatPlayer.masterLevel = mixer.drums
                 setBassFX(.off)
                 setMelodicFX(.off)
+                setDrumsFX(.off)
                 recomposeIfRunning()
             } label: {
                 Text("Reset to genre balance")
@@ -1188,6 +1199,44 @@ struct EchoelStudioView: View {
         trackFX.set(fx, for: .melodic)
         synth.setInsert(fx)
         leadSynth?.setInsert(fx)
+    }
+
+    /// Drums-bus filter cutoff. Full-open (max) disengages; lower engages a low-pass
+    /// fanned across all 8 drum channels (a low-pass this way == a true bus filter).
+    private var drumsCutoffBinding: Binding<Float> {
+        Binding(get: { trackFX.drums.cutoffHz },
+                set: { v in
+                    let open = v >= TrackFXStore.cutoffRange.upperBound
+                    setDrumsFX(TrackFX(filter: open ? .off : .lowPass, cutoffHz: v,
+                                       resonance: trackFX.drums.resonance, drive: trackFX.drums.drive))
+                })
+    }
+
+    /// Drums-bus saturation drive (0 = clean). Applied per drum channel — each hit
+    /// saturates independently, preserving transients.
+    private var drumsDriveBinding: Binding<Float> {
+        Binding(get: { trackFX.drums.drive },
+                set: { v in
+                    setDrumsFX(TrackFX(filter: trackFX.drums.filter, cutoffHz: trackFX.drums.cutoffHz,
+                                       resonance: trackFX.drums.resonance, drive: v))
+                })
+    }
+
+    /// Persist the drums insert AND fan it across all 8 `BeatPlayer` channels. There is no
+    /// single drums-bus node (the 8 voices attach individually), so the whole-kit control
+    /// writes every channel's insert via the existing tested `setFX` path — no new audio
+    /// code. `trackFX.drums` is the bus master; the (currently unpresented) Channel Rack is
+    /// the per-channel override. Off (`.off`) = full-open + drive 0 = bit-identical to before.
+    private func setDrumsFX(_ fx: TrackFX) {
+        trackFX.set(fx, for: .drums)
+        var ch = BeatPlayer.ChannelFX()
+        ch.type = fx.filter.rawValue
+        ch.cutoff = fx.cutoffHz
+        ch.resonance = fx.resonance
+        ch.drive = fx.drive
+        for i in BeatPlayer.trackNames.indices {
+            beatPlayer.setFX(track: i, ch)
+        }
     }
 
     /// A binding to one mixer level that re-balances the running take when changed.
