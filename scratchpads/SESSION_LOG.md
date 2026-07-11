@@ -3,6 +3,30 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 24) — OPEN-REPO-RESEARCH: 4 verifizierte Panels, Zero-Deps bestätigt
+- **Founder-Auftrag:** alle Open Repos finden, die JETZT weiterhelfen (Apple-Ökosystem,
+  Vision durchdrungen). 4 parallele Agenten (DSP/Synthese · Apple-App-Layer · Visual/
+  Video/Licht · Bio/AI), jede Lizenz aus echter LICENSE-Datei verifiziert, Weights
+  getrennt vom Code geprüft. Schließt die 07-10-Offenen (WORLD/aubio/Spatial/On-Device-AI).
+- **DIE Erkenntnis:** KEIN neuer In-App-Dependency für die ganze U1→K3-Reihenfolge nötig —
+  alle Produkt-Funde first-party (CoreImage/AVFoundation/GroupActivities/CoreMIDI/CoreML)
+  oder Reimplement-aus-Referenz. Alle echten ADOPTs sind PIPELINE. Moat bestätigt: KEINE
+  offene Adaptive-Music-Engine + KEINE offene SwiftUI-DAW-Timeline existieren.
+- **ADOPT-PIPELINE (höchster Hebel, 0 Risiko):** NeuroKit2 (MIT) + PhysioNet (CC0/PDDL)
+  als CI-Beweis-Oracle für unsere HRV/Kohärenz-Mathematik → macht science-first beweisbar.
+  colour-science (BSD-3) LUT-Validator; sACNKit/ADM-OSC/ArtNet + Pangolin /beyond/* als
+  Konformitäts-Oracles/Laser-Ziel.
+- **ADOPT-PRODUCT-CANDIDATE (Founder+Council, nach A1/A2):** Spotify basic-pitch
+  (Apache-2.0, CoreML-Modell im Repo) → „summen → MIDI-Clip auf Spur", reine Instrument-DNA.
+- **REFERENCE-ONLY (Swift-Neuimpl, kein Dep):** Granular = MI Clouds (MIT; GrainSwift GPL
+  → REJECT); STK physical modeling; addiebarron/chladni + kai5z-FEM für Cymatics; Inferno
+  Metal-Shader; Gray-World+AVCaptureDevice-WB statt Afifi-AWB (alle NC → REJECT).
+- **REJECT-Fallen sauber überführt:** MusicGen/open-unmix-umxl/madmom (Weights CC-BY-NC),
+  aubio/Essentia/RAVE (GPL/AGPL/NC-Code), SoundpipeAudioKit (LGPL-Streit trotz MIT-Label),
+  Shadertoy-Shader (CC-BY-NC-SA). YuE-Lizenz korrigiert: Apache-2.0 sauber (nur 7B → WATCH).
+- **Artefakte:** scratchpads/RESEARCH_OPEN_REPOS_2026-07-11.md (voller Folge-Pass) +
+  7 inspiration.csv-Einträge. Nächster Schritt = Founder-Go für die 2 höchsten Hebel.
+
 ## 2026-07-11 (Forts. 23) — Founder-Tag: One-View-Direktive + rPPG-Interruption-Fix + Konzept-Ledger
 - **rPPG-Log v150 (1783749556):** Kamera-Session vom OS mit reason 1
   (videoNotAvailableInBackground) gehalten, InterruptionEnded kam nie — 8 Kalt-
