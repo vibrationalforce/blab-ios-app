@@ -1,28 +1,22 @@
-build: 2026-07-11 v10.79.169 (Die Timeline SPIELT — funktionierende Spuren, Reorg P3)
+build: 2026-07-11 v10.79.170 (Adaptives Hackbrett — Querformat/iPad 2-spaltig, Reorg P4)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Der große Schritt: die TIMELINE spielt jetzt wirklich.
+notes: Erster Schritt "adaptives Design horizontal + vertikal" (dein Auftrag).
 
-  NEU: "Play timeline"-Knopf im Timeline-Bereich:
-  · Spielt die platzierten Regionen über den geteilten Transport ab —
-    lädt pro Region ihren Clip in Piano-Roll + Pattern (genau der bewährte
-    Lade-Pfad, den die Song-Sektionen/Clips schon nutzen), loopt sauber am
-    Song-Ende (auf ganze Takte gerundet).
-  · OPT-IN und GETRENNT von Generate+Play → das startende Instrument bleibt
-    komplett unberührt (der neue Abspiel-Aufruf ist ein No-Op, solange du die
-    Timeline nicht startest).
+  NEU: das Hackbrett (Channel Rack im Mix) passt sich der Ausrichtung an:
+  · Querformat / iPad: die Channel-Strips liegen jetzt in 2 Spalten — nutzt
+    die Breite statt einer sehr langen Einzelspalte.
+  · Hochformat (Handy): unverändert eine Spalte → kein Risiko für den
+    Normalfall.
 
-  Unter der Haube (alles getestet, alle Gates grün):
-  · P2 — reiner Region-Scheduler (welche Region liegt unter dem Playhead, wann
-    wird umgeschaltet), 16 Unit-Tests.
-  · P3 — TimelineRegionPlayer (reiner Positions-Cursor mit Tests) + Verdrahtung
-    an den Transport; render- + concurrency-audited (Swift-6-clean).
+  Layout-only, render-safe (Size-Class-Reads passieren nur bei Drehung, nie
+  pro Frame; auf einen eigenen Leaf-View begrenzt → kein Ancestor-Churn).
+  ui-state-Review: 0 Risiken. Beide CI-Gates grün.
 
-  WICHTIG zum Testen: erstmal EINZELN testen — Timeline ODER Generate+Play,
-  noch nicht beides gleichzeitig (das Zusammenspiel koordiniere ich als
-  Nächstes). NEEDS-FOUNDER-VERIFY: spielen + loopen die Regionen sauber?
+  Reorg läuft weiter: als Nächstes die Master-Stimmen (Bass/Pad/Lead) als
+  Strips aufs selbe Hackbrett, dann das Wetter-Panel (getrennte Klang+Bild-
+  Parameter), dann adaptives Layout auch für Timeline + Panels.
 
-  Reorg-Fahrplan läuft weiter (autonom, sicher): als Nächstes adaptives Layout
-  horizontal+vertikal, Master-Stimmen aufs Hackbrett, Wetter-Panel.
+  NEEDS-FOUNDER-VERIFY (Feel im Querformat / auf dem iPad).
 
-  Frühere Builds warten noch auf dein Ohr/Auge: v162–v166, v167 (Groove „Eins"),
-  v168 (Hackbrett).
+  Zum Antesten warten: v167 (Groove „Eins"), v168 (Hackbrett), v169 (Timeline
+  spielt — „Play timeline"), + v162–v166 (Warmth/Tempo/FX).
