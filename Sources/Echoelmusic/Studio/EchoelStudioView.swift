@@ -94,6 +94,7 @@ struct EchoelStudioView: View {
     @Environment(ProjectStore.self) private var projects
     @Environment(PatchStore.self) private var patchStore
     @Environment(MixerStore.self) private var mixer
+    @Environment(TrackFXStore.self) private var trackFX
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
@@ -494,6 +495,8 @@ struct EchoelStudioView: View {
             handlePendingIntent()
             // Apply the persisted Mixer "Drums" level to the beat engine at launch.
             beatPlayer.masterLevel = mixer.drums
+            // Apply the persisted per-track bass insert to the sub voice at launch.
+            subBass.setInsert(trackFX.bass)
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
@@ -1097,9 +1100,20 @@ struct EchoelStudioView: View {
                              range: MixerStore.range, unit: "", decimals: 2)
             EchoelValueField(label: "Drums", value: drumsBinding,
                              range: MixerStore.range, unit: "", decimals: 2)
+
+            // Per-track FX — bass bus insert (Module 2). A dub low-pass + drive on the
+            // sub, applied LIVE (next render block) via the lock-free setInsert path. Full-
+            // open cutoff = filter off; drive 0 = clean → the bus stays bit-identical until
+            // moved. Melodic/drums FX rows follow as their buses are wired.
+            EchoelValueField(label: "Bass filter", value: bassCutoffBinding,
+                             range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+            EchoelValueField(label: "Bass drive", value: bassDriveBinding,
+                             range: TrackFXStore.driveRange, unit: "", decimals: 2)
+
             Button {
                 mixer.resetToUnity()
                 beatPlayer.masterLevel = mixer.drums
+                setBassFX(.off)
                 recomposeIfRunning()
             } label: {
                 Text("Reset to genre balance")
@@ -1109,6 +1123,32 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Sets every part back to the genre's own balance")
         }
+    }
+
+    /// Bass-bus filter cutoff. Full-open (max) disengages the filter; lower engages a
+    /// low-pass. Applied LIVE to the sub voice via the lock-free insert path.
+    private var bassCutoffBinding: Binding<Float> {
+        Binding(get: { trackFX.bass.cutoffHz },
+                set: { v in
+                    let open = v >= TrackFXStore.cutoffRange.upperBound
+                    setBassFX(TrackFX(filter: open ? .off : .lowPass, cutoffHz: v,
+                                      resonance: trackFX.bass.resonance, drive: trackFX.bass.drive))
+                })
+    }
+
+    /// Bass-bus saturation drive (0 = clean).
+    private var bassDriveBinding: Binding<Float> {
+        Binding(get: { trackFX.bass.drive },
+                set: { v in
+                    setBassFX(TrackFX(filter: trackFX.bass.filter, cutoffHz: trackFX.bass.cutoffHz,
+                                      resonance: trackFX.bass.resonance, drive: v))
+                })
+    }
+
+    /// Persist the bass insert (survives relaunch) AND push it to the audio voice.
+    private func setBassFX(_ fx: TrackFX) {
+        trackFX.set(fx, for: .bass)
+        subBass.setInsert(fx)
     }
 
     /// A binding to one mixer level that re-balances the running take when changed.

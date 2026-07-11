@@ -38,8 +38,10 @@ public struct TrackFX: Codable, Equatable, Sendable {
     public var resonance: Float
     public var drive: Float
 
-    /// Clean passthrough — the default for every bus (bit-identical to no insert).
-    public static let off = TrackFX(filter: .off, cutoffHz: 1200, resonance: 0.707, drive: 0)
+    /// Clean passthrough — the default for every bus (bit-identical to no insert). Cutoff
+    /// rests FULL-OPEN (18 kHz) so an off bus reads as "no filtering" in the UI, and the
+    /// user disengages the filter simply by dragging the cutoff back up to the top.
+    public static let off = TrackFX(filter: .off, cutoffHz: 18_000, resonance: 0.707, drive: 0)
 
     public init(filter: ChannelInsertFX.FilterType = .off, cutoffHz: Float = 1200,
                 resonance: Float = 0.707, drive: Float = 0) {
