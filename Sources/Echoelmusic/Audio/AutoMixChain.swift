@@ -108,11 +108,39 @@ final class AutoMixChain {
         updateAutoGain()
     }
 
+    /// The smoothed auto-gain, in dB — eased toward the target each 200 ms tick so the
+    /// master level settles instead of chasing every momentary reading (the old "die
+    /// Levels bewegen sich ständig" pumping). Starts at unity (0 dB).
+    @ObservationIgnored private var smoothedGainDB: Float = 0
+
+    /// PROFI-PEGEL (founder 2026-07-11: "EchoelSynth rudimentär bei den Levels"). One
+    /// pure, deterministic step of the smoothed auto-gain in the dB domain — no AVAudio,
+    /// so it is unit-testable. The correction is:
+    ///  • NARROWED to ±`maxDB` (was ±12 dB → 0.25–4×, which let sparse vs. dense passages
+    ///    swing the master a full ±12 dB and pump),
+    ///  • EASED with a one-pole toward the target — ASYMMETRIC: slow when BOOSTING a quiet
+    ///    passage (a gap/held note must not pump up), a touch quicker when TAMING a loud
+    ///    one (so a sudden chord is caught) — the fast brick-wall stays the PeakLimiter's
+    ///    job, not this stage's,
+    ///  • held inside a small `deadZoneDB` so tiny deviations never nudge the level.
+    /// Returns the next smoothed gain in dB.
+    nonisolated static func steadyGainDB(current: Float, targetLUFS: Float, lufsReading: Float,
+                             maxDB: Float = 6,
+                             boostCoeff: Float = 0.05, cutCoeff: Float = 0.18,
+                             deadZoneDB: Float = 0.4) -> Float {
+        let raw = Swift.min(Swift.max(targetLUFS - lufsReading, -maxDB), maxDB)
+        let delta = raw - current
+        guard Swift.abs(delta) >= deadZoneDB else { return current }   // hold — no micro-pumping
+        let coeff = delta > 0 ? boostCoeff : cutCoeff                  // slow to boost, quicker to cut
+        return current + delta * Swift.min(Swift.max(coeff, 0), 1)
+    }
+
     private func updateAutoGain() {
         guard isInstalled, lufsReading > -59 else { return }
-        let gainDB = Swift.min(Swift.max(targetLUFS - lufsReading, -12), 12)
-        let linearGain = Foundation.pow(10.0, Double(gainDB) / 20.0)
-        gainNode.outputVolume = Float(Swift.min(Swift.max(linearGain, 0.25), 4.0))
+        smoothedGainDB = Self.steadyGainDB(current: smoothedGainDB,
+                                           targetLUFS: targetLUFS, lufsReading: lufsReading)
+        let linearGain = Foundation.pow(10.0, Double(smoothedGainDB) / 20.0)
+        gainNode.outputVolume = Float(Swift.min(Swift.max(linearGain, 0.5), 2.0))
     }
 
     // MARK: - Node configuration
@@ -182,7 +210,10 @@ final class AutoMixChain {
 
     private func applyBypass() {
         eq.bypass = !isEnabled
-        if !isEnabled { gainNode.outputVolume = 1.0 }
+        if !isEnabled {
+            gainNode.outputVolume = 1.0
+            smoothedGainDB = 0            // re-enabling eases from unity, no jump
+        }
         log.audio("AutoMixChain \(isEnabled ? "enabled" : "bypassed")")
     }
 }
