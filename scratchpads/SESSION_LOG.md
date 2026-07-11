@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-11 (Forts. 26) — U1 grün + Founder-Pivot: NICHT jetzt shippen, weiterbauen
+- **Founder-Entscheid:** kein erster Test jetzt — „noch nicht zufrieden, will Testern
+  nichts geben, was in ein paar Tagen anders aussieht". Mein „jetzt shippen"-Push
+  zurückgenommen; Bau-Loop wieder aktiv. (Apple-Setup-Klärungen: IAA nicht nötig —
+  Echoel liefert schon ein AUv3, das FL Studio Mobile hostet; IAA deprecated. Push-Secret
+  APNS_KEY_ID angelegt, aber unverdrahtet + Push in v1.0 bewusst AUS → post-launch-Zyklus.)
+- **U1 SHIPPED (`5a69bd7`, alle Gates grün):** One-View-Konsolidierung —
+  „Arrange"-Label raus; Editor-Sheet auf EIN ArrangeModal-Enum {lane, region} über
+  einem einzigen .sheet(item:) (Metadata-Gesetz gewahrt; EchoelValueField-Keypad =
+  Subview-Sheet, zählt nicht dagegen); Long-Press auf Region öffnet ihren Editor
+  (MIDI→Piano Roll, Audio→Audio-Editor), kurzer Tap auditioniert Audio weiterhin.
+- **Nächster Zyklus:** T1a (Sprung-Bugfix PianoRollModel bar-index aus transport.position.bar
+  + pendingNotes-Re-Stage) — WARTET auf Founder: stur Plan-Reihenfolge weiter ODER
+  konkreten Unzufriedenheits-Punkt (Sound/Visual/Bedienung) vorziehen.
+
 ## 2026-07-11 (Forts. 25) — TestFlight v10.79.151 VERIFIZIERT (intern)
 - TestFlight-Run `ab72451` (v10.79.151, rPPG-Interruption-Fix) = **success** (07:06);
   Build auf App Store Connect hochgeladen + verarbeitet. Info.plist:
