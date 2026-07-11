@@ -14,27 +14,27 @@ final class BioModulationTests: XCTestCase {
                        motionEnergy: motion, source: .fallback)
     }
 
-    // MARK: source normalisation
+    // MARK: source normalisation (the ONE canonical ModSource — Q1 de-dup 2026-07-11)
 
     func testHeartRateNormalisation() {
-        XCTAssertEqual(BioModSource.heartRate.signal(bio(hr: 40)), 0, accuracy: 1e-9)
-        XCTAssertEqual(BioModSource.heartRate.signal(bio(hr: 200)), 1, accuracy: 1e-9)
-        XCTAssertEqual(BioModSource.heartRate.signal(bio(hr: 120)), 0.5, accuracy: 1e-9)
+        XCTAssertEqual(ModSource.heartRate.normalizedValue(from: bio(hr: 40)), 0, accuracy: 1e-6)
+        XCTAssertEqual(ModSource.heartRate.normalizedValue(from: bio(hr: 200)), 1, accuracy: 1e-6)
+        XCTAssertEqual(ModSource.heartRate.normalizedValue(from: bio(hr: 120)), 0.5, accuracy: 1e-6)
     }
 
     func testSignalsClampedToUnit() {
-        XCTAssertEqual(BioModSource.motion.signal(bio(motion: 9)), 1, accuracy: 1e-9)
-        XCTAssertEqual(BioModSource.coherence.signal(bio(coherence: -3)), 0, accuracy: 1e-9)
+        XCTAssertEqual(ModSource.motion.normalizedValue(from: bio(motion: 9)), 1, accuracy: 1e-6)
+        XCTAssertEqual(ModSource.coherence.normalizedValue(from: bio(coherence: -3)), 0, accuracy: 1e-6)
     }
 
     func testEverySourceHasName() {
-        for s in BioModSource.allCases { XCTAssertFalse(s.displayName.isEmpty) }
+        for s in ModSource.allCases { XCTAssertFalse(s.displayName.isEmpty) }
     }
 
     // MARK: manual control always works (no preset lock-in)
 
     func testManual_returnsClampedBase_evenWithBio() {
-        let p = BoundParameter(base: 250, range: 0...1000, source: .none, amount: 1)
+        let p = BoundParameter(base: 250, range: 0...1000, source: nil, amount: 1)
         XCTAssertEqual(p.resolved(from: bio(hr: 200)), 250, accuracy: 1e-9, "manual ignores bio")
         XCTAssertFalse(p.isBound)
     }
@@ -55,7 +55,7 @@ final class BioModulationTests: XCTestCase {
     }
 
     func testNegativeAmount_pushesDown() {
-        let p = BoundParameter(base: 500, range: 100...500, source: .breath, amount: -1)
+        let p = BoundParameter(base: 500, range: 100...500, source: .breathPhase, amount: -1)
         XCTAssertEqual(p.resolved(from: bio(breath: 1)), 100, accuracy: 1e-9)
     }
 

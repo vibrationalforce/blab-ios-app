@@ -39,6 +39,19 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     case coherence
     case motion
 
+    /// Human label for the "bind this parameter to the body" UI (the one shared
+    /// source vocabulary — see BoundParameter / the modulation matrix).
+    public var displayName: String {
+        switch self {
+        case .heartRate:   return "Heartbeat"
+        case .hrv:         return "HRV"
+        case .breathRate:  return "Breath rate"
+        case .breathPhase: return "Breath"
+        case .coherence:   return "Coherence"
+        case .motion:      return "Motion"
+        }
+    }
+
     /// Natural input range of the raw field, used for [0..1] normalization.
     public var range: ClosedRange<Float> {
         switch self {

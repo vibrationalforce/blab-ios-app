@@ -54,10 +54,12 @@ Only items that are **verifiable without the founder's senses** ship as "done". 
 final quality needs his ear/eye is built behind a SAFE default (off/passthrough/bit-identical),
 gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-good.
 
-- [ ] **Q1. Wire or delete the rotting cores.** BioModulation (0 consumers) → wire its
-      `BoundParameter`/`ClockSource` as the spine under the modulation matrix, with tests; or
-      remove if truly superseded. Same decision for CloudSync (0 consumers). Verifiable: unit
-      tests + compile.
+- [x] **Q1. De-duplicate the modulation spine.** DONE 2026-07-11: `BioModSource` was a second,
+      parallel bio-source enum → retired. `BoundParameter` re-based onto the canonical
+      `ModSource` (nil = manual); `ClockSource` kept (the BPM-both master clock); added
+      `ModSource.displayName` for the Q7 UI. Tests updated. 0 app consumers → 0 regression risk.
+      NOTE for Q5: a THIRD clock concept `TransportClockSource` exists in Transport.swift — reconcile
+      with `ClockSource` when building the bio-tempo lane. CloudSync (0 consumers) still pending.
 - [ ] **Q2. Modulation-matrix model completeness.** Ensure every `ModSource` (incl. bio) can
       route to a typed destination with a pure `output(for:frame:)`; add depth/curve; tests.
       No UI yet. Pure + CI.
