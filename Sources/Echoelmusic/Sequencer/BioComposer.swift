@@ -349,6 +349,23 @@ public enum BioComposer {
     }
 
     /// Generate music from a bio snapshot, in the requested genre.
+    /// How much to thin the FAST melodic layers (lead note count, arp/pulse subdivision)
+    /// for a given PLAYBACK tempo, so a take keeps a good vibe instead of turning hectic as
+    /// BPM rises (founder 2026-07-11: "auf 75 ok, auf 132 zu hektisch … je nach bpm adaptiv
+    /// die Spielart anpassen um immer einen guten Vibe zu kreieren"). Perceived busyness ≈
+    /// notes × tempo; to hold roughly-constant notes-per-SECOND above a comfortable baseline
+    /// we thin density as tempo climbs. At/below the baseline the take is UNCHANGED (1.0) —
+    /// a slow groove stays as full as it was (the founder's good-at-75 case). Softened power
+    /// curve + a floor so it thins without gutting the line. Does NOT touch the pad's
+    /// heartbeat re-articulation (that's the body's own movement, driven by arousal, not
+    /// tempo). Pure → unit-testable.
+    nonisolated static func tempoDensityScale(bpm: Double) -> Float {
+        let baseline = 84.0
+        guard bpm > baseline else { return 1.0 }          // slow stays full (75 is good)
+        let scale = Float(pow(baseline / bpm, 0.85))       // thin as tempo climbs
+        return Swift.max(scale, 0.5)                        // never thinner than half
+    }
+
     public static func compose(_ input: Input) -> BioComposition {
         var rng = SeededRNG(seed: input.seed)
         // Skeleton RNG: structural choices (progression, register, ornament/lift/
@@ -371,6 +388,12 @@ public enum BioComposer {
         var effMood = input.mood
         effMood.tension = effectiveTension(input.mood.tension, coherence: input.coherence)
 
+        // Tempo-adaptive Spielart (founder 2026-07-11): the fast melodic layers thin as the
+        // PLAYBACK tempo rises so a fast take doesn't turn hectic. Resolved once (the clamped
+        // tempo the loop actually runs at) and reused for `suggestedTempo`.
+        let playTempo = tempo(for: input)
+        let densityScale = tempoDensityScale(bpm: playTempo)
+
         let notes: [Note]
         let drumSteps: [[Bool]]
         let drumAccents: [[Bool]]
@@ -391,6 +414,7 @@ public enum BioComposer {
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
+                                    densityScale: densityScale,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -416,6 +440,7 @@ public enum BioComposer {
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
+                                    densityScale: densityScale,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -439,7 +464,7 @@ public enum BioComposer {
                 amount: input.mood.humanize, seed: input.seed),
             drumSteps: drumSteps,
             drumAccents: drumAccents,
-            suggestedTempo: tempo(for: input)
+            suggestedTempo: playTempo
         )
     }
 
@@ -963,6 +988,7 @@ public enum BioComposer {
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
                                         mood: MoodProfile, progressionPhase: Int,
+                                        densityScale: Float = 1,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
@@ -1074,7 +1100,9 @@ public enum BioComposer {
                 // angenehmen weichen Trance-Sound"). Arps were 16ths when busy, 8ths
                 // when calm — a machine-gun, unnatural top layer. Halved to 8ths /
                 // quarter-notes so the arp breathes instead of rattling.
-                let arpStep = busy > 0.6 ? 2 : 4
+                // Coarsen the arp at fast tempo (densityScale < 0.8 ≈ >~106 BPM) so it
+                // breathes in quarters instead of rattling in 8ths — the anti-hectic move.
+                let arpStep = (busy > 0.6 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)
                 var s = secStart
                 var t = 0
                 while s < secEnd {
@@ -1129,7 +1157,8 @@ public enum BioComposer {
                 // now only appears when the body is more aroused (calm ≤ 0.5, was
                 // 0.6 → drops to a drone sooner) and it's HALVED to 8ths / quarters
                 // (was 16ths / 8ths) and quieter, so even when present it just breathes.
-                let pulseGap = busy > 0.7 ? 2 : 4                       // 8ths busy, else quarters
+                // Coarsen the pulse at fast tempo too (anti-hectic), same threshold as the arp.
+                let pulseGap = (busy > 0.7 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)  // 8ths busy, else quarters
                 let pulseVel = clamp01(padVelocity * 0.45)
                 // Voice the pulse an OCTAVE ABOVE the pad (chord tones + 12, clamped ≤127) —
                 // a comp/shimmer sits over the held chord like a real player, it doesn't
@@ -1163,7 +1192,10 @@ public enum BioComposer {
             // "die Genres klingen teilweise überladen"): the melody is a sparse line over
             // the pad, not a busy run. Density trimmed again (2 + busy·2.5 → 1.6 + busy·1.6)
             // so an aroused body no longer overloads the newly-opened energetic genres.
-            let count = max(2, Int((profile.leadDensity * (1.6 + busy * 1.6) * lively).rounded()))
+            // densityScale thins the line as the playback tempo rises (constant-ish
+            // notes-per-second) so a fast take sings instead of machine-gunning; 1.0 at/below
+            // the comfortable baseline leaves the count exactly as before.
+            let count = max(2, Int((profile.leadDensity * (1.6 + busy * 1.6) * lively * densityScale).rounded()))
             var lastStart = -1
             // Seed-vary the opening tone so the lead doesn't always begin on the same
             // pitch (a big part of "it's the same tune again"). Breath still biases

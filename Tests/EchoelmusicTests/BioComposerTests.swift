@@ -547,6 +547,45 @@ final class BioComposerTests: XCTestCase {
         XCTAssertEqual(fullCoh, 72, accuracy: 1e-6, "full coherence converges to the resonance band")
     }
 
+    // MARK: - Tempo-adaptive Spielart (founder 2026-07-11: "auf 75 ok, auf 132 zu hektisch
+    // … je nach bpm adaptiv die Spielart anpassen um immer einen guten Vibe zu kreieren")
+
+    func testTempoDensityScale_slowStaysFull() {
+        // At/below the comfortable baseline the take is UNCHANGED (the good-at-75 case).
+        XCTAssertEqual(BioComposer.tempoDensityScale(bpm: 60), 1.0, accuracy: 1e-6)
+        XCTAssertEqual(BioComposer.tempoDensityScale(bpm: 75), 1.0, accuracy: 1e-6)
+        XCTAssertEqual(BioComposer.tempoDensityScale(bpm: 84), 1.0, accuracy: 1e-6)
+    }
+
+    func testTempoDensityScale_thinsAsTempoClimbs() {
+        let s100 = BioComposer.tempoDensityScale(bpm: 100)
+        let s132 = BioComposer.tempoDensityScale(bpm: 132)
+        let s160 = BioComposer.tempoDensityScale(bpm: 160)
+        XCTAssertLessThan(s100, 1.0, "above the baseline the take thins")
+        XCTAssertLessThan(s132, s100, "faster → thinner (monotonic)")
+        XCTAssertLessThan(s160, s132, "faster still → thinner still")
+    }
+
+    func testTempoDensityScale_neverThinnerThanHalf() {
+        XCTAssertGreaterThanOrEqual(BioComposer.tempoDensityScale(bpm: 300), 0.5,
+                                    "the line is thinned, never gutted")
+    }
+
+    func testFastTakeIsNotBusierThanSlowTake() {
+        // The founder's exact case: Disco at a fast tempo must not carry MORE lead notes
+        // than the same genre/seed at a comfortable tempo (constant-ish notes-per-second).
+        for style in [MusicStyle.disco, .eighties, .synthwave, .psytrance] {
+            let slow = BioComposer.compose(input(hr: 72, seed: 11, style: style,
+                                                 mode: .studioLocked, lockedTempo: 74))
+            let fast = BioComposer.compose(input(hr: 72, seed: 11, style: style,
+                                                 mode: .studioLocked, lockedTempo: 150))
+            let slowLead = slow.notes.filter { $0.role == .lead }.count
+            let fastLead = fast.notes.filter { $0.role == .lead }.count
+            XCTAssertLessThanOrEqual(fastLead, slowLead,
+                                     "\(style): a fast take must not be busier than a slow one")
+        }
+    }
+
     // MARK: - Ambient self-observation note bounds
 
     func testAmbientNoteCountStaysInBounds() {
