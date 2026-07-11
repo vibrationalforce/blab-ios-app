@@ -112,6 +112,18 @@ struct SurfaceSwitcherBar: View {
 /// the v136 size contract (fill + clipped) so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
+    /// PLAY ENTRY (founder 2026-07-11, UI-survey verdict): the calm instrument is
+    /// the front door, the arrangement is the second room. The timeline COLLAPSES
+    /// to a thin bar by default so a newcomer lands on EchoelStudioView (which is
+    /// already "Bio strip · Start · pads"), not a DAW cockpit. One tap expands the
+    /// full Ableton timeline — nothing is lost for producers. Persisted, so a user
+    /// who opens the timeline keeps it open. This does NOT undo the 2026-07-10
+    /// "one main view = timeline" structure — the timeline is still THE surface,
+    /// just folded until wanted (progressive disclosure).
+    @AppStorage("workspace.timelineExpanded") private var timelineExpanded = false
+
+    private static let collapsedBarHeight: CGFloat = 34
+
     var body: some View {
         GeometryReader { geo in
             let landscape = geo.size.width > geo.size.height
@@ -119,6 +131,10 @@ struct SurfaceHost: View {
             // a readable arrangement; max keeps the instrument reachable.
             let timelineHeight = max(172, min(380, geo.size.height * (landscape ? 0.5 : 0.34)))
             VStack(spacing: 0) {
+                // The collapse/expand bar — a leaf (no observable reads), always on
+                // top so the timeline is one glanceable tap away in both states.
+                timelineBar
+                Divider().overlay(EchoelTheme.border)
                 // AnyView-ERASED children (v10.79.144 launch-crash fix): the
                 // instrument's body sits AT the SwiftUI metadata-decoder limit
                 // (10.76.34 class — SIGSEGV at first render, CI-green, device-
@@ -126,13 +142,15 @@ struct SurfaceHost: View {
                 // depth back below the v143 baseline; erasure at this level is
                 // effective because the overweight is in the COMPOSITION, not
                 // inside the child bodies (unlike 10.76.35, where it wasn't).
-                AnyView(
-                    ArrangeTimelineView()
-                        .frame(height: timelineHeight)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                )
-                Divider().overlay(EchoelTheme.border)
+                if timelineExpanded {
+                    AnyView(
+                        ArrangeTimelineView()
+                            .frame(height: timelineHeight)
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+                    )
+                    Divider().overlay(EchoelTheme.border)
+                }
                 AnyView(
                     EchoelStudioView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -140,6 +158,39 @@ struct SurfaceHost: View {
                 )
             }
         }
+    }
+
+    /// The one control that folds the arrangement in/out. Collapsed: an inviting
+    /// "Timeline · arrangieren" row; expanded: a "Timeline" header with a chevron
+    /// to fold it away again. Accent green stays reserved for live bio, so this
+    /// uses the neutral text/dim tokens.
+    private var timelineBar: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) { timelineExpanded.toggle() }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: timelineExpanded ? "chevron.down" : "rectangle.split.3x1")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                Text(timelineExpanded ? "Timeline" : "Timeline · arrangieren")
+                    .font(EchoelTheme.font(12, timelineExpanded ? .regular : .medium))
+                    .foregroundStyle(timelineExpanded ? EchoelTheme.dim : EchoelTheme.text)
+                Spacer(minLength: 0)
+                if !timelineExpanded {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: Self.collapsedBarHeight)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .background(EchoelTheme.bg)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(timelineExpanded ? "Hide timeline" : "Show timeline to arrange")
+        .accessibilityAddTraits(.isButton)
     }
 }
 
