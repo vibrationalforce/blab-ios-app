@@ -75,8 +75,14 @@ gate-verified, and flagged `NEEDS-FOUNDER-VERIFY` — never claimed as finished-
       insert maps there in Q4. **Remaining:** drums bus (BeatPlayer) insert, and the
       `TrackFXStore` → `setInsert` binding, which land WITH the UI (Q4) since nothing changes
       a bus off `.off` until there's a control. `NEEDS-FOUNDER-VERIFY` (sound).
-- [ ] **Q4. Per-track FX UI** — a per-bus row (filter·cutoff·reso·drive) in the Mix panel using
-      `EchoelValueField` only. Adaptive + Uncodixfy. Compiles + design-safe. `NEEDS-FOUNDER-VERIFY`.
+- [~] **Q4. Per-track FX UI** — IN PROGRESS: **bass row DONE** 2026-07-11. `TrackFXStore` wired
+      into the app (`.environment`); Mix panel gained "Bass filter" + "Bass drive"
+      `EchoelValueField`s; bindings persist (`trackFX.set`) AND push to audio (`subBass.setInsert`)
+      live; persisted setting re-applied on `.onAppear`; Reset clears it. ui-state-reviewer: CLEAN
+      (env intact, low-freq read = render-safe, no `.sheet` growth). `.off` now rests full-open so
+      the field reads "no filtering". **Remaining:** melodic-bus FX row (maps to the master
+      `fxChain`) + drums (see note above — BeatPlayer is timer-driven, needs a different approach).
+      `NEEDS-FOUNDER-VERIFY` (sound + feel); bass stays `.off` until a control moves → cannot regress.
 - [ ] **Q5. Bio-tempo lane (model).** A pure tempo-map: musical-time master + optional bio-tempo
       source, tests. (The BPM-both decision, already logged.) Pure + CI.
 - [ ] **Q6. Comprehensive interface — render-SAFE re-assembly.** Bring back arrange·clips·mix as

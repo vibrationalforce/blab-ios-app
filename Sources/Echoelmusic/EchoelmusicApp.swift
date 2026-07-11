@@ -79,6 +79,9 @@ struct EchoelmusicApp: App {
     @State private var clipStore = ClipStore()
     /// Per-part mixer (bass/pad/lead user levels) — Module 1 of the comprehensive interface.
     @State private var mixerStore = MixerStore()
+
+    /// Per-track FX (bass/melodic/drums inserts) — Module 2 of the comprehensive interface.
+    @State private var trackFXStore = TrackFXStore()
     /// Linear song timeline — an ordered chain of sections, each playing a clip.
     @State private var arrangementStore = ArrangementStore()
     /// Beat-grid Arrange timeline (tick-positioned lanes/regions); migrates the
@@ -321,6 +324,7 @@ struct EchoelmusicApp: App {
             .environment(pianoRoll)
             .environment(clipStore)
             .environment(mixerStore)
+            .environment(trackFXStore)
             .environment(arrangementStore)
             .environment(timelineStore)
             .environment(arrangementPlayer)
