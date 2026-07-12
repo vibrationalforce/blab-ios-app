@@ -181,4 +181,39 @@ final class NoteOperatorsTests: XCTestCase {
         XCTAssertEqual(NoteOperators.fold(fixedID), NoteOperators.fold(fixedID))
         XCTAssertNotEqual(NoteOperators.fold(fixedID), NoteOperators.fold(UUID()))
     }
+
+    // MARK: Playback gate (PianoRollModel.operatorAllows — the wiring law)
+
+    func testGate_plainNote_alwaysPlays() {
+        let n = note()   // operators == nil
+        for pass in [-1, 0, 1, 7] {
+            XCTAssertTrue(PianoRollModel.operatorAllows(n, loopPass: pass, seed: 1))
+        }
+    }
+
+    func testGate_occurrence_gatesAlternatePasses() {
+        var n = note()
+        n.operators = NoteOperators(occurrencePeriod: 2, occurrencePhase: 0)
+        XCTAssertTrue(PianoRollModel.operatorAllows(n, loopPass: 0, seed: 1))
+        XCTAssertFalse(PianoRollModel.operatorAllows(n, loopPass: 1, seed: 1))
+        XCTAssertTrue(PianoRollModel.operatorAllows(n, loopPass: 2, seed: 1))
+    }
+
+    func testGate_negativeLoopPass_clampsToFirstPass() {
+        // Before the first bar wrap the model's clock reads −1 — the gate must
+        // treat that as pass 0 (play, if phase 0 matches), never crash or gate.
+        var n = note()
+        n.operators = NoteOperators(occurrencePeriod: 4, occurrencePhase: 0)
+        XCTAssertTrue(PianoRollModel.operatorAllows(n, loopPass: -1, seed: 1))
+    }
+
+    func testGate_defaultOperators_identicalToNil() {
+        var withDefault = note()
+        withDefault.operators = NoteOperators()
+        for pass in 0..<4 {
+            XCTAssertEqual(
+                PianoRollModel.operatorAllows(withDefault, loopPass: pass, seed: 9),
+                PianoRollModel.operatorAllows(note(), loopPass: pass, seed: 9))
+        }
+    }
 }

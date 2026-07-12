@@ -84,9 +84,21 @@ public final class PianoRollModel {
     @ObservationIgnored private var arrangementBars: [[Note]] = []
     /// Bars played since transport start — advances at every step-0 wrap, exactly like the
     /// transport's bar counter, so the sounding bar is `arrangementBars[playedBars % N]`,
+    /// (see `playedBars` below; `operatorLoopPass` is the OPERATOR clock — it counts
+    /// EVERY bar wrap, single-bar loops included, which `playedBars` does not),
     /// keeping the audio IN SYNC with the transport's "bar N/M" loop indicator (no drift,
     /// even across a live re-seed which hot-swaps the bars without resetting the phase).
     @ObservationIgnored private var playedBars = 0
+    /// The note-operator loop clock: −1 before the first bar, then the 0-based
+    /// pass number, incremented at EVERY step-0 wrap (unlike `playedBars`, which
+    /// only advances for multi-bar arrangements). Drives chance/occurrence so a
+    /// single-bar loop still evolves pass by pass. Reset on stop → a replay is
+    /// the IDENTICAL take (deterministic, seeded — the "seed = take" law).
+    @ObservationIgnored private var operatorLoopPass = -1
+    /// Fixed take seed for operator dice rolls (chance). Constant by design:
+    /// same clip + same pass → same outcome, every playthrough, every launch.
+    /// A user-facing per-take seed can replace this later without model changes.
+    private static let operatorSeed: UInt64 = 0xEC0E1_5EED
 
     // MARK: - Musical-parameter publishing (DMMW backbone)
     // The roll is the source of "what's sounding now", so it publishes a MusicalFrame
@@ -268,6 +280,7 @@ public final class PianoRollModel {
             guard let self else { return }
             self.pendingNotes = nil
             self.playedBars = 0
+            self.operatorLoopPass = -1   // replay = the identical deterministic take
             if self.arrangementBars.count > 1 { self.notes = self.arrangementBars[0] }
             self.allNotesOff()
         }
@@ -343,6 +356,14 @@ public final class PianoRollModel {
         return out
     }
 
+    /// Whether a note plays on this loop pass, per its operators (chance +
+    /// occurrence). Plain notes (nil/default operators) always play. Pure and
+    /// nonisolated so the gate law is unit-tested without a transport.
+    public nonisolated static func operatorAllows(_ note: Note, loopPass: Int, seed: UInt64) -> Bool {
+        guard let ops = note.operators, !ops.isDefault else { return true }
+        return !ops.hits(for: note, loopIndex: loopPass, seed: seed).isEmpty
+    }
+
     /// Stable per-voice identity for tie matching — mirrors `sameVoice` exactly:
     /// only two voices exist (main, dedicated lead), so the key is 1 iff the role
     /// routes to a DISTINCT lead voice, else 0.
@@ -366,6 +387,8 @@ public final class PianoRollModel {
         // entries in `active` and release naturally at their own endStep below; the
         // new pattern's notes start via the normal startStep==step path. No gap.
         if step == 0 {
+            // Advance the operator clock FIRST so this bar's gates see the new pass.
+            operatorLoopPass += 1
             if let pending = pendingNotes {
                 notes = pending
                 pendingNotes = nil
@@ -393,7 +416,15 @@ public final class PianoRollModel {
         // next pass is ONE continuous sound, not a release + re-attack. Mid-bar a
         // repeated pitch stays two deliberate hits (user-drawn rhythm). This also
         // makes evolve morphs seamless: pitches the new take keeps just keep ringing.
-        let starting = notes.filter { $0.startStep == step }
+        // Per-note operators (A1): chance + occurrence gate a note per loop pass —
+        // deterministic (seeded), so the take is reproducible. A gated-off note
+        // simply never enters `starting`: no attack, no tie, its sound (if any)
+        // from a previous pass releases normally. Repeats/ratchets need the
+        // sample-accurate sub-step clock (W2) and are NOT evaluated here yet.
+        let starting = notes.filter {
+            $0.startStep == step
+                && Self.operatorAllows($0, loopPass: operatorLoopPass, seed: Self.operatorSeed)
+        }
         let ties = step == 0
             ? Self.wrapTies(
                 ending: ending.map { (id: $0.key, pitch: $0.value.pitch, voiceKey: voiceKey($0.value.role)) },
