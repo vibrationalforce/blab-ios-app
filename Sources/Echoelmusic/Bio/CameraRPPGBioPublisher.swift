@@ -422,10 +422,11 @@ public final class CameraRPPGBioPublisher {
             sampleQueue.push(r: avgR, g: avgG, b: avgB, t: ProcessInfo.processInfo.systemUptime)
         }
 
-        // If the camera self-recovers from a silent stall (watchdog restart or full
-        // reconfigure), the device exposure is fresh (back to auto). Drop our lock so
-        // the loop re-locks against the finger instead of trusting a stale lock; the
-        // torch is re-armed by CameraCapture itself. Fires on a background queue → hop.
+        // If the camera self-recovers (watchdog restart, full reconfigure, or an
+        // interruption ending), drop our lock AND force the device back to auto —
+        // an interruption resume keeps the same session, so a stale locked exposure
+        // survives it (handleCameraSessionReset does both). The torch is re-armed
+        // by CameraCapture itself. Fires on a background queue → hop.
         capture.onSessionReset = { [weak self] in
             Task { @MainActor [weak self] in self?.handleCameraSessionReset() }
         }
@@ -742,6 +743,14 @@ public final class CameraRPPGBioPublisher {
     /// the device-log "R=0.82, bpm=0 forever" (exposure was frozen too early,
     /// against the dim finger-less scene, then saturated when the finger arrived).
     private func manageExposure() {
+        // While iOS holds the session interrupted, no frames flow — the analyzer
+        // values below are FROZEN. Every branch of this machine then acts on a
+        // dead stream: device log 1783864199 locked exposure twice and burned the
+        // ENTIRE weak-relock budget (1/2 + 2/2) during a held interruption, and
+        // one of those blind locks left the resumed camera saturated (R=1.00) for
+        // 35 s. Freeze the state machine until frames actually flow again;
+        // handleCameraSessionReset() re-arms it cleanly on resume.
+        guard !capture.isInterrupted else { return }
         let bright = self.analyzer.brightness
         let red = self.analyzer.redChannel
         // Washout detection (threshold 0.72, was 0.85): a locked scene that drifts to
@@ -859,6 +868,14 @@ public final class CameraRPPGBioPublisher {
     /// machine to re-lock cleanly. Also breadcrumbed so the recovery is visible in a
     /// device log (previously a stall just looked like frozen values).
     private func handleCameraSessionReset() {
+        // Actively hand the DEVICE back to continuous auto-exposure — do not
+        // assume the reset left it there. An interruption RESUME keeps the same
+        // configured session, so a custom/locked exposure survives it; device
+        // log 1783864199: a (blind) lock taken during the interruption came back
+        // saturated after resume — R=1.00/bright=1.00 for 35 s — and because our
+        // model said "not locked", the saturation re-settle branch never ran.
+        // Unlocking here is idempotent and costs nothing when already auto.
+        capture.unlockExposure()
         exposureLocked = false
         fingerStableTicks = 0
         saturatedTicks = 0
