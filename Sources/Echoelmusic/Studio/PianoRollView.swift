@@ -677,8 +677,10 @@ struct PianoRollView: View {
                     .foregroundStyle(EchoelTheme.dim)
                     .frame(width: gutterW, height: rowH, alignment: .trailing)
                     .padding(.trailing, 3)
-                    .background(model.isSharp(pitch: pitch)
-                        ? EchoelTheme.text.opacity(0.02) : EchoelTheme.fill)
+                    // Gutter carries the same physical row tint (very subtle) so the
+                    // pitch ladder reads as ONE coloured raster with the canvas.
+                    .background(rowTint(pitch)
+                        .opacity(model.isSharp(pitch: pitch) ? 0.03 : 0.07))
                     .overlay(Rectangle().frame(height: 0.5)
                         .foregroundStyle(EchoelTheme.border), alignment: .bottom)
             }
@@ -700,12 +702,18 @@ struct PianoRollView: View {
 
     private var gridBackground: some View {
         Canvas { ctx, size in
-            // Row stripes (sharps darker).
+            // Row stripes in each pitch's PHYSICAL tone colour (CIE fit of the actual
+            // sounding frequency at the take's Kammerton — founder 2026-07-12: "Je nach
+            // Kammerton müsste sich auch die Farbe des Notenrasters ändern"). Sharps
+            // stay darker; the root row is anchored a touch stronger, like the touch
+            // fretboard marks its tonal home. Subtle alphas — legible numbers first.
+            let root = model.musicalRootPitchClass
             for (i, pitch) in rowsTopDown.enumerated() {
                 let y = CGFloat(i) * rowH
                 let rect = CGRect(x: 0, y: y, width: size.width, height: rowH)
-                let shade = model.isSharp(pitch: pitch) ? 0.03 : 0.06
-                ctx.fill(Path(rect), with: .color(EchoelTheme.text.opacity(shade)))
+                let isRoot = root >= 0 && ((pitch % 12) + 12) % 12 == root
+                let alpha = model.isSharp(pitch: pitch) ? 0.045 : (isRoot ? 0.13 : 0.085)
+                ctx.fill(Path(rect), with: .color(rowTint(pitch).opacity(alpha)))
                 if model.isC(pitch: pitch) {
                     ctx.stroke(Path(CGRect(x: 0, y: y, width: size.width, height: 0.5)),
                                with: .color(EchoelTheme.border), lineWidth: 0.5)
@@ -728,10 +736,13 @@ struct PianoRollView: View {
         let w = CGFloat(note.lengthSteps) * stepW
         let y = yForPitch(note.pitch)
         let selected = note.id == selectedID
+        // A note block wears ITS OWN physical tone colour (same CIE mapping as the
+        // grid rows and the touch fretboard), velocity → opacity as before.
+        let tint = rowTint(note.pitch)
         return RoundedRectangle(cornerRadius: 3)
-            .fill(EchoelTheme.accent.opacity(0.35 + 0.6 * Double(note.velocity)))
+            .fill(tint.opacity(0.35 + 0.6 * Double(note.velocity)))
             .overlay(RoundedRectangle(cornerRadius: 3)
-                .strokeBorder(selected ? EchoelTheme.text : EchoelTheme.accent, lineWidth: selected ? 1.5 : 0.5))
+                .strokeBorder(selected ? EchoelTheme.text : tint, lineWidth: selected ? 1.5 : 0.75))
             .frame(width: max(4, w - 2), height: max(6, rowH - 2))
             .offset(x: x + 1, y: y + 1)
     }
@@ -748,6 +759,17 @@ struct PianoRollView: View {
     /// Pitches from highest (top) to lowest (bottom) for top-down layout.
     private var rowsTopDown: [Int] {
         Array(stride(from: PianoRollModel.highPitch, through: PianoRollModel.lowPitch, by: -1))
+    }
+
+    /// The row's physical tone colour at the take's ACTUAL concert pitch — the
+    /// same CIE tone→light mapping as the touch fretboard, so changing the
+    /// Kammerton recolours this grid identically ("Je nach Kammerton … die Farbe
+    /// des Notenrasters"). `musicalA4Hz` is @ObservationIgnored on the model
+    /// (no churn); the grid redraws on present/zoom/edit, which is when it matters.
+    private func rowTint(_ pitch: Int) -> Color {
+        let hz = model.musicalA4Hz * pow(2.0, (Double(pitch) - 69.0) / 12.0)
+        let c = SpectralColor.displayComponents(forToneHz: hz)
+        return Color(red: c.r, green: c.g, blue: c.b)
     }
 
     private func yForPitch(_ pitch: Int) -> CGFloat {
