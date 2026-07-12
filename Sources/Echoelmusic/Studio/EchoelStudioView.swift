@@ -148,6 +148,9 @@ struct EchoelStudioView: View {
     @State private var showSound = false
     @State private var showEffects = false
     @State private var showMaster = false
+    /// Video window (DMMW menu, 2026-07-12) — only read by the panel's
+    /// disclosure fallback; in the dropdown it renders force-open anyway.
+    @State private var showVideoLibrary = false
     /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
     @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
     /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
@@ -345,7 +348,7 @@ struct EchoelStudioView: View {
     /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
     /// dropdown content — no new surfaces, the card pile just moved into menus.
     private enum StudioMenu: String, CaseIterable, Identifiable {
-        case composition, session, transpose, sound, mix, effects, master, mood, export, synth
+        case composition, session, transpose, sound, mix, effects, master, mood, export, synth, video
         var id: String { rawValue }
         /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
         var label: String {
@@ -360,6 +363,7 @@ struct EchoelStudioView: View {
             case .mood:        return "Mood"
             case .export:      return "Export"
             case .synth:       return "Synth"
+            case .video:       return "Video"
             }
         }
         /// Full name for VoiceOver (the chip text is abbreviated).
@@ -375,6 +379,7 @@ struct EchoelStudioView: View {
             case .mood:        return "Mood"
             case .export:      return "Export — WAV loop"
             case .synth:       return "EchoelSynth — immersive visual window"
+            case .video:       return "Video — recorded clips library"
             }
         }
     }
@@ -441,7 +446,9 @@ struct EchoelStudioView: View {
             // from the flow and added one menu row + one overlay branch — the
             // body's aggregate type SHRANK (black-screen law: never grow the
             // sheet chain; consolidate). The ~18-modal chain is untouched.
-            menuBar
+            // AnyView: keep the menu row's generics OUT of the root body type
+            // (review M1) — same discipline as every other heavy branch here.
+            AnyView(menuBar)
             // NOTE: do NOT pass the camera's `fingerDetected` (10 Hz) down from here —
             // reading it in this root body re-evaluated the whole view 10×/s while a take
             // played, collapsing any open Tonart/Genre `.menu` Picker (the "can't select
@@ -1148,8 +1155,16 @@ struct EchoelStudioView: View {
                     .padding(2)
             }
             .environment(\.echoelPanelForceOpen, true)
+            // ORDER MATTERS (review L3): fixedSize OUTSIDE the flex frame —
+            // fixedSize proposes nil → ScrollView reports its content's ideal
+            // height → the frame clamps to ≤480. Small panels render compact,
+            // tall ones cap + scroll. Swapping these two lines makes tall
+            // content OVERFLOW the card instead of scrolling.
             .frame(maxHeight: 480)
             .fixedSize(horizontal: false, vertical: true)
+            // VoiceOver: contain focus in the dropdown while it is open
+            // (review L2) — the scrim blocks touches but not the a11y tree.
+            .accessibilityAddTraits(.isModal)
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
                 .fill(EchoelTheme.bg))
             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
@@ -1162,6 +1177,10 @@ struct EchoelStudioView: View {
     /// Dropdown content = the EXISTING panel builders, one per menu entry.
     /// Returns AnyView per case so this switch never grows the host's generic
     /// type (type-checker + metadata discipline).
+    /// NOTE (review): panel content here evaluates in the ROOT body while the
+    /// dropdown is open (no collapsed-DisclosureGroup backstop any more) — any
+    /// live-updating readout inside a panel MUST stay in its own leaf view
+    /// (freeze rule 10.76.41/50).
     private var dropdownContent: AnyView {
         switch activeMenu {
         case .composition: return AnyView(compositionPanel)
@@ -1174,7 +1193,27 @@ struct EchoelStudioView: View {
         case .mood:        return AnyView(moodPanel)
         case .export:      return AnyView(utilityRow)
         case .synth:       return AnyView(visualPanel)
+        case .video:       return AnyView(videoPanel)
         case nil:          return AnyView(EmptyView())
+        }
+    }
+
+    /// The Video window (founder 2026-07-12): the durable recordings library —
+    /// clips recorded in the visual window (visual + master mix), inline
+    /// playback, share via the studio's ONE existing share slot, delete.
+    private var videoPanel: some View {
+        panel("Video", "Recorded clips — visual + master mix", isExpanded: $showVideoLibrary) {
+            #if canImport(AVKit) && canImport(AVFoundation)
+            VideoLibraryPanelContent(
+                onShare: { url in share = ExportedFile(url: url) },
+                onOpenVisual: {
+                    activeMenu = nil            // leaving the dropdown for the window
+                    floatingVisualVisible = true
+                })
+            #else
+            Text("Video recording is available on iPhone.")
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            #endif
         }
     }
 

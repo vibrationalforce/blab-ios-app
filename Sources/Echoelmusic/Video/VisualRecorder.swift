@@ -60,6 +60,10 @@ final class VisualRecorder {
         guard let videoURL else { return nil }
         guard let audioURL else { return videoURL }
         if let muxed = await VideoMuxer.mux(video: videoURL, audio: audioURL) {
+            // The muxed clip is the durable library entry (Documents/Videos) —
+            // drop the silent intermediate so the Video window never lists a
+            // soundless twin of every recording.
+            try? FileManager.default.removeItem(at: videoURL)
             return muxed
         }
         return videoURL   // mux failed → return at least the silent video
