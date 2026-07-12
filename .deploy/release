@@ -1,23 +1,22 @@
-build: 2026-07-12 v10.79.179 (Werte in alle Richtungen ziehen · kein versehentliches App-Schließen unten)
+build: 2026-07-12 v10.79.180 (Puls-Messung erholt sich jetzt sauber nach iOS-Kamera-Pausen)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Beide Punkte aus deiner letzten Nachricht:
-  · WERTE ZIEHEN — JETZT IN ALLE RICHTUNGEN: hoch ODER rechts erhöht,
-    runter ODER links verringert; diagonal ist einfach schneller. Gilt
-    app-weit für jedes Wertefeld (Tempo, FX, Patch, Mix …). Der alte
-    Seitwärts-Zieh-Feinmodus ist dafür raus — Präzision bleibt übers
-    Tippen (eigenes Zahlenfeld).
-  · UNTERER BILDSCHIRMRAND: iOS' Nach-Hause-Wischgeste feuert nicht
-    mehr beim ersten Wisch — der erste Wisch gehört jetzt der App
-    (Bio-Zeile, Spur-Chips), erst ein zweiter bewusster Wisch verlässt
-    sie (Standard bei Spielen/DAWs). Der Home-Balken bleibt sichtbar.
-    Die "andere Lösung" (Leisten wandern nach oben/auf die Spuren)
-    läuft ohnehin parallel im Umbau — dieser Fix wirkt sofort.
-  Dein 2284-Log: Start gesund (~0,6 s), am Ende des ersten Puls-Laufs
-  ein sehr guter Lock (~53–61, Konfidenz bis 0,93) — dazwischen oft
-  Fingerkontakt verloren (Finger flach & ruhig auf Linse + Blitz).
-  Fürs Visual↔Sound-Thema brauche ich weiterhin einmal ein Log MIT
-  OFFENEM Visual-Fenster — im 2284er war es wieder zu (keine einzige
-  visual:-Zeile).
-  Gates: Quick Test + Xcode Compile Check + CI/CD auf be3737a.
-  ui-state-Review: SHIP-SAFE. NEEDS-FOUNDER-VERIFY (Zieh-Gefühl in
-  beide Richtungen, unterer Rand beim Spielen).
+notes: Dein neuestes 2284-Log war der Schlüssel — es zeigt ZWEI Dinge:
+  · BESTÄTIGT: die Kamera-Unterbrechungen mitten im Lauf kamen vom
+    versehentlichen Wisch am unteren Rand (App wurde kurz inaktiv).
+    Der Rand-Schutz aus v10.79.179 zielt genau darauf.
+  · NEUER FUND + FIX: nach so einer Unterbrechung kam die Kamera
+    einmal komplett überbelichtet zurück (R=1.00) und blieb ~35 s
+    blind. Ursache: während der Pause lief die Belichtungs-Automatik
+    auf eingefrorenen Werten weiter — sie hat „blind" gelockt und ihr
+    gesamtes Relock-Budget verbrannt; der blinde Lock überlebte die
+    Wiederaufnahme. Jetzt: die Belichtungs-Maschine FRIERT während
+    einer iOS-Pause ein und beim Wiederanlauf wird die Belichtung
+    aktiv auf Automatik zurückgesetzt — die Messung startet sauber
+    neu statt gesättigt hängenzubleiben.
+  Außerdem in v179 (läuft parallel zu dir): Werte in alle Richtungen
+  ziehen + der erste Wisch unten gehört der App.
+  Weiterhin gewünscht: einmal mit OFFENEM Visual spielen + Log —
+  auch dieses Log hatte keine visual:-Zeilen.
+  Gates: Quick Test + Xcode Compile Check + CI/CD auf 6766a50.
+  NEEDS-FOUNDER-VERIFY (Puls-Verhalten nach Unterbrechung, unterer
+  Rand, Zieh-Gefühl).
