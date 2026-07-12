@@ -348,11 +348,12 @@ struct EchoelStudioView: View {
     /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
     /// dropdown content — no new surfaces, the card pile just moved into menus.
     private enum StudioMenu: String, CaseIterable, Identifiable {
-        case composition, session, transpose, sound, mix, effects, master, mood, export, synth, video
+        case bio, composition, session, transpose, sound, mix, effects, master, mood, export, synth, video
         var id: String { rawValue }
         /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
         var label: String {
             switch self {
+            case .bio:         return "Bio"
             case .composition: return "Comp"
             case .session:     return "Session"
             case .transpose:   return "Transp"
@@ -369,6 +370,7 @@ struct EchoelStudioView: View {
         /// Full name for VoiceOver (the chip text is abbreviated).
         var fullName: String {
             switch self {
+            case .bio:         return "Bio — pulse, HRV, coherence, source"
             case .composition: return "Composition — genre, key, tuning, tempo"
             case .session:     return "Session — name, place, weather"
             case .transpose:   return "Transpose"
@@ -448,42 +450,42 @@ struct EchoelStudioView: View {
             // sheet chain; consolidate). The ~18-modal chain is untouched.
             // AnyView: keep the menu row's generics OUT of the root body type
             // (review M1) — same discipline as every other heavy branch here.
-            AnyView(menuBar)
-            // NOTE: do NOT pass the camera's `fingerDetected` (10 Hz) down from here —
-            // reading it in this root body re-evaluated the whole view 10×/s while a take
-            // played, collapsing any open Tonart/Genre `.menu` Picker (the "can't select
-            // anymore" freeze). BioStripView now reads it itself (a Picker-free leaf view).
+            // B3 (2026-07-12): the always-on BioStripView below the menu FELL —
+            // the header pulse monitor is the at-a-glance replacement (founder:
+            // "Ein Hinweis kommt ja über das Monitor Fenster oben rechts"), and
+            // the numbers + tap-to-learn + source control live in the new Bio
+            // dropdown (menu host — no new modal). The chrome-notification
+            // receivers moved onto the menu bar (still an INNER row — the
+            // root's modifier chain / metadata type is untouched).
+            AnyView(menuBar
+                // The chrome's pulse button (TransportBar, next to Play — founder
+                // 2026-07-12) starts/stops the instrument through this notification.
+                .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
+                    toggleBiofeedback()
+                }
+                // Chrome doors (shell v3): Master/Export open their dropdown;
+                // Live/Learn their existing sheets.
+                .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
+                    switch note.object as? String {
+                    case "master": activeMenu = .master
+                    case "export": activeMenu = .export
+                    case "learn":  activeMenu = nil; showLearn = true
+                    #if canImport(MultipeerConnectivity)
+                    case "live":   activeMenu = nil; showLiveColabo = true
+                    #endif
+                    // Header output monitors (founder 2026-07-12): the
+                    // EchoelVideo tile opens the clips library panel, the
+                    // EchoelLux tile the routing sheet (existing slot —
+                    // slot reuse, no new modal).
+                    case "video":   activeMenu = .video; showVideoLibrary = true
+                    case "routing": activeMenu = nil; showRouting = true
+                    // The header pulse monitor opens the Bio dropdown (B3).
+                    case "bio":     activeMenu = .bio
+                    default: break
+                    }
+                })
             ZStack(alignment: .top) {
                 VStack(spacing: 0) {
-                    BioStripView(measuring: running,
-                                 onStartPulse: { startBiofeedback() })
-                        // The chrome's pulse button (TransportBar, next to Play — founder
-                        // 2026-07-12) starts/stops the instrument through this
-                        // notification. Attached to an INNER row, not the root modifier
-                        // chain, so the body's metadata type stays untouched.
-                        .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
-                            toggleBiofeedback()
-                        }
-                        // Chrome doors (shell v3): Master/Export open their
-                        // dropdown; Live/Learn their existing sheets. Attached
-                        // to this INNER row like the toggle above (metadata law).
-                        .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
-                            switch note.object as? String {
-                            case "master": activeMenu = .master
-                            case "export": activeMenu = .export
-                            case "learn":  activeMenu = nil; showLearn = true
-                            #if canImport(MultipeerConnectivity)
-                            case "live":   activeMenu = nil; showLiveColabo = true
-                            #endif
-                            // Header output monitors (founder 2026-07-12): the
-                            // EchoelVideo tile opens the clips library panel, the
-                            // EchoelLux tile the routing sheet (existing slot —
-                            // slot reuse, no new modal).
-                            case "video":   activeMenu = .video; showVideoLibrary = true
-                            case "routing": activeMenu = nil; showRouting = true
-                            default: break
-                            }
-                        }
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             // Session first (founder: "wow in den ersten 10 Sekunden ·
@@ -1197,6 +1199,7 @@ struct EchoelStudioView: View {
     /// (freeze rule 10.76.41/50).
     private var dropdownContent: AnyView {
         switch activeMenu {
+        case .bio:         return AnyView(bioPanel)
         case .composition: return AnyView(compositionPanel)
         case .session:     return AnyView(sessionPanel)
         case .transpose:   return AnyView(transposePanel)
@@ -1210,6 +1213,35 @@ struct EchoelStudioView: View {
         case .video:       return AnyView(videoPanel)
         case nil:          return AnyView(EmptyView())
         }
+    }
+
+    /// B3: the bio strip's new home. The live numbers (HR/HRV/Br/Coh),
+    /// tap-to-learn and the source control render UNCHANGED inside the
+    /// dropdown — BioStripView stays the leaf that reads the 10 Hz camera
+    /// state (freeze rule), so opening this panel never churns the root body.
+    /// Sources: camera pulse starts right here; the BLE strap connects via
+    /// Routing (its "Herzgurt (BLE)" port is the door, B4); Watch via Health.
+    private var bioPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            BioStripView(measuring: running, onStartPulse: { startBiofeedback() })
+            Text("Camera pulse starts here. A BLE chest strap connects in Routing (wire \u{201E}Herzgurt (BLE)\u{201C}); Apple Watch feeds in through Health.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                activeMenu = nil
+                showRouting = true
+            } label: {
+                Label("Open Routing", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
+                    .padding(.horizontal, 12).frame(height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open Routing to connect a BLE heart-rate strap")
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
     }
 
     /// The Video window (founder 2026-07-12): the durable recordings library —

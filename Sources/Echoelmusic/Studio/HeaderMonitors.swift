@@ -127,9 +127,16 @@ struct PulseMonitorMiniLive: View {
             .onTapGesture {
                 NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
             }
+            // B3: long-press opens the Bio dropdown (numbers, tap-to-learn,
+            // source) — the fallen strip's depth, one gesture behind the
+            // glanceable monitor. Same chrome-door decoupling as the tiles.
+            .onLongPressGesture {
+                NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
+            }
             .accessibilityAddTraits(.isButton)
-            .accessibilityHint(cameraRPPG.isRunning ? "Stops the pulse reading"
-                                                    : "Starts reading your pulse")
+            .accessibilityHint(cameraRPPG.isRunning
+                ? "Stops the pulse reading. Touch and hold for details and sources."
+                : "Starts reading your pulse. Touch and hold for details and sources.")
     }
 }
 #endif
