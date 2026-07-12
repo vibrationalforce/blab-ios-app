@@ -759,7 +759,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // tier degrading (reduce-motion / detail) under thermal load?
             if nowGov - lastDiagLog > 5 {
                 lastDiagLog = nowGov
-                log.log(.info, category: .system, String(format:
+                // BREADCRUMB, not os_log: the founder's pastable device log IS the
+                // EchoelCrashLog stream — every earlier "bitte Log mit offenem
+                // Visual" round failed because this line only went to os_log,
+                // which that log never contains (solved 2026-07-12).
+                EchoelCrashLog.breadcrumb(String(format:
                     "visual: bio=%d mfNotes=%d level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f",
                     bio != nil ? 1 : 0, mf?.notes.count ?? -1, musicLevel,
                     musicTone ?? 0, playedNotes.count,

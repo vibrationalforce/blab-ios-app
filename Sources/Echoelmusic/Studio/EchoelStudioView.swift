@@ -3105,12 +3105,13 @@ struct EchoelStudioView: View {
         EchoelCrashLog.breadcrumb("Start tapped")
         running = true
         bus.setInstrumentRunning(true)   // chrome mirror (TransportBar pulse button)
-        // THE PERFORMANCE MOMENT (founder 2026-07-06B: "wow", music + visual as ONE
-        // experience): Start takes the immersive visual FULLSCREEN for the take.
-        // Stop restores what the user had before — unless they changed the window
-        // themselves mid-take (their in-take choice is respected, see stop path).
-        // The fullscreen overlay's size button is the obvious one-tap way out.
-        goImmersiveForTake()
+        // NO forced visual anymore (founder 2026-07-12: "Visuals Fenster muss
+        // nicht direkt angehen beim Biofeedback. Ein Hinweis kommt ja über das
+        // Monitor Fenster oben rechts."): Start no longer stages the fullscreen
+        // visual — the header monitor is the living hint, the user opens the
+        // window when they want it. goImmersiveForTake()/restorePreTakeVisual()
+        // stay in code (reversible); the restore call is a no-op while nothing
+        // stages. This supersedes the 2026-07-06B auto-fullscreen behaviour.
         // One fresh musical identity PER TAKE: the pre-lock (no-body) structure seed is
         // drawn here once and then held, so warm-up recomposes/edits stay the same piece.
         takeFallbackSeed = UInt64.random(in: 1...UInt64.max)
