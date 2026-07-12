@@ -54,8 +54,12 @@ enum VideoMuxer {
             return nil
         }
 
-        let outURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("echoel_visual_\(Int(Date().timeIntervalSince1970)).mp4")
+        // Persist the FINAL A/V clip in the durable library (Documents/Videos) —
+        // the Video window lists this folder, so a finished recording survives
+        // relaunch instead of dying in tmp. Temp only as a fallback.
+        let outURL = (try? VideoRecorder.makeOutputURL())
+            ?? FileManager.default.temporaryDirectory
+                .appendingPathComponent("echoel_visual_\(Int(Date().timeIntervalSince1970)).mp4")
         do {
             // iOS-18 async export (the completion-handler `exportAsynchronously` is
             // deprecated → would break the -warnings-as-errors build).
