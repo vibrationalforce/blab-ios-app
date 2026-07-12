@@ -1,22 +1,24 @@
-build: 2026-07-12 v10.79.180 (Puls-Messung erholt sich jetzt sauber nach iOS-Kamera-Pausen)
+build: 2026-07-12 v10.79.181 (F hat wieder eine Farbe · Chords färben das Visual · der Tonkreis schließt sich)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein neuestes 2284-Log war der Schlüssel — es zeigt ZWEI Dinge:
-  · BESTÄTIGT: die Kamera-Unterbrechungen mitten im Lauf kamen vom
-    versehentlichen Wisch am unteren Rand (App wurde kurz inaktiv).
-    Der Rand-Schutz aus v10.79.179 zielt genau darauf.
-  · NEUER FUND + FIX: nach so einer Unterbrechung kam die Kamera
-    einmal komplett überbelichtet zurück (R=1.00) und blieb ~35 s
-    blind. Ursache: während der Pause lief die Belichtungs-Automatik
-    auf eingefrorenen Werten weiter — sie hat „blind" gelockt und ihr
-    gesamtes Relock-Budget verbrannt; der blinde Lock überlebte die
-    Wiederaufnahme. Jetzt: die Belichtungs-Maschine FRIERT während
-    einer iOS-Pause ein und beim Wiederanlauf wird die Belichtung
-    aktiv auf Automatik zurückgesetzt — die Messung startet sauber
-    neu statt gesättigt hängenzubleiben.
-  Außerdem in v179 (läuft parallel zu dir): Werte in alle Richtungen
-  ziehen + der erste Wisch unten gehört der App.
-  Weiterhin gewünscht: einmal mit OFFENEM Visual spielen + Log —
-  auch dieses Log hatte keine visual:-Zeilen.
-  Gates: Quick Test + Xcode Compile Check + CI/CD auf 6766a50.
-  NEEDS-FOUNDER-VERIFY (Puls-Verhalten nach Unterbrechung, unterer
-  Rand, Zieh-Gefühl).
+notes: Dein Screenshot (F fehlt, Chords unsichtbar, alles grau) hat den
+  Kern getroffen — EIN Wurzelfehler, drei Symptome:
+  · Das sichtbare Licht ist knapp mehr als EINE Oktave. Beim Falten
+    der Töne ins Licht gibt es deshalb eine NAHT — und bei Kammerton
+    440 liegt genau F darauf (390/780 nm, wo das Auge nichts mehr
+    sieht → schwarz; E und G daneben nur noch dunkel).
+  · Ein Akkord in dieser Region ergab schwarze Noten-Wolken → das
+    Visual fiel auf sein neutrales Grau zurück: „Chords werden gar
+    nicht visualisiert" + „alles sehr grau".
+  · FIX — der Tonkreis schließt sich jetzt wie der Farbkreis: über
+    die CIE-PURPURLINIE (die echte kolorimetrische Verbindung von
+    Rot- und Violett-Ende; Purpur ist wahrgenommene Physik, nur eben
+    nicht monochromatisch). F ist jetzt Purpur/Magenta, G Karmin,
+    jede der 12 Tonklassen sichtbar — bei 440 UND 432. A bleibt
+    exakt das spektrale Rot, das es war.
+  Gilt überall gleich: Notenraster, Spielflächen-Spalten, Noten-
+  Wolken im Visual, Touch-Ripples (Grid und Visual bleiben Zwillinge).
+  Tests decken alle Halbtöne C2–C7, beide Kammertöne, Naht-Stetigkeit.
+  Außerdem an Bord: v180-rPPG-Fix (Belichtung friert bei iOS-Pausen
+  ein statt blind zu locken).
+  Gates: Quick Test + Xcode Compile Check + CI/CD auf b577047.
+  NEEDS-FOUNDER-VERIFY: F-Spalte im Raster, Akkord-Farben im Visual.
