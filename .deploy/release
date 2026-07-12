@@ -1,28 +1,22 @@
-build: 2026-07-12 v10.79.175 (DMMW-Produktions-Shell: Menüleiste + Dropdowns · Kammerton-Farben · Video-Fenster · AUv3-Tür · E~ · Timeline-Design)
+build: 2026-07-12 v10.79.176 (Spur-Türen: Sound & FX + AUv3 direkt auf den Spuren)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Die DMMW-Sitzung — alles in EINEM Build:
-  · PRODUKTIONS-SHELL: Der Karten-Stapel ist weg. Oben eine Menüleiste mit
-    kleinen Chips (Comp · Session · Transp · Sound · Mix · FX · Master ·
-    Mood · Export · Synth · Video · Plugins · Live · Learn) — es öffnet
-    EIN Dropdown im Hauptfenster, Tipp daneben schließt. DAW-Feeling.
-  · PLUGINS (AUv3): Der „Plugins"-Chip öffnet den Audio-Unit-Browser —
-    lade einen AUv3-Synth und die MIDI-Noten der Piano Roll spielen IHN
-    (Schalter: Plugin statt/zusätzlich zur Echoel-Stimme). Effekte auf
-    Kanal oder Master-Bus. Bitte mit deinen AUv3-Apps testen!
-  · KAMMERTON-FARBEN: Piano-Roll-Raster, Notenblöcke und Griffbrett
-    tragen die physische Tonfarbe der ECHTEN Frequenz — 440→432 Hz
-    verschiebt sichtbar die Farben des ganzen Notenrasters.
-  · VIDEO-FENSTER: „Video"-Chip → Clip-Bibliothek (Visual + Master-Mix,
-    gemuxt), Inline-Wiedergabe, Teilen, Löschen. Clips überleben jetzt
-    den Neustart (landen in Dokumente/Videos).
-  · SESSION-NAME: beginnt mit E~ (E~_2026-07-12_Alyd_100bpm_A440).
-  · BPM-FIX: Stop mitten im Tempo-Gleiten strandete die Uhr (Feld sagte
-    100, Name ehrlich 64, Play lief 64) — Stop landet den Glide jetzt am
-    Ziel; Uhr/Name/Lock/Klick immer einig.
-  · TIMELINE-DESIGN: Kind-Farben (MIDI grün · Audio amber) auf Spurkopf
-    UND Regionen, echtes Lineal mit Takt-/Beat-Ticks, Beat-Raster beim
-    Zoomen, breitere Spurköpfe, „HRV 15.."-Abschneiden behoben.
-  NEEDS-FOUNDER-VERIFY: Menüleisten-Feeling, AUv3-Klang, Video-Playback,
-  Rasterfarben bei 432 Hz, Timeline-Look. Für die Visual-Diagnose (V1):
-  bitte kurz mit OFFENEM Visual spielen und das Log schicken.
-  Gates: alle grün bis b6c5943 (Shell-Review ship-safe, Härtungen drin).
+notes: Deine Anweisung "Teile das sinnvoll in die Spuren auf. Externe AUv3
+  inbegriffen" — das Spurkopf-Menü (Pfeil neben dem Spurnamen) trägt jetzt
+  den Klang der Spur:
+  · „Sound & FX (this track)" auf MIDI-Spuren: Filter (Off/LP/HP) +
+    Cutoff · Resonance · Drive — der Melodic-Bus-Insert, LIVE auf beide
+    Roll-Stimmen (Fläche + Lead). Dieselbe Einstellung wie Mix › Melodic:
+    eine Quelle, zwei Türen.
+  · „AUv3 plugins" auf jeder Media-Spur: öffnet den Audio-Unit-Browser
+    direkt von der Spur — externe Synths/Effekte, wo die Spur lebt.
+  · Alles durch den EINEN bestehenden Sheet-Slot der Timeline — kein
+    neues Modal (Stabilitäts-Gesetz).
+  Ehrliche Grenze (steht auch im Editor): alle MIDI-Spuren teilen sich
+  heute noch den einen Piano-Roll-Slot — „Sound & FX" formt DEN
+  melodischen Klang. Multi-Roll (eigene Roll + eigenes AUv3 pro Spur)
+  ist der nächste Ausbauschritt.
+  PLUS aus v175 zum Testen, falls noch nicht probiert: Plugins-Chip
+  (AUv3-Synth hören!), Video-Chip, 432-Hz-Rasterfarben — und bitte einmal
+  mit OFFENEM Visual spielen + Log schicken (visual:-Diagnosezeilen).
+  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf 07810ba.
+  NEEDS-FOUNDER-VERIFY (Spur-Türen-Feeling, Live-Wirkung der Filter).
