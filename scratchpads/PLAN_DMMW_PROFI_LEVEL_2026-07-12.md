@@ -58,13 +58,15 @@ Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
 
 - [x] A0 — AutomationLane-Krümmung (Ableton Alt+Drag als Modell) — DONE
       (e5a49a0, curvature −1…1, shapedFraction, 6 Tests, decodeIfPresent).
-- [ ] A1 — **Note-Operators-Modell** (Bitwig-Klasse, schlägt Live 12):
+- [x] A1 — **Note-Operators-Modell** — DONE (2492488 Modell + 2513bb8 Wiring:
+      Chance+Occurrence gaten im Trigger; Repeats warten auf Sub-Step-Clock W2):
       `NoteOperators` (chance 0…1 · repeats 1…n mit Velocity-Ramp ·
       occurrence n-ter-Loop) als optionales Feld auf `Note` —
       decodeIfPresent-Migration wie curvature; deterministische Auswertung
       (seed = loopIndex×noteID-Hash, KEIN Math.random im Audio-Pfad);
       PatternEngine/BeatPlayer werten beim Scheduling aus. TDD.
-- [ ] A2 — **Strum + Humanize als Ein-Gesten-Transform** auf Roll-Selektion /
+- [x] A2 — DONE als pure Kerne (a887fb9; Roll-Tür = späterer Zyklus) —
+      **Strum + Humanize als Ein-Gesten-Transform** auf Roll-Selektion /
       BioComposer-Output: pure `NoteTransform`-Funktionen (strum: Zeitfächer +
       Velocity-Gefälle; humanize: begrenzte deterministische Jitter) + Tests;
       Tür = bestehender Roll-Kontext (kein neues Modal).
@@ -72,7 +74,9 @@ Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
       Piano-Roll-Host — Tap=Punkt, Drag=verschieben, Segment-Drag=Krümmung
       (setCurvature), Raster-Snap, Doppel-Tap=löschen; Touch-first, ein
       Canvas-View, kein neues Sheet. Danach: Shape-Stempel (Live hat KEINE).
-- [ ] A4 — **Bio-Operators** (Alleinstellung, macht niemand): Kohärenz→Chance-
+- [x] A4 — DONE (87fd02e: bioBentChance — Kohärenz verschiebt die Würfel-
+      Schwelle nur bei 0<chance<1; Roll bleibt geseedet) —
+      **Bio-Operators** (Alleinstellung, macht niemand): Kohärenz→Chance-
       Skalierung, Puls→Ramp-Tempo — Kopplung NoteOperators×BioSnapshot als
       pure Funktion + Tests; Tür über bestehende Bio-Mod-UI.
 - [ ] A5 — **Bio als per-Note-Expression** (unbesetzte Marktposition):
