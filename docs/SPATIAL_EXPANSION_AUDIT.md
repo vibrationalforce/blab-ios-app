@@ -1,8 +1,10 @@
-# SPATIAL_EXPANSION_AUDIT.md — Phase 0 (2026-07-12)
+# SPATIAL_EXPANSION_AUDIT.md — Phase 0 (2026-07-12, aktualisiert für Prompt v2.0)
 
-Phase-0-Gate des Founder-Prompts "ECHOELMUSIC SPATIAL EXPANSION v1.0"
-(Immersive Spatial Audio · Bio-Driven Space · AV Objects · Performer Tracking ·
-Global Live Collaboration). Kein Code geändert — dieses Dokument IST das Gate.
+Phase-0-Gate des Founder-Prompts "ECHOELMUSIC SPATIAL EXPANSION" —
+**v2.0 (CONSOLIDATED) gilt; v1.0 superseded.** §§1–5 unten (v1-Kartierung der
+Layer 1–5) bleiben gültig; §6 ergänzt die v2-Neuerungen: Prinzipien P1–P4,
+Layer 6 (EchoelRender), Layer 7 (Motion & Show Control), P4-Inventar,
+bestätigte Zyklus-Reihenfolge. Kein Code geändert — dieses Dokument IST das Gate.
 
 **Verfassungs-Check:** `CLAUDE.md` gelesen (überstimmt den Prompt bei Konflikt),
 `docs/dev/COLLAB_SYNC_TRIAGE.md` gelesen (existiert, founder-kuratiert
@@ -171,3 +173,96 @@ Founder-Device-Verifikation pro Gate.
 - Layer-5-Bandbreite: ColabPayload synct heute BioPeek (bpm/hrv/…) zwischen
   Peers — der Prompt verbietet Roh-Biosignale in L5; BioPeek ist abgeleitet
   und bleibt damit konform, im ADR-002 explizit festhalten.
+
+---
+
+## 6. v2.0-ERGÄNZUNG (Prinzipien P1–P4 · Layer 6 · Layer 7 · Zyklus-Bestätigung)
+
+### 6.1 P1 — Capability, not platform: Fundament existiert
+
+`AdaptiveQuality` + `ResourceGovernor` (thermal/battery/measured-FPS → Tier)
+sind exakt das geforderte Muster, heute nur fürs Visual. `DeviceCapability`
+erweitert es um: Output-Kanalzahl (AVAudioSession `outputNumberOfChannels` /
+Core-Audio-Route), Sensor-Verfügbarkeit, Headphone-Motion. Kein Plattform-Gate
+im Bestand gefunden, das dem widerspricht (die `#if os()`-Guards sind
+Compile-Guards, keine Feature-Gates).
+
+### 6.2 P2 — Session-Rollen: Modell fehlt, Träger existiert
+
+`ColabPayload` (kind/senderName/project/bio) + `MultipeerSession` sind der
+Träger; ein Rollen-/Ownership-Modell (`author`/`performer`/`renderer`/
+`mixControl`/`observer`, ownerPeer auf Objekten) fehlt und gehört als reines
+Value-Type-Modell in den portablen Kern (S1-Nachbar).
+
+### 6.3 P3 — Protocol-first: halbe Miete vorhanden
+
+OSC-Adressraum ist dokumentiert (CLAUDE.md `/echoelmusic/*`; ADM-OSC
+`/adm/obj/{n}/*` live). Fehlt: `docs/ECHOEL_SESSION_PROTOCOL.md` (versioniertes
+JSON-Schema für Szene/Layout/Session) — wird mit S1 (Szenen-Modell) im selben
+Zyklus geboren, nicht nachträglich.
+
+### 6.4 P4 — Portable core: Inventar (heute, gemessen an Imports)
+
+**Bereits P4-konform (Foundation/Observation only):** BinauralPanner,
+EchoelDelayLine, SPSCQueue, EngineBus, ModulationEngine, WeatherMood,
+AdaptiveQuality, SpectralColor, ColabPayload, SessionNaming, die Protected
+Triad (BioEventGraph etc.), BioSampleFrame/MusicalFrame.
+**Network zusätzlich (portabel-ok, Linux hat Network nicht → Adapter-Grenze
+bei echter Portierung):** OSCSender, ADMOSCSender.
+**P4-VERSTOSS (einziger im Kern-Kandidatenkreis):** `Sync/MultipeerSession.swift`
+importiert **UIKit** — bei Layer-5-Arbeit hinter ein Transport-Protokoll ziehen
+(Inventar-Auftrag erfüllt; kein Fix jetzt).
+**Struktur-Realität:** ein einziges SwiftPM-Target, kein Paket-Split. Echte
+`EchoelSpace`/`EchoelRenderKit`-Pakete = Restrukturierung (project.yml, CI,
+Xcode-Gate). Phase-0-Empfehlung: **Stufe 1 = Verzeichnis-Disziplin + Import-Bann
+als CI-Grep** (headless-Job prüft `import UIKit|SwiftUI|AppKit` in den
+Kern-Pfaden), **Stufe 2 = echter Paket-Split als eigener, Council-gegateter
+Zyklus** — nicht nebenbei.
+
+### 6.5 Layer 6 — EchoelRender: 0 % Code, 2 echte Struktur-Gates
+
+Nichts Vorhandenes rendert Multichannel; `AudioEngine` ist Stereo-Master mit
+−1-dBFS-Trim. VBAP/MDAP, Layout-Editor, Kalibrierung, OSC-in-Server: alles neu.
+**Gate A (Struktur):** neues macOS-App-Target `EchoelRender` kollidiert mit
+CLAUDE.md "keine neuen Targets ohne Approval" und "iPhone-only v10; Mac
+v1.1+" — der v2-Prompt IST die Founder-Anweisung, aber die Ausführung braucht
+project.yml-/CI-Umbau → eigener Zyklus mit Xcode-Gate, NACH den puren Slices.
+**Gate B (Hardware):** 6-Ring/Interface/M-Series-Abnahme ist physisch
+(Chris' Rig, FletcherMachine Virtual auf einem Mac) — reine Founder-Gates.
+Vorher liefert der portable Kern (VBAP-Mathe, Layout-JSON, FDN) alles
+CI-beweisbar: **VBAP-Gain-Vektoren + Layout-Roundtrip + OSC-Fuzzing sind
+Linux-testbar, bevor irgendein Mac-Target existiert.**
+
+### 6.6 Layer 7 — Motion & Show Control: Determinismus-Präzedenz existiert
+
+Trajektorien-Engine/Extent-Clouds/Cue-System: nicht vorhanden. ABER die
+tragende Anforderung — **deterministisch, seed-basiert, identisch auf jedem
+Peer** — ist im Repo bewiesene Praxis: `BioComposer` fährt einen expliziten
+Structure/Detail-RNG-Split (seed → identische Struktur), und der
+Geschäftsmodell-Beschluss 2026-07-10B basiert auf genau dieser Eigenschaft
+("Puls + Partitur syncen, beide Geräte rendern lokal dieselbe Musik").
+MotionEngine verallgemeinert das aufs Räumliche: (seed, t) → Position, pure,
+100-Hz-Control-Rate. LTC/MTC-Empfang: kein Bestand, Adapter-isoliert planen.
+Cue-Snapshots: `MoodPresetStore`/`FXPresetStore`/`ProjectStore` sind die
+vorhandenen Snapshot-Muster. Doppler: OFF-by-default bestätigt (Ring-Artefakte).
+
+### 6.7 Zyklus-Reihenfolge v2 (0→1→2→6→7→3→4→5): BESTÄTIGT mit einer Präzisierung
+
+Die pure Vorstufe bleibt wie in §4: **S0 FeatureFlags → S1 SpatialScene(+P2-
+Rollen +P3-Protokolldoc) → S2 Dual-Dialekt-OSC (IEM+ADM) → S3 BioSpaceMap →
+S4 FDN-Kern** — alles Linux-/CI-beweisbar, flags OFF, TestFlight-neutral.
+Dann v2-Reihenfolge: **S5 = Layer-6-Kernmathe (VBAP/Layout-JSON, noch ohne
+Target)** → **S6 = EchoelRender-Target (Struktur-Zyklus, Founder-Gate)** →
+**S7 = Layer 7 MotionEngine (pure) → Show Control** → Layer 3 → 4 → 5.
+Präzisierung gegenüber dem Prompt: die TARGET-Erzeugung (6) wird von der
+KERNMATHE (6) getrennt, damit der Markt-Pfad (Rig mit Chris) nicht am
+CI-/project.yml-Risiko hängt.
+
+### 6.8 Neue/erweiterte ADRs
+
+- ADR-004 **Cross-Platform-Strategie** (v2 §Roadmap; documentation-only) —
+  liegt als `docs/adr/004-cross-platform-strategy.md` bei diesem Gate.
+- ADR-005 **Paket-Split** (P4 Stufe 2): wann/wie SwiftPM-Mehrpaket-Struktur.
+- ADR-006 **Automerge vs. eigener LWW-CRDT** (Layer 5; Zero-Dep-Politik
+  spricht für minimalen eigenen LWW — im ADR entscheiden, nicht implizit).
+- ADR-001/002/003 aus §3 unverändert gültig.
