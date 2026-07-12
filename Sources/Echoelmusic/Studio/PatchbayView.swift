@@ -14,6 +14,10 @@ struct PatchbayView: View {
 
     @Environment(SignalRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
+    #if canImport(Network)
+    @Environment(ArtNetSender.self) private var artNet
+    @Environment(SACNSender.self) private var sacn
+    #endif
 
     /// `true` when hosted as a workspace surface rather than a sheet.
     var embedded = false
@@ -39,6 +43,9 @@ struct PatchbayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 headerBar
+                #if canImport(Network)
+                lichtSection
+                #endif
                 ForEach(router.graph.sources) { src in
                     sourceCard(src)
                 }
@@ -50,6 +57,53 @@ struct PatchbayView: View {
         }
         .background(EchoelTheme.bg)
     }
+
+    #if canImport(Network)
+    // MARK: - Licht (L1: Grand Master + Blackout, drives Art-Net AND sACN)
+
+    private var lichtSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Licht").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            HStack(spacing: 10) {
+                EchoelValueField(label: "Master", value: grandMasterBinding,
+                                 range: 0...1, unit: "", decimals: 2)
+                Button {
+                    let newState = !artNet.blackout
+                    artNet.blackout = newState
+                    sacn.blackout = newState
+                } label: {
+                    Text(artNet.blackout ? "Blackout AN" : "Blackout")
+                        .font(EchoelTheme.font(13, .semibold))
+                        .foregroundStyle(artNet.blackout ? EchoelTheme.onPrimary : EchoelTheme.text)
+                        .padding(.horizontal, 14).frame(height: 40)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(artNet.blackout ? EchoelTheme.danger : Color.clear))
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(artNet.blackout ? EchoelTheme.danger : EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(artNet.blackout ? "Blackout aktiv — Licht wieder einschalten" : "Blackout — Licht sofort dunkel")
+            }
+            Text("Master skaliert die Helligkeit aller gesendeten Lichtdaten (Art-Net + sACN). Blackout schaltet sofort dunkel; das Zurückkommen blendet flimmerfrei ein.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    /// One fader, both protocols — the patchbay is the "kleines Lichtpult".
+    private var grandMasterBinding: Binding<Float> {
+        Binding(
+            get: { artNet.grandMaster },
+            set: { v in
+                artNet.grandMaster = v
+                sacn.grandMaster = v
+            }
+        )
+    }
+    #endif
 
     // MARK: - Header
 

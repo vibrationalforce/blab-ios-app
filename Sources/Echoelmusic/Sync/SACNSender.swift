@@ -51,10 +51,19 @@ public final class SACNSender {
     public private(set) var isActive = false
     public private(set) var lastSentTimestamp: TimeInterval = 0
 
+    /// L1 Grand Master + Blackout — same law as Art-Net
+    /// (`ArtNetSender.masteredDimmer`): blackout wins, master scales. Live
+    /// state, not persisted; the PatchbayView "Licht" section drives both
+    /// senders together.
+    public var grandMaster: Float = 1
+    public var blackout = false
+
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var connection: NWConnection?
     @ObservationIgnored private let loop = PollingLoop()
     @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
+    @ObservationIgnored private var lastSentGrandMaster: Float = 1
+    @ObservationIgnored private var lastSentBlackout = false
     @ObservationIgnored private var sequence: UInt8 = 0
     /// Sender CID — stable per instance (E1.31 requires a unique component id).
     @ObservationIgnored private let cid: [UInt8]
@@ -105,18 +114,29 @@ public final class SACNSender {
         // Dedup on the chosen source's timestamp. (sACN shares Art-Net's mapping.)
         let music = bus.freshMusical(maxAge: 1.5)
         let sourceTimestamp: TimeInterval
-        let channels: [UInt8]
+        var channels: [UInt8]
+        let dimmer: Float
         if let m = music, m.isSounding {
             sourceTimestamp = m.timestamp
             channels = MusicMediaMap.dmxChannels(forMusic: m, resolution: resolution)
+            dimmer = MusicMediaMap.dimmerUnit(forMusic: m)
         } else if let frame = bus.latestBio {
             sourceTimestamp = frame.timestamp
             channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
+            dimmer = ArtNetSender.dimmerUnit(for: frame)
         } else {
             return
         }
-        guard sourceTimestamp != lastFrameTimestamp else { return }
+        // A Grand-Master/Blackout change must send even on a stale source
+        // (a paused bio stream must never block a blackout).
+        let masterMoved = grandMaster != lastSentGrandMaster || blackout != lastSentBlackout
+        guard sourceTimestamp != lastFrameTimestamp || masterMoved else { return }
         lastFrameTimestamp = sourceTimestamp
+        lastSentGrandMaster = grandMaster
+        lastSentBlackout = blackout
+        ArtNetSender.applyDimmer(&channels, resolution: resolution,
+                                 dimmer: ArtNetSender.masteredDimmer(dimmer, grandMaster: grandMaster,
+                                                                     blackout: blackout))
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)

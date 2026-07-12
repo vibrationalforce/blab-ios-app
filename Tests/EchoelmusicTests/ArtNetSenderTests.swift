@@ -165,5 +165,27 @@ final class ArtNetSenderTests: XCTestCase {
         while v < 1.0 - 1e-9 && steps < 1000 { v = FlashGuard.limitedLuminance(from: v, to: 1.0, maxDelta: 0.08); steps += 1 }
         XCTAssertGreaterThanOrEqual(steps, 12)
     }
+
+    // MARK: - L1 Grand Master + Blackout (masteredDimmer law)
+
+    func testMasteredDimmer_blackoutWinsOverEverything() {
+        XCTAssertEqual(ArtNetSender.masteredDimmer(1.0, grandMaster: 1, blackout: true), 0)
+        XCTAssertEqual(ArtNetSender.masteredDimmer(0.5, grandMaster: 0.1, blackout: true), 0)
+    }
+
+    func testMasteredDimmer_grandMasterScalesLinearly() {
+        XCTAssertEqual(ArtNetSender.masteredDimmer(0.8, grandMaster: 0.5, blackout: false),
+                       0.4, accuracy: 1e-6)
+        XCTAssertEqual(ArtNetSender.masteredDimmer(0.8, grandMaster: 1, blackout: false),
+                       0.8, accuracy: 1e-6)
+        XCTAssertEqual(ArtNetSender.masteredDimmer(0.8, grandMaster: 0, blackout: false), 0)
+    }
+
+    func testMasteredDimmer_clampsAndGuardsBadInput() {
+        XCTAssertEqual(ArtNetSender.masteredDimmer(2.0, grandMaster: 2.0, blackout: false), 1)
+        XCTAssertEqual(ArtNetSender.masteredDimmer(0.6, grandMaster: .nan, blackout: false),
+                       0.6, accuracy: 1e-6, "non-finite master reads as full")
+        XCTAssertEqual(ArtNetSender.masteredDimmer(-1, grandMaster: 0.5, blackout: false), 0)
+    }
 }
 #endif

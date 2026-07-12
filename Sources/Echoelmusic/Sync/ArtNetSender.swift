@@ -55,6 +55,15 @@ public final class ArtNetSender {
     public private(set) var isActive = false
     public private(set) var lastSentTimestamp: TimeInterval = 0
 
+    /// L1 Grand Master (every lighting desk's first fader): scales the dimmer
+    /// of everything Echoel sends, 0…1. Live state, not persisted — a fresh
+    /// launch always starts at full (predictable for the operator).
+    public var grandMaster: Float = 1
+    /// L1 Blackout: forces the dimmer to 0 NOW (a one-off cut to dark is not a
+    /// flash; the RETURN to light rides the normal slew-limiter, so it can
+    /// never strobe). Colour channels keep streaming so un-blackout is seamless.
+    public var blackout = false
+
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var connection: NWConnection?
     @ObservationIgnored private let loop = PollingLoop()
@@ -63,6 +72,11 @@ public final class ArtNetSender {
     /// Last dimmer (luminance) value actually sent, for the flash slew-limiter.
     /// -1 = none yet. Reset on stop so a restart doesn't slew from a stale value.
     @ObservationIgnored private var lastDimmer: Float = -1
+    /// Master state as of the last packet — a Grand-Master/Blackout change must
+    /// send even when the source timestamp is unchanged (a stale bio source
+    /// must never block a blackout).
+    @ObservationIgnored private var lastSentGrandMaster: Float = 1
+    @ObservationIgnored private var lastSentBlackout = false
 
     public init(host: String = "255.255.255.255", port: UInt16 = 6454, universe: Int = 0) {
         self.host = host
@@ -124,14 +138,29 @@ public final class ArtNetSender {
         } else {
             return
         }
-        guard sourceTimestamp != lastFrameTimestamp else { return }
+        // Grand Master scales the target; Blackout cuts to 0 instantly (and
+        // resets the slew anchor, so the return to light ramps up from dark).
+        let mastered = Self.masteredDimmer(target, grandMaster: grandMaster, blackout: blackout)
+        // Send when the source is fresh, the master state moved, or the slew
+        // ramp hasn't reached its target yet (a paused source must not freeze
+        // a fade mid-ramp, and must never block a blackout).
+        let masterMoved = grandMaster != lastSentGrandMaster || blackout != lastSentBlackout
+        let slewSettling = lastDimmer >= 0 && abs(mastered - lastDimmer) > 0.001
+        guard sourceTimestamp != lastFrameTimestamp || masterMoved || slewSettling else { return }
         lastFrameTimestamp = sourceTimestamp
+        lastSentGrandMaster = grandMaster
+        lastSentBlackout = blackout
         // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer
         // (luminance) channel so even a pathological input jump can never strobe
         // the lights. ~0.08/tick at 30 Hz → full fade ≥0.4 s (~1.2 Hz max).
-        let limited = lastDimmer < 0
-            ? target
-            : Float(FlashGuard.limitedLuminance(from: Double(lastDimmer), to: Double(target), maxDelta: 0.08))
+        let limited: Float
+        if blackout {
+            limited = 0
+        } else if lastDimmer < 0 {
+            limited = mastered
+        } else {
+            limited = Float(FlashGuard.limitedLuminance(from: Double(lastDimmer), to: Double(mastered), maxDelta: 0.08))
+        }
         lastDimmer = limited
         Self.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
@@ -211,6 +240,15 @@ public final class ArtNetSender {
     /// `dmxChannels*` builders (0.3 + 0.7·coherence). Exposed for the slew path
     /// and tests.
     static func dimmerUnit(for f: BioSampleFrame) -> Float { clampUnit(0.3 + 0.7 * f.coherence) }
+
+    /// L1 master law, shared by Art-Net and sACN: Blackout wins (dimmer 0,
+    /// whatever the master says), otherwise the Grand Master scales the dimmer
+    /// linearly. Guards non-finite input; everything clamps to [0…1].
+    public static func masteredDimmer(_ dimmer: Float, grandMaster: Float, blackout: Bool) -> Float {
+        guard !blackout else { return 0 }
+        let gm = clampUnit(grandMaster.isFinite ? grandMaster : 1)
+        return clampUnit(dimmer) * gm
+    }
 
     /// Overwrites the dimmer channel(s) of an already-built DMX array with a
     /// (slew-limited) value. ch0 for 8-bit; ch0..1 (coarse/fine) for 16-bit.
