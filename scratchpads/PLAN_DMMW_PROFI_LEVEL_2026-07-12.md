@@ -28,9 +28,10 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
       + Quellen-Dots wandern in ein kompaktes Bio-Popover hinter dem
       Header-Puls (kein neues Sheet — Slot-Reuse showInput? NEIN — Popover/
       Dropdown im bestehenden Menü-Host).
-- [ ] B4 — #21 BLE-Herzgurt: PolarH10BioPublisher.start()-Hook (Quelle-Picker
-      im Bio-Popover: Kamera/Gurt/Demo) + applyRouting-Tür. NEEDS-FOUNDER-
-      VERIFY mit Gurt am Milestone.
+- [x] B4 — KERN DONE (6ba61e5: "Herzgurt (BLE)"-Source-Port im Patchbay +
+      applyRouting-Start/Stop-Hook; Permission-Prompt = Verdrahtungs-Tap;
+      Quelle-Picker Kamera/Gurt/Demo folgt mit B3) — #21 BLE-Herzgurt.
+      NEEDS-FOUNDER-VERIFY mit Gurt am Milestone.
 - [ ] B5 — SampleBrowser als Drum-Spur-Tür (ArrangeModal .sample, laneDoor
       auf Drum-Lanes; Slot sampleBrowserTrack existiert).
 - [ ] B6 — #19 BLE-MIDI-Kopplung: CABTMIDICentralViewController als Inhalt
