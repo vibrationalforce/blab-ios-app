@@ -6,6 +6,12 @@ import SwiftUI
 /// toggles. Decoupled — the chrome never reaches into the studio view.
 extension Notification.Name {
     static let echoelToggleBio = Notification.Name("echoel.toggleBio")
+    /// Chrome → studio global doors (founder 2026-07-12 shell v3: "Master,
+    /// Export, Live und Learn kommt oben in die Leiste neben das Schloss").
+    /// `object` = the door name ("master" · "export" · "live" · "learn"); the
+    /// studio listens and opens its dropdown/sheet — same decoupling as the
+    /// pulse button, the chrome never reaches into studio state.
+    static let echoelChromeDoor = Notification.Name("echoel.chromeDoor")
 }
 
 // WorkspaceView.swift
@@ -214,6 +220,20 @@ private struct TransportBar: View {
 
             lockButton
 
+            // Global doors in the chrome, next to the lock (founder 2026-07-12,
+            // shell v3): Master · Export · Live · Learn. Icon chips posting the
+            // door notification — the studio opens its dropdown/sheet.
+            doorButton("slider.vertical.3", door: "master",
+                       a11y: "Master — loudness, output")
+            doorButton("square.and.arrow.up", door: "export",
+                       a11y: "Export — WAV loop")
+            #if canImport(MultipeerConnectivity)
+            doorButton("dot.radiowaves.left.and.right", door: "live",
+                       a11y: "Live Colabo — play together nearby")
+            #endif
+            doorButton("book", door: "learn",
+                       a11y: "Learn and news")
+
             Spacer(minLength: 0)
 
             TransportPositionView()
@@ -273,6 +293,24 @@ private struct TransportBar: View {
         .contentShape(Rectangle().inset(by: -6))   // 44 pt-class target (HIG)
         .accessibilityLabel(lockBPM ? "Tempo locked — tap to let it follow the body" : "Lock tempo")
         .accessibilityHint("When locked, the beat holds and biofeedback only shapes the sound")
+    }
+
+    /// One compact chrome door: posts the studio's door notification.
+    private func doorButton(_ icon: String, door: String, a11y: String) -> some View {
+        Button {
+            NotificationCenter.default.post(name: .echoelChromeDoor, object: door)
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(EchoelTheme.text)
+                .frame(width: 30, height: 32)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle().inset(by: -5))
+        .accessibilityLabel(a11y)
     }
 
     private func toggle() {

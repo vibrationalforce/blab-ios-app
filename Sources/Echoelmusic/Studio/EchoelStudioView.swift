@@ -464,6 +464,20 @@ struct EchoelStudioView: View {
                         .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
                             toggleBiofeedback()
                         }
+                        // Chrome doors (shell v3): Master/Export open their
+                        // dropdown; Live/Learn their existing sheets. Attached
+                        // to this INNER row like the toggle above (metadata law).
+                        .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
+                            switch note.object as? String {
+                            case "master": activeMenu = .master
+                            case "export": activeMenu = .export
+                            case "learn":  activeMenu = nil; showLearn = true
+                            #if canImport(MultipeerConnectivity)
+                            case "live":   activeMenu = nil; showLiveColabo = true
+                            #endif
+                            default: break
+                            }
+                        }
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             // Session first (founder: "wow in den ersten 10 Sekunden ·
@@ -1067,36 +1081,19 @@ struct EchoelStudioView: View {
     /// of the studio zone (DAW feeling — "Die Buttons werden kleiner … oben im
     /// Menü"). Settings chips toggle the ONE dropdown; Live/Learn are direct doors
     /// to their existing sheet slots. Reads only low-frequency @State.
+    /// Shell v3 (founder 2026-07-12): the studio bar keeps only the INSTRUMENT
+    /// panels. Master/Export/Live/Learn moved to the chrome next to the lock
+    /// (TransportBar door buttons); the Plugins chip dissolved — AUv3 access
+    /// lives on the track doors (ArrangeTimelineView, since 07810ba). The
+    /// .master/.export dropdown cases stay: the chrome doors open them.
+    private static let studioChips: [StudioMenu] =
+        StudioMenu.allCases.filter { $0 != .master && $0 != .export }
+
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(StudioMenu.allCases) { m in
+                ForEach(Self.studioChips) { m in
                     menuChip(m)
-                }
-                Rectangle().fill(EchoelTheme.border)
-                    .frame(width: 1, height: 16)
-                // AUv3 plugins (founder 2026-07-12: "wie es klingt wenn ich AUv3
-                // Synth in die MIDI-Spuren integriere"): the ENTIRE pipeline has
-                // been live for a while — load an instrument here and the piano
-                // roll's notes drive it (layer or replace the built-in voice, its
-                // switch is in the browser) — but the door vanished with the old
-                // tools grid. This chip is the door; the sheet slot is EXISTING.
-                directChip("Plugins", icon: "puzzlepiece.extension",
-                           a11y: "Audio Unit plugins — host an AUv3 synth or effect") {
-                    activeMenu = nil
-                    showPlugins = true
-                }
-                #if canImport(MultipeerConnectivity)
-                directChip("Live", icon: "dot.radiowaves.left.and.right",
-                           a11y: "Live Colabo — play together nearby") {
-                    activeMenu = nil
-                    showLiveColabo = true
-                }
-                #endif
-                directChip("Learn", icon: "book",
-                           a11y: "Learn and news — how it works, safety") {
-                    activeMenu = nil
-                    showLearn = true
                 }
             }
             .padding(.horizontal, 10)

@@ -501,3 +501,18 @@ Architectural and strategic decisions with context and rationale.
 - **Bedeutung:** EchoelAI ist als KOMMANDO-Interface gedacht (nicht nur Narration):
   Kompositionswünsche, Settings, Routing, Videoschnitt, Songwriting. Eigener
   Grand-Council-würdiger Baustein, wenn der Founder ihn aufruft — nichts vorab bauen.
+
+### 2026-07-12 DMMW-Shell v3 + EchoelBioSynth-AUv3 (Founder-Anweisung nach v175)
+- **Verbatim-Kern:** "Master, Export, Live und Learn kommt oben in die Leiste neben das
+  Schloss. Video ist eine eigene Spur Art (Video Capture + voller Mediathek-Zugriff).
+  Mix wird Teil der Spuren (Auflösung und neu organisieren). Comp, Session, Transpose,
+  Sound, FX, Mood, Synth [+ 'Word' — unklar, vermutlich Autokorrektur; als 'alle übrigen
+  Instrument-Panels' gelesen, Weather inklusive] → eigenes AUv3 Plug-in EchoelBioSynth.
+  Plugins wird aufgelöst und Teil der Spuren — Zugriff auf ALLE installierten AUv3,
+  unser EchoelBioSynth, weitere eigene und externe Store-Plugins."
+- **Bedeutung:** Echoel = Host UND Instrument. Die Spur ist die Einheit (Klangquelle =
+  beliebiges AUv3, auch unseres); die Shell behält nur Chrome (Transport + globale
+  Türen). Der dormante EchoelmusicAUv3-Target wird zum PRODUKT (EchoelBioSynth).
+- **Plan:** scratchpads/PLAN_DMMW_SHELL_V3_2026-07-12.md (E1 Chrome → E2 Mix→Spuren →
+  E3 Video-Spur → E4 EchoelBioSynth-AUv3 → E5 per-Spur-Hosting). E1 sofort; E3/E4
+  device-gated, E4 mehrwöchig (eigener Plan + Council vor Target-Umbau).
