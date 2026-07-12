@@ -83,8 +83,18 @@ Decoded:
       → AudioClipPlayer at offset; per-lane level/mute/solo → engine. `NEEDS-FOUNDER-VERIFY` (audio).
 - [ ] **P4. Adaptive H/V** — extend `EchoelTheme.layout(h:v:)` + size-class into the mixer/timeline/panels;
       landscape = wide rack rows / timeline; portrait = stacked. Layout-only → render-safe.
-- [ ] **P5. Reorg sweep + weather multi-parameter panel** — move remaining orphan controls to their
-      object; land the weather sound+visual params where they belong; docs/tests.
+- [~] **P5. Reorg sweep + weather multi-parameter panel** — IN PROGRESS. Weather panel BUILT
+      (v172 pending): `WeatherMood.Contribution` extended with continuous per-parameter targets
+      split SOUND (darkness/liveliness/tension) + VISUAL (hue/saturation/glow/motion); a `Param`
+      enum (domain · label · explanation · mixKey · defaultIntensity · currentIntensity reader) +
+      pure `blend()` crossfade; the Session panel's weather row is now an explained, grouped
+      Klang/Bild mixer list of `WeatherMixRow` leaves (each = EchoelValueField 0..1 + one-line
+      explanation, own @AppStorage → render-safe, NO new modal). Wired: sound → `moodForInput`
+      darkness/liveliness/tension blend before Input; structure salt gated by its mixer; visual →
+      FloatingVisualWindow crossfades hue/saturation/intensity/motion toward the sky. Off / mixer 0
+      = bit-identical. Tests: ranges, distinctness (warm<cold, storm=most-tense, wind→motion,
+      fog=dimmest), blend endpoints, Param metadata, currentIntensity unset=default. NEEDS-FOUNDER-VERIFY
+      (feel). Remaining: reorg sweep of any orphan controls; docs.
 
 ## Autonomous loop discipline
 Each cycle: build → tests → push → poll both CI gates (python-parse the actions_list overflow file)

@@ -148,6 +148,16 @@ struct FloatingVisualWindow: View {
     @AppStorage("visual.hue") private var visualHue = 0.0
     @AppStorage("visual.saturation") private var visualSaturation = 0.82
 
+    // P5: the sky mixed into the IMAGE, per parameter (founder: "Klang und Bild
+    // aber getrennte und mehrere Parameter"). Each visual influence crossfades the
+    // user's base toward the weather target by its own intensity mixer — 0 = the
+    // user's value unchanged (bit-identical when weather is off or a mixer is 0).
+    // `current` changes only on the once-per-session fetch → render-safe.
+    #if canImport(WeatherKit) && canImport(CoreLocation)
+    @Environment(WeatherProvider.self) private var weatherProvider
+    @AppStorage("weather.enabled") private var weatherEnabled = false
+    #endif
+
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
     /// as a compact "3,5,7" string, SHARED with the main-menu customizer, parsed by
@@ -324,8 +334,31 @@ struct FloatingVisualWindow: View {
 
     // MARK: - Card
 
+    /// The visual base with the sky mixed in per parameter (P5). Weather off, no
+    /// snapshot yet, or every mixer at 0 → returns the user's values untouched.
+    private func weatheredVisuals()
+        -> (hue: Double, saturation: Double, intensity: Double, motion: Double) {
+        #if canImport(WeatherKit) && canImport(CoreLocation)
+        guard weatherEnabled, let snap = weatherProvider.current else {
+            return (visualHue, visualSaturation, visualIntensity, visualMotion)
+        }
+        let wx = WeatherMood.contribution(for: snap)
+        func mix(_ base: Double, _ target: Float, _ p: WeatherMood.Param) -> Double {
+            Double(WeatherMood.blend(base: Float(base), target: target,
+                                     intensity: p.currentIntensity()))
+        }
+        return (mix(visualHue, wx.hue, .hue),
+                mix(visualSaturation, wx.saturation, .saturation),
+                mix(visualIntensity, wx.glowTarget, .glow),
+                mix(visualMotion, wx.motionTarget, .movement))
+        #else
+        return (visualHue, visualSaturation, visualIntensity, visualMotion)
+        #endif
+    }
+
     @ViewBuilder
     private func card(size: CGSize, in bounds: CGSize) -> some View {
+        let wv = weatheredVisuals()
         VStack(spacing: 0) {
             handleBar(in: bounds, card: size)
             // `capturesVideo: true` → this instance feeds the shared VisualRecorder when
@@ -333,9 +366,9 @@ struct FloatingVisualWindow: View {
             // are the SHARED design keys (style/blend + the six energy/palette params), so
             // every tweak in the Visual panel shows here live.
             MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: idleToneHz,
-                         intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
-                         motion: Float(visualMotion), spread: Float(visualSpread),
-                         hueShift: Float(visualHue), saturation: Float(visualSaturation),
+                         intensity: Float(wv.intensity), ringDensity: Float(visualDetail),
+                         motion: Float(wv.motion), spread: Float(visualSpread),
+                         hueShift: Float(wv.hue), saturation: Float(wv.saturation),
                          style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
                          entrainmentPulseHz: entrainmentPulse)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

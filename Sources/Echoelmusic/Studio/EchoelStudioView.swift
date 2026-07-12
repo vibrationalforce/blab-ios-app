@@ -87,9 +87,10 @@ struct EchoelStudioView: View {
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @Environment(WeatherProvider.self) private var weatherProvider
     @AppStorage("weather.enabled") private var weatherEnabled = false
-    /// This session's weather salt (0 = none); lands on the next re-seed.
-    @State private var weatherSalt: UInt64 = 0
-    @State private var weatherDescriptor = ""
+    /// This session's full weather flavour (nil = none yet). Carries the skeleton
+    /// salt PLUS the per-parameter sound/visual targets; lands on the next re-seed.
+    @State private var weatherContribution: WeatherMood.Contribution?
+    private var weatherDescriptor: String { weatherContribution?.descriptor ?? "" }
     #endif
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
@@ -1408,20 +1409,28 @@ struct EchoelStudioView: View {
     /// salts the structural skeleton — the body stays the primary driver.
     /// Carries the Apple-required Weather attribution.
     private var weatherRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $weatherEnabled) {
                 Text("Weather shapes the music")
                     .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
-            .accessibilityHint("One coarse weather lookup per session flavours the composition's structure. The body stays the main driver.")
+            .accessibilityHint("One coarse weather lookup per session flavours sound and image. Each influence has its own intensity — mix it in or out. The body stays the main driver.")
             if weatherEnabled {
                 Text(!locationNamer.enabled
                      ? "Needs \"Place in session name\" for a coarse location."
-                     : (weatherDescriptor.isEmpty ? "Sky flavour arrives at Start."
-                                                  : weatherDescriptor))
+                     : (weatherDescriptor.isEmpty ? "Sky reading arrives at Start."
+                                                  : "Now: \(weatherDescriptor)"))
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.dim)
+
+                // Separate, individually-mixable influences (founder: "Klang und
+                // Bild aber getrennte und mehrere Parameter" + an intensity slider
+                // "damit man das Wetter rein und rausmischen kann"). Each row says
+                // what it changes; 0 = off (no change), 1 = fully the weather.
+                weatherMixGroup("Sound · Klang", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
+                weatherMixGroup("Image · Bild", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
+
                 // Apple WeatherKit attribution requirement.
                 if let attributionURL = URL(string: "https://developer.apple.com/weatherkit/data-source-attribution/") {
                     Link(" Weather", destination: attributionURL)
@@ -1433,17 +1442,28 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// One titled block of weather mixers (Sound or Image), in the mix-strip look.
+    @ViewBuilder
+    private func weatherMixGroup(_ title: String, params: [WeatherMood.Param]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
+            ForEach(params) { param in
+                WeatherMixRow(param: param)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
     /// E3b: one coarse fetch per session start; the salt lands on the NEXT
     /// re-seed (evolve/lock-snap) — never blocks the first sound.
     private func fetchWeatherFlavour() {
-        weatherSalt = 0
-        weatherDescriptor = ""
+        weatherContribution = nil
         guard weatherEnabled, let fix = locationNamer.lastFix else { return }
         Task { @MainActor in
             guard let snap = await weatherProvider.snapshot(for: fix), running else { return }
-            let contribution = WeatherMood.contribution(for: snap)
-            weatherSalt = contribution.structureSalt
-            weatherDescriptor = contribution.descriptor
+            weatherContribution = WeatherMood.contribution(for: snap)
         }
     }
     #endif
@@ -3080,8 +3100,13 @@ struct EchoelStudioView: View {
         var structureSeed = bioSeed(frame)
         // E3b: the sky flavours the SKELETON only (structure seed) — the detail
         // seed below stays body+evolution, so weather never outweighs the body.
+        // P5: the salt is now one mixable influence — applied only while the
+        // "Structure" weather mixer is up (0 = off = bit-identical).
         #if canImport(WeatherKit) && canImport(CoreLocation)
-        if weatherEnabled, weatherSalt != 0 { structureSeed ^= weatherSalt }
+        if weatherEnabled, let wx = weatherContribution, wx.structureSalt != 0,
+           WeatherMood.Param.structure.currentIntensity() > 0 {
+            structureSeed ^= wx.structureSalt
+        }
         #endif
         let evolvingSeed = structureSeed ^ (evolution &* 0x9E3779B97F4A7C15)
         // WEITERGEHEN (founder 2026-07-11: "es soll ja weitergehen und sich mit dem
@@ -3114,6 +3139,27 @@ struct EchoelStudioView: View {
         let rawCoh = fin(frame?.coherence, heldCoh ?? 0.5)
         let liveCoh = rawCoh > 0 ? rawCoh : (heldCoh ?? 0.5)
         let dynamicDepth = min(1, max(0.2, 0.3 + 0.5 * liveCoh))
+        // P5: weather flavours the SOUND mood on top of the user's own knobs —
+        // each influence crossfades toward its weather target by its own intensity
+        // mixer (0 = the user's value unchanged). The body still dominates: this
+        // only nudges darkness/liveliness/tension, which then blend with the live
+        // signal inside the composer as before.
+        #if canImport(WeatherKit) && canImport(CoreLocation)
+        var moodForInput = mood
+        if weatherEnabled, let wx = weatherContribution {
+            moodForInput.darkness = WeatherMood.blend(
+                base: moodForInput.darkness, target: wx.darknessTarget,
+                intensity: WeatherMood.Param.warmth.currentIntensity())
+            moodForInput.liveliness = WeatherMood.blend(
+                base: moodForInput.liveliness, target: wx.livelinessTarget,
+                intensity: WeatherMood.Param.energy.currentIntensity())
+            moodForInput.tension = WeatherMood.blend(
+                base: moodForInput.tension, target: wx.tensionTarget,
+                intensity: WeatherMood.Param.drama.currentIntensity())
+        }
+        #else
+        let moodForInput = mood
+        #endif
         let input = BioComposer.Input(
             heartRateBPM: fin(frame?.heartRateBPM, heldBody.map { Float($0.bpm) } ?? 70),
             hrvNormalized: fin(frame?.hrvNormalized, 0.5),
@@ -3124,7 +3170,7 @@ struct EchoelStudioView: View {
             style: style,
             mode: .flowFree,          // tempo always follows the body
             lockedTempo: 90,
-            mood: mood,
+            mood: moodForInput,
             seed: evolvingSeed,
             structureSeed: structureSeed,
             progressionPhase: basePhase
@@ -3550,6 +3596,31 @@ private struct TrackRef: Identifiable { let id: Int }
 /// Kammerton) — its OWN leaf because the tempo runs along with the body
 /// (freeze rule: only this label churns, never the Session card's toggles).
 @MainActor
+/// One weather-influence mixer row: the app-wide parameter control (EchoelValueField,
+/// 0…1) plus a one-line explanation of what it changes. A LEAF that owns its own
+/// `@AppStorage` (keyed by the parameter) so the churny root body never re-renders on
+/// a mixer edit — and so the intensity persists identically to how the wiring reads it
+/// (`WeatherMood.Param.currentIntensity`). 0 = off (no change), 1 = fully the weather.
+private struct WeatherMixRow: View {
+    let param: WeatherMood.Param
+    @AppStorage private var intensity: Double
+
+    init(param: WeatherMood.Param) {
+        self.param = param
+        _intensity = AppStorage(wrappedValue: param.defaultIntensity, param.mixKey)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            EchoelValueField(label: param.label, value: $intensity,
+                             range: 0...1, unit: "", decimals: 2)
+            Text(param.explanation)
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 private struct SessionNamePreviewLeaf: View {
     @Environment(SessionContext.self) private var session
     @Environment(Transport.self) private var transport
