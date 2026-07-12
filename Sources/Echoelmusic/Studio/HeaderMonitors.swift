@@ -59,6 +59,9 @@ struct PulseMonitorMini: View {
     let waveform: [Float]
     let bpm: Double
     let locked: Bool
+    /// Live coherence [0…1] — the BioStrip's key metric in "vereinfachter Form"
+    /// (founder 2026-07-12: the bio row lands simplified up here). nil hides it.
+    var coherence: Double? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -68,16 +71,28 @@ struct PulseMonitorMini: View {
                 .font(EchoelTheme.font(11, .semibold)).monospacedDigit()
                 .foregroundStyle(locked ? EchoelTheme.text : EchoelTheme.dim)
                 .frame(minWidth: 22, alignment: .leading)
+            if let coh = coherence {
+                Text(String(format: "%.2f", coh))
+                    .font(EchoelTheme.font(10)).monospacedDigit()
+                    .foregroundStyle(EchoelTheme.dim)
+            }
         }
         .padding(.horizontal, 6).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.border, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
-        // per the freeze rule). Glanceable STATUS only now — the body is armed from the
-        // instrument's Start flow, so this no longer navigates anywhere.
+        // per the freeze rule).
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Live pulse")
-        .accessibilityValue(locked && bpm > 0 ? "\(Int(bpm)) beats per minute" : "No pulse lock")
+        .accessibilityValue(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        guard locked && bpm > 0 else { return "No pulse lock" }
+        if let coh = coherence {
+            return "\(Int(bpm)) beats per minute, coherence \(String(format: "%.2f", coh))"
+        }
+        return "\(Int(bpm)) beats per minute"
     }
 }
 
@@ -92,12 +107,29 @@ struct PulseMonitorMini: View {
 @MainActor
 struct PulseMonitorMiniLive: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
+    @Environment(EngineBus.self) private var bus
     var body: some View {
         // `displayBPM` is the CALM value (holds the last confident reading through noisy
         // patches) so the glanceable number doesn't bounce; the waveform/lock stay live.
+        // Coherence comes from the bus snapshot — read HERE in the leaf (freeze rule),
+        // never in WorkspaceView. Shown only while a fresh bio frame exists, so idle
+        // the leaf stays the compact trace + "—".
         PulseMonitorMini(waveform: cameraRPPG.waveform,
                          bpm: cameraRPPG.displayBPM,
-                         locked: cameraRPPG.isLocked)
+                         locked: cameraRPPG.isLocked,
+                         coherence: bus.freshBio().map { Double($0.coherence) })
+            // E-Bio (founder 2026-07-12: "Diese Leiste soll in vereinfachter Form da
+            // oben landen"): the header leaf now CARRIES the strip's key action —
+            // tap = Read pulse / stop, via the same notification the transport pulse
+            // button uses (chrome posts; the receiver stays anchored on an inner
+            // studio row, never on the root modifier chain).
+            .contentShape(Rectangle())
+            .onTapGesture {
+                NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint(cameraRPPG.isRunning ? "Stops the pulse reading"
+                                                    : "Starts reading your pulse")
     }
 }
 #endif
