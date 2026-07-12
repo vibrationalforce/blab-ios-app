@@ -49,6 +49,36 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
       Batch-Diff, DANN ein .deploy/release-Bump (Milestone-Build) + Founder-
       Report mit Testpunkten.
 
+## "Ableton 20"-Spur (Founder 24h-Mandat 2026-07-12: "nicht nur einholen
+## sondern abhängen") — läuft PARALLEL zur B-Reihe, gleiche Gesetze
+
+Quellen: RESEARCH_ABLETON12_INVENTAR_2026-07-12.md +
+RESEARCH_FRONTIER_ABLETON20_2026-07-12.md. Reihenfolge nach
+Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
+
+- [x] A0 — AutomationLane-Krümmung (Ableton Alt+Drag als Modell) — DONE
+      (e5a49a0, curvature −1…1, shapedFraction, 6 Tests, decodeIfPresent).
+- [ ] A1 — **Note-Operators-Modell** (Bitwig-Klasse, schlägt Live 12):
+      `NoteOperators` (chance 0…1 · repeats 1…n mit Velocity-Ramp ·
+      occurrence n-ter-Loop) als optionales Feld auf `Note` —
+      decodeIfPresent-Migration wie curvature; deterministische Auswertung
+      (seed = loopIndex×noteID-Hash, KEIN Math.random im Audio-Pfad);
+      PatternEngine/BeatPlayer werten beim Scheduling aus. TDD.
+- [ ] A2 — **Strum + Humanize als Ein-Gesten-Transform** auf Roll-Selektion /
+      BioComposer-Output: pure `NoteTransform`-Funktionen (strum: Zeitfächer +
+      Velocity-Gefälle; humanize: begrenzte deterministische Jitter) + Tests;
+      Tür = bestehender Roll-Kontext (kein neues Modal).
+- [ ] A3 — **Automations-Canvas-Editor** (#24 Hälfte 2): zeichenbare Lane im
+      Piano-Roll-Host — Tap=Punkt, Drag=verschieben, Segment-Drag=Krümmung
+      (setCurvature), Raster-Snap, Doppel-Tap=löschen; Touch-first, ein
+      Canvas-View, kein neues Sheet. Danach: Shape-Stempel (Live hat KEINE).
+- [ ] A4 — **Bio-Operators** (Alleinstellung, macht niemand): Kohärenz→Chance-
+      Skalierung, Puls→Ramp-Tempo — Kopplung NoteOperators×BioSnapshot als
+      pure Funktion + Tests; Tür über bestehende Bio-Mod-UI.
+- [ ] A5 — **Bio als per-Note-Expression** (unbesetzte Marktposition):
+      rPPG-Waveform/Atemphase als Expression-Lane pro Note (MPE-out später).
+      Erst Modell + OSC/MIDI-Mapping-Design, dann Surface.
+
 ## Gesetze im Batch (unverändert)
 
 Modal-Decke: nur Slot-Reuse · kein 10-Hz-Read in Ancestor-Bodies · ein MTKView ·

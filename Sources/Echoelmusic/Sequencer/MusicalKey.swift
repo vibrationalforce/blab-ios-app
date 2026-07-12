@@ -61,6 +61,22 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     case hungarianMajor     // ♯2 over Lydian dominant — Bartók/folk colour
     case bebopMajor         // major + ♭6 passing tone (8 notes)
     case majorLocrian       // major top / Locrian bottom — suspenseful
+    // Gap-close vs. the Ableton Live 12 scale list (founder screenshots
+    // 2026-07-12): the remaining entries there that have STANDARD catalog
+    // definitions. Messiaen modes are mathematically defined (modes of limited
+    // transposition; mode 1 = wholeTone, mode 2 = diminishedHalfWhole already
+    // above). Still deliberately NOT added: "Pelog Tembung" — like the other
+    // Ableton-proprietary approximations, no authoritative 12-TET definition
+    // exists outside Live's binary (gamelan pelog is not 12-TET; our `pelog`
+    // is the one selisir approximation the literature agrees on).
+    case lydianAugmented    // 3rd mode of melodic minor — ♯4 ♯5 dream colour
+    case spanishEightTone   // Phrygian + both 3rds — flamenco 8-tone
+    case kumoi              // Japanese koto pentatonic (kumoijoshi, bright-dark)
+    case messiaen3          // repeating 2-1-1 — 9 notes, augmented shimmer
+    case messiaen4          // repeating 1-1-3-1 — 8 notes
+    case messiaen5          // repeating 1-4-1 — 6 notes, stark
+    case messiaen6          // repeating 2-2-1-1 — 8 notes
+    case messiaen7          // repeating 1-1-1-2-1 — 10 notes, densest mode
 
     /// Ascending semitone offsets from the root, one octave.
     public var intervals: [Int] {
@@ -107,6 +123,14 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .hungarianMajor:      return [0, 3, 4, 6, 7, 9, 10]
         case .bebopMajor:          return [0, 2, 4, 5, 7, 8, 9, 11]
         case .majorLocrian:        return [0, 2, 4, 5, 6, 8, 10]
+        case .lydianAugmented:     return [0, 2, 4, 6, 8, 9, 11]
+        case .spanishEightTone:    return [0, 1, 3, 4, 5, 6, 8, 10]
+        case .kumoi:               return [0, 2, 3, 7, 9]
+        case .messiaen3:           return [0, 2, 3, 4, 6, 7, 8, 10, 11]
+        case .messiaen4:           return [0, 1, 2, 5, 6, 7, 8, 11]
+        case .messiaen5:           return [0, 1, 5, 6, 7, 11]
+        case .messiaen6:           return [0, 2, 4, 5, 6, 8, 10, 11]
+        case .messiaen7:           return [0, 1, 2, 3, 5, 6, 7, 8, 9, 11]
         }
     }
 
@@ -160,6 +184,14 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .hungarianMajor:      return "Hungarian Major"
         case .bebopMajor:          return "Bebop Major"
         case .majorLocrian:        return "Major Locrian"
+        case .lydianAugmented:     return "Lydian Augmented"
+        case .spanishEightTone:    return "Spanish 8-Tone"
+        case .kumoi:               return "Kumoi"
+        case .messiaen3:           return "Messiaen 3"
+        case .messiaen4:           return "Messiaen 4"
+        case .messiaen5:           return "Messiaen 5"
+        case .messiaen6:           return "Messiaen 6"
+        case .messiaen7:           return "Messiaen 7"
         }
     }
 
@@ -208,6 +240,14 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .hungarianMajor:      return "hungM"
         case .bebopMajor:          return "bebM"
         case .majorLocrian:        return "majloc"
+        case .lydianAugmented:     return "lydaug"
+        case .spanishEightTone:    return "span8"
+        case .kumoi:               return "kumoi"
+        case .messiaen3:           return "mes3"
+        case .messiaen4:           return "mes4"
+        case .messiaen5:           return "mes5"
+        case .messiaen6:           return "mes6"
+        case .messiaen7:           return "mes7"
         }
     }
 }

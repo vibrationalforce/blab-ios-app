@@ -122,6 +122,32 @@ final class MusicalKeyTests: XCTestCase {
         XCTAssertEqual(Scale.hungarianMajor.intervals,  [0, 3, 4, 6, 7, 9, 10])
         XCTAssertEqual(Scale.bebopMajor.intervals,      [0, 2, 4, 5, 7, 8, 9, 11])
         XCTAssertEqual(Scale.majorLocrian.intervals,    [0, 2, 4, 5, 6, 8, 10])
+        // Ableton-Live-12-list gap-close 2026-07-12 (founder screenshots) —
+        // again standard catalog definitions only ("Pelog Tembung" stays out).
+        XCTAssertEqual(Scale.lydianAugmented.intervals,  [0, 2, 4, 6, 8, 9, 11])
+        XCTAssertEqual(Scale.spanishEightTone.intervals, [0, 1, 3, 4, 5, 6, 8, 10])
+        XCTAssertEqual(Scale.kumoi.intervals,            [0, 2, 3, 7, 9])
+        // Messiaen modes = their repeating step pattern tiled over the octave
+        // (3: 2-1-1 ×3 · 4: 1-1-3-1 ×2 · 5: 1-4-1 ×2 · 6: 2-2-1-1 ×2 ·
+        // 7: 1-1-1-2-1 ×2; modes 1/2 are wholeTone/diminishedHalfWhole above).
+        XCTAssertEqual(Scale.messiaen3.intervals, [0, 2, 3, 4, 6, 7, 8, 10, 11])
+        XCTAssertEqual(Scale.messiaen4.intervals, [0, 1, 2, 5, 6, 7, 8, 11])
+        XCTAssertEqual(Scale.messiaen5.intervals, [0, 1, 5, 6, 7, 11])
+        XCTAssertEqual(Scale.messiaen6.intervals, [0, 2, 4, 5, 6, 8, 10, 11])
+        XCTAssertEqual(Scale.messiaen7.intervals, [0, 1, 2, 3, 5, 6, 7, 8, 9, 11])
+    }
+
+    func testMessiaenModes_areModesOfLimitedTransposition() {
+        // The defining property: each mode maps onto itself under transposition
+        // by its period (mode 3: 4 semitones; modes 4/5/6/7: 6 semitones).
+        // This locks the interval tables to the mathematics, not to a source.
+        let periods: [(Scale, Int)] = [(.messiaen3, 4), (.messiaen4, 6),
+                                       (.messiaen5, 6), (.messiaen6, 6), (.messiaen7, 6)]
+        for (scale, period) in periods {
+            let set = Set(scale.intervals)
+            let transposed = Set(scale.intervals.map { ($0 + period) % 12 })
+            XCTAssertEqual(set, transposed, "\(scale) must be invariant under +\(period) semitones")
+        }
     }
 
     func testEveryScale_quantizeAlwaysLandsInScale() {
