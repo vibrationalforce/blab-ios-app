@@ -60,10 +60,15 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
       Zeile [A3/A4/L1/P1/B2/B3/B4/B5/W1/EchoelAI N0-N4/Body-Science], Heilungs-
       Thema als REJECT-Red-Line notiert). FEATURE_MATRIX/SESSION_LOG-Feinsync
       im nächsten Doku-Tick.
-- [~] B11 — LÄUFT: ultracode-Workflow wf_792707e5-72e = adversarieller
-      review+verify über 87fd02e..HEAD (33 Dateien) + 5 Design-Briefs. Nach
-      Rückkehr: confirmedDefects fixen → DANN .deploy/release-Bump (Milestone)
-      + Founder-Report. Kein Bump vor grünem Review + Founder-Freeze-Ende.
+- [~] B11 — REVIEW DURCH (ultracode wf_792707e5-72e, 18 Agenten, 0 Fehler):
+      **1 HIGH bestätigt + gefixt** (e0a5875: sACN-Dimmer ohne Slew → Blackout-
+      Release-Sprung dunkel→voll = Flash-Gesetz-Verletzung; jetzt geteilter
+      `FlashGuard.slewedDimmer` für Art-Net+sACN, getestet) + 4 Low-Test-Lücken
+      geschlossen (LyricsModel Diphthong/Hiatus/sch-Cluster, TimelineStore.
+      setLanePan). Die anderen 6 Dimensionen (Concurrency/Render-Safety/Audio-
+      Thread/Brand-Health/Protected-DSP/EchoelAI) = 0 Defekte = Batch sauber.
+      5 Design-Briefs gesichert: `scratchpads/DESIGN_BRIEFS_PENDING_2026-07-12.md`.
+      OFFEN: .deploy/release-Bump (Milestone) erst nach Founder-Freeze-Ende.
 
 ## "Ableton 20"-Spur (Founder 24h-Mandat 2026-07-12: "nicht nur einholen
 ## sondern abhängen") — läuft PARALLEL zur B-Reihe, gleiche Gesetze
