@@ -88,6 +88,29 @@ Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
       rPPG-Waveform/Atemphase als Expression-Lane pro Note (MPE-out später).
       Erst Modell + OSC/MIDI-Mapping-Design, dann Surface.
 
+## W-Spur (Word/Lyrics — Founder-Entscheid 2026-07-12C: "Lyrics bzw
+## songwriting wie bei ACE Studio soll es geben ja") — NACH dem Milestone
+
+Eigener Weg, nicht ACE-Kopie (deren Schmerzen = unsere Gegenposition:
+on-device deterministisch statt Server-Render, Einmal-Unlock statt Credits):
+- [ ] W1 — LyricsModel: Silben→Noten-Mapping als pures Codable-Modell (TDD;
+      Silbentrennung deutsch/englisch, Melisma, eine Silbe über n Noten).
+      DARF als kleiner Zyklus vor dem Milestone landen (reines Modell).
+- [ ] W2 — Lyrics-Lane im Roll (Anzeige unter den Noten, Slot-Reuse).
+- [ ] W3 — VL-Kopplung: eigene Stimme singt die Lyrics (AutotuneCore VL1 +
+      Skalen-Harmonizer VL2 → Mic-Pfad VL3, device-gated).
+- [ ] W4 — Formant-Synthese-Stimme in-house (VocoderCore/DDSP-Richtung) für
+      Songwriting ohne eigenes Singen. AUv3-Slot "Stimme mit MIDI-Song-
+      writing" ist marktweit unbesetzt (Research 2026-07-12).
+
+## Hardware-Vorbereitung (Gurt + Watch bestellt — "bereite alles vor")
+
+- Gurt-Tür steht (B4/6ba61e5); beim Eintreffen: Patchbay → "Herzgurt (BLE)"
+  verdrahten → Permission → Puls im Header (NEEDS-FOUNDER-VERIFY-Testpunkt).
+- Watch: HealthKit-Pfad läuft bereits (HealthKitBioPublisher); Watch-App-
+  Target existiert als Bundle-ID, KEINE neue Arbeit vor Hardware (4-5 s
+  HR-Latenz-Gesetz beachten: nie beat-sync, nur langsame Modulation).
+
 ## Rundum-Sweep 2026-07-12 (Founder: "alles abklappern aber gründlich")
 
 4 Reports: RESEARCH_DESKTOP_DAWS · RESEARCH_VIDEO_FRONTIER ·
