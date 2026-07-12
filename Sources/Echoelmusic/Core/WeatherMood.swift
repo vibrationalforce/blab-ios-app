@@ -148,7 +148,7 @@ public enum WeatherMood {
     }
 
     /// Which side of the instrument a weather parameter touches.
-    enum Domain: String, Sendable, Codable, CaseIterable {
+    public enum Domain: String, Sendable, Codable, CaseIterable {
         case sound   // "Klang"
         case visual  // "Bild"
     }
@@ -156,7 +156,7 @@ public enum WeatherMood {
     /// One independently-mixable weather influence. Each has UI copy that says
     /// exactly what it changes (the founder's "Wetter soll kurz erklärt werden")
     /// and a persisted intensity mixer [0…1] (0 = off = bit-identical default).
-    enum Param: String, CaseIterable, Sendable, Codable, Identifiable {
+    public enum Param: String, CaseIterable, Sendable, Codable, Identifiable {
         // SOUND
         case structure   // harmonic skeleton salt
         case warmth      // → darkness
