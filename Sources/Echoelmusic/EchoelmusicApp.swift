@@ -271,6 +271,18 @@ struct EchoelmusicApp: App {
         #if canImport(CoreMIDI)
         midiPub.thruEnabled = g.hasEnabledRoute(from: "midi.in", to: "midi.out")  // MIDI thru
         #endif
+        // B4/#21: the universal BLE heart-rate strap (0x180D). Wiring the
+        // "Herzgurt (BLE)" source in the Patchbay starts the scan (this is the
+        // user-initiated moment for the Bluetooth permission prompt); removing
+        // the last route stops it. start/stop are idempotent. NEEDS-FOUNDER-
+        // VERIFY with a real strap at the milestone.
+        #if canImport(CoreBluetooth)
+        if g.hasEnabledRoute(fromSource: "blehrs.in") {
+            polarH10.start(publishing: bus)
+        } else {
+            polarH10.stop()
+        }
+        #endif
         // Broadcast comes online on demand: a route to rtmp.out / srt.out starts the
         // stream (engine permitting), removing the last connection stops it.
         let wantsBroadcast = g.hasEnabledRoute(toSink: "rtmp.out") || g.hasEnabledRoute(toSink: "srt.out")

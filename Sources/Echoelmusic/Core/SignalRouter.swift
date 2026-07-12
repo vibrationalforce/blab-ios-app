@@ -109,6 +109,12 @@ public final class SignalRouter {
             SignalPort(id: "bus.musical", name: "Music",        kind: .controlMusical, direction: .source, transport: .internalBus),
             // External input
             SignalPort(id: "midi.in",     name: "MIDI / MPE In", kind: .note,          direction: .source, transport: .coreMIDI),
+            // Universal BLE heart-rate strap (0x180D — Polar/Garmin/Wahoo/…).
+            // The receiver has shipped since build 1543 but had NO start hook
+            // (Deep Audit 2026-07-12: "GEBAUT, NIE GESTARTET") — this port is
+            // its door: wiring the strap to any destination starts the scan
+            // (applyRouting), unwiring stops it. B4 in the Profi-Level batch.
+            SignalPort(id: "blehrs.in",   name: "Herzgurt (BLE)", kind: .controlBio,   direction: .source, transport: .bleHRS),
             // External outputs
             SignalPort(id: "midi.out",    name: "MIDI / MPE Out", kind: .note,         direction: .sink,   transport: .coreMIDI),
             SignalPort(id: "osc.out",     name: "OSC Out",       kind: .controlChange,  direction: .sink,   transport: .osc),

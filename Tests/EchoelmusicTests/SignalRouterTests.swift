@@ -25,6 +25,23 @@ final class SignalRouterTests: XCTestCase {
         XCTAssertNotNil(r.graph.port("midi.out"))
     }
 
+    func testBLEStrapPort_isLiveSourceAndActsAsTheDoor() {
+        // B4/#21: the universal BLE HR strap's ONLY door is this port — wiring
+        // it must read as an enabled from-source route (applyRouting's start
+        // condition), and the transport must be honest about being live.
+        let r = SignalRouter(defaults: freshDefaults())
+        let port = r.graph.port("blehrs.in")
+        XCTAssertNotNil(port)
+        XCTAssertEqual(port?.transport, .bleHRS)
+        XCTAssertEqual(port?.transport.status, .live)
+        XCTAssertTrue(port?.direction.canSource ?? false)
+        XCTAssertFalse(r.graph.hasEnabledRoute(fromSource: "blehrs.in"))
+        // Same-kind routing as bus.bio: any bio-compatible sink opens the door.
+        XCTAssertTrue(r.connect("blehrs.in", "osc.out"),
+                      "strap (controlBio) must reach a control sink like bus.bio does")
+        XCTAssertTrue(r.graph.hasEnabledRoute(fromSource: "blehrs.in"))
+    }
+
     func testToggle_connectsAndDisconnects_typeAware() {
         let r = SignalRouter(defaults: freshDefaults())
         // music → light is valid (music→light converter)
