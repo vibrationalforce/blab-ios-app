@@ -1075,6 +1075,17 @@ struct EchoelStudioView: View {
                 }
                 Rectangle().fill(EchoelTheme.border)
                     .frame(width: 1, height: 16)
+                // AUv3 plugins (founder 2026-07-12: "wie es klingt wenn ich AUv3
+                // Synth in die MIDI-Spuren integriere"): the ENTIRE pipeline has
+                // been live for a while — load an instrument here and the piano
+                // roll's notes drive it (layer or replace the built-in voice, its
+                // switch is in the browser) — but the door vanished with the old
+                // tools grid. This chip is the door; the sheet slot is EXISTING.
+                directChip("Plugins", icon: "puzzlepiece.extension",
+                           a11y: "Audio Unit plugins — host an AUv3 synth or effect") {
+                    activeMenu = nil
+                    showPlugins = true
+                }
                 #if canImport(MultipeerConnectivity)
                 directChip("Live", icon: "dot.radiowaves.left.and.right",
                            a11y: "Live Colabo — play together nearby") {
