@@ -363,7 +363,13 @@ public final class PolySynthVoice {
         // explicit mono `1` — are always honoured, so this never overrides intent.
         poly.setUnison(count: patch.unisonVoices ?? 2, detuneCents: patch.unisonDetuneCents ?? 7)
         _ = patchCommands.tryEnqueue(patch)
+        appliedPatch = patch
     }
+
+    /// The last patch handed to `apply(_:)` — the voice's patch MEMORY, so any
+    /// door (studio panel, timeline lane) can open the editor on the sound
+    /// that is actually playing instead of a blank Init. Control-plane only.
+    public private(set) var appliedPatch: SynthPatch?
 
     /// Set unison directly (live, outside a patch) — count 1 = off.
     public func setUnison(count: Int, detuneCents: Float) {

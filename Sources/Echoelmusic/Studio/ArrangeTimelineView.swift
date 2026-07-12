@@ -139,12 +139,20 @@ struct ArrangeTimelineView: View {
         /// (founder: "Externe AUv3 inbegriffen"). Same env-driven view as the
         /// menu-bar Plugins chip; this is a second DOOR, not a second system.
         case plugins
+        /// E2a (founder: "alles vertikal auf die Spuren"): the synth patch
+        /// editor, on the MIDI lane. Re-doors PatchEditorView (its studio
+        /// sheet trigger died with the Tools grid — deep audit 2026-07-12).
+        case patch
+        /// E2a: automation lanes, on the track. Re-doors AutomationView.
+        case automation
         var id: String {
             switch self {
             case .lane(let l):   return "lane-\(l.id)"
             case .region(let r): return "region-\(r.id)"
             case .laneFX(let l): return "lanefx-\(l.id)"
             case .plugins:       return "plugins"
+            case .patch:         return "patch"
+            case .automation:    return "automation"
             }
         }
     }
@@ -156,6 +164,15 @@ struct ArrangeTimelineView: View {
         case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name)
         case .plugins:            AUv3BrowserView()
+        case .patch:
+            // Opens on the sound that is actually playing (the voice's patch
+            // memory); apply hits the live voice — same behaviour as the old
+            // studio door. Honest limit (multi-roll pending): this edits THE
+            // melodic instrument all MIDI lanes share today.
+            PatchEditorView(initial: synth.appliedPatch ?? SynthPatch(name: "Init")) { p in
+                synth.apply(p)
+            }
+        case .automation:         AutomationView()
         }
     }
 
@@ -309,10 +326,16 @@ struct ArrangeTimelineView: View {
                 Button { activeModal = .laneFX(lane) } label: {
                     Label("Sound & FX (this track)", systemImage: "slider.horizontal.3")
                 }
+                Button { activeModal = .patch } label: {
+                    Label("Synth patch", systemImage: "waveform.badge.plus")
+                }
             }
             if !lane.isBio {
                 Button { activeModal = .plugins } label: {
                     Label("AUv3 plugins", systemImage: "puzzlepiece.extension")
+                }
+                Button { activeModal = .automation } label: {
+                    Label("Automation", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                 }
             }
             Button {

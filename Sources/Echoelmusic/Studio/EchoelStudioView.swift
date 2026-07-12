@@ -1947,7 +1947,41 @@ struct EchoelStudioView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Immediately release every sounding note on every voice")
+
+            // Re-doors (deep audit 2026-07-12): AudioInputPickerView carries the
+            // FeedbackGuard monitoring toggle, PatchbayView the OSC/ADM/Art-Net/
+            // sACN routes — both lost their only trigger when the Tools grid left
+            // the body (2026-07-02). SLOT-REUSE: these set the EXISTING dead
+            // sheet slots (showInput/showRouting) — no new modal in the chain.
+            // Close the dropdown first so only ONE layer is ever presented.
+            HStack(spacing: 8) {
+                masterDoorButton("Audio input", icon: "mic",
+                                 hint: "Microphone monitoring with feedback protection") {
+                    activeMenu = nil
+                    showInput = true
+                }
+                masterDoorButton("Routing", icon: "app.connected.to.app.below.fill",
+                                 hint: "OSC, immersive object, and lighting outputs") {
+                    activeMenu = nil
+                    showRouting = true
+                }
+            }
         }
+    }
+
+    /// Compact secondary door row used by the Master panel (Uncodixfy: solid
+    /// fill, 1 px border, ≤12 px radius, no decoration).
+    private func masterDoorButton(_ title: String, icon: String, hint: String,
+                                  action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                .frame(maxWidth: .infinity).frame(height: 34)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(hint)
     }
 
     /// Performance panic — release every sounding note on every voice at once (built-in
