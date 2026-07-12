@@ -20,6 +20,10 @@ struct ChannelRackView: View {
     /// When mounted as a WorkspaceView surface (the "Mix" page) rather than presented as a
     /// sheet: drop the NavigationStack/Done toolbar and show a lightweight inline header.
     var embedded: Bool = false
+    /// B5 sample door: the host's hook to open the sample browser for a drum
+    /// channel (the browser's sheet SLOT lives in EchoelStudioView — this view
+    /// never presents; nil hides the button, all other mounts unchanged).
+    var onSampleBrowse: ((Int) -> Void)? = nil
 
     private var anySolo: Bool { player.solos.contains(true) }
 
@@ -108,6 +112,25 @@ struct ChannelRackView: View {
                     .foregroundStyle(dimmed ? EchoelTheme.dim : EchoelTheme.text)
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                if let onSampleBrowse {
+                    // B5: the channel's SOUND door — pick/import the pad's sample
+                    // right where the channel is mixed (re-doors the browser slot
+                    // that lost its trigger with the Tools grid, deep audit 2026-07-12).
+                    Button {
+                        onSampleBrowse(i)
+                    } label: {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(EchoelTheme.dim)
+                            .frame(width: 26, height: 26)
+                            .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                                .fill(EchoelTheme.fill))
+                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Choose sample for \(BeatPlayer.trackNames[i])")
+                }
                 mixButton("M", on: muted, tint: Color(red: 0.85, green: 0.3, blue: 0.3)) {
                     player.setMute(track: i, !muted)
                 }

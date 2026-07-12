@@ -1400,7 +1400,14 @@ struct EchoelStudioView: View {
             // ChannelRackView against BeatPlayer; embedded = no nested scroll, flows in
             // the studio's own ScrollView. No new modal — render-safe.
             Divider().overlay(EchoelTheme.border).padding(.vertical, 2)
-            ChannelRackView(embedded: true)
+            // B5: each channel strip carries its sample door; the browser opens
+            // through the EXISTING sampleBrowserTrack sheet slot (slot-reuse law —
+            // the modal chain does not grow). Close the dropdown first so a sheet
+            // never stacks on the open menu overlay (two-layers law).
+            ChannelRackView(embedded: true, onSampleBrowse: { idx in
+                activeMenu = nil
+                sampleBrowserTrack = TrackRef(id: idx)
+            })
         }
     }
 
