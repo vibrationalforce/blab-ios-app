@@ -187,6 +187,62 @@ public enum SpectralColor {
         return Swift.min(780.0, Swift.max(380.0, wl))
     }
 
+    // MARK: Tone → colour on the CLOSED spectral circle (purple-line seam)
+
+    /// The visible band is barely more than ONE octave, so the naive octave
+    /// transposition has a SEAM: tones landing at the deep-red (~780 nm) or
+    /// deep-violet (~390 nm) edge hit near-zero CIE eye response and render
+    /// BLACK — at A4 = 440 that is exactly the pitch class F (founder device
+    /// report 2026-07-12: "Da fehlt jetzt gerade das F komplett als Farbe"),
+    /// with G/E dim beside it. Colorimetry's own answer is the **CIE purple
+    /// line**: the straight boundary of the chromaticity diagram connecting
+    /// the red and violet spectral ends. Purples are real perceived colours
+    /// (mixtures of red + violet light), just not monochromatic — so closing
+    /// the tone circle across the purple line keeps the mapping physically
+    /// honest AND makes every pitch class visible, exactly like the colour
+    /// wheel closes. Inside the well-visible span (640…420 nm) the colour
+    /// stays the pure spectral one; across the seam it blends 640 nm red ↔
+    /// 420 nm violet.
+    ///
+    /// This is the ONE tone→colour used for RENDERING everywhere (grids,
+    /// clouds, immersive bed — the Metal shader mirrors it). The raw
+    /// `visibleWavelength(forToneHz:)` stays for physical wavelength
+    /// READOUTS, where "F ≈ 780 nm edge" is the honest number.
+    public static func toneLinearRGB(forToneHz hz: Double) -> LinearRGB {
+        guard hz > 0, hz.isFinite else { return neutral }
+        // Fold the tone into EXACTLY one light octave anchored at 780 nm:
+        // t ∈ [0,1) is the position within the closed circle (λ = 780/2^t).
+        let cNmPerSec = 2.99792458e17
+        let fRef = cNmPerSec / 780.0
+        let p = Foundation.log2(fRef / hz)
+        var t = p.rounded(.up) - p            // = fract of the octave fold
+        if t >= 1 { t -= 1 }                  // guard the exact-integer case
+        let tRed    = Foundation.log2(780.0 / 640.0)   // ≈ 0.285 — last strong red
+        let tViolet = Foundation.log2(780.0 / 420.0)   // ≈ 0.893 — last strong violet
+        if t >= tRed && t <= tViolet {
+            return wavelengthToLinearRGB(780.0 / Foundation.pow(2.0, t))
+        }
+        // Seam zone (deep red edge ↔ wrap ↔ deep violet edge): CIE purple line.
+        let seam = tRed + 1 - tViolet
+        let s = t < tRed ? (tRed - t) / seam : (tRed + 1 - t) / seam
+        let red = wavelengthToLinearRGB(640)
+        let violet = wavelengthToLinearRGB(420)
+        var r = red.r + (violet.r - red.r) * s
+        var g = red.g + (violet.g - red.g) * s
+        var b = red.b + (violet.b - red.b) * s
+        // Keep the seam as PRESENT as its spectral neighbours: an RGB mix of
+        // two hues dips in its peak channel mid-way (max is convex), so lift
+        // it back to the INTERPOLATED anchor peak. At s = 0/1 the factor is
+        // exactly 1 → seamlessly continuous with the spectral span on both
+        // boundaries; mid-purple gets its honest full presence.
+        let m = Swift.max(r, Swift.max(g, b))
+        let peakRed = Swift.max(red.r, Swift.max(red.g, red.b))
+        let peakViolet = Swift.max(violet.r, Swift.max(violet.g, violet.b))
+        let target = peakRed + (peakViolet - peakRed) * s
+        if m > 1e-6 { let k = target / m; r *= k; g *= k; b *= k }
+        return LinearRGB(r: clamp01(r), g: clamp01(g), b: clamp01(b))
+    }
+
     // MARK: Tone → display-ready grid tint ("Je nach Kammerton … die Farbe des Notenrasters")
 
     /// Display-ready sRGB components (gamma-encoded 1/2.2, with a small white lift so
@@ -198,7 +254,9 @@ public enum SpectralColor {
     /// when the concert pitch changes (founder 2026-07-12).
     public static func displayComponents(forToneHz hz: Double, lift: Double = 0.22)
         -> (r: Double, g: Double, b: Double) {
-        let rgb = wavelengthToLinearRGB(visibleWavelength(forToneHz: hz))
+        // Closed-circle tone colour (purple-line seam) — F at 440 is a colour,
+        // not a black column (founder 2026-07-12).
+        let rgb = toneLinearRGB(forToneHz: hz)
         let l = clamp01(lift)
         func enc(_ c: Double) -> Double { l + (1 - l) * Foundation.pow(clamp01(c), 1.0 / 2.2) }
         return (enc(rgb.r), enc(rgb.g), enc(rgb.b))

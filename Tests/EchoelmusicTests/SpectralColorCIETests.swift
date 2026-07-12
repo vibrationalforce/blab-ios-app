@@ -97,4 +97,80 @@ final class SpectralColorCIETests: XCTestCase {
         let c = SpectralColor.displayComponents(forToneHz: .nan)
         for v in [c.r, c.g, c.b] { XCTAssertTrue(v.isFinite) }
     }
+
+    // MARK: - Closed spectral circle (purple-line seam) — founder 2026-07-12:
+    // "Da fehlt jetzt gerade das F komplett als Farbe … die Chords werden gar
+    // nicht visualisiert." At A4=440 the pitch class F fell exactly on the
+    // octave-fold seam (390/780 nm) where CIE response → 0 → black.
+
+    private func hz(midi: Int, a4: Double = 440) -> Double {
+        a4 * pow(2.0, Double(midi - 69) / 12.0)
+    }
+
+    func testToneCircle_everyPitchClassIsVisible_at440and432() {
+        for a4 in [440.0, 432.0] {
+            for midi in 36...96 {   // C2…C7
+                let c = SpectralColor.toneLinearRGB(forToneHz: hz(midi: midi, a4: a4))
+                let peak = max(c.r, max(c.g, c.b))
+                XCTAssertGreaterThan(peak, 0.35,
+                    "midi \(midi) @ a4=\(a4) must be a visible colour, got peak \(peak)")
+            }
+        }
+    }
+
+    func testToneCircle_FIsAPurple_notBlack_at440() {
+        let f4 = SpectralColor.toneLinearRGB(forToneHz: hz(midi: 65))   // F4 ≈ 349.23
+        XCTAssertGreaterThan(max(f4.r, max(f4.g, f4.b)), 0.5, "F4 must be present")
+        // Purple: red and blue carry the colour, green stays low.
+        XCTAssertGreaterThan(f4.b, f4.g)
+        XCTAssertGreaterThan(f4.r, f4.g)
+    }
+
+    func testToneCircle_AStaysSpectralRed_at440() {
+        let a4 = SpectralColor.toneLinearRGB(forToneHz: 440)
+        XCTAssertGreaterThan(a4.r, a4.g)
+        XCTAssertGreaterThan(a4.r, a4.b)
+        // Inside the spectral span the closed circle agrees with the raw physics.
+        let raw = SpectralColor.wavelengthToLinearRGB(SpectralColor.visibleWavelength(forToneHz: 440))
+        XCTAssertEqual(a4.r, raw.r, accuracy: 1e-9)
+        XCTAssertEqual(a4.g, raw.g, accuracy: 1e-9)
+        XCTAssertEqual(a4.b, raw.b, accuracy: 1e-9)
+    }
+
+    func testToneCircle_octaveEquivalence() {
+        let f4 = SpectralColor.toneLinearRGB(forToneHz: hz(midi: 65))
+        let f5 = SpectralColor.toneLinearRGB(forToneHz: hz(midi: 77))
+        XCTAssertEqual(f4.r, f5.r, accuracy: 1e-6)
+        XCTAssertEqual(f4.g, f5.g, accuracy: 1e-6)
+        XCTAssertEqual(f4.b, f5.b, accuracy: 1e-6)
+    }
+
+    func testToneCircle_isContinuousAcrossTheSeam() {
+        // Sweep one full octave in fine steps: no adjacent pair may jump —
+        // the seam blend and its brightness lift must be continuous at both
+        // boundaries (an earlier draft normalized only the violet side and
+        // jumped ×1.44 there).
+        var prev: LinearRGB?
+        var f = 330.0                       // E4 …
+        while f < 660.0 {                   // … E5, crossing the F seam
+            let c = SpectralColor.toneLinearRGB(forToneHz: f)
+            if let p = prev {
+                XCTAssertLessThan(abs(c.r - p.r), 0.12, "r jump at \(f) Hz")
+                XCTAssertLessThan(abs(c.g - p.g), 0.12, "g jump at \(f) Hz")
+                XCTAssertLessThan(abs(c.b - p.b), 0.12, "b jump at \(f) Hz")
+            }
+            prev = c
+            f *= 1.002                      // ~3.5 cents per step
+        }
+    }
+
+    func testToneCircle_guardsBadInput() {
+        for bad in [Double.nan, .infinity, 0, -5] {
+            let c = SpectralColor.toneLinearRGB(forToneHz: bad)
+            for v in [c.r, c.g, c.b] {
+                XCTAssertTrue(v.isFinite)
+                XCTAssertGreaterThanOrEqual(v, 0); XCTAssertLessThanOrEqual(v, 1)
+            }
+        }
+    }
 }

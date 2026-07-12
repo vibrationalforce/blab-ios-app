@@ -912,8 +912,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? inTau : 0.35, dt: dt)
                 if !slotTaken[k], cloudW[k] < 0.004 { cloudID[k] = Int.min }   // slot free again
                 guard cloudHzSlot[k] > 0 else { continue }
-                let wl = SpectralColor.visibleWavelength(forToneHz: cloudHzSlot[k])
-                let c = SpectralColor.wavelengthToLinearRGB(wl)
+                // Closed-circle tone colour (purple-line seam): a chord on E/F/G
+                // used to sum to near-BLACK clouds — "chords not visualized"
+                // (founder 2026-07-12). Twins the shader's toneColour seam.
+                let c = SpectralColor.toneLinearRGB(forToneHz: cloudHzSlot[k])
                 let t = SIMD3<Float>(Float(c.r), Float(c.g), Float(c.b))
                 let p = SpectralColor.notePosition(forHz: cloudHzSlot[k])
                 let tp = SIMD2<Float>(Float(p.x), Float(p.y))
@@ -1174,8 +1176,35 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float fLight = f * exp2(n);                 // now in the ~400–790 THz visible band
         return 2.998e17 / fLight;                   // nanometres
     }
+    // Tone → colour on the CLOSED spectral circle. The visible band is barely one
+    // octave, so the naive fold has a SEAM where CIE response → 0 (at A4=440 the
+    // pitch class F rendered BLACK, G/E dim — founder 2026-07-12). Colorimetry's
+    // own closure is the CIE PURPLE LINE (red end ↔ violet end, real perceived
+    // colours); inside 640…420 nm the pure spectral colour holds. EXACT twin of
+    // SpectralColor.toneLinearRGB — every surface must agree (anti-strobe law).
     float3 toneColour(float toneHz) {
-        return wavelengthToRGB(clamp(toneWavelengthNm(toneHz), 380.0, 780.0));
+        float f = max(toneHz, 1.0);
+        float p = log2(2.99792458e17 / 780.0 / f);  // octaves up to the 780 nm anchor
+        float t = ceil(p) - p;                       // position in the closed circle [0,1)
+        if (t >= 1.0) t -= 1.0;
+        float tRed = 0.28540222;                     // log2(780/640) — last strong red
+        float tViolet = 0.89306425;                  // log2(780/420) — last strong violet
+        if (t >= tRed && t <= tViolet) {
+            return wavelengthToRGB(780.0 / exp2(t));
+        }
+        float seam = tRed + 1.0 - tViolet;
+        float s = (t < tRed) ? (tRed - t) / seam : (tRed + 1.0 - t) / seam;
+        float3 red = wavelengthToRGB(640.0);
+        float3 violet = wavelengthToRGB(420.0);
+        float3 c = mix(red, violet, s);
+        // Lift the mixed peak to the interpolated anchor peak — factor 1 at
+        // both boundaries (continuous with the spectral span), full presence
+        // mid-purple. Twin of SpectralColor.toneLinearRGB.
+        float m = max(c.r, max(c.g, c.b));
+        float target = mix(max(red.r, max(red.g, red.b)),
+                           max(violet.r, max(violet.g, violet.b)), s);
+        if (m > 1e-6) c *= target / m;
+        return clamp(c, 0.0, 1.0);
     }
 
     // COLOUR CLOUDS = the really-sounding notes, each AT ITS PITCH-SPACE PLACE

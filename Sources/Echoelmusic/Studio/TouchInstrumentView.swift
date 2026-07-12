@@ -534,7 +534,7 @@ final class TouchInstrumentUIView: UIView {
     private func spawnRing(at p: CGPoint, strong: Bool, pitch: Int, velocity: Float) {
         guard !reduceMotion else { return }
         let w = max(bounds.width, 1), h = max(bounds.height, 1)
-        let rgb = SpectralColor.wavelengthToLinearRGB(SpectralColor.visibleWavelength(forToneHz: frequency(of: pitch)))
+        let rgb = SpectralColor.toneLinearRGB(forToneHz: frequency(of: pitch))
         // Equal-luminance light: normalize so every note's ripple glows visibly —
         // the shader's cloud luminance floor does not cover this additive light,
         // and raw deep-red/violet CMF output is otherwise near-invisible.
