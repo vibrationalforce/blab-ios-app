@@ -187,5 +187,32 @@ final class ArtNetSenderTests: XCTestCase {
                        0.6, accuracy: 1e-6, "non-finite master reads as full")
         XCTAssertEqual(ArtNetSender.masteredDimmer(-1, grandMaster: 0.5, blackout: false), 0)
     }
+
+    // MARK: - Shared slew decision (ArtNet AND sACN — flash guarantee on both)
+
+    func testSlewedDimmer_blackoutIsInstantZero() {
+        // A blackout cut is one edge, not a strobe → 0 regardless of anchor.
+        XCTAssertEqual(FlashGuard.slewedDimmer(from: 1.0, to: 1.0, blackout: true), 0)
+        XCTAssertEqual(FlashGuard.slewedDimmer(from: -1, to: 0.9, blackout: true), 0)
+    }
+
+    func testSlewedDimmer_firstFrameLandsAtTarget() {
+        // No history (anchor < 0) → the target, nothing to ramp from.
+        XCTAssertEqual(FlashGuard.slewedDimmer(from: -1, to: 0.75, blackout: false),
+                       0.75, accuracy: 1e-6)
+    }
+
+    func testSlewedDimmer_blackoutReleaseRampsFromDark_neverSnaps() {
+        // THE sACN bug this guards (workflow B11): after a blackout the anchor is
+        // 0, so the return to full must ramp ≤0.08/tick, not jump 0→full.
+        let firstAfterRelease = FlashGuard.slewedDimmer(from: 0.0, to: 1.0, blackout: false)
+        XCTAssertEqual(firstAfterRelease, 0.08, accuracy: 1e-9,
+                       "un-blackout must step, not snap to full")
+        var v: Float = 0, steps = 0
+        while v < 1.0 - 1e-6 && steps < 1000 {
+            v = FlashGuard.slewedDimmer(from: v, to: 1.0, blackout: false); steps += 1
+        }
+        XCTAssertGreaterThanOrEqual(steps, 12, "full fade ≥0.4 s at 30 Hz → <3 Hz")
+    }
 }
 #endif

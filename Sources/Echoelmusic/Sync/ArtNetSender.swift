@@ -153,14 +153,7 @@ public final class ArtNetSender {
         // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer
         // (luminance) channel so even a pathological input jump can never strobe
         // the lights. ~0.08/tick at 30 Hz → full fade ≥0.4 s (~1.2 Hz max).
-        let limited: Float
-        if blackout {
-            limited = 0
-        } else if lastDimmer < 0 {
-            limited = mastered
-        } else {
-            limited = Float(FlashGuard.limitedLuminance(from: Double(lastDimmer), to: Double(mastered), maxDelta: 0.08))
-        }
+        let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout)
         lastDimmer = limited
         Self.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)

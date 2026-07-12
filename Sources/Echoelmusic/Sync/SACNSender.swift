@@ -64,6 +64,11 @@ public final class SACNSender {
     @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
     @ObservationIgnored private var lastSentGrandMaster: Float = 1
     @ObservationIgnored private var lastSentBlackout = false
+    /// Slew anchor for the flash guard (−1 = uninitialised → first frame lands
+    /// at target). Mirrors ArtNetSender: the mastered dimmer ramps ≤0.08/tick so
+    /// a Blackout release (or a Grand-Master jump) can never strobe physical
+    /// fixtures — the ≤3 Hz / W3C-WCAG flash hard law applies to sACN too.
+    @ObservationIgnored private var lastDimmer: Float = -1
     @ObservationIgnored private var sequence: UInt8 = 0
     /// Sender CID — stable per instance (E1.31 requires a unique component id).
     @ObservationIgnored private let cid: [UInt8]
@@ -127,16 +132,23 @@ public final class SACNSender {
         } else {
             return
         }
-        // A Grand-Master/Blackout change must send even on a stale source
-        // (a paused bio stream must never block a blackout).
+        let mastered = ArtNetSender.masteredDimmer(dimmer, grandMaster: grandMaster, blackout: blackout)
+        // Send when the source is fresh, the master state moved, OR the slew ramp
+        // hasn't reached its target yet — so a paused source can't freeze a fade
+        // mid-ramp, and a blackout is never blocked. (Mirrors ArtNetSender.)
         let masterMoved = grandMaster != lastSentGrandMaster || blackout != lastSentBlackout
-        guard sourceTimestamp != lastFrameTimestamp || masterMoved else { return }
+        let slewSettling = lastDimmer >= 0 && abs(mastered - lastDimmer) > 0.001
+        guard sourceTimestamp != lastFrameTimestamp || masterMoved || slewSettling else { return }
         lastFrameTimestamp = sourceTimestamp
         lastSentGrandMaster = grandMaster
         lastSentBlackout = blackout
-        ArtNetSender.applyDimmer(&channels, resolution: resolution,
-                                 dimmer: ArtNetSender.masteredDimmer(dimmer, grandMaster: grandMaster,
-                                                                     blackout: blackout))
+        // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer so
+        // even a Blackout release or a pathological jump ramps up from dark
+        // instead of snapping (~0.08/tick → full fade ≥0.4 s, ~1.2 Hz max). Same
+        // shared decision as ArtNetSender — identical guarantee on both protocols.
+        let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout)
+        lastDimmer = limited
+        ArtNetSender.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)

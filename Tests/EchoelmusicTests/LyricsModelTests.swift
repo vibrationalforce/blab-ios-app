@@ -31,6 +31,23 @@ final class LyricsModelTests: XCTestCase {
         XCTAssertEqual(Syllabifier.syllables(of: "Melodie", language: .german), ["Me", "lo", "die"])
     }
 
+    func testGerman_diphthongPairs_neverSplitInside() {
+        // Cover the diphthong table beyond "ie": au / eu each stay one nucleus.
+        XCTAssertEqual(Syllabifier.syllables(of: "Auge", language: .german), ["Au", "ge"])
+        XCTAssertEqual(Syllabifier.syllables(of: "heute", language: .german), ["heu", "te"])
+    }
+
+    func testGerman_adjacentVowelHiatus_splitsBetweenNuclei() {
+        // Two vowels that are NOT a diphthong ("ea") form separate nuclei and
+        // split (the runLength<=0 branch the source documents as "Bea-te").
+        XCTAssertEqual(Syllabifier.syllables(of: "Beate", language: .german), ["Be", "a", "te"])
+    }
+
+    func testGerman_midWordThreeConsonantCluster_keepsSchTogether() {
+        // The width-3 onset-cluster match: "sch" mid-word starts the next syllable.
+        XCTAssertEqual(Syllabifier.syllables(of: "rauschen", language: .german), ["rau", "schen"])
+    }
+
     func testGerman_singleSyllableAndNoVowels_stayWhole() {
         XCTAssertEqual(Syllabifier.syllables(of: "Herbst", language: .german), ["Herbst"])
         XCTAssertEqual(Syllabifier.syllables(of: "hmm", language: .german), ["hmm"])

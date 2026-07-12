@@ -52,4 +52,19 @@ public enum FlashGuard {
         if delta < -maxDelta { return previous - maxDelta }
         return target
     }
+
+    /// The next dimmer value a lighting sender emits, given its slew anchor.
+    /// The ONE flash-safe decision shared by ArtNet and sACN (so both fixture
+    /// protocols get an identical, testable guarantee):
+    ///   • blackout        → 0 (an instant cut is a single edge, not a strobe)
+    ///   • no history (lastDimmer < 0) → the target (nothing to ramp from)
+    ///   • otherwise       → the target, slew-limited to `maxDelta`/tick.
+    /// `lastDimmer` is the anchor to update with the return value.
+    public static func slewedDimmer(from lastDimmer: Float, to mastered: Float,
+                                    blackout: Bool, maxDelta: Double = 0.08) -> Float {
+        if blackout { return 0 }
+        if lastDimmer < 0 { return mastered }
+        return Float(limitedLuminance(from: Double(lastDimmer), to: Double(mastered),
+                                      maxDelta: maxDelta))
+    }
 }

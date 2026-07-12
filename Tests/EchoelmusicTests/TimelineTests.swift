@@ -229,4 +229,17 @@ final class TimelineTests: XCTestCase {
         let audioOnly = TimelineDocument(lanes: [TimelineLane(name: "A", kind: .audio)])
         XCTAssertEqual(audioOnly.rollSlotPan, 0)
     }
+
+    @MainActor
+    func testStore_setLanePan_clampsAndGuardsUnknownId() {
+        let store = TimelineStore()
+        store.addLane(kind: .midi, name: "M")
+        guard let id = store.document.lanes.last?.id else { return XCTFail("no lane") }
+        store.setLanePan(id: id, 5)                 // above range → clamps to +1
+        XCTAssertEqual(store.document.lanes.last?.pan, 1)
+        store.setLanePan(id: id, -9)                // below range → clamps to −1
+        XCTAssertEqual(store.document.lanes.last?.pan, -1)
+        store.setLanePan(id: UUID(), 0.5)           // unknown id → no crash, no change
+        XCTAssertEqual(store.document.lanes.last?.pan, -1)
+    }
 }
