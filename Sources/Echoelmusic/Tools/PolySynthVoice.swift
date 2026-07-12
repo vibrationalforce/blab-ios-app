@@ -154,6 +154,32 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var hasEverSounded = false
 
+    // P1 idle-skip (FL "Smart Disable" / REAPER lesson, 2026-07-12 sweep):
+    // once every voice and every FX tail has fully decayed, the render emits
+    // silence WITHOUT running the poly engine + FX chain — measurable CPU/
+    // battery/thermal headroom whenever the instrument is quiet. Audio-thread-
+    // only state (no locks needed); a note command wakes it in the SAME block
+    // (commands drain before the gate), so the attack is never clipped.
+    /// Consecutive blocks whose rendered peak stayed below the idle floor.
+    @ObservationIgnored
+    nonisolated(unsafe) private var idleQuietBlocks = 0
+    /// True while the render is skipped. Cleared by any note-on/slide command
+    /// and whenever the entrainment stimulus is armed.
+    @ObservationIgnored
+    nonisolated(unsafe) private var renderIdle = false
+    /// Main-thread mirror of "the isochronic stimulus may be sounding": the
+    /// entrainment writes voice state DIRECTLY (not via the command queues), so
+    /// the idle gate must never engage while it is armed — otherwise a stimulus
+    /// with no notes held would be muted. Bool is atomic-width (same contract
+    /// as the other nonisolated(unsafe) mirrors in this file).
+    @ObservationIgnored
+    nonisolated(unsafe) private var audioEntrainmentActive = false
+    /// Peak below this counts as digital silence (≈ −100 dBFS).
+    nonisolated private static let idlePeakFloor: Float = 1e-5
+    /// Quiet blocks before the render sleeps (~0.35 s at 512 frames / 48 kHz) —
+    /// long enough that any limiter/chorus/delay tail above the floor keeps it awake.
+    nonisolated private static let idleBlockThreshold = 32
+
     /// One-time guard so the control-thread note breadcrumb fires only once.
     nonisolated(unsafe) fileprivate static var noteTraced = false
 
@@ -442,6 +468,7 @@ public final class PolySynthVoice {
         let target = BioEntrainmentDirector(manualBand: entrainmentManualBand)
             .target(coherence: liveCoherence(coherence), quality: quality)
         entrainmentTarget = target
+        audioEntrainmentActive = target.depth > 0   // idle gate must stay open
         poly.forEachVoice { voice in
             voice.entrainment.band = target.band
             voice.entrainment.depth = target.depth
@@ -452,6 +479,7 @@ public final class PolySynthVoice {
     private func clearEntrainment() {
         poly.forEachVoice { $0.entrainment.depth = 0 }
         entrainmentTarget = .inactive
+        audioEntrainmentActive = false
     }
 
     private func clampUnit(_ x: Float) -> Float { min(max(x, 0), 1) }
@@ -509,6 +537,7 @@ public final class PolySynthVoice {
             switch cmd.kind {
             case .on:
                 hasEverSounded = true
+                renderIdle = false; idleQuietBlocks = 0   // wake IN this block
                 poly.noteOn(note: Int(cmd.pitch), velocity: cmd.velocity)
             case .off:
                 poly.noteOff(note: Int(cmd.pitch))
@@ -516,12 +545,24 @@ public final class PolySynthVoice {
                 poly.allNotesOff()
             case .slide:
                 hasEverSounded = true   // a slide's noteOn-fallback must not be muted
+                renderIdle = false; idleQuietBlocks = 0
                 poly.slideNote(from: Int(cmd.pitch2), to: Int(cmd.pitch), velocity: cmd.velocity)
             }
         }
         guard hasEverSounded else {
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return
+        }
+        // P1 idle-skip: everything decayed and no stimulus armed → pure silence
+        // without running the engine. Commands above already drained, so params
+        // stay current and the next note starts exactly on its block.
+        if renderIdle {
+            if audioEntrainmentActive {
+                renderIdle = false; idleQuietBlocks = 0   // stimulus armed → wake
+            } else {
+                Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
+                return
+            }
         }
         let count = min(frameCount, Self.maxBlockFrames)
         poly.renderStereo(left: &scratchL, right: &scratchR, frameCount: count)
@@ -557,6 +598,26 @@ public final class PolySynthVoice {
                 ph += inc
             }
             breathPhase = ph.truncatingRemainder(dividingBy: 2 * Float.pi)
+        }
+
+        // P1 idle-skip bookkeeping: track the block peak (plain loop, pure
+        // arithmetic — audio-thread safe). Enough consecutive silent blocks
+        // with no stimulus armed → sleep until the next note command.
+        if !audioEntrainmentActive {
+            var peak: Float = 0
+            for i in 0..<count {
+                let l = abs(scratchL[i]), r = abs(scratchR[i])
+                if l > peak { peak = l }
+                if r > peak { peak = r }
+            }
+            if peak < Self.idlePeakFloor {
+                idleQuietBlocks += 1
+                if idleQuietBlocks >= Self.idleBlockThreshold { renderIdle = true }
+            } else {
+                idleQuietBlocks = 0
+            }
+        } else {
+            idleQuietBlocks = 0
         }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
