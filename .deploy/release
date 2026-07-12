@@ -1,24 +1,22 @@
-build: 2026-07-12 v10.79.173 (Adaptives Layout — Mix- und Wetter-Karten nebeneinander im Querformat, P4)
+build: 2026-07-12 v10.79.174 (Puls-Knopf neben Play · Pulsmonitor im Header · Monitor in echten Visual-Farben · Visual-Diagnose)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: „Passendes adaptives Design für horizontal und Vertikal" (dein Wunsch),
-  nächster Schritt: die Karten nutzen jetzt die Breite.
+notes: Deine drei Screenshot-Anweisungen:
+  · „Create from Within" ist weg — der Puls-Knopf (⌁) sitzt oben im Transport
+    NEBEN Play und startet/stoppt das Instrument (grüner Ring = Körper live).
+  · Der Pulsmonitor (Live-Kurve + BPM) sitzt oben zwischen Logo und Titel.
+  · Die Monitor-Kachel rechts zeigt die ECHTEN Visual-Farben: sie färbt sich
+    mit dem klingenden Akkord (dieselbe physikalische Ton→Farbe wie der
+    Shader), schwillt mit dem Musik-Level, pulsiert mit dem Herzschlag.
+  · Die Erklär-Zeile ist raus (kommt später als richtiges EchoelAI).
 
-  Im Querformat / auf dem iPad legen sich nebeneinander (2 Spalten):
-  · die Master-Mix-Strips (Bass · Melodic · Drums)
-  · die Wetter-Gruppen (Klang · Bild)
-  Im Hochformat bleibt alles gestapelt wie bisher.
+  PLUS: das Visual schreibt jetzt alle 5 s eine Diagnose-Zeile ins Log
+  („visual: bio= mfNotes= level= …"). BITTE: kurz mit laufendem Visual
+  spielen und das Log schicken — die Zeilen zeigen exakt, warum das Visual
+  grau/statisch wurde.
 
-  Ein wiederverwendbares Leaf (AdaptiveCardGrid) liest die Size-Class in
-  seinem EIGENEN Body (nie im Root → keine Menü-Freeze-Gefahr) — dasselbe
-  bewährte Muster wie das adaptive Hackbrett (v170). Reines Layout, gleiche
-  Regler, komplett umkehrbar.
+  ui-state-Review: konform, 0 kritisch (+2 Härtungen). Alle Gates grün auf
+  809d621. NEEDS-FOUNDER-VERIFY (Header-Layout, Puls-Knopf-Flow, Kachel).
 
-  ui-state-Review: 0 Risiken (kein neues Sheet, Size-Class nur im Leaf). Alle
-  Gates grün (Quick Test · Xcode Compile Check · CI/CD auf 4b50916).
-
-  NEEDS-FOUNDER-VERIFY (sieht das Querformat „passend" aus — Karten-Breiten,
-  Umbruch bei 3 Mix-Strips → 2+1).
-
-  Warten aufs Antesten: v167 Groove „Eins" · v168/v170/v171/v173 Hackbrett +
-  adaptiv · v169 Timeline spielt · v172 Wetter-Board · (v162–v166
-  Warmth/Tempo/FX).
+  In Arbeit (mehrstündige DMMW-Sitzung, Meldung wenn fertig): die
+  Produktions-Shell — Menüleiste + Dropdowns statt Karten-Stapel, Buttons
+  auf den Spuren, Kammerton-reaktive Notenraster-Farben, Video-Fenster.
