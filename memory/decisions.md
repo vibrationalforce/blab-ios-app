@@ -526,3 +526,22 @@ Architectural and strategic decisions with context and rationale.
   nicht präsentieren), der tote `showMeditation`-Cover-Slot ist Slot-Reuse-Reservoir.
   Künftige Meditations-/Entspannungs-Qualität fließt in Musik + Visual der Main View
   (BioComposer/BioSpaceMap/Visual), NIE in einen neuen Screen.
+
+### 2026-07-12C LYRICS/SONGWRITING BESTÄTIGT + HARDWARE-VORBEREITUNG
+- **Founder (verbatim):** "Gurt und Watch noch nicht da aber bereite alles vor.
+  … Lyrics bzw songwriting wie bei ACE Studio soll es geben ja"
+- **Entscheid:** Die W-Spur (Word/Lyrics) ist offiziell Roadmap: Echoels eigener
+  Weg = die EIGENE Stimme des Users als Sängerin (AutotuneCore + Skalen-
+  Harmonien, VL-Spur) + deterministische Formant-Synthese in-house
+  (VocoderCore/EchoelDDSP-Richtung) + Lyrics-auf-Noten-Mapping. NICHT ACE
+  kopieren: deren zwei größte Schmerzen (Server-Render-Wartezeit pro Tweak,
+  Credits-Abo-Dark-Patterns) sind unsere Gegenposition — on-device,
+  deterministisch, Einmal-Unlock. Der AUv3-Slot "Stimme mit MIDI-Songwriting"
+  ist marktweit unbesetzt (Deep Research 2026-07-12).
+- **Timing:** nach dem Profi-Level-Milestone; pure Foundations (LyricsModel:
+  Silben→Noten, Codable, TDD) dürfen früher als kleine Zyklen landen.
+- **Hardware:** BLE-Gurt + Watch sind bestellt/kommen. Alles VORBEREITET halten:
+  Gurt-Tür im Patchbay (6ba61e5) steht; HealthKit-Pfad (Watch-HR) läuft;
+  NEEDS-FOUNDER-VERIFY-Tests sobald Hardware da (Gurt verdrahten → Puls im
+  Header; Watch → HealthKit-Quelle).
+- **Review:** 2026-08-12.
