@@ -3,6 +3,37 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-12 (Forts. 29) — 24h-Mandat: Ableton-Sweep + A-Spur gebaut (Freeze aktiv)
+- **Kontext:** TestFlight-FREEZE (kein .deploy-Bump bis Profi-Milestone; letzter Build
+  v10.79.182/2288 device-bestätigt). 24h-Autonomie-Mandat + „Ableton 20"-Auftrag.
+- **Research komplett (6 Reports in scratchpads/):** RESEARCH_ABLETON12_INVENTAR +
+  RESEARCH_FRONTIER_ABLETON20 + Rundum-Sweep (Founder: „alles abklappern"):
+  RESEARCH_DESKTOP_DAWS (REAPER anticipative FX · ProTools Hybrid-Determinismus ·
+  FL Smart Disable · Logic 12 Chord ID · Bitwig 6 Automation Clips) ·
+  RESEARCH_VIDEO_FRONTIER (FCP-iPad Proxy-first = Mobile-Muster; puls-synchroner
+  Schnitt = unbesetzt) · RESEARCH_VJ_MAPPING_VISUAL (Profi-Kriterien: Layer/Farb-
+  Management/Übergänge; ISF-Subset-Pfad; **Bio-Input im GESAMTEN Feld unbesetzt —
+  bestätigt**) · RESEARCH_LICHT_LASER_IOS (MA3-Phaser→Bio-Phaser; GDTF-Parser;
+  Laser=WATCH/Safety; Loopy-2-Pricing; Endlesss tot). Plan hat jetzt P/L/VIS/VID-Spuren.
+- **Founder-Fotos (6) + Videos (2) ausgewertet:** Ableton-Scale-Liste → Lücke SOFORT
+  geschlossen (`7fa20ea`): 8 neue Skalen (Lydian Augmented, Spanish 8-Tone, Kumoi,
+  Messiaen 3–7; jetzt 50, Messiaen per Transpositions-Invarianz-Test verriegelt;
+  Pelog Tembung bewusst draußen — keine autoritative 12-TET-Definition). Videos =
+  Browser-/Editing-Schicht → inspiration.csv „KOLLABIEREN-NICHT-KOPIEREN"
+  (A/B-Vergleich = Seeds; Groove-Pool → Bio-Groove).
+- **A-Spur gebaut (alle Gates grün):** A0 Curvature (`e5a49a0`, Vortag-Fenster) →
+  **A1 NoteOperators** (`2492488`): Chance/Repeats+Ramp/Occurrence als pures Modell,
+  deterministisch (UUID-Fold, kein Hasher), Note.operators optional
+  (encodeIfPresent → Legacy-JSON byte-identisch), 15 Tests → **A1-Wiring**
+  (`2513bb8`): operatorLoopPass-Uhr (zählt JEDEN Bar-Wrap, Reset bei Stop =
+  identischer Take), Gate als pure nonisolated static operatorAllows, Repeats
+  warten ehrlich auf Sub-Step-Clock (W2) → **A2 NoteTransform** (`a887fb9`):
+  Strum (Fächer + Velocity-Ramp, Release-Punkt bleibt) + Humanize (per-Note-ID
+  geseedet, reihenfolge-unabhängig), 13 Tests. Roll-Tür = späterer Zyklus.
+- **Nächste Kandidaten:** A4 Bio-Operators (Kohärenz→Chance — Alleinstellung),
+  A3 Automations-Canvas, P1 Idle-Voices, L1 Grand Master/Blackout.
+- **Offen an Founder:** BLE-Gurt vorhanden? „Word"=Lyrics? (unverändert unbeantwortet)
+
 ## 2026-07-11 (Forts. 27) — UI-Umfrage + Play-Einstieg gebaut (grün)
 - **Founder-Auftrag:** emulierte Zielgruppen-Umfrage zum UI. 5 Persona-Agenten
   (Producerin/Creator/VJ/Performer/Einsteigerin) → Artifact-Mockup + Synthese
