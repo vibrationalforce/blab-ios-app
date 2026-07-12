@@ -406,3 +406,26 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
 - **WATCH (Lehren):** Cloud-Sync-Beschwerden = Warnung für CollabSync (State klein,
   Protokoll v1 statt Dokument-Sync); Abo-für-Features bestätigt unser Modell
   (freies Instrument, Abo nur für den Live-VERBINDUNGS-Dienst).
+
+## 2026-07-12 — Deep-Research 3-Strang (Founder-Auftrag) + Nachnennungen — KONDENSAT
+- **Dreifach-Lücke bestätigt (Positionierung):** kein Bio-AUv3, keine ADM-OSC-Quelle
+  auf iPhone, kein kommerzielles Bio→Visual/Licht-Tool. dearVR ist tot (Sennheiser
+  2025). „Bio-reaktive Objektquelle" = unbesetzt UND bei uns schon live (ADMOSCSender).
+  Claim-Regel: nur nennen was LIVE ist.
+- **AUv3-Sandbox-Realität (E4):** Plugin liest kein HealthKit/BLE frei — App-als-
+  Sensor-Hub via App-Group/Host-MIDI ist DAS Markt-Muster (deckt PLAN E4). Audio
+  Damage „same engine everywhere" + Otoo (standalone+AUv3+Host zugleich) = Vorbilder.
+- **Stärkste Feature-Übernahmen (geloggt, je eigener CSV-Eintrag):** Rubato-Zeit-
+  Elastizität bio-getrieben · Ribbon/Transit-Ein-Gesten-Morph (= EchoelFX Workstream 3,
+  Morph-Regler kann Bio sein) · Scaler-EQ-Idee tonart-getrackt (wir KENNEN den Key) ·
+  Hum-to-Harmony (Demo) · MusiKraken-Inputs AirPods-Head/Watch-Crown (WATCH).
+- **Spatial-Baurichtung bestätigt:** Hosts sind stereo → intern binaural dekodieren
+  (Audio-Brewers-Muster); Isone hosten = Binaural-Vorschau vor eigenem Kern;
+  Animoog Galaxy (visionOS) = Präzedenz „Stimmen als Raumobjekte" → SpatialScene-Plan.
+- **Licht/Visual-Messlatte:** Fixture-Profiles + Cue-Stacks (Luminair/Blackout),
+  BeatTracker+Link (Photon), Timeline-über-Engine (MadMapper 6 → Layer 7). VS-2-
+  Modulations-MATRIX (nicht Node-Graph) = die mobile Routing-UX. TDLidar beweist
+  „iPhone als Sensor-Peripherie großer Rigs" — exakt unsere OSC-Rolle.
+- **BLE-MIDI-Befund (Founder-Frage):** MPE/MIDI2.0-Parsing + RTP-MIDI laufen; BLE-MIDI-
+  Geräte erscheinen als CoreMIDI-Quelle sobald GEKOPPELT — es fehlt nur der In-App-
+  Kopplungsdialog (CABTMIDICentralViewController als Panel-Inhalt, KEIN neues Sheet).
