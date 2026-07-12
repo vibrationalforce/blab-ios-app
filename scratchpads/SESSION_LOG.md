@@ -3,6 +3,28 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-12 (Forts. 30) — B-Batch: A3/A4/P1/L1/B4/B3/B2 (Freeze aktiv, Gates grün)
+- **Mandat läuft:** 24h-Autonomie + TestFlight-FREEZE (kein Deploy bis Profi-Milestone);
+  Stunden-Cron-Trigger (trig_011w6M7dhTVQexpGJ83YoN4t) hält die Session wach; jeder
+  Zyklus endet mit Status-Delta an den Founder.
+- **Gebaut seit Forts. 29 (alle Commits CI-grün):** A3 Automations-Canvas
+  (Zeichnen/Bend/Doppel-Tap, EIN Drag-Gesture, AutomationCanvasMath pure) ·
+  A4 Bio-Operators (Kohärenz verschiebt Chance-Schwelle, Roll bleibt geseedet) ·
+  P1 Idle-Voice-Skip (Frames statt Blöcke, 2.5s-Schwelle > Delay-Echo-Lücke —
+  Audio-Review-Fix b6a6cee) · L1 Grand Master/Blackout (Art-Net + sACN, Blackout
+  gewinnt, Rückkehr slewt, Patchbay-Licht-Sektion) · B4 BLE-Gurt-Tür
+  (blehrs.in-Port, applyRouting startet/stoppt PolarH10BioPublisher) · B3 Bio ins
+  Menü (Strip raus aus Dauer-Flow, „Bio"-Chip erster Menü-Punkt, Header-Puls
+  Long-Press) · **B2 Pan pro Spur (c21e423):** TimelineLane.pan −1…1 persistiert
+  + rollSlotPan-Spiegel + TimelineStore.setLanePan + PolySynthVoice.setPan
+  (sourceNode.pan/AVAudioMixing → masterMixer = ehrlicher Engine-Pfad, kein
+  Render-Code) + Arrange-Binding auf synth+leadSynth + Pan-Feld im Sound&FX-Sheet;
+  Sends bewusst NICHT (keine Aux-Busse — Placebo-Regel). Sub-Bass bleibt center.
+- **Founder-Entscheid geloggt (2026-07-12C):** Lyrics/Songwriting (ACE-Studio-artig)
+  = offizielle W-Spur; Gurt+Watch bestellt → Hardware-Prep-Checkliste im Plan.
+- **Nächste:** B5 SampleBrowser-Drum-Tür · B6 BLE-MIDI · B8 V2 Offbeat (test-first) ·
+  W1 LyricsModel (pure TDD) · B10 Docs-Sync · B11 Review-Pass → Milestone-Deploy.
+
 ## 2026-07-12 (Forts. 29) — 24h-Mandat: Ableton-Sweep + A-Spur gebaut (Freeze aktiv)
 - **Kontext:** TestFlight-FREEZE (kein .deploy-Bump bis Profi-Milestone; letzter Build
   v10.79.182/2288 device-bestätigt). 24h-Autonomie-Mandat + „Ableton 20"-Auftrag.

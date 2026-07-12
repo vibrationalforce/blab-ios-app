@@ -21,8 +21,15 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
       Registrierungs-Observer + passingTest-Enumeration + Scan-Breadcrumb — DONE.
       Verify am Milestone: Breadcrumb "auv3 scan: … makers: …" im Founder-Log.
 - [x] B1c — Kammerton-Farbgesetz über 392–466 Hz + Frequenz-Echtheit als Tests — DONE.
-- [ ] B2 — E2b Mix→Spuren: laneMixStrip trägt Gain/Pan/Sends-Zugang pro Spur;
-      ChannelRack bleibt als Master-Übersicht im Mix-Panel.
+- [x] B2 — DONE (c21e423: Pan pro Spur — TimelineLane.pan −1…1 persistiert
+      [decodeIfPresent-Migration], rollSlotPan-Spiegel von rollSlotGain,
+      TimelineStore.setLanePan, PolySynthVoice.setPan über sourceNode.pan
+      [AVAudioMixing → masterMixer = EHRLICHER Engine-Pfad, kein Render-Code],
+      Arrange bindet rollSlotPan → synth + leadSynth [initial:true], Pan-Feld
+      im Sound&FX-Sheet der Spur [Strip 140pt bleibt M/S/Level]; Sub-Bass
+      bewusst center [Mono-Bass]. **Sends bewust NICHT gebaut** — keine
+      Aux-Bus-Architektur vorhanden, Placebo-Regel; kommt mit echtem Aux-Bus.
+      ChannelRack bleibt Master-Übersicht im Mix-Panel.)
 - [x] B3 — DONE (8ec7f11: Strip raus aus dem Dauer-Flow; "Bio"-Chip als
       ERSTER Menü-Punkt + Long-Press auf Header-Puls öffnen das Bio-Dropdown
       [Zahlen/Tap-to-learn/Quelle unverändert als Leaf]; Receiver auf die
