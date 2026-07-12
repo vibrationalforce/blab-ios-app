@@ -93,6 +93,17 @@ struct WorkspaceView: View {
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
+        // Bottom-edge protection (founder 2026-07-12: "das Fenster von
+        // Echoelmusic will sich schließen, wenn man am unteren Bildschirmrand
+        // ist"): the iOS home-indicator swipe and our bottom controls (bio
+        // strip, track chips) fight for the same edge. Deferring the system
+        // gesture makes the FIRST swipe reach the app; leaving the app takes a
+        // deliberate second swipe (standard for games/DAWs). We do NOT hide
+        // the indicator (persistentSystemOverlays) — the way home must stay
+        // visible, it just must not fire mid-performance.
+        #if os(iOS)
+        .defersSystemGestures(on: .bottom)
+        #endif
     }
 
     /// Persistent brand header — always on screen. Centre: "Echoelmusic" + the running
