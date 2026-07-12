@@ -70,7 +70,11 @@ Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
       BioComposer-Output: pure `NoteTransform`-Funktionen (strum: Zeitfächer +
       Velocity-Gefälle; humanize: begrenzte deterministische Jitter) + Tests;
       Tür = bestehender Roll-Kontext (kein neues Modal).
-- [ ] A3 — **Automations-Canvas-Editor** (#24 Hälfte 2): zeichenbare Lane im
+- [x] A3 — DONE (bc218c4: Canvas in AutomationView — Tap=Add auf 16tel-Raster,
+      Point-Drag=Move, Segment-Drag=Krümmung [Hoch-Zug wölbt IMMER nach oben],
+      Doppel-Tap=Delete via Event-Timestamps, EIN Drag-Gesture; Geometrie pur
+      in AutomationCanvasMath, 8 Tests; Shape-Stempel = späterer Zyklus) —
+      **Automations-Canvas-Editor** (#24 Hälfte 2): zeichenbare Lane im
       Piano-Roll-Host — Tap=Punkt, Drag=verschieben, Segment-Drag=Krümmung
       (setCurvature), Raster-Snap, Doppel-Tap=löschen; Touch-first, ein
       Canvas-View, kein neues Sheet. Danach: Shape-Stempel (Live hat KEINE).
