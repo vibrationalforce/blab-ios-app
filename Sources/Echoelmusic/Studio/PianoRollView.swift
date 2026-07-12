@@ -357,11 +357,14 @@ public final class PianoRollModel {
     }
 
     /// Whether a note plays on this loop pass, per its operators (chance +
-    /// occurrence). Plain notes (nil/default operators) always play. Pure and
-    /// nonisolated so the gate law is unit-tested without a transport.
-    public nonisolated static func operatorAllows(_ note: Note, loopPass: Int, seed: UInt64) -> Bool {
+    /// occurrence). Plain notes (nil/default operators) always play. With a
+    /// live body, `coherence` bends the chance threshold (A4 Bio-Operators);
+    /// nil keeps the gate fully deterministic. Pure and nonisolated so the
+    /// gate law is unit-tested without a transport.
+    public nonisolated static func operatorAllows(_ note: Note, loopPass: Int, seed: UInt64,
+                                                  coherence: Double? = nil) -> Bool {
         guard let ops = note.operators, !ops.isDefault else { return true }
-        return !ops.hits(for: note, loopIndex: loopPass, seed: seed).isEmpty
+        return !ops.hits(for: note, loopIndex: loopPass, seed: seed, coherence: coherence).isEmpty
     }
 
     /// Stable per-voice identity for tie matching — mirrors `sameVoice` exactly:
@@ -421,9 +424,15 @@ public final class PianoRollModel {
         // simply never enters `starting`: no attack, no tie, its sound (if any)
         // from a previous pass releases normally. Repeats/ratchets need the
         // sample-accurate sub-step clock (W2) and are NOT evaluated here yet.
+        // A4 Bio-Operators: a live body bends the chance threshold via
+        // coherence (only on notes whose chance the user set below 1) — the
+        // player's settling literally fills the pattern out. No bio → nil →
+        // the gate stays fully deterministic.
+        let operatorCoherence = bus?.usableBio().map { Double($0.coherence) }
         let starting = notes.filter {
             $0.startStep == step
-                && Self.operatorAllows($0, loopPass: operatorLoopPass, seed: Self.operatorSeed)
+                && Self.operatorAllows($0, loopPass: operatorLoopPass, seed: Self.operatorSeed,
+                                       coherence: operatorCoherence)
         }
         let ties = step == 0
             ? Self.wrapTies(

@@ -182,6 +182,51 @@ final class NoteOperatorsTests: XCTestCase {
         XCTAssertNotEqual(NoteOperators.fold(fixedID), NoteOperators.fold(UUID()))
     }
 
+    // MARK: Bio-bent chance (A4 — coherence moves the dice threshold)
+
+    func testBioBentChance_neutralAtMidCoherence() {
+        let ops = NoteOperators(chance: 0.6)
+        XCTAssertEqual(ops.bioBentChance(coherence: 0.5), 0.6, accuracy: 1e-9)
+        XCTAssertEqual(ops.bioBentChance(coherence: nil), 0.6, accuracy: 1e-9)
+    }
+
+    func testBioBentChance_highCoherenceFillsOut_lowThins() {
+        let ops = NoteOperators(chance: 0.5)
+        XCTAssertEqual(ops.bioBentChance(coherence: 1.0), 1.0, accuracy: 1e-9)
+        XCTAssertEqual(ops.bioBentChance(coherence: 0.0), 0.0, accuracy: 1e-9)
+        XCTAssertGreaterThan(ops.bioBentChance(coherence: 0.8), 0.5)
+        XCTAssertLessThan(ops.bioBentChance(coherence: 0.2), 0.5)
+    }
+
+    func testBioBentChance_neverBendsCertainty() {
+        // Muted stays muted, certain stays certain, plain notes never flicker.
+        XCTAssertEqual(NoteOperators(chance: 0).bioBentChance(coherence: 1.0), 0)
+        XCTAssertEqual(NoteOperators(chance: 1).bioBentChance(coherence: 0.0), 1)
+    }
+
+    func testBioBentChance_clampsAndGuardsBadInput() {
+        let ops = NoteOperators(chance: 0.9)
+        XCTAssertEqual(ops.bioBentChance(coherence: 7), 1.0, accuracy: 1e-9)
+        XCTAssertEqual(ops.bioBentChance(coherence: .nan), 0.9, accuracy: 1e-9)
+    }
+
+    func testHits_withCoherenceOne_playsAnyNonZeroChance() {
+        // Threshold 0.5 + bend +0.5 = 1 → the roll (< 1) always passes.
+        let ops = NoteOperators(chance: 0.5)
+        for loop in 0..<16 {
+            XCTAssertFalse(ops.hits(for: note(), loopIndex: loop, seed: 7,
+                                    coherence: 1.0).isEmpty)
+        }
+    }
+
+    func testHits_withCoherenceZero_silencesHalfChance() {
+        let ops = NoteOperators(chance: 0.5)
+        for loop in 0..<16 {
+            XCTAssertTrue(ops.hits(for: note(), loopIndex: loop, seed: 7,
+                                   coherence: 0.0).isEmpty)
+        }
+    }
+
     // MARK: Playback gate (PianoRollModel.operatorAllows — the wiring law)
 
     func testGate_plainNote_alwaysPlays() {

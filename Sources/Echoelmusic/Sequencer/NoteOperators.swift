@@ -67,21 +67,40 @@ public struct NoteOperators: Codable, Sendable, Equatable {
         chance >= 1 && repeats == 1 && repeatRamp == 0 && occurrencePeriod == 1
     }
 
-    // MARK: Evaluation (pure, deterministic)
+    // MARK: Evaluation (pure, deterministic — bio bends the dice, never the die)
+
+    /// The chance actually rolled when the body is present (A4 Bio-Operators —
+    /// the position nobody in the field occupies: physiology as a per-note
+    /// operator). Coherence 0.5 is NEUTRAL (returns `chance` unchanged); high
+    /// coherence lifts the odds (the pattern fills out as the player settles),
+    /// low coherence thins it. Bends ONLY a chance the user set strictly
+    /// between 0 and 1: 0 stays silent (muted is muted), 1 stays certain
+    /// (plain and occurrence-only notes never flicker), nil bio → identity.
+    public func bioBentChance(coherence: Double?) -> Double {
+        guard let c = coherence, c.isFinite, chance > 0, chance < 1 else { return chance }
+        let bend = (min(1, max(0, c)) - 0.5)          // −0.5 … +0.5
+        return min(1, max(0, chance + bend))
+    }
 
     /// The hits this note produces on loop pass `loopIndex` (0-based), or `[]`
     /// when the occurrence/chance gates keep it silent this pass. Offsets are
-    /// relative to the note's `startTick`. Same inputs → same output, always.
-    public func hits(for note: Note, loopIndex: Int, seed: UInt64) -> [NoteHit] {
+    /// relative to the note's `startTick`. Without `coherence` the take is
+    /// fully deterministic (same inputs → same output, always); with a live
+    /// body the dice THRESHOLD moves with coherence while the roll itself
+    /// stays seeded — replaying with the same recorded coherence reproduces
+    /// the take exactly.
+    public func hits(for note: Note, loopIndex: Int, seed: UInt64,
+                     coherence: Double? = nil) -> [NoteHit] {
         let loop = max(0, loopIndex)
         // Occurrence gate: only the matching pass inside the period plays.
         guard loop % occurrencePeriod == occurrencePhase else { return [] }
-        // Chance gate: a deterministic per-(note, loop) dice roll.
+        // Chance gate: a deterministic per-(note, loop) dice roll against a
+        // (possibly bio-bent) threshold.
         if chance < 1 {
             var rng = SeededRNG(seed: seed
                 ^ Self.fold(note.id)
                 ^ (UInt64(loop) &* 0xD1B54A32D192ED03))
-            guard Double(rng.unit()) < chance else { return [] }
+            guard Double(rng.unit()) < bioBentChance(coherence: coherence) else { return [] }
         }
         // Repeats: n evenly-spaced hits, velocity ramped towards ×(1 + ramp).
         let n = repeats
