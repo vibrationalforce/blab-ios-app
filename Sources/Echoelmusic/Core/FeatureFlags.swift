@@ -31,6 +31,9 @@ public enum FeatureFlags {
         case liveCollab        = "feature.liveCollab"         // Layer 5 — session/scene sync
         /// Sub-flag of spatialEngine (Layer 1 Renderer A): headphone head tracking.
         case headTracking      = "feature.headTracking"
+        /// EchoelAI (ADR 2026-07-12): the on-device planner + tool surface.
+        /// OFF = zero EchoelAI code paths run; the app renders pixel-identical.
+        case echoelAI          = "feature.echoelAI"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -48,6 +51,7 @@ public enum FeatureFlags {
     public static var performerTracking: Bool { isOn(.performerTracking) }
     public static var liveCollab: Bool { isOn(.liveCollab) }
     public static var headTracking: Bool { isOn(.headTracking) }
+    public static var echoelAI: Bool { isOn(.echoelAI) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 
