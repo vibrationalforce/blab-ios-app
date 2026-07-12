@@ -99,3 +99,13 @@ User preferences for development workflow, communication, and tooling.
   using App Store Connect credentials stored as CI-side GitHub repo secrets.
 - **There is no upload limit to worry about** (founder: "es gibt kein Limit" — extra set up).
 - Do NOT block on tokens or the MCP workflow-dispatch (403). Just bump `.deploy/release`.
+
+## Validierungs-Regel (Founder 2026-07-12, aus "iOS Technical Reviewer"-Prompt destilliert)
+- Vor JEDER Änderung, die Build-Infrastruktur berührt (project.yml/XcodeGen,
+  Fastlane, Workflows, Info.plist, Package.swift): explizit gegen die
+  bestehende Konfiguration prüfen (Target-Membership, Bundle-IDs, Signing,
+  Test-Target-Pfade) — Konsistenz-Check VOR dem Commit, nicht erst am Gate.
+- Der Rest des Prompts (TDD, Tests-bis-grün, Style, No-Regression) ist durch
+  CLAUDE.md Phase 1-4 + Review-Agenten + CI-Gates abgedeckt; lokale Testläufe
+  sind in der Sandbox unmöglich (kein Swift) — Gates sind die Ground Truth.
+  Hinweis: Repo nutzt project.yml (XcodeGen), NICHT Project.swift (Tuist).
