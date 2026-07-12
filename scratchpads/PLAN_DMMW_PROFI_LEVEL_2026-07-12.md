@@ -79,6 +79,38 @@ Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
       rPPG-Waveform/Atemphase als Expression-Lane pro Note (MPE-out später).
       Erst Modell + OSC/MIDI-Mapping-Design, dann Surface.
 
+## Rundum-Sweep 2026-07-12 (Founder: "alles abklappern aber gründlich")
+
+4 Reports: RESEARCH_DESKTOP_DAWS · RESEARCH_VIDEO_FRONTIER ·
+RESEARCH_VJ_MAPPING_VISUAL · RESEARCH_LICHT_LASER_IOS (alle 2026-07-12).
+Abgeleitete Spuren (nach Gewinn-pro-Aufwand, laufen NACH/NEBEN A-Spur):
+
+- **P-Spur (Performance, REAPER/FL-Lektionen):** P1 Smart-Disable/Idle-Voices
+  (stille Voices + abgeklungener Tail raus aus dem Render → AdaptiveQuality);
+  P2 Konzept-Spike Anticipative Rendering fürs Generative (deterministischer
+  Loop-Anteil vorausrendern, nur Bio-Voices live; Tier steuert Tiefe).
+- **L-Spur (EchoelLux → kleines Lichtpult):** L1 Grand Master + Blackout;
+  L2 Gruppen; L3 **Bio-Phaser** (Herz-/Atemphase als Phase-Offset über
+  Fixture-Gruppe — MA3-Phaser-Denke, Alleinstellung); L4 GDTF-Subset-Parser
+  (Fixture-Library, zero-deps); L5 sACN-Multicast/Priority + Multi-Universe.
+  Laser/IDN = WATCH (Safety-Kette, nie Exposure-Verantwortung).
+- **VIS-Spur (Visual → Profi):** VIS1 Kompositions-Passes (Basis + Bio-Layer
+  + Grade); VIS2 Zustands-Übergänge (Kohärenz-Tier wechselt via Crossfade/
+  Morph, Rive-State-Denke); VIS3 4-Punkt-Corner-Pin für Beamer-Out (eine
+  Homographie im Metal-Pass — "iPhone als miniMAD mit Gehirn"); VIS4
+  ISF-Subset-Pfad prüfen (offline→MSL "Echoel-Shader-Pack").
+- **VID-Spur (P3 Video, FCP-iPad-Muster):** Minimal-Set = Capture (HEVC/
+  ProRes) · Trim (1 Clip + Overlay) · Proxy-first-Preview · Rec.709+LUT ·
+  AutoMix-Mux · Social-Export. Alleinstellung: bio-reaktive Video-FX,
+  **puls-synchroner Schnitt (BioEventGraph-Marker)**, Visual-als-Quelle
+  (MetalBioView → AVAssetWriter). Kein Multicam/Node-Grading/KI-Roto.
+- **Bestätigungen:** Determinismus als Feature vermarkten (Pro-Tools-Hybrid-
+  Lektion) · RetroCapture prominent (Bitwig Master Recording/Logic Flashback
+  = Standard 2025) · Tonart/Genre als Single-Source-Chord-Track formalisieren
+  (Logic 12 + Bitwig 6) · Loopy-2-Pricing (Free+Trial+One-time) · Endlesss tot
+  → lokale, standard-offene Architektur ist die richtige Wette · Bio-Position
+  im GESAMTEN Feld unbesetzt (VJ/Licht/Generativ-Apps: bestätigt).
+
 ## Gesetze im Batch (unverändert)
 
 Modal-Decke: nur Slot-Reuse · kein 10-Hz-Read in Ancestor-Bodies · ein MTKView ·
