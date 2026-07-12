@@ -28,17 +28,45 @@ public struct AutomationPoint: Codable, Sendable, Equatable, Identifiable {
     public var value: Double
     /// Shape of the segment from this point to the next.
     public var curve: AutomationCurve
+    /// BEND of the segment to the next point (Ableton-style curvature, founder
+    /// 2026-07-12: "Automation kenne ich eher so das man es zeichnet wie in
+    /// Ableton"): 0 = straight line, +1 = slow start / late rise (ease-in),
+    /// −1 = fast start / early rise (ease-out). Applied only while `curve` is
+    /// `.linear`; endpoints are always exact. Old saved arrangements decode
+    /// with 0 (straight) — fully backward compatible.
+    public var curvature: Double
 
-    public init(id: UUID = UUID(), tick: Int, value: Double, curve: AutomationCurve = .linear) {
+    public init(id: UUID = UUID(), tick: Int, value: Double,
+                curve: AutomationCurve = .linear, curvature: Double = 0) {
         self.id = id
         self.tick = max(0, tick)
         self.value = AutomationPoint.clamp(value)
         self.curve = curve
+        self.curvature = AutomationPoint.clampCurvature(curvature)
     }
 
     static func clamp(_ v: Double) -> Double {
         guard v.isFinite else { return 0 }
         return Swift.min(1, Swift.max(0, v))
+    }
+
+    static func clampCurvature(_ v: Double) -> Double {
+        guard v.isFinite else { return 0 }
+        return Swift.min(1, Swift.max(-1, v))
+    }
+
+    // Custom decode so pre-curvature JSON (every arrangement saved before
+    // 2026-07-12) loads as straight segments instead of failing.
+    private enum CodingKeys: String, CodingKey { case id, tick, value, curve, curvature }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        tick = max(0, try c.decode(Int.self, forKey: .tick))
+        value = AutomationPoint.clamp(try c.decode(Double.self, forKey: .value))
+        curve = try c.decode(AutomationCurve.self, forKey: .curve)
+        curvature = AutomationPoint.clampCurvature(
+            try c.decodeIfPresent(Double.self, forKey: .curvature) ?? 0)
     }
 }
 
@@ -63,8 +91,10 @@ public struct AutomationLane: Codable, Sendable, Equatable, Identifiable {
 
     /// Add a keyframe and return it. Re-sorts so reads stay correct.
     @discardableResult
-    public mutating func addPoint(tick: Int, value: Double, curve: AutomationCurve = .linear) -> AutomationPoint {
-        let p = AutomationPoint(tick: tick, value: value, curve: curve)
+    public mutating func addPoint(tick: Int, value: Double,
+                                  curve: AutomationCurve = .linear,
+                                  curvature: Double = 0) -> AutomationPoint {
+        let p = AutomationPoint(tick: tick, value: value, curve: curve, curvature: curvature)
         points.append(p)
         resort()
         return p
@@ -89,6 +119,12 @@ public struct AutomationLane: Codable, Sendable, Equatable, Identifiable {
     public mutating func setCurve(id: UUID, _ curve: AutomationCurve) {
         guard let i = points.firstIndex(where: { $0.id == id }) else { return }
         points[i].curve = curve
+    }
+
+    /// Bend the segment leaving this point (Ableton's curvature drag), −1…1.
+    public mutating func setCurvature(id: UUID, _ curvature: Double) {
+        guard let i = points.firstIndex(where: { $0.id == id }) else { return }
+        points[i].curvature = AutomationPoint.clampCurvature(curvature)
     }
 
     public mutating func clear() { points.removeAll() }
@@ -116,10 +152,23 @@ public struct AutomationLane: Codable, Sendable, Equatable, Identifiable {
                 let span = p1.tick - p0.tick
                 guard span > 0, p0.curve == .linear else { return p0.value }
                 let frac = Double(tick - p0.tick) / Double(span)
-                return p0.value + (p1.value - p0.value) * frac
+                let shaped = Self.shapedFraction(frac, curvature: p0.curvature)
+                return p0.value + (p1.value - p0.value) * shaped
             }
             p0 = p1
         }
         return last.value
+    }
+
+    /// The Ableton-style segment shape: a power bend of the linear fraction.
+    /// curvature 0 → identity (straight); +1 → γ = 8 (ease-in, slow start);
+    /// −1 → γ = 1/8 (ease-out, fast start). Monotonic for every curvature, and
+    /// exact at both endpoints (0→0, 1→1), so bent segments can never overshoot
+    /// or step — safe to feed any parameter.
+    public static func shapedFraction(_ frac: Double, curvature: Double) -> Double {
+        let f = Swift.min(1, Swift.max(0, frac))
+        let c = AutomationPoint.clampCurvature(curvature)
+        if c == 0 { return f }
+        return pow(f, exp2(c * 3))
     }
 }
