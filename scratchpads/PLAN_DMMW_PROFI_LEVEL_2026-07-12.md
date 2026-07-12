@@ -100,9 +100,13 @@ Gewinn-pro-Aufwand; jedes Feature TDD (Modell zuerst, Surface danach).
 
 Eigener Weg, nicht ACE-Kopie (deren Schmerzen = unsere Gegenposition:
 on-device deterministisch statt Server-Render, Einmal-Unlock statt Credits):
-- [ ] W1 — LyricsModel: Silben→Noten-Mapping als pures Codable-Modell (TDD;
-      Silbentrennung deutsch/englisch, Melisma, eine Silbe über n Noten).
-      DARF als kleiner Zyklus vor dem Milestone landen (reines Modell).
+- [x] W1 — DONE (c24654a: LyricsModel — Syllabifier als deterministische
+      GESANGS-Heuristik [offene Silben, de/en-Cluster sch/ch/ck/st, silent-e,
+      Konsonant+le-Nukleus, Diphthonge], LyricsDocument/LyricLine/LyricSyllable
+      pure Codable [Worttrennstrich-Konvention "Lie-"], LyricsMapper.bind
+      [Tick-Ordnung + Pitch-Tiebreak, Melisma hält Silbe über n Noten,
+      Überschuss-Noten = Vokalise nil]; 21 Tests, Foundation-only, Linux-CI.
+      Split ist DEFAULT — W2-UI erlaubt Hand-Re-Split.)
 - [ ] W2 — Lyrics-Lane im Roll (Anzeige unter den Noten, Slot-Reuse).
 - [ ] W3 — VL-Kopplung: eigene Stimme singt die Lyrics (AutotuneCore VL1 +
       Skalen-Harmonizer VL2 → Mic-Pfad VL3, device-gated).
