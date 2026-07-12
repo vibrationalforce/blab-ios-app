@@ -53,6 +53,9 @@ public final class AUv3Host {
     public private(set) var instruments: [HostedAUInfo] = []
     public private(set) var effects: [HostedAUInfo] = []
     public private(set) var didScan = false
+    /// Re-scan trigger for late third-party AUv3 registrations (see scan()).
+    /// The host lives for the app's lifetime, so the observer is never removed.
+    @ObservationIgnored private var registrationObserver: NSObjectProtocol?
 
     // MARK: - Live hosting (instrument → audio graph)
 
@@ -308,11 +311,26 @@ public final class AUv3Host {
     public func scan() {
         #if canImport(AVFoundation)
         let mgr = AVAudioUnitComponentManager.shared()
-        // Query the all-match wildcard AND each hosted type explicitly, then de-dupe.
-        // A single all-zero query is documented to return everything, but querying each
-        // type as well is belt-and-suspenders coverage so EVERY installed third-party
-        // instrument/effect shows up — not just Apple's (founder: "ich will alle meine
-        // Instrumente und Effekte sehen"). `split(_:)` de-dupes by id, so overlap is fine.
+        // THIRD-PARTY VISIBILITY (founder 2026-07-12: "Ich sehe bisher nur die
+        // Apple AUv3. Ich habe viele auf meinem Handy installiert"): iOS
+        // registers third-party AUv3 app extensions ASYNCHRONOUSLY — a query
+        // can land before the extension registry is populated and then only
+        // Apple's built-ins exist. The system announces late arrivals via
+        // kAudioComponentRegistrationsChangedNotification; subscribe ONCE and
+        // re-scan on every change so the lists fill in live, no Rescan tap
+        // needed. (The canonical AUv3-host pattern — AUM/Cubasis do the same.)
+        if registrationObserver == nil {
+            registrationObserver = NotificationCenter.default.addObserver(
+                forName: Notification.Name(kAudioComponentRegistrationsChangedNotification as String),
+                object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.scan() }
+            }
+        }
+        // Query the all-match wildcard AND each hosted type explicitly, AND the
+        // full-registry enumeration (`passingTest`), then de-dupe. The all-zero
+        // wildcard is documented to return everything, but the enumeration path
+        // walks the registry directly — belt-and-suspenders so EVERY installed
+        // third-party instrument/effect shows up, not just Apple's.
         var descriptions = [AudioComponentDescription()]   // all-zero = every component
         for t in [kAudioUnitType_MusicDevice, kAudioUnitType_Effect, kAudioUnitType_MusicEffect] {
             var d = AudioComponentDescription()
@@ -321,6 +339,7 @@ public final class AUv3Host {
         }
         var components: [AVAudioUnitComponent] = []
         for d in descriptions { components.append(contentsOf: mgr.components(matching: d)) }
+        components.append(contentsOf: mgr.components(passingTest: { _, _ in true }))
         let infos: [HostedAUInfo] = components.compactMap { c in
             let type = c.audioComponentDescription.componentType
             // Only host the kinds a DAW channel uses: instruments + effects.
@@ -341,6 +360,13 @@ public final class AUv3Host {
         let split = Self.split(infos)
         instruments = split.instruments
         effects = split.effects
+        // Into the pastable device log: what the registry actually returned —
+        // the one line that separates "our query filters them out" from "iOS
+        // hasn't registered them" when a device shows only Apple units.
+        let makers = Set(instruments.map(\.manufacturer) + effects.map(\.manufacturer))
+            .sorted().joined(separator: ", ")
+        EchoelCrashLog.breadcrumb(
+            "auv3 scan: \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)")
         #endif
         didScan = true
     }
