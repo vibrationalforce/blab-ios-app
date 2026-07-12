@@ -1,6 +1,13 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+/// Chrome → instrument channel: the TransportBar's pulse button posts this; the
+/// studio (which owns the start/stop logic + camera/evolve lifecycle) listens and
+/// toggles. Decoupled — the chrome never reaches into the studio view.
+extension Notification.Name {
+    static let echoelToggleBio = Notification.Name("echoel.toggleBio")
+}
+
 // WorkspaceView.swift
 // Echoel — the app HOME: the bio-generative instrument. Founder re-focus
 // 2026-07-06B ("die Leute brauchen gar keine Atemübung. Es geht um Performance
@@ -109,6 +116,13 @@ struct WorkspaceView: View {
                 // The centred title button already announces + opens the website —
                 // two adjacent VoiceOver stops for one action is noise (AX audit).
                 .accessibilityHidden(true)
+                // The live pulse monitor (trace + BPM), between logo and title
+                // (founder 2026-07-12: "Der Pulsmonitor kommt nach oben zwischen
+                // Logo und Echoelmusic"). A LEAF that reads the ~10 Hz publisher in
+                // its OWN body (freeze rule 10.76.50) — WorkspaceView stays still.
+                #if canImport(AVFoundation)
+                PulseMonitorMiniLive()
+                #endif
                 Spacer(minLength: 0)
                 // RIGHT: the immersive-visual monitor. (No purchase chip in v1.0 —
                 // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
@@ -160,6 +174,9 @@ private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
     @Environment(MetronomeVoice.self) private var metronome
+    /// LOW-frequency instrument run state (set on Start/Stop only) — mirrors the
+    /// studio so the pulse button shows the right state. Never a ~10 Hz read.
+    @Environment(EngineBus.self) private var bus
     // Shared with the Compose panel (same @AppStorage keys + defaults). Read here so a
     // transport-bar tempo edit while LOCKED also persists the locked value — otherwise the
     // next generate() would snap the clock back to the stale lockedBPM.
@@ -183,6 +200,12 @@ private struct TransportBar: View {
             .contentShape(Rectangle().inset(by: -6))
             .accessibilityLabel(transport.isPlaying ? "Stop" : "Play")
 
+            // THE pulse button — Start/Stop of the bio-generative instrument, in the
+            // chrome next to Play (founder 2026-07-12: the big "Create from Within"
+            // CTA is gone; "der Button mit dem Pulszeichen kommt neben das Play
+            // oben"). Green ring = the body is live (green is reserved for live bio).
+            pulseButton
+
             // NO tempo number here anymore (founder 2026-07-04: "zwei Anzeigen irritieren
             // immernoch") — the chrome's one live number is the PULSE in the bio strip. The
             // musical tempo lives in the Composition panel's BodyTempoField (runs along with
@@ -198,6 +221,29 @@ private struct TransportBar: View {
         .padding(.horizontal, 12)
         .frame(height: 44)
         .background(EchoelTheme.bg)
+    }
+
+    /// Start/Stop the bio-generative instrument from the chrome. Posts the toggle
+    /// notification; the studio (owner of camera/evolve/voices lifecycle) handles it —
+    /// the exact same path as the old "Create from Within" button and the Siri intents.
+    private var pulseButton: some View {
+        Button {
+            NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
+        } label: {
+            Image(systemName: bus.instrumentRunning ? "stop.circle.fill" : "waveform.path.ecg")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(bus.instrumentRunning ? EchoelTheme.accent : EchoelTheme.text)
+                .frame(width: 38, height: 32)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(bus.instrumentRunning ? EchoelTheme.accent : EchoelTheme.border,
+                                  lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle().inset(by: -6))   // 44 pt-class target (HIG)
+        .accessibilityLabel(bus.instrumentRunning ? "Stop the body instrument"
+                                                  : "Create from within — start biofeedback")
+        .accessibilityHint("Your body composes and plays the music. Tap again to stop.")
     }
 
     /// FIX the tempo, one tap, always reachable (founder: "Tempo fixen muss aber auch immer

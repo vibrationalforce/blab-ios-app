@@ -268,6 +268,13 @@ public final class EngineBus {
 
     public private(set) var latestBioEvent: BioEvent?
 
+    /// LOW-frequency run state of the bio-generative instrument (Start/Stop, set by
+    /// the studio's start/stop paths). Lets the chrome (TransportBar's pulse button)
+    /// mirror the instrument state without coupling to the studio view — modules
+    /// couple only via the bus. Changes on user action only → safe to read in any
+    /// body (never a ~10 Hz churn source).
+    public var instrumentRunning = false
+
     // MARK: - Latest MUSICAL snapshot (DMMW: media subscribe to musical parameters)
 
     public private(set) var latestMusical: MusicalFrame?

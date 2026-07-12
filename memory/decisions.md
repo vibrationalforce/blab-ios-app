@@ -490,3 +490,14 @@ Architectural and strategic decisions with context and rationale.
 - **Gate:** proceed (Reject Krypto, Adopt Rechte-Metadaten-Pfad); Krypto bleibt WATCH,
   revisitierbar nur falls je Kern-Vision. Nichts gated v1.0. **Signal-Tester-Gruppe** =
   Geräte-Feedback-Schleife (pro Build ein Test-Fokus posten). Review: 2026-08-10.
+
+### 2026-07-12 EchoelAI (Befehls-/Sprach-Schicht) = SPÄTERER eigener Baustein; Erklär-Zeile bis dahin entfernt
+- **Founder (verbatim-Kern):** "Die Erklärung da brauchen wir erstmal nicht. Das kommt
+  später in nem richtig funktionierenden EchoelAI small oder large language model, dass
+  auch Befehle für Echoelmusic entgegennimmt wie Kompositionswünsche, Einstellungen,
+  routing, videoschnitt Befehle, songwriting etc."
+- **Executed:** `liveNarrationBanner` ("What your body is doing to the sound") aus dem
+  EchoelStudioView-Flow entfernt (Builder bleibt compiled, reversibel).
+- **Bedeutung:** EchoelAI ist als KOMMANDO-Interface gedacht (nicht nur Narration):
+  Kompositionswünsche, Settings, Routing, Videoschnitt, Songwriting. Eigener
+  Grand-Council-würdiger Baustein, wenn der Founder ihn aufruft — nichts vorab bauen.
