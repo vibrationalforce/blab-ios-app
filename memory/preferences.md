@@ -109,3 +109,16 @@ User preferences for development workflow, communication, and tooling.
   CLAUDE.md Phase 1-4 + Review-Agenten + CI-Gates abgedeckt; lokale Testläufe
   sind in der Sandbox unmöglich (kein Swift) — Gates sind die Ground Truth.
   Hinweis: Repo nutzt project.yml (XcodeGen), NICHT Project.swift (Tuist).
+
+## CI-Gate-Wahrheit (KORREKTUR 2026-07-12, Red-Gate-Lektion EchoelAIError)
+- **"⚡ Quick Test" ist NUR Lint/Secrets-Grep — es kompiliert KEINEN Swift-Code.**
+  Ein grüner Quick Test beweist nichts über Buildbarkeit oder Tests.
+- Die echten Compile-/Test-Gates sind ausschließlich: **Xcode Compile Check**
+  (xcodebuild, fängt Duplikate/AUv3/SwiftUI-Typecheck) und **Echoelmusic CI/CD**
+  (macos-26, build-for-testing + test-without-building; einzelne Jobs dort sind
+  continue-on-error — Job-Ebene lesen, nicht nur Workflow-Grün).
+- Konsequenz: Vor "alle Gates grün" IMMER Xcode Compile Check + CI/CD auf dem
+  konkreten SHA verifizieren; Quick-Test-Grün nie als Beleg zitieren.
+- Duplikat-Schutz: Vor jedem neuen public Typ `grep -rn "enum/struct/class <Name>"`
+  über Sources/ (das Repo trägt Lost-Treasure-Schichten — z. B. existierte
+  EchoelAIError/EchoelLanguageModel bereits in Core/, N3 duplizierte es).
