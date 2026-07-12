@@ -1,36 +1,24 @@
-build: 2026-07-12 v10.79.172 (Wetter aufs Klang- UND Bild-Board — jeder Himmel-Parameter einzeln mischbar, P5)
+build: 2026-07-12 v10.79.173 (Adaptives Layout — Mix- und Wetter-Karten nebeneinander im Querformat, P4)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Dein Wunsch umgesetzt: „Klang und Bild aber getrennte und mehrere
-  Parameter" + ein Intensitäts-Regler pro Einfluss „damit man das Wetter rein
-  und rausmischen kann" + „kurz erklärt was geändert wird".
+notes: „Passendes adaptives Design für horizontal und Vertikal" (dein Wunsch),
+  nächster Schritt: die Karten nutzen jetzt die Breite.
 
-  Die Wetter-Zeile im Session-Panel ist jetzt eine erklärte, gruppierte Liste
-  von EINZELN mischbaren Einflüssen (jeder ein Fader 0..1 + eine Zeile Erklärung):
+  Im Querformat / auf dem iPad legen sich nebeneinander (2 Spalten):
+  · die Master-Mix-Strips (Bass · Melodic · Drums)
+  · die Wetter-Gruppen (Klang · Bild)
+  Im Hochformat bleibt alles gestapelt wie bisher.
 
-  KLANG:
-  · Structure — gleicher Himmel, gleiches harmonisches Grundgerüst
-  · Warmth    — warmes Wetter hellt den Klang auf, kaltes verdunkelt
-  · Energy    — Wind/Sturm macht die Musik lebendiger, Ruhe stiller
-  · Drama     — Sturm bringt Spannung, klarer Himmel bleibt konsonant
+  Ein wiederverwendbares Leaf (AdaptiveCardGrid) liest die Size-Class in
+  seinem EIGENEN Body (nie im Root → keine Menü-Freeze-Gefahr) — dasselbe
+  bewährte Muster wie das adaptive Hackbrett (v170). Reines Layout, gleiche
+  Regler, komplett umkehrbar.
 
-  BILD:
-  · Hue        — schiebt die Farbe Richtung Himmel (Regen → Blau, Sonne → Gold)
-  · Saturation — trübes Wetter entsättigt, klares vertieft die Farben
-  · Glow       — Sonne/Sturm lassen das Bild leuchten, Nebel dämpft
-  · Movement   — Wind bringt Bewegung ins Bild
+  ui-state-Review: 0 Risiken (kein neues Sheet, Size-Class nur im Leaf). Alle
+  Gates grün (Quick Test · Xcode Compile Check · CI/CD auf 4b50916).
 
-  Jeder Regler auf 0 = kein Effekt (bit-identisch); 1 = voll das Wetter. Einen
-  Bild-Regler ziehen updatet das Visual sofort. Wetter bleibt opt-in (Default
-  aus) und braucht „Ort im Session-Namen" für eine grobe Position; der Körper
-  bleibt der Haupttreiber, das Wetter würzt nur.
+  NEEDS-FOUNDER-VERIFY (sieht das Querformat „passend" aus — Karten-Breiten,
+  Umbruch bei 3 Mix-Strips → 2+1).
 
-  Reine Erweiterung über den bestehenden Wetter-Schalter — Default aus /
-  Regler 0 = bit-identisch bis du drehst. ui-state-Review: 0 Risiken,
-  Render-Safety-Gesetze CLEAR. Alle Gates grün (Quick Test · Xcode Compile
-  Check · CI/CD auf 8760abc).
-
-  NEEDS-FOUNDER-VERIFY (Feel von Klang + Bild bei aktivem Wetter).
-
-  Warten aufs Antesten: v167 Groove „Eins" · v168/v170/v171 Hackbrett +
+  Warten aufs Antesten: v167 Groove „Eins" · v168/v170/v171/v173 Hackbrett +
   adaptiv · v169 Timeline spielt · v172 Wetter-Board · (v162–v166
   Warmth/Tempo/FX).

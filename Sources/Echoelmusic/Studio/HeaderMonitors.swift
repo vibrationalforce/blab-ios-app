@@ -104,12 +104,15 @@ struct PulseMonitorMiniLive: View {
 
 // MARK: - Immersive monitor (right)
 
-/// Compact header monitor of the immersive visual. Deliberately a LIGHTWEIGHT
-/// SwiftUI preview (radial bio-colour that pulses at the heart rate, hue following
-/// coherence) — NOT a second MetalBioView. Running two MTKViews at once (this tile
-/// + the full-screen immersive) starved the GPU and made the full immersive render
-/// black for seconds (device video, 2026-06-23). Tapping opens the real Metal
-/// immersive, so only ONE MetalBioView ever renders at a time.
+/// Compact header monitor of the immersive visual. Shows the VISUAL'S OWN colours
+/// (founder 2026-07-12: "Der Monitor … soll auch die Visuals anzeigen und nicht nur
+/// blaues Blinken"): the sounding chord's physical tone colour via `SpectralColor`
+/// — the exact Swift twin of the shader's CIE wavelength fit, so this tile carries
+/// the same hue the big visual paints — swelling with the live music level and
+/// pulsing at the heart rate. Deliberately SwiftUI, NOT a second MetalBioView:
+/// running two MTKViews at once (this tile + the immersive) starved the GPU and
+/// made the full immersive render black for seconds (device video, 2026-06-23).
+/// Tapping toggles the real Metal visual, so only ONE ever renders at a time.
 @MainActor
 struct ImmersiveMonitorMini: View {
     let active: Bool
@@ -120,14 +123,24 @@ struct ImmersiveMonitorMini: View {
             if active {
                 TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { tl in
                     let bio = bus.freshBio()
-                    let coh = Double(bio?.coherence ?? 0.4)
                     let hr = max(40.0, Double(bio?.heartRateBPM ?? 60))
                     // Smooth heartbeat pulse from the wall clock at the live HR.
                     let phase = (tl.date.timeIntervalSinceReferenceDate * hr / 60.0)
                         .truncatingRemainder(dividingBy: 1.0)
                     let pulse = 0.5 - 0.5 * cos(phase * 2 * .pi)           // 0…1 per beat
-                    let hue = 0.66 - 0.33 * min(max(coh, 0), 1)           // blue→green with coherence
-                    let color = Color(hue: hue, saturation: 0.85, brightness: 0.45 + 0.45 * pulse)
+                    // The music's colour, exactly as the visual computes it: the
+                    // sounding chord → one perceptual OKLab mix (SpectralColor twins
+                    // the shader). Silent → neutral grey, falling back to a dim
+                    // coherence tint so the tile still reads "live".
+                    let mf = bus.freshMusical(maxAge: 1.0)
+                    let chord = (mf?.notes ?? []).map { (hz: $0.frequencyHz, amplitude: $0.amplitude) }
+                    let rgb = SpectralColor.color(forChord: chord)
+                    let level = mf?.masterLevel ?? 0
+                    // Brightness breathes with the music and the heartbeat; gamma-
+                    // encode the linear mix for display (simple 1/2.2, small tile).
+                    let energy = 0.35 + 0.30 * pulse + 0.35 * level
+                    func enc(_ v: Double) -> Double { pow(min(max(v * energy, 0), 1), 1.0 / 2.2) }
+                    let color = Color(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b))
                     RadialGradient(colors: [color, .black], center: .center,
                                    startRadius: 1, endRadius: 28)
                 }

@@ -1,5 +1,6 @@
 #if canImport(SwiftUI)
 import SwiftUI
+import Combine   // NotificationCenter.publisher for the chrome pulse-button toggle
 #if canImport(UIKit)
 import UIKit   // UIApplication.isIdleTimerDisabled (keep screen awake while projecting)
 #endif
@@ -394,6 +395,14 @@ struct EchoelStudioView: View {
             // anymore" freeze). BioStripView now reads it itself (a Picker-free leaf view).
             BioStripView(measuring: running,
                          onStartPulse: { startBiofeedback() })
+                // The chrome's pulse button (TransportBar, next to Play — founder
+                // 2026-07-12: "der Button mit dem Pulszeichen kommt neben das Play
+                // oben") starts/stops the instrument through this notification.
+                // Attached to an INNER row, not the root modifier chain, so the
+                // body's aggregate metadata type stays untouched (black-screen law).
+                .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
+                    toggleBiofeedback()
+                }
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Type-erased on purpose: `body` had grown into a single, very
@@ -412,7 +421,11 @@ struct EchoelStudioView: View {
                     // static card, no live bio read here (freeze rule); the studio
                     // stays right below.
                     if let presentSession { AnyView(sessionEntryCard(presentSession)) }
-                    AnyView(startButton)
+                    // The big "Create from Within" CTA is REMOVED from the flow
+                    // (founder 2026-07-12: "Das Create from Within weg — der Button
+                    // mit dem Pulszeichen kommt neben das Play oben"): Start/Stop
+                    // lives in the TransportBar's pulse button now. The `startButton`
+                    // builder stays defined below, unpresented (reversible).
                     // Mood pads REMOVED from the surface (founder 2026-07-07:
                     // "Xy Pads komplett wieder herausnehmen"). The builder +
                     // MoodPads.swift stay in code, unpresented (reversible).
@@ -422,12 +435,16 @@ struct EchoelStudioView: View {
                     // in the Composition panel's tuning row. Builder stays defined
                     // below, unpresented (reversible). Removing a body branch only
                     // SHRINKS the aggregate type (metadata-safe).
-                    #if canImport(AVFoundation)
-                    if running { AnyView(PulseMeasurementView()) }
-                    #endif
-                    // EchoelAI's live narration sits right under the bio, next to the
-                    // numbers it explains (moved up 2026-07-07 from between Mood/Export).
-                    AnyView(liveNarrationBanner)
+                    // PulseMeasurementView REMOVED from the flow (founder 2026-07-12:
+                    // "Der Pulsmonitor kommt nach oben zwischen Logo und Echoelmusic")
+                    // — the live pulse monitor (trace + BPM) now lives in the header
+                    // (PulseMonitorMiniLive in WorkspaceView.topBar). The builder stays
+                    // in code, unpresented (reversible).
+                    // liveNarrationBanner REMOVED (founder 2026-07-12: "Die Erklärung
+                    // da brauchen wir erstmal nicht — das kommt später in nem richtig
+                    // funktionierenden EchoelAI ... Modell"): the explainer row waits
+                    // for the real EchoelAI (command-taking) layer. Builder stays,
+                    // unpresented (reversible).
                     AnyView(soundControls)
                     AnyView(utilityRow)
                     // R2 (2026-07-10): Live Colabo entry — the sheet existed but
@@ -2645,7 +2662,7 @@ struct EchoelStudioView: View {
                 // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
                 // users hunted for it and read the greyed buttons as broken). Video
                 // recording lives in the floating visual window, not here.
-                Text("Tap 'Create from Within' first — then you can export the loop as a WAV.")
+                Text("Start with the pulse button (next to Play) first — then you can export the loop as a WAV.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2860,6 +2877,7 @@ struct EchoelStudioView: View {
     private func startBiofeedback() {
         EchoelCrashLog.breadcrumb("Start tapped")
         running = true
+        bus.instrumentRunning = true     // chrome mirror (TransportBar pulse button)
         // THE PERFORMANCE MOMENT (founder 2026-07-06B: "wow", music + visual as ONE
         // experience): Start takes the immersive visual FULLSCREEN for the take.
         // Stop restores what the user had before — unless they changed the window
@@ -2918,6 +2936,7 @@ struct EchoelStudioView: View {
 
     private func stopEverything() {
         running = false
+        bus.instrumentRunning = false    // chrome mirror (TransportBar pulse button)
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
         lastGenBody = nil                // next Start re-captures a fresh body baseline (evolve hold)
         startTask?.cancel(); startTask = nil

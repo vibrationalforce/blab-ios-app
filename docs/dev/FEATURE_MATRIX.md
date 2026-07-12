@@ -12,6 +12,29 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
+> **UPDATE (2026-07-12) — interface reorg + weather multi-param + adaptive (code-truth, v171–v173):**
+> - **Hackbrett reorg (LIVE, v168/v171)** — the Mix panel is ONE board: the master voices
+>   (Bass · Melodic[Pad+Lead] · Drums) render as strip-cards (`EchoelStudioView.mixStripCard`,
+>   each = level + its bus filter/drive) directly above the per-drum-channel strips
+>   (`ChannelRackView(embedded:)`). Pure layout over the existing MixerStore/TrackFXStore
+>   bindings — no new audio, FX off = bit-identical.
+> - **Weather multi-parameter panel (LIVE, v172)** — `Core/WeatherMood.swift`: `Contribution`
+>   now carries continuous per-parameter targets split SOUND (darkness/liveliness/tension →
+>   blended into `MoodProfile` before the composer Input) + IMAGE (hue/saturation/glow/motion →
+>   crossfaded into the `FloatingVisualWindow` visual). A `Param` enum (domain·label·explanation·
+>   mixKey·`currentIntensity`) + pure `blend()`; the Session weather row is an explained,
+>   grouped Klang/Bild mixer of `WeatherMixRow` leaves (each an `EchoelValueField` 0..1). Weather
+>   opt-in (default OFF); every mixer 0 = bit-identical. Fully unit-tested (pure), UI ui-state-reviewed.
+> - **Adaptive H/V layout (LIVE, v170/v173)** — `ChannelRackView` (v170) and the new
+>   `AdaptiveCardGrid` leaf (v173) reflow the drum channels, master mix strips, and weather
+>   Klang/Bild groups to 2 columns in landscape / on iPad, 1 in portrait. Size-class read
+>   confined to the leaf (render-safe); layout-only, revertible.
+> - **Timeline playback (PARTIAL, v169)** — `Sequencer/TimelineRegionPlayer.swift` rides the
+>   transport and plays the roll lane's **MIDI/drum** regions (opt-in "Play timeline", additive —
+>   the Generate+Play instrument is untouched). **Audio/video/visual lanes are scaffold — they do
+>   NOT play** (`Clip.kind.isPlayable == .midi` only). Path to functioning audio tracks mapped in
+>   `scratchpads/PLAN_TIMELINE_AUDIO_TRACKS.md` (blocked on durable audio-clip creation + device verify).
+>
 > **UPDATE (2026-07-11) — comprehensive-interface modules + sound (code-truth):**
 > - **Module 1 Mixer LIVE** — `Core/MixerStore.swift`: Bass/Pad/Lead/Drums user levels, persisted, applied at compose time (velocity) + Drums live via `BeatPlayer.masterLevel`.
 > - **Module 2 Per-Track FX (PARTIAL)** — `Core/TrackFXStore.swift` (persisted per-bus insert settings) + `DSP/ChannelInsertFX.swift` (audio-thread-safe resonant filter + drive). **Bass bus** (`SubBassVoice`) and **Melodic bus** (`PolySynthVoice` pad/harmony + the dedicated lead voice via the `\.leadSynth` env key) each have a per-bus insert fed by a lock-free `SPSCQueue<TrackFX>`; UI = "Bass/Melodic filter + drive" in the Mix panel (`EchoelValueField`). Off by default = bit-identical. **Drums bus = ROADMAP** (BeatPlayer is timer-driven, needs a different tap point). Both render-path changes audio-thread-reviewed; UI ui-state-reviewed.

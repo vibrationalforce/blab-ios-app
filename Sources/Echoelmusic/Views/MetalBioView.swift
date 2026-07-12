@@ -443,6 +443,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var pendingStableFrames = 0
     private let startTime = CFAbsoluteTimeGetCurrent()
     private var lastFrameTime = CFAbsoluteTimeGetCurrent()
+    /// Throttle for the ~5 s visual-health diag line (device-log triage: "die
+    /// Visualisierung hat ihre Verbindung zum Sound verloren", 2026-07-12 —
+    /// this one line in a pasted log pins whether bio/musical frames arrive and
+    /// which quality tier is active). Main-thread, far off the render hot path.
+    private var lastDiagLog: CFAbsoluteTime = 0
     /// The resource governor receives each frame's timestamp so a sustained FPS drop
     /// can demote the visual tier. The MTKView draw callback runs on the main thread
     /// (default CADisplayLink), so the @MainActor hop below is a safe no-op assertion.
@@ -748,6 +753,18 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             }
             let mf = bus?.freshMusical(maxAge: 0.5)
             musicLevel = Float(mf?.masterLevel ?? 0)
+            // Visual-health diag (~every 5 s, main thread): one glanceable line per
+            // log paste that answers "is the visual actually receiving sound/bio?" —
+            // bus wired? musical frames arriving? which tone drives colour? governor
+            // tier degrading (reduce-motion / detail) under thermal load?
+            if nowGov - lastDiagLog > 5 {
+                lastDiagLog = nowGov
+                log.log(.info, category: .system, String(format:
+                    "visual: bio=%d mfNotes=%d level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f",
+                    bio != nil ? 1 : 0, mf?.notes.count ?? -1, musicLevel,
+                    musicTone ?? 0, playedNotes.count,
+                    effectiveReduceMotion ? 1 : 0, detailScale))
+            }
             if soundingNotes.count < 5, let mf {
                 for n in mf.notes.sorted(by: { $0.amplitude > $1.amplitude }) {
                     guard soundingNotes.count < 5 else { break }
