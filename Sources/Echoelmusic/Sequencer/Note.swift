@@ -42,6 +42,11 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     public var velocity: Float
     /// Arrangement layer for multitimbral routing (default `.harmony`).
     public var role: NoteRole
+    /// Per-note play operators (chance / repeats / occurrence — "Ableton 20"
+    /// track). `nil` = plain note, plays every loop (identical to a default
+    /// `NoteOperators()`); legacy clips decode as `nil`. Encoded only when set,
+    /// so older builds keep reading new clips unchanged.
+    public var operators: NoteOperators?
 
     // MARK: Init
 
@@ -52,7 +57,8 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         startStep: Int,
         lengthSteps: Int = 1,
         velocity: Float = 0.8,
-        role: NoteRole = .harmony
+        role: NoteRole = .harmony,
+        operators: NoteOperators? = nil
     ) {
         self.id = id
         self.pitch = min(max(pitch, 0), 127)               // defensive: MIDI range
@@ -60,6 +66,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         self.lengthTicks = max(1, lengthSteps) * Note.ticksPerStep
         self.velocity = min(max(velocity, 0), 1)
         self.role = role
+        self.operators = operators
     }
 
     /// Tick-precise init — for unquantized capture / sub-step editing.
@@ -69,7 +76,8 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         startTick: Int,
         lengthTicks: Int,
         velocity: Float = 0.8,
-        role: NoteRole = .harmony
+        role: NoteRole = .harmony,
+        operators: NoteOperators? = nil
     ) {
         self.id = id
         self.pitch = min(max(pitch, 0), 127)
@@ -77,6 +85,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         self.lengthTicks = max(1, lengthTicks)
         self.velocity = min(max(velocity, 0), 1)
         self.role = role
+        self.operators = operators
     }
 
     // MARK: Step views (quantized to the 16th grid)
@@ -125,7 +134,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     // MARK: Codable (ticks primary; falls back to legacy steps)
 
     private enum CodingKeys: String, CodingKey {
-        case id, pitch, startTick, lengthTicks, velocity, role
+        case id, pitch, startTick, lengthTicks, velocity, role, operators
         case startStep, lengthSteps   // legacy fallback (pre-PPQ clips)
     }
 
@@ -147,6 +156,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
             self.lengthTicks = max(1, ls) * Note.ticksPerStep
         }
         self.role = try c.decodeIfPresent(NoteRole.self, forKey: .role) ?? .harmony
+        self.operators = try c.decodeIfPresent(NoteOperators.self, forKey: .operators)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -157,6 +167,9 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         try c.encode(lengthTicks, forKey: .lengthTicks)
         try c.encode(velocity, forKey: .velocity)
         try c.encode(role, forKey: .role)
+        // Only when set — a plain note's JSON is byte-identical to pre-operator
+        // builds, and older builds simply ignore the key when it is present.
+        try c.encodeIfPresent(operators, forKey: .operators)
         // Legacy mirror so an older build can still read the clip.
         try c.encode(startStep, forKey: .startStep)
         try c.encode(lengthSteps, forKey: .lengthSteps)
