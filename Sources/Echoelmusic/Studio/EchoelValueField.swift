@@ -4,10 +4,12 @@
 //
 //  The one control: a NUMERIC VALUE, no permanent slider/knob (saves space, reads
 //  science-first). Interaction:
-//   • Press the value and drag UP/DOWN — a transparent vertical slider appears to the
-//     left as a position reference (touch-sensitive, musical for filter sweeps). Full
-//     range crosses in ~one short drag, so it's fast, not stiff.
-//   • Pull sideways while dragging for FINE mode (precise to the decimal grid).
+//   • Press the value and drag in ANY direction — UP or RIGHT increases, DOWN or
+//     LEFT decreases (founder 2026-07-12: "nicht nur hoch und runter sondern auch
+//     links und rechts"). A transparent vertical slider appears to the left as a
+//     position reference. Full range crosses in ~one short drag, so it's fast,
+//     not stiff. (The old pull-sideways FINE mode is gone — horizontal now ADJUSTS;
+//     precision lives in tap-to-type.)
 //   • TAP the value to open the EchoelNumberPad — our own keypad with − / + at the
 //     bottom-left (the iOS decimal pad can't carry a sign key). Same pad everywhere.
 //   • VoiceOver: adjustable by swipe, speaks the real value + unit.
@@ -41,9 +43,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// Presents the shared numeric keypad (tap-to-type path).
     @State private var showPad = false
 
-    // Vertical-fader drag state (incremental, so toggling fine mode never jumps).
+    // Drag state (incremental deltas, so the value never jumps mid-gesture).
     @State private var scrubbing = false
     @State private var lastY: CGFloat = 0
+    @State private var lastX: CGFloat = 0
 
     /// Drag distance (points) that covers the FULL range at normal speed — small, so
     /// the fader feels fast/direct (the old velocity-scrub felt stiff).
@@ -160,14 +163,17 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 if !scrubbing {
                     scrubbing = true
                     lastY = g.translation.height   // anchor; no jump on the first move
+                    lastX = g.translation.width
                     return
                 }
                 let span = Double(range.upperBound - range.lowerBound)
-                let dyStep = Double(lastY - g.translation.height)        // up = increase
+                // BOTH axes adjust (founder 2026-07-12): up = increase, right = increase.
+                // The deltas ADD, so a diagonal drag is simply faster — never a fight.
+                let dyStep = Double(lastY - g.translation.height)
+                let dxStep = Double(g.translation.width - lastX)
                 lastY = g.translation.height
-                // Pull sideways (>80 pt) for FINE mode — precise without losing speed.
-                let fine = abs(g.translation.width) > 80 ? 0.22 : 1.0
-                let delta = (dyStep / fullRangePoints) * span * fine
+                lastX = g.translation.width
+                let delta = ((dyStep + dxStep) / fullRangePoints) * span
                 if delta != 0 {
                     apply(Double(value) + delta)
                     onChange()
