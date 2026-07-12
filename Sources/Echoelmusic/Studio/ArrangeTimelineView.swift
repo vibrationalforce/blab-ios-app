@@ -166,12 +166,12 @@ struct ArrangeTimelineView: View {
         case .plugins:            AUv3BrowserView()
         case .patch:
             // Opens on the sound that is actually playing (the voice's patch
-            // memory); apply hits the live voice — same behaviour as the old
-            // studio door. Honest limit (multi-roll pending): this edits THE
-            // melodic instrument all MIDI lanes share today.
-            PatchEditorView(initial: synth.appliedPatch ?? SynthPatch(name: "Init")) { p in
-                synth.apply(p)
-            }
+            // memory). No onApply closure: the editor's env voice IS this
+            // synth instance and already live-applies every change — a
+            // closure here would double-enqueue each edit tick (review note).
+            // Honest limit (multi-roll pending): this edits THE melodic
+            // instrument all MIDI lanes share today.
+            PatchEditorView(initial: synth.appliedPatch ?? SynthPatch(name: "Init"))
         case .automation:         AutomationView()
         }
     }

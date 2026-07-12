@@ -625,7 +625,7 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
         .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
         .sheet(isPresented: $showPatchEditor) {
-            AnyView(PatchEditorView(initial: currentPatch) { p in
+            AnyView(PatchEditorView(initial: synth.appliedPatch ?? currentPatch) { p in
                 currentPatch = p
                 synth.apply(p)   // editor changes hit the live voice immediately
                 syncTouchSound() // play surface follows unless it has its own patch
