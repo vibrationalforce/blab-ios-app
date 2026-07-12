@@ -106,6 +106,14 @@ struct ArrangeTimelineView: View {
             pianoRoll.mixGain = gain
             if gain <= 0.001 { pianoRoll.allNotesOff() }
         }
+        // B2 lane→engine binding, pan: the roll-slot lane's stereo position
+        // drives BOTH melodic voices (pad/harmony + lead) at the mixer — an
+        // honest engine path (AVAudioMixing on the source nodes). Sub-bass
+        // stays center by design (mono-bass practice); drums are a separate bus.
+        .onChange(of: timeline.document.rollSlotPan, initial: true) { _, pan in
+            synth.setPan(pan)
+            leadSynth?.setPan(pan)
+        }
         .gesture(magnify)
         .sheet(item: $activeModal) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
@@ -162,7 +170,7 @@ struct ArrangeTimelineView: View {
         switch modal {
         case .lane(let lane):     editor(forKind: lane.kind)
         case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
-        case .laneFX(let lane):   LaneFXEditor(laneName: lane.name)
+        case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
         case .plugins:            AUv3BrowserView()
         case .patch:
             // Opens on the sound that is actually playing (the voice's patch
@@ -582,9 +590,12 @@ struct ArrangeTimelineView: View {
 @MainActor
 private struct LaneFXEditor: View {
     let laneName: String
+    /// B2: the lane whose persisted pan this editor adjusts (TimelineStore).
+    let laneID: UUID
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
     @Environment(\.leadSynth) private var leadSynth
+    @Environment(TimelineStore.self) private var timeline
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -611,8 +622,14 @@ private struct LaneFXEditor: View {
             EchoelValueField(label: "Drive",
                              value: floatBinding(\.drive),
                              range: Float(0)...Float(1), decimals: 2)
+            // B2 stereo position: persisted on the LANE (TimelineStore); the
+            // Arrange surface's rollSlotPan binding pushes it into both melodic
+            // voices at the mixer. −1 = left, 0 = center, +1 = right.
+            EchoelValueField(label: "Pan",
+                             value: panBinding,
+                             range: Float(-1)...Float(1), decimals: 2)
 
-            Text("Same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound.")
+            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan is this track's own and is saved with the song (0 = center).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -644,6 +661,14 @@ private struct LaneFXEditor: View {
                     fx[keyPath: key] = v
                     apply(fx)
                 })
+    }
+
+    /// B2: lane pan lives in the timeline document (per-lane, persisted); the
+    /// engine follows via the surface's rollSlotPan onChange — no direct voice
+    /// write here, ONE push path.
+    private var panBinding: Binding<Float> {
+        Binding(get: { timeline.document.lanes.first(where: { $0.id == laneID })?.pan ?? 0 },
+                set: { timeline.setLanePan(id: laneID, $0) })
     }
 }
 

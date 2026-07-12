@@ -422,6 +422,14 @@ public final class PolySynthVoice {
         poly.setCutoffScale(scale)
     }
 
+    /// B2 lane pan: stereo position of this voice's whole output, −1…1 (0 =
+    /// center). Control-plane only — `sourceNode` conforms to `AVAudioMixing`
+    /// and is connected into the master mixer, so the ENGINE pans downstream;
+    /// nothing here runs on the render block.
+    public func setPan(_ pan: Float) {
+        sourceNode.pan = max(-1, min(1, pan))
+    }
+
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
 
     /// Begin polling `bus.latestBio` at 10 Hz and fanning bio modulation across

@@ -199,13 +199,34 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(lane.level, 1)
         XCTAssertFalse(lane.isMuted)
         XCTAssertFalse(lane.isSoloed)
+        XCTAssertEqual(lane.pan, 0)   // pre-B2: no pan key → center
     }
 
     func testLaneMixState_roundTripsThroughCodable() throws {
         let lane = TimelineLane(name: "A", kind: .audio, level: 1.25,
-                                isMuted: true, isSoloed: true)
+                                isMuted: true, isSoloed: true, pan: -0.4)
         let data = try JSONEncoder().encode(lane)
         let back = try JSONDecoder().decode(TimelineLane.self, from: data)
         XCTAssertEqual(back, lane)
+    }
+
+    // MARK: - Lane pan (B2)
+
+    func testRollSlotPan_firstNonBioMIDILane_clampedMuteIgnored() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "Bio", kind: .midi, isBio: true, pan: 1),
+            TimelineLane(name: "MIDI 1", kind: .midi, pan: -0.5),
+            TimelineLane(name: "MIDI 2", kind: .midi, pan: 0.9),
+        ])
+        XCTAssertEqual(doc.rollSlotPan, -0.5)                    // bio lane skipped
+        // Mute/solo are gain's business — pan position is untouched.
+        doc.lanes[1].isMuted = true
+        XCTAssertEqual(doc.rollSlotPan, -0.5)
+        // A stored document carrying junk clamps into −1…1.
+        doc.lanes[1].pan = -7
+        XCTAssertEqual(doc.rollSlotPan, -1)
+        // No MIDI lane at all → center.
+        let audioOnly = TimelineDocument(lanes: [TimelineLane(name: "A", kind: .audio)])
+        XCTAssertEqual(audioOnly.rollSlotPan, 0)
     }
 }

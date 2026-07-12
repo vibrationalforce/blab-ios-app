@@ -27,9 +27,12 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     public var level: Float
     public var isMuted: Bool
     public var isSoloed: Bool
+    /// B2 stereo position: −1 (hard left) … +1 (hard right), 0 = center.
+    public var pan: Float
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
-                level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false) {
+                level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
+                pan: Float = 0) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -37,6 +40,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.level = level
         self.isMuted = isMuted
         self.isSoloed = isSoloed
+        self.pan = pan
     }
 
     /// Backward-compatible decode: documents stored before the K2a mixer strip
@@ -50,6 +54,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         level = try c.decodeIfPresent(Float.self, forKey: .level) ?? 1
         isMuted = try c.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         isSoloed = try c.decodeIfPresent(Bool.self, forKey: .isSoloed) ?? false
+        pan = try c.decodeIfPresent(Float.self, forKey: .pan) ?? 0   // pre-B2 docs: center
     }
 }
 
@@ -112,6 +117,14 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     public var rollSlotGain: Float {
         guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 1 }
         return effectiveGain(for: lane.id)
+    }
+
+    /// The stereo position the ONE shared Piano-Roll slot plays at (B2 — the
+    /// rollSlotGain mirror for pan). Clamped −1…1; mute/solo do NOT touch pan
+    /// (audibility is gain's job). No MIDI lane → center.
+    public var rollSlotPan: Float {
+        guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 0 }
+        return max(-1, min(1, lane.pan))
     }
 }
 

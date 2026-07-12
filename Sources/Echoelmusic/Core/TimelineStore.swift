@@ -122,6 +122,14 @@ public final class TimelineStore {
         persist()
     }
 
+    /// B2 stereo position, clamped −1…1 (0 = center). State only, like level —
+    /// the surface pushes the roll-slot pan into the melodic voices.
+    public func setLanePan(id: UUID, _ pan: Float) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].pan = max(-1, min(1, pan))
+        persist()
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()
