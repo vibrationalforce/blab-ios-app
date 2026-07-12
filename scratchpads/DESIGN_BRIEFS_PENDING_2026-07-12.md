@@ -137,3 +137,31 @@ Build order recommendation: B8 (offbeat, founder-diagnosed) → A5 → B6 → L2
   - Flash-safety is the real hazard: unlike the current single-fixture slow-bio fade, an MA3 fan across many fixtures with a fast heart base could visually beat >3 Hz across the rig — the ≤3 Hz clamp + per-fixture slew must be proven by test, not assumed
   - Keep L2/L3 free of ArtNetSender.DMXResolution so they need no #if canImport(Network); resolution encoding stays in the sender (avoids coupling the pure model to a Network-guarded type)
   - Scope creep: do not auto-wire the senders/UI — un-wired ship keeps Release bit-identical and is the reversible minimal change; wiring is a Council-gated follow-on
+
+---
+
+## CORRECTION (ground-truth check before build, 2026-07-12)
+
+**B8-offbeat brief has a target error — verified against the real code:**
+- **Trap does NOT use `appendBass`.** It uses `trapMelody` (BioComposer.swift:786),
+  which emits its OWN 808 bass on steps **[0, 8]** (len 6, octave 2, line 793-796).
+  `appendBass` (line 901) serves the *sustained* house/ambient profiles only.
+- So the founder-diagnosed **Trap 132** offbeat feel must be fixed in **`trapMelody`**,
+  not `appendBass`. The real quarter gap: 0 and 8 have 808s (beats 1 & 3), but
+  **beats 2 (step 4) and 4 (step 12) have no bass** → nothing anchors those quarters.
+- **Corrected build (next focused cycle, test-first, dsp-reviewer mandatory):**
+  1. Extract `static func heartbeatActive(energy:secLen:) -> Bool { secLen >= 4 && energy >= 0.5 }`;
+     refactor `heartbeatOnsets` guard (line 963) to call it (pure, behaviour unchanged).
+  2. `static let quarterAnchorBass = true` near `dynamicDepth` (line 260).
+  3. In `trapMelody`, after the [0,8] 808 loop: `if quarterAnchorBass && Self.heartbeatActive(energy: busy, secLen: stepCount)`
+     add a **quieter** root pedal on the OFF-quarters **[4, 12]** (octave 2, len min(2, stepCount-s),
+     velocity subVel*0.7) — fills the quarter grid so "die Eins/Viertel" is felt, WITHOUT
+     doubling the loud-808 emphasis on 0,8 (keeps trap's syncopated identity, avoids four-on-floor).
+  4. Calm/inactive (busy<0.5) path stays UNCHANGED → RNG-identical, calm take bit-identical.
+  5. Tests via `compose(...)` with a trap-routing input at high vs low arousal (trapMelody is private):
+     high busy → `.bass` startSteps ⊇ {0,4,8,12}; low busy → only {0,8}; determinism (same seed twice).
+- **Taste caveat (device ear-verify):** whether beats 2&4 should be a soft pedal (chosen) vs a
+  full-emphasis quarter anchor vs downbeat-only is the founder's aesthetic call — the soft
+  off-quarter pedal is the reversible default; `quarterAnchorBass=false` reverts in one line.
+- **Also optional (separate):** apply the same `heartbeatActive` quarter anchor to the sustained
+  `appendBass` path (house/dub) — but dub was "schon sehr gut", so scope to trap first.
