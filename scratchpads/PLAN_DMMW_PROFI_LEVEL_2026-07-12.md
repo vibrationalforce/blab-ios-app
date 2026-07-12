@@ -17,6 +17,10 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
 ## Batch-Reihenfolge (jeder Punkt = 1 Commit-Zyklus, Gates grün)
 
 - [x] B1 — Header-Monitore EchoelVideo + EchoelLux (Founder-Skizze) — DONE.
+- [x] B1b — AUv3-Sichtbarkeit (Founder: "sehe nur die Apple AUv3"):
+      Registrierungs-Observer + passingTest-Enumeration + Scan-Breadcrumb — DONE.
+      Verify am Milestone: Breadcrumb "auv3 scan: … makers: …" im Founder-Log.
+- [x] B1c — Kammerton-Farbgesetz über 392–466 Hz + Frequenz-Echtheit als Tests — DONE.
 - [ ] B2 — E2b Mix→Spuren: laneMixStrip trägt Gain/Pan/Sends-Zugang pro Spur;
       ChannelRack bleibt als Master-Übersicht im Mix-Panel.
 - [ ] B3 — E-Bio-Abschluss: untere BioStripView fällt (Header-Monitor ist der
