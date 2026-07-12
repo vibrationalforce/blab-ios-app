@@ -112,4 +112,126 @@ final class WeatherMoodTests: XCTestCase {
         let reached = Set(raws.compactMap { WeatherSnapshot.Condition(weatherKitRaw: $0) })
         XCTAssertEqual(reached, Set(WeatherSnapshot.Condition.allCases))
     }
+
+    // MARK: - Multi-parameter targets (P5: sound + image, each mixable)
+
+    func testAllTargetsStayInTheirNaturalRanges() {
+        for c in WeatherSnapshot.Condition.allCases {
+            for day in [true, false] {
+                for temp in [-10.0, 5.0, 15.0, 25.0, 40.0] {
+                    for wind in [0.0, 12.0, 30.0, 60.0] {
+                        let x = WeatherMood.contribution(for: WeatherSnapshot(
+                            temperatureC: temp, condition: c, isDaylight: day, windKph: wind))
+                        XCTAssertTrue((0...1).contains(x.darknessTarget), "\(c) darkness")
+                        XCTAssertTrue((0...1).contains(x.livelinessTarget), "\(c) liveliness")
+                        XCTAssertTrue((0...1).contains(x.tensionTarget), "\(c) tension")
+                        XCTAssertTrue((0...1).contains(x.hue), "\(c) hue")
+                        XCTAssertTrue((0...2).contains(x.saturation), "\(c) saturation")
+                        XCTAssertTrue((0...1.5).contains(x.glowTarget), "\(c) glow")
+                        XCTAssertTrue((0...1.5).contains(x.motionTarget), "\(c) motion")
+                    }
+                }
+            }
+        }
+    }
+
+    func testWarmIsBrighterThanCold() {
+        let hot = WeatherMood.contribution(for: snap(.clear, temp: 35)).darknessTarget
+        let cold = WeatherMood.contribution(for: snap(.clear, temp: -5)).darknessTarget
+        XCTAssertLessThan(hot, cold, "warm weather must be brighter (lower darkness)")
+    }
+
+    func testStormIsTheMostTense() {
+        let storm = WeatherMood.contribution(for: snap(.storm)).tensionTarget
+        for c in WeatherSnapshot.Condition.allCases where c != .storm {
+            XCTAssertLessThan(WeatherMood.contribution(for: snap(c)).tensionTarget, storm)
+        }
+    }
+
+    func testWindDrivesLivelinessAndMotion() {
+        let calm = WeatherMood.contribution(for:
+            WeatherSnapshot(temperatureC: 15, condition: .clear, isDaylight: true, windKph: 2))
+        let windy = WeatherMood.contribution(for:
+            WeatherSnapshot(temperatureC: 15, condition: .clear, isDaylight: true, windKph: 55))
+        XCTAssertLessThan(calm.livelinessTarget, windy.livelinessTarget)
+        XCTAssertLessThan(calm.motionTarget, windy.motionTarget)
+    }
+
+    func testFogIsTheDimmestGlow() {
+        let fog = WeatherMood.contribution(for: snap(.fog)).glowTarget
+        for c in WeatherSnapshot.Condition.allCases where c != .fog {
+            XCTAssertLessThan(fog, WeatherMood.contribution(for: snap(c)).glowTarget)
+        }
+    }
+
+    // MARK: - blend() crossfade (the intensity mixer)
+
+    func testBlendAtZeroIsBitIdentical() {
+        XCTAssertEqual(WeatherMood.blend(base: 0.82, target: 1.4, intensity: 0), 0.82)
+        XCTAssertEqual(WeatherMood.blend(base: 0.0, target: 0.72, intensity: 0), 0.0)
+    }
+
+    func testBlendAtOneReachesTarget() {
+        XCTAssertEqual(WeatherMood.blend(base: 0.2, target: 0.9, intensity: 1), 0.9, accuracy: 1e-6)
+    }
+
+    func testBlendAtHalfIsMidpoint() {
+        XCTAssertEqual(WeatherMood.blend(base: 0.2, target: 0.8, intensity: 0.5), 0.5, accuracy: 1e-6)
+    }
+
+    func testBlendClampsIntensityAndGuardsNonFinite() {
+        XCTAssertEqual(WeatherMood.blend(base: 0.3, target: 0.9, intensity: 5), 0.9, accuracy: 1e-6)
+        XCTAssertEqual(WeatherMood.blend(base: 0.3, target: 0.9, intensity: -2), 0.3)
+        XCTAssertEqual(WeatherMood.blend(base: 0.5, target: .nan, intensity: 0.5), 0.5)
+    }
+
+    // MARK: - Param metadata (UI contract)
+
+    func testParamDomainsSplitFourAndFour() {
+        let sound = WeatherMood.Param.allCases.filter { $0.domain == .sound }
+        let visual = WeatherMood.Param.allCases.filter { $0.domain == .visual }
+        XCTAssertEqual(sound.count, 4)
+        XCTAssertEqual(visual.count, 4)
+    }
+
+    func testEveryParamHasLabelExplanationAndUniqueMixKey() {
+        let keys = WeatherMood.Param.allCases.map { $0.mixKey }
+        XCTAssertEqual(Set(keys).count, keys.count, "mix keys must be unique")
+        for p in WeatherMood.Param.allCases {
+            XCTAssertFalse(p.label.isEmpty)
+            XCTAssertFalse(p.explanation.isEmpty)
+            XCTAssertTrue(p.mixKey.hasPrefix("weather.mix."))
+        }
+    }
+
+    func testStructureHasNoCrossfadeTargetButOthersDo() {
+        let x = WeatherMood.contribution(for: snap(.rain))
+        XCTAssertNil(x.target(for: .structure))
+        for p in WeatherMood.Param.allCases where p != .structure {
+            XCTAssertNotNil(x.target(for: p), "\(p) must expose a crossfade target")
+        }
+    }
+
+    func testStructureDefaultsFullOthersHalf() {
+        XCTAssertEqual(WeatherMood.Param.structure.defaultIntensity, 1.0)
+        for p in WeatherMood.Param.allCases where p != .structure {
+            XCTAssertEqual(p.defaultIntensity, 0.5)
+        }
+    }
+
+    func testCurrentIntensityUnsetIsDefaultSetIsStored() {
+        guard let defaults = UserDefaults(suiteName: "weather.mix.test") else {
+            return XCTFail("could not create a volatile defaults suite")
+        }
+        defaults.removePersistentDomain(forName: "weather.mix.test")
+        // Unset → the parameter's own default (never a raw 0.0).
+        XCTAssertEqual(WeatherMood.Param.glow.currentIntensity(defaults), 0.5, accuracy: 1e-6)
+        XCTAssertEqual(WeatherMood.Param.structure.currentIntensity(defaults), 1.0, accuracy: 1e-6)
+        // Set → exactly what was written, including a real 0 (off).
+        defaults.set(0.0, forKey: WeatherMood.Param.glow.mixKey)
+        XCTAssertEqual(WeatherMood.Param.glow.currentIntensity(defaults), 0.0, accuracy: 1e-6)
+        defaults.set(0.73, forKey: WeatherMood.Param.hue.mixKey)
+        XCTAssertEqual(WeatherMood.Param.hue.currentIntensity(defaults), 0.73, accuracy: 1e-6)
+        defaults.removePersistentDomain(forName: "weather.mix.test")
+    }
 }
