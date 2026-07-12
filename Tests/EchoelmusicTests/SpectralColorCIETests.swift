@@ -164,6 +164,36 @@ final class SpectralColorCIETests: XCTestCase {
         }
     }
 
+    func testToneCircle_everyConcertPitch392to466_staysVisible() {
+        // Founder 2026-07-12: "Wie ist es mit den anderen Kammertönen?
+        // Verschiebt sich alles dann korrekt?" The mapping is CONTINUOUS in
+        // frequency (no 12-colour table), so ANY concert pitch shifts every
+        // note's colour smoothly. Sweep the whole historical range — French
+        // baroque 392, baroque 415, classical 430, Verdi 432, diapason normal
+        // 435, 440, modern orchestras 442/444, Chorton 466 — across C1…C8.
+        var a4 = 392.0
+        while a4 <= 466.0 {
+            for midi in stride(from: 24, through: 108, by: 1) {
+                let c = SpectralColor.toneLinearRGB(forToneHz: hz(midi: midi, a4: a4))
+                XCTAssertGreaterThan(max(c.r, max(c.g, c.b)), 0.35,
+                    "midi \(midi) @ a4=\(a4) must stay visible")
+            }
+            a4 += 2.0
+        }
+    }
+
+    func testToneCircle_isFrequencyTrue_notNameTrue() {
+        // The real translation law: colour belongs to the SOUNDING FREQUENCY.
+        // G#4 at concert pitch 440 (≈415.30 Hz) must be the same colour as A4
+        // at concert pitch 415.30 — so ANY tuning system (equal, just, custom)
+        // that produces Hz gets that Hz's physical colour.
+        let gSharpAt440 = SpectralColor.toneLinearRGB(forToneHz: 440 * pow(2.0, -1.0 / 12.0))
+        let aAt41530 = SpectralColor.toneLinearRGB(forToneHz: 415.3046975770599)
+        XCTAssertEqual(gSharpAt440.r, aAt41530.r, accuracy: 1e-9)
+        XCTAssertEqual(gSharpAt440.g, aAt41530.g, accuracy: 1e-9)
+        XCTAssertEqual(gSharpAt440.b, aAt41530.b, accuracy: 1e-9)
+    }
+
     func testToneCircle_guardsBadInput() {
         for bad in [Double.nan, .infinity, 0, -5] {
             let c = SpectralColor.toneLinearRGB(forToneHz: bad)
