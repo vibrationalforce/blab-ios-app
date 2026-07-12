@@ -3592,15 +3592,12 @@ private struct ExportedFile: Identifiable {
 /// Identifiable wrapper so `.sheet(item:)` can carry a drum track index.
 private struct TrackRef: Identifiable { let id: Int }
 
-/// R1: the live stamped session name (artist · date · [place] · key · BPM ·
-/// Kammerton) — its OWN leaf because the tempo runs along with the body
-/// (freeze rule: only this label churns, never the Session card's toggles).
-@MainActor
 /// One weather-influence mixer row: the app-wide parameter control (EchoelValueField,
 /// 0…1) plus a one-line explanation of what it changes. A LEAF that owns its own
 /// `@AppStorage` (keyed by the parameter) so the churny root body never re-renders on
 /// a mixer edit — and so the intensity persists identically to how the wiring reads it
 /// (`WeatherMood.Param.currentIntensity`). 0 = off (no change), 1 = fully the weather.
+@MainActor
 private struct WeatherMixRow: View {
     let param: WeatherMood.Param
     @AppStorage private var intensity: Double
@@ -3621,6 +3618,10 @@ private struct WeatherMixRow: View {
     }
 }
 
+/// R1: the live stamped session name (artist · date · [place] · key · BPM ·
+/// Kammerton) — its OWN leaf because the tempo runs along with the body
+/// (freeze rule: only this label churns, never the Session card's toggles).
+@MainActor
 private struct SessionNamePreviewLeaf: View {
     @Environment(SessionContext.self) private var session
     @Environment(Transport.self) private var transport

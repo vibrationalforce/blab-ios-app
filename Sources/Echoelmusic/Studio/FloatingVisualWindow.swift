@@ -156,6 +156,13 @@ struct FloatingVisualWindow: View {
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @Environment(WeatherProvider.self) private var weatherProvider
     @AppStorage("weather.enabled") private var weatherEnabled = false
+    // Observe the IMAGE mixers so dragging one in the panel updates this visual
+    // LIVE (they change only on a user drag → render-safe). Keys + defaults match
+    // WeatherMood.Param, so the wiring and these reads agree on "unset = default".
+    @AppStorage(WeatherMood.Param.hue.mixKey)        private var wxMixHue = WeatherMood.Param.hue.defaultIntensity
+    @AppStorage(WeatherMood.Param.saturation.mixKey) private var wxMixSat = WeatherMood.Param.saturation.defaultIntensity
+    @AppStorage(WeatherMood.Param.glow.mixKey)       private var wxMixGlow = WeatherMood.Param.glow.defaultIntensity
+    @AppStorage(WeatherMood.Param.movement.mixKey)   private var wxMixMove = WeatherMood.Param.movement.defaultIntensity
     #endif
 
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
@@ -343,14 +350,13 @@ struct FloatingVisualWindow: View {
             return (visualHue, visualSaturation, visualIntensity, visualMotion)
         }
         let wx = WeatherMood.contribution(for: snap)
-        func mix(_ base: Double, _ target: Float, _ p: WeatherMood.Param) -> Double {
-            Double(WeatherMood.blend(base: Float(base), target: target,
-                                     intensity: p.currentIntensity()))
+        func mix(_ base: Double, _ target: Float, _ intensity: Double) -> Double {
+            Double(WeatherMood.blend(base: Float(base), target: target, intensity: Float(intensity)))
         }
-        return (mix(visualHue, wx.hue, .hue),
-                mix(visualSaturation, wx.saturation, .saturation),
-                mix(visualIntensity, wx.glowTarget, .glow),
-                mix(visualMotion, wx.motionTarget, .movement))
+        return (mix(visualHue, wx.hue, wxMixHue),
+                mix(visualSaturation, wx.saturation, wxMixSat),
+                mix(visualIntensity, wx.glowTarget, wxMixGlow),
+                mix(visualMotion, wx.motionTarget, wxMixMove))
         #else
         return (visualHue, visualSaturation, visualIntensity, visualMotion)
         #endif
