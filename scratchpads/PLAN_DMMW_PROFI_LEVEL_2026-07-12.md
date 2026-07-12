@@ -54,11 +54,16 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
 - [ ] B9 — Visual-Polish-Paket: Wärme/Sättigungs-Kette prüfen (0.80-Mix +
       0.82-Saturation + Floor stapeln sich), Stil-QA je Style mit Purpur-
       Farben; ggf. ein "Vivid"-Preset für den VJ-Regler.
-- [ ] B10 — Docs/Wahrheits-Sync: CLAUDE.md (Input/Routing re-doored, BLE-Status
-      nach B4, Header-Monitore), FEATURE_MATRIX, SESSION_LOG.
-- [ ] B11 — Abschluss: voller ui-state- + code-review-Pass über den gesamten
-      Batch-Diff, DANN ein .deploy/release-Bump (Milestone-Build) + Founder-
-      Report mit Testpunkten.
+- [x] B10 — DONE (CLAUDE.md CURRENT STATE: BLE = GEBAUT+VERDRAHTET nach B4
+      [war "NIE GESTARTET"], tote-Türen-Zeile teil-behoben [Patchbay/Sample/
+      Automation/Patch re-doored, Meditation bewusst türlos], 2026-07-12-Batch-
+      Zeile [A3/A4/L1/P1/B2/B3/B4/B5/W1/EchoelAI N0-N4/Body-Science], Heilungs-
+      Thema als REJECT-Red-Line notiert). FEATURE_MATRIX/SESSION_LOG-Feinsync
+      im nächsten Doku-Tick.
+- [~] B11 — LÄUFT: ultracode-Workflow wf_792707e5-72e = adversarieller
+      review+verify über 87fd02e..HEAD (33 Dateien) + 5 Design-Briefs. Nach
+      Rückkehr: confirmedDefects fixen → DANN .deploy/release-Bump (Milestone)
+      + Founder-Report. Kein Bump vor grünem Review + Founder-Freeze-Ende.
 
 ## "Ableton 20"-Spur (Founder 24h-Mandat 2026-07-12: "nicht nur einholen
 ## sondern abhängen") — läuft PARALLEL zur B-Reihe, gleiche Gesetze
