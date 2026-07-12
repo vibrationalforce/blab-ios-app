@@ -1,21 +1,24 @@
-build: 2026-07-12 v10.79.177 (Shell v3: Master · Export · Live · Learn oben neben dem Schloss)
+build: 2026-07-12 v10.79.178 (Spur-Türen v2 · Bio im Header · Feedback-Schutz & Routing wieder da)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Deine Anweisung "Master, Export, Live und Learn kommt oben in die
-  Leiste neben das Schloss" — umgesetzt:
-  · Vier kleine Icon-Buttons in der Transportleiste direkt neben dem
-    Tempo-Schloss: Master (Fader-Symbol) · Export (Teilen-Symbol) ·
-    Live (Funk-Symbol) · Learn (Buch-Symbol).
-  · Die Studio-Menüleiste darunter ist jetzt NUR noch Instrument:
-    Comp · Session · Transp · Sound · Mix · FX · Mood · Synth · Video.
-    Master/Export-Chips sind nach oben gewandert, der Plugins-Chip ist
-    aufgelöst (AUv3 liegt seit v176 auf den Spur-Türen), Live/Learn
-    ebenso oben.
-  · Kein neues Modal — die Chrome-Buttons öffnen die BESTEHENDEN
-    Dropdowns/Sheets über das Notification-Muster (Stabilitäts-Gesetz).
-  Nächste Stufen aus deinem Zielbild (geplant, PLAN_DMMW_SHELL_V3):
-  E2 Mix→Spuren · E3 Video-Spur-Art (Capture + Mediathek) ·
-  E4 EchoelBioSynth-AUv3 (mehrwöchig) · E5 AUv3 pro Spur.
-  Und weiterhin: bitte einmal mit OFFENEM Visual spielen + Log schicken
-  (visual:-Diagnosezeilen) — das braucht die V1-Diagnose.
-  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf e8966f3.
-  NEEDS-FOUNDER-VERIFY (Chrome-Türen-Feeling, schlanke Studio-Leiste).
+notes: Drei Dinge in einem Build:
+  · SPUR-TÜREN v2 (deine Anweisung "alles vertikal auf die Spuren"):
+    das Spurkopf-Menü trägt jetzt zusätzlich „Synth patch" (öffnet den
+    Patch-Editor auf dem Klang, der WIRKLICH spielt — die Stimme hat
+    jetzt ein Patch-Gedächtnis) und „Automation" auf jeder Media-Spur.
+    Ehrliche Grenze bleibt: bis Multi-Roll formen die Türen DAS eine
+    melodische Instrument.
+  · BIO IM HEADER (dein Screenshot "vereinfacht da oben"): der Puls-
+    Monitor oben zeigt jetzt Trace + BPM + Kohärenz, und TIPPEN startet/
+    stoppt die Messung. Die große Bio-Zeile unten bleibt, bis du den
+    Header-Ersatz für gut befindest — dann fällt sie.
+  · WIEDERGEFUNDEN (Deep Audit): „Audio input" (Mic-Monitoring MIT
+    Feedback-Schutz — dein FeedbackGuard war fertig, nur die Tür war
+    seit dem Juli-Umbau weg!) und „Routing" (OSC · Immersive-Objekte ·
+    Licht) sind zurück — unten im Master-Panel.
+  An Bord außerdem (noch ohne Tür, nächste Stufe): die Autotune- und
+  Harmonie-Kerne fürs Live-Singen — tonart-echt und kammerton-korrekt
+  (ein 432-Autotune hat sonst niemand). Der Mic-Pfad folgt device-gated.
+  Bitte weiterhin: einmal mit OFFENEM Visual spielen + Log schicken.
+  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf 723f2b5.
+  ui-state-Review: SHIP-SAFE. NEEDS-FOUNDER-VERIFY (Türen-Feeling,
+  Header-Bio, Input/Routing-Screens auf dem Gerät).
