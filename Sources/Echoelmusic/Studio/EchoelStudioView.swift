@@ -2877,7 +2877,7 @@ struct EchoelStudioView: View {
     private func startBiofeedback() {
         EchoelCrashLog.breadcrumb("Start tapped")
         running = true
-        bus.instrumentRunning = true     // chrome mirror (TransportBar pulse button)
+        bus.setInstrumentRunning(true)   // chrome mirror (TransportBar pulse button)
         // THE PERFORMANCE MOMENT (founder 2026-07-06B: "wow", music + visual as ONE
         // experience): Start takes the immersive visual FULLSCREEN for the take.
         // Stop restores what the user had before — unless they changed the window
@@ -2936,7 +2936,7 @@ struct EchoelStudioView: View {
 
     private func stopEverything() {
         running = false
-        bus.instrumentRunning = false    // chrome mirror (TransportBar pulse button)
+        bus.setInstrumentRunning(false)  // chrome mirror (TransportBar pulse button)
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
         lastGenBody = nil                // next Start re-captures a fresh body baseline (evolve hold)
         startTask?.cancel(); startTask = nil
