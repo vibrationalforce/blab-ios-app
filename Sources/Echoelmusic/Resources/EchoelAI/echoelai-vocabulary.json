@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "comment": "EchoelAI semantic vocabulary (ADR 2026-07-12). Descriptive user terms map to parameter TENDENCIES, not absolute values. Data file — no consumer yet; the registry search ranking hook will read this. Science-only wording law applies.",
+  "terms": [
+    {
+      "term": "treibender",
+      "aliases": ["driving", "mehr drive", "pushender"],
+      "tendencies": [
+        { "match": "delay time", "direction": "down", "note": "tempo-synced shorter divisions" },
+        { "match": "compressor release", "direction": "down" },
+        { "match": "transient attack", "direction": "up" },
+        { "match": "hihat density", "direction": "up" }
+      ]
+    },
+    {
+      "term": "dunkler",
+      "aliases": ["darker", "wärmer dunkel"],
+      "tendencies": [
+        { "match": "ddsp.filter.cutoff", "direction": "down" },
+        { "match": "air band", "direction": "down" },
+        { "match": "reverb damping", "direction": "up" },
+        { "match": "ddsp.osc.brightness", "direction": "down" }
+      ]
+    },
+    {
+      "term": "breiter",
+      "aliases": ["wider", "mehr breite", "stereo breiter"],
+      "tendencies": [
+        { "match": "stereo spread", "direction": "up" },
+        { "match": "early reflections", "direction": "down", "note": "shorter ER" },
+        { "match": "detune", "direction": "up", "note": "slight" }
+      ]
+    },
+    {
+      "term": "ruhiger",
+      "aliases": ["calmer", "weicher", "entspannter Puls"],
+      "tendencies": [
+        { "match": "modulation depth", "direction": "down" },
+        { "match": "ddsp.env.attack", "direction": "up", "note": "longer attacks" },
+        { "match": "tempo feel", "direction": "down", "note": "half-time feel" },
+        { "match": "ddsp.mod.vibratoDepth", "direction": "down" }
+      ]
+    }
+  ]
+}
