@@ -219,6 +219,22 @@ public final class AutomationPlayer {
         persist()
     }
 
+    /// Bend the segment leaving a keyframe (the canvas' vertical segment-drag).
+    public func setCurvature(target: AutomationTarget, id: UUID, _ curvature: Double) {
+        guard let i = index(of: target) else { return }
+        lanes[i].setCurvature(id: id, curvature)
+        persist()
+    }
+
+    /// Move + revalue a keyframe in one gesture step (canvas point-drag).
+    public func movePoint(target: AutomationTarget, id: UUID, toBeat beat: Double,
+                          normalized value: Double) {
+        guard let i = index(of: target) else { return }
+        lanes[i].movePoint(id: id, toTick: AutomationPlayer.tick(forBeat: beat))
+        lanes[i].setValue(id: id, value)
+        persist()
+    }
+
     public func clear(target: AutomationTarget) {
         guard let i = index(of: target) else { return }
         lanes[i].clear()
