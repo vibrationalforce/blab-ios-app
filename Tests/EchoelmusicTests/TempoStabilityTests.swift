@@ -90,14 +90,23 @@ final class TempoGlideTests: XCTestCase {
         pattern.stop()
     }
 
-    func testStop_dropsGlideTarget() {
-        // A stop mid-glide must not leave a stale target that yanks the NEXT take.
+    func testStop_landsGlideAtTarget() {
+        // CONTRACT CHANGE (founder screenshot 2026-07-12): stopping mid-glide
+        // used to DROP the target, stranding the clock partway — the lock field
+        // claimed 100 while Transport (and the session name reading it) honestly
+        // showed the stranded ~64, and the next Play ran at 64. Stop now LANDS
+        // the tempo at its target (inaudible: nothing is playing) so pattern,
+        // Transport, session name and the lock display always agree.
         let pattern = PatternEngine()
+        let transport = Transport()
+        pattern.transport = transport
         pattern.play()
-        let before = pattern.tempo
-        pattern.glideTempo(to: before + 40)
+        let target = pattern.tempo + 40
+        pattern.glideTempo(to: target)
         pattern.stop()
-        XCTAssertEqual(pattern.tempo, before, accuracy: 1e-9,
-                       "stopping mid-glide must freeze, not jump")
+        XCTAssertEqual(pattern.tempo, target, accuracy: 1e-9,
+                       "stop must land the glide, not strand the clock partway")
+        XCTAssertEqual(transport.tempo, target, accuracy: 1e-9,
+                       "the authoritative Transport (session-name source) must agree")
     }
 }

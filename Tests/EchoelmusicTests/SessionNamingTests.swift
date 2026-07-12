@@ -65,10 +65,18 @@ final class SessionNamingTests: XCTestCase {
         XCTAssertTrue(f.hasSuffix(".mid"))
     }
 
-    func testEmptyArtistFallsBackToEchoel() {
+    func testEmptyArtistFallsBackToBrandMark() {
+        // Founder 2026-07-12: "Es soll am Anfang ein E~" — the default/empty
+        // artist stamps the brand mark, and "~" survives sanitisation.
         let s = SessionNaming.stem(artist: "   ", date: date(2026, 6, 12),
                                    key: "Cm", bpm: 124, a4Hz: 440)
-        XCTAssertTrue(s.hasPrefix("Echoel_"))
+        XCTAssertTrue(s.hasPrefix("E~_"))
+    }
+
+    func testBrandMarkArtistSurvivesSanitisation() {
+        let s = SessionNaming.stem(artist: "E~", date: date(2026, 6, 12),
+                                   key: "Cm", bpm: 124, a4Hz: 440)
+        XCTAssertEqual(s, "E~_2026-06-12_Cm_124bpm_A440")
     }
 
     func testNoPartOmitsTrailingUnderscore() {
@@ -145,20 +153,29 @@ final class SessionContextTests: XCTestCase {
         return SessionContext(defaults: d)
     }
 
-    func testDefaultsAreEchoelCMinor440() {
+    func testDefaultsAreBrandMarkCMinor440() {
         let c = ctx()
-        XCTAssertEqual(c.artistName, "Echoel")
+        XCTAssertEqual(c.artistName, "E~")
         XCTAssertEqual(c.a4Hz, 440)
         XCTAssertEqual(c.key.shortName, "Cm")
     }
 
+    func testStoredOldDefaultEchoelMigratesToBrandMark() {
+        // "Echoel" was OUR old default, not a user's choice — a stored copy
+        // migrates to "E~"; a genuine user name is untouched (next test).
+        let suite = "SessionContextTests-migrate-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.set("Echoel", forKey: "echoel.artistName")
+        XCTAssertEqual(SessionContext(defaults: d).artistName, "E~")
+    }
+
     func testSessionNameComposesFields() {
         let c = ctx()
-        c.artistName = "Echoel"
+        c.artistName = "Nova"
         c.adopt(key: MusicalKey(root: 0, scale: .minor))
         c.a4Hz = 432
         let name = c.sessionName(bpm: 124, date: Date(timeIntervalSince1970: 1_780_000_000))
-        XCTAssertTrue(name.hasPrefix("Echoel_"))
+        XCTAssertTrue(name.hasPrefix("Nova_"))
         XCTAssertTrue(name.contains("_Cm_"))
         XCTAssertTrue(name.contains("_124bpm_"))
         XCTAssertTrue(name.hasSuffix("_A432"))
