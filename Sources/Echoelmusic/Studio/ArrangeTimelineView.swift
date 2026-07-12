@@ -43,8 +43,21 @@ struct ArrangeTimelineView: View {
     @AppStorage("timeline.snap") private var snapRaw = SnapResolution.sixteenth.rawValue
 
     private static let laneHeight: CGFloat = 56
-    private static let labelWidth: CGFloat = 128
-    private static let rulerHeight: CGFloat = 20
+    private static let labelWidth: CGFloat = 140
+    private static let rulerHeight: CGFloat = 24
+
+    /// One identity colour per content kind — DAW convention, drawn from the
+    /// EXISTING palette (Uncodixfy: no new hues): MIDI = instrument green,
+    /// audio = material amber, everything without an engine = muted. Used for
+    /// the lane's leading stripe and its regions, so a lane and its content
+    /// read as one system across the whole Hackbrett.
+    private static func kindTint(_ kind: ClipKind?) -> Color {
+        switch kind {
+        case .midi:  return EchoelTheme.accent
+        case .audio: return EchoelTheme.warning
+        default:     return EchoelTheme.dim
+        }
+    }
 
     private var ppb: CGFloat { min(96, max(8, pointsPerBeat * pinch)) }
     private var snap: SnapResolution { SnapResolution(rawValue: snapRaw) ?? .sixteenth }
@@ -250,6 +263,13 @@ struct ArrangeTimelineView: View {
             if !lane.isBio { laneMixStrip(lane) }
         }
         .frame(width: Self.labelWidth, height: Self.laneHeight)
+        // Kind-identity stripe on the leading edge (DAW convention) — the lane
+        // head and its regions share one colour, so the eye pairs them.
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Self.kindTint(lane.isBio ? nil : lane.kind).opacity(0.65))
+                .frame(width: 3)
+        }
         .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
     }
 
@@ -362,27 +382,57 @@ struct ArrangeTimelineView: View {
         }
     }
 
+    /// Beat subdivisions appear once a beat is wide enough to read (≥ 18 pt) —
+    /// zoomed out, only bars; zoomed in, the working grid a DAW shows.
+    private var showBeatTicks: Bool { ppb >= 18 }
+
     private var ruler: some View {
         ZStack(alignment: .topLeading) {
             EchoelTheme.fill
+            // Bar numbers + real tick marks (V3: the old ruler was bare tiny
+            // numbers floating on a strip — no ticks, no rhythm to the eye).
             ForEach(0..<barCount, id: \.self) { bar in
+                let barX = CGFloat(bar * TimelineTime.beatsPerBar) * ppb
+                Rectangle()
+                    .fill(EchoelTheme.text.opacity(0.35))
+                    .frame(width: 1, height: 8)
+                    .offset(x: barX, y: Self.rulerHeight - 8)
                 Text("\(bar + 1)")
-                    .font(EchoelTheme.font(9).monospacedDigit())
+                    .font(EchoelTheme.font(10, .medium).monospacedDigit())
                     .foregroundStyle(EchoelTheme.dim)
-                    .offset(x: CGFloat(bar * TimelineTime.beatsPerBar) * ppb + 3, y: 3)
+                    .offset(x: barX + 4, y: 2)
+                if showBeatTicks {
+                    ForEach(1..<TimelineTime.beatsPerBar, id: \.self) { beat in
+                        Rectangle()
+                            .fill(EchoelTheme.text.opacity(0.18))
+                            .frame(width: 1, height: 4)
+                            .offset(x: barX + CGFloat(beat) * ppb, y: Self.rulerHeight - 4)
+                    }
+                }
             }
         }
         .frame(width: gridWidth, height: Self.rulerHeight, alignment: .topLeading)
+        .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
     }
 
     private func laneRow(_ lane: TimelineLane) -> some View {
         ZStack(alignment: .topLeading) {
-            // Bar grid lines (light) — beat lines arrive with Stage 3 editing.
+            // Bar lines + (zoomed in) lighter beat lines — the working grid a
+            // DAW shows, mirroring the ruler's ticks (V3 design pass).
             ForEach(0..<barCount, id: \.self) { bar in
+                let barX = CGFloat(bar * TimelineTime.beatsPerBar) * ppb
                 Rectangle()
-                    .fill(EchoelTheme.border)
+                    .fill(EchoelTheme.text.opacity(0.14))
                     .frame(width: 1, height: Self.laneHeight)
-                    .offset(x: CGFloat(bar * TimelineTime.beatsPerBar) * ppb)
+                    .offset(x: barX)
+                if showBeatTicks {
+                    ForEach(1..<TimelineTime.beatsPerBar, id: \.self) { beat in
+                        Rectangle()
+                            .fill(EchoelTheme.text.opacity(0.05))
+                            .frame(width: 1, height: Self.laneHeight)
+                            .offset(x: barX + CGFloat(beat) * ppb)
+                    }
+                }
             }
             ForEach(timeline.document.regions(in: lane.id)) { region in
                 regionBlock(region)
@@ -405,8 +455,11 @@ struct ArrangeTimelineView: View {
         // öffnet ein Fenster, wo man Audio, MIDI, Video etc bearbeiten kann").
         // Only kinds with a real engine offer one.
         let editableKind = clip.map { $0.kind == .midi || $0.kind == .audio } ?? false
+        // Region blocks wear their lane's kind colour (V3: "plain grey blocks" →
+        // the DAW read: colour = content type, matching the lane-head stripe).
+        let tint = Self.kindTint(clip?.kind)
         return RoundedRectangle(cornerRadius: 6)
-            .fill(EchoelTheme.fill)
+            .fill(tint.opacity(0.14))
             .overlay {
                 // Audio regions show their waveform (Stage 2) the moment the
                 // clip references a real file — recording/import (Stage A/3)
@@ -419,13 +472,15 @@ struct ArrangeTimelineView: View {
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(EchoelTheme.text.opacity(0.35), lineWidth: 1))
-            .overlay(alignment: .bottomLeading) {
+                .strokeBorder(tint.opacity(0.55), lineWidth: 1))
+            .overlay(alignment: .topLeading) {
+                // Name at the TOP edge (DAW convention) so the audio waveform
+                // below stays unobstructed.
                 Text(name)
                     .font(EchoelTheme.font(9, .medium))
                     .foregroundStyle(EchoelTheme.text)
                     .lineLimit(1)
-                    .padding(.horizontal, 5).padding(.bottom, 3)
+                    .padding(.horizontal, 5).padding(.top, 3)
             }
             .frame(width: w, height: Self.laneHeight - 8)
             .offset(x: x, y: 4)

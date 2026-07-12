@@ -369,7 +369,18 @@ public final class PatternEngine {
         if let ps = pendingSteps, let pa = pendingAccents {
             load(steps: ps, accents: pa)   // load() clears the pending pair
         }
-        tempoGlideTarget = 0   // drop any in-flight glide so the next take starts clean
+        // An in-flight glide must LAND at its target, not be dropped mid-ease:
+        // zeroing it here used to STRAND the clock partway (founder screenshot
+        // 2026-07-12: tempo locked at 100, but Stop had cancelled the glide at
+        // ~64 — the session name honestly showed the stranded Transport value
+        // while the lock field claimed 100, and the next Play ran at 64).
+        // Landing now is inaudible (nothing is playing) and keeps pattern /
+        // Transport / session name / lock display in agreement.
+        if tempoGlideTarget > 0 {
+            tempo = tempoGlideTarget
+            transport?.setTempo(tempo)
+        }
+        tempoGlideTarget = 0
         stopStoppedGlide()
         transport?.stop()
         onStop?()   // flush held notes so nothing drones after stop

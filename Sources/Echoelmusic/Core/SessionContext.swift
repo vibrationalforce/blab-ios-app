@@ -58,7 +58,14 @@ public final class SessionContext {
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.artistName = (defaults.string(forKey: Key.artist)).flatMap { $0.isEmpty ? nil : $0 } ?? "Echoel"
+        // Default artist = the brand mark "E~" (founder 2026-07-12: "Es soll am
+        // Anfang ein E~"). Stored "Echoel" was OUR old default, not a user's
+        // choice — migrate it to the mark; any other stored name is the user's.
+        let storedArtist = defaults.string(forKey: Key.artist)
+        switch storedArtist {
+        case .none, .some(""), .some("Echoel"): self.artistName = "E~"
+        case .some(let s):                      self.artistName = s
+        }
         self.keyRoot = defaults.object(forKey: Key.keyRoot) as? Int ?? 0
         let scaleRaw = defaults.string(forKey: Key.keyScale) ?? Scale.minor.rawValue
         self.keyScale = Scale(rawValue: scaleRaw) ?? .minor

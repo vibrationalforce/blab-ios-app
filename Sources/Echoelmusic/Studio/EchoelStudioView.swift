@@ -3870,7 +3870,7 @@ private struct SessionNamePreviewLeaf: View {
     private var readableFields: [String] {
         var f: [String] = []
         let artist = session.artistName.trimmingCharacters(in: .whitespaces)
-        f.append(artist.isEmpty ? "Echoel" : artist)                       // E…
+        f.append(artist.isEmpty ? "E~" : artist)                           // E~ (brand mark)
         f.append(Date().formatted(date: .abbreviated, time: .omitted))     // date
         if !session.placeToken.isEmpty { f.append(session.placeToken) }    // place
         f.append(session.key.name)                                         // Tonart, spelled out

@@ -34,7 +34,7 @@ public enum SessionNaming {
         calendar: Calendar = .current,
         place: String = ""
     ) -> String {
-        let artistToken = sanitize(artist, fallback: "Echoel")
+        let artistToken = sanitize(artist, fallback: "E~")
         let keyToken = sanitize(key, fallback: "Key")
         let placeToken = sanitize(place, fallback: "")
         var parts = [artistToken, dateStamp(date, calendar: calendar)]
@@ -85,10 +85,13 @@ public enum SessionNaming {
         return s
     }
 
-    /// Reduce free text to a filename-safe token: keep letters/digits, collapse
+    /// Reduce free text to a filename-safe token: keep letters/digits (plus "~",
+    /// so the brand mark "E~" survives — founder 2026-07-12: "Es soll am Anfang
+    /// ein E~"; "~" is filesystem-safe on APFS and every export target), collapse
     /// everything else to nothing, cap length. Empty result → `fallback`.
     static func sanitize(_ raw: String, fallback: String) -> String {
-        let allowed = CharacterSet.alphanumerics
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "~")
         let scalars = raw.unicodeScalars.filter { allowed.contains($0) }
         let token = String(String.UnicodeScalarView(scalars)).prefix(24)
         return token.isEmpty ? fallback : String(token)
