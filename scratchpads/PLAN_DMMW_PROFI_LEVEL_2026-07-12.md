@@ -97,7 +97,10 @@ Abgeleitete Spuren (nach Gewinn-pro-Aufwand, laufen NACH/NEBEN A-Spur):
   (stille Voices + abgeklungener Tail raus aus dem Render → AdaptiveQuality);
   P2 Konzept-Spike Anticipative Rendering fürs Generative (deterministischer
   Loop-Anteil vorausrendern, nur Bio-Voices live; Tier steuert Tiefe).
-- **L-Spur (EchoelLux → kleines Lichtpult):** L1 Grand Master + Blackout;
+- **L-Spur (EchoelLux → kleines Lichtpult):** L1 Grand Master + Blackout —
+  DONE (669dad9: masteredDimmer-Gesetz geteilt Art-Net+sACN, Blackout gewinnt
+  sofort, Rückkehr über Slew, Master-Änderung sendet auch bei stalem Bio;
+  Patchbay-„Licht"-Sektion mit EIN Master-Fader + Blackout-Button);
   L2 Gruppen; L3 **Bio-Phaser** (Herz-/Atemphase als Phase-Offset über
   Fixture-Gruppe — MA3-Phaser-Denke, Alleinstellung); L4 GDTF-Subset-Parser
   (Fixture-Library, zero-deps); L5 sACN-Multicast/Priority + Multi-Universe.
