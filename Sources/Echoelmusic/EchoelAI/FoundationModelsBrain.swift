@@ -51,7 +51,7 @@ public struct FoundationModelsBrain: BrainBackend {
             } catch {
                 let description = String(describing: error)
                 if description.localizedCaseInsensitiveContains("guardrail") {
-                    throw EchoelAIError.guardrailRejected
+                    throw EchoelAIError.refused   // safety layer said no
                 }
                 throw EchoelAIError.unknown(description)
             }

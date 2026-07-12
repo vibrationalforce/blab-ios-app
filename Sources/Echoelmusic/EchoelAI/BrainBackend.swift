@@ -11,18 +11,10 @@
 
 import Foundation
 
-/// Errors the brain surface can produce. Deliberately small and stable —
-/// tool code and UI switch over THESE, never over backend-specific errors.
-public enum EchoelAIError: Error, Equatable, Sendable {
-    /// No capable model on this device/OS (or the feature flag is off).
-    case unavailable
-    /// The system model's safety layer rejected the prompt or response.
-    case guardrailRejected
-    /// A tool invocation failed (tool name in the payload).
-    case toolFailed(String)
-    /// Anything else, with a diagnostic description.
-    case unknown(String)
-}
+// Error surface: `EchoelAIError` lives in Core/EchoelLanguageModel.swift —
+// the EXISTING provider-agnostic language layer (discovered red-gate lesson
+// 2026-07-12: this module already had the enum; one error type app-wide,
+// `refused` == the ADR's guardrail rejection). This file adds no error type.
 
 /// The planner abstraction. Implementations must be safe to call from any
 /// task (Sendable); availability is async because the system may need to

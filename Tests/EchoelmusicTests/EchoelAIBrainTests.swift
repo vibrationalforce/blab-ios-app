@@ -40,6 +40,6 @@ final class EchoelAIBrainTests: XCTestCase {
     func testEchoelAIError_equatable_forToolSwitching() {
         XCTAssertEqual(EchoelAIError.toolFailed("x"), .toolFailed("x"))
         XCTAssertNotEqual(EchoelAIError.toolFailed("x"), .toolFailed("y"))
-        XCTAssertNotEqual(EchoelAIError.unavailable, .guardrailRejected)
+        XCTAssertNotEqual(EchoelAIError.unavailable, .refused)
     }
 }

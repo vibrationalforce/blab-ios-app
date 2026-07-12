@@ -19,11 +19,19 @@
 
 import Foundation
 
-/// Errors surfaced by a language provider.
-public enum EchoelAIError: Error, Sendable {
+/// Errors surfaced by a language provider or an EchoelAI tool. ONE error
+/// surface app-wide (the night-ADR's `guardrailRejected` maps to `refused` —
+/// the system safety layer refused prompt or response). Equatable so tool
+/// code and tests can switch on it.
+public enum EchoelAIError: Error, Sendable, Equatable {
     case unavailable
     case contextOverflow
     case refused
+    /// A tool invocation failed (payload names the tool/keyPath) — the
+    /// planner receives a correctable message, never a silent no-op.
+    case toolFailed(String)
+    /// Anything else, with a diagnostic description.
+    case unknown(String)
 }
 
 /// Provider-agnostic, OpenAI-compatible-style language interface. Implementations

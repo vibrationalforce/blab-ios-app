@@ -24,9 +24,21 @@ Davor im selben Fenster (Tages-Batch, bereits alle Gates grün): `c21e423` B2 Pa
 
 ## 3. Build-/Test-Status am Session-Ende
 
-- Gates bis einschließlich `c24654a` (W1): **alle grün** (⚡ Quick Test · Xcode Compile Check · CI/CD · Auto-Merge).
-- `794da35`–`7f074c5`: Gates laufen bei Report-Erstellung noch (Xcode-Compile ~20 min); Wakeup ist gestellt — bei Rot wird gefixt oder revertiert, das Ergebnis landet als Nachtrag hier.
-- Kein lokaler Swift-Build in der Sandbox (bekannt) → CI ist Ground Truth.
+- Gates bis einschließlich `c24654a` (W1): **alle grün**.
+- **NACHTRAG (Red-Gate + Fix):** Xcode Compile Check fiel auf `65c1f1d`/`7f074c5`:
+  `invalid redeclaration of 'EchoelAIError'` — das Repo HATTE bereits eine
+  EchoelAI-Sprachschicht (`Core/EchoelLanguageModel.swift`: provider-agnostisches
+  Protokoll + EchoelAIError {unavailable, contextOverflow, refused} — ein Lost
+  Treasure, den N3 dupliziert hat). Fix im Folge-Commit: Duplikat-Enum entfernt,
+  das BESTEHENDE Enum um `toolFailed(String)`/`unknown(String)` + Equatable
+  erweitert (keine exhaustiven Switches im Bestand → additiv sicher);
+  `guardrailRejected` des Briefings = bestehendes `.refused` (Mapping im Code
+  dokumentiert). Eine Fehler-Oberfläche app-weit.
+- **WICHTIGE CI-ERKENNTNIS (korrigiert die Session-Doktrin):** „⚡ Quick Test"
+  ist NUR Lint/Secrets-Grep — es kompiliert KEINEN Swift-Code. Die echten
+  Compile-Gates sind ausschließlich **Xcode Compile Check** und **Echoelmusic
+  CI/CD**. Ein grüner Quick Test beweist nichts über Buildbarkeit.
+- Kein lokaler Swift-Build in der Sandbox (bekannt) → Xcode-Gate ist Ground Truth.
 - Statische Prüfungen pro Commit: Brace/Paren-Balance, JSON-Validierung, Handsimulation der Syllabifier-/Registry-Logik.
 
 ## 4. Entdeckte, NICHT gefixte Probleme (nur dokumentiert)
@@ -35,6 +47,7 @@ Davor im selben Fenster (Tages-Batch, bereits alle Gates grün): `c21e423` B2 Pa
 2. Es gibt KEINEN typisierten Control-Plane-Write-Pfad über den EngineBus (UI/Stores schreiben direkt in Voices). Für EchoelAI-Tools brauchbar, aber als Architektur-Entscheid council-würdig (neuer Bus-Topic vs. Command-Registry).
 3. `EchoelStore` bleibt dormant/widersprüchlich zur Pricing-Lage (bekannt aus Masterplan §2, unverändert).
 4. FoundationModels-Fehler-Mapping läuft übergangsweise über die Fehler-BESCHREIBUNG (guardrail-Substring) — im ersten Device-Zyklus auf typisierte `GenerationError`-Cases härten (im Code markiert).
+5. **Protokoll-Doppelung entdeckt:** `BrainBackend` (N3, async isAvailable) vs. bestehendes `EchoelLanguageModel` (sync isAvailable + grounding + Router/PromptBudget). Beide kompilieren nebeneinander; die Konsolidierung (vermutlich: FoundationModelsBrain konformt zu EchoelLanguageModel, BrainBackend fällt) gehört in den empfohlenen Council-Design-Zyklus — nachts nicht improvisiert.
 
 ## 5. Empfohlene nächste 3 Cycles
 
