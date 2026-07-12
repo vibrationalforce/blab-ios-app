@@ -1,22 +1,28 @@
-build: 2026-07-12 v10.79.174 (Puls-Knopf neben Play · Pulsmonitor im Header · Monitor in echten Visual-Farben · Visual-Diagnose)
+build: 2026-07-12 v10.79.175 (DMMW-Produktions-Shell: Menüleiste + Dropdowns · Kammerton-Farben · Video-Fenster · AUv3-Tür · E~ · Timeline-Design)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Deine drei Screenshot-Anweisungen:
-  · „Create from Within" ist weg — der Puls-Knopf (⌁) sitzt oben im Transport
-    NEBEN Play und startet/stoppt das Instrument (grüner Ring = Körper live).
-  · Der Pulsmonitor (Live-Kurve + BPM) sitzt oben zwischen Logo und Titel.
-  · Die Monitor-Kachel rechts zeigt die ECHTEN Visual-Farben: sie färbt sich
-    mit dem klingenden Akkord (dieselbe physikalische Ton→Farbe wie der
-    Shader), schwillt mit dem Musik-Level, pulsiert mit dem Herzschlag.
-  · Die Erklär-Zeile ist raus (kommt später als richtiges EchoelAI).
-
-  PLUS: das Visual schreibt jetzt alle 5 s eine Diagnose-Zeile ins Log
-  („visual: bio= mfNotes= level= …"). BITTE: kurz mit laufendem Visual
-  spielen und das Log schicken — die Zeilen zeigen exakt, warum das Visual
-  grau/statisch wurde.
-
-  ui-state-Review: konform, 0 kritisch (+2 Härtungen). Alle Gates grün auf
-  809d621. NEEDS-FOUNDER-VERIFY (Header-Layout, Puls-Knopf-Flow, Kachel).
-
-  In Arbeit (mehrstündige DMMW-Sitzung, Meldung wenn fertig): die
-  Produktions-Shell — Menüleiste + Dropdowns statt Karten-Stapel, Buttons
-  auf den Spuren, Kammerton-reaktive Notenraster-Farben, Video-Fenster.
+notes: Die DMMW-Sitzung — alles in EINEM Build:
+  · PRODUKTIONS-SHELL: Der Karten-Stapel ist weg. Oben eine Menüleiste mit
+    kleinen Chips (Comp · Session · Transp · Sound · Mix · FX · Master ·
+    Mood · Export · Synth · Video · Plugins · Live · Learn) — es öffnet
+    EIN Dropdown im Hauptfenster, Tipp daneben schließt. DAW-Feeling.
+  · PLUGINS (AUv3): Der „Plugins"-Chip öffnet den Audio-Unit-Browser —
+    lade einen AUv3-Synth und die MIDI-Noten der Piano Roll spielen IHN
+    (Schalter: Plugin statt/zusätzlich zur Echoel-Stimme). Effekte auf
+    Kanal oder Master-Bus. Bitte mit deinen AUv3-Apps testen!
+  · KAMMERTON-FARBEN: Piano-Roll-Raster, Notenblöcke und Griffbrett
+    tragen die physische Tonfarbe der ECHTEN Frequenz — 440→432 Hz
+    verschiebt sichtbar die Farben des ganzen Notenrasters.
+  · VIDEO-FENSTER: „Video"-Chip → Clip-Bibliothek (Visual + Master-Mix,
+    gemuxt), Inline-Wiedergabe, Teilen, Löschen. Clips überleben jetzt
+    den Neustart (landen in Dokumente/Videos).
+  · SESSION-NAME: beginnt mit E~ (E~_2026-07-12_Alyd_100bpm_A440).
+  · BPM-FIX: Stop mitten im Tempo-Gleiten strandete die Uhr (Feld sagte
+    100, Name ehrlich 64, Play lief 64) — Stop landet den Glide jetzt am
+    Ziel; Uhr/Name/Lock/Klick immer einig.
+  · TIMELINE-DESIGN: Kind-Farben (MIDI grün · Audio amber) auf Spurkopf
+    UND Regionen, echtes Lineal mit Takt-/Beat-Ticks, Beat-Raster beim
+    Zoomen, breitere Spurköpfe, „HRV 15.."-Abschneiden behoben.
+  NEEDS-FOUNDER-VERIFY: Menüleisten-Feeling, AUv3-Klang, Video-Playback,
+  Rasterfarben bei 432 Hz, Timeline-Look. Für die Visual-Diagnose (V1):
+  bitte kurz mit OFFENEM Visual spielen und das Log schicken.
+  Gates: alle grün bis b6c5943 (Shell-Review ship-safe, Härtungen drin).
