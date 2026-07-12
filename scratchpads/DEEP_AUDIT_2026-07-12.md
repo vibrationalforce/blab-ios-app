@@ -123,7 +123,9 @@ CrashSafeStatePersistence/EchoelCellular.
 - VL3 verdrahtet PitchTracker/TuningDetector/VoicePitchCorrector + FeedbackGuard.
 - Spatial S4/S5 verdrahten EchoelSpaceReverb/BinauralPanner (statt Neubau!).
 - E2a/E2b re-dooren PatchEditor/SampleBrowser/Automation auf Spur-Türen.
-- MeditationView: Founder fragen (Session-Erbe-Regel berührt).
+- MeditationView: ENTSCHIEDEN 2026-07-12 — KEINE eigene Tür (Founder: alles in
+  der Main View, Teil des Produktionsprozesses). Bleibt kompilierend, wird nicht
+  re-doored; showMeditation-Slot = Reuse-Reservoir.
 - EchoelAI-Grundstein existiert (EchoelLanguageModel+SoundPrompt) — bei
   EchoelAI-Zyklus NICHT neu bauen.
 

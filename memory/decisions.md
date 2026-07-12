@@ -516,3 +516,13 @@ Architectural and strategic decisions with context and rationale.
 - **Plan:** scratchpads/PLAN_DMMW_SHELL_V3_2026-07-12.md (E1 Chrome → E2 Mix→Spuren →
   E3 Video-Spur → E4 EchoelBioSynth-AUv3 → E5 per-Spur-Hosting). E1 sofort; E3/E4
   device-gated, E4 mehrwöchig (eigener Plan + Council vor Target-Umbau).
+
+### 2026-07-12 MeditationView: keine eigene Tür — Ein-View-Produkt
+- **Founder (verbatim):** "Meditation View nicht extra. Alles findet in der Main View
+  statt und ist Teil des Produktionsprozesses."
+- Konsistent mit RE-FOCUS 2026-07-06B: Entspannung entsteht DURCH das bio-generative
+  Musizieren in der Main View, nicht durch separate Wellness-Screens.
+- Konsequenz: MeditationView bleibt kompilierend (Session-Erbe-Regel: nicht löschen,
+  nicht präsentieren), der tote `showMeditation`-Cover-Slot ist Slot-Reuse-Reservoir.
+  Künftige Meditations-/Entspannungs-Qualität fließt in Musik + Visual der Main View
+  (BioComposer/BioSpaceMap/Visual), NIE in einen neuen Screen.
