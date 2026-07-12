@@ -475,6 +475,12 @@ struct EchoelStudioView: View {
                             #if canImport(MultipeerConnectivity)
                             case "live":   activeMenu = nil; showLiveColabo = true
                             #endif
+                            // Header output monitors (founder 2026-07-12): the
+                            // EchoelVideo tile opens the clips library panel, the
+                            // EchoelLux tile the routing sheet (existing slot —
+                            // slot reuse, no new modal).
+                            case "video":   activeMenu = .video; showVideoLibrary = true
+                            case "routing": activeMenu = nil; showRouting = true
                             default: break
                             }
                         }

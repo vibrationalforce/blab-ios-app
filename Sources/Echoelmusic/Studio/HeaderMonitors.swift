@@ -205,4 +205,113 @@ struct ImmersiveMonitorMini: View {
 // toggled from the header monitor), not a fullscreen cover — so the earlier
 // `ExpandedMonitor` enum + `ExpandedMonitorView` (a second, now-unreachable MetalBioView
 // path) were removed (founder pivot 2026-07-02: one visual path, fewer surfaces).
+
+// MARK: - EchoelLux monitor (header)
+
+/// Compact header monitor of the LIGHT output (founder 2026-07-12, red sketch:
+/// "oben neben dem EchoelBioSynth Monitor noch 2 Fenster … eins für EchoelLux").
+/// HONEST: it shows the colour the fixtures are actually being sent — the same
+/// `SpectralColor.color(forChord:)` × dimmer mapping the Art-Net/sACN senders
+/// compute (MusicMediaMap.dmxChannels) — and goes idle-grey when no light route
+/// is enabled. A LEAF: it reads the router + bus in its OWN body (freeze rule);
+/// the route flags only change on user edits, the live colour renders inside a
+/// 10 Hz TimelineView like the visual tile. Tap opens Routing (chrome door).
+@MainActor
+struct EchoelLuxMonitorMini: View {
+    @Environment(SignalRouter.self) private var router
+    @Environment(EngineBus.self) private var bus
+
+    private var luxActive: Bool {
+        #if canImport(Network)
+        return router.graph.hasEnabledRoute(toSink: "artnet.out")
+            || router.graph.hasEnabledRoute(toSink: "sacn.out")
+        #else
+        return false
+        #endif
+    }
+
+    var body: some View {
+        Button {
+            NotificationCenter.default.post(name: .echoelChromeDoor, object: "routing")
+        } label: {
+            Group {
+                if luxActive {
+                    TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { _ in
+                        Self.lightColor(mf: bus.freshMusical(maxAge: 1.5))
+                    }
+                } else {
+                    ZStack {
+                        EchoelTheme.fill
+                        Image(systemName: "lightbulb")
+                            .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                    }
+                }
+            }
+            .frame(width: 38, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("EchoelLux light monitor")
+        .accessibilityValue(luxActive ? "Sending to fixtures" : "No light route")
+        .accessibilityHint("Opens routing")
+    }
+
+    /// The exact colour the DMX mapping sends: chord colour × the music dimmer
+    /// (MusicMediaMap: 0.3 + 0.7 × level). Silence = the senders' resting dim —
+    /// shown as a low warm glow, honest "fixtures idle, route armed".
+    static func lightColor(mf: MusicalFrame?) -> Color {
+        let chord: [(hz: Double, amplitude: Double)] =
+            (mf?.notes ?? []).map { ($0.frequencyHz, $0.amplitude) }
+        let rgb = SpectralColor.color(forChord: chord)
+        let dim: Double = 0.3 + 0.7 * (mf?.masterLevel ?? 0)
+        func enc(_ v: Double) -> Double { pow(min(max(v * dim, 0.0), 1.0), 1.0 / 2.2) }
+        return Color(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b))
+    }
+}
+
+// MARK: - EchoelVideo monitor (header)
+
+#if canImport(AVFoundation) && canImport(Metal)
+/// Compact header monitor of the VIDEO pillar (founder 2026-07-12, red sketch:
+/// "… und eins für EchoelVideo"). HONEST about what ships today: it mirrors the
+/// visual recorder — a steady REC state while a clip is being captured (steady,
+/// not blinking — flash law), idle film icon otherwise. Deliberately NOT a live
+/// video thumbnail: that would need a second Metal/AV pipeline in the header
+/// (one-GPU-canvas rule). Tap opens the Video panel (recorded clips library).
+@MainActor
+struct EchoelVideoMonitorMini: View {
+    @Environment(VisualRecorder.self) private var recorder
+
+    var body: some View {
+        Button {
+            NotificationCenter.default.post(name: .echoelChromeDoor, object: "video")
+        } label: {
+            ZStack {
+                EchoelTheme.fill
+                HStack(spacing: 4) {
+                    if recorder.isRecording {
+                        Circle().fill(Color(red: 0.86, green: 0.22, blue: 0.20))
+                            .frame(width: 7, height: 7)
+                    }
+                    Image(systemName: recorder.isRecording ? "record.circle" : "film")
+                        .font(.system(size: 11))
+                        .foregroundStyle(recorder.isRecording ? EchoelTheme.text : EchoelTheme.dim)
+                }
+            }
+            .frame(width: 38, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(recorder.isRecording
+                    ? Color(red: 0.86, green: 0.22, blue: 0.20).opacity(0.7)
+                    : EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("EchoelVideo monitor")
+        .accessibilityValue(recorder.isRecording ? "Recording" : "Idle")
+        .accessibilityHint("Opens the recorded clips library")
+    }
+}
+#endif
 #endif

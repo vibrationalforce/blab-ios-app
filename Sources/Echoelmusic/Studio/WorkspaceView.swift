@@ -141,7 +141,17 @@ struct WorkspaceView: View {
                 PulseMonitorMiniLive()
                 #endif
                 Spacer(minLength: 0)
-                // RIGHT: the immersive-visual monitor. (No purchase chip in v1.0 —
+                // RIGHT: the three output monitors — Video · Lux · BioSynth visual
+                // (founder 2026-07-12, red sketch: "oben neben dem EchoelBioSynth
+                // Monitor noch 2 Fenster … eins für EchoelVideo und eins für
+                // EchoelLux"). Klang · Bild · Licht in one header row. Each is a
+                // LEAF that reads its own live state (freeze rule); taps go through
+                // the chrome-door notification, never into studio state directly.
+                #if canImport(AVFoundation) && canImport(Metal)
+                EchoelVideoMonitorMini()
+                #endif
+                EchoelLuxMonitorMini()
+                // The immersive-visual monitor. (No purchase chip in v1.0 —
                 // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
                 // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
                 // live waveform stays in its own leaf.
