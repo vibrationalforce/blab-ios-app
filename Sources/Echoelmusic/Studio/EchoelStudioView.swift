@@ -1106,33 +1106,37 @@ struct EchoelStudioView: View {
             // grouping follows the three real FX buses (bass / melodic / drums). Every
             // binding is the existing one — no new audio wiring. FX default full-open /
             // drive 0 = bit-identical until moved.
-            mixStripCard("Bass") {
-                EchoelValueField(label: "Level", value: mixBinding(\.bass),
-                                 range: MixerStore.range, unit: "", decimals: 2)
-                EchoelValueField(label: "Filter", value: bassCutoffBinding,
-                                 range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-                EchoelValueField(label: "Drive", value: bassDriveBinding,
-                                 range: TrackFXStore.driveRange, unit: "", decimals: 2)
-            }
-            // Pad + Lead share the melodic FX bus → one strip. The melodic filter tames
-            // a shrill lead directly.
-            mixStripCard("Melodic · Pad + Lead") {
-                EchoelValueField(label: "Pad", value: mixBinding(\.pad),
-                                 range: MixerStore.range, unit: "", decimals: 2)
-                EchoelValueField(label: "Lead", value: mixBinding(\.lead),
-                                 range: MixerStore.range, unit: "", decimals: 2)
-                EchoelValueField(label: "Filter", value: melodicCutoffBinding,
-                                 range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-                EchoelValueField(label: "Drive", value: melodicDriveBinding,
-                                 range: TrackFXStore.driveRange, unit: "", decimals: 2)
-            }
-            mixStripCard("Drums") {
-                EchoelValueField(label: "Level", value: drumsBinding,
-                                 range: MixerStore.range, unit: "", decimals: 2)
-                EchoelValueField(label: "Filter", value: drumsCutoffBinding,
-                                 range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-                EchoelValueField(label: "Drive", value: drumsDriveBinding,
-                                 range: TrackFXStore.driveRange, unit: "", decimals: 2)
+            // The three master strips reflow to 2 columns in landscape / iPad (leaf
+            // reads the size class, not the root body → render-safe).
+            AdaptiveCardGrid {
+                mixStripCard("Bass") {
+                    EchoelValueField(label: "Level", value: mixBinding(\.bass),
+                                     range: MixerStore.range, unit: "", decimals: 2)
+                    EchoelValueField(label: "Filter", value: bassCutoffBinding,
+                                     range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+                    EchoelValueField(label: "Drive", value: bassDriveBinding,
+                                     range: TrackFXStore.driveRange, unit: "", decimals: 2)
+                }
+                // Pad + Lead share the melodic FX bus → one strip. The melodic filter tames
+                // a shrill lead directly.
+                mixStripCard("Melodic · Pad + Lead") {
+                    EchoelValueField(label: "Pad", value: mixBinding(\.pad),
+                                     range: MixerStore.range, unit: "", decimals: 2)
+                    EchoelValueField(label: "Lead", value: mixBinding(\.lead),
+                                     range: MixerStore.range, unit: "", decimals: 2)
+                    EchoelValueField(label: "Filter", value: melodicCutoffBinding,
+                                     range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+                    EchoelValueField(label: "Drive", value: melodicDriveBinding,
+                                     range: TrackFXStore.driveRange, unit: "", decimals: 2)
+                }
+                mixStripCard("Drums") {
+                    EchoelValueField(label: "Level", value: drumsBinding,
+                                     range: MixerStore.range, unit: "", decimals: 2)
+                    EchoelValueField(label: "Filter", value: drumsCutoffBinding,
+                                     range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
+                    EchoelValueField(label: "Drive", value: drumsDriveBinding,
+                                     range: TrackFXStore.driveRange, unit: "", decimals: 2)
+                }
             }
 
             Button {
@@ -1427,9 +1431,12 @@ struct EchoelStudioView: View {
                 // Separate, individually-mixable influences (founder: "Klang und
                 // Bild aber getrennte und mehrere Parameter" + an intensity slider
                 // "damit man das Wetter rein und rausmischen kann"). Each row says
-                // what it changes; 0 = off (no change), 1 = fully the weather.
-                weatherMixGroup("Sound · Klang", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
-                weatherMixGroup("Image · Bild", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
+                // what it changes; 0 = off (no change), 1 = fully the weather. The two
+                // groups sit side by side in landscape / on iPad.
+                AdaptiveCardGrid {
+                    weatherMixGroup("Sound · Klang", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
+                    weatherMixGroup("Image · Bild", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
+                }
 
                 // Apple WeatherKit attribution requirement.
                 if let attributionURL = URL(string: "https://developer.apple.com/weatherkit/data-source-attribution/") {
@@ -3591,6 +3598,33 @@ private struct ExportedFile: Identifiable {
 
 /// Identifiable wrapper so `.sheet(item:)` can carry a drum track index.
 private struct TrackRef: Identifiable { let id: Int }
+
+/// Lays its cards in ONE column in portrait and TWO in landscape / on iPad, so the
+/// wide layouts don't waste horizontal space (founder: "passendes adaptives Design
+/// für horizontal und Vertikal"). A LEAF that reads the size classes in its OWN body
+/// — size-class changes are rare (rotation / resize), never per-frame, and confining
+/// the read here keeps it off the churny root body (freeze rule). Mirrors the proven
+/// ChannelRackView.rackColumns rule (v170) so the master strips and the drum channels
+/// reflow together. Layout-only: identical content, just columns.
+@MainActor
+private struct AdaptiveCardGrid<Content: View>: View {
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    @ViewBuilder let content: () -> Content
+
+    private var columns: Int { (hSize == .regular || vSize == .compact) ? 2 : 1 }
+
+    var body: some View {
+        if columns > 1 {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top),
+                                     count: columns), spacing: 10) {
+                content()
+            }
+        } else {
+            VStack(spacing: 10) { content() }
+        }
+    }
+}
 
 /// One weather-influence mixer row: the app-wide parameter control (EchoelValueField,
 /// 0…1) plus a one-line explanation of what it changes. A LEAF that owns its own
