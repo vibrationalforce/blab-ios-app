@@ -1,24 +1,23 @@
-build: 2026-07-12 v10.79.178 (Spur-Türen v2 · Bio im Header · Feedback-Schutz & Routing wieder da)
+build: 2026-07-12 v10.79.179 (Werte in alle Richtungen ziehen · kein versehentliches App-Schließen unten)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Drei Dinge in einem Build:
-  · SPUR-TÜREN v2 (deine Anweisung "alles vertikal auf die Spuren"):
-    das Spurkopf-Menü trägt jetzt zusätzlich „Synth patch" (öffnet den
-    Patch-Editor auf dem Klang, der WIRKLICH spielt — die Stimme hat
-    jetzt ein Patch-Gedächtnis) und „Automation" auf jeder Media-Spur.
-    Ehrliche Grenze bleibt: bis Multi-Roll formen die Türen DAS eine
-    melodische Instrument.
-  · BIO IM HEADER (dein Screenshot "vereinfacht da oben"): der Puls-
-    Monitor oben zeigt jetzt Trace + BPM + Kohärenz, und TIPPEN startet/
-    stoppt die Messung. Die große Bio-Zeile unten bleibt, bis du den
-    Header-Ersatz für gut befindest — dann fällt sie.
-  · WIEDERGEFUNDEN (Deep Audit): „Audio input" (Mic-Monitoring MIT
-    Feedback-Schutz — dein FeedbackGuard war fertig, nur die Tür war
-    seit dem Juli-Umbau weg!) und „Routing" (OSC · Immersive-Objekte ·
-    Licht) sind zurück — unten im Master-Panel.
-  An Bord außerdem (noch ohne Tür, nächste Stufe): die Autotune- und
-  Harmonie-Kerne fürs Live-Singen — tonart-echt und kammerton-korrekt
-  (ein 432-Autotune hat sonst niemand). Der Mic-Pfad folgt device-gated.
-  Bitte weiterhin: einmal mit OFFENEM Visual spielen + Log schicken.
-  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf 723f2b5.
-  ui-state-Review: SHIP-SAFE. NEEDS-FOUNDER-VERIFY (Türen-Feeling,
-  Header-Bio, Input/Routing-Screens auf dem Gerät).
+notes: Beide Punkte aus deiner letzten Nachricht:
+  · WERTE ZIEHEN — JETZT IN ALLE RICHTUNGEN: hoch ODER rechts erhöht,
+    runter ODER links verringert; diagonal ist einfach schneller. Gilt
+    app-weit für jedes Wertefeld (Tempo, FX, Patch, Mix …). Der alte
+    Seitwärts-Zieh-Feinmodus ist dafür raus — Präzision bleibt übers
+    Tippen (eigenes Zahlenfeld).
+  · UNTERER BILDSCHIRMRAND: iOS' Nach-Hause-Wischgeste feuert nicht
+    mehr beim ersten Wisch — der erste Wisch gehört jetzt der App
+    (Bio-Zeile, Spur-Chips), erst ein zweiter bewusster Wisch verlässt
+    sie (Standard bei Spielen/DAWs). Der Home-Balken bleibt sichtbar.
+    Die "andere Lösung" (Leisten wandern nach oben/auf die Spuren)
+    läuft ohnehin parallel im Umbau — dieser Fix wirkt sofort.
+  Dein 2284-Log: Start gesund (~0,6 s), am Ende des ersten Puls-Laufs
+  ein sehr guter Lock (~53–61, Konfidenz bis 0,93) — dazwischen oft
+  Fingerkontakt verloren (Finger flach & ruhig auf Linse + Blitz).
+  Fürs Visual↔Sound-Thema brauche ich weiterhin einmal ein Log MIT
+  OFFENEM Visual-Fenster — im 2284er war es wieder zu (keine einzige
+  visual:-Zeile).
+  Gates: Quick Test + Xcode Compile Check + CI/CD auf be3737a.
+  ui-state-Review: SHIP-SAFE. NEEDS-FOUNDER-VERIFY (Zieh-Gefühl in
+  beide Richtungen, unterer Rand beim Spielen).
