@@ -23,11 +23,11 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
 - [x] B1c — Kammerton-Farbgesetz über 392–466 Hz + Frequenz-Echtheit als Tests — DONE.
 - [ ] B2 — E2b Mix→Spuren: laneMixStrip trägt Gain/Pan/Sends-Zugang pro Spur;
       ChannelRack bleibt als Master-Übersicht im Mix-Panel.
-- [ ] B3 — E-Bio-Abschluss: untere BioStripView fällt (Header-Monitor ist der
-      Ersatz, Founder-Anweisung "in vereinfachter Form da oben"); Tap-to-learn
-      + Quellen-Dots wandern in ein kompaktes Bio-Popover hinter dem
-      Header-Puls (kein neues Sheet — Slot-Reuse showInput? NEIN — Popover/
-      Dropdown im bestehenden Menü-Host).
+- [x] B3 — DONE (8ec7f11: Strip raus aus dem Dauer-Flow; "Bio"-Chip als
+      ERSTER Menü-Punkt + Long-Press auf Header-Puls öffnen das Bio-Dropdown
+      [Zahlen/Tap-to-learn/Quelle unverändert als Leaf]; Receiver auf die
+      Menü-Zeile umgezogen, Modal-Kette unberührt; Routing-Link für Gurt).
+      UI-STATE-REVIEW im B11-Pass. — E-Bio-Abschluss.
 - [x] B4 — KERN DONE (6ba61e5: "Herzgurt (BLE)"-Source-Port im Patchbay +
       applyRouting-Start/Stop-Hook; Permission-Prompt = Verdrahtungs-Tap;
       Quelle-Picker Kamera/Gurt/Demo folgt mit B3) — #21 BLE-Herzgurt.
