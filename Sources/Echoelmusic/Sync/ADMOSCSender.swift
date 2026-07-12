@@ -125,6 +125,22 @@ public final class ADMOSCSender {
         conn.send(content: data, completion: .contentProcessed { _ in })
     }
 
+    // MARK: - Scene-driven send (S2 — no callers yet, bio subscriber stays default)
+
+    /// Pushes an entire SpatialScene through the open socket in the given
+    /// dialect (ADM-OSC or IEM). Formatting is the pure
+    /// `SpatialSceneOSCFormatter` (golden-file tested); this method only
+    /// moves bytes. Nothing calls it today — the live bio→object subscriber
+    /// above remains the only active behaviour until the spatialEngine flag
+    /// path lands, so Release is bit-identical.
+    public func send(scene: SpatialScene, dialect: SpatialOSCDialect = .admOSC) {
+        guard connection != nil else { return }
+        for message in SpatialSceneOSCFormatter.messages(for: scene, dialect: dialect) {
+            send(address: message.address, floats: [message.value])
+        }
+        lastSentTimestamp = CFAbsoluteTimeGetCurrent()
+    }
+
     // MARK: - Pure mapping kernel (testable without a socket)
 
     /// Maps a bio frame to the ADM-OSC (address, value) pairs for object `n`.
