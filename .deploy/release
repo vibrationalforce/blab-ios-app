@@ -1,22 +1,21 @@
-build: 2026-07-12 v10.79.176 (Spur-Türen: Sound & FX + AUv3 direkt auf den Spuren)
+build: 2026-07-12 v10.79.177 (Shell v3: Master · Export · Live · Learn oben neben dem Schloss)
 branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Deine Anweisung "Teile das sinnvoll in die Spuren auf. Externe AUv3
-  inbegriffen" — das Spurkopf-Menü (Pfeil neben dem Spurnamen) trägt jetzt
-  den Klang der Spur:
-  · „Sound & FX (this track)" auf MIDI-Spuren: Filter (Off/LP/HP) +
-    Cutoff · Resonance · Drive — der Melodic-Bus-Insert, LIVE auf beide
-    Roll-Stimmen (Fläche + Lead). Dieselbe Einstellung wie Mix › Melodic:
-    eine Quelle, zwei Türen.
-  · „AUv3 plugins" auf jeder Media-Spur: öffnet den Audio-Unit-Browser
-    direkt von der Spur — externe Synths/Effekte, wo die Spur lebt.
-  · Alles durch den EINEN bestehenden Sheet-Slot der Timeline — kein
-    neues Modal (Stabilitäts-Gesetz).
-  Ehrliche Grenze (steht auch im Editor): alle MIDI-Spuren teilen sich
-  heute noch den einen Piano-Roll-Slot — „Sound & FX" formt DEN
-  melodischen Klang. Multi-Roll (eigene Roll + eigenes AUv3 pro Spur)
-  ist der nächste Ausbauschritt.
-  PLUS aus v175 zum Testen, falls noch nicht probiert: Plugins-Chip
-  (AUv3-Synth hören!), Video-Chip, 432-Hz-Rasterfarben — und bitte einmal
-  mit OFFENEM Visual spielen + Log schicken (visual:-Diagnosezeilen).
-  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf 07810ba.
-  NEEDS-FOUNDER-VERIFY (Spur-Türen-Feeling, Live-Wirkung der Filter).
+notes: Deine Anweisung "Master, Export, Live und Learn kommt oben in die
+  Leiste neben das Schloss" — umgesetzt:
+  · Vier kleine Icon-Buttons in der Transportleiste direkt neben dem
+    Tempo-Schloss: Master (Fader-Symbol) · Export (Teilen-Symbol) ·
+    Live (Funk-Symbol) · Learn (Buch-Symbol).
+  · Die Studio-Menüleiste darunter ist jetzt NUR noch Instrument:
+    Comp · Session · Transp · Sound · Mix · FX · Mood · Synth · Video.
+    Master/Export-Chips sind nach oben gewandert, der Plugins-Chip ist
+    aufgelöst (AUv3 liegt seit v176 auf den Spur-Türen), Live/Learn
+    ebenso oben.
+  · Kein neues Modal — die Chrome-Buttons öffnen die BESTEHENDEN
+    Dropdowns/Sheets über das Notification-Muster (Stabilitäts-Gesetz).
+  Nächste Stufen aus deinem Zielbild (geplant, PLAN_DMMW_SHELL_V3):
+  E2 Mix→Spuren · E3 Video-Spur-Art (Capture + Mediathek) ·
+  E4 EchoelBioSynth-AUv3 (mehrwöchig) · E5 AUv3 pro Spur.
+  Und weiterhin: bitte einmal mit OFFENEM Visual spielen + Log schicken
+  (visual:-Diagnosezeilen) — das braucht die V1-Diagnose.
+  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf e8966f3.
+  NEEDS-FOUNDER-VERIFY (Chrome-Türen-Feeling, schlanke Studio-Leiste).
