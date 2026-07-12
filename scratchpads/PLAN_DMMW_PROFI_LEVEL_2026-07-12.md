@@ -39,8 +39,11 @@ Spatial-Kern rund (S4); keine bekannten UI-Fallen. Dann EIN Deploy + Founder-Tes
       applyRouting-Start/Stop-Hook; Permission-Prompt = Verdrahtungs-Tap;
       Quelle-Picker Kamera/Gurt/Demo folgt mit B3) — #21 BLE-Herzgurt.
       NEEDS-FOUNDER-VERIFY mit Gurt am Milestone.
-- [ ] B5 — SampleBrowser als Drum-Spur-Tür (ArrangeModal .sample, laneDoor
-      auf Drum-Lanes; Slot sampleBrowserTrack existiert).
+- [x] B5 — DONE (121099a, Übersetzung an die Realität: es GIBT keine Drum-Lanes
+      auf der Timeline [ClipKind = midi/audio/video/visual] — Drums leben im
+      Hackbrett. Tür dort: waveform-Button pro Channel-Strip →
+      onSampleBrowse-Hook → activeMenu=nil + bestehender sampleBrowserTrack-
+      Slot [Slot-Reuse, Kette wächst nicht; Muster = learn/live-Chrome-Doors]).
 - [ ] B6 — #19 BLE-MIDI-Kopplung: CABTMIDICentralViewController als Inhalt
       des bestehenden Input-/Routing-Panels (kein neues Sheet).
 - [ ] B7 — Spatial S4: EchoelSpaceReverb (Audit-Schatz) prüfen → RoomModel→
