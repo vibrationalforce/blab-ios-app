@@ -373,3 +373,17 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
 - **Metal-Timeline (120fps) — REJECT (jetzt):** prämature Optimierung; SwiftUI trägt unsere
   Skala, Metal bleibt dem Bio-Visual vorbehalten (ein GPU-Pfad). Audio-Clock treibt
   Video-Clock = bestätigt den bestehenden Stage-3–5-Plan.
+
+## 2026-07-12 — Founder-Share: Imaginando VS (Warning-Screenshot + 50s-Video)
+- Video analysiert (8-Layer-Rail + B-Background, per-Layer-Strip ENABLED/SOLO/ALPHA/
+  BRIGHT/SPEED/X/Y/RADIUS/NOISE/GLOW/MONO/GLIDE/TRIG, MIDI-Learn überall, Patch-Header,
+  30-FPS-Anzeige, Record-Button; Look: Chromatic-Aberration-Ringe).
+- **NEU → ADOPT-PRODUCT (klein):** Photosensitivity-Notice beim ersten Visual-Open mit
+  "Show again"-Toggle (VS-Muster). Unser Vorteil bleibt: 3-Hz-Clamp VERHINDERT, VS warnt nur.
+- **NEU → ALREADY-POSSIBLE:** VS ist selbst ein AUv3 → seit v175 direkt in Echoelmusic
+  hostbar (Plugins-Chip); Echoel-MIDI → VS-Visuals im Plugin-Fenster. Founder-Test.
+- **Design-Referenz für Layer 3 (AVObjects, Spatial v2):** die Per-Layer-Strip-Grammatik
+  (Enable/Solo + Parameterzeile je visueller Ebene) ist exakt die UI-Form für unsere
+  SpatialObject-visualRef-Liste — mit EchoelValueField statt Knobs (Ein-Control-Regel).
+  Ergänzt den bestehenden ADOPT-ROADMAP-Eintrag (Bio→Layer-Routing), kein neues Verdict.
+- Alles Übrige (9:16-Export, Video-Out, Visuals-as-Plugin) bleibt wie am 2026-07-11 gegated.
