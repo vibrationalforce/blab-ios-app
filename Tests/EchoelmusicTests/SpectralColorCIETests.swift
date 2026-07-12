@@ -59,4 +59,42 @@ final class SpectralColorCIETests: XCTestCase {
         // Guards: non-finite / non-positive → safe mid-green fallback, no crash.
         XCTAssertEqual(SpectralColor.visibleWavelength(forToneHz: 0), 555.0, accuracy: 1e-6)
     }
+
+    // MARK: displayComponents — the shared note-grid tint (Kammerton-reactive)
+
+    func testDisplayComponents_boundedByLiftAndOne() {
+        for hz in [55.0, 261.63, 440.0, 1760.0, 7040.0] {
+            let c = SpectralColor.displayComponents(forToneHz: hz)
+            for v in [c.r, c.g, c.b] {
+                XCTAssertTrue(v.isFinite)
+                XCTAssertGreaterThanOrEqual(v, 0.22 - 1e-9)   // white lift floor
+                XCTAssertLessThanOrEqual(v, 1.0 + 1e-9)
+            }
+        }
+    }
+
+    func testDisplayComponents_shiftWithKammerton() {
+        // The founder's requirement made testable: the SAME pitch (A4) at a
+        // different concert pitch is a different sounding frequency → a
+        // different wavelength → a visibly different grid tint.
+        let at440 = SpectralColor.displayComponents(forToneHz: 440)
+        let at432 = SpectralColor.displayComponents(forToneHz: 432)
+        let delta = abs(at440.r - at432.r) + abs(at440.g - at432.g) + abs(at440.b - at432.b)
+        XCTAssertGreaterThan(delta, 0.005, "an 8 Hz Kammerton shift must move the grid colour")
+    }
+
+    func testDisplayComponents_octaveEquivalent() {
+        // Rows an octave apart share one colour (integer-octave transposition) —
+        // the raster reads as pitch-CLASS colour, like the touch fretboard.
+        let a4 = SpectralColor.displayComponents(forToneHz: 440)
+        let a5 = SpectralColor.displayComponents(forToneHz: 880)
+        XCTAssertEqual(a4.r, a5.r, accuracy: 1e-9)
+        XCTAssertEqual(a4.g, a5.g, accuracy: 1e-9)
+        XCTAssertEqual(a4.b, a5.b, accuracy: 1e-9)
+    }
+
+    func testDisplayComponents_guardsNonFiniteInput() {
+        let c = SpectralColor.displayComponents(forToneHz: .nan)
+        for v in [c.r, c.g, c.b] { XCTAssertTrue(v.isFinite) }
+    }
 }

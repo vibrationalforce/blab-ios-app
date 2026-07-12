@@ -515,11 +515,11 @@ final class TouchInstrumentUIView: UIView {
     /// dark field). Used ONLY by the static fretboard grid now — the animated
     /// water feedback no longer lives in Core Animation at all.
     private static func noteTint(hz: Double) -> UIColor {
-        let rgb = SpectralColor.wavelengthToLinearRGB(SpectralColor.visibleWavelength(forToneHz: hz))
-        func enc(_ c: Double) -> CGFloat {
-            CGFloat(0.22 + 0.78 * pow(min(max(c, 0), 1), 1.0 / 2.2))
-        }
-        return UIColor(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b), alpha: 1)
+        // Shared display encoding (SpectralColor.displayComponents) — the SAME
+        // helper the piano-roll raster uses, so both grids recolour identically
+        // when the Kammerton moves (founder 2026-07-12).
+        let c = SpectralColor.displayComponents(forToneHz: hz)
+        return UIColor(red: CGFloat(c.r), green: CGFloat(c.g), blue: CGFloat(c.b), alpha: 1)
     }
 
     /// A touch is a drop of COLOURED LIGHT — pushed into `TouchRippleChannel` and

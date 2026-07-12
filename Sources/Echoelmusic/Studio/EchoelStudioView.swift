@@ -1735,7 +1735,15 @@ struct EchoelStudioView: View {
         // Standard 440.00; the saved preference persists. (Slider + chips removed
         // to save space.)
         return EchoelValueField(label: "Concert pitch A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
-                                onCommit: { synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); recomposeIfRunning() })
+                                onCommit: {
+                                    synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz)
+                                    // Note grids recolour with the concert pitch (founder
+                                    // 2026-07-12) — push the new A4 to the roll immediately,
+                                    // not only on the next compose, so an open/soon-opened
+                                    // piano roll paints the raster in the NEW tone colours.
+                                    pianoRoll.musicalA4Hz = session.a4Hz
+                                    recomposeIfRunning()
+                                })
     }
 
     private var tempoRow: some View {

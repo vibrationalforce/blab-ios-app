@@ -187,6 +187,23 @@ public enum SpectralColor {
         return Swift.min(780.0, Swift.max(380.0, wl))
     }
 
+    // MARK: Tone → display-ready grid tint ("Je nach Kammerton … die Farbe des Notenrasters")
+
+    /// Display-ready sRGB components (gamma-encoded 1/2.2, with a small white lift so
+    /// deep red/violet still read on the near-black Echoel field) for the PHYSICAL
+    /// colour of a heard tone — CIE fit of the octave-transposed frequency, so the
+    /// tint shifts with the ACTUAL sounding frequency: Kammerton (A4), tuning cents,
+    /// transpose all move it. The ONE helper every note-grid surface uses (touch
+    /// fretboard, piano roll rows, note blocks), so all grids recolour identically
+    /// when the concert pitch changes (founder 2026-07-12).
+    public static func displayComponents(forToneHz hz: Double, lift: Double = 0.22)
+        -> (r: Double, g: Double, b: Double) {
+        let rgb = wavelengthToLinearRGB(visibleWavelength(forToneHz: hz))
+        let l = clamp01(lift)
+        func enc(_ c: Double) -> Double { l + (1 - l) * Foundation.pow(clamp01(c), 1.0 / 2.2) }
+        return (enc(rgb.r), enc(rgb.g), enc(rgb.b))
+    }
+
     // MARK: Pitch → place in the visual field ("an der richtigen Stelle")
 
     /// Where a sounding note LIVES in the immersive visual's square [-1,1]² field
