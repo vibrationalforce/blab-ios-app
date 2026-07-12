@@ -271,9 +271,15 @@ public final class EngineBus {
     /// LOW-frequency run state of the bio-generative instrument (Start/Stop, set by
     /// the studio's start/stop paths). Lets the chrome (TransportBar's pulse button)
     /// mirror the instrument state without coupling to the studio view — modules
-    /// couple only via the bus. Changes on user action only → safe to read in any
-    /// body (never a ~10 Hz churn source).
-    public var instrumentRunning = false
+    /// couple only via the bus. `private(set)` + mutator so no future module can
+    /// turn it into a high-frequency churn source — it must stay Start/Stop-only
+    /// (any body may read it under the freeze rule ONLY because of that).
+    public private(set) var instrumentRunning = false
+
+    /// Start/Stop-frequency ONLY — never call this per-frame/per-tick.
+    public func setInstrumentRunning(_ running: Bool) {
+        instrumentRunning = running
+    }
 
     // MARK: - Latest MUSICAL snapshot (DMMW: media subscribe to musical parameters)
 

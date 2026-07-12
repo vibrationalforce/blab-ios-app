@@ -50,10 +50,10 @@ struct PulseTrace: View {
 
 /// Compact header pulse monitor: live EKG trace + BPM. Accessible as one element.
 ///
-/// NOTE (2026-07-03): currently UNMOUNTED. The header used to host `PulseMonitorMiniLive`,
-/// but the founder asked for ONE BPM readout ("zu viele BPM-Anzeigen, eine reicht"), so the
-/// live pulse number now lives only in the bio strip's HR cell and the tempo only in the
-/// transport bar. These two structs are kept (reversible) in case the header pulse returns.
+/// MOUNTED in WorkspaceView.topBar between logo and title since 2026-07-12 (founder:
+/// "Der Pulsmonitor kommt nach oben zwischen Logo und Echoelmusic") — this SUPERSEDES
+/// the 2026-07-03 "eine BPM-Anzeige reicht" unmount. Do not remove it again without a
+/// fresh founder ask.
 @MainActor
 struct PulseMonitorMini: View {
     let waveform: [Float]
@@ -122,27 +122,14 @@ struct ImmersiveMonitorMini: View {
         Group {
             if active {
                 TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { tl in
-                    let bio = bus.freshBio()
-                    let hr = max(40.0, Double(bio?.heartRateBPM ?? 60))
-                    // Smooth heartbeat pulse from the wall clock at the live HR.
-                    let phase = (tl.date.timeIntervalSinceReferenceDate * hr / 60.0)
-                        .truncatingRemainder(dividingBy: 1.0)
-                    let pulse = 0.5 - 0.5 * cos(phase * 2 * .pi)           // 0…1 per beat
-                    // The music's colour, exactly as the visual computes it: the
-                    // sounding chord → one perceptual OKLab mix (SpectralColor twins
-                    // the shader). Silent → neutral grey, falling back to a dim
-                    // coherence tint so the tile still reads "live".
-                    let mf = bus.freshMusical(maxAge: 1.0)
-                    let chord = (mf?.notes ?? []).map { (hz: $0.frequencyHz, amplitude: $0.amplitude) }
-                    let rgb = SpectralColor.color(forChord: chord)
-                    let level = mf?.masterLevel ?? 0
-                    // Brightness breathes with the music and the heartbeat; gamma-
-                    // encode the linear mix for display (simple 1/2.2, small tile).
-                    let energy = 0.35 + 0.30 * pulse + 0.35 * level
-                    func enc(_ v: Double) -> Double { pow(min(max(v * energy, 0), 1), 1.0 / 2.2) }
-                    let color = Color(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b))
-                    RadialGradient(colors: [color, .black], center: .center,
-                                   startRadius: 1, endRadius: 28)
+                    // Colour work lives in the pure helper below — inlining the
+                    // Double/Float mix here sent the type-checker into "unable to
+                    // type-check in reasonable time" (Xcode gate, d41c13d).
+                    RadialGradient(colors: [Self.tileColor(bio: bus.freshBio(),
+                                                           mf: bus.freshMusical(maxAge: 1.0),
+                                                           date: tl.date),
+                                            .black],
+                                   center: .center, startRadius: 1, endRadius: 28)
                 }
             } else {
                 ZStack {
@@ -159,6 +146,26 @@ struct ImmersiveMonitorMini: View {
         .accessibilityValue(active ? "Live" : "Idle")
         .accessibilityHint("Shows or hides the floating visual window")
         .accessibilityAddTraits(.isButton)
+    }
+
+    /// The tile's live colour — the sounding chord's physical tone colour
+    /// (SpectralColor, the Swift twin of the shader's CIE fit), brightness
+    /// breathing with the music level and pulsing at the heart rate. PURE with
+    /// explicit Double types so the ViewBuilder above stays type-checker-cheap;
+    /// silent input → SpectralColor's neutral grey (an honest "nothing sounds").
+    static func tileColor(bio: BioSampleFrame?, mf: MusicalFrame?, date: Date) -> Color {
+        let hr: Double = max(40.0, Double(bio?.heartRateBPM ?? 60))
+        let phase: Double = (date.timeIntervalSinceReferenceDate * hr / 60.0)
+            .truncatingRemainder(dividingBy: 1.0)
+        let pulse: Double = 0.5 - 0.5 * cos(phase * 2.0 * .pi)       // 0…1 per beat
+        let chord: [(hz: Double, amplitude: Double)] =
+            (mf?.notes ?? []).map { ($0.frequencyHz, $0.amplitude) }
+        let rgb = SpectralColor.color(forChord: chord)
+        let level: Double = mf?.masterLevel ?? 0
+        let energy: Double = 0.35 + 0.30 * pulse + 0.35 * level
+        // Gamma-encode the linear mix for display (simple 1/2.2 — a 54 pt tile).
+        func enc(_ v: Double) -> Double { pow(min(max(v * energy, 0.0), 1.0), 1.0 / 2.2) }
+        return Color(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b))
     }
 }
 
