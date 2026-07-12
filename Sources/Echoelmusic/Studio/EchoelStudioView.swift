@@ -337,6 +337,48 @@ struct EchoelStudioView: View {
     @State private var sampleBrowserTrack: TrackRef?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// DMMW production shell (founder 2026-07-12): which menu-bar dropdown is
+    /// open. ONE slot for ALL settings panels — nil = main window unobstructed.
+    /// Low-frequency @State (user taps only), so the root body never churns.
+    @State private var activeMenu: StudioMenu?
+
+    /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
+    /// dropdown content — no new surfaces, the card pile just moved into menus.
+    private enum StudioMenu: String, CaseIterable, Identifiable {
+        case composition, session, transpose, sound, mix, effects, master, mood, export, synth
+        var id: String { rawValue }
+        /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
+        var label: String {
+            switch self {
+            case .composition: return "Comp"
+            case .session:     return "Session"
+            case .transpose:   return "Transp"
+            case .sound:       return "Sound"
+            case .mix:         return "Mix"
+            case .effects:     return "FX"
+            case .master:      return "Master"
+            case .mood:        return "Mood"
+            case .export:      return "Export"
+            case .synth:       return "Synth"
+            }
+        }
+        /// Full name for VoiceOver (the chip text is abbreviated).
+        var fullName: String {
+            switch self {
+            case .composition: return "Composition — genre, key, tuning, tempo"
+            case .session:     return "Session — name, place, weather"
+            case .transpose:   return "Transpose"
+            case .sound:       return "Sound and texture"
+            case .mix:         return "Mix — level per part"
+            case .effects:     return "Effects"
+            case .master:      return "Master"
+            case .mood:        return "Mood"
+            case .export:      return "Export — WAV loop"
+            case .synth:       return "EchoelSynth — immersive visual window"
+            }
+        }
+    }
+
     /// Persisted in-app zoom level (index into StudioZoom.ladder). `-1` = follow the
     /// system text size; once the user pinch-zooms it becomes an explicit level.
     @AppStorage("ui.zoomStep") private var zoomStep: Int = -1
@@ -389,83 +431,55 @@ struct EchoelStudioView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // DMMW PRODUCTION SHELL (founder 2026-07-12: "wie in einer richtigen
+            // DAW/VideoEditing/Visual/light/Laser Software. Die Buttons werden
+            // kleiner und verteilen sich sinnvoll auf den Spuren der Timeline und
+            // oben im Menü. Alles bleibt im Hauptfenster es gehen nur dropdown
+            // Menüs auf für die Einstellungen."): the stacked settings cards left
+            // the scroll flow — a small menu bar opens ONE anchored dropdown over
+            // the zone instead. Metadata note: this REMOVED five AnyView branches
+            // from the flow and added one menu row + one overlay branch — the
+            // body's aggregate type SHRANK (black-screen law: never grow the
+            // sheet chain; consolidate). The ~18-modal chain is untouched.
+            menuBar
             // NOTE: do NOT pass the camera's `fingerDetected` (10 Hz) down from here —
             // reading it in this root body re-evaluated the whole view 10×/s while a take
             // played, collapsing any open Tonart/Genre `.menu` Picker (the "can't select
             // anymore" freeze). BioStripView now reads it itself (a Picker-free leaf view).
-            BioStripView(measuring: running,
-                         onStartPulse: { startBiofeedback() })
-                // The chrome's pulse button (TransportBar, next to Play — founder
-                // 2026-07-12: "der Button mit dem Pulszeichen kommt neben das Play
-                // oben") starts/stops the instrument through this notification.
-                // Attached to an INNER row, not the root modifier chain, so the
-                // body's aggregate metadata type stays untouched (black-screen law).
-                .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
-                    toggleBiofeedback()
+            ZStack(alignment: .top) {
+                VStack(spacing: 0) {
+                    BioStripView(measuring: running,
+                                 onStartPulse: { startBiofeedback() })
+                        // The chrome's pulse button (TransportBar, next to Play — founder
+                        // 2026-07-12) starts/stops the instrument through this
+                        // notification. Attached to an INNER row, not the root modifier
+                        // chain, so the body's metadata type stays untouched.
+                        .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
+                            toggleBiofeedback()
+                        }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            // Session first (founder: "wow in den ersten 10 Sekunden ·
+                            // meditativ") — a static card, no live bio read (freeze rule).
+                            if let presentSession { AnyView(sessionEntryCard(presentSession)) }
+                            // Everything else moved into the menu bar's dropdowns
+                            // (2026-07-12). Historical removals (all builders stay in
+                            // code, unpresented, reversible): startButton (2026-07-12,
+                            // → TransportBar pulse button) · Mood pads (2026-07-07) ·
+                            // nonStandardTuningBanner (2026-07-09) · PulseMeasurementView
+                            // (2026-07-12, → header monitor) · liveNarrationBanner
+                            // (2026-07-12, waits for the real EchoelAI) · tools grid
+                            // (2026-07-02) · the settings card pile (2026-07-12, → menu
+                            // dropdowns: Comp/Session/Transp/Sound/Mix/FX/Master/Mood/
+                            // Export/Synth + direct doors Live/Learn).
+                        }
+                        .padding(16)
+                    }
                 }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Type-erased on purpose: `body` had grown into a single, very
-                    // deeply-nested generic type (each `some View` panel expands its
-                    // whole sub-tree into the parent's type metadata). At launch the
-                    // Swift runtime decodes that type and, past a threshold, the
-                    // metadata decoder recurses until it overflows the main-thread
-                    // stack → SIGSEGV in the Stack Guard region (a compile-clean crash
-                    // we hit on 10.76.3 / build 2037). AnyView puts a concrete,
-                    // non-generic boundary at each heavy branch so the decoder never
-                    // recurses into the sub-tree. The cost is negligible here (these
-                    // are page-level containers, not tight-loop rows).
-                    // Session first (founder: "wow in den ersten 10 Sekunden ·
-                    // meditativ"): the calm bio-paced breathing Session is the
-                    // unmissable entry ABOVE the studio instrument. Reversible — a
-                    // static card, no live bio read here (freeze rule); the studio
-                    // stays right below.
-                    if let presentSession { AnyView(sessionEntryCard(presentSession)) }
-                    // The big "Create from Within" CTA is REMOVED from the flow
-                    // (founder 2026-07-12: "Das Create from Within weg — der Button
-                    // mit dem Pulszeichen kommt neben das Play oben"): Start/Stop
-                    // lives in the TransportBar's pulse button now. The `startButton`
-                    // builder stays defined below, unpresented (reversible).
-                    // Mood pads REMOVED from the surface (founder 2026-07-07:
-                    // "Xy Pads komplett wieder herausnehmen"). The builder +
-                    // MoodPads.swift stay in code, unpresented (reversible).
-                    // nonStandardTuningBanner REMOVED from presentation (founder
-                    // 2026-07-09: "nicht ungefragt Dinge anzeigen") — the current
-                    // tuning + the way back to 12-TET live where the user set it,
-                    // in the Composition panel's tuning row. Builder stays defined
-                    // below, unpresented (reversible). Removing a body branch only
-                    // SHRINKS the aggregate type (metadata-safe).
-                    // PulseMeasurementView REMOVED from the flow (founder 2026-07-12:
-                    // "Der Pulsmonitor kommt nach oben zwischen Logo und Echoelmusic")
-                    // — the live pulse monitor (trace + BPM) now lives in the header
-                    // (PulseMonitorMiniLive in WorkspaceView.topBar). The builder stays
-                    // in code, unpresented (reversible).
-                    // liveNarrationBanner REMOVED (founder 2026-07-12: "Die Erklärung
-                    // da brauchen wir erstmal nicht — das kommt später in nem richtig
-                    // funktionierenden EchoelAI ... Modell"): the explainer row waits
-                    // for the real EchoelAI (command-taking) layer. Builder stays,
-                    // unpresented (reversible).
-                    AnyView(soundControls)
-                    AnyView(utilityRow)
-                    // R2 (2026-07-10): Live Colabo entry — the sheet existed but
-                    // nothing presented it after the tools grid was removed.
-                    #if canImport(MultipeerConnectivity)
-                    AnyView(liveColaboRow)
-                    #endif
-                    // Visual Touch Instrument sits at the very bottom of the page
-                    // (founder 2026-07-07: "das müsste ganz nach unten").
-                    AnyView(visualPanel)
-                    // R3 (2026-07-10): Learn & News entry — reaches the school
-                    // content AND the opt-in announcements toggle (E4).
-                    AnyView(learnRow)
-                    // Tools grid removed (founder 2026-07-02: "Alles weg außer visuals").
-                    // The whole editors/utilities pile is gone from the one adaptive view;
-                    // the Visual stays as the floating window (header monitor toggle). The
-                    // `toolsSection` builder + its sheets remain in code (reversible); they
-                    // are just no longer mounted. Removing a body branch only SHRINKS the
-                    // aggregate type (safer re: the launch metadata limit), never grows it.
-                }
-                .padding(16)
+                // ONE anchored dropdown over the zone — tap the scrim (or the active
+                // chip) to close. AnyView boundary keeps the panels' generics out of
+                // the root body type, same discipline as the old scroll rows.
+                if activeMenu != nil { AnyView(menuDropdownHost) }
             }
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
@@ -1039,6 +1053,130 @@ struct EchoelStudioView: View {
     }
 
     // MARK: - Sound controls (one morph pad + genre + fine sliders)
+
+    // MARK: - DMMW menu bar + dropdown host (founder 2026-07-12)
+
+    /// The production-shell menu bar: one horizontal row of SMALL chips at the top
+    /// of the studio zone (DAW feeling — "Die Buttons werden kleiner … oben im
+    /// Menü"). Settings chips toggle the ONE dropdown; Live/Learn are direct doors
+    /// to their existing sheet slots. Reads only low-frequency @State.
+    private var menuBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(StudioMenu.allCases) { m in
+                    menuChip(m)
+                }
+                Rectangle().fill(EchoelTheme.border)
+                    .frame(width: 1, height: 16)
+                #if canImport(MultipeerConnectivity)
+                directChip("Live", icon: "dot.radiowaves.left.and.right",
+                           a11y: "Live Colabo — play together nearby") {
+                    activeMenu = nil
+                    showLiveColabo = true
+                }
+                #endif
+                directChip("Learn", icon: "book",
+                           a11y: "Learn and news — how it works, safety") {
+                    activeMenu = nil
+                    showLearn = true
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+        }
+        .background(EchoelTheme.bg)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(EchoelTheme.border).frame(height: 1)
+        }
+    }
+
+    /// One settings chip: tap toggles its dropdown (tap again = close).
+    private func menuChip(_ menu: StudioMenu) -> some View {
+        let isActive = activeMenu == menu
+        return Button {
+            activeMenu = isActive ? nil : menu
+        } label: {
+            Text(menu.label)
+                .font(EchoelTheme.font(12, .semibold))
+                .foregroundStyle(isActive ? EchoelTheme.onPrimary : EchoelTheme.text)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .fill(isActive ? EchoelTheme.text : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(menu.fullName)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    /// A direct-action chip (no dropdown): icon + label, opens an existing sheet.
+    private func directChip(_ title: String, icon: String, a11y: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 11))
+                Text(title).font(EchoelTheme.font(12, .semibold))
+            }
+            .foregroundStyle(EchoelTheme.text)
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                .fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(a11y)
+    }
+
+    /// The ONE anchored dropdown: scrim (tap = close) + a scrollable panel card
+    /// whose content switches on `activeMenu`. Panels render ALWAYS-OPEN inside
+    /// (`echoelPanelForceOpen`) — the dropdown IS the open state. NOT a sheet:
+    /// this is a plain overlay in the main window ("Alles bleibt im Hauptfenster
+    /// es gehen nur dropdown Menüs auf"), so the ~18-modal chain is untouched.
+    private var menuDropdownHost: some View {
+        ZStack(alignment: .top) {
+            Color.black.opacity(0.45)
+                .ignoresSafeArea(edges: .bottom)
+                .onTapGesture { activeMenu = nil }
+                .accessibilityLabel("Close menu")
+                .accessibilityAddTraits(.isButton)
+            ScrollView {
+                dropdownContent
+                    .padding(2)
+            }
+            .environment(\.echoelPanelForceOpen, true)
+            .frame(maxHeight: 480)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
+                .fill(EchoelTheme.bg))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+        }
+    }
+
+    /// Dropdown content = the EXISTING panel builders, one per menu entry.
+    /// Returns AnyView per case so this switch never grows the host's generic
+    /// type (type-checker + metadata discipline).
+    private var dropdownContent: AnyView {
+        switch activeMenu {
+        case .composition: return AnyView(compositionPanel)
+        case .session:     return AnyView(sessionPanel)
+        case .transpose:   return AnyView(transposePanel)
+        case .sound:       return AnyView(soundPanel)
+        case .mix:         return AnyView(mixerPanel)
+        case .effects:     return AnyView(effectsPanel)
+        case .master:      return AnyView(masterPanel)
+        case .mood:        return AnyView(moodPanel)
+        case .export:      return AnyView(utilityRow)
+        case .synth:       return AnyView(visualPanel)
+        case nil:          return AnyView(EmptyView())
+        }
+    }
 
     private var soundControls: some View {
         VStack(alignment: .leading, spacing: 12) {
