@@ -57,6 +57,29 @@ skalen-ehrlich und KAMMERTON-korrekt (ein 432-Hz-Autotune hat niemand).
       eine Äußerung wird gehört, gesehen, gefühlt.
 - [ ] **VL5 — AUv3-Fassung:** der Live-Voice-Prozessor als Teil von
       EchoelBioSynth (E4) oder eigenes Effekt-AUv3 — NACH E4-Grundlage.
+- [ ] **VL6 — Voice Print: Stimmen teilen (Founder 2026-07-12: "Die Stimmen
+      können geteilt werden und in die Harmonizer/Voice-Clone/Autotune-
+      Engine übernommen werden"):** der Zero-Deps-Weg zum "Voice Clone":
+      - **Capture (deterministisch, kein Modell):** VoiceAnalyzer nimmt eine
+        kurze Aufnahme → SPEKTRALE HÜLLKURVE + Formant-Profil (LPC/Cepstrum
+        via Accelerate — reine DSP-Analyse) → `VoicePrint` (kleines Codable-
+        Artefakt, wenige KB; Versionierung wie SynthPatch).
+      - **Apply:** die Harmonizer-Stimmen (und die Formant-Gesangs-Synthese
+        aus E4) werden durch das Print GEFÄRBT (Cross-Synthese: Hüllkurven-
+        Filter auf die Harmoniestimmen) — Harmonien klingen nach der
+        geteilten Stimme. Ehrliche Sprache: "Stimmfarbe/Voice Print",
+        NICHT "Klon" — es ist Physik (Vokaltrakt-Filter), kein Imitat.
+      - **Teilen:** über die bestehenden Muster — ShareSheet/PatchStore-
+        Community-Pfad (CommunityLibrary existiert!); Prints sind Daten wie
+        Patches. Später Marktplatz mit Beteiligung (ACE-Donor-Ethik auf
+        Prints übertragen: echte Menschen, genannt und beteiligt).
+      - **CONSENT-GESETZ (nicht verhandelbar):** nur die EIGENE Stimme
+        aufnehmen/teilen; expliziter Consent-Screen beim Teilen; Prints
+        widerrufbar; klare Kennzeichnung der Herkunft. Stimm-Hüllkurven
+        sind biometrie-nah → Datenschutz-Review vor dem Share-Feature
+        (bio-safety-reviewer + security-agent PFLICHT).
+      Reihenfolge: Capture+Apply lokal zuerst (VL6a, device-gated wie VL3);
+      Teilen erst danach (VL6b, nach Review).
 
 ## Interlocks
 
