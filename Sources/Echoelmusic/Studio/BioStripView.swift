@@ -120,7 +120,7 @@ struct BioStripView: View {
             metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
                 .frame(maxWidth: .infinity)
             sourceControl
-                .frame(width: 96, alignment: .trailing)
+                .frame(width: 88, alignment: .trailing)
         }
         // lineLimit/scale/font BEFORE the sheets: these are ENVIRONMENT values, and sheet
         // content inherits the environment at the .sheet attachment point — with the old
@@ -340,7 +340,13 @@ struct BioStripView: View {
     /// "—" when the ms reading is physiologically impossible (noisy rPPG).
     private var hrvString: String {
         guard let bio = bus.latestBio else { return "—" }
-        if Self.plausibleHRVms.contains(bio.hrvRMSSDms) { return String(format: "%.1f", bio.hrvRMSSDms) }
+        if Self.plausibleHRVms.contains(bio.hrvRMSSDms) {
+            // Whole ms from 10 up ("HRV 15 ms", not "15.2"): the strip cell is the
+            // narrowest surface in the app and the decimal was what pushed it into
+            // "HRV 15.." truncation on small phones (founder video v173). Sub-10
+            // readings keep one decimal — there the digit carries real information.
+            return String(format: bio.hrvRMSSDms < 10 ? "%.1f" : "%.0f", bio.hrvRMSSDms)
+        }
         if bio.hrvRMSSDms == 0 && bio.hrvNormalized > 0 { return String(format: "%.3f", bio.hrvNormalized) }
         return "—"
     }
