@@ -26,6 +26,14 @@ struct ArrangeTimelineView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(TimelineRegionPlayer.self) private var timelinePlayer
+    // Per-lane sound distribution (founder 2026-07-12: "Teile das sinnvoll in
+    // die Spuren auf. Externe AUv3 inbegriffen") — the lane door now opens the
+    // lane's OWN sound: the melodic-bus insert (live-applied to the roll's
+    // voices) and the AUv3 host. Same stores/voices the Studio menus use — one
+    // source of truth, just reachable where the work happens.
+    @Environment(TrackFXStore.self) private var trackFX
+    @Environment(PolySynthVoice.self) private var synth
+    @Environment(\.leadSynth) private var leadSynth
 
     /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
     /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
@@ -125,10 +133,18 @@ struct ArrangeTimelineView: View {
     enum ArrangeModal: Identifiable {
         case lane(TimelineLane)
         case region(TimelineRegion)
+        /// Per-lane sound: the melodic-bus insert editor (roll voices).
+        case laneFX(TimelineLane)
+        /// The AUv3 host browser — external instruments/effects, ON the track
+        /// (founder: "Externe AUv3 inbegriffen"). Same env-driven view as the
+        /// menu-bar Plugins chip; this is a second DOOR, not a second system.
+        case plugins
         var id: String {
             switch self {
             case .lane(let l):   return "lane-\(l.id)"
             case .region(let r): return "region-\(r.id)"
+            case .laneFX(let l): return "lanefx-\(l.id)"
+            case .plugins:       return "plugins"
             }
         }
     }
@@ -138,6 +154,8 @@ struct ArrangeTimelineView: View {
         switch modal {
         case .lane(let lane):     editor(forKind: lane.kind)
         case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
+        case .laneFX(let lane):   LaneFXEditor(laneName: lane.name)
+        case .plugins:            AUv3BrowserView()
         }
     }
 
@@ -283,6 +301,18 @@ struct ArrangeTimelineView: View {
             if !lane.isBio, lane.kind == .audio {
                 Button { activeModal = .lane(lane) } label: {
                     Label("Open audio editor", systemImage: ClipKind.audio.systemImage)
+                }
+            }
+            // The lane's SOUND, on the lane (founder 2026-07-12): the melodic
+            // bus insert for MIDI lanes + the AUv3 host for both media kinds.
+            if !lane.isBio, lane.kind == .midi {
+                Button { activeModal = .laneFX(lane) } label: {
+                    Label("Sound & FX (this track)", systemImage: "slider.horizontal.3")
+                }
+            }
+            if !lane.isBio {
+                Button { activeModal = .plugins } label: {
+                    Label("AUv3 plugins", systemImage: "puzzlepiece.extension")
                 }
             }
             Button {
@@ -518,6 +548,79 @@ struct ArrangeTimelineView: View {
             .onEnded { value in
                 pointsPerBeat = min(96, max(8, pointsPerBeat * value))
             }
+    }
+}
+
+/// Per-lane Sound & FX (founder 2026-07-12: settings live ON the tracks). Edits
+/// the MELODIC bus insert — the piano roll's voices (pad/harmony + lead) — via
+/// the same TrackFXStore the Mix menu uses, applied LIVE to both voices on every
+/// change. One source of truth, two doors. Honest scope: all MIDI lanes share
+/// the one roll slot today (multi-roll = A4), so this edits THE melodic sound.
+@MainActor
+private struct LaneFXEditor: View {
+    let laneName: String
+    @Environment(TrackFXStore.self) private var trackFX
+    @Environment(PolySynthVoice.self) private var synth
+    @Environment(\.leadSynth) private var leadSynth
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sound & FX — \(laneName)")
+                    .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
+                Text("Filter + drive on the melodic bus — the roll's voices, live")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+
+            Picker("Filter", selection: filterBinding) {
+                ForEach(ChannelInsertFX.FilterType.allCases, id: \.self) { t in
+                    Text(t.label).tag(t)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            EchoelValueField(label: "Cutoff",
+                             value: floatBinding(\.cutoffHz),
+                             range: 40...18_000, unit: "Hz", decimals: 0)
+            EchoelValueField(label: "Resonance",
+                             value: floatBinding(\.resonance),
+                             range: Float(0.3)...Float(4), decimals: 2)
+            EchoelValueField(label: "Drive",
+                             value: floatBinding(\.drive),
+                             range: Float(0)...Float(1), decimals: 2)
+
+            Text("Same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(EchoelTheme.bg)
+    }
+
+    /// Write-through: store (persists + Mix panel follows) AND both live voices.
+    private func apply(_ fx: TrackFX) {
+        trackFX.set(fx, for: .melodic)
+        synth.setInsert(fx)
+        leadSynth?.setInsert(fx)
+    }
+
+    private var filterBinding: Binding<ChannelInsertFX.FilterType> {
+        Binding(get: { trackFX.melodic.filter },
+                set: { t in
+                    var fx = trackFX.melodic
+                    fx.filter = t
+                    apply(fx)
+                })
+    }
+
+    private func floatBinding(_ key: WritableKeyPath<TrackFX, Float>) -> Binding<Float> {
+        Binding(get: { trackFX.melodic[keyPath: key] },
+                set: { v in
+                    var fx = trackFX.melodic
+                    fx[keyPath: key] = v
+                    apply(fx)
+                })
     }
 }
 
