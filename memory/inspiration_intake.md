@@ -429,3 +429,19 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
 - **BLE-MIDI-Befund (Founder-Frage):** MPE/MIDI2.0-Parsing + RTP-MIDI laufen; BLE-MIDI-
   Geräte erscheinen als CoreMIDI-Quelle sobald GEKOPPELT — es fehlt nur der In-App-
   Kopplungsdialog (CABTMIDICentralViewController als Panel-Inhalt, KEIN neues Sheet).
+
+## 2026-07-12 — Deep-Research: ACE Studio 2.0 (Founder: „alles Sinnvolle übertragen, Zero Deps")
+- Was es ist: Desktop-KI-Gesangs-Workstation (Timedomain, Peking; 2.0 Dez 2025,
+  140+ Stimmen/8 Sprachen, Server-Render, Abo ~150-200$/Jahr). Kein Mobile, kein Realtime.
+- **Übertragen (Konzepte, in-house deterministisch):** Lyrics/Phoneme ALS NOTEN-
+  EIGENSCHAFT in der Roll (→ bestätigt „Word"=Lyrics für E4) · Zwei-Kurven-Pitch
+  (Basis dunkel/Override weiß → VL3: erkannt vs. korrigiert; Roll: generativ vs.
+  gemalt) · Per-Note-Vibrato {depth,speed} · Vocal→MIDI Note-Only (YIN-Segmentierung
+  → Roll → MIDI-Export; „Singen wird Komponieren") · Atem als Ereignis — bei uns
+  BIO-ECHT aus BioEventGraph statt künstlich eingefügt.
+- **WATCH:** semantische Vocal-Macros (Power/Soft/Breathy/Chest über DDSP-Achsen,
+  nach VL3) · ACE-Bridge/ARA-Muster (MIDI-Capture im Plugin) für EchoelBioSynth E4.
+- **Bestätigt unsere Gesetze:** ihre Top-Beschwerden = Cloud-Render-Latenz + Abo-
+  Dark-Patterns → on-device + Einmal-Unlock ist die exakte Gegenposition. KI-Stimm-
+  Weights bleiben REJECT-UNTIL-LICENSED (ihr Voice-Donor-Royalty-Modell = einziges
+  ethisches Vorbild, FALLS je relevant).
