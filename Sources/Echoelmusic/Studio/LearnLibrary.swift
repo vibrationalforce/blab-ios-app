@@ -8,16 +8,17 @@
 import Foundation
 
 public enum LearnSection: String, CaseIterable, Identifiable, Sendable {
-    case body, music, light, safety
+    case body, bodyScience, music, light, safety
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
-        case .body:   return "Your Body"
-        case .music:  return "Music Theory"
-        case .light:  return "Light & Colour"
-        case .safety: return "Safety & Scope"
+        case .body:        return "Your Body"
+        case .bodyScience: return "Body Science"
+        case .music:       return "Music Theory"
+        case .light:       return "Light & Colour"
+        case .safety:      return "Safety & Scope"
         }
     }
 }
@@ -45,6 +46,16 @@ public enum LearnLibrary {
     public static var bodyEntries: [LearnEntry] {
         BioMetric.allCases.map {
             LearnEntry(id: "body.\($0.rawValue)", section: .body,
+                       title: $0.title, summary: $0.summary, detail: $0.detail)
+        }
+    }
+
+    /// Body science — the cited research behind the biofeedback loop (resonance
+    /// breathing, HRV coherence, baroreflex). FACTS + self-observation, no claim;
+    /// makes the strongest-evidence part of the product visible. See BioScienceInfo.
+    public static var bodyScienceEntries: [LearnEntry] {
+        BioScienceTopic.allCases.map {
+            LearnEntry(id: "bodyScience.\($0.rawValue)", section: .bodyScience,
                        title: $0.title, summary: $0.summary, detail: $0.detail)
         }
     }
@@ -81,14 +92,15 @@ public enum LearnLibrary {
 
     public static func entries(for section: LearnSection) -> [LearnEntry] {
         switch section {
-        case .body:   return bodyEntries
-        case .music:  return musicEntries
-        case .light:  return lightEntries
-        case .safety: return safetyEntries
+        case .body:        return bodyEntries
+        case .bodyScience: return bodyScienceEntries
+        case .music:       return musicEntries
+        case .light:       return lightEntries
+        case .safety:      return safetyEntries
         }
     }
 
-    /// Everything, section-ordered (Body → Music → Safety).
+    /// Everything, section-ordered (Body → Body Science → Music → Light → Safety).
     public static var all: [LearnEntry] {
         LearnSection.allCases.flatMap { entries(for: $0) }
     }

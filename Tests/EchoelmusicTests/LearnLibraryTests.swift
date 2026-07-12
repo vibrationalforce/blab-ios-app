@@ -9,6 +9,7 @@ final class LearnLibraryTests: XCTestCase {
 
     func testSectionsCoverEverySource() {
         XCTAssertEqual(LearnLibrary.bodyEntries.count, BioMetric.allCases.count)
+        XCTAssertEqual(LearnLibrary.bodyScienceEntries.count, BioScienceTopic.allCases.count)
         XCTAssertEqual(LearnLibrary.musicEntries.count, MusicTheoryTopic.allCases.count)
         XCTAssertEqual(LearnLibrary.lightEntries.count, LightScienceTopic.allCases.count)
         XCTAssertEqual(LearnLibrary.safetyEntries.count, 1)
@@ -17,12 +18,41 @@ final class LearnLibraryTests: XCTestCase {
     func testAllIsSectionOrderedAndComplete() {
         let all = LearnLibrary.all
         XCTAssertEqual(all.count,
-                       BioMetric.allCases.count + MusicTheoryTopic.allCases.count
+                       BioMetric.allCases.count + BioScienceTopic.allCases.count
+                       + MusicTheoryTopic.allCases.count
                        + LightScienceTopic.allCases.count + 1)
         // Body entries come first; safety stays last.
         let sections = all.map { $0.section }
         XCTAssertEqual(sections.first, .body)
         XCTAssertEqual(sections.last, .safety)
+    }
+
+    func testBodyScienceMakesNoMedicalClaim() {
+        // Same red line as light science: cited FACTS + self-observation, never
+        // treatment. The scope entry is exempt because it explicitly DENIES it.
+        let banned = ["cure", "treat ", "therapy", "heals", "diagnos", "remedy", "pain", "wound"]
+        for e in LearnLibrary.bodyScienceEntries where e.id != "bodyScience.scope" {
+            let text = (e.title + " " + e.summary + " " + e.detail).lowercased()
+            for term in banned {
+                XCTAssertFalse(text.contains(term), "\(e.id) contains medical term '\(term)'")
+            }
+        }
+        // The scope entry explicitly denies medical/treatment use.
+        let scope = LearnLibrary.bodyScienceEntries.first { $0.id == "bodyScience.scope" }?.detail.lowercased()
+        XCTAssertNotNil(scope)
+        XCTAssertTrue(scope?.contains("not a medical device") ?? false)
+        XCTAssertTrue(scope?.contains("treats no condition") ?? false)
+    }
+
+    func testBodyScienceCitesResonanceAndResearch() {
+        // The point of the surface: the strongest-evidence science is present + cited.
+        let ids = Set(LearnLibrary.bodyScienceEntries.map(\.id))
+        XCTAssertTrue(ids.contains("bodyScience.resonanceFrequency"))
+        XCTAssertTrue(ids.contains("bodyScience.hrvResearch"))
+        let research = LearnLibrary.bodyScienceEntries
+            .first { $0.id == "bodyScience.hrvResearch" }?.detail ?? ""
+        XCTAssertTrue(research.contains("meta-analysis"), "research entry must cite the evidence")
+        XCTAssertTrue(research.contains("self-reported"), "must frame as self-report, not treatment")
     }
 
     func testLightScienceMakesNoMedicalClaim() {
