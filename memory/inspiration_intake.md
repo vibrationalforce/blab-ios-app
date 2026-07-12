@@ -387,3 +387,22 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
   SpatialObject-visualRef-Liste — mit EchoelValueField statt Knobs (Ein-Control-Regel).
   Ergänzt den bestehenden ADOPT-ROADMAP-Eintrag (Bio→Layer-Routing), kein neues Verdict.
 - Alles Übrige (9:16-Export, Video-Out, Visuals-as-Plugin) bleibt wie am 2026-07-11 gegated.
+
+## 2026-07-12 — Founder-Share: Demo | Songwriting Studio (id1563264178) — „Können wir besser"
+- Was es ist: geführter Songwriting-Bogen (Akkord-Generator + Progressionen → Rhythmus
+  passt sich Akkordwechseln an → Lyrics mit Reim-Tool → Mehrspur-Gesangsaufnahme →
+  Export Mix/Stems/MIDI/Chord-Sheet), iCloud-Sync + CoWrite; Demo+ 39,99 $/Jahr.
+  Neuestes Feature „Suggest in Chords": einsingen → Offline-Notenerkennung (explizit
+  ohne AI) → Akkordvorschläge. Rezeption gut bis auf Cloud-Sync-Ausfälle.
+- **ADOPT-ROADMAP (Flow):** der geführte Bogen ist die richtige Meßlatte — Echoel hat
+  Akkorde/Theorie/MIDI-Export in-house und schlägt Vorlagen mit BIO-Generativität;
+  fehlend: Lyrics-Fläche + Mic-Overdub (Multitrack = bestehende Roadmap, nichts Neues).
+- **⭐ Hypothese an den Founder:** sein „Word" in der EchoelBioSynth-Panel-Liste
+  (Comp/Session/Transpose/Sound/FX/Mood/Synth/**Word**) könnte LYRICS/Songtext meinen —
+  Demo-Share stützt das. Bestätigen lassen, bevor E4 die Panels schneidet.
+- **ADOPT-ROADMAP (Hum-to-Harmony):** „Suggest in Chords" bio-first gedacht: Stimme =
+  Körpersignal; hauseigene Pitch-Detection (Tools/, VocoderCore) + in-house-Theorie →
+  einsummen → Akkorde, deterministisch, ohne neue Deps, ohne AI-Claim.
+- **WATCH (Lehren):** Cloud-Sync-Beschwerden = Warnung für CollabSync (State klein,
+  Protokoll v1 statt Dokument-Sync); Abo-für-Features bestätigt unser Modell
+  (freies Instrument, Abo nur für den Live-VERBINDUNGS-Dienst).
