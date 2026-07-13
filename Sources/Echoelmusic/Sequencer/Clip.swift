@@ -47,9 +47,23 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    /// Only MIDI/pattern clips actually render today. The arrangement may show the
-    /// other lanes, but must not pretend they play until their engine exists.
-    public var isPlayable: Bool { self == .midi }
+    /// Kinds a timeline PLAYBACK engine drives today. `isPlayable` reads this set,
+    /// so enabling video is a ONE-LINE change here once the AVPlayer video engine is
+    /// device-verified (add `.video`) — not scattered `== .midi` checks.
+    public static let timelineEngineKinds: Set<ClipKind> = [.midi]
+
+    /// Only kinds with a shipped, device-verified engine render on the timeline. The
+    /// arrangement may show the other lanes, but must not pretend they play.
+    public var isPlayable: Bool { Self.timelineEngineKinds.contains(self) }
+
+    /// Kinds that carry an external media file via `mediaRef` (vs. inline
+    /// pattern/melody). Pure classifier — true today for audio/video/visual.
+    public var isMediaCarrier: Bool {
+        switch self {
+        case .midi:                    return false
+        case .audio, .video, .visual:  return true
+        }
+    }
 }
 
 /// A launchable cell: a typed clip (MIDI pattern today; audio/video/visual carry a

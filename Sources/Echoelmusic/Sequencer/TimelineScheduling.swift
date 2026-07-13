@@ -77,6 +77,18 @@ public enum TimelineScheduling {
                                                fromTick: fromTick, toTick: toTick))
         }
     }
+
+    /// The scheduling event for every VIDEO lane moving `fromTick`→`toTick`, in lane
+    /// order — the video analog of `laneEvents`. Drives one VideoLanePlayer per lane.
+    /// Pure — the device-side player applies the `.load`/`.clear` onsets.
+    public static func videoLaneEvents(in document: TimelineDocument,
+                                       fromTick: Int, toTick: Int) -> [LaneScheduleEvent] {
+        document.videoLaneIDs.map { id in
+            LaneScheduleEvent(laneID: id,
+                              event: laneEvent(in: document, laneID: id,
+                                               fromTick: fromTick, toTick: toTick))
+        }
+    }
 }
 
 public extension TimelineDocument {
@@ -92,6 +104,12 @@ public extension TimelineDocument {
     /// The audio lanes (in order) — each plays its audio regions on its own AudioClipPlayer.
     var audioLaneIDs: [UUID] {
         lanes.filter { $0.kind == .audio && !$0.isBio }.map(\.id)
+    }
+
+    /// The video lanes (in order) — each drives its own VideoLanePlayer (AVPlayer),
+    /// mirroring `audioLaneIDs`. Read by the device-side player; pure/additive.
+    var videoLaneIDs: [UUID] {
+        lanes.filter { $0.kind == .video && !$0.isBio }.map(\.id)
     }
 
     /// Every non-bio MIDI lane, in order — the fan-out set for multi-roll playback.
