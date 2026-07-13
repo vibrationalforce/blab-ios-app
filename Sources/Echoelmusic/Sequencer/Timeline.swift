@@ -29,10 +29,17 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     public var isSoloed: Bool
     /// B2 stereo position: −1 (hard left) … +1 (hard right), 0 = center.
     public var pan: Float
+    /// U3 AUv3-structure: the plugin this track plays through. `instrument` is the
+    /// MIDI voice (nil = internal/unset); `effects` is the ordered insert chain.
+    /// Pure persisted DATA — the engine routing to per-lane voices arrives with
+    /// multi-roll; this is the honest model + the display foundation for the
+    /// founder's "sichtbare Instrument/FX-Belegung pro Spur".
+    public var instrument: AUPluginRef?
+    public var effects: [AUPluginRef]
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
-                pan: Float = 0) {
+                pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = []) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -41,6 +48,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.isMuted = isMuted
         self.isSoloed = isSoloed
         self.pan = pan
+        self.instrument = instrument
+        self.effects = effects
     }
 
     /// Backward-compatible decode: documents stored before the K2a mixer strip
@@ -55,6 +64,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         isMuted = try c.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         isSoloed = try c.decodeIfPresent(Bool.self, forKey: .isSoloed) ?? false
         pan = try c.decodeIfPresent(Float.self, forKey: .pan) ?? 0   // pre-B2 docs: center
+        instrument = try c.decodeIfPresent(AUPluginRef.self, forKey: .instrument)
+        effects = try c.decodeIfPresent([AUPluginRef].self, forKey: .effects) ?? []
     }
 }
 

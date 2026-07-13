@@ -68,11 +68,18 @@ public enum AUParameterMapping {
         return String(chars)
     }
 
+    /// The plugin's identity prefix "au.<mfrFourCC>.<subFourCC>" — shared by the
+    /// plugin (AUPluginRef.id) and all its parameter keyPaths, so a lane's
+    /// assigned instrument and its automatable params line up.
+    public static func pluginPrefix(manufacturer: UInt32, subType: UInt32) -> String {
+        "au.\(fourCC(manufacturer)).\(fourCC(subType))"
+    }
+
     /// The stable registry keyPath for a hosted AU parameter:
     /// "au.<mfrFourCC>.<subFourCC>.<address>".
     public static func keyPath(manufacturer: UInt32, subType: UInt32,
                                address: UInt64) -> String {
-        "au.\(fourCC(manufacturer)).\(fourCC(subType)).\(address)"
+        "\(pluginPrefix(manufacturer: manufacturer, subType: subType)).\(address)"
     }
 
     /// Map a hosted AU parameter's metadata into a `ParameterDescriptor`. Ranges
