@@ -519,6 +519,15 @@ struct EchoelmusicApp: App {
                     let raw = 30 + Double(value) * 270
                     beatPlayer?.pattern.glideTempo(to: StudioCalculator.seedTempo(raw))
                 }
+                // B26: every applied modulation ALSO streams over OSC as
+                // /echoelmusic/mod/<key> (the documented mod-out address) for external
+                // tools (TouchDesigner / Resolume / Max). The tap fires per applied
+                // destination on the @MainActor control loop; OSCSender is @MainActor too,
+                // and `sendModulation` no-ops while the sender is inactive — so this is
+                // additive and silent until the user enables OSC out from the Patchbay.
+                modulationEngine.outputTap = { [weak osc] destination, value in
+                    osc?.sendModulation(key: destination.key, value: value)
+                }
                 modulationEngine.start(subscribing: bus)
                 // Non-essential I/O (BLE straps, external MIDI, OSC/ADM/Art-Net/sACN
                 // out) is NOT auto-started. It now comes online ON DEMAND from the
