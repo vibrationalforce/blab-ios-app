@@ -100,6 +100,13 @@ struct EchoelmusicApp: App {
     @State private var signalRouter = SignalRouter()
     /// AUv3 host: discovers installed plugins and loads an instrument into the graph.
     @State private var auHost = AUv3Host()
+    /// The parameter-unification spine (U2c): one registry (queryable inventory)
+    /// + one router (keyPath → live setter). Shared by the AUv3 host (hosted-plugin
+    /// params register/bind on load) and the AutomationPlayer (extra registry lanes
+    /// dispatch through it) — so per-track automation is identical for internal and
+    /// hosted parameters. Constructed in init (router depends on registry).
+    @State private var parameterRegistry: EchoelParameterRegistry
+    @State private var parameterRouter: ParameterApplyRouter
     /// Broadcast (RTMP/SRT) publisher — the phone-native stream-out pillar.
     @State private var broadcast = BroadcastPublisher()
     #if canImport(CoreHaptics)
@@ -183,6 +190,13 @@ struct EchoelmusicApp: App {
         _store = State(wrappedValue: EchoelStore())
         _beatPlayer = State(wrappedValue: BeatPlayer())
         _bus = State(wrappedValue: EngineBus())
+        // Parameter-unification spine (U2c): tiny control-plane objects, no I/O.
+        // The registry seeds with the internal DDSP inventory; hosted-plugin params
+        // join on load via AUv3Host's bridge. The router binds keyPath → live setter.
+        let paramRegistry = EchoelParameterRegistry()
+        paramRegistry.register(DDSPParameterCatalog.descriptors)
+        _parameterRegistry = State(wrappedValue: paramRegistry)
+        _parameterRouter = State(wrappedValue: ParameterApplyRouter(registry: paramRegistry))
         EchoelCrashLog.breadcrumb("init c: bio publishers")
         #if canImport(HealthKit)
         _healthBio = State(wrappedValue: HealthKitBioPublisher())
@@ -517,6 +531,13 @@ struct EchoelmusicApp: App {
                 // AUv3 host: wire to the live graph so a user-chosen instrument can
                 // be loaded into it. Discovery + load are user-driven (no auto-load).
                 auHost.use(engine: audioEngine)
+                // Parameter-unification spine (U2c): the host registers + binds a
+                // loaded plugin's parameters into this registry/router, and the
+                // AutomationPlayer dispatches its extra registry lanes through the
+                // SAME router — so a hosted plugin's knobs are automatable in the
+                // track exactly like Echoel's own.
+                auHost.useParameters(registry: parameterRegistry, router: parameterRouter)
+                automationPlayer.wire(router: parameterRouter)
 
                 // External MIDI input: passive (the CoreMIDI client is created in
                 // MIDIInput.init, no permission prompt), so start it at launch — a

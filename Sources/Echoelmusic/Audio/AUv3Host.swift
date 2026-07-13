@@ -106,6 +106,23 @@ public final class AUv3Host {
 
     public var total: Int { instruments.count + effects.count }
 
+    // MARK: - Parameter bridge (U2c) — hosted-AU params → registry + router
+
+    /// The shared parameter registry + router (Core types, no AVFoundation), set
+    /// at app wiring so a loaded plugin's parameters become automatable in the
+    /// track exactly like Echoel's own. weak: the app owns their lifetime.
+    @ObservationIgnored private weak var parameterRegistry: EchoelParameterRegistry?
+    @ObservationIgnored private weak var parameterRouter: ParameterApplyRouter?
+    /// keyPaths bridged per loaded plugin (info.id → keyPaths), so unload can unbind.
+    @ObservationIgnored private var bridgedKeyPaths: [String: [String]] = [:]
+
+    /// Connect the shared parameter registry + router (U2c). Call once at app
+    /// wiring. Until set, plugin loads simply don't register parameters (no-op).
+    public func useParameters(registry: EchoelParameterRegistry, router: ParameterApplyRouter) {
+        self.parameterRegistry = registry
+        self.parameterRouter = router
+    }
+
     #if canImport(AVFoundation)
     /// Wire the host to the live audio engine (called once at app start).
     public func use(engine: AudioEngine) { self.engine = engine }
@@ -142,6 +159,7 @@ public final class AUv3Host {
                 connectChainNow()
             }
             if info.isInstrument { loaded = info } else { loadedEffects.append(info) }
+            bridgeParameters(of: unit, info: info)   // params → registry + router (U2c)
             log.audio("AUv3 \(info.isInstrument ? "instrument" : "effect") loaded: \(info.name)")
         } catch {
             loadError = "Could not load \(info.name): \(error.localizedDescription)"
@@ -153,6 +171,7 @@ public final class AUv3Host {
     /// Remove the hosted instrument (and re-wire so the effect chain is left unfed).
     public func unload() {
         if let unit = instrumentUnit, let info = loaded { saveState(unit, id: info.id) }
+        if let info = loaded { unbridgeParameters(id: info.id) }   // unbind params (U2c)
         let unit = instrumentUnit
         instrumentUnit = nil
         loaded = nil
@@ -166,7 +185,10 @@ public final class AUv3Host {
     public func unloadEffect(at index: Int) {
         guard effectUnits.indices.contains(index) else { return }
         let unit = effectUnits[index]
-        if loadedEffects.indices.contains(index) { saveState(unit, id: loadedEffects[index].id) }
+        if loadedEffects.indices.contains(index) {
+            saveState(unit, id: loadedEffects[index].id)
+            unbridgeParameters(id: loadedEffects[index].id)   // unbind params (U2c)
+        }
         effectUnits.remove(at: index)
         if loadedEffects.indices.contains(index) { loadedEffects.remove(at: index) }
         engine?.withGraphPaused {
@@ -197,6 +219,7 @@ public final class AUv3Host {
                 engine.rewireMasterFX(masterEffectUnits)
             }
             loadedMasterEffects.append(info)
+            bridgeParameters(of: unit, info: info)   // params → registry + router (U2c)
             log.audio("AUv3 master-bus effect loaded: \(info.name)")
         } catch {
             loadError = "Could not load \(info.name): \(error.localizedDescription)"
@@ -210,7 +233,10 @@ public final class AUv3Host {
     public func unloadMasterEffect(at index: Int) {
         guard masterEffectUnits.indices.contains(index) else { return }
         let unit = masterEffectUnits[index]
-        if loadedMasterEffects.indices.contains(index) { saveState(unit, id: loadedMasterEffects[index].id) }
+        if loadedMasterEffects.indices.contains(index) {
+            saveState(unit, id: loadedMasterEffects[index].id)
+            unbridgeParameters(id: loadedMasterEffects[index].id)   // unbind params (U2c)
+        }
         masterEffectUnits.remove(at: index)
         if loadedMasterEffects.indices.contains(index) { loadedMasterEffects.remove(at: index) }
         engine?.withGraphPaused {
@@ -281,6 +307,42 @@ public final class AUv3Host {
 
     /// The hosted instrument's AUAudioUnit (for its own view controller). nil if none.
     public func instrumentAudioUnit() -> AUAudioUnit? { instrumentUnit?.auAudioUnit }
+
+    // MARK: - Parameter bridge extraction (U2c)
+
+    /// Register + bind a just-loaded plugin's parameters so they are automatable
+    /// (U2c). Reads the AU's parameterTree, maps each AUParameter to the registry
+    /// descriptor shape, and binds a live setter that writes the parameter's own
+    /// value. No-op until `useParameters` is wired or if the plugin has no tree.
+    /// Control-plane only — the setter runs at automation-step rate, never render.
+    private func bridgeParameters(of unit: AVAudioUnit, info: HostedAUInfo) {
+        guard let registry = parameterRegistry, let router = parameterRouter,
+              let tree = unit.auAudioUnit.parameterTree else { return }
+        let params = tree.allParameters
+        let metas = params.map { p in
+            AUParamMeta(address: p.address, displayName: p.displayName,
+                        minValue: p.minValue, maxValue: p.maxValue,
+                        defaultValue: p.value, unit: p.unitName ?? "",
+                        valueStrings: p.valueStrings)
+        }
+        var byAddress: [AUParameterAddress: AUParameter] = [:]
+        for p in params { byAddress[p.address] = p }
+        let keyPaths = AUParameterBridge.install(
+            metas: metas, manufacturer: info.componentManufacturer,
+            subType: info.componentSubType, into: registry, router: router) { addr in
+            let param = byAddress[addr]
+            return { v in param?.value = AUValue(v) }
+        }
+        bridgedKeyPaths[info.id] = keyPaths
+    }
+
+    /// Unbind a plugin's parameters on unload (U2c). Descriptors linger in the
+    /// registry but, unbound, drop out of the automatable set (placebo law).
+    private func unbridgeParameters(id: String) {
+        guard let router = parameterRouter, let kps = bridgedKeyPaths[id] else { return }
+        AUParameterBridge.uninstall(keyPaths: kps, router: router)
+        bridgedKeyPaths[id] = nil
+    }
 
     /// The AUAudioUnit of the insert effect at `index` in the chain (for its own UI).
     public func effectAudioUnit(at index: Int) -> AUAudioUnit? {
