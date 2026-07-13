@@ -1,22 +1,24 @@
-build: 2026-07-13 v10.79.184 (Visuals: die Farbe kommt zurück — Grau-Kette entstapelt)
+build: 2026-07-13 v10.79.185 (Der ECHTE Grau-Bug: Gamma — das Visual rechnet richtig, zeigte aber falsch an)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: DEIN BEFUND „VISUALS GRAU" — behoben.
-  Dein v183-Log war der Beweis: der Datenpfad war intakt (Noten da,
-  Level bis 1.00, Töne 294/440/659, Bio 0→1). Das Grau entstand rein
-  in der Farb-/Sättigungskette — sie entsättigte DREIMAL hintereinander
-  (Netto nur ~0,66 Buntheit, dazu zweifacher Warm-Lift). Zwei
-  Konstanten entstapeln das:
-  · Der Warm-Block TÖNT jetzt nur noch warm, statt ein zweites Mal zu
-    entsättigen (0,80 → 0,92) — die Buntheit steigt (~0,66 → ~0,75).
-  · Ein klingender Ton TRÄGT SEINE FARBE WEITER über den Frame
-    (Farb-Gate 1,6 → 2,4) — das war der eigentliche Grau-Macher bei nur
-    2–3 Noten: vorher färbte jede Note nur ihren engen Kern.
-  Stille bleibt neutral (keine Note → keine Farbe, dein Gesetz von
-  2026-07-08 hält). Flash-Safety und das physikalische Ton→Licht-Gesetz
-  (CIE, SpectralColor-Zwilling) sind unberührt.
-  Adversarial gegengeprüft: kein Neon, kein Weiß-Ausbrennen, Stille
-  neutral. Gates grün auf 1730d8e (Xcode Compile Check + CI/CD Pipeline).
-  BITTE AUGEN-VERIFY: Visual-Fenster offen, spiel ein paar Töne / einen
-  Akkord — kommt jetzt Farbe an ihren Stellen, statt Grau? „redMot=0"
-  im Log heißt übrigens nur: Reduce-Motion ist AUS (gesund) — kein Bug.
-  NEEDS-FOUNDER-VERIFY (Farbeindruck am Gerät).
+notes: „Immer noch grau" — verstanden, tiefer gegraben, GEFUNDEN.
+  v184 hatte an den Farb-Konstanten gedreht — aber die dominante Ursache
+  war eine Ebene tiefer: ein TRANSFER-FUNKTIONS-BUG (Gamma).
+  · Der Shader rechnet physikalisch korrekt in LINEAREM Licht (CIE),
+    kodiert aber nichts — und der Framebuffer war non-sRGB. Das Display
+    interpretierte die linearen Werte als bereits kodiert: Mitteltöne
+    auf ~40 % gecrusht, jede satte Farbe → dunkles Matschgrau.
+  · DER BEWEIS: die Donut-/Tasten-Farben laufen durch SpectralColor,
+    das sehr wohl gamma-kodiert — darum waren sie bunt, während das
+    Visual grau blieb. Beide „Zwillinge" differierten um exakt eine
+    Gamma-Kurve.
+  · FIX: das Visual rendert jetzt in einen sRGB-Framebuffer — die GPU
+    kodiert korrekt. Das ganze Bild wird heller und farbiger; auch
+    AUFNAHMEN bekommen erstmals korrekt helle Frames (waren stets zu
+    dunkel — jetzt erklärbar).
+  · NEU IM LOG: die visual:-Zeile trägt jetzt „ccw=" (Farb-Reichweite)
+    und „c0=r/g/b" (erste Wolken-Farbe) — dein nächstes Log MISST Farbe.
+  BITTE: Visual öffnen, spielen — jetzt sollte es leuchten. Wenn es
+  IRGENDWO noch nicht stimmt (zu grell/zu warm/falsche Stelle): am
+  stärksten hilft ein kurzes SCREEN-RECORDING als Upload — ich sehe
+  Videos jetzt Frame für Frame (neuer video-watch-Skill) und kann
+  gezielt nachjustieren. NEEDS-FOUNDER-VERIFY (Augen).
