@@ -46,6 +46,20 @@ public struct HostedAUInfo: Identifiable, Sendable, Equatable {
     }
 }
 
+public extension AUPluginRef {
+    /// Build a persistable track assignment (U3) from a discovered/loaded hosted
+    /// AU. Lossless: carries the four component codes + names + kind, so the
+    /// timeline model can re-instantiate the plugin and its `id` lines up with the
+    /// plugin's registered parameter keyPaths.
+    init(_ info: HostedAUInfo) {
+        self.init(name: info.name, manufacturerName: info.manufacturer,
+                  componentType: info.componentType,
+                  componentSubType: info.componentSubType,
+                  componentManufacturer: info.componentManufacturer,
+                  isInstrument: info.isInstrument)
+    }
+}
+
 @MainActor
 @Observable
 public final class AUv3Host {

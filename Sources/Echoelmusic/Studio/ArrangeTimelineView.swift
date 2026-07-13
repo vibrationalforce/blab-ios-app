@@ -34,6 +34,10 @@ struct ArrangeTimelineView: View {
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
     @Environment(\.leadSynth) private var leadSynth
+    // U3b: the AUv3 host, so a track head can SHOW its plugin assignment and
+    // record the currently-loaded plugin onto the lane. `loaded`/`loadedEffects`
+    // are low-frequency (change only on load/unload) — safe to read in the menu.
+    @Environment(AUv3Host.self) private var auHost
 
     /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
     /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
@@ -339,8 +343,32 @@ struct ArrangeTimelineView: View {
                 }
             }
             if !lane.isBio {
-                Button { activeModal = .plugins } label: {
-                    Label("AUv3 plugins", systemImage: "puzzlepiece.extension")
+                // U3b: the plugin this track carries — visible + settable per track.
+                // The header shows the current assignment; Browse opens the shared
+                // AUv3 host; Assign records what's loaded onto THIS lane (persisted
+                // intent — per-lane routing waits for multi-roll).
+                Section {
+                    Button { activeModal = .plugins } label: {
+                        Label("Browse AUv3…", systemImage: "puzzlepiece.extension")
+                    }
+                    if let loaded = auHost.loaded, loaded.isInstrument {
+                        Button {
+                            timeline.setLaneInstrument(id: lane.id, AUPluginRef(loaded))
+                            timeline.setLaneEffects(id: lane.id, auHost.loadedEffects.map { AUPluginRef($0) })
+                        } label: {
+                            Label("Assign “\(loaded.name)” to this track", systemImage: "arrow.down.circle")
+                        }
+                    }
+                    if lane.instrument != nil || !lane.effects.isEmpty {
+                        Button(role: .destructive) {
+                            timeline.setLaneInstrument(id: lane.id, nil)
+                            timeline.setLaneEffects(id: lane.id, [])
+                        } label: {
+                            Label("Clear plugin assignment", systemImage: "xmark.circle")
+                        }
+                    }
+                } header: {
+                    Text(pluginAssignmentSummary(lane))
                 }
                 Button { activeModal = .automation } label: {
                     Label("Automation", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
@@ -370,6 +398,13 @@ struct ArrangeTimelineView: View {
                     .foregroundStyle(EchoelTheme.text)
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                // U3b at-a-glance cue: this track carries a plugin assignment.
+                if lane.instrument != nil || !lane.effects.isEmpty {
+                    Image(systemName: "puzzlepiece.extension.fill")
+                        .font(.system(size: 7))
+                        .foregroundStyle(EchoelTheme.accent)
+                        .accessibilityHidden(true)
+                }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 7, weight: .semibold))
                     .foregroundStyle(EchoelTheme.dim)
@@ -379,7 +414,17 @@ struct ArrangeTimelineView: View {
             .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .accessibilityLabel("\(lane.name), \(lane.kind.displayName) track")
+        .accessibilityLabel("\(lane.name), \(lane.kind.displayName) track. \(pluginAssignmentSummary(lane))")
+    }
+
+    /// U3b: the human-readable plugin assignment shown as the menu-section header
+    /// (and spoken in the head's a11y label). Honest — reflects the persisted
+    /// `TimelineLane.instrument`/`effects`, nothing loaded-but-unassigned.
+    private func pluginAssignmentSummary(_ lane: TimelineLane) -> String {
+        var parts: [String] = []
+        if let inst = lane.instrument { parts.append("Instrument: \(inst.name)") }
+        if !lane.effects.isEmpty { parts.append("FX: \(lane.effects.map(\.name).joined(separator: ", "))") }
+        return parts.isEmpty ? "No plugin assigned" : parts.joined(separator: " · ")
     }
 
     /// K2a strip: Mute / Solo toggles + the lane level (EchoelValueField — the

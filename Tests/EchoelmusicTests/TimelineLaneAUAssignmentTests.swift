@@ -92,3 +92,61 @@ final class TimelineLaneAUAssignmentTests: XCTestCase {
         XCTAssertEqual(lane.instrument, inst)
     }
 }
+
+/// U3b — the store surfaces the assignment: set instrument / FX chain / clear,
+/// each persisted, guarded against unknown ids. And the HostedAUInfo→AUPluginRef
+/// mapping the AUv3 browser feeds in is lossless (codes + kind + identity carry).
+final class TimelineStoreAUAssignmentTests: XCTestCase {
+
+    private func osType(_ s: String) -> UInt32 {
+        var r: UInt32 = 0
+        for b in s.utf8.prefix(4) { r = (r << 8) | UInt32(b) }
+        return r
+    }
+
+    func testHostedAUInfo_mapsToPluginRef_lossless() {
+        let info = HostedAUInfo(id: "x", name: "Zebra", manufacturer: "u-he",
+                                isInstrument: true,
+                                componentType: osType("aumu"),
+                                componentSubType: osType("zeb2"),
+                                componentManufacturer: osType("uHe1"))
+        let ref = AUPluginRef(info)
+        XCTAssertEqual(ref.name, "Zebra")
+        XCTAssertEqual(ref.manufacturerName, "u-he")
+        XCTAssertEqual(ref.componentType, osType("aumu"))
+        XCTAssertEqual(ref.componentSubType, osType("zeb2"))
+        XCTAssertEqual(ref.componentManufacturer, osType("uHe1"))
+        XCTAssertTrue(ref.isInstrument)
+        XCTAssertEqual(ref.id, AUParameterMapping.pluginPrefix(
+            manufacturer: osType("uHe1"), subType: osType("zeb2")))
+    }
+
+    @MainActor
+    func testStore_assignInstrumentAndEffects_persistsAndClears() {
+        let store = TimelineStore()
+        store.addLane(kind: .midi, name: "Lead")
+        guard let id = store.document.lanes.last?.id else { return XCTFail("no lane") }
+
+        let inst = AUPluginRef(name: "Synth", manufacturerName: "Echoel",
+                               componentType: osType("aumu"), componentSubType: osType("syn1"),
+                               componentManufacturer: osType("Echl"), isInstrument: true)
+        let fx = AUPluginRef(name: "Reverb", manufacturerName: "Acme",
+                             componentType: osType("aufx"), componentSubType: osType("rvb1"),
+                             componentManufacturer: osType("Acme"), isInstrument: false)
+
+        store.setLaneInstrument(id: id, inst)
+        store.setLaneEffects(id: id, [fx])
+        XCTAssertEqual(store.document.lanes.last?.instrument, inst)
+        XCTAssertEqual(store.document.lanes.last?.effects, [fx])
+
+        // Clearing is nil / empty, not a decode failure.
+        store.setLaneInstrument(id: id, nil)
+        store.setLaneEffects(id: id, [])
+        XCTAssertNil(store.document.lanes.last?.instrument)
+        XCTAssertTrue(store.document.lanes.last?.effects.isEmpty ?? false)
+
+        // Unknown id → no crash, no change.
+        store.setLaneInstrument(id: UUID(), inst)
+        XCTAssertNil(store.document.lanes.last?.instrument)
+    }
+}
