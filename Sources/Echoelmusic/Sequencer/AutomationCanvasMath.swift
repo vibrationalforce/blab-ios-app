@@ -16,16 +16,21 @@ public enum AutomationCanvasMath {
     public static let snapTicks = Note.ticksPerStep
 
     // MARK: Coordinate mapping (x = time L→R, y = value TOP high → BOTTOM low)
+    // The canvas spans `spanTicks` of lane time (cycle 3): one bar by default
+    // (the shipped loop canvas), a clip's length in-clip, an arrangement window
+    // song-wide. Every rule below is span-relative; nothing assumes one bar.
 
-    public static func x(forTick tick: Int, width: Double) -> Double {
-        guard width > 0 else { return 0 }
-        return width * Double(min(max(0, tick), barTicks)) / Double(barTicks)
+    public static func x(forTick tick: Int, width: Double,
+                         spanTicks: Int = barTicks) -> Double {
+        guard width > 0, spanTicks > 0 else { return 0 }
+        return width * Double(min(max(0, tick), spanTicks)) / Double(spanTicks)
     }
 
-    public static func tick(forX x: Double, width: Double) -> Int {
-        guard width > 0, x.isFinite else { return 0 }
+    public static func tick(forX x: Double, width: Double,
+                            spanTicks: Int = barTicks) -> Int {
+        guard width > 0, x.isFinite, spanTicks > 0 else { return 0 }
         let f = min(1, max(0, x / width))
-        return Int((f * Double(barTicks)).rounded())
+        return Int((f * Double(spanTicks)).rounded())
     }
 
     public static func y(forValue value: Double, height: Double) -> Double {
@@ -38,10 +43,11 @@ public enum AutomationCanvasMath {
         return min(1, max(0, 1 - y / height))
     }
 
-    /// Snap a tick to the nearest 16th step (clamped into the bar).
-    public static func snappedTick(_ tick: Int) -> Int {
+    /// Snap a tick to the nearest 16th step (clamped into the span).
+    public static func snappedTick(_ tick: Int, spanTicks: Int = barTicks) -> Int {
+        guard spanTicks > 0 else { return 0 }
         let s = ((tick + snapTicks / 2) / snapTicks) * snapTicks
-        return min(max(0, s), barTicks)
+        return min(max(0, s), spanTicks)
     }
 
     // MARK: Hit-testing
@@ -67,9 +73,10 @@ public enum AutomationCanvasMath {
     /// nil before the first, after the last, or with fewer than 2 points.
     public static func segmentLeftPoint(atX x: Double,
                                         points: [AutomationPoint],
-                                        width: Double) -> AutomationPoint? {
-        guard points.count >= 2 else { return nil }
-        let tick = Double(barTicks) * min(1, max(0, width > 0 ? x / width : 0))
+                                        width: Double,
+                                        spanTicks: Int = barTicks) -> AutomationPoint? {
+        guard points.count >= 2, spanTicks > 0 else { return nil }
+        let tick = Double(spanTicks) * min(1, max(0, width > 0 ? x / width : 0))
         let sorted = points.sorted { $0.tick < $1.tick }
         for (left, right) in zip(sorted, sorted.dropFirst()) {
             if Double(left.tick) < tick, tick < Double(right.tick) { return left }

@@ -259,6 +259,96 @@ public final class AutomationPlayer {
         lane(for: target).points
     }
 
+    // MARK: - Parameter-string lane access + editing (cycle 3)
+    // ONE UI code path for every lane: the sheet addresses a target purely by its
+    // parameter string — a legacy rawValue, an enum keyPath alias (both land in
+    // the same structural slot, saved names untouched) or a free registry keyPath
+    // (its lane is created on the first edit). Same data as the enum route.
+
+    /// The lane index for a parameter string. nil = no such lane yet.
+    private func index(ofParameter parameter: String) -> Int? {
+        guard !parameter.isEmpty else { return nil }
+        if let target = AutomationTarget.forParameter(parameter) { return index(of: target) }
+        return lanes.firstIndex { $0.parameter == parameter }
+    }
+
+    /// Look up + persist in one place so every string edit stays uniform.
+    private func editLane(_ parameter: String, _ change: (inout AutomationLane) -> Void) {
+        guard let i = index(ofParameter: parameter) else { return }
+        change(&lanes[i])
+        persist()
+    }
+
+    public func lane(forParameter parameter: String) -> AutomationLane? {
+        index(ofParameter: parameter).map { lanes[$0] }
+    }
+
+    public func points(forParameter parameter: String) -> [AutomationPoint] {
+        lane(forParameter: parameter)?.points ?? []
+    }
+
+    @discardableResult
+    public func addPoint(parameter: String, beat: Double, value: Double,
+                         curve: AutomationCurve = .linear) -> AutomationPoint? {
+        guard !parameter.isEmpty else { return nil }
+        let i: Int
+        if let existing = index(ofParameter: parameter) {
+            i = existing
+        } else {
+            lanes.append(AutomationLane(parameter: parameter))   // first edit creates it
+            i = lanes.count - 1
+        }
+        let p = lanes[i].addPoint(tick: AutomationPlayer.tick(forBeat: beat),
+                                  value: value, curve: curve)
+        persist()
+        return p
+    }
+
+    public func removePoint(parameter: String, id: UUID) {
+        editLane(parameter) { $0.removePoint(id: id) }
+    }
+
+    public func movePoint(parameter: String, id: UUID, toBeat beat: Double) {
+        editLane(parameter) { $0.movePoint(id: id, toTick: AutomationPlayer.tick(forBeat: beat)) }
+    }
+
+    /// Move + revalue a keyframe in one gesture step (canvas point-drag).
+    public func movePoint(parameter: String, id: UUID, toBeat beat: Double,
+                          normalized value: Double) {
+        editLane(parameter) {
+            $0.movePoint(id: id, toTick: AutomationPlayer.tick(forBeat: beat))
+            $0.setValue(id: id, value)
+        }
+    }
+
+    public func setValue(parameter: String, id: UUID, normalized value: Double) {
+        editLane(parameter) { $0.setValue(id: id, value) }
+    }
+
+    public func setCurve(parameter: String, id: UUID, _ curve: AutomationCurve) {
+        editLane(parameter) { $0.setCurve(id: id, curve) }
+    }
+
+    /// Bend the segment leaving a keyframe (the canvas' vertical segment-drag).
+    public func setCurvature(parameter: String, id: UUID, _ curvature: Double) {
+        editLane(parameter) { $0.setCurvature(id: id, curvature) }
+    }
+
+    /// Empty a lane's points. Enum lanes stay structural (never removed);
+    /// removing an extra lane entirely is `removeLane(parameter:)`.
+    public func clear(parameter: String) {
+        editLane(parameter) { $0.clear() }
+    }
+
+    /// The registry parameters a UI may offer for NEW automation lanes: bound to a
+    /// live setter in the router (placebo law — a lane must move audio) and not
+    /// already addressed by a legacy enum target (those stay on their own slots).
+    public var extraAutomatableDescriptors: [ParameterDescriptor] {
+        guard let router else { return [] }
+        let enumKeyPaths = Set(AutomationTarget.allCases.map(\.keyPath))
+        return router.automatableDescriptors().filter { !enumKeyPaths.contains($0.keyPath) }
+    }
+
     /// Tick for a beat position (0…beatsPerBar) within the bar.
     public static func tick(forBeat beat: Double) -> Int {
         Int((beat * Double(Note.ticksPerQuarter)).rounded())
@@ -267,59 +357,44 @@ public final class AutomationPlayer {
         Double(tick) / Double(Note.ticksPerQuarter)
     }
 
+    // The enum-typed editors delegate to the string route — ONE write path
+    // (cycle 3), the enum keeps its ergonomic call sites.
+
     @discardableResult
     public func addPoint(target: AutomationTarget, beat: Double, value: Double,
                          curve: AutomationCurve = .linear) -> AutomationPoint? {
-        guard let i = index(of: target) else { return nil }
-        let p = lanes[i].addPoint(tick: AutomationPlayer.tick(forBeat: beat), value: value, curve: curve)
-        persist()
-        return p
+        addPoint(parameter: target.rawValue, beat: beat, value: value, curve: curve)
     }
 
     public func removePoint(target: AutomationTarget, id: UUID) {
-        guard let i = index(of: target) else { return }
-        lanes[i].removePoint(id: id)
-        persist()
+        removePoint(parameter: target.rawValue, id: id)
     }
 
     public func movePoint(target: AutomationTarget, id: UUID, toBeat beat: Double) {
-        guard let i = index(of: target) else { return }
-        lanes[i].movePoint(id: id, toTick: AutomationPlayer.tick(forBeat: beat))
-        persist()
+        movePoint(parameter: target.rawValue, id: id, toBeat: beat)
     }
 
     public func setValue(target: AutomationTarget, id: UUID, normalized value: Double) {
-        guard let i = index(of: target) else { return }
-        lanes[i].setValue(id: id, value)
-        persist()
+        setValue(parameter: target.rawValue, id: id, normalized: value)
     }
 
     public func setCurve(target: AutomationTarget, id: UUID, _ curve: AutomationCurve) {
-        guard let i = index(of: target) else { return }
-        lanes[i].setCurve(id: id, curve)
-        persist()
+        setCurve(parameter: target.rawValue, id: id, curve)
     }
 
     /// Bend the segment leaving a keyframe (the canvas' vertical segment-drag).
     public func setCurvature(target: AutomationTarget, id: UUID, _ curvature: Double) {
-        guard let i = index(of: target) else { return }
-        lanes[i].setCurvature(id: id, curvature)
-        persist()
+        setCurvature(parameter: target.rawValue, id: id, curvature)
     }
 
     /// Move + revalue a keyframe in one gesture step (canvas point-drag).
     public func movePoint(target: AutomationTarget, id: UUID, toBeat beat: Double,
                           normalized value: Double) {
-        guard let i = index(of: target) else { return }
-        lanes[i].movePoint(id: id, toTick: AutomationPlayer.tick(forBeat: beat))
-        lanes[i].setValue(id: id, value)
-        persist()
+        movePoint(parameter: target.rawValue, id: id, toBeat: beat, normalized: value)
     }
 
     public func clear(target: AutomationTarget) {
-        guard let i = index(of: target) else { return }
-        lanes[i].clear()
-        persist()
+        clear(parameter: target.rawValue)
     }
 
     private func index(of target: AutomationTarget) -> Int? {

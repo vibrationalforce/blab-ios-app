@@ -10,6 +10,54 @@ import SwiftUI
 // typed edits (EchoelValueField). Geometry + touch laws live in
 // AutomationCanvasMath (pure, unit-tested). Playback rides the shared
 // transport (AutomationPlayer.applyStep); the lane stores normalized values.
+//
+// Cycle 3 (automation-in-track): the sheet is target-GENERIC. Every editable
+// target is an AutomationTargetSpec — the three legacy enum targets plus every
+// router-bound registry descriptor (placebo law: only parameters that actually
+// move audio are offered; today that is the legacy three, the DDSP setters
+// bind in a later cycle). One spec, one canvas, one keyframe list — no second
+// code path when the catalog widens.
+
+/// Everything the sheet needs to show + edit one automation target, resolved
+/// from either a legacy enum target or a bound registry descriptor. Identity =
+/// the lane's parameter string (rawValue / keyPath).
+private struct AutomationTargetSpec: Identifiable {
+    let parameter: String
+    let displayName: String
+    let unit: String
+    let decimals: Int
+    let minReal: Double
+    let maxReal: Double
+    /// normalized 0…1 → real units (the enum keeps its curves, e.g. log filter).
+    let toReal: (Double) -> Double
+    /// real units → normalized 0…1 (inverse, for typed edits).
+    let toNormalized: (Double) -> Double
+
+    var id: String { parameter }
+
+    init(_ target: AutomationTarget) {
+        parameter = target.rawValue
+        displayName = target.displayName
+        unit = target.unit
+        decimals = target.decimals
+        minReal = target.minValue
+        maxReal = target.maxValue
+        toReal = { target.value(forNormalized: $0) }
+        toNormalized = { target.normalized(forValue: $0) }
+    }
+
+    init(_ d: ParameterDescriptor) {
+        parameter = d.keyPath
+        displayName = d.displayName
+        unit = d.unit
+        // Wide physical ranges (Hz) read as integers; tight ones need decimals.
+        decimals = (d.max - d.min) > 100 ? 0 : 2
+        minReal = Double(d.min)
+        maxReal = Double(d.max)
+        toReal = { Double(d.denormalized(Float($0))) }
+        toNormalized = { Double(d.normalized(Float($0))) }
+    }
+}
 
 @MainActor
 struct AutomationView: View {
@@ -17,7 +65,19 @@ struct AutomationView: View {
     @Environment(AutomationPlayer.self) private var automation
     @Environment(\.dismiss) private var dismiss
 
-    @State private var target: AutomationTarget = .masterLevel
+    @State private var selectedParameter: String = AutomationTarget.masterLevel.rawValue
+
+    /// Legacy targets first (stable muscle memory), then every router-bound
+    /// registry parameter. Recomputed per render — pure lookups, no live reads.
+    private var specs: [AutomationTargetSpec] {
+        AutomationTarget.allCases.map(AutomationTargetSpec.init)
+            + automation.extraAutomatableDescriptors.map(AutomationTargetSpec.init)
+    }
+
+    private var spec: AutomationTargetSpec {
+        specs.first { $0.parameter == selectedParameter }
+            ?? AutomationTargetSpec(.masterLevel)
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,9 +85,9 @@ struct AutomationView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     enableRow
                     targetPicker
-                    AutomationCanvas(target: target)
+                    AutomationCanvas(spec: spec)
                     keyframes
-                    Text("Automation plays over the loop: each keyframe sets \(target.displayName.lowercased()) at its beat, gliding (Linear) or stepping (Hold) to the next. Off leaves the parameter alone. On the canvas: tap adds, drag moves, a vertical drag between two points bends the curve, double-tap deletes.")
+                    Text("Automation plays over the loop: each keyframe sets \(spec.displayName.lowercased()) at its beat, gliding (Linear) or stepping (Hold) to the next. Off leaves the parameter alone. On the canvas: tap adds, drag moves, a vertical drag between two points bends the curve, double-tap deletes.")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                 }
                 .padding(16)
@@ -49,27 +109,45 @@ struct AutomationView: View {
         .tint(EchoelTheme.accent)
     }
 
-    private var targetPicker: some View {
-        Picker("Target", selection: $target) {
-            ForEach(AutomationTarget.allCases) { t in Text(t.displayName).tag(t) }
+    /// Three targets fit a segmented control (the shipped look); a widened
+    /// catalog flips to a menu picker automatically — same selection state.
+    @ViewBuilder private var targetPicker: some View {
+        let options = specs
+        if options.count <= 3 {
+            Picker("Target", selection: $selectedParameter) {
+                ForEach(options) { s in Text(s.displayName).tag(s.parameter) }
+            }
+            .pickerStyle(.segmented)
+        } else {
+            HStack {
+                Text("Target").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
+                Spacer()
+                Picker("Target", selection: $selectedParameter) {
+                    ForEach(options) { s in Text(s.displayName).tag(s.parameter) }
+                }
+                .pickerStyle(.menu)
+                .tint(EchoelTheme.text)
+            }
+            .padding(.horizontal, 12).frame(height: 40)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
-        .pickerStyle(.segmented)
     }
 
     @ViewBuilder private var keyframes: some View {
-        let points = automation.points(for: target)
+        let points = automation.points(forParameter: spec.parameter)
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Keyframes").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
                 Spacer()
                 if !points.isEmpty {
-                    Button("Clear") { automation.clear(target: target) }
+                    Button("Clear") { automation.clear(parameter: spec.parameter) }
                         .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.danger)
                         .buttonStyle(.plain)
                 }
             }
             if points.isEmpty {
-                Text("No keyframes. Add one to start shaping \(target.displayName.lowercased()).")
+                Text("No keyframes. Add one to start shaping \(spec.displayName.lowercased()).")
                     .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
                     .padding(.vertical, 4)
             } else {
@@ -78,7 +156,7 @@ struct AutomationView: View {
             Button {
                 let nextBeat = min(Double(AutomationPlayer.beatsPerBar),
                                    (points.last.map { AutomationPlayer.beat(forTick: $0.tick) } ?? -1) + 1)
-                automation.addPoint(target: target, beat: max(0, nextBeat), value: 0.5)
+                automation.addPoint(parameter: spec.parameter, beat: max(0, nextBeat), value: 0.5)
             } label: {
                 Label("Add keyframe", systemImage: "plus")
                     .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
@@ -98,8 +176,8 @@ struct AutomationView: View {
             EchoelValueField(label: "Beat", value: beatBinding(p),
                              range: 0...Float(AutomationPlayer.beatsPerBar), unit: "", decimals: 2)
             EchoelValueField(label: "Value", value: valueBinding(p),
-                             range: Float(target.minValue)...Float(target.maxValue),
-                             unit: target.unit, decimals: target.decimals)
+                             range: Float(spec.minReal)...Float(spec.maxReal),
+                             unit: spec.unit, decimals: spec.decimals)
             HStack(spacing: 8) {
                 Picker("Curve", selection: curveBinding(p)) {
                     Text("Linear").tag(AutomationCurve.linear)
@@ -107,7 +185,7 @@ struct AutomationView: View {
                 }
                 .pickerStyle(.segmented)
                 Button {
-                    automation.removePoint(target: target, id: p.id)
+                    automation.removePoint(parameter: spec.parameter, id: p.id)
                 } label: {
                     Image(systemName: "trash").foregroundStyle(EchoelTheme.danger)
                         .frame(width: 40, height: 32)
@@ -127,20 +205,26 @@ struct AutomationView: View {
     private func beatBinding(_ p: AutomationPoint) -> Binding<Float> {
         Binding(
             get: { Float(AutomationPlayer.beat(forTick: p.tick)) },
-            set: { automation.movePoint(target: target, id: p.id, toBeat: Double($0)) }
+            set: { [parameter = spec.parameter] in
+                automation.movePoint(parameter: parameter, id: p.id, toBeat: Double($0))
+            }
         )
     }
     private func valueBinding(_ p: AutomationPoint) -> Binding<Float> {
         Binding(
-            get: { Float(target.value(forNormalized: p.value)) },
-            set: { automation.setValue(target: target, id: p.id,
-                                       normalized: target.normalized(forValue: Double($0))) }
+            get: { [toReal = spec.toReal] in Float(toReal(p.value)) },
+            set: { [parameter = spec.parameter, toNormalized = spec.toNormalized] in
+                automation.setValue(parameter: parameter, id: p.id,
+                                    normalized: toNormalized(Double($0)))
+            }
         )
     }
     private func curveBinding(_ p: AutomationPoint) -> Binding<AutomationCurve> {
         Binding(
             get: { p.curve },
-            set: { automation.setCurve(target: target, id: p.id, $0) }
+            set: { [parameter = spec.parameter] in
+                automation.setCurve(parameter: parameter, id: p.id, $0)
+            }
         )
     }
 }
@@ -153,7 +237,7 @@ struct AutomationView: View {
 @MainActor
 private struct AutomationCanvas: View {
 
-    let target: AutomationTarget
+    let spec: AutomationTargetSpec
     @Environment(AutomationPlayer.self) private var automation
 
     /// What the current drag is doing — decided once at touch-down. ONE drag
@@ -176,8 +260,8 @@ private struct AutomationCanvas: View {
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
-            let points = automation.points(for: target)
-            let lane = automation.lane(for: target)
+            let points = automation.points(forParameter: spec.parameter)
+            let lane = automation.lane(forParameter: spec.parameter)
             Canvas { ctx, size in
                 drawGrid(ctx, size)
                 drawCurve(ctx, size, lane: lane)
@@ -228,12 +312,12 @@ private struct AutomationCanvas: View {
         case .movePoint(let id):
             let tick = AutomationCanvasMath.snappedTick(
                 AutomationCanvasMath.tick(forX: Double(g.location.x), width: w))
-            automation.movePoint(target: target, id: id,
+            automation.movePoint(parameter: spec.parameter, id: id,
                                  toBeat: AutomationPlayer.beat(forTick: tick),
                                  normalized: AutomationCanvasMath.value(forY: Double(g.location.y),
                                                                         height: Self.height))
         case .bendSegment(let id, let start, let rising):
-            automation.setCurvature(target: target, id: id,
+            automation.setCurvature(parameter: spec.parameter, id: id,
                                     AutomationCanvasMath.bentCurvature(
                                         start: start,
                                         dragUpPoints: -Double(g.translation.height),
@@ -263,14 +347,14 @@ private struct AutomationCanvas: View {
             // self-healing: the first tap adds a point, the second lands on it
             // as .movePoint and removes it again — net no change.)
             if isDouble {
-                automation.removePoint(target: target, id: id)
+                automation.removePoint(parameter: spec.parameter, id: id)
                 lastTapTime = nil
                 return
             }
         case .tap:
             let tick = AutomationCanvasMath.snappedTick(
                 AutomationCanvasMath.tick(forX: Double(g.location.x), width: Double(width)))
-            automation.addPoint(target: target,
+            automation.addPoint(parameter: spec.parameter,
                                 beat: AutomationPlayer.beat(forTick: tick),
                                 value: AutomationCanvasMath.value(forY: Double(g.location.y),
                                                                   height: Self.height))
@@ -295,8 +379,8 @@ private struct AutomationCanvas: View {
         ctx.stroke(grid, with: .color(EchoelTheme.border.opacity(0.6)), lineWidth: 1)
     }
 
-    private func drawCurve(_ ctx: GraphicsContext, _ size: CGSize, lane: AutomationLane) {
-        guard !lane.isEmpty else {
+    private func drawCurve(_ ctx: GraphicsContext, _ size: CGSize, lane: AutomationLane?) {
+        guard let lane, !lane.isEmpty else {
             let t = Text("Tap to add a keyframe").font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.dim)
             ctx.draw(t, at: CGPoint(x: size.width / 2, y: size.height / 2))
