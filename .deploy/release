@@ -1,28 +1,29 @@
-build: 2026-07-13 v10.79.188 (Kamera-Freeze-Fix: Bio erholt sich selbst, wenn die App aktiv ist)
+build: 2026-07-13 v10.79.189 (Spuren sind jetzt das Zuhause + Kamera-Freeze-Fix)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: GEZIELTER Fix aus DEINEM v187-Geräte-Log. Das Kernproblem darin: die
-  Kamera wurde immer wieder „unterbrochen" (reason 1, App-Status „inactive")
-  und danach fror der Puls 6 bis 110 Sekunden ein — Musik und Visual reagierten
-  in der Zeit nicht mehr auf deinen Körper. GENAU das ist der Freeze, den du
-  meinst.
+notes: Direkt aus deiner Rückmeldung. ZWEI Dinge zum Beurteilen:
 
-  Ursache: die App wartete bei JEDER Unterbrechung passiv auf iOS. Das ist aber
-  nur richtig, solange die App im Hintergrund ist. Wenn die App wieder VORNE
-  aktiv ist, iOS aber „interruption ended" nicht (rechtzeitig) schickt, blieb
-  die Kamera hängen — niemand hat sie wieder gestartet.
+  1) SPUREN SIND DAS ZUHAUSE. Du hast gesagt „ich wollte alles über die Spuren
+     machen" — und genau das war der Grund, warum die Sachen „nicht da" waren:
+     die Timeline (deine Spuren) war standardmäßig zu einem dünnen Balken
+     zusammengeklappt, du bist immer auf dem Ein-Knopf-Instrument gelandet.
+     JETZT öffnet die App direkt in den Spuren (Timeline oben, groß), das
+     Instrument bleibt darunter erreichbar. In jedem Spurkopf-Menü (auf den
+     Spurnamen tippen) stecken die ganzen Funktionen, die du gebaut geglaubt/
+     vermisst hast: Piano Roll · Sound & FX · AUv3 zuweisen · Automation ·
+     (bei Audio-Spuren) Clips. BITTE PRÜFEN: Siehst du beim Start jetzt deine
+     Spuren? Findest du über die Spurkopf-Menüs die Funktionen?
 
-  Fix: Die App merkt sich jetzt, ob sie vorne aktiv ist, und startet die Kamera
-  in dem Fall selbst neu (alle 6 s, gedrosselt, kein „Thrashing", kein Hitze-
-  Aufheizen). Im echten Hintergrund wird weiter gewartet wie bisher.
+  2) KAMERA-FREEZE-FIX (aus dem v187-Log). Der Puls fror bei „inactive"-
+     Unterbrechungen 6–110 s ein; jetzt startet die App die Kamera selbst neu,
+     sobald sie wieder vorne aktiv ist. Länger laufen lassen — erholt es sich
+     schnell von selbst?
 
-  BITTE gezielt prüfen (NEEDS-FOUNDER-VERIFY):
-  1) Länger eine Session laufen lassen (Puls auf der Linse, 5–15 min). Kommt es
-     noch zu langen Einfrierern (Puls-Zahl steht 10+ s still, Musik/Visual
-     reagieren nicht mehr)? Erholt es sich jetzt SCHNELL von selbst (wenige
-     Sekunden), statt lange tot zu sein?
-  2) Zwischendurch bewusst stören: Kurz die Kontrollzentrale runterziehen /
-     eine Mitteilung reinkommen lassen und wieder wegwischen. Läuft der Puls
-     danach zügig weiter?
+  EHRLICHER STAND zu deiner Liste (arbeite ich der Reihe nach ab, du hast
+  „Alles" gewählt): Audio-Dateien reinziehen+loopen, ein Aufnahme-Knopf, deine
+  3rd-Party-AUv3 sichtbar machen und die EchoelTools-Türen zurückholen sind
+  NOCH echte Baustellen — die kommen als eigene Builds. Video-Spuren sind der
+  größte Brocken (eigenes Kapitel). Der „4× zu schnell"-Sound war KEIN Bug —
+  du hast das Video selbst schneller geschnitten; die App-Wiedergabe ist normal.
 
-  Sonst NICHTS geändert — reiner Stabilitäts-Fix am Kern (Biofeedback → Sound →
-  Visual). Deine Rückmeldung entscheidet, ob der Freeze weg ist.
+  Sag mir nach diesem Build: Fühlt sich „Spuren als Zuhause" richtig an? Dann
+  weiß ich, dass die Grundstruktur stimmt, und baue die vier Baustellen darauf.
