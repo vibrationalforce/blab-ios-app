@@ -12,6 +12,39 @@ acceptance line.
 - **Truth-source for status:** this file + the code. If the website disagrees, the code wins.
 - **Status legend:** `LIVE` = ships in build #1 · `PARTIAL` = some live, rest roadmap · `ROADMAP` = no code yet.
 
+> **UPDATE (2026-07-13) — Deep Audit ground truth + tracks-as-DAW night run (code-truth, v191–v192 + pure cores):**
+>
+> Full audit + ranked 30-item backlog: `scratchpads/BACKLOG_2026-07-13.md` +
+> `scratchpads/AUTONOMOUS_NIGHT_2026-07-13.md`. End-state (founder 2026-07-13): ONE
+> tracks-centric, bio-reactive DAW — 480-PPQ Transport (one clock), `ArrangeTimelineView`
+> (home), `EngineBus` (spine); every lane is an instrument OR a media carrier.
+>
+> **SHIPPED/WIRED this run:**
+> - **Tracks = instruments (v191)** — Add-Track menu offers EchoelDrums/Break/Sampler/
+>   Synth/Bass/Bio + a Video track; `TimelineLane.builtinInstrument`/`isArmed` persisted;
+>   per-track record-arm button shows the lane's INPUT source (audio-in / MIDI-in / bio) and
+>   turns red when armed. Model + UI complete; the per-source CAPTURE engine is device-gated.
+> - **AUv3 Generator visibility (v192)** — host scan now includes `kAudioUnitType_Generator`
+>   (many 3rd-party AUv3 instruments register as Generator, not MusicDevice) + a raw pre-filter
+>   makers/types breadcrumb to diagnose "only Apple shows" on device.
+> - **7 pure keystone cores (CI-green, Linux-tested):** `RPPGConditioning` (linearDetrend +
+>   perfusion gate + ACF-prominence — the rPPG-lock fix), `LaneVoiceRackPlan` (multi-roll slot
+>   reducer), `WarpedClipPlan`, `AudioClipFactory`, `RecordAnchor`, `VideoResyncPolicy`,
+>   `VideoExportPlan` — each a pure value core unblocking a device-gated wiring step (+ B05
+>   LaneVoicePool churn/overflow-promotion tests).
+>
+> **Corrected status (audit ground truth) — the vision's open gaps (MISSING or device-wiring pending):**
+> - rPPG pulse lock on device (pk=0/bpm=0/conf=0) — pure fix built (`RPPGConditioning`), device wiring = B03.
+> - Per-lane voice routing (tracks=instruments) — all MIDI lanes still share ONE voice; `LaneVoiceRack` = B07.
+> - Multi-roll fan-out — pure plan built, `TimelineRegionPlayer` still reads one `rollLaneID`; B08.
+> - Region add/move/trim gestures — `moveRegion`/`resizeRegion` pure & unused; B11.
+> - Audio-loop import into lanes / audio-lane playback — factory built (B14); door + player = B13/B15/B16.
+> - Per-track record capture — arm persisted, NO capture engine yet; B18/B19/B20 (dead `MultiTrackRecorder` = the audio half).
+> - Video-in-tracks playback — 4 pure cores done; `VideoLanePlayer` = B23, trim + BioGrade = B24.
+> - Master automation authoring — `AutomationCanvasMath` pure & unused; B25.
+> - Dead/idle: OSC `/mod` (B26), multi-fixture lighting (B29), EchoelStore StoreKit (B30 flag-gate),
+>   RTMP/HaishinKit (not linked), CloudSync (no adapter), Session/Entrainment (kept for flash/latency laws).
+
 > **UPDATE (2026-07-12) — interface reorg + weather multi-param + adaptive (code-truth, v171–v173):**
 > - **Hackbrett reorg (LIVE, v168/v171)** — the Mix panel is ONE board: the master voices
 >   (Bass · Melodic[Pad+Lead] · Drums) render as strip-cards (`EchoelStudioView.mixStripCard`,
