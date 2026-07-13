@@ -919,13 +919,28 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             //    pitch-space place (anti-strobe law: neither colour nor position can
             //    ever jump on a visible cloud, at any retrigger/steal rate).
             for k in 0..<5 {
-                let up = targetW[k] > cloudW[k]
-                // Ease-in split by source: a FINGER answers now (0.09); the
-                // generative bed breathes in (0.30) — its 16th-note retriggers at
-                // ~8/s otherwise bloom half-frame clouds in ~90 ms each, reading
-                // as rhythmic "shooting" synced to the roll (audit #3).
-                let inTau: Float = cloudTouch[k] ? 0.09 : 0.30
-                cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? inTau : 0.35, dt: dt)
+                if !cloudSeeded {
+                    // BIRTH SNAP (B9c, founder "immer noch grau" 2026-07-13): a fresh
+                    // renderer is born on EVERY fullscreen open / donut-toggle remount
+                    // (fullScreenCover builds lazily by design). Easing the weights up
+                    // from 0 painted 1–2 s of GREY on every open — the founder checks
+                    // the visual right after changing a look, so he kept landing in
+                    // that window (device log: five first-frame ccw=0.00 diags in one
+                    // 14 s stretch). Colour + place already SNAP on seed (slotSeeded);
+                    // the weights now join them, so already-sounding notes are fully
+                    // lit on frame 1. Not a flash-safety event: it is the view's first
+                    // content, not an oscillation; real note-ons after birth keep the
+                    // musical ease-in below.
+                    cloudW[k] = targetW[k]
+                } else {
+                    let up = targetW[k] > cloudW[k]
+                    // Ease-in split by source: a FINGER answers now (0.09); the
+                    // generative bed breathes in (0.30) — its 16th-note retriggers at
+                    // ~8/s otherwise bloom half-frame clouds in ~90 ms each, reading
+                    // as rhythmic "shooting" synced to the roll (audit #3).
+                    let inTau: Float = cloudTouch[k] ? 0.09 : 0.30
+                    cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? inTau : 0.35, dt: dt)
+                }
                 if !slotTaken[k], cloudW[k] < 0.004 { cloudID[k] = Int.min }   // slot free again
                 guard cloudHzSlot[k] > 0 else { continue }
                 // Closed-circle tone colour (purple-line seam): a chord on E/F/G
