@@ -82,11 +82,22 @@ public final class AudioClipPlayer {
         // Bake the fade envelope into the buffer — one control-plane pass BEFORE
         // scheduling, so no work reaches the render thread. Skipped for a looping
         // region: fades belong to the clip's edges, not every loop iteration.
+        // Only the fade EDGES are touched; the unity middle is left untouched
+        // (no wasted ×1.0 pass over the whole clip).
         if !region.loop, region.fadeInSeconds > 0 || region.fadeOutSeconds > 0,
            let channels = buffer.floatChannelData {
             let n = Int(buffer.frameLength)
             let chCount = Int(buffer.format.channelCount)
-            for i in 0..<n {
+            let dur = region.durationSeconds
+            let fin = Swift.min(region.fadeInSeconds, dur)
+            let fout = Swift.min(region.fadeOutSeconds, dur - fin)
+            let finFrames = Swift.min(n, Int((fin * sr).rounded(.up)))
+            let outStart = Swift.max(finFrames, n - Swift.min(n, Int((fout * sr).rounded(.up))))
+            for i in 0..<finFrames {
+                let g = region.fadeMultiplier(atElapsed: Double(i) / sr)
+                for ch in 0..<chCount { channels[ch][i] *= g }
+            }
+            for i in outStart..<n {
                 let g = region.fadeMultiplier(atElapsed: Double(i) / sr)
                 for ch in 0..<chCount { channels[ch][i] *= g }
             }
