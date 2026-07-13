@@ -46,6 +46,12 @@ struct PatchbayView: View {
                 #if canImport(Network)
                 lichtSection
                 #endif
+                #if os(iOS) && canImport(CoreAudioKit)
+                // The NavigationLink push needs the enclosing NavigationStack, which only
+                // exists on the sheet (non-embedded) path — so gate it to !embedded (no
+                // dead control in the dormant workspace path).
+                if !embedded { bluetoothMIDISection }
+                #endif
                 ForEach(router.graph.sources) { src in
                     sourceCard(src)
                 }
@@ -57,6 +63,45 @@ struct PatchbayView: View {
         }
         .background(EchoelTheme.bg)
     }
+
+    #if os(iOS) && canImport(CoreAudioKit)
+    // MARK: - Bluetooth MIDI (B6: pair a wireless controller — plays the synth directly)
+    /// A titled card (same grammar as `lichtSection`) with a single push to Apple's
+    /// built-in BLE-MIDI central. A NavigationLink PUSH — not a `.sheet`/`.fullScreenCover`
+    /// — so `EchoelStudioView`'s modal metadata chain does not grow. A paired controller
+    /// becomes a CoreMIDI source that `MIDIInput` auto-connects → real synth notes.
+    private var bluetoothMIDISection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Bluetooth MIDI").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            NavigationLink {
+                BluetoothMIDIPairingView()
+                    .navigationTitle("Bluetooth MIDI")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .ignoresSafeArea()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "pianokeys").font(.system(size: 13)).foregroundStyle(EchoelTheme.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pair a controller")
+                            .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                        Text("Pair a wireless MIDI keyboard or controller — it plays the synth directly.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Pair a Bluetooth MIDI controller")
+            .accessibilityHint("Opens Apple's Bluetooth MIDI pairing. A paired controller plays the synth directly.")
+        }
+    }
+    #endif
 
     #if canImport(Network)
     // MARK: - Licht (L1: Grand Master + Blackout, drives Art-Net AND sACN)
