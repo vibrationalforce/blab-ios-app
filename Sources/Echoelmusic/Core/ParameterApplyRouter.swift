@@ -42,6 +42,13 @@ public final class ParameterApplyRouter {
         setters[keyPath] = setter
     }
 
+    /// Remove the live setter for a keyPath (e.g. a hosted AU is unloaded). The
+    /// registry descriptor may linger, but with no setter it drops out of
+    /// `automatableDescriptors()` and `applyNormalized` becomes a safe no-op.
+    public func unbind(_ keyPath: String) {
+        setters[keyPath] = nil
+    }
+
     /// Apply a NORMALIZED 0…1 value (the automation-lane / tool value): denormalize
     /// through the registry descriptor, then dispatch the real value to the bound
     /// setter. Returns the applied real value, or nil (a safe no-op) when there is no
