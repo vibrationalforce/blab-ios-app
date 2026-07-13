@@ -422,7 +422,8 @@ public final class AUv3Host {
         // walks the registry directly — belt-and-suspenders so EVERY installed
         // third-party instrument/effect shows up, not just Apple's.
         var descriptions = [AudioComponentDescription()]   // all-zero = every component
-        for t in [kAudioUnitType_MusicDevice, kAudioUnitType_Effect, kAudioUnitType_MusicEffect] {
+        for t in [kAudioUnitType_MusicDevice, kAudioUnitType_Generator,
+                  kAudioUnitType_Effect, kAudioUnitType_MusicEffect] {
             var d = AudioComponentDescription()
             d.componentType = t
             descriptions.append(d)
@@ -430,10 +431,21 @@ public final class AUv3Host {
         var components: [AVAudioUnitComponent] = []
         for d in descriptions { components.append(contentsOf: mgr.components(matching: d)) }
         components.append(contentsOf: mgr.components(passingTest: { _, _ in true }))
+        // Diagnostic ground truth (into the device log): what the OS returned
+        // BEFORE our type filter — the distinct makers + component TYPEs. If a
+        // non-Apple maker shows HERE but not in the hosted lists, our type filter
+        // dropped it (the type FourCC says which type to add); if only Apple shows
+        // here too, iOS hasn't registered the third-party AUv3 extensions to this
+        // host yet (their containing apps must be opened once to activate them).
+        let rawMakers = Set(components.map(\.manufacturerName)).sorted()
+        let rawTypes = Set(components.map {
+            AUParameterMapping.fourCC($0.audioComponentDescription.componentType) }).sorted()
         let infos: [HostedAUInfo] = components.compactMap { c in
             let type = c.audioComponentDescription.componentType
-            // Only host the kinds a DAW channel uses: instruments + effects.
-            let isInstrument = (type == kAudioUnitType_MusicDevice)
+            // Host every AUv3 sound source + effect a DAW channel uses. NOTE: many
+            // third-party AUv3 INSTRUMENTS register as Generator, not MusicDevice —
+            // include it so they appear (founder: "sehe nur die Apple AUv3").
+            let isInstrument = (type == kAudioUnitType_MusicDevice || type == kAudioUnitType_Generator)
             let isEffect = (type == kAudioUnitType_Effect || type == kAudioUnitType_MusicEffect)
             guard isInstrument || isEffect else { return nil }
             let desc = c.audioComponentDescription
@@ -456,7 +468,9 @@ public final class AUv3Host {
         let makers = Set(instruments.map(\.manufacturer) + effects.map(\.manufacturer))
             .sorted().joined(separator: ", ")
         EchoelCrashLog.breadcrumb(
-            "auv3 scan: \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)")
+            "auv3 scan: \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)"
+            + " | raw \(components.count) comps, rawMakers: [\(rawMakers.joined(separator: ","))]"
+            + " rawTypes: [\(rawTypes.joined(separator: ","))]")
         #endif
         didScan = true
     }
