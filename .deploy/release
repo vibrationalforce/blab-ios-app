@@ -1,24 +1,23 @@
-build: 2026-07-13 v10.79.185 (Der ECHTE Grau-Bug: Gamma — das Visual rechnet richtig, zeigte aber falsch an)
+build: 2026-07-13 v10.79.186 (Geburts-Grau: jedes Öffnen startete das Visual bei Null — jetzt sofort in Farbe)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: „Immer noch grau" — verstanden, tiefer gegraben, GEFUNDEN.
-  v184 hatte an den Farb-Konstanten gedreht — aber die dominante Ursache
-  war eine Ebene tiefer: ein TRANSFER-FUNKTIONS-BUG (Gamma).
-  · Der Shader rechnet physikalisch korrekt in LINEAREM Licht (CIE),
-    kodiert aber nichts — und der Framebuffer war non-sRGB. Das Display
-    interpretierte die linearen Werte als bereits kodiert: Mitteltöne
-    auf ~40 % gecrusht, jede satte Farbe → dunkles Matschgrau.
-  · DER BEWEIS: die Donut-/Tasten-Farben laufen durch SpectralColor,
-    das sehr wohl gamma-kodiert — darum waren sie bunt, während das
-    Visual grau blieb. Beide „Zwillinge" differierten um exakt eine
-    Gamma-Kurve.
-  · FIX: das Visual rendert jetzt in einen sRGB-Framebuffer — die GPU
-    kodiert korrekt. Das ganze Bild wird heller und farbiger; auch
-    AUFNAHMEN bekommen erstmals korrekt helle Frames (waren stets zu
-    dunkel — jetzt erklärbar).
-  · NEU IM LOG: die visual:-Zeile trägt jetzt „ccw=" (Farb-Reichweite)
-    und „c0=r/g/b" (erste Wolken-Farbe) — dein nächstes Log MISST Farbe.
-  BITTE: Visual öffnen, spielen — jetzt sollte es leuchten. Wenn es
-  IRGENDWO noch nicht stimmt (zu grell/zu warm/falsche Stelle): am
-  stärksten hilft ein kurzes SCREEN-RECORDING als Upload — ich sehe
-  Videos jetzt Frame für Frame (neuer video-watch-Skill) und kann
-  gezielt nachjustieren. NEEDS-FOUNDER-VERIFY (Augen).
+notes: Dein Screen-Recording + das v185-Log haben es verraten: die Farbe
+  WAR da (bei Sekunde ~19 leuchtet dein Video voll) — aber JEDES Öffnen
+  des Vollbild-Visuals baut den Renderer NEU, und der blendete die
+  Wolken-Gewichte von 0 hoch: 1–2 Sekunden Grau bei jedem Öffnen.
+  Du prüfst das Visual naturgemäß direkt nach dem Öffnen — du bist
+  also jedes Mal genau im Grau-Fenster gelandet. (Beweis im Log:
+  mehrere „erste Frames" mit ccw=0.00 in kürzeren Abständen, als die
+  Log-Drossel erlaubt = lauter frische Renderer-Instanzen.)
+  · FIX: beim allerersten Frame SCHNAPPEN die Gewichte auf die bereits
+    klingenden Noten (Farbe+Position schnappten schon) — das Visual ist
+    ab Frame 1 voll in Farbe. Alle musikalischen Ein-/Ausblendungen
+    danach bleiben unverändert.
+  · PITCH („Video hochgepitcht"): ich habe die Tonhöhe deiner Aufnahme
+    VERMESSEN — sie liegt exakt auf dem A440-Raster (+0,0 Cent,
+    D-zentriert: A2/D3/A3/D4/D5). Die Aufnahme ist also NICHT gepitcht.
+    Meine Hypothese: LIVE klang es ~9 % ZU TIEF (Sample-Rate-Route
+    48↔44,1), und die Aufnahme zeigt die korrekte Höhe. BITTE BESTÄTIGE:
+    Klang es live auf dem Gerät tiefer als im Video? Dann fasse ich die
+    Audio-Route an (eigener, vorsichtiger Zyklus).
+  BITTE: Visual mehrfach öffnen/schließen während es spielt — es muss
+  jetzt JEDES Mal sofort leuchten. NEEDS-FOUNDER-VERIFY (Augen+Ohren).
