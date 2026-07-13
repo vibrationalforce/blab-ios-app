@@ -1,42 +1,44 @@
-# QA-Audit — externe AUv3-Türen (Item 3), 2026-07-13
+# QA-Audit — externe AUv3-Türen (Item 3), 2026-07-13 — GESCHLOSSEN
 
 Read-only Code-QA (kein Crash, keine ungesicherten Indizes, keine harten Sackgassen —
-jede Sheet hat funktionierendes „Done"). 6 Befunde, gerankt. Fixes einzeln, Ralph-Takt.
+jede Sheet hat funktionierendes „Done"). 6 Befunde. Endstand unten.
 
-## Behoben
-- **#1 MEDIUM — Overclaim State-Recall (BEHOBEN, f8aa5ae).** Browser sagte „Settings are
-  saved and recalled across sessions", real nur `fullState` (Knobs) pro Plugin-ID; die
-  geladene Plugin-AUSWAHL wird beim Start nicht re-instanziiert. Copy ehrlich gemacht.
-  Echtes Auto-Reload = U5.
+## Behoben (Code)
+- **#1 MEDIUM — Overclaim State-Recall (f8aa5ae).** Browser sagte „Settings are saved
+  and recalled across sessions", real nur `fullState` (Knobs) pro Plugin-ID; die
+  geladene Plugin-AUSWAHL wird beim Start nicht re-instanziiert. Copy ehrlich gemacht
+  („Each plugin's own settings return when you reload it"). Echtes Auto-Reload = U5.
+- **#2 MEDIUM — Concurrent loads ohne Guard (7d1ccf2).** `guard !isLoading` in
+  `load()`/`loadMasterEffect()` (der @MainActor-Prolog ist synchron → der zweite Tap
+  sieht true und returned) + `.disabled(host.isLoading)` auf den Rows. Concurrency-
+  reviewed, 0 Issues.
+- **#5 LOW — stale loadError (3c9a3e5).** `clearLoadError()` in `onAppear` → ein alter
+  Fehler bleibt beim Browser-Reopen nicht stehen.
 
-## Offen (Follow-ups, gerankt)
-- **#2 MEDIUM — Concurrent loads ohne Guard.** `AUv3Host.load`/`loadMasterEffect` async
-  mit `await instantiate`; Browser-Rows feuern je ein `Task { await host.load }` ohne
-  Row-Disable. `isLoading` ist Display-Flag, kein Mutex → zwei schnelle Taps: Spinner
-  räumt früh ab (last-writer-wins), Replace/Detach-Branch kann gegen mid-flight-Instrument
-  laufen. FIX: Re-Entrancy-Guard (ignorieren/queuen während `isLoading`) und/oder Rows
-  disablen. **NÄCHSTER Item-3-Zyklus (braucht concurrency-reviewer, live load path).**
-- **#3 MEDIUM — U3b-Belegung wird stale + ist heute klanglich inert** (Routing wartet auf
+## Verifiziert — kein Code nötig
+- **#4 LOW-MED — leere Plugin-UI: SCHON GELÖST.** `AUv3PluginContainerVC.attach(_:)`
+  (AUv3PluginUIView.swift:63-68) behandelt nil `childVC` explizit: „This plugin has no
+  custom interface on iOS." Die QA war ein „verify" → bereits abgedeckt.
+- **#6 LOW — dup-effect ohne Cue: REDUNDANT.** Die `loadedBar` listet jede Effekt-
+  Instanz einzeln (`→ FXName`); Picker-Zeilen geladener Effekte sind `highlighted`.
+  Duplikate sind bereits sichtbar → kein Fix.
+
+## Offen — NICHT allein baubar
+- **#3 MEDIUM — U3b-Belegung stale + heute klanglich inert** (Routing wartet auf
   Multi-Roll). Badge/Summary impliziert aktives Plugin; nach Unload/Swap zeigt
-  `lane.instrument` weiter das alte Ref. Als „persisted intent" dokumentiert (Commit +
-  CLAUDE.md), aber User weiß nicht, dass es (noch) nichts hört. Optionen: Assign hinter
-  echtes Routing gaten ODER Summary annotieren „(gilt, sobald Per-Spur-Routing kommt)".
-  → Founder-Entscheid ODER mit Multi-Roll auflösen.
-- **#4 LOW-MED — Plugin-UI-Sheet evtl. leer** für AUs ohne eigene UI (`AUv3PluginUIView`
-  bei nil `requestViewController`). Kein Dead-End (Done dismisst), aber keine „kein
-  Interface"-Meldung. FIX: Leerfall-Text.
-- **#5 LOW — `loadError` bleibt stale** über Browser-Close/Reopen (nur bei nächstem
-  Load-Start geleert). FIX: bei `onAppear`/`scan()`/erfolgreichem `unload` clearen.
-- **#6 LOW — Doppelte Effekt-Insertion** ohne Cue (Tap zweimal = zwei Instanzen; laut
-  Kommentar beabsichtigt). FIX: dezenter Hinweis/Bestätigung.
+  `lane.instrument` weiter das alte Ref. Als „persisted intent" dokumentiert. Optionen:
+  Assign hinter echtes Routing gaten ODER Summary annotieren — **Founder-Entscheid**
+  ODER löst sich mit Multi-Roll (Z6 Per-Spur-Instrument-Verdrahtung).
 
-## Verwandt: U5 (echtes State-Recall, deferred)
+## Verwandt: U5 (echtes State-Recall, deferred Feature)
 Auto-Reload der letzten Rig-Auswahl beim Start (Instrument + Insert-FX + Master-FX
-re-instanziieren, dann `restoreState`). Berührt live audio graph (async) → e2e-Review.
-Löst #1 in echt und macht #3 klanglich real (in Verbindung mit Multi-Roll-Routing).
+re-instanziieren, dann `restoreState`). Berührt live audio graph (async) → e2e-Review +
+Device-Messung. Löst #1 in echt und macht #3 klanglich real (mit Multi-Roll-Routing).
 
 ## Kategorie-Verdikte (clean)
-- Index-Safety: CLEAN (alle `indices.contains`-guarded; parallele Arrays sync, kein await
-  dazwischen, @MainActor seriell).
-- `isLoading` stuck-true: nur im Concurrent-Fall (#2) erreichbar; Single-Load do/catch
-  räumt auf beiden Pfaden ab.
+- Index-Safety: CLEAN (alle `indices.contains`-guarded; parallele Arrays sync, kein
+  await dazwischen, @MainActor seriell).
+- `isLoading` stuck-true: war nur im Concurrent-Fall (#2) erreichbar → mit #2 behoben.
+
+**FAZIT:** Item-3-QA geschlossen. Alle substanziellen Befunde behoben; Rest verifiziert
+harmlos oder = Founder-Entscheid/Multi-Roll-Scope. Kein offener Code-Punkt.
