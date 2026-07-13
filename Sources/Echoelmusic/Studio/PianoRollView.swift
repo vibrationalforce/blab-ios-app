@@ -367,6 +367,18 @@ public final class PianoRollModel {
         return !ops.hits(for: note, loopIndex: loopPass, seed: seed, coherence: coherence).isEmpty
     }
 
+    /// The body's per-note EXPRESSION for this loop pass (A5 bio-per-note). Plain
+    /// notes (nil/default operators) and an absent body return the identity (scale 1,
+    /// no shift, brightness nil), so plain takes stay byte-identical. Pure + nonisolated
+    /// so the law is unit-tested without a transport, exactly like `operatorAllows`.
+    public nonisolated static func noteExpression(_ note: Note, loopPass: Int, seed: UInt64,
+                                                  coherence: Double? = nil,
+                                                  breath: Double? = nil) -> NoteExpression {
+        guard let ops = note.operators, !ops.isDefault else { return NoteExpression() }
+        return ops.expression(for: note, loopIndex: loopPass, seed: seed,
+                              coherence: coherence, breath: breath)
+    }
+
     /// Stable per-voice identity for tie matching — mirrors `sameVoice` exactly:
     /// only two voices exist (main, dedicated lead), so the key is 1 iff the role
     /// routes to a DISTINCT lead voice, else 0.
@@ -429,6 +441,9 @@ public final class PianoRollModel {
         // player's settling literally fills the pattern out. No bio → nil →
         // the gate stays fully deterministic.
         let operatorCoherence = bus?.usableBio().map { Double($0.coherence) }
+        // A5 bio-per-note: breath rides the same control-plane snapshot as coherence and
+        // shapes each note's velocity (see the `starting` attack loop). nil body → identity.
+        let operatorBreath = bus?.usableBio().map { Double($0.breathPhase) }
         let starting = notes.filter {
             $0.startStep == step
                 && Self.operatorAllows($0, loopPass: operatorLoopPass, seed: Self.operatorSeed,
@@ -480,7 +495,13 @@ public final class PianoRollModel {
         let laneGain = max(0, min(2, mixGain))
         let laneAudible = laneGain > 0.001
         for note in starting where !tiedStart.contains(note.id) {
-            let v = min(1, note.velocity * laneGain)
+            // A5 bio-per-note EXPRESSION: coherence + breath scale this note's velocity
+            // (identity when the note has no expression depth or no body → v unchanged).
+            // Timing/brightness are modelled too but not yet wired (sub-tick clock W2 /
+            // per-note filter input pending). Clamp is preserved.
+            let exp = Self.noteExpression(note, loopPass: operatorLoopPass, seed: Self.operatorSeed,
+                                          coherence: operatorCoherence, breath: operatorBreath)
+            let v = min(1, note.velocity * laneGain * exp.velocityScale)
             if !suppressBuiltIn, laneAudible { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: v) }
             if laneAudible {
                 midiOut?.noteOn(pitch: note.pitch, velocity: v, expression: expression)

@@ -29,6 +29,24 @@ public struct NoteHit: Equatable, Sendable {
     }
 }
 
+/// One note's EXPRESSION for a loop pass (A5 bio-per-note): how the body shapes
+/// this note's dynamics this time round. `velocityScale` multiplies the note-on
+/// amplitude (the only dimension wired today); `timingOffsetTicks` and
+/// `brightness` are tested model outputs reserved for the sub-tick clock (W2) and
+/// a future per-note filter input. The identity (`.init()`) touches nothing:
+/// scale 1, no shift, `brightness == nil` (leave the filter alone).
+public struct NoteExpression: Equatable, Sendable {
+    public var velocityScale: Float
+    public var timingOffsetTicks: Int
+    public var brightness: Float?
+
+    public init(velocityScale: Float = 1, timingOffsetTicks: Int = 0, brightness: Float? = nil) {
+        self.velocityScale = velocityScale
+        self.timingOffsetTicks = timingOffsetTicks
+        self.brightness = brightness
+    }
+}
+
 /// Per-note operators: whether and how a note plays on each pass of the loop.
 /// The default instance is a transparent no-op (note plays plainly every loop),
 /// so `Note.operators == nil` and `.init()` behave identically.
@@ -50,21 +68,44 @@ public struct NoteOperators: Codable, Sendable, Equatable {
     /// Which pass inside the period plays, 0…period−1.
     public var occurrencePhase: Int
 
+    /// A5 bio-per-note EXPRESSION depths (all default 0 = transparent). Coherence +
+    /// breath deterministically shape the note's dynamics each loop pass; the depth is
+    /// how far the body is allowed to move that dimension. `velocityDepth` (−1…1) is
+    /// wired (note-on amplitude); `timingDepth` (−1…1) and `filterDepth` (0…1) are
+    /// tested model outputs, not yet wired (see `expression(for:…)`).
+    public var velocityDepth: Double
+    public var timingDepth: Double
+    public var filterDepth: Double
+
     public static let repeatsRange = 1...32
     public static let periodRange = 1...64
 
+    /// Distinct salt for the expression jitter so it is DE-CORRELATED from the chance
+    /// roll (which uses `0xD1B54A32D192ED03`); otherwise a whole gated chord would
+    /// swell/thin as one unit instead of each note breathing on its own.
+    static let expressionSalt: UInt64 = 0x94D049BB133111EB
+    /// Micro-timing jitter window in ticks (± this), small so it humanizes, not drags.
+    static let maxTimingTicks = 12
+    static let velScaleMin: Float = 0.1     // expression never fully mutes (that is chance's job)
+    static let velScaleMax: Float = 2.0
+
     public init(chance: Double = 1, repeats: Int = 1, repeatRamp: Double = 0,
-                occurrencePeriod: Int = 1, occurrencePhase: Int = 0) {
+                occurrencePeriod: Int = 1, occurrencePhase: Int = 0,
+                velocityDepth: Double = 0, timingDepth: Double = 0, filterDepth: Double = 0) {
         self.chance = Self.clampUnit(chance, fallback: 1)
         self.repeats = Self.clampInt(repeats, to: Self.repeatsRange)
         self.repeatRamp = Self.clampRamp(repeatRamp)
         self.occurrencePeriod = Self.clampInt(occurrencePeriod, to: Self.periodRange)
         self.occurrencePhase = min(max(0, occurrencePhase), self.occurrencePeriod - 1)
+        self.velocityDepth = Self.clampRamp(velocityDepth)      // −1…1
+        self.timingDepth = Self.clampRamp(timingDepth)          // −1…1
+        self.filterDepth = Self.clampUnit(filterDepth, fallback: 0)  // 0…1
     }
 
     /// True when this instance changes nothing (the note plays plainly).
     public var isDefault: Bool {
         chance >= 1 && repeats == 1 && repeatRamp == 0 && occurrencePeriod == 1
+            && velocityDepth == 0 && timingDepth == 0 && filterDepth == 0
     }
 
     // MARK: Evaluation (pure, deterministic — bio bends the dice, never the die)
@@ -80,6 +121,57 @@ public struct NoteOperators: Codable, Sendable, Equatable {
         guard let c = coherence, c.isFinite, chance > 0, chance < 1 else { return chance }
         let bend = (min(1, max(0, c)) - 0.5)          // −0.5 … +0.5
         return min(1, max(0, chance + bend))
+    }
+
+    /// A5 per-note EXPRESSION: how coherence + breath shape THIS note's dynamics on
+    /// loop pass `loopIndex`. Mirrors `bioBentChance` exactly — coherence 0.5 is
+    /// NEUTRAL, no body (both `coherence` and `breath` nil) OR all depths 0 → identity
+    /// — so legacy/plain notes are byte-identical and a settled body simply lets the
+    /// pattern breathe. Velocity is a SMOOTH deterministic function of the body (no
+    /// jitter → neutral bio returns exactly the un-bent centre, parity with the chance
+    /// roll); the small seeded per-note jitter rides on the (still-unwired) micro-timing
+    /// so a whole chord doesn't move as one block. Fully reproducible (SeededRNG +
+    /// UUID-fold, never `Hasher`), clamped, and safe for a noisy/absent body.
+    public func expression(for note: Note, loopIndex: Int, seed: UInt64,
+                           coherence: Double?, breath: Double?) -> NoteExpression {
+        // No body present at all → pure identity (mirrors the bioBentChance nil-guard).
+        guard coherence != nil || breath != nil else { return NoteExpression() }
+
+        // Coherence 0.5 = neutral (delta 0); breath is a raised hump, 0 at the cycle
+        // ends and 1 at mid-cycle (sin, matching the trigger's breathSwell convention).
+        // A nil or non-finite field contributes nothing (safe for a noisy/absent body).
+        let cohDelta: Double = {
+            guard let c = coherence, c.isFinite else { return 0 }
+            return min(1, max(0, c)) - 0.5              // −0.5 … +0.5
+        }()
+        let breathHump: Double = {
+            guard let b = breath, b.isFinite else { return 0 }
+            return sin(min(1, max(0, b)) * .pi)         // 0 … 1, hump
+        }()
+        let bodyBend = cohDelta + 0.5 * breathHump      // −0.5 … +1.0
+
+        // Velocity (WIRED): smooth, jitter-free → neutral body = exact centre 1.
+        let velScale: Float = velocityDepth == 0
+            ? 1
+            : min(Self.velScaleMax, max(Self.velScaleMin, Float(1 + velocityDepth * bodyBend)))
+
+        // Micro-timing (MODEL-ONLY, unwired): a small seeded jitter, de-correlated from
+        // the chance roll via a distinct salt so each note breathes independently.
+        var timing = 0
+        if timingDepth != 0 {
+            var rng = SeededRNG(seed: seed
+                ^ Self.fold(note.id)
+                ^ (UInt64(max(0, loopIndex)) &* Self.expressionSalt))
+            let jitter = (Double(rng.unit()) - 0.5) * 2      // −1 … 1
+            timing = Int((timingDepth * jitter * Double(Self.maxTimingTicks)).rounded())
+        }
+
+        // Brightness (MODEL-ONLY, unwired): nil unless the filter depth is engaged.
+        let bright: Float? = filterDepth == 0
+            ? nil
+            : min(1, max(0, Float(0.5 + filterDepth * bodyBend)))
+
+        return NoteExpression(velocityScale: velScale, timingOffsetTicks: timing, brightness: bright)
     }
 
     /// The hits this note produces on loop pass `loopIndex` (0-based), or `[]`
@@ -151,6 +243,7 @@ public struct NoteOperators: Codable, Sendable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case chance, repeats, repeatRamp, occurrencePeriod, occurrencePhase
+        case velocityDepth, timingDepth, filterDepth
     }
 
     public init(from decoder: Decoder) throws {
@@ -160,6 +253,26 @@ public struct NoteOperators: Codable, Sendable, Equatable {
             repeats: try c.decodeIfPresent(Int.self, forKey: .repeats) ?? 1,
             repeatRamp: try c.decodeIfPresent(Double.self, forKey: .repeatRamp) ?? 0,
             occurrencePeriod: try c.decodeIfPresent(Int.self, forKey: .occurrencePeriod) ?? 1,
-            occurrencePhase: try c.decodeIfPresent(Int.self, forKey: .occurrencePhase) ?? 0)
+            occurrencePhase: try c.decodeIfPresent(Int.self, forKey: .occurrencePhase) ?? 0,
+            velocityDepth: try c.decodeIfPresent(Double.self, forKey: .velocityDepth) ?? 0,
+            timingDepth: try c.decodeIfPresent(Double.self, forKey: .timingDepth) ?? 0,
+            filterDepth: try c.decodeIfPresent(Double.self, forKey: .filterDepth) ?? 0)
+    }
+
+    /// Custom encoder that preserves BYTE-IDENTITY for pre-A5 operators: the original
+    /// five fields are written in the same order the synthesized encoder used, and each
+    /// expression depth is emitted ONLY when non-zero. So a chance/repeat/occurrence
+    /// operator serializes exactly as before (old builds keep ignoring absent keys),
+    /// and the new fields cost nothing until a note actually uses expression.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(chance, forKey: .chance)
+        try c.encode(repeats, forKey: .repeats)
+        try c.encode(repeatRamp, forKey: .repeatRamp)
+        try c.encode(occurrencePeriod, forKey: .occurrencePeriod)
+        try c.encode(occurrencePhase, forKey: .occurrencePhase)
+        if velocityDepth != 0 { try c.encode(velocityDepth, forKey: .velocityDepth) }
+        if timingDepth != 0 { try c.encode(timingDepth, forKey: .timingDepth) }
+        if filterDepth != 0 { try c.encode(filterDepth, forKey: .filterDepth) }
     }
 }

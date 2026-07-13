@@ -261,4 +261,134 @@ final class NoteOperatorsTests: XCTestCase {
                 PianoRollModel.operatorAllows(note(), loopPass: pass, seed: 9))
         }
     }
+
+    // MARK: A5 — bio-per-note expression (coherence + breath shape dynamics)
+
+    func testExpression_depthZero_isIdentity() {
+        let ops = NoteOperators()   // all depths 0
+        for c: Double in [0, 0.5, 1] {
+            let e = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: c, breath: 0.5)
+            XCTAssertEqual(e, NoteExpression(), "no depth → identity regardless of body")
+        }
+    }
+
+    func testExpression_nilBio_isIdentity() {
+        // No body at all → identity even with depths set (mirrors the bioBentChance nil-guard).
+        let ops = NoteOperators(velocityDepth: 1, timingDepth: 1, filterDepth: 1)
+        let e = ops.expression(for: note(), loopIndex: 3, seed: 1, coherence: nil, breath: nil)
+        XCTAssertEqual(e, NoteExpression())
+    }
+
+    func testExpression_neutralAtMidCoherence() {
+        // Coherence 0.5 + breath at a cycle end (hump 0) → the un-bent centre (scale 1),
+        // parity with testBioBentChance_neutralAtMidCoherence.
+        let ops = NoteOperators(velocityDepth: 0.5)
+        let e = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: 0.5, breath: 0)
+        XCTAssertEqual(e.velocityScale, 1, accuracy: 1e-6)
+    }
+
+    func testExpression_highCoherenceLiftsVelocity_lowThins() {
+        let ops = NoteOperators(velocityDepth: 0.5)
+        let hi = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: 0.9, breath: nil)
+        let lo = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: 0.1, breath: nil)
+        XCTAssertGreaterThan(hi.velocityScale, 1, "settled body lifts velocity")
+        XCTAssertLessThan(lo.velocityScale, 1, "unsettled body thins it")
+        // Symmetric around the centre.
+        XCTAssertEqual(hi.velocityScale - 1, 1 - lo.velocityScale, accuracy: 1e-6)
+    }
+
+    func testExpression_isDeterministic_sameInputsSameOutput() {
+        let ops = NoteOperators(velocityDepth: 0.5, timingDepth: 0.5, filterDepth: 0.5)
+        let a = ops.expression(for: note(), loopIndex: 4, seed: 77, coherence: 0.7, breath: 0.3)
+        let b = ops.expression(for: note(), loopIndex: 4, seed: 77, coherence: 0.7, breath: 0.3)
+        XCTAssertEqual(a, b, "process-stable: SeededRNG + UUID-fold, never Hasher")
+    }
+
+    func testExpression_decorrelatedFromChanceRoll() {
+        // The expression jitter (on micro-timing) uses a DISTINCT salt, so it is not
+        // locked to the chance roll's play/silence outcome — a whole gated chord must
+        // not swell/thin as one block.
+        let ops = NoteOperators(chance: 0.5, timingDepth: 0.8)
+        var chancePlaysButTimingNegative = false
+        var chanceSilentButTimingPositive = false
+        for loop in 0..<128 {
+            let plays = !ops.hits(for: note(), loopIndex: loop, seed: 5).isEmpty
+            let timing = ops.expression(for: note(), loopIndex: loop, seed: 5,
+                                        coherence: 0.5, breath: 0.5).timingOffsetTicks
+            if plays && timing < 0 { chancePlaysButTimingNegative = true }
+            if !plays && timing > 0 { chanceSilentButTimingPositive = true }
+        }
+        XCTAssertTrue(chancePlaysButTimingNegative && chanceSilentButTimingPositive,
+                      "timing jitter must not track the chance dice")
+    }
+
+    func testExpression_clampsAndGuardsBadInput() {
+        let ops = NoteOperators(velocityDepth: 1, timingDepth: 1, filterDepth: 1)
+        for (c, b): (Double, Double) in [(7, 3), (.nan, -5), (-2, .infinity)] {
+            let e = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: c, breath: b)
+            XCTAssertTrue(e.velocityScale.isFinite)
+            XCTAssertGreaterThanOrEqual(e.velocityScale, NoteOperators.velScaleMin)
+            XCTAssertLessThanOrEqual(e.velocityScale, NoteOperators.velScaleMax)
+            XCTAssertLessThanOrEqual(abs(e.timingOffsetTicks), NoteOperators.maxTimingTicks)
+            if let br = e.brightness { XCTAssertTrue(br >= 0 && br <= 1) }
+        }
+    }
+
+    func testExpression_breathShaping_humpNotSaw() {
+        // sin hump: phase 0 and 1 are the cycle-end value; phase 0.5 is the peak.
+        let ops = NoteOperators(velocityDepth: 0.5)
+        let atZero = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: 0.5, breath: 0)
+        let atOne = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: 0.5, breath: 1)
+        let atHalf = ops.expression(for: note(), loopIndex: 0, seed: 1, coherence: 0.5, breath: 0.5)
+        XCTAssertEqual(atZero.velocityScale, atOne.velocityScale, accuracy: 1e-6, "cycle ends match")
+        XCTAssertGreaterThan(atHalf.velocityScale, atZero.velocityScale, "mid-breath is the peak")
+    }
+
+    func testExpression_isDefaultIncludesExpressionDepths() {
+        XCTAssertTrue(NoteOperators().isDefault)
+        XCTAssertFalse(NoteOperators(velocityDepth: 0.3).isDefault)
+        XCTAssertFalse(NoteOperators(timingDepth: 0.3).isDefault)
+        XCTAssertFalse(NoteOperators(filterDepth: 0.3).isDefault)
+    }
+
+    func testOperatorsJSON_chanceOnly_byteIdenticalAfterExpressionFields() throws {
+        // A chance/repeat operator must serialize with NO *Depth key, so its JSON stays
+        // byte-identical to pre-A5 (old builds keep ignoring absent keys).
+        let ops = NoteOperators(chance: 0.7, repeats: 3, repeatRamp: 0.25)
+        let json = try XCTUnwrap(String(data: JSONEncoder().encode(ops), encoding: .utf8))
+        XCTAssertFalse(json.contains("Depth"), "no expression key emitted for a chance-only operator")
+    }
+
+    func testOperators_expressionRoundTrip() throws {
+        let ops = NoteOperators(chance: 0.8, velocityDepth: 0.4, timingDepth: -0.3, filterDepth: 0.6)
+        let back = try JSONDecoder().decode(NoteOperators.self, from: JSONEncoder().encode(ops))
+        XCTAssertEqual(back, ops)
+        // Legacy JSON without the depth keys decodes to zero depths.
+        let legacy = try JSONDecoder().decode(NoteOperators.self, from: Data(#"{"chance":0.5}"#.utf8))
+        XCTAssertEqual(legacy.velocityDepth, 0)
+        XCTAssertEqual(legacy.timingDepth, 0)
+        XCTAssertEqual(legacy.filterDepth, 0)
+    }
+
+    // MARK: A5 gate helper (PianoRollModel.noteExpression)
+
+    func testGate_noteExpression_plainNote_isIdentity() {
+        let n = note()   // operators == nil
+        for pass in [-1, 0, 5] {
+            let e = PianoRollModel.noteExpression(n, loopPass: pass, seed: 1,
+                                                  coherence: 0.9, breath: 0.5)
+            XCTAssertEqual(e, NoteExpression(), "a plain note never expresses")
+        }
+    }
+
+    func testGate_noteExpression_scalesVelocityWithCoherence() {
+        var n = note()
+        n.operators = NoteOperators(velocityDepth: 0.5)
+        let hi = PianoRollModel.noteExpression(n, loopPass: 0, seed: 1, coherence: 0.9, breath: nil)
+        let lo = PianoRollModel.noteExpression(n, loopPass: 0, seed: 1, coherence: 0.1, breath: nil)
+        let none = PianoRollModel.noteExpression(n, loopPass: 0, seed: 1, coherence: nil, breath: nil)
+        XCTAssertGreaterThan(hi.velocityScale, 1)
+        XCTAssertLessThan(lo.velocityScale, 1)
+        XCTAssertEqual(none.velocityScale, 1, "no body → identity")
+    }
 }
