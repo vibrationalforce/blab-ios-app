@@ -1,29 +1,23 @@
-build: 2026-07-13 v10.79.189 (Spuren sind jetzt das Zuhause + Kamera-Freeze-Fix)
+build: 2026-07-13 v10.79.190 (Produzierbare Loops: 8 Takte + klarere Eins)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: Direkt aus deiner Rückmeldung. ZWEI Dinge zum Beurteilen:
+notes: P0 der Restrukturierung — die erste HÖRBARE Scheibe. Aus deinem Feedback
+  ("man findet die Eins nicht … 8 Takte vollständig und dann wiederholt es sich —
+  sinnvolle Loops sind am besten zum Musik produzieren").
 
-  1) SPUREN SIND DAS ZUHAUSE. Du hast gesagt „ich wollte alles über die Spuren
-     machen" — und genau das war der Grund, warum die Sachen „nicht da" waren:
-     die Timeline (deine Spuren) war standardmäßig zu einem dünnen Balken
-     zusammengeklappt, du bist immer auf dem Ein-Knopf-Instrument gelandet.
-     JETZT öffnet die App direkt in den Spuren (Timeline oben, groß), das
-     Instrument bleibt darunter erreichbar. In jedem Spurkopf-Menü (auf den
-     Spurnamen tippen) stecken die ganzen Funktionen, die du gebaut geglaubt/
-     vermisst hast: Piano Roll · Sound & FX · AUv3 zuweisen · Automation ·
-     (bei Audio-Spuren) Clips. BITTE PRÜFEN: Siehst du beim Start jetzt deine
-     Spuren? Findest du über die Spurkopf-Menüs die Funktionen?
+  DRIN:
+  1) LOOP-DEFAULT = 8 TAKTE (war 4). Eine vollständige 8-Takt-Phrase, dann
+     Wiederholung. Weiter frei umstellbar (2/4/8/16/32) + im Arrangement länger.
+     PRÜFE: fühlt sich der Default wie eine "sinnvolle" produzierbare Schleife an?
+  2) KLARERE EINS: der Downbeat (Takt 1) sitzt jetzt deutlich lauter als der Rest
+     der Fläche — der stärkste Anker, den ein Sound OHNE Beat tragen kann.
+     PRÜFE: hörst du jetzt klarer, wo Takt 1 ist?
 
-  2) KAMERA-FREEZE-FIX (aus dem v187-Log). Der Puls fror bei „inactive"-
-     Unterbrechungen 6–110 s ein; jetzt startet die App die Kamera selbst neu,
-     sobald sie wieder vorne aktiv ist. Länger laufen lassen — erholt es sich
-     schnell von selbst?
+  EHRLICH: ein weicher Pad-Klang hat keine harte Transiente — Lautstärke ist hier
+  der einzige Hebel. Wenn dir die Eins IMMER NOCH nicht klar genug ist, ist der
+  nächste Schritt ein schärferer Anschlag/Bass-Impuls genau auf die Eins (verändert
+  den Klang etwas mehr) — den stimme ich dann mit deinem Ohr ab. Sag mir einfach:
+  reicht die Eins so, oder soll sie deutlicher/härter werden?
 
-  EHRLICHER STAND zu deiner Liste (arbeite ich der Reihe nach ab, du hast
-  „Alles" gewählt): Audio-Dateien reinziehen+loopen, ein Aufnahme-Knopf, deine
-  3rd-Party-AUv3 sichtbar machen und die EchoelTools-Türen zurückholen sind
-  NOCH echte Baustellen — die kommen als eigene Builds. Video-Spuren sind der
-  größte Brocken (eigenes Kapitel). Der „4× zu schnell"-Sound war KEIN Bug —
-  du hast das Video selbst schneller geschnitten; die App-Wiedergabe ist normal.
-
-  Sag mir nach diesem Build: Fühlt sich „Spuren als Zuhause" richtig an? Dann
-  weiß ich, dass die Grundstruktur stimmt, und baue die vier Baustellen darauf.
+  UNSICHTBAR mitgebaut (parallel, CI-geprüft, noch ohne Wirkung): das Warp-
+  Fundament (Audio-Clips aufs Projekt-Tempo) + die Kerne für Per-Spur-Playback,
+  Live-Clip-Launch und Video-in-Spuren — die kommen als eigene Geräte-Builds.
