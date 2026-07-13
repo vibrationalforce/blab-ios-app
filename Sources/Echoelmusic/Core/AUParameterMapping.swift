@@ -24,6 +24,13 @@ public enum AUParameterMapping {
     /// subtype) to a 4-character token, sanitized so it is always dot-safe and
     /// keyPath-legal: any non-alphanumeric byte (space, control, punctuation, or
     /// a zero code) becomes '_'. Always exactly 4 characters.
+    ///
+    /// Uniqueness note: the sanitization is lossy — two OSTypes differing ONLY in
+    /// non-alphanumeric bytes collide to the same token. Real
+    /// AudioComponentDescription codes are 4 printable-alphanumeric ASCII chars by
+    /// Apple convention, so this is not triggerable with a conforming AU; the
+    /// keyPath is treated as stable-and-unique on that assumption (the leaf
+    /// address disambiguates params WITHIN a plugin regardless).
     public static func fourCC(_ code: UInt32) -> String {
         let bytes = [UInt8(truncatingIfNeeded: code >> 24),
                      UInt8(truncatingIfNeeded: code >> 16),
@@ -46,10 +53,10 @@ public enum AUParameterMapping {
     /// Map a hosted AU parameter's metadata into a `ParameterDescriptor`. Ranges
     /// come straight from the AU (honest — the plugin's own clamps apply at the
     /// write site). Guards so downstream normalize/denormalize can never divide
-    /// by zero or emit NaN: a degenerate `min == max` range is widened by 1, and
-    /// the default is clamped into the (widened) range. `valueStrings` (for
-    /// stepped/enum params) become `valueLabels`; an empty display name falls
-    /// back to the keyPath so the UI always shows something.
+    /// by zero or emit NaN: a degenerate `min == max` range is widened to a
+    /// strictly-greater max, and the default is clamped into the (widened) range.
+    /// `valueStrings` (for stepped/enum params) become `valueLabels`; an empty
+    /// display name falls back to the keyPath so the UI always shows something.
     public static func descriptor(manufacturer: UInt32, subType: UInt32,
                                   address: UInt64, displayName: String,
                                   minValue: Float, maxValue: Float, defaultValue: Float,
@@ -57,8 +64,19 @@ public enum AUParameterMapping {
         let kp = keyPath(manufacturer: manufacturer, subType: subType, address: address)
         // Preserve the AU's ascending range; widen only the degenerate equal case
         // so `normalized` (which guards max > min) still yields a usable 0…1.
+        // The widen must survive Float32 precision: a flat `min + 1` no-ops above
+        // 2^24 (ULP > 1), so scale the bump to the magnitude — `max(1, |min|·1e-3)`
+        // stays > 0 ULPs across the whole Float range while keeping the common
+        // min==0 case a clean 0…1. `nextUp` fallback covers the extreme where even
+        // that rounds away (near .greatestFiniteMagnitude).
         let rMin = minValue
-        let rMax = maxValue > minValue ? maxValue : minValue + 1
+        let rMax: Float
+        if maxValue > minValue {
+            rMax = maxValue
+        } else {
+            let widened = minValue + Swift.max(1, abs(minValue) * 1e-3)
+            rMax = widened > minValue ? widened : minValue.nextUp
+        }
         let def = Swift.min(rMax, Swift.max(rMin, defaultValue))
         return ParameterDescriptor(
             keyPath: kp,

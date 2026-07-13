@@ -96,6 +96,20 @@ final class AUParameterMappingTests: XCTestCase {
         XCTAssertEqual(d.defaultValue, 0, accuracy: 1e-9, "default stays in the widened range")
     }
 
+    func testDescriptor_degenerateRangeWidenedEvenAtLargeMin() {
+        // Above ~2^24 a flat `min + 1` no-ops in Float32 (ULP > 1). The
+        // magnitude-scaled widen must still produce max > min so the invariant
+        // holds and normalize stays safe (review U1, MEDIUM finding).
+        let big: Float = 50_000_000   // > 2^24 ≈ 16.77M, where min+1 == min
+        let d = AUParameterMapping.descriptor(
+            manufacturer: osType("Echl"), subType: osType("freq"), address: 4,
+            displayName: "Huge", minValue: big, maxValue: big, defaultValue: big,
+            unit: "Hz", valueStrings: nil)
+        XCTAssertGreaterThan(d.max, d.min, "widen must survive Float32 precision at large min")
+        XCTAssertTrue(d.normalized(big).isFinite)
+        XCTAssertTrue(d.denormalized(0.5).isFinite)
+    }
+
     func testDescriptor_defaultClampedIntoRange() {
         let d = AUParameterMapping.descriptor(
             manufacturer: osType("Echl"), subType: osType("amp "), address: 2,
