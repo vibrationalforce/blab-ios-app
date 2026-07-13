@@ -36,10 +36,19 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// founder's "sichtbare Instrument/FX-Belegung pro Spur".
     public var instrument: AUPluginRef?
     public var effects: [AUPluginRef]
+    /// The built-in Echoel instrument this track plays (founder 2026-07-13:
+    /// "EchoelDrums, Echoelbreak, EchoelSampler etc"). `nil` = a plain MIDI/audio
+    /// lane with no assigned voice. Drives the track name/icon + its record source.
+    public var builtinInstrument: TrackInstrument?
+    /// Record-arm: this track is armed to capture its input on the next take
+    /// (founder: "jede Spur soll ein record Button haben"). Persisted intent —
+    /// the per-source capture engine reads it; arming never records by itself.
+    public var isArmed: Bool
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
-                pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = []) {
+                pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = [],
+                builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -50,6 +59,22 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.pan = pan
         self.instrument = instrument
         self.effects = effects
+        self.builtinInstrument = builtinInstrument
+        self.isArmed = isArmed
+    }
+
+    /// What this track's record button captures — derived from its kind + built-in
+    /// instrument (founder: "Audio für Audio Inputs, Midi für Midi Input die
+    /// Biofeedback Instrumente"). Pure; the capture engine per source lands next.
+    public var recordSource: RecordSource {
+        if isBio { return .bio }
+        if let inst = builtinInstrument { return inst.recordSource }
+        switch kind {
+        case .midi:   return .midiInput
+        case .audio:  return .audioInput
+        case .video:  return .videoCapture
+        case .visual: return .none
+        }
     }
 
     /// Backward-compatible decode: documents stored before the K2a mixer strip
@@ -66,6 +91,9 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         pan = try c.decodeIfPresent(Float.self, forKey: .pan) ?? 0   // pre-B2 docs: center
         instrument = try c.decodeIfPresent(AUPluginRef.self, forKey: .instrument)
         effects = try c.decodeIfPresent([AUPluginRef].self, forKey: .effects) ?? []
+        // Pre-2026-07-13 docs carry no instrument/arm keys — decode to unset/disarmed.
+        builtinInstrument = try c.decodeIfPresent(TrackInstrument.self, forKey: .builtinInstrument)
+        isArmed = try c.decodeIfPresent(Bool.self, forKey: .isArmed) ?? false
     }
 }
 

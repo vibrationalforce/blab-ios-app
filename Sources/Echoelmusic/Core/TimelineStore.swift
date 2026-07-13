@@ -108,6 +108,34 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Add a track that plays a built-in Echoel instrument (founder 2026-07-13:
+    /// "EchoelDrums, Echoelbreak, EchoelSampler etc"). Named after the instrument,
+    /// numbered per-instrument so a second EchoelDrums reads "EchoelDrums 2".
+    public func addInstrumentTrack(_ instrument: TrackInstrument, name: String? = nil) {
+        let count = document.lanes.filter { $0.builtinInstrument == instrument }.count
+        let laneName = name ?? (count == 0 ? instrument.displayName
+                                           : "\(instrument.displayName) \(count + 1)")
+        let lane = TimelineLane(name: laneName, kind: instrument.clipKind,
+                                builtinInstrument: instrument)
+        document.lanes.append(lane)
+        persist()
+    }
+
+    /// Assign (or clear, with nil) a track's built-in Echoel instrument.
+    public func setBuiltinInstrument(id: UUID, _ instrument: TrackInstrument?) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].builtinInstrument = instrument
+        persist()
+    }
+
+    /// Toggle a track's record-arm (founder: "jede Spur soll ein record Button
+    /// haben"). Persisted intent; the per-source capture engine reads it.
+    public func toggleArm(id: UUID) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].isArmed.toggle()
+        persist()
+    }
+
     public func renameLane(id: UUID, to name: String) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].name = name

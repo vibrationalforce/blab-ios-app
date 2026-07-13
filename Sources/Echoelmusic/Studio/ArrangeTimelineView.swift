@@ -241,13 +241,27 @@ struct ArrangeTimelineView: View {
             .accessibilityLabel(timelinePlayer.isPlaying ? "Stop timeline" : "Play timeline")
             // U1: no "Arrange" label — this IS the app's one view, not a named tab.
             Spacer(minLength: 0)
-            // Add track — MIDI/Audio only (the kinds with a real engine today).
+            // Add track. Instruments first (founder 2026-07-13: "EchoelDrums,
+            // Echoelbreak, EchoelSampler etc" — the app's OWN voices, named on the
+            // track), then the plain media kinds (Audio · Video · MIDI).
             Menu {
-                Button { timeline.addLane(kind: .midi) } label: {
-                    Label("MIDI track", systemImage: ClipKind.midi.systemImage)
+                Section("Instruments") {
+                    ForEach(TrackInstrument.allCases, id: \.self) { inst in
+                        Button { timeline.addInstrumentTrack(inst) } label: {
+                            Label(inst.displayName, systemImage: inst.systemImage)
+                        }
+                    }
                 }
-                Button { timeline.addLane(kind: .audio) } label: {
-                    Label("Audio track", systemImage: ClipKind.audio.systemImage)
+                Section("Media") {
+                    Button { timeline.addLane(kind: .audio) } label: {
+                        Label("Audio track", systemImage: ClipKind.audio.systemImage)
+                    }
+                    Button { timeline.addLane(kind: .video) } label: {
+                        Label("Video track", systemImage: ClipKind.video.systemImage)
+                    }
+                    Button { timeline.addLane(kind: .midi) } label: {
+                        Label("Empty MIDI track", systemImage: ClipKind.midi.systemImage)
+                    }
                 }
             } label: {
                 Image(systemName: "plus")
@@ -330,6 +344,31 @@ struct ArrangeTimelineView: View {
             if !lane.isBio, lane.kind == .audio {
                 Button { activeModal = .lane(lane) } label: {
                     Label("Open audio editor", systemImage: ClipKind.audio.systemImage)
+                }
+            }
+            // The built-in Echoel instrument this track plays (founder 2026-07-13:
+            // "EchoelDrums, Echoelbreak, EchoelSampler etc") — settable/changeable
+            // per track; the current one is checkmarked.
+            if !lane.isBio, lane.kind == .midi {
+                Menu {
+                    ForEach(TrackInstrument.allCases, id: \.self) { inst in
+                        Button { timeline.setBuiltinInstrument(id: lane.id, inst) } label: {
+                            if lane.builtinInstrument == inst {
+                                Label(inst.displayName, systemImage: "checkmark")
+                            } else {
+                                Label(inst.displayName, systemImage: inst.systemImage)
+                            }
+                        }
+                    }
+                    if lane.builtinInstrument != nil {
+                        Divider()
+                        Button(role: .destructive) {
+                            timeline.setBuiltinInstrument(id: lane.id, nil)
+                        } label: { Label("Clear instrument", systemImage: "xmark.circle") }
+                    }
+                } label: {
+                    Label(lane.builtinInstrument?.displayName ?? "Instrument…",
+                          systemImage: lane.builtinInstrument?.systemImage ?? "pianokeys")
                 }
             }
             // The lane's SOUND, on the lane (founder 2026-07-12): the melodic
@@ -432,6 +471,13 @@ struct ArrangeTimelineView: View {
     /// audibility flows via `effectiveGain` → engines (roll slot wired today).
     private func laneMixStrip(_ lane: TimelineLane) -> some View {
         HStack(spacing: 3) {
+            // Record-arm (founder 2026-07-13: "jede Spur soll ein record Button
+            // haben der entsprechend verknüpft ist"). The icon shows THIS track's
+            // input source (Audio-in / MIDI-in / Bio); tapping arms it (red). Arm
+            // is honest persisted intent — the per-source capture take lands next.
+            if lane.recordSource.canRecord {
+                recordArmButton(lane)
+            }
             mixToggle("M", isOn: lane.isMuted, onTint: EchoelTheme.warning,
                       hint: "Mute \(lane.name)") {
                 timeline.toggleMute(id: lane.id)
@@ -470,6 +516,28 @@ struct ArrangeTimelineView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(hint)
         .accessibilityValue(isOn ? "On" : "Off")
+    }
+
+    /// Per-track record-arm. Shows the track's INPUT source icon (mic / MIDI / bio),
+    /// filled red when armed. Wired to `TimelineLane.isArmed` (persisted); arming an
+    /// input is honest DAW intent — the capture take rides the shared transport next.
+    private func recordArmButton(_ lane: TimelineLane) -> some View {
+        let source = lane.recordSource
+        return Button {
+            timeline.toggleArm(id: lane.id)
+        } label: {
+            Image(systemName: lane.isArmed ? "record.circle.fill" : source.systemImage)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(lane.isArmed ? EchoelTheme.onPrimary : EchoelTheme.dim)
+                .frame(width: 21, height: 18)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .fill(lane.isArmed ? EchoelTheme.danger : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Arm \(source.displayName) recording, \(lane.name)")
+        .accessibilityValue(lane.isArmed ? "Armed" : "Off")
     }
 
     // MARK: - Grid (ruler + lanes + regions + playhead)
