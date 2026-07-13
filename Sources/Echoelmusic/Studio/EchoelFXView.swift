@@ -260,6 +260,7 @@ struct EchoelFXView: View {
                 presetSection
                 macroMorphSection
                 FXBioModSection(modulator: modulator)
+                BioModLiveView(modulator: modulator)   // live: which body channel moves which FX param
                 Section {
                     Toggle("Insert FX", isOn: $vm.fxEnabled)
                         .tint(EchoelTheme.accent)
@@ -665,6 +666,84 @@ private struct FXBioModSection: View {
                  : "Each route moves its parameter around your set value at ~30 Hz. The targeted stage turns on automatically.")
         }
         .listRowBackground(EchoelTheme.fill)
+    }
+}
+
+// MARK: - Bio-modulation LIVE view (Item 2 — the body moving the sound, visible)
+
+/// The Echoel thesis made visible: for each active route, which body channel is
+/// moving which effect parameter, right now. A DEDICATED LEAF — it reads the ~10 Hz
+/// `liveContributions` in its OWN body so only this view churns; the route-editing
+/// section above (with its menu Pickers) never observes it and never freezes
+/// (menu-freeze law). No flashing — a continuously-updating bar, not a strobe.
+@MainActor
+private struct BioModLiveView: View {
+    let modulator: FXBioModulator
+
+    var body: some View {
+        Section {
+            if modulator.isRunning, !modulator.liveContributions.isEmpty {
+                ForEach(modulator.liveContributions) { c in
+                    BioModContributionRow(contribution: c)
+                }
+            } else {
+                Text(modulator.isRunning
+                     ? "Add a bio route above to watch the body move a parameter."
+                     : "Start a session to watch the body move these parameters.")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } header: {
+            Text("Live — body → sound").font(EchoelTheme.font(13, .bold)).textCase(nil)
+        }
+        .listRowBackground(EchoelTheme.fill)
+    }
+}
+
+/// One live contribution row: `carrier → target`, a signal bar (the raw normalized
+/// body value driving it), and the signed offset it is pushing the parameter by.
+/// Legible number first, bar second (science-first); solid fills, no glow.
+@MainActor
+private struct BioModContributionRow: View {
+    let contribution: BioModContribution
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(contribution.carrierName)
+                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
+                Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(EchoelTheme.dim)
+                Text(contribution.targetName)
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
+                Spacer(minLength: 0)
+                Text(signed(contribution.offset))
+                    .font(EchoelTheme.font(11).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
+            }
+            signalBar
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(contribution.carrierName) moving \(contribution.targetName), \(Int((contribution.signal01 * 100).rounded())) percent")
+    }
+
+    /// Adaptive precision so a filter-cutoff offset in Hz (+4200) and a dimensionless
+    /// mix (+0.30) both read cleanly.
+    private func signed(_ v: Float) -> String {
+        let a = abs(v)
+        let decimals = a >= 100 ? 0 : (a >= 10 ? 1 : 2)
+        return (v >= 0 ? "+" : "−") + String(format: "%.\(decimals)f", a)
+    }
+
+    private var signalBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(EchoelTheme.border.opacity(0.4))
+                Capsule().fill(EchoelTheme.accent)
+                    .frame(width: Swift.max(2, geo.size.width * CGFloat(Swift.min(1, Swift.max(0, contribution.signal01)))))
+            }
+        }
+        .frame(height: 5)
+        .accessibilityHidden(true)
     }
 }
 
