@@ -149,7 +149,10 @@ public final class AUv3Host {
             engine.withGraphPaused {                        // one pause cycle: attach + re-wire
                 engine.attachAU(unit)
                 if info.isInstrument {
-                    if let old = instrumentUnit, let oldInfo = loaded { saveState(old, id: oldInfo.id) }
+                    if let old = instrumentUnit, let oldInfo = loaded {
+                        saveState(old, id: oldInfo.id)
+                        unbridgeParameters(id: oldInfo.id)   // replaced instrument: unbind its params (U2c review)
+                    }
                     if let old = instrumentUnit { engine.detachAU(old) }
                     instrumentUnit = unit
                 } else {
