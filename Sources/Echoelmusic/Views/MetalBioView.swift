@@ -352,7 +352,16 @@ struct MetalBioView: UIViewRepresentable {
         }
         view.delegate = context.coordinator
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-        view.colorPixelFormat = .bgra8Unorm
+        // B9b (founder "immer noch grau", 2026-07-13): the shader computes LINEAR
+        // sRGB (CIE XYZ → linear, see wavelengthToRGB) and encodes NOTHING — with a
+        // non-sRGB drawable those linear values were displayed as if already
+        // gamma-encoded, crushing mid-tones (~0.5 → perceived 0.21) and turning every
+        // saturated hue muddy grey. `_srgb` makes the GPU apply the linear→sRGB
+        // encode on write, matching SpectralColor.displayRGB's pow(1/2.2) twin — the
+        // visual and the donut/keyboard finally agree (anti-strobe law). Recording is
+        // unaffected structurally: the blit copies raw (now correctly encoded) bytes
+        // into the 32BGRA pixel buffer — sRGB/non-sRGB variants are copy-compatible.
+        view.colorPixelFormat = .bgra8Unorm_srgb
         // START on the FAST path (framebufferOnly = true). A blit-readable drawable
         // (framebufferOnly = false) is EXPENSIVE and is only needed WHILE actually recording,
         // so `draw(in:)` flips it false just for the recording frames and back to true after.
@@ -548,7 +557,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         let desc = MTLRenderPipelineDescriptor()
         desc.vertexFunction = vfn
         desc.fragmentFunction = ffn
-        desc.colorAttachments[0].pixelFormat = .bgra8Unorm
+        desc.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb   // must match the view (B9b)
         pipeline = try? device.makeRenderPipelineState(descriptor: desc)
     }
 
@@ -763,11 +772,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 // EchoelCrashLog stream — every earlier "bitte Log mit offenem
                 // Visual" round failed because this line only went to os_log,
                 // which that log never contains (solved 2026-07-12).
+                // ccw = summed live cloud weights (colour reach), c0 = slot-0 eased RGB —
+                // the COLOUR truth in every pastable log (B9b: "grau" is measurable now).
                 EchoelCrashLog.breadcrumb(String(format:
-                    "visual: bio=%d mfNotes=%d level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f",
+                    "visual: bio=%d mfNotes=%d level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f ccw=%.2f c0=%.2f/%.2f/%.2f",
                     bio != nil ? 1 : 0, mf?.notes.count ?? -1, musicLevel,
                     musicTone ?? 0, playedNotes.count,
-                    effectiveReduceMotion ? 1 : 0, detailScale))
+                    effectiveReduceMotion ? 1 : 0, detailScale,
+                    cloudW.reduce(0, +), uniforms.cc0r, uniforms.cc0g, uniforms.cc0b))
             }
             if soundingNotes.count < 5, let mf {
                 for n in mf.notes.sorted(by: { $0.amplitude > $1.amplitude }) {
