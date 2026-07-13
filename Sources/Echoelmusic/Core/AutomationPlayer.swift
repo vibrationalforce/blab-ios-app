@@ -24,6 +24,27 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
 
     public var id: String { rawValue }
 
+    /// Registry-style stable identity ("modul.sektion.parameter") — cycle 2 of the
+    /// automation-in-track plan. The enum's rawValue stays the PERSISTED legacy
+    /// identity (saved lanes are never rewritten); this alias lets new code address
+    /// the same target through the EchoelParameterRegistry keyPath convention.
+    /// NOTE: filterCutoff is the ×0.25…×4 log MULTIPLIER on the voice's cutoff
+    /// (setCutoffScale), not the absolute-Hz "ddsp.filter.cutoff" descriptor.
+    public var keyPath: String {
+        switch self {
+        case .masterLevel:  return "master.amp.level"
+        case .tempo:        return "transport.tempo.bpm"
+        case .filterCutoff: return "ddsp.filter.cutoffScale"
+        }
+    }
+
+    /// Resolve EITHER identity — the legacy rawValue ("masterLevel") or the keyPath
+    /// alias — to the enum target. nil = not an enum target (a free keyPath lane).
+    public static func forParameter(_ parameter: String) -> AutomationTarget? {
+        if let t = AutomationTarget(rawValue: parameter) { return t }
+        return allCases.first { $0.keyPath == parameter }
+    }
+
     public var displayName: String {
         switch self {
         case .masterLevel:  return "Master Level"
@@ -110,6 +131,10 @@ public final class AutomationPlayer {
     @ObservationIgnored private weak var pattern: PatternEngine?
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private weak var voice: PolySynthVoice?
+    /// Cycle-2 wire: extra keyPath lanes (beyond the three enum targets) apply
+    /// through this router (registry-denormalized → live setter). Optional —
+    /// without it the player behaves exactly as before.
+    @ObservationIgnored private weak var router: ParameterApplyRouter?
     @ObservationIgnored private let store = AppGroupStore(subdirectory: "Automation")
     @ObservationIgnored private static let fileName = "automation"
 
@@ -123,12 +148,17 @@ public final class AutomationPlayer {
         }
     }
 
-    /// Ensure exactly one lane exists per target (preserving any saved points).
+    /// Ensure exactly one lane exists per enum target (matched under EITHER
+    /// identity — legacy rawValue or keyPath alias, saved names untouched) and
+    /// PRESERVE every additional keyPath lane instead of dropping it (cycle 2:
+    /// unknown lanes are future registry-parameter automation, not junk).
     private static func completed(_ existing: [AutomationLane]) -> [AutomationLane] {
-        AutomationTarget.allCases.map { target in
-            existing.first { $0.parameter == target.rawValue }
+        let enumLanes = AutomationTarget.allCases.map { target in
+            existing.first { AutomationTarget.forParameter($0.parameter) == target }
                 ?? AutomationLane(parameter: target.rawValue)
         }
+        let extras = existing.filter { AutomationTarget.forParameter($0.parameter) == nil }
+        return enumLanes + extras
     }
 
     // MARK: - Wiring
@@ -138,6 +168,12 @@ public final class AutomationPlayer {
         self.pattern = pattern
         self.audioEngine = audioEngine
         self.voice = voice
+    }
+
+    /// Connect the keyPath→setter router for extra (non-enum) lanes. Separate from
+    /// the transport wire so pure tests can wire only this.
+    public func wire(router: ParameterApplyRouter) {
+        self.router = router
     }
 
     // MARK: - Playback (called each transport step on the shared clock)
@@ -158,6 +194,21 @@ public final class AutomationPlayer {
             case .filterCutoff: voice?.setCutoffScale(Float(real ?? target.neutralValue))
             }
         }
+        // Extra keyPath lanes (cycle 2): registry-denormalize + dispatch through the
+        // router. No router / unbound keyPath = safe no-op (never a dead crash).
+        for lane in lanes where AutomationTarget.forParameter(lane.parameter) == nil {
+            if let n = lane.value(atTick: step * Note.ticksPerStep) {
+                router?.applyNormalized(lane.parameter, Float(n))
+            }
+        }
+    }
+
+    /// The real-world value an ENUM target would take at `step`, addressed by either
+    /// identity (legacy rawValue or keyPath alias). nil for non-enum keyPaths — their
+    /// curve lives in the registry descriptor, applied via the router, not guessed here.
+    public func appliedValue(forKeyPath keyPath: String, atStep step: Int) -> Double? {
+        guard let target = AutomationTarget.forParameter(keyPath) else { return nil }
+        return appliedValue(for: target, atStep: step)
     }
 
     /// The real-world value a target would take at `step` (per-bar tick), or nil if
@@ -171,7 +222,33 @@ public final class AutomationPlayer {
     // MARK: - Lane access + editing
 
     public func lane(for target: AutomationTarget) -> AutomationLane {
-        lanes.first { $0.parameter == target.rawValue } ?? AutomationLane(parameter: target.rawValue)
+        lanes.first { AutomationTarget.forParameter($0.parameter) == target }
+            ?? AutomationLane(parameter: target.rawValue)
+    }
+
+    /// Add or replace a lane by parameter identity (alias-aware: a lane named by an
+    /// enum target's keyPath lands in that enum slot, never as a duplicate). This is
+    /// the door future registry-parameter automation walks through.
+    public func adoptLane(_ lane: AutomationLane) {
+        if let i = lanes.firstIndex(where: {
+            $0.parameter == lane.parameter ||
+            (AutomationTarget.forParameter($0.parameter) != nil &&
+             AutomationTarget.forParameter($0.parameter)
+                == AutomationTarget.forParameter(lane.parameter))
+        }) {
+            lanes[i] = lane
+        } else {
+            lanes.append(lane)
+        }
+        persist()
+    }
+
+    /// Remove an EXTRA keyPath lane. Enum-target lanes are structural (one per
+    /// target, kept by `completed`) — clearing their points is `clear(target:)`.
+    public func removeLane(parameter: String) {
+        guard AutomationTarget.forParameter(parameter) == nil else { return }
+        lanes.removeAll { $0.parameter == parameter }
+        persist()
     }
 
     public func points(for target: AutomationTarget) -> [AutomationPoint] {
@@ -242,7 +319,7 @@ public final class AutomationPlayer {
     }
 
     private func index(of target: AutomationTarget) -> Int? {
-        lanes.firstIndex { $0.parameter == target.rawValue }
+        lanes.firstIndex { AutomationTarget.forParameter($0.parameter) == target }
     }
 
     private func persist() {
