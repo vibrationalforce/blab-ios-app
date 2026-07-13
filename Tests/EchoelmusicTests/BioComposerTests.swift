@@ -136,6 +136,57 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    // MARK: - B8 offbeat: trap's aroused 808 pedal fills the quarter grid
+
+    func testHeartbeatActive_arousalGate() {
+        // The shared "aroused enough to move" gate: needs a section ≥ a quarter (4
+        // steps) AND body energy ≥ 0.5. Both the pad re-articulation and trap's
+        // quarter-pedal read this one definition.
+        XCTAssertTrue(BioComposer.heartbeatActive(energy: 0.5, secLen: 4))
+        XCTAssertTrue(BioComposer.heartbeatActive(energy: 0.83, secLen: 8))
+        XCTAssertFalse(BioComposer.heartbeatActive(energy: 0.49, secLen: 8), "below-arousal stays still")
+        XCTAssertFalse(BioComposer.heartbeatActive(energy: 0.9, secLen: 3), "too-short section stays held")
+    }
+
+    func testTrap_arousedBassFillsTheQuarterGrid() {
+        // Founder-diagnosed (V2 / Trap 132 lock + active body): trap's held-root 808
+        // on {0,8} left beats 2 & 4 empty — "die Viertel fehlen". An AROUSED body now
+        // drives a root PEDAL on the quarter grid {0,4,8,12}, one pitch class per
+        // chord section (a moving 808, trap's signature), still lead-free, in-key.
+        let comp = BioComposer.compose(input(coherence: 0.05, hr: 130, style: .trap))
+        let bass = comp.notes.filter { $0.role == .bass }
+        XCTAssertEqual(Set(bass.map { $0.startStep }), [0, 4, 8, 12],
+                       "aroused trap bass anchors every quarter")
+        XCTAssertFalse(comp.notes.contains { $0.role == .lead },
+                       "the 808 pedal is bass, never a re-introduced exposed lead")
+        // Each 8-step chord section holds ONE root pitch class (a pedal, not a walk).
+        let sectionA = bass.filter { $0.startStep < 8 }.map { $0.pitch }
+        let sectionB = bass.filter { $0.startStep >= 8 }.map { $0.pitch }
+        XCTAssertEqual(Set(sectionA).count, 1, "first section pedals one root")
+        XCTAssertEqual(Set(sectionB).count, 1, "second section pedals one root")
+        for n in bass {
+            XCTAssertLessThanOrEqual(n.startStep + n.lengthSteps, BioComposer.stepCount,
+                                     "the pedal stays inside the bar")
+        }
+    }
+
+    func testTrap_calmBassStaysTheHeldRoot() {
+        // A calm body (low energy) keeps the pre-B8 held root per section {0,8},
+        // len 8 — the still low end is preserved bit-for-bit, only arousal moves it.
+        let comp = BioComposer.compose(input(coherence: 0.95, hr: 52, style: .trap))
+        let bass = comp.notes.filter { $0.role == .bass }
+        XCTAssertEqual(Set(bass.map { $0.startStep }), [0, 8], "calm trap holds two roots")
+        for n in bass {
+            XCTAssertEqual(n.lengthSteps, 8, "calm trap root is held for the whole section")
+        }
+    }
+
+    func testTrap_arousedBassIsDeterministic() {
+        let a = BioComposer.compose(input(coherence: 0.05, hr: 130, style: .trap, seed: 0xB8))
+        let b = BioComposer.compose(input(coherence: 0.05, hr: 130, style: .trap, seed: 0xB8))
+        XCTAssertEqual(a, b, "the quarter pedal is seed-deterministic")
+    }
+
     func testSustainedFlächeJourneysWithProgressionPhase() throws {
         // Founder 2026-07-11: "bleibt auf Flächen liegen … soll weitergehen und sich
         // mit dem Herzschlag weiterentwickeln." A sustained Fläche stays STILL within a

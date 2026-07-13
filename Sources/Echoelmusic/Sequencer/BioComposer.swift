@@ -259,6 +259,14 @@ public enum BioComposer {
     /// not a pump. Tunable; 0 restores the old flat behaviour.
     static let dynamicDepth: Float = 0.6
 
+    /// Trap's low end, when the body is aroused, drives a quarter-note root PEDAL (a
+    /// moving 808 — the genre's signature) instead of the single held root, so beats 2 & 4
+    /// stop dropping out (founder-diagnosed "die Viertel fehlen" on the Trap 132 lock). A
+    /// CALM body keeps the held root, and it is SCOPED TO TRAP ONLY — dub and the
+    /// meditative Flächen stay held whatever the body does. Tunable; `false` restores the
+    /// pre-B8 single held root everywhere.
+    static let quarterAnchorBass = true
+
     /// Velocity multiplier (~[1−depth/2, 1+depth/2]) for a note starting at `step`: a metric
     /// accent (downbeat > 8th > 16th, the natural musical hierarchy) blended with a gentle
     /// raised-cosine swell across the bar (0→1→0). Pure + deterministic → unit-tested.
@@ -425,6 +433,7 @@ public enum BioComposer {
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
                                     densityScale: densityScale,
+                                    quarterAnchor: input.style == .trap,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -901,7 +910,30 @@ public enum BioComposer {
     private static func appendBass(into notes: inout [Note], key: MusicalKey,
                                    rootDegree: Int, nextRoot: Int, octave: Int,
                                    secStart: Int, len: Int, busy: Float, calm: Float,
-                                   velocity: Float, sustained: Bool, rng: inout SeededRNG) {
+                                   velocity: Float, sustained: Bool,
+                                   quarterAnchor: Bool = false, rng: inout SeededRNG) {
+        // TRAP quarter-note 808 pedal (B8): a sustained trap profile whose body is aroused
+        // drives the chord root on the quarter grid — one pitch class, downbeat accented —
+        // so beats 2 & 4 no longer drop out. Calm trap (and every non-trap caller, which
+        // never sets quarterAnchor) falls through to the held-root path below, RNG-identical.
+        if quarterAnchor, sustained, Self.quarterAnchorBass,
+           Self.heartbeatActive(energy: busy, secLen: len) {
+            let gap = 4                                        // quarter grid
+            let secEndLocal = secStart + len
+            var s = secStart
+            while s < secEndLocal {
+                let noteLen = max(1, min(gap, secEndLocal - s))
+                // Accent the SECTION downbeat (relative, so it holds even if a mood
+                // splice makes sections an odd length); off-quarters sit back.
+                let vel = ((s - secStart) % 8 == 0) ? velocity : velocity * 0.7
+                notes.append(Note(id: nextUUID(&rng),
+                                  pitch: key.degree(rootDegree, octave: octave),
+                                  startStep: s, lengthSteps: noteLen,
+                                  velocity: hVel(vel, &rng), role: .bass))
+                s += gap
+            }
+            return
+        }
         let motion = clamp01(busy * 0.7 + (1 - calm) * 0.4)
         // A sustained drone (or a spacious / short section) keeps the grounding
         // single held root — no walking line, whatever the body is doing.
@@ -954,13 +986,23 @@ public enum BioComposer {
     /// heartbeat-referenced pulse. Deterministic (no RNG → the rhythm tracks the body,
     /// it doesn't jitter every re-seed) and always inside [secStart, secStart+secLen)
     /// so the loop stays bar-tight. Pure → unit-testable.
+    /// The shared arousal gate: a held section only breaks into rhythmic life once the
+    /// body is genuinely activated (`energy` = the composer's `busy` signal ≥ 0.5) AND
+    /// the section is long enough to carry a pulse (≥ a quarter, 4 steps). BOTH the pad's
+    /// heartbeat re-articulation (`heartbeatOnsets`) and trap's quarter-note 808 pedal
+    /// (`appendBass`) read this ONE definition so "aroused enough to move" is identical
+    /// across the low end and the pad. Pure → unit-tested.
+    static func heartbeatActive(energy: Float, secLen: Int) -> Bool {
+        secLen >= 4 && energy >= 0.5
+    }
+
     static func heartbeatOnsets(secStart: Int, secLen: Int,
                                 energy: Float, syncopation: Float) -> [(start: Int, len: Int)] {
-        // `energy` is the composer's own `busy` activity signal (0…~0.85). Below 0.5 the
-        // body is at rest or only neutrally engaged → ONE held onset (the still Fläche,
-        // unchanged) so typical resting/meditative states keep the stillness the founder
-        // liked. Rhythm only emerges once the body is genuinely activated.
-        guard secLen >= 4, energy >= 0.5 else { return [(secStart, secLen)] }
+        // `energy` is the composer's own `busy` activity signal (0…~0.85). Below the
+        // arousal gate the body is at rest or only neutrally engaged → ONE held onset (the
+        // still Fläche, unchanged) so typical resting/meditative states keep the stillness
+        // the founder liked. Rhythm only emerges once the body is genuinely activated.
+        guard heartbeatActive(energy: energy, secLen: secLen) else { return [(secStart, secLen)] }
         // Syncopation nudges the body toward the more off-beat (tresillo) feel sooner.
         let e = clamp01(energy + clamp01(syncopation) * 0.15)
         let strides: [Int]
@@ -999,6 +1041,7 @@ public enum BioComposer {
                                         breathPhase: Float, breathDepth: Float,
                                         mood: MoodProfile, progressionPhase: Int,
                                         densityScale: Float = 1,
+                                        quarterAnchor: Bool = false,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
@@ -1084,7 +1127,7 @@ public enum BioComposer {
             appendBass(into: &notes, key: key, rootDegree: rootDegree, nextRoot: nextRoot,
                        octave: bassOct, secStart: secStart, len: len,
                        busy: busy, calm: calm, velocity: bassVelocity,
-                       sustained: profile.sustained, rng: &rng)
+                       sustained: profile.sustained, quarterAnchor: quarterAnchor, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
