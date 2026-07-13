@@ -79,6 +79,18 @@ public final class AudioClipPlayer {
             log.log(.error, category: .audio, "AudioClipPlayer: read failed: \(error)")
             return
         }
+        // Bake the fade envelope into the buffer — one control-plane pass BEFORE
+        // scheduling, so no work reaches the render thread. Skipped for a looping
+        // region: fades belong to the clip's edges, not every loop iteration.
+        if !region.loop, region.fadeInSeconds > 0 || region.fadeOutSeconds > 0,
+           let channels = buffer.floatChannelData {
+            let n = Int(buffer.frameLength)
+            let chCount = Int(buffer.format.channelCount)
+            for i in 0..<n {
+                let g = region.fadeMultiplier(atElapsed: Double(i) / sr)
+                for ch in 0..<chCount { channels[ch][i] *= g }
+            }
+        }
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
         node.scheduleBuffer(buffer, at: nil, options: options, completionCallbackType: .dataPlayedBack) { [weak self] _ in

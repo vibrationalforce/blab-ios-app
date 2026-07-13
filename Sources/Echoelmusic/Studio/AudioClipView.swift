@@ -90,10 +90,22 @@ struct AudioClipView: View {
             EchoelValueField(label: "End", value: secondsBinding(\.endSeconds),
                              range: 0...Float(max(0.01, player.durationSeconds)), unit: "s", decimals: 2)
             EchoelValueField(label: "Gain", value: gainBinding, range: 0...2, unit: "", decimals: 2)
+            // Fades (founder "Fades bei Audio auch möglich?"): 0…region length.
+            // Baked into the buffer on Play; disabled visual hint for a looping clip
+            // (fades apply to clip edges, not each loop iteration).
+            EchoelValueField(label: "Fade in", value: secondsBinding(\.fadeInSeconds),
+                             range: 0...Float(max(0.01, region.durationSeconds)), unit: "s", decimals: 2)
+            EchoelValueField(label: "Fade out", value: secondsBinding(\.fadeOutSeconds),
+                             range: 0...Float(max(0.01, region.durationSeconds)), unit: "s", decimals: 2)
             Toggle(isOn: loopBinding) {
                 Text("Loop").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
+            if region.loop, region.fadeInSeconds > 0 || region.fadeOutSeconds > 0 {
+                Text("Fades apply to a one-shot clip's edges — a looping clip plays seamlessly (fades are skipped while Loop is on).")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -218,11 +230,15 @@ private struct WaveformTrimEditor: View {
                 if isStart {
                     region = AudioClipRegion(startSeconds: min(seconds, region.endSeconds - 0.01),
                                              endSeconds: region.endSeconds,
-                                             loop: region.loop, gain: region.gain)
+                                             loop: region.loop, gain: region.gain,
+                                             fadeInSeconds: region.fadeInSeconds,
+                                             fadeOutSeconds: region.fadeOutSeconds)
                 } else {
                     region = AudioClipRegion(startSeconds: region.startSeconds,
                                              endSeconds: max(seconds, region.startSeconds + 0.01),
-                                             loop: region.loop, gain: region.gain)
+                                             loop: region.loop, gain: region.gain,
+                                             fadeInSeconds: region.fadeInSeconds,
+                                             fadeOutSeconds: region.fadeOutSeconds)
                 }
             }
     }

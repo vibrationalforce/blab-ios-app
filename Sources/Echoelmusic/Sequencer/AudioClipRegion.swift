@@ -20,19 +20,68 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
     public var loop: Bool
     /// Linear output gain (0…2), clamped.
     public var gain: Float
+    /// Fade-in length in seconds (0 = hard start), clamped ≥ 0. The gain ramps
+    /// 0→1 over this many seconds from the region start.
+    public var fadeInSeconds: Double
+    /// Fade-out length in seconds (0 = hard stop), clamped ≥ 0. The gain ramps
+    /// 1→0 over this many seconds up to the region end.
+    public var fadeOutSeconds: Double
 
     public init(startSeconds: Double = 0, endSeconds: Double = 1,
-                loop: Bool = false, gain: Float = 1.0) {
+                loop: Bool = false, gain: Float = 1.0,
+                fadeInSeconds: Double = 0, fadeOutSeconds: Double = 0) {
         let s = Swift.max(0, startSeconds.isFinite ? startSeconds : 0)
         self.startSeconds = s
         let e = endSeconds.isFinite ? endSeconds : s + 0.001
         self.endSeconds = Swift.max(s + 0.0001, e)
         self.loop = loop
         self.gain = Swift.min(2, Swift.max(0, gain.isFinite ? gain : 1))
+        self.fadeInSeconds = Swift.max(0, fadeInSeconds.isFinite ? fadeInSeconds : 0)
+        self.fadeOutSeconds = Swift.max(0, fadeOutSeconds.isFinite ? fadeOutSeconds : 0)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case startSeconds, endSeconds, loop, gain, fadeInSeconds, fadeOutSeconds
+    }
+
+    /// Backward-compatible decode: regions saved before fades load with none,
+    /// and every field re-clamps through the same rules as `init` (never a
+    /// decode failure, never a NaN/negative slips in).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            startSeconds: (try? c.decode(Double.self, forKey: .startSeconds)) ?? 0,
+            endSeconds: (try? c.decode(Double.self, forKey: .endSeconds)) ?? 1,
+            loop: (try? c.decode(Bool.self, forKey: .loop)) ?? false,
+            gain: (try? c.decode(Float.self, forKey: .gain)) ?? 1,
+            fadeInSeconds: (try? c.decode(Double.self, forKey: .fadeInSeconds)) ?? 0,
+            fadeOutSeconds: (try? c.decode(Double.self, forKey: .fadeOutSeconds)) ?? 0)
     }
 
     /// Region length in seconds (always > 0).
     public var durationSeconds: Double { endSeconds - startSeconds }
+
+    // MARK: Fade envelope (pure — the player bakes this into the scheduled buffer)
+
+    /// The fade gain [0…1] at `elapsed` seconds into the region: ramps 0→1 over
+    /// `fadeInSeconds` at the start, 1→0 over `fadeOutSeconds` at the end, 1 in
+    /// between. If the two fades would overlap (their sum exceeds the duration),
+    /// the fade-in keeps its full length and the fade-out fills the remainder,
+    /// so the multiplier always stays within [0,1]. Out-of-range elapsed clamps.
+    public func fadeMultiplier(atElapsed elapsed: Double) -> Float {
+        let dur = durationSeconds
+        guard dur > 0 else { return 1 }
+        let t = Swift.min(dur, Swift.max(0, elapsed.isFinite ? elapsed : 0))
+        let fin = Swift.min(fadeInSeconds, dur)
+        let fout = Swift.min(fadeOutSeconds, dur - fin)   // in wins if they'd overlap
+        var g = 1.0
+        if fin > 0, t < fin { g = t / fin }               // 0→1
+        if fout > 0 {
+            let outStart = dur - fout
+            if t > outStart { g = Swift.min(g, (dur - t) / fout) }   // 1→0
+        }
+        return Float(Swift.min(1, Swift.max(0, g)))
+    }
 
     // MARK: Frame conversion (for AVAudioFile / scheduleSegment)
 
