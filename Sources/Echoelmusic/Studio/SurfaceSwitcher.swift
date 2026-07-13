@@ -112,24 +112,29 @@ struct SurfaceSwitcherBar: View {
 /// the v136 size contract (fill + clipped) so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
-    /// PLAY ENTRY (founder 2026-07-11, UI-survey verdict): the calm instrument is
-    /// the front door, the arrangement is the second room. The timeline COLLAPSES
-    /// to a thin bar by default so a newcomer lands on EchoelStudioView (which is
-    /// already "Bio strip · Start · pads"), not a DAW cockpit. One tap expands the
-    /// full Ableton timeline — nothing is lost for producers. Persisted, so a user
-    /// who opens the timeline keeps it open. This does NOT undo the 2026-07-10
-    /// "one main view = timeline" structure — the timeline is still THE surface,
-    /// just folded until wanted (progressive disclosure).
-    @AppStorage("workspace.timelineExpanded") private var timelineExpanded = false
+    /// TRACKS ARE HOME (founder 2026-07-13, verbatim "Ich wollte alles über die
+    /// Spuren machen" + AskUserQuestion → "Spuren/Timeline als Zuhause"): the
+    /// arrangement/tracks surface is the DEFAULT front door, not the second room.
+    /// The founder tested the 2026-07-11 "instrument first, timeline folded" default
+    /// and found the per-track features (Piano Roll, Sound & FX, AUv3 assign,
+    /// Automation, audio clips) effectively INVISIBLE — "die Sachen sind nicht da"
+    /// was really "the tracks are folded away." So the timeline now opens by default
+    /// and takes the dominant share; the calm instrument lives BELOW it, still one
+    /// glance away (and scrollable). This SUPERSEDES the 07-11 PLAY-ENTRY default —
+    /// do not revert to `false` without a fresh founder ask. Persisted, so anyone who
+    /// folds it keeps it folded.
+    @AppStorage("workspace.timelineExpanded") private var timelineExpanded = true
 
     private static let collapsedBarHeight: CGFloat = 34
 
     var body: some View {
         GeometryReader { geo in
             let landscape = geo.size.width > geo.size.height
-            // Min = toolbar(40) + ruler(20) + two 56-pt lanes — never less than
-            // a readable arrangement; max keeps the instrument reachable.
-            let timelineHeight = max(172, min(380, geo.size.height * (landscape ? 0.5 : 0.34)))
+            // TRACKS ARE HOME: the timeline takes the DOMINANT share (it is the front
+            // door now), while the instrument keeps a reachable, scrollable band below.
+            // Min = toolbar + ruler + a few lanes (never an unreadable sliver); max
+            // caps it so Start/bio-strip/pads stay one glance below.
+            let timelineHeight = max(240, min(620, geo.size.height * (landscape ? 0.62 : 0.52)))
             VStack(spacing: 0) {
                 // The collapse/expand bar — a leaf (no observable reads), always on
                 // top so the timeline is one glanceable tap away in both states.
