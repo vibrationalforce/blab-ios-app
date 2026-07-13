@@ -98,6 +98,8 @@ public final class TimelineRegionPlayer {
         self.lastTick = 0
         self.currentTick = 0
         isPlaying = true
+        pianoRoll.setTimelineAutomation(document.automation)   // arrangement automation (cycle 5)
+        pianoRoll.setTimelineAutomationTick(0)
         loadRollRegion(at: 0)            // whatever is under the playhead at the top
         if !pattern.isPlaying { pattern.play() }
     }
@@ -108,6 +110,7 @@ public final class TimelineRegionPlayer {
         isPlaying = false
         pattern?.stop()
         pianoRoll?.allNotesOff()
+        pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
     }
 
     /// Reset follow-state when the transport is stopped from OUTSIDE (the global
@@ -117,6 +120,7 @@ public final class TimelineRegionPlayer {
         guard isPlaying else { return }
         isPlaying = false
         pianoRoll?.allNotesOff()
+        pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
     }
 
     /// Fed every transport step (0…15) by the host. Advances the absolute position,
@@ -141,6 +145,10 @@ public final class TimelineRegionPlayer {
             case .clear: clearRoll()
             }
         }
+        // Feed the arrangement automation the absolute playhead BEFORE the roll's
+        // onTick chain reaches AutomationPlayer.applyStep (cycle 5). loadClip above
+        // may have installed a clip's own lanes; the timeline layer applies last.
+        pianoRoll?.setTimelineAutomationTick(newTick)
         lastTick = newTick
         currentTick = newTick
     }

@@ -86,10 +86,29 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
 public struct TimelineDocument: Codable, Sendable, Equatable {
     public var lanes: [TimelineLane]
     public var regions: [TimelineRegion]
+    /// Parameter automation for the ARRANGEMENT (automation-in-track cycle 5).
+    /// Ticks are song-ABSOLUTE (480-PPQ, same base as regions), so a lane is the
+    /// authoritative curve a parameter follows across the whole song. Played back
+    /// via the timeline player's absolute playhead; wins over global loop + clip
+    /// automation while the song plays.
+    public var automation: [AutomationLane]
 
-    public init(lanes: [TimelineLane] = [], regions: [TimelineRegion] = []) {
+    public init(lanes: [TimelineLane] = [], regions: [TimelineRegion] = [],
+                automation: [AutomationLane] = []) {
         self.lanes = lanes
         self.regions = regions
+        self.automation = automation
+    }
+
+    private enum CodingKeys: String, CodingKey { case lanes, regions, automation }
+
+    /// Backward-compatible decode: documents saved before the automation field
+    /// (or before any given key) load with empty defaults, never a decode failure.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        lanes = try c.decodeIfPresent([TimelineLane].self, forKey: .lanes) ?? []
+        regions = try c.decodeIfPresent([TimelineRegion].self, forKey: .regions) ?? []
+        automation = try c.decodeIfPresent([AutomationLane].self, forKey: .automation) ?? []
     }
 
     public func regions(in laneID: UUID) -> [TimelineRegion] {

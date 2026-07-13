@@ -75,3 +75,27 @@ IST `AutomationLane.parameter` ein Registry-keyPath und alles komponiert.
 
 → Founder kann jeden Default umlenken, bevor Cycle 3–6 shippen. Cycle 1 ist von allen
   Antworten unberührt.
+
+## FOUNDER-VERDIKT 2026-07-13 (AskUserQuestion, nach C4-Ship) — Roadmap-Reorder
+Vier Fragen beantwortet:
+1. **Play/Stop-Knopf pro Clip: JA** (eigener sichtbarer Button; Tap-auf-Zelle bleibt als
+   Schnellstart). → eigener kleiner Zyklus.
+2. **Clip-Länge: „Flexibel wie bei Ableton. Auch Taktarten etc. ABER erstmal muss alles
+   wirklich in den Spuren der Timeline richtig fertig sein."** → Clip-Länge + Taktarten
+   werden ZURÜCKGESTELLT, bis die Timeline-Spuren (Regionen, Playback, Mix, **Automation
+   song-absolut = C5**) wirklich fertig sind. C5 wird damit TOP-PRIORITÄT.
+3. **Bio-Automation aufnehmen: JA** (live Bio-Modulation in eine Lane einfrieren →
+   reproduzierbar/editierbar, auch ohne Sensor abspielbar). → eigener Zyklus nach C5.
+4. **Normale Automation per Record/Latch: JA, zusätzlich zum Zeichnen.** → eigener Zyklus.
+
+### Neue Zyklus-Reihenfolge (ab hier)
+- **C5 (JETZT): Automation song-absolut in den Timeline-Spuren** — `TimelineDocument.automation`
+  (song-absolute Ticks), gefüttert vom `TimelineRegionPlayer`-Cursor (`currentTick`), Präzedenz
+  Timeline gewinnt (nach global+clip angewandt), sichtbar/editierbar im Arrange-View. Rev:
+  Architect + DSP Purist + Shipper. Device-gated. „richtig fertig in den Spuren".
+- **C6: Play/Stop-Knopf pro Clip** (Session-Grid; klein).
+- **C7: Bio-Record** — live Bio-Modulation eines Parameters in eine Lane schreiben
+  (Snapshot der resolved Werte, ~10–30 Hz → keyframe-reduziert). Bio-Safety-Reviewer.
+- **C8: Param-Record/Latch** — live bewegte Regler in die Lane mitschreiben (Write/Latch-Mode),
+  zusätzlich zur Canvas.
+- **SPÄTER: Flexible Clip-Länge + Taktarten** (Ableton-Stil) — NACH C5, wenn die Timeline steht.

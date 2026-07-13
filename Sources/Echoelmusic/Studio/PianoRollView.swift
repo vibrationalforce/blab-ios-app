@@ -197,6 +197,21 @@ public final class PianoRollModel {
         automation?.setClipLanes(lanes)
     }
 
+    /// Install the ARRANGEMENT's song-absolute automation onto the shared
+    /// AutomationPlayer (cycle 5). The timeline player calls this on play (with
+    /// the document's lanes) and on stop (with `[]`); it holds the same automation
+    /// reference as the clip channel. No automation wired = no-op.
+    public func setTimelineAutomation(_ lanes: [AutomationLane]) {
+        automation?.setTimelineLanes(lanes)
+    }
+
+    /// Feed the timeline layer the song-absolute playhead tick each transport step
+    /// (cycle 5). Routed through the roll so the timeline player needs no separate
+    /// automation reference.
+    public func setTimelineAutomationTick(_ tick: Int) {
+        automation?.setTimelineTick(tick)
+    }
+
     /// Load an N-bar arrangement that CYCLES one bar per loop (1b). `playing` = the
     /// transport is already running (a live re-seed), so hot-swap the bars and stage the
     /// phase-correct next bar for the upcoming boundary — the sounding bar is never cut.

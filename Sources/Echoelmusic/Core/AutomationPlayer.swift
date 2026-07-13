@@ -136,6 +136,17 @@ public final class AutomationPlayer {
     /// over a global lane on the same parameter (applied after it each step).
     public private(set) var clipLanes: [AutomationLane] = []
 
+    /// The ARRANGEMENT's automation (cycle 5) — song-ABSOLUTE lanes from the
+    /// timeline document. Transient here (the document persists them). Applied
+    /// LAST each step so the arrangement's automation is authoritative while the
+    /// song plays; the timeline player feeds `timelineTick` (the absolute
+    /// playhead) each step before `applyStep` runs.
+    public private(set) var timelineLanes: [AutomationLane] = []
+    /// Song-absolute playhead tick for the timeline layer. @ObservationIgnored:
+    /// it updates at transport-step rate (~8–16 Hz) — a view must never observe
+    /// it (the 10 Hz menu-freeze law); the playhead has its own leaf elsewhere.
+    @ObservationIgnored private var timelineTick = 0
+
     @ObservationIgnored private weak var pattern: PatternEngine?
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private weak var voice: PolySynthVoice?
@@ -216,19 +227,45 @@ public final class AutomationPlayer {
         // automation wins on a shared parameter, and OUTSIDE the `enabled` gate:
         // clip automation is clip content and plays like the clip's notes. Ticks
         // are clip-relative; today's live loop is the same 1-bar phase, so the
-        // step tick IS the clip tick (song-absolute spans arrive with cycle 5).
-        for lane in clipLanes {
-            guard let n = lane.value(atTick: step * Note.ticksPerStep) else { continue }
-            if let target = AutomationTarget.forParameter(lane.parameter) {
-                applyEnum(target, real: target.value(forNormalized: n))
-            } else {
-                router?.applyNormalized(lane.parameter, Float(n))
-            }
+        // step tick IS the clip tick.
+        for lane in clipLanes { dispatchLane(lane, atTick: step * Note.ticksPerStep) }
+        // Timeline layer (cycle 5) — song-ABSOLUTE arrangement lanes, applied LAST
+        // so the arrangement's automation is authoritative while the song plays.
+        // The timeline player set `timelineTick` earlier in this same onTick chain;
+        // [] when the timeline isn't playing = no effect.
+        for lane in timelineLanes { dispatchLane(lane, atTick: timelineTick) }
+    }
+
+    /// Apply one lane's value at a resolved tick to its live target — the ONE
+    /// dispatch the clip AND timeline layers share (enum → its curve → applyEnum;
+    /// free keyPath → the router). No fork.
+    private func dispatchLane(_ lane: AutomationLane, atTick tick: Int) {
+        guard let n = lane.value(atTick: tick) else { return }
+        if let target = AutomationTarget.forParameter(lane.parameter) {
+            applyEnum(target, real: target.value(forNormalized: n))
+        } else {
+            router?.applyNormalized(lane.parameter, Float(n))
         }
     }
 
-    /// The ONE live write site for enum targets — global and clip lanes both
-    /// terminate here (no dispatch fork).
+    /// The REAL value a lane-set would apply for a parameter at a tick (enum curve
+    /// preserved, e.g. log filter; free keyPath → its normalized value, the
+    /// router's descriptor owns the real mapping). nil when no lane covers it.
+    /// The shared read behind clip + timeline `…AppliedValue`. Pure.
+    private func layerValue(in lanes: [AutomationLane],
+                            forParameter parameter: String, atTick tick: Int) -> Double? {
+        let target = AutomationTarget.forParameter(parameter)
+        for lane in lanes {
+            let sameLane = lane.parameter == parameter
+                || (target != nil && AutomationTarget.forParameter(lane.parameter) == target)
+            guard sameLane, let n = lane.value(atTick: tick) else { continue }
+            return target.map { $0.value(forNormalized: n) } ?? n
+        }
+        return nil
+    }
+
+    /// The ONE live write site for enum targets — global, clip and timeline lanes
+    /// all terminate here (no dispatch fork).
     private func applyEnum(_ target: AutomationTarget, real: Double) {
         switch target {
         case .masterLevel:  audioEngine?.masterVolume = Float(real)
@@ -246,18 +283,30 @@ public final class AutomationPlayer {
     }
 
     /// The REAL value the clip layer would apply for a parameter at `step`, or nil
-    /// when no clip lane covers it. Enum-aliased lanes keep the enum curves (log
-    /// filter); free keyPaths return their normalized value (the router's
-    /// descriptor owns their real mapping). Pure — exposed for testing.
+    /// when no clip lane covers it. Pure — exposed for testing.
     public func clipAppliedValue(forParameter parameter: String, atStep step: Int) -> Double? {
-        let target = AutomationTarget.forParameter(parameter)
-        for lane in clipLanes {
-            let sameLane = lane.parameter == parameter
-                || (target != nil && AutomationTarget.forParameter(lane.parameter) == target)
-            guard sameLane, let n = lane.value(atTick: step * Note.ticksPerStep) else { continue }
-            return target.map { $0.value(forNormalized: n) } ?? n
-        }
-        return nil
+        layerValue(in: clipLanes, forParameter: parameter, atTick: step * Note.ticksPerStep)
+    }
+
+    // MARK: - Timeline layer (cycle 5) — song-absolute arrangement automation
+
+    /// Install the arrangement's automation (empty = clear the layer). Transient —
+    /// the timeline document persists these lanes, not the player.
+    public func setTimelineLanes(_ lanes: [AutomationLane]) {
+        timelineLanes = lanes
+    }
+
+    /// Feed the song-absolute playhead tick (from the timeline player's cursor).
+    /// Called each transport step BEFORE `applyStep`, so the timeline layer reads
+    /// the correct song position. Clamped ≥ 0.
+    public func setTimelineTick(_ tick: Int) {
+        timelineTick = max(0, tick)
+    }
+
+    /// The REAL value the timeline layer would apply for a parameter at a
+    /// song-ABSOLUTE tick, or nil when no timeline lane covers it. Pure.
+    public func timelineAppliedValue(forParameter parameter: String, atTick tick: Int) -> Double? {
+        layerValue(in: timelineLanes, forParameter: parameter, atTick: tick)
     }
 
     /// The real-world value an ENUM target would take at `step`, addressed by either
