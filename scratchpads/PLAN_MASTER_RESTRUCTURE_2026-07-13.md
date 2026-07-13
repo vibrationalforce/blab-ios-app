@@ -138,3 +138,27 @@ Trim/Scrubber/Thumbnails → Bio-Grade (`ChromaKey`/Metal-Pass) → Export. Gro�
 2. Bestätigung der Video-Grenze (§1): Capture/Trim/Bio-Grade/Export in den Spuren —
    Feinschnitt extern? Oder willst du mehr Schnitt-Tiefe drin?
 3. P0a bestätigt: A (Anker ohne Beat) + 8-Takt-Default. (Kann ich sofort bauen.)
+
+---
+
+## STATUS 2026-07-13 (diese Session) — FUNDAMENT-SCHICHT KOMPLETT, alle CI-grün
+
+"Alles parallel": 4 Tiefen-Agenten bauten die geräte-UNABHÄNGIGEN Kerne JEDER Phase
+gleichzeitig; ich integriere in prüfbaren Batches (kein lokaler Compiler → CI ist die
+einzige Verifikation). GELANDET + grün (Xcode Compile + CI/CD Pipeline):
+- **P0a** Meter/„die Eins" (8-Takt-Default + Downbeat-Anker) — v10.79.190 auf TestFlight.
+- **P1** `LaneVoicePool` + `LaneVoiceScheduling.plan` — Per-Spur-Voice-Zuweisung (Keystone-Kern).
+- **P2** `AudioClipRegion` warp (warpEnabled/nativeBPM + effectiveStretchRate) — Warp-Kern.
+- **P4** `LaneLaunchLatch`/`LaunchTiming`/`LaunchGestureResolver` — Live-Clip-Launch-Kern (neue
+  Datei; alte tote `LaunchQuantizer`-Klasse bleibt bis ClipView-Reconciliation).
+- **P5** `VideoRegionSync`/`VideoRegionTrim`/`VideoClipFactory`/`BioColorGradeParams` +
+  `ClipKind.timelineEngineKinds`/`isMediaCarrier` + `videoLaneIDs`/`videoLaneEvents` — Video-Kern.
+Alle rein, getestet, `decodeIfPresent`, Swift-6, audio-thread-frei.
+
+**NÄCHSTE SCHICHT = geräte-verifiziertes Wiring (gestaffelt, je eigener Mess-Build,
+ab hier der echte Taktgeber — nicht Planung):**
+1. P1 `LaneVoiceRack` (2 Spuren → CPU/Memory messen → N) — der sichtbare Keystone.
+2. P2 `AVAudioUnitTimePitch` offline-render in `AudioClipPlayer`.
+3. P5 `VideoLanePlayer` (AVPlayer an Transport) + Import(PHPicker)/Trim/Grade/Export.
+4. P4 MIDI-Launch-Driver (braucht P1) → dann Audio-Launch (braucht Timeline-Audio).
+5. P3 Automation: DDSP-Registry in den Router binden (song-absolut, Founder-Top C5).
