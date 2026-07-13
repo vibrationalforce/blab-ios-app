@@ -74,5 +74,6 @@ public final class LaunchQuantizer {
         }
         pianoRoll?.allNotesOff()
         pianoRoll?.load(clip.melody?.notes ?? [])
+        pianoRoll?.setClipAutomation(clip.automation)   // clip lanes travel with the clip (cycle 4)
     }
 }

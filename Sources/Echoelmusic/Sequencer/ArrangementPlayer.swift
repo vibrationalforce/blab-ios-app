@@ -120,10 +120,11 @@ public final class ArrangementPlayer {
         let section = sectionSnapshot[cursor.index]
 
         guard let clipID = section.clipID, let clip = clips?.clip(id: clipID) else {
-            // A silent gap: clear both surfaces.
+            // A silent gap: clear both surfaces + the clip automation layer.
             pattern?.clear()
             pianoRoll?.allNotesOff()
             pianoRoll?.load([])
+            pianoRoll?.setClipAutomation([])
             return
         }
         if let drums = clip.drums {
@@ -133,5 +134,6 @@ public final class ArrangementPlayer {
         }
         pianoRoll?.allNotesOff()
         pianoRoll?.load(clip.melody?.notes ?? [])
+        pianoRoll?.setClipAutomation(clip.automation)   // this section's clip lanes (cycle 4)
     }
 }

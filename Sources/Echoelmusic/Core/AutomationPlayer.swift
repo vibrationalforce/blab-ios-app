@@ -128,6 +128,14 @@ public final class AutomationPlayer {
     /// One lane per target (created lazily, kept for the lifetime of the doc).
     public private(set) var lanes: [AutomationLane]
 
+    /// The FIRED clip's own automation (cycle 4) — transient, never persisted
+    /// here (the clip persists it). Set by the clip launch paths via
+    /// `PianoRollModel.load`, cleared by loading anything without automation.
+    /// Clip lanes are clip CONTENT: they play whenever the clip plays — like
+    /// its notes, independent of the global `enabled` switch — and they win
+    /// over a global lane on the same parameter (applied after it each step).
+    public private(set) var clipLanes: [AutomationLane] = []
+
     @ObservationIgnored private weak var pattern: PatternEngine?
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private weak var voice: PolySynthVoice?
@@ -181,26 +189,75 @@ public final class AutomationPlayer {
     /// Apply every enabled lane's value at `step` to its live parameter. Per-bar:
     /// the step maps to a tick within one bar, so the lane repeats each loop.
     public func applyStep(_ step: Int) {
-        // When automation is off, release the hidden multiplier so the synth isn't
-        // left filtered; master/tempo stay where they are (user-visible).
-        guard enabled else { voice?.setCutoffScale(1); return }
-        for target in AutomationTarget.allCases {
-            let real = appliedValue(for: target, atStep: step)
-            switch target {
-            case .masterLevel: if let r = real { audioEngine?.masterVolume = Float(r) }
-            case .tempo:       if let r = real { pattern?.setTempo(r) }
-            // Filter cutoff is a hidden multiplier → reset to neutral (×1) when its
-            // lane is empty, so an unused lane never leaves the sound filtered.
-            case .filterCutoff: voice?.setCutoffScale(Float(real ?? target.neutralValue))
+        if enabled {
+            for target in AutomationTarget.allCases {
+                let real = appliedValue(for: target, atStep: step)
+                switch target {
+                case .masterLevel: if let r = real { applyEnum(target, real: r) }
+                case .tempo:       if let r = real { applyEnum(target, real: r) }
+                // Filter cutoff is a hidden multiplier → reset to neutral (×1) when its
+                // lane is empty, so an unused lane never leaves the sound filtered.
+                case .filterCutoff: applyEnum(target, real: real ?? target.neutralValue)
+                }
             }
+            // Extra keyPath lanes (cycle 2): registry-denormalize + dispatch through the
+            // router. No router / unbound keyPath = safe no-op (never a dead crash).
+            for lane in lanes where AutomationTarget.forParameter(lane.parameter) == nil {
+                if let n = lane.value(atTick: step * Note.ticksPerStep) {
+                    router?.applyNormalized(lane.parameter, Float(n))
+                }
+            }
+        } else {
+            // Automation off: release the hidden multiplier so the synth isn't
+            // left filtered; master/tempo stay where they are (user-visible).
+            voice?.setCutoffScale(1)
         }
-        // Extra keyPath lanes (cycle 2): registry-denormalize + dispatch through the
-        // router. No router / unbound keyPath = safe no-op (never a dead crash).
-        for lane in lanes where AutomationTarget.forParameter(lane.parameter) == nil {
-            if let n = lane.value(atTick: step * Note.ticksPerStep) {
+        // Clip layer (cycle 4) — AFTER the global writes, so the fired clip's own
+        // automation wins on a shared parameter, and OUTSIDE the `enabled` gate:
+        // clip automation is clip content and plays like the clip's notes. Ticks
+        // are clip-relative; today's live loop is the same 1-bar phase, so the
+        // step tick IS the clip tick (song-absolute spans arrive with cycle 5).
+        for lane in clipLanes {
+            guard let n = lane.value(atTick: step * Note.ticksPerStep) else { continue }
+            if let target = AutomationTarget.forParameter(lane.parameter) {
+                applyEnum(target, real: target.value(forNormalized: n))
+            } else {
                 router?.applyNormalized(lane.parameter, Float(n))
             }
         }
+    }
+
+    /// The ONE live write site for enum targets — global and clip lanes both
+    /// terminate here (no dispatch fork).
+    private func applyEnum(_ target: AutomationTarget, real: Double) {
+        switch target {
+        case .masterLevel:  audioEngine?.masterVolume = Float(real)
+        case .tempo:        pattern?.setTempo(real)
+        case .filterCutoff: voice?.setCutoffScale(Float(real))
+        }
+    }
+
+    // MARK: - Clip layer (cycle 4)
+
+    /// Install the fired clip's automation (empty = clear the layer). Transient —
+    /// never persisted here; the clip's own JSON carries the lanes.
+    public func setClipLanes(_ lanes: [AutomationLane]) {
+        clipLanes = lanes
+    }
+
+    /// The REAL value the clip layer would apply for a parameter at `step`, or nil
+    /// when no clip lane covers it. Enum-aliased lanes keep the enum curves (log
+    /// filter); free keyPaths return their normalized value (the router's
+    /// descriptor owns their real mapping). Pure — exposed for testing.
+    public func clipAppliedValue(forParameter parameter: String, atStep step: Int) -> Double? {
+        let target = AutomationTarget.forParameter(parameter)
+        for lane in clipLanes {
+            let sameLane = lane.parameter == parameter
+                || (target != nil && AutomationTarget.forParameter(lane.parameter) == target)
+            guard sameLane, let n = lane.value(atTick: step * Note.ticksPerStep) else { continue }
+            return target.map { $0.value(forNormalized: n) } ?? n
+        }
+        return nil
     }
 
     /// The real-world value an ENUM target would take at `step`, addressed by either

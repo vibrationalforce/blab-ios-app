@@ -179,7 +179,8 @@ struct ClipView: View {
             name: existing?.name ?? "Clip \(index + 1)",
             colorIndex: existing?.colorIndex ?? (index % Self.palette.count),
             drums: drums,
-            melody: melody
+            melody: melody,
+            automation: existing?.automation ?? []   // re-capture keeps authored clip lanes (cycle 4)
         )
         clips.setClip(at: index, clip)
     }
@@ -192,6 +193,9 @@ struct ClipView: View {
         if let m = clip.melody {
             pianoRoll.load(m.notes)
         }
+        // Clip automation travels + plays with the clip (cycle 4); installed even
+        // when the clip has no melody, and [] clears a previous clip's lanes.
+        pianoRoll.setClipAutomation(clip.automation)
     }
 
     // MARK: - Rename

@@ -168,6 +168,7 @@ public final class TimelineRegionPlayer {
         }
         pianoRoll?.allNotesOff()
         pianoRoll?.load(clip.melody?.notes ?? [])
+        pianoRoll?.setClipAutomation(clip.automation)   // this region's clip lanes (cycle 4)
         loadedRegionID = region.id
     }
 
@@ -175,6 +176,7 @@ public final class TimelineRegionPlayer {
         pattern?.clear()
         pianoRoll?.allNotesOff()
         pianoRoll?.load([])
+        pianoRoll?.setClipAutomation([])
         loadedRegionID = nil
     }
 }

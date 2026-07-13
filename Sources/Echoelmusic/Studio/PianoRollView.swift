@@ -188,6 +188,15 @@ public final class PianoRollModel {
         notes = newNotes
     }
 
+    /// Install a fired clip's own automation onto the shared AutomationPlayer
+    /// (cycle 4). Clip automation travels + plays WITH the clip, like its notes;
+    /// every clip-launch path routes through here (the one place that holds the
+    /// automation reference). Passing `[]` — a silent gap or a clip without
+    /// automation — clears the previous clip's lanes. No automation wired = no-op.
+    public func setClipAutomation(_ lanes: [AutomationLane]) {
+        automation?.setClipLanes(lanes)
+    }
+
     /// Load an N-bar arrangement that CYCLES one bar per loop (1b). `playing` = the
     /// transport is already running (a live re-seed), so hot-swap the bars and stage the
     /// phase-correct next bar for the upcoming boundary — the sounding bar is never cut.

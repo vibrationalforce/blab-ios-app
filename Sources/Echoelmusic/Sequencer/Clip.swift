@@ -63,6 +63,11 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
     public var melody: MelodyClip?
     /// Asset/file reference for audio/video/visual clips; nil for a MIDI pattern clip.
     public var mediaRef: String?
+    /// Parameter automation the clip carries (automation-in-track cycle 4).
+    /// Ticks are CLIP-RELATIVE (0 = the clip's first step), so the lanes travel
+    /// with the clip wherever it is launched or placed. Clip automation is clip
+    /// CONTENT — it plays whenever the clip plays, like its notes.
+    public var automation: [AutomationLane]
 
     public init(
         id: UUID = UUID(),
@@ -71,7 +76,8 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         kind: ClipKind = .midi,
         drums: DrumPattern? = nil,
         melody: MelodyClip? = nil,
-        mediaRef: String? = nil
+        mediaRef: String? = nil,
+        automation: [AutomationLane] = []
     ) {
         self.id = id
         self.name = name
@@ -80,10 +86,11 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         self.drums = drums
         self.melody = melody
         self.mediaRef = mediaRef
+        self.automation = automation
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, colorIndex, kind, drums, melody, mediaRef
+        case id, name, colorIndex, kind, drums, melody, mediaRef, automation
     }
 
     // Forward/backward-compatible decode: clips saved before `kind`/`mediaRef` existed
@@ -97,6 +104,7 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         drums = try? c.decode(DrumPattern.self, forKey: .drums)
         melody = try? c.decode(MelodyClip.self, forKey: .melody)
         mediaRef = try? c.decode(String.self, forKey: .mediaRef)
+        automation = (try? c.decode([AutomationLane].self, forKey: .automation)) ?? []
     }
 
     /// True if the clip carries no content (per kind).
