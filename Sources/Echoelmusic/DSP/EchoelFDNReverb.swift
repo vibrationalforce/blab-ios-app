@@ -64,14 +64,21 @@ public final class EchoelFDNReverb: @unchecked Sendable {
 
     // MARK: - Init
 
-    public init(room: RoomModel = RoomModel(), sampleRate: Float = 48_000,
-                maxBlock: Int = 2048, mix: Float = 0.25, seed: UInt64 = 0xFD2) {
+    /// Primitive designated init — takes raw room dimensions (metres) + decay/diffusion so
+    /// the CORE stays self-contained in DSP/ (no dependency on the Core `RoomModel` type, so
+    /// it compiles into the DSP-only AUv3 target). The `RoomModel` convenience lives in the
+    /// Core-side `EchoelFDNReverb+RoomModel.swift` bridge. Defaults mirror `RoomModel`'s.
+    public init(width: Float = 8, depth: Float = 10, height: Float = 4,
+                decayTime: Float = 1.2, diffusion: Float = 0.7,
+                sampleRate: Float = 48_000, maxBlock: Int = 2048,
+                mix: Float = 0.25, seed: UInt64 = 0xFD2) {
         let fs = (sampleRate.isFinite && sampleRate > 0) ? sampleRate : 48_000
         self.sampleRate = fs
         self.maxBlock = Swift.max(1, maxBlock)
         self.mix = Self.clamp01(mix)
 
-        let p = Self.params(from: room, sampleRate: fs, seed: seed)
+        let p = Self.params(width: width, depth: depth, height: height,
+                            decayTime: decayTime, sampleRate: fs, seed: seed)
         self.params = p
         self.gains = p.gains
         self.lengthsF = p.lengths.map { Float($0) }
@@ -86,19 +93,21 @@ public final class EchoelFDNReverb: @unchecked Sendable {
         self.diffLen = [Self.primeAtLeast(Int(0.0043 * fs), excluding: []),
                         Self.primeAtLeast(Int(0.0037 * fs), excluding: [])]
         self.diffusers = diffLen.map { EchoelDelayLine(maxDelaySeconds: Float($0 + 8) / fs, sampleRate: fs) }
-        self.diffCoeff = 0.6 * (room.diffusion.isFinite ? Swift.min(Swift.max(room.diffusion, 0), 1) : 0.7)
+        self.diffCoeff = 0.6 * Self.clampDiffusion(diffusion)
     }
 
     // MARK: - Control (control thread only)
 
-    /// Recompute lengths/gains for a new room (control-rate, never the render block).
-    public func setRoom(_ room: RoomModel, sampleRate: Float? = nil) {
+    /// Recompute lengths/gains for new room dimensions (control-rate, never the render block).
+    public func setRoom(width: Float, depth: Float, height: Float,
+                        decayTime: Float, diffusion: Float, sampleRate: Float? = nil) {
         let fs = sampleRate ?? self.sampleRate
-        let p = Self.params(from: room, sampleRate: fs, seed: 0xFD2)
+        let p = Self.params(width: width, depth: depth, height: height,
+                            decayTime: decayTime, sampleRate: fs, seed: 0xFD2)
         self.params = p
         self.gains = p.gains
         self.lengthsF = p.lengths.map { Float($0) }
-        self.diffCoeff = 0.6 * (room.diffusion.isFinite ? Swift.min(Swift.max(room.diffusion, 0), 1) : 0.7)
+        self.diffCoeff = 0.6 * Self.clampDiffusion(diffusion)
         // Note: delay-line capacity is fixed at init (from the initial room's max length);
         // a room whose max length grows past that is read-clamped by EchoelDelayLine — the
         // live re-size belongs to the S5 wiring slice, not this pure core.
@@ -204,14 +213,16 @@ public final class EchoelFDNReverb: @unchecked Sendable {
 
     // MARK: - Parameter derivation (pure, deterministic — exposed for tests)
 
-    /// Derive the eight delay lengths + Jot gains from a room. Deterministic: same
-    /// (room, sampleRate, seed) → identical Params. Bigger room → longer, sparser delays.
-    public static func params(from room: RoomModel, sampleRate: Float, seed: UInt64 = 0xFD2) -> Params {
+    /// Derive the eight delay lengths + Jot gains from raw room dimensions. Deterministic:
+    /// same (dimensions, decayTime, sampleRate, seed) → identical Params. Bigger room →
+    /// longer, sparser delays. Inputs are clamped to the RoomModel ranges defensively.
+    public static func params(width: Float, depth: Float, height: Float, decayTime: Float,
+                              sampleRate: Float, seed: UInt64 = 0xFD2) -> Params {
         let fs = (sampleRate.isFinite && sampleRate > 0) ? sampleRate : 48_000
-        let width  = room.width.isFinite  ? Swift.min(Swift.max(room.width, 1), 200)  : 8
-        let depth  = room.depth.isFinite  ? Swift.min(Swift.max(room.depth, 1), 200)  : 10
-        let height = room.height.isFinite ? Swift.min(Swift.max(room.height, 1), 60)  : 4
-        let rt60   = room.decayTime.isFinite ? Swift.min(Swift.max(room.decayTime, 0.1), 30) : 1.2
+        let width  = width.isFinite  ? Swift.min(Swift.max(width, 1), 200)  : 8
+        let depth  = depth.isFinite  ? Swift.min(Swift.max(depth, 1), 200)  : 10
+        let height = height.isFinite ? Swift.min(Swift.max(height, 1), 60)  : 4
+        let rt60   = decayTime.isFinite ? Swift.min(Swift.max(decayTime, 0.1), 30) : 1.2
 
         // Round-trip acoustic time of the mean dimension (≈ 2·d / c, c = 343 m/s), spread
         // geometrically into eight target lengths — a small room clusters short + dense,
@@ -245,6 +256,9 @@ public final class EchoelFDNReverb: @unchecked Sendable {
     // MARK: - Helpers
 
     static func clamp01(_ x: Float) -> Float { Swift.min(1, Swift.max(0, x)) }
+
+    /// Diffusion clamped to [0,1], defaulting a non-finite value to the RoomModel default.
+    static func clampDiffusion(_ x: Float) -> Float { x.isFinite ? Swift.min(Swift.max(x, 0), 1) : 0.7 }
 
     /// Smallest prime ≥ `n` not already used — deterministic prime search (no RNG).
     static func primeAtLeast(_ n: Int, excluding used: Set<Int>) -> Int {
