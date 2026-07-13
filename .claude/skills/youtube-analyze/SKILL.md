@@ -10,6 +10,12 @@ description: >
 
 # youtube-analyze — a YouTube link → an on-vision verdict
 
+> **EYES: use the `video-watch` skill** (2026-07-13) when the VISUALS matter or the
+> founder uploads a video file — it extracts frames Claude reads as images (local
+> files need zero network; URL path shares this skill's network caveat). This skill
+> remains the text/transcript path. NOTE: the `scripts/analyze-youtube.py` referenced
+> below does not exist in this folder yet — prefer video-watch until it lands.
+
 The founder shares videos as inspiration. This skill fetches the video's **metadata +
 transcript** as plain text, then routes the content through the **vision-gate** so the repo
 absorbs what's useful without drifting. It is the video sibling of the deep-research/

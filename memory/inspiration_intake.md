@@ -445,3 +445,18 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
   Dark-Patterns → on-device + Einmal-Unlock ist die exakte Gegenposition. KI-Stimm-
   Weights bleiben REJECT-UNTIL-LICENSED (ihr Voice-Donor-Royalty-Modell = einziges
   ethisches Vorbild, FALLS je relevant).
+
+## 2026-07-13 — Founder-Video-Uploads (2 Reels, per neuem video-watch-Skill GESEHEN)
+- **Reel 1 (buildwith.conrad, „Claude can't watch video → so I gave it eyes"):** Rezept
+  yt-dlp → ffmpeg-Frames → Claude liest Frames als Bilder. **ADOPT-PIPELINE → GEBAUT**
+  als `.claude/skills/video-watch` (Script self-tested + End-to-End auf den Uploads
+  bewiesen). Local-Upload-Pfad = zero network; YouTube-URL-Pfad in dieser Session
+  proxy-blockiert (403 googlevideo) → Freischalten via Environment-Network-Policy
+  (youtube.com + googlevideo.com) ODER Founder lädt Datei hoch (funktioniert immer).
+  Kein lokales Speech-to-Text — ohne Subs zählt nur das Bild (ehrlich ausweisen).
+- **Reel 2 (sebastiankauffmann, „5 beste GitHub-Repos für Claude Code"):** Leads:
+  everything-claude-code (Dev-Team R/M/S/T) · claude-mem (~Erinnerung) · last30days-skill
+  (24k Stars) · Token-Reduktions-Skill (−20 %) · Design-Output-Skill. **WATCH** —
+  Supply-Chain-Regel: nie Skill-Packs aus Videos auto-installieren; wir fahren bereits
+  memory/ + decisions.csv + Reviewer-Fleet (deckt claude-mem/Dev-Team-Kern ab).
+  Einzeln vision-gaten, wenn der Founder eines konkret will.
