@@ -1,23 +1,33 @@
-build: 2026-07-13 v10.79.190 (Produzierbare Loops: 8 Takte + klarere Eins)
+build: 2026-07-13 v10.79.191 (Spuren = Instrumente: EchoelDrums/Break/Sampler + Video-Spur + Record-Arm)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: P0 der Restrukturierung — die erste HÖRBARE Scheibe. Aus deinem Feedback
-  ("man findet die Eins nicht … 8 Takte vollständig und dann wiederholt es sich —
-  sinnvolle Loops sind am besten zum Musik produzieren").
+notes: Direkt aus deinem Screenshot-Feedback (13.07.) — die Spuren sollen
+  Instrumente SEIN und einen Record-Button pro Spur haben.
 
-  DRIN:
-  1) LOOP-DEFAULT = 8 TAKTE (war 4). Eine vollständige 8-Takt-Phrase, dann
-     Wiederholung. Weiter frei umstellbar (2/4/8/16/32) + im Arrangement länger.
-     PRÜFE: fühlt sich der Default wie eine "sinnvolle" produzierbare Schleife an?
-  2) KLARERE EINS: der Downbeat (Takt 1) sitzt jetzt deutlich lauter als der Rest
-     der Fläche — der stärkste Anker, den ein Sound OHNE Beat tragen kann.
-     PRÜFE: hörst du jetzt klarer, wo Takt 1 ist?
+  DRIN (sichtbar, sofort prüfbar):
+  1) "+"-MENÜ = ECHTE INSTRUMENTE. Neu unter "Instruments": EchoelDrums,
+     EchoelBreak, EchoelSampler, EchoelSynth, EchoelBass, Bio Instrument. Die Spur
+     heißt dann nach ihrem Instrument. ("EchoelDrums, Echoelbreak, EchoelSampler
+     etc fehlen" — jetzt da.)
+  2) VIDEO-SPUR wählbar. Unter "Media": Audio · Video · Empty MIDI. Eine Video-
+     Spur erscheint jetzt als eigene Lane im Grid. (Rein-ziehen von Videodateien +
+     Abspielen = nächster Geräte-Build, siehe unten.)
+  3) RECORD-ARM PRO SPUR. Jede Spur-Leiste hat jetzt einen Aufnahme-Button, dessen
+     Symbol die EINGANGSQUELLE der Spur zeigt und rot wird, wenn scharfgeschaltet:
+       · Audio-Spur  -> Mikro/Audio-Input
+       · MIDI/Instrument-Spur -> MIDI-Input
+       · Bio-Instrument -> Biofeedback
+     ("jede Spur soll ein record Button haben der entsprechend verknüpft ist.
+     Audio für Audio Inputs, Midi für Midi Input die Biofeedback Instrumente" -
+     die Verknüpfung ist da.)
+  4) Instrument pro Spur auch nachträglich änderbar (Spur-Kopf -> Menü).
 
-  EHRLICH: ein weicher Pad-Klang hat keine harte Transiente — Lautstärke ist hier
-  der einzige Hebel. Wenn dir die Eins IMMER NOCH nicht klar genug ist, ist der
-  nächste Schritt ein schärferer Anschlag/Bass-Impuls genau auf die Eins (verändert
-  den Klang etwas mehr) — den stimme ich dann mit deinem Ohr ab. Sag mir einfach:
-  reicht die Eins so, oder soll sie deutlicher/härter werden?
+  EHRLICH - was jetzt Struktur ist und was noch Geräte-Build braucht: Punkt 1/2/4
+  und die Record-Quellen-Zuordnung sind komplett und persistent. Der Record-Button
+  SCHARFSCHALTET die Spur richtig (arm), NIMMT aber noch nicht auf - die eigentliche
+  Aufnahme-Engine (Audio-In / MIDI-In / Bio je Quelle) und "Audio-Loop/Video in die
+  Spur laden" hängen an AVFoundation und kommen als eigene, an deinem Gerät
+  verifizierte Builds - einer nach dem anderen, kein Blindflug. Diese Scheibe legt
+  genau die Schiene, auf der die Aufnahme + der Datei-Import als Nächstes fahren.
 
-  UNSICHTBAR mitgebaut (parallel, CI-geprüft, noch ohne Wirkung): das Warp-
-  Fundament (Audio-Clips aufs Projekt-Tempo) + die Kerne für Per-Spur-Playback,
-  Live-Clip-Launch und Video-in-Spuren — die kommen als eigene Geräte-Builds.
+  Skills am Start: ja - the-council, device-log-triage, swiftui-render-safety,
+  avaudio-route-resilience, audio-thread-reviewer + die Reviewer-Agenten sind aktiv.
