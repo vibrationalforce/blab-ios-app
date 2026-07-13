@@ -1,23 +1,22 @@
-build: 2026-07-12 v10.79.182 (Start erzwingt kein Visual-Fenster mehr · Visual-Zustand steht jetzt im Log)
-branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Deine Anweisung umgesetzt:
-  · START = NUR MUSIK: das Visual-Fenster geht beim Biofeedback nicht
-    mehr automatisch auf (vorher zwang Start es in Vollbild). Der
-    Monitor oben rechts bleibt der lebendige Hinweis — du öffnest das
-    Fenster, wann DU willst.
-  · LOG-RÄTSEL GELÖST: die visual:-Diagnosezeile ging bisher in einen
-    anderen Kanal als dein kopierbares Log — darum fehlte sie IMMER,
-    auch bei offenem Fenster. Ab diesem Build steht sie in jedem Log
-    (alle ~5 s, wenn das Fenster offen ist): ob Noten ankommen,
-    welcher Ton die Farbe treibt, welche Detail-Stufe rendert.
-  · Dein 2286-Log BESTÄTIGT den v180-Fix: während der iOS-Pausen
-    keine blinden Belichtungs-Locks mehr, und nach dem Resume saubere
-    Wieder-Erfassung bis Konfidenz 0,87 bei Puls 58. Sehr gute Läufe
-    insgesamt (0,90 · 0,87 · 0,79).
-  · In v181 (vorheriger Build): F ist wieder eine Farbe (Purpur),
-    Akkorde färben das Visual — bitte dort einmal F im Raster und
-    einen Akkord im offenen Visual anschauen.
-  Als Nächstes (dein Vorschlag, angenommen): EchoelVideo- und
-  EchoelLux-Monitore neben dem BioSynth-Monitor im Header.
-  Gates: Quick Test + Xcode Compile Check + CI/CD auf 561d1ab.
-  NEEDS-FOUNDER-VERIFY (Start ohne Auto-Visual, visual:-Zeilen im Log).
+build: 2026-07-13 v10.79.184 (Visuals: die Farbe kommt zurück — Grau-Kette entstapelt)
+branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
+notes: DEIN BEFUND „VISUALS GRAU" — behoben.
+  Dein v183-Log war der Beweis: der Datenpfad war intakt (Noten da,
+  Level bis 1.00, Töne 294/440/659, Bio 0→1). Das Grau entstand rein
+  in der Farb-/Sättigungskette — sie entsättigte DREIMAL hintereinander
+  (Netto nur ~0,66 Buntheit, dazu zweifacher Warm-Lift). Zwei
+  Konstanten entstapeln das:
+  · Der Warm-Block TÖNT jetzt nur noch warm, statt ein zweites Mal zu
+    entsättigen (0,80 → 0,92) — die Buntheit steigt (~0,66 → ~0,75).
+  · Ein klingender Ton TRÄGT SEINE FARBE WEITER über den Frame
+    (Farb-Gate 1,6 → 2,4) — das war der eigentliche Grau-Macher bei nur
+    2–3 Noten: vorher färbte jede Note nur ihren engen Kern.
+  Stille bleibt neutral (keine Note → keine Farbe, dein Gesetz von
+  2026-07-08 hält). Flash-Safety und das physikalische Ton→Licht-Gesetz
+  (CIE, SpectralColor-Zwilling) sind unberührt.
+  Adversarial gegengeprüft: kein Neon, kein Weiß-Ausbrennen, Stille
+  neutral. Gates grün auf 1730d8e (Xcode Compile Check + CI/CD Pipeline).
+  BITTE AUGEN-VERIFY: Visual-Fenster offen, spiel ein paar Töne / einen
+  Akkord — kommt jetzt Farbe an ihren Stellen, statt Grau? „redMot=0"
+  im Log heißt übrigens nur: Reduce-Motion ist AUS (gesund) — kein Bug.
+  NEEDS-FOUNDER-VERIFY (Farbeindruck am Gerät).
