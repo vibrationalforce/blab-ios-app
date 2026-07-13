@@ -53,6 +53,30 @@ public enum TimelineScheduling {
         if let after { return .load(after) }
         return .clear
     }
+
+    /// One lane's scheduling event — the multi-roll fan-out unit (Equatable so the
+    /// whole per-lane list is unit-testable).
+    public struct LaneScheduleEvent: Equatable {
+        public let laneID: UUID
+        public let event: LaneEvent
+        public init(laneID: UUID, event: LaneEvent) {
+            self.laneID = laneID
+            self.event = event
+        }
+    }
+
+    /// The scheduling event for EVERY non-bio MIDI lane moving `fromTick`→`toTick`,
+    /// in lane order — the multi-roll fan-out of `laneEvent`. Today only the single
+    /// `rollLaneID` is played; the playback fan-out cycle rides this to drive one
+    /// roll+voice per lane. Pure — no audio, no per-lane state yet.
+    public static func laneEvents(in document: TimelineDocument,
+                                  fromTick: Int, toTick: Int) -> [LaneScheduleEvent] {
+        document.midiLaneIDs.map { id in
+            LaneScheduleEvent(laneID: id,
+                              event: laneEvent(in: document, laneID: id,
+                                               fromTick: fromTick, toTick: toTick))
+        }
+    }
 }
 
 public extension TimelineDocument {
@@ -68,5 +92,12 @@ public extension TimelineDocument {
     /// The audio lanes (in order) — each plays its audio regions on its own AudioClipPlayer.
     var audioLaneIDs: [UUID] {
         lanes.filter { $0.kind == .audio && !$0.isBio }.map(\.id)
+    }
+
+    /// Every non-bio MIDI lane, in order — the fan-out set for multi-roll playback.
+    /// `rollLaneID` (the first) stays the single-slot owner until the fan-out lands,
+    /// so this is additive: nothing reads it on the playback path yet.
+    var midiLaneIDs: [UUID] {
+        lanes.filter { $0.kind == .midi && !$0.isBio }.map(\.id)
     }
 }
