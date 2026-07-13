@@ -29,6 +29,15 @@ public final class FXBioModulator {
     /// Whether the driver loop is running (a session is live).
     public private(set) var isRunning = false
 
+    /// Live per-route contributions for the "which parameters is the body moving"
+    /// display (Item 2). Refreshed at ~10 Hz (throttled from the 30 Hz tick) so a
+    /// leaf view can observe it without registering the whole tree as a 30 Hz
+    /// observer (menu-freeze law). Empty when stopped or no enabled routes.
+    public private(set) var liveContributions: [BioModContribution] = []
+    @ObservationIgnored private var tickCount = 0
+    /// 30 Hz tick / 3 ≈ 10 Hz UI refresh.
+    @ObservationIgnored private static let publishEveryN = 3
+
     @ObservationIgnored private var chain: EchoelFXChain?
     @ObservationIgnored private weak var bus: EngineBus?
     /// The user's intended value per modulated target, captured when the target's
@@ -62,6 +71,7 @@ public final class FXBioModulator {
     public func stop() {
         isRunning = false
         task?.cancel(); task = nil
+        liveContributions = []   // display empties when no session is live
         // Restore every captured base so the chain returns to the user's settings.
         if let c = chain {
             for (target, base) in baseValues { write(target, base, to: c) }
@@ -116,6 +126,13 @@ public final class FXBioModulator {
             }
             write(target, FXModulation.combine(base: base, target: target, offset: sum), to: c)
             enableStage(for: target, on: c)   // make the modulation audible
+        }
+        // Publish the live snapshot at ~10 Hz (throttled) for the visibility leaf.
+        // Only write on a real change so an idle/stable state fires no observation.
+        tickCount &+= 1
+        if FXModulation.shouldPublish(tick: tickCount, everyN: Self.publishEveryN) {
+            let next = FXModulation.contributions(routes: routes, frame: frame, now: now)
+            if next != liveContributions { liveContributions = next }
         }
     }
 

@@ -124,11 +124,65 @@ public struct FXModRoute: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+/// One enabled route's LIVE effect, for the "which parameters is the body moving"
+/// display (Item 2). Pure value type — built deterministically from the routes +
+/// the current bio frame, so the leaf view reads a low-rate snapshot instead of
+/// the 30 Hz driver (menu-freeze law). `signal01` is the RAW normalized carrier
+/// value (pre-curve — the honest "your coherence is at 0.6"); `offset` is the
+/// signed amount this route pushes the target by, in the target's own units.
+public struct BioModContribution: Sendable, Equatable, Identifiable {
+    public var id: UUID            // the route's id (stable across snapshots)
+    public var carrierName: String
+    public var targetName: String
+    public var signal01: Float
+    public var offset: Float
+
+    public init(id: UUID, carrierName: String, targetName: String,
+                signal01: Float, offset: Float) {
+        self.id = id
+        self.carrierName = carrierName
+        self.targetName = targetName
+        self.signal01 = signal01
+        self.offset = offset
+    }
+}
+
 /// Pure mapping helpers — the deterministic heart of the feature.
 public enum FXModulation {
 
     @inline(__always) public static func clamp01(_ x: Float) -> Float {
         Swift.min(Swift.max(x.isFinite ? x : 0, 0), 1)
+    }
+
+    /// Whether the ~30 Hz driver should refresh the observable `liveContributions`
+    /// snapshot on this tick — `everyN = 3` gives ~10 Hz out of 30, keeping the UI
+    /// observation load low. Guards `everyN <= 0` (never divide/modulo by zero).
+    public static func shouldPublish(tick: Int, everyN: Int) -> Bool {
+        everyN > 0 && tick % everyN == 0
+    }
+
+    /// Build the per-route live contributions for the ENABLED routes. Bio carriers
+    /// with no frame still appear (signal 0 / offset 0 — the row reads "waiting for
+    /// body"); LFO carriers use `now` (seconds) for their phase and ignore the
+    /// frame. Order preserved. Deterministic → Linux-testable without the driver.
+    public static func contributions(routes: [FXModRoute], frame: BioSampleFrame?,
+                                     now: Float) -> [BioModContribution] {
+        routes.filter { $0.enabled }.map { route in
+            let signal: Float
+            switch route.carrier {
+            case .bio(let source):
+                signal = frame.map { source.normalizedValue(from: $0) } ?? 0
+            case .lfo:
+                let phase = (now * route.lfoRateHz).truncatingRemainder(dividingBy: 1)
+                signal = lfoUnipolar(phase: phase)
+            }
+            let off = offset(target: route.target, signal: route.curve.apply(signal),
+                             depth: route.depth, bipolar: route.bipolar)
+            return BioModContribution(id: route.id,
+                                      carrierName: route.carrier.displayName,
+                                      targetName: route.target.displayName,
+                                      signal01: clamp01(signal), offset: off)
+        }
     }
 
     /// A free LFO's unipolar [0..1] value at a phase in turns (1.0 = one cycle).
