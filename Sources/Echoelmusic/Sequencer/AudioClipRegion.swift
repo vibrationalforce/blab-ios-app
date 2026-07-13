@@ -26,10 +26,23 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
     /// Fade-out length in seconds (0 = hard stop), clamped ≥ 0. The gain ramps
     /// 1→0 over this many seconds up to the region end.
     public var fadeOutSeconds: Double
+    /// Warp/tempo-conform gate. When true AND `nativeBPM > 0`, an audio-clip player
+    /// time-stretches the region (pitch-preserved, OFFLINE) to the project tempo.
+    /// Default false → natural speed, bit-identical to a non-warped clip.
+    public var warpEnabled: Bool
+    /// The clip's own tempo in BPM. 0 = unknown (never warps, even if `warpEnabled`);
+    /// otherwise clamped to `nativeBPMRange`. Detected via `TempoMatch.guessBars`/
+    /// `nativeBPM` at import, or set by the user (a "Clip BPM" field).
+    public var nativeBPM: Double
+
+    /// Sane native-tempo bounds. Outside this a "BPM" is almost certainly a
+    /// mis-detection; 0 is the sentinel for "unknown / no warp basis".
+    public static let nativeBPMRange: ClosedRange<Double> = 20...400
 
     public init(startSeconds: Double = 0, endSeconds: Double = 1,
                 loop: Bool = false, gain: Float = 1.0,
-                fadeInSeconds: Double = 0, fadeOutSeconds: Double = 0) {
+                fadeInSeconds: Double = 0, fadeOutSeconds: Double = 0,
+                warpEnabled: Bool = false, nativeBPM: Double = 0) {
         let s = Swift.max(0, startSeconds.isFinite ? startSeconds : 0)
         self.startSeconds = s
         let e = endSeconds.isFinite ? endSeconds : s + 0.001
@@ -38,13 +51,22 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
         self.gain = Swift.min(2, Swift.max(0, gain.isFinite ? gain : 1))
         self.fadeInSeconds = Swift.max(0, fadeInSeconds.isFinite ? fadeInSeconds : 0)
         self.fadeOutSeconds = Swift.max(0, fadeOutSeconds.isFinite ? fadeOutSeconds : 0)
+        self.warpEnabled = warpEnabled
+        // 0 stays 0 (unknown); any real value clamps into the musical range.
+        if nativeBPM.isFinite, nativeBPM > 0 {
+            self.nativeBPM = Swift.min(Self.nativeBPMRange.upperBound,
+                                       Swift.max(Self.nativeBPMRange.lowerBound, nativeBPM))
+        } else {
+            self.nativeBPM = 0
+        }
     }
 
     private enum CodingKeys: String, CodingKey {
         case startSeconds, endSeconds, loop, gain, fadeInSeconds, fadeOutSeconds
+        case warpEnabled, nativeBPM
     }
 
-    /// Backward-compatible decode: regions saved before fades load with none,
+    /// Backward-compatible decode: regions saved before fades/warp load with none,
     /// and every field re-clamps through the same rules as `init` (never a
     /// decode failure, never a NaN/negative slips in).
     public init(from decoder: Decoder) throws {
@@ -55,11 +77,33 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
             loop: (try? c.decode(Bool.self, forKey: .loop)) ?? false,
             gain: (try? c.decode(Float.self, forKey: .gain)) ?? 1,
             fadeInSeconds: (try? c.decode(Double.self, forKey: .fadeInSeconds)) ?? 0,
-            fadeOutSeconds: (try? c.decode(Double.self, forKey: .fadeOutSeconds)) ?? 0)
+            fadeOutSeconds: (try? c.decode(Double.self, forKey: .fadeOutSeconds)) ?? 0,
+            warpEnabled: (try? c.decode(Bool.self, forKey: .warpEnabled)) ?? false,
+            nativeBPM: (try? c.decode(Double.self, forKey: .nativeBPM)) ?? 0)
     }
 
     /// Region length in seconds (always > 0).
     public var durationSeconds: Double { endSeconds - startSeconds }
+
+    // MARK: Warp / tempo-conform (pure — the player renders this OFFLINE)
+
+    /// The pitch-preserving time-stretch RATE to conform this region to `projectBPM`,
+    /// or exactly `1.0` (no stretch) when warp is off, the native tempo is unknown, or
+    /// the project tempo is non-positive. Delegates the clamped ratio to
+    /// `TempoMatch.stretchRate` (musical range 0.25…4.0).
+    public func effectiveStretchRate(projectBPM: Double) -> Double {
+        guard warpEnabled, nativeBPM > 0, projectBPM > 0 else { return 1.0 }
+        return TempoMatch.stretchRate(nativeBPM: nativeBPM, masterBPM: projectBPM)
+    }
+
+    /// The region's audible length after warping to `projectBPM`. A rate > 1 (project
+    /// faster than the clip) plays faster → shorter output; rate < 1 stretches longer.
+    /// Equals `durationSeconds` whenever the rate is 1.0.
+    public func warpedDurationSeconds(projectBPM: Double) -> Double {
+        let r = effectiveStretchRate(projectBPM: projectBPM)
+        guard r > 0 else { return durationSeconds }
+        return durationSeconds / r
+    }
 
     // MARK: Fade envelope (pure — the player bakes this into the scheduled buffer)
 
