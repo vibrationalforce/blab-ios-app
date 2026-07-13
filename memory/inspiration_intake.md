@@ -484,3 +484,16 @@ gesehen + Research gegen Image-Line-Manual verifiziert.
 
 **Roadmap-Einordnung:** Scale-Lock + Morph-Knopf = Prio-Zyklen NACH dem laufenden AUv3-Block
 (Founder-bestätigt „AUv3-Struktur JETZT"). Nicht vorgezogen ohne Founder-Ask — nicht verfransen.
+
+### FL Mobile Voll-Roster (Lücke geschlossen, WebSearch Image-Line-Manual 2026-07-13)
+**Instrumente (aus Video-Menü):** MiniSynth · DW Sampler (DirectWave-Stil) · GMSynth ·
+Transistor Bass (TB-303) · SuperSaw · Slicer · 3x Osc · SoundFont Player · Drum-Kits.
+**Effekte (~32 Module, Image-Line-Manual):** Analyzer · Autoduck · Pitcher/Pitcher 2 ·
+Chorus · Comb Filter · Compressor · Multiband Compressor · Distortion · Waveshaper ·
+Parametric EQ · Graphic EQ · Tuned EQ · Filter · Flanger · Phaser · Tremolo · Gate ·
+Leveller · Limiter · Multi FX · Reverb · Reverb 2 · Spacer · Spreader · Stereoizer ·
+Tape Delay · Trance Delay · Tape Stop · Tuner · Wow & Flutter · Note Effects (inkl. Scale).
+**Echoel-Gap:** EchoelFX hat Bitcrush/Widener/Reverb — es fehlen für Profi-Level: EQ
+(parametrisch/grafisch), Kompressor + Multiband + Limiter (deckt sich mit Mastering-Plan
+M2/M3), echtes Delay (Tape/Trance), Modulation (Chorus/Flanger/Phaser/Tremolo), Gate/
+Autoduck, Distortion/Waveshaper. = eigener FX-Ausbau-Block (nach AUv3 + Scale-Lock).
