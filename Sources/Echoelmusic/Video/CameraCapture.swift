@@ -52,6 +52,16 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     /// restarts while interrupted (they can't work and the torch churn only adds heat);
     /// it waits for `AVCaptureSessionInterruptionEnded`. Set/cleared on sessionQueue.
     nonisolated(unsafe) private var interrupted = false
+    /// Whether the app is currently foreground-`.active` (updated from the
+    /// didBecomeActive/willResignActive notifications, sessionQueue-only). The
+    /// interruption-wait is proven correct ONLY while we are NOT the foreground app —
+    /// a genuine `videoDeviceNotAvailableInBackground` cannot coexist with an active
+    /// app. Device log v10.79.187: reason-1 interruptions fired at app state = 1
+    /// (inactive) and the session then stayed frozen 6–110 s because the one-shot
+    /// `didBecomeActive` resume had already fired (or never fired — we never fully
+    /// left `.active`) and `InterruptionEnded` was slow/never delivered. So while the
+    /// app IS active but still flagged interrupted, the watchdog self-resumes.
+    private var appIsActive = true
     /// Owner-visible mirror of the OS interruption, so the PUBLISHER's escalation
     /// can stop thrashing cold restarts against a held camera (device log
     /// 1783749556: 8 cold restarts, 0 frames — reason 1 re-fired on every start).
@@ -351,7 +361,9 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         let active = nc.addObserver(forName: UIApplication.didBecomeActiveNotification,
                                     object: nil, queue: nil) { [weak self] _ in
             self?.sessionQueue.async {
-                guard let self, self.shouldBeRunning, self.interrupted else { return }
+                guard let self else { return }
+                self.appIsActive = true       // gate for the watchdog's self-resume
+                guard self.shouldBeRunning, self.interrupted else { return }
                 self.interrupted = false
                 EchoelCrashLog.breadcrumb("rPPG: app became active — retrying camera after held interruption")
                 if !self.session.isRunning { self.session.startRunning() }
@@ -361,6 +373,14 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             }
         }
         sessionObservers.append(active)
+        // Track the foreground→inactive edge so the watchdog stops self-resuming the
+        // instant we leave `.active` (a genuine background interruption must be waited
+        // out, not thrashed). Pairs with didBecomeActive above.
+        let resign = nc.addObserver(forName: UIApplication.willResignActiveNotification,
+                                    object: nil, queue: nil) { [weak self] _ in
+            self?.sessionQueue.async { self?.appIsActive = false }
+        }
+        sessionObservers.append(resign)
         #endif
     }
 
@@ -390,11 +410,31 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         timer.schedule(deadline: .now() + 2, repeating: 2)
         timer.setEventHandler { [weak self] in
             guard let self, self.shouldBeRunning else { return }
-            // While iOS holds the session interrupted (thermal/system-pressure, camera
-            // in use by another app), restarts are futile no-ops and the torch churn
-            // only adds heat — so WAIT for AVCaptureSessionInterruptionEnded instead of
-            // thrashing (device log 1783603146: 4 cold restarts, 0 frames, ~2 min).
-            guard !self.interrupted else { return }
+            // While iOS holds the session interrupted, restarts are usually futile
+            // no-ops and the torch churn only adds heat — so we WAIT for
+            // AVCaptureSessionInterruptionEnded (device log 1783603146: 4 cold
+            // restarts, 0 frames, ~2 min while backgrounded). BUT that wait is only
+            // correct while we are NOT the foreground app. If we are `.active` yet
+            // still flagged interrupted, iOS simply hasn't delivered InterruptionEnded
+            // and the one-shot didBecomeActive resume already fired (or never will —
+            // we never fully left `.active`); the session then stays frozen 6–110 s
+            // (device log v10.79.187: reason-1 interruptions at app state = inactive).
+            // Self-resume — the periodic form of the belt-and-braces retry, throttled
+            // by the shared 6 s restart cooldown so it can't thrash, and gated on
+            // appIsActive so a genuine background interruption is never touched.
+            if self.interrupted {
+                guard self.appIsActive else { return }
+                let now = CFAbsoluteTimeGetCurrent()
+                guard now - self.lastRestartTime > 6.0 else { return }
+                self.lastRestartTime = now
+                self.interrupted = false          // mirror didBecomeActive's resume
+                EchoelCrashLog.breadcrumb("rPPG: interrupted while app active — watchdog self-resume (InterruptionEnded not delivered)")
+                if !self.session.isRunning { self.session.startRunning() }
+                self.lastFrameTime = now
+                self.applyTorch()                 // an interruption drops the torch
+                self.onSessionReset?()            // owner re-locks exposure cleanly
+                return
+            }
             let now = CFAbsoluteTimeGetCurrent()
             if !self.session.isRunning {
                 // The session DIED while it should be up (failed cold start, runtime
