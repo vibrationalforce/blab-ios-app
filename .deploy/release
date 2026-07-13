@@ -1,34 +1,28 @@
-build: 2026-07-13 v10.79.187 (Session-Stand: Bio→Sound sichtbar · AUv3-Türen + Per-Spur-Belegung · Automation in den Spuren · Audio-Fades)
+build: 2026-07-13 v10.79.188 (Kamera-Freeze-Fix: Bio erholt sich selbst, wenn die App aktiv ist)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: Erster Geräte-Build seit dem Freeze — bringt ALLES, was diese Session
-  gelandet hat (alles CI-grün, aber noch nie von dir auf dem Gerät gesehen).
-  Multi-Roll ist NICHT drin (nur die stille Grundlage; per-Spur-Klang kommt
-  in einem eigenen Mess-Build). BITTE gezielt prüfen (NEEDS-FOUNDER-VERIFY):
+notes: GEZIELTER Fix aus DEINEM v187-Geräte-Log. Das Kernproblem darin: die
+  Kamera wurde immer wieder „unterbrochen" (reason 1, App-Status „inactive")
+  und danach fror der Puls 6 bis 110 Sekunden ein — Musik und Visual reagierten
+  in der Zeit nicht mehr auf deinen Körper. GENAU das ist der Freeze, den du
+  meinst.
 
-  1) BIO → SOUND LIVE SICHTBAR (Item 2). Öffne den FX-Editor (Sound & FX auf
-     einer MIDI-Spur / FX-Character). In der Sektion „Bio-reactive" eine Route
-     anlegen (z. B. Coherence → Reverb Mix), Session starten. DARUNTER die neue
-     Sektion „Live — body → sound": pro aktiver Route Carrier → Ziel-Parameter
-     + ein laufender Signal-Balken. PRÜFE: bewegt sich der Balken mit deinem
-     Puls/Atem? Bleiben die Menüs (Picker) bedienbar, WÄHREND es läuft (kein
-     Einfrieren)?
+  Ursache: die App wartete bei JEDER Unterbrechung passiv auf iOS. Das ist aber
+  nur richtig, solange die App im Hintergrund ist. Wenn die App wieder VORNE
+  aktiv ist, iOS aber „interruption ended" nicht (rechtzeitig) schickt, blieb
+  die Kamera hängen — niemand hat sie wieder gestartet.
 
-  2) EXTERNE AUv3 + PER-SPUR-BELEGUNG (Item 3). Spurkopf-Menü einer MIDI-Spur →
-     „Browse AUv3…". Installierte Plugins sichtbar? Instrument laden, „Open" =
-     Plugin-eigene UI. Dann im Spur-Menü „Assign … to this track" → am Spurkopf
-     erscheint ein Puzzle-Badge + im Menü die Belegung. EHRLICH: die Belegung
-     ist heute noch NICHT hörbar (Routing = Multi-Roll, kommt) — es geht nur um
-     Sichtbarkeit/Handling. Schnelles Doppel-Tippen auf ein Plugin darf nichts
-     durcheinanderbringen (Ladeschutz).
+  Fix: Die App merkt sich jetzt, ob sie vorne aktiv ist, und startet die Kamera
+  in dem Fall selbst neu (alle 6 s, gedrosselt, kein „Thrashing", kein Hitze-
+  Aufheizen). Im echten Hintergrund wird weiter gewartet wie bisher.
 
-  3) AUTOMATION IN DEN SPUREN (Item 1, C4/C5). In der Timeline Automation auf
-     eine Spur zeichnen (im Clip UND spurübergreifend). PRÜFE: läuft die
-     Automation mit der Wiedergabe mit, reist sie mit dem Clip?
+  BITTE gezielt prüfen (NEEDS-FOUNDER-VERIFY):
+  1) Länger eine Session laufen lassen (Puls auf der Linse, 5–15 min). Kommt es
+     noch zu langen Einfrierern (Puls-Zahl steht 10+ s still, Musik/Visual
+     reagieren nicht mehr)? Erholt es sich jetzt SCHNELL von selbst (wenige
+     Sekunden), statt lange tot zu sein?
+  2) Zwischendurch bewusst stören: Kurz die Kontrollzentrale runterziehen /
+     eine Mitteilung reinkommen lassen und wieder wegwischen. Läuft der Puls
+     danach zügig weiter?
 
-  4) AUDIO-FADES. Einen Audio-Clip öffnen → Fade in / Fade out setzen. PRÜFE:
-     weicher Ein-/Ausklang an den Clip-Rändern, kein Knacksen.
-
-  Fokus: fühlt sich alles STABIL an (keine Freezes, keine Abstürze, kein
-  Grau-Fenster beim Visual)? Und ist Bio→Sound sichtbar „wow"? Deine Rückmeldung
-  steuert, ob ich als Nächstes Multi-Roll (per-Spur-Klang, eigener Mess-Build)
-  oder die letzten Politur-Punkte baue.
+  Sonst NICHTS geändert — reiner Stabilitäts-Fix am Kern (Biofeedback → Sound →
+  Visual). Deine Rückmeldung entscheidet, ob der Freeze weg ist.
