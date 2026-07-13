@@ -127,8 +127,9 @@ struct AUv3BrowserView: View {
             .padding(16)
         }
         .background(EchoelTheme.bg)
-        // Always refresh on open so newly-installed AUv3 appear (was scan-once → stale).
-        .onAppear { host.scan() }
+        // Always refresh on open so newly-installed AUv3 appear (was scan-once → stale),
+        // and clear any stale load error from a previous visit (QA #5).
+        .onAppear { host.clearLoadError(); host.scan() }
     }
 
     // Where tapped effects land — the instrument channel or the master bus.

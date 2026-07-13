@@ -137,6 +137,11 @@ public final class AUv3Host {
         self.parameterRouter = router
     }
 
+    /// Clear a stale load error so a past failure doesn't linger after the user
+    /// has moved on (the browser calls this on reopen). QA #5. Safe anytime — no
+    /// AVFoundation needed, just resets the display flag.
+    public func clearLoadError() { loadError = nil }
+
     #if canImport(AVFoundation)
     /// Wire the host to the live audio engine (called once at app start).
     public func use(engine: AudioEngine) { self.engine = engine }
