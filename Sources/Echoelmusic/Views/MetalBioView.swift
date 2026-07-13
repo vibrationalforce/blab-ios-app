@@ -1556,8 +1556,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // The prism fan is a fullscreen dispersion of the tone, so it gates on the
         // GLOBAL presence of any sounding note instead. Silence → a warm neutral
         // field: the structure stays alive, the colour waits for the music.
+        // B9 (founder 2026-07-13 "VISUALS GRAU"): the colour reach was too tight — a
+        // 2–3-note cloud coloured only its tight centre, so the whole frame read grey.
+        // Widen the cloud→colour gate (1.6 → 2.4) so a sounding note carries its colour
+        // FURTHER across the frame. Silence is untouched (cloudGlow=0 → colourOn=0 →
+        // still the warm-neutral field), so the 2026-07-08 "colour only where tones
+        // sound" law holds — this only spreads colour where notes ACTUALLY sound.
         float presence = clamp((u.cc0w + u.cc1w + u.cc2w + u.cc3w + u.cc4w) * 1.8, 0.0, 1.0);
-        float colourOn = mix(clamp(cloudGlow * 1.6, 0.0, 1.0), presence, prismW);
+        float colourOn = mix(clamp(cloudGlow * 2.4, 0.0, 1.0), presence, prismW);
         col = mix(float3(0.60, 0.56, 0.50), col, colourOn);
         // NATURAL WARM LIGHT (founder): pure spectral colours look "neon"; nature's light
         // — a prism/rainbow in warm daylight — is warmer and a touch less saturated. Pull
@@ -1567,7 +1573,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         {
             float l = dot(col, float3(0.2126, 0.7152, 0.0722));
             float3 warm = float3(1.0, 0.92, 0.80);          // warm daylight white point
-            col = mix(float3(l) * warm, col, 0.80);         // warm-tinted desaturation (was .85 — ease neon further)
+            // B9 un-stack: this block was a SECOND desaturator (0.80) stacked on top of
+            // the user `saturation` grade (0.82) → net ~0.66 chroma = the "grau". Raise
+            // to 0.92 so it mainly warm-TINTS (via the +0.10 lift below), leaving the
+            // user Saturation as the single intentional grade. Still graded, not neon.
+            col = mix(float3(l) * warm, col, 0.92);         // warm TINT (was .80 — stop double-desat, B9)
             col = mix(col, warm, 0.10);                     // slight overall warm lift
         }
         col = mix(col, col * 1.15 + 0.05, coh);
