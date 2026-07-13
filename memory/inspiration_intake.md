@@ -460,3 +460,27 @@ wellness-esoteric / already-shipped. Do not deep-read further dumps — signal-s
   Supply-Chain-Regel: nie Skill-Packs aus Videos auto-installieren; wir fahren bereits
   memory/ + decisions.csv + Reviewer-Fleet (deckt claude-mem/Dev-Team-Kern ab).
   Einzeln vision-gaten, wenn der Founder eines konkret will.
+
+## 2026-07-13 — FL Studio Mobile (Founder-Video + Deep-Research, 56 Agenten, adversarisch verifiziert)
+Founder: „schau dir per Deep Research alle EFx und Instrumente an und lass dich inspirieren"
+(Echoel bleibt Profi-Level, aber das leichte Handling ist attraktiv). Video Frame-für-Frame
+gesehen + Research gegen Image-Line-Manual verifiziert.
+
+**Kern-Erkenntnis:** FLs „leichtes Handling" = EINE Idee — man kann keinen falschen Ton spielen.
+
+- **ADOPT-PRODUCT · Scale-Lock + Root-Wahl** (verifiziert, Image-Line Module_Note_Scale):
+  12 Notenschalter C–B (snap/filter), one-tap „Scales"-Preset, „Key"=Grundton A–G. Echoel
+  hat Key/Scale/Kammerton schon in-house → billig; wrong-note-free schnelles Live-Spiel,
+  on-vision. **Höchster-Hebel-Adopt.** (Kammerton=A440 bleibt separat vom Grundton.)
+- **ADOPT-PRODUCT · Single-Knob-Morph** (verifiziert, MiniSynth-Manual): ein Modifier-Regler
+  morpht Wellenform-Charakter (Saw+Square-Pulsweite) statt vieler Osc-Params → passt exakt
+  zu EchoelValueField; ein Charakter/Morph-Knopf für PolySynthVoice.
+- **WATCH · Chord-/Strum-Pads pro Skalenstufe** (im Mobile-Video sichtbar; note→chord nur für
+  Desktop-FL/VFX-Key-Mapper verifiziert, 2-1). Adopt-fähig NACH Scale-Lock (gleiche Theorie).
+- **REJECT · GMSynth/SoundFont** (GM/Consumer-Klang, gegen Profi-/Bio-Identität) · IAA/Audiobus
+  (veraltet, wir sind AUv3-Host). Transistor-Bass/Slicer ≈ SubBassVoice+LoopCutter (schon da).
+- **Offene Lücke:** Voll-Roster aller FX + Instrumente NICHT unabhängig verifiziert (nur
+  MiniSynth + Scale-Modul primärbelegt). Bei Bedarf zweite Research-Runde gezielt auf FX-Liste.
+
+**Roadmap-Einordnung:** Scale-Lock + Morph-Knopf = Prio-Zyklen NACH dem laufenden AUv3-Block
+(Founder-bestätigt „AUv3-Struktur JETZT"). Nicht vorgezogen ohne Founder-Ask — nicht verfransen.
