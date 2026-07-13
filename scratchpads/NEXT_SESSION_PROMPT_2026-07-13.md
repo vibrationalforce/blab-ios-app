@@ -1,69 +1,96 @@
-# Initial-Prompt für die nächste Session (Copy-Paste, 2026-07-13)
+# Initial-Prompt für die nächste Session (Copy-Paste, 2026-07-13 — v2 nach Founder-Test v183)
 
-> Vom Founder in den neuen Chat einfügen. Stand beim Cut: v10.79.183 / TestFlight-Run
-> #2289 dispatcht (b536e55), Founder testet den Build.
+> Vom Founder in den neuen Chat einfügen. Stand beim Cut: v10.79.183 (Build 2289) IST auf
+> TestFlight und wurde vom Founder getestet — sein Verdikt steuert die Session (unten).
 
 ---
 
 ECHOEL MODE ACTIVE — ultracode all tasks, volle Aufmerksamkeit und Präzision, no sleep.
 
-Branch: `claude/piano-roll-clip-view-wozlie` (NICHT wechseln). Arbeite autark im
-Ralph-Wiggum-Takt: ein Punkt pro Zyklus, test-first, Pflicht-Reviewer, Gates grün,
-am Zyklus-Ende ein deutsches Status-Delta (Was neu · Was fehlt · nächster Schritt).
-Wenn das 24h-Mandat weiterlaufen soll: stündlichen Cron-Trigger neu anlegen (der alte
-hängt an der vorigen Session).
+Branch: `claude/piano-roll-clip-view-wozlie` (NICHT wechseln). Ralph-Wiggum-Takt: ein
+Punkt pro Zyklus, test-first, Pflicht-Reviewer, Gates grün, Zyklus-Ende = deutsches
+Status-Delta. 24h-Mandat: stündlichen Cron-Trigger neu anlegen (der alte hängt an der
+alten Session).
 
-SESSION-START (Pflicht, in dieser Reihenfolge):
-1. `memory/` komplett lesen, dann `scratchpads/SESSION_LOG.md` (neuester Eintrag
-   Forts. 58 = die komplette letzte Session), `scratchpads/DESIGN_BRIEFS_PENDING_2026-07-12.md`
-   (alle 6 Briefs BUILT, Status-Blöcke oben je Brief) und
-   `scratchpads/PLAN_DMMW_PROFI_LEVEL_2026-07-12.md` (Restpunkte).
-2. TestFlight-Run #2289 (v10.79.183, SHA b536e55) prüfen: grün? Wenn rot → Logs lesen,
-   minimal fixen, `.deploy/release` NICHT erneut bumpen ohne Founder-Ok.
-3. `git log --oneline -15` — letzte Commits e503d04→b536e55 sind der verifizierte Batch.
+SESSION-START (Pflicht): `memory/` lesen → `scratchpads/SESSION_LOG.md` (Forts. 58) →
+dieses File → `scratchpads/DESIGN_BRIEFS_PENDING_2026-07-12.md` (6 Briefs BUILT) →
+`scratchpads/PLAN_DMMW_PROFI_LEVEL_2026-07-12.md`.
 
-STAND (alles gate-grün auf 72122cf, deployt als v10.79.183):
-- B8 Trap-Viertel-Anker (aroused → 808-Pedal {0,4,8,12}, nur Trap; appendBass, trapMelody ist RETIRED)
-- A5 Bio-per-Note (Kohärenz+Atem → Velocity; neutral/kein Körper = Identität; Tiefen-UI fehlt noch)
-- B6 BLE-MIDI-Tür (Routing-Panel → CABTMIDICentral, NavigationLink-Push, kein neues Sheet)
-- L2 LightFixtureGroup + L3 BioPhaser (pure, UN-verdrahtet, ratenbasierte Flash-Slew ≤2.5 Hz)
-- B7/S4 EchoelFDNReverb (pure FDN-Kern, UN-verdrahtet; RoomModel-Bridge in Core/, NICHT in DSP/)
+## FOUNDER-VERDIKT zu v10.79.183 (2026-07-13, wörtlich zusammengefasst) — DIE Arbeitsliste
 
-FOUNDER-VERIFY OFFEN (v10.79.183 auf dem Gerät): (a) Trap-132-Lock A/B ruhig vs. bewegt —
-kommen die Viertel? (b) BLE-MIDI-Controller koppeln (Master→Routing→Bluetooth MIDI) —
-klingen die Tasten? (c) Gesamteindruck. Founder-Feedback steuert den nächsten Zyklus.
+„Der Build ist da, aber ich sehe keine professionelle DMMW":
 
-TESTFLIGHT-FREEZE: wieder AKTIV bis Founder-Urteil zu 183 (keine weiteren
-`.deploy/release`-Bumps stapeln, solange er A/B-t).
+1. **AUTOMATION IN DER SPUR (höchste Prio):** Automationen gehören IN die Spur —
+   sowohl IM Clip als auch CLIP-ÜBERGREIFEND auf dem Raster, mit ALLEN verfügbaren
+   Parametern. Heute: AutomationView/A3-Canvas hängt hinter einer Spur-Tür (Sheet),
+   nicht in der Lane; Parameter-Auswahl ist schmal. Bausteine die es SCHON gibt:
+   `AutomationLane` (+curvature), `AutomationCanvasMath` (pure, getestet),
+   `EchoelParameterRegistry` (keyPath-stabiles Parameter-Inventar, N2 — als
+   Automations-Ziel-Katalog benutzen!). Architektur-Arbeit → ERST PLAN
+   (PLAN_AUTOMATION_IN_LANE.md), Council, dann Zyklen. Render-Safety beachten:
+   Lane-Rows als Leafs, kein neues Sheet, kein 10-Hz-Read im Timeline-Body.
+2. **BIO-MODULATION LIVE SICHTBAR:** Parameter, die vom Biofeedback moduliert werden,
+   live anzeigen (welcher Param, wie stark — z. B. Glow/Badge/Mini-Meter an der
+   Param-Row). Quellen: FXBioModulator (~30 Hz!), ModulationEngine-Routen, A4/A5-
+   Operator-Tiefen. ACHTUNG: 30-Hz-Werte NUR in eigenen Leaf-Views lesen (Menü-Freeze-
+   Gesetz), ggf. auf ~5 Hz drosseln fürs Auge.
+3. **EXTERNE AUv3 SICHTBAR MACHEN:** Founder sieht keine externen AUv3. Türen
+   existieren seit 07810ba (Spurkopf-Menü „AUv3 plugins" + AUv3BrowserView), aber
+   offenbar nicht auffindbar/nicht als Spur-Instrument erlebbar. QA: Tür-Pfad auf dem
+   Gerät nachvollziehen, dann AUv3 als sichtbare INSTRUMENT/FX-Belegung pro Spur
+   ausweisen (Spur zeigt Plugin-Namen; Hosting-Status ehrlich).
+4. **LEISTEN-VERTEILUNG IN TIMELINE/SPUREN (D2/E2 fertigstellen):** „Die Verteilung
+   der internen Leiste in die Timeline bzw. Spuren/Instrumente/Effekte hat noch nicht
+   geklappt" — Menü-Funktionen auf die Spuren verteilen (Instrument·FX·Automation·
+   AUv3 direkt am Spurkopf/in der Lane), Menüleiste schrumpft entsprechend.
+5. **VISUALS IMMER NOCH GRAU — B9, jetzt BEWEISGESTÜTZT:** Das v183-Log zeigt die
+   `visual:`-Zeilen: `mfNotes=2–3` (Noten kommen an), `level` bis 1.00, `tone`
+   wechselt 294/440/659 (Akkordfarben werden angeliefert), `bio` 0→1, `detail=1.00`,
+   `touch=0`, **`redMot=0` konstant**. → Datenpfad V1 ist INTAKT; das Grau entsteht
+   STROMABWÄRTS in der Farb-/Sättigungskette (B9-Verdacht bestätigt: 0.80-Mix ×
+   0.82-Saturation × Floor stapeln sich zu Grau; zusätzlich redMot=0 prüfen).
+   Fix: Kette entstapeln (eine Sättigungs-Stelle), „Vivid"-Default prüfen,
+   Shader-seitig verifizierbar via der displayComponents-Zwillinge + Tests.
+   Device-verify durch Founder.
 
-NÄCHSTE BAU-KANDIDATEN (in dieser Reihenfolge, sofern Founder nichts anderes sagt):
-1. B9 Visual-Polish-Audit (Wärme/Sättigungs-Kette 0.80-Mix+0.82-Sat+Floor, „Vivid"-Preset)
-2. VIS-Spur VIS1-4 (Kompositions-Passes · Zustands-Übergänge · 4-Punkt-Corner-Pin · …)
-3. A5-Tiefen-UI (EchoelValueField-Row im bestehenden Roll-Kontext, KEIN neues Sheet)
-4. W2 Lyrics-Lane im Roll (LyricsModel W1 ist fertig) · Task #20 Voice Live VL3+
-5. Wiring-Zyklen (Council-gated, device-verify): L2/L3 → Art-Net/sACN-Sender opt-in;
-   S5 FDN → Master-Graph hinter FeatureFlags.spatialEngine (setRoom-Handoff MUSS
-   double-buffered werden — audio-thread-Reviewer-Auflage).
+Reihenfolge-Empfehlung: **5 (B9, klein + beweisgestützt, sofortiger sichtbarer Gewinn)
+→ 1 (Automation, groß, Plan zuerst) → 2 → 3 → 4.** Bei 1–4 vor dem Bauen je einen
+kurzen Plan/Grand-Council-Pass (Architektur, >1 Datei).
 
-HARTE GESETZE (Kurzform — Details in CLAUDE.md, gelten ALLE weiter):
-- Render-Safety: EchoelStudioView-Sheet-Kette NICHT wachsen lassen (Slot-Reuse/Konsolidierung);
-  kein 10-Hz-@Observable-Read in Root/Ancestor-Bodies (Leaf-Views!); nie 2 Modals gleichzeitig.
-- NEU ZEMENTIERT: jede Datei in DSP/ darf KEINE Core-Typen referenzieren (AUv3 kompiliert
-  DSP/ isoliert — Bridges nach Core/ als Extension).
-- Determinismus: SeededRNG/UUID-fold (nie Hasher), decodeIfPresent-Migration, calm-Pfade RNG-identisch.
-- Flash ≤3 Hz W3C; Licht-Slews ratenbasiert (per-Sekunde, nicht per-Tick).
-- Audio-Thread: keine Locks/Allocs/ObjC/GCD im Render; @MainActor-Props nie aus Render lesen.
+Weiter offen aus v183-Test: Trap-132-A/B (Viertel-Anker B8) und BLE-MIDI-Kopplung hat
+der Founder noch nicht explizit beurteilt — bei Gelegenheit nachfragen, nicht drängen.
+Log-Notiz: v183 startete einmal im SAFE MODE (voriger Launch unbestätigt), erholte sich
+sauber und bestätigte healthy — beobachten, nicht alarmieren.
+
+## STAND (alles gate-grün auf 72122cf, deployt als v10.79.183 = Build 2289)
+- B8 Trap-Viertel-Anker (appendBass, quarterAnchor nur .trap; trapMelody RETIRED)
+- A5 Bio-per-Note (Velocity verdrahtet; Timing/Brightness modelliert; Tiefen-UI fehlt)
+- B6 BLE-MIDI-Tür (Routing → CABTMIDICentral, Push, kein neues Sheet)
+- L2 LightFixtureGroup + L3 BioPhaser (pure, UN-verdrahtet, ratenbasierte Slew ≤2.5 Hz)
+- B7/S4 EchoelFDNReverb (pure FDN-Kern, UN-verdrahtet; RoomModel-Bridge in Core/)
+
+TESTFLIGHT: nächster `.deploy/release`-Bump erst, wenn ein sichtbarer Fix steht (B9
+wäre der natürliche v184-Kandidat). Deploy = tokenless: `.deploy/release` bumpen +
+pushen triggert testflight.yml; die Dispatch-APIs brauchen Auth die fehlt — NICHT nutzen.
+
+## HARTE GESETZE (Kurzform — Details CLAUDE.md, gelten ALLE)
+- Render-Safety: Sheet-Kette NICHT wachsen lassen (Slot-Reuse); kein 10-Hz-@Observable-
+  Read in Root/Ancestor (Leafs!); nie 2 Modals gleichzeitig.
+- DSP/-Dateien dürfen KEINE Core-Typen referenzieren (AUv3 kompiliert DSP/ isoliert;
+  Bridges als Core/-Extension).
+- Determinismus: SeededRNG/UUID-fold (nie Hasher), decodeIfPresent, calm-Pfade RNG-identisch.
+- Flash ≤3 Hz W3C; Licht-Slews ratenbasiert (per-Sekunde).
+- Audio-Thread: keine Locks/Allocs/ObjC/GCD im Render.
 - Brand: kein Wellness/Esoterik/Heilungs-Claim (harter REJECT); Parameter-UI = EchoelValueField.
-- CI = Ground Truth (kein lokaler Swift-Build): Quick Test ist NUR Lint; echte Gates =
-  „Xcode Compile Check" + „Echoelmusic CI/CD Pipeline"; actions_list überläuft → Datei
-  mit python3 json.load parsen, nach head_sha filtern.
+- CI = Ground Truth: Quick Test ist NUR Lint; echte Gates = „Xcode Compile Check" +
+  „Echoelmusic CI/CD Pipeline"; actions_list überläuft → Datei mit python3 parsen,
+  nach head_sha filtern.
 - Protected Rausch-Triad READ-ONLY. Ein Thema pro Commit. Conventional Commits.
-- Commit-Trailer: Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> + Claude-Session-Link
-  der NEUEN Session.
+- Commit-Trailer: Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> + Claude-Session-
+  Link der NEUEN Session.
 
-TOOLS: Context7 ist jetzt autorisiert — nutze es für Doku (z. B. HaishinKit 2.x für P4
-Broadcast: async/await, MediaMixer→RTMPStream; Echoel braucht den CUSTOM-Buffer-Pfad
-AVAudioEngine→Stream statt AVCaptureDevice). GitHub via MCP (github-Server) — wenn er
-Auth verlangt, tokenless deployen: `.deploy/release`-Bump pushen = TestFlight-Trigger.
+TOOLS: Context7 ist autorisiert — für Doku nutzen (z. B. HaishinKit 2.x: async/await,
+MediaMixer→RTMPStream; Echoel braucht den CUSTOM-Buffer-Pfad AVAudioEngine→Stream).
 
-Starte jetzt: Session-Start-Ritual, dann #2289-Status, dann den ersten Zyklus.
+Starte jetzt: Session-Start-Ritual → B9 (Visual-Grau, log-beweisgestützt) als erster
+Zyklus → dann PLAN für Automation-in-der-Spur.
