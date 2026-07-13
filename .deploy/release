@@ -1,23 +1,34 @@
-build: 2026-07-13 v10.79.186 (Geburts-Grau: jedes Öffnen startete das Visual bei Null — jetzt sofort in Farbe)
+build: 2026-07-13 v10.79.187 (Session-Stand: Bio→Sound sichtbar · AUv3-Türen + Per-Spur-Belegung · Automation in den Spuren · Audio-Fades)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: Dein Screen-Recording + das v185-Log haben es verraten: die Farbe
-  WAR da (bei Sekunde ~19 leuchtet dein Video voll) — aber JEDES Öffnen
-  des Vollbild-Visuals baut den Renderer NEU, und der blendete die
-  Wolken-Gewichte von 0 hoch: 1–2 Sekunden Grau bei jedem Öffnen.
-  Du prüfst das Visual naturgemäß direkt nach dem Öffnen — du bist
-  also jedes Mal genau im Grau-Fenster gelandet. (Beweis im Log:
-  mehrere „erste Frames" mit ccw=0.00 in kürzeren Abständen, als die
-  Log-Drossel erlaubt = lauter frische Renderer-Instanzen.)
-  · FIX: beim allerersten Frame SCHNAPPEN die Gewichte auf die bereits
-    klingenden Noten (Farbe+Position schnappten schon) — das Visual ist
-    ab Frame 1 voll in Farbe. Alle musikalischen Ein-/Ausblendungen
-    danach bleiben unverändert.
-  · PITCH („Video hochgepitcht"): ich habe die Tonhöhe deiner Aufnahme
-    VERMESSEN — sie liegt exakt auf dem A440-Raster (+0,0 Cent,
-    D-zentriert: A2/D3/A3/D4/D5). Die Aufnahme ist also NICHT gepitcht.
-    Meine Hypothese: LIVE klang es ~9 % ZU TIEF (Sample-Rate-Route
-    48↔44,1), und die Aufnahme zeigt die korrekte Höhe. BITTE BESTÄTIGE:
-    Klang es live auf dem Gerät tiefer als im Video? Dann fasse ich die
-    Audio-Route an (eigener, vorsichtiger Zyklus).
-  BITTE: Visual mehrfach öffnen/schließen während es spielt — es muss
-  jetzt JEDES Mal sofort leuchten. NEEDS-FOUNDER-VERIFY (Augen+Ohren).
+notes: Erster Geräte-Build seit dem Freeze — bringt ALLES, was diese Session
+  gelandet hat (alles CI-grün, aber noch nie von dir auf dem Gerät gesehen).
+  Multi-Roll ist NICHT drin (nur die stille Grundlage; per-Spur-Klang kommt
+  in einem eigenen Mess-Build). BITTE gezielt prüfen (NEEDS-FOUNDER-VERIFY):
+
+  1) BIO → SOUND LIVE SICHTBAR (Item 2). Öffne den FX-Editor (Sound & FX auf
+     einer MIDI-Spur / FX-Character). In der Sektion „Bio-reactive" eine Route
+     anlegen (z. B. Coherence → Reverb Mix), Session starten. DARUNTER die neue
+     Sektion „Live — body → sound": pro aktiver Route Carrier → Ziel-Parameter
+     + ein laufender Signal-Balken. PRÜFE: bewegt sich der Balken mit deinem
+     Puls/Atem? Bleiben die Menüs (Picker) bedienbar, WÄHREND es läuft (kein
+     Einfrieren)?
+
+  2) EXTERNE AUv3 + PER-SPUR-BELEGUNG (Item 3). Spurkopf-Menü einer MIDI-Spur →
+     „Browse AUv3…". Installierte Plugins sichtbar? Instrument laden, „Open" =
+     Plugin-eigene UI. Dann im Spur-Menü „Assign … to this track" → am Spurkopf
+     erscheint ein Puzzle-Badge + im Menü die Belegung. EHRLICH: die Belegung
+     ist heute noch NICHT hörbar (Routing = Multi-Roll, kommt) — es geht nur um
+     Sichtbarkeit/Handling. Schnelles Doppel-Tippen auf ein Plugin darf nichts
+     durcheinanderbringen (Ladeschutz).
+
+  3) AUTOMATION IN DEN SPUREN (Item 1, C4/C5). In der Timeline Automation auf
+     eine Spur zeichnen (im Clip UND spurübergreifend). PRÜFE: läuft die
+     Automation mit der Wiedergabe mit, reist sie mit dem Clip?
+
+  4) AUDIO-FADES. Einen Audio-Clip öffnen → Fade in / Fade out setzen. PRÜFE:
+     weicher Ein-/Ausklang an den Clip-Rändern, kein Knacksen.
+
+  Fokus: fühlt sich alles STABIL an (keine Freezes, keine Abstürze, kein
+  Grau-Fenster beim Visual)? Und ist Bio→Sound sichtbar „wow"? Deine Rückmeldung
+  steuert, ob ich als Nächstes Multi-Roll (per-Spur-Klang, eigener Mess-Build)
+  oder die letzten Politur-Punkte baue.
