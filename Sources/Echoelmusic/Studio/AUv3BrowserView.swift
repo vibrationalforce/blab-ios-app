@@ -119,7 +119,7 @@ struct AUv3BrowserView: View {
                 section("Instruments", host.instruments, icon: "pianokeys")
                 if !host.effects.isEmpty { effectTargetPicker }
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Tap an instrument to load it (play it from the keyboard or your song). Effects go to the target you pick: the instrument's own Channel chain (instrument → fx → master) or the Master bus (the whole mix → fx → output). Open any loaded plugin's own interface with “Open”. Settings are saved and recalled across sessions.")
+                Text("Tap an instrument to load it (play it from the keyboard or your song). Effects go to the target you pick: the instrument's own Channel chain (instrument → fx → master) or the Master bus (the whole mix → fx → output). Open any loaded plugin's own interface with “Open”. Each plugin's own settings return when you reload it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
