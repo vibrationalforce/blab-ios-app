@@ -67,6 +67,16 @@ Build order recommendation: B8 (offbeat, founder-diagnosed) → A5 → B6 → L2
   - AUv3-target leakage: the new Studio file must NOT compile into EchoelmusicAUv3 (which only globs DSP/ + a few named Core files). Confirmed by current project.yml, but re-check after any target-source change.
 
 ## B7-spatial-s4
+> **STATUS: BUILT 2026-07-13 (pure core, flag-neutral → Release bit-identical).**
+> `DSP/EchoelFDNReverb.swift` + tests: 8 delay lines, orthonormal Hadamard feedback,
+> Jot RT60 gains from RoomModel.decayTime, Schroeder allpass input diffusion, dual-path
+> (process/processInPlace zero-alloc, bit-identical). audio-thread-reviewer: zero-alloc +
+> lock-free confirmed. dsp-reviewer: all 8 maths claims CONFIRMED (H·Hᵀ=I, g∈(0,1),
+> ‖H·diag(g)‖₂<1 stable, distinct primes, read-before-write FDN, |H_allpass|=1,
+> deterministic, hazards guarded). NOT wired into the live graph — the S5 insert is
+> FeatureFlags.spatialEngine-gated and must double-buffer the setRoom param hand-off
+> (audio-thread reviewer note: setRoom swaps array refs; safe cross-thread only via
+> atomic/double-buffer at the wiring site).
 - **Summary:** S4 delivers a PURE, deterministic, unit-tested Feedback-Delay-Network room reverb core (EchoelFDNReverb) whose parameters are derived from RoomModel (from SpatialScene). It reuses the existing zero-alloc EchoelDelayLine ring buffers, mixes via an orthogonal (Hadamard) feedback matrix for provable stability, and sets per-line feedback gains from RoomModel.decayTime via Jot's RT60 formula. The core is NOT added to the live render graph in this slice (flag-neutral, Release bit-identical); the future insert/wiring is what the FeatureFlags.spatialEngine gate (default OFF) protects, and that wiring is a separate device-gated slice (S5). Test-first, Linux/CI-provable, no device needed. Do NOT create a new flag (reuse .spatialEngine), do NOT modify SpatialScene/RoomModel, FeatureFlags, or the protected Bio triad.
 - **Reviewer:** audio-thread-reviewer (render-path zero-alloc/lock-free proof of processInPlace) — plus dsp-reviewer mandatory for the FDN maths (per SPATIAL_EXPANSION_AUDIT §2.3)  |  **device-gated:** None  |  **est. commits:** None
 - **Files:** /home/user/Echoelmusic/Sources/Echoelmusic/DSP/EchoelFDNReverb.swift (NEW — the FDN core, next to EchoelSpaceReverb/EchoelDelayLine/EchoelReverb/BinauralPanner; no new top-level dir), /home/user/Echoelmusic/Tests/EchoelmusicTests/EchoelFDNReverbTests.swift (NEW — write FIRST, RED before GREEN), /home/user/Echoelmusic/Sources/Echoelmusic/DSP/EchoelDelayLine.swift (READ-ONLY reuse — power-of-two ring buffer, read(delaySamples:)/readAllpass, zero-alloc), /home/user/Echoelmusic/Sources/Echoelmusic/Core/SpatialScene.swift (READ-ONLY — RoomModel is the input struct; do NOT modify), /home/user/Echoelmusic/Sources/Echoelmusic/Core/FeatureFlags.swift (READ-ONLY — reuse existing .spatialEngine key at the FUTURE wiring site; add no new key in S4), /home/user/Echoelmusic/docs/SPATIAL_EXPANSION_AUDIT.md (reference — S4 is item 5 in the confirmed cycle order; §2.2 placement law, §2.3 reviewer law)
