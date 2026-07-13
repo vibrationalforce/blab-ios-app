@@ -101,10 +101,16 @@ final class AutomationPlayerParameterEditingTests: XCTestCase {
     func testExtraAutomatableDescriptors_boundOnly_andNeverEnumAliased() {
         let reg = EchoelParameterRegistry()
         reg.register(DDSPParameterCatalog.descriptors)
+        // Register + bind an enum-aliased keyPath explicitly (it is NOT in the
+        // DDSP catalog) so the enum filter itself is load-bearing here: without
+        // it this descriptor WOULD appear in the extras.
+        reg.register([ParameterDescriptor(keyPath: AutomationTarget.filterCutoff.keyPath,
+                                          displayName: "Filter cutoff scale",
+                                          min: 0.25, max: 4, defaultValue: 1)])
         let router = ParameterApplyRouter(registry: reg)
         router.bind(extraKeyPath) { _ in }
-        // Binding an enum-aliased keyPath must NOT duplicate it into the extras —
-        // filter cutoff already lives on the legacy segmented target.
+        // Bound AND registered — but enum-aliased, so it must never duplicate
+        // into the extras: filter cutoff already lives on the legacy target.
         router.bind(AutomationTarget.filterCutoff.keyPath) { _ in }
 
         let auto = cleanPlayer()

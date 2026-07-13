@@ -56,11 +56,12 @@ public enum AutomationCanvasMath {
     /// the caller decides the touch radius. nil for an empty lane.
     public static func nearestPoint(toX x: Double, y: Double,
                                     points: [AutomationPoint],
-                                    width: Double, height: Double)
+                                    width: Double, height: Double,
+                                    spanTicks: Int = barTicks)
         -> (id: UUID, distance: Double)? {
         var best: (UUID, Double)?
         for p in points {
-            let dx = Self.x(forTick: p.tick, width: width) - x
+            let dx = Self.x(forTick: p.tick, width: width, spanTicks: spanTicks) - x
             let dy = Self.y(forValue: p.value, height: height) - y
             let d = (dx * dx + dy * dy).squareRoot()
             if best == nil || d < best!.1 { best = (p.id, d) }
