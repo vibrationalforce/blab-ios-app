@@ -3,6 +3,40 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-13 (Forts. 59) — v184-Zyklus: B9→B9b (der ECHTE Grau-Bug = Gamma), Automation C1+C2, video-watch-Skill
+- **B9 (v184, 1730d8e):** Chroma-Kette entstapelt (warm 0.80→0.92, Gate 1.6→2.4), adversarial
+  verifiziert, deployt (#2290 success). Founder: **"Immer noch grau"** → Theorie unzureichend.
+- **B9b — die echte Ursache (455c951): GAMMA-/TRANSFER-BUG.** Shader rechnet LINEAR (CIE→linear,
+  kein Encode), Drawable war `.bgra8Unorm` (non-sRGB) → lineare Werte als kodiert dargestellt →
+  Mitteltöne gecrusht (~0.5→0.21), satte Farben = matschgrau. Beweis: `SpectralColor.displayRGB`
+  gamma-kodiert (pow 1/2.2) → Donut/Tasten bunt, Visual grau — die "Zwillinge" differierten um
+  exakt eine Gamma-Kurve. Fix: `.bgra8Unorm_srgb` auf View + Pipeline (müssen matchen). Recorder-
+  Blit ist sRGB-copy-kompatibel; Aufnahmen bekommen erstmals display-referred Bytes (waren zu
+  dunkel). Diag-Zeile trägt jetzt Farb-Beweis: `ccw=` (Summe Cloud-Gewichte) + `c0=r/g/b`.
+  **LEHRE: bei "Farbe falsch" IMMER zuerst die Transfer-Funktion/Framebuffer-Format prüfen,
+  dann erst Konstanten tunen.** v185 = Kandidat.
+- **Automation in der Spur (Founder-Item 1):** PLAN + Council (PLAN_AUTOMATION_IN_TRACK_2026-07-13.md,
+  6 Zyklen, 6 Founder-Forks mit umkehrbaren Defaults). **C1** ParameterApplyRouter (d890178, 11 Tests,
+  beidseitig grün) — die EINE fehlende Verdrahtung Registry→Engine; Picker darf nur GEBUNDENE
+  keyPaths zeigen (kein toter Lane). **C2** AutomationPlayer→Registry-keyPaths (d5d09e6 + Review-Fix
+  56657c1): Legacy-Alias beidseitig, gespeicherte Namen unantastbar (adoptLane-CRITICAL vom
+  code-reviewer gefunden: Alias-Adopt hätte Legacy-Namen überschrieben — 3-Zeilen-Fix), unbekannte
+  keyPath-Lanes überleben Laden (vorher stiller Verlust), Extras dispatchen via Router.
+- **video-watch-Skill (2bbf7bd):** Founder-Ask "YouTube anschauen" → yt-dlp+ffmpeg-Frames→Read-als-
+  Bilder. Self-tested + E2E an 2 Founder-Reel-Uploads BEWIESEN (Reel 1 = exakt dieses Rezept;
+  Reel 2 = "5 Claude-Code-Repos" → WATCH, Supply-Chain-Regel: nie auto-installieren). YouTube-URLs
+  in dieser Session proxy-blockiert (403) → Upload-Pfad funktioniert immer; alter youtube-analyze-
+  Skill referenzierte ein NIE existierendes Script (Verweis ergänzt).
+- **Founder-Q&A:** Mastering (AutoMixChain + Master-AUv3-Kette EXISTIERT — Auffindbarkeit = Item 3;
+  PLAN_MASTERING_CHAIN M1–M4, M1 = Spatial-Clean-Master bypass) · EchoelSync-Lücken ehrlich: MIDI
+  Clock, Ableton Link, MTC/LTC, OSC-in · AUv3 = EIN Plugin (augn, alle Engines drin), Empfehlung:
+  bei einem bleiben, später aufx "EchoelFX".
+- **Infra:** Wachhalter-Cron neu auf DIESE Session (trig_01Mio4dc…, alter gelöscht). v184-Log
+  analysiert: gesund, Interruption-Resilienz griff korrekt ("waiting, not thrashing").
+- **Nächste:** v185-Bump nach Gates → Founder-Augen-Verify (oder Screen-Recording → video-watch!) ·
+  Automation C3 (Canvas any-span + Registry-Picker) · Research-Sweep (Apple Metal Farbe/EDR + OSS-
+  Visualizer + DMMW-Finishing) läuft im Hintergrund.
+
 ## 2026-07-12 (Forts. 30) — B-Batch: A3/A4/P1/L1/B4/B3/B2 (Freeze aktiv, Gates grün)
 - **Mandat läuft:** 24h-Autonomie + TestFlight-FREEZE (kein Deploy bis Profi-Milestone);
   Stunden-Cron-Trigger (trig_011w6M7dhTVQexpGJ83YoN4t) hält die Session wach; jeder
