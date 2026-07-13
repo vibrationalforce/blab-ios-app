@@ -224,7 +224,11 @@ struct EchoelStudioView: View {
     /// Persisted so a chosen world tuning survives relaunch.
     @AppStorage("toneSystemID") private var tuningID = "edo12"
     @AppStorage("studio.fxCharacter") private var fxCharacter: FXCharacter = .auto
-    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
+    // Founder 2026-07-13 ("8 Takte vollständig und dann wiederholt es sich — sinnvolle
+    // Loops sind am besten zum Musik produzieren"): an 8-bar phrase is the produce-able
+    // default. Still fully flexible (2/4/8/16/32) via the loop-length picker + free-longer
+    // in the arrangement; this only sets the STARTING length for a fresh install.
+    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .eight
     /// Drum layer: Off = pure Flächen (DEFAULT — founder 2026-07-07: "Tendenziell
     /// alles eher ohne Beat und reine meditative Flächen"), Pulse = the deep
     /// shamanic heartbeat drum (2026-07-06C), Genre = the style's archetypal groove.

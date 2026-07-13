@@ -285,7 +285,11 @@ public enum BioComposer {
         else if s % 2 == 0   { metric = 0.5 }                     // 8ths
         else                 { metric = 0.32 }                    // 16ths
         let swell = 0.5 - 0.5 * cos(2 * Float.pi * pos)           // 0 → 1 → 0 bar breath
-        let downbeat: Float = (s == 0) ? 0.28 : 0                 // anchor the one over the swell trough
+        // Founder 2026-07-13 ("man findet die Eins nicht"): push the downbeat anchor to
+        // its safe ceiling so beat 1 sits at (near) full velocity while mid-bar notes fall
+        // back — the strongest metric cue a beat-free Fläche can carry (a soft pad has no
+        // transient, so velocity is the only lever here; kept ≤1 so the ±depth/2 bound holds).
+        let downbeat: Float = (s == 0) ? 0.44 : 0                 // anchor the one over the swell trough
         let shape = 0.55 * metric + 0.25 * swell + downbeat       // 0…1, the one wins
         return 1 + clamp01(depth) * (shape - 0.5)                 // centred ~1, span ≤ ±depth/2
     }
