@@ -148,6 +148,11 @@ public final class AUv3Host {
     public func load(_ info: HostedAUInfo) async {
         guard let engine else { loadError = "Audio engine unavailable."; return }
         if info.isInstrument, loaded == info, instrumentUnit != nil { return }
+        // Re-entrancy guard: a load suspends at `await instantiate`, so a second
+        // fast tap must not interleave (last-writer-wins on `loaded`, a re-wire
+        // against a mid-flight unit, an early spinner clear). @MainActor serializes
+        // this synchronous prologue, so the flag reliably rejects the second call.
+        guard !isLoading else { return }
         isLoading = true
         loadError = nil
         let desc = AudioComponentDescription(
@@ -220,6 +225,7 @@ public final class AUv3Host {
     public func loadMasterEffect(_ info: HostedAUInfo) async {
         guard let engine else { loadError = "Audio engine unavailable."; return }
         guard !info.isInstrument else { return }   // master bus takes effects only
+        guard !isLoading else { return }           // re-entrancy guard (see load())
         isLoading = true
         loadError = nil
         let desc = AudioComponentDescription(

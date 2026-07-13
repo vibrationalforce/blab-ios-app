@@ -279,6 +279,7 @@ struct AUv3BrowserView: View {
                 .strokeBorder(highlighted ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .disabled(host.isLoading)   // one load at a time — matches the host's re-entrancy guard
     }
 }
 #endif
