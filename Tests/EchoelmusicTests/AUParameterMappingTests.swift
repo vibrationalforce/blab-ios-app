@@ -110,6 +110,39 @@ final class AUParameterMappingTests: XCTestCase {
         XCTAssertTrue(d.denormalized(0.5).isFinite)
     }
 
+    // MARK: - Array mapping (U2: the whole parameterTree at once)
+
+    func testDescriptors_mapsWholeTreeInOrder() {
+        let params = [
+            AUParamMeta(address: 0, displayName: "Cutoff", minValue: 20, maxValue: 20_000,
+                        defaultValue: 440, unit: "Hz", valueStrings: nil),
+            AUParamMeta(address: 1, displayName: "Wave", minValue: 0, maxValue: 2,
+                        defaultValue: 0, unit: "", valueStrings: ["Sine", "Saw", "Sq"]),
+        ]
+        let ds = AUParameterMapping.descriptors(manufacturer: osType("Echl"),
+                                                subType: osType("synt"), params: params)
+        XCTAssertEqual(ds.map(\.keyPath), ["au.Echl.synt.0", "au.Echl.synt.1"],
+                       "order preserved, address is the leaf")
+        XCTAssertEqual(ds[1].valueLabels, ["Sine", "Saw", "Sq"])
+        XCTAssertEqual(ds[0].max, 20_000)
+    }
+
+    func testDescriptors_emptyTree_isEmpty() {
+        XCTAssertTrue(AUParameterMapping.descriptors(manufacturer: osType("Echl"),
+                                                     subType: osType("synt"), params: []).isEmpty)
+    }
+
+    func testDescriptors_registerIntoRegistry_isQueryable() {
+        let reg = EchoelParameterRegistry()
+        let ds = AUParameterMapping.descriptors(
+            manufacturer: osType("Echl"), subType: osType("filt"),
+            params: [AUParamMeta(address: 3, displayName: "Reso", minValue: 0, maxValue: 1,
+                                 defaultValue: 0.3, unit: "", valueStrings: nil)])
+        reg.register(ds)
+        XCTAssertNotNil(reg.descriptor(for: "au.Echl.filt.3"))
+        XCTAssertEqual(reg.search(query: "reso").first?.keyPath, "au.Echl.filt.3")
+    }
+
     func testDescriptor_defaultClampedIntoRange() {
         let d = AUParameterMapping.descriptor(
             manufacturer: osType("Echl"), subType: osType("amp "), address: 2,
