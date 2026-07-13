@@ -1,23 +1,23 @@
-build: 2026-07-12 v10.79.182 (Start erzwingt kein Visual-Fenster mehr · Visual-Zustand steht jetzt im Log)
-branch: claude/piano-roll-clip-view-wozlie (deployed via deploy branch)
-notes: Deine Anweisung umgesetzt:
-  · START = NUR MUSIK: das Visual-Fenster geht beim Biofeedback nicht
-    mehr automatisch auf (vorher zwang Start es in Vollbild). Der
-    Monitor oben rechts bleibt der lebendige Hinweis — du öffnest das
-    Fenster, wann DU willst.
-  · LOG-RÄTSEL GELÖST: die visual:-Diagnosezeile ging bisher in einen
-    anderen Kanal als dein kopierbares Log — darum fehlte sie IMMER,
-    auch bei offenem Fenster. Ab diesem Build steht sie in jedem Log
-    (alle ~5 s, wenn das Fenster offen ist): ob Noten ankommen,
-    welcher Ton die Farbe treibt, welche Detail-Stufe rendert.
-  · Dein 2286-Log BESTÄTIGT den v180-Fix: während der iOS-Pausen
-    keine blinden Belichtungs-Locks mehr, und nach dem Resume saubere
-    Wieder-Erfassung bis Konfidenz 0,87 bei Puls 58. Sehr gute Läufe
-    insgesamt (0,90 · 0,87 · 0,79).
-  · In v181 (vorheriger Build): F ist wieder eine Farbe (Purpur),
-    Akkorde färben das Visual — bitte dort einmal F im Raster und
-    einen Akkord im offenen Visual anschauen.
-  Als Nächstes (dein Vorschlag, angenommen): EchoelVideo- und
-  EchoelLux-Monitore neben dem BioSynth-Monitor im Header.
-  Gates: Quick Test + Xcode Compile Check + CI/CD auf 561d1ab.
-  NEEDS-FOUNDER-VERIFY (Start ohne Auto-Visual, visual:-Zeilen im Log).
+build: 2026-07-13 v10.79.183 (Profi-Batch: Trap-Viertel-Anker · Bio-per-Note · BLE-MIDI-Kopplung · Licht-Gruppen/Phaser · FDN-Raumhall-Kern)
+branch: claude/piano-roll-clip-view-wozlie
+notes: Sauberer Cut auf deinen Zuruf — alles Verifizierte aus der 24h-Session in einem Build:
+  · TRAP-VIERTEL (dein "die Viertel fehlen" auf dem 132-Lock): bei aktivem
+    Körper treibt der Bass jetzt ein 808-Viertel-Pedal auf 1·2·3·4 (ein
+    Grundton pro Akkord-Sektion, Downbeat betont). Ruhiger Körper = wie
+    bisher gehalten. NUR Trap — Dub und Meditation unangetastet.
+    BITTE A/B: Trap 132 locken, Puls hoch (Bewegung) vs. ruhig.
+  · BIO-PER-NOTE (A5): Noten mit Expression-Tiefe atmen mit Kohärenz+Atem
+    in der Velocity — neutraler Körper = exakt unverändert, Alt-Clips
+    byte-identisch. (Tiefen-Regler-UI kommt; das Modell + Wiring steht.)
+  · BLE-MIDI: Master → Routing → "Bluetooth MIDI" koppelt ein kabelloses
+    Keyboard — Tasten spielen direkt den Synth.
+    BITTE VERIFY: echten BLE-MIDI-Controller koppeln (Simulator kann das nicht).
+  · UNTER DER HAUBE (unhörbar in diesem Build, Fundament für Licht+Raum):
+    Fixture-GRUPPEN + MA3-artiger Bio-PHASER für EchoelLux (flash-sicher
+    ratenbegrenzt ≤2.5 Hz bei jeder Poll-Rate — ein echter Sicherheits-Fund
+    aus dem Review wurde dabei geschlossen) und der FDN-RAUMHALL-Kern
+    (Raumgröße→Hallzeit mathematisch bewiesen stabil) — beide bewusst noch
+    nicht verdrahtet, Release-Verhalten identisch.
+  Gates: Quick Test + Xcode Compile Check + CI/CD grün auf 72122cf
+  (B8 e503d04 · A5 0e4825e · B6 2b03bcb · L2 0e470f8 · L3 81a22aa · B7 baa38d4+72122cf).
+  Reviewer: dsp ×2 · audio-thread ×2 · bio-safety ×2 · ui-state ×2 — alle clean.
