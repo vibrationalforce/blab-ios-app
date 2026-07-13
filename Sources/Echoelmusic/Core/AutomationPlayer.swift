@@ -236,7 +236,11 @@ public final class AutomationPlayer {
              AutomationTarget.forParameter($0.parameter)
                 == AutomationTarget.forParameter(lane.parameter))
         }) {
-            lanes[i] = lane
+            // Keep the slot's PERSISTED identity — an alias-named adopt must never
+            // rewrite a saved legacy name (migration invariant; review 2026-07-13).
+            var adopted = lane
+            adopted.parameter = lanes[i].parameter
+            lanes[i] = adopted
         } else {
             lanes.append(lane)
         }
