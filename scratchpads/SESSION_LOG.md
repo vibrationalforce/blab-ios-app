@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 67, ULTRACODE) — #23 Modul 2 Seam: LaneComposerInput (Per-Lane-Override)
+- **Trace:** `makeComposerInput`/`generate()` bauen EINEN globalen `BioComposer.Input` (style=globales Genre,
+  mood=global) → `BioComposer.compose` → Primär-Roll. Sekundärspuren spielen platzierte Clips, NICHT
+  frisch-generierte Per-Lane-Kompositionen. ⇒ echtes Per-Spur-Genre braucht einen generate-Fan-Out
+  (pro Lane komponieren + als Clip platzieren) — ein größerer, heikler Eingriff in den Kern-Musik-Pfad
+  (ERST PLAN + Council, eigener Zyklus).
+- **Dieser Zyklus = der pure Seam** (wie MultiRollFanout für Modul 1): `LaneComposerInput.apply(lane, to:base)`
+  legt die Lane-Overrides auf den globalen Input (genreOverride→style, mood→mood, variationSeed→seed=Detail;
+  structureSeed bleibt geteilt → Same-Genre-Lanes bleiben kohärent). nil = byte-identischer Passthrough.
+  `hasOverride` = Skip-Schalter. 5 Tests (Linux). code-review PASS; Caller-Contract dokumentiert
+  (base.structureSeed muss non-nil sein für Kohärenz — der Fan-Out liefert ihn).
+- **Nächster Zyklus:** generate-Fan-Out planen (Council) — pro Sekundärspur mit Override komponieren
+  (`LaneComposerInput.apply` + `BioComposer.compose`) und als Clip auf die Lane legen. KEIN Deploy diesen
+  Zyklus (Seam inert bis Fan-Out).
+
 ## 2026-07-14 (Forts. 66, ULTRACODE) — #23 Modul 2 Fundament: Genre/Mood/Variation pro Spur
 - v202 (Per-Spur-Sound) TestFlight-Build success → auf Founder-Gerät. Alle Gates grün.
 - **Modul-2-Fundament (additiv, wie lane.patch):** `TimelineLane` bekommt `genreOverride: MusicStyle?`,
