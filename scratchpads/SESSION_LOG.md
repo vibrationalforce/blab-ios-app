@@ -3,6 +3,24 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 68, ULTRACODE) — v202-Log-Triage: rPPG-Sättigung sichtbar gemacht (Header-Cue)
+- **Founder v202-Log (2308):** Launch gesund, Ton läuft, Per-Spur-Build ok, rPPG LOCKT (conf 0.83, bio=1) —
+  DANN sättigt das Fingerbild (bright 0.43→0.94), conf bricht ein, bpm friert, bio flappt 1→0,
+  "re-settling exposure — saturated". Puls-Lock durch Überbelichtung verloren.
+- **Entscheid (Council):** die Belichtungs-State-Machine NICHT blind tunen (jede Konstante hat eine datierte
+  Device-Log-Begründung; blind = Regressionsrisiko für den JETZT funktionierenden Lock — Ledger-Regel).
+  Stattdessen: die vorhandene, gut getunte Coaching-Info dort SICHTBAR machen wo der Founder beim Spielen
+  hinschaut — der Header.
+- **Shipped (safe, leaf-only, kein State-Machine-Eingriff):** Header-Puls-Trace wird AMBER + kurzer Cue
+  ("Too bright"/"Hold still"/"Press gently"/"Cover lens") wenn der Puls läuft-aber-nicht-lockt bei
+  korrigierbarem Placement. Neuer purer `PulseCue`-Enum = Single Source of Truth; `coachingHint` =
+  `acquisitionCue.fullHint` (byte-identischer Refactor). Reviewer ui-state PASS(0, Freeze-Law verifiziert) +
+  code-review PASS (behavior-preserving). 3 Tests (Wording, Label-Länge, isActionable).
+- **#25 angelegt:** rPPG-Sättigungs-Auto-Recovery (früherer Re-Settle-Trigger wenn ein Lock hell-driftet) —
+  DEVICE-ITERATION nötig, nicht blind. User-Mitigation heute: leichter drücken / weniger Umgebungslicht.
+- **Anmerkung:** Modul-2-Composer-Fan-Out (Per-Spur-Genre hörbar) verschoben auf nächsten Zyklus — der
+  v202-Log war das dringlichere Signal (Kern-Bio-Erlebnis).
+
 ## 2026-07-14 (Forts. 67, ULTRACODE) — #23 Modul 2 Seam: LaneComposerInput (Per-Lane-Override)
 - **Trace:** `makeComposerInput`/`generate()` bauen EINEN globalen `BioComposer.Input` (style=globales Genre,
   mood=global) → `BioComposer.compose` → Primär-Roll. Sekundärspuren spielen platzierte Clips, NICHT
