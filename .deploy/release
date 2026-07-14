@@ -1,35 +1,37 @@
-build: 2026-07-14 v10.79.206 (deine Fremd-AUv3 sollen jetzt auftauchen — und der Log sagt uns warum, falls nicht)
+build: 2026-07-14 v10.79.207 (Umbau Schritt 1: die Leiste-Auflösung beginnt — erst der sichere Unterbau)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkt aus deiner Meldung "ich habe sehr viele AUv3 installiert, die sind
-  irgendwo auf dem iPhone" — mein vorheriger Log-Lesefehler ("nichts installiert")
-  war falsch. Dein v204-Log zeigte: der Scan fand nur Apple-Units (raw 101 comps,
-  rawMakers: [Apple]) — deine Dritt-Anbieter-Plugins tauchten gar nicht auf. Das
-  ist ein echter Bug, kein leeres Gerät.
+notes: Direkt auf deine Ansage — "die Leiste unten soll sich auflösen und woanders
+  wiederfinden" + "die EchoelTools funktionieren generell noch nicht". Ich habe zuerst
+  den Ist-Zustand sauber kartiert (gründlicher Lese-Agent), bevor ich an dem
+  4299-Zeilen-Monolithen operiere, der den Start schon zweimal zerschossen hat.
 
-  WARUM: iOS meldet frisch installierte/vorhandene AUv3 dem Host-Prozess manchmal
-  ERST verzögert. Deine waren schon vor dem App-Start registriert → es kommt KEINE
-  "hat-sich-geändert"-Meldung, auf die wir bisher gewartet haben. Und "Rescan" traf
-  denselben kalten Cache → die Liste füllte sich nie.
+  WAS DIE KARTE ZEIGTE:
+   · Die "Leiste unten" = die Chip-Reihe in EchoelStudioView (Comp · Session · Sound ·
+     Mix · FX · Mood · Synth · Video). Die soll hoch in den Header + in eine
+     pro-Instrument-Fläche.
+   · "Tools funktionieren nicht" heißt NICHT "kaputt/Platzhalter" — sie sind real
+     verdrahtet, aber ihre Auslöser sind verwaist, seit das alte Tools-Gitter
+     abgehängt wurde. Der lebende Weg zu Piano Roll / Patch / Automation / Audioclip /
+     AUv3 ist heute die Tür am SPUR-KOPF in der Timeline.
 
-  JETZT:
-   · Nach-Scan-Leiter: findet der erste Scan keine echten Fremd-Units, scannt die
-     App automatisch nochmal bei 0,8 / 1,6 / 2,4 / 3,2 s nach — damit spät
-     auftauchende Plugins ohne Neustart erscheinen. Stoppt, sobald welche da sind.
-   · Ehrliche Erkennung über den STABILEN Hersteller-FourCC (nicht den Anzeigenamen,
-     der driftet): Apple ('appl') und Echoels eigenes AUv3 ('Echo') werden korrekt
-     ausgenommen — sonst hätte sich das Feature selbst abgeschaltet, sobald unser
-     eigenes Plugin auftaucht (Bug vom Code-Reviewer gefunden, hier behoben).
-   · Reicherer Log: "auv3 scan[try N]: … 3rd-party X, ownAUv3 true/false …". Damit
-     sagt uns dein NÄCHSTER Log eindeutig, WAS los ist:
-       – 3rd-party wird >0 nach ein paar Sekunden → gelöst, kalter Cache.
-       – bleibt 0 UND ownAUv3=false → iOS hat deine (und unsere) AUv3 dem Prozess
-         noch nicht registriert → im Browser steht jetzt der Hinweis: "öffne jede
-         Plugin-App einmal, dann Rescan" (das registriert sie bei iOS).
+  WARUM DIESER SCHRITT ZUERST (unsichtbar, aber tragend): EchoelStudioView hatte ~21
+  Modal-Schichten (.sheet/.cover) — genau an der Metadaten-Klippe, die den
+  Black-Screen-SIGSEGV auslöst. SECHS davon waren tote Doppel (nur vom abgehängten
+  Gitter ausgelöst; der echte Weg ist die Spur-Kopf-Tür). Ich habe sie entfernt →
+  Kette ~21→15. Das schafft den Sicherheits-Spielraum, den die SICHTBAREN Schritte
+  brauchen (sonst reißt beim Umbau der Start).
 
-  BITTE: v206 laden, Studio → AUv3-Browser öffnen, kurz warten. Wenn deine Plugins
-  auftauchen: super. Wenn nicht: schick mir die neue "auv3 scan[try …]"-Zeile —
-  daran sehe ich sofort, ob's der kalte Cache oder die iOS-Registrierung ist.
+  NÄCHSTE SCHRITTE (Plan steht: scratchpads/PLAN_DISSOLVE_BOTTOM_BAR):
+   2. HEADER-UP — Tonart/Skala/Stimmung/Tempo + Session-Name/Ort wandern hoch in eine
+      kompakte Kopfzeile; die Chips "Comp"/"Session" verschwinden. DAS siehst du dann.
+   3. PRO-INSTRUMENT-ECHOELSYNTH — pro Spur ein Panel (Sound&Textur · Mix · FX;
+      Genre · Variation · Mood; Weather), auf die schon vorhandenen Spur-Felder
+      (patch/genreOverride/mood) gestützt.
+   4. Restliche Chips auflösen, bis die Leiste weg ist.
 
-  Test: AUv3ManufacturerCodeTests (FourCC-Packung appl/Echo/aufx). Reviewer:
-  concurrency PASS (Nach-Scan-Leiter isoliert, generationsgesichert) + code-review
-  (fand die Hersteller-Namen-Annahme; via FourCC behoben). Gates: Xcode + CI/CD.
+  Diese v207 ist bewusst der sichere Unterbau — noch keine sichtbare Änderung, aber
+  ohne ihn wäre der nächste (sichtbare) Schritt ein Start-Crash-Risiko.
+
+  Reviewer: ui-state PASS (jede entfernte Ansicht bleibt über die Spur-Tür
+  erreichbar — kein Verlust) + code-review PASS (keine offenen Referenzen, Klammer-
+  /#if-Balance 47/47, kein -warnings-as-errors-Bruch). Gates: Xcode + CI/CD.
