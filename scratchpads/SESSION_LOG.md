@@ -3,6 +3,27 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 61) — Founder-Live-Redesign + STILLE gelöst (v199/v200)
+- **STILLE ("Alles ist still") — Ursache gefunden aus dem Geräte-Log + abgesichert (v200, 871b9df).**
+  Log bewies: Engine startet OK, `generate: 10 notes, playing=true`, Musik WIRD erzeugt. Ursache:
+  die generative Melodie spielt über die **Roll-Slot-Spur** (erste non-bio MIDI-Lane = "MIDI 1");
+  `Timeline.rollSlotGain`→`effectiveGain`=0 bei **Mute / fremdem Solo / Pegel 0** → `pianoRoll.mixGain`=0
+  → `PianoRollView:529 laneAudible=false` → JEDE noteOn abgeklemmt. Der Founder hatte MIDI 1 gemutet
+  (oranges M). Lane-Defaults sind unmuted/level-1, also State, kein Default-Bug. **Wichtig gelernt:**
+  Visual-Log `level=1.00` = SUMMIERTE VELOCITIES (Absicht), NICHT gemessener Ausgang — hat mich fast
+  fehlgeleitet. **Fix:** (1) `rollMixGain` ins generate-Log (97c7faf). (2) Silenced-Instrument-Guard:
+  amber Banner oben in der Timeline wenn Instrument läuft + Roll-Slot stumm, mit genauem Grund +
+  1-Tipp "Ton an" (`TimelineDocument.rollSlotSilenceReason`/`unsilenceRollSlot` pure + 5 Tests;
+  `TimelineStore.unsilenceRollSlot`; Banner in ArrangeTimelineView, Low-Freq-Reads, amber≠accent).
+  ui-state + concurrency PASS(0). Ledger-Dead-End ergänzt.
+- **Founder-Live-Redesign-Runde (v199, umgesetzt/geplant):** Bio→Header (Tippen=Infos, unterer Bio-Chip
+  weg), Transpose gelöscht, Immersive Stage→ADM-OSC-Egress (Szene-Streaming, Mutual-Exclusion mit Bio-
+  Objekt). **Großer Umbau geplant** (`PLAN_PER_INSTRUMENT_SYNTH_2026-07-14`): untere Leiste löst sich
+  KOMPLETT auf → Genre/Variation/Mood pro Spur, Sound&Texture/Mix/FX in EchoelSynth, Weather optional
+  pro Instrument, Key/Tempo+Session nach oben. Modul-für-Modul, ERST nach Sound-Bestätigung. **Gate:
+  wartet auf Founder-Antwort "kommt nach Unmute der Ton?"**
+- **Davor (v198→v199):** BioVariationMaze-Audition (Comp-Dropdown), Scene→ADM-OSC (#18).
+
 ## 2026-07-14 (Forts. 60) — Konvergenz-Backlog: v197 rPPG-Fix, v198 Variationen-Audition
 - **v10.79.198 (a4787b8 + Deploy a7e88a2) — #19 BioVariationMaze-Audition.** Der Idea-Maze-
   Komponist (gebaut+getestet, aber türlos) bekam seine Tür: Karte "Variationen" im Comp-Dropdown.
