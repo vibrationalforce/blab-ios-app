@@ -47,11 +47,18 @@ sequences the redesign into atomic, render-safe Ralph steps.
   a non-functional scaffold — must not be surfaced, App-Store 2.1). Chain 21→20.
   Meditation/visual slots are entangled (keep-awake, video recorder) → later, careful.
   Reviewers: ui-state + code. LOW risk (removes toward the cliff, never toward it).
-- **Step 2 — Header-up (#24).** Lift Key/Scale (`tonartRow`), tuning
-  (`kammertonRow`+`tuningRow`), tempo (`tempoRow`/`BodyTempoField` as a LEAF), and
-  Session name/place (`SessionNamePreviewLeaf`+`placeRow`) into a compact header row;
-  remove the `Comp` + `Session` chips. Delete Transpose (founder-approved) + clean its
-  `currentToneHz`/visual reads. Visible "die Leiste löst sich auf." Freeze-safe leaves.
+- **Step 2 — Header-up (#24).** Decomposed into safe sub-cycles (header is ancestor of
+  everything → freeze-critical, device-unverifiable → smallest steps):
+  - **2a (DONE, v208) — delete Transpose.** Behavior-preserving (was always 0 /
+    unreachable): removed the StudioMenu.transpose case + arms, state, panel, and the
+    always-0 semis math in currentToneHz + generate. Clears the Comp-area dependency.
+  - **2b — Key/Scale + tuning + tempo → header.** Lift `tonartRow`, `kammertonRow`+
+    `tuningRow`, `tempoRow`/`BodyTempoField` into a compact header strip; remove the
+    `Comp` chip + compositionPanel. `BodyTempoField` is ALREADY a leaf → moving it up
+    is freeze-safe (its 10 Hz pulse read stays inside itself; the header body must NOT
+    read it). VISIBLE.
+  - **2c — Session name/place → header.** Lift `SessionNamePreviewLeaf`+`placeRow`;
+    remove the `Session` chip + sessionPanel. Low-freq, no visual entanglement. VISIBLE.
 - **Step 3 — Per-instrument EchoelSynth panel (#23).** Attach a per-lane panel to the
   lane door backed by the EXISTING `lane.patch`/`genreOverride`/`mood`/`variationSeed`
   fields (Sound&Texture · Mix · FX ; Composition: Genre · Variation · Mood ; Weather).

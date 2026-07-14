@@ -351,7 +351,7 @@ struct EchoelStudioView: View {
     /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
     /// dropdown content — no new surfaces, the card pile just moved into menus.
     private enum StudioMenu: String, CaseIterable, Identifiable {
-        case bio, composition, session, transpose, sound, mix, effects, master, mood, export, synth, video
+        case bio, composition, session, sound, mix, effects, master, mood, export, synth, video
         var id: String { rawValue }
         /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
         var label: String {
@@ -359,7 +359,6 @@ struct EchoelStudioView: View {
             case .bio:         return "Bio"
             case .composition: return "Comp"
             case .session:     return "Session"
-            case .transpose:   return "Transp"
             case .sound:       return "Sound"
             case .mix:         return "Mix"
             case .effects:     return "FX"
@@ -376,7 +375,6 @@ struct EchoelStudioView: View {
             case .bio:         return "Bio — pulse, HRV, coherence, source"
             case .composition: return "Composition — genre, key, tuning, tempo"
             case .session:     return "Session — name, place, weather"
-            case .transpose:   return "Transpose"
             case .sound:       return "Sound and texture"
             case .mix:         return "Mix — level per part"
             case .effects:     return "Effects"
@@ -393,9 +391,9 @@ struct EchoelStudioView: View {
     /// system text size; once the user pinch-zooms it becomes an explicit level.
     @AppStorage("ui.zoomStep") private var zoomStep: Int = -1
 
-    // Transpose — shift the whole take in semitones (octave steps stay in-key).
-    @State private var transposeSemitones: Float = 0
-    @State private var showTranspose = false
+    // Transpose deleted (founder net-architecture 2026-07-14): it was already removed
+    // from the chip bar and unreachable, so its value was always 0 — deletion is
+    // behavior-preserving. The one musical-pitch controls are Key/Scale + Kammerton.
 
     // Variation maze (#19) — the bio-curated idea-maze made auditionable. Explore
     // stores a ranked snapshot (NOT a live read — these @State values change only on
@@ -440,12 +438,11 @@ struct EchoelStudioView: View {
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
-    /// The instrument's current tonic frequency (Hz) at the chosen Kammerton, shifted
-    /// by the global transpose — fed to the immersive visual, which transposes it up
-    /// into visible light, so the colour tracks key + concert pitch + transpose.
+    /// The instrument's current tonic frequency (Hz) at the chosen Kammerton — fed to
+    /// the immersive visual, which transposes it up into visible light, so the colour
+    /// tracks key + concert pitch.
     private var currentToneHz: Double {
-        let semis = Double(Int(transposeSemitones.rounded()))
-        return session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0 + semis) / 12.0)
+        session.a4Hz * pow(2.0, (Double(60 + rootIndex) - 69.0) / 12.0)
     }
 
     var body: some View {
@@ -1104,13 +1101,11 @@ struct EchoelStudioView: View {
     // Chip-bar simplification (founder 2026-07-14, red-pen pass):
     //  · .bio     → the Bio section's home is now the HEADER leaf (tap = full detail);
     //               it no longer lives as a bottom chip too (no double home).
-    //  · .transpose → "Wir erstmal komplett gelöscht" — removed from the bar. The
-    //               .transpose dropdown case + transposePanel stay in code (reversible),
-    //               just not reachable from the bar.
+    //  · .transpose → DELETED (founder net-architecture 2026-07-14): the case, panel
+    //               and state are gone (it was already unreachable / always 0).
     // Master/Export were already chrome-door-only.
     private static let studioChips: [StudioMenu] =
-        StudioMenu.allCases.filter { $0 != .master && $0 != .export
-                                     && $0 != .bio && $0 != .transpose }
+        StudioMenu.allCases.filter { $0 != .master && $0 != .export && $0 != .bio }
 
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -1217,7 +1212,6 @@ struct EchoelStudioView: View {
         case .bio:         return AnyView(bioPanel)
         case .composition: return AnyView(compositionPanel)
         case .session:     return AnyView(sessionPanel)
-        case .transpose:   return AnyView(transposePanel)
         case .sound:       return AnyView(soundPanel)
         case .mix:         return AnyView(mixerPanel)
         case .effects:     return AnyView(effectsPanel)
@@ -1284,7 +1278,6 @@ struct EchoelStudioView: View {
             // view reads top-down from "what most people touch" to "deep tweaks".
             compositionPanel
             sessionPanel
-            transposePanel
             soundPanel
             mixerPanel
             effectsPanel
@@ -2061,19 +2054,6 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(13).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
                     .frame(width: 84, alignment: .trailing)
             }
-        }
-    }
-
-    // MARK: Panel — Transpose (shift the whole take)
-
-    private var transposePanel: some View {
-        panel("Transpose", "Shift the whole take · ±24 semitones", isExpanded: $showTranspose) {
-            EchoelValueField(label: "Transpose", value: $transposeSemitones,
-                             range: -24...24, unit: "st", decimals: 0,
-                             onCommit: { recomposeIfRunning() })
-            Text("Octave steps (±12 / ±24) stay in key; other amounts shift the whole take to a new key. The sub-bass and the immersive colour follow automatically.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -3705,22 +3685,14 @@ struct EchoelStudioView: View {
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: tempo, genre: style) }   // same room for played notes
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
-        // Global transpose: shift every generated pitch by the user's semitones at the
-        // single point where all notes exist as one array (main actor, not the audio
-        // thread). The sub-bass follows automatically — it derives from note.pitch-12
-        // in the trigger — so synth + sub stay locked an octave apart. Clamp to MIDI.
-        let semis = Int(transposeSemitones.rounded())
         // Per-genre MIX GLUE: nudge relative role levels so each genre sits right
         // (lead forward in synth genres, bass firmer in dub/heavy, pad back in
         // dense takes). Velocity scales each voice's amplitude, so this is a pure,
         // audio-thread-safe level move at the one point all notes exist as an array.
         let mix = style.mixLevels
-        // Turn one raw composed bar into final notes: global transpose THEN the mix glue.
+        // Turn one raw composed bar into final notes: the per-genre mix glue.
         func finish(_ raw: [Note]) -> [Note] {
-            let shifted = semis == 0 ? raw : raw.map {
-                var n = $0; n.pitch = min(127, max(0, n.pitch + semis)); return n
-            }
-            return shifted.map { n in
+            return raw.map { n in
                 var m = n
                 // Genre mix glue × the user's per-part MIXER level (Module 1). Unity
                 // mixer = the genre balance unchanged; the user can pull e.g. a shrill
