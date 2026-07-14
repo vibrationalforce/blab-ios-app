@@ -1,38 +1,35 @@
-build: 2026-07-14 v10.79.205 (Senior-Audit P2: ein NaN kann die bio-reaktive Stimme nicht mehr verstummen lassen)
+build: 2026-07-14 v10.79.206 (deine Fremd-AUv3 sollen jetzt auftauchen — und der Log sagt uns warum, falls nicht)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zweiter Fund aus dem "Apple Senior Team"-Audit, jetzt behoben. Klasse von
-  Bug: ein NaN (ungültige Zahl) im Biofeedback konnte die Synth-Stimme DAUERHAFT
-  verstummen lassen — und man hätte nie gewusst warum.
+notes: Direkt aus deiner Meldung "ich habe sehr viele AUv3 installiert, die sind
+  irgendwo auf dem iPhone" — mein vorheriger Log-Lesefehler ("nichts installiert")
+  war falsch. Dein v204-Log zeigte: der Scan fand nur Apple-Units (raw 101 comps,
+  rawMakers: [Apple]) — deine Dritt-Anbieter-Plugins tauchten gar nicht auf. Das
+  ist ein echter Bug, kein leeres Gerät.
 
-  WIE das passieren konnte: Der Clamp (Wertebegrenzer) war `min(max(x, 0), 1)`.
-  Jeder Vergleich mit NaN ist "falsch" — also ließ dieser Clamp ein NaN
-  unverändert durch. Ein NaN-Biowert (z.B. ein kaputtes Herzraten-Frame) landete
-  so über die Bio-Parameter auf dem Audio-Thread und vergiftete den Filter-/
-  Oszillator-Zustand → die Stimme war still und blieb still, bis man neu startete.
+  WARUM: iOS meldet frisch installierte/vorhandene AUv3 dem Host-Prozess manchmal
+  ERST verzögert. Deine waren schon vor dem App-Start registriert → es kommt KEINE
+  "hat-sich-geändert"-Meldung, auf die wir bisher gewartet haben. Und "Rescan" traf
+  denselben kalten Cache → die Liste füllte sich nie.
 
-  DIE KORREKTUR (an jeder Stelle bevor der Wert den Audio-Thread erreicht):
-   · Neuer NaN-sicherer `FloatingPoint.clamped` — ein NaN wird zur unteren
-     Bereichsgrenze (endlich, im Bereich). Er wird für Float/Double automatisch
-     an ALLEN `.clamped(to:)`-Stellen gewählt (spezifischer als die generische
-     Variante), inkl. der fünf bio-reaktiven DDSP-Clamps. Auch ins AUv3-Plugin
-     aufgenommen, damit die geteilte DDSP dort dieselbe Sicherheit hat.
-   · `clampUnit` mit `guard x.isFinite` gehärtet (fängt auch ±Unendlich; fällt
-     leise auf 0 für die 0…1-Biowerte).
-   · MIDI-Pitchbend: `synth.frequency` wurde roh gesetzt (`base * 2^(semis/12)`) —
-     ein NaN/inf-Controllerwert hätte den Oszillator genauso vergiftet. Jetzt nur
-     bei endlichem Wert.
+  JETZT:
+   · Nach-Scan-Leiter: findet der erste Scan keine echten Fremd-Units, scannt die
+     App automatisch nochmal bei 0,8 / 1,6 / 2,4 / 3,2 s nach — damit spät
+     auftauchende Plugins ohne Neustart erscheinen. Stoppt, sobald welche da sind.
+   · Ehrliche Erkennung über den STABILEN Hersteller-FourCC (nicht den Anzeigenamen,
+     der driftet): Apple ('appl') und Echoels eigenes AUv3 ('Echo') werden korrekt
+     ausgenommen — sonst hätte sich das Feature selbst abgeschaltet, sobald unser
+     eigenes Plugin auftaucht (Bug vom Code-Reviewer gefunden, hier behoben).
+   · Reicherer Log: "auv3 scan[try N]: … 3rd-party X, ownAUv3 true/false …". Damit
+     sagt uns dein NÄCHSTER Log eindeutig, WAS los ist:
+       – 3rd-party wird >0 nach ein paar Sekunden → gelöst, kalter Cache.
+       – bleibt 0 UND ownAUv3=false → iOS hat deine (und unsere) AUv3 dem Prozess
+         noch nicht registriert → im Browser steht jetzt der Hinweis: "öffne jede
+         Plugin-App einmal, dann Rescan" (das registriert sie bei iOS).
 
-  Test: FloatingPointClampTests (Normalfall/unter/über/Grenze/NaN→unten/±inf/
-  bipolar, Float+Double) — läuft auf dem swift-test-Gate (macOS).
+  BITTE: v206 laden, Studio → AUv3-Browser öffnen, kurz warten. Wenn deine Plugins
+  auftauchen: super. Wenn nicht: schick mir die neue "auv3 scan[try …]"-Zeile —
+  daran sehe ich sofort, ob's der kalte Cache oder die iOS-Registrierung ist.
 
-  Reviewer: dsp-reviewer PASS (jeder Bio-Konsument durchgegangen — untere Grenze/0
-  ist die richtige Sicherheitslandung, nichts schwingt auf; null Audio-Thread-
-  Kosten; Rausch-Triad unberührt; hat den Pitchbend-Zwilling gefunden, jetzt mit
-  behoben) + code-reviewer PASS (Overload-Auflösung eindeutig, keine Doppel-
-  deklaration). Gates: Xcode Compile + CI/CD.
-
-  Reihenfolge-Hinweis: Ich arbeite gerade die Fund-Liste des Senior-Audits ab
-  (P0 = v204 Info.plist-Ablehnung behoben, P2 = dieser NaN-Fix). Danach zurück zur
-  Instrument-Vision. Zwei Punkte warten auf DEINEN Entscheid: bluetooth-central als
-  Hintergrundmodus (#27) und die "soon"-Broadcast-Ports im Patchbay (#28) — beide
-  kein Blocker, nur ob wir sie so lassen oder anders wollen.
+  Test: AUv3ManufacturerCodeTests (FourCC-Packung appl/Echo/aufx). Reviewer:
+  concurrency PASS (Nach-Scan-Leiter isoliert, generationsgesichert) + code-review
+  (fand die Hersteller-Namen-Annahme; via FourCC behoben). Gates: Xcode + CI/CD.
