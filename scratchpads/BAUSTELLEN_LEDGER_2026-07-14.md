@@ -10,13 +10,13 @@ Echoel's audio/FX/bio-visual core genuinely works (EchoelFX chain, FX bio-mod li
 ## Ledger (ranked)
 
 ### #1 — Network output target (OSC / ADM-OSC / sACN) — no host/port config UI
-- status: **half-wired** | value: high | risk: low
+- status: **✅ SHIPPED v10.79.211 (c5448f9), gates green** | value: high | risk: low
 - symptom: Enabling OSC Out / ADM-OSC / sACN in Routing blinks the activity dot, but data only goes to localhost/127.0.0.1 or a wrong hardcoded 192.168.1.100 — Resolume / TouchDesigner / MadMapper / LAN light nodes receive nothing, with no way to point at the right machine (only Art-Net works, via 255.255.255.255 broadcast default).
 - fix: Add a compact target row per active output to the already-reachable PatchbayView sheet (no new modal): TextField for host + EchoelValueField for port/universe, bound to each sender's existing @Observable host/port/universe. Persist via didSet→UserDefaults (mirror BroadcastPublisher.swift:37-39). Switch sACN default from unicast 192.168.1.100 to E1.31 multicast via the existing multicastHost(universe:) helper (not a raw 239.255.0.<universe> literal — breaks for universe>255). Note: connect() runs only in start(), so a live host edit needs a route toggle to reconnect.
 - files: Sources/Echoelmusic/Studio/PatchbayView.swift, Sources/Echoelmusic/Sync/OSCSender.swift, Sources/Echoelmusic/Sync/ADMOSCSender.swift, Sources/Echoelmusic/Sync/SACNSender.swift, Sources/Echoelmusic/Sync/ArtNetSender.swift
 
 ### #2 — VINTAGE / Tape-Bandmaschine / VHS character FX (wow&flutter on dry, hiss, dropouts) [NEW ASK b]
-- status: **half-wired** | value: high | risk: medium
+- status: **✅ SLICE 1 SHIPPED v10.79.212 (54479a9)** — EchoelTape (wow&flutter + saturation + HF loss) on the dry path, wired chain+preset+UI+tests, reviewers PASS. Slice 2 (hiss + dropouts) DEFERRED. | value: high | risk: medium
 - symptom: Founder gets a warm tape ECHO from Cassette/Vinyl but not authentic tape/VHS character — the whole DRY signal never drifts in pitch (wow&flutter), and there is no tape hiss or momentary dropout.
 - fix: First slice: a dedicated EchoelTape chain stage that puts wow&flutter on the DRY path by reading an EchoelDelayLine at a slowly-modulated fractional offset (reuse EchoelDelayLine + two EchoelLFO exactly like EchoelDelay.swift:80-116 but on the through-signal, ~5-8 ms base) — audio-thread safe (no alloc/locks). Insert after saturation in EchoelFXChain with a tapeEnabled rising-edge reset (same willSet pattern as :57); let .cassette/.vinyl presets enable it. Defer hiss (gated-low xorshift RNG already in EchoelLFO.swift:101) and dropouts (LFO/random gate ≤3 Hz, flash-safety analogue) to slice 2. Surface via the EXISTING Effects character picker + All-parameters sheet — no new .sheet.
 - files: Sources/Echoelmusic/DSP/EchoelLoFiFX.swift, Sources/Echoelmusic/DSP/EchoelFXChain.swift, Sources/Echoelmusic/Sequencer/GenreFX.swift, Sources/Echoelmusic/DSP/FXPreset.swift
