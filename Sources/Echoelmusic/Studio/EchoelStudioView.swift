@@ -317,16 +317,15 @@ struct EchoelStudioView: View {
     /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
     /// way you left it. Default expanded so every editor is visible at a glance.
     @AppStorage("compose.toolsExpanded") private var toolsExpanded = true
-    @State private var showPianoRoll = false
     @State private var showInput = false
     @State private var showRouting = false
-    @State private var showPlugins = false
     @State private var showLearn = false
-    @State private var showBroadcast = false
-    @State private var showPatchEditor = false
-    // (showChannelRack removed — the Channel Rack is now the first-class "Mix" workspace surface.)
-    @State private var showAutomation = false
-    @State private var showAudioClip = false
+    // Dead-duplicate sheets removed (v10.79.207): PianoRoll / PatchEditor / Automation
+    // / AudioClip / AUv3 plugins are opened from the timeline lane-head doors
+    // (ArrangeTimelineView's ArrangeModal), and Broadcast is a non-functional RTMP
+    // scaffold. Their EchoelStudioView-level slots were fed only by the unmounted
+    // toolsSection grid — pure dead weight on the 21-modal metadata chain. Removed to
+    // buy headroom for the bottom-bar dissolve (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14).
     /// Presents a file picker to import a Standard MIDI File onto the piano roll.
     @State private var midiImportPresented = false
     /// Drives the project-import file picker in the Open-project sheet.
@@ -637,9 +636,6 @@ struct EchoelStudioView: View {
         .sheet(isPresented: $showOpen) { AnyView(openSheet) }
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
         .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
-        .sheet(isPresented: $showPianoRoll) {
-            AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll).echoelSheetPanel())
-        }
         .sheet(isPresented: $showAllFX) {
             AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
                          fxEnabled: { synth.isFXEnabled },
@@ -648,10 +644,7 @@ struct EchoelStudioView: View {
         }
         .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
         .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
-        .sheet(isPresented: $showPlugins) { AnyView(AUv3BrowserView().echoelSheetPanel()) }
         .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
-        .sheet(isPresented: $showAutomation) { AnyView(AutomationView().echoelSheetPanel()) }
-        .sheet(isPresented: $showAudioClip) { AnyView(AudioClipView().echoelSheetPanel()) }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],
@@ -659,16 +652,7 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        .sheet(isPresented: $showBroadcast) { AnyView(BroadcastView().echoelSheetPanel()) }
         .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
-        .sheet(isPresented: $showPatchEditor) {
-            AnyView(PatchEditorView(initial: synth.appliedPatch ?? currentPatch) { p in
-                currentPatch = p
-                synth.apply(p)   // editor changes hit the live voice immediately
-                syncTouchSound() // play surface follows unless it has its own patch
-            }
-            .echoelSheetPanel())
-        }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             // NOT AnyView-wrapped: this cover builds lazily on present (it never
@@ -845,15 +829,9 @@ struct EchoelStudioView: View {
     /// the grid chips and the HUD menu rows.
     private func openTool(_ id: String) {
         switch id {
-        case "pianoroll": showPianoRoll = true
-        case "sound": showPatchEditor = true
-        case "automation": showAutomation = true
         case "audioin": showInput = true
-        case "audioclip": showAudioClip = true
         case "meditation": showMeditation = true
         case "routing": showRouting = true
-        case "plugins": showPlugins = true
-        case "broadcast": showBroadcast = true
         case "learn": showLearn = true
         #if canImport(UniformTypeIdentifiers)
         case "importmidi": midiImportPresented = true
