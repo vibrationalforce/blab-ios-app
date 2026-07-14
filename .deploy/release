@@ -1,34 +1,34 @@
-build: 2026-07-14 v10.79.194 (Spuren spielen als Instrumente + Record pro Spur — LIVE)
+build: 2026-07-14 v10.79.195 (Immersive Stage — jede Spur ein Klangobjekt im Raum, per Touch bewegbar)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: DAS ist der Build mit den echten Funktionen, nicht mehr flag-versteckt.
+notes: Selbst-enthaltene Immersion — der Anfang von "kein IEM/4D/Grapes mehr nötig".
 
-  1) MEHRERE SPUREN SPIELEN GLEICHZEITIG (Multi-Roll, jetzt DEFAULT-AN). Bisher
-     teilten sich alle MIDI-Spuren EINE Stimme. Jetzt bekommt jede zusätzliche
-     Spur ihre EIGENE Stimme: leg zwei MIDI-Spuren mit verschiedenen Clips an,
-     drück Play -> beide klingen zusammen. Die erste Spur behält den vollen
-     Piano-Roll (Operatoren/Bio); die weiteren fahren über ein pures, getestetes
-     Noten-Pump je Spur auf den Voice-Rack. (Grenze diese Runde: eine ZWEITE
-     Drum-Spur ist noch stumm — der Rack hat aktuell nur Synth-Stimmen; die
-     Instrument-spezifischen Stimmen pro Spur ziehe ich als Nächstes.)
+  IMMERSIVE STAGE (die Touch-Oberfläche, die du wolltest). Neuer Button
+  "Immersive" in der Timeline-Leiste (die Timeline ist HOME, also direkt
+  sichtbar) öffnet eine RAUM-KARTE von oben: du sitzt in der Mitte und
+  schaust nach vorne (oben = vorne, links = +90 Grad, Rand = weit weg).
+  JEDE Spur ist als Puck (mit Instrument-Symbol + Name) im Raum platziert
+  und lässt sich mit dem Finger VERSCHIEBEN — das bewegt das Klangobjekt der
+  Spur live. So ist ab sofort "jedes Instrument ist immersiv" nicht nur ein
+  Versprechen, sondern sichtbar + anfassbar.
 
-  2) RECORD PRO SPUR GREIFT WIRKLICH. Spur armen (roter Record-Punkt am
-     Spurkopf) -> der neue "Record"-Button in der Timeline startet den Takt ->
-     externe MIDI-Noten (dein Keyboard) UND Biofeedback werden aufgenommen ->
-     Stop legt automatisch einen CLIP + eine REGION auf die Spur (Länge auf ganze
-     Takte gerundet). Der Clip spielt danach ganz normal mit. (Grenze: Audio-In-
-     und Video-Aufnahme sowie das volle Clip-Archiv = eigener Zyklus.)
+  Das Fundament darunter:
+  - Jede Nicht-Bio-Spur bekommt automatisch eine sinnvolle Startposition
+    (Bass zentral/vorne/tief, Pads breit + zurückgesetzt, Drums leicht
+    breit) — niemand muss erst von Hand platzieren. Bewegungen bleiben
+    erhalten, wenn Spuren dazukommen/wegfallen.
+  - Reine, getestete Geometrie (12 Tests) + reiner Szenen-Store (11 Tests).
+    Kontroll-Ebene, kein Audio-Thread.
 
-  3) AUv3 finden + einbinden: FINDEN ist robust (v192-Fix, schon im letzten
-     Build — bitte testen, schick den Log). GLOBAL einbinden funktioniert
-     (externes AUv3 als Instrument laden, spielt via MIDI/Piano-Roll, mit UI +
-     Parametern). PER-SPUR-Routing (jede Spur durch ihr eigenes AUv3, eigener
-     Audio-Bus) ist das einzige noch offene Stück — sauber gemappt, nächster
-     Zyklus (braucht Per-Lane-Busse in der AudioEngine).
+  Diese Runde = die Karte + das Bewegen (sichtbar/fühlbar). Als NÄCHSTES
+  ziehe ich das dahinter live an den Ausgang: die Szene an ADM-OSC / den
+  eigenen Renderer (VBAP/Ambisonics/Binaural — die Kerne liegen schon), plus
+  Automations-Aufnahme der Bewegungen. Das ist der Weg zu Anlagen mit vielen
+  Boxen, komplett in-App.
 
-  Jeder Schritt: Pflicht-Reviewer (Audio-Thread + Concurrency + UI-State) ALLE
-  PASS; CI-Gates (Xcode Compile Check + CI/CD Pipeline) grün. Multi-Roll ist
-  audio-thread-sauber (nur SPSC-Enqueue, kein Render-Work) und ohne hängende
-  Noten (beide Stop-Pfade flushen).
+  Pflicht-Reviewer (ui-state): PASS auf allen fünf Gesetzen (Sheet-Ketten-
+  Metadaten, 10-Hz-Freeze, Environment-Injektion, Koordinaten, kein
+  veraltetes iOS-17-API). Gates grün: Xcode Compile Check + CI/CD Pipeline.
 
-  OFFEN als eigene Zyklen: Per-Spur-AUv3-Bus · zweite Drum-Spur (Voice-Kind pro
-  Slot) · Audio-Loop-Import + Audio-In-Aufnahme · rPPG-BPM-Lock (Geräte-Wiring).
+  OFFEN als eigene Zyklen: Szene→OSC/Renderer live · Automations-Aufnahme
+  der Raum-Bewegungen · Per-Spur-AUv3-Bus · zweite Drum-Spur · Audio-In-
+  Aufnahme · rPPG-BPM-Lock (Geräte-Wiring).
