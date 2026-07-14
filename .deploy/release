@@ -1,32 +1,28 @@
-build: 2026-07-14 v10.79.214 (DAW#1: Automation „alle Parameter" — Synth-Params anschließbar)
+build: 2026-07-14 v10.79.215 (DAW#2: Clips schneiden & zusammenfügen — Split/Join am Playhead)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Erste Scheibe deiner großen Vier-Punkte-Liste („Automationen im Clip und auf der
-  Timeline"). Die Automations-Maschinerie war komplett gebaut — Kurven zeichnen, Clip- UND
-  Timeline-Ebene, live abgespielt — aber die eingebauten Synth-Parameter waren nie
-  „angeschlossen". Der Parameter-Picker bot nur 3 Ziele (Master · Tempo · Filter). Jetzt
-  bewegt eine gezeichnete Automations-Kurve echte Synth-Parameter.
+notes: Zweite Scheibe deiner Vier-Punkte-Liste („Clips schneiden und zusammenfügen").
+  Zwei neue Werkzeuge in der Timeline — das Rasiermesser und sein Gegenstück.
 
-  WO: Spurkopf-Menü → „Automation" → im Parameter-Picker erscheinen jetzt zusätzlich:
-  Wärme-Drive, Hüllkurve Attack/Decay/Sustain/Release und Amplitude (Ausgangspegel). Kurve
-  zeichnen/aufnehmen → der Parameter folgt live beim Abspielen. Keine UI-Änderung nötig, der
-  Picker erweitert sich automatisch.
+  WO: Timeline-Werkzeugleiste (oben, neben Play/Record) → zwei neue Knöpfe:
+  • „Split" (Schere) — schneidet JEDE Region, die der Playhead gerade kreuzt, an dieser
+    Stelle in zwei Teile.
+  • „Join" (Pfeil-Merge) — fügt am Playhead wieder zusammen, was ein Split dort getrennt hat.
 
-  WIE: Die Synth-Stimme meldet ihre automatisierbaren Parameter am selben Router an, über den
-  auch gehostete AUv3-Knöpfe schon liefen. Jeder Wert wird atomar über den Stimmen-Pool
-  verteilt (dieselbe erprobte Disziplin wie Stimmung/Entrainment) — control-plane, nie am
-  Audio-Thread.
+  WAS es tut: Split trennt sauber (bei Audio/Video wandert der Medien-Startpunkt des zweiten
+  Teils mit, damit es nahtlos weiterspielt; MIDI unberührt). Join ist der verlustfreie
+  Rückweg — und verweigert bewusst, wenn du den zweiten Teil nach dem Split beschnitten/
+  verschoben hast (sonst würde das Zusammenfügen deinen Schnitt still verwerfen). Kein
+  Auswahl-Modus nötig: beides sind Playhead-Gesten, symmetrisch.
 
-  BEWUSST NOCH NICHT dabei (kommt als saubere Folge-Scheibe): Parameter, die das Biofeedback
-  laufend selbst bewegt (Harmonie, Rauschen, Hall, Filter-Basis, Vibrato, Helligkeit). Die
-  direkt zu automatisieren wäre zwecklos — Bio überschreibt sie ~10×/s. Die brauchen ein
-  eigenes „Automation × Bio"-Zusammenspiel (Automation setzt die Mitte, Bio schwingt drum
-  herum), statt jetzt etwas Halbfunktionierendes zu bauen (dein „keine Fehler"-Prinzip).
+  WIE: reine Tick-Mathematik (Region.split/abuts/merged, unit-getestet) + zwei
+  TimelineStore-Methoden (Razor über alle gekreuzten Regionen · Join bis zur Konvergenz).
+  Der Playhead-Stand wird NUR im Tastendruck gelesen (nie im Body) — die Menü-Freeze-Regel
+  bleibt gewahrt. Werte werden gespeichert, der Store fasst nie Audio an.
 
-  SICHER: audio-thread-rein (atomare Float-Verteilung, kein Lock/Alloc, keine gemeinsame
-  Tabelle die der Render liest — die riskanten Params sind genau deshalb ausgeschlossen).
-  dsp-Reviewer hat jeden der 15 Params einzeln klassifiziert (render-wirksam vs.
-  bio-überschrieben vs. unsicher). Reviewer: audio-thread SHIP-READY · concurrency+code PASS.
-  3 neue Tests. Gates: Xcode + CI/CD.
+  SICHER: 14 Tests (Split-Geometrie/Kanten/Offset/Längenerhalt · abuts/merged ·
+  Medien-Diskontinuität „beschnitten ⇒ kein Merge" · Store-Razor+Join-Round-Trip). Reviewer:
+  ui-state PASS (Freeze-Regel gewahrt, Schleife terminiert, State-Flow korrekt) · code PASS
+  (Split/Merge-Logik korrekt + sicher). Gates: Xcode + CI/CD.
 
-  Nächste Scheiben (Masterplan scratchpads/PLAN_DAW_EPIC_2026-07-14.md): #2 Clips schneiden &
-  fügen · #3 Audio-Spuren klingen lassen + Import · #4 Video-Spuren.
+  Reihenfolge: DAW#1 Automation ✓ · DAW#2 Clips schneiden/fügen ✓ · als Nächstes #3
+  Audio-Spuren klingen lassen + Import, dann #4 Video-Spuren.
