@@ -18,11 +18,37 @@ spine" direction (decisions.csv #194/#198), now made concrete per surface.
 | 5 | **Weather** ("shapes the sound") | **Optional per-instrument tool** | "Weather shapes the sound wird ein extra Tool, das man bei den Instrumenten optional mit anschalten kann" |
 | 6 | **Sound & texture** (Character/Randomize/Brightness/Harmonics/Noise/Cutoff/Reso/LFO/Envelope/Reverb/Vibrato/Sub) | **Part of EchoelSynth** (per-instrument) | "Sound und texture wird auch Teil von Echoel Synth" |
 | 7 | **Transpose** | **DELETED** | "Wir erstmal komplett gelöscht" |
+| 8 | **Mix** + **FX** | **Part of EchoelSynth** (per-instrument) | "Mix und FX wird auch in EchoelSynth integriert" |
+| 9 | **Mood** | **Joins Genre + Variation** (per-track composition group) | "Mood kommt zu Genre und Variationen" |
 
-Not yet re-homed by the founder: **Mix**, **FX**, **Mood** (likely per-track or up;
-await founder). Do NOT move them speculatively.
+**The whole bottom chip bar dissolves** (founder: "Jetzt müsste die untere Leiste
+komplett aufgelöst sein und entsprechend an anderer Stelle gemerged wiederzufinden
+sein"). Final map: Bio→header · Comp key/tempo→up · Session→up · Genre+Variation+
+**Mood**→per-track composition group · Sound&texture+**Mix**+**FX**→EchoelSynth
+per-instrument · Weather→optional per-instrument · Transpose→deleted. Nothing left
+on a global bar.
 
-## CRITICAL BLOCKER — "Alles ist still" (total silence)
+## ✅ ROOT CAUSE FOUND — "Alles ist still" (from the device log)
+
+**The generative melody is gated by the roll-slot lane's mute/solo/level.**
+`Timeline.rollSlotGain` (Timeline.swift:175) = `effectiveGain(first non-bio MIDI
+lane = "MIDI 1")`, which is **0** when that lane `isMuted`, when ANY other lane
+`isSoloed`, or `level==0`. `ArrangeTimelineView:118 onChange(rollSlotGain)` sets
+`pianoRoll.mixGain = gain`; `PianoRollView:529` gates every `noteOn` on
+`laneAudible = mixGain > 0.001`. So notes generate, transport plays (`playing=true`,
+musical level 1.0 = summed velocities), but **no noteOn reaches the synth** →
+total silence. Log confirmed engine started OK + `generate[start]: 10 notes,
+playing=true`. Lane defaults are unmuted/level-1 ⇒ this is timeline STATE (MIDI 1
+muted, or a foreign solo — the amber "M" on MIDI 1 in the founder's screenshots),
+NOT a default bug. Also possible: `suppressBuiltIn` true if an external AUv3 is
+assigned to the roll (PianoRollView:451 `auHost?.suppressesBuiltInVoice`).
+
+**Immediate user fix:** unmute MIDI 1 / clear any solo. **Diagnostic shipped:**
+`rollMixGain` now in the generate breadcrumb (EchoelStudioView) to confirm in the
+next log. **Follow-up fix (UX trap):** make the silenced-because-track-muted state
+VISIBLE (pulse button / banner) so the core instrument is never invisibly trapped.
+
+## (superseded) earlier notes — "Alles ist still" (total silence)
 
 Founder: pressing the pulse button + finger on camera → NO sound at all.
 - Verified the code path is INTACT + unchanged by recent commits: pulse button →

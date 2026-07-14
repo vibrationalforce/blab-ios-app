@@ -32,6 +32,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | Trust "Quick Test" as a real gate | The real gates are **Xcode Compile Check** (iOS SDK — stricter) + **CI/CD Pipeline** (Linux build+test). Quick Test = lint only. |
 | Simplify the Rausch triad (BioEventGraph / HilbertSensorMapper / BioSignalDeconvolver) | READ-ONLY. Do not touch without explicit founder approval. |
 | Re-add a Session door, the 6-surface bottom bar, or the Tools grid | Founder-removed. Those files stay compiling but unpresented — do NOT resurface without a founder ask. |
+| Diagnose "total silence" as an engine/generate bug when the log shows `generate: N notes, playing=true` | The generative roll is gated by `Timeline.rollSlotGain` (first non-bio MIDI lane's mute/solo/level) → `pianoRoll.mixGain` → `PianoRollView` `laneAudible` gates every `noteOn`. A MUTED "MIDI 1" (or a foreign SOLO, or level 0, or `suppressBuiltIn` via an assigned AUv3) = total silence with notes still generating. Check `rollMixGain` in the generate breadcrumb; the visual-log `level=1.0` is SUMMED VELOCITIES (intent), NOT measured output. |
 
 ## PLAYBOOKS — reliably works here
 
