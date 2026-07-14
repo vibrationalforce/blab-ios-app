@@ -459,7 +459,17 @@ final class CameraAnalyzer {
 
         // Robust periodicity once per scan — reused for telemetry, the fresh-lock
         // cross-check, and the few-peaks fallback (avoids recomputing it twice).
-        let auto = PulsePeriodEstimator.dominantBPM(window, sampleRate: actualRate)
+        //
+        // Detrend ONLY the periodicity input (RPPGConditioning.linearDetrend — tested):
+        // PulsePeriodEstimator removes the MEAN but not the SLOPE, so a slow DC ramp
+        // (breathing / exposure settle) that survives the band filter still swamps the
+        // small cardiac AC in the autocorrelation — the device "no-lock" (finger=yes,
+        // high amp, acf≈0.1, bpm=0 the whole run). Killing the linear trend restores the
+        // cardiac peak for the estimator, WITHOUT touching the amplitude-calibrated motion
+        // gates below (they stay tuned on the filtered `window`). Finishes the built-but-
+        // unwired RPPGConditioning core it was written for (#14). Device-verify pending.
+        let auto = PulsePeriodEstimator.dominantBPM(
+            RPPGConditioning.linearDetrend(window), sampleRate: actualRate)
         lastAutoStrength = auto?.strength ?? 0
         lastAutoBPM = auto?.bpm ?? 0
 
