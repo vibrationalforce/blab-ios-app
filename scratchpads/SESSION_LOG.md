@@ -3,6 +3,34 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 65, ULTRACODE) — Multi-Roll-Audit-Workflow → 3 Live-Bugs gefixt + Per-Spur-Sound verdrahtet
+- **Founder: "Ultracode mit allen Fähigkeiten, du entscheidest, bis Vision Complete."** Entscheid (Council:
+  proceed-with-mitigation): den multiRoll-Keystone scharf machen — aber audit-first + reversibel.
+- **Multi-Agent-Workflow (20 Agenten, 6 Subsystem-Auditoren → adversariale Verifikation → Synthese):**
+  GROSSE Erkenntnis — **multiRoll ist bereits default-ON** (`EchoelmusicApp.swift:425 register(defaults:true)`).
+  Der Keystone war also schon geflippt und AUSGELIEFERT — mit 3 bestätigten Live-Bugs im ON-Pfad.
+- **3 Bugs gefixt (Commit 96333ba), neuer purer Kern `MultiRollFanout.swift` (Foundation, Linux-getestet):**
+  1. **HIGH Stille:** eine Sekundär-Spur mit Clip am Taktanfang lud NIE (laneEvent(0→step)=.unchanged) →
+     stumm die ganze Region + jeden Loop. Fix: `play()` primt Sekundäre via `activeLoads(at:0)` (onset-unabhängig,
+     Zwilling zu loadRollRegion(at:0) der Primärspur).
+  2. **Mute-Leak:** Sekundäre ignorierten mute/solo/level (nur Primär ehrte effectiveGain). Fire-Loop gated jetzt
+     per `audible(lane)` — droppt note-ONs, liefert note-OFFs (kein Hänger), wie die Primär-laneAudible-Regel.
+  3. **Per-Spur-Sound:** `TimelineLane.patch` war gespeichert aber NIE angewandt. Neuer `slotPatchSink` legt bei
+     Region-Load jeder Spur ihren Patch auf die Slot-Stimme (nil→Primär-Fallback patchStore.patches.first, nie
+     nackter DDSP-Default).
+- slot == Priorität-Rank == Index unter non-bio-MIDI-Lanes minus Roll-Lane; Consumer + MultiRollFanout teilen die
+  Ordnung (Regressions-Guard-Test bindet beide). FeatureFlags.multiRoll-Doc auf default-ON korrigiert (OFF-Override
+  = 1-Zeilen-Rollback).
+- **Reviewer:** audio-thread CLEAN (Patch/Noten enqueuen auf lock-free SPSC, keine Render-Arbeit) · concurrency
+  PASS(0) · correctness CONFIRMED (Invariante beweisbar identisch, keine Hänger/Doppel-Loads). 14 pure Tests.
+- **Device-Verify (Founder-Telefon = das CPU/Speicher-Gate das die Flag-Doku fordert):** (1) zwei MIDI-Spuren je
+  Clip an Takt 1 → BEIDE ab dem Downbeat hörbar; (2) je eigener Patch → klingen TIMBRAL verschieden, nil-Patch =
+  wie Spur 1; (3) Sekundär muten/soloen/Fader auf 0 → still; (4) 4 dichte Poly-Spuren → CPU/Thermik ok. Alle grün
+  = default-ON bleibt; ein rot = App:425 raus (bit-identisch OFF).
+- **Bekannte Nicht-Blocker (Audit):** capacity=4 (5.+ Spur überläuft, silenced) · LaneVoiceKind ignoriert (jeder
+  Slot = PolySynthVoice, Drums/Sampler-Lane spielt Poly) · Multi-Bar-Sekundär-Clips auf 1 Takt gefaltet
+  (LaneNotePump %16) · Immediate-Mute-Cut fehlt (klingt bis natürl. Release). Alle = spätere B09-Stufe.
+
 ## 2026-07-14 (Forts. 64, Cron) — #23-Keystone erkannt: Per-Instrument braucht multiRoll (dok.)
 - **Architektur-Fund:** der GANZE Per-Instrument-Umbau (#23) ist nur HÖRBAR, wenn jede MIDI-Spur
   ihre EIGENE Stimme hat = `LaneVoiceRack`, das NUR bei `FeatureFlags.multiRoll` ON existiert.
