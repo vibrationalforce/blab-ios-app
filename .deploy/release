@@ -1,35 +1,26 @@
-build: 2026-07-14 v10.79.200 (STILLE GELÖST: die Melodie hängt an der Spur — jetzt sichtbar + 1-Tipp-Fix)
+build: 2026-07-14 v10.79.201 (Ort manuell eingeben — dein eigener Städtename, auch ohne GPS)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dein Log hat's verraten — DANKE. Ursache der totalen Stille gefunden UND
-  abgesichert.
+notes: Kleiner, gewünschter Baustein aus deinem Umbau (Punkt c): den Ort im
+  Session-Namen kannst du jetzt SELBST eintippen.
 
-  WAS DEIN LOG ZEIGTE: Engine startete sauber, generate erzeugte 10 Noten,
-  playing=true — die Musik WURDE erzeugt. Sie kam nur nicht durch, weil:
+  WAS NEU IST:
+  · Neben dem Orts-Schalter gibt es jetzt ein Textfeld "Ortsname". Tippst du dort
+    z.B. "Hamburg" oder "Studio Hamburg" ein, steht das im Session-/Export-Namen —
+    egal ob GPS an, aus oder blockiert ist. (Founder 07-14: "auch manuell eingeben
+    wenn man Lust hat oder der Standort nicht funktioniert".)
+  · Dein getippter Name gewinnt IMMER gegen den automatisch erkannten Ort. Leeren
+    (x-Knopf) → wieder automatisch.
+  · Freitext ist dateisicher: der Name wird beim Speichern/Export automatisch
+    bereinigt (z.B. "Studio Hamburg" → im Dateinamen sauber).
 
-  DIE GENERATIVE MELODIE SPIELT ÜBER DIE ERSTE MIDI-SPUR ("MIDI 1"). Deren
-  Mute/Solo/Pegel schaltet sie stumm: MIDI 1 auf Mute (dein Fall — das orange
-  "M"), ODER eine andere Spur auf Solo, ODER Pegel 0 → JEDE Note wird abgeklemmt,
-  obwohl Transport + Erzeugung laufen. DAW-korrekt (Spur stumm = Instrument
-  stumm), aber es war nicht sichtbar WARUM.
-
-  JETZT ABGESICHERT (kann dich nie wieder erwischen):
-  · Wenn das Instrument läuft und MIDI 1 stumm ist, erscheint OBEN in der Timeline
-    ein amber Hinweis: "Kein Ton — die Melodie ist stumm" + der genaue Grund
-    (gemutet / andere Spur solo / Pegel 0).
-  · Ein Knopf "Ton an" behebt es in EINEM Tipp: entmutet MIDI 1, hebt einen
-    0-Pegel auf Normal, löscht ein fremdes Solo. (Oder einfach das "M" an MIDI 1.)
-  · Diagnose rollMixGain liegt jetzt im Log — falls je wieder still, sehe ich's sofort.
-
-  SOFORT (auch ohne dieses Update): bei MIDI 1 das "M" austippen → Ton ist zurück.
-
-  Test-first: 5 neue Tests (rollSlotSilenceReason + Ein-Tipp-Fix, Linux-grün).
+  Test-first: 2 neue Tests (manueller Override + Freitext-Sicherheit, Linux-grün).
   Reviewer: ui-state + concurrency je PASS(0). Gates grün: Xcode + CI/CD.
 
-  Ebenfalls an Bord (aus 199): Bio im Header (Tippen = Infos), Transpose weg,
-  Immersive Stage → ADM-OSC-Ausgabe.
+  Ebenfalls schon auf dem Gerät (aus 200): die STILLE ist gelöst + abgesichert —
+  falls MIDI 1 stumm ist, siehst du oben den amber Hinweis + "Ton an"-Knopf.
+  Sofort auch ohne Update: bei MIDI 1 das orange "M" austippen → Ton zurück.
 
-  DEIN GROSSER UMBAU ist geplant (PLAN_PER_INSTRUMENT_SYNTH_2026-07-14): untere
-  Leiste löst sich komplett auf — Genre/Variation/Mood pro Spur, Sound&Texture/
-  Mix/FX in EchoelSynth, Weather optional pro Instrument, Key/Tempo + Session nach
-  oben. Ich lege mit Modul 1 los, sobald du bestätigst dass der Ton (nach dem
-  Unmute) wieder läuft.
+  DEIN GROSSER UMBAU (Genre/Variation/Mood pro Spur, Sound&Texture/Mix/FX in
+  EchoelSynth, Weather optional pro Instrument, Key/Tempo + Session nach oben)
+  wartet auf EIN Wort von dir: kommt nach dem Unmute von MIDI 1 der Ton zurück?
+  Sobald du das bestätigst, lege ich mit Modul 1 los.
