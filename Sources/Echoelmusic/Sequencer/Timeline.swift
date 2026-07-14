@@ -252,6 +252,14 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     /// Total song length in ticks (end of the last region; ≥ 0).
     public var endTick: Int { regions.map(\.endTick).max() ?? 0 }
 
+    /// The tick at which a newly-imported clip should START on `laneID` so it
+    /// sits AFTER the lane's existing content (no overlap) — the end of the
+    /// lane's last region, or 0 for an empty lane. Pure; the audio/video import
+    /// path appends here so repeated imports stack in time.
+    public func nextStartTick(inLane laneID: UUID) -> Int {
+        regions(in: laneID).map(\.endTick).max() ?? 0
+    }
+
     // MARK: - Lane mixer math (K2a — pure, Linux-CI-tested)
 
     /// A lane's audible gain: 0 when muted (mute wins over its own solo) or when

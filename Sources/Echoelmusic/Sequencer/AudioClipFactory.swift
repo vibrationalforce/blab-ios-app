@@ -15,8 +15,11 @@ public enum AudioClipFactory {
     /// Number of beats per bar assumed by the bar/tempo heuristics (4/4).
     public static let beatsPerBar = TimelineTime.beatsPerBar   // 4
 
-    /// An `.audio` clip referencing `mediaRef` (store the file's last path
-    /// component, matching how the audio library resolves Documents/Audio).
+    /// An `.audio` clip referencing `mediaRef`. The import path stores an
+    /// ABSOLUTE path (into the App Group `Media/Audio` dir) so the timeline's
+    /// resolver — `URL(fileURLWithPath:)` + `fileExists` — finds the file
+    /// directly; do NOT switch this to a relative/last-path-component ref
+    /// without also changing that resolver.
     public static func clip(name: String, mediaRef: String, colorIndex: Int = 0) -> Clip {
         Clip(name: name, colorIndex: colorIndex, kind: .audio, mediaRef: mediaRef)
     }

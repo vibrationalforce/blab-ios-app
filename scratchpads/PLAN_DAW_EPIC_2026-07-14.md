@@ -17,8 +17,17 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
    Ebenen live & getestet). Es fehlt NUR die `router.bind`-Tabelle für die eingebauten DDSP-Params.
 2. ✅ **Clips schneiden & fügen** (v215, Split/Join am Playhead) — Reine Tick-Mathematik + je
    eine TimelineStore-Methode + Toolbar-Knopf. Home-Fläche (ArrangeTimelineView) schon erreichbar.
-3. **Audio-Import in eine Spur** — AudioClipFactory-Naht existiert+getestet; nur Importer→Kopie→
-   addRegion fehlt. Danach: transport-synced AudioLanePlayer (Audio-Regions am startTick planen).
+3. **Audio-Import in eine Spur** — ✅ SLICE A (v216): Importer→App-Group-Kopie→addRegion.
+   Audio-Lane-Tür (Lane-Kopf → „Open audio editor") zeigt jetzt „Add to timeline": lädt/trimmt
+   Datei → `MediaLibrary.importAudio` (Kopie in App-Group `Media/Audio`) → `AudioClipFactory.clip/region`
+   → freier ClipStore-Slot (`firstEmptySlotIndex`) + `TimelineDocument.nextStartTick` (hinter Lane-Inhalt)
+   → `clips.setClip` + `timeline.addRegion`. Region zeigt Waveform + tap-audition (schon verdrahtet).
+   Reviewer: security SECURE · concurrency PASS · code (Test-Hygiene + Doc-Kommentar gefixt).
+   OFFEN (Folge-Slices): transport-synced **AudioLanePlayer** (Audio-Regions am geteilten Clock am
+   startTick planen — heute klingt die Region NUR beim Antippen, nicht im Transport-Playback) ·
+   Trim-OUT als harte Grenze (heute bar-gesnappt, contentOffset=In-Point) · Region-Editor lädt das
+   referenzierte Medium (heute öffnet Long-press einer Audio-Region einen leeren Importer) · MIDI-Import
+   erreichbar machen (MIDIFileImporter getestet, Trigger unerreichbar).
 4. **Video-Spuren** — größter Brocken. Scaffolding (VideoRegionSync/Trim/ClipFactory/ExportPlan)
    pur+getestet, aber KEIN VideoLanePlayer, kein PHPicker-Import, kein Editor-Tür. Eigene Etappen:
    (a) PHPicker-Import→.video-Region + AVPlayer-Preview, (b) VideoLanePlayer transport-synced,

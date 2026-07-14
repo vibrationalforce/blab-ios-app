@@ -13,13 +13,24 @@ import UniformTypeIdentifiers
 @MainActor
 struct AudioClipView: View {
 
+    /// When set (the door was opened from an AUDIO LANE HEAD), the imported file
+    /// can be LANDED onto that lane as a timeline region — the "Add to timeline"
+    /// button appears. Opened from an existing region (or with no lane), it stays
+    /// a pure preview/trim editor (button hidden). Default keeps `AudioClipView()`.
+    var landingLaneID: UUID? = nil
+
     @Environment(AudioEngine.self) private var audioEngine
+    @Environment(ClipStore.self) private var clips
+    @Environment(TimelineStore.self) private var timeline
+    @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(\.dismiss) private var dismiss
 
     @State private var player = AudioClipPlayer()
     @State private var region = AudioClipRegion()
     @State private var importerPresented = false
     @State private var scopedURL: URL?
+    /// Non-nil while a landing failed (grid full / copy error) — shown inline.
+    @State private var landingError: String?
 
     var body: some View {
         NavigationStack {
@@ -30,6 +41,7 @@ struct AudioClipView: View {
                         WaveformTrimEditor(url: url, region: $region)
                         regionControls
                         transport
+                        if let laneID = landingLaneID { landRow(laneID) }
                     } else {
                         Text("Import an audio file (WAV · AIFF · MP3 · M4A · …) to play it as a clip — trim, loop and set its level.")
                             .font(EchoelTheme.font(13))
@@ -130,6 +142,66 @@ struct AudioClipView: View {
             .buttonStyle(.plain)
             .disabled(!player.isPlaying)
         }
+    }
+
+    // MARK: - Land onto the timeline (import into the audio lane)
+
+    /// "Add to timeline" — copies the loaded file into the App Group and places
+    /// it as a region on `laneID`, sized to the trimmed selection, after the
+    /// lane's existing content. The button is only shown for a lane-head door.
+    private func landRow(_ laneID: UUID) -> some View {
+        VStack(spacing: 8) {
+            Button { addToTimeline(laneID) } label: {
+                Label("Add to timeline", systemImage: "plus.rectangle.on.rectangle")
+                    .font(EchoelTheme.font(14, .semibold))
+                    .foregroundStyle(EchoelTheme.onPrimary)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
+            }
+            .buttonStyle(.plain)
+            if let landingError {
+                Text(landingError)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Copy the file into durable storage and add a region on the lane. Pure
+    /// placement (AudioClipFactory + firstEmptySlotIndex + nextStartTick); the
+    /// only impure step is the file copy. On no free clip slot or a copy failure
+    /// it sets `landingError` and does not touch the stores.
+    private func addToTimeline(_ laneID: UUID) {
+        landingError = nil
+        guard let source = player.loadedURL else { return }
+        guard let slot = clips.firstEmptySlotIndex else {
+            landingError = "Clip-Raster voll (8 Slots) — leere zuerst einen Slot."
+            return
+        }
+        let dest: URL
+        do {
+            dest = try MediaLibrary.importAudio(from: source)
+        } catch {
+            landingError = "Datei konnte nicht importiert werden."
+            return
+        }
+        // Land the TRIMMED selection: the region starts at the trim's in-point
+        // (contentOffset) and is sized to the trimmed duration; falls back to the
+        // whole file if the trim collapsed.
+        let duration = region.durationSeconds > 0 ? region.durationSeconds : player.durationSeconds
+        let offset = region.startSeconds
+        let bpm = beatPlayer.pattern.tempo
+        let name = source.deletingPathExtension().lastPathComponent
+        let clip = AudioClipFactory.clip(name: name, mediaRef: dest.path, colorIndex: slot)
+        let native = AudioClipFactory.nativeBPM(forDurationSeconds: duration, bpm: bpm)
+        let startTick = timeline.document.nextStartTick(inLane: laneID)
+        let placed = AudioClipFactory.region(forDurationSeconds: duration, bpm: bpm,
+                                             laneID: laneID, clipID: clip.id,
+                                             startTick: startTick, nativeBPM: native,
+                                             contentOffsetSeconds: offset)
+        clips.setClip(at: slot, clip)
+        timeline.addRegion(placed)
+        dismiss()
     }
 
     private func load(_ url: URL) {

@@ -38,6 +38,11 @@ public final class ClipStore {
     /// from.
     public var filledClips: [Clip] { slots.compactMap { $0 } }
 
+    /// The first empty slot, or `nil` when the 8-slot grid is full. The audio /
+    /// video import path lands a fresh clip here; a full grid surfaces to the
+    /// user as "clip grid full" rather than silently overwriting. Pure lookup.
+    public var firstEmptySlotIndex: Int? { slots.firstIndex(where: { $0 == nil }) }
+
     public func setClip(at index: Int, _ clip: Clip) {
         guard slots.indices.contains(index) else { return }
         slots[index] = clip

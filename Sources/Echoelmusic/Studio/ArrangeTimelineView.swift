@@ -214,7 +214,8 @@ struct ArrangeTimelineView: View {
     @ViewBuilder
     private func modalEditor(_ modal: ArrangeModal) -> some View {
         switch modal {
-        case .lane(let lane):     editor(forKind: lane.kind)
+        case .lane(let lane):     editor(forKind: lane.kind,
+                                         landingLane: lane.kind == .audio ? lane.id : nil)
         case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
         case .plugins:            AUv3BrowserView()
@@ -234,10 +235,10 @@ struct ArrangeTimelineView: View {
     /// The editor behind a door/region, by content kind. Only kinds with a real
     /// engine offer one — no placeholder screens.
     @ViewBuilder
-    private func editor(forKind kind: ClipKind) -> some View {
+    private func editor(forKind kind: ClipKind, landingLane: UUID? = nil) -> some View {
         switch kind {
         case .midi:  PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
-        case .audio: AudioClipView()
+        case .audio: AudioClipView(landingLaneID: landingLane)
         case .video, .visual: EmptyView()   // no engine yet — no door offered
         }
     }
