@@ -5640,3 +5640,11 @@ Resonanz-Onboarding · Wetter/Ort-Journal (Founder-Gate Info.plist!) · lokale P
 - NEW scratchpads/HARNESS_LEDGER.md — durable DEAD-ENDS table (don't retry: sheet-chain metadata, 10Hz-ancestor freeze, per-frame main-actor hop, .init iOS-ambiguity, deprecated coordinateSpace(name:), Double→CGFloat, tokenless-deploy-only, curl-github-blocked, Quick-Test-not-a-gate, Rausch READ-ONLY) + PLAYBOOKS + shipped leaderboard. Read after SESSION_LOG each session.
 - NEW scripts/gh-run-status.py — parses the overflowing mcp__github__actions_* dump into `sha status conclusion run_id title` (the CI-poll friction I hit 3× this run). Tested against real dumps.
 - CLAUDE.md: scratchpads table + "Start every session" + a compact "Harness discipline" rule pointing at both.
+
+## 2026-07-14 — Adaptive home (founder device feedback "nicht adaptiv") → v10.79.196
+- Device v10.79.195 (2301): launches clean, Immersive Stage works, visual vibrant; BUT huge black void under the timeline (dropdown refactor left EchoelStudioView zone empty). Log: rPPG BPM-lock flaky (run 2 bpm=0), AUv3 scan Apple-only.
+- Founder "du entscheidest, adaptiv, KEINE Duplikate, alles greift ineinander" → decision: timeline fills (tracks-are-home), instrument zone conditional.
+- SurfaceHost: timeline .frame(maxHeight:.infinity), EchoelStudioView natural height (expanded) / fills (collapsed); removed GeometryReader+timelineHeight/landscape.
+- EchoelStudioView: instrument ZStack zone wrapped `if activeMenu != nil || presentSession != nil { AnyView(ZStack{...}) }` → idle = chip bar only. Metadata SHRANK (ZStack behind AnyView). +.frame(maxHeight:480) on the content ScrollView so open dropdowns don't 50/50-split with the timeline (reviewer #1 fix).
+- swiftui-render-safety skill loaded; ui-state-reviewer PASS (both laws). Gates green f80a12a. Deploy 345f4e8 → v10.79.196.
+- QUEUED: rPPG BPM-lock reliability (#14) · external AUv3 visibility (scan Apple-only) · scene→renderer/OSC live · Immersive-Stage automation.
