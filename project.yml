@@ -157,6 +157,10 @@ targets:
       - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
       # Shared numeric helpers (clamped/mapped/lerp) the DSP uses.
       - path: Sources/Echoelmusic/Core/NumericExtensions.swift
+      # NaN-safe FloatingPoint.clamped — DSP/EchoelDDSP's .clamped(to:) sites bind
+      # to it (more-refined than the Comparable one), so the plugin's shared DDSP
+      # gets the same NaN→lowerBound safety as the app. Foundation-only; no Core types.
+      - path: Sources/Echoelmusic/Core/FloatingPointClamp.swift
     info:
       path: Resources/EchoelmusicAUv3/Info.plist
       properties:

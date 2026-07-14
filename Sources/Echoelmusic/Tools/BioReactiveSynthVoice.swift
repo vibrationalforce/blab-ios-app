@@ -235,7 +235,12 @@ public final class BioReactiveSynthVoice {
         case .pitchBend:
             let semis = event.value * 2.0
             let base = Self.frequency(forMIDINote: event.note > 0 ? event.note : 69)
-            synth.frequency = base * powf(2, semis / 12)
+            let bent = base * powf(2, semis / 12)
+            // A NaN/inf controller value would set synth.frequency to NaN, which the
+            // audio thread reads in render() → a permanently stuck/silent oscillator
+            // (same failure class as the bio-param NaN guarded by clampUnit). Ignore a
+            // bend that isn't a finite pitch rather than poison the voice.
+            if bent.isFinite { synth.frequency = bent }
         case .slide, .airCC, .channelPressure:
             break
         }
@@ -297,8 +302,13 @@ public final class BioReactiveSynthVoice {
         ))
     }
 
+    /// Clamp a bio value into 0…1, sanitizing NaN/inf to 0. A NaN here (e.g. a bad
+    /// heart-rate frame) would otherwise pass the plain `min(max())` clamp unchanged
+    /// and poison the audio thread's filter/envelope state → a permanently silent
+    /// voice. Fail quiet (0) instead. Runs on the MainActor poll, never in render.
     private func clampUnit(_ x: Float) -> Float {
-        min(max(x, 0), 1)
+        guard x.isFinite else { return 0 }
+        return min(max(x, 0), 1)
     }
 
     // MARK: - Source node (audio thread)
