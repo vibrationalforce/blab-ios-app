@@ -82,3 +82,32 @@ that lane. MIDI-lane-gated. ui-state + code review.
       code + concurrency (+ dsp if BioComposer touched — it should NOT be).
 - [ ] Cycle B: LaneFX per-lane Genre/Mood/Variation UI + setters; ui-state + code review.
 - [ ] Deploy once B lands (working, visible) — like the Transpose two-commit/one-deploy.
+
+## ⚠️ FINDING 2026-07-14 (Explore ad53aae) — PREMISE INVALIDATED, FOUNDER-GATED
+
+Deep runtime trace invalidates Cycle A's core assumption:
+- Secondary MIDI lanes DO read notes from ClipStore `clip(id: region.clipID).melody.notes`
+  via LaneNotePump (TimelineRegionPlayer.swift:273/:317) — so the DATA TARGET is right.
+- **BUT `EchoelStudioView.generate()` NEVER starts TimelineRegionPlayer, never creates
+  regions, never writes ClipStore.** The generative take lives ONLY in PianoRollModel
+  (+ beatPlayer.pattern). The timeline / "Play timeline" transport
+  (ArrangeTimelineView.swift:300, `.disabled(regions.isEmpty)`) is a SEPARATE, opt-in
+  path. During a normal generative take, secondary lanes are SILENT unless the user
+  placed regions and pressed Play-timeline.
+- Secondary lanes via LaneNotePump are single-bar (16-step) loops only (folds `% 16`);
+  the primary roll cycles multi-bar arrangements. Multi-bar per-lane composition needs
+  pump/loop-length work.
+
+=> "Each instrument composes in its own genre during a GENERATIVE take" requires BRIDGING
+   the generative flow into the timeline (create regions+clips per lane AND run the
+   timeline transport, or drive the fan-out from Generate) — an ARCHITECTURALLY
+   SIGNIFICANT unification of two transports, NOT a cheap decision-free slice. Filling
+   `melody.notes` alone changes nothing audible in the generative flow = the banned
+   "unfunktionierende Sache".
+
+**GATE: HOLD-FOR-FOUNDER.** Real ambiguity (invalidated premise + two-transport
+architecture question). Founder question to surface when active: "Sollen der generative
+Instrument-Flow (pianoRoll) und die Timeline/Arrange-Spuren zu EINEM Transport
+verschmelzen (Voraussetzung für Genre-pro-Spur im generativen Take), oder bleibt
+Genre-pro-Spur auf die Timeline-Fläche beschränkt?" Meanwhile: proceed with the other
+decision-free founder asks (Detune ✓ v213, Oktaver next).
