@@ -1,34 +1,29 @@
-build: 2026-07-14 v10.79.195 (Immersive Stage — jede Spur ein Klangobjekt im Raum, per Touch bewegbar)
+build: 2026-07-14 v10.79.196 (Adaptiver Home — die Timeline füllt den Schirm, keine schwarze Leere mehr)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Selbst-enthaltene Immersion — der Anfang von "kein IEM/4D/Grapes mehr nötig".
+notes: Direkt auf dein Geräte-Feedback zu 2301 ("nicht adaptiv designt").
 
-  IMMERSIVE STAGE (die Touch-Oberfläche, die du wolltest). Neuer Button
-  "Immersive" in der Timeline-Leiste (die Timeline ist HOME, also direkt
-  sichtbar) öffnet eine RAUM-KARTE von oben: du sitzt in der Mitte und
-  schaust nach vorne (oben = vorne, links = +90 Grad, Rand = weit weg).
-  JEDE Spur ist als Puck (mit Instrument-Symbol + Name) im Raum platziert
-  und lässt sich mit dem Finger VERSCHIEBEN — das bewegt das Klangobjekt der
-  Spur live. So ist ab sofort "jedes Instrument ist immersiv" nicht nur ein
-  Versprechen, sondern sichtbar + anfassbar.
+  ADAPTIVES HOME. Vorher: unter der Timeline eine große schwarze Leere (seit dem
+  Dropdown-Umbau lagen alle Regler in den Menü-Dropdowns, der Instrument-Bereich
+  darunter war leer). Jetzt:
+  - Die TIMELINE (deine Spuren) füllt den ganzen Schirm — der lebendige Canvas,
+    "tracks are home". Keine tote Fläche mehr.
+  - Die Instrument-Chip-Leiste (Bio · Comp · Session · Transp · Sound · Mix · FX ·
+    Mood) ist eine schlanke Leiste; ihre Dropdowns erscheinen NUR wenn du eins
+    öffnest — dann teilt sich der Platz sinnvoll, das Dropdown bekommt seine volle
+    Höhe (bis 480), die Timeline bleibt dominant. Klappst du die Timeline zu,
+    übernimmt das Instrument den vollen Platz.
+  - KEINE doppelten Regler/Buttons — dieselben Chips, dieselben Dropdowns, nur der
+    Raum greift jetzt sauber ineinander (dein "alles greift harmonisch ineinander").
 
-  Das Fundament darunter:
-  - Jede Nicht-Bio-Spur bekommt automatisch eine sinnvolle Startposition
-    (Bass zentral/vorne/tief, Pads breit + zurückgesetzt, Drums leicht
-    breit) — niemand muss erst von Hand platzieren. Bewegungen bleiben
-    erhalten, wenn Spuren dazukommen/wegfallen.
-  - Reine, getestete Geometrie (12 Tests) + reiner Szenen-Store (11 Tests).
-    Kontroll-Ebene, kein Audio-Thread.
+  Sauber gebaut: Render-Safety-Gesetze geprüft (keine neue Sheet-Kette — der Body
+  wurde sogar KLEINER, kein 10-Hz-Read), Pflicht-Reviewer (ui-state) PASS inkl.
+  Fix für das Dropdown-Clipping. Gates grün: Xcode Compile Check + CI/CD Pipeline.
+  Layout ist nur am Gerät final beweisbar — bitte kurz gegenchecken.
 
-  Diese Runde = die Karte + das Bewegen (sichtbar/fühlbar). Als NÄCHSTES
-  ziehe ich das dahinter live an den Ausgang: die Szene an ADM-OSC / den
-  eigenen Renderer (VBAP/Ambisonics/Binaural — die Kerne liegen schon), plus
-  Automations-Aufnahme der Bewegungen. Das ist der Weg zu Anlagen mit vielen
-  Boxen, komplett in-App.
+  Mit an Bord (unsichtbar, reiner getesteter Kern, noch nicht verdrahtet):
+  BioVariationMaze — der on-device "Idea-Maze"-Komponist (dein Körper kuratiert
+  N Varianten, Ranking nach Bio-Fit). Tür + LLM-Vorschläge kommen als eigene Zyklen.
 
-  Pflicht-Reviewer (ui-state): PASS auf allen fünf Gesetzen (Sheet-Ketten-
-  Metadaten, 10-Hz-Freeze, Environment-Injektion, Koordinaten, kein
-  veraltetes iOS-17-API). Gates grün: Xcode Compile Check + CI/CD Pipeline.
-
-  OFFEN als eigene Zyklen: Szene→OSC/Renderer live · Automations-Aufnahme
-  der Raum-Bewegungen · Per-Spur-AUv3-Bus · zweite Drum-Spur · Audio-In-
-  Aufnahme · rPPG-BPM-Lock (Geräte-Wiring).
+  OFFEN als eigene Zyklen (aus dem 2301-Log): rPPG lockt den Puls unzuverlässig
+  (Lauf 2 bpm=0) · externe AUv3 tauchen im Scan nicht auf (nur Apple) · Szene→
+  Renderer/OSC live · Immersive-Stage-Automation.
