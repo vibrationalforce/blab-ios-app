@@ -111,6 +111,11 @@ struct AUv3BrowserView: View {
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if host.hasNoThirdPartyUnits {
+                    Text("Only Apple's built-in units showed up. Third-party AUv3 sometimes register late — this list keeps refreshing for a few seconds. If yours still don't appear, open each plugin's app once (that registers its AUv3 with iOS), then tap Rescan.")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let err = host.loadError {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                         .fixedSize(horizontal: false, vertical: true)

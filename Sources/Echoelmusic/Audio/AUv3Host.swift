@@ -70,6 +70,31 @@ public final class AUv3Host {
     /// Re-scan trigger for late third-party AUv3 registrations (see scan()).
     /// The host lives for the app's lifetime, so the observer is never removed.
     @ObservationIgnored private var registrationObserver: NSObjectProtocol?
+    /// Retry ladder for a cold / late-registering third-party AUv3 registry (see scan()).
+    @ObservationIgnored private var scanAttempt = 0
+    @ObservationIgnored private var scanGeneration = 0
+    private static let maxScanRetries = 4
+
+    // Manufacturer identity by STABLE FourCC OSType — NOT manufacturerName, which is
+    // a display string derived from the AudioComponents `name` prefix and drifts
+    // (plist vs project.yml). 'appl' = Apple's built-ins, 'Echo' = Echoel's OWN
+    // bundled AUv3. Both are excluded when asking "are any real third-party units
+    // present?" so our own Generator doesn't masquerade as a third-party plugin.
+    nonisolated static func fourCC(_ s: String) -> UInt32 {
+        s.unicodeScalars.reduce(0) { ($0 << 8) | (UInt32($1.value) & 0xFF) }
+    }
+    private static let appleManufacturer = AUv3Host.fourCC("appl")
+    private static let ownManufacturer = AUv3Host.fourCC("Echo")
+
+    /// True when a scan completed but returned NO real third-party units — only
+    /// Apple's built-ins and/or Echoel's own bundled AUv3. Drives the browser's
+    /// "open your plugin apps once" guidance (the founder has many installed that
+    /// haven't surfaced to this host).
+    public var hasNoThirdPartyUnits: Bool {
+        didScan && total > 0 && (instruments + effects).allSatisfy {
+            $0.componentManufacturer == Self.appleManufacturer || $0.componentManufacturer == Self.ownManufacturer
+        }
+    }
 
     // MARK: - Live hosting (instrument → audio graph)
 
@@ -399,6 +424,12 @@ public final class AUv3Host {
     /// Scan installed Audio Units (instruments + effects). Idempotent; cheap enough to
     /// call on appear. No-op where AVFoundation is unavailable.
     public func scan() {
+        scanGeneration &+= 1
+        scanAttempt = 0
+        performScan(generation: scanGeneration)
+    }
+
+    private func performScan(generation: Int) {
         #if canImport(AVFoundation)
         let mgr = AVAudioUnitComponentManager.shared()
         // THIRD-PARTY VISIBILITY (founder 2026-07-12: "Ich sehe bisher nur die
@@ -467,12 +498,43 @@ public final class AUv3Host {
         // hasn't registered them" when a device shows only Apple units.
         let makers = Set(instruments.map(\.manufacturer) + effects.map(\.manufacturer))
             .sorted().joined(separator: ", ")
+        // Discriminators for the device log: how many NON-Apple components the OS
+        // returned, and whether even Echoel's OWN bundled AUv3 ("Echo") is visible.
+        // ownAUv3=false with 3rd-party=0 ⇒ the host sees only in-process Apple units
+        // (registry not warm for this process); 3rd-party>0 ⇒ discovery is working.
+        let thirdPartyCount = components.filter {
+            let m = $0.audioComponentDescription.componentManufacturer
+            return m != Self.appleManufacturer && m != Self.ownManufacturer
+        }.count
+        let ownAUv3 = components.contains {
+            $0.audioComponentDescription.componentManufacturer == Self.ownManufacturer
+        }
         EchoelCrashLog.breadcrumb(
-            "auv3 scan: \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)"
-            + " | raw \(components.count) comps, rawMakers: [\(rawMakers.joined(separator: ","))]"
+            "auv3 scan[try \(scanAttempt)]: \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)"
+            + " | raw \(components.count) comps, 3rd-party \(thirdPartyCount), ownAUv3 \(ownAUv3)"
+            + ", rawMakers: [\(rawMakers.joined(separator: ","))]"
             + " rawTypes: [\(rawTypes.joined(separator: ","))]")
-        #endif
         didScan = true
+        // Cold-cache / late-registration backstop: when the OS returns only Apple
+        // built-ins, the third-party registry is likely not warm yet for this
+        // process — and because those extensions were registered BEFORE this launch,
+        // no kAudioComponentRegistrationsChangedNotification fires to prompt a
+        // refresh (the manual Rescan hits the same cold cache). Re-scan a few times
+        // with growing delay so they fill in without relaunching. Stops the moment
+        // any third-party unit appears. Generation-guarded so a newer scan() cancels
+        // stale pending retries.
+        if thirdPartyCount == 0 && scanAttempt < Self.maxScanRetries {
+            scanAttempt += 1
+            let delaySeconds = Double(scanAttempt) * 0.8   // 0.8, 1.6, 2.4, 3.2 s
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+                guard let self, generation == self.scanGeneration else { return }
+                self.performScan(generation: generation)
+            }
+        }
+        #else
+        didScan = true
+        #endif
     }
 
     /// Pure split + de-dupe + alphabetical sort (testable without any installed AUs).
