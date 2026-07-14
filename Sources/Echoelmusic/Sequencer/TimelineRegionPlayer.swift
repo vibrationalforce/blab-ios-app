@@ -66,7 +66,32 @@ public final class TimelineRegionPlayer {
     @ObservationIgnored private weak var pianoRoll: PianoRollModel?
     @ObservationIgnored private weak var clips: ClipStore?
 
+    // MARK: - Multi-roll fan-out (B08) — SECONDARY lanes play their own rack voice.
+    // The PRIMARY lane keeps the rich PianoRollModel above; every ADDITIONAL non-bio
+    // MIDI lane gets a pure LaneNotePump routed to its rack slot via `slotNoteSink`.
+    // Disabled (capacity 0) ⇒ single-roll only, bit-identical. The app turns it on
+    // once the flag-gated LaneVoiceRack is attached (FeatureFlags.multiRoll).
+    @ObservationIgnored private var multiRollCapacity = 0
+    /// Applies one slot's note events to that slot's rack voice. Injected so this
+    /// file stays Foundation-only (the rack is AVFoundation). nil ⇒ no fan-out.
+    @ObservationIgnored public var slotNoteSink: ((_ slot: Int, _ events: [LaneNotePump.Event]) -> Void)?
+    @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
+    @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
+
     public init() {}
+
+    /// Enable secondary-lane fan-out over a fixed rack of `capacity` voices. Called
+    /// once by the app after the LaneVoiceRack is attached + started (flag-gated).
+    /// The primary lane is unaffected; additional MIDI lanes route through `sink`.
+    public func enableMultiRoll(
+        capacity: Int,
+        sink: @escaping (_ slot: Int, _ events: [LaneNotePump.Event]) -> Void
+    ) {
+        let cap = max(0, capacity)
+        multiRollCapacity = cap
+        lanePool = LaneVoicePool(capacity: cap)
+        slotNoteSink = sink
+    }
 
     /// Song length rounded up to whole bars (the loop point). 0 for an empty song.
     /// Pure — `nonisolated` so it's unit-testable off the main actor.
@@ -97,6 +122,9 @@ public final class TimelineRegionPlayer {
         self.cursor = TimelinePlaybackCursor()
         self.lastTick = 0
         self.currentTick = 0
+        // Fresh multi-roll state: release any lingering take (symmetric with stop —
+        // never drop a sounding pitch without its note-off), clear slots, rebuild pool.
+        flushPumps()
         isPlaying = true
         pianoRoll.setTimelineAutomation(document.automation)   // arrangement automation (cycle 5)
         pianoRoll.setTimelineAutomationTick(0)
@@ -110,6 +138,7 @@ public final class TimelineRegionPlayer {
         isPlaying = false
         pattern?.stop()
         pianoRoll?.allNotesOff()
+        flushPumps()                           // release every secondary-lane voice
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
     }
 
@@ -120,6 +149,7 @@ public final class TimelineRegionPlayer {
         guard isPlaying else { return }
         isPlaying = false
         pianoRoll?.allNotesOff()
+        flushPumps()                           // release every secondary-lane voice
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
     }
 
@@ -144,6 +174,12 @@ public final class TimelineRegionPlayer {
             case .load(let region): loadClip(region)
             case .clear: clearRoll()
             }
+        }
+        // Multi-roll: fan the SAME tick window out over the additional MIDI lanes so
+        // they sound simultaneously on their own rack voices (no-op when capacity 0
+        // or the song has only the one primary lane).
+        if multiRollCapacity > 0 {
+            fanOutSecondaryLanes(fromTick: lastTick, toTick: newTick, step: step)
         }
         // Feed the arrangement automation the absolute playhead BEFORE the roll's
         // onTick chain reaches AutomationPlayer.applyStep (cycle 5). loadClip above
@@ -186,5 +222,59 @@ public final class TimelineRegionPlayer {
         pianoRoll?.load([])
         pianoRoll?.setClipAutomation([])
         loadedRegionID = nil
+    }
+
+    // MARK: - Multi-roll fan-out (B08)
+
+    /// Advance every SECONDARY lane's pump this tick and route its note events to the
+    /// matching rack slot. Region onsets (`.load`) swap that slot's loop; gaps/overflow
+    /// (`.clear`/`.silence`) release it; `.unchanged` lanes keep playing. Pure decision
+    /// via `LaneVoiceScheduling.plan` → `LaneVoiceRackPlan.commands`; the primary lane is
+    /// filtered out (the PianoRollModel plays it richly, so it must not double here).
+    // INVARIANT: `pumps` is keyed by a lane's priority rank/slot, which is stable only
+    // while `doc.midiLaneIDs` is immutable for the session (doc is captured once in
+    // play()). Live lane add/remove/re-type mid-playback would shift ranks and strand a
+    // slot-keyed pump (hung note / wrong voice) — if the timeline doc ever becomes
+    // mutable during play, migrate `pumps` on the lane-set change before shipping it.
+    private func fanOutSecondaryLanes(fromTick: Int, toTick: Int, step: Int) {
+        guard let sink = slotNoteSink else { return }
+        let steps = LaneVoiceScheduling
+            .plan(in: doc, fromTick: fromTick, toTick: toTick, pool: &lanePool)
+            .filter { $0.laneID != rollLane }
+        for command in LaneVoiceRackPlan.commands(steps: steps, capacity: multiRollCapacity) {
+            switch command {
+            case .load(let slot, let clipID):
+                var pump = pumps[slot] ?? LaneNotePump()
+                if !pump.isEmpty { sink(slot, pump.reset()) }   // release the old take first
+                pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
+                pumps[slot] = pump
+            case .clear(let slot), .silence(let slot):
+                if var pump = pumps[slot] {
+                    sink(slot, pump.reset())
+                    pumps[slot] = nil
+                }
+            }
+        }
+        // Fire this step on every live slot pump (offs before ons, per pump).
+        for slot in pumps.keys.sorted() {
+            guard var pump = pumps[slot] else { continue }
+            let events = pump.step(step)
+            pumps[slot] = pump
+            if !events.isEmpty { sink(slot, events) }
+        }
+    }
+
+    /// Release every sounding secondary voice and clear the fan-out state (stop/reset).
+    private func flushPumps() {
+        if let sink = slotNoteSink {
+            for slot in pumps.keys.sorted() {
+                if var pump = pumps[slot] {
+                    sink(slot, pump.reset())
+                    pumps[slot] = nil
+                }
+            }
+        }
+        pumps.removeAll()
+        lanePool = LaneVoicePool(capacity: multiRollCapacity)
     }
 }

@@ -409,6 +409,13 @@ struct EchoelmusicApp: App {
                 // source nodes to a running AVAudioEngine has crashed at launch
                 // (build 1363). Attach all voices first, then a single .start().
                 log.log(.info, category: .system, "STARTUP [1/4] Audio session + master graph...")
+                // Multi-Roll DEFAULT-ON (founder 2026-07-14: "das Spuren System … jede
+                // Spur ein Instrument"): register the flag's fallback as true so multiple
+                // MIDI lanes each play their own voice out of the box. Registering (not
+                // setting) leaves an explicit dev-OFF override intact and does not disturb
+                // the OFF-by-default contract of every OTHER feature flag. Must precede the
+                // first `FeatureFlags.multiRoll` read below (rack attach).
+                UserDefaults.standard.register(defaults: [FeatureFlags.Key.multiRoll.rawValue: true])
                 // Breadcrumbs at every STARTUP milestone: this is the most crash-prone
                 // window (the build-1363 hot-attach + audio-engine start). They land in
                 // the shared diagnostic log, so a launch that dies here names the phase
@@ -475,8 +482,22 @@ struct EchoelmusicApp: App {
                 polyVoice.start(subscribing: bus)
                 leadVoice.start(subscribing: bus)
                 touchVoice.start(subscribing: bus)   // touch notes breathe with the body too
-                // Multi-Roll (B07): subscribe the rack's slot voices (flag-ON only).
-                if FeatureFlags.multiRoll { laneVoiceRack.startAll(subscribing: bus) }
+                // Multi-Roll (B07/B08): subscribe the rack's slot voices AND route each
+                // SECONDARY lane's note events to its own voice (flag-ON only). The
+                // primary lane keeps the rich PianoRollModel; additional MIDI lanes now
+                // sound simultaneously through the rack. The sink runs on @MainActor
+                // (called from timelinePlayer.transportStep) and only enqueues note
+                // commands onto each voice's lock-free SPSC queue — no audio-thread work.
+                if FeatureFlags.multiRoll {
+                    laneVoiceRack.startAll(subscribing: bus)
+                    timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack] slot, events in
+                        guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
+                        for event in events {
+                            if event.isOn { voice.noteOn(pitch: event.pitch, velocity: event.velocity) }
+                            else { voice.noteOff(pitch: event.pitch) }
+                        }
+                    }
+                }
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
                 // the ~30 Hz control loop (idle until the user adds modulation routes).
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
