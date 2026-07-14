@@ -118,25 +118,26 @@ struct PulseMonitorMiniLive: View {
                          bpm: cameraRPPG.displayBPM,
                          locked: cameraRPPG.isLocked,
                          coherence: bus.freshBio().map { Double($0.coherence) })
-            // E-Bio (founder 2026-07-12: "Diese Leiste soll in vereinfachter Form da
-            // oben landen"): the header leaf now CARRIES the strip's key action —
-            // tap = Read pulse / stop, via the same notification the transport pulse
-            // button uses (chrome posts; the receiver stays anchored on an inner
-            // studio row, never on the root modifier chain).
+            // E-Bio-Header (founder 2026-07-14, red-arrow sketch: "Der Bio Teil soll
+            // komplett nach da oben. Wenn man draufdrückt bekommt man mehr Infos"): the
+            // Bio section's HOME is now this header leaf. TAP opens the full detail —
+            // HR/HRV/Br/Coh numbers, tap-to-learn, source + Read-pulse, Routing — via the
+            // existing chrome-door → Bio dropdown (no new modal; receiver anchored on an
+            // inner studio row, never the root chain). Start/stop still has its own big
+            // control (the transport pulse button next to Play); a long-press here keeps
+            // that shortcut for anyone who learned it. The bottom "Bio" chip is removed —
+            // bio no longer lives in two places.
             .contentShape(Rectangle())
             .onTapGesture {
-                NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
-            }
-            // B3: long-press opens the Bio dropdown (numbers, tap-to-learn,
-            // source) — the fallen strip's depth, one gesture behind the
-            // glanceable monitor. Same chrome-door decoupling as the tiles.
-            .onLongPressGesture {
                 NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
+            }
+            .onLongPressGesture {
+                NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
             }
             .accessibilityAddTraits(.isButton)
             .accessibilityHint(cameraRPPG.isRunning
-                ? "Stops the pulse reading. Touch and hold for details and sources."
-                : "Starts reading your pulse. Touch and hold for details and sources.")
+                ? "Opens your live bio details and sources. Touch and hold to stop the pulse reading."
+                : "Opens your live bio details and sources. Touch and hold to start reading your pulse.")
     }
 }
 #endif

@@ -1123,8 +1123,16 @@ struct EchoelStudioView: View {
     /// (TransportBar door buttons); the Plugins chip dissolved — AUv3 access
     /// lives on the track doors (ArrangeTimelineView, since 07810ba). The
     /// .master/.export dropdown cases stay: the chrome doors open them.
+    // Chip-bar simplification (founder 2026-07-14, red-pen pass):
+    //  · .bio     → the Bio section's home is now the HEADER leaf (tap = full detail);
+    //               it no longer lives as a bottom chip too (no double home).
+    //  · .transpose → "Wir erstmal komplett gelöscht" — removed from the bar. The
+    //               .transpose dropdown case + transposePanel stay in code (reversible),
+    //               just not reachable from the bar.
+    // Master/Export were already chrome-door-only.
     private static let studioChips: [StudioMenu] =
-        StudioMenu.allCases.filter { $0 != .master && $0 != .export }
+        StudioMenu.allCases.filter { $0 != .master && $0 != .export
+                                     && $0 != .bio && $0 != .transpose }
 
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
