@@ -44,11 +44,19 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// (founder: "jede Spur soll ein record Button haben"). Persisted intent —
     /// the per-source capture engine reads it; arming never records by itself.
     public var isArmed: Bool
+    /// Per-track EchoelSynth sound (founder 2026-07-14: "Sound und texture wird
+    /// auch Teil von Echoel Synth" + "alles in Instrumente aufgeteilt … optional
+    /// anschalten"). `nil` = the track uses today's global sound (no behavior
+    /// change); a set patch is this lane's own voice character. Persisted DATA —
+    /// the composer/voice wiring (LaneVoiceRack) applies it in a follow-up module;
+    /// this is the additive foundation, bit-identical while nil.
+    public var patch: SynthPatch?
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
                 pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = [],
-                builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false) {
+                builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false,
+                patch: SynthPatch? = nil) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -61,6 +69,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.effects = effects
         self.builtinInstrument = builtinInstrument
         self.isArmed = isArmed
+        self.patch = patch
     }
 
     /// What this track's record button captures — derived from its kind + built-in
@@ -94,6 +103,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         // Pre-2026-07-13 docs carry no instrument/arm keys — decode to unset/disarmed.
         builtinInstrument = try c.decodeIfPresent(TrackInstrument.self, forKey: .builtinInstrument)
         isArmed = try c.decodeIfPresent(Bool.self, forKey: .isArmed) ?? false
+        // Pre-2026-07-14 docs carry no per-track patch — decode to nil (global sound).
+        patch = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)
     }
 }
 

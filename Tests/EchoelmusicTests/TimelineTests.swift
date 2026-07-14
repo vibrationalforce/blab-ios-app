@@ -267,6 +267,34 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(back, lane)
     }
 
+    // MARK: - Per-track patch (per-instrument EchoelSynth, Module 1 foundation)
+
+    func testLaneDecode_preTrackPatchDocument_defaultsToNilPatch() throws {
+        // A lane persisted BEFORE per-track patches existed carries no `patch`
+        // key — it must decode to nil (= today's global sound), never fail to load.
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","name":"MIDI 1","kind":"midi","isBio":false,"level":1}
+        """
+        let lane = try JSONDecoder().decode(TimelineLane.self, from: Data(legacyJSON.utf8))
+        XCTAssertNil(lane.patch)
+    }
+
+    func testLanePatch_roundTripsThroughCodable() throws {
+        let patch = try XCTUnwrap(SynthPatch.factory.first)
+        let lane = TimelineLane(name: "Lead", kind: .midi, patch: patch)
+        let data = try JSONEncoder().encode(lane)
+        let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+        XCTAssertEqual(back, lane)
+        XCTAssertEqual(back.patch, patch)
+    }
+
+    func testLanePatch_defaultInitIsNil_noBehaviorChange() {
+        // The additive field must default to nil so every existing construction
+        // site (which doesn't pass `patch:`) stays bit-identical.
+        let lane = TimelineLane(name: "MIDI 1", kind: .midi)
+        XCTAssertNil(lane.patch)
+    }
+
     // MARK: - Lane pan (B2)
 
     func testRollSlotPan_firstNonBioMIDILane_clampedMuteIgnored() {
