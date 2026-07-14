@@ -1,35 +1,35 @@
-build: 2026-07-14 v10.79.199 (Bio in den Header · Transpose weg · Szene→ADM-OSC — UND: Sound-Problem, bitte Log)
+build: 2026-07-14 v10.79.200 (STILLE GELÖST: die Melodie hängt an der Spur — jetzt sichtbar + 1-Tipp-Fix)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Erster Teil deiner Umbau-Runde von heute + ein FRISCHER Build zum
-  Sound-Gegentest.
+notes: Dein Log hat's verraten — DANKE. Ursache der totalen Stille gefunden UND
+  abgesichert.
 
-  ⚠️ ZUERST — "Alles ist still": Bitte die App EINMAL KOMPLETT SCHLIESSEN (aus dem
-  App-Switcher wischen) und NEU starten — dann Puls-Button + Finger auf die Kamera.
-  Grund: Ich habe den kompletten Klang-Pfad geprüft (Puls-Button → generate →
-  play; die Audio-Engine startet ganz oben beim App-Start, unabhängig von den
-  Menüs). Nichts an meinen letzten Änderungen fasst den Audio-Pfad an. Totale
-  Stille kommt fast immer von einer verklemmten Audio-Session (andere App hatte
-  den Ton, Anruf, Stumm-Schalter) — ein Neustart löst das meist. Wenn es DANACH
-  IMMER NOCH still ist: bitte echoel_diag.log schicken. Das Log zeigt mir genau,
-  ob die Engine startete ("audio engine started OK" vs. "CRITICAL: Master engine
-  start failed"), ob generate Noten erzeugte und ob play lief — dann finde ich es
-  sofort. OHNE Log kann ich totale Stille nicht blind fixen.
+  WAS DEIN LOG ZEIGTE: Engine startete sauber, generate erzeugte 10 Noten,
+  playing=true — die Musik WURDE erzeugt. Sie kam nur nicht durch, weil:
 
-  DRIN in diesem Build (deine Rotstift-Runde, Teil 1):
-  · BIO ist jetzt oben im Header zuhause. TIPPEN öffnet die vollen Infos
-    (HR/HRV/Br/Coh · Tap-to-learn · Quelle · Puls lesen · Routing). Langes Drücken
-    startet/stoppt den Puls (der große Start-Button neben Play bleibt der Haupt-
-    weg). Der untere "Bio"-Chip ist WEG — Bio wohnt nicht mehr doppelt.
-  · TRANSPOSE ist raus aus der Leiste ("erstmal komplett gelöscht") — Panel bleibt
-    im Code (umkehrbar).
-  · Immersive Stage → ADM-OSC: die platzierten Spuren lassen sich jetzt an einen
-    externen Renderer streamen ("Stream to renderer", offener ADM-OSC-Standard).
+  DIE GENERATIVE MELODIE SPIELT ÜBER DIE ERSTE MIDI-SPUR ("MIDI 1"). Deren
+  Mute/Solo/Pegel schaltet sie stumm: MIDI 1 auf Mute (dein Fall — das orange
+  "M"), ODER eine andere Spur auf Solo, ODER Pegel 0 → JEDE Note wird abgeklemmt,
+  obwohl Transport + Erzeugung laufen. DAW-korrekt (Spur stumm = Instrument
+  stumm), aber es war nicht sichtbar WARUM.
 
-  DEIN GROSSER UMBAU — verstanden & geplant (PLAN_PER_INSTRUMENT_SYNTH_2026-07-14):
-  ALLES löst sich auf in (A) Header und (B) pro Instrument (EchoelSynth). Pro
-  MIDI-Spur optional: Genre · Variation · Sound&Texture · Weather. Key/Scale/Tuning/
-  Tempo + Session/Ort wandern nach oben (+ Ort manuell eingebbar). Ich baue das
-  Modul für Modul — ABER ERST wenn der Sound wieder läuft (ich baue nicht auf
-  Stille auf). Mix/FX/Mood habe ich NICHT angefasst (kein neues Zuhause von dir).
+  JETZT ABGESICHERT (kann dich nie wieder erwischen):
+  · Wenn das Instrument läuft und MIDI 1 stumm ist, erscheint OBEN in der Timeline
+    ein amber Hinweis: "Kein Ton — die Melodie ist stumm" + der genaue Grund
+    (gemutet / andere Spur solo / Pegel 0).
+  · Ein Knopf "Ton an" behebt es in EINEM Tipp: entmutet MIDI 1, hebt einen
+    0-Pegel auf Normal, löscht ein fremdes Solo. (Oder einfach das "M" an MIDI 1.)
+  · Diagnose rollMixGain liegt jetzt im Log — falls je wieder still, sehe ich's sofort.
 
-  Gates grün: Xcode Compile Check + CI/CD Pipeline. Kein Audio-Pfad angefasst.
+  SOFORT (auch ohne dieses Update): bei MIDI 1 das "M" austippen → Ton ist zurück.
+
+  Test-first: 5 neue Tests (rollSlotSilenceReason + Ein-Tipp-Fix, Linux-grün).
+  Reviewer: ui-state + concurrency je PASS(0). Gates grün: Xcode + CI/CD.
+
+  Ebenfalls an Bord (aus 199): Bio im Header (Tippen = Infos), Transpose weg,
+  Immersive Stage → ADM-OSC-Ausgabe.
+
+  DEIN GROSSER UMBAU ist geplant (PLAN_PER_INSTRUMENT_SYNTH_2026-07-14): untere
+  Leiste löst sich komplett auf — Genre/Variation/Mood pro Spur, Sound&Texture/
+  Mix/FX in EchoelSynth, Weather optional pro Instrument, Key/Tempo + Session nach
+  oben. Ich lege mit Modul 1 los, sobald du bestätigst dass der Ton (nach dem
+  Unmute) wieder läuft.
