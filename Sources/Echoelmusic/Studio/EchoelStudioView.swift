@@ -488,7 +488,16 @@ struct EchoelStudioView: View {
                     default: break
                     }
                 })
-            ZStack(alignment: .top) {
+            // ADAPTIVE HOME (founder 2026-07-14: "integriere alles im adaptiven Design,
+            // keine Duplikate, alles greift ineinander"): the instrument zone below the
+            // chip bar RENDERS ONLY when there is something to show — an open dropdown or
+            // the (rare) session card. Idle → this view is just the slim chip bar, so the
+            // arrange TIMELINE fills the screen (tracks are home) instead of a black void.
+            // Same chips + same dropdowns — zero duplicate controls. No new .sheet: the
+            // zone became CONDITIONAL (the body does not grow), and AnyView keeps its
+            // generics out of the root body type (metadata law).
+            if activeMenu != nil || presentSession != nil {
+              AnyView(ZStack(alignment: .top) {
                 VStack(spacing: 0) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
@@ -513,6 +522,7 @@ struct EchoelStudioView: View {
                 // chip) to close. AnyView boundary keeps the panels' generics out of
                 // the root body type, same discipline as the old scroll rows.
                 if activeMenu != nil { AnyView(menuDropdownHost) }
+              })
             }
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system

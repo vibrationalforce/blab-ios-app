@@ -128,34 +128,36 @@ struct SurfaceHost: View {
     private static let collapsedBarHeight: CGFloat = 34
 
     var body: some View {
-        GeometryReader { geo in
-            let landscape = geo.size.width > geo.size.height
-            // TRACKS ARE HOME: the timeline takes the DOMINANT share (it is the front
-            // door now), while the instrument keeps a reachable, scrollable band below.
-            // Min = toolbar + ruler + a few lanes (never an unreadable sliver); max
-            // caps it so Start/bio-strip/pads stay one glance below.
-            let timelineHeight = max(240, min(620, geo.size.height * (landscape ? 0.62 : 0.52)))
-            VStack(spacing: 0) {
-                // The collapse/expand bar — a leaf (no observable reads), always on
-                // top so the timeline is one glanceable tap away in both states.
-                timelineBar
+        VStack(spacing: 0) {
+            // The collapse/expand bar — a leaf (no observable reads), always on
+            // top so the timeline is one glanceable tap away in both states.
+            timelineBar
+            Divider().overlay(EchoelTheme.border)
+            // AnyView-ERASED children (v10.79.144 launch-crash fix): erasing here cuts
+            // the composed ROOT tree's generic depth back below the metadata limit;
+            // effective because the overweight is in the COMPOSITION, not the bodies.
+            //
+            // ADAPTIVE SPLIT (founder 2026-07-14: "integriere alles im adaptiven Design …
+            // alles greift ineinander"): when the timeline is shown it is the LIVING
+            // canvas that FILLS the height (tracks are home), and the instrument shrinks
+            // to its slim chip bar below — no black void. EchoelStudioView's zone is
+            // itself conditional (it renders only with an open dropdown), so its "natural
+            // height" here is just the chip bar when idle. Collapse the timeline and the
+            // instrument takes the full height instead. Same surfaces, no duplicate
+            // controls — the space just meshes.
+            if timelineExpanded {
+                AnyView(
+                    ArrangeTimelineView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                )
                 Divider().overlay(EchoelTheme.border)
-                // AnyView-ERASED children (v10.79.144 launch-crash fix): the
-                // instrument's body sits AT the SwiftUI metadata-decoder limit
-                // (10.76.34 class — SIGSEGV at first render, CI-green, device-
-                // dead). Erasing here cuts the composed ROOT tree's generic
-                // depth back below the v143 baseline; erasure at this level is
-                // effective because the overweight is in the COMPOSITION, not
-                // inside the child bodies (unlike 10.76.35, where it wasn't).
-                if timelineExpanded {
-                    AnyView(
-                        ArrangeTimelineView()
-                            .frame(height: timelineHeight)
-                            .frame(maxWidth: .infinity)
-                            .clipped()
-                    )
-                    Divider().overlay(EchoelTheme.border)
-                }
+                AnyView(
+                    EchoelStudioView()
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                )
+            } else {
                 AnyView(
                     EchoelStudioView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
