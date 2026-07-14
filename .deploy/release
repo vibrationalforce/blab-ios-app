@@ -1,34 +1,41 @@
-build: 2026-07-14 v10.79.203 (Puls-Monitor zeigt WARUM der Puls abreißt — z.B. "zu hell")
+build: 2026-07-14 v10.79.204 (Apple-Senior-Audit P0: der Build hatte eine App-Store-Ablehnung eingebaut — behoben)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkt aus deinem letzten Log (v202). Danke — der hat was Wichtiges gezeigt:
+notes: Du hast das "Ultracode Apple Senior Echoel Developer Team" gestartet — ein
+  8-Dimensionen-Audit auf Senior-Apple-Niveau. Fazit: die Codebasis ist im Kern
+  gesund, ABER es steckte EIN echter Ship-Blocker drin. Der ist jetzt raus. Details:
 
-  WAS DEIN LOG ZEIGTE: Der Puls hatte SAUBER gelockt (conf 0.83, bio an) — dann
-  wurde das Fingerbild zu hell (bright 0.43 → 0.94, gesättigt), und der Lock ging
-  verloren (conf → 0, Puls einfror, bio aus). Beim Spielen siehst du oben nur den
-  kompakten Puls-Monitor — der gab dir KEINEN Hinweis WARUM der Puls plötzlich weg war.
+  DER FEHLER (still, seit Längerem in JEDEM Build inkl. v201–v203):
+  In der project.yml stand ein `info:`-Block, der beim Projekt-Generieren die
+  gepflegte Info.plist ÜBERSCHRIEBEN hat — mit einer abgespeckten, teils falschen
+  Version. Konkret hat der ausgelieferte Build dadurch:
+   · KEINE Standort-Erklärung (NSLocationWhenInUseUsageDescription) → das ist eine
+     GARANTIERTE App-Store-Ablehnung (ITMS-90683) und hat nebenbei still die Funktion
+     "Ort im Session-Namen" abgeschaltet.
+   · eine FALSCHE Health-Erklärung ("schreibt keine Daten in Apple Health") —
+     obwohl Echoel Puls + Atemrate sehr wohl in Apple Health schreiben kann.
+  Beides hätte spätestens bei der App-Store-Prüfung zum Rückweis geführt.
 
-  JETZT: der Puls-Monitor oben wird AMBER und zeigt einen kurzen Hinweis, sobald
-  der Puls nicht lockt und du was tun kannst:
-   · "Too bright"    → Finger leichter auflegen / weniger Licht
-   · "Hold still"    → ruhig halten
-   · "Press gently"  → sanfter drücken
-   · "Cover lens"    → Kamera + Blitz bedecken
-  Tippen = volle Bio-Details wie gehabt. Beim Nicht-Messen bleibt der Monitor ruhig.
+  DIE KORREKTUR (1 Konfig-Datei + Wahrheits-Feinschliff):
+   · Der `info:`-Block ist gelöscht. Ab jetzt ist die echte, vollständige,
+     ehrliche committete Info.plist die EINZIGE Quelle — nichts überschreibt sie
+     mehr beim Bauen.
+   · Standort-Text korrigiert: der Ortsname wird über Apples Geocoder aufgelöst
+     (die Koordinate geht dabei an Apple) — der alte Text behauptete fälschlich
+     "verlässt nie dein Gerät". Jetzt ehrlich.
+   · `bluetooth-peripheral`-Hintergrundmodus entfernt (die App nutzt gar keine
+     Peripheral-Rolle im Code → unbelegte Fähigkeit = Ablehnungsrisiko 2.5.4).
+     `bluetooth-central` (für die BLE-Pulsgurte) bleibt.
 
-  SOFORT-TIPP (auch jetzt): wenn der Puls abreißt → Finger LEICHTER auflegen. Die
-  Überbelichtung kommt von zu viel Druck/Licht auf der Linse.
+  ABSICHERUNG: Ein CI-Wächter (check-infoplist.sh) prüft ab jetzt bei jedem Build,
+  dass die Pflicht-Erklärungen da sind, die falsche Health-Behauptung nie
+  zurückkommt und die project.yml die Plist nie wieder überschreibt. Damit kann
+  genau dieser Fehler nicht mehr unbemerkt einschleichen.
 
-  WICHTIG: Ich habe die (über viele Geräte-Logs fein getunte) Belichtungs-Automatik
-  NICHT blind angefasst — das Risiko, den gerade funktionierenden Lock zu zerschießen,
-  ist zu hoch ohne Gerät zum Gegentesten. Der tiefere Fix (die Automatik erkennt das
-  Hell-Driften früher selbst und re-settled, bevor der Lock stirbt) ist als eigener
-  Geräte-Iterations-Punkt notiert (#25) — dafür brauche ich deine Logs, ob's dann
-  nicht den guten Lock kostet.
+  Reviewer: security-agent PASS (jede Nutzungs-Erklärung gegen den echten Code
+  gegengeprüft) + code-reviewer PASS (YAML + Wächter-Skript geprüft). Gates: der
+  Xcode-Compile-Check läuft den Wächter jetzt mit.
 
-  Test-first: neuer purer PulseCue (3 Tests, Linux-grün). Reviewer: ui-state PASS
-  (Freeze-Law verifiziert — der 10-Hz-Read bleibt im Header-Leaf) + code-review PASS
-  (der coachingHint-Refactor ist byte-identisch). Gates grün: Xcode + CI/CD.
-
-  Umbau-Fortschritt bleibt auf Kurs: Modul 1 (Sound pro Spur) auf Gerät (v202),
-  Modul 2 (Genre/Mood/Variation pro Spur) Fundament + Seam stehen getestet. Nächster
-  Zyklus: der Composer-Fan-Out, damit mehrere Genres gleichzeitig klingen.
+  OFFEN (dein Entscheid, nicht eigenmächtig geändert): soll `bluetooth-central`
+  auch als Hintergrundmodus bleiben? Heute scannt die App nur im Vordergrund nach
+  Pulsgurten — Hintergrund-HR wäre ein Feature, das wir bewusst bauen müssten
+  (Notiz #27). Sag Bescheid, dann räume ich das entweder weg oder baue es richtig.
