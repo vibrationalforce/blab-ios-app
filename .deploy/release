@@ -1,41 +1,38 @@
-build: 2026-07-14 v10.79.204 (Apple-Senior-Audit P0: der Build hatte eine App-Store-Ablehnung eingebaut — behoben)
+build: 2026-07-14 v10.79.205 (Senior-Audit P2: ein NaN kann die bio-reaktive Stimme nicht mehr verstummen lassen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Du hast das "Ultracode Apple Senior Echoel Developer Team" gestartet — ein
-  8-Dimensionen-Audit auf Senior-Apple-Niveau. Fazit: die Codebasis ist im Kern
-  gesund, ABER es steckte EIN echter Ship-Blocker drin. Der ist jetzt raus. Details:
+notes: Zweiter Fund aus dem "Apple Senior Team"-Audit, jetzt behoben. Klasse von
+  Bug: ein NaN (ungültige Zahl) im Biofeedback konnte die Synth-Stimme DAUERHAFT
+  verstummen lassen — und man hätte nie gewusst warum.
 
-  DER FEHLER (still, seit Längerem in JEDEM Build inkl. v201–v203):
-  In der project.yml stand ein `info:`-Block, der beim Projekt-Generieren die
-  gepflegte Info.plist ÜBERSCHRIEBEN hat — mit einer abgespeckten, teils falschen
-  Version. Konkret hat der ausgelieferte Build dadurch:
-   · KEINE Standort-Erklärung (NSLocationWhenInUseUsageDescription) → das ist eine
-     GARANTIERTE App-Store-Ablehnung (ITMS-90683) und hat nebenbei still die Funktion
-     "Ort im Session-Namen" abgeschaltet.
-   · eine FALSCHE Health-Erklärung ("schreibt keine Daten in Apple Health") —
-     obwohl Echoel Puls + Atemrate sehr wohl in Apple Health schreiben kann.
-  Beides hätte spätestens bei der App-Store-Prüfung zum Rückweis geführt.
+  WIE das passieren konnte: Der Clamp (Wertebegrenzer) war `min(max(x, 0), 1)`.
+  Jeder Vergleich mit NaN ist "falsch" — also ließ dieser Clamp ein NaN
+  unverändert durch. Ein NaN-Biowert (z.B. ein kaputtes Herzraten-Frame) landete
+  so über die Bio-Parameter auf dem Audio-Thread und vergiftete den Filter-/
+  Oszillator-Zustand → die Stimme war still und blieb still, bis man neu startete.
 
-  DIE KORREKTUR (1 Konfig-Datei + Wahrheits-Feinschliff):
-   · Der `info:`-Block ist gelöscht. Ab jetzt ist die echte, vollständige,
-     ehrliche committete Info.plist die EINZIGE Quelle — nichts überschreibt sie
-     mehr beim Bauen.
-   · Standort-Text korrigiert: der Ortsname wird über Apples Geocoder aufgelöst
-     (die Koordinate geht dabei an Apple) — der alte Text behauptete fälschlich
-     "verlässt nie dein Gerät". Jetzt ehrlich.
-   · `bluetooth-peripheral`-Hintergrundmodus entfernt (die App nutzt gar keine
-     Peripheral-Rolle im Code → unbelegte Fähigkeit = Ablehnungsrisiko 2.5.4).
-     `bluetooth-central` (für die BLE-Pulsgurte) bleibt.
+  DIE KORREKTUR (an jeder Stelle bevor der Wert den Audio-Thread erreicht):
+   · Neuer NaN-sicherer `FloatingPoint.clamped` — ein NaN wird zur unteren
+     Bereichsgrenze (endlich, im Bereich). Er wird für Float/Double automatisch
+     an ALLEN `.clamped(to:)`-Stellen gewählt (spezifischer als die generische
+     Variante), inkl. der fünf bio-reaktiven DDSP-Clamps. Auch ins AUv3-Plugin
+     aufgenommen, damit die geteilte DDSP dort dieselbe Sicherheit hat.
+   · `clampUnit` mit `guard x.isFinite` gehärtet (fängt auch ±Unendlich; fällt
+     leise auf 0 für die 0…1-Biowerte).
+   · MIDI-Pitchbend: `synth.frequency` wurde roh gesetzt (`base * 2^(semis/12)`) —
+     ein NaN/inf-Controllerwert hätte den Oszillator genauso vergiftet. Jetzt nur
+     bei endlichem Wert.
 
-  ABSICHERUNG: Ein CI-Wächter (check-infoplist.sh) prüft ab jetzt bei jedem Build,
-  dass die Pflicht-Erklärungen da sind, die falsche Health-Behauptung nie
-  zurückkommt und die project.yml die Plist nie wieder überschreibt. Damit kann
-  genau dieser Fehler nicht mehr unbemerkt einschleichen.
+  Test: FloatingPointClampTests (Normalfall/unter/über/Grenze/NaN→unten/±inf/
+  bipolar, Float+Double) — läuft auf dem swift-test-Gate (macOS).
 
-  Reviewer: security-agent PASS (jede Nutzungs-Erklärung gegen den echten Code
-  gegengeprüft) + code-reviewer PASS (YAML + Wächter-Skript geprüft). Gates: der
-  Xcode-Compile-Check läuft den Wächter jetzt mit.
+  Reviewer: dsp-reviewer PASS (jeder Bio-Konsument durchgegangen — untere Grenze/0
+  ist die richtige Sicherheitslandung, nichts schwingt auf; null Audio-Thread-
+  Kosten; Rausch-Triad unberührt; hat den Pitchbend-Zwilling gefunden, jetzt mit
+  behoben) + code-reviewer PASS (Overload-Auflösung eindeutig, keine Doppel-
+  deklaration). Gates: Xcode Compile + CI/CD.
 
-  OFFEN (dein Entscheid, nicht eigenmächtig geändert): soll `bluetooth-central`
-  auch als Hintergrundmodus bleiben? Heute scannt die App nur im Vordergrund nach
-  Pulsgurten — Hintergrund-HR wäre ein Feature, das wir bewusst bauen müssten
-  (Notiz #27). Sag Bescheid, dann räume ich das entweder weg oder baue es richtig.
+  Reihenfolge-Hinweis: Ich arbeite gerade die Fund-Liste des Senior-Audits ab
+  (P0 = v204 Info.plist-Ablehnung behoben, P2 = dieser NaN-Fix). Danach zurück zur
+  Instrument-Vision. Zwei Punkte warten auf DEINEN Entscheid: bluetooth-central als
+  Hintergrundmodus (#27) und die "soon"-Broadcast-Ports im Patchbay (#28) — beide
+  kein Blocker, nur ob wir sie so lassen oder anders wollen.
