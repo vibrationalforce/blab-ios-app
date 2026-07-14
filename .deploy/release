@@ -1,28 +1,27 @@
-build: 2026-07-13 v10.79.192 (AUv3: Generator-Instrumente sichtbar + Roh-Diagnose)
-branch: claude/piano-roll-clip-view-wozlie-5kxnrl (deployed via deploy branch)
-notes: Aus deinem v191-Gerätelog (2297): AUv3-Scan zeigt WIEDER nur Apple
-  (2 Instrumente + 17 Effekte). Zwei Sachen dagegen:
+build: 2026-07-14 v10.79.193 (Tracks=Instrumente + Record-Arm; Multi-Roll-Fundament flag-gated)
+branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
+notes: Malmö-Nacht-Build. Was du auf dem Gerät bekommst:
 
-  1) GENERATOR-TYP JETZT DABEI. Der Scan war schon breit (Wildcard + je Typ +
-     ganze Registry), ABER der Host-Filter ließ nur MusicDevice/Effect zu — und
-     VIELE Fremd-AUv3-INSTRUMENTE registrieren sich als "Generator", nicht als
-     MusicDevice. Die fielen still raus. Generator ist jetzt als Instrument mit
-     dabei → deine Generator-basierten Instrumente sollten erscheinen.
-  2) ROH-DIAGNOSE INS LOG. Die Scan-Zeile zeigt jetzt zusätzlich, was das OS VOR
-     unserem Filter zurückgab: "rawMakers: [...]" + "rawTypes: [...]". Damit ist
-     der nächste Log eindeutig:
-       · steht dein Hersteller in rawMakers, aber nicht in der Liste → unser
-         Filter (ein noch fehlender Typ, s. rawTypes) — dann ergänze ich genau den.
-       · steht auch roh nur Apple → iOS hat deine Fremd-AUv3-Extensions dem Host
-         noch nicht registriert. Abhilfe am Gerät: die JEWEILIGE Hersteller-App
-         einmal öffnen (das aktiviert ihre AUv3-Extension), Echoel zieht sie dann
-         LIVE nach (der Registrierungs-Beobachter re-scannt automatisch).
+  1) TRACKS SIND INSTRUMENTE (v191). Neue Spur -> Menü mit Instruments
+     (EchoelDrums · EchoelBreak · EchoelSampler · EchoelSynth · EchoelBass ·
+     Bio-Instrument) und Media (Audio · Video · leere MIDI). Jede Spur hat
+     ihren eigenen Record-Button (rot wenn armiert), verknüpft mit ihrer
+     Quelle: Audio-In · MIDI-In · Bio · Video. Genau deine Screenshot-Ansage.
 
-  Schick mir den nächsten Log — die rawMakers/rawTypes-Zeile sagt uns sofort,
-  welcher der beiden Fälle es ist.
+  2) AUv3-GENERATOR-FIX (v192). Fremd-AUv3-Instrumente, die sich als
+     "Generator" registrieren (statt MusicDevice), fielen bisher still aus dem
+     Scan. Generator ist jetzt als Instrument dabei + rawMakers/rawTypes-
+     Diagnose im Log. Schick den nächsten AUv3-Log -> die Roh-Zeile sagt
+     sofort, ob es unser Filter oder iOS-Registrierung ist.
 
-  OFFEN, als Nächstes eigener Cycle: Bio liest im Log Puls noch nicht sicher aus
-  (Finger erkannt, Belichtung gelockt, aber pk=0/bpm=0/conf=0 — die
-  Periodizität/Autokorrelation kommt nicht über die Schwelle). Das ist der Kern
-  und braucht saubere Signalarbeit + deine Finger-Technik, kein Blind-Tuning —
-  nehme ich mir als eigenen Schritt vor.
+  3) UNTER DER HAUBE: Multi-Roll-Fundament gelandet (12 pure Cores, alle
+     CI-grün) + LaneVoiceRack hinter FeatureFlags.multiRoll (default OFF) und
+     StoreKit hinter FeatureFlags.storeKit (default OFF). Beide Flags OFF =
+     Release BIT-IDENTISCH zum bisherigen Pfad -> null Regressionsrisiko, die
+     neuen Features oben sind der einzige sichtbare Unterschied. OSC /mod-Out
+     ist jetzt live verdrahtet.
+
+  OFFEN (eigene Cycles, brauchen Geräte-Verify): rPPG-BPM-Lock
+  (pk=0/bpm=0/conf=0 trotz Finger — pure RPPGConditioning-Fix gebaut, Geräte-
+  Wiring folgt) und der Multi-Roll-Live-Fan-out (B08, zwei Spuren gleichzeitig
+  je eigene Voice — vorbereitet, wird geräteverifiziert gezogen).
