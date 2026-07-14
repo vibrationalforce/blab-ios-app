@@ -9,9 +9,20 @@ This file tracks ALL code healing sessions across Claude Code contexts.
   Linux) — getrimmt, manuell gewinnt, Freiform bleibt dateinamen-sicher via `stem`-sanitize.
   `LocationNamer.manualPlace` persistiert (im Gegensatz zum transienten GPS-Token), speist
   `session.placeToken` in adopt/clear/attach/init → stempelt den Namen auch bei Standort aus/verweigert.
-  `placeRow`: TextField + Clear + Statuszeile. concurrency + ui-state PASS(0). **Deploy GEHALTEN**
-  (bündelt mit nächstem Zyklus — v200 baut noch; keine Back-to-Back-Builds). Per-Instrument-Umbau
-  bleibt gesperrt bis Founder Sound-Bestätigung gibt.
+  `placeRow`: TextField + Clear + Statuszeile. concurrency + ui-state PASS(0). Gates grün (Xcode + CI).
+- **Deploy v10.79.201** (ec4438a): v200-TestFlight-Build war fertig → keine Back-to-Back-Kollision mehr,
+  also manuelle Orts-Eingabe direkt aufs Gerät statt gebündelt. Founder bekommt so den kompletten
+  Redesign-Fortschritt (Bio→Header, Transpose weg, Stille-Guard, manueller Ort) in EINEM Build zum Testen.
+- **Silence-Guard-Härtung geprüft & VERWORFEN** (Council: Skeptic/User-Advocate): BeatPlayer.solos
+  persistieren zwar in UserDefaults (eigener, zweiter Stille-Pfad für Drums), ABER kein Geräte-Beleg dass
+  das die Founder-Stille war (Log zeigte nur das orange "M" auf MIDI 1 = Roll-Slot-Mute), und ein Solo ist
+  eine LEGITIME User-Aktion — nicht spekulativ als "kaputt" flaggen. v200-Guard bleibt der belegte Fix.
+- **#20 Immersive-Automation geprüft**: alle PUR-Bausteine existieren schon (AutomationGestureRecorder
+  Record-Hälfte, AutomationLane.value(atTick:), AutomationPlayer) — offen ist nur UI+Store+Transport-
+  Verdrahtung = ein eigener, bewusster Zyklus, KEIN Cron-Tail-Add. Nicht mitten im Zyklus gestartet.
+- **Per-Instrument-Umbau (#23) bleibt gesperrt** bis Founder bestätigt dass der Ton (nach MIDI-1-Unmute)
+  wieder läuft — großer, schwer-reversibler Modellumbau während Founder aktiv redesignt = warten auf
+  Geräte-Bestätigung (Council-Gate).
 
 ## 2026-07-14 (Forts. 61) — Founder-Live-Redesign + STILLE gelöst (v199/v200)
 - **STILLE ("Alles ist still") — Ursache gefunden aus dem Geräte-Log + abgesichert (v200, 871b9df).**
