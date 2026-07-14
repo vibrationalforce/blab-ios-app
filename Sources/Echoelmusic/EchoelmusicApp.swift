@@ -497,12 +497,19 @@ struct EchoelmusicApp: App {
                 // commands onto each voice's lock-free SPSC queue — no audio-thread work.
                 if FeatureFlags.multiRoll {
                     laneVoiceRack.startAll(subscribing: bus)
+                    // A nil-patch lane falls back to the SAME patch the primary voice
+                    // gets (patchStore.patches.first, applied at line ~527), so an
+                    // unset lane matches the primary timbre — never the bare DDSP default.
+                    let fallbackPatch = patchStore.patches.first
                     timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack] slot, events in
                         guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
                         for event in events {
                             if event.isOn { voice.noteOn(pitch: event.pitch, velocity: event.velocity) }
                             else { voice.noteOff(pitch: event.pitch) }
                         }
+                    } patchSink: { [weak laneVoiceRack] slot, patch in
+                        guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
+                        if let resolved = patch ?? fallbackPatch { voice.apply(resolved) }
                     }
                 }
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run

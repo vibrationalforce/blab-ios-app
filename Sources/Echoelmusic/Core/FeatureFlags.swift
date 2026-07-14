@@ -40,9 +40,13 @@ public enum FeatureFlags {
         /// stays dark until a real purchase surface ships. Release bit-identical.
         case storeKit          = "feature.storeKit"
         /// Multi-Roll (keystone): each MIDI lane plays its OWN voice via a
-        /// pre-attached LaneVoiceRack + TimelineRegionPlayer fan-out. OFF = today's
-        /// single-shared-voice path, no rack instantiated/attached — Release
-        /// bit-identical. Stays OFF until device-verified (CPU/mem, two tracks sound).
+        /// pre-attached LaneVoiceRack + TimelineRegionPlayer fan-out, each lane with
+        /// its own TimelineLane.patch timbre. DEFAULT-ON since 2026-07-14 (registered
+        /// true at EchoelmusicApp startup — the per-instrument vision). The OFF path
+        /// stays bit-identical (no rack attached, fan-out capacity 0) and a dev/user
+        /// `FeatureFlags.set(.multiRoll, false)` overrides the registration domain, so
+        /// it remains the one-line rollback lever if device-verify (CPU/mem, two dense
+        /// tracks sound simultaneously) ever fails. NEVER delete the OFF branches.
         case multiRoll         = "feature.multiRoll"
     }
 

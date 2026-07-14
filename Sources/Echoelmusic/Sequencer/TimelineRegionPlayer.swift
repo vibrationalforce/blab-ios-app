@@ -75,6 +75,11 @@ public final class TimelineRegionPlayer {
     /// Applies one slot's note events to that slot's rack voice. Injected so this
     /// file stays Foundation-only (the rack is AVFoundation). nil ⇒ no fan-out.
     @ObservationIgnored public var slotNoteSink: ((_ slot: Int, _ events: [LaneNotePump.Event]) -> Void)?
+    /// Applies a lane's SynthPatch to its slot's rack voice on region load, so each
+    /// lane sounds with its OWN timbre (TimelineLane.patch). Injected (AVFoundation
+    /// stays in the app). `patch == nil` ⇒ the app falls back to the primary voice's
+    /// patch, never the bare DDSP default. nil sink ⇒ per-lane patch simply unset.
+    @ObservationIgnored public var slotPatchSink: ((_ slot: Int, _ patch: SynthPatch?) -> Void)?
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
@@ -85,12 +90,14 @@ public final class TimelineRegionPlayer {
     /// The primary lane is unaffected; additional MIDI lanes route through `sink`.
     public func enableMultiRoll(
         capacity: Int,
-        sink: @escaping (_ slot: Int, _ events: [LaneNotePump.Event]) -> Void
+        sink: @escaping (_ slot: Int, _ events: [LaneNotePump.Event]) -> Void,
+        patchSink: ((_ slot: Int, _ patch: SynthPatch?) -> Void)? = nil
     ) {
         let cap = max(0, capacity)
         multiRollCapacity = cap
         lanePool = LaneVoicePool(capacity: cap)
         slotNoteSink = sink
+        slotPatchSink = patchSink
     }
 
     /// Song length rounded up to whole bars (the loop point). 0 for an empty song.
@@ -129,6 +136,7 @@ public final class TimelineRegionPlayer {
         pianoRoll.setTimelineAutomation(document.automation)   // arrangement automation (cycle 5)
         pianoRoll.setTimelineAutomationTick(0)
         loadRollRegion(at: 0)            // whatever is under the playhead at the top
+        primeSecondaryLanes(at: 0)       // secondary lanes active at the downbeat (fixes bar-1 silence)
         if !pattern.isPlaying { pattern.play() }
     }
 
@@ -244,6 +252,10 @@ public final class TimelineRegionPlayer {
         for command in LaneVoiceRackPlan.commands(steps: steps, capacity: multiRollCapacity) {
             switch command {
             case .load(let slot, let clipID):
+                // Per-lane timbre: set this slot's voice to its lane's own patch BEFORE
+                // its first notes (apply() enqueues ahead of the notes in the voice's
+                // render drain, so timbre precedes attack). nil ⇒ app falls back.
+                slotPatchSink?(slot, MultiRollFanout.patch(forSlot: slot, in: doc, rollLane: rollLane))
                 var pump = pumps[slot] ?? LaneNotePump()
                 if !pump.isEmpty { sink(slot, pump.reset()) }   // release the old take first
                 pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
@@ -255,13 +267,50 @@ public final class TimelineRegionPlayer {
                 }
             }
         }
-        // Fire this step on every live slot pump (offs before ons, per pump).
+        // Fire this step on every live slot pump (offs before ons, per pump). A
+        // muted/soloed-away/0-level secondary lane is gated like the primary roll
+        // lane (rollSlotGain→laneAudible): drop its note-ONs but still deliver
+        // note-OFFs so nothing hangs when a lane is muted mid-take. KNOWN GAP vs the
+        // primary: the primary ALSO hard-cuts sounding notes on the mute transition
+        // (ArrangeTimelineView rollSlotGain→allNotesOff); here an already-ringing note
+        // rings to its natural endStep (seamless, no hang). Immediate-cut + continuous
+        // level→slot-gain is the later B09 (effectiveGain→voice gain) step.
         for slot in pumps.keys.sorted() {
             guard var pump = pumps[slot] else { continue }
             let events = pump.step(step)
             pumps[slot] = pump
-            if !events.isEmpty { sink(slot, events) }
+            guard !events.isEmpty else { continue }
+            if slotAudible(slot) {
+                sink(slot, events)
+            } else {
+                let offs = events.filter { !$0.isOn }
+                if !offs.isEmpty { sink(slot, offs) }
+            }
         }
+    }
+
+    /// Prime the secondary lanes whose region is ACTIVE at `tick` (play()/seek), so a
+    /// lane with a clip at the downbeat sounds from step 0. The onset-based window
+    /// fan-out reads `.unchanged` for a region already active at the start and would
+    /// never load it — the primary lane avoids this via loadRollRegion(at:); this is
+    /// its secondary-lane twin. Pure decision via MultiRollFanout.activeLoads.
+    private func primeSecondaryLanes(at tick: Int) {
+        guard multiRollCapacity > 0, let sink = slotNoteSink else { return }
+        for load in MultiRollFanout.activeLoads(in: doc, at: tick,
+                                                rollLane: rollLane, capacity: multiRollCapacity) {
+            slotPatchSink?(load.slot, load.patch)
+            var pump = pumps[load.slot] ?? LaneNotePump()
+            if !pump.isEmpty { sink(load.slot, pump.reset()) }
+            pump.load(clips?.clip(id: load.clipID)?.melody?.notes ?? [])
+            pumps[load.slot] = pump
+        }
+    }
+
+    /// The per-lane mute/solo/level gate for a slot's lane (rank→lane), matching the
+    /// primary roll lane. Unknown slot ⇒ audible (never silence on a mapping gap).
+    private func slotAudible(_ slot: Int) -> Bool {
+        guard let laneID = MultiRollFanout.laneID(forSlot: slot, in: doc, rollLane: rollLane) else { return true }
+        return MultiRollFanout.audible(doc, laneID: laneID)
     }
 
     /// Release every sounding secondary voice and clear the fan-out state (stop/reset).
