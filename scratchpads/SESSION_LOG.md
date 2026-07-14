@@ -5648,3 +5648,9 @@ Resonanz-Onboarding · Wetter/Ort-Journal (Founder-Gate Info.plist!) · lokale P
 - EchoelStudioView: instrument ZStack zone wrapped `if activeMenu != nil || presentSession != nil { AnyView(ZStack{...}) }` → idle = chip bar only. Metadata SHRANK (ZStack behind AnyView). +.frame(maxHeight:480) on the content ScrollView so open dropdowns don't 50/50-split with the timeline (reviewer #1 fix).
 - swiftui-render-safety skill loaded; ui-state-reviewer PASS (both laws). Gates green f80a12a. Deploy 345f4e8 → v10.79.196.
 - QUEUED: rPPG BPM-lock reliability (#14) · external AUv3 visibility (scan Apple-only) · scene→renderer/OSC live · Immersive-Stage automation.
+
+## 2026-07-14 — Konvergenz ("mach alles fertig, viele Baustellen") → v10.79.197
+- Explore-Inventar der offenen Baustellen: ADMOSCSender.send(scene:) hat KEINE Caller (Szene→OSC-Seam offen); unwired-aber-getestet: VBAPPanner/AmbisonicsEncode/BinauralPanner/BioVariationMaze/AutomationGestureRecorder/VocoderCore/BioModulation/BioTempoDirector (viele BEWUSST gestaffelt). UI-Surfaces alle erreichbar (Kategorie zu). "funktioniert nicht": rPPG (fragil), externe AUv3 (Scan Apple-only — evtl. keine Fremd-AUv3 am Gerät), RTMP/Video (No-op-Scaffolds).
+- FINISH #14 rPPG: RPPGConditioning.linearDetrend war GEBAUT+GETESTET aber NIE verdrahtet — genau für den 2301-No-Lock (DC-Ramp überdeckt Herz-AC; PulsePeriodEstimator entfernt nur Mittelwert nicht Steigung). Verdrahtet in CameraAnalyzer.detectPeaks (nur Periodizitäts-Input, Motion-Gates unberührt). dsp-reviewer: korrekt/sicher, device-verify pending (Motion-Fall beobachten). e1f017f grün.
+- Deploy ade8c9a → v10.79.197 (supersedet 196): adaptives Home + rPPG-Fix. Founder um frischen Log gebeten.
+- Backlog getrackt: #18 Szene→OSC (Council: Objekt-Index 1..N kollidiert mit Bio-Objekt 1) · #19 BioVariationMaze-Tür (generate/seed churn-sensitiv) · #20 Immersive-Automation.

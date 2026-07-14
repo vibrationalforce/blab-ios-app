@@ -49,6 +49,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 
 | Version | What shipped | Gates |
 |---|---|---|
+| v10.79.197 | rPPG pulse-lock fix — wired RPPGConditioning.linearDetrend into the periodicity estimate (kills the DC ramp that mean-removal leaves) | green (device-verify pending) |
 | v10.79.196 | Adaptive home — arrange timeline fills the screen, instrument zone conditional (chip bar idle, dropdowns on demand); killed the black void | green |
 | v10.79.195 | Immersive Stage — Touch room-map, each track a draggable spatial object (SpatialSceneStore + ImmersiveStageMath + ImmersiveStageView) | green |
 | v10.79.194 | Multi-Roll (tracks play simultaneously) + per-track Record (arm→play→capture MIDI/bio→Clip+region) | green |
