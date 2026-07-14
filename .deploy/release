@@ -1,27 +1,32 @@
-build: 2026-07-14 v10.79.213 (Founder-Wunsch: „transpose detune" — Detune pro Instrument)
+build: 2026-07-14 v10.79.214 (DAW#1: Automation „alle Parameter" — Synth-Params anschließbar)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkter Founder-Wunsch abgearbeitet: „transpose detune und Oktaver". Transpose
-  (ganze Halbtöne pro Spur) gibt es seit v210 — jetzt kommt der FEIN-Bruder: Detune.
+notes: Erste Scheibe deiner großen Vier-Punkte-Liste („Automationen im Clip und auf der
+  Timeline"). Die Automations-Maschinerie war komplett gebaut — Kurven zeichnen, Clip- UND
+  Timeline-Ebene, live abgespielt — aber die eingebauten Synth-Parameter waren nie
+  „angeschlossen". Der Parameter-Picker bot nur 3 Ziele (Master · Tempo · Filter). Jetzt
+  bewegt eine gezeichnete Automations-Kurve echte Synth-Parameter.
 
-  WO: pro MIDI-Spur im „Sound & FX"-Editor, direkt unter Transpose. Neues Feld „Detune"
-  in Cent (±100 ¢ = ±1 Halbton). Wird mit dem Song gespeichert.
+  WO: Spurkopf-Menü → „Automation" → im Parameter-Picker erscheinen jetzt zusätzlich:
+  Wärme-Drive, Hüllkurve Attack/Decay/Sustain/Release und Amplitude (Ausgangspegel). Kurve
+  zeichnen/aufnehmen → der Parameter folgt live beim Abspielen. Keine UI-Änderung nötig, der
+  Picker erweitert sich automatisch.
 
-  WAS es tut: die Spur sitzt ein paar Cent höher/tiefer — für analoge Verdickung oder ein
-  leichtes Schweben (beating) gegen eine andere Spur. Feinverstimmung, kein grober Sprung
-  (dafür ist Transpose da). Primär-Spur wirkt sofort (live), Sekundär-Spuren beim Laden.
+  WIE: Die Synth-Stimme meldet ihre automatisierbaren Parameter am selben Router an, über den
+  auch gehostete AUv3-Knöpfe schon liefen. Jeder Wert wird atomar über den Stimmen-Pool
+  verteilt (dieselbe erprobte Disziplin wie Stimmung/Entrainment) — control-plane, nie am
+  Audio-Thread.
 
-  WIE: exakt nach dem erprobten Transpose-Muster verdrahtet — vom UI-Feld über den
-  Timeline-Store, das Dokument, den Region-Player-Sink bis in die Synth-Stimme und den
-  einen MIDI→Hz-Rechenschritt im DSP. Kein toter Knopf: die ganze Kette ist geschlossen.
-  0 ¢ = unverändert (bit-identisch); alte Songs ohne das Feld laden als „in tune".
+  BEWUSST NOCH NICHT dabei (kommt als saubere Folge-Scheibe): Parameter, die das Biofeedback
+  laufend selbst bewegt (Harmonie, Rauschen, Hall, Filter-Basis, Vibrato, Helligkeit). Die
+  direkt zu automatisieren wäre zwecklos — Bio überschreibt sie ~10×/s. Die brauchen ein
+  eigenes „Automation × Bio"-Zusammenspiel (Automation setzt die Mitte, Bio schwingt drum
+  herum), statt jetzt etwas Halbfunktionierendes zu bauen (dein „keine Fehler"-Prinzip).
 
-  SICHER: audio-thread-rein (einfacher atomarer Float-Read, keine Allokation/Locks,
-  NaN-geschützt, Glide bleibt verstimmungs-invariant). Werte überall gleich geklemmt
-  (±100). Der Live-onChange liest auf Dokument-Ebene → feuert nur beim Editieren, nicht
-  im 10-Hz-Bio-Takt (Freeze-Regel eingehalten). Reviewer: audio-thread CLEAN ·
-  concurrency + code PASS (Schleife geschlossen, keine toten Enden). 4 neue Tests.
-  Gates: Xcode + CI/CD.
+  SICHER: audio-thread-rein (atomare Float-Verteilung, kein Lock/Alloc, keine gemeinsame
+  Tabelle die der Render liest — die riskanten Params sind genau deshalb ausgeschlossen).
+  dsp-Reviewer hat jeden der 15 Params einzeln klassifiziert (render-wirksam vs.
+  bio-überschrieben vs. unsicher). Reviewer: audio-thread SHIP-READY · concurrency+code PASS.
+  3 neue Tests. Gates: Xcode + CI/CD.
 
-  Offen aus „transpose detune und Oktaver": Oktaver (Oktav-Doppler) als nächste Scheibe.
-  Ledger: Rang 1 (Netzwerk) ✓ · Rang 2 (Tape/VHS) ✓ · Detune ✓ · Rang 3 (Genre-pro-Spur)
-  wartet auf Founder-Architekturentscheid (generativer Flow ⇄ Timeline verschmelzen?).
+  Nächste Scheiben (Masterplan scratchpads/PLAN_DAW_EPIC_2026-07-14.md): #2 Clips schneiden &
+  fügen · #3 Audio-Spuren klingen lassen + Import · #4 Video-Spuren.
