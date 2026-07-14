@@ -53,6 +53,12 @@ public final class MIDIBusPublisher {
     /// Set from the patchbay (midi.in → midi.out route). Off by default.
     public var thruEnabled = false
 
+    /// Record-system tee (B): when a take is running the RecordController installs
+    /// these so every external MIDI note is captured into the armed lane. nil ⇒ not
+    /// recording (zero overhead). Invoked on @MainActor alongside the existing publish.
+    @ObservationIgnored public var onRecordNoteOn: ((_ note: Int, _ velocity: Float) -> Void)?
+    @ObservationIgnored public var onRecordNoteOff: ((_ note: Int) -> Void)?
+
     init(midi: MIDIInput) {
         self.midi = midi
     }
@@ -85,6 +91,8 @@ public final class MIDIBusPublisher {
                                 channel: UInt8(clamping: channel))
             // Thru: echo external notes straight to MIDI out (router mode).
             if self.thruEnabled { self.midiOut?.noteOn(pitch: note, velocity: velocity) }
+            // Record tee: capture into the armed lane's take (no-op unless recording).
+            self.onRecordNoteOn?(note, velocity)
             // Built-in voice via the bus — gated off when "use plugin instead" is on.
             if !(self.auHost?.suppressesBuiltInVoice ?? false) {
                 self.publish(ControllerEvent(
@@ -101,6 +109,7 @@ public final class MIDIBusPublisher {
             guard let self else { return }
             self.auHost?.noteOff(UInt8(clamping: note), channel: UInt8(clamping: channel))
             if self.thruEnabled { self.midiOut?.noteOff(pitch: note) }
+            self.onRecordNoteOff?(note)   // record tee (no-op unless recording)
             // Note-off always reaches the bus so the built-in voice can't stick.
             self.publish(ControllerEvent(
                 timestamp: CFAbsoluteTimeGetCurrent(),

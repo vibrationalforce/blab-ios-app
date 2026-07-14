@@ -95,6 +95,7 @@ struct EchoelmusicApp: App {
     /// Plays the arrange TIMELINE's regions over the shared transport (reorg P3).
     /// Opt-in: engaged only by the timeline's own Play control; a no-op otherwise.
     @State private var timelinePlayer = TimelineRegionPlayer()
+    @State private var recordController = RecordController()
     /// Parameter automation (master level / tempo) played over the shared transport.
     @State private var automationPlayer = AutomationPlayer()
     /// Selectable recording inputs (mic / interface / Bluetooth) with latency notes.
@@ -362,6 +363,7 @@ struct EchoelmusicApp: App {
             .environment(timelineStore)
             .environment(arrangementPlayer)
             .environment(timelinePlayer)
+            .environment(recordController)
             .environment(automationPlayer)
             .environment(audioInputs)
             .environment(signalRouter)
@@ -584,6 +586,19 @@ struct EchoelmusicApp: App {
                 #if canImport(CoreMIDI)
                 midiPub.start(publishing: bus, auHost: auHost, midiOut: midiOut)
                 #endif
+
+                // Record system (B): wire the take coordinator to the live clock + stores
+                // and tee external MIDI notes into it. Arming a track's Record button +
+                // playing captures its input into a Clip + region on that lane. The tee
+                // closures are no-ops unless a take is running (RecordController gates).
+                recordController.wire(transport: transport, timeline: timelineStore,
+                                      clips: clipStore, bus: bus)
+                midiPub.onRecordNoteOn = { [weak recordController] note, velocity in
+                    recordController?.recordNoteOn(pitch: note, velocity: velocity)
+                }
+                midiPub.onRecordNoteOff = { [weak recordController] note in
+                    recordController?.recordNoteOff(pitch: note)
+                }
 
                 log.log(.info, category: .system, "STARTUP [4/4] Core ready — instrument live")
                 EchoelCrashLog.breadcrumb("startup 4/4: core ready — instrument live")

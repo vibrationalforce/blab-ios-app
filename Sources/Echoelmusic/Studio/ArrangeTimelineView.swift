@@ -26,6 +26,7 @@ struct ArrangeTimelineView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(TimelineRegionPlayer.self) private var timelinePlayer
+    @Environment(RecordController.self) private var recordController
     // Per-lane sound distribution (founder 2026-07-12: "Teile das sinnvoll in
     // die Spuren auf. Externe AUv3 inbegriffen") — the lane door now opens the
     // lane's OWN sound: the melodic-bus insert (live-applied to the roll's
@@ -247,6 +248,35 @@ struct ArrangeTimelineView: View {
             .buttonStyle(.plain)
             .disabled(timeline.document.regions.isEmpty)
             .accessibilityLabel(timelinePlayer.isPlaying ? "Stop timeline" : "Play timeline")
+
+            // Record: arm the take + start the clock. Every note/bio input on an armed
+            // track is captured; Stop drops a Clip + region onto that lane. Reads only
+            // the low-frequency `isRecording` bool (render-safe). Disabled until a track
+            // is record-armed (its per-track Record dot in the lane strip).
+            Button {
+                if recordController.isRecording {
+                    beatPlayer.pattern.stop()          // → transport.stop() → commit take
+                } else {
+                    recordController.arm()
+                    if !beatPlayer.pattern.isPlaying { beatPlayer.pattern.play() }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: recordController.isRecording ? "stop.fill" : "record.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(recordController.isRecording ? "Stop rec" : "Record")
+                        .font(EchoelTheme.font(12, .medium))
+                }
+                .foregroundStyle(recordController.isRecording ? EchoelTheme.onPrimary : EchoelTheme.danger)
+                .padding(.horizontal, 10).frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(recordController.isRecording ? EchoelTheme.danger : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: recordController.isRecording ? 0 : 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(!recordController.isRecording && !recordController.hasArmedTarget())
+            .accessibilityLabel(recordController.isRecording ? "Stop recording" : "Record armed tracks")
             // U1: no "Arrange" label — this IS the app's one view, not a named tab.
             Spacer(minLength: 0)
             // Add track. Instruments first (founder 2026-07-13: "EchoelDrums,
