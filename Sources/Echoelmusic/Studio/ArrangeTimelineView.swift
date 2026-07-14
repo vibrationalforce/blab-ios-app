@@ -137,6 +137,15 @@ struct ArrangeTimelineView: View {
             synth.setPan(pan)
             leadSynth?.setPan(pan)
         }
+        // Per-instrument Transpose, primary lane (founder 2026-07-14): the roll-slot
+        // lane's semitone shift drives BOTH melodic voices live, so an edit is heard
+        // right away (not only at the next loop). Secondary lanes apply on load via the
+        // player's slotTransposeSink. Document-level read → fires only on an edit, never
+        // at 10 Hz (freeze rule safe, like the pan onChange above).
+        .onChange(of: timeline.document.rollSlotTranspose, initial: true) { _, semis in
+            synth.setTranspose(semitones: semis)
+            leadSynth?.setTranspose(semitones: semis)
+        }
         .gesture(magnify)
         .sheet(item: $activeModal) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
@@ -903,8 +912,15 @@ private struct LaneFXEditor: View {
             EchoelValueField(label: "Pan",
                              value: panBinding,
                              range: Float(-1)...Float(1), decimals: 2)
+            // Per-instrument TRANSPOSE (founder 2026-07-14): shift THIS track's pitch in
+            // whole semitones (e.g. bass −12, a layer +7). Per-lane + saved with the song,
+            // like Pan; the voice is pitched on load. The keypad's −/+ sign keys make it
+            // easy to go below/above 0.
+            EchoelValueField(label: "Transpose",
+                             value: transposeBinding,
+                             range: Float(-48)...Float(48), unit: "st", decimals: 0)
 
-            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan is this track's own and is saved with the song (0 = center).")
+            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan and Transpose are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -944,6 +960,15 @@ private struct LaneFXEditor: View {
     private var panBinding: Binding<Float> {
         Binding(get: { timeline.document.lanes.first(where: { $0.id == laneID })?.pan ?? 0 },
                 set: { timeline.setLanePan(id: laneID, $0) })
+    }
+
+    /// Per-instrument transpose (semitones) lives on the lane (persisted, ±48). The
+    /// region player pitches this lane's voice on load — one push path, like pan.
+    /// Bridged through Float for EchoelValueField (the app's one parameter control),
+    /// rounded back to a whole semitone on write.
+    private var transposeBinding: Binding<Float> {
+        Binding(get: { Float(timeline.document.lanes.first(where: { $0.id == laneID })?.transposeSemitones ?? 0) },
+                set: { timeline.setLaneTranspose(id: laneID, Int($0.rounded())) })
     }
 }
 

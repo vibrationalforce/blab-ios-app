@@ -158,6 +158,16 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Per-instrument TRANSPOSE in whole semitones (founder 2026-07-14: "Wenn einzelne
+    /// Instrumenten Elemente im synth nen transpose Button haben ist das kool"), clamped
+    /// ±48 (±4 octaves) to match the voice. State only — the region player pitches each
+    /// lane's voice on load (rollTransposeSink / slotTransposeSink).
+    public func setLaneTranspose(id: UUID, _ semitones: Int) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].transposeSemitones = max(-48, min(48, semitones))
+        persist()
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()

@@ -226,6 +226,15 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         return max(-1, min(1, lane.pan))
     }
 
+    /// The whole-semitone TRANSPOSE the ONE shared Piano-Roll slot plays at (the
+    /// rollSlotPan mirror for pitch — founder 2026-07-14 per-instrument Transpose).
+    /// Clamped ±48; no MIDI lane → 0 (no shift). The surface's onChange pushes it into
+    /// both melodic voices live, so a primary-lane transpose edit is heard immediately.
+    public var rollSlotTranspose: Int {
+        guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 0 }
+        return max(-48, min(48, lane.transposeSemitones))
+    }
+
     /// Why the roll-slot lane is INAUDIBLE (nil = audible), so the UI can explain a
     /// silent generative instrument in plain words. Founder 2026-07-14 ("alles ist
     /// still", verified from the device log): the generative melody plays through the

@@ -1,26 +1,29 @@
-build: 2026-07-14 v10.79.209 (Umbau Schritt 2b-i: Tempo wandert sichtbar nach oben)
+build: 2026-07-14 v10.79.210 (Transpose pro Instrument — auf deine Ansage)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Weiter auf deine Ansage (Leiste auflösen). Das ist der ERSTE Schritt, den du
-  SIEHST: das Tempo ist aus dem unteren "Comp"-Dropdown in eine eigene schmale
-  Kopfzeile gewandert — direkt unter der Transportleiste, immer sichtbar.
+notes: Direkt auf deinen Wunsch: "Wenn einzelne Instrumenten Elemente im Synth nen
+  Transpose Button haben ist das kool." Ist gebaut — und es KLINGT auch wirklich
+  (kein toter Knopf).
 
-  WAS oben steht: das lebende Tempo-Feld (BodyTempoField) — die Zahl läuft mit
-  deiner Biofeedback-Rate mit (4 Stellen nach dem Komma) und lässt sich mit dem
-  Schloss fixen. Genau das Feld, das vorher nur im Comp-Dropdown lag.
+  WO: In der Spur-Tür (das Menü am Spurkopf) → "Sound & FX (this track)". Dort gibt
+  es jetzt neben Cutoff/Resonance/Drive/Pan ein Feld "Transpose" in Halbtönen (st),
+  −48…+48. Der Zahlenblock hat die −/+ Vorzeichen-Tasten (genau dafür gebaut), also
+  Bass z.B. −12 (Oktave runter), ein Layer +7 (Quinte hoch).
 
-  WAS weg ist: das nackte Schloss-Symbol in der Transportleiste. Das gab es nur,
-  WEIL das Tempo oben fehlte — jetzt hat das Tempo-Feld sein eigenes Schloss, immer
-  auf dem Schirm. "Tempo fixen muss immer gehen" bleibt also erfüllt (sogar besser:
-  beschriftetes Feld statt anonymes Icon), nur eben ohne doppeltes Schloss.
+  WIE es klingt: pro Spur eigen. Die HAUPT-Spur hörst du SOFORT (der Wert wird live
+  in die Melodie-Stimmen geschoben, wie Pan). Zusätzliche MIDI-Spuren übernehmen den
+  Versatz beim nächsten Loop-Durchlauf (dort wo auch ihr Sound/Patch greift). Der
+  Versatz ist zerstörungsfrei: die geschriebenen Noten behalten ihre Tonhöhe, nur die
+  klingende Frequenz wandert — und wird mit dem Song gespeichert.
 
-  WARUM freeze-sicher: BodyTempoField ist ein eigenes Leaf — der 10-Hz-Puls-Read
-  bleibt IN sich, die Kopfzeile (und WorkspaceView) abonnieren ihn NICHT (dasselbe
-  Muster wie der Pulsmonitor oben). Kein Menü/Picker friert ein. Von beiden
-  Reviewern bestätigt (code PASS + ui-state PASS: kein verwaister Verweis, kein
-  verlorener Regler, Environment sauber, Layout/Trefferflächen unverändert).
+  WARUM sicher: der Kern ist EINE Zeile im Ton-Rechenweg (Halbton in denselben
+  Exponenten wie die Mikrotonstimmung, atomarer Float-Read wie der Kammerton),
+  bit-identisch bei 0, kein hängender Ton (die Stimmen-Verwaltung bleibt auf der
+  ungesetzten Notennummer). slideNote/Glide bleibt unberührt (das Intervall-Verhältnis
+  ist transpose-invariant). Reviewer: audio-thread PASS · concurrency PASS · code PASS
+  (Fundament) + ui-state PASS · code PASS (Bedienfeld). Gates: Xcode + CI/CD.
 
-  NÄCHSTER SCHRITT (2b-ii): Tonart/Skala + Kammerton dazu in dieselbe Kopfzeile,
-  dann verschwindet der "Comp"-Chip unten ganz. Danach 2c: Session-Name/Ort hoch.
+  Das ist bewusst der PER-INSTRUMENT-Transpose (der alte globale war immer 0/tot und
+  wurde gelöscht) — passt genau in die "alles pro Spur/Instrument"-Richtung.
 
-  Stand Umbau: Schritt 1 (Headroom, v207) ✓ · 2a (Transpose weg, v208) ✓ ·
-  2b-i (Tempo sichtbar hoch, v209) ✓ · als Nächstes 2b-ii Tonart/Kammerton hoch.
+  Hinweis: der sichtbare Header-Umzug (Tonart/Kammerton hoch, 2b-ii) wartet weiter auf
+  deine Device-Sicht auf die neue Tempo-Kopfzeile aus v209.
