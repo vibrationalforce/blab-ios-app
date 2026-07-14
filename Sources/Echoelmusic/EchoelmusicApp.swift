@@ -96,6 +96,9 @@ struct EchoelmusicApp: App {
     /// Opt-in: engaged only by the timeline's own Play control; a no-op otherwise.
     @State private var timelinePlayer = TimelineRegionPlayer()
     @State private var recordController = RecordController()
+    /// The live immersive scene: every non-bio track is a positioned SpatialObject,
+    /// moved by the Immersive Stage Touch surface. Control-plane only (no audio thread).
+    @State private var spatialScene = SpatialSceneStore()
     /// Parameter automation (master level / tempo) played over the shared transport.
     @State private var automationPlayer = AutomationPlayer()
     /// Selectable recording inputs (mic / interface / Bluetooth) with latency notes.
@@ -364,6 +367,7 @@ struct EchoelmusicApp: App {
             .environment(arrangementPlayer)
             .environment(timelinePlayer)
             .environment(recordController)
+            .environment(spatialScene)
             .environment(automationPlayer)
             .environment(audioInputs)
             .environment(signalRouter)

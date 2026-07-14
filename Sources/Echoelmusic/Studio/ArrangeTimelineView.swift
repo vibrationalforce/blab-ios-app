@@ -166,6 +166,8 @@ struct ArrangeTimelineView: View {
         case patch
         /// E2a: automation lanes, on the track. Re-doors AutomationView.
         case automation
+        /// The Immersive Stage — the Touch surface that places every track in space.
+        case spatial
         var id: String {
             switch self {
             case .lane(let l):   return "lane-\(l.id)"
@@ -174,6 +176,7 @@ struct ArrangeTimelineView: View {
             case .plugins:       return "plugins"
             case .patch:         return "patch"
             case .automation:    return "automation"
+            case .spatial:       return "spatial"
             }
         }
     }
@@ -194,6 +197,7 @@ struct ArrangeTimelineView: View {
             // instrument all MIDI lanes share today.
             PatchEditorView(initial: synth.appliedPatch ?? SynthPatch(name: "Init"))
         case .automation:         AutomationView()
+        case .spatial:            ImmersiveStageView()
         }
     }
 
@@ -277,6 +281,28 @@ struct ArrangeTimelineView: View {
             .buttonStyle(.plain)
             .disabled(!recordController.isRecording && !recordController.hasArmedTarget())
             .accessibilityLabel(recordController.isRecording ? "Stop recording" : "Record armed tracks")
+
+            // Immersive Stage door: the Touch surface that places every track in
+            // space. Every non-bio lane is already a positioned SpatialObject; this
+            // opens the room map to move them. Reuses the ONE sheet slot (.spatial),
+            // never a second `.sheet` (metadata law). Disabled with no real tracks.
+            Button { activeModal = .spatial } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "circle.grid.cross")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Immersive")
+                        .font(EchoelTheme.font(12, .medium))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 10).frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(timeline.document.lanes.allSatisfy { $0.isBio })
+            .accessibilityLabel("Immersive Stage — place tracks in space")
+
             // U1: no "Arrange" label — this IS the app's one view, not a named tab.
             Spacer(minLength: 0)
             // Add track. Instruments first (founder 2026-07-13: "EchoelDrums,
