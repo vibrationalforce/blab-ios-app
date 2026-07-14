@@ -497,3 +497,34 @@ Tape Delay · Trance Delay · Tape Stop · Tuner · Wow & Flutter · Note Effect
 (parametrisch/grafisch), Kompressor + Multiband + Limiter (deckt sich mit Mastering-Plan
 M2/M3), echtes Delay (Tape/Trance), Modulation (Chorus/Flanger/Phaser/Tremolo), Gate/
 Autoduck, Distortion/Waveshaper. = eigener FX-Ausbau-Block (nach AUv3 + Scale-Lock).
+
+## 2026-07-14 — Founder 5 reference reels (video-watch → vision-gate)
+
+Founder mandate: "integriere alles was uns wirklich hilft und unsere Arbeit
+effektiver macht" + "Natürlich auch alles was kreativ und technisch wertvoll ist."
+
+- **ADOPT→PRODUCT — On-device generative "Idea-Maze" composer.** From @jakebeau_'s
+  agentic PLAN→ACT→OBSERVE→REFLECT loop + local brain + idea-maze/leaderboard
+  (Anthropic "Effective harnesses for long-running agents"). Echoel reinterpretation:
+  the bio-generative engine proposes N musical variations, **scores them by
+  bio-fit/coherence**, keeps a ranked leaderboard, the musician picks. Passes all
+  four gates — Sound (Tier-1 differentiator), iOS-feasible (BioComposer already
+  deterministic/seeded; MVP needs NO LLM), on-brand (body curates the ideas;
+  seed-recall is our edge), realtime-safe as a control-plane core. **Cheapest first
+  step (this Ralph cycle): a pure, tested `BioVariationMaze` core** — seed + bio
+  snapshot → N deterministic variation seeds → bio-fit score → ranked leaderboard;
+  Foundation-only, flag-gated OFF, zero audio-thread/UI. Later: LLM-assisted
+  proposals via the existing EchoelAI brain; a Touch surface to audition the maze.
+- **WATCH — offline voice/singing (HeyGem/OmniVoice).** Reinforces the EXISTING
+  Tier-2 flagship AUDIOVISUAL VOCODER (VocoderCore built, wiring next) — accelerate
+  that, don't start a parallel voice system. Person voice/face-CLONE specifically =
+  REJECT (deepfake identity, off-brand, not bio-driven).
+- **ADOPT→PIPELINE — "offline/on-device/free/no-subscription" positioning** + the
+  **carousel-reel format**: both go to `echoel-marketing` (validated hook + launch/ASO
+  playbook; our green-on-black CI already matches). Never in-app.
+- **REJECT — Fincept Bloomberg-clone / HyperFrames code→video / Jarvis agent-app /
+  auto-content-farm.** Off-vision; building any is the breadth-first scope-creep the
+  constitution warns against (principle 6). EchoelAI stays an assistant behind a flag.
+
+**Single highest-value adoption:** the on-device bio-curated Idea-Maze composer
+(ADOPT→PRODUCT). Building the pure core now.
