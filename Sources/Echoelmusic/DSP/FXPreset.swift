@@ -37,6 +37,12 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var saturationDrive: Float
     public var saturationMix: Float
 
+    // Tape / Bandmaschine / VHS (analog character on the dry path)
+    public var tapeEnabled: Bool
+    public var tapeDepth: Float
+    public var tapeSaturation: Float
+    public var tapeTone: Float
+
     // Bitcrush (digital lo-fi)
     public var bitcrushEnabled: Bool
     public var bitcrushBits: Float
@@ -131,6 +137,11 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         saturationDrive = f(.saturationDrive, 0.30)
         saturationMix = f(.saturationMix, 0.5)
 
+        tapeEnabled = b(.tapeEnabled, false)
+        tapeDepth = f(.tapeDepth, 0.35)
+        tapeSaturation = f(.tapeSaturation, 0.25)
+        tapeTone = f(.tapeTone, 0.8)
+
         bitcrushEnabled = b(.bitcrushEnabled, false)
         bitcrushBits = f(.bitcrushBits, 16)
         bitcrushDownsample = f(.bitcrushDownsample, 1)
@@ -197,6 +208,7 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         fxEnabled: Bool,
         filterEnabled: Bool, filterModeRaw: String, filterCutoff: Float, filterResonance: Float,
         saturationEnabled: Bool, saturationDrive: Float, saturationMix: Float,
+        tapeEnabled: Bool, tapeDepth: Float, tapeSaturation: Float, tapeTone: Float,
         bitcrushEnabled: Bool, bitcrushBits: Float, bitcrushDownsample: Float, bitcrushMix: Float,
         widenerEnabled: Bool, widenerWidth: Float,
         harmonizerEnabled: Bool, harmonizerInterval1: Float, harmonizerInterval2: Float,
@@ -217,6 +229,8 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         self.filterEnabled = filterEnabled; self.filterModeRaw = filterModeRaw
         self.filterCutoff = filterCutoff; self.filterResonance = filterResonance
         self.saturationEnabled = saturationEnabled; self.saturationDrive = saturationDrive; self.saturationMix = saturationMix
+        self.tapeEnabled = tapeEnabled; self.tapeDepth = tapeDepth
+        self.tapeSaturation = tapeSaturation; self.tapeTone = tapeTone
         self.bitcrushEnabled = bitcrushEnabled; self.bitcrushBits = bitcrushBits
         self.bitcrushDownsample = bitcrushDownsample; self.bitcrushMix = bitcrushMix
         self.widenerEnabled = widenerEnabled; self.widenerWidth = widenerWidth
@@ -253,7 +267,7 @@ public extension FXPreset {
         tags: [String] = []
     ) -> FXPreset {
         FXPreset(
-            id: id, name: name, tags: tags, schema: 2,
+            id: id, name: name, tags: tags, schema: 3,
             fxEnabled: fxEnabled,
             filterEnabled: chain.filterEnabled,
             filterModeRaw: chain.filterL.mode.rawValue,
@@ -262,6 +276,10 @@ public extension FXPreset {
             saturationEnabled: chain.saturationEnabled,
             saturationDrive: chain.saturationDrive,
             saturationMix: chain.saturationMix,
+            tapeEnabled: chain.tapeEnabled,
+            tapeDepth: chain.tape.depth,
+            tapeSaturation: chain.tape.saturation,
+            tapeTone: chain.tape.tone,
             bitcrushEnabled: chain.bitcrushEnabled,
             bitcrushBits: chain.bitcrush.bits,
             bitcrushDownsample: chain.bitcrush.downsample,
@@ -325,6 +343,10 @@ public extension FXPreset {
         chain.saturationEnabled = saturationEnabled
         chain.saturationDrive = saturationDrive
         chain.saturationMix = saturationMix
+        chain.tapeEnabled = tapeEnabled
+        chain.tape.depth = tapeDepth
+        chain.tape.saturation = tapeSaturation
+        chain.tape.tone = tapeTone
         chain.bitcrushEnabled = bitcrushEnabled
         chain.bitcrush.bits = bitcrushBits
         chain.bitcrush.downsample = bitcrushDownsample
@@ -446,7 +468,7 @@ public extension FXPreset {
         func B(_ a: Bool, _ b: Bool) -> Bool { t < 0.5 ? a : b }
         func S(_ a: String, _ b: String) -> String { t < 0.5 ? a : b }
         return FXPreset(
-            id: UUID(), name: "Morph", tags: [], schema: 2,
+            id: UUID(), name: "Morph", tags: [], schema: 3,
             fxEnabled: B(fxEnabled, other.fxEnabled),
             filterEnabled: B(filterEnabled, other.filterEnabled),
             filterModeRaw: S(filterModeRaw, other.filterModeRaw),
@@ -455,6 +477,10 @@ public extension FXPreset {
             saturationEnabled: B(saturationEnabled, other.saturationEnabled),
             saturationDrive: L(saturationDrive, other.saturationDrive),
             saturationMix: L(saturationMix, other.saturationMix),
+            tapeEnabled: B(tapeEnabled, other.tapeEnabled),
+            tapeDepth: L(tapeDepth, other.tapeDepth),
+            tapeSaturation: L(tapeSaturation, other.tapeSaturation),
+            tapeTone: L(tapeTone, other.tapeTone),
             bitcrushEnabled: B(bitcrushEnabled, other.bitcrushEnabled),
             bitcrushBits: L(bitcrushBits, other.bitcrushBits),
             bitcrushDownsample: L(bitcrushDownsample, other.bitcrushDownsample),

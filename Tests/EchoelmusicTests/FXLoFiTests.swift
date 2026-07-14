@@ -1,8 +1,8 @@
 import XCTest
 @testable import Echoelmusic
 
-/// Pure DSP tests for the two new EchoelFX stages (Workstream 2): Bitcrush + the
-/// M/S Stereo Widener. No audio device needed — exercises the math directly.
+/// Pure DSP tests for the lo-fi EchoelFX stages: Bitcrush, the M/S Stereo Widener,
+/// and the Tape / VHS character. No audio device needed — exercises the math directly.
 final class FXLoFiTests: XCTestCase {
 
     // MARK: - Bitcrush
@@ -89,5 +89,69 @@ final class FXLoFiTests: XCTestCase {
         w.width = 99                              // clamped to 2
         let (l, _) = w.processStereo(0.8, 0.2)
         XCTAssertEqual(l, 1.1, accuracy: 1e-6, "width clamps to 2")
+    }
+
+    // MARK: - Tape / VHS
+
+    /// A DC constant passes any low-pass and any wobble-free tap unchanged once the
+    /// ~6 ms read line has filled — the tape stage is unity on steady state.
+    func testTape_ConstantConvergesToInput() {
+        let tape = EchoelTape(sampleRate: 48000)
+        tape.depth = 0; tape.saturation = 0; tape.tone = 1
+        var out: Float = 0
+        for _ in 0..<2048 { out = tape.processStereo(0.5, 0.5).0 }
+        XCTAssertEqual(out, 0.5, accuracy: 0.01, "steady DC should pass through the tape stage")
+    }
+
+    /// The stage must never emit NaN/Inf or blow up, even at full drive + wobble.
+    func testTape_StaysFiniteAndBounded() {
+        let tape = EchoelTape(sampleRate: 48000)
+        tape.depth = 1; tape.saturation = 1; tape.tone = 0.5
+        for i in 0..<4096 {
+            let x = Float(sinf(Float(i) * 0.05)) * 0.9
+            let (l, r) = tape.processStereo(x, x)
+            XCTAssertTrue(l.isFinite && r.isFinite, "tape output must stay finite")
+            XCTAssertLessThan(abs(l), 2.0, "tape output must stay bounded")
+        }
+    }
+
+    /// Tape saturation compresses a hot signal — a sustained loud constant comes
+    /// out below its input level once the line fills.
+    func testTape_SaturationCompressesHotSignal() {
+        let tape = EchoelTape(sampleRate: 48000)
+        tape.depth = 0; tape.saturation = 1; tape.tone = 1
+        var out: Float = 0
+        for _ in 0..<2048 { out = tape.processStereo(1.0, 1.0).0 }
+        XCTAssertLessThan(out, 1.0, "saturation should tame a hot signal")
+        XCTAssertGreaterThan(out, 0.0, "…without inverting or muting it")
+    }
+
+    /// Low brightness (worn tape) attenuates a fast-alternating (near-Nyquist)
+    /// signal more than full brightness does.
+    func testTape_LowBrightnessDullsHighs() {
+        func nyquistEnergy(tone: Float) -> Float {
+            let tape = EchoelTape(sampleRate: 48000)
+            tape.depth = 0; tape.saturation = 0; tape.tone = tone
+            var energy: Float = 0
+            for i in 0..<2048 {
+                let x: Float = (i % 2 == 0) ? 1 : -1     // alternating = Nyquist
+                let (l, _) = tape.processStereo(x, x)
+                if i > 512 { energy += l * l }           // measure after the line fills
+            }
+            return energy
+        }
+        XCTAssertLessThan(nyquistEnergy(tone: 0), nyquistEnergy(tone: 1),
+                          "dull tape should lose more high-frequency energy")
+    }
+
+    func testTape_ResetClearsState() {
+        let tape = EchoelTape(sampleRate: 48000)
+        tape.depth = 0; tape.saturation = 0; tape.tone = 1
+        for _ in 0..<2048 { _ = tape.processStereo(0.9, 0.9) }
+        tape.reset()
+        // After reset the line is empty; feeding silence must decay to ~0 quickly.
+        var out: Float = 1
+        for _ in 0..<2048 { out = tape.processStereo(0, 0).0 }
+        XCTAssertEqual(out, 0, accuracy: 1e-4, "reset should clear the tape delay line")
     }
 }

@@ -63,6 +63,8 @@ final class FXViewModel {
         harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
         reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
         reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
+        tapeEnabled = c.tapeEnabled; tapeDepth = c.tape.depth
+        tapeSaturation = c.tape.saturation; tapeTone = c.tape.tone
         bitcrushEnabled = c.bitcrushEnabled; bitcrushBits = c.bitcrush.bits
         bitcrushDownsample = c.bitcrush.downsample; bitcrushMix = c.bitcrush.mix
         widenerEnabled = c.widenerEnabled; widenerWidth = c.widener.width
@@ -128,6 +130,12 @@ final class FXViewModel {
     var saturationDrive: Float { didSet { chain.saturationDrive = saturationDrive } }
     var saturationMix: Float { didSet { chain.saturationMix = saturationMix } }
 
+    // Tape / Bandmaschine / VHS (analog character — wow&flutter + saturation + HF loss)
+    var tapeEnabled: Bool { didSet { chain.tapeEnabled = tapeEnabled } }
+    var tapeDepth: Float { didSet { chain.tape.depth = tapeDepth } }
+    var tapeSaturation: Float { didSet { chain.tape.saturation = tapeSaturation } }
+    var tapeTone: Float { didSet { chain.tape.tone = tapeTone } }
+
     // Bitcrush (digital lo-fi)
     var bitcrushEnabled: Bool { didSet { chain.bitcrushEnabled = bitcrushEnabled } }
     var bitcrushBits: Float { didSet { chain.bitcrush.bits = bitcrushBits } }
@@ -191,6 +199,8 @@ final class FXViewModel {
         harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
         reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
         reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
+        tapeEnabled = c.tapeEnabled; tapeDepth = c.tape.depth
+        tapeSaturation = c.tape.saturation; tapeTone = c.tape.tone
         bitcrushEnabled = c.bitcrushEnabled; bitcrushBits = c.bitcrush.bits
         bitcrushDownsample = c.bitcrush.downsample; bitcrushMix = c.bitcrush.mix
         widenerEnabled = c.widenerEnabled; widenerWidth = c.widener.width
@@ -296,6 +306,12 @@ struct EchoelFXView: View {
                 effectSection("Saturation", isOn: $vm.saturationEnabled) {
                     field("Drive", $vm.saturationDrive, 0...1)
                     field("Mix", $vm.saturationMix, 0...1)
+                }
+
+                effectSection("Tape / VHS", isOn: $vm.tapeEnabled) {
+                    field("Wow & Flutter", $vm.tapeDepth, 0...1)
+                    field("Saturation", $vm.tapeSaturation, 0...1)
+                    field("Brightness", $vm.tapeTone, 0...1)
                 }
 
                 effectSection("Bitcrush", isOn: $vm.bitcrushEnabled) {

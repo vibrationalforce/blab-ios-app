@@ -3,7 +3,7 @@ import Foundation
 /// Ordered, audio-thread-safe composition of the EchoelFX processors — the unit
 /// the render block, UI, and (later) AUv3 wrapper drive. Signal flow:
 ///
-///   in → filter → saturation → bitcrush → harmonizer → chorus → flanger → phaser → tremolo → delay → reverb → widener → compressor → limiter → out
+///   in → filter → saturation → tape → bitcrush → harmonizer → chorus → flanger → phaser → tremolo → delay → reverb → widener → compressor → limiter → out
 ///
 /// The filter sits first so its colour (muffled "underwater" low-pass, telephone
 /// band-pass) shapes the source before the echoes and modulation inherit it.
@@ -22,6 +22,10 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// / "telephone" / lo-fi characters.
     public let filterL: EchoelSVFilter
     public let filterR: EchoelSVFilter
+    /// Analog tape / Bandmaschine / VHS character (wow&flutter + saturation + HF
+    /// loss) on the dry through-signal. Sits right after saturation so the warble
+    /// and dull colour the source before the echoes/modulation inherit it.
+    public let tape: EchoelTape
     public let bitcrush: EchoelBitcrush
     public let harmonizer: EchoelHarmonizer
     public let chorus: EchoelChorus
@@ -52,6 +56,12 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// sum of sines; saturation adds the harmonic body that sounds professional.
     /// (Stateless waveshaper — nothing to reset on enable.)
     public var saturationEnabled: Bool = true
+    /// Analog tape / Bandmaschine / VHS character (wow&flutter + saturation + HF
+    /// loss). Off by default — a vintage character effect. Rising-edge reset
+    /// clears the tape delay line so re-enabling never bursts stale audio.
+    public var tapeEnabled: Bool = false {
+        willSet { if newValue && !tapeEnabled { tape.reset() } }
+    }
     /// Digital lo-fi (bit-depth + sample-rate crush). Off by default; a character
     /// effect for crushed/vintage textures.
     public var bitcrushEnabled: Bool = false {
@@ -110,6 +120,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public init(sampleRate: Float = 48000) {
         self.filterL = EchoelSVFilter(sampleRate: sampleRate)
         self.filterR = EchoelSVFilter(sampleRate: sampleRate)
+        self.tape = EchoelTape(sampleRate: sampleRate)
         self.bitcrush = EchoelBitcrush(sampleRate: sampleRate)
         self.harmonizer = EchoelHarmonizer(sampleRate: sampleRate)
         self.chorus = EchoelChorus(sampleRate: sampleRate)
@@ -143,6 +154,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         var r = inR
         if filterEnabled     { l = filterL.process(l); r = filterR.process(r) }
         if saturationEnabled { (l, r) = saturate(l, r) }
+        if tapeEnabled       { (l, r) = tape.processStereo(l, r) }
         if bitcrushEnabled   { (l, r) = bitcrush.processStereo(l, r) }
         if harmonizerEnabled { (l, r) = harmonizer.processStereo(l, r) }
         if chorusEnabled     { (l, r) = chorus.processStereo(l, r) }
@@ -209,6 +221,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     public func reset() {
         filterL.reset()
         filterR.reset()
+        tape.reset()
         bitcrush.reset()
         harmonizer.reset()
         chorus.reset()
