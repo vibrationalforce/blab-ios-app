@@ -1,33 +1,35 @@
-build: 2026-07-14 v10.79.198 (Variationen-Audition — die Idea-Maze bekommt ihre Tür)
+build: 2026-07-14 v10.79.199 (Bio in den Header · Transpose weg · Szene→ADM-OSC — UND: Sound-Problem, bitte Log)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Enthält alles aus 197 (adaptives Home + rPPG-Puls-Fix) PLUS die neue
-  Variationen-Audition.
+notes: Erster Teil deiner Umbau-Runde von heute + ein FRISCHER Build zum
+  Sound-Gegentest.
 
-  NEU — VARIATIONEN (Idea-Maze, jetzt erlebbar). Der bio-kuratierte Ideen-Komponist
-  war gebaut + getestet, hatte aber keine Tür. Jetzt im Comp-Menü (Composition-
-  Dropdown) ganz unten eine Karte "Variationen":
-    · "Erkunden" tippen → 6 Varianten DESSELBEN Grooves werden gerankt, danach
-      sortiert, wie nah jede an dem liegt, was dein Körper gerade will
-      (realisierte Dichte vs. dein musicalState.busy — eine ehrliche Zahl, keine
-      Gesundheitsaussage).
-    · Eine Zeile antippen → sie spielt SOFORT. Skelett + Melodie-Seed der gewählten
-      Idee werden exakt übernommen; dein LIVE-Körper färbt weiter Tempo/Dynamik.
-      Die gewählte Idee ist markiert (Häkchen).
-  Kein neuer Regler doppelt, keine neue Modal-Fläche — sitzt in der bestehenden
-  Comp-Tür. Was du auditionierst, ist genau die Eingabe, die auch generate() nutzt
-  (eine geteilte makeComposerInput-Funktion — kein doppelter Kompositions-Code).
+  ⚠️ ZUERST — "Alles ist still": Bitte die App EINMAL KOMPLETT SCHLIESSEN (aus dem
+  App-Switcher wischen) und NEU starten — dann Puls-Button + Finger auf die Kamera.
+  Grund: Ich habe den kompletten Klang-Pfad geprüft (Puls-Button → generate →
+  play; die Audio-Engine startet ganz oben beim App-Start, unabhängig von den
+  Menüs). Nichts an meinen letzten Änderungen fasst den Audio-Pfad an. Totale
+  Stille kommt fast immer von einer verklemmten Audio-Session (andere App hatte
+  den Ton, Anruf, Stumm-Schalter) — ein Neustart löst das meist. Wenn es DANACH
+  IMMER NOCH still ist: bitte echoel_diag.log schicken. Das Log zeigt mir genau,
+  ob die Engine startete ("audio engine started OK" vs. "CRITICAL: Master engine
+  start failed"), ob generate Noten erzeugte und ob play lief — dann finde ich es
+  sofort. OHNE Log kann ich totale Stille nicht blind fixen.
 
-  Sauber gebaut: ui-state-Reviewer PASS (0) · concurrency-Reviewer PASS (0).
-  Render-Safety eingehalten: keine neue .sheet (Modal-Decke), die Maze-UI liest nur
-  @State-Schnappschüsse (kein 10-Hz-Read im Menü-Host → kein Freeze).
-  Gates grün: Xcode Compile Check + CI/CD Pipeline.
+  DRIN in diesem Build (deine Rotstift-Runde, Teil 1):
+  · BIO ist jetzt oben im Header zuhause. TIPPEN öffnet die vollen Infos
+    (HR/HRV/Br/Coh · Tap-to-learn · Quelle · Puls lesen · Routing). Langes Drücken
+    startet/stoppt den Puls (der große Start-Button neben Play bleibt der Haupt-
+    weg). Der untere "Bio"-Chip ist WEG — Bio wohnt nicht mehr doppelt.
+  · TRANSPOSE ist raus aus der Leiste ("erstmal komplett gelöscht") — Panel bleibt
+    im Code (umkehrbar).
+  · Immersive Stage → ADM-OSC: die platzierten Spuren lassen sich jetzt an einen
+    externen Renderer streamen ("Stream to renderer", offener ADM-OSC-Standard).
 
-  NOCH OFFEN vom letzten Build (bitte am Gerät gegenchecken):
-  rPPG-PULS-LOCK (aus 197). Dein 2301-Log: Finger drauf, Lauf 2 lockte NIE (pk=0,
-  bpm=0). Fix: lineare Drift-Steigung wird jetzt vor der Periodizitäts-Analyse
-  entfernt (RPPGConditioning.linearDetrend). Bitte NEUEN Log: lockt Lauf 2 jetzt?
-  UND bleibt der Bewegungs-/Druck-Fall sauber (kein Fehl-Lock bei Wackeln)?
+  DEIN GROSSER UMBAU — verstanden & geplant (PLAN_PER_INSTRUMENT_SYNTH_2026-07-14):
+  ALLES löst sich auf in (A) Header und (B) pro Instrument (EchoelSynth). Pro
+  MIDI-Spur optional: Genre · Variation · Sound&Texture · Weather. Key/Scale/Tuning/
+  Tempo + Session/Ort wandern nach oben (+ Ort manuell eingebbar). Ich baue das
+  Modul für Modul — ABER ERST wenn der Sound wieder läuft (ich baue nicht auf
+  Stille auf). Mix/FX/Mood habe ich NICHT angefasst (kein neues Zuhause von dir).
 
-  KONVERGENZ-BACKLOG (offene Baustellen, eine pro Zyklus): Szene→OSC-Ausgabe
-  (Council: Objekt-Index-Koexistenz mit Bio) · Immersive-Stage-Automation
-  (Puck-Bewegungen aufnehmen/abspielen) · Audio-Loop-Import in die Spur.
+  Gates grün: Xcode Compile Check + CI/CD Pipeline. Kein Audio-Pfad angefasst.
