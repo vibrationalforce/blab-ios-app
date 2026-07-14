@@ -1753,6 +1753,32 @@ struct EchoelStudioView: View {
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("Stamps your city into session and export names. Resolved on this device, never stored or sent anywhere.")
+            // Manual override (founder 2026-07-14: "auch manuell eingeben … oder der
+            // Standort nicht funktioniert"): type a place yourself. Works with or
+            // without GPS and overrides the resolved city. Text (not a number) → a
+            // plain TextField is correct; EchoelValueField is for numeric params only.
+            HStack(spacing: 8) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                TextField("Ort manuell (optional)", text: $locationNamer.manualPlace)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .accessibilityLabel("Manual place name")
+                if !locationNamer.manualPlace.isEmpty {
+                    Button { locationNamer.manualPlace = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14)).foregroundStyle(EchoelTheme.dim)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear manual place")
+                }
+            }
+            .padding(.horizontal, 10).frame(height: 36)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
             // Always say what this does; once on, say clearly what happened.
             Text(placeStatusLine)
                 .font(EchoelTheme.font(11))
@@ -1760,14 +1786,19 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// One clear line for the place row in every state (off / looking up /
+    /// One clear line for the place row in every state (manual / off / looking up /
     /// resolved / denied) — so it's never ambiguous what the location does.
     private var placeStatusLine: String {
+        // A manual entry wins in every state (works even with location off/denied).
+        let manual = locationNamer.manualPlace.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !manual.isEmpty {
+            return "In the name: \(manual) (manual)"
+        }
         guard locationNamer.enabled else {
-            return "Adds your city to the name — resolved on device, never sent."
+            return "Adds your city to the name — resolved on device, never sent. Or type one above."
         }
         if locationNamer.denied {
-            return "Location is off for Echoel in Settings — names stay without a place."
+            return "Location is off for Echoel in Settings — type a place above instead."
         }
         if locationNamer.placeToken.isEmpty {
             return "Looking up your city…"

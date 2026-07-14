@@ -203,6 +203,28 @@ final class SessionContextTests: XCTestCase {
         XCTAssertEqual(second.key.shortName, "Gmaj")
     }
 
+    func testEffectivePlace_manualOverridesResolved_trimmed() {
+        // Manual entry wins when present (trimmed); empty manual falls back to GPS.
+        XCTAssertEqual(SessionNaming.effectivePlace(manual: "Berlin", resolved: "Hamburg"), "Berlin")
+        XCTAssertEqual(SessionNaming.effectivePlace(manual: "  Berlin \n", resolved: "Hamburg"), "Berlin")
+        XCTAssertEqual(SessionNaming.effectivePlace(manual: "", resolved: "Hamburg"), "Hamburg")
+        XCTAssertEqual(SessionNaming.effectivePlace(manual: "   ", resolved: "Hamburg"), "Hamburg")
+        // No GPS + no manual → empty (no place in the name).
+        XCTAssertEqual(SessionNaming.effectivePlace(manual: "", resolved: ""), "")
+        // Manual works with NO GPS ("wenn der Standort nicht funktioniert").
+        XCTAssertEqual(SessionNaming.effectivePlace(manual: "Tokyo", resolved: ""), "Tokyo")
+    }
+
+    func testEffectivePlace_freeformManual_stillFilenameSafeViaStem() {
+        // Freeform manual ("New York!") stays safe because stem sanitises it.
+        let place = SessionNaming.effectivePlace(manual: "New York!", resolved: "")
+        let name = SessionNaming.stem(artist: "E~", date: Date(timeIntervalSince1970: 1_780_000_000),
+                                      key: "Am", bpm: 72, a4Hz: 440, place: place)
+        XCTAssertTrue(name.contains("_NewYork_"))   // space + "!" collapsed
+        XCTAssertFalse(name.contains(" "))
+        XCTAssertFalse(name.contains("!"))
+    }
+
     func testPlaceTokenFlowsIntoNameWhenSet() {
         let c = ctx()
         c.placeToken = "Hamburg"

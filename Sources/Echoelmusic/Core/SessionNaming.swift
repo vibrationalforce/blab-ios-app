@@ -65,6 +65,17 @@ public enum SessionNaming {
         return cleanExt.isEmpty ? withPart : withPart + "." + cleanExt
     }
 
+    /// The place that actually stamps the name: the user's MANUAL override when they
+    /// typed one (trimmed), else the auto-resolved GPS locality. Founder 2026-07-14:
+    /// "Man kann natürlich auch manuell den Ortsnamen eingeben wenn man Lust hat oder
+    /// der Standort nicht funktioniert." Works regardless of the location toggle; the
+    /// result is still sanitised downstream by `stem`/`fileName`, so freeform input is
+    /// filename-safe.
+    public static func effectivePlace(manual: String, resolved: String) -> String {
+        let trimmed = manual.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? resolved : trimmed
+    }
+
     // MARK: - Formatting helpers
 
     /// `yyyy-MM-dd` — sortable and unambiguous worldwide.

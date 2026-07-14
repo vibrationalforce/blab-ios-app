@@ -23,7 +23,10 @@ import Observation
 @Observable
 public final class LocationNamer: NSObject {
 
-    private enum Key { static let enabled = "echoel.place.enabled" }
+    private enum Key {
+        static let enabled = "echoel.place.enabled"
+        static let manual = "echoel.place.manual"
+    }
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var manager: CLLocationManager?
@@ -44,6 +47,29 @@ public final class LocationNamer: NSObject {
     /// Last resolved locality ("Hamburg"); empty until resolved or when off.
     public private(set) var placeToken: String = ""
 
+    /// User-typed place name — OVERRIDES the auto-resolved token when non-empty and
+    /// works even when location is off/denied (founder 2026-07-14: "auch manuell
+    /// eingeben … oder der Standort nicht funktioniert"). Persisted (unlike the
+    /// transient GPS token, this is the user's own words). Sanitised downstream by
+    /// SessionNaming when it lands in a filename.
+    public var manualPlace: String {
+        didSet {
+            guard manualPlace != oldValue else { return }
+            defaults.set(manualPlace, forKey: Key.manual)
+            pushEffectivePlace()
+        }
+    }
+
+    /// The place that actually stamps the session/export name: the manual override if
+    /// the user typed one, else the resolved GPS locality.
+    public var effectivePlace: String {
+        SessionNaming.effectivePlace(manual: manualPlace, resolved: placeToken)
+    }
+
+    private func pushEffectivePlace() {
+        session?.placeToken = effectivePlace
+    }
+
     /// Last coarse fix (city-level accuracy), kept for same-session consumers
     /// that need a coordinate — today: the WeatherKit fetch (E3b). Transient
     /// like the place token: never persisted, cleared when the toggle goes off.
@@ -57,15 +83,18 @@ public final class LocationNamer: NSObject {
         self.defaults = defaults
         self.session = session
         self.enabled = defaults.bool(forKey: Key.enabled)
+        self.manualPlace = defaults.string(forKey: Key.manual) ?? ""
         super.init()
+        // A stored manual place stamps the name immediately, even before/without GPS.
+        if !manualPlace.isEmpty { pushEffectivePlace() }
         if enabled { resolve() }
     }
 
     /// Late wiring for the app shell (the @State defaults can't reference each
-    /// other at init). Pushes an already-resolved token into the session.
+    /// other at init). Pushes the effective place (manual override or resolved token).
     public func attach(session: SessionContext) {
         self.session = session
-        if !placeToken.isEmpty { session.placeToken = placeToken }
+        if !effectivePlace.isEmpty { session.placeToken = effectivePlace }
     }
 
     /// Request (if needed) and resolve one coarse fix → city token.
@@ -92,14 +121,14 @@ public final class LocationNamer: NSObject {
 
     private func clear(keepEnabled: Bool = false) {
         placeToken = ""
-        session?.placeToken = ""
+        session?.placeToken = effectivePlace   // keep a manual place if the user set one
         lastFix = nil
         if !keepEnabled { denied = false }
     }
 
     private func adopt(locality: String) {
         placeToken = locality
-        session?.placeToken = locality
+        session?.placeToken = effectivePlace   // manual override wins if present
         log.log(.info, category: .system, "Place token resolved: \(locality)")
     }
 }
