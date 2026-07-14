@@ -192,11 +192,19 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     }
 
     /// Whether `other` abuts this region on the SAME lane + clip (this region's end
-    /// meets the other's start) — the mergeable case (the undo of a split, or two
-    /// touching fragments of one clip). Regions of DIFFERENT clips never merge (which
-    /// content would win is undefined — that would be lossy).
-    public func abuts(_ other: TimelineRegion) -> Bool {
-        laneID == other.laneID && clipID == other.clipID && endTick == other.startTick
+    /// meets the other's start) AND is contiguous IN THE MEDIA — the mergeable case
+    /// (the undo of a split). Regions of DIFFERENT clips never merge (which content
+    /// would win is undefined). The media-offset check makes Join lossless: a clean
+    /// split advances the second piece's `contentOffsetSeconds` by exactly this
+    /// elapsed time, so it always passes; but if the user then trims/nudges that
+    /// piece, the offsets no longer line up and Join correctly refuses (rejoining
+    /// would silently drop the trim). `bpm` converts this region's length to seconds.
+    public func abuts(_ other: TimelineRegion, bpm: Double) -> Bool {
+        guard laneID == other.laneID, clipID == other.clipID, endTick == other.startTick
+        else { return false }
+        let expectedOffset = contentOffsetSeconds
+            + TimelineTime.seconds(fromTicks: lengthTicks, bpm: bpm)
+        return abs(other.contentOffsetSeconds - expectedOffset) < 1e-6
     }
 
     /// Merge `other` (which must `abuts` this) into one region spanning both — keeps

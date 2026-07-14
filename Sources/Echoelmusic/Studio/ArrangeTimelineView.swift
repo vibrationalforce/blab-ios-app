@@ -389,7 +389,7 @@ struct ArrangeTimelineView: View {
             // read as Split. No-op if nothing meets there.
             Button {
                 let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                timeline.mergeRegions(atTick: tick)
+                timeline.mergeRegions(atTick: tick, bpm: beatPlayer.pattern.tempo)
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "arrow.triangle.merge")

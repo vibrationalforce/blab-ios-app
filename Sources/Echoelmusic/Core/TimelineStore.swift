@@ -129,17 +129,18 @@ public final class TimelineStore {
     }
 
     /// Join at playhead: merge every pair of same-lane/clip regions that abut exactly
-    /// at `tick` (the inverse of the razor — rejoins pieces a split created there).
-    /// No-op if no such pair meets at `tick`. Iterates to convergence so several
-    /// lanes (or a chain) meeting at the tick all rejoin.
-    public func mergeRegions(atTick tick: Int) {
+    /// at `tick` AND are media-contiguous (the inverse of the razor — rejoins pieces a
+    /// split created there, but refuses if the second piece was trimmed/nudged, which
+    /// `abuts` checks via `bpm`). No-op if no such pair meets at `tick`. Iterates to
+    /// convergence so several lanes (or a chain) meeting at the tick all rejoin.
+    public func mergeRegions(atTick tick: Int, bpm: Double) {
         var regions = document.regions
         var didMerge = false
         var changed = true
         while changed {
             changed = false
             outer: for a in regions.indices where regions[a].endTick == tick {
-                for b in regions.indices where a != b && regions[a].abuts(regions[b]) {
+                for b in regions.indices where a != b && regions[a].abuts(regions[b], bpm: bpm) {
                     regions[a] = regions[a].merged(with: regions[b])
                     regions.remove(at: b)
                     didMerge = true; changed = true

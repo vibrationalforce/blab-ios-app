@@ -56,18 +56,26 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
 
     // MARK: - Merge (the undo of a split)
 
-    func testAbuts_sameLaneClipTouching_true() {
-        let a = region(start: 0, length: 480)
-        let b = region(start: 480, length: 480)                 // starts where a ends
-        XCTAssertTrue(a.abuts(b))
+    func testAbuts_sameLaneClipTouchingMediaContiguous_true() {
+        // a is 480 ticks = 0.25 s @ 120 BPM; b's media starts exactly there.
+        let a = region(start: 0, length: 480, offset: 0)
+        let b = region(start: 480, length: 480, offset: 0.25)   // media-contiguous
+        XCTAssertTrue(a.abuts(b, bpm: 120))
     }
 
     func testAbuts_gap_or_differentClip_false() {
-        let a = region(start: 0, length: 480)
-        XCTAssertFalse(a.abuts(region(start: 500, length: 480)), "gap ⇒ not mergeable")
-        var otherClip = region(start: 480, length: 480)
-        otherClip = TimelineRegion(laneID: lane, clipID: UUID(), startTick: 480, lengthTicks: 480)
-        XCTAssertFalse(a.abuts(otherClip), "different clip ⇒ not mergeable (lossy)")
+        let a = region(start: 0, length: 480, offset: 0)
+        XCTAssertFalse(a.abuts(region(start: 500, length: 480, offset: 0.25), bpm: 120), "gap ⇒ not mergeable")
+        let otherClip = TimelineRegion(laneID: lane, clipID: UUID(), startTick: 480, lengthTicks: 480)
+        XCTAssertFalse(a.abuts(otherClip, bpm: 120), "different clip ⇒ not mergeable (lossy)")
+    }
+
+    /// A second piece whose media was TRIMMED/NUDGED after the split must NOT rejoin —
+    /// merging would silently drop the trim (the ui-state review's lossy-merge guard).
+    func testAbuts_mediaDiscontinuous_false() {
+        let a = region(start: 0, length: 480, offset: 0)        // ends media at 0.25 s @120
+        let trimmed = region(start: 480, length: 480, offset: 0.9)  // user nudged the media
+        XCTAssertFalse(a.abuts(trimmed, bpm: 120), "trimmed piece ⇒ Join must refuse (lossless)")
     }
 
     func testMerged_spansBothKeepsFirstIdentity() {
@@ -84,7 +92,7 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
     func testSplitThenMerge_roundTripsGeometry() {
         let r = region(start: 0, length: 1920, offset: 0)
         let (first, second) = try! XCTUnwrap(r.split(at: 640, bpm: 120))
-        XCTAssertTrue(first.abuts(second))
+        XCTAssertTrue(first.abuts(second, bpm: 120), "a clean split is always rejoinable")
         let m = first.merged(with: second)
         XCTAssertEqual(m.startTick, r.startTick)
         XCTAssertEqual(m.lengthTicks, r.lengthTicks)
@@ -97,31 +105,35 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
 
     func testSplitRegions_razorsEveryCrossedRegion_thenJoinRestores() {
         let store = TimelineStore()
+        // Unique lane/clip so this test counts only ITS regions — a fresh TimelineStore
+        // may load a persisted document (AppGroupStore falls back to Application Support),
+        // so absolute counts would flake on re-run. Delta on our own lane instead.
         let lane = UUID()
         let clip = UUID()
-        // Two bars back-to-back on one lane; the playhead sits mid-first-bar.
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
         store.addRegion(TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920))
         store.addRegion(TimelineRegion(laneID: lane, clipID: clip, startTick: 1920, lengthTicks: 1920))
-        XCTAssertEqual(store.document.regions.count, 2)
+        XCTAssertEqual(mine().count, 2)
 
-        // Razor at tick 960 (inside the first region only) → 3 regions.
+        // Razor at tick 960 (inside the first region only) → 3 of ours.
         store.splitRegions(atTick: 960, bpm: 120)
-        XCTAssertEqual(store.document.regions.count, 3, "only the crossed region splits")
+        XCTAssertEqual(mine().count, 3, "only the crossed region splits")
 
-        // Join at 960 → back to 2.
-        store.mergeRegions(atTick: 960)
-        XCTAssertEqual(store.document.regions.count, 2, "the two pieces at the tick rejoin")
-        // The rejoined region spans the original first bar again.
-        XCTAssertTrue(store.document.regions.contains { $0.startTick == 0 && $0.lengthTicks == 1920 })
+        // Join at 960 → back to 2 of ours.
+        store.mergeRegions(atTick: 960, bpm: 120)
+        XCTAssertEqual(mine().count, 2, "the two pieces at the tick rejoin")
+        XCTAssertTrue(mine().contains { $0.startTick == 0 && $0.lengthTicks == 1920 },
+                      "the rejoined region spans the original first bar again")
     }
 
     func testSplitRegions_atEdge_isNoOp() {
         let store = TimelineStore()
         let lane = UUID(); let clip = UUID()
+        func mineCount() -> Int { store.document.regions.filter { $0.laneID == lane }.count }
         store.addRegion(TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920))
-        let before = store.document.regions.count
+        let before = mineCount()
         store.splitRegions(atTick: 0, bpm: 120)      // start edge
         store.splitRegions(atTick: 5000, bpm: 120)   // past the region
-        XCTAssertEqual(store.document.regions.count, before, "edge/outside razor changes nothing")
+        XCTAssertEqual(mineCount(), before, "edge/outside razor changes nothing")
     }
 }
