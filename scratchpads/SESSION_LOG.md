@@ -5634,3 +5634,9 @@ Resonanz-Onboarding · Wetter/Ort-Journal (Founder-Gate Info.plist!) · lokale P
 - ui-state-reviewer PASS on all 5 laws (found+fixed 1 dead @Environment line). Xcode Compile Check + CI/CD Pipeline green on 2c385f2.
 - **Deploy** f35fa82: .deploy/release → v10.79.195 (tokenless TestFlight trigger).
 - NEXT: scene→ADM-OSC/renderer live (VBAP/Ambisonics/Binaural cores exist) + automation-record of room moves (AutomationGestureRecorder exists). Then per-lane AUv3 bus.
+
+## 2026-07-14 — Harness effectiveness (founder: "integriere alles was unsere Arbeit effektiver macht")
+- From video 2 (@jakebeau_ / Anthropic "Effective harnesses for long-running agents"): adopted the idea-maze/leaderboard discipline for OUR loop (not a product feature — that stays a Council candidate).
+- NEW scratchpads/HARNESS_LEDGER.md — durable DEAD-ENDS table (don't retry: sheet-chain metadata, 10Hz-ancestor freeze, per-frame main-actor hop, .init iOS-ambiguity, deprecated coordinateSpace(name:), Double→CGFloat, tokenless-deploy-only, curl-github-blocked, Quick-Test-not-a-gate, Rausch READ-ONLY) + PLAYBOOKS + shipped leaderboard. Read after SESSION_LOG each session.
+- NEW scripts/gh-run-status.py — parses the overflowing mcp__github__actions_* dump into `sha status conclusion run_id title` (the CI-poll friction I hit 3× this run). Tested against real dumps.
+- CLAUDE.md: scratchpads table + "Start every session" + a compact "Harness discipline" rule pointing at both.

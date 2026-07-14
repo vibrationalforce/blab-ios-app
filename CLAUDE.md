@@ -461,10 +461,20 @@ The `scratchpads/` directory is session-specific logs and plans:
 | File | Purpose |
 |------|---------|
 | `SESSION_LOG.md` | **Read first** — session history, key discoveries, commits |
+| `HARNESS_LEDGER.md` | **The idea-maze** — proven DEAD-ENDS (don't retry), reliable PLAYBOOKS, shipped leaderboard |
 | `ARCHITECTURE_AUDIT_*.md` | Data flow diagrams, env object chains, init sequence |
 | `PLAN_*.md` | Feature/fix plans before implementation |
 
-**Start every session** by reading `memory/` first, then `scratchpads/SESSION_LOG.md`.
+**Start every session** by reading `memory/` first, then `scratchpads/SESSION_LOG.md`,
+then `scratchpads/HARNESS_LEDGER.md`.
+
+**Harness discipline (long-running-agent effectiveness).** Before trying any
+non-trivial approach, scan `HARNESS_LEDGER.md` DEAD-ENDS — a past (context-compacted)
+cycle may already have proven it wrong; take the "do this instead". After a cycle,
+append ONE row for any real dead-end hit or reliable playbook found, so the loop
+climbs instead of circling. Check CI gate status compactly with
+`python3 scripts/gh-run-status.py <saved-tool-result.json>` (parses the overflowing
+`mcp__github__actions_*` dump into `sha status conclusion run_id title`).
 
 ### 4-Phase Workflow
 
