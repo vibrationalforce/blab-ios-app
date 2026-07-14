@@ -3,6 +3,18 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 66, ULTRACODE) — #23 Modul 2 Fundament: Genre/Mood/Variation pro Spur
+- v202 (Per-Spur-Sound) TestFlight-Build success → auf Founder-Gerät. Alle Gates grün.
+- **Modul-2-Fundament (additiv, wie lane.patch):** `TimelineLane` bekommt `genreOverride: MusicStyle?`,
+  `mood: MoodProfile?`, `variationSeed: UInt64?` — die Per-Spur-Kompositionsgruppe die der Founder
+  gruppiert hat ("Genre und Variation pro Spur … Mood kommt zu Genre und Variationen"). nil = globale Wahl
+  (bit-identisch). `MoodProfile` bekam `Codable` (8 Floats, synthetisiert). decodeIfPresent→nil, encode lässt
+  nil weg. Reviewer concurrency + code-review je PASS(0). 3 Tests (default-nil, legacy→nil, Roundtrip inkl.
+  near-UInt64.max Seed für exakte JSON-Präzision). KEIN Deploy (Fundament inert bis Composer-Wiring).
+- **Nächster Schritt Modul 2:** Per-Lane-Composer-Wiring — generate() komponiert JEDE Sekundär-Spur mit
+  ihrem eigenen genreOverride/mood/variationSeed (BioVariationMaze für die Variation), mehrere Genres
+  gleichzeitig. Reuse makeComposerInput pro Lane. (Hörbar nur mit multiRoll — ist default-ON.)
+
 ## 2026-07-14 (Forts. 65, ULTRACODE) — Multi-Roll-Audit-Workflow → 3 Live-Bugs gefixt + Per-Spur-Sound verdrahtet
 - **Founder: "Ultracode mit allen Fähigkeiten, du entscheidest, bis Vision Complete."** Entscheid (Council:
   proceed-with-mitigation): den multiRoll-Keystone scharf machen — aber audit-first + reversibel.
