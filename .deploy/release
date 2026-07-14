@@ -1,29 +1,23 @@
-build: 2026-07-14 v10.79.210 (Transpose pro Instrument — auf deine Ansage)
+build: 2026-07-14 v10.79.211 (Baustelle Rang 1: Netzwerk-Ausgabe endlich adressierbar)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkt auf deinen Wunsch: "Wenn einzelne Instrumenten Elemente im Synth nen
-  Transpose Button haben ist das kool." Ist gebaut — und es KLINGT auch wirklich
-  (kein toter Knopf).
+notes: Erster abgearbeiteter Punkt aus der Baustellen-Ledger (No-Sleep-Modus). Bisher
+  gingen OSC / ADM-OSC / sACN nur an ‚localhost‘ bzw. eine falsche fest verdrahtete IP —
+  Resolume · TouchDesigner · MadMapper · Lichtknoten im LAN bekamen NICHTS, ohne Weg das
+  zu ändern. Das ist behoben.
 
-  WO: In der Spur-Tür (das Menü am Spurkopf) → "Sound & FX (this track)". Dort gibt
-  es jetzt neben Cutoff/Resonance/Drive/Pan ein Feld "Transpose" in Halbtönen (st),
-  −48…+48. Der Zahlenblock hat die −/+ Vorzeichen-Tasten (genau dafür gebaut), also
-  Bass z.B. −12 (Oktave runter), ein Layer +7 (Quinte hoch).
+  WO: Routing (Patchbay) → neue Sektion „Netzwerk-Ausgabe". Pro Ausgang ein Feld für
+  Ziel-Host/IP + Port (sACN/Art-Net zusätzlich Universe). Der Punkt zeigt, ob der Ausgang
+  gerade sendet.
 
-  WIE es klingt: pro Spur eigen. Die HAUPT-Spur hörst du SOFORT (der Wert wird live
-  in die Melodie-Stimmen geschoben, wie Pan). Zusätzliche MIDI-Spuren übernehmen den
-  Versatz beim nächsten Loop-Durchlauf (dort wo auch ihr Sound/Patch greift). Der
-  Versatz ist zerstörungsfrei: die geschriebenen Noten behalten ihre Tonhöhe, nur die
-  klingende Frequenz wandert — und wird mit dem Song gespeichert.
+  WIE: Werte werden gespeichert (überleben Neustart) und wirken SOFORT, wenn der Ausgang
+  läuft (der Socket verbindet sich neu). Trägt man nichts ein, bleibt alles exakt wie
+  bisher (bit-identisch — die alten Standardwerte) — kein Risiko für bestehende Setups.
 
-  WARUM sicher: der Kern ist EINE Zeile im Ton-Rechenweg (Halbton in denselben
-  Exponenten wie die Mikrotonstimmung, atomarer Float-Read wie der Kammerton),
-  bit-identisch bei 0, kein hängender Ton (die Stimmen-Verwaltung bleibt auf der
-  ungesetzten Notennummer). slideNote/Glide bleibt unberührt (das Intervall-Verhältnis
-  ist transpose-invariant). Reviewer: audio-thread PASS · concurrency PASS · code PASS
-  (Fundament) + ui-state PASS · code PASS (Bedienfeld). Gates: Xcode + CI/CD.
+  SICHER: Müll-Eingabe crasht nicht (UDP scheitert still), Port 1…65535 geklemmt, keine
+  Geheimnisse gespeichert (nur LAN-Adresse). Reviewer: concurrency PASS · ui-state PASS
+  (Environment sauber, freeze-sicher, kein Card-in-Card) · security PASS (kein Crash,
+  keine Regression, Privacy ok). Der didSet-Reconnect ist doppelt abgesichert (greift nur
+  bei aktivem Ausgang). Gates: Xcode + CI/CD.
 
-  Das ist bewusst der PER-INSTRUMENT-Transpose (der alte globale war immer 0/tot und
-  wurde gelöscht) — passt genau in die "alles pro Spur/Instrument"-Richtung.
-
-  Hinweis: der sichtbare Header-Umzug (Tonart/Kammerton hoch, 2b-ii) wartet weiter auf
-  deine Device-Sicht auf die neue Tempo-Kopfzeile aus v209.
+  Stand Ledger: 28 Baustellen verifiziert · Rang 1 (Netzwerk-Ziel) ✓ · als Nächstes
+  Rang 2 (Vintage Tape/VHS-FX) bzw. die entscheidungsfreien Punkte der Reihe nach.

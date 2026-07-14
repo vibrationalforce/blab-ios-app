@@ -15,6 +15,8 @@ struct PatchbayView: View {
     @Environment(SignalRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     #if canImport(Network)
+    @Environment(OSCSender.self) private var osc
+    @Environment(ADMOSCSender.self) private var admOSC
     @Environment(ArtNetSender.self) private var artNet
     @Environment(SACNSender.self) private var sacn
     #endif
@@ -44,6 +46,7 @@ struct PatchbayView: View {
             VStack(alignment: .leading, spacing: 14) {
                 headerBar
                 #if canImport(Network)
+                networkOutSection
                 lichtSection
                 #endif
                 #if os(iOS) && canImport(CoreAudioKit)
@@ -104,6 +107,79 @@ struct PatchbayView: View {
     #endif
 
     #if canImport(Network)
+    // MARK: - Netzwerk-Ausgabe (rank #1: OSC / ADM-OSC / sACN / Art-Net target config)
+
+    /// Host + port (+ universe) per network output, so the founder can point OSC/ADM at
+    /// Resolume/TouchDesigner/MadMapper and sACN/Art-Net at the right light node instead
+    /// of only localhost/broadcast. Values persist (UserDefaults in each sender) and a
+    /// live edit reconnects immediately. Flat rows (no card-in-card, Uncodixfy). The dot
+    /// = whether that output is currently sending (low-frequency isActive — freeze-safe).
+    private var networkOutSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Netzwerk-Ausgabe").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            outputRow("OSC", active: osc.isActive, host: oscHost, port: oscPort)
+            outputRow("ADM-OSC", active: admOSC.isActive, host: admHost, port: admPort)
+            outputRow("sACN · Licht", active: sacn.isActive, host: sacnHost, port: sacnPort,
+                      universe: sacnUniverse, universeRange: 1...63_999)
+            outputRow("Art-Net · Licht", active: artNet.isActive, host: artNetHost, port: artNetPort,
+                      universe: artNetUniverse, universeRange: 0...32_767)
+            Text("Ziel-IP + Port pro Ausgang — Änderungen wirken sofort, wenn der Ausgang läuft. OSC/ADM stehen auf ‚localhost‘ (dieses Gerät); für Resolume · TouchDesigner · MadMapper die IP des Zielrechners eintragen. Art-Net sendet standardmäßig per Broadcast (255.255.255.255) an alle LAN-Knoten.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    private func outputRow(_ name: String, active: Bool, host: Binding<String>, port: Binding<Float>,
+                           universe: Binding<Float>? = nil,
+                           universeRange: ClosedRange<Float> = 1...63_999) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Circle().fill(active ? EchoelTheme.accent : EchoelTheme.border).frame(width: 7, height: 7)
+                Text(name).font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+            }
+            TextField("IP / host", text: host)
+                .textFieldStyle(.plain)
+                .font(EchoelTheme.font(13).monospacedDigit())
+                .padding(.horizontal, 10).frame(height: 34)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.bg))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                #if os(iOS)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
+                #endif
+            HStack(spacing: 8) {
+                EchoelValueField(label: "Port", value: port, range: 1...65_535, unit: "", decimals: 0)
+                if let universe {
+                    EchoelValueField(label: "Universe", value: universe, range: universeRange, unit: "", decimals: 0)
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(name) — network target")
+    }
+
+    // Manual bindings (the senders are @Environment @Observable references, not @Bindable).
+    private var oscHost: Binding<String> { Binding(get: { osc.host }, set: { osc.host = $0 }) }
+    private var oscPort: Binding<Float> { Binding(get: { Float(osc.port) }, set: { osc.port = Self.clampPort($0) }) }
+    private var admHost: Binding<String> { Binding(get: { admOSC.host }, set: { admOSC.host = $0 }) }
+    private var admPort: Binding<Float> { Binding(get: { Float(admOSC.port) }, set: { admOSC.port = Self.clampPort($0) }) }
+    private var sacnHost: Binding<String> { Binding(get: { sacn.host }, set: { sacn.host = $0 }) }
+    private var sacnPort: Binding<Float> { Binding(get: { Float(sacn.port) }, set: { sacn.port = Self.clampPort($0) }) }
+    private var sacnUniverse: Binding<Float> {
+        Binding(get: { Float(sacn.universe) }, set: { sacn.universe = min(max(Int($0.rounded()), 1), 63_999) })
+    }
+    private var artNetHost: Binding<String> { Binding(get: { artNet.host }, set: { artNet.host = $0 }) }
+    private var artNetPort: Binding<Float> { Binding(get: { Float(artNet.port) }, set: { artNet.port = Self.clampPort($0) }) }
+    private var artNetUniverse: Binding<Float> {
+        Binding(get: { Float(artNet.universe) }, set: { artNet.universe = min(max(Int($0.rounded()), 0), 32_767) })
+    }
+    private static func clampPort(_ v: Float) -> UInt16 { UInt16(min(max(Int(v.rounded()), 1), 65_535)) }
+
     // MARK: - Licht (L1: Grand Master + Blackout, drives Art-Net AND sACN)
 
     private var lichtSection: some View {

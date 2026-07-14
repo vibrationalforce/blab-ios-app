@@ -36,13 +36,19 @@ public final class SACNSender {
 
     /// Receiver IP (unicast). For multicast (entitlement required) set this to
     /// `SACNSender.multicastHost(universe:)`.
-    public var host: String
+    public var host: String {
+        didSet { Self.persistTarget(host, port, universe); reconnectIfActive() }
+    }
 
     /// E1.31 port is fixed at 5568 by the standard, kept configurable.
-    public var port: UInt16
+    public var port: UInt16 {
+        didSet { Self.persistTarget(host, port, universe); reconnectIfActive() }
+    }
 
     /// 1-based E1.31 universe (1…63999). 0 is invalid in sACN.
-    public var universe: Int
+    public var universe: Int {
+        didSet { Self.persistTarget(host, port, universe) }   // packet content, no socket change
+    }
 
     /// DMX value resolution (shared with Art-Net): 16-bit coarse/fine pairs by
     /// default for professional precision, 8-bit for legacy fixtures.
@@ -74,9 +80,12 @@ public final class SACNSender {
     @ObservationIgnored private let cid: [UInt8]
 
     public init(host: String = "192.168.1.100", port: UInt16 = 5568, universe: Int = 1) {
-        self.host = host
-        self.port = port
-        self.universe = Swift.max(1, universe)
+        let d = UserDefaults.standard
+        self.host = d.string(forKey: Self.hostKey) ?? host
+        let p = d.integer(forKey: Self.portKey)
+        self.port = (p > 0 && p <= 65_535) ? UInt16(p) : port
+        let u = d.integer(forKey: Self.universeKey)
+        self.universe = (u >= 1 && u <= 63_999) ? u : Swift.max(1, universe)
         var bytes = [UInt8](repeating: 0, count: 16)
         withUnsafeBytes(of: UUID().uuid) { raw in
             for i in 0..<16 { bytes[i] = raw[i] }
@@ -100,6 +109,25 @@ public final class SACNSender {
         connection?.cancel()
         connection = nil
         isActive = false
+    }
+
+    // MARK: - Target persistence + live reconnect
+
+    private static let hostKey = "net.sacn.host"
+    private static let portKey = "net.sacn.port"
+    private static let universeKey = "net.sacn.universe"
+    private static func persistTarget(_ host: String, _ port: UInt16, _ universe: Int) {
+        let d = UserDefaults.standard
+        d.set(host, forKey: hostKey)
+        d.set(Int(port), forKey: portKey)
+        d.set(universe, forKey: universeKey)
+    }
+    /// A host/port edit takes effect immediately while the output is live (connect()
+    /// otherwise only runs in start()): drop the old socket, reconnect. Idle ⇒ no-op.
+    private func reconnectIfActive() {
+        guard isActive else { return }
+        connection?.cancel()
+        connect()
     }
 
     // MARK: - Connection

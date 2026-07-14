@@ -34,13 +34,19 @@ public final class ArtNetSender {
 
     /// Art-Net node host. Unicast to the node's IP is most reliable; limited
     /// broadcast (255.255.255.255) reaches every node on the LAN.
-    public var host: String
+    public var host: String {
+        didSet { Self.persistTarget(host, port, universe); reconnectIfActive() }
+    }
 
     /// Art-Net port is fixed at 6454 by the standard, but kept configurable.
-    public var port: UInt16
+    public var port: UInt16 {
+        didSet { Self.persistTarget(host, port, universe); reconnectIfActive() }
+    }
 
     /// 15-bit Art-Net port address (Net<<8 | SubUni). Universe 0 by default.
-    public var universe: Int
+    public var universe: Int {
+        didSet { Self.persistTarget(host, port, universe) }   // packet content, no socket change
+    }
 
     /// DMX value resolution per parameter. 16-bit uses paired coarse/fine
     /// channels (65 536 steps) for smooth, professional fades; 8-bit (256 steps)
@@ -79,9 +85,13 @@ public final class ArtNetSender {
     @ObservationIgnored private var lastSentBlackout = false
 
     public init(host: String = "255.255.255.255", port: UInt16 = 6454, universe: Int = 0) {
-        self.host = host
-        self.port = port
-        self.universe = max(0, universe)
+        let d = UserDefaults.standard
+        self.host = d.string(forKey: Self.hostKey) ?? host
+        let p = d.integer(forKey: Self.portKey)
+        self.port = (p > 0 && p <= 65_535) ? UInt16(p) : port
+        // universe persists as stored+1 so a legitimate 0 is distinguishable from "unset".
+        let u = d.integer(forKey: Self.universeKey)
+        self.universe = u > 0 ? (u - 1) : max(0, universe)
     }
 
     public func start(subscribing bus: EngineBus) {
@@ -101,6 +111,25 @@ public final class ArtNetSender {
         connection = nil
         isActive = false
         lastDimmer = -1
+    }
+
+    // MARK: - Target persistence + live reconnect
+
+    private static let hostKey = "net.artnet.host"
+    private static let portKey = "net.artnet.port"
+    private static let universeKey = "net.artnet.universe"
+    private static func persistTarget(_ host: String, _ port: UInt16, _ universe: Int) {
+        let d = UserDefaults.standard
+        d.set(host, forKey: hostKey)
+        d.set(Int(port), forKey: portKey)
+        d.set(universe + 1, forKey: universeKey)   // +1 so a valid universe 0 ≠ "unset"
+    }
+    /// A host/port edit takes effect immediately while the output is live (connect()
+    /// otherwise only runs in start()): drop the old socket, reconnect. Idle ⇒ no-op.
+    private func reconnectIfActive() {
+        guard isActive else { return }
+        connection?.cancel()
+        connect()
     }
 
     // MARK: - Connection

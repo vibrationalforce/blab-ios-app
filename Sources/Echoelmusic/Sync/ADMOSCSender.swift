@@ -38,11 +38,15 @@ import Observation
 public final class ADMOSCSender {
 
     /// Renderer host. FletcherMachine / immersive consoles are usually a LAN box.
-    public var host: String
+    public var host: String {
+        didSet { Self.persistTarget(host, port); reconnectIfActive() }
+    }
 
     /// Renderer OSC port. ADM-OSC renderers typically listen on a port distinct
     /// from TouchOSC's 8000 — default 9000, user-configurable.
-    public var port: UInt16
+    public var port: UInt16 {
+        didSet { Self.persistTarget(host, port); reconnectIfActive() }
+    }
 
     /// 1-based ADM object index this bio source drives.
     public var objectIndex: Int
@@ -78,8 +82,10 @@ public final class ADMOSCSender {
     @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
 
     public init(host: String = "127.0.0.1", port: UInt16 = 9000, objectIndex: Int = 1) {
-        self.host = host
-        self.port = port
+        let d = UserDefaults.standard
+        self.host = d.string(forKey: Self.hostKey) ?? host
+        let p = d.integer(forKey: Self.portKey)
+        self.port = (p > 0 && p <= 65_535) ? UInt16(p) : port
         self.objectIndex = max(1, objectIndex)
     }
 
@@ -108,6 +114,23 @@ public final class ADMOSCSender {
     /// opened the socket.
     public func attachScene(_ store: SpatialSceneStore?) {
         sceneStore = store
+    }
+
+    // MARK: - Target persistence + live reconnect
+
+    private static let hostKey = "net.adm.host"
+    private static let portKey = "net.adm.port"
+    private static func persistTarget(_ host: String, _ port: UInt16) {
+        let d = UserDefaults.standard
+        d.set(host, forKey: hostKey)
+        d.set(Int(port), forKey: portKey)
+    }
+    /// A host/port edit takes effect immediately while streaming (connect() otherwise
+    /// only runs in start()): drop the old socket, reconnect. Idle ⇒ no-op.
+    private func reconnectIfActive() {
+        guard isActive else { return }
+        connection?.cancel()
+        connect()
     }
 
     // MARK: - Connection

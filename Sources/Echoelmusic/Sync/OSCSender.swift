@@ -41,9 +41,13 @@ import Observation
 @Observable
 public final class OSCSender {
 
-    public var host: String
+    public var host: String {
+        didSet { Self.persistTarget(host, port); reconnectIfActive() }
+    }
 
-    public var port: UInt16
+    public var port: UInt16 {
+        didSet { Self.persistTarget(host, port); reconnectIfActive() }
+    }
 
     public private(set) var isActive = false
 
@@ -64,8 +68,10 @@ public final class OSCSender {
     private var lastFrameTimestamp: TimeInterval = -1
 
     public init(host: String = "localhost", port: UInt16 = 8000) {
-        self.host = host
-        self.port = port
+        let d = UserDefaults.standard
+        self.host = d.string(forKey: Self.hostKey) ?? host
+        let p = d.integer(forKey: Self.portKey)
+        self.port = (p > 0 && p <= 65_535) ? UInt16(p) : port
     }
 
     public func start(subscribing bus: EngineBus) {
@@ -85,6 +91,24 @@ public final class OSCSender {
         connection?.cancel()
         connection = nil
         isActive = false
+    }
+
+    // MARK: - Target persistence + live reconnect
+
+    private static let hostKey = "net.osc.host"
+    private static let portKey = "net.osc.port"
+    private static func persistTarget(_ host: String, _ port: UInt16) {
+        let d = UserDefaults.standard
+        d.set(host, forKey: hostKey)
+        d.set(Int(port), forKey: portKey)
+    }
+    /// A host/port edit takes effect immediately while the output is live (connect()
+    /// otherwise only runs in start()): drop the old socket, reconnect to the new
+    /// endpoint. Idle ⇒ no-op; the next start() uses the value.
+    private func reconnectIfActive() {
+        guard isActive else { return }
+        connection?.cancel()
+        connect()
     }
 
     // MARK: - Connection
