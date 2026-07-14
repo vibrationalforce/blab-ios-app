@@ -277,7 +277,7 @@ public struct EchoelRenderLayout: Codable, Sendable, Equatable {
         }
 
         guard let ext = echoelRender else { return issues }   // plain IEM layout: done.
-        let channelMapKeys = Set(ext.output?.channelMap?.keys.map(String.init) ?? [])
+        let channelMapKeys = Set(ext.output?.channelMap?.keys.map { $0 } ?? [])
         let mapHasKeys = ext.output?.channelMap != nil
 
         // Rule: every ring channel must have a Loudspeaker (by Channel) AND a channelMap entry.
