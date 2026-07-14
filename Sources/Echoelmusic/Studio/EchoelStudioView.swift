@@ -3820,7 +3820,12 @@ struct EchoelStudioView: View {
             beatPlayer.pattern.play()
             metronome.resync()   // align the click's downbeat to the start
         }
-        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying)")
+        // SILENCE DIAG (founder "alles ist still", 2026-07-14): the melody only sounds
+        // when the roll-slot lane is audible — pianoRoll.mixGain mirrors the first MIDI
+        // lane's mute/solo/level (Timeline.rollSlotGain). mixGain≈0 ⇒ every noteOn is
+        // gated off (PianoRollView:529 `laneAudible`) → total silence even though notes
+        // generate + the transport plays. Logging it makes the cause pastable.
+        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain))")
     }
 
     // MARK: - Variation maze (#19)
