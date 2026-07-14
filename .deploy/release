@@ -1,28 +1,34 @@
-build: 2026-07-14 v10.79.215 (DAW#2: Clips schneiden & zusammenfügen — Split/Join am Playhead)
+build: 2026-07-14 v10.79.216 (DAW#3-A: Audio-Dateien in eine Spur importieren)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zweite Scheibe deiner Vier-Punkte-Liste („Clips schneiden und zusammenfügen").
-  Zwei neue Werkzeuge in der Timeline — das Rasiermesser und sein Gegenstück.
+notes: Dritte Scheibe deiner Vier-Punkte-Liste beginnt — „Audio richtig integrieren".
+  Der erste, greifbare Schritt: du kannst jetzt eine Audio-Datei in eine Audio-Spur
+  IMPORTIEREN und sie liegt als Clip auf der Timeline.
 
-  WO: Timeline-Werkzeugleiste (oben, neben Play/Record) → zwei neue Knöpfe:
-  • „Split" (Schere) — schneidet JEDE Region, die der Playhead gerade kreuzt, an dieser
-    Stelle in zwei Teile.
-  • „Join" (Pfeil-Merge) — fügt am Playhead wieder zusammen, was ein Split dort getrennt hat.
+  WO: Auf einer Audio-Spur → Spurkopf antippen → „Open audio editor". Dort wie
+  gewohnt „Import" (WAV · AIFF · MP3 · M4A · …), Wellenform trimmen — und darunter
+  ist NEU ein Knopf „Add to timeline".
 
-  WAS es tut: Split trennt sauber (bei Audio/Video wandert der Medien-Startpunkt des zweiten
-  Teils mit, damit es nahtlos weiterspielt; MIDI unberührt). Join ist der verlustfreie
-  Rückweg — und verweigert bewusst, wenn du den zweiten Teil nach dem Split beschnitten/
-  verschoben hast (sonst würde das Zusammenfügen deinen Schnitt still verwerfen). Kein
-  Auswahl-Modus nötig: beides sind Playhead-Gesten, symmetrisch.
+  WAS es tut: „Add to timeline" kopiert die Datei dauerhaft in den App-Speicher
+  (sie bleibt also erhalten, auch wenn du die Quell-Datei später bewegst) und legt
+  sie als Region auf deine Spur — HINTER dem, was dort schon liegt (kein Überlappen).
+  Die Region zeigt sofort ihre Wellenform, und ein Fingertipp darauf spielt sie
+  vor. Der getrimmte Anfang wird als Startpunkt mitgenommen.
 
-  WIE: reine Tick-Mathematik (Region.split/abuts/merged, unit-getestet) + zwei
-  TimelineStore-Methoden (Razor über alle gekreuzten Regionen · Join bis zur Konvergenz).
-  Der Playhead-Stand wird NUR im Tastendruck gelesen (nie im Body) — die Menü-Freeze-Regel
-  bleibt gewahrt. Werte werden gespeichert, der Store fasst nie Audio an.
+  GRENZE (ehrlich): die importierte Region klingt beim ANTIPPEN — im laufenden
+  Transport-Playback spielt sie noch NICHT mit. Das transport-synchrone Abspielen
+  der Audio-Spuren ist die nächste Scheibe (AudioLanePlayer). Ist das Clip-Raster
+  (8 Slots) voll, sagt der Knopf das statt still etwas zu überschreiben.
 
-  SICHER: 14 Tests (Split-Geometrie/Kanten/Offset/Längenerhalt · abuts/merged ·
-  Medien-Diskontinuität „beschnitten ⇒ kein Merge" · Store-Razor+Join-Round-Trip). Reviewer:
-  ui-state PASS (Freeze-Regel gewahrt, Schleife terminiert, State-Flow korrekt) · code PASS
-  (Split/Merge-Logik korrekt + sicher). Gates: Xcode + CI/CD.
+  WIE: reine, getestete Platzierungs-Mathematik (freier Clip-Slot · Anhänge-Tick
+  hinter dem Spur-Inhalt · AudioClipFactory) + ein einziger unreiner Schritt (die
+  Datei-Kopie in die App-Group). Kein Audio-Thread berührt, keine Sheet-Kette
+  gewachsen (bestehende Tür wiederverwendet).
 
-  Reihenfolge: DAW#1 Automation ✓ · DAW#2 Clips schneiden/fügen ✓ · als Nächstes #3
-  Audio-Spuren klingen lassen + Import, dann #4 Video-Spuren.
+  SICHER: Reviewer — Security PASS (Sicherheits-Scope korrekt gehalten,
+  UUID-Zielname statt Fremd-Dateiname, kein Pfad-Trick), Concurrency PASS
+  (MediaLibrary nonisolated & Sendable-sicher, Umgebungs-Reads nur im Lane-Pfad),
+  Code PASS (Test-Hygiene + Doc-Kommentar nachgezogen). Neue Unit-Tests für die
+  Platzierungs-Mathematik. Gates: Xcode Compile + CI/CD.
+
+  Reihenfolge: DAW#1 Automation ✓ · DAW#2 Clips schneiden/fügen ✓ · DAW#3 Audio —
+  Import ✓ / transport-sync klingt als Nächstes · dann #4 Video-Spuren.
