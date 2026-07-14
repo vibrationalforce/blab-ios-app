@@ -60,13 +60,22 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     public var genreOverride: MusicStyle?
     public var mood: MoodProfile?
     public var variationSeed: UInt64?
+    /// Per-instrument TRANSPOSE in whole semitones (founder 2026-07-14: "Wenn einzelne
+    /// Instrumenten Elemente im synth nen transpose Button haben ist das kool"). Shifts
+    /// THIS lane's SOUNDING pitch (e.g. bass −12, a layer +7) on the voice's MIDI→Hz
+    /// path — non-destructive: the written notes keep their pitch, only the rendered
+    /// frequency moves. 0 = no shift (bit-identical). Persisted DATA; the voice wiring
+    /// reads it per lane (primary lane via `rollTransposeSink`, secondary lanes via
+    /// `slotTransposeSink`).
+    public var transposeSemitones: Int
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
                 pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = [],
                 builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false,
                 patch: SynthPatch? = nil, genreOverride: MusicStyle? = nil,
-                mood: MoodProfile? = nil, variationSeed: UInt64? = nil) {
+                mood: MoodProfile? = nil, variationSeed: UInt64? = nil,
+                transposeSemitones: Int = 0) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -83,6 +92,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.genreOverride = genreOverride
         self.mood = mood
         self.variationSeed = variationSeed
+        self.transposeSemitones = transposeSemitones
     }
 
     /// What this track's record button captures — derived from its kind + built-in
@@ -123,6 +133,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         genreOverride = try c.decodeIfPresent(MusicStyle.self, forKey: .genreOverride)
         mood = try c.decodeIfPresent(MoodProfile.self, forKey: .mood)
         variationSeed = try c.decodeIfPresent(UInt64.self, forKey: .variationSeed)
+        // Pre-2026-07-14 docs carry no per-track transpose ⇒ 0 (no shift, bit-identical).
+        transposeSemitones = try c.decodeIfPresent(Int.self, forKey: .transposeSemitones) ?? 0
     }
 }
 

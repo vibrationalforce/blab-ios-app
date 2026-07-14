@@ -132,6 +132,50 @@ final class MultiRollFanoutTests: XCTestCase {
         XCTAssertNil(MultiRollFanout.laneID(forSlot: 2, in: doc, rollLane: roll))
     }
 
+    // MARK: - Per-instrument Transpose (founder 2026-07-14)
+
+    /// Each slot resolves ITS lane's own semitone transpose — mirrors patch(forSlot:).
+    private func makeTransposedDoc(_ t0: Int, _ t1: Int) -> (TimelineDocument, roll: UUID, sec: [UUID]) {
+        let bio = TimelineLane(name: "Bio", kind: .midi, isBio: true)
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let s1 = TimelineLane(name: "MIDI 2", kind: .midi, transposeSemitones: t0)
+        let s2 = TimelineLane(name: "MIDI 3", kind: .midi, transposeSemitones: t1)
+        let regions = [TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920)]
+        return (TimelineDocument(lanes: [bio, roll, s1, s2], regions: regions), roll.id, [s1.id, s2.id])
+    }
+
+    func testTransposeForSlot_resolvesEachLanesOwnShift() {
+        let (doc, roll, _) = makeTransposedDoc(-12, 7)
+        XCTAssertEqual(MultiRollFanout.transpose(forSlot: 0, in: doc, rollLane: roll), -12)
+        XCTAssertEqual(MultiRollFanout.transpose(forSlot: 1, in: doc, rollLane: roll), 7)
+    }
+
+    func testTransposeForSlot_unsetLane_isZero() {
+        let (doc, roll, _) = makeTransposedDoc(0, 0)
+        XCTAssertEqual(MultiRollFanout.transpose(forSlot: 0, in: doc, rollLane: roll), 0)
+    }
+
+    func testTransposeForSlot_outOfRange_isZero() {
+        let (doc, roll, _) = makeTransposedDoc(5, 5)
+        XCTAssertEqual(MultiRollFanout.transpose(forSlot: 9, in: doc, rollLane: roll), 0)
+    }
+
+    /// Model backward-compat: a lane's transpose round-trips, and a document saved
+    /// BEFORE the field existed (no `transposeSemitones` key) decodes to 0 (no shift).
+    func testTransposeSemitones_codableRoundTripsAndDefaultsToZero() throws {
+        let lane = TimelineLane(name: "Bass", kind: .midi, transposeSemitones: -12)
+        let data = try JSONEncoder().encode(lane)
+        let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+        XCTAssertEqual(back.transposeSemitones, -12)
+
+        // A pre-field lane: strip the key from the JSON, it must still decode (⇒ 0).
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        obj.removeValue(forKey: "transposeSemitones")
+        let stripped = try JSONSerialization.data(withJSONObject: obj)
+        let legacy = try JSONDecoder().decode(TimelineLane.self, from: stripped)
+        XCTAssertEqual(legacy.transposeSemitones, 0)
+    }
+
     /// REGRESSION GUARD: the fan-out fires a slot's notes from `LaneVoiceRackPlan`
     /// (ranked by index in `LaneVoiceScheduling.plan(...).filter{ != roll }`) but
     /// resolves that slot's PATCH and MUTE from `MultiRollFanout.laneID(forSlot:)`.

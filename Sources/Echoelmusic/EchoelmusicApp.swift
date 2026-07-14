@@ -511,9 +511,19 @@ struct EchoelmusicApp: App {
                         guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
                         if let resolved = patch ?? fallbackPatch { voice.apply(resolved) }
                     }
+                    // Per-instrument Transpose (founder 2026-07-14): pitch each SECONDARY
+                    // lane's rack voice by its own semitone shift when the lane loads.
+                    timelinePlayer.slotTransposeSink = { [weak laneVoiceRack] slot, semitones in
+                        laneVoiceRack?.voice(slot: slot)?.setTranspose(semitones: semitones)
+                    }
                 }
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
                 // the ~30 Hz control loop (idle until the user adds modulation routes).
+                // Per-instrument Transpose for the PRIMARY roll lane (founder 2026-07-14):
+                // the roll lane plays polyVoice (not a rack slot), so it gets its own hook.
+                timelinePlayer.rollTransposeSink = { [weak polyVoice] semitones in
+                    polyVoice?.setTranspose(semitones: semitones)
+                }
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)

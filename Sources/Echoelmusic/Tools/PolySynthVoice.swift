@@ -364,6 +364,14 @@ public final class PolySynthVoice {
         poly.a4Hz = Float(min(max(a4Hz, 380), 500))
     }
 
+    /// Per-instrument TRANSPOSE (founder 2026-07-14): shift this voice's pitch by whole
+    /// semitones, clamped to ±48 (±4 octaves) so a stray value can't detune out of the
+    /// audible range. Takes effect on the next note; safe to call while a loop plays
+    /// (atomic Float write, read at the next noteOn — same discipline as `setTuning`).
+    public func setTranspose(semitones: Int) {
+        poly.transposeSemitones = Float(min(max(semitones, -48), 48))
+    }
+
     /// Main-actor mirror of the active retune table so UI code (the touch
     /// instrument's note→colour mapping) can compute the SOUNDING frequency of a
     /// pitch — including Pythagorean/just/maqām offsets — without touching the
