@@ -3,6 +3,16 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 62, Cron) — Manuelle Ortsnamen-Eingabe (nicht-gesperrter Redesign-Punkt)
+- **Manuelle Orts-Eingabe** (Founder-Wunsch aus der Redesign-Runde: "auch manuell eingeben … oder
+  der Standort nicht funktioniert"). `SessionNaming.effectivePlace(manual:resolved:)` pure (2 Tests,
+  Linux) — getrimmt, manuell gewinnt, Freiform bleibt dateinamen-sicher via `stem`-sanitize.
+  `LocationNamer.manualPlace` persistiert (im Gegensatz zum transienten GPS-Token), speist
+  `session.placeToken` in adopt/clear/attach/init → stempelt den Namen auch bei Standort aus/verweigert.
+  `placeRow`: TextField + Clear + Statuszeile. concurrency + ui-state PASS(0). **Deploy GEHALTEN**
+  (bündelt mit nächstem Zyklus — v200 baut noch; keine Back-to-Back-Builds). Per-Instrument-Umbau
+  bleibt gesperrt bis Founder Sound-Bestätigung gibt.
+
 ## 2026-07-14 (Forts. 61) — Founder-Live-Redesign + STILLE gelöst (v199/v200)
 - **STILLE ("Alles ist still") — Ursache gefunden aus dem Geräte-Log + abgesichert (v200, 871b9df).**
   Log bewies: Engine startet OK, `generate: 10 notes, playing=true`, Musik WIRD erzeugt. Ursache:
