@@ -295,6 +295,43 @@ final class TimelineTests: XCTestCase {
         XCTAssertNil(lane.patch)
     }
 
+    // MARK: - Per-track composition group (genre / mood / variation — Module 2 foundation)
+
+    func testLaneComposition_defaultInitIsNil_noBehaviorChange() {
+        let lane = TimelineLane(name: "MIDI 1", kind: .midi)
+        XCTAssertNil(lane.genreOverride)
+        XCTAssertNil(lane.mood)
+        XCTAssertNil(lane.variationSeed)
+    }
+
+    func testLaneDecode_preCompositionDocument_defaultsToNil() throws {
+        // A lane persisted before per-track genre/mood/variation carries none of
+        // those keys — it must decode to nil (= follow the global choice), not fail.
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","name":"MIDI 1","kind":"midi","isBio":false,"level":1}
+        """
+        let lane = try JSONDecoder().decode(TimelineLane.self, from: Data(legacyJSON.utf8))
+        XCTAssertNil(lane.genreOverride)
+        XCTAssertNil(lane.mood)
+        XCTAssertNil(lane.variationSeed)
+    }
+
+    func testLaneComposition_roundTripsThroughCodable() throws {
+        let mood = MoodProfile(liveliness: 0.8, darkness: 0.2, tension: 0.4, romance: 0.6,
+                               weird: 0.1, virtuosity: 0.5, syncopation: 0.3, humanize: 0.4)
+        // A near-UInt64.max seed asserts the JSON round-trip stays exact (not routed
+        // through Double, which would corrupt any value above 2^53).
+        let bigSeed: UInt64 = 0xFFFF_FFFF_FFFF_FFF0
+        let lane = TimelineLane(name: "Lead", kind: .midi,
+                                genreOverride: .dubTechno, mood: mood, variationSeed: bigSeed)
+        let data = try JSONEncoder().encode(lane)
+        let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+        XCTAssertEqual(back, lane)
+        XCTAssertEqual(back.genreOverride, .dubTechno)
+        XCTAssertEqual(back.mood, mood)
+        XCTAssertEqual(back.variationSeed, bigSeed)
+    }
+
     // MARK: - Lane pan (B2)
 
     func testRollSlotPan_firstNonBioMIDILane_clampedMuteIgnored() {

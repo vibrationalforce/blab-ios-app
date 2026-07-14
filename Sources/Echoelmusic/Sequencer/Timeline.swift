@@ -51,12 +51,22 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// the composer/voice wiring (LaneVoiceRack) applies it in a follow-up module;
     /// this is the additive foundation, bit-identical while nil.
     public var patch: SynthPatch?
+    /// Per-track COMPOSITION group (founder 2026-07-14: "Genre und Variation pro MIDI-
+    /// Spur einzeln … Mood kommt zu Genre und Variationen"). Each `nil` = the track
+    /// follows the GLOBAL composition choice (no behavior change); when set, the
+    /// per-lane composer composes THIS lane in its own genre / mood / variation, so
+    /// several genres sound at once. Persisted DATA — the per-lane composer wiring
+    /// lands in a follow-up module; additive/bit-identical while all nil.
+    public var genreOverride: MusicStyle?
+    public var mood: MoodProfile?
+    public var variationSeed: UInt64?
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
                 pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = [],
                 builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false,
-                patch: SynthPatch? = nil) {
+                patch: SynthPatch? = nil, genreOverride: MusicStyle? = nil,
+                mood: MoodProfile? = nil, variationSeed: UInt64? = nil) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -70,6 +80,9 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.builtinInstrument = builtinInstrument
         self.isArmed = isArmed
         self.patch = patch
+        self.genreOverride = genreOverride
+        self.mood = mood
+        self.variationSeed = variationSeed
     }
 
     /// What this track's record button captures — derived from its kind + built-in
@@ -105,6 +118,11 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         isArmed = try c.decodeIfPresent(Bool.self, forKey: .isArmed) ?? false
         // Pre-2026-07-14 docs carry no per-track patch — decode to nil (global sound).
         patch = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)
+        // Per-track composition group (genre/mood/variation) — absent in older docs ⇒
+        // nil = follow the global composition choice.
+        genreOverride = try c.decodeIfPresent(MusicStyle.self, forKey: .genreOverride)
+        mood = try c.decodeIfPresent(MoodProfile.self, forKey: .mood)
+        variationSeed = try c.decodeIfPresent(UInt64.self, forKey: .variationSeed)
     }
 }
 

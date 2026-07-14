@@ -65,7 +65,7 @@ public struct SeededRNG: Sendable {
 /// Continuous "mood"/character controls that shape the composition independently of
 /// genre — they blend with each other and with the body. All 0…1. Neutral defaults
 /// keep existing behaviour. (See `composeHarmonic`/`ambientMelody` for the mapping.)
-public struct MoodProfile: Sendable, Equatable {
+public struct MoodProfile: Sendable, Equatable, Codable {
     public var liveliness: Float   // 0 sparse/still … 1 busy/active (density)
     public var darkness: Float     // 0 bright/high register … 1 dark/low register
     public var tension: Float      // 0 friendly/consonant … 1 scary/dissonant
