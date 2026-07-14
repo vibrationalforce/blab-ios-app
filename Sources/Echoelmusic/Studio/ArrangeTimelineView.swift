@@ -54,6 +54,14 @@ struct ArrangeTimelineView: View {
     /// Snap resolution — persisted; default 1/16 (research: snap ON by default).
     @AppStorage("timeline.snap") private var snapRaw = SnapResolution.sixteenth.rawValue
 
+    /// Region trim (B11): which region is being resized + its live handle offset.
+    /// These re-evaluate the body during an ACTIVE edge-drag only — transient, and
+    /// no `.menu` popover can be open under the same finger, so the menu-freeze law
+    /// (no CONTINUOUS ancestor churn while a menu is open) is not tripped. Reset on
+    /// release; the snapped length is committed to the store in `onEnded`.
+    @State private var resizingRegionID: UUID?
+    @State private var resizeDeltaX: CGFloat = 0
+
     private static let laneHeight: CGFloat = 56
     private static let labelWidth: CGFloat = 140
     private static let rulerHeight: CGFloat = 24
@@ -618,7 +626,10 @@ struct ArrangeTimelineView: View {
 
     private func regionBlock(_ region: TimelineRegion) -> some View {
         let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb
-        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2)
+        // Live trim (B11): while THIS region's edge is dragged, its width follows
+        // the finger; released → snapped + committed to the store.
+        let liveDelta = resizingRegionID == region.id ? resizeDeltaX : 0
+        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + liveDelta)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
         // Tap an AUDIO region = hear its file immediately (founder: "Audio mit
@@ -656,6 +667,22 @@ struct ArrangeTimelineView: View {
                     .lineLimit(1)
                     .padding(.horizontal, 5).padding(.top, 3)
             }
+            .overlay(alignment: .trailing) {
+                // Trim handle (B11): a fat invisible grab zone at the trailing
+                // edge with a thin visible grip. Because the drag starts on this
+                // dedicated zone it wins over the horizontal ScrollView (no
+                // scroll fight); moving the whole body is a later, device-tuned
+                // cycle. Snap-aware via `resizeGesture`.
+                ZStack(alignment: .trailing) {
+                    Color.clear.frame(width: 22)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(tint.opacity(resizingRegionID == region.id ? 0.9 : 0.5))
+                        .frame(width: 4, height: Self.laneHeight - 20)
+                        .padding(.trailing, 3)
+                }
+                .contentShape(Rectangle())
+                .gesture(resizeGesture(region))
+            }
             .frame(width: w, height: Self.laneHeight - 8)
             .offset(x: x, y: 4)
             .contentShape(RoundedRectangle(cornerRadius: 6))
@@ -691,6 +718,29 @@ struct ArrangeTimelineView: View {
             .updating($pinch) { value, state, _ in state = value }
             .onEnded { value in
                 pointsPerBeat = min(96, max(8, pointsPerBeat * value))
+            }
+    }
+
+    /// Trailing-edge trim gesture (B11) — turns a region block into a resizable
+    /// clip. Live width tracks the finger via `resizeDeltaX`; on release the new
+    /// length is snapped to the current grid (`.off` = stepless) and committed.
+    /// Floored at one transport step so a region can't collapse to nothing.
+    private func resizeGesture(_ region: TimelineRegion) -> some Gesture {
+        DragGesture(minimumDistance: 3)
+            .onChanged { value in
+                resizingRegionID = region.id
+                resizeDeltaX = value.translation.width
+            }
+            .onEnded { value in
+                let deltaTicks = Int((value.translation.width / ppb
+                                      * CGFloat(TimelineTime.ticksPerBeat)).rounded())
+                let raw = region.lengthTicks + deltaTicks
+                let snapped = snap == .off ? raw : TimelineSnap.snap(raw, to: snap)
+                timeline.resizeRegion(
+                    id: region.id,
+                    lengthTicks: max(TimelineTime.ticksPerTransportStep, snapped))
+                resizingRegionID = nil
+                resizeDeltaX = 0
             }
     }
 }
