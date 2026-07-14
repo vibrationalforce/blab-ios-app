@@ -1,27 +1,34 @@
-build: 2026-07-14 v10.79.193 (Tracks=Instrumente + Record-Arm; Multi-Roll-Fundament flag-gated)
+build: 2026-07-14 v10.79.194 (Spuren spielen als Instrumente + Record pro Spur — LIVE)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Malmö-Nacht-Build. Was du auf dem Gerät bekommst:
+notes: DAS ist der Build mit den echten Funktionen, nicht mehr flag-versteckt.
 
-  1) TRACKS SIND INSTRUMENTE (v191). Neue Spur -> Menü mit Instruments
-     (EchoelDrums · EchoelBreak · EchoelSampler · EchoelSynth · EchoelBass ·
-     Bio-Instrument) und Media (Audio · Video · leere MIDI). Jede Spur hat
-     ihren eigenen Record-Button (rot wenn armiert), verknüpft mit ihrer
-     Quelle: Audio-In · MIDI-In · Bio · Video. Genau deine Screenshot-Ansage.
+  1) MEHRERE SPUREN SPIELEN GLEICHZEITIG (Multi-Roll, jetzt DEFAULT-AN). Bisher
+     teilten sich alle MIDI-Spuren EINE Stimme. Jetzt bekommt jede zusätzliche
+     Spur ihre EIGENE Stimme: leg zwei MIDI-Spuren mit verschiedenen Clips an,
+     drück Play -> beide klingen zusammen. Die erste Spur behält den vollen
+     Piano-Roll (Operatoren/Bio); die weiteren fahren über ein pures, getestetes
+     Noten-Pump je Spur auf den Voice-Rack. (Grenze diese Runde: eine ZWEITE
+     Drum-Spur ist noch stumm — der Rack hat aktuell nur Synth-Stimmen; die
+     Instrument-spezifischen Stimmen pro Spur ziehe ich als Nächstes.)
 
-  2) AUv3-GENERATOR-FIX (v192). Fremd-AUv3-Instrumente, die sich als
-     "Generator" registrieren (statt MusicDevice), fielen bisher still aus dem
-     Scan. Generator ist jetzt als Instrument dabei + rawMakers/rawTypes-
-     Diagnose im Log. Schick den nächsten AUv3-Log -> die Roh-Zeile sagt
-     sofort, ob es unser Filter oder iOS-Registrierung ist.
+  2) RECORD PRO SPUR GREIFT WIRKLICH. Spur armen (roter Record-Punkt am
+     Spurkopf) -> der neue "Record"-Button in der Timeline startet den Takt ->
+     externe MIDI-Noten (dein Keyboard) UND Biofeedback werden aufgenommen ->
+     Stop legt automatisch einen CLIP + eine REGION auf die Spur (Länge auf ganze
+     Takte gerundet). Der Clip spielt danach ganz normal mit. (Grenze: Audio-In-
+     und Video-Aufnahme sowie das volle Clip-Archiv = eigener Zyklus.)
 
-  3) UNTER DER HAUBE: Multi-Roll-Fundament gelandet (12 pure Cores, alle
-     CI-grün) + LaneVoiceRack hinter FeatureFlags.multiRoll (default OFF) und
-     StoreKit hinter FeatureFlags.storeKit (default OFF). Beide Flags OFF =
-     Release BIT-IDENTISCH zum bisherigen Pfad -> null Regressionsrisiko, die
-     neuen Features oben sind der einzige sichtbare Unterschied. OSC /mod-Out
-     ist jetzt live verdrahtet.
+  3) AUv3 finden + einbinden: FINDEN ist robust (v192-Fix, schon im letzten
+     Build — bitte testen, schick den Log). GLOBAL einbinden funktioniert
+     (externes AUv3 als Instrument laden, spielt via MIDI/Piano-Roll, mit UI +
+     Parametern). PER-SPUR-Routing (jede Spur durch ihr eigenes AUv3, eigener
+     Audio-Bus) ist das einzige noch offene Stück — sauber gemappt, nächster
+     Zyklus (braucht Per-Lane-Busse in der AudioEngine).
 
-  OFFEN (eigene Cycles, brauchen Geräte-Verify): rPPG-BPM-Lock
-  (pk=0/bpm=0/conf=0 trotz Finger — pure RPPGConditioning-Fix gebaut, Geräte-
-  Wiring folgt) und der Multi-Roll-Live-Fan-out (B08, zwei Spuren gleichzeitig
-  je eigene Voice — vorbereitet, wird geräteverifiziert gezogen).
+  Jeder Schritt: Pflicht-Reviewer (Audio-Thread + Concurrency + UI-State) ALLE
+  PASS; CI-Gates (Xcode Compile Check + CI/CD Pipeline) grün. Multi-Roll ist
+  audio-thread-sauber (nur SPSC-Enqueue, kein Render-Work) und ohne hängende
+  Noten (beide Stop-Pfade flushen).
+
+  OFFEN als eigene Zyklen: Per-Spur-AUv3-Bus · zweite Drum-Spur (Voice-Kind pro
+  Slot) · Audio-Loop-Import + Audio-In-Aufnahme · rPPG-BPM-Lock (Geräte-Wiring).
