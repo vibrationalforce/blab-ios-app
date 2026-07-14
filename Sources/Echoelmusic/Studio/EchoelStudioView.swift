@@ -398,6 +398,15 @@ struct EchoelStudioView: View {
     @State private var transposeSemitones: Float = 0
     @State private var showTranspose = false
 
+    // Variation maze (#19) — the bio-curated idea-maze made auditionable. Explore
+    // stores a ranked snapshot (NOT a live read — these @State values change only on
+    // a user tap, so hosting them in the composition dropdown never churns the root
+    // body). `mazeBase` keeps the exact Input the board was scored from, so applying a
+    // candidate replays the picked skeleton + detail seed precisely.
+    @State private var mazeBoard: BioVariationMaze.Leaderboard?
+    @State private var mazeBase: BioComposer.Input?
+    @State private var mazeAppliedSeed: UInt64?
+
     // Immersive-visual controls. Now @AppStorage (Double) so they are the SHARED single
     // source of truth read by BOTH this panel AND the floating visual window (founder
     // 2026-07-02: "Visual Design muss möglich sein" — every tweak must show in the window,
@@ -1567,8 +1576,92 @@ struct EchoelStudioView: View {
             kammertonRow
             tuningRow
             tempoRow
+            variationsCard
             // placeRow/weatherRow moved to the SESSION card (R1 2026-07-10):
             // buried at the bottom of this card, the founder couldn't find them.
+        }
+    }
+
+    // MARK: Variation maze audition (#19)
+
+    /// The bio-curated idea-maze, made auditionable INSIDE the composition dropdown
+    /// (no new sheet — the EchoelStudioView modal chain is at its metadata ceiling).
+    /// Reads only @State snapshots (board/appliedSeed), so hosting it in the root-body
+    /// dropdown never churns (freeze rule). "Explore" ranks 6 variations of the same
+    /// groove by how close each sits to what the body is asking for; tapping one plays
+    /// it — the picked skeleton + detail seed reproduce exactly, the live body still
+    /// colours tempo/dynamics. Honest score: closeness of realized density to the
+    /// body's requested busy-ness (a number, not a health claim).
+    private var variationsCard: some View {
+        mixStripCard("Variationen") {
+            HStack(spacing: 8) {
+                Text(mazeBoard == nil
+                     ? "Varianten desselben Grooves — dein Körper kuratiert, du wählst."
+                     : "Ideen aus deinem Puls — tippen zum Übernehmen. Dein Körper will \(densityWord(mazeBoard?.targetDensity ?? 0)).")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button(mazeBoard == nil ? "Erkunden" : "Neu") { exploreVariations() }
+                    .buttonStyle(.plain)
+                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
+                    .padding(.horizontal, 12).frame(height: 30)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.bg))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    .accessibilityLabel(mazeBoard == nil ? "Explore variations" : "Explore new variations")
+            }
+            if let board = mazeBoard {
+                ForEach(Array(board.candidates.enumerated()), id: \.offset) { idx, cand in
+                    variationRow(cand, rank: idx)
+                }
+            }
+        }
+    }
+
+    /// One ranked idea: rank · density bar · match% · play/applied glyph. Selected =
+    /// neutral text emphasis + a faint fill (accent green stays reserved for live bio).
+    private func variationRow(_ cand: BioVariationMaze.Candidate, rank: Int) -> some View {
+        let isOn = cand.seed == mazeAppliedSeed
+        let pct = Int((cand.score * 100).rounded())
+        return Button { applyVariation(cand) } label: {
+            HStack(spacing: 10) {
+                Text("\(rank + 1)")
+                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
+                    .frame(width: 16, alignment: .leading)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(EchoelTheme.border.opacity(0.5))
+                        Capsule().fill(EchoelTheme.text.opacity(isOn ? 0.85 : 0.5))
+                            .frame(width: max(3, geo.size.width * CGFloat(cand.realizedDensity)))
+                    }
+                }
+                .frame(height: 6)
+                Text("\(pct)%")
+                    .font(EchoelTheme.font(12, isOn ? .semibold : .medium))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 40, alignment: .trailing)
+                Image(systemName: isOn ? "checkmark.circle.fill" : "play.circle")
+                    .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
+            }
+            .padding(.vertical, 6).padding(.horizontal, 8)
+            .contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .fill(isOn ? EchoelTheme.text.opacity(0.08) : Color.clear))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Variation \(rank + 1), \(pct) percent match\(isOn ? ", playing" : "")")
+        .accessibilityHint("Play this idea")
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+    }
+
+    /// Plain-language word for a 0…1 groove density — so the board's target reads as
+    /// meaning, not a bare number.
+    private func densityWord(_ d: Double) -> String {
+        switch d {
+        case ..<0.25: return "etwas Sparsames"
+        case ..<0.5:  return "einen ruhigen Groove"
+        case ..<0.75: return "einen vollen Groove"
+        default:      return "etwas Dichtes"
         }
     }
 
@@ -3383,14 +3476,26 @@ struct EchoelStudioView: View {
         return s == 0 ? 1 : s
     }
 
-    /// - Parameter startTransport: when `true` (the user-initiated first generate) this
-    ///   starts the transport if it isn't already running. Background/onChange re-seeds
-    ///   pass `false` so they only swap notes into an ALREADY-playing transport — they
-    ///   must never resurrect a transport the user stopped from the persistent transport
-    ///   bar (the bar's Stop calls `pattern.stop()` directly, leaving the Compose session
-    ///   `running` but silent; without this the ~25–45 s evolve tick would restart it).
-    private func generate(startTransport: Bool = true) {
-        lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
+    /// Build the composer `Input` from the CURRENT body + settings — the ONE source
+    /// of truth shared by `generate()` and the variation-maze audition, so what you
+    /// audition is EXACTLY what plays (no duplicated composition logic).
+    ///
+    /// - `advanceEvolution`: `true` for a real take (moves the melody nonce so the
+    ///   next take is a fresh variation); `false` for a read-only preview (the maze
+    ///   reads the body without perturbing the evolve cursor).
+    /// - `detailSeedOverride` / `structureSeedOverride`: when set (the maze REPLAYING a
+    ///   chosen candidate), they replace the body-derived seeds so the picked idea is
+    ///   reproduced exactly — the live body still colours tempo/dynamics, but the
+    ///   groove skeleton + melodic detail are the ones you auditioned. Both `nil`
+    ///   (every existing caller) ⇒ the original behaviour, bit-identical.
+    ///
+    /// Returns the `Input` plus the derived seeds/phase and the frame it read, so
+    /// `generate()` reuses the SAME frame downstream (tempo trust · caption · body hold).
+    private func makeComposerInput(advanceEvolution: Bool,
+                                   detailSeedOverride: UInt64? = nil,
+                                   structureSeedOverride: UInt64? = nil)
+        -> (input: BioComposer.Input, frame: BioSampleFrame?,
+            evolvingSeed: UInt64, structureSeed: UInt64, basePhase: Int) {
         // Compose from a USABLE frame, judged per source: a lifted finger or dropped
         // strap (camera/BLE) expires in seconds, but Apple Watch / HealthKit HR is
         // latent and sporadic, so a resting reading from up to ~90 s ago still counts
@@ -3410,24 +3515,29 @@ struct EchoelStudioView: View {
         // so each take is a fresh individual variation — the music keeps evolving and
         // never repeats, even when the readings hold steady — while the body's
         // signature still dominates the feel.
-        evolution &+= 1
+        if advanceEvolution { evolution &+= 1 }
         // Cohesion: the STRUCTURE seed is the body-only seed (no evolution nonce), so
         // the harmonic skeleton / register / density stay stable while the DETAIL seed
         // (with the nonce) evolves the melody — consecutive takes feel like the same
         // piece breathing, not a new random one ("homogener klingen"). When the body
         // shifts, the structure evolves with it; with no signal both are random.
-        var structureSeed = bioSeed(frame)
+        // An explicit override (maze replay) pins the skeleton to the audition's.
+        var structureSeed = structureSeedOverride ?? bioSeed(frame)
         // E3b: the sky flavours the SKELETON only (structure seed) — the detail
         // seed below stays body+evolution, so weather never outweighs the body.
         // P5: the salt is now one mixable influence — applied only while the
-        // "Structure" weather mixer is up (0 = off = bit-identical).
+        // "Structure" weather mixer is up (0 = off = bit-identical). Skipped when the
+        // skeleton is an explicit override (the audition already resolved it).
         #if canImport(WeatherKit) && canImport(CoreLocation)
-        if weatherEnabled, let wx = weatherContribution, wx.structureSalt != 0,
+        if structureSeedOverride == nil,
+           weatherEnabled, let wx = weatherContribution, wx.structureSalt != 0,
            WeatherMood.Param.structure.currentIntensity() > 0 {
             structureSeed ^= wx.structureSalt
         }
         #endif
-        let evolvingSeed = structureSeed ^ (evolution &* 0x9E3779B97F4A7C15)
+        // Detail seed: the picked candidate's seed when replaying the maze, else the
+        // evolving body seed as before.
+        let evolvingSeed = detailSeedOverride ?? (structureSeed ^ (evolution &* 0x9E3779B97F4A7C15))
         // WEITERGEHEN (founder 2026-07-11: "es soll ja weitergehen und sich mit dem
         // Herzschlag weiterentwickeln"). The progression cursor advances with every
         // evolve tick (the bio-cadenced ~30 s re-seed), so a sustained Fläche TRAVELS
@@ -3494,6 +3604,29 @@ struct EchoelStudioView: View {
             structureSeed: structureSeed,
             progressionPhase: basePhase
         )
+        return (input, frame, evolvingSeed, structureSeed, basePhase)
+    }
+
+    /// - Parameter startTransport: when `true` (the user-initiated first generate) this
+    ///   starts the transport if it isn't already running. Background/onChange re-seeds
+    ///   pass `false` so they only swap notes into an ALREADY-playing transport — they
+    ///   must never resurrect a transport the user stopped from the persistent transport
+    ///   bar (the bar's Stop calls `pattern.stop()` directly, leaving the Compose session
+    ///   `running` but silent; without this the ~25–45 s evolve tick would restart it).
+    /// - Parameters `detailSeedOverride`/`structureSeedOverride`: the variation maze
+    ///   REPLAYING a chosen candidate — the picked groove skeleton + melodic detail are
+    ///   reproduced exactly while the live body still colours tempo/dynamics. Both `nil`
+    ///   (every other caller) ⇒ the body-driven seeds, unchanged.
+    private func generate(startTransport: Bool = true,
+                          detailSeedOverride: UInt64? = nil,
+                          structureSeedOverride: UInt64? = nil) {
+        lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
+        // ONE composer-input builder (shared with the variation-maze audition): the
+        // real take advances the evolve cursor; the maze previewed read-only.
+        let (input, frame, evolvingSeed, _, basePhase) =
+            makeComposerInput(advanceEvolution: true,
+                              detailSeedOverride: detailSeedOverride,
+                              structureSeedOverride: structureSeedOverride)
         let composition = BioComposer.compose(input)
         // Honor the user's concert pitch + live timbre on the next notes.
         synth.setTuning(a4Hz: session.a4Hz)
@@ -3680,6 +3813,31 @@ struct EchoelStudioView: View {
             metronome.resync()   // align the click's downbeat to the start
         }
         EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying)")
+    }
+
+    // MARK: - Variation maze (#19)
+
+    /// Explore N deterministic variations of the CURRENT groove and store the ranked
+    /// board (read-only — `advanceEvolution: false` doesn't perturb the evolve cursor).
+    /// The base is captured so a later apply replays the exact skeleton it scored.
+    private func exploreVariations() {
+        let base = makeComposerInput(advanceEvolution: false).input
+        mazeBase = base
+        mazeAppliedSeed = nil
+        mazeBoard = BioVariationMaze.explore(base: base, count: 6)
+        log.log(.info, category: .ui, "Variation maze: \(mazeBoard?.candidates.count ?? 0) ideas, target \(mazeBoard?.targetDensity ?? 0)")
+    }
+
+    /// Play the chosen idea now: its detail + structure seed are forced into the real
+    /// take, so what plays IS what was auditioned (the live body still colours
+    /// tempo/dynamics). Highlights the applied candidate in the board.
+    private func applyVariation(_ candidate: BioVariationMaze.Candidate) {
+        guard let base = mazeBase else { return }
+        let skeleton = base.structureSeed ?? base.seed
+        mazeAppliedSeed = candidate.seed
+        generate(startTransport: true,
+                 detailSeedOverride: candidate.seed,
+                 structureSeedOverride: skeleton)
     }
 
     /// Apply the live timbre (`currentPatch`) to the running synth without
