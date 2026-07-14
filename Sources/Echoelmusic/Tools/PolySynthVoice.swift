@@ -438,6 +438,32 @@ public final class PolySynthVoice {
         poly.setCutoffScale(scale)
     }
 
+    /// Bind this voice's bio-INDEPENDENT, render-effective DDSP parameters into the
+    /// shared automation router, so a drawn/recorded automation lane (and the tool
+    /// path) moves them live — the "all parameters automatable" wiring. Each closure
+    /// fans an atomic Float across the voice pool via `forEachVoice` (the same
+    /// control-plane discipline as entrainment/tuning; the render reads each var
+    /// lock-free). Ranges match `DDSPParameterCatalog`. Called once at app wiring
+    /// time, exactly like the AUv3 host binds a loaded plugin's knobs.
+    ///
+    /// DELIBERATELY EXCLUDED (bio-contested / unsafe — see scratchpads/PLAN_DAW_EPIC):
+    /// harmonicity · noiseLevel · reverbMix/decay · raw filter base · vibrato ·
+    /// brightness · raw amplitude — the bio loop overwrites them ~10 Hz (or the write
+    /// races a shared spectral table / is gated off), so automating them needs a
+    /// separate automation×bio composition (write the `bioBase*` centers), not a
+    /// direct write. `ddsp.amp.level` therefore targets the UNCONTESTED
+    /// `patchOutputLevel` (which the render reads and neither bio nor noteOn touch),
+    /// NOT `amplitude`. Filter automation stays on the existing scale-based lane
+    /// (`setCutoffScale`), so the raw Hz `ddsp.filter.cutoff` is not bound here.
+    public func bindAutomatable(into router: ParameterApplyRouter) {
+        router.bind("ddsp.warmth.drive") { [weak self] v in self?.poly.forEachVoice { $0.warmthDrive = v } }
+        router.bind("ddsp.env.attack")   { [weak self] v in self?.poly.forEachVoice { $0.attack = v } }
+        router.bind("ddsp.env.decay")    { [weak self] v in self?.poly.forEachVoice { $0.decay = v } }
+        router.bind("ddsp.env.sustain")  { [weak self] v in self?.poly.forEachVoice { $0.sustain = v } }
+        router.bind("ddsp.env.release")  { [weak self] v in self?.poly.forEachVoice { $0.release = v } }
+        router.bind("ddsp.amp.level")    { [weak self] v in self?.poly.forEachVoice { $0.patchOutputLevel = v } }
+    }
+
     /// B2 lane pan: stereo position of this voice's whole output, −1…1 (0 =
     /// center). Control-plane only — `sourceNode` conforms to `AVAudioMixing`
     /// and is connected into the master mixer, so the ENGINE pans downstream;

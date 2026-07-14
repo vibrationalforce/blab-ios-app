@@ -608,6 +608,13 @@ struct EchoelmusicApp: App {
                 // track exactly like Echoel's own.
                 auHost.useParameters(registry: parameterRegistry, router: parameterRouter)
                 automationPlayer.wire(router: parameterRouter)
+                // Automation "all parameters" (founder 2026-07-14): bind the built-in
+                // voice's bio-independent DDSP params into the SAME router, so drawn /
+                // recorded automation lanes move them live — exactly how the AUv3 host
+                // above binds a hosted plugin's knobs. AutomationView then auto-lists
+                // them (the picker widens past the 3 enum targets). Bio-contested params
+                // are excluded in bindAutomatable (they need automation×bio composition).
+                polyVoice.bindAutomatable(into: parameterRouter)
 
                 // External MIDI input: passive (the CoreMIDI client is created in
                 // MIDIInput.init, no permission prompt), so start it at launch — a
