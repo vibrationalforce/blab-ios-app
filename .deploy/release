@@ -1,27 +1,27 @@
-build: 2026-07-14 v10.79.212 (Baustelle Rang 2: Vintage Tape / Bandmaschine / VHS)
+build: 2026-07-14 v10.79.213 (Founder-Wunsch: „transpose detune" — Detune pro Instrument)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zweiter abgearbeiteter Punkt der Baustellen-Ledger (No-Sleep-Modus). Der
-  Founder-Wunsch: „Tape effect, Bandmaschine, VHS und professionelle Vintage-Effekte."
-  Bisher gab es Bandmaschinen-Charakter nur im Echo (Delay .tape) — das eigentliche
-  Signal blieb sauber. Jetzt gibt es einen echten Tape/VHS-Charakter DIREKT auf dem
-  Ton.
+notes: Direkter Founder-Wunsch abgearbeitet: „transpose detune und Oktaver". Transpose
+  (ganze Halbtöne pro Spur) gibt es seit v210 — jetzt kommt der FEIN-Bruder: Detune.
 
-  WO: Effekte → neue Sektion „Tape / VHS" (im FX-Editor, unter Saturation). Drei
-  Regler: Wow & Flutter (das Leiern eines echten Bandlaufwerks), Saturation
-  (Bandsättigung/Wärme) und Brightness (Höhenverlust — von hell bis zum dumpfen
-  abgenutzten Band). An/Aus per Schalter wie jeder andere Effekt.
+  WO: pro MIDI-Spur im „Sound & FX"-Editor, direkt unter Transpose. Neues Feld „Detune"
+  in Cent (±100 ¢ = ±1 Halbton). Wird mit dem Song gespeichert.
 
-  WIE: Wow & Flutter = eine langsame (0,6 Hz) + eine schnelle (6,5 Hz) Tonhöhen-
-  Modulation, exakt das erprobte Rezept aus dem Tape-Delay, aber aufs Durchgangs-
-  signal — der Ton selbst eiert leicht. Danach weiche Bandsättigung und ein
-  Höhen-Tiefpass. Wird in Presets mitgespeichert (Schema 3; alte Presets laden mit
-  Tape=aus, also bit-identisch wenn man nichts anfasst).
+  WAS es tut: die Spur sitzt ein paar Cent höher/tiefer — für analoge Verdickung oder ein
+  leichtes Schweben (beating) gegen eine andere Spur. Feinverstimmung, kein grober Sprung
+  (dafür ist Transpose da). Primär-Spur wirkt sofort (live), Sekundär-Spuren beim Laden.
 
-  SICHER: Audio-Thread-sauber (keine Allokation/Locks im Hot-Loop, Denormal-Schutz),
-  Lese-Tap kann nie aus dem Puffer laufen. Neuer Effekt, kein neues .sheet (Render-
-  Safety-Reserve bleibt). Reviewer: audio-thread PASS · dsp PASS (Tap-Bereich +
-  Koeffizienten begrenzt, Tests korrekt) · code-quality PASS (vollständig verdrahtet,
-  keine toten Enden). 5 neue deterministische Tests. Gates: Xcode + CI/CD.
+  WIE: exakt nach dem erprobten Transpose-Muster verdrahtet — vom UI-Feld über den
+  Timeline-Store, das Dokument, den Region-Player-Sink bis in die Synth-Stimme und den
+  einen MIDI→Hz-Rechenschritt im DSP. Kein toter Knopf: die ganze Kette ist geschlossen.
+  0 ¢ = unverändert (bit-identisch); alte Songs ohne das Feld laden als „in tune".
 
-  Stand Ledger: Rang 1 (Netzwerk-Ziel) ✓ · Rang 2 (Vintage Tape/VHS) ✓ · als
-  Nächstes die entscheidungsfreien Punkte der Reihe nach (Rang 3+).
+  SICHER: audio-thread-rein (einfacher atomarer Float-Read, keine Allokation/Locks,
+  NaN-geschützt, Glide bleibt verstimmungs-invariant). Werte überall gleich geklemmt
+  (±100). Der Live-onChange liest auf Dokument-Ebene → feuert nur beim Editieren, nicht
+  im 10-Hz-Bio-Takt (Freeze-Regel eingehalten). Reviewer: audio-thread CLEAN ·
+  concurrency + code PASS (Schleife geschlossen, keine toten Enden). 4 neue Tests.
+  Gates: Xcode + CI/CD.
+
+  Offen aus „transpose detune und Oktaver": Oktaver (Oktav-Doppler) als nächste Scheibe.
+  Ledger: Rang 1 (Netzwerk) ✓ · Rang 2 (Tape/VHS) ✓ · Detune ✓ · Rang 3 (Genre-pro-Spur)
+  wartet auf Founder-Architekturentscheid (generativer Flow ⇄ Timeline verschmelzen?).
