@@ -13,9 +13,9 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
 
 ## REIHENFOLGE (entschieden)
 
-1. **Automation "alle Parameter"** — Fundament komplett audibel (Playback + UI + Clip/Timeline-
+1. ✅ **Automation "alle Parameter"** (v214) — Fundament komplett audibel (Playback + UI + Clip/Timeline-
    Ebenen live & getestet). Es fehlt NUR die `router.bind`-Tabelle für die eingebauten DDSP-Params.
-2. **Clips schneiden & fügen** — Split-at-Playhead + Merge-adjacent. Reine Tick-Mathematik + je
+2. ✅ **Clips schneiden & fügen** (v215, Split/Join am Playhead) — Reine Tick-Mathematik + je
    eine TimelineStore-Methode + Toolbar-Knopf. Home-Fläche (ArrangeTimelineView) schon erreichbar.
 3. **Audio-Import in eine Spur** — AudioClipFactory-Naht existiert+getestet; nur Importer→Kopie→
    addRegion fehlt. Danach: transport-synced AudioLanePlayer (Audio-Regions am startTick planen).
