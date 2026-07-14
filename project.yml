@@ -84,75 +84,14 @@ targets:
       # are converted from the website's .woff2; registered via UIAppFonts below.
       - path: Resources/Fonts
         type: group
-    info:
-      path: Resources/iOS/Info.plist
-      properties:
-        CFBundleDevelopmentRegion: en
-        CFBundleExecutable: $(EXECUTABLE_NAME)
-        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
-        CFBundleInfoDictionaryVersion: "6.0"
-        CFBundleName: $(PRODUCT_NAME)
-        CFBundlePackageType: APPL
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CFBundleDisplayName: Echoelmusic
-        LSRequiresIPhoneOS: true
-
-        # === Privacy Strings (ITMS-90683 compliance) ===
-        # Kept in sync with Resources/iOS/Info.plist — vision-aligned, brand-compliant.
-        NSMicrophoneUsageDescription: "Echoel uses the microphone to turn live audio into sound, processed on your device. Audio is not recorded or sent anywhere unless you export it yourself."
-        NSHealthShareUsageDescription: "Echoel reads heart rate and HRV to drive sound, image and light in real time. This data stays on your device and is used only for creative control — never for diagnosis."
-        NSHealthUpdateUsageDescription: "Echoel reads heart rate and HRV on your device for creative control only; it does not write any data to Apple Health."
-        NSCameraUsageDescription: "Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted."
-        NSBluetoothAlwaysUsageDescription: "Echoelmusic connects to Bluetooth MIDI controllers and audio devices for professional music creation."
-        NSBluetoothPeripheralUsageDescription: "Echoelmusic connects to Bluetooth MIDI controllers for music creation."
-        NSLocalNetworkUsageDescription: "Echoelmusic uses local network for DMX lighting control, Art-Net, and connecting to external audio interfaces."
-        NSBonjourServices:
-          - _http._tcp
-          - _rtsp._tcp
-          - _artnet._udp
-          - _osc._udp
-          - _midi._udp
-          - _echoelmusic._tcp
-          - _echoel-colab._tcp
-          - _echoel-colab._udp
-        ITSAppUsesNonExemptEncryption: false
-
-        # === App Transport Security (local network devices: MIDI, DMX, Art-Net) ===
-        NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
-
-        # === Background Modes ===
-        UIBackgroundModes:
-          - audio
-          - bluetooth-central
-          - bluetooth-peripheral
-
-        # === UI Configuration ===
-        UILaunchScreen: {}
-        UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-        UISupportedInterfaceOrientations~ipad:
-          - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationPortraitUpsideDown
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-        UIUserInterfaceStyle: Dark
-        # Brand font (mirrors echoelmusic.com). Files live in Resources/Fonts,
-        # added to the app resources above. Keep in sync with Resources/iOS/Info.plist.
-        UIAppFonts:
-          - AtkinsonHyperlegible-Regular.ttf
-          - AtkinsonHyperlegible-Bold.ttf
-          - AtkinsonHyperlegible-Italic.ttf
-        UIRequiresFullScreen: false
-        UIStatusBarHidden: true
-        UIViewControllerBasedStatusBarAppearance: false
-        UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
-        UIRequiredDeviceCapabilities:
-          - arm64
+    # NOTE: No `info:` block here on purpose. A generated `info.properties` block
+    # WRITES Resources/iOS/Info.plist at `xcodegen generate` time, clobbering the
+    # hand-maintained, complete, truthful committed plist — the old block silently
+    # DROPPED NSLocationWhenInUseUsageDescription (→ ITMS-90683 rejection + killed the
+    # "Place in session name" feature) and shipped a FALSE NSHealthUpdate claim while
+    # HealthKitWriter actually writes HR+respiratory. The committed Resources/iOS/Info.plist
+    # is the single source of truth, referenced via INFOPLIST_FILE + GENERATE_INFOPLIST_FILE: NO.
+    # Guarded by scripts/check-infoplist.sh in xcode-compile-check.yml. Do NOT re-add `info:`.
     settings:
       base:
         PRODUCT_NAME: Echoelmusic

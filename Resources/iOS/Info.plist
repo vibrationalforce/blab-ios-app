@@ -50,11 +50,14 @@
 		<string>AtkinsonHyperlegible-Bold.ttf</string>
 		<string>AtkinsonHyperlegible-Italic.ttf</string>
 	</array>
+	<!-- bluetooth-peripheral removed: no CBPeripheralManager exists in the app
+	     (unbacked capability = Guideline 2.5.4 rejection risk). bluetooth-central
+	     is used foreground for BLE HR straps (PolarH10BioPublisher, 0x180D);
+	     kept for now — see task #27 for whether background BLE HR is wanted. -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
 		<string>bluetooth-central</string>
-		<string>bluetooth-peripheral</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Echoel uses the microphone to turn live audio into sound, processed on your device. Audio is not recorded or sent anywhere unless you export it yourself.</string>
@@ -69,7 +72,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth MIDI controllers for music creation.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>If you turn on "Place in session name", Echoel looks up your city once to stamp it into the session name (e.g. Echoel_2026-07-10_Hamburg_Am_72bpm_A440). This is off by default; your location is resolved on your device, never stored or sent anywhere.</string>
+	<string>If you turn on "Place in session name", Echoel looks up your city once to stamp it into the session name (e.g. Echoel_2026-07-10_Hamburg_Am_72bpm_A440). This is off by default; the place name is resolved with Apple's geocoder and the result is not stored by Echoel or sent anywhere else.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Echoelmusic uses the local network for Art-Net &amp; sACN lighting control and external audio interfaces, and — when you enable OSC or ADM output — to send live bio values (heart rate, HRV, breath, coherence) to the devices you choose.</string>
 	<key>NSBonjourServices</key>
