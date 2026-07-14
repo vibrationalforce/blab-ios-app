@@ -1,37 +1,34 @@
-build: 2026-07-14 v10.79.202 (Sound PRO SPUR — jede MIDI-Spur ihr eigenes Instrument + 2 Stille-Bugs gefixt)
+build: 2026-07-14 v10.79.203 (Puls-Monitor zeigt WARUM der Puls abreißt — z.B. "zu hell")
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: GROSSER Schritt für deinen Per-Instrument-Umbau. Ich habe den Multi-Roll-Kern
-  (jede Spur eine eigene Stimme) komplett auditiert — 20 Agenten, adversarial —
-  und dabei drei Sachen gefunden UND gefixt, die live auf deinem Gerät waren:
+notes: Direkt aus deinem letzten Log (v202). Danke — der hat was Wichtiges gezeigt:
 
-  1) STILLE-FALLE behoben: eine zweite MIDI-Spur, deren Clip gleich am Takt 1
-     anfängt, war bisher die GANZE Zeit stumm (technischer Grund: der Ladepunkt
-     wurde nur beim Wechsel erkannt, nicht am Downbeat). Jetzt klingt jede Spur
-     ab dem ersten Schlag.
-  2) MUTE/SOLO wirkt jetzt auch auf Nebenspuren: vorher hat eine stumm-geschaltete
-     zweite Spur trotzdem geklungen (nur die Hauptspur hörte auf Mute). Jetzt ist
-     Mute/Solo/Fader-0 auf JEDER Spur ehrlich still — und nichts hängt.
-  3) SOUND PRO SPUR ist jetzt wirklich verdrahtet: der Patch (Sound & Textur), den
-     eine Spur trägt, landet ab sofort auf DEREN Stimme. Ohne eigenen Patch klingt
-     die Spur wie die Hauptspur (nicht mehr dünn/generisch).
+  WAS DEIN LOG ZEIGTE: Der Puls hatte SAUBER gelockt (conf 0.83, bio an) — dann
+  wurde das Fingerbild zu hell (bright 0.43 → 0.94, gesättigt), und der Lock ging
+  verloren (conf → 0, Puls einfror, bio aus). Beim Spielen siehst du oben nur den
+  kompakten Puls-Monitor — der gab dir KEINEN Hinweis WARUM der Puls plötzlich weg war.
 
-  → Damit spielen mehrere MIDI-Spuren GLEICHZEITIG, jede mit ihrem eigenen Klang.
-    Das ist das Fundament deines "alles in Instrumente aufgeteilt".
+  JETZT: der Puls-Monitor oben wird AMBER und zeigt einen kurzen Hinweis, sobald
+  der Puls nicht lockt und du was tun kannst:
+   · "Too bright"    → Finger leichter auflegen / weniger Licht
+   · "Hold still"    → ruhig halten
+   · "Press gently"  → sanfter drücken
+   · "Cover lens"    → Kamera + Blitz bedecken
+  Tippen = volle Bio-Details wie gehabt. Beim Nicht-Messen bleibt der Monitor ruhig.
 
-  BITTE AM GERÄT TESTEN (das ist das CPU/Klang-Verify, das nur dein iPhone kann):
-  · Zwei MIDI-Spuren, beide mit einem Clip an Takt 1 → BEIDE ab dem Downbeat hörbar.
-  · Jeder Spur einen anderen Sound geben → sie klingen TIMBRAL verschieden; eine
-    Spur ohne eigenen Sound klingt wie Spur 1.
-  · Eine Nebenspur muten / soloen / Fader auf 0 → sie wird still (kein Hänger).
-  · 4 dichte Spuren gleichzeitig → läuft's flüssig, kein Ruckeln/Hitze?
-  Wenn alles passt, bleibt Multi-Roll an. Falls irgendwas hakt: sag Bescheid, ein
-  Ein-Zeilen-Schalter setzt sofort auf die alte Ein-Stimmen-Bahn zurück (bit-identisch).
+  SOFORT-TIPP (auch jetzt): wenn der Puls abreißt → Finger LEICHTER auflegen. Die
+  Überbelichtung kommt von zu viel Druck/Licht auf der Linse.
 
-  Test-first: neuer purer Kern MultiRollFanout, 14 Tests (Linux-grün). Reviewer:
-  audio-thread CLEAN · concurrency PASS(0) · correctness CONFIRMED (Slot↔Spur-Ordnung
-  beweisbar identisch, keine Hänger). Gates grün: Xcode + CI/CD.
+  WICHTIG: Ich habe die (über viele Geräte-Logs fein getunte) Belichtungs-Automatik
+  NICHT blind angefasst — das Risiko, den gerade funktionierenden Lock zu zerschießen,
+  ist zu hoch ohne Gerät zum Gegentesten. Der tiefere Fix (die Automatik erkennt das
+  Hell-Driften früher selbst und re-settled, bevor der Lock stirbt) ist als eigener
+  Geräte-Iterations-Punkt notiert (#25) — dafür brauche ich deine Logs, ob's dann
+  nicht den guten Lock kostet.
 
-  Bekannte Grenzen (spätere Stufe B09, kein Blocker): max. 4 Nebenspuren gleichzeitig;
-  eine gemutete Note klingt bis zu ihrem natürlichen Ende aus (kein harter Schnitt);
-  Drums/Sampler-Spuren spielen vorerst durch den Poly-Synth. Nächste Module:
-  Genre/Variation/Mood pro Spur, dann Weather pro Instrument, dann Key/Tempo nach oben.
+  Test-first: neuer purer PulseCue (3 Tests, Linux-grün). Reviewer: ui-state PASS
+  (Freeze-Law verifiziert — der 10-Hz-Read bleibt im Header-Leaf) + code-review PASS
+  (der coachingHint-Refactor ist byte-identisch). Gates grün: Xcode + CI/CD.
+
+  Umbau-Fortschritt bleibt auf Kurs: Modul 1 (Sound pro Spur) auf Gerät (v202),
+  Modul 2 (Genre/Mood/Variation pro Spur) Fundament + Seam stehen getestet. Nächster
+  Zyklus: der Composer-Fan-Out, damit mehrere Genres gleichzeitig klingen.
