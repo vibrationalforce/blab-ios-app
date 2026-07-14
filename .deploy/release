@@ -1,27 +1,26 @@
-build: 2026-07-14 v10.79.208 (Umbau Schritt 2a: Transpose gelöscht — Aufräumen vor dem sichtbaren Header-Umzug)
+build: 2026-07-14 v10.79.209 (Umbau Schritt 2b-i: Tempo wandert sichtbar nach oben)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Weiter auf deine Ansage (Leiste auflösen). Schritt 2a: Transpose ist jetzt
-  KOMPLETT gelöscht — wie in deiner Architektur festgelegt.
+notes: Weiter auf deine Ansage (Leiste auflösen). Das ist der ERSTE Schritt, den du
+  SIEHST: das Tempo ist aus dem unteren "Comp"-Dropdown in eine eigene schmale
+  Kopfzeile gewandert — direkt unter der Transportleiste, immer sichtbar.
 
-  WARUM sicher: Transpose war schon aus der Chip-Leiste raus und komplett
-  unerreichbar (kein Chip, kein Weg es zu öffnen), also stand der Wert IMMER auf 0.
-  Das Löschen ändert deshalb NICHTS am Klang oder an der Farbe des Visuals
-  (currentToneHz bleibt bit-genau gleich — von beiden Reviewern bestätigt). Es
-  räumt nur toten Code weg und bereitet den Composition-Bereich für den nächsten,
-  SICHTBAREN Schritt vor.
+  WAS oben steht: das lebende Tempo-Feld (BodyTempoField) — die Zahl läuft mit
+  deiner Biofeedback-Rate mit (4 Stellen nach dem Komma) und lässt sich mit dem
+  Schloss fixen. Genau das Feld, das vorher nur im Comp-Dropdown lag.
 
-  NÄCHSTER SCHRITT (2b — DAS siehst du dann): Tonart/Skala + Stimmung + Tempo
-  wandern hoch in eine kompakte Kopfzeile, der Chip "Comp" verschwindet unten.
-  BodyTempoField (der lebende Puls-Tempo-Wert) ist schon ein eigenes Leaf → der
-  Umzug nach oben bleibt freeze-sicher (der 10-Hz-Read bleibt in sich, der Header
-  churnt nicht). Danach 2c: Session-Name/Ort hoch, Chip "Session" weg.
+  WAS weg ist: das nackte Schloss-Symbol in der Transportleiste. Das gab es nur,
+  WEIL das Tempo oben fehlte — jetzt hat das Tempo-Feld sein eigenes Schloss, immer
+  auf dem Schirm. "Tempo fixen muss immer gehen" bleibt also erfüllt (sogar besser:
+  beschriftetes Feld statt anonymes Icon), nur eben ohne doppeltes Schloss.
 
-  So löst sich die Leiste Chip für Chip auf und findet sich oben/pro-Instrument
-  wieder — kontrolliert, ohne den Start zu riskieren.
+  WARUM freeze-sicher: BodyTempoField ist ein eigenes Leaf — der 10-Hz-Puls-Read
+  bleibt IN sich, die Kopfzeile (und WorkspaceView) abonnieren ihn NICHT (dasselbe
+  Muster wie der Pulsmonitor oben). Kein Menü/Picker friert ein. Von beiden
+  Reviewern bestätigt (code PASS + ui-state PASS: kein verwaister Verweis, kein
+  verlorener Regler, Environment sauber, Layout/Trefferflächen unverändert).
 
-  Reviewer: code PASS (alle 3 Menü-Switches exhaustiv, verhaltensgleich, Klammer-
-  Balance 741/741) + ui-state PASS (keine erreichbare Regression, Visual-Farbe
-  unverändert, Sheet-Kette unberührt, 8 Chips sauber). Gates: Xcode + CI/CD.
+  NÄCHSTER SCHRITT (2b-ii): Tonart/Skala + Kammerton dazu in dieselbe Kopfzeile,
+  dann verschwindet der "Comp"-Chip unten ganz. Danach 2c: Session-Name/Ort hoch.
 
-  Stand Umbau: Schritt 1 (Headroom, v207) ✓ · Schritt 2a (Transpose weg, v208) ✓ ·
-  als Nächstes 2b Header-up (sichtbar).
+  Stand Umbau: Schritt 1 (Headroom, v207) ✓ · 2a (Transpose weg, v208) ✓ ·
+  2b-i (Tempo sichtbar hoch, v209) ✓ · als Nächstes 2b-ii Tonart/Kammerton hoch.

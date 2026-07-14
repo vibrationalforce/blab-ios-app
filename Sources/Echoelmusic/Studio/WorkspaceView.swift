@@ -77,6 +77,8 @@ struct WorkspaceView: View {
                 Divider().overlay(EchoelTheme.border)
                 TransportBar()
                 Divider().overlay(EchoelTheme.border)
+                composeHeaderRow
+                Divider().overlay(EchoelTheme.border)
                 // THE one main view (founder 2026-07-10): Arrange timeline over
                 // the instrument zone — no surface chips, no view-switching.
                 SurfaceHost()
@@ -171,6 +173,26 @@ struct WorkspaceView: View {
         .background(EchoelTheme.bg)
     }
 
+    /// Compact compose header — the musical controls that used to live in the bottom
+    /// "Comp" dropdown, lifted up so the bottom bar can dissolve (founder 2026-07-14:
+    /// "Unten die Leiste sollte längst aufgelöst sein und sich an anderer Stelle wieder
+    /// finden"). Step 2b-i: Tempo. `BodyTempoField` is a self-contained LEAF that reads
+    /// the ~10 Hz pulse INSIDE its own body, so this row — and WorkspaceView.body — never
+    /// subscribe to the 10 Hz churn (the freeze rule, same as PulseMonitorMiniLive). Its
+    /// lock replaces the transport-bar bare-lock shortcut (which existed only because the
+    /// tempo number wasn't up here); "Tempo fixen muss immer gehen" still holds — the lock
+    /// is now ALWAYS on screen in this row. Key/Scale + tuning follow in 2b-ii once the
+    /// header layout is device-verified.
+    private var composeHeaderRow: some View {
+        HStack(spacing: 12) {
+            BodyTempoField()
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 40)
+        .background(EchoelTheme.bg)
+    }
+
     /// Open the website in the system default browser (no-op if the URL fails to
     /// parse, which it can't for the constant above — defensive).
     private func openWebsite() {
@@ -200,15 +222,9 @@ struct WorkspaceView: View {
 private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
-    @Environment(MetronomeVoice.self) private var metronome
     /// LOW-frequency instrument run state (set on Start/Stop only) — mirrors the
     /// studio so the pulse button shows the right state. Never a ~10 Hz read.
     @Environment(EngineBus.self) private var bus
-    // Shared with the Compose panel (same @AppStorage keys + defaults). Read here so a
-    // transport-bar tempo edit while LOCKED also persists the locked value — otherwise the
-    // next generate() would snap the clock back to the stale lockedBPM.
-    @AppStorage("studio.lockBPM") private var lockBPM = false
-    @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
 
     var body: some View {
         HStack(spacing: 12) {
@@ -233,15 +249,13 @@ private struct TransportBar: View {
             // oben"). Green ring = the body is live (green is reserved for live bio).
             pulseButton
 
-            // NO tempo number here anymore (founder 2026-07-04: "zwei Anzeigen irritieren
-            // immernoch") — the chrome's one live number is the PULSE in the bio strip. The
-            // musical tempo lives in the Composition panel's BodyTempoField (runs along with
-            // the biofeedback rate, 4 decimals, lockable). The lock stays here for one-tap
-            // freezing from anywhere; its state mirrors the panel (same @AppStorage).
+            // The musical tempo — number, live pulse-follow, and its LOCK — now lives one
+            // row down in `composeHeaderRow` (BodyTempoField), lifted out of the bottom
+            // "Comp" dropdown (founder 2026-07-14: dissolve the bottom bar). The bare
+            // transport-bar lock shortcut is retired: its job ("Tempo fixen muss immer
+            // gehen") is served by that always-visible field's own lock.
 
-            lockButton
-
-            // Global doors in the chrome, next to the lock (founder 2026-07-12,
+            // Global doors in the chrome (founder 2026-07-12,
             // shell v3): Master · Export · Live · Learn. Icon chips posting the
             // door notification — the studio opens its dropdown/sheet.
             doorButton("slider.vertical.3", door: "master",
@@ -285,35 +299,6 @@ private struct TransportBar: View {
         .accessibilityLabel(bus.instrumentRunning ? "Stop the body instrument"
                                                   : "Create from within — start biofeedback")
         .accessibilityHint("Your body composes and plays the music. Tap again to stop.")
-    }
-
-    /// FIX the tempo, one tap, always reachable (founder: "Tempo fixen muss aber auch immer
-    /// gehen"). Locking freezes the tempo you're hearing right now and stops the body's gentle
-    /// tempo-follow — from then on biofeedback only shapes the SOUND (filter/timbre), never the
-    /// beat. Same `studio.lockBPM`/`lockedBPM` state as the Composition panel's toggle, so both
-    /// stay in sync; freezing here captures the live tempo directly (robust even when that panel
-    /// is collapsed and its onChange isn't mounted).
-    private var lockButton: some View {
-        Button {
-            lockBPM.toggle()
-            if lockBPM {
-                lockedBPM = transport.tempo.rounded()
-                player.pattern.setTempo(lockedBPM)   // freeze exactly what's playing (no jump)
-                metronome.bpm = transport.tempo
-            }
-        } label: {
-            Image(systemName: lockBPM ? "lock.fill" : "lock.open")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(lockBPM ? EchoelTheme.accent : EchoelTheme.dim)
-                .frame(width: 34, height: 32)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle().inset(by: -6))   // 44 pt-class target (HIG)
-        .accessibilityLabel(lockBPM ? "Tempo locked — tap to let it follow the body" : "Lock tempo")
-        .accessibilityHint("When locked, the beat holds and biofeedback only shapes the sound")
     }
 
     /// One compact chrome door: posts the studio's door notification.
