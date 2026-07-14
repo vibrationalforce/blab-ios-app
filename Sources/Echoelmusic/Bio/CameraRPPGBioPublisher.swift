@@ -203,17 +203,22 @@ public final class CameraRPPGBioPublisher {
     /// Live, specific placement guidance — turns the internal amplitude/exposure
     /// diagnostics into user coaching so the lens reaches a lockable signal, instead
     /// of a flat "Acquiring…". Pure derived state, read on the main actor by the UI.
-    public var coachingHint: String {
-        if isLocked { return "Locked" }
-        if !fingerDetected { return "Cover the rear camera + flash" }
+    public var coachingHint: String { acquisitionCue.fullHint }
+
+    /// The typed coaching state (single source of truth for `coachingHint` and the
+    /// compact header amber cue). Derived from the live analyzer signals on the main
+    /// actor; the string/label/actionable mapping is the pure, tested `PulseCue`.
+    public var acquisitionCue: PulseCue {
+        if isLocked { return .locked }
+        if !fingerDetected { return .coverLens }
         // Finger is on the lit lens but no lock yet — say WHY, from the live signal.
-        if analyzer.brightness > 0.85 || analyzer.redChannel > 0.92 { return "Press a little lighter" }
+        if analyzer.brightness > 0.85 || analyzer.redChannel > 0.92 { return .tooBright }
         // Large swings = the finger moving / changing pressure, not a pulse (the analyzer
         // rejects these windows, so it can't lock). Tell the user the real blocker so a
         // motion-heavy contact gets actionable guidance instead of an endless "finding…".
-        if CameraAnalyzer.isMotionAmplitude(analyzer.lastFilteredAmplitude) { return "Hold still — keep your finger steady" }
-        if analyzer.lastFilteredAmplitude < 0.0008 { return "Press gently and hold still" }
-        return "Hold still — finding your pulse…"
+        if CameraAnalyzer.isMotionAmplitude(analyzer.lastFilteredAmplitude) { return .holdStill }
+        if analyzer.lastFilteredAmplitude < 0.0008 { return .pressGently }
+        return .finding
     }
 
     @ObservationIgnored private let capture = CameraCapture()

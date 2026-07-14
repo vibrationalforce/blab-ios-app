@@ -62,15 +62,38 @@ struct PulseMonitorMini: View {
     /// Live coherence [0…1] — the BioStrip's key metric in "vereinfachter Form"
     /// (founder 2026-07-12: the bio row lands simplified up here). nil hides it.
     var coherence: Double? = nil
+    /// Live acquisition coaching (device log 2026-07-14: the pulse washed out to
+    /// saturation silently while playing). When it is ACTIONABLE and not locked, the
+    /// trace goes amber and the BPM slot shows the short cue so the drop is visible +
+    /// self-correctable — the founder's "tap for more info" detail still carries the
+    /// full guidance. nil / not-actionable / locked ⇒ the plain monitor.
+    var cue: PulseCue? = nil
+
+    /// Show the amber coaching cue: a correctable placement issue while not locked.
+    private var showCue: Bool { !locked && (cue?.isActionable ?? false) }
 
     var body: some View {
         HStack(spacing: 6) {
-            PulseTrace(samples: waveform, color: locked ? EchoelTheme.accent : EchoelTheme.dim)
+            PulseTrace(samples: waveform,
+                       color: locked ? EchoelTheme.accent : (showCue ? EchoelTheme.warning : EchoelTheme.dim))
                 .frame(width: 50, height: 24)
-            Text(locked && bpm > 0 ? "\(Int(bpm))" : "—")
-                .font(EchoelTheme.font(11, .semibold)).monospacedDigit()
-                .foregroundStyle(locked ? EchoelTheme.text : EchoelTheme.dim)
-                .frame(minWidth: 22, alignment: .leading)
+            Group {
+                if locked && bpm > 0 {
+                    Text("\(Int(bpm))")
+                        .font(EchoelTheme.font(11, .semibold)).monospacedDigit()
+                        .foregroundStyle(EchoelTheme.text)
+                } else if showCue, let cue {
+                    Text(cue.shortLabel)
+                        .font(EchoelTheme.font(9, .semibold))
+                        .foregroundStyle(EchoelTheme.warning)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                } else {
+                    Text("—")
+                        .font(EchoelTheme.font(11, .semibold)).monospacedDigit()
+                        .foregroundStyle(EchoelTheme.dim)
+                }
+            }
+            .frame(minWidth: 22, alignment: .leading)
             if let coh = coherence {
                 Text(String(format: "%.2f", coh))
                     .font(EchoelTheme.font(10)).monospacedDigit()
@@ -88,6 +111,7 @@ struct PulseMonitorMini: View {
     }
 
     private var accessibilityText: String {
+        if showCue, let cue { return cue.fullHint }
         guard locked && bpm > 0 else { return "No pulse lock" }
         if let coh = coherence {
             return "\(Int(bpm)) beats per minute, coherence \(String(format: "%.2f", coh))"
@@ -117,7 +141,10 @@ struct PulseMonitorMiniLive: View {
         PulseMonitorMini(waveform: cameraRPPG.waveform,
                          bpm: cameraRPPG.displayBPM,
                          locked: cameraRPPG.isLocked,
-                         coherence: bus.freshBio().map { Double($0.coherence) })
+                         coherence: bus.freshBio().map { Double($0.coherence) },
+                         // Only while reading: an idle monitor stays plain (no "cover lens"
+                         // amber when the user hasn't started). Read in this leaf (freeze rule).
+                         cue: cameraRPPG.isRunning ? cameraRPPG.acquisitionCue : nil)
             // E-Bio-Header (founder 2026-07-14, red-arrow sketch: "Der Bio Teil soll
             // komplett nach da oben. Wenn man draufdrückt bekommt man mehr Infos"): the
             // Bio section's HOME is now this header leaf. TAP opens the full detail —
