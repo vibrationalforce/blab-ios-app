@@ -3,6 +3,26 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 63, Cron) — v201-Log: TON ZURÜCK + rPPG lockt → #23 Modul 1 gestartet
+- **Founder-Log v10.79.201 (2307), wortlos nach meiner Frage "kommt der Ton zurück?"** — der Log
+  ANTWORTET: `generate[start]: 10 notes, playing=true, rollMixGain=1.61` (Roll-Slot-Spur hörbar, nicht
+  mehr geklemmt) + `polyVoice.noteOn#1 enqueue pitch=50` + `mfNotes=5 tone=110/523` → **Noten erreichen
+  jetzt den Synth. Der Ton ist zurück.** #22 auf Geräte-Beleg GESCHLOSSEN.
+- **BONUS im selben Log: rPPG LOCKT** — erst ~13 s `pk=0/bpm=0/conf=0`, dann `bpm=95…103, conf bis 0.78`,
+  `bio=1`. Der linearDetrend-Fix (v197) wirkt am Gerät. #14 geschlossen (Rest: Lock wackelt conf 0.78→0.35,
+  bio erst nach ~23 s = separate Stabilitäts-/Latenz-Politur, nicht dieser Task).
+- **AskUserQuestion scheiterte** (Permission-Stream in non-interaktiver Fortsetzung geschlossen) → nicht
+  wiederholt. Der wortlose, gesunde Log NACH meiner direkten Frage IST die Bestätigung; meine Deploy-Note
+  hatte zugesagt "sobald Ton läuft, lege ich mit Modul 1 los". Also gestartet — aber mit dem SICHERSTEN,
+  voll reversiblen Sub-Schritt, der egal-bei-welcher-Lesart nichts brechen kann.
+- **#23 MODUL 1 — Fundament (2e31ee6):** `TimelineLane.patch: SynthPatch?` (nil-Default = heutiger globaler
+  Sound, bit-identisch), persistiert, backward-compat-Decode (`decodeIfPresent`→nil), synth. encode lässt nil
+  weg. Reviewer concurrency + code-review je PASS(0). 3 Tests (Legacy→nil, Roundtrip-mit-Patch, Default-nil).
+  KEIN Deploy (Fundament ohne sichtbares Verhalten — bündelt mit dem Wire-Modul: lane.patch → LaneVoiceRack
+  bei generate + PatchEditor aus der Spur-Tür, dann globaler Sound-Chip weg).
+- **GitHub-MCP zwischenzeitlich disconnected** → Gates diesen Tick nicht prüfbar (git push geht, CI läuft);
+  Verify beim nächsten Tick. Deploy v201 (manueller Ort, ec4438a) baute beim Tick-Start noch.
+
 ## 2026-07-14 (Forts. 62, Cron) — Manuelle Ortsnamen-Eingabe (nicht-gesperrter Redesign-Punkt)
 - **Manuelle Orts-Eingabe** (Founder-Wunsch aus der Redesign-Runde: "auch manuell eingeben … oder
   der Standort nicht funktioniert"). `SessionNaming.effectivePlace(manual:resolved:)` pure (2 Tests,
