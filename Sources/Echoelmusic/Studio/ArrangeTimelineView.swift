@@ -21,6 +21,7 @@ import SwiftUI
 @MainActor
 struct ArrangeTimelineView: View {
     @Environment(TimelineStore.self) private var timeline
+    @Environment(EngineBus.self) private var bus
     @Environment(ArrangementStore.self) private var legacySong
     @Environment(ClipStore.self) private var clips
     @Environment(BeatPlayer.self) private var beatPlayer
@@ -94,6 +95,15 @@ struct ArrangeTimelineView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             toolbar
+            // SILENCED-INSTRUMENT GUARD (#22, founder "alles ist still"): the generative
+            // melody plays through the roll-slot lane (first MIDI lane); a mute / foreign
+            // solo / 0-fader there silences it with no visible reason. When the instrument
+            // is armed but that lane is inaudible, say so and offer a one-tap fix — the
+            // core instrument must never be silently trapped. Both reads are low-frequency
+            // (instrument start/stop · lane edits), so this is freeze-safe in the body.
+            if bus.instrumentRunning, let reason = timeline.document.rollSlotSilenceReason {
+                rollSilencedBanner(reason)
+            }
             Divider().overlay(EchoelTheme.border)
             // Vertical scroll carries BOTH columns (labels + grid) so any number
             // of tracks fits the fixed timeline height of the one main view; the
@@ -217,6 +227,52 @@ struct ArrangeTimelineView: View {
             get: { renameLaneID != nil },
             set: { if !$0 { renameLaneID = nil } }
         )
+    }
+
+    // MARK: - Silenced-instrument guard (#22)
+
+    /// Shown only when the instrument is armed AND its roll-slot lane is inaudible.
+    /// Amber (warning) — NOT accent green (that stays reserved for live bio).
+    private func rollSilencedBanner(_ reason: TimelineDocument.RollSilenceReason) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "speaker.slash.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(EchoelTheme.warning)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Kein Ton — die Melodie ist stumm")
+                    .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
+                Text(Self.silenceReasonText(reason))
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button { timeline.unsilenceRollSlot() } label: {
+                Text("Ton an")
+                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
+                    .padding(.horizontal, 12).frame(height: 30)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.warning.opacity(0.6), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Turn sound on")
+            .accessibilityHint("Unmutes the generative track, clears any solo, and restores its level")
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(EchoelTheme.warning.opacity(0.12))
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(EchoelTheme.warning.opacity(0.4)).frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private static func silenceReasonText(_ reason: TimelineDocument.RollSilenceReason) -> String {
+        switch reason {
+        case .muted:       return "Die Spur \u{201E}MIDI 1\u{201C} ist gemutet \u{2014} tippe \u{201E}Ton an\u{201C} oder das M an der Spur."
+        case .otherSoloed: return "Eine andere Spur ist auf Solo \u{2014} MIDI 1 ist deshalb still."
+        case .levelZero:   return "Der Pegel von \u{201E}MIDI 1\u{201C} steht auf 0."
+        }
     }
 
     // MARK: - Toolbar (low-frequency only)

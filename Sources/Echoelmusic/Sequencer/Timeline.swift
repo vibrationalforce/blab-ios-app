@@ -184,6 +184,35 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 0 }
         return max(-1, min(1, lane.pan))
     }
+
+    /// Why the roll-slot lane is INAUDIBLE (nil = audible), so the UI can explain a
+    /// silent generative instrument in plain words. Founder 2026-07-14 ("alles ist
+    /// still", verified from the device log): the generative melody plays through the
+    /// first MIDI lane, and a MUTED "MIDI 1" (or a foreign solo, or a 0 fader) gated
+    /// every noteOn off with no visible reason — the classic silent-instrument trap.
+    /// Mirrors `effectiveGain`'s precedence exactly (mute > foreign-solo > level).
+    public enum RollSilenceReason: String, Sendable, Equatable {
+        case muted, otherSoloed, levelZero
+    }
+
+    public var rollSlotSilenceReason: RollSilenceReason? {
+        guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return nil }
+        if lane.isMuted { return .muted }
+        if lanes.contains(where: { $0.isSoloed }) && !lane.isSoloed { return .otherSoloed }
+        if lane.level <= 0.001 { return .levelZero }
+        return nil
+    }
+
+    /// One-tap "make the generative instrument audible again": unmute the roll-slot
+    /// lane, lift a zeroed fader back to unity, and clear any OTHER lane's solo (the
+    /// user explicitly asked to hear the instrument). No-op when already audible or
+    /// when there is no MIDI lane. Idempotent.
+    public mutating func unsilenceRollSlot() {
+        guard let idx = lanes.firstIndex(where: { $0.kind == .midi && !$0.isBio }) else { return }
+        lanes[idx].isMuted = false
+        if lanes[idx].level <= 0.001 { lanes[idx].level = 1 }
+        for i in lanes.indices where i != idx && lanes[i].isSoloed { lanes[i].isSoloed = false }
+    }
 }
 
 // MARK: - Musical constants + conversions

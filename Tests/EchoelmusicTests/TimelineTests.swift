@@ -189,6 +189,63 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(audioOnly.rollSlotGain, 1)
     }
 
+    // MARK: - Roll-slot silence reason + one-tap fix (#22, "alles ist still")
+
+    func testRollSilenceReason_audibleByDefault_isNil() {
+        let doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi),
+            TimelineLane(name: "Audio 1", kind: .audio),
+        ])
+        XCTAssertNil(doc.rollSlotSilenceReason)          // fresh lanes are audible
+        // No MIDI lane at all → not "silenced", just unrepresented.
+        let audioOnly = TimelineDocument(lanes: [TimelineLane(name: "A", kind: .audio)])
+        XCTAssertNil(audioOnly.rollSlotSilenceReason)
+    }
+
+    func testRollSilenceReason_muteWinsOverForeignSoloAndLevel() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi),
+            TimelineLane(name: "Drums", kind: .audio, isSoloed: true),
+        ])
+        // A foreign solo silences the roll…
+        XCTAssertEqual(doc.rollSlotSilenceReason, .otherSoloed)
+        // …but an explicit mute on the roll lane takes precedence (matches effectiveGain).
+        doc.lanes[0].isMuted = true
+        XCTAssertEqual(doc.rollSlotSilenceReason, .muted)
+    }
+
+    func testRollSilenceReason_levelZero() {
+        var doc = TimelineDocument(lanes: [TimelineLane(name: "MIDI 1", kind: .midi)])
+        doc.lanes[0].level = 0
+        XCTAssertEqual(doc.rollSlotSilenceReason, .levelZero)
+    }
+
+    func testUnsilenceRollSlot_unmutesLiftsFaderAndClearsForeignSolo() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi, level: 0, isMuted: true),
+            TimelineLane(name: "Drums", kind: .audio, isSoloed: true),
+        ])
+        XCTAssertNotNil(doc.rollSlotSilenceReason)
+        doc.unsilenceRollSlot()
+        XCTAssertNil(doc.rollSlotSilenceReason)           // now audible
+        XCTAssertFalse(doc.lanes[0].isMuted)
+        XCTAssertEqual(doc.lanes[0].level, 1)             // zeroed fader lifted to unity
+        XCTAssertFalse(doc.lanes[1].isSoloed)             // foreign solo cleared
+        XCTAssertEqual(doc.rollSlotGain, 1)
+        doc.unsilenceRollSlot()                           // idempotent
+        XCTAssertNil(doc.rollSlotSilenceReason)
+    }
+
+    func testUnsilenceRollSlot_keepsRollOwnSolo_andNonZeroLevel() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi, level: 0.7, isMuted: true, isSoloed: true),
+        ])
+        doc.unsilenceRollSlot()
+        XCTAssertFalse(doc.lanes[0].isMuted)
+        XCTAssertTrue(doc.lanes[0].isSoloed)              // its OWN solo is untouched
+        XCTAssertEqual(doc.lanes[0].level, 0.7)           // a healthy level is not reset
+    }
+
     func testLaneDecode_preK2aDocumentWithoutMixKeys_defaultsToUnity() throws {
         // A lane persisted BEFORE the mixer strip existed (no level/mute/solo keys)
         // must decode with unity defaults — nobody's timeline may fail to load.

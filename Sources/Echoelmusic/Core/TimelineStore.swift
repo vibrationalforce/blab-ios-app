@@ -170,6 +170,14 @@ public final class TimelineStore {
         persist()
     }
 
+    /// One-tap "make the generative instrument audible again" (#22, "alles ist still"):
+    /// unmute the roll-slot lane, lift a zeroed fader, clear any foreign solo. Pure
+    /// logic lives on the document; this persists it.
+    public func unsilenceRollSlot() {
+        document.unsilenceRollSlot()
+        persist()
+    }
+
     // MARK: - AUv3 track assignment (U3) — persisted plugin DATA, no engine routing
 
     /// Assign (or clear, with nil) the track's instrument plugin. Pure persisted
