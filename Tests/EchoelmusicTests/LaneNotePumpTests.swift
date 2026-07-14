@@ -1,0 +1,138 @@
+// LaneNotePumpTests.swift
+// Pure tests for the secondary-lane note scheduler (B08). No engine → every platform.
+
+import XCTest
+@testable import Echoelmusic
+
+final class LaneNotePumpTests: XCTestCase {
+
+    // A helper: collect (pitch, isOn) from a step for terse assertions.
+    private func fire(_ pump: inout LaneNotePump, _ step: Int) -> [(Int, Bool)] {
+        pump.step(step).map { ($0.pitch, $0.isOn) }
+    }
+
+    func testEmptyPumpIsIdle() {
+        var pump = LaneNotePump()
+        XCTAssertTrue(pump.isEmpty)
+        XCTAssertEqual(pump.step(0), [])
+        XCTAssertTrue(pump.soundingPitches.isEmpty)
+    }
+
+    func testSingleNoteOnThenOff() {
+        var pump = LaneNotePump()
+        // One 1-step note at step 4 (start tick 480, length 120 → endStep 5).
+        pump.load([Note(pitch: 60, startStep: 4, lengthSteps: 1, velocity: 0.7)])
+        XCTAssertEqual(fire(&pump, 3), [])
+        // Onset at step 4.
+        let on = fire(&pump, 4)
+        XCTAssertEqual(on, [(60, true)])
+        XCTAssertEqual(pump.soundingPitches, [60])
+        // Release at step 5 (exclusive end).
+        let off = fire(&pump, 5)
+        XCTAssertEqual(off, [(60, false)])
+        XCTAssertTrue(pump.soundingPitches.isEmpty)
+    }
+
+    func testOnsetVelocityPreserved() {
+        var pump = LaneNotePump()
+        pump.load([Note(pitch: 48, startStep: 0, lengthSteps: 2, velocity: 0.42)])
+        let events = pump.step(0)
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events[0].pitch, 48)
+        XCTAssertEqual(events[0].velocity, 0.42, accuracy: 0.0001)
+        XCTAssertTrue(events[0].isOn)
+    }
+
+    func testSilentNoteNeverAttacks() {
+        var pump = LaneNotePump()
+        pump.load([Note(pitch: 50, startStep: 0, lengthSteps: 1, velocity: 0)])
+        XCTAssertEqual(pump.step(0), [])
+        XCTAssertTrue(pump.soundingPitches.isEmpty)
+    }
+
+    func testTwoSimultaneousNotesBothPlay() {
+        var pump = LaneNotePump()
+        pump.load([
+            Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: 0.8),
+            Note(pitch: 64, startStep: 0, lengthSteps: 4, velocity: 0.8),
+        ])
+        let on = pump.step(0).filter(\.isOn).map(\.pitch).sorted()
+        XCTAssertEqual(on, [60, 64])
+        XCTAssertEqual(pump.soundingPitches, [60, 64])
+    }
+
+    func testFullBarNoteLoopsSeamlessly() {
+        var pump = LaneNotePump(stepCount: 16)
+        // A whole-bar note: start 0, length 16 → endStep 16, 16 % 16 == 0.
+        pump.load([Note(pitch: 36, startStep: 0, lengthSteps: 16, velocity: 0.9)])
+        // Bar 1 onset.
+        XCTAssertEqual(fire(&pump, 0), [(36, true)])
+        // Nothing mid-bar.
+        for s in 1..<16 { XCTAssertEqual(fire(&pump, s), []) }
+        // Bar 2 step 0: release the old, then re-attack — clean loop.
+        let wrap = fire(&pump, 0)
+        XCTAssertEqual(wrap, [(36, false), (36, true)])
+        XCTAssertEqual(pump.soundingPitches, [36])
+    }
+
+    func testSamePitchRetriggerReleasesBeforeAttack() {
+        var pump = LaneNotePump()
+        // Note A ends exactly where note B (same pitch) starts — mid-bar retrigger.
+        pump.load([
+            Note(pitch: 62, startStep: 0, lengthSteps: 4, velocity: 0.8),  // endStep 4
+            Note(pitch: 62, startStep: 4, lengthSteps: 4, velocity: 0.8),  // start 4
+        ])
+        _ = pump.step(0)                      // A on
+        let s4 = fire(&pump, 4)               // A off, then B on
+        XCTAssertEqual(s4, [(62, false), (62, true)])
+        XCTAssertEqual(pump.soundingPitches, [62])
+    }
+
+    func testPitchHeldBySecondNoteNotReleasedEarly() {
+        var pump = LaneNotePump()
+        // Two same-pitch notes overlap: A [0,8), B [4,12). At step 8 A ends but B
+        // still holds pitch → NO note-off yet.
+        pump.load([
+            Note(pitch: 55, startStep: 0, lengthSteps: 8, velocity: 0.8),
+            Note(pitch: 55, startStep: 4, lengthSteps: 8, velocity: 0.8),
+        ])
+        _ = pump.step(0)   // A on
+        _ = pump.step(4)   // B on (same pitch, no new attack event needed but tracked)
+        let s8 = pump.step(8)   // A ends, B survives → no off
+        XCTAssertTrue(s8.isEmpty, "pitch still held by B must not release")
+        XCTAssertEqual(pump.soundingPitches, [55])
+    }
+
+    func testResetReleasesAllSounding() {
+        var pump = LaneNotePump()
+        pump.load([
+            Note(pitch: 60, startStep: 0, lengthSteps: 8, velocity: 0.8),
+            Note(pitch: 67, startStep: 0, lengthSteps: 8, velocity: 0.8),
+        ])
+        _ = pump.step(0)
+        let offs = pump.reset()
+        XCTAssertEqual(offs.map(\.pitch).sorted(), [60, 67])
+        XCTAssertTrue(offs.allSatisfy { !$0.isOn })
+        XCTAssertTrue(pump.isEmpty)
+    }
+
+    func testContentSwapKeepsRingingNoteUntilItsEnd() {
+        var pump = LaneNotePump()
+        pump.load([Note(pitch: 72, startStep: 0, lengthSteps: 8, velocity: 0.8)])
+        _ = pump.step(0)                 // 72 on
+        // Swap content mid-loop — 72 keeps ringing (no cut), new note at step 8.
+        pump.load([Note(pitch: 48, startStep: 8, lengthSteps: 4, velocity: 0.8)])
+        XCTAssertEqual(pump.soundingPitches, [72])
+        let s8 = fire(&pump, 8)          // 72 releases (endStep 8), 48 attacks
+        XCTAssertEqual(s8.filter { !$0.1 }.map(\.0), [72])
+        XCTAssertEqual(s8.filter { $0.1 }.map(\.0), [48])
+    }
+
+    func testStepWrapsOutOfRangeIndex() {
+        var pump = LaneNotePump(stepCount: 16)
+        pump.load([Note(pitch: 60, startStep: 0, lengthSteps: 1, velocity: 0.8)])
+        // step 16 wraps to 0 → onset fires.
+        let e = pump.step(16)
+        XCTAssertEqual(e.map(\.pitch), [60])
+    }
+}
