@@ -171,6 +171,41 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     }
 
     public var endTick: Int { startTick + lengthTicks }
+
+    /// Split this region at an ABSOLUTE tick into two abutting pieces (clip edit —
+    /// "cut"). Returns nil when `tick` is not strictly inside (`startTick < tick <
+    /// endTick`) — a split at an edge is a no-op. The first piece keeps this region's
+    /// identity (shortened); the second gets a fresh id, starts at `tick`, and
+    /// advances `contentOffsetSeconds` by the elapsed media time so audio/video plays
+    /// seamlessly across the cut (MIDI, offset 0, is unaffected). Pure + testable.
+    public func split(at tick: Int, bpm: Double) -> (TimelineRegion, TimelineRegion)? {
+        guard tick > startTick, tick < endTick else { return nil }
+        var first = self
+        first.lengthTicks = tick - startTick
+        var second = self
+        second.id = UUID()
+        second.startTick = tick
+        second.lengthTicks = endTick - tick
+        second.contentOffsetSeconds = contentOffsetSeconds
+            + TimelineTime.seconds(fromTicks: tick - startTick, bpm: bpm)
+        return (first, second)
+    }
+
+    /// Whether `other` abuts this region on the SAME lane + clip (this region's end
+    /// meets the other's start) — the mergeable case (the undo of a split, or two
+    /// touching fragments of one clip). Regions of DIFFERENT clips never merge (which
+    /// content would win is undefined — that would be lossy).
+    public func abuts(_ other: TimelineRegion) -> Bool {
+        laneID == other.laneID && clipID == other.clipID && endTick == other.startTick
+    }
+
+    /// Merge `other` (which must `abuts` this) into one region spanning both — keeps
+    /// this region's id + `contentOffsetSeconds` (its media start). Pure + testable.
+    public func merged(with other: TimelineRegion) -> TimelineRegion {
+        var r = self
+        r.lengthTicks = other.endTick - startTick
+        return r
+    }
 }
 
 /// The whole timeline document: ordered lanes + their regions.

@@ -99,6 +99,59 @@ public final class TimelineStore {
         persist()
     }
 
+    // MARK: - Clip edit — split / merge (founder 2026-07-14 "Clips schneiden und zusammenfügen")
+
+    /// Split the region `id` at an absolute tick into two abutting regions ("cut").
+    /// No-op if the tick is at/outside the region's edges. `bpm` advances the second
+    /// piece's media offset so audio/video plays seamlessly across the cut.
+    public func splitRegion(id: UUID, atTick tick: Int, bpm: Double) {
+        guard let i = document.regions.firstIndex(where: { $0.id == id }),
+              let (first, second) = document.regions[i].split(at: tick, bpm: bpm) else { return }
+        document.regions[i] = first
+        document.regions.append(second)
+        persist()
+    }
+
+    /// Razor: split EVERY region the playhead crosses at `tick` (the DAW "split at
+    /// playhead" gesture — no per-region selection needed). No-op if the tick is
+    /// inside no region.
+    public func splitRegions(atTick tick: Int, bpm: Double) {
+        var newPieces: [TimelineRegion] = []
+        for i in document.regions.indices {
+            if let (first, second) = document.regions[i].split(at: tick, bpm: bpm) {
+                document.regions[i] = first
+                newPieces.append(second)
+            }
+        }
+        guard !newPieces.isEmpty else { return }
+        document.regions.append(contentsOf: newPieces)
+        persist()
+    }
+
+    /// Join at playhead: merge every pair of same-lane/clip regions that abut exactly
+    /// at `tick` (the inverse of the razor — rejoins pieces a split created there).
+    /// No-op if no such pair meets at `tick`. Iterates to convergence so several
+    /// lanes (or a chain) meeting at the tick all rejoin.
+    public func mergeRegions(atTick tick: Int) {
+        var regions = document.regions
+        var didMerge = false
+        var changed = true
+        while changed {
+            changed = false
+            outer: for a in regions.indices where regions[a].endTick == tick {
+                for b in regions.indices where a != b && regions[a].abuts(regions[b]) {
+                    regions[a] = regions[a].merged(with: regions[b])
+                    regions.remove(at: b)
+                    didMerge = true; changed = true
+                    break outer
+                }
+            }
+        }
+        guard didMerge else { return }
+        document.regions = regions
+        persist()
+    }
+
     // MARK: - Lane edits
 
     public func addLane(kind: ClipKind, name: String? = nil) {

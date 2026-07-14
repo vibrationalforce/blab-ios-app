@@ -28,6 +28,10 @@ struct ArrangeTimelineView: View {
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(TimelineRegionPlayer.self) private var timelinePlayer
     @Environment(RecordController.self) private var recordController
+    // Transport, for the "Split at playhead" razor. Read ONLY in the button's tap
+    // action (never in `body`), so `position` (~8 Hz) creates no observation on the
+    // toolbar body — the menu-freeze rule stays honored (like the playhead leaf).
+    @Environment(Transport.self) private var transport
     // Per-lane sound distribution (founder 2026-07-12: "Teile das sinnvoll in
     // die Spuren auf. Externe AUv3 inbegriffen") — the lane door now opens the
     // lane's OWN sound: the melodic-bus insert (live-applied to the roll's
@@ -353,6 +357,55 @@ struct ArrangeTimelineView: View {
             .buttonStyle(.plain)
             .disabled(!recordController.isRecording && !recordController.hasArmedTarget())
             .accessibilityLabel(recordController.isRecording ? "Stop recording" : "Record armed tracks")
+
+            // Split at playhead (founder 2026-07-14 "Clips schneiden und
+            // zusammenfügen"): the razor — cut EVERY region the playhead crosses into
+            // two abutting pieces (audio/video media offset advances so it plays
+            // seamlessly; MIDI unaffected). Reads `transport.position` ONLY here in the
+            // tap action, never in `body` → no toolbar churn (freeze rule). No-op at a
+            // region edge. Merge (join) is the region editor's follow-up.
+            Button {
+                let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+                timeline.splitRegions(atTick: tick, bpm: beatPlayer.pattern.tempo)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "scissors")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Split")
+                        .font(EchoelTheme.font(12, .medium))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 10).frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(timeline.document.regions.isEmpty)
+            .accessibilityLabel("Split regions at playhead")
+
+            // Join at playhead — the inverse razor: rejoin same-lane/clip pieces that
+            // abut exactly at the playhead (undo of a split). Same tap-only position
+            // read as Split. No-op if nothing meets there.
+            Button {
+                let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+                timeline.mergeRegions(atTick: tick)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.triangle.merge")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Join")
+                        .font(EchoelTheme.font(12, .medium))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 10).frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(timeline.document.regions.isEmpty)
+            .accessibilityLabel("Join regions at playhead")
 
             // Immersive Stage door: the Touch surface that places every track in
             // space. Every non-bio lane is already a positioned SpatialObject; this
