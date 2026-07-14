@@ -517,6 +517,12 @@ struct EchoelStudioView: View {
                         }
                         .padding(16)
                     }
+                    // Bound the (near-empty) content scroll so the zone HUGS its content
+                    // instead of staying vertically greedy — otherwise it splits ~50/50
+                    // with the .infinity timeline and clips tall dropdowns (Comp/Sound/FX).
+                    // The dropdown host caps at the same 480, so it now always fits and the
+                    // timeline stays the dominant canvas (review #1).
+                    .frame(maxHeight: 480)
                 }
                 // ONE anchored dropdown over the zone — tap the scrim (or the active
                 // chip) to close. AnyView boundary keeps the panels' generics out of
