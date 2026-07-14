@@ -372,6 +372,14 @@ public final class PolySynthVoice {
         poly.transposeSemitones = Float(min(max(semitones, -48), 48))
     }
 
+    /// Per-instrument DETUNE (founder 2026-07-14 "transpose detune"): offset this voice's
+    /// pitch by a fraction of a semitone, in cents, clamped ±100 (±1 semitone). Takes
+    /// effect on the next note; safe to call while a loop plays (atomic Float write, read
+    /// at the next noteOn — same discipline as `setTranspose`/`setTuning`).
+    public func setDetune(cents: Float) {
+        poly.detuneCents = min(max(cents.isFinite ? cents : 0, -100), 100)
+    }
+
     /// Main-actor mirror of the active retune table so UI code (the touch
     /// instrument's note→colour mapping) can compute the SOUNDING frequency of a
     /// pitch — including Pythagorean/just/maqām offsets — without touching the

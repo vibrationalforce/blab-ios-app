@@ -176,6 +176,48 @@ final class MultiRollFanoutTests: XCTestCase {
         XCTAssertEqual(legacy.transposeSemitones, 0)
     }
 
+    // MARK: - Per-instrument Detune (founder 2026-07-14 "transpose detune")
+
+    private func makeDetunedDoc(_ d0: Float, _ d1: Float) -> (TimelineDocument, roll: UUID) {
+        let bio = TimelineLane(name: "Bio", kind: .midi, isBio: true)
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let s1 = TimelineLane(name: "MIDI 2", kind: .midi, detuneCents: d0)
+        let s2 = TimelineLane(name: "MIDI 3", kind: .midi, detuneCents: d1)
+        let regions = [TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920)]
+        return (TimelineDocument(lanes: [bio, roll, s1, s2], regions: regions), roll.id)
+    }
+
+    func testDetuneForSlot_resolvesEachLanesOwnOffset() {
+        let (doc, roll) = makeDetunedDoc(-7, 12)
+        XCTAssertEqual(MultiRollFanout.detune(forSlot: 0, in: doc, rollLane: roll), -7)
+        XCTAssertEqual(MultiRollFanout.detune(forSlot: 1, in: doc, rollLane: roll), 12)
+    }
+
+    func testDetuneForSlot_unsetLane_isZero() {
+        let (doc, roll) = makeDetunedDoc(0, 0)
+        XCTAssertEqual(MultiRollFanout.detune(forSlot: 0, in: doc, rollLane: roll), 0)
+    }
+
+    func testDetuneForSlot_outOfRange_isZero() {
+        let (doc, roll) = makeDetunedDoc(5, 5)
+        XCTAssertEqual(MultiRollFanout.detune(forSlot: 9, in: doc, rollLane: roll), 0)
+    }
+
+    /// Model backward-compat: a lane's detune round-trips, and a document saved BEFORE
+    /// the field existed (no `detuneCents` key) decodes to 0 (in tune).
+    func testDetuneCents_codableRoundTripsAndDefaultsToZero() throws {
+        let lane = TimelineLane(name: "Pad", kind: .midi, detuneCents: -7)
+        let data = try JSONEncoder().encode(lane)
+        let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+        XCTAssertEqual(back.detuneCents, -7)
+
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        obj.removeValue(forKey: "detuneCents")
+        let stripped = try JSONSerialization.data(withJSONObject: obj)
+        let legacy = try JSONDecoder().decode(TimelineLane.self, from: stripped)
+        XCTAssertEqual(legacy.detuneCents, 0)
+    }
+
     /// REGRESSION GUARD: the fan-out fires a slot's notes from `LaneVoiceRackPlan`
     /// (ranked by index in `LaneVoiceScheduling.plan(...).filter{ != roll }`) but
     /// resolves that slot's PATCH and MUTE from `MultiRollFanout.laneID(forSlot:)`.

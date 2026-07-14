@@ -1612,6 +1612,13 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// noteOn, so it needs no change. Takes effect on the next note; 0 = bit-identical.
     /// Same atomic-Float discipline as `a4Hz` (aligned word read on the audio thread).
     public var transposeSemitones: Float = 0
+    /// Per-voice DETUNE in cents (founder 2026-07-14, per-instrument "transpose detune"):
+    /// a FINE continuous pitch offset folded into the SAME MIDI→Hz exponent as
+    /// `transposeSemitones` and the microtonal `cents`, so it shifts the sounding pitch
+    /// by a fraction of a semitone (e.g. +7¢ sharp) without touching note bookkeeping.
+    /// `slideNote`'s glide ratio is offset-invariant (cancels in newBase/oldBase). Takes
+    /// effect on the next note; 0 = bit-identical. Atomic-Float discipline, like `a4Hz`.
+    public var detuneCents: Float = 0
 
     /// Set unison live (clamped). count 1 = off; detune is the full spread in cents.
     public func setUnison(count: Int, detuneCents: Float) {
@@ -1681,9 +1688,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // Per-pitch-class microtonal retune (cents → semitone fraction). Zero table
         // = standard 12-TET, bit-identical to before.
         let cents = tuningCents[((note % 12) + 12) % 12]
-        // Per-instrument transpose is a whole-semitone add in the SAME exponent as the
-        // microtonal cents — one snapshot read (atomic Float), 0 ⇒ bit-identical.
-        let baseFreq = a4Hz * pow(2.0, (Float(note - 69) + transposeSemitones + cents / 100.0) / 12.0)
+        // Per-instrument transpose (whole semitones) + detune (cents) fold into the
+        // SAME exponent as the microtonal cents — snapshot reads (atomic Float), both
+        // 0 ⇒ bit-identical.
+        let baseFreq = a4Hz * pow(2.0, (Float(note - 69) + transposeSemitones + (cents + detuneCents) / 100.0) / 12.0)
         let v = min(1, max(0, velocity))
 
         let u = min(max(unisonCount, 1), Self.maxUnison)

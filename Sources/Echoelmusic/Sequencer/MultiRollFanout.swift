@@ -86,6 +86,14 @@ public enum MultiRollFanout {
         return document.lanes.first(where: { $0.id == id })?.transposeSemitones ?? 0
     }
 
+    /// The fine DETUNE in cents slot `slot`'s lane carries (0 ⇒ no offset, and 0 for an
+    /// out-of-range slot). Per-instrument Detune (founder 2026-07-14); mirrors
+    /// `transpose(forSlot:)` so each rack voice can be detuned to its own lane.
+    public static func detune(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> Float {
+        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return 0 }
+        return document.lanes.first(where: { $0.id == id })?.detuneCents ?? 0
+    }
+
     /// Whether a secondary lane is audible this tick — mute/foreign-solo/0-level all
     /// silence it, matching the primary roll lane's rollSlotGain→laneAudible gate.
     public static func audible(_ document: TimelineDocument, laneID: UUID) -> Bool {

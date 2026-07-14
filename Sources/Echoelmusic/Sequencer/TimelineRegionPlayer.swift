@@ -88,6 +88,12 @@ public final class TimelineRegionPlayer {
     /// region loads (the roll lane plays the rich PianoRollModel, not a rack slot, so it
     /// needs its own hook). nil ⇒ no transpose applied.
     @ObservationIgnored public var rollTransposeSink: ((_ semitones: Int) -> Void)?
+    /// Applies a SECONDARY lane's fine DETUNE (cents) to its slot's rack voice on region
+    /// load (founder 2026-07-14, per-instrument Detune), alongside patch + transpose.
+    @ObservationIgnored public var slotDetuneSink: ((_ slot: Int, _ cents: Float) -> Void)?
+    /// Applies the PRIMARY roll lane's fine DETUNE (cents) to the roll voice on region
+    /// load (the roll lane plays PianoRollModel, not a rack slot). nil ⇒ no detune.
+    @ObservationIgnored public var rollDetuneSink: ((_ cents: Float) -> Void)?
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
@@ -216,6 +222,7 @@ public final class TimelineRegionPlayer {
         // Per-instrument transpose for the PRIMARY lane (founder 2026-07-14): pitch the
         // roll voice to the roll lane's own semitone shift before its notes load.
         rollTransposeSink?(doc.lanes.first(where: { $0.id == lane })?.transposeSemitones ?? 0)
+        rollDetuneSink?(doc.lanes.first(where: { $0.id == lane })?.detuneCents ?? 0)
         loadClip(region)
     }
 
@@ -268,6 +275,7 @@ public final class TimelineRegionPlayer {
                 // render drain, so timbre precedes attack). nil ⇒ app falls back.
                 slotPatchSink?(slot, MultiRollFanout.patch(forSlot: slot, in: doc, rollLane: rollLane))
                 slotTransposeSink?(slot, MultiRollFanout.transpose(forSlot: slot, in: doc, rollLane: rollLane))
+                slotDetuneSink?(slot, MultiRollFanout.detune(forSlot: slot, in: doc, rollLane: rollLane))
                 var pump = pumps[slot] ?? LaneNotePump()
                 if !pump.isEmpty { sink(slot, pump.reset()) }   // release the old take first
                 pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
@@ -312,6 +320,7 @@ public final class TimelineRegionPlayer {
                                                 rollLane: rollLane, capacity: multiRollCapacity) {
             slotPatchSink?(load.slot, load.patch)
             slotTransposeSink?(load.slot, MultiRollFanout.transpose(forSlot: load.slot, in: doc, rollLane: rollLane))
+            slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
             var pump = pumps[load.slot] ?? LaneNotePump()
             if !pump.isEmpty { sink(load.slot, pump.reset()) }
             pump.load(clips?.clip(id: load.clipID)?.melody?.notes ?? [])

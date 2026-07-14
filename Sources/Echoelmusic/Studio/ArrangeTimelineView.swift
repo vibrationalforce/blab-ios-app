@@ -146,6 +146,13 @@ struct ArrangeTimelineView: View {
             synth.setTranspose(semitones: semis)
             leadSynth?.setTranspose(semitones: semis)
         }
+        // Per-instrument Detune, primary lane (founder 2026-07-14 "transpose detune"):
+        // the fine-cents twin of transpose — same live-push discipline (document-level
+        // read, fires on edit not at 10 Hz; freeze-rule safe).
+        .onChange(of: timeline.document.rollSlotDetune, initial: true) { _, cents in
+            synth.setDetune(cents: cents)
+            leadSynth?.setDetune(cents: cents)
+        }
         .gesture(magnify)
         .sheet(item: $activeModal) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
@@ -919,8 +926,14 @@ private struct LaneFXEditor: View {
             EchoelValueField(label: "Transpose",
                              value: transposeBinding,
                              range: Float(-48)...Float(48), unit: "st", decimals: 0)
+            // Per-instrument DETUNE (founder 2026-07-14 "transpose detune"): fine cents
+            // offset — sit this track a few cents sharp/flat for analog thickening or a
+            // beating detune against another track. Per-lane, saved with the song.
+            EchoelValueField(label: "Detune",
+                             value: detuneBinding,
+                             range: Float(-100)...Float(100), unit: "¢", decimals: 0)
 
-            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan and Transpose are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift).")
+            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan, Transpose and Detune are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift, Detune 0 = in tune).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -969,6 +982,13 @@ private struct LaneFXEditor: View {
     private var transposeBinding: Binding<Float> {
         Binding(get: { Float(timeline.document.lanes.first(where: { $0.id == laneID })?.transposeSemitones ?? 0) },
                 set: { timeline.setLaneTranspose(id: laneID, Int($0.rounded())) })
+    }
+
+    /// Per-instrument detune (cents) lives on the lane (persisted, ±100). The region
+    /// player detunes this lane's voice on load — one push path, like transpose/pan.
+    private var detuneBinding: Binding<Float> {
+        Binding(get: { timeline.document.lanes.first(where: { $0.id == laneID })?.detuneCents ?? 0 },
+                set: { timeline.setLaneDetune(id: laneID, $0) })
     }
 }
 

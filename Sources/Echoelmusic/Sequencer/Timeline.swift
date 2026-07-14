@@ -68,6 +68,14 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// reads it per lane (primary lane via `rollTransposeSink`, secondary lanes via
     /// `slotTransposeSink`).
     public var transposeSemitones: Int
+    /// Per-instrument DETUNE in cents (founder 2026-07-14: "transpose detune und Oktaver").
+    /// The FINE-pitch twin of `transposeSemitones` (which is whole semitones): a small
+    /// continuous offset (±100¢ = ±1 semitone) folded into the SAME voice MIDI→Hz path,
+    /// so a lane can sit a few cents sharp/flat for analog-style thickening or a beating
+    /// detune against another lane. Non-destructive (written notes keep their pitch);
+    /// 0 = no detune (bit-identical). Persisted DATA; read per lane like transpose
+    /// (primary via `rollDetuneSink`, secondary via `slotDetuneSink`).
+    public var detuneCents: Float
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
@@ -75,7 +83,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
                 builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false,
                 patch: SynthPatch? = nil, genreOverride: MusicStyle? = nil,
                 mood: MoodProfile? = nil, variationSeed: UInt64? = nil,
-                transposeSemitones: Int = 0) {
+                transposeSemitones: Int = 0, detuneCents: Float = 0) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -93,6 +101,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.mood = mood
         self.variationSeed = variationSeed
         self.transposeSemitones = transposeSemitones
+        self.detuneCents = detuneCents
     }
 
     /// What this track's record button captures — derived from its kind + built-in
@@ -135,6 +144,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         variationSeed = try c.decodeIfPresent(UInt64.self, forKey: .variationSeed)
         // Pre-2026-07-14 docs carry no per-track transpose ⇒ 0 (no shift, bit-identical).
         transposeSemitones = try c.decodeIfPresent(Int.self, forKey: .transposeSemitones) ?? 0
+        // Pre-2026-07-14 docs carry no per-track detune ⇒ 0 (no offset, bit-identical).
+        detuneCents = try c.decodeIfPresent(Float.self, forKey: .detuneCents) ?? 0
     }
 }
 
@@ -233,6 +244,15 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     public var rollSlotTranspose: Int {
         guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 0 }
         return max(-48, min(48, lane.transposeSemitones))
+    }
+
+    /// The fine DETUNE in cents the ONE shared Piano-Roll slot plays at (the
+    /// rollSlotTranspose twin for cents — founder 2026-07-14 "transpose detune").
+    /// Clamped ±100¢; no MIDI lane → 0. The surface's onChange pushes it into both
+    /// melodic voices live, so a primary-lane detune edit is heard immediately.
+    public var rollSlotDetune: Float {
+        guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 0 }
+        return max(-100, min(100, lane.detuneCents))
     }
 
     /// Why the roll-slot lane is INAUDIBLE (nil = audible), so the UI can explain a

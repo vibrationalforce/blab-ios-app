@@ -168,6 +168,15 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Per-instrument DETUNE in cents (founder 2026-07-14 "transpose detune"), clamped
+    /// ±100 (±1 semitone) to match the voice. State only — the region player detunes
+    /// each lane's voice on load (rollDetuneSink / slotDetuneSink), like transpose.
+    public func setLaneDetune(id: UUID, _ cents: Float) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].detuneCents = max(-100, min(100, cents.isFinite ? cents : 0))
+        persist()
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()
