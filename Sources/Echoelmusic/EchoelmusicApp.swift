@@ -284,6 +284,7 @@ struct EchoelmusicApp: App {
         let g = signalRouter.graph
         #if canImport(Network)
         if g.hasEnabledRoute(toSink: "osc.out") { osc.start(subscribing: bus) } else { osc.stop() }
+        admOSC.attachScene(spatialScene)   // idempotent weak-ref; enables Immersive-Stage scene streaming
         if g.hasEnabledRoute(toSink: "adm.out") { admOSC.start(subscribing: bus) } else { admOSC.stop() }
         if g.hasEnabledRoute(toSink: "artnet.out") { artNet.start(subscribing: bus) } else { artNet.stop() }
         if g.hasEnabledRoute(toSink: "sacn.out") { sacn.start(subscribing: bus) } else { sacn.stop() }

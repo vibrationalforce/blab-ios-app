@@ -47,6 +47,23 @@ public final class ADMOSCSender {
     /// 1-based ADM object index this bio source drives.
     public var objectIndex: Int
 
+    /// S3 — Immersive-Stage scene streaming. When true, each tick streams the ATTACHED
+    /// scene (every placed track as `/adm/obj/1…N`) INSTEAD of the bio→object mapping.
+    /// Mutual exclusion is the whole point: streaming the track scene suppresses the
+    /// bio object so object 1 never collides. Off by default ⇒ the bio path is
+    /// untouched and Release is bit-identical. Toggling it re-arms a fresh send.
+    public var streamsScene = false {
+        didSet { if streamsScene != oldValue { lastSentScene = nil } }
+    }
+
+    /// Dialect for SCENE streaming (ADM-OSC or IEM MultiEncoder). The bio→object
+    /// path is always ADM-OSC; this only affects `streamsScene`.
+    public var sceneDialect: SpatialOSCDialect = .admOSC
+
+    /// Object count in the most recent streamed scene — drives a UI activity readout
+    /// without a timer (like `lastSentTimestamp`).
+    public private(set) var lastSceneObjectCount = 0
+
     public private(set) var isActive = false
 
     /// CFAbsoluteTime of the last datagram sent — lets the UI render an activity
@@ -54,6 +71,8 @@ public final class ADMOSCSender {
     public private(set) var lastSentTimestamp: TimeInterval = 0
 
     @ObservationIgnored private weak var bus: EngineBus?
+    @ObservationIgnored private weak var sceneStore: SpatialSceneStore?
+    @ObservationIgnored private var lastSentScene: SpatialScene?
     @ObservationIgnored private var connection: NWConnection?
     @ObservationIgnored private let loop = PollingLoop()
     @ObservationIgnored private var lastFrameTimestamp: TimeInterval = -1
@@ -80,6 +99,15 @@ public final class ADMOSCSender {
         connection?.cancel()
         connection = nil
         isActive = false
+        lastSentScene = nil
+        lastSceneObjectCount = 0
+    }
+
+    /// Attach the live Immersive-Stage scene (weak — the store lives at app level).
+    /// Streaming only actually happens while `streamsScene` is true AND a route has
+    /// opened the socket.
+    public func attachScene(_ store: SpatialSceneStore?) {
+        sceneStore = store
     }
 
     // MARK: - Connection
@@ -95,6 +123,26 @@ public final class ADMOSCSender {
     // MARK: - Subscriber tick
 
     private func sendIfFresh(from bus: EngineBus) {
+        // S3 — SCENE STREAMING takes over the socket when armed: every placed track is
+        // an object (/adm/obj/1…N via the golden-tested formatter), and the bio→object
+        // path below is suppressed entirely so object 1 never collides. Static
+        // positions send once (dedup on scene equality); a puck move / recorded
+        // automation restreams. Streaming but nothing placed yet ⇒ send nothing (never
+        // fall back to bio — that would reintroduce the collision).
+        if streamsScene {
+            guard let scene = sceneStore?.scene, !scene.objects.isEmpty else {
+                if lastSceneObjectCount != 0 { lastSceneObjectCount = 0 }
+                return
+            }
+            // Guard the observed write so a static scene doesn't fire an @Observable
+            // notification every 20 Hz tick (that would churn the Immersive Stage's
+            // puck body — the readout is a low-frequency status, not a live meter).
+            if lastSceneObjectCount != scene.objects.count { lastSceneObjectCount = scene.objects.count }
+            guard scene != lastSentScene else { return }
+            lastSentScene = scene
+            send(scene: scene, dialect: sceneDialect)   // sets lastSentTimestamp
+            return
+        }
         // Music drives the object POSITION when sounding (pitch→azimuth/elevation,
         // level→distance/gain), bio otherwise — bio stays the co-modulator. Dedup on
         // the chosen source's timestamp so a music-only change still moves the object.
@@ -125,14 +173,13 @@ public final class ADMOSCSender {
         conn.send(content: data, completion: .contentProcessed { _ in })
     }
 
-    // MARK: - Scene-driven send (S2 — no callers yet, bio subscriber stays default)
+    // MARK: - Scene-driven send (S3 — driven by the tick while `streamsScene` is armed)
 
     /// Pushes an entire SpatialScene through the open socket in the given
     /// dialect (ADM-OSC or IEM). Formatting is the pure
     /// `SpatialSceneOSCFormatter` (golden-file tested); this method only
-    /// moves bytes. Nothing calls it today — the live bio→object subscriber
-    /// above remains the only active behaviour until the spatialEngine flag
-    /// path lands, so Release is bit-identical.
+    /// moves bytes. Called by `sendIfFresh` when `streamsScene` is on (mutual
+    /// exclusion with the bio→object path); still safe to call directly.
     public func send(scene: SpatialScene, dialect: SpatialOSCDialect = .admOSC) {
         guard connection != nil else { return }
         for message in SpatialSceneOSCFormatter.messages(for: scene, dialect: dialect) {

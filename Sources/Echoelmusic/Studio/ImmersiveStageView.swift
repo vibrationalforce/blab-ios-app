@@ -27,6 +27,9 @@ import SwiftUI
 struct ImmersiveStageView: View {
     @Environment(TimelineStore.self) private var timeline
     @Environment(SpatialSceneStore.self) private var spatial
+    #if canImport(Network)
+    @Environment(ADMOSCSender.self) private var admOSC
+    #endif
     @Environment(\.dismiss) private var dismiss
 
     /// The lane whose puck is under the finger (highlighted while dragging).
@@ -47,6 +50,9 @@ struct ImmersiveStageView: View {
                 emptyState
             } else {
                 stage
+                #if canImport(Network)
+                streamControls
+                #endif
             }
             hint
         }
@@ -208,5 +214,45 @@ struct ImmersiveStageView: View {
             .foregroundStyle(EchoelTheme.dim)
             .multilineTextAlignment(.center)
     }
+
+    // MARK: Scene egress (#18) — stream the placed objects to an external renderer
+
+    #if canImport(Network)
+    /// The one control that turns the placed room into an ADM-OSC object stream.
+    /// When on, ADMOSCSender streams every track as `/adm/obj/1…N` (suppressing its
+    /// bio→object mode so object 1 never collides). It only reaches the wire once the
+    /// "ADM-OSC output" route is enabled in Routing — the status line says so.
+    @ViewBuilder private var streamControls: some View {
+        @Bindable var sender = admOSC
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $sender.streamsScene) {
+                Text("Stream to renderer (ADM-OSC)")
+                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            .accessibilityHint("Sends every track's spatial position to an external immersive renderer over the open ADM-OSC standard.")
+            Text(streamStatusLine)
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    /// One honest line for every state — off / route-needed / streaming — so it's
+    /// never ambiguous whether anything is actually leaving the device.
+    private var streamStatusLine: String {
+        if !admOSC.streamsScene {
+            return "Send every track's position to an immersive renderer over the open ADM-OSC standard."
+        }
+        if !admOSC.isActive {
+            return "Turn on \u{201E}ADM-OSC output\u{201C} in Routing to open the connection — then this streams live."
+        }
+        let n = admOSC.lastSceneObjectCount
+        return "Streaming \(n) object\(n == 1 ? "" : "s") to \(admOSC.host):\(admOSC.port)."
+    }
+    #endif
 }
 #endif
