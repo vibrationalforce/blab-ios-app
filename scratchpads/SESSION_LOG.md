@@ -3,6 +3,28 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 60) — Konvergenz-Backlog: v197 rPPG-Fix, v198 Variationen-Audition
+- **v10.79.198 (a4787b8 + Deploy a7e88a2) — #19 BioVariationMaze-Audition.** Der Idea-Maze-
+  Komponist (gebaut+getestet, aber türlos) bekam seine Tür: Karte "Variationen" im Comp-Dropdown.
+  "Erkunden" → `BioVariationMaze.explore(base:count:6)` rankt 6 Varianten desselben Grooves nach
+  Nähe zu `musicalState.busy`; Zeile antippen → spielt sofort (Skelett+Detail-Seed exakt, Live-
+  Körper färbt Tempo/Dynamik). **Ehrlich ohne Doppel-Code:** generate()-Input-Bau in EINE geteilte
+  `makeComposerInput(advanceEvolution:detailSeedOverride:structureSeedOverride:)` extrahiert →
+  Audition scort GENAU die Eingabe, die generate() nutzt; generate() bekam zwei nil-default Seed-
+  Overrides (bestehende Aufrufer bit-identisch). **Render-Safety:** KEINE neue .sheet (Modal-Decke),
+  Maze-UI liest nur @State-Schnappschüsse (kein 10-Hz-Read im Menü-Host). ui-state + concurrency
+  Reviewer je PASS(0). Beide Gates grün. Ledger-Playbook ergänzt (In-Place via StudioMenu-Dropdown
+  statt .sheet; geteilter Input-Builder für ehrliche Auditions).
+- **v10.79.197 (e1f017f + Deploy ade8c9a) — #14 rPPG-Puls-Lock-Fix (device-verify offen).** 2301-Log:
+  Finger drauf, Lauf 2 lockte NIE (pk=0/bpm=0). Ursache: langsamer DC-Drift übersteht Bandfilter,
+  überdeckt Herz-Anteil in der Autokorrelation; alter Schätzer entfernte nur MITTELWERT, nicht
+  STEIGUNG. Fix: `RPPGConditioning.linearDetrend` (getestet, war gebaut-aber-unverdrahtet) vor der
+  Periodizitäts-Analyse; Motion-Gates bleiben auf dem nicht-detrendeten window. dsp-Reviewer PASS
+  (ein Beobachtungspunkt: detrended lastAutoStrength speist auch motionBleed — meist vorteilhaft).
+- **Kontext:** Founder "Mach weiter alles fertig. Es gibt viele angefangene Baustellen" → Konvergenz-
+  Backlog eine Baustelle pro Zyklus. Offen: #18 Szene→OSC (Council-Objektindex), #20 Immersive-Stage-
+  Automation, #13 Audio-Loop-Import. Founder testet aktiv am Gerät (rPPG-Log erbeten).
+
 ## 2026-07-13 (Forts. 59) — v184-Zyklus: B9→B9b (der ECHTE Grau-Bug = Gamma), Automation C1+C2, video-watch-Skill
 - **B9 (v184, 1730d8e):** Chroma-Kette entstapelt (warm 0.80→0.92, Gate 1.6→2.4), adversarial
   verifiziert, deployt (#2290 success). Founder: **"Immer noch grau"** → Theorie unzureichend.

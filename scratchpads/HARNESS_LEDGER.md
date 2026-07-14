@@ -40,6 +40,8 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | Verify a commit before deploy | Poll `mcp__github__actions_get get_workflow_run` for BOTH gates; green = Xcode Compile Check + CI/CD Pipeline both `conclusion: success`. Overflowing list output → parse the saved file with `scripts/gh-run-status.py`. |
 | New pure core (math/model) | Foundation-only, deterministic (SeededRNG/UUID-fold, no Date/Random), `decodeIfPresent` defaults, Linux-testable. Split view math into a pure `*Math` enum. |
 | New modal on the Arrange surface | Add an `ArrangeModal` enum case + one `modalEditor` arm — routes through the ONE existing `.sheet(item:)`. Never a new `.sheet`. |
+| New surface inside EchoelStudioView (its `.sheet` chain is at the metadata ceiling) | Present IN-PLACE as a section inside an existing `StudioMenu` dropdown panel (e.g. `compositionPanel`), reading only @State snapshots (no 10 Hz observable in the root-body dropdown). No new `.sheet`. |
+| Audition/preview a variant of a generate()-built take | Extract generate()'s Input construction into ONE shared `makeComposerInput(advanceEvolution:…overrides)` so the preview scores the EXACT input the take will use (honest), and add nil-default seed overrides to `generate()` so apply replays the picked seeds bit-for-bit. Don't duplicate the composer logic in the preview. |
 | Milestone deploy | gates green → bump `.deploy/release` (vX.Y.Z + German notes) → push → TestFlight. Then German status delta to founder. |
 | Mandatory reviewers | audio-thread (render paths) · concurrency (`@Observable`/async) · ui-state (Views). Run BEFORE commit; PASS is the gate. |
 
@@ -49,6 +51,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 
 | Version | What shipped | Gates |
 |---|---|---|
+| v10.79.198 | BioVariationMaze audition — "Variationen" card in the Comp dropdown: Explore ranks 6 body-curated groove variations, tap one to play it. Shared makeComposerInput builder (no dup logic); generate() gains nil-default seed overrides. No new sheet, no 10 Hz read | green |
 | v10.79.197 | rPPG pulse-lock fix — wired RPPGConditioning.linearDetrend into the periodicity estimate (kills the DC ramp that mean-removal leaves) | green (device-verify pending) |
 | v10.79.196 | Adaptive home — arrange timeline fills the screen, instrument zone conditional (chip bar idle, dropdowns on demand); killed the black void | green |
 | v10.79.195 | Immersive Stage — Touch room-map, each track a draggable spatial object (SpatialSceneStore + ImmersiveStageMath + ImmersiveStageView) | green |
