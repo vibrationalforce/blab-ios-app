@@ -3,6 +3,25 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-14 (Forts. 64, Cron) — #23-Keystone erkannt: Per-Instrument braucht multiRoll (dok.)
+- **Architektur-Fund:** der GANZE Per-Instrument-Umbau (#23) ist nur HÖRBAR, wenn jede MIDI-Spur
+  ihre EIGENE Stimme hat = `LaneVoiceRack`, das NUR bei `FeatureFlags.multiRoll` ON existiert.
+  multiRoll ist per Default AUS und bewusst device-gated (CPU/Speicher, zwei Spuren klingen gleichzeitig
+  — FeatureFlags.swift:42-46). ⇒ Per-Spur-Patch/Genre/Mood sind gespeichert+verdrahtet, aber STILL bis
+  multiRoll verifiziert+geflippt ist (Founder/Device-Milestone, nicht autonom).
+- **Deckt sich mit Decision 2026-07-13** ("Multi-Roll VOR weiterer UI-Verteilung … macht Per-Spur-Sound
+  hörbar statt nur sichtbar; größter Hebel") — KEINE neue decisions.csv-Zeile (nicht re-litigieren).
+  Modul-1-Fundament (lane.patch) ist korrekt darunter einsortiert.
+- **Council:** KEIN user-sichtbares Per-Spur-Sound-UI shippen solange multiRoll AUS — ein inertes Control
+  (Patch setzen, der nichts tut) ist schlimmer als keins. Engine-Wiring (lane.patch → Slot-Stimme) geht
+  HINTER die Flag (bit-identisch OFF), ist aber device-only `#if AVFoundation` → nur vom Xcode-Gate
+  validiert, NICHT Linux-CI.
+- **MCP-Blocker:** GitHub-MCP diesen Tick getrennt → Xcode-Gate nicht prüfbar → KEIN blindes Device-Wiring
+  gepusht (Disziplin: „gates grün"). Nur CI-sichere Doku: PLAN um den Keystone-Abschnitt ergänzt (ehrliche
+  Sequenzierung). Modul-1-Fundament-Gates (2e31ee6) + v201-Deploy (ec4438a) beim nächsten Tick verifizieren.
+- **Nächster echter Unblock für #23:** multiRoll verifizieren + einschalten (Founder-Milestone). Danach:
+  lane.patch → Slot-Stimme (hinter Flag) + Patch-Editor aus der Spur-Tür.
+
 ## 2026-07-14 (Forts. 63, Cron) — v201-Log: TON ZURÜCK + rPPG lockt → #23 Modul 1 gestartet
 - **Founder-Log v10.79.201 (2307), wortlos nach meiner Frage "kommt der Ton zurück?"** — der Log
   ANTWORTET: `generate[start]: 10 notes, playing=true, rollMixGain=1.61` (Roll-Slot-Spur hörbar, nicht

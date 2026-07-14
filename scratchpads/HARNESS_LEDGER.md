@@ -45,6 +45,8 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | Audition/preview a variant of a generate()-built take | Extract generate()'s Input construction into ONE shared `makeComposerInput(advanceEvolution:…overrides)` so the preview scores the EXACT input the take will use (honest), and add nil-default seed overrides to `generate()` so apply replays the picked seeds bit-for-bit. Don't duplicate the composer logic in the preview. |
 | Milestone deploy | gates green → bump `.deploy/release` (vX.Y.Z + German notes) → push → TestFlight. Then German status delta to founder. |
 | Mandatory reviewers | audio-thread (render paths) · concurrency (`@Observable`/async) · ui-state (Views). Run BEFORE commit; PASS is the gate. |
+| Per-instrument feature (per-track sound/genre/mood) | AUDIBLE only via per-lane voices = `LaneVoiceRack` = `FeatureFlags.multiRoll` ON (default OFF, device-gated). Store + wire the per-lane data BEHIND the flag (bit-identical OFF); do NOT ship user-facing per-track SOUND UI while multiRoll is OFF (inert control = worse than none). The keystone flip is a founder/device milestone. |
+| MCP (GitHub) down mid-cron | Can't verify gates (no curl-to-github; token+curl blocked). git push still runs CI serverside. Do NOT push device-only `#if AVFoundation` code blind (only the Xcode gate validates it). Restrict to CI-safe pure/doc work; verify gates next tick when MCP returns. |
 
 ---
 

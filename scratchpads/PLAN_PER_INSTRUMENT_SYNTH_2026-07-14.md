@@ -77,15 +77,35 @@ Founder: pressing the pulse button + finger on camera → NO sound at all.
   long-press = start/stop; bottom **Bio chip removed**. (HeaderMonitors + studioChips)
 - #7 Transpose chip removed from the bar (case/panel stay, reversible).
 
+## ⚠️ KEYSTONE DEPENDENCY (found 2026-07-14, Forts. 64) — the whole per-instrument
+## vision rides on `FeatureFlags.multiRoll`
+
+Per-track SOUND/genre/mood is only AUDIBLE when each MIDI lane has its OWN voice —
+that is exactly what `LaneVoiceRack` provides, and it is instantiated/attached ONLY
+when `FeatureFlags.multiRoll` is ON. That flag is OFF by default and DELIBERATELY
+device-gated ("stays OFF until device-verified: CPU/mem, two tracks sound
+simultaneously" — FeatureFlags.swift:42-46). Consequences for THIS restructure:
+- Modules 1–2 (per-track patch, per-track genre/variation) only become audible once
+  multiRoll is verified + flipped. Flipping it is a FOUNDER/device milestone, not an
+  autonomous change. Until then, per-lane patch/genre is stored + wired but silent.
+- Do NOT ship user-facing per-track SOUND controls while multiRoll is OFF — an inert
+  control (sets a patch that does nothing) is worse than none (Council 2026-07-14).
+- The engine wiring (lane.patch → slot voice) goes BEHIND the flag, bit-identical when
+  OFF. It is device-only `#if AVFoundation` code → validated by the Xcode compile gate,
+  NOT Linux CI. Build it only when the Xcode gate is checkable (GitHub MCP up).
+- NEXT founder-facing question when appropriate: verify + flip multiRoll (the keystone),
+  so the per-instrument vision actually sounds. This is the true unblock for #23.
+
 ## Sequenced build (module-by-module; each a Ralph cycle, reviewer-gated)
 
-0. **FIX SILENCE** (blocker — needs the log). No further UI build ships until sound
-   is confirmed on device.
-1. **Per-track SynthPatch (Sound & texture → EchoelSynth).** TimelineLane already
-   can carry a `builtinInstrument`; give each lane its own `SynthPatch` (persist),
-   and open the existing PatchEditorView / Sound panel from the TRACK door
-   (ArrangeTimelineView), not the global chip. Generate applies the lane's patch to
-   that lane's voice (LaneVoiceRack). Global Sound chip → removed once per-track works.
+0. **FIX SILENCE** ✅ (v200 guard + v201 log device-confirmed: notes reach the synth).
+1. **Per-track SynthPatch (Sound & texture → EchoelSynth).** ✅ FOUNDATION shipped
+   (2e31ee6): `TimelineLane.patch: SynthPatch?` nil-default, persisted, backward-compat,
+   reviewers PASS(0), 3 tests. REMAINING (keystone-gated per above): apply `lane.patch`
+   to that lane's slot voice in the multiRoll fan-out (behind the flag, bit-identical
+   OFF) + open PatchEditorView/Sound from the TRACK door (ArrangeTimelineView) — the UI
+   ships only once multiRoll is verified so it isn't inert. Global Sound chip → removed
+   once per-track works audibly.
 2. **Per-track Genre + Variation (optional).** Lane gains optional `genreOverride`
    + `variationSeed`; when set, the composer composes THAT lane in its own genre
    (multi-genre simultaneously) using BioVariationMaze for the variation. Default
