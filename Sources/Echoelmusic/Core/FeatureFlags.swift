@@ -34,6 +34,11 @@ public enum FeatureFlags {
         /// EchoelAI (ADR 2026-07-12): the on-device planner + tool surface.
         /// OFF = zero EchoelAI code paths run; the app renders pixel-identical.
         case echoelAI          = "feature.echoelAI"
+        /// StoreKit purchase surface. OFF = launch touches NO StoreKit (no product
+        /// load, no entitlement check, no Transaction.updates listener) — the app
+        /// has no purchasable product today (one-time-unlock positioning), so this
+        /// stays dark until a real purchase surface ships. Release bit-identical.
+        case storeKit          = "feature.storeKit"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -52,6 +57,7 @@ public enum FeatureFlags {
     public static var liveCollab: Bool { isOn(.liveCollab) }
     public static var headTracking: Bool { isOn(.headTracking) }
     public static var echoelAI: Bool { isOn(.echoelAI) }
+    public static var storeKit: Bool { isOn(.storeKit) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 

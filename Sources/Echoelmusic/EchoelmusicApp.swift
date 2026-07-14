@@ -579,9 +579,13 @@ struct EchoelmusicApp: App {
                 // no-ops unless the user has enabled it (near-zero cost when off).
                 healthWriter.start(reading: bus)
                 #endif
-                Task {
-                    await store.loadProducts()
-                    await store.updateEntitlements()
+                // StoreKit only when a purchase surface is enabled (FeatureFlags.storeKit,
+                // default OFF) — no product-load / entitlement network at launch otherwise.
+                if FeatureFlags.storeKit {
+                    Task {
+                        await store.loadProducts()
+                        await store.updateEntitlements()
+                    }
                 }
                 #if canImport(CoreLocation)
                 // Opt-in place token: attach feeds the session name; resolve()

@@ -22,6 +22,11 @@ final class EchoelStore {
     private var updateTask: Task<Void, Never>?
 
     init() {
+        // StoreKit stays dark until a real purchase surface exists
+        // (FeatureFlags.storeKit, default OFF): no Transaction.updates listener,
+        // no product load — the app has no purchasable product today, so launch
+        // must not touch StoreKit. Release bit-identical when off.
+        guard FeatureFlags.storeKit else { return }
         updateTask = Task { [weak self] in
             await self?.listenForTransactions()
         }
