@@ -1,23 +1,27 @@
-build: 2026-07-14 v10.79.211 (Baustelle Rang 1: Netzwerk-Ausgabe endlich adressierbar)
+build: 2026-07-14 v10.79.212 (Baustelle Rang 2: Vintage Tape / Bandmaschine / VHS)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Erster abgearbeiteter Punkt aus der Baustellen-Ledger (No-Sleep-Modus). Bisher
-  gingen OSC / ADM-OSC / sACN nur an ‚localhost‘ bzw. eine falsche fest verdrahtete IP —
-  Resolume · TouchDesigner · MadMapper · Lichtknoten im LAN bekamen NICHTS, ohne Weg das
-  zu ändern. Das ist behoben.
+notes: Zweiter abgearbeiteter Punkt der Baustellen-Ledger (No-Sleep-Modus). Der
+  Founder-Wunsch: „Tape effect, Bandmaschine, VHS und professionelle Vintage-Effekte."
+  Bisher gab es Bandmaschinen-Charakter nur im Echo (Delay .tape) — das eigentliche
+  Signal blieb sauber. Jetzt gibt es einen echten Tape/VHS-Charakter DIREKT auf dem
+  Ton.
 
-  WO: Routing (Patchbay) → neue Sektion „Netzwerk-Ausgabe". Pro Ausgang ein Feld für
-  Ziel-Host/IP + Port (sACN/Art-Net zusätzlich Universe). Der Punkt zeigt, ob der Ausgang
-  gerade sendet.
+  WO: Effekte → neue Sektion „Tape / VHS" (im FX-Editor, unter Saturation). Drei
+  Regler: Wow & Flutter (das Leiern eines echten Bandlaufwerks), Saturation
+  (Bandsättigung/Wärme) und Brightness (Höhenverlust — von hell bis zum dumpfen
+  abgenutzten Band). An/Aus per Schalter wie jeder andere Effekt.
 
-  WIE: Werte werden gespeichert (überleben Neustart) und wirken SOFORT, wenn der Ausgang
-  läuft (der Socket verbindet sich neu). Trägt man nichts ein, bleibt alles exakt wie
-  bisher (bit-identisch — die alten Standardwerte) — kein Risiko für bestehende Setups.
+  WIE: Wow & Flutter = eine langsame (0,6 Hz) + eine schnelle (6,5 Hz) Tonhöhen-
+  Modulation, exakt das erprobte Rezept aus dem Tape-Delay, aber aufs Durchgangs-
+  signal — der Ton selbst eiert leicht. Danach weiche Bandsättigung und ein
+  Höhen-Tiefpass. Wird in Presets mitgespeichert (Schema 3; alte Presets laden mit
+  Tape=aus, also bit-identisch wenn man nichts anfasst).
 
-  SICHER: Müll-Eingabe crasht nicht (UDP scheitert still), Port 1…65535 geklemmt, keine
-  Geheimnisse gespeichert (nur LAN-Adresse). Reviewer: concurrency PASS · ui-state PASS
-  (Environment sauber, freeze-sicher, kein Card-in-Card) · security PASS (kein Crash,
-  keine Regression, Privacy ok). Der didSet-Reconnect ist doppelt abgesichert (greift nur
-  bei aktivem Ausgang). Gates: Xcode + CI/CD.
+  SICHER: Audio-Thread-sauber (keine Allokation/Locks im Hot-Loop, Denormal-Schutz),
+  Lese-Tap kann nie aus dem Puffer laufen. Neuer Effekt, kein neues .sheet (Render-
+  Safety-Reserve bleibt). Reviewer: audio-thread PASS · dsp PASS (Tap-Bereich +
+  Koeffizienten begrenzt, Tests korrekt) · code-quality PASS (vollständig verdrahtet,
+  keine toten Enden). 5 neue deterministische Tests. Gates: Xcode + CI/CD.
 
-  Stand Ledger: 28 Baustellen verifiziert · Rang 1 (Netzwerk-Ziel) ✓ · als Nächstes
-  Rang 2 (Vintage Tape/VHS-FX) bzw. die entscheidungsfreien Punkte der Reihe nach.
+  Stand Ledger: Rang 1 (Netzwerk-Ziel) ✓ · Rang 2 (Vintage Tape/VHS) ✓ · als
+  Nächstes die entscheidungsfreien Punkte der Reihe nach (Rang 3+).
