@@ -39,6 +39,11 @@ public enum FeatureFlags {
         /// has no purchasable product today (one-time-unlock positioning), so this
         /// stays dark until a real purchase surface ships. Release bit-identical.
         case storeKit          = "feature.storeKit"
+        /// Multi-Roll (keystone): each MIDI lane plays its OWN voice via a
+        /// pre-attached LaneVoiceRack + TimelineRegionPlayer fan-out. OFF = today's
+        /// single-shared-voice path, no rack instantiated/attached — Release
+        /// bit-identical. Stays OFF until device-verified (CPU/mem, two tracks sound).
+        case multiRoll         = "feature.multiRoll"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -58,6 +63,7 @@ public enum FeatureFlags {
     public static var headTracking: Bool { isOn(.headTracking) }
     public static var echoelAI: Bool { isOn(.echoelAI) }
     public static var storeKit: Bool { isOn(.storeKit) }
+    public static var multiRoll: Bool { isOn(.multiRoll) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 

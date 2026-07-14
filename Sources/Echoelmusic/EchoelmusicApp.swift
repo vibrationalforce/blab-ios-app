@@ -38,6 +38,9 @@ struct EchoelmusicApp: App {
     /// Steady click track — production/performance metronome (self-driving, silent
     /// until armed). Synced to the transport tempo by the studio view.
     @State private var metronome = MetronomeVoice()
+    /// Multi-Roll voice rack (B07) — holds ZERO voices and is never attached unless
+    /// FeatureFlags.multiRoll is ON, so the default (OFF) build is bit-identical.
+    @State private var laneVoiceRack = LaneVoiceRack()
     @State private var bioEvents: BioEventPublisher
     @State private var bioFeedback: BioFeedbackPublisher
     #if canImport(AVFoundation)
@@ -427,6 +430,9 @@ struct EchoelmusicApp: App {
                 // Session breathing cue — attached BEFORE start like every voice
                 // (build-1363 rule). Launch-silent until the user starts a session.
                 sessionEngine.attach(to: audioEngine)
+                // Multi-Roll (B07): attach the per-lane voice rack BEFORE start()
+                // (attach-before-start law). No-op + zero voices while the flag is OFF.
+                if FeatureFlags.multiRoll { laneVoiceRack.attachAll(to: audioEngine) }
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 EchoelCrashLog.breadcrumb("startup 3/4: starting audio engine")
@@ -469,6 +475,8 @@ struct EchoelmusicApp: App {
                 polyVoice.start(subscribing: bus)
                 leadVoice.start(subscribing: bus)
                 touchVoice.start(subscribing: bus)   // touch notes breathe with the body too
+                // Multi-Roll (B07): subscribe the rack's slot voices (flag-ON only).
+                if FeatureFlags.multiRoll { laneVoiceRack.startAll(subscribing: bus) }
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
                 // the ~30 Hz control loop (idle until the user adds modulation routes).
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
