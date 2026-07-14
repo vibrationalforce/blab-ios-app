@@ -1,26 +1,37 @@
-build: 2026-07-14 v10.79.201 (Ort manuell eingeben — dein eigener Städtename, auch ohne GPS)
+build: 2026-07-14 v10.79.202 (Sound PRO SPUR — jede MIDI-Spur ihr eigenes Instrument + 2 Stille-Bugs gefixt)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Kleiner, gewünschter Baustein aus deinem Umbau (Punkt c): den Ort im
-  Session-Namen kannst du jetzt SELBST eintippen.
+notes: GROSSER Schritt für deinen Per-Instrument-Umbau. Ich habe den Multi-Roll-Kern
+  (jede Spur eine eigene Stimme) komplett auditiert — 20 Agenten, adversarial —
+  und dabei drei Sachen gefunden UND gefixt, die live auf deinem Gerät waren:
 
-  WAS NEU IST:
-  · Neben dem Orts-Schalter gibt es jetzt ein Textfeld "Ortsname". Tippst du dort
-    z.B. "Hamburg" oder "Studio Hamburg" ein, steht das im Session-/Export-Namen —
-    egal ob GPS an, aus oder blockiert ist. (Founder 07-14: "auch manuell eingeben
-    wenn man Lust hat oder der Standort nicht funktioniert".)
-  · Dein getippter Name gewinnt IMMER gegen den automatisch erkannten Ort. Leeren
-    (x-Knopf) → wieder automatisch.
-  · Freitext ist dateisicher: der Name wird beim Speichern/Export automatisch
-    bereinigt (z.B. "Studio Hamburg" → im Dateinamen sauber).
+  1) STILLE-FALLE behoben: eine zweite MIDI-Spur, deren Clip gleich am Takt 1
+     anfängt, war bisher die GANZE Zeit stumm (technischer Grund: der Ladepunkt
+     wurde nur beim Wechsel erkannt, nicht am Downbeat). Jetzt klingt jede Spur
+     ab dem ersten Schlag.
+  2) MUTE/SOLO wirkt jetzt auch auf Nebenspuren: vorher hat eine stumm-geschaltete
+     zweite Spur trotzdem geklungen (nur die Hauptspur hörte auf Mute). Jetzt ist
+     Mute/Solo/Fader-0 auf JEDER Spur ehrlich still — und nichts hängt.
+  3) SOUND PRO SPUR ist jetzt wirklich verdrahtet: der Patch (Sound & Textur), den
+     eine Spur trägt, landet ab sofort auf DEREN Stimme. Ohne eigenen Patch klingt
+     die Spur wie die Hauptspur (nicht mehr dünn/generisch).
 
-  Test-first: 2 neue Tests (manueller Override + Freitext-Sicherheit, Linux-grün).
-  Reviewer: ui-state + concurrency je PASS(0). Gates grün: Xcode + CI/CD.
+  → Damit spielen mehrere MIDI-Spuren GLEICHZEITIG, jede mit ihrem eigenen Klang.
+    Das ist das Fundament deines "alles in Instrumente aufgeteilt".
 
-  Ebenfalls schon auf dem Gerät (aus 200): die STILLE ist gelöst + abgesichert —
-  falls MIDI 1 stumm ist, siehst du oben den amber Hinweis + "Ton an"-Knopf.
-  Sofort auch ohne Update: bei MIDI 1 das orange "M" austippen → Ton zurück.
+  BITTE AM GERÄT TESTEN (das ist das CPU/Klang-Verify, das nur dein iPhone kann):
+  · Zwei MIDI-Spuren, beide mit einem Clip an Takt 1 → BEIDE ab dem Downbeat hörbar.
+  · Jeder Spur einen anderen Sound geben → sie klingen TIMBRAL verschieden; eine
+    Spur ohne eigenen Sound klingt wie Spur 1.
+  · Eine Nebenspur muten / soloen / Fader auf 0 → sie wird still (kein Hänger).
+  · 4 dichte Spuren gleichzeitig → läuft's flüssig, kein Ruckeln/Hitze?
+  Wenn alles passt, bleibt Multi-Roll an. Falls irgendwas hakt: sag Bescheid, ein
+  Ein-Zeilen-Schalter setzt sofort auf die alte Ein-Stimmen-Bahn zurück (bit-identisch).
 
-  DEIN GROSSER UMBAU (Genre/Variation/Mood pro Spur, Sound&Texture/Mix/FX in
-  EchoelSynth, Weather optional pro Instrument, Key/Tempo + Session nach oben)
-  wartet auf EIN Wort von dir: kommt nach dem Unmute von MIDI 1 der Ton zurück?
-  Sobald du das bestätigst, lege ich mit Modul 1 los.
+  Test-first: neuer purer Kern MultiRollFanout, 14 Tests (Linux-grün). Reviewer:
+  audio-thread CLEAN · concurrency PASS(0) · correctness CONFIRMED (Slot↔Spur-Ordnung
+  beweisbar identisch, keine Hänger). Gates grün: Xcode + CI/CD.
+
+  Bekannte Grenzen (spätere Stufe B09, kein Blocker): max. 4 Nebenspuren gleichzeitig;
+  eine gemutete Note klingt bis zu ihrem natürlichen Ende aus (kein harter Schnitt);
+  Drums/Sampler-Spuren spielen vorerst durch den Poly-Synth. Nächste Module:
+  Genre/Variation/Mood pro Spur, dann Weather pro Instrument, dann Key/Tempo nach oben.
