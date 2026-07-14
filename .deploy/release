@@ -1,34 +1,33 @@
-build: 2026-07-14 v10.79.197 (Adaptiver Home + rPPG-Puls-Lock-Fix — bitte beides am Gerät prüfen)
+build: 2026-07-14 v10.79.198 (Variationen-Audition — die Idea-Maze bekommt ihre Tür)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ersetzt 196 (enthält alles aus 196 PLUS den Puls-Fix). Zwei Dinge zum Gegencheck:
+notes: Enthält alles aus 197 (adaptives Home + rPPG-Puls-Fix) PLUS die neue
+  Variationen-Audition.
 
-  1) ADAPTIVES HOME (aus 196). Keine schwarze Leere mehr unter der Timeline —
-     die TIMELINE (deine Spuren) füllt den Schirm; die Chip-Leiste ist schlank,
-     ihr Dropdown erscheint nur wenn du es öffnest (dann volle Höhe, Timeline
-     bleibt dominant). Keine doppelten Regler.
+  NEU — VARIATIONEN (Idea-Maze, jetzt erlebbar). Der bio-kuratierte Ideen-Komponist
+  war gebaut + getestet, hatte aber keine Tür. Jetzt im Comp-Menü (Composition-
+  Dropdown) ganz unten eine Karte "Variationen":
+    · "Erkunden" tippen → 6 Varianten DESSELBEN Grooves werden gerankt, danach
+      sortiert, wie nah jede an dem liegt, was dein Körper gerade will
+      (realisierte Dichte vs. dein musicalState.busy — eine ehrliche Zahl, keine
+      Gesundheitsaussage).
+    · Eine Zeile antippen → sie spielt SOFORT. Skelett + Melodie-Seed der gewählten
+      Idee werden exakt übernommen; dein LIVE-Körper färbt weiter Tempo/Dynamik.
+      Die gewählte Idee ist markiert (Häkchen).
+  Kein neuer Regler doppelt, keine neue Modal-Fläche — sitzt in der bestehenden
+  Comp-Tür. Was du auditionierst, ist genau die Eingabe, die auch generate() nutzt
+  (eine geteilte makeComposerInput-Funktion — kein doppelter Kompositions-Code).
 
-  2) rPPG-PULS-LOCK-FIX (neu). Dein 2301-Log: Finger drauf, aber Lauf 2 lockte
-     NIE (pk=0, bpm=0 den ganzen Lauf). Ursache gefunden: ein langsamer
-     Gleichspannungs-Drift (Atmung/Belichtung) übersteht den Bandfilter und
-     überdeckt den kleinen Herz-Anteil in der Autokorrelation — der bisherige
-     Schätzer entfernte nur den MITTELWERT, nicht die STEIGUNG. Jetzt wird die
-     lineare Steigung vor der Periodizitäts-Analyse entfernt (RPPGConditioning.
-     linearDetrend — der getestete Kern, der GENAU dafür gebaut war, aber nie
-     verdrahtet wurde). Sollte den Lock in genau deinem Fehlerfall zurückholen.
-     EHRLICH: rPPG ist erst am Gerät final beweisbar. Bitte NEUEN Log schicken —
-     ich will sehen: lockt Lauf 2 jetzt? UND: bleibt der Bewegungs-/Druck-Fall
-     sauber (kein Fehl-Lock bei Wackeln)? dsp-Reviewer hat den Fix als korrekt
-     abgenommen; der eine Beobachtungspunkt ist der Bewegungs-Fall.
-
-  Sauber gebaut: Render-Safety + ui-state-Reviewer (Home) · dsp-Reviewer (Puls).
+  Sauber gebaut: ui-state-Reviewer PASS (0) · concurrency-Reviewer PASS (0).
+  Render-Safety eingehalten: keine neue .sheet (Modal-Decke), die Maze-UI liest nur
+  @State-Schnappschüsse (kein 10-Hz-Read im Menü-Host → kein Freeze).
   Gates grün: Xcode Compile Check + CI/CD Pipeline.
 
-  Mit an Bord (unsichtbar, reine getestete Kerne, noch nicht verdrahtet):
-  BioVariationMaze (Idea-Maze-Komponist). Verdrahtung + Türen = eigene Zyklen.
+  NOCH OFFEN vom letzten Build (bitte am Gerät gegenchecken):
+  rPPG-PULS-LOCK (aus 197). Dein 2301-Log: Finger drauf, Lauf 2 lockte NIE (pk=0,
+  bpm=0). Fix: lineare Drift-Steigung wird jetzt vor der Periodizitäts-Analyse
+  entfernt (RPPGConditioning.linearDetrend). Bitte NEUEN Log: lockt Lauf 2 jetzt?
+  UND bleibt der Bewegungs-/Druck-Fall sauber (kein Fehl-Lock bei Wackeln)?
 
-  KONVERGENZ-BACKLOG (offene Baustellen, getrackt, eine pro Zyklus):
-  Szene→OSC-Ausgabe (Council: Objekt-Index-Koexistenz mit Bio) · BioVariationMaze-
-  Tür · Immersive-Stage-Automation (Puck-Bewegungen aufnehmen/abspielen) ·
-  externe AUv3 am Gerät (Scan zeigt nur Apple — evtl. keine Fremd-AUv3 installiert).
-  Viele weitere "unwired" Kerne (VBAP/Ambisonics/Binaural/Vocoder) sind BEWUSST
-  gestaffelte Fundamente, keine Bugs — kommen mit dem großen Renderer/Vocoder-Zyklus.
+  KONVERGENZ-BACKLOG (offene Baustellen, eine pro Zyklus): Szene→OSC-Ausgabe
+  (Council: Objekt-Index-Koexistenz mit Bio) · Immersive-Stage-Automation
+  (Puck-Bewegungen aufnehmen/abspielen) · Audio-Loop-Import in die Spur.
