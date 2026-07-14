@@ -52,6 +52,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 
 | Version | What shipped | Gates |
 |---|---|---|
+| v10.79.199+ | Founder live redesign (07-14): Bio→header (tap=info), Transpose removed, Immersive Stage→ADM-OSC egress; then the "alles ist still" root cause (roll-slot lane mute/solo gates the generative melody) + a silenced-instrument guard banner with one-tap "Ton an" | green |
 | v10.79.198 | BioVariationMaze audition — "Variationen" card in the Comp dropdown: Explore ranks 6 body-curated groove variations, tap one to play it. Shared makeComposerInput builder (no dup logic); generate() gains nil-default seed overrides. No new sheet, no 10 Hz read | green |
 | v10.79.197 | rPPG pulse-lock fix — wired RPPGConditioning.linearDetrend into the periodicity estimate (kills the DC ramp that mean-removal leaves) | green (device-verify pending) |
 | v10.79.196 | Adaptive home — arrange timeline fills the screen, instrument zone conditional (chip bar idle, dropdowns on demand); killed the black void | green |
