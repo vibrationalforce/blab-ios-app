@@ -1,29 +1,34 @@
-build: 2026-07-14 v10.79.196 (Adaptiver Home — die Timeline füllt den Schirm, keine schwarze Leere mehr)
+build: 2026-07-14 v10.79.197 (Adaptiver Home + rPPG-Puls-Lock-Fix — bitte beides am Gerät prüfen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkt auf dein Geräte-Feedback zu 2301 ("nicht adaptiv designt").
+notes: Ersetzt 196 (enthält alles aus 196 PLUS den Puls-Fix). Zwei Dinge zum Gegencheck:
 
-  ADAPTIVES HOME. Vorher: unter der Timeline eine große schwarze Leere (seit dem
-  Dropdown-Umbau lagen alle Regler in den Menü-Dropdowns, der Instrument-Bereich
-  darunter war leer). Jetzt:
-  - Die TIMELINE (deine Spuren) füllt den ganzen Schirm — der lebendige Canvas,
-    "tracks are home". Keine tote Fläche mehr.
-  - Die Instrument-Chip-Leiste (Bio · Comp · Session · Transp · Sound · Mix · FX ·
-    Mood) ist eine schlanke Leiste; ihre Dropdowns erscheinen NUR wenn du eins
-    öffnest — dann teilt sich der Platz sinnvoll, das Dropdown bekommt seine volle
-    Höhe (bis 480), die Timeline bleibt dominant. Klappst du die Timeline zu,
-    übernimmt das Instrument den vollen Platz.
-  - KEINE doppelten Regler/Buttons — dieselben Chips, dieselben Dropdowns, nur der
-    Raum greift jetzt sauber ineinander (dein "alles greift harmonisch ineinander").
+  1) ADAPTIVES HOME (aus 196). Keine schwarze Leere mehr unter der Timeline —
+     die TIMELINE (deine Spuren) füllt den Schirm; die Chip-Leiste ist schlank,
+     ihr Dropdown erscheint nur wenn du es öffnest (dann volle Höhe, Timeline
+     bleibt dominant). Keine doppelten Regler.
 
-  Sauber gebaut: Render-Safety-Gesetze geprüft (keine neue Sheet-Kette — der Body
-  wurde sogar KLEINER, kein 10-Hz-Read), Pflicht-Reviewer (ui-state) PASS inkl.
-  Fix für das Dropdown-Clipping. Gates grün: Xcode Compile Check + CI/CD Pipeline.
-  Layout ist nur am Gerät final beweisbar — bitte kurz gegenchecken.
+  2) rPPG-PULS-LOCK-FIX (neu). Dein 2301-Log: Finger drauf, aber Lauf 2 lockte
+     NIE (pk=0, bpm=0 den ganzen Lauf). Ursache gefunden: ein langsamer
+     Gleichspannungs-Drift (Atmung/Belichtung) übersteht den Bandfilter und
+     überdeckt den kleinen Herz-Anteil in der Autokorrelation — der bisherige
+     Schätzer entfernte nur den MITTELWERT, nicht die STEIGUNG. Jetzt wird die
+     lineare Steigung vor der Periodizitäts-Analyse entfernt (RPPGConditioning.
+     linearDetrend — der getestete Kern, der GENAU dafür gebaut war, aber nie
+     verdrahtet wurde). Sollte den Lock in genau deinem Fehlerfall zurückholen.
+     EHRLICH: rPPG ist erst am Gerät final beweisbar. Bitte NEUEN Log schicken —
+     ich will sehen: lockt Lauf 2 jetzt? UND: bleibt der Bewegungs-/Druck-Fall
+     sauber (kein Fehl-Lock bei Wackeln)? dsp-Reviewer hat den Fix als korrekt
+     abgenommen; der eine Beobachtungspunkt ist der Bewegungs-Fall.
 
-  Mit an Bord (unsichtbar, reiner getesteter Kern, noch nicht verdrahtet):
-  BioVariationMaze — der on-device "Idea-Maze"-Komponist (dein Körper kuratiert
-  N Varianten, Ranking nach Bio-Fit). Tür + LLM-Vorschläge kommen als eigene Zyklen.
+  Sauber gebaut: Render-Safety + ui-state-Reviewer (Home) · dsp-Reviewer (Puls).
+  Gates grün: Xcode Compile Check + CI/CD Pipeline.
 
-  OFFEN als eigene Zyklen (aus dem 2301-Log): rPPG lockt den Puls unzuverlässig
-  (Lauf 2 bpm=0) · externe AUv3 tauchen im Scan nicht auf (nur Apple) · Szene→
-  Renderer/OSC live · Immersive-Stage-Automation.
+  Mit an Bord (unsichtbar, reine getestete Kerne, noch nicht verdrahtet):
+  BioVariationMaze (Idea-Maze-Komponist). Verdrahtung + Türen = eigene Zyklen.
+
+  KONVERGENZ-BACKLOG (offene Baustellen, getrackt, eine pro Zyklus):
+  Szene→OSC-Ausgabe (Council: Objekt-Index-Koexistenz mit Bio) · BioVariationMaze-
+  Tür · Immersive-Stage-Automation (Puck-Bewegungen aufnehmen/abspielen) ·
+  externe AUv3 am Gerät (Scan zeigt nur Apple — evtl. keine Fremd-AUv3 installiert).
+  Viele weitere "unwired" Kerne (VBAP/Ambisonics/Binaural/Vocoder) sind BEWUSST
+  gestaffelte Fundamente, keine Bugs — kommen mit dem großen Renderer/Vocoder-Zyklus.
