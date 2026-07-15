@@ -1,34 +1,34 @@
-build: 2026-07-14 v10.79.218 (Region löschen — Split/Join/Delete komplett)
+build: 2026-07-14 v10.79.219 (Region an den Playhead verschieben — Verbsatz komplett)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Kleine, aber fehlende Ecke im Clip-Schnitt: bisher konntest du Regionen
-  schneiden (Split) und zusammenfügen (Join) — aber NICHT löschen. Das geht jetzt.
+notes: Der Arrangement-Verbsatz ist jetzt vollständig: Schneiden (Split) · Fügen
+  (Join) · Löschen (Delete) · und neu VERSCHIEBEN (Move).
 
-  WO: In der Timeline eine Region LANGE drücken → ein Menü erscheint:
-  • „Edit" — öffnet den Editor (bei Audio/MIDI-Regionen; wie das Editor-Fenster bisher).
-  • „Delete region" — entfernt die Region von der Spur (rot).
+  WO: Region lange drücken → Menü → „Move to playhead". Die Region springt mit
+  ihrem Anfang genau an die aktuelle Playhead-Position.
 
-  WICHTIG — GESTEN-ÄNDERUNG (bitte kurz gegenchecken): Früher öffnete langes
-  Drücken den Editor DIREKT. Jetzt öffnet es zuerst dieses Menü, und „Edit" ist
-  ein Tipp weiter. Der Grund: so hat JEDE Region-Art einen Lösch-Befehl — auch
-  Video-Regionen, die keinen Editor haben und bisher auf langes Drücken gar nicht
-  reagierten. Falls dir das direkte Editor-Öffnen lieber war, sag Bescheid, dann
-  drehe ich es zurück (voll reversibel).
+  WARUM per Playhead statt Ziehen: freies Ziehen einer Region kollidiert mit dem
+  seitlichen Scrollen der Timeline (das feine Gesten-Tuning dafür braucht ein
+  Gerät und kommt später). Die Playhead-Geste ist sofort verlässlich — dasselbe
+  Prinzip wie Split/Join, die auch am Playhead arbeiten: Playhead setzen, dann
+  „Move to playhead". Regionen dürfen sich dabei überlappen (freies Arrangieren).
 
-  WAS es tut: „Delete region" entfernt nur diese eine Region von der Timeline. Der
-  zugrunde liegende Clip bleibt im Clip-Raster und die Mediendatei bleibt erhalten
-  — gelöscht wird die Platzierung auf der Spur, nicht dein Material.
+  WIE: die Store-Methode `moveRegion` gab es längst (klemmt den Start bei 0). Der
+  Playhead-Stand wird NUR im Tastendruck gelesen (nie im Body) — das Menü-Freeze-
+  Gesetz bleibt gewahrt, exakt wie bei Split/Join. Kein Sheet, keine Modal-Kette
+  gewachsen.
 
-  WIE: die Store-Methode `removeRegion` gab es längst, ihr fehlte nur die Tür. Ein
-  natives Kontextmenü (KEIN Sheet — die Modal-Kette bleibt unberührt, kein
-  Schwarzbild-Risiko; Inhalt baut sich erst beim Öffnen, kein 10-Hz-Read → das
-  Menü-Freeze-Gesetz bleibt gewahrt). Tap-Vorhören und das Trimmen am rechten Rand
-  bleiben unverändert.
+  SICHER: Reviewer ui-state CONFIRMED CLEAN (Freeze-Gesetz gewahrt · Sheet-Kette
+  unberührt · Tap-Zeit-Read + geklemmte Mutation + beobachtetes Neu-Rendern).
+  Neuer Test: moveRegion setzt den Start-Tick und klemmt ein negatives Ziel auf 0.
 
-  SICHER: Reviewer ui-state PASS (Sheet-Kette unberührt · Freeze-Gesetz gewahrt ·
-  Tap/Menü/Trim koexistieren · @MainActor-Löschung treibt die beobachtete Entfernung ·
-  keine hängende Editor-Referenz). Neuer Test: removeRegion löscht nur die Zielregion.
-  Gates: Xcode Compile + CI/CD.
+  HINWEIS ZUR CI (kein Code-Problem): Der v218-TestFlight-Lauf scheiterte an einer
+  FEHLENDEN Metal-Toolchain auf dem GitHub-Runner (Infra, nicht mein Code — v216/
+  v217 archivierten identisch grün). Beide echten Code-Gates (Xcode Compile Check +
+  CI/CD Pipeline) waren bei v218 GRÜN. TestFlight ist ohnehin eingefroren; falls der
+  Metal-Fehler erneut auftritt, ist er persistent und ich ziehe den bekannten Fix
+  (`xcodebuild -downloadComponent MetalToolchain` in testflight.yml) nach — nach
+  deiner Freigabe, da CI-Config.
 
-  Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete ✓ · Audio-Import ✓ ·
-  Video-Import ✓. Als Nächstes das transport-synchrone Abspielen der Audio-/Video-
-  Spuren (eigene Player-Subsysteme, geräteverifiziert statt blind gebaut).
+  Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move ✓ · Audio-Import ✓ ·
+  Video-Import ✓. Als Nächstes: das transport-synchrone Abspielen der Spuren
+  (eigenes Player-Subsystem, geräteverifiziert; zuerst die reine Scheduling-Naht test-first).
