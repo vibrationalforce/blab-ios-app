@@ -161,7 +161,7 @@ struct ArrangeTimelineView: View {
             leadSynth?.setDetune(cents: cents)
         }
         .gesture(magnify)
-        .sheet(item: $activeModal) { modal in
+        .sheet(item: $activeModal, onDismiss: { clipEdit = nil }) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
             // the host body's generic signature flat (metadata rule).
             AnyView(modalEditor(modal).echoelSheetPanel())
@@ -214,12 +214,76 @@ struct ArrangeTimelineView: View {
         }
     }
 
+    /// H11: one clip-edit session — the throwaway roll model (decoupled from
+    /// the shared live-take roll by construction) plus the splice coordinates.
+    /// Built BEFORE the sheet presents (stable across sheet re-renders),
+    /// cleared on dismiss. `bar` = the clip bar under the region's trim-in.
+    private struct ClipEditSession {
+        let clipID: UUID
+        let bar: Int
+        let totalBars: Int
+        let model: PianoRollModel
+    }
+    @State private var clipEdit: ClipEditSession?
+
+    /// Open a region's editor. For MIDI: load THE CLIP's notes (the tapped
+    /// bar's slice) into a throwaway roll — never the shared roll (the region
+    /// player clobbers that at every onset; pre-H11 this door edited it).
+    private func openRegionEditor(_ region: TimelineRegion) {
+        clipEdit = nil
+        if let clip = clips.clip(id: region.clipID), clip.kind == .midi {
+            let notes = clip.melody?.notes ?? []
+            // The bar under the region's trim-in — mirrors the player's offset
+            // resolution (ticks authoritative, legacy seconds fallback).
+            let rawOffset = region.contentOffsetTicks > 0
+                ? region.contentOffsetTicks
+                : RegionNoteWindow.offsetTicks(contentOffsetSeconds: region.contentOffsetSeconds,
+                                               bpm: beatPlayer.pattern.tempo)
+            let bar = RegionNoteWindow.stepAligned(rawOffset) / TimelineTime.ticksPerBar
+            let model = PianoRollModel()
+            model.load(MelodyBarEdit.slice(bar: bar, of: notes))
+            clipEdit = ClipEditSession(clipID: clip.id, bar: bar,
+                                       totalBars: max(MelodyBarEdit.barCount(of: notes), bar + 1),
+                                       model: model)
+        }
+        activeModal = .region(region)
+    }
+
+    /// H11 write-back (Done only): splice the edited bar into the clip's
+    /// CURRENT notes (re-read at commit time, not captured — a concurrent
+    /// change elsewhere keeps its other bars). Every note outside the edited
+    /// bar survives byte-identical (the multi-bar-safety law); mid-play the
+    /// change becomes audible at the next region onset, like any DAW.
+    private func commitClipEdit(_ session: ClipEditSession) {
+        let current = clips.clip(id: session.clipID)?.melody?.notes ?? []
+        let merged = MelodyBarEdit.splice(bar: session.bar,
+                                          edited: session.model.notes,
+                                          into: current)
+        if !clips.updateMelody(id: session.clipID, notes: merged) {
+            log.log(.warning, category: .audio, "Clip edit: clip no longer exists — edit dropped")
+        }
+    }
+
     @ViewBuilder
     private func modalEditor(_ modal: ArrangeModal) -> some View {
         switch modal {
         case .lane(let lane):     editor(forKind: lane.kind,
                                          landingLane: (lane.kind == .audio || lane.kind == .video) ? lane.id : nil)
-        case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
+        case .region(let region):
+            // H11: a MIDI region edits ITS CLIP's notes in a throwaway roll —
+            // never the shared live-take roll (which the region player clobbers
+            // at every onset). Done splices the edited bar back into the clip;
+            // swipe-dismiss cancels. Session built in openRegionEditor; the
+            // fallback covers the non-MIDI kinds and a vanished session.
+            if let session = clipEdit {
+                PianoRollView(pattern: beatPlayer.pattern, model: session.model,
+                              title: session.totalBars > 1
+                                  ? "Edit Clip — Bar \(session.bar + 1)/\(session.totalBars)"
+                                  : "Edit Clip",
+                              onDone: { commitClipEdit(session) })
+            } else {
+                editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
+            }
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
         case .plugins:            AUv3BrowserView()
         case .patch:
@@ -848,7 +912,7 @@ struct ArrangeTimelineView: View {
                                         selectedRegions.insert(region.id)
                                     }
                                 },
-                                onEdit: { activeModal = .region(region) })
+                                onEdit: { openRegionEditor(region) })
             }
         }
         .frame(width: gridWidth, height: Self.laneHeight, alignment: .topLeading)

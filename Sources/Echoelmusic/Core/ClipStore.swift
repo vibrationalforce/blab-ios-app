@@ -49,6 +49,21 @@ public final class ClipStore {
         persist()
     }
 
+    /// H11: replace a clip's MIDI content by clip id (the clip-scoped editor's
+    /// write-back — the first content-level clip edit; all timeline edits so
+    /// far only moved region tick-windows). Whole-value write (Clip/MelodyClip
+    /// are value types) so the region player, which re-reads
+    /// `clip(id:)?.melody?.notes` at region onsets, never sees a torn state —
+    /// a mid-play save becomes audible at the next onset, like any DAW.
+    /// Returns false (writing nothing) for an unknown id.
+    @discardableResult
+    public func updateMelody(id: UUID, notes: [Note]) -> Bool {
+        guard let i = slots.firstIndex(where: { $0?.id == id }) else { return false }
+        slots[i]?.melody = MelodyClip(notes: notes)
+        persist()
+        return true
+    }
+
     public func rename(at index: Int, to name: String) {
         guard slots.indices.contains(index), var clip = slots[index] else { return }
         clip.name = name

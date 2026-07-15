@@ -655,6 +655,12 @@ struct PianoRollView: View {
 
     let pattern: PatternEngine
     @Bindable var model: PianoRollModel
+    /// H11: title + Done hook for the clip-scoped editor door. The defaults
+    /// keep every existing call site (the live-take roll) unchanged. `onDone`
+    /// runs on the explicit Done tap ONLY — a swipe-dismiss never calls it,
+    /// which is the editor's cancel semantics (throwaway model, no write-back).
+    var title: String = "Piano Roll"
+    var onDone: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedID: UUID?
@@ -683,7 +689,7 @@ struct PianoRollView: View {
                 rollScroller
             }
             .background(EchoelTheme.bg)
-            .navigationTitle("Piano Roll")
+            .navigationTitle(title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -692,7 +698,9 @@ struct PianoRollView: View {
             // every note; it now lives in the transport row as an explicit destructive
             // button (see `transport`).
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { onDone?(); dismiss() }
+                }
             }
         }
     }
