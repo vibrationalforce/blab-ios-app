@@ -45,11 +45,17 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
   `filePositionSeconds(region,atTick,bpm)` · `startFrame(…,sampleRate)` · `frameCount(…)`. Bilden 1:1
   auf `AVAudioPlayerNode.scheduleSegment(startingFrame:frameCount:)` ab. Reviewer code: Mathematik
   korrekt (start+count landet exakt auf Region-Ende; max. 1 Sample Unterlauf, nie Overread der Grenze).
-- OFFEN — der **AVFoundation-Executor** (`AudioLanePlayer`, geräteverifiziert): pro Audio-Lane ein
-  `AVAudioPlayerNode` an der geteilten Clock; auf `TimelineScheduling.laneEvent == .load(region)` →
-  `scheduleSegment(startFrame, frameCount)`, auf `.clear` → stop. **MUSS gegen `AVAudioFile.length`
-  klemmen** (startFrame≥length ⇒ skip; frameCount = min(frameCount, length−startFrame)) — sonst EOF-
-  Overread (in AudioRegionPlayback-Doku als Executor-Contract festgehalten). Danach dasselbe für Video.
+- ✅ KOORDINATOR (v221, spy-getestet, Foundation-only, additiv/ungewired): `AudioLanePlayer` +
+  `AudioRegionSink`-Protokoll. `apply(fromTick,toTick)` / `prime(atTick)` mappen pro Audio-Lane
+  TimelineScheduling-Events → play/stop am Sink, via AudioRegionPlayback (Medien-Pos + Restlänge) +
+  effectiveGain-Gate. Reviewer: concurrency PASS · code (Mapping korrekt, Known-Gap dokumentiert).
+- OFFEN — der **AVFoundation-Adapter + Transport-Wiring** (geräteverifiziert): (a) `AudioRegionSink`-Impl
+  auf Basis `AudioClipPlayer` (attach an AudioEngine, `AudioClipRegion` klemmt schon gegen file.length),
+  `play(url,from,length,gain)` → `AudioClipPlayer.load`+`play(region:)`; (b) `AudioLanePlayer` in den
+  Transport-Tick-Fanout hängen (wie TimelineRegionPlayer), `prime` bei play()/Loop-Wrap; (c) **Live-Mute/
+  Solo/Level re-driven** (Beobachter → apply/prime; sonst klingt eine mute-geschaltete Region bis zur
+  nächsten Grenze weiter — im AudioLanePlayer-Header als Known-Gap notiert); (d) App-Injektion.
+  Danach dasselbe für Video.
 
 ## GEMEINSAME NÄHTE (Audio + Video Import teilen sich)
 - `MediaLibrary` (Core/): `importAudio`/`importVideo` → App-Group `Media/{Audio,Video}`, UUID-Zielname,
