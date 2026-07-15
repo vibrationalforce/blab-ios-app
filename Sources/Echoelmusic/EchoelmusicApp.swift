@@ -568,18 +568,38 @@ struct EchoelmusicApp: App {
                         laneVoiceRack?.voice(slot: slot)?.setGain(gain)
                         laneAUHost?.voice(slot: slot)?.setGain(gain)
                     }
+                    // The roll-slot GAIN mirror (K2a), relocated here (heal-review
+                    // HIGH): the old owner was ArrangeTimelineView.onChange, which
+                    // UNMOUNTS when the timeline is folded (persisted @AppStorage) —
+                    // a mixer edit or the Start-heal then never reached
+                    // pianoRoll.mixGain and the roll stayed silent (or stale-loud)
+                    // despite the healed document. This hook is always-mounted and
+                    // fires synchronously inside persist(), so a heal is audible on
+                    // the very Start that applied it. ONE writer of mixGain.
+                    let syncRollMix = { [weak timelineStore, weak pianoRoll] in
+                        guard let doc = timelineStore?.document, let roll = pianoRoll else { return }
+                        let gain = doc.rollSlotGain
+                        roll.mixGain = gain
+                        if gain <= 0.001 { roll.allNotesOff() }   // mute cuts sounding notes now
+                    }
+                    syncRollMix()   // initial sync (launch-with-folded-timeline staleness)
                     // H5b: host per-lane AU instruments — wire the engine, restore
                     // persisted assignments, reconcile on every document change
                     // (assign/clear/lane-delete/undo — all funnel through persist),
-                    // and belt-and-braces silence on any transport stop.
+                    // and belt-and-braces silence on any transport stop. The ONE
+                    // onDocumentChanged closure carries BOTH consumers; only the
+                    // lane-AU half is flag-gated (H9b lesson: never trap an
+                    // unconditional consumer's wiring inside a foreign flag block).
+                    timelineStore.onDocumentChanged = { [weak laneAUHost, weak timelineStore] in
+                        syncRollMix()
+                        guard FeatureFlags.laneAUInstruments,
+                              let doc = timelineStore?.document else { return }
+                        laneAUHost?.syncAssignments(lanes: doc.lanes, rollLane: doc.rollLaneID)
+                    }
                     if FeatureFlags.laneAUInstruments {
                         laneAUHost.use(engine: audioEngine)
                         laneAUHost.syncAssignments(lanes: timelineStore.document.lanes,
                                                    rollLane: timelineStore.document.rollLaneID)
-                        timelineStore.onDocumentChanged = { [weak laneAUHost, weak timelineStore] in
-                            guard let doc = timelineStore?.document else { return }
-                            laneAUHost?.syncAssignments(lanes: doc.lanes, rollLane: doc.rollLaneID)
-                        }
                         transport.addStopSubscriber("laneAU") { [weak laneAUHost] in
                             laneAUHost?.allNotesOff()
                         }
@@ -588,7 +608,7 @@ struct EchoelmusicApp: App {
                 // H4: let the region player pull LIVE mixer values (mute/solo/level/
                 // pan) from the store each transport step — its play() snapshot alone
                 // froze mid-play mixer edits until the next region boundary. The
-                // primary roll lane stays live via ArrangeTimelineView's onChange.
+                // primary roll lane stays live via the onDocumentChanged hook above.
                 timelinePlayer.liveDocument = { [weak timelineStore] in
                     timelineStore?.document
                 }

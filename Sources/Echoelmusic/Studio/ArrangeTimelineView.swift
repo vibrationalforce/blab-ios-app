@@ -129,13 +129,12 @@ struct ArrangeTimelineView: View {
         }
         .background(EchoelTheme.bg)
         .task { timeline.bootstrapIfNeeded(sections: legacySong.sections) }
-        // K2a lane→engine binding: the roll-slot lane's strip (level/mute/solo)
-        // drives the ONE shared Piano-Roll's attack gain. Mute cuts sounding
-        // notes immediately (allNotesOff); level/solo apply from the next attack.
-        .onChange(of: timeline.document.rollSlotGain, initial: true) { _, gain in
-            pianoRoll.mixGain = gain
-            if gain <= 0.001 { pianoRoll.allNotesOff() }
-        }
+        // K2a lane→engine binding, GAIN: moved to the app level (review HIGH,
+        // heal cycle): this view unmounts when the timeline is folded
+        // (persisted @AppStorage), so an onChange here missed every mixer
+        // edit/heal while folded — the roll stayed silent (or stale-loud)
+        // despite a healed document. The ONE writer of pianoRoll.mixGain is
+        // now the always-mounted onDocumentChanged hook in EchoelmusicApp.
         // B2 lane→engine binding, pan: the roll-slot lane's stereo position
         // drives BOTH melodic voices (pad/harmony + lead) at the mixer — an
         // honest engine path (AVAudioMixing on the source nodes). Sub-bass

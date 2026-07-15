@@ -359,6 +359,14 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
         XCTAssertFalse(store.canCombineRegions(ids: [a.id]), "single selection")
         XCTAssertFalse(store.canCombineRegions(ids: [a.id, UUID()]),
                        "unknown id shrinks the selection below two")
+        XCTAssertTrue(store.canCombineRegions(ids: [a.id, b.id, UUID()]),
+                      "a stale/unknown id among ≥2 valid same-clip regions is IGNORED (found-regions law)")
+        store.addLane(kind: .midi, name: "tt2-\(UUID())")
+        let otherLane = store.document.lanes.last!.id
+        let c = TimelineRegion(laneID: otherLane, clipID: clip, startTick: 0, lengthTicks: 480)
+        store.addRegion(c)
+        XCTAssertFalse(store.canCombineRegions(ids: [a.id, c.id]),
+                       "same clip but DIFFERENT lane refuses — the lane condition isolated")
     }
 
     func testRemoveRegions_batch_isOneUndoStep() {

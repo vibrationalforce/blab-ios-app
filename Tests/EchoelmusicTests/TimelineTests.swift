@@ -405,4 +405,18 @@ final class TimelineTests: XCTestCase {
         var doc = TimelineDocument(lanes: [TimelineLane(name: "A", kind: .audio, isMuted: true)])
         XCTAssertFalse(doc.healRollSlotAudibility())
     }
+
+    func testHealRollSlot_subThresholdLevel_heals() {
+        // Review MEDIUM pin: 0.0005 is gated silent EVERYWHERE (the ≤ 0.001
+        // audibility law) — the heal must use the same threshold, not == 0.
+        var doc = TimelineDocument(lanes: [TimelineLane(name: "MIDI 1", kind: .midi, level: 0.0005)])
+        XCTAssertTrue(doc.healRollSlotAudibility())
+        XCTAssertEqual(doc.lanes[0].level, 1)
+    }
+
+    func testHealRollSlot_secondCall_isIdempotentNoop() {
+        var doc = TimelineDocument(lanes: [TimelineLane(name: "M", kind: .midi, isMuted: true)])
+        XCTAssertTrue(doc.healRollSlotAudibility())
+        XCTAssertFalse(doc.healRollSlotAudibility(), "healed once ⇒ audible ⇒ gate refuses")
+    }
 }

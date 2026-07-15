@@ -350,31 +350,21 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
 
     /// #22 follow-up (founder log v255: `generate[start] … rollMixGain=0.00`
     /// then a 15 s silent session and an exit): make the ONE shared roll slot
-    /// audible again — unmute the roll lane, floor a zero level to unity, and
-    /// clear stale solos on OTHER lanes that gate it to silence (the H4
-    /// lesson: solo is a listening tool, not a persisted mix decision).
-    /// Returns true when anything changed. Callers invoke this ONLY on an
-    /// explicit user Start — tapping Start IS the intent "I want to hear it";
-    /// automatic paths (evolve/re-seed) must never rewrite the mix.
+    /// audible again for an explicit user Start. ONE law, not two (review
+    /// MEDIUM): this is a gated DELEGATE to `unsilenceRollSlot` — the same
+    /// heal the #22 "Ton an" banner button applies — so Start and the banner
+    /// can never drift. The gate uses the codebase-wide ≤ 0.001 audibility
+    /// threshold (review MEDIUM: `== 0` left a crack — a persisted 0.0005
+    /// level was gated silent everywhere yet refused the heal). Returns true
+    /// when anything changed. Callers invoke this ONLY on an explicit user
+    /// Start — tapping Start IS the intent "I want to hear it"; automatic
+    /// paths (evolve/re-seed) must never rewrite the mix.
     public mutating func healRollSlotAudibility() -> Bool {
-        guard let i = lanes.firstIndex(where: { $0.kind == .midi && !$0.isBio }),
-              rollSlotGain == 0 else { return false }
-        var changed = false
-        if lanes[i].isMuted {
-            lanes[i].isMuted = false
-            changed = true
-        }
-        if lanes[i].level <= 0 {
-            lanes[i].level = 1
-            changed = true
-        }
-        if !lanes[i].isSoloed {
-            for j in lanes.indices where lanes[j].isSoloed {
-                lanes[j].isSoloed = false
-                changed = true
-            }
-        }
-        return changed
+        guard lanes.contains(where: { $0.kind == .midi && !$0.isBio }),
+              rollSlotGain <= 0.001 else { return false }
+        let before = self
+        unsilenceRollSlot()
+        return self != before
     }
 
     /// The stereo position the ONE shared Piano-Roll slot plays at (B2 — the
