@@ -166,6 +166,12 @@ struct ArrangeTimelineView: View {
         .onChange(of: beatPlayer.pattern.isPlaying) { _, playing in
             if playing { beatPlayer.stopAudition() }
         }
+        // Review F1: this view is the audition's ONLY kill switch, but it is
+        // conditionally mounted (timelineExpanded chevron) — collapsing the
+        // timeline mid-audition would leave a minutes-long segment streaming
+        // with no watcher and no UI to stop it (and the onChange above would
+        // no longer fire on transport start → double-sound). Unmount = stop.
+        .onDisappear { beatPlayer.stopAudition() }
         .gesture(magnify)
         .sheet(item: $activeModal, onDismiss: {
             // H11 review MEDIUM (dismiss race): tapping Edit on ANOTHER region

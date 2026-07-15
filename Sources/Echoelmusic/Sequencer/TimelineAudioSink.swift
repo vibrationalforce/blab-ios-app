@@ -32,6 +32,13 @@ final class TimelineAudioSink: AudioRegionSink {
     private weak var engine: AudioEngine?
     private var file: AVAudioFile?
     private var attached = false
+    /// The processingFormat the node is CONNECTED with. AVAudioPlayerNode
+    /// sample-rate-converts scheduled files but does NOT convert channel counts —
+    /// scheduling a mono file on a stereo-connected node (or vice versa) raises
+    /// the `_outputFormat.channelCount` NSException. H13a made cross-format
+    /// traffic normal (one shared audition sink for every region), so a format
+    /// change must reconnect (review F2).
+    private var connectedFormat: AVAudioFormat?
 
     init(engine: AudioEngine?) {
         self.engine = engine
@@ -88,11 +95,15 @@ final class TimelineAudioSink: AudioRegionSink {
         if attached, let engine {
             engine.detachPlayerNode(node)
             attached = false
+            connectedFormat = nil
         }
         file = nil
     }
 
     /// Open `url` if it isn't the loaded file, and attach the node on first load.
+    /// A file whose processingFormat differs from the current connection re-attaches
+    /// (detach mutates without pausing; attach pauses — by construction this only
+    /// happens at prime time or while the transport is stopped, like the first attach).
     /// Returns false when the file can't be read.
     private func ensureLoaded(_ url: URL) -> Bool {
         guard let engine else { return false }
@@ -104,9 +115,18 @@ final class TimelineAudioSink: AudioRegionSink {
                 return false
             }
             file = f
+            if attached, let connectedFormat,
+               connectedFormat.channelCount != f.processingFormat.channelCount
+                || connectedFormat.sampleRate != f.processingFormat.sampleRate {
+                stop()
+                engine.detachPlayerNode(node)
+                attached = false
+                self.connectedFormat = nil
+            }
             if !attached {
                 engine.attachPlayerNode(node, format: f.processingFormat)
                 attached = true
+                connectedFormat = f.processingFormat
             }
         }
         return file != nil
