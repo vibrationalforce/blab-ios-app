@@ -55,8 +55,12 @@ public final class AUNoteVoice {
 
     /// The hosted instrument node (attached to the engine by the host service).
     public let avUnit: AVAudioUnit
-    /// The lane's own mix stage: AU → laneMixer → masterMixer. Carries the
-    /// lane's live gain (outputVolume) + pan (AVAudioMixing into the master).
+    /// H9a: the lane's hosted insert-effect stages, in chain order
+    /// (instrument → effects… → laneMixer). Owned here so release can detach
+    /// exactly what attach wired; empty for an effect-less assignment.
+    public let effectUnits: [AVAudioUnit]
+    /// The lane's own mix stage: AU → [fx…] → laneMixer → masterMixer. Carries
+    /// the lane's live gain (outputVolume) + pan (AVAudioMixing into the master).
     public let laneMixer = AVAudioMixerNode()
 
     /// Whole-semitone per-lane transpose, folded into every note-on/off pitch
@@ -70,8 +74,9 @@ public final class AUNoteVoice {
     /// allNotesOff also releases these explicitly for plugins ignoring CC 123.
     private var activePitches: [Int: UInt8] = [:]
 
-    public init(avUnit: AVAudioUnit) {
+    public init(avUnit: AVAudioUnit, effectUnits: [AVAudioUnit] = []) {
         self.avUnit = avUnit
+        self.effectUnits = effectUnits
     }
 
     // MARK: - Notes (NoteVoice shape)

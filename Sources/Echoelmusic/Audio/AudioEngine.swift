@@ -844,29 +844,41 @@ public final class AudioEngine {
         masterEngine.connect(node, to: masterMixer, format: format)
     }
 
-    /// H5: attach a PER-LANE hosted-instrument chain — AU → laneMixer → master —
-    /// so the lane's own mixer stage carries its live gain/pan. Call inside
-    /// `withGraphPaused` (assignment/restore time only, never mid-song). Returns
-    /// false (attaching nothing) when no valid format exists yet.
+    /// H5/H9a: attach a PER-LANE hosted chain — AU → [fx…] → laneMixer →
+    /// master — so the lane's own mixer stage carries its live gain/pan and
+    /// its insert effects sit before it, all on one canonical format. Call
+    /// inside `withGraphPaused` (assignment/restore time only, never
+    /// mid-song). Returns false (attaching nothing) when no valid format
+    /// exists yet.
     @discardableResult
-    func attachLaneInstrument(_ unit: AVAudioUnit, laneMixer: AVAudioMixerNode) -> Bool {
+    func attachLaneInstrument(_ unit: AVAudioUnit, effects: [AVAudioUnit] = [],
+                              laneMixer: AVAudioMixerNode) -> Bool {
         guard let format = auChainFormat else {
             log.audio("Cannot attach lane AU — no valid format", level: .error)
             return false
         }
         masterEngine.attach(unit)
+        for e in effects { masterEngine.attach(e) }
         masterEngine.attach(laneMixer)
-        masterEngine.connect(unit, to: laneMixer, format: format)
+        var prev: AVAudioNode = unit
+        for e in effects {
+            masterEngine.connect(prev, to: e, format: format)
+            prev = e
+        }
+        masterEngine.connect(prev, to: laneMixer, format: format)
         masterEngine.connect(laneMixer, to: masterMixer, format: format)
         return true
     }
 
-    /// H5: release a per-lane instrument chain (lane unassigned/removed). Call
-    /// inside `withGraphPaused`.
-    func detachLaneInstrument(_ unit: AVAudioUnit, laneMixer: AVAudioMixerNode) {
+    /// H5/H9a: release a per-lane chain (lane unassigned/removed). Pass the
+    /// SAME effects attach wired. Call inside `withGraphPaused`.
+    func detachLaneInstrument(_ unit: AVAudioUnit, effects: [AVAudioUnit] = [],
+                              laneMixer: AVAudioMixerNode) {
         masterEngine.disconnectNodeOutput(unit)
+        for e in effects { masterEngine.disconnectNodeOutput(e) }
         masterEngine.disconnectNodeOutput(laneMixer)
         masterEngine.detach(unit)
+        for e in effects { masterEngine.detach(e) }
         masterEngine.detach(laneMixer)
     }
 
