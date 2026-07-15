@@ -5871,3 +5871,31 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   Arrangements spielen (Play-Guard erweitert). audio-thread-reviewer: RT-clean.
 - **Offen Welle 1:** H3 SamplerVoice-Race · H4 Pan/Gain-Fan-out · H5 AU-Routing ·
   M1c LaneNotePump-Mehrtakt · M2 Region-Phase abseits Taktlinie.
+
+## 2026-07-15 (Fortsetzung 2) — H3 + H4 geheilt, v249 deployed
+- **v249 (H3+H4, Kette da620bf→9ed2703→eecf259→df67799→eea3ae4, alle Gates grün):**
+- **H3 SamplerVoice-Race (da620bf + 9ed2703):** RenderState.sampleBuffer ([Float])
+  → SPSC-Slab-Handshake (UnsafeMutablePointer-Slabs, installQueue/retireQueue,
+  Adoption an der Block-Grenze, alloc/free NUR main). audio-thread-reviewer fand
+  HIGH: Adoption `lastSeenTrigger = triggerCount` schluckte den loadSample→fire-
+  Audition-Trigger (Browser-Preview systematisch stumm, 6 Tests rot) → Fix:
+  `trigAtInstall`-Snapshot im Slab, Adoption absorbiert nur Alt-Trigger. Dazu
+  MEDIUM: SPSCQueue.dequeue/peek ohne Consumer-Acquire-Barrier (arm64, Ring-Wrap
+  → Use-after-free bei Pointer-Payloads) → OSMemoryBarrier ergänzt. LEDGER:
+  SPSC-Ringe mit Roh-Pointern brauchen BEIDE Barrieren; Kapazitäts-Invariante
+  install==retire + drain-per-install ist der No-Leak-Beweis (Kommentar im Code).
+- **H4 Live-Mixer (eecf259 + df67799 + eea3ae4):** MultiRollFanout.pan/gain
+  (pure) · TimelineRegionPlayer slotPanSink/slotGainSink (Load + live) ·
+  liveDocument-Provider + TimelineDocument.mergeMixer (NUR Mixer-Felder pro
+  Step in den Play-Snapshot; Struktur bleibt eingefroren — Rank-Invariante) ·
+  PolySynthVoice.setGain (sourceNode.volume) · AudioLanePlayer reconcileMix auf
+  .unchanged (Level live, Mute stoppt, Unmute re-startet an ehrlicher Datei-
+  Position, Pan erstmals auf Audio-Lanes) · TimelineAudioSink setGain/setPan.
+  Reviewer: audio-thread PASS (control-plane bestätigt; MEDIUM Prime-Warm →
+  erste AUFLÖSBARE Region, gefixt) · code APPROVE (MEDIUM Solo-Wedge: gelöschte
+  Solo-Spur gated alles bis Stop → mergeMixer cleart Solo abwesender Lanes;
+  MEDIUM Integrationstest Step→Store→Slot ergänzt; NaN⇒Stille in setGain).
+  LEDGER: Player-doc ist Play-Snapshot — JEDE live wirkende Dokument-Änderung
+  braucht einen expliziten Merge-Pfad; mixer-only-Merge ist das sichere Muster.
+- **Nächster Punkt:** H5 AU-Instrument-Routing (Task #50, Eventide & Co auf
+  Spuren; TimelineLane.instrument ist bisher reine Daten ohne Engine-Pfad).

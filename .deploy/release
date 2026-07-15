@@ -1,36 +1,43 @@
-build: 2026-07-15 v10.79.248 (Audio-Spuren KLINGEN im Arrangement — Heilungs-Welle 1)
+build: 2026-07-15 v10.79.249 (Live-Mixer greift SOFORT + Sample-Race geheilt — Heilungs-Welle 1)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zweiter verifizierter CRITICAL aus deinem Ultracode-Mandat geheilt: Audio-
-  Regionen auf der Timeline waren beim Song-Playback KOMPLETT STUMM — der
-  getestete AudioLanePlayer war nie mit der Engine verdrahtet (genau wie der
-  Video-Player vor v246: Koordinator gebaut, Tür fehlte).
+notes: Dritter + vierter verifizierter CRITICAL aus deinem Ultracode-Mandat geheilt
+  (H3 Sample-Race, H4 Pan/Gain) — beide mit vollem Reviewer-Durchlauf.
 
-  NEU:
-  • Audio-Clips (importierte Loops, Splits, getrimmte Stücke) SPIELEN jetzt im
-    Arrangement — ab exakt der richtigen Datei-Position (Trim-Offset ehrlich,
-    Split-Hälften klingen verschieden), bis zur Clip-Kante, mit Spur-Level.
-  • Auch REINE Audio-Arrangements (ohne MIDI-Spur) spielen — die alte Play-
-    Bedingung hat sie stumm geschaltet.
-  • Streaming statt RAM: lange Clips werden aus der Datei gestreamt (kein
-    70-MB-Puffer gegen das 200-MB-Limit).
-  • Song-Loop: Audio startet am Wrap phasenrichtig neu (Reviewer-Fund — vorher
-    lief es aus dem Takt und verstummte ab Runde 2).
-  • Kein Mix-Aussetzer mitten im Song: alle Spuren werden VOR dem Start
-    vorgewärmt (der Engine-Attach pausiert sonst kurz alles — Reviewer-Fund).
-  • Interruption-fest: Anruf während der Wiedergabe crasht nicht mehr in
-    node.play() (Guard, verstummt ehrlich bis zum nächsten Clip-Beginn).
+  H4 — LIVE-MIXER ERREICHT DIE WIEDERGABE:
+  • Pan pro MIDI-Spur klingt jetzt WIRKLICH (war stumm-inert: der Regler schrieb
+    ins Dokument, keine Rack-Voice hat ihn je gelesen).
+  • Der Spur-Fader ist stufenlos: 0.5 klingt halb so laut (vorher binär an/aus
+    über das Note-Gate).
+  • Mixer-Bewegungen MITTEN im Clip greifen sofort — Mute/Solo/Level/Pan werden
+    pro Transport-Step aus dem Store gezogen; vorher fror der Play-Snapshot sie
+    bis zur nächsten Clip-Grenze ein.
+  • Audio-Spuren bekommen erstmals Pan; Level-Moves regeln live ohne Neustart,
+    Mute stoppt sofort, Unmute startet an der EHRLICHEN Datei-Position neu.
+  • Mute silenziert jetzt auch schon klingende Noten am Mixer (vorher klangen
+    sie bis zum natürlichen Ende aus).
 
-  EHRLICH (dokumentiert, eigene Zyklen): Live-Mixer-Bewegung MITTEN in einer
-  Region greift erst an der nächsten Clip-Grenze (H4 Pan/Gain-Fan-out als
-  Nächstes) · Editor-Fades/Warp werden auf der Timeline noch nicht übernommen
-  (A5) · Sekundär-MIDI-Spuren falten Mehrtakt-Clips noch (M1c).
+  H3 — SAMPLE-TAUSCH-RACE GEHEILT (Beat-Sampler):
+  • Sample-Wechsel während der Beat läuft: lock-frei über SPSC-Slab-Handshake —
+    kein Free-under-Read-Fenster mehr auf dem Audio-Thread.
+  • Reviewer-Fund dabei GEFIXT bevor er je auslief: die erste Fassung hätte jede
+    Sample-Browser-Vorschau stumm gemacht (Adoption schluckte den Audition-
+    Trigger) — 6 Bestandstests hätten es gefangen, jetzt grün.
+  • SPSC-Queue bekam die fehlende Acquire-Barrier (arm64: veralteter Slot-Read
+    nach Ring-Wrap hätte einen bereits freigegebenen Puffer wiederbeleben können).
 
-  SICHER: audio-thread-reviewer — "zero work added to the render thread";
-  alle 4 Funde (2 HIGH, 1 Crash-Guard, 1 Node-Leak) gefixt; +2 Koordinator-
-  Tests (Vorwärmen ohne Klang, Detach beim Spur-Löschen). Kette v247 grün
-  ausstehend — Gates laufen.
+  SICHER: audio-thread-reviewer PASS ("control-plane only" bestätigt; sein
+  MEDIUM — Engine-Pause durch Mid-Song-Attach bei unauflösbarem erstem Clip —
+  gefixt: Vorwärmen fällt auf die erste AUFLÖSBARE Region durch) · code-reviewer
+  APPROVE (Solo-Wedge gefixt: gelöschte Solo-Spur hielt alle anderen bis Stop
+  stumm; Integrationstest Step→Store→Slot ergänzt; NaN⇒Stille in beiden
+  setGain). +16 Tests. Kette eecf259→df67799→eea3ae4 alle Gates grün.
 
-  Heilungs-Stand Welle 1: M1 MIDI-Takte ✓ (v247) · A1 Audio-Klang ✓ (dieser
-  Build) · als Nächstes H3 Sample-Race · H4 Pan/Gain · H5 AU-Routing.
+  EHRLICH (dokumentiert, eigene Zyklen): Editor-Fades/Warp auf der Timeline (A5)
+  · Sekundär-MIDI faltet Mehrtakt-Clips (M1c) · Spur-hinzufügen/-löschen während
+  der Wiedergabe bleibt strukturell eingefroren bis Stop (Rank-Invariante).
 
-  Reihenfolge: v246 Video-Monitor · v247 MIDI-Takte · v248 Audio-Klang.
+  Heilungs-Stand Welle 1: M1 ✓ (v247) · A1 ✓ (v248) · H3 ✓ + H4 ✓ (dieser
+  Build) · als Nächstes H5 AU-Instrument-Routing (Eventide & Co auf Spuren).
+
+  Reihenfolge: v246 Video-Monitor · v247 MIDI-Takte · v248 Audio-Klang ·
+  v249 Live-Mixer + Sample-Race.
