@@ -68,9 +68,16 @@ struct PulseMonitorMini: View {
     /// self-correctable — the founder's "tap for more info" detail still carries the
     /// full guidance. nil / not-actionable / locked ⇒ the plain monitor.
     var cue: PulseCue? = nil
+    /// BLE strap status (BLE-1, device log 2361: the founder's first strap scans
+    /// looked dead and were aborted <5 s). `short` fills the BPM slot while no
+    /// pulse flows; `full` carries the VoiceOver/coaching text. nil ⇒ plain monitor.
+    var status: (short: String, full: String)? = nil
 
     /// Show the amber coaching cue: a correctable placement issue while not locked.
     private var showCue: Bool { !locked && (cue?.isActionable ?? false) }
+
+    /// Show the strap status text: no lock, no camera cue competing for the slot.
+    private var showStatus: Bool { !locked && !showCue && status != nil }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -86,6 +93,11 @@ struct PulseMonitorMini: View {
                     Text(cue.shortLabel)
                         .font(EchoelTheme.font(9, .semibold))
                         .foregroundStyle(EchoelTheme.warning)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                } else if showStatus, let status {
+                    Text(status.short)
+                        .font(EchoelTheme.font(9, .semibold))
+                        .foregroundStyle(EchoelTheme.dim)
                         .lineLimit(1).minimumScaleFactor(0.8)
                 } else {
                     Text("—")
@@ -112,6 +124,7 @@ struct PulseMonitorMini: View {
 
     private var accessibilityText: String {
         if showCue, let cue { return cue.fullHint }
+        if showStatus, let status { return status.full }
         guard locked && bpm > 0 else { return "No pulse lock" }
         if let coh = coherence {
             return "\(Int(bpm)) beats per minute, coherence \(String(format: "%.2f", coh))"
@@ -132,6 +145,24 @@ struct PulseMonitorMini: View {
 struct PulseMonitorMiniLive: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     @Environment(EngineBus.self) private var bus
+    #if canImport(CoreBluetooth)
+    @Environment(PolarH10BioPublisher.self) private var polarH10
+    #endif
+
+    /// BLE strap status for the pill (BLE-1): only while the strap publisher is
+    /// the active source (publishing, camera off). `state` changes at scan/connect
+    /// lifecycle only — a low-frequency read, freeze-rule safe in this leaf.
+    private func strapStatus(cameraLive: Bool, hasLiveFrames: Bool) -> (short: String, full: String)? {
+        #if canImport(CoreBluetooth)
+        guard polarH10.isPublishing, !cameraLive else { return nil }
+        return PolarH10BioPublisher.statusLabel(for: polarH10.state,
+                                                deviceName: polarH10.connectedDeviceName,
+                                                hasLiveFrames: hasLiveFrames)
+        #else
+        return nil
+        #endif
+    }
+
     var body: some View {
         // The pill reflects whichever source is live (founder 2026-07-15 source picker):
         //   • Camera — a real PPG waveform + the CALM `displayBPM` (holds the last
@@ -149,7 +180,11 @@ struct PulseMonitorMiniLive: View {
                          coherence: fresh.map { Double($0.coherence) },
                          // Only the camera has an acquisition cue ("cover the lens"); a
                          // strap/sim monitor stays plain.
-                         cue: cameraLive ? cameraRPPG.acquisitionCue : nil)
+                         cue: cameraLive ? cameraRPPG.acquisitionCue : nil,
+                         // BLE-1: while the strap is the source, the scan/connect
+                         // lifecycle is VISIBLE here instead of a dead flat trace.
+                         status: strapStatus(cameraLive: cameraLive,
+                                             hasLiveFrames: fresh != nil))
             // E-Bio-Header — bio's HOME is this header pill (founder 2026-07-14 +
             // 2026-07-15 video: "Wenn Biofeedback aktiviert werden soll drückt man
             // einfach oben rechts neben dem Echoel Icon drauf. Lange drücken = drop

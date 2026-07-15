@@ -111,5 +111,47 @@ final class PolarH10BioPublisherTests: XCTestCase {
         XCTAssertEqual(pub.state, .idle)
         XCTAssertFalse(pub.isPublishing)
     }
+
+    // MARK: - Status label (BLE-1: the scan must be VISIBLE — device log 2361:
+    // founder's first two strap attempts aborted <5 s because nothing changed)
+
+    func testStatusLabel_scanningAndConnecting_areVisible() {
+        let scanning = PolarH10BioPublisher.statusLabel(for: .scanning, deviceName: "",
+                                                        hasLiveFrames: false)
+        XCTAssertEqual(scanning?.short, "Scanning…")
+        let connecting = PolarH10BioPublisher.statusLabel(for: .connecting, deviceName: "Polar H10",
+                                                          hasLiveFrames: false)
+        XCTAssertEqual(connecting?.short, "Connecting…")
+        XCTAssertTrue(connecting?.full.contains("Polar H10") == true,
+                      "the full hint names the device being connected")
+    }
+
+    func testStatusLabel_connectedWaitingForFirstBeat_showsName() {
+        let s = PolarH10BioPublisher.statusLabel(for: .connected, deviceName: "TICKR",
+                                                 hasLiveFrames: false)
+        XCTAssertTrue(s?.short.contains("TICKR") == true)
+    }
+
+    func testStatusLabel_connectedWithLiveFrames_isNil_soBPMShows() {
+        // Once frames flow the pill shows the BPM number — the label must yield.
+        XCTAssertNil(PolarH10BioPublisher.statusLabel(for: .connected, deviceName: "TICKR",
+                                                      hasLiveFrames: true))
+    }
+
+    func testStatusLabel_failureStates_areHonest() {
+        let off = PolarH10BioPublisher.statusLabel(for: .bluetoothUnavailable, deviceName: "",
+                                                   hasLiveFrames: false)
+        XCTAssertEqual(off?.short, "BT off")
+        let notFound = PolarH10BioPublisher.statusLabel(for: .notFound, deviceName: "",
+                                                        hasLiveFrames: false)
+        XCTAssertEqual(notFound?.short, "No strap")
+        XCTAssertTrue(notFound?.full.lowercased().contains("electrode") == true,
+                      "chest straps do not advertise with dry electrodes — the hint must say so")
+    }
+
+    func testStatusLabel_idle_isNil() {
+        XCTAssertNil(PolarH10BioPublisher.statusLabel(for: .idle, deviceName: "",
+                                                      hasLiveFrames: false))
+    }
 }
 #endif

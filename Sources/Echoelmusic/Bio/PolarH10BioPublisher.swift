@@ -38,6 +38,10 @@ public final class PolarH10BioPublisher: NSObject {
         case connecting
         case connected
         case disconnected
+        /// The ~20 s scan watchdog fired with nothing discovered (BLE-2): chest
+        /// straps do not advertise until the electrodes make skin contact, so
+        /// "worn but dry" looks identical to "no strap" — the hint must say so.
+        case notFound
     }
 
     public private(set) var state: ConnectionState = .idle
@@ -65,6 +69,17 @@ public final class PolarH10BioPublisher: NSObject {
 
     @ObservationIgnored
     private var publishTask: Task<Void, Never>?
+
+    /// BLE-2 scan watchdog: `scanForPeripherals` runs FOREVER by default, and a
+    /// strap with dry electrodes never advertises — without a timeout the scan is
+    /// an eternal, invisible wait (device log 2361: the founder's first two strap
+    /// attempts were aborted <5 s because nothing visibly happened). ~20 s is
+    /// generous for BLE advertising intervals while short enough to coach.
+    @ObservationIgnored
+    private var scanWatchdog: Task<Void, Never>?
+
+    @ObservationIgnored
+    private static let scanTimeoutSeconds: Double = 20
 
     @ObservationIgnored
     private var latestHR: Int = 0
@@ -96,6 +111,8 @@ public final class PolarH10BioPublisher: NSObject {
     }
 
     public func stop() {
+        scanWatchdog?.cancel()
+        scanWatchdog = nil
         publishTask?.cancel()
         publishTask = nil
         if let peripheral, peripheral.state == .connected {
@@ -150,6 +167,35 @@ public final class PolarH10BioPublisher: NSObject {
     /// and any seconds-native caller.
     static func rmssdMs(fromRRSeconds rr: [Double]) -> Double {
         HRVMetrics.rmssd(rrMs: rr.map { $0 * 1000.0 })
+    }
+
+    // MARK: - Status label (testable kernel)
+
+    /// The pill's honest strap status (BLE-1): `short` fits the header pill's tiny
+    /// text slot, `full` is the VoiceOver / detail hint. `nil` = show the normal
+    /// monitor (idle, or live frames flowing so the BPM number owns the slot).
+    /// Pure + nonisolated → unit-testable without any BLE hardware. Device log
+    /// 2361: the founder's first two strap sessions were aborted <5 s because
+    /// the scan looked dead.
+    nonisolated static func statusLabel(for state: ConnectionState, deviceName: String,
+                                        hasLiveFrames: Bool) -> (short: String, full: String)? {
+        let name = deviceName.isEmpty ? "Strap" : deviceName
+        switch state {
+        case .idle, .disconnected:
+            return nil
+        case .scanning:
+            return ("Scanning…", "Searching for a Bluetooth heart-rate strap")
+        case .connecting:
+            return ("Connecting…", "Connecting to \(name)")
+        case .connected:
+            // Waiting for the first heart-rate notification; once frames flow the
+            // BPM number takes over the slot.
+            return hasLiveFrames ? nil : ("\(name)…", "\(name) connected — waiting for heart rate")
+        case .bluetoothUnavailable:
+            return ("BT off", "Bluetooth is off or access is denied — enable it in Settings")
+        case .notFound:
+            return ("No strap", "No strap found — moisten the electrodes, re-clip the strap, and pick Bluetooth again")
+        }
     }
 
     // MARK: - BLE Heart Rate Measurement parsing (testable kernel)
@@ -213,10 +259,28 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
         case .poweredOn:
             state = .scanning
             central.scanForPeripherals(withServices: [Self.hrServiceUUID])
+            armScanWatchdog()
         case .poweredOff, .unauthorized, .unsupported, .resetting, .unknown:
             state = .bluetoothUnavailable
         @unknown default:
             state = .bluetoothUnavailable
+        }
+    }
+
+    /// If nothing is discovered within the timeout, stop the scan and surface an
+    /// honest `.notFound` — the pill's status leaf shows the coaching hint. The
+    /// user retries via the same source-dropdown pick (stop() → fresh start()).
+    @MainActor
+    private func armScanWatchdog() {
+        scanWatchdog?.cancel()
+        scanWatchdog = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(Self.scanTimeoutSeconds))
+            guard !Task.isCancelled, let self,
+                  self.isPublishing, self.state == .scanning else { return }
+            if self.central?.state == .poweredOn { self.central?.stopScan() }
+            self.state = .notFound
+            log.log(.info, category: .bio,
+                    "BLE HR scan timeout (\(Int(Self.scanTimeoutSeconds)) s) — no strap found")
         }
     }
 
@@ -238,6 +302,8 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
     @MainActor
     private func handleDiscovered(_ peripheral: CBPeripheral, named name: String, on central: CBCentralManager) {
         guard self.peripheral == nil else { return }
+        scanWatchdog?.cancel()
+        scanWatchdog = nil
         self.peripheral = peripheral
         self.connectedDeviceName = name
         peripheral.delegate = self
