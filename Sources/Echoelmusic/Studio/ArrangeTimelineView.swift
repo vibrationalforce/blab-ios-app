@@ -55,6 +55,12 @@ struct ArrangeTimelineView: View {
     @State private var renameLaneID: UUID?
     @State private var renameText = ""
 
+    /// Multi-select (clip game C3 — founder: "mehrere Clips markiert → combine"). While
+    /// `isSelecting`, a TAP on a clip toggles it into the selection instead of
+    /// auditioning; Combine/Delete act on the whole set. Tap-frequency state — no churn.
+    @State private var isSelecting = false
+    @State private var selectedRegions: Set<UUID> = []
+
     /// Zoom: screen points per quarter-note beat (Stage 3 couples snap to this).
     @State private var pointsPerBeat: CGFloat = 24
     @GestureState private var pinch: CGFloat = 1
@@ -333,6 +339,61 @@ struct ArrangeTimelineView: View {
             .buttonStyle(.plain)
             .disabled(!timeline.canRedo)
             .accessibilityLabel("Redo the undone clip edit")
+
+            // Multi-select (clip game C3): toggle select mode; while on, taps mark clips
+            // and Combine/Delete act on the whole set (founder: "mehrere Clips markiert
+            // soll auch combine gehen"). Leaving the mode clears the selection.
+            Button {
+                isSelecting.toggle()
+                if !isSelecting { selectedRegions.removeAll() }
+            } label: {
+                Image(systemName: isSelecting ? "checkmark.circle.fill" : "checkmark.circle")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isSelecting ? EchoelTheme.onPrimary : EchoelTheme.text)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .fill(isSelecting ? EchoelTheme.accent : EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: isSelecting ? 0 : 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isSelecting ? "Done selecting clips" : "Select multiple clips")
+
+            if isSelecting {
+                Button {
+                    timeline.combineRegions(ids: selectedRegions)
+                    selectedRegions.removeAll()
+                    isSelecting = false
+                } label: {
+                    Text("Combine")
+                        .font(EchoelTheme.font(12, .medium))
+                        .foregroundStyle(selectedRegions.count >= 2 ? EchoelTheme.text : EchoelTheme.dim)
+                        .padding(.horizontal, 10).frame(height: 28)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedRegions.count < 2)
+                .accessibilityLabel("Combine the selected clips into one")
+
+                Button {
+                    timeline.removeRegions(ids: selectedRegions)
+                    selectedRegions.removeAll()
+                    isSelecting = false
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(selectedRegions.isEmpty ? EchoelTheme.dim : EchoelTheme.danger)
+                        .frame(width: 28, height: 28)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedRegions.isEmpty)
+                .accessibilityLabel("Delete the selected clips")
+            }
 
             // Record: arm the take + start the clock. Every note/bio input on an armed
             // track is captured; Stop drops a Clip + region onto that lane. Reads only
@@ -778,6 +839,15 @@ struct ArrangeTimelineView: View {
                 // (the old root-@State resize made every drag frame rebuild all lanes +
                 // ruler + playhead → the "zittern" the founder saw, 2026-07-15).
                 RegionBlockView(region: region, ppb: ppb, snap: snap,
+                                selectMode: isSelecting,
+                                isSelected: selectedRegions.contains(region.id),
+                                onSelectToggle: {
+                                    if selectedRegions.contains(region.id) {
+                                        selectedRegions.remove(region.id)
+                                    } else {
+                                        selectedRegions.insert(region.id)
+                                    }
+                                },
                                 onEdit: { activeModal = .region(region) })
             }
         }
@@ -846,6 +916,11 @@ private struct RegionBlockView: View {
     let region: TimelineRegion
     let ppb: CGFloat
     let snap: SnapResolution
+    /// Multi-select (C3): while the toolbar's select mode is on, a TAP toggles this
+    /// clip in/out of the selection instead of auditioning.
+    var selectMode: Bool = false
+    var isSelected: Bool = false
+    var onSelectToggle: () -> Void = {}
     /// Opens this region's editor (the parent owns the one sheet slot).
     let onEdit: () -> Void
 
@@ -895,7 +970,9 @@ private struct RegionBlockView: View {
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(tint.opacity(isMoving ? 1.0 : 0.55), lineWidth: 1))
+                // Selected (C3) = accent ring; moving = full-strength tint; idle = subtle.
+                .strokeBorder(isSelected ? EchoelTheme.accent : tint.opacity(isMoving ? 1.0 : 0.55),
+                              lineWidth: isSelected ? 2 : 1))
             .overlay(alignment: .topLeading) {
                 Text(name)
                     .font(EchoelTheme.font(9, .medium))
@@ -946,6 +1023,8 @@ private struct RegionBlockView: View {
             // verified) — the store call is the ONE command EchoelAI will also use.
             .gesture(moveGesture)
             .onTapGesture {
+                // Select mode (C3): tap marks/unmarks; otherwise tap auditions audio.
+                if selectMode { onSelectToggle(); return }
                 guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
                 if let url = auditionURL { beatPlayer.audition(url: url) }
             }

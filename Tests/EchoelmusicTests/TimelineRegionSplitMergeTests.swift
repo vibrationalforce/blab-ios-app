@@ -178,6 +178,59 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
                       "the rejoined region spans the original first bar again")
     }
 
+    // MARK: - Multi-select Combine + batch delete (C3 — clip game)
+
+    func testCombineRegions_sameLane_spansEarliestToLatest_keepsFirstIdentity() {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "combine-\(UUID())")
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let a = TimelineRegion(laneID: lane, clipID: clip, startTick: 480, lengthTicks: 480,
+                               contentOffsetSeconds: 1.0)
+        let b = TimelineRegion(laneID: lane, clipID: clip, startTick: 1440, lengthTicks: 480)
+        store.addRegion(a); store.addRegion(b)
+        store.combineRegions(ids: [a.id, b.id])
+        let mine = store.document.regions.filter { $0.laneID == lane }
+        XCTAssertEqual(mine.count, 1, "two selected regions became one")
+        XCTAssertEqual(mine.first?.id, a.id, "keeps the earliest region's identity")
+        XCTAssertEqual(mine.first?.startTick, 480)
+        XCTAssertEqual(mine.first?.lengthTicks, 1920 - 480, "spans across the gap to b's end")
+        XCTAssertEqual(mine.first?.contentOffsetSeconds ?? 0, 1.0, accuracy: 1e-9,
+                       "keeps the earliest region's media offset")
+        store.undo()
+        XCTAssertEqual(store.document.regions.filter { $0.laneID == lane }.count, 2,
+                       "combine is one undo step")
+    }
+
+    func testCombineRegions_crossLane_orSingle_isNoOp() {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "cxA-\(UUID())")
+        store.addLane(kind: .audio, name: "cxB-\(UUID())")
+        let lanes = store.document.lanes.suffix(2)
+        let a = TimelineRegion(laneID: lanes.first!.id, clipID: UUID(), startTick: 0, lengthTicks: 480)
+        let b = TimelineRegion(laneID: lanes.last!.id, clipID: UUID(), startTick: 0, lengthTicks: 480)
+        store.addRegion(a); store.addRegion(b)
+        let before = store.document.regions.count
+        store.combineRegions(ids: [a.id, b.id])   // different lanes → refuse
+        store.combineRegions(ids: [a.id])          // single → refuse
+        XCTAssertEqual(store.document.regions.count, before, "cross-lane/single combine is a no-op")
+    }
+
+    func testRemoveRegions_batch_isOneUndoStep() {
+        let store = TimelineStore()
+        store.addLane(kind: .midi, name: "batch-\(UUID())")
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let a = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 480)
+        let b = TimelineRegion(laneID: lane, clipID: clip, startTick: 480, lengthTicks: 480)
+        store.addRegion(a); store.addRegion(b)
+        store.removeRegions(ids: [a.id, b.id])
+        XCTAssertTrue(store.document.regions.filter { $0.laneID == lane }.isEmpty)
+        store.undo()
+        XCTAssertEqual(store.document.regions.filter { $0.laneID == lane }.count, 2,
+                       "batch delete reverts in ONE step")
+    }
+
     // MARK: - Undo / Redo (C2 — clip game)
 
     func testUndo_revertsMove_andRedoReapplies() {

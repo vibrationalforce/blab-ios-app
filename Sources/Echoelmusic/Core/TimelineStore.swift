@@ -280,6 +280,34 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Combine SELECTED regions into one (clip game C3 — founder 2026-07-15A: "Wenn man
+    /// mehrere Clips markiert soll auch combine gehen"). All must sit on the SAME lane;
+    /// the result spans from the earliest start to the latest end and keeps the earliest
+    /// region's identity/clip/media-offset (for split pieces this equals the lossless
+    /// join; across gaps the first clip simply plays through the span). One history step.
+    public func combineRegions(ids: Set<UUID>) {
+        let selected = document.regions.filter { ids.contains($0.id) }
+        guard selected.count >= 2,
+              let laneID = selected.first?.laneID,
+              selected.allSatisfy({ $0.laneID == laneID }),
+              let earliest = selected.min(by: { $0.startTick < $1.startTick }),
+              let endMax = selected.map(\.endTick).max() else { return }
+        snapshotForUndo()
+        var combined = earliest
+        combined.lengthTicks = endMax - earliest.startTick
+        document.regions.removeAll { ids.contains($0.id) }
+        document.regions.append(combined)
+        persist()
+    }
+
+    /// Batch delete (clip game C3): remove every selected region in ONE history step.
+    public func removeRegions(ids: Set<UUID>) {
+        guard document.regions.contains(where: { ids.contains($0.id) }) else { return }
+        snapshotForUndo()
+        document.regions.removeAll { ids.contains($0.id) }
+        persist()
+    }
+
     /// Whether region `id` has a valid same-lane/clip successor to Join with — drives
     /// the enable/disable of the clip menu's "Join with next" verb. Pure read.
     public func canMergeRegionWithNext(id: UUID, bpm: Double) -> Bool {
