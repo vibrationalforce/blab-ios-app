@@ -1,31 +1,21 @@
-build: 2026-07-15 v10.79.228 (Puls lockt nach Finger-Wackler wieder — Fenster-Flush bei Finger-Verlust)
+build: 2026-07-15 v10.79.229 (Spur-Kopf: alle Felder gleich groß — M/S/Aufnahme/Gain einheitlich hoch)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Aus deinem Geräte-Log (v224): der Puls lockte beim ERSTEN Auflegen sauber
-  (bpm 59, conf 0.90 nach ~20 s) — dann, nachdem der Finger kurz abhob, lockte er
-  ~50 s lang NIE wieder (amp im Diagnose-Log eingefroren bei 0.2546, pk=0, bpm=0,
-  conf=0.00), obwohl das Fenster voll blieb.
+notes: Direkt aus deinem Screenshot ("Die Felder sollen gleichgroß sein"): im Spur-Kopf
+  war das Gain-Kästchen (die „0.00"/„1.00"-Zahl) deutlich HÖHER als die M/S- und
+  Aufnahme-Knöpfe daneben — die Reihe wirkte unruhig.
 
-  URSACHE (echter Logik-Fehler, kein Blind-Tuning): beim Finger-Verlust wurde die
-  Belichtung zurückgesetzt, ABER das rollende Analyse-Fenster NICHT geleert. So blieben
-  die alten, gesättigten Samples + der Helligkeits-Sprung (vom Belichtungs-Entsperren)
-  im Fenster liegen → der Bandpass saß auf einer Stufe, amp fror ein, ein neues Auflegen
-  konnte nie sauber neu-locken. Genau dieser Flush existierte SCHON im Kamera-Neustart-
-  Pfad (handleCameraSessionReset) für exakt denselben Effekt — der Finger-Verlust-Pfad
-  hatte ihn nur nicht.
+  FIX: alle Felder im Spur-Kopf sind jetzt gleich hoch (28 pt) — Aufnahme-Icon · M · S ·
+  Gain-Kästchen bilden eine saubere, einheitliche Reihe. Nebeneffekt: der Kopf sitzt
+  luftiger (vorher drückte das ~40 pt hohe Gain-Kästchen die Zeile eng zusammen).
 
-  FIX: beim Lock-Abwurf nach Finger-Verlust wird jetzt `analyzer.resetForRecovery()`
-  aufgerufen (leert Fenster, DC/Bandpass-State, setzt amp/bpm/conf zurück) — das nächste
-  Auflegen re-akquiriert sauber wie beim Start. Der ANGEZEIGTE Puls bleibt dabei stehen
-  (die Anzeige rückt nur bei vertrauenswürdiger Messung nach), springt also nicht auf 0.
+  Technisch: EchoelValueField bekam eine optionale feste Höhe (boxHeight) für dichte
+  Reihen — der EINE app-weite Zahl-Regler bleibt der eine Regler, nur in der Timeline-
+  Spur jetzt kompakt auf Knopf-Höhe. Alle anderen Nutzungen unverändert.
 
-  SICHER: dsp-reviewer CONFIRMED — behebt das Einfrieren, verschlechtert kein gutes Lock
-  (ein ruhiger Finger löst den Zweig nie aus, weil er nur bei bestehendem Lock erreichbar
-  ist → Flush genau einmal pro Lock→Verlust-Zyklus), keine Nebenläufigkeits-Änderung
-  (@MainActor Publish-Loop wie bisher), Rausch-Triad unangetastet.
+  SICHER: ui-state-reviewer CONFIRMED — kompiliert (Argument-Reihenfolge ok), passt in
+  die 140-pt-Spur (138 pt), passt vertikal in die 56-pt-Spur, keine andere Nutzung des
+  Reglers bricht, Zahl bleibt lesbar.
 
-  GERÄTE-CHECK: bitte einmal Puls locken, Finger kurz abheben, wieder auflegen — er
-  sollte jetzt zügig wieder locken statt ~50 s tot zu bleiben. (Tipp bleibt: Finger ruhig
-  halten; die Coaching-Hinweise „Finger ruhig"/„sanft drücken" führen.)
-
-  Reihenfolge heute: v225 Spur-Kopf · v226 Split/Join am Clip · v227 Tempo hoch ·
-  v228 Puls-Relock. Offen aus Feedback: Sample/MIDI per Lang-Druck · Combine (Mehrfachauswahl).
+  Reihenfolge heute: v225 Spur-Kopf-Fit · v226 Split/Join am Clip · v227 Tempo hoch ·
+  v228 Puls-Relock (Geräte-Log) · v229 Felder gleich groß. Offen aus Feedback:
+  Sample/MIDI per Lang-Druck einfügen · Combine (Mehrfachauswahl).

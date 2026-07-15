@@ -644,7 +644,7 @@ struct ArrangeTimelineView: View {
                     get: { timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1 },
                     set: { timeline.setLaneLevel(id: lane.id, $0) }
                 ),
-                range: 0...2, decimals: 2, boxWidth: 30
+                range: 0...2, decimals: 2, boxWidth: 30, boxHeight: 28
             )
             // The strip is too narrow for a visible "Level" caption — restore the
             // context for VoiceOver instead (the box shows the bare number).
@@ -663,7 +663,7 @@ struct ArrangeTimelineView: View {
             Text(letter)
                 .font(EchoelTheme.font(10, .semibold))
                 .foregroundStyle(isOn ? EchoelTheme.onPrimary : EchoelTheme.dim)
-                .frame(width: 21, height: 18)
+                .frame(width: 21, height: 28)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                     .fill(isOn ? onTint : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
@@ -685,7 +685,7 @@ struct ArrangeTimelineView: View {
             Image(systemName: lane.isArmed ? "record.circle.fill" : source.systemImage)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(lane.isArmed ? EchoelTheme.onPrimary : EchoelTheme.dim)
-                .frame(width: 21, height: 18)
+                .frame(width: 21, height: 28)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                     .fill(lane.isArmed ? EchoelTheme.danger : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)

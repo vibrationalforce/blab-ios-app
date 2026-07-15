@@ -39,6 +39,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// where the default 150 is far wider than a short value needs. When nil the box
     /// keeps the Dynamic-Type-scaled default. The one control still — just narrower.
     var boxWidth: CGFloat? = nil
+    /// Optional fixed box HEIGHT for DENSE rows (e.g. the timeline lane strip, where the
+    /// value box must read the SAME size as the neighbouring M/S/record buttons — founder
+    /// 2026-07-15 "Die Felder sollen gleichgroß sein"). nil = the natural padded height.
+    var boxHeight: CGFloat? = nil
 
     /// Presents the shared numeric keypad (tap-to-type path).
     @State private var showPad = false
@@ -119,7 +123,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 .onTapGesture { showPad = true }
         }
         .frame(width: boxWidth ?? valueWidth)
-        .padding(.horizontal, 12).padding(.vertical, 9)
+        // Dense rows pin the height (vertical padding shrinks) so the box matches its
+        // neighbour buttons; default keeps the roomy 9 pt padding + natural height.
+        .padding(.horizontal, 12).padding(.vertical, boxHeight == nil ? 9 : 3)
+        .frame(height: boxHeight)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
             .strokeBorder(active ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
