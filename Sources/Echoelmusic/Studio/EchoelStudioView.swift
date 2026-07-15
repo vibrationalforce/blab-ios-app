@@ -632,7 +632,7 @@ struct EchoelStudioView: View {
         // (which flips transport.isPlaying false after already setting running=false) can't
         // recurse. To only WATCH the pulse without music, arm the body on the Bio page.
         .onChange(of: transport.isPlaying) { _, playing in
-            if !playing && running { stopEverything() }
+            if !playing && running { stopEverything(reason: "transport-stopped") }
         }
         .onChange(of: showVisual) { _, isUp in
             updateKeepAwake()
@@ -649,7 +649,7 @@ struct EchoelStudioView: View {
             }
         }
         .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
-        .onDisappear { stopEverything(); disableKeepAwake() }
+        .onDisappear { stopEverything(reason: "unmount"); disableKeepAwake() }
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
         // launch-time metadata decode can never overflow the stack again.
@@ -3262,7 +3262,7 @@ struct EchoelStudioView: View {
     // MARK: - Biofeedback lifecycle
 
     private func toggleBiofeedback() {
-        if running { stopEverything() } else { startBiofeedback() }
+        if running { stopEverything(reason: "user-stop") } else { startBiofeedback() }
     }
 
     /// Consume a Siri/Shortcuts request deposited by an App Intent, routing it to
@@ -3273,7 +3273,7 @@ struct EchoelStudioView: View {
         guard let action = EchoelIntentInbox.take() else { return }
         switch action {
         case .start:    if !running { startBiofeedback() }
-        case .stop:     if running { stopEverything() }
+        case .stop:     if running { stopEverything(reason: "intent-stop") }
         case .keepLoop: Task { await keepLastLoop() }
         }
         #endif
@@ -3340,7 +3340,10 @@ struct EchoelStudioView: View {
         #endif
     }
 
-    private func stopEverything() {
+    /// `reason` lands in the diagnostic breadcrumb — the founder's device logs
+    /// showed bare "stopEverything" lines with no way to tell a user stop from a
+    /// programmatic kill (the H7 fold-unmount hid behind exactly that ambiguity).
+    private func stopEverything(reason: String) {
         running = false
         bus.setInstrumentRunning(false)  // chrome mirror (TransportBar pulse button)
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
@@ -3362,7 +3365,7 @@ struct EchoelStudioView: View {
         synth.setBreathSwell(depth: 0)       // stop the 0.1 Hz breath pacing
         stopBioSource()
         restorePreTakeVisual()
-        EchoelCrashLog.breadcrumb("stopEverything: transport + all voices released")
+        EchoelCrashLog.breadcrumb("stopEverything(\(reason)): transport + all voices released")
     }
 
     /// Stage the immersive fullscreen visual for a take (Start). Remembers the prior
