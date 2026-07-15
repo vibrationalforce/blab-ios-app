@@ -5998,3 +5998,29 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   Spiegel, Render-Thread-Auflage!).
 - **Nächster Punkt:** H9a Bau — Effekt-Ketten in LaneAUInstrumentHost
   (AU → fx… → laneMixer, withGraphPaused, inFlight/failed-Muster wie H5).
+
+## 2026-07-15 (Fortsetzung 7) — H9a geheilt, v254 deployed
+- **v254 (6e79e0f + Review-Pass 68eef39, Gates 4/4 grün, Review APPROVE):**
+  H9a per-Spur-AU-Effekt-Inserts. lane.effects (seit U3 persistiert, engine-
+  ungelesen — exakte prä-H5-Lage) klingt jetzt: Kette Instrument → FX… →
+  laneMixer → Master im LaneAUInstrumentHost, H5-Mechanik (Assignment-Zeit-
+  Instanziierung in withGraphPaused, inFlight-Stale-Guard über ALLE awaits,
+  Failed-Parking, Cap-Log). Neuer purer LaneAUAssignment (Foundation-only,
+  Linux-getestet) = Reconcile-Währung: Instrument- ODER FX-Edit ⇒ EIN
+  geänderter Vergleich ⇒ Ketten-Rebuild. Ausfallende FX-Stufe übersprungen
+  (nie Stille); FX-Filter (nur echte Effekte, Reihenfolge, Cap 3); 8-Unit-
+  Budget neben 4-Lane-Cap. Review-HIGH gefixt: Format-Pre-Flight pro Stufe.
+  +11 Tests. Rack-Voice-FX ehrlich deferred (keine per-Lane-Grenze).
+- **LEDGER-Lehren:** (1) AVAudioEngine.connect() WIRFT NICHT — es RAISED eine
+  ObjC-NSException bei Format-Ablehnung (kAudioUnitErr_FormatNotSupported).
+  Host-Pre-Flight via setFormat auf Input- UND Output-Bus ist das einzige
+  sichere Gate; verweigernde Stufe überspringen, nie den Graph anfassen.
+  (2) Die Voice trägt das GEWIRTE Set (wiredFX), nicht das gewollte
+  (assignment.effects) — detach muss exakt spiegeln, was attach verbunden
+  hat, sonst detacht man un-attachte Nodes (auch eine Exception). (3)
+  Reviewer-Annahmen über Feature-Flags PRÜFEN: der Reviewer stufte das HIGH
+  als "hinter default-OFF-Flag" ein — laneAUInstruments ist default-ON;
+  aus "nächster Härtungszyklus" wurde Deploy-Blocker.
+- **Nächster Punkt (Welle 2):** H9b musicalContextBlock + transportStateBlock
+  aus lock-freiem Host-State-Spiegel (PLAN_H9 §H9b; audio-thread-reviewer
+  Pflicht — die Blocks laufen auf dem Render-Thread).

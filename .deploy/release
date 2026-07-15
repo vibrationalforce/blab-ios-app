@@ -1,34 +1,38 @@
-build: 2026-07-15 v10.79.253 (MIDI-Eingang flutet den Main-Executor nicht mehr — H10)
+build: 2026-07-15 v10.79.254 (Effekt-Plugins pro Spur klingen jetzt — H9a)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dritter Welle-2-Punkt geheilt (H10) — der MIDI-Eingangspfad ist jetzt
-  flut- und reihenfolgesicher.
+notes: Vierter Welle-2-Punkt geheilt (H9a) — die Insert-Effekte einer Spur
+  sind jetzt ein klingender Signalweg, nicht mehr nur gespeicherte Daten.
 
-  H10 — MIDI-EINGANGS-FLUT GEHEILT:
-  • Vorher spawnte JEDES eingehende MIDI-Event (Note, CC, Pitchbend) einen
-    eigenen Main-Actor-Task — ein dichter MPE-Stream (Pitchbend pro Finger,
-    ~100 Hz × Dimensionen) flutete den Main-Executor: exakt die Krankheit,
-    die früher den Kamera-Freeze verursachte. Und: separate Tasks garantieren
-    KEINE Reihenfolge — ein Note-Off konnte sein Note-On überholen → hängende
-    Note unter Last.
-  • Jetzt: Batch-Queue (dasselbe erprobte Muster wie beim Kamera-Fix) — der
-    CoreMIDI-Thread parst allokationsfrei und pusht in eine Queue; GENAU EIN
-    Drain pro Burst aufs Main-Actor, FIFO garantiert, Latenz unverändert
-    (ein Hop wie vorher). Overflow wird ehrlich gezählt und geloggt.
-  • Mit-geheilt: Mirror-Reflection (Allokation pro Paket auf dem CoreMIDI-
-    Thread) entfernt; dazu ein PRE-EXISTING Undefined Behavior gefixt —
-    Multi-Paket-Listen wurden über eine Stack-Kopie iteriert (Lesen hinter
-    dem Speicherende); jetzt in-place über CoreMIDIs Original-Puffer.
-  • Review: APPROVE (audio-thread/concurrency), alle Funde eingearbeitet.
-    +16 Tests (Parse-Gesetze MIDI 1.0/2.0 inkl. Bend-Mathe, Queue-FIFO,
-    Ein-Drain-pro-Burst, ehrlicher Overflow).
+  H9a — PER-SPUR-EFFEKT-INSERTS:
+  • lane.effects war seit U3 persistierte Daten, die KEIN Engine-Code las
+    (exakt die Lage von lane.instrument vor v250). Jetzt baut der Lane-Host
+    die Kette Instrument → FX… → Spur-Mixer → Master — mit denselben
+    erprobten v250-Mechaniken (Instanziierung nur zur Zuweisungszeit bei
+    pausiertem Graph, nie mid-song; Stale-Guard; Failed-Parking).
+  • NIE STILLE: eine ausfallende FX-Stufe wird übersprungen, die Kette
+    klingt weiter. Und der Crash-Pfad ist zu: connect() wirft bei Format-
+    Ablehnung keine Exception, es RAISED eine ObjC-Exception — ein Format-
+    Pre-Flight pro Stufe (setFormat auf beiden Bussen) fängt Format-
+    verweigernde Third-Party-Effekte ab, BEVOR der Graph angefasst wird.
+  • Grenzen ehrlich: max 3 Inserts pro Spur, gemeinsames 8-Unit-Budget
+    (Instrumente + Effekte); das Install-Log zeigt wired/wanted (z. B.
+    "2/3 FX"), damit eine übersprungene Stufe sichtbar bleibt.
+  • Die UI-Tür gab es schon: „Assign … to this track" im Spur-Menü schreibt
+    Instrument + geladene Effekte auf die Spur — ab diesem Build klingt sie.
+  • Ehrliche Grenze: FX auf Spuren mit EINGEBAUTEN Instrumenten (Rack-Voices)
+    sind noch deferred — die gepoolten Slots haben keine per-Spur-Node-Grenze
+    (eigener Zyklus, PLAN_H9).
+  • Review: APPROVE (audio-thread, adversarial auf Races/Graph-Korruption:
+    keine gefunden); HIGH+MEDIUM+LOWs eingearbeitet. +11 Tests.
 
-  Hörbar wird das beim Spielen mit externem MIDI/MPE-Controller unter Last:
-  keine hängenden Noten, keine einfrierende UI bei dichten Streams.
+  TESTEN AUF DEINEM GERÄT: Spur-Menü → Browse AUv3 → Instrument + Effekt(e)
+  laden → „Assign … to this track". (Dein Gerät hat 0 Third-Party-AUv3 —
+  Apples Effekte wie AUDelay/AUReverb gehen durch denselben Flow.)
 
-  Gates fc6728a + 1c1b016 alle grün.
+  Gates 6e79e0f + 68eef39 alle grün.
 
-  Welle-2-Rest: H9 AU-EFFEKT-Inserts pro Spur + Tempo-Kontext für Plugins
-  (Audit + Plan liegen schon: 04d802d) · H8 · H11-13.
+  Welle-2-Rest: H9b Tempo-Kontext für Plugins (musicalContext/transportState —
+  Delays/LFOs im Song-Tempo) · H8 · H11-13.
 
-  Reihenfolge: v249 Live-Mixer+Sample-Race · v250 AU-Instrumente ·
-  v251 Update-feste Medien · v252 Fold-Fix + Stop-Quellen · v253 MIDI-Flut.
+  Reihenfolge: v250 AU-Instrumente · v251 Update-feste Medien · v252 Fold-Fix ·
+  v253 MIDI-Flut · v254 Per-Spur-FX.
