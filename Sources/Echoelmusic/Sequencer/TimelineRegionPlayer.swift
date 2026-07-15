@@ -194,10 +194,12 @@ public final class TimelineRegionPlayer {
     public func transportStep(_ step: Int) {
         guard isPlaying else { return }
         var newTick = cursor.advance(step: step)
+        var wrapped = false
         if loopTicks > 0, newTick >= loopTicks {
             if loopEnabled {
                 cursor = TimelinePlaybackCursor()
                 newTick = cursor.advance(step: step)   // restart within bar 0
+                wrapped = true
             } else {
                 stop()
                 return
@@ -218,8 +220,15 @@ public final class TimelineRegionPlayer {
         }
         // AUDIO lanes ride the same tick window (A1): region onsets start their
         // file segment, gaps stop the lane — the tested AudioLanePlayer decides.
-        audioLanes?.apply(in: doc, fromTick: lastTick, toTick: newTick,
-                          bpm: pattern?.tempo ?? 120)
+        // On a SONG-LOOP WRAP a region active on both sides reads `.unchanged`,
+        // but its scheduled one-shot segment is finite/out of phase — the lane
+        // must be force-restarted at the wrapped position (audio review HIGH 1).
+        if wrapped {
+            audioLanes?.prime(in: doc, atTick: newTick, bpm: pattern?.tempo ?? 120)
+        } else {
+            audioLanes?.apply(in: doc, fromTick: lastTick, toTick: newTick,
+                              bpm: pattern?.tempo ?? 120)
+        }
         // Feed the arrangement automation the absolute playhead BEFORE the roll's
         // onTick chain reaches AutomationPlayer.applyStep (cycle 5). loadClip above
         // may have installed a clip's own lanes; the timeline layer applies last.

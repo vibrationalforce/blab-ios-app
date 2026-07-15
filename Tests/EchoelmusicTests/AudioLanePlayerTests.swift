@@ -18,10 +18,14 @@ final class AudioLanePlayerTests: XCTestCase {
         }
         var plays: [Play] = []
         var stops = 0
+        var preloads: [URL] = []
+        var detaches = 0
         func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float) {
             plays.append(Play(url: url, from: fromSeconds, length: lengthSeconds, gain: gain))
         }
         func stop() { stops += 1 }
+        func preload(url: URL) { preloads.append(url) }
+        func detach() { detaches += 1 }
     }
 
     final class Factory {
@@ -112,5 +116,30 @@ final class AudioLanePlayerTests: XCTestCase {
         let p = player(factory) { _ in nil }   // no URL for any clip
         p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
         XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? true, "no file ⇒ no playback")
+    }
+
+    // MARK: - Warm-up + teardown (audio-thread review on the wiring cycle)
+
+    func testPrime_preloadsLateStartingLane_withoutPlayingIt() {
+        // The lane's only region starts at bar 2 — inactive at tick 0. Prime must
+        // still PRELOAD it (attach happens before playback; a lazy attach at the
+        // bar-2 onset would pause the whole engine mid-song) but not play it.
+        let (document, _) = doc(start: 1920)
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.prime(in: document, atTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.count, 1)
+        XCTAssertEqual(factory.sinks.first?.preloads, [fileURL])
+        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? false, "warm-up must not sound")
+    }
+
+    func testRemovedLane_reconcileDetachesItsSink() {
+        let (document, _) = doc()
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)     // creates + plays
+        p.apply(in: TimelineDocument(), fromTick: 0, toTick: 480, bpm: 120)   // lane gone
+        XCTAssertEqual(factory.sinks.first?.stops, 1)
+        XCTAssertEqual(factory.sinks.first?.detaches, 1, "the engine node is released, not just stopped")
     }
 }

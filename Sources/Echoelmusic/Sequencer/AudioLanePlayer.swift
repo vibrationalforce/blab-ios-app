@@ -31,6 +31,19 @@ public protocol AudioRegionSink: AnyObject {
     func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float)
     /// Stop this sink's playback.
     func stop()
+    /// Open `url` and attach to the engine WITHOUT playing (warm-up). Called at
+    /// prime time for every lane so the graph mutation (which pauses the whole
+    /// engine in this codebase's attach pattern) happens BEFORE playback — a lane
+    /// whose first region starts at bar 9 must not pause the running mix mid-song
+    /// (audio-thread review HIGH 2). Default: no-op.
+    func preload(url: URL)
+    /// Release engine resources when the lane is removed (reconcile). Default: no-op.
+    func detach()
+}
+
+public extension AudioRegionSink {
+    func preload(url: URL) {}
+    func detach() {}
 }
 
 @MainActor
@@ -61,6 +74,7 @@ public final class AudioLanePlayer {
         let live = Set(doc.audioLaneIDs)
         for laneID in sinks.keys.filter({ !live.contains($0) }) {
             sinks[laneID]?.stop()
+            sinks[laneID]?.detach()   // release the engine node, not just the playback
             sinks[laneID] = nil
         }
         for laneID in doc.audioLaneIDs {
@@ -81,6 +95,16 @@ public final class AudioLanePlayer {
     /// its onset twin — the audio analog of the MIDI `primeSecondaryLanes`.
     public func prime(in doc: TimelineDocument, atTick tick: Int, bpm: Double) {
         for laneID in doc.audioLaneIDs {
+            // Warm EVERY lane that has any content: open the file + attach the node
+            // now, while nothing is sounding — the attach pattern pauses the whole
+            // engine, which must never happen mid-song at a late region's onset
+            // (audio-thread review HIGH 2). Earliest region = the format the sink
+            // will pin its connection to anyway.
+            if let earliest = doc.regions.filter({ $0.laneID == laneID })
+                .min(by: { $0.startTick < $1.startTick }),
+               let url = resolveURL(earliest.clipID) {
+                sink(for: laneID).preload(url: url)
+            }
             guard let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) else {
                 sinks[laneID]?.stop()
                 continue

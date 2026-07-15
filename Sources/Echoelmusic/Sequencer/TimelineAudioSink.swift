@@ -37,22 +37,16 @@ final class TimelineAudioSink: AudioRegionSink {
         self.engine = engine
     }
 
+    /// Open `url` (if not already the loaded file) and attach the node. The attach
+    /// pattern pauses the whole engine, so this belongs at PRIME time (before
+    /// playback), never lazily at a mid-song onset (review HIGH 2).
+    func preload(url: URL) {
+        _ = ensureLoaded(url)
+    }
+
     func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float) {
-        guard lengthSeconds > 0, let engine else { stop(); return }
-        if file == nil || file?.url != url {
-            guard let f = try? AVAudioFile(forReading: url) else {
-                log.log(.error, category: .audio,
-                        "TimelineAudioSink: cannot read \(url.lastPathComponent)")
-                stop()
-                return
-            }
-            file = f
-            if !attached {
-                engine.attachPlayerNode(node, format: f.processingFormat)
-                attached = true
-            }
-        }
-        guard let file, attached else { return }
+        guard lengthSeconds > 0 else { stop(); return }
+        guard ensureLoaded(url), let file else { return }
         let sampleRate = file.processingFormat.sampleRate
         guard sampleRate > 0 else { return }
         let startFrame = AVAudioFramePosition((max(0, fromSeconds) * sampleRate).rounded())
@@ -61,6 +55,11 @@ final class TimelineAudioSink: AudioRegionSink {
         let wanted = (lengthSeconds * sampleRate).rounded()
         let frames = AVAudioFrameCount(min(remaining, wanted))
         guard frames > 0 else { stop(); return }
+        // `play()` on a node whose engine is not running raises an NSException
+        // (hard crash) — reachable through an audio-session interruption while the
+        // transport keeps stepping (review MEDIUM 1). Degrade to silence instead;
+        // the next region onset re-drives the lane once the engine is back.
+        guard node.engine?.isRunning == true else { return }
         node.stop()
         node.scheduleSegment(file, startingFrame: startFrame, frameCount: frames, at: nil)
         node.volume = min(2, max(0, gain))
@@ -69,6 +68,37 @@ final class TimelineAudioSink: AudioRegionSink {
 
     func stop() {
         if node.isPlaying { node.stop() }
+    }
+
+    /// Release the engine node (lane removed). Detach mutates the graph without
+    /// pausing (disconnect+detach only) — permitted for removal.
+    func detach() {
+        stop()
+        if attached, let engine {
+            engine.detachPlayerNode(node)
+            attached = false
+        }
+        file = nil
+    }
+
+    /// Open `url` if it isn't the loaded file, and attach the node on first load.
+    /// Returns false when the file can't be read.
+    private func ensureLoaded(_ url: URL) -> Bool {
+        guard let engine else { return false }
+        if file == nil || file?.url != url {
+            guard let f = try? AVAudioFile(forReading: url) else {
+                log.log(.error, category: .audio,
+                        "TimelineAudioSink: cannot read \(url.lastPathComponent)")
+                stop()
+                return false
+            }
+            file = f
+            if !attached {
+                engine.attachPlayerNode(node, format: f.processingFormat)
+                attached = true
+            }
+        }
+        return file != nil
     }
 }
 #endif
