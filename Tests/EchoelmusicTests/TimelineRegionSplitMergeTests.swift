@@ -328,6 +328,39 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
         XCTAssertEqual(store.document.regions.count, before, "cross-lane/single combine is a no-op")
     }
 
+    @MainActor
+    func testCombineRegions_differentClips_isRefused_dataLossGuard() {
+        // H12/M4: the combined region keeps ONE clipID — combining regions of
+        // DIFFERENT clips would silently discard the other clips' content.
+        let store = TimelineStore()
+        store.addLane(kind: .midi, name: "mix-\(UUID())")
+        let lane = store.document.lanes.last!.id
+        let a = TimelineRegion(laneID: lane, clipID: UUID(), startTick: 0, lengthTicks: 480)
+        let b = TimelineRegion(laneID: lane, clipID: UUID(), startTick: 960, lengthTicks: 480)
+        store.addRegion(a); store.addRegion(b)
+        let before = store.document.regions.filter { $0.laneID == lane }
+        XCTAssertFalse(store.canCombineRegions(ids: [a.id, b.id]),
+                       "the UI verb disables — the guard is legible, not a silent no-op")
+        store.combineRegions(ids: [a.id, b.id])
+        XCTAssertEqual(store.document.regions.filter { $0.laneID == lane }, before,
+                       "mixed-clip combine changes nothing")
+    }
+
+    @MainActor
+    func testCanCombineRegions_truthTable() {
+        let store = TimelineStore()
+        store.addLane(kind: .midi, name: "tt-\(UUID())")
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let a = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 480)
+        let b = TimelineRegion(laneID: lane, clipID: clip, startTick: 960, lengthTicks: 480)
+        store.addRegion(a); store.addRegion(b)
+        XCTAssertTrue(store.canCombineRegions(ids: [a.id, b.id]), "same lane + same clip")
+        XCTAssertFalse(store.canCombineRegions(ids: [a.id]), "single selection")
+        XCTAssertFalse(store.canCombineRegions(ids: [a.id, UUID()]),
+                       "unknown id shrinks the selection below two")
+    }
+
     func testRemoveRegions_batch_isOneUndoStep() {
         let store = TimelineStore()
         store.addLane(kind: .midi, name: "batch-\(UUID())")

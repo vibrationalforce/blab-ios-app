@@ -448,15 +448,19 @@ struct ArrangeTimelineView: View {
                 } label: {
                     Text("Combine")
                         .font(EchoelTheme.font(12, .medium))
-                        .foregroundStyle(selectedRegions.count >= 2 ? EchoelTheme.text : EchoelTheme.dim)
+                        // H12/M4: enabled ONLY for a lossless combine (one lane, one
+                        // clip) — combining different clips would silently discard
+                        // every other clip's content from the span.
+                        .foregroundStyle(timeline.canCombineRegions(ids: selectedRegions)
+                                         ? EchoelTheme.text : EchoelTheme.dim)
                         .padding(.horizontal, 10).frame(height: 28)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                             .strokeBorder(EchoelTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .disabled(selectedRegions.count < 2)
-                .accessibilityLabel("Combine the selected clips into one")
+                .disabled(!timeline.canCombineRegions(ids: selectedRegions))
+                .accessibilityLabel("Combine the selected clips into one (same clip only)")
 
                 Button {
                     timeline.removeRegions(ids: selectedRegions)

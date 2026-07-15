@@ -335,16 +335,20 @@ public final class TimelineStore {
     }
 
     /// Combine SELECTED regions into one (clip game C3 — founder 2026-07-15A: "Wenn man
-    /// mehrere Clips markiert soll auch combine gehen"). All must sit on the SAME lane;
-    /// the result spans from the earliest start to the latest end and keeps the earliest
-    /// region's identity/clip/media-offset (for split pieces this equals the lossless
-    /// join; across gaps the first clip simply plays through the span). One history step.
+    /// mehrere Clips markiert soll auch combine gehen"). All must sit on the SAME lane
+    /// AND reference the SAME clip (H12/M4 data-loss guard: the combined region keeps
+    /// ONE clipID, so combining regions of DIFFERENT clips silently discarded every
+    /// other clip's content from the span — refused now, and the UI verb disables via
+    /// `canCombineRegions`). The result spans from the earliest start to the latest
+    /// end and keeps the earliest region's identity/clip/media-offset (for split
+    /// pieces this equals the lossless join; across gaps the one clip simply plays
+    /// through the span). One history step. A true content-merge of different clips
+    /// (time-shifted note union into a new clip) is a deliberate later cycle — it
+    /// must allocate a clip slot and answer audio/video semantics first.
     public func combineRegions(ids: Set<UUID>) {
+        guard canCombineRegions(ids: ids) else { return }
         let selected = document.regions.filter { ids.contains($0.id) }
-        guard selected.count >= 2,
-              let laneID = selected.first?.laneID,
-              selected.allSatisfy({ $0.laneID == laneID }),
-              let earliest = selected.min(by: { $0.startTick < $1.startTick }),
+        guard let earliest = selected.min(by: { $0.startTick < $1.startTick }),
               let endMax = selected.map(\.endTick).max() else { return }
         snapshotForUndo()
         var combined = earliest
@@ -352,6 +356,15 @@ public final class TimelineStore {
         document.regions.removeAll { ids.contains($0.id) }
         document.regions.append(combined)
         persist()
+    }
+
+    /// Whether the selection can combine losslessly: ≥2 regions, one lane, ONE clip.
+    /// Pure read — drives the Combine button's enabled state so the guard above is
+    /// legible, not a silent no-op.
+    public func canCombineRegions(ids: Set<UUID>) -> Bool {
+        let selected = document.regions.filter { ids.contains($0.id) }
+        guard selected.count >= 2, let first = selected.first else { return false }
+        return selected.allSatisfy { $0.laneID == first.laneID && $0.clipID == first.clipID }
     }
 
     /// Batch delete (clip game C3): remove every selected region in ONE history step.
