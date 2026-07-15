@@ -1,27 +1,28 @@
-build: 2026-07-14 v10.79.224 (Clip-Nativ-Dauer speichern — Prerequisite fürs Transport-Playback)
+build: 2026-07-15 v10.79.225 (Spur-Kopf passt links wieder ins Bild — Gain kleiner, Pfeil größer)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ein kleiner, sicherer Datenmodell-Baustein, der das transport-synchrone Abspielen
-  vorbereitet: importierte Clips merken sich jetzt ihre echte Medien-Länge.
+notes: Direkte Antwort auf dein Screenshot-Feedback (v224 am Gerät): der Spur-Kopf links
+  (Aufnahme-Knopf · Farbstreifen · M/S) wurde vom zu breiten Gain-Kästchen aus dem Bild
+  gedrückt, der Aufklappfeil war zu klein.
 
-  WAS es tut: Beim Import misst die App die tatsächliche Dauer der Audio-/Video-Datei
-  (das tat sie schon) — NEU wird diese Dauer beim Clip GESPEICHERT. Der Grund: die
-  Transport-Abspieler (letzte zwei Runden gebaut) müssen erkennen, wenn ein Clip
-  KÜRZER ist als der Platz, den er auf der Spur einnimmt — bei Video, um das letzte
-  Bild zu halten, bei Audio, um sauberes Ende statt Lesen über das Datei-Ende. Damit
-  ist der letzte Baustein VOR der eigentlichen Abspiel-Verdrahtung gelegt.
+  WAS behoben:
+  · Das Gain-Kästchen (der Pegel „1.61" etc.) war zu groß — das leere Label-Feld
+    reservierte ~30 pt Leerraum, der die ganze Strip-Reihe über die 140 pt breite
+    Spur-Spalte hinausschob → SwiftUI zentrierte + schnitt links ab (Aufnahme-Knopf +
+    Farbstreifen verschwanden aus dem Bild). EchoelValueField zeigt bei leerem Label
+    jetzt NUR das Kästchen (kein Leerraum davor), Kästchen 40→30 pt. Reihe passt jetzt
+    mit 138 ≤ 140 pt — nichts wird mehr links abgeschnitten.
+  · Der Aufklappfeil (∨) am Spur-Kopf: 7→12 pt, kräftigere Farbe — klar tippbar.
 
-  KEIN sichtbarer Unterschied heute — reine Vorbereitung. Rückwärtskompatibel:
-  bestehende Clips ohne dieses Feld laden sauber weiter (keine Bibliothek geht
-  verloren), und ältere App-Versionen können neue Clips weiter lesen.
+  KEIN Verhaltensänderung — reine Layout-Korrektur. Der eine app-weite Zahl-Regler
+  (EchoelValueField) bleibt der eine Regler; nur ein Aufrufer nutzt leeres Label
+  (die Spur-Reihe), daher risikoarm. Zahl „1.61" bleibt lesbar (skaliert sauber).
+  Reviewer ui-state CONFIRMED sauber (Modifier auf Group ok, Breiten-Rechnung 138 pt,
+  Aufnahme-Knopf klippt nicht mehr).
 
-  SICHER: Reviewer code CONFIRMED sauber über alle Codable-Pfade (Wert vorhanden ·
-  ungemessen→nil · Alt-JSON ohne Feld→nil, alle round-trippen; kein Aufrufer bricht,
-  jede Clip-Erzeugung nutzt benannte Argumente). 3 neue Tests. Gates: Xcode + CI/CD.
-
-  CI-Nachtrag: die letzte Runde (GitHub-Anbindung war getrennt) ist nachgeprüft —
-  v222 UND v223 je alle 5 Läufe grün (inkl. TestFlight).
+  Noch offen aus deinem Feedback (nächste Runden, je einzeln): Tempo/BPM in die
+  Kopfzeile hoch · Split/Join von der Werkzeugleiste in das Lang-Druck-Clip-Menü
+  (Schneiden/Einfügen/Kombinieren).
 
   Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move/Duplicate ✓ ·
-  Audio-Import ✓ · Video-Import ✓ · Audio-Transport-Steuerlogik ✓ · Video-Transport-
-  Steuerlogik ✓ · Clip-Nativ-Dauer ✓ / als Nächstes die geräteverifizierten Ausführer
-  (dann klingen/laufen die Spuren wirklich im Transport).
+  Audio-Import ✓ · Video-Import ✓ · Transport-Steuerlogik ✓ · Clip-Nativ-Dauer ✓ /
+  als Nächstes die geräteverifizierten Ausführer (Spuren klingen/laufen im Transport).

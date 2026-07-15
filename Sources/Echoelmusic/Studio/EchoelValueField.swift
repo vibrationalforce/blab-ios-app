@@ -53,13 +53,24 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     private let fullRangePoints: Double = 200
 
     var body: some View {
-        HStack(spacing: 12) {
-            Text(label)
-                .font(EchoelTheme.font(14, .medium))
-                .foregroundStyle(EchoelTheme.text)
-                .lineLimit(1).minimumScaleFactor(0.7)
-            Spacer(minLength: 8)
-            valueBox
+        // With a label, the caption sits left and the box trails (aligned columns).
+        // With an EMPTY label (compact strips — e.g. the timeline lane gain) render
+        // JUST the box: the leading Text + expanding Spacer would otherwise reserve
+        // ~30 pt of dead width and blow the box past its host column. One caller uses
+        // label:"" today (the lane mix strip); this keeps that field as small as its box.
+        Group {
+            if label.isEmpty {
+                valueBox
+            } else {
+                HStack(spacing: 12) {
+                    Text(label)
+                        .font(EchoelTheme.font(14, .medium))
+                        .foregroundStyle(EchoelTheme.text)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Spacer(minLength: 8)
+                    valueBox
+                }
+            }
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())

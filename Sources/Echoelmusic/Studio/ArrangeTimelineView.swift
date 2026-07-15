@@ -641,9 +641,9 @@ struct ArrangeTimelineView: View {
                         .accessibilityHidden(true)
                 }
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 7, weight: .semibold))
-                    .foregroundStyle(EchoelTheme.dim)
-                    .padding(.trailing, 4)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                    .padding(.trailing, 6)
             }
             .padding(.leading, 10)
             .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
@@ -688,13 +688,17 @@ struct ArrangeTimelineView: View {
                     get: { timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1 },
                     set: { timeline.setLaneLevel(id: lane.id, $0) }
                 ),
-                range: 0...2, decimals: 2, boxWidth: 40
+                range: 0...2, decimals: 2, boxWidth: 30
             )
             // The strip is too narrow for a visible "Level" caption — restore the
             // context for VoiceOver instead (the box shows the bare number).
             .accessibilityLabel("Level, \(lane.name)")
         }
-        .padding(.leading, 10).padding(.trailing, 4)
+        // Fit the whole strip (record-arm · M · S · gain) inside the 140 pt lane
+        // column: leading 8, tight 3 pt gaps, a 30 pt gain box (empty-label field =
+        // box only now). Founder 2026-07-15: the old 40 pt box + label dead-space
+        // overflowed → the record button + colour stripe clipped off the left edge.
+        .padding(.leading, 8).padding(.trailing, 4)
     }
 
     private func mixToggle(_ letter: String, isOn: Bool, onTint: Color,
