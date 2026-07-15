@@ -55,7 +55,36 @@ register-default ON erst nach Geräte-Verify.
    (liest lane.instrument, Muster patch(forSlot:)) + Tests; MIDI-Byte-Mapping
    (pitch+transpose clamp 0-127, velocity 0-127) als pure Funktion + Tests.
 
-### H5b — Routing (Folge-Zyklus)
+### H5b — Routing (Design FINAL, nach H5a-Kartierung — so bauen)
+1. **FeatureFlags:** `case laneAUInstruments = "feature.laneAUInstruments"` +
+   computed var. **Register-default ON** (Abweichung vom OFF-Default oben,
+   begründet: ohne Flag-UI kann der Founder sonst nie geräte-verifizieren; die
+   Risiko-Fläche aktiviert sich erst durch den expliziten User-Akt "Assign to
+   track" — ohne Assignment bit-identisch. Muster multiRoll, OFF-Zweig =
+   Rollback-Hebel, NIE löschen). Registration in EchoelmusicApp ~:425.
+2. **Slot→Lane-Bindung:** `LaneAUInstrumentHost.bindSlot(_ slot:laneID:)` +
+   `voice(slot:)` (slotBindings: [Int: UUID]). TimelineRegionPlayer bekommt
+   `slotLaneSink: ((Int, UUID?) -> Void)?` — gepusht am .load/prime mit
+   `MultiRollFanout.laneID(forSlot:)` (Snapshot-Wahrheit, NICHT Store-Doc!),
+   nil am .clear/.silence. **ORDNUNGS-GESETZ:** im .load-Fall die Reset-Offs
+   des ALTEN Takes durch die ALTE Bindung senden, DANN Bindung+Sinks
+   aktualisieren, dann pump.load — sonst hängen Noten im alten AU (heutige
+   Sink-Reihenfolge pusht patch/etc. VOR dem reset — für Built-in egal, für
+   AU-Bindung falsch; umstellen).
+3. **App slotNoteSink:** wenn Flag an + `laneAUHost.voice(slot:)` existiert →
+   Events an AU (noteOn/noteOff), sonst Rack-Voice (bestehender Pfad).
+   slotTranspose/Gain/PanSink zusätzlich auf AU-Voice spiegeln
+   (transposeSemitones-Property / setGain / setPan); Patch für AU-Lanes
+   ignorieren. slotDetuneSink NICHT (ehrliche Grenze).
+4. **Assignment-Hook:** `TimelineStore.onDocumentChanged: (() -> Void)?` am
+   Ende von persist() (deckt Assign, Lane-Löschen, Undo/Redo ab — sync ist
+   idempotent+billig). App: `laneAUHost.use(engine:)` + Start-Restore
+   `syncAssignments(lanes:)` + Hook-Wiring + `transport.addStopSubscriber
+   ("laneAU") { laneAUHost.allNotesOff() }` (Gürtel+Hosenträger zu den
+   Pump-Reset-Offs).
+5. **Reviewer-Pflicht:** audio-thread + code. H5a-Reviewer-Funde (erwartet:
+   Stale-Install-Check vor `voices[laneID] = voice` wenn Ref mid-flight
+   geändert/gelöscht) ZUERST fixen.
 - App slotNoteSink: erst `auVoices[laneID(forSlot:)]`, sonst Rack-Voice.
   slotGain/PanSink analog auf AUNoteVoice spiegeln. slotTransposeSink → Property.
 - TimelineRegionPlayer: KEINE Änderung nötig (Sinks bleiben slot-basiert; die App
