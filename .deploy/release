@@ -1,38 +1,46 @@
-build: 2026-07-15 v10.79.255 (Plugins bekommen das Song-Tempo — H9b)
+build: 2026-07-15 v10.79.256 (Clip-Edit wie eine DAW + Start klingt IMMER + Combine-Schutz)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Fünfter Welle-2-Punkt geheilt (H9b) — gehostete Plugins kennen jetzt
-  Tempo, Beat-Position und Play-Zustand des Songs.
+notes: Drei Punkte in einem Build — H11 + dein v255-Log-Fix + H12.
 
-  H9b — TEMPO/TRANSPORT-KONTEXT FÜR ALLE GEHOSTETEN PLUGINS:
-  • Bisher bekamen gehostete AUv3s nur MIDI-Noten und NULL musikalischen
-    Kontext — ein tempo-synced Delay oder LFO lief frei statt im Song-Tempo.
-    Jetzt installiert jeder Host-Pfad (globaler Plugin-Kanal, Master-Bus-
-    Effekte, per-Spur-Ketten aus v250/v254) beim Laden die zwei Host-Blocks
-    (musicalContext + transportState), über die Plugins ihren Host befragen.
-  • Die Blocks laufen auf dem RENDER-Thread — sie lesen deshalb einen
-    lock-freien Spiegel (kein Lock, keine Allokation), den ausschließlich
-    der Transport (die eine autoritative Clock) beschreibt: Tempo, Beat-
-    Position, Play-Zustand, Sample-Position.
-  • Zwei Review-HIGHs vor dem Deploy gefixt: (1) die Sample-Position wird
-    AKKUMULIERT statt abgeleitet — die Ableitung lief unter deinem Body→
-    Tempo-Glide RÜCKWÄRTS, und Plugins deuten das als Sprung und re-syncen
-    hörbar bei jedem Glide-Tick; akkumuliert ist sie monoton durch jeden
-    Glide. (2) Die Spiegel-Verdrahtung war versehentlich an ein Feature-Flag
-    gekoppelt — bei Flag-OFF wären alle Plugins auf 120 BPM/„gestoppt"
-    eingefroren. Jetzt flag-frei.
-  • Ehrliche Grenzen (dokumentiert): Beat-Position rückt pro 16tel vor
-    (Plugins interpolieren übers Tempo), Taktart fix 4/4, kein Loop-Cycle-
-    Report. +13 Tests (inkl. Monotonie unter Tempo-Rampe).
+  [A] H11 — MIDI-CLIP-EDIT EDITIERT JETZT DEN CLIP (mit Rückschreiben):
+  • Vorher öffnete „Edit" auf einer MIDI-Region die geteilte App-Roll — die
+    Clip-Noten wurden nie geladen, Edits landeten nie im Clip, und der Player
+    überschrieb dieselbe Roll mid-play an jeder Region-Grenze.
+  • Jetzt: „Edit" lädt den getappten Takt der CLIP-EIGENEN Melodie in eine
+    Wegwerf-Roll (vom Playback entkoppelt). „Done" schreibt den Takt in den
+    Clip zurück; Wegwischen = Abbrechen. Multi-Takt-Schutz: Noten außerhalb
+    des editierten Takts überleben byte-identisch — ein 4-Takt-Clip kann nie
+    stumm auf einen Takt abgeflacht werden. Titel zeigt „Edit Clip — Bar k/N".
+  • Ehrlicher stummer Editor (v1): kein Play-Button/Playhead im Clip-Editor —
+    der alte Play hätte den LIVE-TAKE abgespielt, während der Playhead über
+    deine editierten Noten fährt (lügende Vorschau; beide Reviewer HIGH).
+    Anhören: Region im Arrangement abspielen. Echte Vorschau-Voice kommt.
 
-  HÖRBAR: lade z. B. Apples AUDelay auf eine Spur (v254-Flow) und stelle
-  es auf Tempo-Sync — die Delay-Zeit folgt jetzt dem Song-Tempo, auch
-  während der Bio-Glide das Tempo verschiebt.
+  [B] DEIN v255-LOG — „START KLINGT IMMER":
+  • Dein Log zeigte generate[start] mit rollMixGain=0.00: die Melodie-Spur
+    stand im gespeicherten Dokument stumm (Mute/Level 0/altes Solo) → 15 s
+    Stille → Exit. Ein expliziter Start heilt das jetzt VOR dem ersten Ton
+    (Unmute, Level-Floor, alte Solos weg — dieselbe Regel wie der „Ton an"-
+    Banner, eine einzige Heil-Logik). Ist die Spur hörbar, ändert Start
+    nichts — bewusste Mutes überleben. Automatik (Evolve) fasst den Mix nie an.
+  • Der Reviewer fand dabei ein tieferes Loch, auch zu: die Gain-Spiegelung
+    wohnte in der EINKLAPPBAREN Timeline-View — bei gefalteter Timeline
+    erreichte KEIN Mixer-Edit den Klangpfad. Der Spiegel sitzt jetzt
+    always-mounted auf App-Ebene; die Heilung ist im selben Start hörbar.
+  • rPPG in deinem Log: kein Lock, weil die Belichtung zu DUNKEL lockte
+    (bright 0.21→0.09, Amplitude kollabierte) — Gegenstück zur Übersättigung
+    aus v202, dokumentiertes Material für #25 (kein Blind-Tuning). Mitigation:
+    leichter aufdrücken.
 
-  Gates 4a61935 + 0477aa0 alle grün. Damit ist der H9-Block (U2/U3-
-  Fortsetzung) komplett: v254 Per-Spur-FX + v255 Tempo-Kontext.
+  [C] H12 — COMBINE KANN KEINE INHALTE MEHR VERSCHLUCKEN:
+  • Combine über Regionen VERSCHIEDENER Clips hätte still alle Inhalte außer
+    dem ersten Clip verworfen (die Region behält eine clipID). Jetzt: Button
+    ist bei gemischter Auswahl sichtbar deaktiviert; Split-Stücke desselben
+    Clips kombinieren verlustfrei wie bisher. Echtes Inhalts-Mergen
+    verschiedener Clips = eigener späterer Zyklus.
 
-  Welle-2-Rest: H11 Clip-scoped MIDI-Edit + Rückschreiben (als Nächstes;
-  Audit + Plan liegen) · H8 · H12 · H13.
+  +18 Tests über die drei Punkte. Alle Gates grün, alle Review-Funde
+  eingearbeitet (2× REQUEST_CHANGES → gefixt, 1× APPROVE).
 
-  Reihenfolge: v251 Update-feste Medien · v252 Fold-Fix · v253 MIDI-Flut ·
-  v254 Per-Spur-FX · v255 Plugin-Tempo-Kontext.
+  Reihenfolge: v253 MIDI-Flut · v254 Per-Spur-FX · v255 Plugin-Tempo-Kontext ·
+  v256 Clip-Edit + Start-Heal + Combine-Guard.

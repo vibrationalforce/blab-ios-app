@@ -6079,3 +6079,24 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   nutzt SIE, nie ==0. (3) Duplikat-Gesetze sofort delegieren (zwei Heals
   drifteten schon bei Geburt). (4) Subagent kann HEAD detachen — vor JEDEM
   Commit `git status`/Branch prüfen; Reviewer-Prompts: nur `git show`.
+
+## 2026-07-15 (Fortsetzung 9 FINAL) — v256-Bündel deployed: H11 + Start-Heal + H12
+- **v256 (c196660+3bb108e [H11] · 9ec24eb+353dac9 [Heal] · b7a6fb9 [H12] ·
+  c437e15 [docs], Gates alle 4/4 grün):** Drei Punkte, alle Reviews
+  eingearbeitet. H11: clip-scoped Wegwerf-Roll im bestehenden .region-Slot,
+  Done→MelodyBarEdit.splice→ClipStore.updateMelody, Multi-Bar-Schutzgesetz,
+  Silent-Editor (Review-HIGH: lügende Vorschau), Dismiss-Race-Guard. Heal:
+  Start heilt stumme Roll (delegiert an unsilenceRollSlot, ≤0.001-Schwelle),
+  mixGain-Spiegel always-mounted im App-onDocumentChanged (Review-HIGH:
+  faltbare View verlor den Klangpfad). H12: canCombineRegions-Guard + UI-
+  Disable (Mixed-Clip-Datenverlust zu).
+- **LEDGER-Lehren (zusätzlich zu Forts.-9-WIP):** (1) Beim Re-Use einer
+  Editor-View in neuem Modus JEDEN Side-Channel (Transport, Playhead, Voices)
+  auf Modus-Ehrlichkeit prüfen — ehrlicher stummer Editor schlägt lügende
+  Vorschau. (2) .sheet-onDismiss feuert NACH der Animation: wer Session-State
+  dort nilt, guarded gegen Re-Present (if activeModal == nil). (3) Splice-
+  Sortierung braucht id-Tiebreak (Swift-sort instabil). (4) Scope-Entscheide
+  (Clip-Truth vs Region-Truth) IM CODE dokumentieren. (5) Start = Hör-Intent:
+  explizite User-Aktionen dürfen stumme Mixe heilen, Automatik nie.
+- **Nächster Punkt (Welle 2, letzter): H13** Audio-Audition/Edit-Tür mit
+  Offset (A2/A3) — read-only Audit zuerst. Danach H8 (Donuts) → Welle 3.
