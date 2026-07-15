@@ -1,26 +1,28 @@
-build: 2026-07-15 v10.79.241 (Mehrere Clips markieren → Combine oder löschen — Clip-Game C3)
+build: 2026-07-15 v10.79.242 (Magnetkanten + fühlbares Einrasten — Clips küssen ihre Nachbarn)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dein Wunsch aus dem Split/Join-Screenshot ist da: "Wenn man mehrere Clips
-  markiert soll auch combine gehen."
+notes: Clip-Game C4 (dein God-Mode-Mandat: Baustellen eigenständig fertig bauen).
 
-  NEU: der Auswahl-Modus in der Timeline-Leiste (✓-Knopf neben Undo/Redo).
-  • ✓ antippen → Auswahl-Modus: Clips antippen markiert sie (grüner Ring),
-    nochmal antippen entfernt die Markierung.
-  • COMBINE (ab 2 markierten Clips derselben Spur): macht aus allen EINEN Clip —
-    vom frühesten Anfang bis zum spätesten Ende. Auseinandergeschnittene Teile
-    werden nahtlos wieder eins; über Lücken hinweg spielt der erste Clip durch.
-  • Papierkorb: löscht alle markierten Clips auf einmal.
-  • Beides ist EIN Undo-Schritt (↩ holt alles zurück) — furchtlos ausprobieren.
-  • Ziehen/Trimmen/Menü funktionieren im Auswahl-Modus normal weiter.
+  NEU beim Clip-Verschieben:
+  • MAGNETKANTEN: beim Loslassen zieht es den Clip nicht nur ans Raster, sondern auch
+    an die KANTEN der Nachbar-Clips derselben Spur — Anfang-an-Ende und Ende-an-Anfang
+    (das DAW-übliche "Butt-Join": Clips docken nahtlos aneinander, keine Mini-Lücken,
+    keine Mini-Überlappungen mehr). Der nähere Sog gewinnt (Kante vs. Rasterlinie).
+  • Auch bei Snap = OFF: das Raster zieht dann gar nicht (stufenlos), aber die
+    Nachbar-Kanten fangen weiter — gridloses, sauberes Andocken.
+  • Das Magnetfenster ist immer ~8 Bildschirm-Punkte — bei jeder Zoomstufe dieselbe
+    Fingerdistanz.
+  • FÜHLBARES EINRASTEN: ein leichter Haptik-Tick, wenn der Clip beim Loslassen
+    tatsächlich eingerastet ist (Raster oder Kante). Lag er schon exakt richtig,
+    bleibt es still — kein Dauergebrumme.
 
-  TEST-FIRST: 3 neue Store-Tests (Spannweite+Identität+Ein-Schritt-Undo, Quer-Spur/
-  Einzel = No-Op, Sammel-Löschen ein Undo-Schritt).
-  SICHER: ui-state-reviewer CONFIRMED — Parameter-Reihenfolge, Undo-Platzierung,
-  Auswahl-Zustand nur tap-frequent (Freeze-Regel), Gesten-Zusammenspiel unangetastet.
-  Gates v240 grün.
+  TEST-FIRST: 4 neue pure Snap-Tests (Kante schlägt Raster, Raster schlägt Kante,
+  Off-Grid-Andocken, Fallback + Klemmung).
+  SICHER: ui-state-reviewer CONFIRMED — Mathematik handverifiziert, Haptik-API
+  korrekt (iOS-18-nativ, Leaf-Modifier, Root-Kette unberührt), Nachbar-Lesen nur im
+  Loslass-Moment (Freeze-Regel). Gates v241 grün.
 
   Clip-Game-Stand: C1 Drag-to-move ✓ · C2 Undo/Redo ✓ · C3 Multi-Select+Combine ✓ ·
-  als Nächstes C4 Einrast-Haptik/Magnetkanten · C5 Überlapp-Regel · C6 EchoelAI-
-  TimelineToolCore (Sprachbefehle → dieselben Store-Calls).
+  C4 Magnetkanten+Haptik ✓ · als Nächstes C5 Überlapp-Regel · C6 EchoelAI-
+  TimelineToolCore. Danach die Video-Reihe (V2 Mediathek-Zugriff → V5 Kelvin-Kamera).
 
-  Reihenfolge: v239 Drag-to-move · v240 Undo/Redo · v241 Multi-Select+Combine.
+  Reihenfolge: v240 Undo/Redo · v241 Multi-Select · v242 Magnetkanten+Haptik.
