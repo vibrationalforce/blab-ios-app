@@ -1,34 +1,36 @@
-build: 2026-07-14 v10.79.216 (DAW#3-A: Audio-Dateien in eine Spur importieren)
+build: 2026-07-14 v10.79.217 (DAW#4-a: Video aus der Mediathek in eine Spur importieren)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dritte Scheibe deiner Vier-Punkte-Liste beginnt — „Audio richtig integrieren".
-  Der erste, greifbare Schritt: du kannst jetzt eine Audio-Datei in eine Audio-Spur
-  IMPORTIEREN und sie liegt als Clip auf der Timeline.
+notes: Vierte Scheibe deiner Vier-Punkte-Liste beginnt — „Videospuren (… importieren aus
+  der Mediathek …)". Der erste greifbare Schritt, Zwilling zum Audio-Import von gestern:
+  du kannst jetzt ein Video importieren und es liegt als Clip auf einer Video-Spur.
 
-  WO: Auf einer Audio-Spur → Spurkopf antippen → „Open audio editor". Dort wie
-  gewohnt „Import" (WAV · AIFF · MP3 · M4A · …), Wellenform trimmen — und darunter
-  ist NEU ein Knopf „Add to timeline".
+  WO: Auf einer Video-Spur → Spurkopf antippen → „Import video…". Datei aus der
+  Mediathek wählen (MP4 · MOV · …). Sie erscheint sofort als Vorschau (abspielbar) im
+  Fenster; darunter „Add to timeline".
 
-  WAS es tut: „Add to timeline" kopiert die Datei dauerhaft in den App-Speicher
-  (sie bleibt also erhalten, auch wenn du die Quell-Datei später bewegst) und legt
-  sie als Region auf deine Spur — HINTER dem, was dort schon liegt (kein Überlappen).
-  Die Region zeigt sofort ihre Wellenform, und ein Fingertipp darauf spielt sie
-  vor. Der getrimmte Anfang wird als Startpunkt mitgenommen.
+  WAS es tut: „Add to timeline" kopiert das Video dauerhaft in den App-Speicher und
+  legt es als Region auf deine Video-Spur — hinter dem, was dort schon liegt. Die
+  Region trägt den Datei-Namen. (Video-Regionen zeigen bewusst keine Wellenform/kein
+  Antipp-Vorhören — das gehört zum Audio.)
 
-  GRENZE (ehrlich): die importierte Region klingt beim ANTIPPEN — im laufenden
-  Transport-Playback spielt sie noch NICHT mit. Das transport-synchrone Abspielen
-  der Audio-Spuren ist die nächste Scheibe (AudioLanePlayer). Ist das Clip-Raster
-  (8 Slots) voll, sagt der Knopf das statt still etwas zu überschreiben.
+  GRENZE (ehrlich): wie beim Audio-Import spielt die Video-Region im laufenden
+  Transport noch NICHT synchron mit — das transport-synchrone Video-Playback
+  (VideoLanePlayer), Trimmen und per-Spur-Video-Effekte sind die nächsten Scheiben.
+  Import + Vorschau funktionieren heute vollständig. Ist das Clip-Raster (8) voll,
+  sagt der Knopf das, statt etwas zu überschreiben.
 
-  WIE: reine, getestete Platzierungs-Mathematik (freier Clip-Slot · Anhänge-Tick
-  hinter dem Spur-Inhalt · AudioClipFactory) + ein einziger unreiner Schritt (die
-  Datei-Kopie in die App-Group). Kein Audio-Thread berührt, keine Sheet-Kette
-  gewachsen (bestehende Tür wiederverwendet).
+  WIE: exakt dieselben getesteten Platzierungs-Nähte wie beim Audio-Import (freier
+  Clip-Slot · Anhänge-Tick · VideoClipFactory) + ein unreiner Kopier-Schritt
+  (MediaLibrary, gemeinsam mit Audio). Dauer-Messung asynchron via AVURLAsset; ein
+  schnelles Neu-Importieren verwirft die veraltete Messung. Keine Sheet-Kette
+  gewachsen (bestehende Lane-Tür), kein Audio-Thread berührt.
 
-  SICHER: Reviewer — Security PASS (Sicherheits-Scope korrekt gehalten,
-  UUID-Zielname statt Fremd-Dateiname, kein Pfad-Trick), Concurrency PASS
-  (MediaLibrary nonisolated & Sendable-sicher, Umgebungs-Reads nur im Lane-Pfad),
-  Code PASS (Test-Hygiene + Doc-Kommentar nachgezogen). Neue Unit-Tests für die
-  Platzierungs-Mathematik. Gates: Xcode Compile + CI/CD.
+  SICHER: Reviewer — Concurrency PASS (Asset im Main-Actor-Task gebaut, nichts
+  Nicht-Sendbares quert die Grenze; Umgebungs-Reads nur im Lane-Pfad), Code PASS
+  (Doc-Divergenz + veraltete-Dauer-Rennbedingung + Fehler-Throw-Test nachgezogen).
+  Neue Unit-Tests: Platzierungs-Geometrie + echter MediaLibrary-Kopiertest. Gates:
+  Xcode Compile + CI/CD.
 
-  Reihenfolge: DAW#1 Automation ✓ · DAW#2 Clips schneiden/fügen ✓ · DAW#3 Audio —
-  Import ✓ / transport-sync klingt als Nächstes · dann #4 Video-Spuren.
+  Reihenfolge: DAW#1 Automation ✓ · DAW#2 Clips schneiden/fügen ✓ · DAW#3 Audio-Import
+  ✓ · DAW#4 Video-Import ✓ / als Nächstes: transport-synchrones Abspielen der Audio-
+  UND Video-Spuren (je ein eigenes Player-Subsystem, geräteverifiziert statt blind).
