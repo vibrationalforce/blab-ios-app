@@ -892,6 +892,16 @@ struct ArrangeTimelineView: View {
                         Label("Edit", systemImage: "slider.horizontal.3")
                     }
                 }
+                // Move to playhead — the arrangement's move verb (drag-move fights the
+                // horizontal ScrollView, deferred as device-tuned; playhead-driven is
+                // freeze-safe like Split/Join). Reads `transport.position` ONLY in this
+                // action closure, never in body. Snaps the region's START to the playhead.
+                Button {
+                    let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+                    timeline.moveRegion(id: region.id, toStartTick: tick)
+                } label: {
+                    Label("Move to playhead", systemImage: "arrow.right.to.line")
+                }
                 Button(role: .destructive) {
                     timeline.removeRegion(id: region.id)
                 } label: {

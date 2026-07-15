@@ -142,6 +142,20 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
         XCTAssertFalse(mine().contains { $0.id == drop.id }, "the deleted region is gone")
     }
 
+    func testMoveRegion_setsStartTick_clampedAtZero() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920)
+        store.addRegion(r)
+
+        store.moveRegion(id: r.id, toStartTick: 960)
+        XCTAssertEqual(mine().first { $0.id == r.id }?.startTick, 960, "start moves to the target tick")
+
+        store.moveRegion(id: r.id, toStartTick: -500)
+        XCTAssertEqual(mine().first { $0.id == r.id }?.startTick, 0, "a negative target clamps to 0")
+    }
+
     func testSplitRegions_atEdge_isNoOp() {
         let store = TimelineStore()
         let lane = UUID(); let clip = UUID()
