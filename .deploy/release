@@ -1,29 +1,27 @@
-build: 2026-07-14 v10.79.223 (VideoLanePlayer-Koordinator — Video-Transport-Steuerlogik)
+build: 2026-07-14 v10.79.224 (Clip-Nativ-Dauer speichern — Prerequisite fürs Transport-Playback)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Das Video-Gegenstück zur letzten Runde — die Steuer-Schicht, damit Video-Spuren
-  im Transport synchron mitlaufen (weiter test-first, kein Blind-Video).
+notes: Ein kleiner, sicherer Datenmodell-Baustein, der das transport-synchrone Abspielen
+  vorbereitet: importierte Clips merken sich jetzt ihre echte Medien-Länge.
 
-  WAS diese Runde bringt: `VideoLanePlayer` — der Koordinator, der beim Abspielen pro
-  Video-Spur entscheidet, an welche Stelle im Video „gesprungen" wird (nutzt die schon
-  vorhandene, getestete Video-Zeit-Mathematik `VideoRegionSync`). Anders als Audio
-  (einmal starten) ist Video ein kontinuierliches Seek-Sync: jeder Takt sagt „hier
-  solltest du sein", das Gerät korrigiert Drift. Ist das Video kürzer als seine Spur,
-  wird das letzte Bild gehalten. Das Geräte-Abspielen ist hinter einem schmalen
-  Protokoll (`VideoRegionSink`) abstrahiert → 6 Spy-Tests decken alle Fälle.
+  WAS es tut: Beim Import misst die App die tatsächliche Dauer der Audio-/Video-Datei
+  (das tat sie schon) — NEU wird diese Dauer beim Clip GESPEICHERT. Der Grund: die
+  Transport-Abspieler (letzte zwei Runden gebaut) müssen erkennen, wenn ein Clip
+  KÜRZER ist als der Platz, den er auf der Spur einnimmt — bei Video, um das letzte
+  Bild zu halten, bei Audio, um sauberes Ende statt Lesen über das Datei-Ende. Damit
+  ist der letzte Baustein VOR der eigentlichen Abspiel-Verdrahtung gelegt.
 
-  NOCH KEIN BILD: additiv + ungewired (von nichts aufgerufen → keine Regression). Der
-  dünne AVPlayer-Ausführer + Transport-Wiring kommen im nächsten, gerätegeprüften
-  Schritt.
+  KEIN sichtbarer Unterschied heute — reine Vorbereitung. Rückwärtskompatibel:
+  bestehende Clips ohne dieses Feld laden sauber weiter (keine Bibliothek geht
+  verloren), und ältere App-Versionen können neue Clips weiter lesen.
 
-  SICHER: Reviewer — Concurrency PASS (saubere @MainActor-Klasse) · Code CONFIRMED
-  (Logik + Test-Mathematik korrekt). Zwei Reviewer-Funde behoben: ein „hängendes
-  letztes Bild bei gelöschter Spur"-Leak (Reconcile-Pass — auch im Audio-Zwilling
-  nachgezogen) + die bewusste Sichtbarkeits-Regel dokumentiert (Video blendet nur bei
-  Mute aus, nicht bei Audio-Solo). Gates: Xcode Compile + CI/CD.
+  SICHER: Reviewer code CONFIRMED sauber über alle Codable-Pfade (Wert vorhanden ·
+  ungemessen→nil · Alt-JSON ohne Feld→nil, alle round-trippen; kein Aufrufer bricht,
+  jede Clip-Erzeugung nutzt benannte Argumente). 3 neue Tests. Gates: Xcode + CI/CD.
 
-  HINWEIS: GitHub-Anbindung war diese Runde getrennt → v222/v223-Gates prüfe ich
-  nächsten Zyklus nach. v221 war grün; der Diff ist rein/getestet + reviewer-sauber.
+  CI-Nachtrag: die letzte Runde (GitHub-Anbindung war getrennt) ist nachgeprüft —
+  v222 UND v223 je alle 5 Läufe grün (inkl. TestFlight).
 
   Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move/Duplicate ✓ ·
-  Audio-Import ✓ · Video-Import ✓ · Audio-Transport-Steuerlogik ✓ ·
-  Video-Transport-Steuerlogik ✓ / als Nächstes die geräteverifizierten Ausführer.
+  Audio-Import ✓ · Video-Import ✓ · Audio-Transport-Steuerlogik ✓ · Video-Transport-
+  Steuerlogik ✓ · Clip-Nativ-Dauer ✓ / als Nächstes die geräteverifizierten Ausführer
+  (dann klingen/laufen die Spuren wirklich im Transport).
