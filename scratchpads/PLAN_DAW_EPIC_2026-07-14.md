@@ -39,6 +39,18 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
    (Import=absoluter Pfad in Media/Video · Capture=Documents/Videos-Dateiname; im VideoClipFactory-Doc
    notiert) · (c) Trim-UI · (d) per-Spur-Video-FX (ChromaKey.metal verdrahten).
 
+## TRANSPORT-PLAYBACK (Audio-Regions klingen im Transport)
+- ✅ SCHEDULING-NAHT (v220, test-first): `AudioRegionPlayback` (rein, Foundation-only) — die
+  Medien-Zeit-Abbildung, die `TimelineScheduling` (Onset/Clear existiert schon) für Audio fehlt:
+  `filePositionSeconds(region,atTick,bpm)` · `startFrame(…,sampleRate)` · `frameCount(…)`. Bilden 1:1
+  auf `AVAudioPlayerNode.scheduleSegment(startingFrame:frameCount:)` ab. Reviewer code: Mathematik
+  korrekt (start+count landet exakt auf Region-Ende; max. 1 Sample Unterlauf, nie Overread der Grenze).
+- OFFEN — der **AVFoundation-Executor** (`AudioLanePlayer`, geräteverifiziert): pro Audio-Lane ein
+  `AVAudioPlayerNode` an der geteilten Clock; auf `TimelineScheduling.laneEvent == .load(region)` →
+  `scheduleSegment(startFrame, frameCount)`, auf `.clear` → stop. **MUSS gegen `AVAudioFile.length`
+  klemmen** (startFrame≥length ⇒ skip; frameCount = min(frameCount, length−startFrame)) — sonst EOF-
+  Overread (in AudioRegionPlayback-Doku als Executor-Contract festgehalten). Danach dasselbe für Video.
+
 ## GEMEINSAME NÄHTE (Audio + Video Import teilen sich)
 - `MediaLibrary` (Core/): `importAudio`/`importVideo` → App-Group `Media/{Audio,Video}`, UUID-Zielname,
   Endung erhalten, ein unreiner Kopier-Schritt (`copyIn`). `ClipStore.firstEmptySlotIndex` +
