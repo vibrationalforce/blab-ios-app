@@ -1,35 +1,36 @@
-build: 2026-07-15 v10.79.247 (MIDI-Clips spielen ihre echten Takte — Heilungs-Welle 1)
+build: 2026-07-15 v10.79.248 (Audio-Spuren KLINGEN im Arrangement — Heilungs-Welle 1)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Erster Heilungs-Build aus deinem Ultracode-Mandat ("Midi Clip und Audio Clip
-  verhalten sich nicht wie von einer professionellen Software erwartet"). Das
-  28-Agenten-Audit hat die Wurzel verifiziert: die Wiedergabe hat die Region
-  KOMPLETT ignoriert — nur Takt 1 jedes Clips erklang je, Mehrtakt-Aufnahmen
-  falteten sich übereinander, Trim/Split versteckten keine Noten.
+notes: Zweiter verifizierter CRITICAL aus deinem Ultracode-Mandat geheilt: Audio-
+  Regionen auf der Timeline waren beim Song-Playback KOMPLETT STUMM — der
+  getestete AudioLanePlayer war nie mit der Engine verdrahtet (genau wie der
+  Video-Player vor v246: Koordinator gebaut, Tür fehlte).
 
-  GEHEILT auf der Haupt-MIDI-Spur (M1a+M1b):
-  • Ein 4-Takt-Clip spielt Takt 1→2→3→4 in Folge — nicht mehr Takt 1 geloopt.
-  • Vorne trimmen / schneiden versteckt exakt die weggetrimmten Noten; die
-    rechte Split-Hälfte spielt den Inhalt AB dem Schnitt (nicht nochmal von vorn).
-  • Region-Wechsel und Split-Grenzen sind JETZT NAHTLOS — kein hörbarer
-    allNotesOff-Schnitt mehr; ausklingende Noten enden an ihrer eigenen Kante
-    (Noten werden an der Clip-Kante mathematisch gekappt, nichts überlebt
-    seinen Block).
-  • TEMPO-FEST: der Trim lebt jetzt in Ticks (nicht Sekunden) — bei 112 statt
-    120 BPM abgespielt bleibt das Fenster exakt (Reviewer-Fund, gefixt).
-  • Noten im letzten Halb-Step eines Takts verschwanden stumm — geklemmt.
+  NEU:
+  • Audio-Clips (importierte Loops, Splits, getrimmte Stücke) SPIELEN jetzt im
+    Arrangement — ab exakt der richtigen Datei-Position (Trim-Offset ehrlich,
+    Split-Hälften klingen verschieden), bis zur Clip-Kante, mit Spur-Level.
+  • Auch REINE Audio-Arrangements (ohne MIDI-Spur) spielen — die alte Play-
+    Bedingung hat sie stumm geschaltet.
+  • Streaming statt RAM: lange Clips werden aus der Datei gestreamt (kein
+    70-MB-Puffer gegen das 200-MB-Limit).
+  • Song-Loop: Audio startet am Wrap phasenrichtig neu (Reviewer-Fund — vorher
+    lief es aus dem Takt und verstummte ab Runde 2).
+  • Kein Mix-Aussetzer mitten im Song: alle Spuren werden VOR dem Start
+    vorgewärmt (der Engine-Attach pausiert sonst kurz alles — Reviewer-Fund).
+  • Interruption-fest: Anruf während der Wiedergabe crasht nicht mehr in
+    node.play() (Guard, verstummt ehrlich bis zum nächsten Clip-Beginn).
 
-  EHRLICH (dokumentierte Grenzen, nächste Zyklen): Sekundär-MIDI-Spuren falten
-  Mehrtakt-Clips noch (M1c als Nächstes) · Clips ABSEITS der Taktlinie spielen
-  am globalen Taktraster (M2) · Audio-Spuren im Arrangement sind noch stumm —
-  der Player ist gebaut+getestet, die Verdrahtung ist der übernächste Build (A1).
+  EHRLICH (dokumentiert, eigene Zyklen): Live-Mixer-Bewegung MITTEN in einer
+  Region greift erst an der nächsten Clip-Grenze (H4 Pan/Gain-Fan-out als
+  Nächstes) · Editor-Fades/Warp werden auf der Timeline noch nicht übernommen
+  (A5) · Sekundär-MIDI-Spuren falten Mehrtakt-Clips noch (M1c).
 
-  SICHER: Phasen-Mathematik pur + handverifiziert (ArrangementLoadPlan, 21 neue
-  Tests gesamt); der generative Instrument-Pfad bleibt byte-identisch (eigener
-  Reviewer-Fund, gefixt + getestet). Gates M1a grün; M1b/Fixes laufen.
+  SICHER: audio-thread-reviewer — "zero work added to the render thread";
+  alle 4 Funde (2 HIGH, 1 Crash-Guard, 1 Node-Leak) gefixt; +2 Koordinator-
+  Tests (Vorwärmen ohne Klang, Detach beim Spur-Löschen). Kette v247 grün
+  ausstehend — Gates laufen.
 
-  Heilungsprogramm (beide Deep-Audits, 28 Agenten, alle Top-Funde verifiziert):
-  scratchpads/HEALING_DMMW_2026-07-15.md — Welle 1: es KLINGT wie es aussieht
-  (M1 ✓ · A1 Audio-Spuren · Sample-Race · Pan-Fan-out · AU-Routing) → Welle 2:
-  Datensicherheit (Medien-Pfade, Fold-Kill) → Welle 3: DMMW-Command-Cores.
+  Heilungs-Stand Welle 1: M1 MIDI-Takte ✓ (v247) · A1 Audio-Klang ✓ (dieser
+  Build) · als Nächstes H3 Sample-Race · H4 Pan/Gain · H5 AU-Routing.
 
-  Reihenfolge: v245 Bilder · v246 Video-Monitor · v247 MIDI-Takte.
+  Reihenfolge: v246 Video-Monitor · v247 MIDI-Takte · v248 Audio-Klang.
