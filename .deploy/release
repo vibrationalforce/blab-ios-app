@@ -1,28 +1,32 @@
-build: 2026-07-14 v10.79.221 (AudioLanePlayer-Koordinator — Transport-Audio-Steuerlogik)
+build: 2026-07-14 v10.79.222 (Region duplizieren — der Kopier-Befehl)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zweiter Baustein für „Audio-Spuren spielen im Transport mit" — die Steuer-Schicht,
-  weiter test-first statt blind-Audio.
+notes: Der Clip-Editing-Verbsatz ist komplett: Schneiden · Fügen · Löschen ·
+  Verschieben · und neu KOPIEREN (Duplicate).
 
-  WAS diese Runde bringt: `AudioLanePlayer` — der Koordinator, der beim Abspielen pro
-  Audio-Spur entscheidet, WANN welche Region startet/stoppt (nutzt die letzte Runde
-  gebaute Scheduling-Mathematik + die vorhandene Onset/Clear-Logik). Mute/Solo/Level
-  werden respektiert. Das eigentliche Geräte-Abspielen ist hinter einem schmalen
-  Protokoll (`AudioRegionSink`) abstrahiert, damit die fehleranfällige Steuerlogik
-  komplett ohne AVFoundation testbar ist — 7 Spy-Tests decken jeden Fall (Einstieg am
-  Region-Anfang, Einstieg mitten drin bei Loop/Sprung, Verlassen→Stopp, drin-bleiben→
-  nichts, stumm/keine-Datei→kein Ton).
+  WO: Region lange drücken → Menü → „Duplicate". Es entsteht sofort eine identische
+  Kopie direkt HINTER dem Original auf derselben Spur.
 
-  NOCH KEIN TON: additiv + ungewired — dieser Koordinator wird noch von nichts
-  aufgerufen, kann also die App nicht regressieren. Der dünne AVFoundation-Ausführer
-  (auf Basis des bewährten AudioClipPlayer) + das Transport-Wiring kommen im nächsten,
-  gerätegeprüften Schritt; DANN klingen die Audio-Spuren wirklich mit.
+  WAS es tut: perfekt zum Bauen von Loops/Wiederholungen — einmal duplizieren, und
+  du hast denselben Clip nochmal am Stück dahinter. Die Kopie teilt sich denselben
+  Clip (kein neuer Slot verbraucht), gleiche Länge, gleicher Medien-Startpunkt.
+  Wie beim Verschieben dürfen sich Regionen überlappen (freies Arrangieren).
 
-  SICHER: Reviewer — Concurrency PASS (behoben: ein wirkungsloses @ObservationIgnored
-  entfernt, da die Klasse nicht @Observable ist) · Code — Mapping bestätigt korrekt,
-  Test-Mathematik exakt; die eine bekannte Lücke dokumentiert (Live-Mute mitten in
-  einer Region wirkt erst an der nächsten Grenze — der Wiring-Zyklus muss die Spur
-  dann neu ansteuern). Gates: Xcode Compile + CI/CD.
+  WIE: reine Region-Kopie (frische ID, Start am Ende des Originals) + eine
+  TimelineStore-Methode. Kein Sheet, kein Transport-Read → Menü-Freeze-Gesetz
+  gewahrt (dasselbe Menü wie Verschieben/Löschen).
 
-  Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move ✓ · Audio-Import ✓ ·
-  Video-Import ✓ · Audio-Transport: Scheduling-Naht ✓ + Koordinator ✓ / als Nächstes
-  der geräteverifizierte AVFoundation-Ausführer + Transport-Wiring (dann Ton).
+  SICHER: Reviewer code CONFIRMED ship-ready (keine CRITICAL/HIGH/MEDIUM; Kontextmenü
+  ohne Sheet + ohne Transport-Read). Tests: duplicated()-Geometrie + Store-Anhängen
+  hinter dem Original. Gates: Xcode Compile + CI/CD.
+
+  ZUR TRANSPORT-AUDIO-REIHE (ehrlicher Zwischenstand): die Steuer-Schicht ist fertig
+  (Scheduling-Naht + Koordinator, beide getestet). Der letzte Schritt — der
+  AVFoundation-Ausführer + Transport-Verdrahtung — ist bewusst KEIN Blind-Deploy: ein
+  synchroner Datei-Read im Transport-Takt würde das generative Kern-Timing stören.
+  Der kommt als eigener, geräteverifizierter Zyklus mit Pre-Buffering. Bis dahin habe
+  ich diese Runde einen sofort nutzbaren Editing-Befehl geliefert statt einer weiteren
+  unsichtbaren Vorstufe.
+
+  Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move/Duplicate ✓ ·
+  Audio-Import ✓ · Video-Import ✓ · Audio-Transport-Steuerlogik ✓ (Ausführer folgt,
+  gerätegeprüft).
