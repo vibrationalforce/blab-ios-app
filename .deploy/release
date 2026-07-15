@@ -1,28 +1,31 @@
-build: 2026-07-15 v10.79.225 (Spur-Kopf passt links wieder ins Bild — Gain kleiner, Pfeil größer)
+build: 2026-07-15 v10.79.226 (Split/Join wandern auf den Clip — Lang-Druck-Menü statt Werkzeugleisten-Knopf)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkte Antwort auf dein Screenshot-Feedback (v224 am Gerät): der Spur-Kopf links
-  (Aufnahme-Knopf · Farbstreifen · M/S) wurde vom zu breiten Gain-Kästchen aus dem Bild
-  gedrückt, der Aufklappfeil war zu klein.
+notes: Direkte Antwort auf dein Feedback ("Was ist das? Wäre es nicht sinnvoller dass
+  wenn man lange auf den Clip drückt man Optionen wie cut etc. hat"): die zwei
+  Werkzeugleisten-Knöpfe „Split"/„Join" waren undurchsichtig — sie sind jetzt WEG.
 
-  WAS behoben:
-  · Das Gain-Kästchen (der Pegel „1.61" etc.) war zu groß — das leere Label-Feld
-    reservierte ~30 pt Leerraum, der die ganze Strip-Reihe über die 140 pt breite
-    Spur-Spalte hinausschob → SwiftUI zentrierte + schnitt links ab (Aufnahme-Knopf +
-    Farbstreifen verschwanden aus dem Bild). EchoelValueField zeigt bei leerem Label
-    jetzt NUR das Kästchen (kein Leerraum davor), Kästchen 40→30 pt. Reihe passt jetzt
-    mit 138 ≤ 140 pt — nichts wird mehr links abgeschnitten.
-  · Der Aufklappfeil (∨) am Spur-Kopf: 7→12 pt, kräftigere Farbe — klar tippbar.
+  WAS neu:
+  · Lang-Druck auf einen Clip zeigt jetzt „Split at playhead" (Schneiden am Spielkopf)
+    und „Join with next" (mit dem direkt folgenden Stück derselben Spur/desselben Clips
+    zusammenfügen) — direkt am Clip, wo du sie erwartest. „Join" ist ausgegraut, wenn
+    kein passendes Nachbar-Stück folgt (verlustfrei: ein zugeschnittenes/verschobenes
+    Stück wird NICHT stillschweigend geschluckt).
+  · Die Werkzeugleiste ist dadurch aufgeräumter (Play · Record · Immersive · + · Snap).
 
-  KEIN Verhaltensänderung — reine Layout-Korrektur. Der eine app-weite Zahl-Regler
-  (EchoelValueField) bleibt der eine Regler; nur ein Aufrufer nutzt leeres Label
-  (die Spur-Reihe), daher risikoarm. Zahl „1.61" bleibt lesbar (skaliert sauber).
-  Reviewer ui-state CONFIRMED sauber (Modifier auf Group ok, Breiten-Rechnung 138 pt,
-  Aufnahme-Knopf klippt nicht mehr).
+  Neue reine Store-Logik `mergeRegionWithNext` / `canMergeRegionWithNext` (nur DIESER
+  Clip, andere Spuren unberührt — anders als der alte spielkopf-weite Razor). 3 neue
+  Tests. Nebenbei behoben: ein bestehender Test-Kompilierfehler in derselben Datei
+  (privater Helfer aus der Schwester-Klasse) → jetzt eigenständig.
 
-  Noch offen aus deinem Feedback (nächste Runden, je einzeln): Tempo/BPM in die
-  Kopfzeile hoch · Split/Join von der Werkzeugleiste in das Lang-Druck-Clip-Menü
-  (Schneiden/Einfügen/Kombinieren).
+  Reviewer: code CONFIRMED (Merge-Logik korrekt, Index-Neufindung sauber, keine
+  Swift-6-Exclusivity-Verletzung) · ui-state CONFIRMED (Freeze-Regel gewahrt —
+  transport.position nur in der Tap-Aktion/im Menü-Aufbau, kein Body-Read; kein
+  Sheet-Ketten-Wachstum, natives contextMenu).
 
-  Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move/Duplicate ✓ ·
-  Audio-Import ✓ · Video-Import ✓ · Transport-Steuerlogik ✓ · Clip-Nativ-Dauer ✓ /
-  als Nächstes die geräteverifizierten Ausführer (Spuren klingen/laufen im Transport).
+  Noch offen aus deinem Feedback (nächste Runden): (1) Sample/MIDI-Clips per Lang-Druck
+  einfügen · (2) mehrere Clips markieren → „Combine" (Mehrfachauswahl) · (3) Tempo/BPM
+  in die Kopfzeile hoch. Werden je einzeln geliefert.
+
+  Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move/Duplicate ✓ (jetzt am
+  Clip) · Audio-Import ✓ · Video-Import ✓ · Transport-Steuerlogik ✓ · Clip-Nativ-Dauer
+  ✓ / als Nächstes die geräteverifizierten Ausführer (Spuren klingen/laufen im Transport).

@@ -360,54 +360,10 @@ struct ArrangeTimelineView: View {
             .disabled(!recordController.isRecording && !recordController.hasArmedTarget())
             .accessibilityLabel(recordController.isRecording ? "Stop recording" : "Record armed tracks")
 
-            // Split at playhead (founder 2026-07-14 "Clips schneiden und
-            // zusammenfügen"): the razor — cut EVERY region the playhead crosses into
-            // two abutting pieces (audio/video media offset advances so it plays
-            // seamlessly; MIDI unaffected). Reads `transport.position` ONLY here in the
-            // tap action, never in `body` → no toolbar churn (freeze rule). No-op at a
-            // region edge. Merge (join) is the region editor's follow-up.
-            Button {
-                let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                timeline.splitRegions(atTick: tick, bpm: beatPlayer.pattern.tempo)
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "scissors")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text("Split")
-                        .font(EchoelTheme.font(12, .medium))
-                }
-                .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 10).frame(height: 28)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .disabled(timeline.document.regions.isEmpty)
-            .accessibilityLabel("Split regions at playhead")
-
-            // Join at playhead — the inverse razor: rejoin same-lane/clip pieces that
-            // abut exactly at the playhead (undo of a split). Same tap-only position
-            // read as Split. No-op if nothing meets there.
-            Button {
-                let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                timeline.mergeRegions(atTick: tick, bpm: beatPlayer.pattern.tempo)
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "arrow.triangle.merge")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text("Join")
-                        .font(EchoelTheme.font(12, .medium))
-                }
-                .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 10).frame(height: 28)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .disabled(timeline.document.regions.isEmpty)
-            .accessibilityLabel("Join regions at playhead")
+            // Split / Join moved ONTO the clip (founder 2026-07-15: "wenn man lange auf
+            // den Clip drückt [hat] man Optionen wie cut"). The razor + rejoin now live
+            // in each region's long-press menu (per-region, not a playhead-wide toolbar
+            // button the founder found opaque — "Was ist das?"). Toolbar stays lean.
 
             // Immersive Stage door: the Touch surface that places every track in
             // space. Every non-bio lane is already a positioned SpatialObject; this
@@ -896,6 +852,25 @@ struct ArrangeTimelineView: View {
                         Label("Edit", systemImage: "slider.horizontal.3")
                     }
                 }
+                // Split / Join, ON THE CLIP (founder 2026-07-15: "wenn man lange auf den
+                // Clip drückt [hat] man Optionen wie cut" — the razor + rejoin belong to
+                // the clip's own long-press, not a separate toolbar button). Split cuts
+                // THIS region at the playhead; Join swallows the same-lane/clip piece
+                // that abuts right after it (media-lossless — disabled when none does).
+                // Both read `transport.position`/the document ONLY here (menu builds on
+                // open), never in `body` → freeze-safe.
+                Button {
+                    let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+                    timeline.splitRegion(id: region.id, atTick: tick, bpm: beatPlayer.pattern.tempo)
+                } label: {
+                    Label("Split at playhead", systemImage: "scissors")
+                }
+                Button {
+                    timeline.mergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo)
+                } label: {
+                    Label("Join with next", systemImage: "arrow.triangle.merge")
+                }
+                .disabled(!timeline.canMergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo))
                 // Move to playhead — the arrangement's move verb (drag-move fights the
                 // horizontal ScrollView, deferred as device-tuned; playhead-driven is
                 // freeze-safe like Split/Join). Reads `transport.position` ONLY in this

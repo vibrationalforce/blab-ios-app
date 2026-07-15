@@ -162,6 +162,33 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Per-region "Join with next" (founder 2026-07-15: join from the clip's OWN
+    /// long-press menu, not a separate toolbar razor). Merges region `id` with the
+    /// same-lane/clip region that abuts right AFTER it AND is media-contiguous — the
+    /// lossless inverse of a split. Only THIS region's join; other lanes are
+    /// untouched (unlike the playhead-wide `mergeRegions`). No-op if nothing valid
+    /// follows it (e.g. the next piece was trimmed/nudged → `abuts` refuses).
+    public func mergeRegionWithNext(id: UUID, bpm: Double) {
+        guard let ai = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        let a = document.regions[ai]
+        guard let bi = document.regions.firstIndex(where: { $0.id != id && a.abuts($0, bpm: bpm) })
+        else { return }
+        let merged = a.merged(with: document.regions[bi])
+        document.regions.remove(at: bi)
+        // Removal may have shifted `a`'s index — re-find by id before writing back.
+        if let newAI = document.regions.firstIndex(where: { $0.id == id }) {
+            document.regions[newAI] = merged
+        }
+        persist()
+    }
+
+    /// Whether region `id` has a valid same-lane/clip successor to Join with — drives
+    /// the enable/disable of the clip menu's "Join with next" verb. Pure read.
+    public func canMergeRegionWithNext(id: UUID, bpm: Double) -> Bool {
+        guard let a = document.regions.first(where: { $0.id == id }) else { return false }
+        return document.regions.contains { $0.id != id && a.abuts($0, bpm: bpm) }
+    }
+
     // MARK: - Lane edits
 
     public func addLane(kind: ClipKind, name: String? = nil) {

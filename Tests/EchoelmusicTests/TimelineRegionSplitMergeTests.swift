@@ -143,7 +143,11 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
     }
 
     func testDuplicated_freshIdAtEndTick_sameContent() {
-        let r = region(start: 240, length: 960, offset: 1.25)
+        // Self-contained: the `region(...)` helper is private to the sibling class
+        // TimelineRegionSplitMergeTests and not visible here — construct directly.
+        let lane = UUID(); let clip = UUID()
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 240,
+                               lengthTicks: 960, contentOffsetSeconds: 1.25)
         let dup = r.duplicated()
         XCTAssertNotEqual(dup.id, r.id, "the duplicate gets a fresh identity")
         XCTAssertEqual(dup.startTick, r.endTick, "lands right after the original by default")
@@ -179,6 +183,51 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
 
         store.moveRegion(id: r.id, toStartTick: -500)
         XCTAssertEqual(mine().first { $0.id == r.id }?.startTick, 0, "a negative target clamps to 0")
+    }
+
+    // MARK: - Per-region Join with next (founder 2026-07-15: from the clip's menu)
+
+    func testMergeRegionWithNext_rejoinsTheSplitPiece_onlyThisRegion() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920)
+        store.addRegion(r)
+        // Split it into two abutting pieces at tick 960.
+        store.splitRegion(id: r.id, atTick: 960, bpm: 120)
+        XCTAssertEqual(mine().count, 2, "cut into two pieces")
+        XCTAssertTrue(store.canMergeRegionWithNext(id: r.id, bpm: 120), "the first piece can rejoin")
+
+        // Join from the FIRST piece's own menu → one region spanning the bar again.
+        store.mergeRegionWithNext(id: r.id, bpm: 120)
+        XCTAssertEqual(mine().count, 1, "the two pieces rejoin into one")
+        XCTAssertTrue(mine().contains { $0.id == r.id && $0.startTick == 0 && $0.lengthTicks == 1920 },
+                      "the rejoined region keeps the first piece's identity + spans the whole bar")
+    }
+
+    func testMergeRegionWithNext_noSuccessor_isNoOp() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
+        let solo = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920)
+        store.addRegion(solo)
+        XCTAssertFalse(store.canMergeRegionWithNext(id: solo.id, bpm: 120), "nothing follows it")
+        store.mergeRegionWithNext(id: solo.id, bpm: 120)
+        XCTAssertEqual(mine().count, 1, "no successor ⇒ Join is a no-op")
+    }
+
+    func testMergeRegionWithNext_trimmedSuccessor_refuses() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
+        let a = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 480, contentOffsetSeconds: 0)
+        // Abutting on the grid but media-DISCONTINUOUS (nudged) → lossless Join must refuse.
+        let nudged = TimelineRegion(laneID: lane, clipID: clip, startTick: 480, lengthTicks: 480, contentOffsetSeconds: 0.9)
+        store.addRegion(a)
+        store.addRegion(nudged)
+        XCTAssertFalse(store.canMergeRegionWithNext(id: a.id, bpm: 120), "media discontinuity blocks Join")
+        store.mergeRegionWithNext(id: a.id, bpm: 120)
+        XCTAssertEqual(mine().count, 2, "the trimmed piece is NOT swallowed")
     }
 
     func testSplitRegions_atEdge_isNoOp() {
