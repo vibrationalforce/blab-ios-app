@@ -364,4 +364,45 @@ final class TimelineTests: XCTestCase {
         store.setLanePan(id: UUID(), 0.5)           // unknown id → no crash, no change
         XCTAssertEqual(store.document.lanes.last?.pan, -1)
     }
+
+    // MARK: - healRollSlotAudibility (#22 follow-up, founder log v255)
+
+    func testHealRollSlot_unmutesAndFloorsLevel() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "Bio", kind: .midi, isBio: true),
+            TimelineLane(name: "MIDI 1", kind: .midi, level: 0, isMuted: true),
+        ])
+        XCTAssertEqual(doc.rollSlotGain, 0)
+        XCTAssertTrue(doc.healRollSlotAudibility())
+        XCTAssertFalse(doc.lanes[1].isMuted)
+        XCTAssertEqual(doc.lanes[1].level, 1)
+        XCTAssertGreaterThan(doc.rollSlotGain, 0, "the heal's whole point: audible again")
+    }
+
+    func testHealRollSlot_clearsStaleSoloElsewhere() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi),
+            TimelineLane(name: "MIDI 2", kind: .midi, isSoloed: true),
+        ])
+        XCTAssertEqual(doc.rollSlotGain, 0, "solo elsewhere gates the roll lane")
+        XCTAssertTrue(doc.healRollSlotAudibility())
+        XCTAssertFalse(doc.lanes[1].isSoloed, "stale solo cleared (H4 lesson)")
+        XCTAssertGreaterThan(doc.rollSlotGain, 0)
+    }
+
+    func testHealRollSlot_audibleRoll_isUntouchedNoop() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi, level: 0.7),
+            TimelineLane(name: "MIDI 2", kind: .midi, isMuted: true),
+        ])
+        let before = doc
+        XCTAssertFalse(doc.healRollSlotAudibility(),
+                       "an audible roll means Start changes NOTHING — deliberate mutes survive")
+        XCTAssertEqual(doc, before)
+    }
+
+    func testHealRollSlot_noMIDILane_isNoop() {
+        var doc = TimelineDocument(lanes: [TimelineLane(name: "A", kind: .audio, isMuted: true)])
+        XCTAssertFalse(doc.healRollSlotAudibility())
+    }
 }

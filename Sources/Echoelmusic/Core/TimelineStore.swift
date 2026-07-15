@@ -486,6 +486,18 @@ public final class TimelineStore {
         persist()
     }
 
+    /// #22 follow-up: restore the shared roll slot's audibility for an explicit
+    /// user Start (see TimelineDocument.healRollSlotAudibility). Persists (and
+    /// thereby notifies every mixer mirror) only when something changed.
+    /// Mixer state sits outside the region undo history by design — the heal
+    /// is the user's own Start intent, not an edit to revert.
+    @discardableResult
+    public func healRollSlotAudibility() -> Bool {
+        guard document.healRollSlotAudibility() else { return false }
+        persist()
+        return true
+    }
+
     /// Remove an EMPTY lane (regions must move/delete first — no silent data loss).
     public func removeLaneIfEmpty(id: UUID) {
         guard document.regions(in: id).isEmpty else { return }

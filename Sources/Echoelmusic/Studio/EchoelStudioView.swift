@@ -73,6 +73,8 @@ struct EchoelStudioView: View {
     @AppStorage("touch.glide") private var touchGlide = 0.0
     @Environment(SubBassVoice.self) private var subBass
     @Environment(MetronomeVoice.self) private var metronome
+    /// #22 follow-up: Start heals a silenced roll slot (founder log v255).
+    @Environment(TimelineStore.self) private var timelineStore
     // The one shared transport. Read ONLY via `.onChange(of: transport.isPlaying)` (a
     // LOW-frequency flag — flips on play/stop, never 10 Hz) so the global transport bar's
     // Stop can end the whole bio session; NOT read in `body` (freeze rule).
@@ -3281,6 +3283,13 @@ struct EchoelStudioView: View {
 
     private func startBiofeedback() {
         EchoelCrashLog.breadcrumb("Start tapped")
+        // #22 follow-up (founder log v255: rollMixGain=0.00 → 15 s silence →
+        // exit): an explicit Start expresses "I want to HEAR it" — heal a
+        // persisted-silent roll slot (mute / zero level / stale solo) before
+        // the first generate. Automatic paths (evolve/re-seed) never do this.
+        if timelineStore.healRollSlotAudibility() {
+            EchoelCrashLog.breadcrumb("start: silent roll slot healed (mute/level/solo restored)")
+        }
         running = true
         bus.setInstrumentRunning(true)   // chrome mirror (TransportBar pulse button)
         // NO forced visual anymore (founder 2026-07-12: "Visuals Fenster muss
