@@ -1,28 +1,33 @@
-build: 2026-07-15 v10.79.245 (Bilder importieren — Standbilder als Clips auf der Videospur)
+build: 2026-07-15 v10.79.246 (Video-Monitor — schwebendes Fenster, Videospur rendert endlich)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Video-Reihe V3 aus deinem Auftrag: "Bilder importieren soll auch gehen."
+notes: Dein roter Kreis auf dem Film-Button: "Dort soll der Video Monitor zum
+  anklicken. Verschiedene größen einstellbar wie visualiser."
 
-  NEU auf der Video-Import-Seite (Videospur → Import):
-  • Der Mediathek-Picker zeigt jetzt VIDEOS UND BILDER; auch der Dateien-Weg nimmt
-    Bilder an (JPG/PNG/HEIC …).
-  • Ein gewähltes Bild bekommt eine große Vorschau und landet mit „Add to timeline"
-    als Clip auf der Spur — standardmäßig EINEN Takt lang im aktuellen Tempo.
-  • Länger/kürzer? Einfach auf der Timeline an den Kanten ziehen (die Trimm-Griffe
-    aus v236) — ein Standbild hat keine Medienlänge, die es begrenzt; es lässt sich
-    beliebig dehnen. Verschieben/Magnetkanten/Undo — das ganze Clip-Game gilt.
+  NEU — der Film-Button oben rechts öffnet jetzt den VIDEO-MONITOR:
+  • Ein schwebendes Fenster wie das Visual: gleiche Größenstufen (S/M/L/Vollbild
+    per Knopf durchschaltbar, Größe wird gemerkt), am Film-Griff verschiebbar,
+    × zum Schließen. Es dockt unten LINKS an, damit Visual + Video-Monitor
+    gleichzeitig offen sein können.
+  • Und er zeigt endlich BILD: die Videospur wird darin GERENDERT — Bilder und
+    Videos folgen dem Playhead bei Play, Stop und Scrubbing, driftkorrigiert zur
+    Musik-Uhr (Halten / ±3%-Angleich / harter Seek — die getestete Resync-Regel).
+    Erste unstummgeschaltete Videospur mit Clip unter dem Playhead gewinnt.
+  • Die Clips-Bibliothek (bisheriger Tap) liegt jetzt auf LANGEM Drücken des
+    Film-Buttons — nichts ist gestrandet.
 
-  EHRLICH: wie beim Video-Import gilt — das Bild liegt jetzt als Clip in der Timeline
-  (sichtbar, arrangierbar); das RENDERN der Videospur beim Abspielen (Bild/Video im
-  Visual-Fenster zur Musik) ist der nächste große Baustein der Video-Reihe.
+  EHRLICH: Der Monitor ist bewusst STUMM (der Ton der Timeline kommt aus den
+  Audio-/MIDI-Spuren; Video-Clip-Ton ist eine eigene, spätere Entscheidung).
+  V1 zeigt EINE Spur; Mehrspur-Compositing/Effekte sind der nächste Baustein.
 
-  SICHER: ui-state-reviewer CONFIRMED — Ein-Takt-Länge mathematisch EXAKT bei jedem
-  Tempo (kein Rundungs-Tick), Video/Bild-Zustandsmaschine ohne Doppel- oder
-  Leer-Zustand, alle Plattform-Guards vollständig (Linux-CI unberührt), Import-Kopie
-  nach demselben geprüften Muster wie Audio/Video. Gates v244 grün.
+  SICHER: ui-state-reviewer + code-reviewer beide durch; alle Funde gefixt —
+  u.a. Scrub bei Stopp folgt jetzt jedem 16tel-Schritt (nicht erst ab 0,25 s),
+  keine AVPlayer-Allokation pro Drag-Frame, Freeze-Regel geprüft intakt (die
+  Transport-Reads leben im eigenen Leaf). 6 neue Tests für die Bildauswahl-
+  Logik (pure). Gates v245 grün.
 
   Baustellen-Stand (God-Mode): Clip-Game C1–C5 ✓ · V2 Mediathek ✓ · V3 Bilder ✓ ·
-  als Nächstes V4 Kamera-Capture direkt in die Timeline (Aufnahme-Knopf auf der
-  Videospur) · V5 Profi-Kamera (Fokus/ISO/Belichtung/KELVIN manuell) · C6 EchoelAI-
-  TimelineToolCore.
+  Video-Monitor ✓ · NEUER AUFTRAG (2026-07-15): MIDI-/Audio-Clip-Verhalten auf
+  Profi-Niveau (Ultracode-Audit läuft) + Third-Party-AUv3 (Eventide u.a.) ·
+  danach V4 Kamera-Capture in die Timeline · V5 Profi-Kamera (Kelvin).
 
-  Reihenfolge: v243 Überlapp-Regel · v244 Mediathek-Import · v245 Bilder-Import.
+  Reihenfolge: v244 Mediathek · v245 Bilder · v246 Video-Monitor.
