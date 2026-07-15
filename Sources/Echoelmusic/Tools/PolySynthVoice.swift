@@ -472,6 +472,14 @@ public final class PolySynthVoice {
         sourceNode.pan = max(-1, min(1, pan))
     }
 
+    /// H4 lane gain: this voice's whole-output level at the mixer, 0…2 (1 = unity;
+    /// the lane fader's `effectiveGain` — mute/solo land here as 0, silencing even
+    /// already-ringing notes). Control-plane only, like `setPan`: `sourceNode`
+    /// conforms to `AVAudioMixing`, the ENGINE scales downstream of the render.
+    public func setGain(_ gain: Float) {
+        sourceNode.volume = max(0, min(2, gain.isFinite ? gain : 1))
+    }
+
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)
 
     /// Begin polling `bus.latestBio` at 10 Hz and fanning bio modulation across

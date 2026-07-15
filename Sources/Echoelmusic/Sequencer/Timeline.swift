@@ -402,6 +402,24 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         if lanes[idx].level <= 0.001 { lanes[idx].level = 1 }
         for i in lanes.indices where i != idx && lanes[i].isSoloed { lanes[i].isSoloed = false }
     }
+
+    /// H4 (live mixer while playing): merge ONLY the mixer fields (mute/solo/level/
+    /// pan) from `fresh` into this document, matched by lane id. Lane membership,
+    /// order, regions and every other field stay untouched — the region player's
+    /// playback snapshot must keep its lane ranks stable (its pumps are rank-keyed),
+    /// so a mid-play lane add/remove in `fresh` is deliberately IGNORED here.
+    /// Returns true when anything changed (the caller re-pushes gains/pans then).
+    public mutating func mergeMixer(from fresh: TimelineDocument) -> Bool {
+        var changed = false
+        for i in lanes.indices {
+            guard let live = fresh.lanes.first(where: { $0.id == lanes[i].id }) else { continue }
+            if lanes[i].isMuted != live.isMuted { lanes[i].isMuted = live.isMuted; changed = true }
+            if lanes[i].isSoloed != live.isSoloed { lanes[i].isSoloed = live.isSoloed; changed = true }
+            if lanes[i].level != live.level { lanes[i].level = live.level; changed = true }
+            if lanes[i].pan != live.pan { lanes[i].pan = live.pan; changed = true }
+        }
+        return changed
+    }
 }
 
 // MARK: - Musical constants + conversions

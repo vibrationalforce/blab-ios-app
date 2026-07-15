@@ -12,12 +12,12 @@
 // the song tick to the media-file position + remaining length. Additive + opt-in:
 // nothing calls it until the wiring cycle, so it cannot regress the app today.
 //
-// KNOWN GAP (wiring cycle must close): gain is consulted only at a region CHANGE
-// (`.load`) or `prime`. A live mute/solo/level toggle WHILE the playhead sits inside
-// an unchanging region produces no `laneEvent`, so the sink keeps playing at the old
-// gain until the next region boundary. The wiring cycle must re-drive the lane on a
-// mute/solo/level change (observe it → call `apply`/`prime` or a dedicated re-gate),
-// same as the primary roll lane hard-cuts on its mute transition.
+// LIVE MIXER (H4, closed the original known gap): `.unchanged` windows reconcile
+// the lane's gain/pan against what the sink last received — a mid-region level
+// move re-gains live, mute stops now, unmute RE-STARTS the region at the honest
+// file position (the one-shot segment is gone), and pan edits land immediately.
+// The caller keeps the doc's mixer fields fresh (TimelineRegionPlayer merges the
+// store's live values each step), so this file stays a pure function of its input.
 
 import Foundation
 
@@ -39,11 +39,18 @@ public protocol AudioRegionSink: AnyObject {
     func preload(url: URL)
     /// Release engine resources when the lane is removed (reconcile). Default: no-op.
     func detach()
+    /// Live mixer (H4): set this lane's output gain WITHOUT re-scheduling — a
+    /// mid-region level/solo edit must be heard now. Default: no-op.
+    func setGain(_ gain: Float)
+    /// Live mixer (H4): set this lane's stereo pan (−1…1). Default: no-op.
+    func setPan(_ pan: Float)
 }
 
 public extension AudioRegionSink {
     func preload(url: URL) {}
     func detach() {}
+    func setGain(_ gain: Float) {}
+    func setPan(_ pan: Float) {}
 }
 
 @MainActor
@@ -57,6 +64,12 @@ public final class AudioLanePlayer {
     private let resolveURL: (UUID) -> URL?
 
     private var sinks: [UUID: AudioRegionSink] = [:]
+    /// H4 live mixer: the gain/pan last pushed to each lane's sink, so the per-step
+    /// reconcile only touches the sink on a REAL edit. `appliedGain == 0` also means
+    /// "silenced by mute/solo at (or since) the onset" — the unmute path uses it to
+    /// know it must re-start the region (a stopped one-shot can't just re-gain).
+    private var appliedGain: [UUID: Float] = [:]
+    private var appliedPan: [UUID: Float] = [:]
 
     public init(makeSink: @escaping () -> AudioRegionSink,
                 resolveURL: @escaping (UUID) -> URL?) {
@@ -76,14 +89,20 @@ public final class AudioLanePlayer {
             sinks[laneID]?.stop()
             sinks[laneID]?.detach()   // release the engine node, not just the playback
             sinks[laneID] = nil
+            appliedGain[laneID] = nil
+            appliedPan[laneID] = nil
         }
         for laneID in doc.audioLaneIDs {
             switch TimelineScheduling.laneEvent(in: doc, laneID: laneID,
                                                 fromTick: fromTick, toTick: toTick) {
             case .unchanged:
-                break
+                // H4 (closes this file's original KNOWN GAP): no region boundary,
+                // but a live mixer edit may have changed the lane's gain/pan —
+                // reconcile against what the sink last got.
+                reconcileMix(laneID, in: doc, atTick: toTick, bpm: bpm)
             case .clear:
                 sinks[laneID]?.stop()
+                appliedGain[laneID] = 0
             case .load(let region):
                 start(region, laneID: laneID, atTick: toTick, in: doc, bpm: bpm)
             }
@@ -126,9 +145,13 @@ public final class AudioLanePlayer {
     private func start(_ region: TimelineRegion, laneID: UUID, atTick tick: Int,
                        in doc: TimelineDocument, bpm: Double) {
         let gain = doc.effectiveGain(for: laneID)
+        // Record the gate result even when silenced: an unmute mid-region must know
+        // the lane was at 0 so it restarts the region (see reconcileMix).
+        appliedGain[laneID] = gain
         guard gain > 0,
               let url = resolveURL(region.clipID) else {
             sinks[laneID]?.stop()
+            if gain > 0 { appliedGain[laneID] = 0 }   // unresolvable file ⇒ not sounding
             return
         }
         // Media position at this tick (mid-region entry advances it); remaining
@@ -136,8 +159,48 @@ public final class AudioLanePlayer {
         let from = AudioRegionPlayback.filePositionSeconds(for: region, atTick: tick, bpm: bpm)
             ?? region.contentOffsetSeconds
         let length = TimelineTime.seconds(fromTicks: region.endTick - tick, bpm: bpm)
-        sink(for: laneID).play(url: url, fromSeconds: from,
-                               lengthSeconds: max(0, length), gain: gain)
+        let lane = sink(for: laneID)
+        lane.play(url: url, fromSeconds: from,
+                  lengthSeconds: max(0, length), gain: gain)
+        // H4: audio lanes take the lane's stereo position too (B2 gave TimelineLane
+        // a pan; the synth voices honored it, audio lanes never did).
+        let pan = clampedPan(in: doc, laneID: laneID)
+        lane.setPan(pan)
+        appliedPan[laneID] = pan
+    }
+
+    /// H4 live-mixer reconcile for a lane sitting INSIDE an unchanged region (or a
+    /// gap): push a changed gain/pan to the sink. Three gain cases — silenced (→0):
+    /// stop; un-silenced (0→): re-START the region so the file position is honest
+    /// (the previous one-shot segment is gone); level moved (>0→>0): live re-gain.
+    private func reconcileMix(_ laneID: UUID, in doc: TimelineDocument, atTick tick: Int, bpm: Double) {
+        guard let lane = sinks[laneID] else { return }
+        let gain = doc.effectiveGain(for: laneID)
+        let oldGain = appliedGain[laneID] ?? gain
+        if gain != oldGain {
+            if gain <= 0 {
+                lane.stop()
+                appliedGain[laneID] = 0
+            } else if oldGain <= 0 {
+                if let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) {
+                    start(region, laneID: laneID, atTick: tick, in: doc, bpm: bpm)
+                }
+                // No active region (gap): stay at 0 — the next onset starts it.
+            } else {
+                lane.setGain(gain)
+                appliedGain[laneID] = gain
+            }
+        }
+        let pan = clampedPan(in: doc, laneID: laneID)
+        if pan != (appliedPan[laneID] ?? 0) {
+            lane.setPan(pan)
+            appliedPan[laneID] = pan
+        }
+    }
+
+    private func clampedPan(in doc: TimelineDocument, laneID: UUID) -> Float {
+        let p = doc.lanes.first(where: { $0.id == laneID })?.pan ?? 0
+        return max(-1, min(1, p))
     }
 
     private func sink(for laneID: UUID) -> AudioRegionSink {

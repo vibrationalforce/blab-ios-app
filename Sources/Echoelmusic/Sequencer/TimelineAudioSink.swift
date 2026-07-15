@@ -15,11 +15,11 @@
 // Control-plane only: scheduling happens on @MainActor; AVAudioPlayerNode does
 // its own rendering and file I/O off our threads.
 //
-// Honest limits (documented, later cycles): gain is applied at region onsets
-// only (the coordinator's KNOWN GAP — live mixer moves mid-region are H4);
-// per-clip fades/warp from the audio editor are not consumed on the timeline
-// yet (audit A5). A sink whose lane is deleted mid-session keeps its (stopped,
-// idle) node attached — one node per removed lane, reclaimed on relaunch.
+// Live mixer (H4): `setGain`/`setPan` land mid-region on the node's AVAudioMixing
+// volume/pan — control-plane, no re-scheduling (the coordinator decides when a
+// mute/unmute needs a real stop/restart instead).
+// Honest limits (documented, later cycles): per-clip fades/warp from the audio
+// editor are not consumed on the timeline yet (audit A5).
 
 #if canImport(AVFoundation)
 import AVFoundation
@@ -62,12 +62,23 @@ final class TimelineAudioSink: AudioRegionSink {
         guard node.engine?.isRunning == true else { return }
         node.stop()
         node.scheduleSegment(file, startingFrame: startFrame, frameCount: frames, at: nil)
-        node.volume = min(2, max(0, gain))
+        setGain(gain)
         node.play()
     }
 
     func stop() {
         if node.isPlaying { node.stop() }
+    }
+
+    /// H4 live mixer: level/solo edits mid-region land on the node's mixer volume —
+    /// control-plane only (AVAudioMixing downstream), no re-scheduling.
+    func setGain(_ gain: Float) {
+        node.volume = min(2, max(0, gain))
+    }
+
+    /// H4 live mixer: the lane's stereo position (B2 pan finally reaches audio lanes).
+    func setPan(_ pan: Float) {
+        node.pan = max(-1, min(1, pan))
     }
 
     /// Release the engine node (lane removed). Detach mutates the graph without

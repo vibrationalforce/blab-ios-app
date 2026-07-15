@@ -247,4 +247,86 @@ final class MultiRollFanoutTests: XCTestCase {
                            "slot/rank \(rank): fan-out fires laneID \(step.laneID) but patch/mute resolves a different lane")
         }
     }
+
+    // MARK: - H4: per-slot pan + continuous gain (healing wave 1)
+
+    private func makeMixedDoc(pan: [Float] = [0, 0], level: [Float] = [1, 1],
+                              mute: [Bool] = [false, false],
+                              solo: [Bool] = [false, false]) -> (TimelineDocument, roll: UUID) {
+        let bio = TimelineLane(name: "Bio", kind: .midi, isBio: true)
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let s1 = TimelineLane(name: "MIDI 2", kind: .midi, level: level[0],
+                              isMuted: mute[0], isSoloed: solo[0], pan: pan[0])
+        let s2 = TimelineLane(name: "MIDI 3", kind: .midi, level: level[1],
+                              isMuted: mute[1], isSoloed: solo[1], pan: pan[1])
+        let regions = [TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920)]
+        return (TimelineDocument(lanes: [bio, roll, s1, s2], regions: regions), roll.id)
+    }
+
+    func testPanForSlot_resolvesEachLanesOwnPosition_clamped() {
+        let (doc, roll) = makeMixedDoc(pan: [-0.5, 3])   // 3 = out-of-range junk
+        XCTAssertEqual(MultiRollFanout.pan(forSlot: 0, in: doc, rollLane: roll), -0.5)
+        XCTAssertEqual(MultiRollFanout.pan(forSlot: 1, in: doc, rollLane: roll), 1, "clamped to hard right")
+    }
+
+    func testPanForSlot_outOfRange_isCenter() {
+        let (doc, roll) = makeMixedDoc(pan: [0.5, 0.5])
+        XCTAssertEqual(MultiRollFanout.pan(forSlot: 9, in: doc, rollLane: roll), 0)
+    }
+
+    func testGainForSlot_levelIsContinuous_notBinary() {
+        let (doc, roll) = makeMixedDoc(level: [0.5, 2])
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 0, in: doc, rollLane: roll), 0.5,
+                       "a half fader must sound HALF — the note-ON gate alone made it full")
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 1, in: doc, rollLane: roll), 2)
+    }
+
+    func testGainForSlot_muteAndForeignSolo_areZero() {
+        let (doc, roll) = makeMixedDoc(mute: [true, false], solo: [false, true])
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 0, in: doc, rollLane: roll), 0, "muted")
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 1, in: doc, rollLane: roll), 1, "the soloed lane plays")
+    }
+
+    func testGainForSlot_outOfRange_isUnity() {
+        let (doc, roll) = makeMixedDoc()
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 9, in: doc, rollLane: roll), 1,
+                       "never silence on a mapping gap (matches audible's stance)")
+    }
+
+    // MARK: - H4: live-mixer merge into the playback snapshot
+
+    func testMergeMixer_takesMixerFields_keepsStructure() {
+        let (snapshotDoc, roll) = makeMixedDoc()
+        var snapshot = snapshotDoc
+        var fresh = snapshotDoc
+        fresh.lanes[2].level = 0.25
+        fresh.lanes[2].pan = -1
+        fresh.lanes[3].isMuted = true
+        fresh.regions = []                       // structural edits must NOT leak
+        XCTAssertTrue(snapshot.mergeMixer(from: fresh))
+        XCTAssertEqual(snapshot.lanes[2].level, 0.25)
+        XCTAssertEqual(snapshot.lanes[2].pan, -1)
+        XCTAssertTrue(snapshot.lanes[3].isMuted)
+        XCTAssertEqual(snapshot.regions.count, 1, "regions stay the playback snapshot's")
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 0, in: snapshot, rollLane: roll), 0.25)
+    }
+
+    func testMergeMixer_unchanged_returnsFalse() {
+        let (docBase, _) = makeMixedDoc(pan: [0.5, 0], level: [0.7, 1])
+        var snapshot = docBase
+        XCTAssertFalse(snapshot.mergeMixer(from: docBase))
+    }
+
+    func testMergeMixer_freshLaneSetDiffers_ignoresMembershipChanges() {
+        let (docBase, _) = makeMixedDoc()
+        var snapshot = docBase
+        var fresh = docBase
+        fresh.lanes.removeLast()                              // lane deleted in the store
+        fresh.lanes.append(TimelineLane(name: "New", kind: .midi, level: 0.1))
+        let laneCount = snapshot.lanes.count
+        _ = snapshot.mergeMixer(from: fresh)
+        XCTAssertEqual(snapshot.lanes.count, laneCount,
+                       "membership/order must stay snapshot-stable (rank-keyed pumps)")
+        XCTAssertEqual(snapshot.lanes.map(\.id), docBase.lanes.map(\.id))
+    }
 }

@@ -94,6 +94,20 @@ public final class TimelineRegionPlayer {
     /// Applies the PRIMARY roll lane's fine DETUNE (cents) to the roll voice on region
     /// load (the roll lane plays PianoRollModel, not a rack slot). nil ⇒ no detune.
     @ObservationIgnored public var rollDetuneSink: ((_ cents: Float) -> Void)?
+    /// Applies a SECONDARY lane's stereo PAN (−1…1) to its slot's rack voice — on
+    /// region load AND live on a mid-play mixer edit (H4, healing wave 1: pan was
+    /// silently inert for rack voices). Injected (AVFoundation stays in the app).
+    @ObservationIgnored public var slotPanSink: ((_ slot: Int, _ pan: Float) -> Void)?
+    /// Applies a SECONDARY lane's continuous GAIN (effectiveGain: mute/solo/level)
+    /// to its slot's rack voice — load + live (H4; closes the B09 binary-gate gap:
+    /// a 0.5 fader now sounds half, and a mid-take mute silences ringing notes at
+    /// the mixer instead of letting them ring out). Injected like the pan sink.
+    @ObservationIgnored public var slotGainSink: ((_ slot: Int, _ gain: Float) -> Void)?
+    /// Pulls the CURRENT document from the store each transport step, so mid-play
+    /// mixer edits (mute/solo/level/pan) reach playback — the play() snapshot alone
+    /// froze them until the next region boundary (H4). Only the mixer fields are
+    /// merged (see `TimelineDocument.mergeMixer`); structure stays snapshot-stable.
+    @ObservationIgnored public var liveDocument: (() -> TimelineDocument?)?
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
@@ -193,6 +207,10 @@ public final class TimelineRegionPlayer {
     /// clip on each region onset.
     public func transportStep(_ step: Int) {
         guard isPlaying else { return }
+        // H4: pull live mixer state (mute/solo/level/pan) into the playback snapshot
+        // BEFORE this step's gates run, so a mid-region mixer edit is heard now —
+        // not at the next region boundary. Structure (lanes/regions) stays frozen.
+        refreshMixer()
         var newTick = cursor.advance(step: step)
         var wrapped = false
         if loopTicks > 0, newTick >= loopTicks {
@@ -333,6 +351,10 @@ public final class TimelineRegionPlayer {
                 slotPatchSink?(slot, MultiRollFanout.patch(forSlot: slot, in: doc, rollLane: rollLane))
                 slotTransposeSink?(slot, MultiRollFanout.transpose(forSlot: slot, in: doc, rollLane: rollLane))
                 slotDetuneSink?(slot, MultiRollFanout.detune(forSlot: slot, in: doc, rollLane: rollLane))
+                // H4: the slot voice may be reused from another lane — reset its
+                // mixer position/level to THIS lane's values before its first notes.
+                slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
+                slotGainSink?(slot, MultiRollFanout.gain(forSlot: slot, in: doc, rollLane: rollLane))
                 var pump = pumps[slot] ?? LaneNotePump()
                 if !pump.isEmpty { sink(slot, pump.reset()) }   // release the old take first
                 pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
@@ -347,11 +369,10 @@ public final class TimelineRegionPlayer {
         // Fire this step on every live slot pump (offs before ons, per pump). A
         // muted/soloed-away/0-level secondary lane is gated like the primary roll
         // lane (rollSlotGain→laneAudible): drop its note-ONs but still deliver
-        // note-OFFs so nothing hangs when a lane is muted mid-take. KNOWN GAP vs the
-        // primary: the primary ALSO hard-cuts sounding notes on the mute transition
-        // (ArrangeTimelineView rollSlotGain→allNotesOff); here an already-ringing note
-        // rings to its natural endStep (seamless, no hang). Immediate-cut + continuous
-        // level→slot-gain is the later B09 (effectiveGain→voice gain) step.
+        // note-OFFs so nothing hangs when a lane is muted mid-take. Already-ringing
+        // notes are handled by the CONTINUOUS gain path (H4/B09: refreshMixer →
+        // slotGainSink → voice mixer volume), which lands 0 on a mute — the mixer
+        // silences them immediately without a hard note-cut.
         for slot in pumps.keys.sorted() {
             guard var pump = pumps[slot] else { continue }
             let events = pump.step(step)
@@ -378,10 +399,26 @@ public final class TimelineRegionPlayer {
             slotPatchSink?(load.slot, load.patch)
             slotTransposeSink?(load.slot, MultiRollFanout.transpose(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
+            slotPanSink?(load.slot, MultiRollFanout.pan(forSlot: load.slot, in: doc, rollLane: rollLane))
+            slotGainSink?(load.slot, MultiRollFanout.gain(forSlot: load.slot, in: doc, rollLane: rollLane))
             var pump = pumps[load.slot] ?? LaneNotePump()
             if !pump.isEmpty { sink(load.slot, pump.reset()) }
             pump.load(clips?.clip(id: load.clipID)?.melody?.notes ?? [])
             pumps[load.slot] = pump
+        }
+    }
+
+    /// H4 (live mixer): merge the store's CURRENT mixer fields into the playback
+    /// snapshot and — only when something actually changed — re-push every live
+    /// slot's gain + pan to its rack voice. Runs once per transport step (~8 Hz);
+    /// the merge is a small value compare, the push fires only on real edits.
+    private func refreshMixer() {
+        guard let fresh = liveDocument?() else { return }
+        guard doc.mergeMixer(from: fresh) else { return }
+        guard multiRollCapacity > 0 else { return }
+        for slot in pumps.keys.sorted() {
+            slotGainSink?(slot, MultiRollFanout.gain(forSlot: slot, in: doc, rollLane: rollLane))
+            slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
         }
     }
 

@@ -99,4 +99,22 @@ public enum MultiRollFanout {
     public static func audible(_ document: TimelineDocument, laneID: UUID) -> Bool {
         document.effectiveGain(for: laneID) > 0.001
     }
+
+    /// The stereo PAN slot `slot`'s lane carries, clamped −1…1 (0 = center, and 0
+    /// for an out-of-range slot). H4 (healing wave 1, "Pan silently inert"): mirrors
+    /// `transpose(forSlot:)` so each rack voice sits at its own lane's position.
+    public static func pan(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> Float {
+        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return 0 }
+        let p = document.lanes.first(where: { $0.id == id })?.pan ?? 0
+        return Swift.max(-1, Swift.min(1, p))
+    }
+
+    /// The continuous GAIN slot `slot`'s lane plays at — the full mute/foreign-solo/
+    /// level rule (`effectiveGain`), so a half fader is HALF loud, not binary-gated
+    /// (closes the B09 gap: the note-ON gate alone made 0.5 sound like 1.0). Unknown
+    /// slot ⇒ unity — never silence on a mapping gap, matching `audible`'s stance.
+    public static func gain(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> Float {
+        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return 1 }
+        return document.effectiveGain(for: id)
+    }
 }

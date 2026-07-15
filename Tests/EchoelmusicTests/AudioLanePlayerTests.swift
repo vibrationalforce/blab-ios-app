@@ -20,12 +20,16 @@ final class AudioLanePlayerTests: XCTestCase {
         var stops = 0
         var preloads: [URL] = []
         var detaches = 0
+        var gains: [Float] = []
+        var pans: [Float] = []
         func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float) {
             plays.append(Play(url: url, from: fromSeconds, length: lengthSeconds, gain: gain))
         }
         func stop() { stops += 1 }
         func preload(url: URL) { preloads.append(url) }
         func detach() { detaches += 1 }
+        func setGain(_ gain: Float) { gains.append(gain) }
+        func setPan(_ pan: Float) { pans.append(pan) }
     }
 
     final class Factory {
@@ -141,5 +145,74 @@ final class AudioLanePlayerTests: XCTestCase {
         p.apply(in: TimelineDocument(), fromTick: 0, toTick: 480, bpm: 120)   // lane gone
         XCTAssertEqual(factory.sinks.first?.stops, 1)
         XCTAssertEqual(factory.sinks.first?.detaches, 1, "the engine node is released, not just stopped")
+    }
+
+    // MARK: - H4 live mixer (mid-region gain/pan — closes this file's KNOWN GAP)
+
+    /// The same doc with a mixer edit applied to its (single) audio lane.
+    private func edited(_ document: TimelineDocument,
+                        level: Float? = nil, muted: Bool? = nil,
+                        pan: Float? = nil) -> TimelineDocument {
+        var d = document
+        if let level { d.lanes[0].level = level }
+        if let muted { d.lanes[0].isMuted = muted }
+        if let pan { d.lanes[0].pan = pan }
+        return d
+    }
+
+    func testLiveLevelEdit_midRegion_reGainsWithoutRestart() {
+        let (document, _) = doc()
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)              // onset at level 1
+        p.apply(in: edited(document, level: 0.5), fromTick: 0, toTick: 480, bpm: 120)
+        let sink = factory.sinks.first
+        XCTAssertEqual(sink?.plays.count, 1, "a level move must NOT re-schedule the file")
+        XCTAssertEqual(sink?.gains.last ?? -1, 0.5, accuracy: 1e-6)
+        // Same value again → no duplicate push.
+        let gainPushes = sink?.gains.count ?? -1
+        p.apply(in: edited(document, level: 0.5), fromTick: 480, toTick: 960, bpm: 120)
+        XCTAssertEqual(sink?.gains.count, gainPushes, "unchanged mixer ⇒ no sink traffic")
+    }
+
+    func testMute_midRegion_stops_andUnmuteRestartsAtHonestPosition() {
+        let (document, _) = doc(offset: 1.0)
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)              // onset
+        p.apply(in: edited(document, muted: true), fromTick: 0, toTick: 480, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.stops, 1, "mute mid-region silences now, not at the boundary")
+        // Unmute 960 ticks (1.0 s @120) into the region: the one-shot segment is
+        // gone, so the lane must RE-START from the honest file position.
+        p.apply(in: document, fromTick: 480, toTick: 960, bpm: 120)
+        let sink = factory.sinks.first
+        XCTAssertEqual(sink?.plays.count, 2)
+        XCTAssertEqual(sink?.plays.last?.from ?? -1, 2.0, accuracy: 1e-9, "offset 1.0 + elapsed 1.0")
+        XCTAssertEqual(sink?.plays.last?.length ?? -1, 1.0, accuracy: 1e-9, "remaining 960 ticks")
+    }
+
+    func testMutedAtOnset_unmuteMidRegion_startsTheLane() {
+        // The onset gate stopped a muted lane; a mid-region unmute must still start it.
+        let (document, _) = doc(muted: true)
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.prime(in: document, atTick: 0, bpm: 120)                            // muted ⇒ silent
+        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? true)
+        p.apply(in: edited(document, muted: false), fromTick: 0, toTick: 480, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1, "unmute inside the region starts playback")
+        XCTAssertEqual(factory.sinks.first?.plays.first?.from ?? -1, 0.5, accuracy: 1e-9,
+                       "starts at the elapsed position (480 ticks = 0.5 s), not the region top")
+    }
+
+    func testPan_appliedAtOnset_andLiveEdit() {
+        var (document, _) = doc()
+        document.lanes[0].pan = 0.5
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.pans.last ?? -1, 0.5, accuracy: 1e-6, "pan set at onset")
+        p.apply(in: edited(document, pan: -1), fromTick: 0, toTick: 480, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.pans.last ?? -1, -1, accuracy: 1e-6, "live pan edit lands")
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1, "pan never re-schedules")
     }
 }

@@ -521,6 +521,23 @@ struct EchoelmusicApp: App {
                     timelinePlayer.slotDetuneSink = { [weak laneVoiceRack] slot, cents in
                         laneVoiceRack?.voice(slot: slot)?.setDetune(cents: cents)
                     }
+                    // H4 (healing wave 1, "Pan silently inert"): each SECONDARY lane's
+                    // pan + continuous gain reach its rack voice — at region load AND
+                    // live on a mid-play mixer edit (the player merges the store's
+                    // mixer state each step via `liveDocument` below).
+                    timelinePlayer.slotPanSink = { [weak laneVoiceRack] slot, pan in
+                        laneVoiceRack?.voice(slot: slot)?.setPan(pan)
+                    }
+                    timelinePlayer.slotGainSink = { [weak laneVoiceRack] slot, gain in
+                        laneVoiceRack?.voice(slot: slot)?.setGain(gain)
+                    }
+                }
+                // H4: let the region player pull LIVE mixer values (mute/solo/level/
+                // pan) from the store each transport step — its play() snapshot alone
+                // froze mid-play mixer edits until the next region boundary. The
+                // primary roll lane stays live via ArrangeTimelineView's onChange.
+                timelinePlayer.liveDocument = { [weak timelineStore] in
+                    timelineStore?.document
                 }
                 // Bio-reactive FX: bind to the melody voice's chain + bio bus and run
                 // the ~30 Hz control loop (idle until the user adds modulation routes).
