@@ -1102,6 +1102,14 @@ private struct TimelinePlayhead: View {
     /// of the clock). nil = follow the transport.
     @State private var scrubTick: Int?
 
+    /// Smooth-glide anchor (founder 2026-07-15 "läuft etwas unflüssig"): the transport
+    /// advances only in 16th steps, so the head jumps. Between steps a 60 fps TimelineView
+    /// interpolates from the wall-clock moment the CURRENT step began (`anchorAt`) toward
+    /// the next step. Reset on every step change / play-start; at a loop wrap the step
+    /// resets to 0 and the head snaps (no backward sweep — each frame draws the computed x).
+    @State private var anchorStep: Int = 0
+    @State private var anchorAt: Date = .distantPast
+
     /// Ticks per transport step (16th) — the seek granularity. 480 / 4 = 120.
     private static var ticksPerStep: Int { TimelineTime.ticksPerBeat / Transport.stepsPerBeat }
     /// Handle band height — matches the ruler so the grab tab sits in the ruler zone.
@@ -1111,38 +1119,66 @@ private struct TimelinePlayhead: View {
 
     private var liveTick: Int { transport.position.absoluteStep * Self.ticksPerStep }
 
+    /// One 16th-step in seconds at the live tempo — the glide window between steps.
+    private var stepSeconds: Double { 60.0 / Swift.max(1, transport.tempo) / Double(Transport.stepsPerBeat) }
+
+    /// The playhead tick to draw at `date`: the exact scrub/live tick when dragging or
+    /// stopped; while playing, the anchor step plus the fraction of `stepSeconds` elapsed
+    /// (clamped 0…1 so it never runs past the next step).
+    private func glideTick(at date: Date) -> Double {
+        if let s = scrubTick { return Double(s) }
+        guard transport.isPlaying else { return Double(liveTick) }
+        let frac = Swift.min(1.0, Swift.max(0.0, date.timeIntervalSince(anchorAt) / stepSeconds))
+        return (Double(anchorStep) + frac) * Double(Self.ticksPerStep)
+    }
+
     var body: some View {
-        let tick = scrubTick ?? liveTick
-        let x = CGFloat(tick) / CGFloat(TimelineTime.ticksPerBeat) * pointsPerBeat
+        // Smooth playhead: a 60 fps TimelineView slides the head between 16th steps
+        // (paused when not gliding, so idle it costs nothing). Only THIS leaf redraws —
+        // the grid/menus never subscribe (freeze rule).
+        let gliding = transport.isPlaying && scrubTick == nil
         let active = scrubTick != nil || transport.isPlaying
         let handleColor = scrubTick != nil ? EchoelTheme.accent
                                            : (transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
-        ZStack(alignment: .topLeading) {
-            // The line — full height, thin, NON-hittable so it never blocks a region tap.
-            Rectangle()
-                .fill(active ? EchoelTheme.accent : EchoelTheme.dim)
-                .frame(width: 2)
-                .frame(maxHeight: .infinity)
-                .allowsHitTesting(false)
-            // The grab handle — a flat-topped downward triangle sitting FLUSH at the very
-            // top (y = 0), its tip meeting the line so the line drops straight out of the
-            // point with NO gap (founder 2026-07-15 "Diese Lücke schließen"; the old
-            // SF-Symbol left a stub of line above the glyph — that float was the gap).
-            // A 44 pt clear frame stays the HIG touch target; the drawn marker is the
-            // visible flag, centered on the 2 pt line. Only THIS is hittable → it wins
-            // over the grid's horizontal ScrollView (dedicated-zone drag).
-            ZStack(alignment: .top) {
-                Color.clear.frame(width: 44, height: Self.handleHeight)
-                PlayheadMarker()
-                    .fill(handleColor)
-                    .frame(width: Self.markerWidth, height: Self.markerHeight)
+        return TimelineView(.animation(paused: !gliding)) { tl in
+            let x = CGFloat(glideTick(at: tl.date)) / CGFloat(TimelineTime.ticksPerBeat) * pointsPerBeat
+            ZStack(alignment: .topLeading) {
+                // The line — full height, thin, NON-hittable so it never blocks a region tap.
+                Rectangle()
+                    .fill(active ? EchoelTheme.accent : EchoelTheme.dim)
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
+                    .allowsHitTesting(false)
+                // The grab handle — a flat-topped downward triangle sitting FLUSH at the very
+                // top (y = 0), its tip meeting the line so the line drops straight out of the
+                // point with NO gap (founder 2026-07-15 "Diese Lücke schließen"; the old
+                // SF-Symbol left a stub of line above the glyph — that float was the gap).
+                // A 44 pt clear frame stays the HIG touch target; the drawn marker is the
+                // visible flag, centered on the 2 pt line. Only THIS is hittable → it wins
+                // over the grid's horizontal ScrollView (dedicated-zone drag).
+                ZStack(alignment: .top) {
+                    Color.clear.frame(width: 44, height: Self.handleHeight)
+                    PlayheadMarker()
+                        .fill(handleColor)
+                        .frame(width: Self.markerWidth, height: Self.markerHeight)
+                }
+                .contentShape(Rectangle())
+                .offset(x: 1 - 22)   // center the 44-wide target on the 2 pt line (line centre x = 1)
+                .gesture(dragGesture)
+                .accessibilityLabel("Playhead — drag to move")
             }
-            .contentShape(Rectangle())
-            .offset(x: 1 - 22)   // center the 44-wide target on the 2 pt line (line centre x = 1)
-            .gesture(dragGesture)
-            .accessibilityLabel("Playhead — drag to move")
+            .offset(x: x)
         }
-        .offset(x: x)
+        // Re-anchor the glide on every step boundary and on play-start / appearance, so
+        // interpolation always measures from the moment the current step actually began.
+        .onChange(of: transport.position.absoluteStep) { _, s in
+            anchorStep = s
+            anchorAt = Date()
+        }
+        .onChange(of: transport.isPlaying) { _, playing in
+            if playing { anchorStep = transport.position.absoluteStep; anchorAt = Date() }
+        }
+        .onAppear { anchorStep = transport.position.absoluteStep; anchorAt = Date() }
     }
 
     private var dragGesture: some Gesture {

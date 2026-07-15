@@ -1,28 +1,26 @@
-build: 2026-07-15 v10.79.236 (Clips jetzt auch VORNE trimmen — nicht nur hinten)
+build: 2026-07-15 v10.79.237 (Playhead läuft jetzt flüssig — zwischen den 16teln interpoliert)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Aus deinem Video: "Nicht nur hinten länger ziehen und kürzer machen sondern auch
-  vorne."
+notes: Letzter Punkt aus deinem Timeline-Video: "läuft auch etwas unflüssig."
 
-  NEU: jeder Clip hat jetzt AUCH links einen Zieh-Griff (spiegelbildlich zum rechten).
-  • Linke Kante nach rechts ziehen → Clip wird vorne gekürzt; die rechte Kante bleibt,
-    wo sie ist, und der Inhalt bleibt an Ort und Stelle (der Medien-Startpunkt wandert
-    passend mit — kein Versatz).
-  • Linke Kante nach links ziehen → Clip wird vorne verlängert; bei Audio/Video wird
-    früheres Material sichtbar, bis zum echten Medien-Anfang (nicht weiter — es gibt ja
-    nichts davor). MIDI ohne Vormaterial lässt sich vorne nur kürzen, nicht verlängern.
-  Beim Loslassen rastet der Griff aufs Raster (bzw. stufenlos bei Snap = off).
+  URSACHE: der Transport zählt nur in 16tel-Schritten, also sprang der Playhead pro
+  Sechzehntel weiter — bei ruhigem Tempo als Ruckeln sichtbar.
 
-  TEST-FIRST: 5 neue reine Tick-Mathe-Tests (vorne kürzen/verlängern, Clamp am Medien-
-  Anfang, MIDI-Sonderfall, Clamp am Ende) — laufen im CI-Gate.
+  FIX: der Playhead gleitet jetzt mit 60 fps ZWISCHEN den Schritten. Er interpoliert vom
+  Moment, in dem der aktuelle 16tel-Schritt begann, sanft zum nächsten — die Bewegung
+  ist durchgehend flüssig statt gestuft. Beim Loop-Zurückspringen SNAPPT er sauber auf
+  den Anfang (kein Rückwärts-Wischen). Beim Stoppen/Ziehen zeigt er exakt die Position,
+  ohne Glide. Steht er still, kostet die Animation nichts (pausiert).
 
-  SICHER: code-reviewer + ui-state-reviewer CONFIRMED — Mathematik exakt (rechte Kante
-  bleibt fix, Ende gehalten, Offset-Verschiebung korrekt, kein Off-by-one über
-  Sub-Millisekunde), Tests arithmetisch richtig, nur das gezogene Clip-Leaf rendert neu
-  (Freeze-Regel), der linke Griff kollidiert nicht mit Vorhören/Menü (gleiches Muster wie
-  der rechte). Gates v233–v235 grün.
+  SICHER: ui-state-reviewer CONFIRMED — nur das Playhead-Leaf rendert mit 60 fps neu
+  (es ist ein Overlay NEBEN dem Raster, kein Vorfahr der Clips/Menüs → Freeze-Regel
+  gewahrt; der gleitende Pfad liest nicht mal den 16tel-Zähler, nur den Zeit-Anker),
+  Loop-Wrap snappt, kein Vorwärts/Rückwärts-Sprung im Normallauf, idle 0 fps. Gates
+  v234–v236 grün.
 
-  Reihenfolge: v234 ein Play-Knopf · v235 Playhead-Lücke + erneut schneidbar · v236 Clip
-  vorne trimmbar.
+  DAMIT ist dein Timeline-Video komplett: Playhead greifbar (v232) · ziehbar mit Snap
+  (v230) · Lücke am Griff zu (v235) · erneut schneidbar (v235) · Clip vorne trimmbar
+  (v236) · Playhead flüssig (v237). Plus separat: ein Play-Knopf (v234), Bio auf den
+  Pill (v233).
 
-  NÄCHSTE RUNDE: flüssigerer Playhead-Lauf (zwischen den 16teln interpolieren) — der
-  letzte offene Punkt aus deinem Timeline-Video.
+  Reihenfolge: v235 Playhead-Lücke + Schnitt · v236 Clip vorne trimmbar · v237 Playhead
+  flüssig.
