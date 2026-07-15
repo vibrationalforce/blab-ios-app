@@ -1,40 +1,40 @@
-build: 2026-07-15 v10.79.258 (Puls lockt im Dunkeln + Gurt-Scan sichtbar)
+build: 2026-07-15 v10.79.259 (Gurt gehört der Pille + jedes Log sagt die Wahrheit)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 1 (Live-Session) — zwei Heilungen direkt aus deinem
-  Log Build 2361, plus Website-Ehrlichkeit.
+notes: Ultraprogramm Bereich 1 komplett (bis auf deine offene ■-Frage).
 
-  [A] WARUM SESSION 2 IN 92 s NIE GELOCKT HAT — GEHEILT:
-  • Deine eigene dunkle Belichtungssperre drückt einen aufliegenden Finger
-    auf Rot-Werte UNTER den Finger-Halte-Boden → die App meldete finger=no,
-    warf das Analyse-Fenster weg, und die Neu-Erkennung brauchte helle Werte,
-    die die dunkle Sperre nie liefert — Endlosschleife, nie ein Lock.
-  • Session 3 im selben Log beweist: dieselbe Dunkelheit LOCKT (Qualität 0.97,
-    Puls 57–60), wenn der Detektor den Finger einfach hält. Der Halte-Boden
-    liegt jetzt UNTER dem, was die dunkle Sperre erzeugt; die Aufnahme-Schwelle
-    bleibt hart, die Rot-Dominanz-Prüfung bleibt (kein Fehl-Halten auf Szenen).
-    Beide Werte aus deinen Logs verankert — kein Blind-Tuning.
+  [A] DER GURT HAT JETZT EINEN BESITZER — DIE PULS-PILLE:
+  • Vorher gab es ZWEI Besitzer: die Pille UND das Routing. Folge: JEDER
+    beliebige Patchbay-Edit (OSC verkabeln, Licht einrichten) stoppte einen
+    laufenden Gurt still mitten in der Performance — und eine gesetzte
+    Routing-Verbindung konnte Gurt UND Kamera gleichzeitig publizieren
+    lassen (BPM/HRV flackerte zwischen den Quellen).
+  • ⚠️ MIGRATION: Wer den Gurt bisher über Routing („Herzgurt (BLE)"-
+    Verbindung) startete — diese Verbindung startet ihn NICHT mehr. Die
+    EINE Tür: Puls-Pille im Header LANG DRÜCKEN → „Search for Bluetooth
+    device". Der Bio-Panel-Text zeigt den neuen Weg.
 
-  [B] DER GURT-SCAN IST JETZT SICHTBAR (deine 2 abgebrochenen Versuche):
-  • Vorher: „Search for Bluetooth device" → NICHTS passierte sichtbar — der
-    Scan lief unsichtbar und endlos. Du hast (völlig zu Recht) nach Sekunden
-    abgebrochen.
-  • Jetzt zeigt die Puls-Pille live: „Scanning…" → „Connecting…" → Gerätename
-    → BPM. Ehrlich bei Problemen: „BT off" (Bluetooth aus/verweigert) und nach
-    20 s „No strap" mit dem entscheidenden Coaching: ELEKTRODEN BEFEUCHTEN —
-    Brustgurte senden erst mit Hautkontakt. VoiceOver trägt die Voll-Hinweise.
+  [B] ZOMBIE-SCAN GEHEILT (dein geloggtes Muster vom ersten Gurt-Tag):
+  • Stopp während des iOS-Bluetooth-Permission-Prompts hinterließ einen
+    unsichtbaren Scan + ein verwaistes zweites Bluetooth-Objekt (Batterie-
+    Drain auf Handy UND Gurt); ein Stopp während „Connecting…" (Stopp,
+    Elektroden befeuchten, neu versuchen) hätte eine unkündbare Verbindung
+    hinterlassen — der Gurt wäre bis zum App-Kill unauffindbar gewesen.
+    Alle Pfade jetzt verifiziert sauber (Concurrency-Review, alle
+    Interleavings durchgespielt: verbunden-nach-Stopp wird aktiv gelöst).
 
-  [C] WEBSITE-EHRLICHKEIT (docs/, kein App-Code): Die FAQ behauptete erfundene
-    Features (Orchester-Sektionen mit SATB-Chor, „EchoelWarmth"-Analog-Suite,
-    „Full MIDI 2.0", Audio-to-MIDI, RGB-LED-Feedback). Alles durch die echte
-    Code-Realität ersetzt — claim only what ships.
+  [C] JEDES LOG SAGT JETZT DIE WAHRHEIT (für deine nächsten Geräte-Logs):
+  • Das „Evolve nach Stopp"-Phantom aus deinem Log war ein LÜGENDES Label:
+    deine Variation-Taps loggten den veralteten Grund der zuvor gestoppten
+    Session. Jeder generate trägt jetzt den Grund SEINES Auslösers
+    (start · evolve · lock-snap · user-edit · variation).
+  • Jeder Musik-Stopp-Knopf schreibt seinen Namen ins Log BEVOR die
+    Kaskade läuft („transport-bar" · „record-stop" · „roll-stop") — dein
+    nächstes Log sagt exakt, welcher Finger eine Session beendet hat.
 
-  Reviews: DSP-Review APPROVE (A, adversarial inkl. Fehl-Halte-Analyse) ·
-  UI-State-Review APPROVE (B, Injection/Freeze-Gesetz/Watchdog-Races geprüft).
-  Alle 4 Gates grün.
+  Reviews: Concurrency APPROVE (nach 2 HIGH-Fixes) · Code-Review APPROVE.
+  Alle 4 Gates grün. Reihenfolge heute: v257 Audition-Fenster · v258
+  Puls-im-Dunkeln + Gurt sichtbar · v259 dieses Paket.
 
-  OFFENE FOUNDER-FRAGE (U-B1.5): Dein Log zeigte, dass ■ (Musik-Stopp) die
-  ganze Bio-Session mitreißt — inklusive des 34-s-Puls-Locks, den ▶ nicht
-  wiederherstellen kann. Soll ■ künftig nur die MUSIK pausieren und die
-  Bio-Session (Kamera-Lock, Evolve) weiterleben lassen — die Puls-Pille wäre
-  der EINE Bio-Aus-Schalter? Das ändert deinen „ONE Stop"-Entscheid, darum
-  frage ich. Ja/Nein genügt.
+  WEITER OFFEN (deine Antwort genügt als Nachricht): Soll ■ (Musik-Stopp)
+  künftig nur die MUSIK pausieren und die Bio-Session (Kamera-Lock,
+  Evolve) weiterleben lassen — Puls-Pille = der EINE Bio-Aus-Schalter?
