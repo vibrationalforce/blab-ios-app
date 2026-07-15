@@ -53,6 +53,22 @@ public final class LaneAUInstrumentHost {
     /// The hosted voice for a lane, nil ⇒ caller uses the built-in slot voice.
     public func voice(laneID: UUID) -> AUNoteVoice? { voices[laneID] }
 
+    /// H5b slot→lane binding, pushed by the region player at region load/prime
+    /// (from the PLAYBACK SNAPSHOT — the store's lane order can drift mid-play).
+    /// nil clears a slot (region gap / lane overflow).
+    @ObservationIgnored private var slotBindings: [Int: UUID] = [:]
+
+    public func bindSlot(_ slot: Int, laneID: UUID?) {
+        slotBindings[slot] = laneID
+    }
+
+    /// The hosted voice a SLOT currently drives (via its bound lane), nil ⇒
+    /// the built-in rack voice keeps the slot. Used by the app's note sink.
+    public func voice(slot: Int) -> AUNoteVoice? {
+        guard let laneID = slotBindings[slot] else { return nil }
+        return voices[laneID]
+    }
+
     /// Reconcile hosted instances with the document's lane assignments:
     /// removed/changed assignments detach their instance (and invalidate any
     /// in-flight load); new assignments instantiate asynchronously (capped).

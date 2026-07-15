@@ -108,6 +108,11 @@ public final class TimelineRegionPlayer {
     /// froze them until the next region boundary (H4). Only the mixer fields are
     /// merged (see `TimelineDocument.mergeMixer`); structure stays snapshot-stable.
     @ObservationIgnored public var liveDocument: (() -> TimelineDocument?)?
+    /// H5b: publishes which LANE a slot currently plays (from the playback
+    /// snapshot — the one source whose ranks match the pumps), at region load/
+    /// prime; nil on clear/silence/stop. The app binds it into the per-lane AU
+    /// host so the note sink can route a slot to its lane's hosted instrument.
+    @ObservationIgnored public var slotLaneSink: ((_ slot: Int, _ laneID: UUID?) -> Void)?
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
@@ -345,6 +350,12 @@ public final class TimelineRegionPlayer {
         for command in LaneVoiceRackPlan.commands(steps: steps, capacity: multiRollCapacity) {
             switch command {
             case .load(let slot, let clipID):
+                // ORDER LAW (H5b): release the OLD take through the slot's OLD
+                // binding BEFORE re-binding/re-timbring — offs sent after the
+                // re-bind would land in the NEW lane's AU and hang the old one.
+                var pump = pumps[slot] ?? LaneNotePump()
+                if !pump.isEmpty { sink(slot, pump.reset()) }
+                slotLaneSink?(slot, MultiRollFanout.laneID(forSlot: slot, in: doc, rollLane: rollLane))
                 // Per-lane timbre: set this slot's voice to its lane's own patch BEFORE
                 // its first notes (apply() enqueues ahead of the notes in the voice's
                 // render drain, so timbre precedes attack). nil ⇒ app falls back.
@@ -355,8 +366,6 @@ public final class TimelineRegionPlayer {
                 // mixer position/level to THIS lane's values before its first notes.
                 slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
                 slotGainSink?(slot, MultiRollFanout.gain(forSlot: slot, in: doc, rollLane: rollLane))
-                var pump = pumps[slot] ?? LaneNotePump()
-                if !pump.isEmpty { sink(slot, pump.reset()) }   // release the old take first
                 pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
                 pumps[slot] = pump
             case .clear(let slot), .silence(let slot):
@@ -364,6 +373,7 @@ public final class TimelineRegionPlayer {
                     sink(slot, pump.reset())
                     pumps[slot] = nil
                 }
+                slotLaneSink?(slot, nil)   // offs above went through the old binding
             }
         }
         // Fire this step on every live slot pump (offs before ons, per pump). A
@@ -396,13 +406,16 @@ public final class TimelineRegionPlayer {
         guard multiRollCapacity > 0, let sink = slotNoteSink else { return }
         for load in MultiRollFanout.activeLoads(in: doc, at: tick,
                                                 rollLane: rollLane, capacity: multiRollCapacity) {
+            // Same ORDER LAW as the window fan-out: old take out through the
+            // old binding, THEN re-bind + re-timbre (H5b).
+            var pump = pumps[load.slot] ?? LaneNotePump()
+            if !pump.isEmpty { sink(load.slot, pump.reset()) }
+            slotLaneSink?(load.slot, load.laneID)
             slotPatchSink?(load.slot, load.patch)
             slotTransposeSink?(load.slot, MultiRollFanout.transpose(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotPanSink?(load.slot, MultiRollFanout.pan(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotGainSink?(load.slot, MultiRollFanout.gain(forSlot: load.slot, in: doc, rollLane: rollLane))
-            var pump = pumps[load.slot] ?? LaneNotePump()
-            if !pump.isEmpty { sink(load.slot, pump.reset()) }
             pump.load(clips?.clip(id: load.clipID)?.melody?.notes ?? [])
             pumps[load.slot] = pump
         }
@@ -437,9 +450,10 @@ public final class TimelineRegionPlayer {
         if let sink = slotNoteSink {
             for slot in pumps.keys.sorted() {
                 if var pump = pumps[slot] {
-                    sink(slot, pump.reset())
+                    sink(slot, pump.reset())   // offs through the still-current binding
                     pumps[slot] = nil
                 }
+                slotLaneSink?(slot, nil)       // then release the slot's lane binding
             }
         }
         pumps.removeAll()

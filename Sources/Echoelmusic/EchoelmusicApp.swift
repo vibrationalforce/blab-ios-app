@@ -107,6 +107,9 @@ struct EchoelmusicApp: App {
     @State private var signalRouter = SignalRouter()
     /// AUv3 host: discovers installed plugins and loads an instrument into the graph.
     @State private var auHost = AUv3Host()
+    /// H5: per-LANE hosted AUv3 instruments (laneID-keyed; the global auHost above
+    /// stays the primary roll's channel). Assignments reconcile via the store hook.
+    @State private var laneAUHost = LaneAUInstrumentHost()
     /// The parameter-unification spine (U2c): one registry (queryable inventory)
     /// + one router (keyPath → live setter). Shared by the AUv3 host (hosted-plugin
     /// params register/bind on load) and the AutomationPlayer (extra registry lanes
@@ -423,6 +426,10 @@ struct EchoelmusicApp: App {
                 // the OFF-by-default contract of every OTHER feature flag. Must precede the
                 // first `FeatureFlags.multiRoll` read below (rack attach).
                 UserDefaults.standard.register(defaults: [FeatureFlags.Key.multiRoll.rawValue: true])
+                // H5 lane-AU default-ON, same registration pattern + rationale as
+                // multiRoll (risk activates only through the explicit assign act;
+                // dev-OFF override stays the one-line rollback lever).
+                UserDefaults.standard.register(defaults: [FeatureFlags.Key.laneAUInstruments.rawValue: true])
                 // Breadcrumbs at every STARTUP milestone: this is the most crash-prone
                 // window (the build-1363 hot-attach + audio-engine start). They land in
                 // the shared diagnostic log, so a launch that dies here names the phase
@@ -501,7 +508,16 @@ struct EchoelmusicApp: App {
                     // gets (patchStore.patches.first, applied at line ~527), so an
                     // unset lane matches the primary timbre — never the bare DDSP default.
                     let fallbackPatch = patchStore.patches.first
-                    timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack] slot, events in
+                    timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack, weak laneAUHost] slot, events in
+                        // H5b: a lane with a hosted AU instrument plays THAT —
+                        // the built-in rack voice stays the fallback (never both).
+                        if FeatureFlags.laneAUInstruments, let au = laneAUHost?.voice(slot: slot) {
+                            for event in events {
+                                if event.isOn { au.noteOn(pitch: event.pitch, velocity: event.velocity) }
+                                else { au.noteOff(pitch: event.pitch) }
+                            }
+                            return
+                        }
                         guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
                         for event in events {
                             if event.isOn { voice.noteOn(pitch: event.pitch, velocity: event.velocity) }
@@ -511,25 +527,52 @@ struct EchoelmusicApp: App {
                         guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
                         if let resolved = patch ?? fallbackPatch { voice.apply(resolved) }
                     }
+                    // H5b: the player publishes which lane a slot plays (from the
+                    // playback snapshot); the AU host resolves slot → hosted voice.
+                    timelinePlayer.slotLaneSink = { [weak laneAUHost] slot, laneID in
+                        laneAUHost?.bindSlot(slot, laneID: laneID)
+                    }
                     // Per-instrument Transpose (founder 2026-07-14): pitch each SECONDARY
                     // lane's rack voice by its own semitone shift when the lane loads.
-                    timelinePlayer.slotTransposeSink = { [weak laneVoiceRack] slot, semitones in
+                    timelinePlayer.slotTransposeSink = { [weak laneVoiceRack, weak laneAUHost] slot, semitones in
                         laneVoiceRack?.voice(slot: slot)?.setTranspose(semitones: semitones)
+                        laneAUHost?.voice(slot: slot)?.transposeSemitones = semitones
                     }
                     // Per-instrument Detune (founder 2026-07-14 "transpose detune"): fine
                     // cents offset per SECONDARY lane's rack voice, alongside transpose.
+                    // AU lanes deliberately get NO detune (not expressible as plain MIDI —
+                    // the honest limit documented on AUNoteVoice).
                     timelinePlayer.slotDetuneSink = { [weak laneVoiceRack] slot, cents in
                         laneVoiceRack?.voice(slot: slot)?.setDetune(cents: cents)
                     }
                     // H4 (healing wave 1, "Pan silently inert"): each SECONDARY lane's
                     // pan + continuous gain reach its rack voice — at region load AND
                     // live on a mid-play mixer edit (the player merges the store's
-                    // mixer state each step via `liveDocument` below).
-                    timelinePlayer.slotPanSink = { [weak laneVoiceRack] slot, pan in
+                    // mixer state each step via `liveDocument` below). H5b: mirrored
+                    // to a hosted AU voice's lane-mixer stage when the slot has one.
+                    timelinePlayer.slotPanSink = { [weak laneVoiceRack, weak laneAUHost] slot, pan in
                         laneVoiceRack?.voice(slot: slot)?.setPan(pan)
+                        laneAUHost?.voice(slot: slot)?.setPan(pan)
                     }
-                    timelinePlayer.slotGainSink = { [weak laneVoiceRack] slot, gain in
+                    timelinePlayer.slotGainSink = { [weak laneVoiceRack, weak laneAUHost] slot, gain in
                         laneVoiceRack?.voice(slot: slot)?.setGain(gain)
+                        laneAUHost?.voice(slot: slot)?.setGain(gain)
+                    }
+                    // H5b: host per-lane AU instruments — wire the engine, restore
+                    // persisted assignments, reconcile on every document change
+                    // (assign/clear/lane-delete/undo — all funnel through persist),
+                    // and belt-and-braces silence on any transport stop.
+                    if FeatureFlags.laneAUInstruments {
+                        laneAUHost.use(engine: audioEngine)
+                        laneAUHost.syncAssignments(lanes: timelineStore.document.lanes,
+                                                   rollLane: timelineStore.document.rollLaneID)
+                        timelineStore.onDocumentChanged = { [weak laneAUHost, weak timelineStore] in
+                            guard let doc = timelineStore?.document else { return }
+                            laneAUHost?.syncAssignments(lanes: doc.lanes, rollLane: doc.rollLaneID)
+                        }
+                        transport.addStopSubscriber("laneAU") { [weak laneAUHost] in
+                            laneAUHost?.allNotesOff()
+                        }
                     }
                 }
                 // H4: let the region player pull LIVE mixer values (mute/solo/level/

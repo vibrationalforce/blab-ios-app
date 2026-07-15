@@ -495,7 +495,14 @@ public final class TimelineStore {
 
     // MARK: - Persistence
 
+    /// H5b: fires after EVERY persisted document change (assignment edits, lane
+    /// removal, undo/redo — all mutation paths funnel through persist), so the
+    /// app can reconcile per-lane hosted AU instruments. The consumer must be
+    /// cheap + idempotent (LaneAUInstrumentHost.syncAssignments is a dict diff).
+    @ObservationIgnored public var onDocumentChanged: (() -> Void)?
+
     private func persist() {
         try? store.save(document, name: Self.fileName)
+        onDocumentChanged?()
     }
 }

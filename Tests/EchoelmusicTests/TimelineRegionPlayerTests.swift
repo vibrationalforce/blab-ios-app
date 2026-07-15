@@ -113,5 +113,32 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
                        "the step pulls the store edit and re-pushes the slot gain")
         XCTAssertEqual(pans[0] ?? -1, -0.5, accuracy: 1e-6)
     }
+
+    func testSlotLaneSink_bindsAtPrime_releasesOnStop() {
+        // H5b: the player publishes which LANE a slot plays (snapshot-truth) so
+        // the app can route the slot to that lane's hosted AU instrument.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let secondary = TimelineLane(name: "MIDI 2", kind: .midi)
+        let document = TimelineDocument(lanes: [roll, secondary], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: secondary.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var bindings: [(Int, UUID?)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotLaneSink = { bindings.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips,
+                    pattern: pattern, pianoRoll: pianoRoll)
+        XCTAssertEqual(bindings.first?.0, 0)
+        XCTAssertEqual(bindings.first?.1, secondary.id, "prime binds slot 0 to the secondary lane")
+
+        player.stop()
+        XCTAssertNil(bindings.last?.1, "stop releases the slot's lane binding")
+        XCTAssertEqual(bindings.last?.0, 0)
+    }
 }
 #endif
