@@ -6161,3 +6161,28 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Nächste Zyklen:** U-B1.3 (BLE-3 EIN Besitzer + BLE-4 Zombie-Guards) →
   U-B1.4 (T2 ehrliche Labels + Stop-Quellen-Breadcrumbs) → U-B1.5 founder-gated
   (■-Frage steht in v258-Notes + Status-Delta) → Bereich 2 (CLIP-1 M1c zuerst).
+
+## 2026-07-15 (Fortsetzung 12) — v259: Bereich 1 komplett (BLE-Besitzer + Zombie-Heal + ehrliche Diagnose)
+- **v259 deployed (8ff5744+e7bd2ee [BLE-3/4] · cd2cedf [T2+T1-Breadcrumbs],
+  Gates 4/4 auf cd2cedf):** BLE-3 EIN Besitzer (applyRouting-Kopplung raus,
+  blehrs.in bleibt Datenfluss-Port; Migrations-Notiz in Release-Notes) ·
+  BLE-4 Zombie-Guards + Central-Reuse · Review-HIGHs: stop() cancelt
+  Pending-Connects unconditional (cancelPeripheralConnection = Apples Cancel
+  für .connecting; .connected-only-Guard ließ Stop-während-Connecting eine
+  unsterbliche Verbindung auf dem WIEDERVERWENDETEN Central zurück → ewig
+  „No strap" bis App-Kill), didConnect-nach-Stop wird aktiv released statt
+  ignoriert. T2: generate(reason:) läuft-zeit-gestempelt (Phantom-Zombie-
+  Evolve erklärt+behoben), T1-Schritt-1: Stop-Quellen-Breadcrumbs an allen
+  drei Musik-Stopps. Reviews: concurrency APPROVE (alle Interleavings inkl.
+  Daemon-Level-Kreuzung) · code APPROVE (5/5 Checks).
+- **LEDGER-Lehren:** (1) CB-Lifecycle: cancelPeripheralConnection IMMER
+  unconditional bei Teardown — der .connected-Check ist die Falle, Pending-
+  Connects sind der Normalfall beim Gurt-Fummeln. (2) Post-Stop-Delegate-
+  Callbacks aktiv RELEASEN, nicht nur ignorieren (ignorieren = Orphan).
+  (3) Diagnose-Labels an RUN-Zeit binden, nie an Schedule-Zeit (Cancel läßt
+  sonst Stale-Labels zurück, die Triage-Zyklen verbrennen).
+- **Bereich-1-Stand:** U-B1.1–U-B1.4 SHIPPED (v258+v259). U-B1.5 (■ pausiert
+  nur Musik?) founder-gated — Frage in v258+v259-Notes + Status-Deltas.
+- **Nächster Zyklus (Bereich 2): U-B2.1 = CLIP-1 M1c** — Sekundär-MIDI-Lanes
+  ohne Fensterung (TimelineRegionPlayer:369/419 lädt volle Melodie;
+  LaneNotePump %16-Faltung). Test-first, RegionNoteWindow existiert.
