@@ -1,29 +1,26 @@
-build: 2026-07-15 v10.79.240 (Undo/Redo fürs Clip-Editing — furchtlos schneiden, schieben, löschen)
+build: 2026-07-15 v10.79.241 (Mehrere Clips markieren → Combine oder löschen — Clip-Game C3)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Clip-Game C2 aus deinem Auftrag ("seamless workflow"): UNDO/REDO.
+notes: Dein Wunsch aus dem Split/Join-Screenshot ist da: "Wenn man mehrere Clips
+  markiert soll auch combine gehen."
 
-  NEU: zwei Pfeil-Knöpfe (↩ ↪) links in der Timeline-Leiste.
-  • JEDER Clip-Eingriff ist ein Schritt in der Historie: verschieben, vorne/hinten
-    trimmen, schneiden, zusammenfügen, duplizieren, löschen, importieren — bis zu 50
-    Schritte zurück.
-  • Undo macht den letzten Schritt rückgängig, Redo holt ihn zurück; ein neuer Eingriff
-    nach Undo öffnet einen frischen Verlauf (wie in jeder DAW).
-  • WICHTIG (Reviewer-Fund, behoben): die Historie umfasst NUR Clip-Eingriffe — Fader,
-    Umbenennen, Mute/Solo, Instrument-Zuweisung werden von einem Undo NIE mit
-    zurückgedreht. Und eine gelöschte Spur läßt per Undo keine unsichtbaren
-    Geister-Clips zurück.
+  NEU: der Auswahl-Modus in der Timeline-Leiste (✓-Knopf neben Undo/Redo).
+  • ✓ antippen → Auswahl-Modus: Clips antippen markiert sie (grüner Ring),
+    nochmal antippen entfernt die Markierung.
+  • COMBINE (ab 2 markierten Clips derselben Spur): macht aus allen EINEN Clip —
+    vom frühesten Anfang bis zum spätesten Ende. Auseinandergeschnittene Teile
+    werden nahtlos wieder eins; über Lücken hinweg spielt der erste Clip durch.
+  • Papierkorb: löscht alle markierten Clips auf einmal.
+  • Beides ist EIN Undo-Schritt (↩ holt alles zurück) — furchtlos ausprobieren.
+  • Ziehen/Trimmen/Menü funktionieren im Auswahl-Modus normal weiter.
 
-  ECHOELAI: "mach das rückgängig" ruft später exakt dieses undo() auf — die Historie
-  liegt im Befehlskern (Store), nicht in der Oberfläche.
+  TEST-FIRST: 3 neue Store-Tests (Spannweite+Identität+Ein-Schritt-Undo, Quer-Spur/
+  Einzel = No-Op, Sammel-Löschen ein Undo-Schritt).
+  SICHER: ui-state-reviewer CONFIRMED — Parameter-Reihenfolge, Undo-Platzierung,
+  Auswahl-Zustand nur tap-frequent (Freeze-Regel), Gesten-Zusammenspiel unangetastet.
+  Gates v240 grün.
 
-  TEST-FIRST: 4 neue Historie-Tests (Verschieben rückgängig + wiederholen, Löschen
-  rückgängig, neuer Eingriff leert Redo, No-Ops erzeugen keine toten Schritte).
-  SICHER: code-reviewer CONFIRMED (Snapshot-Platzierung in allen 11 Befehlen nach den
-  Guards geprüft; der Ganz-Dokument-Kontaminations-Fund wurde VOR dem Ship auf
-  Nur-Clips-Snapshots umgebaut). Gates v239 grün.
+  Clip-Game-Stand: C1 Drag-to-move ✓ · C2 Undo/Redo ✓ · C3 Multi-Select+Combine ✓ ·
+  als Nächstes C4 Einrast-Haptik/Magnetkanten · C5 Überlapp-Regel · C6 EchoelAI-
+  TimelineToolCore (Sprachbefehle → dieselben Store-Calls).
 
-  Clip-Game-Stand: C1 Drag-to-move (v239) ✓ · C2 Undo/Redo (v240) ✓ · als Nächstes
-  C3 Multi-Select + Combine · C4 Einrast-Haptik/Magnetkanten · C5 Überlapp-Regel ·
-  C6 EchoelAI-TimelineToolCore.
-
-  Reihenfolge: v239 Drag-to-move · v240 Undo/Redo.
+  Reihenfolge: v239 Drag-to-move · v240 Undo/Redo · v241 Multi-Select+Combine.
