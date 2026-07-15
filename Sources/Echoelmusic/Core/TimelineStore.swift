@@ -101,6 +101,27 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Drag-to-move (clip game C1): move a region in TIME and optionally to another
+    /// LANE `laneOffset` rows away. The lane change only applies when the target row
+    /// exists AND has the same kind (an audio clip can't land on a MIDI lane) — else
+    /// the region keeps its lane and only the time move applies. One store method =
+    /// one command, so the future EchoelAI edit tools call exactly this (plan
+    /// PLAN_CLIP_GAME_2026-07-15: store-first, gestures stay thin).
+    public func moveRegion(id: UUID, toStartTick tick: Int, laneOffset: Int) {
+        guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        document.regions[i].startTick = max(0, tick)
+        if laneOffset != 0,
+           let fromIdx = document.lanes.firstIndex(where: { $0.id == document.regions[i].laneID }) {
+            let targetIdx = fromIdx + laneOffset
+            if document.lanes.indices.contains(targetIdx),
+               document.lanes[targetIdx].kind == document.lanes[fromIdx].kind,
+               !document.lanes[targetIdx].isBio {
+                document.regions[i].laneID = document.lanes[targetIdx].id
+            }
+        }
+        persist()
+    }
+
     /// Resize a region (trim); minimum one tick so a region can't vanish.
     public func resizeRegion(id: UUID, lengthTicks: Int) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }

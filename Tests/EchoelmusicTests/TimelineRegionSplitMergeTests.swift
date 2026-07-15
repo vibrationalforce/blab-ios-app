@@ -178,6 +178,48 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
                       "the rejoined region spans the original first bar again")
     }
 
+    // MARK: - Drag-to-move (C1 — clip game: horizontal time + vertical lane change)
+
+    func testMoveRegion_laneOffset_movesToSameKindLane() {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "moveA-\(UUID())")
+        store.addLane(kind: .audio, name: "moveB-\(UUID())")
+        let lanes = store.document.lanes.suffix(2)
+        let from = lanes.first!, to = lanes.last!
+        let r = TimelineRegion(laneID: from.id, clipID: UUID(), startTick: 480, lengthTicks: 960)
+        store.addRegion(r)
+        store.moveRegion(id: r.id, toStartTick: 1920, laneOffset: 1)
+        let moved = store.document.regions.first { $0.id == r.id }!
+        XCTAssertEqual(moved.startTick, 1920, "time moved")
+        XCTAssertEqual(moved.laneID, to.id, "landed on the next same-kind lane")
+    }
+
+    func testMoveRegion_laneOffset_kindMismatch_keepsLaneButMovesTime() {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "kindA-\(UUID())")
+        store.addLane(kind: .midi, name: "kindM-\(UUID())")
+        let lanes = store.document.lanes.suffix(2)
+        let from = lanes.first!
+        let r = TimelineRegion(laneID: from.id, clipID: UUID(), startTick: 0, lengthTicks: 960)
+        store.addRegion(r)
+        store.moveRegion(id: r.id, toStartTick: 960, laneOffset: 1)
+        let moved = store.document.regions.first { $0.id == r.id }!
+        XCTAssertEqual(moved.startTick, 960, "time still moves")
+        XCTAssertEqual(moved.laneID, from.id, "audio clip refuses a MIDI lane")
+    }
+
+    func testMoveRegion_laneOffset_outOfRange_keepsLane_andTickClampsAtZero() {
+        let store = TimelineStore()
+        store.addLane(kind: .video, name: "solo-\(UUID())")
+        let from = store.document.lanes.last!
+        let r = TimelineRegion(laneID: from.id, clipID: UUID(), startTick: 480, lengthTicks: 480)
+        store.addRegion(r)
+        store.moveRegion(id: r.id, toStartTick: -300, laneOffset: 99)
+        let moved = store.document.regions.first { $0.id == r.id }!
+        XCTAssertEqual(moved.startTick, 0, "negative target clamps to the song start")
+        XCTAssertEqual(moved.laneID, from.id, "no lane beyond the last — stays put")
+    }
+
     func testRemoveRegion_deletesOnlyThatRegion() {
         let store = TimelineStore()
         let lane = UUID(); let clip = UUID()

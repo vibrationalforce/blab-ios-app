@@ -831,13 +831,20 @@ private struct RegionBlockView: View {
     /// the left edge shifts x AND shrinks/grows the width, holding the right edge fixed.
     @State private var frontDelta: CGFloat = 0
     @State private var isFrontResizing = false
+    /// Live DRAG-TO-MOVE offset (clip game C1, founder 2026-07-15 "seamless workflow"):
+    /// grab the clip BODY and slide it — horizontally in time, vertically to another
+    /// same-kind lane. Leaf state, so only this clip re-renders while dragging.
+    @State private var moveDelta: CGSize = .zero
+    @State private var isMoving = false
 
     private var laneHeight: CGFloat { ArrangeTimelineView.laneHeight }
 
     var body: some View {
         // Leading trim moves the left edge (x += frontDelta) and adjusts width the
         // opposite way so the RIGHT edge stays put; trailing trim adds to the width.
-        let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontDelta
+        // Drag-to-move shifts the WHOLE clip live (x + moveDelta.width, y follows the
+        // finger toward another lane); width is untouched by a move.
+        let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontDelta + moveDelta.width
         let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeDelta - frontDelta)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
@@ -858,7 +865,7 @@ private struct RegionBlockView: View {
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(tint.opacity(0.55), lineWidth: 1))
+                .strokeBorder(tint.opacity(isMoving ? 1.0 : 0.55), lineWidth: 1))
             .overlay(alignment: .topLeading) {
                 Text(name)
                     .font(EchoelTheme.font(9, .medium))
@@ -895,8 +902,19 @@ private struct RegionBlockView: View {
                 .gesture(resizeGesture)
             }
             .frame(width: w, height: laneHeight - 8)
-            .offset(x: x, y: 4)
+            .offset(x: x, y: 4 + moveDelta.height)
+            // While dragging, float this clip above its lane siblings so it never
+            // slides "under" a neighbouring region.
+            .zIndex(isMoving ? 10 : 0)
             .contentShape(RoundedRectangle(cornerRadius: 6))
+            // Drag-to-move on the clip BODY (clip game C1 — founder: "seamless workflow,
+            // kein unbeholfenes Rumdrücken"): grab and slide. The trim grips are child
+            // overlays drawn on top, so they keep winning their 22 pt edge zones; an
+            // 8 pt minimum distance keeps a plain TAP falling through to audition and a
+            // stationary long-press opening the context menu. Same dedicated-drag
+            // pattern the trim handles proved against the scrolling grid (device-
+            // verified) — the store call is the ONE command EchoelAI will also use.
+            .gesture(moveGesture)
             .onTapGesture {
                 guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
                 if let url = auditionURL { beatPlayer.audition(url: url) }
@@ -948,6 +966,7 @@ private struct RegionBlockView: View {
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
             .accessibilityHint(
                 [auditionURL != nil ? "Tap to play this audio clip" : nil,
+                 "Drag to move",
                  "Long-press for options",
                  editableKind ? "Edit" : nil,
                  "Delete region"]
@@ -974,6 +993,31 @@ private struct RegionBlockView: View {
                     lengthTicks: max(TimelineTime.ticksPerTransportStep, snapped))
                 isResizing = false
                 resizeDelta = 0
+            }
+    }
+
+    /// Drag-to-move (clip game C1) — the whole clip follows the finger live via this
+    /// clip's OWN `moveDelta` @State (no root churn); on release the new start tick is
+    /// snapped (`.off` = stepless) and a vertical pull of ≥ half a lane row moves the
+    /// clip to that same-kind lane (the store enforces the kind check). ONE store
+    /// command — the same call the context menu's "Move to playhead" and, later, the
+    /// EchoelAI edit tools use.
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                isMoving = true
+                moveDelta = value.translation
+            }
+            .onEnded { value in
+                let deltaTicks = Int((value.translation.width / ppb
+                                      * CGFloat(TimelineTime.ticksPerBeat)).rounded())
+                let rawStart = region.startTick + deltaTicks
+                let snapped = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
+                let laneShift = Int((value.translation.height / ArrangeTimelineView.laneHeight).rounded())
+                timeline.moveRegion(id: region.id, toStartTick: Swift.max(0, snapped),
+                                    laneOffset: laneShift)
+                isMoving = false
+                moveDelta = .zero
             }
     }
 
