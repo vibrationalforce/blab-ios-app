@@ -1,32 +1,29 @@
-build: 2026-07-14 v10.79.222 (Region duplizieren — der Kopier-Befehl)
+build: 2026-07-14 v10.79.223 (VideoLanePlayer-Koordinator — Video-Transport-Steuerlogik)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Der Clip-Editing-Verbsatz ist komplett: Schneiden · Fügen · Löschen ·
-  Verschieben · und neu KOPIEREN (Duplicate).
+notes: Das Video-Gegenstück zur letzten Runde — die Steuer-Schicht, damit Video-Spuren
+  im Transport synchron mitlaufen (weiter test-first, kein Blind-Video).
 
-  WO: Region lange drücken → Menü → „Duplicate". Es entsteht sofort eine identische
-  Kopie direkt HINTER dem Original auf derselben Spur.
+  WAS diese Runde bringt: `VideoLanePlayer` — der Koordinator, der beim Abspielen pro
+  Video-Spur entscheidet, an welche Stelle im Video „gesprungen" wird (nutzt die schon
+  vorhandene, getestete Video-Zeit-Mathematik `VideoRegionSync`). Anders als Audio
+  (einmal starten) ist Video ein kontinuierliches Seek-Sync: jeder Takt sagt „hier
+  solltest du sein", das Gerät korrigiert Drift. Ist das Video kürzer als seine Spur,
+  wird das letzte Bild gehalten. Das Geräte-Abspielen ist hinter einem schmalen
+  Protokoll (`VideoRegionSink`) abstrahiert → 6 Spy-Tests decken alle Fälle.
 
-  WAS es tut: perfekt zum Bauen von Loops/Wiederholungen — einmal duplizieren, und
-  du hast denselben Clip nochmal am Stück dahinter. Die Kopie teilt sich denselben
-  Clip (kein neuer Slot verbraucht), gleiche Länge, gleicher Medien-Startpunkt.
-  Wie beim Verschieben dürfen sich Regionen überlappen (freies Arrangieren).
+  NOCH KEIN BILD: additiv + ungewired (von nichts aufgerufen → keine Regression). Der
+  dünne AVPlayer-Ausführer + Transport-Wiring kommen im nächsten, gerätegeprüften
+  Schritt.
 
-  WIE: reine Region-Kopie (frische ID, Start am Ende des Originals) + eine
-  TimelineStore-Methode. Kein Sheet, kein Transport-Read → Menü-Freeze-Gesetz
-  gewahrt (dasselbe Menü wie Verschieben/Löschen).
+  SICHER: Reviewer — Concurrency PASS (saubere @MainActor-Klasse) · Code CONFIRMED
+  (Logik + Test-Mathematik korrekt). Zwei Reviewer-Funde behoben: ein „hängendes
+  letztes Bild bei gelöschter Spur"-Leak (Reconcile-Pass — auch im Audio-Zwilling
+  nachgezogen) + die bewusste Sichtbarkeits-Regel dokumentiert (Video blendet nur bei
+  Mute aus, nicht bei Audio-Solo). Gates: Xcode Compile + CI/CD.
 
-  SICHER: Reviewer code CONFIRMED ship-ready (keine CRITICAL/HIGH/MEDIUM; Kontextmenü
-  ohne Sheet + ohne Transport-Read). Tests: duplicated()-Geometrie + Store-Anhängen
-  hinter dem Original. Gates: Xcode Compile + CI/CD.
-
-  ZUR TRANSPORT-AUDIO-REIHE (ehrlicher Zwischenstand): die Steuer-Schicht ist fertig
-  (Scheduling-Naht + Koordinator, beide getestet). Der letzte Schritt — der
-  AVFoundation-Ausführer + Transport-Verdrahtung — ist bewusst KEIN Blind-Deploy: ein
-  synchroner Datei-Read im Transport-Takt würde das generative Kern-Timing stören.
-  Der kommt als eigener, geräteverifizierter Zyklus mit Pre-Buffering. Bis dahin habe
-  ich diese Runde einen sofort nutzbaren Editing-Befehl geliefert statt einer weiteren
-  unsichtbaren Vorstufe.
+  HINWEIS: GitHub-Anbindung war diese Runde getrennt → v222/v223-Gates prüfe ich
+  nächsten Zyklus nach. v221 war grün; der Diff ist rein/getestet + reviewer-sauber.
 
   Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move/Duplicate ✓ ·
-  Audio-Import ✓ · Video-Import ✓ · Audio-Transport-Steuerlogik ✓ (Ausführer folgt,
-  gerätegeprüft).
+  Audio-Import ✓ · Video-Import ✓ · Audio-Transport-Steuerlogik ✓ ·
+  Video-Transport-Steuerlogik ✓ / als Nächstes die geräteverifizierten Ausführer.
