@@ -1,28 +1,40 @@
-build: 2026-07-15 v10.79.257 (Audio-Clip-Tap spielt SEIN Fenster — wie eine Profi-DAW)
+build: 2026-07-15 v10.79.258 (Puls lockt im Dunkeln + Gurt-Scan sichtbar)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: H13 — der letzte Punkt des MIDI/Audio-Clip-Profi-Mandats (Engine-Seite).
+notes: Ultraprogramm Bereich 1 (Live-Session) — zwei Heilungen direkt aus deinem
+  Log Build 2361, plus Website-Ehrlichkeit.
 
-  AUDIO-REGION ANTIPPEN = DIE REGION HÖREN, NICHT DIE DATEI:
-  • Vorher spielte der Tap auf einen Audio-Clip immer den DATEIANFANG über
-    die Drum-Preview-Voice (~2 s Puffer-Deckel) — eine vorne getrimmte
-    Region klang beim Antippen FALSCH (du hörtest Audio, das gar nicht im
-    Clip liegt) und nie länger als 2 Sekunden.
-  • Jetzt: Der Tap spielt das EIGENE Fenster der Region — ab ihrem
-    Trim-Punkt (contentOffset), genau für ihre musikalische Länge beim
-    aktuellen Tempo — gestreamt über denselben ehrlichen Segment-Pfad,
-    den auch die Spur-Wiedergabe nutzt (kein Puffer-Deckel mehr).
-  • Schutzgesetze: Während der Transport läuft, audioniert der Tap NICHT
-    (die Spur klingt ja schon — Doppelklang/Phasen-Gefahr); Transport-Start
-    und Timeline-Einklappen stoppen eine laufende Audition sofort.
-  • Reviewer-Fund gleich mitgeheilt: Der Audition-Knoten verbindet sich
-    bei Format-Wechsel (Mono↔Stereo, Samplerate) jetzt ehrlich neu — vorher
-    drohte beim Wechsel Stereo-Import → Mono-Aufnahme ein harter Crash
-    (channelCount-Exception). Gilt auch für Multi-Format-Clips auf einer Spur.
-  • Drum-Pad-Preview im Sample-Browser unverändert (eigener, richtiger Pfad).
+  [A] WARUM SESSION 2 IN 92 s NIE GELOCKT HAT — GEHEILT:
+  • Deine eigene dunkle Belichtungssperre drückt einen aufliegenden Finger
+    auf Rot-Werte UNTER den Finger-Halte-Boden → die App meldete finger=no,
+    warf das Analyse-Fenster weg, und die Neu-Erkennung brauchte helle Werte,
+    die die dunkle Sperre nie liefert — Endlosschleife, nie ein Lock.
+  • Session 3 im selben Log beweist: dieselbe Dunkelheit LOCKT (Qualität 0.97,
+    Puls 57–60), wenn der Detektor den Finger einfach hält. Der Halte-Boden
+    liegt jetzt UNTER dem, was die dunkle Sperre erzeugt; die Aufnahme-Schwelle
+    bleibt hart, die Rot-Dominanz-Prüfung bleibt (kein Fehl-Halten auf Szenen).
+    Beide Werte aus deinen Logs verankert — kein Blind-Tuning.
 
-  +5 reine Tests (Fenster = Offset+Länge, nil-während-Play, Tempo-Länge,
-  Negativ-Offset-Klammer). Audio-Thread-Review: APPROVE, alle 4 Gates grün.
+  [B] DER GURT-SCAN IST JETZT SICHTBAR (deine 2 abgebrochenen Versuche):
+  • Vorher: „Search for Bluetooth device" → NICHTS passierte sichtbar — der
+    Scan lief unsichtbar und endlos. Du hast (völlig zu Recht) nach Sekunden
+    abgebrochen.
+  • Jetzt zeigt die Puls-Pille live: „Scanning…" → „Connecting…" → Gerätename
+    → BPM. Ehrlich bei Problemen: „BT off" (Bluetooth aus/verweigert) und nach
+    20 s „No strap" mit dem entscheidenden Coaching: ELEKTRODEN BEFEUCHTEN —
+    Brustgurte senden erst mit Hautkontakt. VoiceOver trägt die Voll-Hinweise.
 
-  NÄCHSTES (dein 8h-Mandat läuft): 10-Bereiche-Ultrascan in Arbeit —
-  Zyklus 1 danach = dein Log-Befund "Transport stoppt sich selbst nach
-  13/48 s und reißt die Bio-Session mit".
+  [C] WEBSITE-EHRLICHKEIT (docs/, kein App-Code): Die FAQ behauptete erfundene
+    Features (Orchester-Sektionen mit SATB-Chor, „EchoelWarmth"-Analog-Suite,
+    „Full MIDI 2.0", Audio-to-MIDI, RGB-LED-Feedback). Alles durch die echte
+    Code-Realität ersetzt — claim only what ships.
+
+  Reviews: DSP-Review APPROVE (A, adversarial inkl. Fehl-Halte-Analyse) ·
+  UI-State-Review APPROVE (B, Injection/Freeze-Gesetz/Watchdog-Races geprüft).
+  Alle 4 Gates grün.
+
+  OFFENE FOUNDER-FRAGE (U-B1.5): Dein Log zeigte, dass ■ (Musik-Stopp) die
+  ganze Bio-Session mitreißt — inklusive des 34-s-Puls-Locks, den ▶ nicht
+  wiederherstellen kann. Soll ■ künftig nur die MUSIK pausieren und die
+  Bio-Session (Kamera-Lock, Evolve) weiterleben lassen — die Puls-Pille wäre
+  der EINE Bio-Aus-Schalter? Das ändert deinen „ONE Stop"-Entscheid, darum
+  frage ich. Ja/Nein genügt.
