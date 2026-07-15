@@ -1,34 +1,31 @@
-build: 2026-07-14 v10.79.219 (Region an den Playhead verschieben — Verbsatz komplett)
+build: 2026-07-14 v10.79.220 (Audio-Transport-Scheduling-Naht — test-first Fundament)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Der Arrangement-Verbsatz ist jetzt vollständig: Schneiden (Split) · Fügen
-  (Join) · Löschen (Delete) · und neu VERSCHIEBEN (Move).
+notes: Ein Fundament-Zyklus (kein neuer Knopf) — der erste, verifizierbare Baustein für
+  das, worauf der Audio-Ausbau zuläuft: importierte Audio-Regionen sollen im laufenden
+  Transport MITSPIELEN (heute klingen sie nur beim Antippen).
 
-  WO: Region lange drücken → Menü → „Move to playhead". Die Region springt mit
-  ihrem Anfang genau an die aktuelle Playhead-Position.
+  WARUM getrennt: sample-genaues Audio-Abspielen ist Timing-Arbeit, die am Gerät
+  verifiziert werden muss (Drift/Sync lassen sich in CI nicht prüfen). Statt das blind
+  zu bauen + zu deployen, teile ich es sauber: ZUERST das reine „Gehirn" (diese Runde,
+  voll test-getrieben), DANN den dünnen AVFoundation-Ausführer (nächste Runde,
+  gerätegeprüft).
 
-  WARUM per Playhead statt Ziehen: freies Ziehen einer Region kollidiert mit dem
-  seitlichen Scrollen der Timeline (das feine Gesten-Tuning dafür braucht ein
-  Gerät und kommt später). Die Playhead-Geste ist sofort verlässlich — dasselbe
-  Prinzip wie Split/Join, die auch am Playhead arbeiten: Playhead setzen, dann
-  „Move to playhead". Regionen dürfen sich dabei überlappen (freies Arrangieren).
+  WAS diese Runde bringt: `AudioRegionPlayback` — reine Mathematik, die aus der
+  Song-Position berechnet, WO in der Audiodatei abgespielt werden muss und WIE VIELE
+  Samples bis zum Region-Ende zu planen sind. Bildet 1:1 auf Apples
+  scheduleSegment(startFrame, frameCount) ab; auch das Einsteigen mitten in eine Region
+  (Loop/Sprung) ist exakt.
 
-  WIE: die Store-Methode `moveRegion` gab es längst (klemmt den Start bei 0). Der
-  Playhead-Stand wird NUR im Tastendruck gelesen (nie im Body) — das Menü-Freeze-
-  Gesetz bleibt gewahrt, exakt wie bei Split/Join. Kein Sheet, keine Modal-Kette
-  gewachsen.
+  SICHER: Reviewer code — Mathematik bestätigt korrekt (Start + Länge landen exakt auf
+  der Region-Grenze; die gemischte Rundung ist höchstens 1 Sample zu kurz, nie über die
+  Grenze hinaus). Behoben: (1) der Ausführer-Vertrag „gegen die echte Dateilänge klemmen"
+  ist in der Datei dokumentiert (sonst Lesen über Datei-Ende), (2) fraktionale Tests
+  ergänzt, die Abrunden (Startframe) vs. Runden (Länge) festnageln. 11 Unit-Tests.
+  Gates: Xcode Compile + CI/CD.
 
-  SICHER: Reviewer ui-state CONFIRMED CLEAN (Freeze-Gesetz gewahrt · Sheet-Kette
-  unberührt · Tap-Zeit-Read + geklemmte Mutation + beobachtetes Neu-Rendern).
-  Neuer Test: moveRegion setzt den Start-Tick und klemmt ein negatives Ziel auf 0.
-
-  HINWEIS ZUR CI (kein Code-Problem): Der v218-TestFlight-Lauf scheiterte an einer
-  FEHLENDEN Metal-Toolchain auf dem GitHub-Runner (Infra, nicht mein Code — v216/
-  v217 archivierten identisch grün). Beide echten Code-Gates (Xcode Compile Check +
-  CI/CD Pipeline) waren bei v218 GRÜN. TestFlight ist ohnehin eingefroren; falls der
-  Metal-Fehler erneut auftritt, ist er persistent und ich ziehe den bekannten Fix
-  (`xcodebuild -downloadComponent MetalToolchain` in testflight.yml) nach — nach
-  deiner Freigabe, da CI-Config.
+  CI-Update: der v218-TestFlight-Metal-Fehler war ein transienter Runner-Flake — v219
+  archivierte wieder voll grün (alle 5 Läufe), kein CI-Fix nötig.
 
   Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move ✓ · Audio-Import ✓ ·
-  Video-Import ✓. Als Nächstes: das transport-synchrone Abspielen der Spuren
-  (eigenes Player-Subsystem, geräteverifiziert; zuerst die reine Scheduling-Naht test-first).
+  Video-Import ✓ · Audio-Transport-Scheduling-Naht ✓. Als Nächstes: der AudioLanePlayer-
+  Ausführer (gerätegeprüft) — dann klingen die Audio-Spuren wirklich im Transport.
