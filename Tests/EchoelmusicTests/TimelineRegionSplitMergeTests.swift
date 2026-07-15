@@ -126,6 +126,22 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
                       "the rejoined region spans the original first bar again")
     }
 
+    func testRemoveRegion_deletesOnlyThatRegion() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
+        let keep = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920)
+        let drop = TimelineRegion(laneID: lane, clipID: clip, startTick: 1920, lengthTicks: 1920)
+        store.addRegion(keep)
+        store.addRegion(drop)
+        XCTAssertEqual(mine().count, 2)
+
+        store.removeRegion(id: drop.id)
+        XCTAssertEqual(mine().count, 1, "only the targeted region is deleted")
+        XCTAssertTrue(mine().contains { $0.id == keep.id }, "the other region survives")
+        XCTAssertFalse(mine().contains { $0.id == drop.id }, "the deleted region is gone")
+    }
+
     func testSplitRegions_atEdge_isNoOp() {
         let store = TimelineStore()
         let lane = UUID(); let clip = UUID()

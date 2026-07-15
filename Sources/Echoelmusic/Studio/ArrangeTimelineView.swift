@@ -880,15 +880,30 @@ struct ArrangeTimelineView: View {
                 guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
                 if let url = auditionURL { beatPlayer.audition(url: url) }
             }
-            // Long-press → editor. Registered AFTER the tap so a short tap still
-            // auditions; SwiftUI routes the long hold here without ambiguity.
-            .onLongPressGesture(minimumDuration: 0.4) {
-                if editableKind { activeModal = .region(region) }
+            // Long-press → context menu: Edit (kinds with an engine) + Delete (every
+            // kind, incl. video, which has no editor). Replaces the old direct
+            // long-press-opens-editor gesture — editing is still one hold away, and
+            // the region now has a delete verb (completing Split/Join/Delete). A
+            // native contextMenu is NOT a sheet (the metadata chain is untouched) and
+            // its content builds on open (no body-time / high-frequency read).
+            .contextMenu {
+                if editableKind {
+                    Button { activeModal = .region(region) } label: {
+                        Label("Edit", systemImage: "slider.horizontal.3")
+                    }
+                }
+                Button(role: .destructive) {
+                    timeline.removeRegion(id: region.id)
+                } label: {
+                    Label("Delete region", systemImage: "trash")
+                }
             }
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
             .accessibilityHint(
                 [auditionURL != nil ? "Tap to play this audio clip" : nil,
-                 editableKind ? "Long-press to edit" : nil]
+                 "Long-press for options",
+                 editableKind ? "Edit" : nil,
+                 "Delete region"]
                     .compactMap { $0 }.joined(separator: ". ")
             )
     }
