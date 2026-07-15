@@ -63,6 +63,16 @@ public enum MediaLibrary {
         try copyIn(source, subdirectory: "Media/Image", fallbackExt: "jpg")
     }
 
+    /// Resolve a clip's `mediaRef` (absolute path today; nothing writes relative refs
+    /// yet) to an EXISTING file URL — nil for empty refs or vanished files. Single
+    /// source for every surface that turns a region into playable media (timeline
+    /// audition, the Video Monitor; ArrangeTimelineView's private twin predates this).
+    public static func resolveRef(_ ref: String?) -> URL? {
+        guard let ref, !ref.isEmpty else { return nil }
+        let url = URL(fileURLWithPath: ref)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
     /// Shared copy: resolve the media subdir, pick a fresh UUID name (preserving
     /// the source extension), copy the file in. Throws on no container / copy fail.
     private static func copyIn(_ source: URL, subdirectory: String, fallbackExt: String) throws -> URL {

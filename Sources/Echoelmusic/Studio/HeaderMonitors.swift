@@ -332,18 +332,27 @@ struct EchoelLuxMonitorMini: View {
 
 #if canImport(AVFoundation) && canImport(Metal)
 /// Compact header monitor of the VIDEO pillar (founder 2026-07-12, red sketch:
-/// "… und eins für EchoelVideo"). HONEST about what ships today: it mirrors the
-/// visual recorder — a steady REC state while a clip is being captured (steady,
-/// not blinking — flash law), idle film icon otherwise. Deliberately NOT a live
-/// video thumbnail: that would need a second Metal/AV pipeline in the header
-/// (one-GPU-canvas rule). Tap opens the Video panel (recorded clips library).
+/// "… und eins für EchoelVideo"). TAP shows/hides the floating VIDEO MONITOR —
+/// the resizable window rendering the timeline's video lanes at the playhead
+/// (founder 2026-07-15, red circle on this tile: "Dort soll der Video Monitor zum
+/// anklicken. Verschiedene größen einstellbar wie visualiser"). LONG-PRESS keeps
+/// the recorded-clips library reachable (the tile's former tap action — nothing
+/// is stranded). While the visual recorder captures a clip it shows a steady REC
+/// state (steady, not blinking — flash law). Deliberately NOT a live thumbnail:
+/// that would be a second video pipeline in the header; the floating monitor IS
+/// the one live picture.
 @MainActor
 struct EchoelVideoMonitorMini: View {
     @Environment(VisualRecorder.self) private var recorder
+    /// True while the floating video monitor is shown — the tile tints so the
+    /// toggle state is visible (same idea as the visual monitor's active state).
+    let monitorVisible: Bool
+    /// Show/hide the floating video monitor (owned by WorkspaceView).
+    let onToggleMonitor: () -> Void
 
     var body: some View {
         Button {
-            NotificationCenter.default.post(name: .echoelChromeDoor, object: "video")
+            onToggleMonitor()
         } label: {
             ZStack {
                 EchoelTheme.fill
@@ -354,7 +363,8 @@ struct EchoelVideoMonitorMini: View {
                     }
                     Image(systemName: recorder.isRecording ? "record.circle" : "film")
                         .font(.system(size: 11))
-                        .foregroundStyle(recorder.isRecording ? EchoelTheme.text : EchoelTheme.dim)
+                        .foregroundStyle(recorder.isRecording || monitorVisible
+                                         ? EchoelTheme.text : EchoelTheme.dim)
                 }
             }
             .frame(width: 38, height: 32)
@@ -362,12 +372,20 @@ struct EchoelVideoMonitorMini: View {
             .overlay(RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(recorder.isRecording
                     ? Color(red: 0.86, green: 0.22, blue: 0.20).opacity(0.7)
-                    : EchoelTheme.border, lineWidth: 1))
+                    : (monitorVisible ? EchoelTheme.accent.opacity(0.6) : EchoelTheme.border),
+                    lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("EchoelVideo monitor")
-        .accessibilityValue(recorder.isRecording ? "Recording" : "Idle")
-        .accessibilityHint("Opens the recorded clips library")
+        // Built only when opened — no extra body-time reads (freeze rule intact).
+        .contextMenu {
+            Button {
+                NotificationCenter.default.post(name: .echoelChromeDoor, object: "video")
+            } label: { Label("Clips library…", systemImage: "folder") }
+        }
+        .accessibilityLabel("Video monitor")
+        .accessibilityValue(recorder.isRecording ? "Recording"
+                            : monitorVisible ? "Monitor shown" : "Monitor hidden")
+        .accessibilityHint("Shows or hides the floating video monitor. Touch and hold for the clips library.")
     }
 }
 #endif

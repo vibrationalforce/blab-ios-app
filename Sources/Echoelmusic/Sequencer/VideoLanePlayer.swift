@@ -103,3 +103,36 @@ public final class VideoLanePlayer {
         return created
     }
 }
+
+// MARK: - Monitor selection (pure)
+
+/// The Video Monitor's "which picture" selector (founder 2026-07-15: the header film
+/// button opens ONE floating video monitor). Unlike `VideoLanePlayer` (per-lane sinks),
+/// the monitor shows a single picture: the FIRST unmuted video lane with an active
+/// region at the playhead wins; muted lanes and gaps fall through to the next lane.
+/// Pure + Foundation-only so the pick is unit-tested without AVFoundation; the playback
+/// outcome itself comes from the already-tested `VideoRegionSync`.
+public enum VideoMonitorSelect {
+
+    /// The clip to show at `tick`, or nil when no unmuted video lane has an active
+    /// region there. `nativeDuration` resolves a clip id to its media duration in
+    /// seconds (`<= 0` / unknown ⇒ a single held frame — e.g. a still image).
+    public static func active(in doc: TimelineDocument, atTick tick: Int, bpm: Double,
+                              nativeDuration: (UUID) -> Double)
+        -> (clipID: UUID, playback: VideoRegionPlayback)? {
+        for laneID in doc.videoLaneIDs {
+            guard let lane = doc.lanes.first(where: { $0.id == laneID }), !lane.isMuted,
+                  let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick)
+            else { continue }
+            let playback = VideoRegionSync.resolve(startTick: region.startTick,
+                                                   lengthTicks: region.lengthTicks,
+                                                   contentOffsetSeconds: region.contentOffsetSeconds,
+                                                   bpm: bpm,
+                                                   nativeDurationSeconds: nativeDuration(region.clipID),
+                                                   playheadTick: tick)
+            if case .inactive = playback { continue }
+            return (region.clipID, playback)
+        }
+        return nil
+    }
+}
