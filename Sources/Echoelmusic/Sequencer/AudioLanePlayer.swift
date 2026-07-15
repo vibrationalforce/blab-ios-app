@@ -56,6 +56,13 @@ public final class AudioLanePlayer {
     /// or leave it playing (`.unchanged`). Order-independent, so a loop wrap works
     /// when the caller passes the real from/to ticks (mirrors the MIDI player).
     public func apply(in doc: TimelineDocument, fromTick: Int, toTick: Int, bpm: Double) {
+        // Reconcile: release any sink whose lane was removed / re-typed since the last
+        // apply (else that lane's audio would keep sounding with no way to stop it).
+        let live = Set(doc.audioLaneIDs)
+        for laneID in sinks.keys.filter({ !live.contains($0) }) {
+            sinks[laneID]?.stop()
+            sinks[laneID] = nil
+        }
         for laneID in doc.audioLaneIDs {
             switch TimelineScheduling.laneEvent(in: doc, laneID: laneID,
                                                 fromTick: fromTick, toTick: toTick) {

@@ -57,6 +57,17 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
   nächsten Grenze weiter — im AudioLanePlayer-Header als Known-Gap notiert); (d) App-Injektion.
   Danach dasselbe für Video.
 
+## VIDEO-TRANSPORT
+- ✅ KOORDINATOR (v223, spy-getestet, Foundation-only, additiv/ungewired): `VideoLanePlayer` +
+  `VideoRegionSink`-Protokoll. `apply(atTick)` seekt/hält pro Video-Lane via `VideoRegionSync.resolve`
+  (.play→present playing · .exhausted→held frame · gap→stop). Kontinuierliches Seek-Sync (nicht
+  fire-once wie Audio); Device-Sink macht Drift-Korrektur (VideoResyncPolicy) im Wiring-Zyklus.
+  Muted-only-Gate (Solo/Level = Audio, blanket Video nicht). Reconcile-Pass releast entfernte Lanes
+  (gleicher Fix auch in AudioLanePlayer nachgezogen). Reviewer: concurrency PASS · code (Logik korrekt).
+  OFFEN: `nativeDurationSeconds` pro Clip wird noch nicht persistiert (VideoClipView misst, verwirft) —
+  der Wiring-Zyklus braucht eine Clip-Dauer (Codable-Feld, decodeIfPresent) für .exhausted-Erkennung.
+- OFFEN — AVPlayer-Adapter + Transport-Wiring (geräteverifiziert), analog Audio.
+
 ## GEMEINSAME NÄHTE (Audio + Video Import teilen sich)
 - `MediaLibrary` (Core/): `importAudio`/`importVideo` → App-Group `Media/{Audio,Video}`, UUID-Zielname,
   Endung erhalten, ein unreiner Kopier-Schritt (`copyIn`). `ClipStore.firstEmptySlotIndex` +
