@@ -5845,3 +5845,29 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 **BLOCKER — CI-Gate-Sichtbarkeit weg:** GitHub-MCP getrennt (Auth nötig, Session non-interaktiv → kein OAuth) UND kein Token in .claude/settings.local.json. Ab v212-Ende kann ich Gates NICHT per API prüfen. v211 grün bestätigt; v212/v213 nur Reviewer-verifiziert (mirror bewährter Muster). Deploys pushen weiter (jeder Push re-runt die Gates; kaputter Build → TestFlight lädt nichts, kein Schaden am Bestand). Beim nächsten Weckruf erneut MCP versuchen.
 
 **Offen aus „transpose detune und Oktaver": Oktaver** (Oktav-Doppler) = nächste Scheibe, aber audio-thread-Voice-Allocation → NICHT blind ohne Build-Verify bauen. Wartet auf Gate-Sicht.
+
+## 2026-07-15 (Fortsetzung) — Ultracode-Audits + Heilungs-Welle 1 (v246–v248)
+- **Founder-Turns:** Video-Monitor-Ask (roter Kreis auf Film-Button) → v246 ✓ ·
+  "MIDI/Audio-Clips nicht professionell + Third-Party-AUv3, ultracode" ·
+  "Deep Audit und alles heilen" (Wendepunkt Instrument→DMMW) · EchoelPublish-
+  Vision (Zernio-Reel; rote Linie: keine Account-Automatisierung, decisions.csv) ·
+  SEO-Reel (→ echoel-marketing, Task #52).
+- **2 Ultracode-Workflows** (28 Agenten): Clip/AUv3-Audit (11/11 CRITICAL+HIGH
+  REAL) + DMMW-Deep-Audit (Arch/Design/Honesty/Safety; 8 REAL, 2 PARTIAL).
+  Synthese + Heilungsprogramm: scratchpads/HEALING_DMMW_2026-07-15.md.
+- **v246**: FloatingVideoMonitor — Film-Button togglet schwebendes Fenster
+  (Visualizer-Größen), Videospur RENDERT (Stills+Video, Scrub-Follow,
+  VideoResyncPolicy; MonitorVideoSink = erster echter VideoRegionSink). Beide
+  Gates grün.
+- **v247**: M1 MIDI-Fensterung — RegionNoteWindow + ArrangementLoadPlan (pure,
+  21 Tests) + loadRegionArrangement (nahtloser Hot-Swap, region-relative Phase
+  auf playedBars). Reviewer-HIGH gefixt: contentOffsetTicks auf TimelineRegion
+  (tempo-fester MIDI-Trim; decodeIfPresent-Legacy). LEDGER: trigger(0) läuft
+  NACH timeline.transportStep im selben Tick → Staging-Asymmetrie step-0 vs
+  mid-bar (ArrangementLoadPlan kapselt das).
+- **v248**: A1 Audio-Lanes verdrahtet — TimelineAudioSink (scheduleSegment-
+  Streaming, prime-time Attach, Engine-Running-Guard, Detach im Reconcile);
+  Loop-Wrap primt Audio neu (finite Segmente vs .unchanged). Pure-Audio-
+  Arrangements spielen (Play-Guard erweitert). audio-thread-reviewer: RT-clean.
+- **Offen Welle 1:** H3 SamplerVoice-Race · H4 Pan/Gain-Fan-out · H5 AU-Routing ·
+  M1c LaneNotePump-Mehrtakt · M2 Region-Phase abseits Taktlinie.
