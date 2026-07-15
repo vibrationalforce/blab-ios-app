@@ -6136,3 +6136,28 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   ux-accessible-pro · cleanliness H16 · honesty-marketing/#52 · perf-audio/H17),
   jede CRITICAL/HIGH-Behauptung adversarial verifiziert. Danach: HEALING_DMMW
   aktualisieren, Zyklus 1 = transport-stopped-Selbststopp. Task #53.
+
+## 2026-07-15 (Fortsetzung 11) — v258: Ultraprogramm Bereich 1 (RPPG-Halte-Boden + BLE sichtbar) + Bereich 7 (Website-Ehrlichkeit)
+- **Ultrascan wf_232c22de-6d4 KOMPLETT (41 Agenten, 27 REAL / 2 REFUTED):**
+  Programm in HEALING_DMMW §Ultrawelle (8 Bereiche). KORREKTUR der ersten
+  Log-Lesung: Transport stoppt sich NICHT selbst — kein Timer/Arrangement-Pfad
+  auf HEAD; die 13-s/48-s-Stopps waren TAPS auf Musik-Stopp-Controls, deren
+  ONE-Stop-Kaskade (EchoelStudioView:636) die ganze Bio-Session mitreißt (T1,
+  HIGH, Fix founder-gated: ■ = Musik-Pause, Pill = Bio-Aus). Evolve-nach-Stopp
+  = lügendes generate[]-Label (T2: applyVariation ohne pendingGenerateReason).
+- **v258 deployed (b435254+ade0b7a [RPPG-1] · 2fb3102+a0e6b07 [BLE-1/2] ·
+  db6909f [MKT-01..04], Gates 4/4 auf a0e6b07):** RPPG-1 Halte-Boden 0.18→0.12
+  (dunkle Belichtungssperre erzeugt R 0.15–0.17 < 0.18 → finger=no-Flattern →
+  92-s-Nie-Lock; Session 3 beweist Dunkelheit lockt; dsp-review APPROVE mit
+  Fehl-Halte-Analyse: Confidence-Maschine verhindert Phantom-BPM). BLE-1/2:
+  statusLabel-Kernel (pure, 6 Tests) + .notFound + 20-s-Watchdog; Pille zeigt
+  Scanning/Connecting/Name/BT-off/No-strap; ui-state-review APPROVE (Injection,
+  Freeze-Gesetz, Watchdog-Races alle sauber). MKT: FAQ-Fabrikationen raus.
+- **Gate-Rot-Zwischenfall:** LogCategory hat kein .bio → .biofeedback (a0e6b07,
+  1 Zeile). LEDGER: Log-Kategorien IMMER gegen ProfessionalLogger.swift prüfen
+  (.biofeedback, nicht .bio — CLAUDE.md-Fehlertabelle ergänzenswert).
+- **Reviewer-Note für U-B1.3 (BLE-3):** hasLiveFrames nutzt JEDEN frischen
+  Bus-Frame (nicht strap-attribuiert) — bei Koexistenz-Fix revisiten.
+- **Nächste Zyklen:** U-B1.3 (BLE-3 EIN Besitzer + BLE-4 Zombie-Guards) →
+  U-B1.4 (T2 ehrliche Labels + Stop-Quellen-Breadcrumbs) → U-B1.5 founder-gated
+  (■-Frage steht in v258-Notes + Status-Delta) → Bereich 2 (CLIP-1 M1c zuerst).
