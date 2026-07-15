@@ -214,15 +214,41 @@ public enum SamplerVoiceError: Error, Sendable {
 /// Owns the sample buffer and playback cursor.
 ///
 /// Concurrency model:
-/// - `installBuffer(_:)` runs on the main thread, before the audio engine
-///   starts. After that point, `sampleBuffer` is read-only.
+/// - `installBuffer(_:)` runs on the main thread — AT ANY TIME. The instrument
+///   became a DAW (pad import / browser preview hot-swap samples while the
+///   engine renders), so the old "before engine start, then read-only" contract
+///   was a live use-after-free (deep audit 2026-07-15, verified CRITICAL). The
+///   buffer now travels through a lock-free SPSC handshake: main ALLOCATES a
+///   slab and enqueues it (`installQueue`); the render block ADOPTS the newest
+///   slab at a block boundary (pointer moves only — no retain/release/malloc/
+///   free on the audio thread) and hands the previous one back (`retireQueue`);
+///   main FREES retired slabs on the next install. Memory is allocated and
+///   deallocated on the main thread exclusively.
 /// - `requestTrigger()` and `requestSilence()` run on the main thread and
 ///   only mutate aligned 32-bit fields (atomic on all Apple platforms).
 /// - `render(_:_:)` runs on the audio thread and mutates `position`,
 ///   `isPlaying`, `lastSeenTrigger`. No other thread reads these.
 private final class RenderState: @unchecked Sendable {
 
-    private var sampleBuffer: [Float] = []
+    /// One installed sample buffer travelling between threads. The pointer is
+    /// the payload — ownership passes main→render (install) and render→main
+    /// (retire); allocate/free happen on the main thread only.
+    private struct SampleSlab {
+        var ptr: UnsafeMutablePointer<Float>?
+        var count: Int
+    }
+
+    /// AUDIO-THREAD-owned after adoption (main never dereferences these).
+    private var activeBuf: UnsafeMutablePointer<Float>?
+    private var activeCount: Int = 0
+
+    /// main → render: freshly installed slabs (newest wins at adoption).
+    private let installQueue = SPSCQueue<SampleSlab>(capacity: 8)
+    /// render → main: superseded slabs awaiting a main-thread free.
+    private let retireQueue = SPSCQueue<SampleSlab>(capacity: 8)
+    /// Main-thread mirror of the last installed length (test/UI inspection —
+    /// the audio-side `activeCount` must never be read cross-thread).
+    private var mainInstalledCount: Int = 0
 
     // Audio-thread state (only the audio thread mutates these after install).
     private var posF: Float = 0           // fractional playback cursor (rate/reverse aware)
@@ -265,15 +291,38 @@ private final class RenderState: @unchecked Sendable {
     private var lastFxRes: Float = .nan
     private var lastFxDrive: Float = .nan
 
-    /// Main thread, before audio engine start.
+    /// Main thread — safe at ANY time, including while the engine renders.
+    /// Copies `samples` into a fresh slab and hands it to the render thread via
+    /// the SPSC handshake; the cursor/trigger reset happens ON ADOPTION (render
+    /// side), so the sounding sample is never cut by a half-applied reset.
     func installBuffer(_ samples: [Float]) {
-        sampleBuffer = samples
-        posF = 0
-        playedOut = 0
-        isPlaying = false
-        triggerCount = 0
-        lastSeenTrigger = 0
-        silenceRequested = false
+        drainRetired()
+        let count = samples.count
+        let ptr = UnsafeMutablePointer<Float>.allocate(capacity: Swift.max(1, count))
+        samples.withUnsafeBufferPointer { src in
+            if let base = src.baseAddress, count > 0 {
+                ptr.update(from: base, count: count)
+            }
+        }
+        if installQueue.tryEnqueue(SampleSlab(ptr: ptr, count: count)) {
+            mainInstalledCount = count
+        } else {
+            // Pathological install burst filled the queue — drop THIS install and
+            // keep the current sample. Freeing here is safe: render never saw it.
+            ptr.deallocate()
+        }
+    }
+
+    /// Main thread. Free every slab the render thread has retired.
+    private func drainRetired() {
+        while let slab = retireQueue.dequeue() { slab.ptr?.deallocate() }
+    }
+
+    deinit {
+        // Engine is torn down before a voice deallocates — no render is running.
+        while let slab = installQueue.dequeue() { slab.ptr?.deallocate() }
+        while let slab = retireQueue.dequeue() { slab.ptr?.deallocate() }
+        activeBuf?.deallocate()
     }
 
     /// Main thread. Set gain BEFORE bumping the counter so the audio thread
@@ -338,7 +387,25 @@ private final class RenderState: @unchecked Sendable {
         let buf = raw.assumingMemoryBound(to: Float.self)
         let byteCount = frameCount * MemoryLayout<Float>.size
 
-        let count = sampleBuffer.count
+        // Adopt the newest installed slab at the block boundary: pointer moves
+        // only (no retain/release/alloc/free here); the superseded slab goes back
+        // to main for disposal. If the retire queue were ever full the old pointer
+        // is dropped (bounded leak) rather than freed on the audio thread —
+        // unreachable in practice (main drains on every install).
+        while let slab = installQueue.dequeue() {
+            if let old = activeBuf {
+                _ = retireQueue.tryEnqueue(SampleSlab(ptr: old, count: activeCount))
+            }
+            activeBuf = slab.ptr
+            activeCount = slab.count
+            posF = 0
+            playedOut = 0
+            isPlaying = false
+            lastSeenTrigger = triggerCount   // absorb triggers aimed at the old sample
+            silenceRequested = false
+        }
+
+        let count = activeCount
 
         // Playback region from the 0…1 fractions, clamped to a valid [start,end).
         var playStart = Int(startFrac * Float(count))
@@ -382,8 +449,7 @@ private final class RenderState: @unchecked Sendable {
         let endF = Float(playEnd)
 
         var produced = 0
-        sampleBuffer.withUnsafeBufferPointer { ptr in
-            guard let b = ptr.baseAddress else { return }
+        if let b = activeBuf {
             while produced < frameCount {
                 let i0 = Int(posF)
                 if posF < startF || posF >= endF || i0 < 0 || i0 >= count { break }
@@ -416,10 +482,12 @@ private final class RenderState: @unchecked Sendable {
         if posF < startF || posF >= endF { isPlaying = false }
     }
 
-    // Test-only inspection.
+    // Test-only inspection. `debugBufferCount` reads the MAIN-side mirror (an
+    // install is visible immediately, before the render adopts it); the other
+    // two read audio-side state — tests drive `render` synchronously.
     var debugIsPlaying: Bool { isPlaying }
     var debugPosition: Int { Int(posF) }
-    var debugBufferCount: Int { sampleBuffer.count }
+    var debugBufferCount: Int { mainInstalledCount }
 }
 
 // MARK: - Test hooks
