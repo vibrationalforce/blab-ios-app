@@ -279,7 +279,7 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
                   self.isPublishing, self.state == .scanning else { return }
             if self.central?.state == .poweredOn { self.central?.stopScan() }
             self.state = .notFound
-            log.log(.info, category: .bio,
+            log.log(.info, category: .biofeedback,
                     "BLE HR scan timeout (\(Int(Self.scanTimeoutSeconds)) s) — no strap found")
         }
     }
