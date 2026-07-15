@@ -510,18 +510,22 @@ struct EchoelmusicApp: App {
                     let fallbackPatch = patchStore.patches.first
                     timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack, weak laneAUHost] slot, events in
                         // H5b: a lane with a hosted AU instrument plays THAT —
-                        // the built-in rack voice stays the fallback (never both).
-                        if FeatureFlags.laneAUInstruments, let au = laneAUHost?.voice(slot: slot) {
-                            for event in events {
-                                if event.isOn { au.noteOn(pitch: event.pitch, velocity: event.velocity) }
-                                else { au.noteOff(pitch: event.pitch) }
-                            }
-                            return
-                        }
-                        guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
+                        // the built-in rack voice stays the fallback. Note-ONs go to
+                        // exactly one target; note-OFFs go to BOTH (review HIGH: the
+                        // hosting can flip MID-TAKE — user assigns a plugin while the
+                        // lane sounds — and offs routed only to the new target strand
+                        // gate-held notes on the old one, surviving even transport
+                        // stop; an off for a never-started pitch is harmless on both).
+                        let au = FeatureFlags.laneAUInstruments ? laneAUHost?.voice(slot: slot) : nil
+                        let rack = laneVoiceRack?.voice(slot: slot)
                         for event in events {
-                            if event.isOn { voice.noteOn(pitch: event.pitch, velocity: event.velocity) }
-                            else { voice.noteOff(pitch: event.pitch) }
+                            if event.isOn {
+                                if let au { au.noteOn(pitch: event.pitch, velocity: event.velocity) }
+                                else { rack?.noteOn(pitch: event.pitch, velocity: event.velocity) }
+                            } else {
+                                au?.noteOff(pitch: event.pitch)
+                                rack?.noteOff(pitch: event.pitch)
+                            }
                         }
                     } patchSink: { [weak laneVoiceRack] slot, patch in
                         guard let voice = laneVoiceRack?.voice(slot: slot) else { return }

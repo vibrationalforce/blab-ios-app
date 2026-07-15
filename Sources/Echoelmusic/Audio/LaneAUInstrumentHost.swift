@@ -44,6 +44,13 @@ public final class LaneAUInstrumentHost {
     /// before attaching — a superseded load drops its unit un-attached
     /// (review HIGH: the Set version installed the removed plugin).
     @ObservationIgnored private var inFlight: [UUID: AUPluginRef] = [:]
+    /// Refs that failed to load/attach, per lane — retried only when the lane's
+    /// assignment CHANGES (review MEDIUM: sync runs on every persist, so a
+    /// fast-failing plugin would otherwise re-spawn an async instantiate per
+    /// fader-drag increment — load churn + log spam).
+    @ObservationIgnored private var failed: [UUID: AUPluginRef] = [:]
+    /// Lanes whose over-cap skip was already logged (log once, not per persist).
+    @ObservationIgnored private var capLogged: Set<UUID> = []
 
     public init() {}
 
@@ -89,12 +96,20 @@ public final class LaneAUInstrumentHost {
         for (laneID, ref) in inFlight where wanted[laneID] != ref {
             inFlight[laneID] = nil
         }
+        // A CHANGED assignment gets a fresh chance; an unchanged failed one
+        // stays parked until the user picks a different plugin.
+        for (laneID, ref) in failed where wanted[laneID] != ref {
+            failed[laneID] = nil
+        }
+        capLogged.formIntersection(wanted.keys)
         // Instantiate what's missing, oldest-first by lane order, capped.
         for lane in lanes {
             guard let ref = wanted[lane.id], refs[lane.id] == nil,
-                  inFlight[lane.id] != ref else { continue }
+                  inFlight[lane.id] != ref, failed[lane.id] != ref else { continue }
             guard refs.count + inFlight.count < Self.maxInstances else {
-                log.audio("Lane AU cap (\(Self.maxInstances)) reached — '\(ref.name)' on '\(lane.name)' not hosted", level: .error)
+                if capLogged.insert(lane.id).inserted {
+                    log.audio("Lane AU cap (\(Self.maxInstances)) reached — '\(ref.name)' on '\(lane.name)' not hosted", level: .error)
+                }
                 continue
             }
             instantiate(ref, laneID: lane.id)
@@ -136,6 +151,7 @@ public final class LaneAUInstrumentHost {
                     attached = engine.attachLaneInstrument(unit, laneMixer: voice.laneMixer)
                 }
                 guard attached else {
+                    self.failed[laneID] = ref   // park — retried only on a CHANGED assignment
                     log.audio("Lane AU '\(ref.name)': attach failed (no format) — built-in voice keeps the lane", level: .error)
                     return
                 }
@@ -143,6 +159,9 @@ public final class LaneAUInstrumentHost {
                 self.refs[laneID] = ref
                 log.audio("Lane AU hosted: '\(ref.name)' → lane \(laneID)")
             } catch {
+                // Park the failed ref only if this load is still the pending one
+                // (a superseded load must not veto its successor).
+                if let self, self.inFlight[laneID] == ref { self.failed[laneID] = ref }
                 log.audio("Lane AU '\(ref.name)' failed to load: \(error.localizedDescription) — built-in voice keeps the lane", level: .error)
             }
         }

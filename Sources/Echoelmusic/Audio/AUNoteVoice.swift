@@ -64,9 +64,11 @@ public final class AUNoteVoice {
     /// supported on AU lanes — see the header's honest limit.
     public var transposeSemitones = 0
 
-    /// Pitches currently sounding (post-transpose), so allNotesOff can release
-    /// them explicitly even on plugins that ignore CC 123.
-    private var activePitches: Set<UInt8> = []
+    /// ORIGINAL pitch → SOUNDED (post-transpose) MIDI pitch for every note
+    /// currently on. Offs look up what the on actually sent, so a transpose
+    /// change while notes are held can never mistarget an off (review NIT);
+    /// allNotesOff also releases these explicitly for plugins ignoring CC 123.
+    private var activePitches: [Int: UInt8] = [:]
 
     public init(avUnit: AVAudioUnit) {
         self.avUnit = avUnit
@@ -76,20 +78,23 @@ public final class AUNoteVoice {
 
     public func noteOn(pitch: Int, velocity: Float) {
         guard let p = AUNoteMIDI.transposedPitch(pitch, transpose: transposeSemitones) else { return }
-        activePitches.insert(p)
+        if let stale = activePitches.updateValue(p, forKey: pitch), stale != p {
+            sendMIDI(status: 0x80, data1: stale, data2: 0)   // retrigger across a transpose edit
+        }
         sendMIDI(status: 0x90, data1: p, data2: AUNoteMIDI.midiVelocity(velocity))
     }
 
     public func noteOff(pitch: Int) {
-        guard let p = AUNoteMIDI.transposedPitch(pitch, transpose: transposeSemitones) else { return }
-        activePitches.remove(p)
+        // Release what the on ACTUALLY sounded (transpose may have moved since);
+        // an off for a pitch we never started is dropped, not guessed.
+        guard let p = activePitches.removeValue(forKey: pitch) else { return }
         sendMIDI(status: 0x80, data1: p, data2: 0)
     }
 
     public func allNotesOff() {
         // CC 123 for well-behaved plugins + explicit offs for the rest.
         sendMIDI(status: 0xB0, data1: 123, data2: 0)
-        for p in activePitches { sendMIDI(status: 0x80, data1: p, data2: 0) }
+        for p in activePitches.values { sendMIDI(status: 0x80, data1: p, data2: 0) }
         activePitches.removeAll()
     }
 

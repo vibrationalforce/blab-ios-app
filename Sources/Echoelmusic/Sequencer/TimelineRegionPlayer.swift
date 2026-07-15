@@ -447,14 +447,12 @@ public final class TimelineRegionPlayer {
 
     /// Release every sounding secondary voice and clear the fan-out state (stop/reset).
     private func flushPumps() {
-        if let sink = slotNoteSink {
-            for slot in pumps.keys.sorted() {
-                if var pump = pumps[slot] {
-                    sink(slot, pump.reset())   // offs through the still-current binding
-                    pumps[slot] = nil
-                }
-                slotLaneSink?(slot, nil)       // then release the slot's lane binding
+        for slot in pumps.keys.sorted() {
+            if let sink = slotNoteSink, var pump = pumps[slot] {
+                sink(slot, pump.reset())   // offs through the still-current binding
+                pumps[slot] = nil
             }
+            slotLaneSink?(slot, nil)       // then release the slot's lane binding
         }
         pumps.removeAll()
         lanePool = LaneVoicePool(capacity: multiRollCapacity)
