@@ -1,22 +1,41 @@
-build: 2026-07-15 v10.79.232 (Playhead-Griff größer — passt jetzt zwischen die Linien)
+build: 2026-07-15 v10.79.233 (Biofeedback-Aktivierung wandert auf den Puls-Pill — ein Play-Knopf weniger)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Aus deinem Video: "Der playhead muss größer sein so, dass er da zwischen die
-  Linien passt."
+notes: Aus deinem Video: "Generell hab ich das Gefühl, dass da zu viele Play-Knöpfe
+  sind — einer reicht. Wenn Biofeedback aktiviert werden soll, drückt man einfach oben
+  rechts neben dem Echoel-Icon drauf. Lange drücken = drop down (camera light, Search
+  for Bluetooth Device, Simulation)."
 
-  FIX: der Greif-Griff oben am Playhead ist jetzt deutlich größer — das sichtbare
-  Dreieck von 15 → 26 pt (fett), das unsichtbare Antipp-Feld von 30 → 44 pt breit
-  (Apple-Fingermindestmaß) und etwas höher, damit man ihn sicher zwischen den
-  Rasterlinien erwischt und ziehen kann.
+  UMGESETZT:
+  • Der doppelte Puls-Knopf in der Transport-Leiste (die Wellenform neben Play) ist WEG
+    — ein Play-Knopf weniger.
+  • Der Puls-Pill oben neben dem Echoel-Icon ist jetzt die Bio-Steuerung:
+      – TIPPEN  = Biofeedback an/aus (postet exakt dasselbe Signal wie der alte Knopf).
+      – LANGE DRÜCKEN = Quellen-Dropdown: „Camera light" · „Search for Bluetooth device"
+        · „Simulation" · „Bio details…" (die vollen HR/HRV/Routing-Infos bleiben so
+        erreichbar, nichts geht verloren).
+  • Es läuft immer nur EINE Quelle. Wählst du live eine andere, wird sauber umgeschaltet
+    (alte Quelle aus, neue an) — auch wenn die Kamera gerade noch die Freigabe-Abfrage
+    zeigt, entsteht kein Doppel-Feed (Race vom Reviewer gefunden + behoben).
+  • Der Pill zeigt auch die Herzrate von Bluetooth-Gurt/Simulation (aus dem Bus), nicht
+    nur von der Kamera — kein „totes" Fenster mehr beim Umschalten. Die Wellenlinie
+    bleibt bei Nicht-Kamera-Quellen ehrlich flach (nur die Kamera liefert eine echte
+    Pulskurve — keine erfundene Linie).
 
-  SICHER: ui-state-reviewer CONFIRMED — nur das Playhead-Leaf liest die laufende
-  Position (Freeze-Regel gewahrt), der breitere Griff blockiert höchstens die obersten
-  6 px der ersten Spur direkt unter dem Playhead (schmales Band, kein Blocker), alle
-  Typen/Scopes sauber.
+  SICHER: ui-state-reviewer + code-reviewer CONFIRMED. Freeze-Regel gewahrt (die
+  10-Hz-Reads bleiben im Pill-Leaf, das contextMenu baut erst beim Öffnen), alle
+  Publisher-Start/Stop idempotent, Quellen-Umschalt-Race behoben, keine hängenden
+  Referenzen auf den entfernten Knopf.
 
-  NÄCHSTE RUNDE (dein Video, geplant): "zu viele Play-Knöpfe — einer reicht." Bio-
-  Aktivierung wandert auf den Puls-Pill neben das Echoel-Icon (Tippen = an/aus,
-  Langdruck = Quelle: Kamera-Licht · Bluetooth-Gurt suchen · Simulation); die
-  doppelten Play-Knöpfe (Transport ▶, Puls-Wellenform, "Play timeline") werden auf
-  EINEN reduziert.
+  NEEDS-FOUNDER-VERIFY (echter 0x180D-Gurt nötig): „Search for Bluetooth device" startet
+  den BLE-Scan direkt; der Gurt wird sonst auch übers Routing (blehrs.in) gesteuert —
+  ändert man danach eine unabhängige Route, könnte der Gurt einmalig stoppen. Kamera +
+  Simulation sind davon nicht betroffen. Sauberer Einzel-Owner-Fix (über die Route) folgt,
+  sobald ein Gurt zum Testen da ist.
 
-  Reihenfolge: v230 Playhead ziehbar · v231 Clip-Zittern weg · v232 Playhead-Griff größer.
+  NÄCHSTE RUNDE: der dritte Play-Knopf — „Play timeline" in der Timeline-Leiste — vs. der
+  Transport-Play. Die zwei fahren heute UNTERSCHIEDLICHE Uhren (Pattern vs. platzierte
+  Regionen); auf EINEN zusammenzuführen ist eine echte Abspiel-Entscheidung, die ich als
+  eigenen sauberen Schritt mache.
+
+  Reihenfolge: v231 Clip-Zittern weg · v232 Playhead-Griff größer · v233 Bio auf den Pill,
+  ein Play-Knopf weniger.

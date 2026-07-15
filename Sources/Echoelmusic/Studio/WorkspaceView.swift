@@ -6,6 +6,12 @@ import SwiftUI
 /// toggles. Decoupled — the chrome never reaches into the studio view.
 extension Notification.Name {
     static let echoelToggleBio = Notification.Name("echoel.toggleBio")
+    /// Header pill → studio: pick the BIO input source (founder 2026-07-15 video:
+    /// "Lange drücken = drop down: camera light · Search for Bluetooth Device ·
+    /// Simulation"). `object` = the source id ("camera" · "ble" · "sim"); the studio
+    /// owns all three publishers and switches the active one — same decoupling as the
+    /// toggle (the chrome never reaches into studio state).
+    static let echoelSelectBioSource = Notification.Name("echoel.selectBioSource")
     /// Chrome → studio global doors (founder 2026-07-12 shell v3: "Master,
     /// Export, Live und Learn kommt oben in die Leiste neben das Schloss").
     /// `object` = the door name ("master" · "export" · "live" · "learn"); the
@@ -203,9 +209,6 @@ struct WorkspaceView: View {
 private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
-    /// LOW-frequency instrument run state (set on Start/Stop only) — mirrors the
-    /// studio so the pulse button shows the right state. Never a ~10 Hz read.
-    @Environment(EngineBus.self) private var bus
 
     var body: some View {
         HStack(spacing: 12) {
@@ -224,11 +227,10 @@ private struct TransportBar: View {
             .contentShape(Rectangle().inset(by: -6))
             .accessibilityLabel(transport.isPlaying ? "Stop" : "Play")
 
-            // THE pulse button — Start/Stop of the bio-generative instrument, in the
-            // chrome next to Play (founder 2026-07-12: the big "Create from Within"
-            // CTA is gone; "der Button mit dem Pulszeichen kommt neben das Play
-            // oben"). Green ring = the body is live (green is reserved for live bio).
-            pulseButton
+            // (The transport pulse button is GONE — founder 2026-07-15 video: "zu viele
+            //  Play Knöpfe, einer reicht." Bio activation moved to the pulse pill next to
+            //  the E-logo in the brand header: TAP = start/stop, long-press = pick source.
+            //  The pill posts the exact same `.echoelToggleBio` the button used to.)
 
             // THE tempo control, up in the transport chrome next to Play (founder
             // 2026-07-15 "Das soll da oben hin", "beide behalten" — the pulse monitor
@@ -269,29 +271,6 @@ private struct TransportBar: View {
         .padding(.horizontal, 12)
         .frame(height: 44)
         .background(EchoelTheme.bg)
-    }
-
-    /// Start/Stop the bio-generative instrument from the chrome. Posts the toggle
-    /// notification; the studio (owner of camera/evolve/voices lifecycle) handles it —
-    /// the exact same path as the old "Create from Within" button and the Siri intents.
-    private var pulseButton: some View {
-        Button {
-            NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
-        } label: {
-            Image(systemName: bus.instrumentRunning ? "stop.circle.fill" : "waveform.path.ecg")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(bus.instrumentRunning ? EchoelTheme.accent : EchoelTheme.text)
-                .frame(width: 38, height: 32)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(bus.instrumentRunning ? EchoelTheme.accent : EchoelTheme.border,
-                                  lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle().inset(by: -6))   // 44 pt-class target (HIG)
-        .accessibilityLabel(bus.instrumentRunning ? "Stop the body instrument"
-                                                  : "Create from within — start biofeedback")
-        .accessibilityHint("Your body composes and plays the music. Tap again to stop.")
     }
 
     /// One chrome-door entry inside the transport bar's "•••" overflow menu: posts

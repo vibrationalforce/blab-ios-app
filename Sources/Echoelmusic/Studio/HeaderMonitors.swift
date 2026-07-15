@@ -133,38 +133,60 @@ struct PulseMonitorMiniLive: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     @Environment(EngineBus.self) private var bus
     var body: some View {
-        // `displayBPM` is the CALM value (holds the last confident reading through noisy
-        // patches) so the glanceable number doesn't bounce; the waveform/lock stay live.
-        // Coherence comes from the bus snapshot — read HERE in the leaf (freeze rule),
-        // never in WorkspaceView. Shown only while a fresh bio frame exists, so idle
-        // the leaf stays the compact trace + "—".
+        // The pill reflects whichever source is live (founder 2026-07-15 source picker):
+        //   • Camera — a real PPG waveform + the CALM `displayBPM` (holds the last
+        //     confident reading through noise) + lock.
+        //   • A BLE strap or the Simulation demo — the BPM comes from the bus snapshot
+        //     (no per-sample waveform exists off-camera → the trace stays honestly flat,
+        //     no fabricated line). A fresh bus frame counts as "locked" so the number and
+        //     accent show. Reading cameraRPPG + bus.freshBio() HERE keeps the 10 Hz churn
+        //     in this leaf (freeze rule); WorkspaceView never subscribes.
+        let fresh = bus.freshBio()
+        let cameraLive = cameraRPPG.isRunning
         PulseMonitorMini(waveform: cameraRPPG.waveform,
-                         bpm: cameraRPPG.displayBPM,
-                         locked: cameraRPPG.isLocked,
-                         coherence: bus.freshBio().map { Double($0.coherence) },
-                         // Only while reading: an idle monitor stays plain (no "cover lens"
-                         // amber when the user hasn't started). Read in this leaf (freeze rule).
-                         cue: cameraRPPG.isRunning ? cameraRPPG.acquisitionCue : nil)
-            // E-Bio-Header (founder 2026-07-14, red-arrow sketch: "Der Bio Teil soll
-            // komplett nach da oben. Wenn man draufdrückt bekommt man mehr Infos"): the
-            // Bio section's HOME is now this header leaf. TAP opens the full detail —
-            // HR/HRV/Br/Coh numbers, tap-to-learn, source + Read-pulse, Routing — via the
-            // existing chrome-door → Bio dropdown (no new modal; receiver anchored on an
-            // inner studio row, never the root chain). Start/stop still has its own big
-            // control (the transport pulse button next to Play); a long-press here keeps
-            // that shortcut for anyone who learned it. The bottom "Bio" chip is removed —
-            // bio no longer lives in two places.
+                         bpm: cameraLive ? cameraRPPG.displayBPM : Double(fresh?.heartRateBPM ?? 0),
+                         locked: cameraLive ? cameraRPPG.isLocked : (fresh != nil),
+                         coherence: fresh.map { Double($0.coherence) },
+                         // Only the camera has an acquisition cue ("cover the lens"); a
+                         // strap/sim monitor stays plain.
+                         cue: cameraLive ? cameraRPPG.acquisitionCue : nil)
+            // E-Bio-Header — bio's HOME is this header pill (founder 2026-07-14 +
+            // 2026-07-15 video: "Wenn Biofeedback aktiviert werden soll drückt man
+            // einfach oben rechts neben dem Echoel Icon drauf. Lange drücken = drop
+            // down: camera light · Search for Bluetooth Device · Simulation").
+            //   • TAP starts/stops the bio-generative instrument (the exact
+            //     `.echoelToggleBio` the removed transport pulse button used to post —
+            //     "einer reicht", the duplicate button is gone).
+            //   • LONG-PRESS opens the SOURCE dropdown: pick Camera light / a Bluetooth
+            //     strap / the Simulation demo; the studio owns all three publishers and
+            //     switches the live one (decoupled via .echoelSelectBioSource). A "Bio
+            //     details…" entry still reaches the full HR/HRV/routing panel (chrome
+            //     door "bio") so nothing is stranded.
+            // `.contextMenu` builds its content only when opened (not at body time), so
+            // this adds NO 10 Hz read to the pill's body — freeze rule intact.
             .contentShape(Rectangle())
             .onTapGesture {
-                NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
-            }
-            .onLongPressGesture {
                 NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
+            }
+            .contextMenu {
+                Button {
+                    NotificationCenter.default.post(name: .echoelSelectBioSource, object: "camera")
+                } label: { Label("Camera light", systemImage: "camera.fill") }
+                Button {
+                    NotificationCenter.default.post(name: .echoelSelectBioSource, object: "ble")
+                } label: { Label("Search for Bluetooth device", systemImage: "dot.radiowaves.left.and.right") }
+                Button {
+                    NotificationCenter.default.post(name: .echoelSelectBioSource, object: "sim")
+                } label: { Label("Simulation", systemImage: "waveform.path") }
+                Divider()
+                Button {
+                    NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
+                } label: { Label("Bio details…", systemImage: "info.circle") }
             }
             .accessibilityAddTraits(.isButton)
             .accessibilityHint(cameraRPPG.isRunning
-                ? "Opens your live bio details and sources. Touch and hold to stop the pulse reading."
-                : "Opens your live bio details and sources. Touch and hold to start reading your pulse.")
+                ? "Tap to stop your pulse reading. Touch and hold to choose a bio source or open details."
+                : "Tap to start reading your pulse. Touch and hold to choose a bio source or open details.")
     }
 }
 #endif

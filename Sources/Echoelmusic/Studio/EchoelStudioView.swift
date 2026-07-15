@@ -101,12 +101,30 @@ struct EchoelStudioView: View {
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
+    // The two alternative bio sources the header pill's long-press dropdown can select
+    // (founder 2026-07-15): a Bluetooth heart-rate strap (universal 0x180D) and the
+    // Simulation demo. Camera (above) is the default. All three are injected by the app;
+    // `selectBioSource` switches the live one, `startBioSource` honours the selection.
+    #if canImport(CoreBluetooth)
+    @Environment(PolarH10BioPublisher.self) private var polarH10
+    #endif
+    @Environment(BioSimulator.self) private var demoSource
     #if canImport(AVFoundation) && canImport(Metal)
     @Environment(VisualRecorder.self) private var visualRecorder
     #endif
 
     // The single live-state flag: biofeedback running or not.
     @State private var running = false
+
+    /// Which bio input the header pill's long-press dropdown selected (founder
+    /// 2026-07-15). Camera by default; `startBioSource` brings up whichever is set,
+    /// `selectBioSource` switches it live. Persisted so the choice survives relaunch.
+    @AppStorage("bio.sourceKind") private var bioSourceRaw = BioSourceKind.camera.rawValue
+    /// Guards the async live source-switch so a rapid re-pick can't overlap.
+    @State private var sourceSwitchTask: Task<Void, Never>?
+
+    /// The three bio inputs the header pill's long-press dropdown offers.
+    private enum BioSourceKind: String { case camera, ble, sim }
 
     /// Drives Siri/Shortcuts intent consumption (start/stop/keep loop) when the
     /// app becomes active after an intent opens it.
@@ -467,10 +485,15 @@ struct EchoelStudioView: View {
             // receivers moved onto the menu bar (still an INNER row — the
             // root's modifier chain / metadata type is untouched).
             AnyView(menuBar
-                // The chrome's pulse button (TransportBar, next to Play — founder
-                // 2026-07-12) starts/stops the instrument through this notification.
+                // The header pulse pill (next to the E-logo — founder 2026-07-15 video)
+                // starts/stops the instrument through this notification (TAP). The old
+                // transport pulse button that posted this is gone ("einer reicht").
                 .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
                     toggleBiofeedback()
+                }
+                // Header pill long-press → pick the bio input source (camera · BLE · sim).
+                .onReceive(NotificationCenter.default.publisher(for: .echoelSelectBioSource)) { note in
+                    selectBioSource(note.object as? String)
                 }
                 // Chrome doors (shell v3): Master/Export open their dropdown;
                 // Live/Learn their existing sheets.
@@ -3323,6 +3346,7 @@ struct EchoelStudioView: View {
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
         lastGenBody = nil                // next Start re-captures a fresh body baseline (evolve hold)
         startTask?.cancel(); startTask = nil
+        sourceSwitchTask?.cancel(); sourceSwitchTask = nil   // no source hot-swap after Stop
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil
         lockSnapTask?.cancel(); lockSnapTask = nil
@@ -3370,27 +3394,75 @@ struct EchoelStudioView: View {
         #endif
     }
 
-    /// Begin publishing a bio signal. Camera rPPG on devices that have it (cover
-    /// the lens), otherwise the deterministic demo source so the instrument always
-    /// plays. Failures are swallowed — generation falls back to neutral defaults.
+    /// Begin publishing a bio signal from the SELECTED source (header pill dropdown,
+    /// founder 2026-07-15). Camera rPPG by default (cover the lens); a Bluetooth strap
+    /// (universal 0x180D) or the deterministic Simulation demo if the user picked those,
+    /// so the instrument always plays. Failures are swallowed — generation falls back to
+    /// neutral defaults.
     private func startBioSource() async {
-        #if canImport(AVFoundation)
-        EchoelCrashLog.breadcrumb("camera starting")
-        await cameraRPPG.start(publishing: bus)
-        EchoelCrashLog.breadcrumb("camera started (running=\(cameraRPPG.isRunning))")
-        // Returns as soon as the camera is publishing — NO lock-wait here. Sound
-        // starts immediately (composed from neutral defaults if no pulse yet) and
-        // snapToLockWhenReady() re-seeds from the real heartbeat the moment it locks.
-        #else
-        // No camera on this platform and no synthetic demo source — the composer
-        // falls back to neutral physiological defaults so the instrument still plays.
-        #endif
+        switch BioSourceKind(rawValue: bioSourceRaw) ?? .camera {
+        case .camera:
+            #if canImport(AVFoundation)
+            EchoelCrashLog.breadcrumb("camera starting")
+            await cameraRPPG.start(publishing: bus)
+            EchoelCrashLog.breadcrumb("camera started (running=\(cameraRPPG.isRunning))")
+            // Returns as soon as the camera is publishing — NO lock-wait here. Sound
+            // starts immediately (composed from neutral defaults if no pulse yet) and
+            // snapToLockWhenReady() re-seeds from the real heartbeat the moment it locks.
+            #endif
+        case .ble:
+            #if canImport(CoreBluetooth)
+            EchoelCrashLog.breadcrumb("BLE HR strap starting (scan)")
+            polarH10.start(publishing: bus)   // idempotent; opens the Bluetooth scan
+            #endif
+        case .sim:
+            EchoelCrashLog.breadcrumb("bio simulation starting")
+            demoSource.start(publishing: bus) // deterministic demo frames; source == .fallback
+        }
     }
 
+    /// Stop EVERY bio publisher (idempotent) so no source keeps feeding the bus after
+    /// Stop or a source switch.
     private func stopBioSource() {
         #if canImport(AVFoundation)
         cameraRPPG.stop()
         #endif
+        #if canImport(CoreBluetooth)
+        polarH10.stop()
+        #endif
+        demoSource.stop()
+    }
+
+    /// Switch the live BIO INPUT source from the header pill's long-press dropdown
+    /// (founder 2026-07-15: "camera light · Search for Bluetooth Device · Simulation").
+    /// Only ONE source feeds the bus at a time. If the instrument is already running we
+    /// hot-swap (drop the old publisher, bring up the new one, keeping the music going);
+    /// if it's idle, picking a source activates the instrument with it — same as a tap.
+    private func selectBioSource(_ id: String?) {
+        guard let id, let kind = BioSourceKind(rawValue: id) else { return }
+        bioSourceRaw = kind.rawValue
+        if running {
+            // Supersede any IN-FLIGHT start before switching. The camera's
+            // `await cameraRPPG.start(publishing:)` can stay suspended for seconds (the
+            // first-launch permission dialog). If we stopped + restarted synchronously,
+            // that suspended camera start would resume AFTER our stop and keep the camera
+            // publishing alongside the newly-picked source — two sources fighting over the
+            // bus snapshot (reviewer-caught race). So: cancel both the initial start and
+            // any prior switch, let them DRAIN, then stop-all and bring up the new source.
+            let priorStart = startTask
+            let priorSwitch = sourceSwitchTask
+            startTask?.cancel(); startTask = nil
+            sourceSwitchTask?.cancel()
+            sourceSwitchTask = Task { @MainActor in
+                _ = await priorStart?.value       // an in-flight camera.start finishes first
+                _ = await priorSwitch?.value      // and any prior switch drains
+                guard running, !Task.isCancelled else { return }
+                stopBioSource()                   // now safe — nothing is mid-start
+                await startBioSource()            // bring up the newly-selected one
+            }
+        } else {
+            startBiofeedback()                    // idle → activate with the chosen source
+        }
     }
 
     /// Gentle continuous evolution: every ~12 s, recompose from the *current* body
