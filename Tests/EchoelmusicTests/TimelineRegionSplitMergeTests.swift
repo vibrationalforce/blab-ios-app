@@ -54,6 +54,58 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
         XCTAssertEqual(first.lengthTicks + second.lengthTicks, r.lengthTicks)
     }
 
+    // MARK: - Front-trim (leading edge — founder "auch vorne ziehen")
+
+    func testTrimmedStart_movingRight_shortensAndAdvancesOffset() {
+        // 480 ticks = one quarter = 0.5 s @ 120 BPM. Trim the front by a quarter.
+        let r = region(start: 0, length: 1920, offset: 0)
+        let t = try! XCTUnwrap(r.trimmedStart(toTick: 480, bpm: 120))
+        XCTAssertEqual(t.startTick, 480, "leading edge moved right")
+        XCTAssertEqual(t.endTick, r.endTick, "end held fixed")
+        XCTAssertEqual(t.lengthTicks, 1440, "length shrank by the trimmed amount")
+        XCTAssertEqual(t.contentOffsetSeconds, 0.5, accuracy: 1e-9,
+                       "media offset advances so the content stays put")
+        XCTAssertEqual(t.id, r.id, "same region, just trimmed")
+    }
+
+    func testTrimmedStart_movingLeft_extendsAndReducesOffset() {
+        // Region starts at tick 960 with 1.0 s of media pre-roll; extend the front left.
+        let r = region(start: 960, length: 960, offset: 1.0)
+        let t = try! XCTUnwrap(r.trimmedStart(toTick: 480, bpm: 120))   // 480 ticks left = 0.5 s
+        XCTAssertEqual(t.startTick, 480)
+        XCTAssertEqual(t.endTick, r.endTick, "end held fixed")
+        XCTAssertEqual(t.lengthTicks, 1440, "length grew by the revealed amount")
+        XCTAssertEqual(t.contentOffsetSeconds, 0.5, accuracy: 1e-9,
+                       "offset reduced by the revealed media time")
+    }
+
+    func testTrimmedStart_cannotRevealBeforeMediaStart() {
+        // Only 0.5 s (480 ticks @ 120 BPM) of pre-roll — can't extend the front further left.
+        let r = region(start: 960, length: 960, offset: 0.5)
+        let t = try! XCTUnwrap(r.trimmedStart(toTick: 0, bpm: 120))
+        XCTAssertEqual(t.startTick, 480, "clamped to the media start (960 - 480 ticks)")
+        XCTAssertEqual(t.contentOffsetSeconds, 0, accuracy: 1e-9, "offset bottoms out at 0")
+        XCTAssertEqual(t.endTick, r.endTick)
+    }
+
+    func testTrimmedStart_midiOffsetZero_cannotFrontExtend() {
+        // A MIDI/offset-0 region has no earlier media → the front can't extend left.
+        let r = region(start: 480, length: 480, offset: 0)
+        XCTAssertNil(r.trimmedStart(toTick: 0, bpm: 120), "no pre-roll ⇒ front-extend is a no-op")
+        // …but it can still trim right (shorten from the front).
+        let t = try! XCTUnwrap(r.trimmedStart(toTick: 600, bpm: 120))
+        XCTAssertEqual(t.startTick, 600)
+        XCTAssertEqual(t.endTick, 960, "end held fixed")
+    }
+
+    func testTrimmedStart_clampsAtEndAndNoOp() {
+        let r = region(start: 100, length: 800)                        // 100…900
+        let atEnd = try! XCTUnwrap(r.trimmedStart(toTick: 5000, bpm: 120))
+        XCTAssertEqual(atEnd.startTick, 899, "clamped to keep ≥ 1 tick")
+        XCTAssertEqual(atEnd.lengthTicks, 1)
+        XCTAssertNil(r.trimmedStart(toTick: 100, bpm: 120), "start unchanged ⇒ nil")
+    }
+
     // MARK: - Merge (the undo of a split)
 
     func testAbuts_sameLaneClipTouchingMediaContiguous_true() {

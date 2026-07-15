@@ -191,6 +191,30 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         return (first, second)
     }
 
+    /// Trim or extend the LEADING edge to an absolute `newStart` tick, holding the END
+    /// fixed (front-trim — founder 2026-07-15 "nicht nur hinten … sondern auch vorne").
+    /// The media offset shifts by the moved distance so the content under the clip stays
+    /// put (the reverse of `split`'s offset advance): dragging the left edge RIGHT trims
+    /// the front and advances `contentOffsetSeconds`; dragging it LEFT reveals earlier
+    /// media and reduces the offset. Clamped so the clip keeps ≥ 1 tick, never starts
+    /// before tick 0, and never reveals media before its own start (offset ≥ 0 — so a
+    /// MIDI/offset-0 region can only trim, not front-extend). Returns nil when the start
+    /// doesn't move. Pure + testable.
+    public func trimmedStart(toTick newStart: Int, bpm: Double) -> TimelineRegion? {
+        let offsetTicks = TimelineTime.ticks(fromSeconds: contentOffsetSeconds, bpm: bpm)
+        let minStart = Swift.max(0, startTick - offsetTicks)   // extending left bottoms out at the media start
+        let maxStart = endTick - 1                             // keep ≥ 1 tick
+        guard maxStart >= minStart else { return nil }
+        let clampedStart = Swift.min(Swift.max(newStart, minStart), maxStart)
+        guard clampedStart != startTick else { return nil }
+        var r = self
+        r.startTick = clampedStart
+        r.lengthTicks = endTick - clampedStart
+        r.contentOffsetSeconds = Swift.max(0, contentOffsetSeconds
+            + TimelineTime.seconds(fromTicks: clampedStart - startTick, bpm: bpm))
+        return r
+    }
+
     /// Whether `other` abuts this region on the SAME lane + clip (this region's end
     /// meets the other's start) AND is contiguous IN THE MEDIA — the mergeable case
     /// (the undo of a split). Regions of DIFFERENT clips never merge (which content
@@ -367,6 +391,14 @@ public enum TimelineTime {
     public static func seconds(fromTicks ticks: Int, bpm: Double) -> Double {
         guard bpm > 0 else { return 0 }
         return Double(ticks) / Double(ticksPerQuarter) * (60.0 / bpm)
+    }
+
+    /// Seconds → ticks at a tempo (the inverse of `seconds(fromTicks:)`, rounded).
+    /// Used by front-trim to convert a media offset into the furthest the leading edge
+    /// may extend left without revealing media before its start.
+    public static func ticks(fromSeconds seconds: Double, bpm: Double) -> Int {
+        guard bpm > 0 else { return 0 }
+        return Int((seconds * bpm / 60.0 * Double(ticksPerQuarter)).rounded())
     }
 }
 

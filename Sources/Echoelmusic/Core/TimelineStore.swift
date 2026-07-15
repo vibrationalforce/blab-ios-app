@@ -108,6 +108,16 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Trim/extend a region's LEADING edge to an absolute tick, holding the end fixed
+    /// (front-trim; the media offset shifts so the content stays put). Caller applies snap.
+    /// No-op if the start can't move (clamped by the region's own trimmedStart).
+    public func trimRegionStart(id: UUID, toTick tick: Int, bpm: Double) {
+        guard let i = document.regions.firstIndex(where: { $0.id == id }),
+              let trimmed = document.regions[i].trimmedStart(toTick: tick, bpm: bpm) else { return }
+        document.regions[i] = trimmed
+        persist()
+    }
+
     // MARK: - Clip edit — split / merge (founder 2026-07-14 "Clips schneiden und zusammenfügen")
 
     /// Split the region `id` at an absolute tick into two abutting regions ("cut").

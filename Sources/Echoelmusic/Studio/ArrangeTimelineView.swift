@@ -792,12 +792,18 @@ private struct RegionBlockView: View {
     /// Live trailing-trim offset for THIS clip only (root no longer churns).
     @State private var resizeDelta: CGFloat = 0
     @State private var isResizing = false
+    /// Live LEADING-trim offset for THIS clip (founder 2026-07-15 "auch vorne"): moving
+    /// the left edge shifts x AND shrinks/grows the width, holding the right edge fixed.
+    @State private var frontDelta: CGFloat = 0
+    @State private var isFrontResizing = false
 
     private var laneHeight: CGFloat { ArrangeTimelineView.laneHeight }
 
     var body: some View {
-        let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb
-        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeDelta)
+        // Leading trim moves the left edge (x += frontDelta) and adjusts width the
+        // opposite way so the RIGHT edge stays put; trailing trim adds to the width.
+        let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontDelta
+        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeDelta - frontDelta)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
         // Tap an AUDIO region = hear its file immediately (founder: "Audio mit direkt
@@ -824,6 +830,20 @@ private struct RegionBlockView: View {
                     .foregroundStyle(EchoelTheme.text)
                     .lineLimit(1)
                     .padding(.horizontal, 5).padding(.top, 3)
+            }
+            .overlay(alignment: .leading) {
+                // Leading trim handle (founder 2026-07-15 "auch vorne"): mirror of the
+                // trailing grip. Moves the front edge; the right edge stays fixed, media
+                // stays put. Released → snapped + committed via trimRegionStart.
+                ZStack(alignment: .leading) {
+                    Color.clear.frame(width: 22)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(tint.opacity(isFrontResizing ? 0.9 : 0.5))
+                        .frame(width: 4, height: laneHeight - 20)
+                        .padding(.leading, 3)
+                }
+                .contentShape(Rectangle())
+                .gesture(frontResizeGesture)
             }
             .overlay(alignment: .trailing) {
                 // Trailing trim handle (B11): a fat invisible grab zone + a thin grip.
@@ -919,6 +939,28 @@ private struct RegionBlockView: View {
                     lengthTicks: max(TimelineTime.ticksPerTransportStep, snapped))
                 isResizing = false
                 resizeDelta = 0
+            }
+    }
+
+    /// Leading-edge trim (founder 2026-07-15 "auch vorne") — live x/width track the
+    /// finger via this clip's OWN `frontDelta` @State (no root churn); on release the new
+    /// start tick is snapped and committed via `trimRegionStart`, which holds the end
+    /// fixed and shifts the media offset so content stays put (clamped in the model).
+    private var frontResizeGesture: some Gesture {
+        DragGesture(minimumDistance: 3)
+            .onChanged { value in
+                isFrontResizing = true
+                frontDelta = value.translation.width
+            }
+            .onEnded { value in
+                let deltaTicks = Int((value.translation.width / ppb
+                                      * CGFloat(TimelineTime.ticksPerBeat)).rounded())
+                let rawStart = region.startTick + deltaTicks
+                let snapped = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
+                timeline.trimRegionStart(id: region.id, toTick: max(0, snapped),
+                                         bpm: beatPlayer.pattern.tempo)
+                isFrontResizing = false
+                frontDelta = 0
             }
     }
 }
