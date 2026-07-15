@@ -1,21 +1,29 @@
-build: 2026-07-15 v10.79.229 (Spur-Kopf: alle Felder gleich groß — M/S/Aufnahme/Gain einheitlich hoch)
+build: 2026-07-15 v10.79.230 (Playhead lässt sich ziehen — Griff oben, snap-verbunden)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkt aus deinem Screenshot ("Die Felder sollen gleichgroß sein"): im Spur-Kopf
-  war das Gain-Kästchen (die „0.00"/„1.00"-Zahl) deutlich HÖHER als die M/S- und
-  Aufnahme-Knöpfe daneben — die Reihe wirkte unruhig.
+notes: Erster Teil deiner Timeline-Wünsche (Video + Text): der Playhead ließ sich gar
+  nicht mit der Hand verschieben.
 
-  FIX: alle Felder im Spur-Kopf sind jetzt gleich hoch (28 pt) — Aufnahme-Icon · M · S ·
-  Gain-Kästchen bilden eine saubere, einheitliche Reihe. Nebeneffekt: der Kopf sitzt
-  luftiger (vorher drückte das ~40 pt hohe Gain-Kästchen die Zeile eng zusammen).
+  NEU: oben am Playhead sitzt jetzt ein Griff-Symbol (▼) — gut anfassbar (30 pt breit).
+  Damit ziehst du den Playhead hin und her; beim Ziehen rastet er auf das aktuelle
+  Snap-Raster (Bar · Beat · 1/8 · 1/16 · 1/8T · Off — oben rechts umstellbar), genau
+  wie du es beschrieben hast. Die Linie selbst bleibt „durchlässig" (blockiert keine
+  Clip-Taps), nur der Griff oben fängt die Berührung — so gewinnt er sauber gegen das
+  horizontale Scrollen.
 
-  Technisch: EchoelValueField bekam eine optionale feste Höhe (boxHeight) für dichte
-  Reihen — der EINE app-weite Zahl-Regler bleibt der eine Regler, nur in der Timeline-
-  Spur jetzt kompakt auf Knopf-Höhe. Alle anderen Nutzungen unverändert.
+  Technisch: der Griff-Zug rechnet die Finger-Position (scroll-fest über einen benannten
+  Koordinatenraum) in einen Tick um, snappt ihn und setzt den Transport per seek auf den
+  nächsten 16tel-Schritt. Der Playhead bleibt ein eigenes Leaf-View (Freeze-Regel: nur er
+  aktualisiert sich im Takt, nicht die Spuren/Menüs).
 
-  SICHER: ui-state-reviewer CONFIRMED — kompiliert (Argument-Reihenfolge ok), passt in
-  die 140-pt-Spur (138 pt), passt vertikal in die 56-pt-Spur, keine andere Nutzung des
-  Reglers bricht, Zahl bleibt lesbar.
+  SICHER: ui-state-reviewer CONFIRMED — Freeze-Regel gewahrt, Clip-Taps nicht blockiert,
+  Koordinaten-Mapping exakt (deckt sich mit der Clip-Positionierung), alle APIs vorhanden.
+  (Kosmetik-Notiz: ganz am Anfang bei Takt 1 ist der Griff halb am linken Rand — verifiziere
+  am Gerät, ob dich das stört, dann klemme ich ihn rein.)
 
-  Reihenfolge heute: v225 Spur-Kopf-Fit · v226 Split/Join am Clip · v227 Tempo hoch ·
-  v228 Puls-Relock (Geräte-Log) · v229 Felder gleich groß. Offen aus Feedback:
-  Sample/MIDI per Lang-Druck einfügen · Combine (Mehrfachauswahl).
+  NÄCHSTE RUNDEN aus deinem Feedback (je einzeln): Playhead-Lauf smoother machen
+  (zwischen den 16teln interpolieren) · Clip-Zittern beim Trimmen beheben · Clip auch
+  VORNE trimmen (nicht nur hinten). „Suche nach Quellen" — mache ich für die
+  Interpolation + zweiseitiges Trimmen im nächsten Zyklus.
+
+  Reihenfolge heute: v225–229 (Spur-Kopf, Split/Join, Tempo, Puls-Relock, Felder) ·
+  v230 Playhead ziehbar.

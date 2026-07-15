@@ -708,9 +708,14 @@ struct ArrangeTimelineView: View {
         }
         .frame(width: gridWidth, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
-            TimelinePlayhead(pointsPerBeat: ppb)
+            TimelinePlayhead(pointsPerBeat: ppb, snap: snap, coordinateSpace: Self.playheadSpace)
         }
+        // Absolute x reference for the playhead drag → tick mapping (scroll-invariant).
+        .coordinateSpace(name: Self.playheadSpace)
     }
+
+    /// Name of the grid's coordinate space (playhead drag → tick).
+    private static let playheadSpace = "echoel.timeline.grid"
 
     /// Beat subdivisions appear once a beat is wide enough to read (≥ 18 pt) —
     /// zoomed out, only bars; zoomed in, the working grid a DAW shows.
@@ -1069,17 +1074,72 @@ private struct LaneFXEditor: View {
 private struct TimelinePlayhead: View {
     @Environment(Transport.self) private var transport
     let pointsPerBeat: CGFloat
+    /// The active snap grid — the drag lands the playhead on bar/beat/8th/16th/off,
+    /// the same magnet the regions use (founder 2026-07-15: "beim Schieben verbunden
+    /// mit snap bar, Beat, 1/16, etc / off").
+    let snap: SnapResolution
+    /// Absolute x-name of the scrolling grid, so a drag's location maps to a tick
+    /// regardless of horizontal scroll.
+    let coordinateSpace: String
+
+    /// While dragging the handle: the local override tick (lag-free visual, independent
+    /// of the clock). nil = follow the transport.
+    @State private var scrubTick: Int?
+
+    /// Ticks per transport step (16th) — the seek granularity. 480 / 4 = 120.
+    private static var ticksPerStep: Int { TimelineTime.ticksPerBeat / Transport.stepsPerBeat }
+    /// Handle band height — matches the ruler so the grab tab sits in the ruler zone.
+    private static let handleHeight: CGFloat = 24
+
+    private var liveTick: Int { transport.position.absoluteStep * Self.ticksPerStep }
 
     var body: some View {
-        let pos = transport.position
-        let beats = CGFloat(pos.bar * Transport.stepsPerBar + pos.step)
-            / CGFloat(Transport.stepsPerBeat)
-        Rectangle()
-            .fill(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
-            .frame(width: 2)
-            .offset(x: beats * pointsPerBeat)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        let tick = scrubTick ?? liveTick
+        let x = CGFloat(tick) / CGFloat(TimelineTime.ticksPerBeat) * pointsPerBeat
+        let active = scrubTick != nil || transport.isPlaying
+        ZStack(alignment: .topLeading) {
+            // The line — full height, thin, NON-hittable so it never blocks a region tap.
+            Rectangle()
+                .fill(active ? EchoelTheme.accent : EchoelTheme.dim)
+                .frame(width: 2)
+                .frame(maxHeight: .infinity)
+                .allowsHitTesting(false)
+            // The grab handle — a downward tab at the TOP (over the ruler), a fat touch
+            // target the founder asked for ("oben ein Symbol wo man gut anfassen kann").
+            // Centered on the 2 pt line. Only THIS is hittable → it wins over the grid's
+            // horizontal ScrollView (dedicated-zone drag, like the region trim handle).
+            Image(systemName: "arrowtriangle.down.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(scrubTick != nil ? EchoelTheme.accent
+                                                  : (transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text))
+                .frame(width: 30, height: Self.handleHeight, alignment: .center)
+                .contentShape(Rectangle())
+                .offset(x: -15 + 1)   // center the 30-wide target on the 2 pt line
+                .gesture(dragGesture)
+                .accessibilityLabel("Playhead — drag to move")
+        }
+        .offset(x: x)
+    }
+
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(coordinateSpace))
+            .onChanged { g in
+                let rawTick = Int((g.location.x / pointsPerBeat) * CGFloat(TimelineTime.ticksPerBeat))
+                let snapped = TimelineSnap.snap(Swift.max(0, rawTick), to: snap)
+                scrubTick = snapped
+                seek(toTick: snapped)
+            }
+            .onEnded { _ in
+                if let t = scrubTick { seek(toTick: t) }
+                scrubTick = nil
+            }
+    }
+
+    /// Seek the transport to the nearest 16th step of `tick` (the clock is 16th-quantized).
+    private func seek(toTick tick: Int) {
+        let step = Int((Double(tick) / Double(Self.ticksPerStep)).rounded())
+        transport.seek(toBar: step / Transport.stepsPerBar,
+                       step: step % Transport.stepsPerBar)
     }
 }
 #endif
