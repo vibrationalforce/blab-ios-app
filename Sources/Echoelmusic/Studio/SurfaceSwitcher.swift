@@ -11,7 +11,8 @@ import SwiftUI
 // WorkspaceSurface enum stay in code (the @AppStorage raw values are still
 // written by ArrangementView's legacy navigation), unmounted, reversible.
 //
-// Render safety: SurfaceHost reads no observables (geometry only).
+// Render safety: SurfaceHost reads no @Observable models — only the
+// @AppStorage fold toggle (user-tap frequency, freeze-rule safe).
 
 /// The workspace surfaces. Raw values are PERSISTED via @AppStorage and must
 /// stay stable — `compose` and `clips` are the values `ArrangementView`'s
