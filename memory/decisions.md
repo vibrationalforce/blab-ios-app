@@ -545,3 +545,17 @@ Architectural and strategic decisions with context and rationale.
   NEEDS-FOUNDER-VERIFY-Tests sobald Hardware da (Gurt verdrahten → Puls im
   Header; Watch → HealthKit-Quelle).
 - **Review:** 2026-08-12.
+
+### 2026-07-15 EchoelPublish-Vision + rote Linie (Founder-Video: Zernio/Late-Werbung)
+- **Founder-Ask (verbatim-Kern):** "Nicht nur livestreams auf verschiedenen Plattformen
+  sondern auch automatisiert Accounts anlegen und strukturiert posten. Trotzdem
+  handgemachter Kontent. Die EchoelVideo mit Biofeedback Reaktion und Musikvideo driven
+  Content Produktion auf dem Beat Meridiane direkt in der DMMW und EchoelAI."
+- **Zusage (Task #51):** (a) Beat/Bio-Auto-Edit auf dem Tick-Raster via TimelineStore-Ops
+  (Store-first → EchoelAI-fahrbar), (b) 9:16-Export, (c) Publish-Türen über offizielle
+  APIs (YouTube Data / Meta Graph / TikTok Content Posting) auf EIGENE OAuth-Accounts,
+  Multi-Account + Scheduling — v1.2 Broadcast-Ära.
+- **ROTE LINIE (dem Founder so kommuniziert):** KEINE automatisierte Account-Erstellung —
+  Plattform-ToS ("inauthentic behavior"), Sperr-Risiko echter Accounts, App-Store-Risiko,
+  Widerspruch zu "handgemachter Content". Legitime Alternative: Verteilungs-Automatisierung
+  auf eigenen Accounts, nie Identitäts-Erstellung.
