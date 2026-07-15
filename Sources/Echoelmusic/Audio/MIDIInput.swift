@@ -31,6 +31,11 @@ final class MIDIInput {
     private var midiClient: MIDIClientRef = 0
     private var inputPort: MIDIPortRef = 0
 
+    /// H10 (#30): the receive-thread → main-actor batch queue. Immutable +
+    /// Sendable, so the nonisolated receive callback may touch it. See
+    /// MIDIEventParse.swift for the flood/FIFO rationale.
+    private let inQueue = MIDIInEventQueue()
+
     // MARK: - Init
 
     init() {
@@ -105,92 +110,62 @@ final class MIDIInput {
 
     // MARK: - MIDI Event Processing
 
+    /// H10 (#30, audit): the old version reflected over `packet.words` with
+    /// `Mirror` (allocation per packet on the CoreMIDI receive thread) and
+    /// spawned one `Task { @MainActor }` PER EVENT — main-executor flood under
+    /// a dense MPE stream, and no FIFO guarantee across separate tasks (a
+    /// note-off could overtake its note-on → hung note). Now: allocation-free
+    /// word reads → pure parse → batch queue → AT MOST ONE drain task per
+    /// burst (order preserved, latency unchanged at one main-actor hop).
+    /// As before, only the FIRST message of a packet is consumed (multi-
+    /// message UMP packets were never split here — unchanged, documented).
     private nonisolated func handleMIDIEvents(_ eventList: UnsafePointer<MIDIEventList>) {
         let list = eventList.pointee
         var packet = list.packet
+        var needDrain = false
 
         for _ in 0..<list.numPackets {
-            let words = Mirror(reflecting: packet.words).children.compactMap { $0.value as? UInt32 }
             let wordCount = Int(packet.wordCount)
-
             if wordCount >= 1 {
-                let word0 = words[0]
-                let messageType = (word0 >> 28) & 0xF
-                let channel = Int((word0 >> 16) & 0xF)
-
-                switch messageType {
-                case 0x2: // MIDI 1.0 Channel Voice (legacy)
-                    let status = (word0 >> 16) & 0xFF
-                    let data1 = Int((word0 >> 8) & 0x7F)
-                    let data2 = Float(word0 & 0x7F) / 127.0
-
-                    switch status & 0xF0 {
-                    case 0x90: // Note On
-                        if data2 > 0 {
-                            Task { @MainActor [weak self] in
-                                self?.lastNote = data1
-                                self?.lastVelocity = data2
-                                self?.onNoteOn?(data1, data2, channel)
-                            }
-                        } else {
-                            Task { @MainActor [weak self] in
-                                self?.onNoteOff?(data1, channel)
-                            }
-                        }
-                    case 0x80: // Note Off
-                        Task { @MainActor [weak self] in
-                            self?.onNoteOff?(data1, channel)
-                        }
-                    case 0xB0: // CC
-                        Task { @MainActor [weak self] in
-                            self?.onCC?(data1, data2, channel)
-                        }
-                    case 0xE0: // Pitch Bend
-                        let bendValue = Float(Int(data1) | (Int(word0 & 0x7F) << 7) - 8192) / 8192.0
-                        Task { @MainActor [weak self] in
-                            self?.onPitchBend?(bendValue, channel)
-                        }
-                    default: break
-                    }
-
-                case 0x4: // MIDI 2.0 Channel Voice
-                    guard wordCount >= 2 else { break }
-                    let word1 = words[1]
-                    let statusNibble = (word0 >> 20) & 0xF
-
-                    switch statusNibble {
-                    case 0x9: // Note On (MIDI 2.0: 16-bit velocity in word1)
-                        let note = Int((word0 >> 8) & 0x7F)
-                        let velocity = Float(word1 >> 16) / 65535.0
-                        Task { @MainActor [weak self] in
-                            self?.lastNote = note
-                            self?.lastVelocity = velocity
-                            self?.onNoteOn?(note, velocity, channel)
-                        }
-                    case 0x8: // Note Off (MIDI 2.0)
-                        let note = Int((word0 >> 8) & 0x7F)
-                        Task { @MainActor [weak self] in
-                            self?.onNoteOff?(note, channel)
-                        }
-                    case 0xB: // CC (MIDI 2.0: 32-bit value in word1)
-                        let cc = Int((word0 >> 8) & 0x7F)
-                        let value = Float(word1) / Float(UInt32.max)
-                        Task { @MainActor [weak self] in
-                            self?.onCC?(cc, value, channel)
-                        }
-                    case 0xE: // Pitch Bend (MIDI 2.0: 32-bit in word1)
-                        let bend = Float(Int32(bitPattern: word1)) / Float(Int32.max)
-                        Task { @MainActor [weak self] in
-                            self?.onPitchBend?(bend, channel)
-                        }
-                    default: break
-                    }
-
-                default: break
+                let (word0, word1): (UInt32, UInt32?) = withUnsafeBytes(of: packet.words) { raw in
+                    let words = raw.bindMemory(to: UInt32.self)
+                    return (words[0], wordCount >= 2 ? words[1] : nil)
+                }
+                if let event = MIDIEventParse.event(word0: word0, word1: word1) {
+                    if inQueue.push(event) { needDrain = true }
                 }
             }
-
             packet = MIDIEventPacketNext(&packet).pointee
+        }
+
+        if needDrain {
+            Task { @MainActor [weak self] in
+                self?.drainIncoming()
+            }
+        }
+    }
+
+    /// Main actor: empty the batch queue in FIFO order and dispatch to the
+    /// existing callbacks (same signatures/behavior as the per-event tasks).
+    private func drainIncoming() {
+        let (events, dropped) = inQueue.drain()
+        if dropped > 0 {
+            log.log(.warning, category: .system,
+                    "MIDI: input burst overflow — dropped \(dropped) event(s)")
+        }
+        for event in events {
+            switch event {
+            case .noteOn(let note, let velocity, let channel):
+                lastNote = note
+                lastVelocity = velocity
+                onNoteOn?(note, velocity, channel)
+            case .noteOff(let note, let channel):
+                onNoteOff?(note, channel)
+            case .cc(let number, let value, let channel):
+                onCC?(number, value, channel)
+            case .pitchBend(let value, let channel):
+                onPitchBend?(value, channel)
+            }
         }
     }
 
