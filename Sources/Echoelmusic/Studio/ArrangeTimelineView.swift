@@ -941,6 +941,9 @@ private struct RegionBlockView: View {
     /// same-kind lane. Leaf state, so only this clip re-renders while dragging.
     @State private var moveDelta: CGSize = .zero
     @State private var isMoving = false
+    /// Increments whenever a drop actually SNAPPED (grid or neighbour edge) — drives
+    /// the `.sensoryFeedback` light tick (clip game C4: fühlbares Einrasten).
+    @State private var snapPulse = 0
 
     private var laneHeight: CGFloat { ArrangeTimelineView.laneHeight }
 
@@ -1013,6 +1016,9 @@ private struct RegionBlockView: View {
             // While dragging, float this clip above its lane siblings so it never
             // slides "under" a neighbouring region.
             .zIndex(isMoving ? 10 : 0)
+            // C4: a light haptic tick when a drop actually snapped (grid or neighbour
+            // edge). Leaf modifier — the root sheet chain is untouched (metadata law).
+            .sensoryFeedback(.impact(weight: .light), trigger: snapPulse)
             .contentShape(RoundedRectangle(cornerRadius: 6))
             // Drag-to-move on the clip BODY (clip game C1 — founder: "seamless workflow,
             // kein unbeholfenes Rumdrücken"): grab and slide. The trim grips are child
@@ -1120,11 +1126,31 @@ private struct RegionBlockView: View {
             .onEnded { value in
                 let deltaTicks = Int((value.translation.width / ppb
                                       * CGFloat(TimelineTime.ticksPerBeat)).rounded())
-                let rawStart = region.startTick + deltaTicks
-                let snapped = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
+                let rawStart = Swift.max(0, region.startTick + deltaTicks)
                 let laneShift = Int((value.translation.height / ArrangeTimelineView.laneHeight).rounded())
-                timeline.moveRegion(id: region.id, toStartTick: Swift.max(0, snapped),
+                let committed: Int
+                if laneShift == 0 {
+                    // C4 edge magnetism: within ~8 screen-points, the drop kisses a
+                    // neighbour clip's edge — start-to-edge AND end-to-edge (candidate
+                    // `edge - length` lands OUR end on the edge). Grid still applies;
+                    // the nearer pull wins. Neighbours read here in the action (never
+                    // in body — freeze rule).
+                    let magnetTicks = Int((8.0 / ppb * CGFloat(TimelineTime.ticksPerBeat)).rounded())
+                    let candidates = timeline.document.regions(in: region.laneID)
+                        .filter { $0.id != region.id }
+                        .flatMap { [$0.startTick, $0.endTick] }
+                        .flatMap { [$0, $0 - region.lengthTicks] }
+                    committed = TimelineSnap.snapWithEdges(rawStart, to: snap,
+                                                           edges: candidates,
+                                                           magnetTicks: magnetTicks)
+                } else {
+                    // Lane change: plain grid snap (edge candidates of another lane are
+                    // a later refinement).
+                    committed = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
+                }
+                timeline.moveRegion(id: region.id, toStartTick: committed,
                                     laneOffset: laneShift)
+                if committed != rawStart { snapPulse += 1 }   // fühlbares Einrasten (C4)
                 isMoving = false
                 moveDelta = .zero
             }

@@ -454,4 +454,21 @@ public enum TimelineSnap {
         let nearest = snap(tick, to: resolution)
         return abs(nearest - tick) <= magnetTicks ? nearest : max(0, tick)
     }
+
+    /// Move/trim commit snap that ALSO magnetizes to EDGE candidates (neighbour clip
+    /// starts/ends — clip game C4, the DAW butt-join feel): the tick lands on the
+    /// nearest edge when one sits within `magnetTicks` AND at least as close as the
+    /// grid pull; otherwise on the grid. With `.off` the grid exerts no pull at all —
+    /// stepless — but edges still attract inside the magnet window, so clips kiss
+    /// their neighbours without a grid. Never negative. Pure + testable.
+    public static func snapWithEdges(_ tick: Int, to resolution: SnapResolution,
+                                     edges: [Int], magnetTicks: Int) -> Int {
+        let gridded = snap(tick, to: resolution)          // .off → tick unchanged (≥ 0)
+        let gridDist = resolution.ticks == nil ? Int.max : abs(gridded - tick)
+        if let edge = edges.min(by: { abs($0 - tick) < abs($1 - tick) }),
+           abs(edge - tick) <= magnetTicks, abs(edge - tick) <= gridDist {
+            return max(0, edge)
+        }
+        return gridded
+    }
 }

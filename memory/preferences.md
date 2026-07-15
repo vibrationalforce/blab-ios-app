@@ -122,3 +122,13 @@ User preferences for development workflow, communication, and tooling.
 - Duplikat-Schutz: Vor jedem neuen public Typ `grep -rn "enum/struct/class <Name>"`
   über Sources/ (das Repo trägt Lost-Treasure-Schichten — z. B. existierte
   EchoelAIError/EchoelLanguageModel bereits in Core/, N3 duplizierte es).
+
+## 2026-07-15 — God-Mode-Mandat (Founder, wörtlich sinngemäß)
+"Senior Echoel Apple Developer, ultracode, god mode: Apple-Pitch- und User-Test-
+Simulationen führen zu immer besseren TestFlights, OHNE dass der Founder einzelne
+Verbesserungsvorschläge geben muss. Tiefe Heilung ALLER angefangenen Baustellen bis
+zum vollen Erfolg." → Arbeitsmodus: autonom Baustellen finden (Task-Liste, FEATURE_
+MATRIX, Deep-Audits, "Absent"-Sektion in CLAUDE.md), selbst priorisieren, Ralph-Takt
+mit Pflicht-Reviewern beibehalten, jede Runde deployen + deutsches Status-Delta.
+"Heilung" meint hier FERTIGBAUEN unfertiger Features — NICHT das rote-Linie-Thema
+Heilfrequenzen (bleibt hard REJECT).

@@ -178,6 +178,35 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
                       "the rejoined region spans the original first bar again")
     }
 
+    // MARK: - Edge magnetism (C4 — clip game: snapWithEdges, pure)
+
+    func testSnapWithEdges_edgeWins_whenCloserThanGridAndInsideMagnet() {
+        // Grid = beat (480). Tick 950: grid line at 960 (dist 10), edge at 955 (dist 5).
+        let t = TimelineSnap.snapWithEdges(950, to: .beat, edges: [955], magnetTicks: 30)
+        XCTAssertEqual(t, 955, "a closer edge inside the magnet beats the grid")
+    }
+
+    func testSnapWithEdges_gridWins_whenCloserThanEdge() {
+        // Tick 958: grid at 960 (dist 2), edge at 940 (dist 18) — grid is closer.
+        let t = TimelineSnap.snapWithEdges(958, to: .beat, edges: [940], magnetTicks: 30)
+        XCTAssertEqual(t, 960, "the grid wins when it is the nearer pull")
+    }
+
+    func testSnapWithEdges_offGrid_edgesStillAttract_elseFree() {
+        // Snap off: stepless — but an edge inside the magnet window still catches.
+        XCTAssertEqual(TimelineSnap.snapWithEdges(950, to: .off, edges: [955], magnetTicks: 30),
+                       955, "snap off: edges still attract (butt-join feel)")
+        XCTAssertEqual(TimelineSnap.snapWithEdges(700, to: .off, edges: [955], magnetTicks: 30),
+                       700, "snap off + no edge in range: fully stepless")
+    }
+
+    func testSnapWithEdges_noEdges_behavesLikePlainSnap() {
+        XCTAssertEqual(TimelineSnap.snapWithEdges(950, to: .beat, edges: [], magnetTicks: 30),
+                       TimelineSnap.snap(950, to: .beat))
+        XCTAssertEqual(TimelineSnap.snapWithEdges(-40, to: .off, edges: [], magnetTicks: 30), 0,
+                       "never negative")
+    }
+
     // MARK: - Multi-select Combine + batch delete (C3 — clip game)
 
     func testCombineRegions_sameLane_spansEarliestToLatest_keepsFirstIdentity() {
