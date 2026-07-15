@@ -31,6 +31,9 @@ import Foundation
 /// on many AUs across two hosts — threading an instance through every attach
 /// path buys no testability (the maths lives in `HostBeatMath`, pure) and
 /// multiplies wiring surface. Writers stay few and named (Transport, engine).
+///
+/// MUST NEVER become `@Observable`: that would put observation-registrar
+/// tracking (allocation + locking) into every render-thread read.
 public final class HostMusicalState: @unchecked Sendable {
 
     public static let shared = HostMusicalState()
@@ -44,8 +47,31 @@ public final class HostMusicalState: @unchecked Sendable {
     public var beatPosition: Double = 0
     /// Hardware sample rate of the master graph (engine-written at setup).
     public var sampleRate: Double = 48_000
+    /// ACCUMULATED sample position — the integral of elapsed steps at the
+    /// tempo each step actually played (review HIGH: deriving beat×tempo
+    /// runs BACKWARD under the shipped bio tempo-glide; plugins detect host
+    /// relocation via samplePosition discontinuities and would re-sync every
+    /// glide tick). Monotone while playing; resets only on play/stop, jumps
+    /// only on a genuine relocation (seek) — exactly DAW semantics. The
+    /// transport-state block reads THIS single field (no cross-field maths
+    /// on the render thread).
+    public var samplePosition: Double = 0
 
     public init() {}
+
+    /// Advance the accumulated position by `steps` transport steps at the
+    /// CURRENT tempo (main-actor writer: Transport.tick).
+    public func advanceSamplePosition(bySteps steps: Double, stepsPerBeat: Double) {
+        guard steps > 0, stepsPerBeat > 0, tempo > 0, sampleRate > 0 else { return }
+        samplePosition += (steps / stepsPerBeat) * (60.0 / tempo) * sampleRate
+    }
+
+    /// Honest relocation (play/stop reset, seek, non-sequential tick): place
+    /// the accumulated position at `beat` as if reached at the current tempo.
+    public func resetSamplePosition(toBeat beat: Double) {
+        samplePosition = HostBeatMath.samplePosition(beat: beat, tempo: tempo,
+                                                     sampleRate: sampleRate)
+    }
 }
 
 /// Pure beat/tempo arithmetic for the host context blocks — Linux-tested.
@@ -63,11 +89,22 @@ public enum HostBeatMath {
         return (beat / beatsPerBar).rounded(.down) * beatsPerBar
     }
 
-    /// Estimated sample position for a beat position at a tempo — what
-    /// `transportStateBlock` reports (an estimate at step granularity; honest,
-    /// monotone while playing, never negative).
+    /// Sample position a beat would sit at IF the whole song ran at `tempo` —
+    /// RELOCATION maths only (play/seek placement). NOT monotone across tempo
+    /// changes, which is exactly why the live position is ACCUMULATED in
+    /// `HostMusicalState.samplePosition` instead of derived from this.
     public static func samplePosition(beat: Double, tempo: Double, sampleRate: Double) -> Double {
         guard tempo > 0, sampleRate > 0, beat.isFinite, beat >= 0 else { return 0 }
         return beat * (60.0 / tempo) * sampleRate
+    }
+
+    /// Best-effort samples until the next whole beat (review MEDIUM: reporting
+    /// a hardwired 0 claims "the next beat is NOW" on every callback — beat-
+    /// quantized plugins would trigger per buffer). Step-granular but
+    /// directionally honest; 0 exactly ON a beat.
+    public static func samplesToNextBeat(beat: Double, tempo: Double, sampleRate: Double) -> Double {
+        guard tempo > 0, sampleRate > 0, beat.isFinite, beat >= 0 else { return 0 }
+        let fraction = beat.rounded(.up) - beat
+        return fraction * (60.0 / tempo) * sampleRate
     }
 }

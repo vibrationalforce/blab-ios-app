@@ -41,17 +41,23 @@ enum AUHostContext {
             timeSigNumPtr?.pointee = 4
             timeSigDenPtr?.pointee = 4
             beatPtr?.pointee = beat
-            sampleOffsetPtr?.pointee = 0   // step-granular clock: offset unknown, 0 is the honest answer
+            // Best-effort (review MEDIUM): a hardwired 0 would claim "the next
+            // beat is NOW" every callback — this is step-granular but honest,
+            // and exactly 0 when the position sits ON a beat.
+            sampleOffsetPtr?.pointee = Int(HostBeatMath.samplesToNextBeat(
+                beat: beat, tempo: tempo, sampleRate: state.sampleRate))
             downbeatPtr?.pointee = HostBeatMath.measureDownbeat(beat: beat)
             return true
         }
         au.transportStateBlock = { flagsPtr, samplePosPtr, cycleStartPtr, cycleEndPtr in
             let playing = state.isPlaying
             if let flagsPtr {
-                flagsPtr.pointee = playing ? .moving : []
+                flagsPtr.pointee = playing ? .moving : AUHostTransportStateFlags()
             }
-            samplePosPtr?.pointee = HostBeatMath.samplePosition(
-                beat: state.beatPosition, tempo: state.tempo, sampleRate: state.sampleRate)
+            // ONE field, ACCUMULATED by Transport (review HIGH: deriving
+            // beat×tempo here ran backward under the bio tempo-glide and made
+            // relocation-detecting plugins re-sync every glide tick).
+            samplePosPtr?.pointee = state.samplePosition
             cycleStartPtr?.pointee = 0
             cycleEndPtr?.pointee = 0
             return true

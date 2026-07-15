@@ -471,6 +471,12 @@ struct EchoelmusicApp: App {
                 // PatternEngine relays each pulse into the authoritative Transport
                 // (additive mirror; existing onStep/onTick stay the live path).
                 beatPlayer.pattern.transport = transport
+                // H9b (review HIGH): Transport feeds the lock-free mirror hosted
+                // plugins read tempo/beat/play-state from. Wired HERE, flag-free:
+                // AUHostContext.install is unconditional on every hosted AU, so a
+                // gated wire would freeze plugins at tempo-120/stopped whenever
+                // that flag is off — worse than no context at all.
+                transport.hostStateMirror = .shared
                 #if canImport(CoreHaptics)
                 // Eyes-free transport: every quarter-note pulses the body (no-op
                 // until the user arms haptics). Lowest-priority subscriber so it
@@ -562,11 +568,6 @@ struct EchoelmusicApp: App {
                         laneVoiceRack?.voice(slot: slot)?.setGain(gain)
                         laneAUHost?.voice(slot: slot)?.setGain(gain)
                     }
-                    // H9b: Transport (the ONE clock) feeds the lock-free mirror
-                    // hosted plugins read tempo/beat/play-state from — their
-                    // musicalContext/transportState blocks lock tempo-synced
-                    // delays and LFOs to the song.
-                    transport.hostStateMirror = .shared
                     // H5b: host per-lane AU instruments — wire the engine, restore
                     // persisted assignments, reconcile on every document change
                     // (assign/clear/lane-delete/undo — all funnel through persist),

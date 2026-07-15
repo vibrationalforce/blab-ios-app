@@ -39,6 +39,54 @@ final class HostMusicalStateTests: XCTestCase {
         XCTAssertEqual(HostBeatMath.samplePosition(beat: .infinity, tempo: 120, sampleRate: 48_000), 0)
     }
 
+    func testSamplesToNextBeat_zeroOnBeat_fractionOff() {
+        XCTAssertEqual(HostBeatMath.samplesToNextBeat(beat: 4, tempo: 120, sampleRate: 48_000), 0,
+                       "exactly ON a beat ⇒ 0")
+        // beat 3.75 @120: 0.25 beat = 0.125 s = 6000 samples.
+        XCTAssertEqual(HostBeatMath.samplesToNextBeat(beat: 3.75, tempo: 120, sampleRate: 48_000),
+                       6_000, accuracy: 1e-9)
+        XCTAssertEqual(HostBeatMath.samplesToNextBeat(beat: .nan, tempo: 120, sampleRate: 48_000), 0)
+        XCTAssertEqual(HostBeatMath.samplesToNextBeat(beat: 1, tempo: 0, sampleRate: 48_000), 0)
+    }
+
+    // MARK: - Accumulated sample position (review HIGH: monotone under glides)
+
+    func testMirror_advanceAccumulates_resetRelocates() {
+        let m = HostMusicalState()
+        m.sampleRate = 48_000
+        m.tempo = 120
+        m.advanceSamplePosition(bySteps: 4, stepsPerBeat: 4)   // 1 beat @120 = 0.5 s
+        XCTAssertEqual(m.samplePosition, 24_000, accuracy: 1e-9)
+        m.advanceSamplePosition(bySteps: 0, stepsPerBeat: 4)   // guards: no-op
+        m.advanceSamplePosition(bySteps: 1, stepsPerBeat: 0)
+        XCTAssertEqual(m.samplePosition, 24_000, accuracy: 1e-9)
+        m.resetSamplePosition(toBeat: 4)
+        XCTAssertEqual(m.samplePosition, 96_000, accuracy: 1e-9)
+        m.resetSamplePosition(toBeat: 0)
+        XCTAssertEqual(m.samplePosition, 0)
+    }
+
+    @MainActor
+    func testTransport_samplePosition_monotoneUnderTempoGlide() {
+        // The review-HIGH scenario: the bio tempo-glide raises tempo per tick.
+        // Derived beat×tempo ran BACKWARD; the accumulated field must not.
+        let transport = Transport()
+        let mirror = HostMusicalState()
+        transport.hostStateMirror = mirror
+        transport.setTempo(75)
+        transport.play()
+        var last = mirror.samplePosition
+        var bpm = 75.0
+        for s in 1...32 {
+            bpm = Swift.min(140, bpm * 1.09)
+            transport.setTempo(bpm)
+            transport.tick(step: s % Transport.stepsPerBar)
+            XCTAssertGreaterThan(mirror.samplePosition, last,
+                                 "accumulated position runs forward through a glide (step \(s))")
+            last = mirror.samplePosition
+        }
+    }
+
     // MARK: - Transport → mirror (the one write point)
 
     @MainActor
@@ -74,13 +122,40 @@ final class HostMusicalStateTests: XCTestCase {
     }
 
     @MainActor
+    func testTransport_wiring_pushesCurrentStateImmediately() {
+        // Review MEDIUM: tempo set BEFORE the mirror is wired must land at
+        // wire time, not at the next edit.
+        let transport = Transport()
+        transport.setTempo(97)
+        let mirror = HostMusicalState()
+        transport.hostStateMirror = mirror
+        XCTAssertEqual(mirror.tempo, 97, "didSet pushes the current state")
+    }
+
+    @MainActor
+    func testTransport_seek_relocatesMirror() {
+        let transport = Transport()
+        let mirror = HostMusicalState()
+        mirror.sampleRate = 48_000
+        transport.hostStateMirror = mirror
+        transport.setTempo(120)
+        transport.seek(toBar: 4)           // bar 4 = beat 16
+        XCTAssertEqual(mirror.beatPosition, 16)
+        XCTAssertEqual(mirror.samplePosition, 16 * 0.5 * 48_000, accuracy: 1e-9,
+                       "a seek is an honest relocation jump")
+    }
+
+    @MainActor
     func testTransport_nilMirror_isPureAsBefore() {
+        // Snapshot-compare (order-safe): an UNWIRED transport must leave the
+        // process-wide shared mirror exactly as it found it.
+        let before = HostMusicalState.shared.tempo
         let transport = Transport()   // no mirror wired (unit-test purity law)
         transport.setTempo(150)
         transport.play()
         transport.tick(step: 1)
         transport.stop()              // must not crash or touch any global
-        XCTAssertEqual(HostMusicalState.shared.tempo, 120,
+        XCTAssertEqual(HostMusicalState.shared.tempo, before,
                        "the shared mirror stays untouched when unwired")
     }
 }
