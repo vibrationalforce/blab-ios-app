@@ -28,10 +28,24 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
    Trim-OUT als harte Grenze (heute bar-gesnappt, contentOffset=In-Point) · Region-Editor lädt das
    referenzierte Medium (heute öffnet Long-press einer Audio-Region einen leeren Importer) · MIDI-Import
    erreichbar machen (MIDIFileImporter getestet, Trigger unerreichbar).
-4. **Video-Spuren** — größter Brocken. Scaffolding (VideoRegionSync/Trim/ClipFactory/ExportPlan)
-   pur+getestet, aber KEIN VideoLanePlayer, kein PHPicker-Import, kein Editor-Tür. Eigene Etappen:
-   (a) PHPicker-Import→.video-Region + AVPlayer-Preview, (b) VideoLanePlayer transport-synced,
-   (c) Trim-UI, (d) per-Spur-Video-FX (ChromaKey.metal verdrahten).
+4. **Video-Spuren** — ✅ ETAPPE (a) (v217): Import→.video-Region + AVKit-Preview. Video-Lane-Kopf →
+   „Import video…" öffnet `VideoClipView` (fileImporter .movie/.video → AVKit-VideoPlayer-Preview →
+   Dauer via `AVURLAsset.load(.duration)` → „Add to timeline": `MediaLibrary.importVideo` (Kopie in
+   App-Group `Media/Video`) → `VideoClipFactory.clip/region` → freier ClipStore-Slot + `nextStartTick`
+   → `clips.setClip` + `timeline.addRegion`). Region = dim Block mit Name (keine Waveform/Audition —
+   korrekt, „no engine → no door"). Reviewer: concurrency PASS · code (Doc-Divergenz + stale-async-Dauer
+   + Fehler-Throw-Test gefixt). OFFEN: (b) **VideoLanePlayer** transport-synced (AVQueuePlayer an der
+   Audio-Clock, VideoRegionSync/ResyncPolicy) — der Resolver MUSS beide mediaRef-Konventionen auflösen
+   (Import=absoluter Pfad in Media/Video · Capture=Documents/Videos-Dateiname; im VideoClipFactory-Doc
+   notiert) · (c) Trim-UI · (d) per-Spur-Video-FX (ChromaKey.metal verdrahten).
+
+## GEMEINSAME NÄHTE (Audio + Video Import teilen sich)
+- `MediaLibrary` (Core/): `importAudio`/`importVideo` → App-Group `Media/{Audio,Video}`, UUID-Zielname,
+  Endung erhalten, ein unreiner Kopier-Schritt (`copyIn`). `ClipStore.firstEmptySlotIndex` +
+  `TimelineDocument.nextStartTick(inLane:)` = reine, getestete Platzierungs-Naht. Audio-Region klingt
+  bei tap-audition + zeigt Waveform; Video-Region zeigt nur Block+Name. Transport-Playback für BEIDE
+  (Audio-Regions + Video-Regions) = je ein eigenes Player-Subsystem, geräteverifizierungs-pflichtig,
+  DEFER in eigene Design-Zyklen (nicht blind bauen+deployen).
 
 ---
 

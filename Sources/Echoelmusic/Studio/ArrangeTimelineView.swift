@@ -215,7 +215,7 @@ struct ArrangeTimelineView: View {
     private func modalEditor(_ modal: ArrangeModal) -> some View {
         switch modal {
         case .lane(let lane):     editor(forKind: lane.kind,
-                                         landingLane: lane.kind == .audio ? lane.id : nil)
+                                         landingLane: (lane.kind == .audio || lane.kind == .video) ? lane.id : nil)
         case .region(let region): editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
         case .plugins:            AUv3BrowserView()
@@ -239,7 +239,8 @@ struct ArrangeTimelineView: View {
         switch kind {
         case .midi:  PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         case .audio: AudioClipView(landingLaneID: landingLane)
-        case .video, .visual: EmptyView()   // no engine yet — no door offered
+        case .video: VideoClipView(landingLaneID: landingLane)   // import + preview (transport-sync later)
+        case .visual: EmptyView()   // no engine yet — no door offered
         }
     }
 
@@ -534,6 +535,11 @@ struct ArrangeTimelineView: View {
             if !lane.isBio, lane.kind == .audio {
                 Button { activeModal = .lane(lane) } label: {
                     Label("Open audio editor", systemImage: ClipKind.audio.systemImage)
+                }
+            }
+            if !lane.isBio, lane.kind == .video {
+                Button { activeModal = .lane(lane) } label: {
+                    Label("Import video…", systemImage: ClipKind.video.systemImage)
                 }
             }
             // The built-in Echoel instrument this track plays (founder 2026-07-13:

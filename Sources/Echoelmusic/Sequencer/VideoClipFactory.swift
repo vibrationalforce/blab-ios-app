@@ -11,8 +11,12 @@ import Foundation
 
 public enum VideoClipFactory {
 
-    /// A `.video` clip referencing `mediaRef` (store the file's last path component,
-    /// matching how VideoLibraryPanel resolves Documents/Videos).
+    /// A `.video` clip referencing `mediaRef`. TWO conventions coexist by source:
+    /// the PHPicker/import path (VideoClipView) stores an ABSOLUTE path into the App
+    /// Group `Media/Video` dir; the capture path (VisualRecorder) stores a
+    /// `Documents/Videos` last-path-component. A future resolver (transport-synced
+    /// playback / VideoExportPlan, clipID → mediaRef → URL) MUST handle both —
+    /// try the absolute path first, then resolve a bare name against Documents/Videos.
     public static func clip(name: String, mediaRef: String, colorIndex: Int = 0) -> Clip {
         Clip(name: name, colorIndex: colorIndex, kind: .video, mediaRef: mediaRef)
     }

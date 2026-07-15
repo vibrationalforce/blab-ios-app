@@ -11,7 +11,7 @@ import Foundation
 
 public enum MediaLibrary {
 
-    public enum MediaImportError: Error {
+    public enum MediaImportError: Error, Equatable {
         case noContainer   // couldn't resolve any writable directory
         case copyFailed    // the file copy itself failed (permissions / disk)
     }
@@ -48,8 +48,20 @@ public enum MediaLibrary {
     /// extension. Returns the destination URL — its absolute path becomes the
     /// region's `mediaRef`. The caller owns start/stopAccessingSecurityScopedResource.
     public static func importAudio(from source: URL) throws -> URL {
-        guard let dir = directory("Media/Audio") else { throw MediaImportError.noContainer }
-        let ext = source.pathExtension.isEmpty ? "wav" : source.pathExtension
+        try copyIn(source, subdirectory: "Media/Audio", fallbackExt: "wav")
+    }
+
+    /// Copy a user-picked VIDEO file into `Media/Video` (same contract as
+    /// importAudio). Its absolute path becomes the video region's `mediaRef`.
+    public static func importVideo(from source: URL) throws -> URL {
+        try copyIn(source, subdirectory: "Media/Video", fallbackExt: "mov")
+    }
+
+    /// Shared copy: resolve the media subdir, pick a fresh UUID name (preserving
+    /// the source extension), copy the file in. Throws on no container / copy fail.
+    private static func copyIn(_ source: URL, subdirectory: String, fallbackExt: String) throws -> URL {
+        guard let dir = directory(subdirectory) else { throw MediaImportError.noContainer }
+        let ext = source.pathExtension.isEmpty ? fallbackExt : source.pathExtension
         let dest = dir.appendingPathComponent("\(UUID().uuidString).\(ext)", isDirectory: false)
         do {
             try FileManager.default.copyItem(at: source, to: dest)
