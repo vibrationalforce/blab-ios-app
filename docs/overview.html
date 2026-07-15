@@ -160,7 +160,7 @@
                     <div class="engine-item"><h4>EchoelSynth</h4><p>Bio-reactive synthesis — DDSP, modal &amp; cellular voices driven by your heartbeat, breath and coherence.</p></div>
                     <div class="engine-item"><h4>EchoelFX</h4><p>EQ, dynamics, reverb, delay, modulation, drive, mastering + analog emulations.</p></div>
                     <div class="engine-item"><h4>EchoelGen</h4><p>Generative composition — harmonic, melodic &amp; rhythmic loops in any key and BPM, exported to .wav and MIDI.</p></div>
-                    <div class="engine-item"><h4>EchoelMIDI</h4><p>MIDI 2.0, MPE, real-time audio-to-MIDI.</p></div>
+                    <div class="engine-item"><h4>EchoelMIDI</h4><p>MIDI 2.0-ready input (UMP), MPE, virtual MIDI out. Planned: audio-to-MIDI.</p></div>
                     <div class="engine-item"><h4>EchoelBio</h4><p>HRV, heart rate, breath, coherence — HealthKit, Bluetooth straps (Polar H10) &amp; camera rPPG with a live control display.</p></div>
                     <div class="engine-item"><h4>EchoelNet</h4><p>OSC (EchoelSync) and ADM-OSC immersive object output, live today.</p></div>
                     <div class="engine-item"><h4>EchoelMix <span class="tag">Planned</span></h4><p>Console, multi-track recording, LUFS metering, session &amp; BPM sync.</p></div>
@@ -225,7 +225,7 @@
                 <h2>Technical Specs</h2>
                 <div class="data-row"><div class="k">Audio latency</div><div class="v">Real-time, low-latency engine (target &lt;10ms).</div></div>
                 <div class="data-row"><div class="k">Bio loop</div><div class="v">Real-time control loop up to 120Hz.</div></div>
-                <div class="data-row"><div class="k">MIDI</div><div class="v">Full MIDI 2.0 protocol + MPE.</div></div>
+                <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI 2.0-ready input (UMP) + MPE; MIDI 1.0/MPE out via virtual source.</div></div>
                 <div class="data-row"><div class="k">Networking</div><div class="v">OSC, ADM-OSC, Art-Net &amp; sACN, live today. Ableton Link planned (target &lt;5ms on LAN).</div></div>
                 <div class="data-row"><div class="k">Visuals</div><div class="v">Metal GPU bio-renderer (heart rate to pulse, coherence to hue, breath to spread); flash rate held under 3&nbsp;Hz.</div></div>
                 <div class="data-row"><div class="k">AI <span class="tag">Planned</span></div><div class="v">On-device CoreML, Neural Engine accelerated.</div></div>
@@ -238,7 +238,7 @@
                 <div class="data-row"><div class="k">Audio engine</div><div class="v">48&nbsp;kHz, 32-bit float internal; buffer 128 / 256 / 512 frames (2.67 / 5.3 / 10.7&nbsp;ms).</div></div>
                 <div class="data-row"><div class="k">Audio export</div><div class="v">At launch: WAV (lossless) and AAC/M4A, LUFS-normalized to −14&nbsp;LUFS; 30&nbsp;s CAF pre-roll capture. Planned: FLAC / ALAC, stem export.</div></div>
                 <div class="data-row"><div class="k">Spatial audio</div><div class="v">At launch: stereo with HRV-reactive spatial reverb character, plus ADM-OSC immersive object out (breath&rarr;azimuth, coherence&rarr;distance, HRV&rarr;elevation) into object-based renderers (L-ISA, d&amp;b&nbsp;Soundscape, Adamson&nbsp;FletcherMachine). Planned: Dolby&nbsp;Atmos authoring, head-tracked binaural for AirPods, multichannel (5.1 / 7.1.4) and ambisonics.</div></div>
-                <div class="data-row"><div class="k">MIDI</div><div class="v">At launch: MIDI&nbsp;2.0 + MPE input and output (per-note pitch bend, slide/timbre CC74, air-CC); Echoel publishes a virtual CoreMIDI source any DAW can record. Standard MIDI File (.mid) export. Planned: SMF import.</div></div>
+                <div class="data-row"><div class="k">MIDI</div><div class="v">At launch: MIDI&nbsp;2.0-ready input (UMP — parses 1.0 and 2.0) + MPE (per-note pitch bend, slide/timbre CC74, air-CC); Echoel publishes a virtual CoreMIDI source any DAW can record (MIDI&nbsp;1.0 over UMP today; native 2.0 out planned). Standard MIDI File (.mid) export. Planned: SMF import.</div></div>
                 <div class="data-row"><div class="k">Video</div><div class="v">Planned: H.264 MP4 short-form capture, H.265/HEVC, Apple&nbsp;ProRes 422/4444, 1080p &amp; 4K, 24/25/30/60&nbsp;fps, landscape &amp; square, LUT color grading.</div></div>
                 <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">At launch: Metal GPU bio-visual (heart rate to pulse, coherence to hue, breath to spread), flash-safe. Planned: richer 120&nbsp;fps modes, chroma key, projection mapping (warp + edge-blend), multi-screen / external-display output, NDI &amp; Syphon video-out, AirPlay.</div></div>
                 <div class="data-row"><div class="k">Lighting</div><div class="v">At launch: native Art-Net (UDP 6454) and sACN / E1.31 unicast, zero-dependency, with flash safety. Planned: DMX-512 over USB, HomeKit smart lighting, fixture profiles &amp; cue lists.</div></div>
