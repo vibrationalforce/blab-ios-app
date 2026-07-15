@@ -58,7 +58,8 @@ public final class ClipStore {
     /// Returns false (writing nothing) for an unknown id.
     @discardableResult
     public func updateMelody(id: UUID, notes: [Note]) -> Bool {
-        guard let i = slots.firstIndex(where: { $0?.id == id }) else { return false }
+        guard let i = slots.firstIndex(where: { $0?.id == id }),
+              slots[i]?.kind == .midi else { return false }   // melody is MIDI content only
         slots[i]?.melody = MelodyClip(notes: notes)
         persist()
         return true

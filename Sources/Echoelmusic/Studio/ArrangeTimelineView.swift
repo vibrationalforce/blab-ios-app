@@ -161,7 +161,14 @@ struct ArrangeTimelineView: View {
             leadSynth?.setDetune(cents: cents)
         }
         .gesture(magnify)
-        .sheet(item: $activeModal, onDismiss: { clipEdit = nil }) { modal in
+        .sheet(item: $activeModal, onDismiss: {
+            // H11 review MEDIUM (dismiss race): tapping Edit on ANOTHER region
+            // during the outgoing sheet's dismissal animation builds a fresh
+            // session and re-presents — the OLD sheet's onDismiss then fires
+            // and must not nil the fresh session (the fallback would silently
+            // reopen the shared roll: the exact pre-H11 bug).
+            if activeModal == nil { clipEdit = nil }
+        }) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
             // the host body's generic signature flat (metadata rule).
             AnyView(modalEditor(modal).echoelSheetPanel())
@@ -229,6 +236,16 @@ struct ArrangeTimelineView: View {
     /// Open a region's editor. For MIDI: load THE CLIP's notes (the tapped
     /// bar's slice) into a throwaway roll — never the shared roll (the region
     /// player clobbers that at every onset; pre-H11 this door edited it).
+    ///
+    /// SCOPE DECISION (documented so no future session "fixes" it blind):
+    /// the editor shows CLIP-truth — the clip bar under the region's trim-in,
+    /// in clip-bar coordinates ("Bar k/N" = the clip's bars). For a MID-BAR
+    /// trim (free split/trim; snap default is 1/16) the region's audible
+    /// window straddles two clip bars, so heard-at-region-start ≠ shown-at-
+    /// step-0 — the write-back stays correct either way (bar-splice into the
+    /// clip). Bars 2..N of a long region are reached by trimming or splitting
+    /// (a long-press has no tap coordinate). Region-window-scoped editing is
+    /// a later refinement, not a bug.
     private func openRegionEditor(_ region: TimelineRegion) {
         clipEdit = nil
         if let clip = clips.clip(id: region.clipID), clip.kind == .midi {
@@ -260,7 +277,7 @@ struct ArrangeTimelineView: View {
                                           edited: session.model.notes,
                                           into: current)
         if !clips.updateMelody(id: session.clipID, notes: merged) {
-            log.log(.warning, category: .audio, "Clip edit: clip no longer exists — edit dropped")
+            log.log(.warning, category: .ui, "Clip edit: clip no longer exists — edit dropped")
         }
     }
 

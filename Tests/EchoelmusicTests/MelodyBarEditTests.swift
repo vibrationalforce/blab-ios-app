@@ -46,6 +46,17 @@ final class MelodyBarEditTests: XCTestCase {
         XCTAssertTrue(MelodyBarEdit.slice(bar: -1, of: all).isEmpty)
     }
 
+    func testSlice_barBoundaries_loInclusive_hiExclusive() {
+        let onLine = note(60, tick: perBar)            // exactly ON bar 1's line
+        let lastTick = note(62, tick: 2 * perBar - 1)  // last tick of bar 1
+        let nextLine = note(64, tick: 2 * perBar)      // exactly ON bar 2's line
+        let bar1 = MelodyBarEdit.slice(bar: 1, of: [onLine, lastTick, nextLine])
+        XCTAssertEqual(bar1.map(\.pitch).sorted(), [60, 62],
+                       "lo-inclusive, hi-exclusive — the bar-line note belongs to the bar it starts")
+        XCTAssertEqual(bar1.first { $0.pitch == 60 }?.startTick, 0)
+        XCTAssertEqual(bar1.first { $0.pitch == 62 }?.startTick, perBar - 1)
+    }
+
     // MARK: - splice: the multi-bar-safety law
 
     func testSplice_otherBarsSurviveByteIdentical() {
@@ -116,5 +127,19 @@ final class MelodyBarEditTests: XCTestCase {
         XCTAssertEqual(store.clip(id: clip.id)?.melody?.notes, newNotes)
         XCTAssertFalse(store.updateMelody(id: UUID(), notes: []),
                        "unknown id writes nothing and says so")
+        // Persistence law: a FRESH store (same App-Group file) sees the write.
+        let reloaded = ClipStore()
+        XCTAssertEqual(reloaded.clip(id: clip.id)?.melody?.notes, newNotes,
+                       "updateMelody persists, not just mutates in memory")
+    }
+
+    @MainActor
+    func testUpdateMelody_nonMIDIClip_isRefused() {
+        let store = ClipStore()
+        let audio = Clip(name: "A", kind: .audio, mediaRef: "x.wav")
+        store.setClip(at: 1, audio)
+        XCTAssertFalse(store.updateMelody(id: audio.id, notes: [note(60, tick: 0)]),
+                       "melody is MIDI content only — the API self-defends")
+        XCTAssertNil(store.clip(id: audio.id)?.melody)
     }
 }

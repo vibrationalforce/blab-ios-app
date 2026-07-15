@@ -663,6 +663,14 @@ struct PianoRollView: View {
     var onDone: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
+    /// H11 review HIGH: in clip-edit mode the throwaway model has no voice and
+    /// is not clocked — the shared transport would sound the LIVE TAKE while
+    /// the playhead sweeps the edited notes (an actively lying preview, and
+    /// Play mid-song would stop the global transport). A silent editor is the
+    /// honest v1: no Play button, no playhead. A wired preview voice is a
+    /// later refinement.
+    private var isClipScoped: Bool { onDone != nil }
+
     @State private var selectedID: UUID?
     @State private var drawLength: Int = 1
     @State private var stepW: CGFloat = 26
@@ -709,18 +717,20 @@ struct PianoRollView: View {
 
     private var transport: some View {
         HStack(spacing: 12) {
-            Button {
-                if pattern.isPlaying { pattern.stop(); model.allNotesOff() }
-                else { pattern.play() }
-            } label: {
-                Image(systemName: pattern.isPlaying ? "stop.fill" : "play.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.black)
-                    .frame(width: 44, height: 36)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(pattern.isPlaying ? EchoelTheme.danger : EchoelTheme.accent))
+            if !isClipScoped {
+                Button {
+                    if pattern.isPlaying { pattern.stop(); model.allNotesOff() }
+                    else { pattern.play() }
+                } label: {
+                    Image(systemName: pattern.isPlaying ? "stop.fill" : "play.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 44, height: 36)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(pattern.isPlaying ? EchoelTheme.danger : EchoelTheme.accent))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             // Draw length (steps a new tapped note spans).
             Picker("Length", selection: $drawLength) {
@@ -839,7 +849,7 @@ struct PianoRollView: View {
         ZStack(alignment: .topLeading) {
             gridBackground
             ForEach(model.notes) { note in noteRect(note) }
-            if pattern.isPlaying { playhead }
+            if pattern.isPlaying && !isClipScoped { playhead }
         }
         .frame(width: canvasW, height: canvasH, alignment: .topLeading)
         .contentShape(Rectangle())

@@ -62,7 +62,10 @@ public enum MelodyBarEdit {
             placed.startTick = n.startTick + lo
             out.append(placed)
         }
-        out.sort { ($0.startTick, $0.pitch) < ($1.startTick, $1.pitch) }
+        // Full total order (id tiebreak): Swift's sort is unstable, so equal
+        // (tick, pitch) unison notes would otherwise permute between commits.
+        out.sort { ($0.startTick, $0.pitch, $0.id.uuidString)
+                 < ($1.startTick, $1.pitch, $1.id.uuidString) }
         return out
     }
 }
