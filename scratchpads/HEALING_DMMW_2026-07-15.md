@@ -74,3 +74,71 @@ bauen würden.
 Test-first wo pur · Pflicht-Reviewer (ui-state + code; audio-thread bei H3/H4/H2) ·
 Gates grün · Deploy-Bump · deutsches Delta. Keine neuen Features, bis Welle 1+2
 durch sind (God-Mode: "Tiefe Heilung aller angefangenen Baustellen").
+
+---
+
+# ULTRAWELLE (Founder-Mandat 2026-07-15 abends, 8h+: "gesamte DMMW... ein Bereich
+# nach dem anderen perfekt, accessible bis Profi")
+
+Quelle: Ultrascan wf_232c22de-6d4 (41 Agenten: 10 Bereichs-Auditoren + 31
+adversariale Verifikationen; 27 REAL, 2 REFUTED). Volle Evidenz:
+`/tmp/.../tasks/wicqmv010.output`. Geräte-Log Build 2361 als Anker.
+
+## Bereich 1 — LIVE-SESSION ÜBERLEBT (Log-Schmerz, zuerst)
+- **U-B1.1 = RPPG-1 [HIGH]** Finger-Halte-Boden 0.18 > R der dunklen
+  Belichtungssperre (0.15–0.17 bei bright 0.08–0.10) → präsenter Finger liest
+  finger=no, Fenster-Reset, 92 s nie Lock (Session 2). FIX: HOLD-Floor
+  CameraAnalyzer:780 0.18→0.12 (ACQUIRE bleibt 0.28; Rot-Dominanz-Ratios bleiben).
+  Session 3 beweist: bright 0.10 ist lockbar, der Detektor war der Killer.
+- **U-B1.2 = BLE-1 [CRITICAL] + BLE-2 [HIGH]** Gurt-Scan völlig unsichtbar (kein
+  View liest polarH10.state/connectedDeviceName) + kein Timeout/Fehlzustand.
+  FIX: PulseMonitorMiniLive-Leaf zeigt Scanning/Connecting/Name✓/BT-aus; ~20 s
+  Watchdog → .notFound ("Elektroden befeuchten").
+- **U-B1.3 = BLE-3 [HIGH] + BLE-4 [HIGH]** Doppel-Besitzer (Patchbay blehrs.in
+  stoppt Pill-gestarteten Gurt bei JEDEM Routing-Edit; Kamera+Gurt gleichzeitig
+  möglich) + Zombie-Scan (CB-Delegates ohne isPublishing-Guard, zweiter Central).
+  FIX: EIN Besitzer = Pill (applyRouting-Block raus, Bio-Panel-Text richtig);
+  isPublishing-Guards + Central-Reuse.
+- **U-B1.4 = T2 [MEDIUM] + T1-Schritt-1** generate[]-Label ehrlich (reason-Param,
+  applyVariation="variation", Zuweisung in den Task-Body) + Stop-Quellen-
+  Breadcrumbs an jedem pattern.stop()-Call-Site (transport-bar/record/roll/export).
+- **U-B1.5 = T1-Schritt-2 [FOUNDER-GATED]** ■ pausiert Musik, Bio-Session lebt
+  weiter (Puls-Pill = der EINE Bio-Aus-Schalter)? Widerspricht dokumentiertem
+  "ONE Stop"-Founder-Entscheid → Frage im Status-Delta, NICHT eigenmächtig.
+
+## Bereich 2 — CLIPS/DAW PROFI (4 CRITICAL/HIGH-Kette)
+- **U-B2.1 = CLIP-1 [CRITICAL]** M1c: Sekundär-MIDI-Lanes ohne Fensterung
+  (LaneNotePump %16-Faltung; TimelineRegionPlayer:369/419 lädt volle Melodie).
+  FIX: RegionNoteWindow auch dort + Takt-Zyklus statt %16. Test-first.
+- **U-B2.2 = CLIP-2 [CRITICAL]** Record-arm auf Audio/Video-Lane nimmt STILL
+  nichts auf (TakeRecorder:65 break). FIX ehrlich: canRecord=false + "soon"-Hint;
+  echte Mic-Capture = eigener Zyklus (Task #13).
+- **U-B2.3 = CLIP-3..6 [HIGH]** Struktur-Edits erst nach Stop+Play hörbar ·
+  Audio-Clip-Edit-Tür lädt Clip nicht · Playhead kosmetisch (immer Takt 1, kein
+  Relocate) · Clip-Gain/Fades verworfen, keine Crossfades (Klicks).
+- **U-B2.4 = PERF-01 [HIGH]** Lane-Sink-Format-Wechsel mid-song pausiert Engine
+  (seit F2 Crash→Pause, besser, aber hörbar). FIX: Formate beim Prime vorwärmen.
+
+## Bereich 3 — AUv3 (AU-1 Format-Pre-Flight in globalen Pfaden [Crash],
+AU-2 globale Chains nicht restauriert, AU-3 Scan-Bursts, AU-4 Guidance).
+
+## Bereich 4 — STRUKTUR (H14-CORE InstrumentController-API · H15-KEYSTORE
+VisualStore/CompositionStore · H15-LIGHT LightMasterStore · H15-LOOPBARS 8vs4).
+
+## Bereich 5 — UX ACCESSIBLE→PRO (UX-1 [CRITICAL] Kamera-verweigert = Bio still
+tot + irreführendes "Cover camera" + kein Settings-Pfad · UX-2 Play spielt
+Stille, einzige Klang-Tür unbeschriftet · UX-3 HealthKit-Prompt kontextfrei ·
+UX-5 Dynamic Type Bio-Zahlen · UX-10 Pill 30pt<44pt · UX-8 MIDI-Learn).
+
+## Bereich 6 — ULTRACLEAN (H16-2 zwei tote fullScreenCover am Root [Modal-Budget!]
+· H16-3 Donuts=H8 · H16-5/6 Doku-Drift · H16-7 Directory-Moves). H16-1 REFUTET.
+
+## Bereich 7 — MARKETING-EHRLICHKEIT (MKT-1..4 [HIGH]: FAQ erfindet Orchester-
+Sektionen, "EchoelWarmth"-Suite, MIDI-2.0-Claim, Audio-to-MIDI — Brand-Gesetz
+"claim only what ships" verletzt, docs/ fixen; MKT-7 "meditation"-Keyword;
+MKT-11 echte Differenzierer unterverkauft = #52-SEO-Liste). PIPELINE only.
+
+## Bereich 8 — PERF (H17 FFT von Main [PERF-02] · PERF-03 Meter-Poll 60 Hz).
+
+Gesetz unverändert: 1 Punkt/Zyklus · test-first wo pur · Pflicht-Reviewer ·
+Gates grün · Deploy-Bump · deutsches Delta.
