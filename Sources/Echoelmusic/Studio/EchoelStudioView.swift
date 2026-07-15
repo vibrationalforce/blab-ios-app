@@ -3017,11 +3017,12 @@ struct EchoelStudioView: View {
     /// edit (`auto: false`) stays instant (140 ms). This makes a re-seed "flood"
     /// structurally impossible rather than merely unlikely.
     private func scheduleGenerate(auto: Bool = false, reason: String) {
-        // Remember WHY for the breadcrumb (device log 1783370283: an unexplained
-        // "generate: 8 notes" mid-take — the log could not say what triggered it).
-        // Coalescing means the LAST scheduled reason wins, which is also the one
-        // whose parameters the generate actually uses.
-        pendingGenerateReason = reason
+        // The reason is threaded INTO the task and stamped only when generate()
+        // actually runs (T2, log 2361: stamping at SCHEDULE time left a stale
+        // "evolve" behind when stopEverything cancelled the task — the founder's
+        // four post-stop variation taps then logged as a phantom zombie evolve).
+        // Coalescing still means the LAST scheduled reason wins: each call
+        // cancels the pending task, so only the last task (and reason) survives.
         regenTask?.cancel()
         // 0.45 s quiet window for user edits: one decisive tap still lands fast, but
         // SCROLLING through a Picker (each highlighted option fires onChange) coalesces
@@ -3051,7 +3052,7 @@ struct EchoelStudioView: View {
             guard !Task.isCancelled, running else { return }
             // Re-seeds swap notes into a playing transport; they never restart a
             // transport the user stopped from the transport bar (see generate()).
-            generate(startTransport: false)
+            generate(startTransport: false, reason: reason)
         }
     }
 
@@ -3317,8 +3318,7 @@ struct EchoelStudioView: View {
             // between re-seeds — the sound hugs the live heartbeat/HRV in realtime
             // instead of staying static until the next ~6 s recompose.
             synth.bioModulationEnabled = true
-            pendingGenerateReason = "start"
-            generate()              // immediate first sound — no lock-wait stall
+            generate(reason: "start")   // immediate first sound — no lock-wait stall
             startEvolving()
             snapToLockWhenReady()   // non-blocking re-seed once the heartbeat locks
         }
@@ -3700,7 +3700,11 @@ struct EchoelStudioView: View {
     ///   (every other caller) ⇒ the body-driven seeds, unchanged.
     private func generate(startTransport: Bool = true,
                           detailSeedOverride: UInt64? = nil,
-                          structureSeedOverride: UInt64? = nil) {
+                          structureSeedOverride: UInt64? = nil,
+                          reason: String? = nil) {
+        // Honest breadcrumb label (T2): callers name themselves at RUN time; nil
+        // keeps whatever an earlier direct caller stamped (legacy paths).
+        if let reason { pendingGenerateReason = reason }
         lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
         // ONE composer-input builder (shared with the variation-maze audition): the
         // real take advances the evolve cursor; the maze previewed read-only.
@@ -3915,7 +3919,8 @@ struct EchoelStudioView: View {
         mazeAppliedSeed = candidate.seed
         generate(startTransport: true,
                  detailSeedOverride: candidate.seed,
-                 structureSeedOverride: skeleton)
+                 structureSeedOverride: skeleton,
+                 reason: "variation")
     }
 
     /// Apply the live timbre (`currentPatch`) to the running synth without

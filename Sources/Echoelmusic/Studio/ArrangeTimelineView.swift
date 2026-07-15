@@ -498,6 +498,9 @@ struct ArrangeTimelineView: View {
             // is record-armed (its per-track Record dot in the lane strip).
             Button {
                 if recordController.isRecording {
+                    // T1 breadcrumb: this stop cascades into the ONE-Stop door
+                    // (EchoelStudioView transport-stopped) — name the finger.
+                    EchoelCrashLog.breadcrumb("stop source: record-stop (commit take)")
                     beatPlayer.pattern.stop()          // → transport.stop() → commit take
                 } else {
                     recordController.arm()

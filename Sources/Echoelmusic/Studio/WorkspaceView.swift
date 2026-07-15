@@ -313,6 +313,9 @@ private struct TransportBar: View {
         if transport.isPlaying {
             // Stop whichever engine is running: timeline-follow releases its region clips
             // + secondary-lane voices; a plain pattern loop just stops.
+            // T1 breadcrumb: name the finger BEFORE the stop cascades — the 2361 log's
+            // source-less "transport-stopped" burned a triage cycle proving it was a tap.
+            EchoelCrashLog.breadcrumb("stop source: transport-bar ■ (\(timelinePlayer.isPlaying ? "timeline" : "pattern"))")
             if timelinePlayer.isPlaying { timelinePlayer.stop() }
             else { player.pattern.stop() }
         } else {

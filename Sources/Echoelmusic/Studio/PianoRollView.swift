@@ -719,8 +719,11 @@ struct PianoRollView: View {
         HStack(spacing: 12) {
             if !isClipScoped {
                 Button {
-                    if pattern.isPlaying { pattern.stop(); model.allNotesOff() }
-                    else { pattern.play() }
+                    if pattern.isPlaying {
+                        // T1 breadcrumb: this stop cascades into the ONE-Stop door.
+                        EchoelCrashLog.breadcrumb("stop source: roll-stop")
+                        pattern.stop(); model.allNotesOff()
+                    } else { pattern.play() }
                 } label: {
                     Image(systemName: pattern.isPlaying ? "stop.fill" : "play.fill")
                         .font(.system(size: 16, weight: .bold))
