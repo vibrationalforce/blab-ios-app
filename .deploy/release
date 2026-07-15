@@ -1,31 +1,28 @@
-build: 2026-07-14 v10.79.220 (Audio-Transport-Scheduling-Naht — test-first Fundament)
+build: 2026-07-14 v10.79.221 (AudioLanePlayer-Koordinator — Transport-Audio-Steuerlogik)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ein Fundament-Zyklus (kein neuer Knopf) — der erste, verifizierbare Baustein für
-  das, worauf der Audio-Ausbau zuläuft: importierte Audio-Regionen sollen im laufenden
-  Transport MITSPIELEN (heute klingen sie nur beim Antippen).
+notes: Zweiter Baustein für „Audio-Spuren spielen im Transport mit" — die Steuer-Schicht,
+  weiter test-first statt blind-Audio.
 
-  WARUM getrennt: sample-genaues Audio-Abspielen ist Timing-Arbeit, die am Gerät
-  verifiziert werden muss (Drift/Sync lassen sich in CI nicht prüfen). Statt das blind
-  zu bauen + zu deployen, teile ich es sauber: ZUERST das reine „Gehirn" (diese Runde,
-  voll test-getrieben), DANN den dünnen AVFoundation-Ausführer (nächste Runde,
-  gerätegeprüft).
+  WAS diese Runde bringt: `AudioLanePlayer` — der Koordinator, der beim Abspielen pro
+  Audio-Spur entscheidet, WANN welche Region startet/stoppt (nutzt die letzte Runde
+  gebaute Scheduling-Mathematik + die vorhandene Onset/Clear-Logik). Mute/Solo/Level
+  werden respektiert. Das eigentliche Geräte-Abspielen ist hinter einem schmalen
+  Protokoll (`AudioRegionSink`) abstrahiert, damit die fehleranfällige Steuerlogik
+  komplett ohne AVFoundation testbar ist — 7 Spy-Tests decken jeden Fall (Einstieg am
+  Region-Anfang, Einstieg mitten drin bei Loop/Sprung, Verlassen→Stopp, drin-bleiben→
+  nichts, stumm/keine-Datei→kein Ton).
 
-  WAS diese Runde bringt: `AudioRegionPlayback` — reine Mathematik, die aus der
-  Song-Position berechnet, WO in der Audiodatei abgespielt werden muss und WIE VIELE
-  Samples bis zum Region-Ende zu planen sind. Bildet 1:1 auf Apples
-  scheduleSegment(startFrame, frameCount) ab; auch das Einsteigen mitten in eine Region
-  (Loop/Sprung) ist exakt.
+  NOCH KEIN TON: additiv + ungewired — dieser Koordinator wird noch von nichts
+  aufgerufen, kann also die App nicht regressieren. Der dünne AVFoundation-Ausführer
+  (auf Basis des bewährten AudioClipPlayer) + das Transport-Wiring kommen im nächsten,
+  gerätegeprüften Schritt; DANN klingen die Audio-Spuren wirklich mit.
 
-  SICHER: Reviewer code — Mathematik bestätigt korrekt (Start + Länge landen exakt auf
-  der Region-Grenze; die gemischte Rundung ist höchstens 1 Sample zu kurz, nie über die
-  Grenze hinaus). Behoben: (1) der Ausführer-Vertrag „gegen die echte Dateilänge klemmen"
-  ist in der Datei dokumentiert (sonst Lesen über Datei-Ende), (2) fraktionale Tests
-  ergänzt, die Abrunden (Startframe) vs. Runden (Länge) festnageln. 11 Unit-Tests.
-  Gates: Xcode Compile + CI/CD.
-
-  CI-Update: der v218-TestFlight-Metal-Fehler war ein transienter Runner-Flake — v219
-  archivierte wieder voll grün (alle 5 Läufe), kein CI-Fix nötig.
+  SICHER: Reviewer — Concurrency PASS (behoben: ein wirkungsloses @ObservationIgnored
+  entfernt, da die Klasse nicht @Observable ist) · Code — Mapping bestätigt korrekt,
+  Test-Mathematik exakt; die eine bekannte Lücke dokumentiert (Live-Mute mitten in
+  einer Region wirkt erst an der nächsten Grenze — der Wiring-Zyklus muss die Spur
+  dann neu ansteuern). Gates: Xcode Compile + CI/CD.
 
   Stand DAW-Ausbau: Automation ✓ · Clips Split/Join/Delete/Move ✓ · Audio-Import ✓ ·
-  Video-Import ✓ · Audio-Transport-Scheduling-Naht ✓. Als Nächstes: der AudioLanePlayer-
-  Ausführer (gerätegeprüft) — dann klingen die Audio-Spuren wirklich im Transport.
+  Video-Import ✓ · Audio-Transport: Scheduling-Naht ✓ + Koordinator ✓ / als Nächstes
+  der geräteverifizierte AVFoundation-Ausführer + Transport-Wiring (dann Ton).
