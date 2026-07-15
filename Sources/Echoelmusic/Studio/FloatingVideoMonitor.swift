@@ -23,6 +23,7 @@
 #if canImport(SwiftUI) && canImport(AVFoundation) && canImport(UIKit) && canImport(MetalKit)
 import SwiftUI
 import AVFoundation
+import UIKit
 import UniformTypeIdentifiers
 
 // MARK: - AVPlayer sink (the device half of VideoRegionSink)
@@ -59,10 +60,18 @@ final class MonitorVideoSink: VideoRegionSink {
             // Inside the deadband → run at nominal (clears any previous nudge).
             if playing, player.rate != 0, player.rate != 1 { player.rate = 1 }
         case .nudgeRate(let rate):
-            if playing { player.rate = rate }
+            if playing {
+                player.rate = rate
+            } else {
+                // Paused SCRUB: a rate nudge can't move a paused frame, and a
+                // 16th-step scrub (0.125 s @120) sits inside the nudge band — the
+                // picture must follow every scrub step, so seek instead.
+                seek(to: sourceSeconds)
+            }
         case .hardSeek(let toSeconds):
-            player.seek(to: CMTime(seconds: max(0, toSeconds), preferredTimescale: 600),
-                        toleranceBefore: .zero, toleranceAfter: .zero)
+            seek(to: toSeconds)
+            // A pre-seek nudge is stale the instant continuity re-anchors.
+            if playing, player.rate != 0, player.rate != 1 { player.rate = 1 }
         }
         if playing {
             if player.rate == 0 { player.rate = 1 }
@@ -73,6 +82,11 @@ final class MonitorVideoSink: VideoRegionSink {
 
     func stop() {
         player.pause()
+    }
+
+    private func seek(to seconds: Double) {
+        player.seek(to: CMTime(seconds: max(0, seconds), preferredTimescale: 600),
+                    toleranceBefore: .zero, toleranceAfter: .zero)
     }
 }
 
@@ -112,7 +126,10 @@ private struct VideoMonitorContent: View {
     @Environment(TimelineStore.self) private var timeline
     @Environment(ClipStore.self) private var clips
 
-    @State private var sink = MonitorVideoSink()
+    /// Created ONCE on first use — an `@State` DEFAULT expression runs on every
+    /// struct init (every parent body pass, i.e. at drag frequency), and building
+    /// a configured AVPlayer per drag event is main-thread churn (reviewer M1).
+    @State private var sink: MonitorVideoSink?
     /// Non-nil ⇒ the active clip is a STILL image at this URL (AsyncImage branch).
     @State private var stillURL: URL?
     /// True ⇒ the active clip is a VIDEO currently presented by the sink.
@@ -127,7 +144,7 @@ private struct VideoMonitorContent: View {
                 } placeholder: {
                     ProgressView()
                 }
-            } else if showsVideo {
+            } else if showsVideo, let sink {
                 MonitorPlayerView(player: sink.player)
             } else {
                 VStack(spacing: 6) {
@@ -148,7 +165,7 @@ private struct VideoMonitorContent: View {
         // documents change at user-edit rate, never per frame.
         .onChange(of: timeline.document) { _, _ in syncNow() }
         .onAppear { syncNow() }
-        .onDisappear { sink.stop() }
+        .onDisappear { sink?.stop() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Video monitor")
         .accessibilityValue(stillURL != nil ? "Showing an image"
@@ -170,14 +187,14 @@ private struct VideoMonitorContent: View {
         else {
             stillURL = nil
             showsVideo = false
-            sink.stop()
+            sink?.stop()
             return
         }
         guard let clip = clips.clip(id: active.clipID),
               let url = MediaLibrary.resolveRef(clip.mediaRef) else {
             stillURL = nil
             showsVideo = false
-            sink.stop()
+            sink?.stop()
             return
         }
         // Same extension routing the import uses (VideoClipView): stills have no
@@ -186,21 +203,31 @@ private struct VideoMonitorContent: View {
         if isImage {
             if stillURL != url { stillURL = url }
             showsVideo = false
-            sink.stop()
+            sink?.stop()
             return
         }
         stillURL = nil
         showsVideo = true
+        let live = ensureSink()
         switch active.playback {
         case .play(let sourceSeconds):
-            sink.present(url: url, atSourceSeconds: sourceSeconds, playing: transport.isPlaying)
+            live.present(url: url, atSourceSeconds: sourceSeconds, playing: transport.isPlaying)
         case .exhausted(let sourceSeconds):
-            sink.present(url: url, atSourceSeconds: sourceSeconds, playing: false)
+            live.present(url: url, atSourceSeconds: sourceSeconds, playing: false)
         case .inactive:
             // Filtered by the selector; kept exhaustive for the compiler.
             showsVideo = false
-            sink.stop()
+            live.stop()
         }
+    }
+
+    /// The one sink, built lazily on the first video frame request (reviewer M1:
+    /// never in the `@State` default expression).
+    private func ensureSink() -> MonitorVideoSink {
+        if let sink { return sink }
+        let created = MonitorVideoSink()
+        sink = created
+        return created
     }
 }
 
@@ -221,7 +248,7 @@ struct FloatingVideoMonitor: View {
     /// visualizer's size steps so both windows feel identical to resize.
     @AppStorage("video.monitor.size") private var sizeRaw = FloatingVisualWindow.WindowSize.small.rawValue
     private var windowSize: FloatingVisualWindow.WindowSize {
-        FloatingVisualWindow.WindowSize(rawValue: sizeRaw) ?? .medium
+        FloatingVisualWindow.WindowSize(rawValue: sizeRaw) ?? .small
     }
 
     /// Card centre in the parent's space; nil until first layout → bottom-leading dock.

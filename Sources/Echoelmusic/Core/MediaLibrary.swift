@@ -63,14 +63,24 @@ public enum MediaLibrary {
         try copyIn(source, subdirectory: "Media/Image", fallbackExt: "jpg")
     }
 
-    /// Resolve a clip's `mediaRef` (absolute path today; nothing writes relative refs
-    /// yet) to an EXISTING file URL — nil for empty refs or vanished files. Single
-    /// source for every surface that turns a region into playable media (timeline
-    /// audition, the Video Monitor; ArrangeTimelineView's private twin predates this).
+    /// Resolve a clip's `mediaRef` to an EXISTING file URL — nil for empty refs or
+    /// vanished files. Single source for every surface that turns a region into
+    /// playable media (timeline audition, the Video Monitor; ArrangeTimelineView's
+    /// private twin predates this). Handles BOTH documented conventions
+    /// (VideoClipFactory contract): an absolute path (timeline imports) first, then
+    /// a bare file name resolved against Documents/Videos (VisualRecorder captures).
     public static func resolveRef(_ ref: String?) -> URL? {
         guard let ref, !ref.isEmpty else { return nil }
         let url = URL(fileURLWithPath: ref)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        if FileManager.default.fileExists(atPath: url.path) { return url }
+        if !ref.contains("/"),
+           let docs = FileManager.default.urls(for: .documentDirectory,
+                                               in: .userDomainMask).first {
+            let candidate = docs.appendingPathComponent("Videos", isDirectory: true)
+                .appendingPathComponent(ref, isDirectory: false)
+            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+        }
+        return nil
     }
 
     /// Shared copy: resolve the media subdir, pick a fresh UUID name (preserving
