@@ -1,43 +1,45 @@
-build: 2026-07-15 v10.79.249 (Live-Mixer greift SOFORT + Sample-Race geheilt — Heilungs-Welle 1)
+build: 2026-07-15 v10.79.250 (Third-Party-AUv3-Instrumente KLINGEN auf Spuren — Heilungs-Welle 1 KOMPLETT)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dritter + vierter verifizierter CRITICAL aus deinem Ultracode-Mandat geheilt
-  (H3 Sample-Race, H4 Pan/Gain) — beide mit vollem Reviewer-Durchlauf.
+notes: Fünfter und letzter verifizierter CRITICAL aus deinem Ultracode-Mandat
+  geheilt — H5, dein direkter Wunsch: "auv3 Plugins von third Party wie Eventide
+  und anderen Herstellern ermöglichen."
 
-  H4 — LIVE-MIXER ERREICHT DIE WIEDERGABE:
-  • Pan pro MIDI-Spur klingt jetzt WIRKLICH (war stumm-inert: der Regler schrieb
-    ins Dokument, keine Rack-Voice hat ihn je gelesen).
-  • Der Spur-Fader ist stufenlos: 0.5 klingt halb so laut (vorher binär an/aus
-    über das Note-Gate).
-  • Mixer-Bewegungen MITTEN im Clip greifen sofort — Mute/Solo/Level/Pan werden
-    pro Transport-Step aus dem Store gezogen; vorher fror der Play-Snapshot sie
-    bis zur nächsten Clip-Grenze ein.
-  • Audio-Spuren bekommen erstmals Pan; Level-Moves regeln live ohne Neustart,
-    Mute stoppt sofort, Unmute startet an der EHRLICHEN Datei-Position neu.
-  • Mute silenziert jetzt auch schon klingende Noten am Mixer (vorher klangen
-    sie bis zum natürlichen Ende aus).
+  H5 — AU-INSTRUMENTE PRO SPUR (bisher war "Assign to this track" nur ein Label):
+  • Ein einer MIDI-Spur zugewiesenes Third-Party-AUv3-Instrument KLINGT jetzt:
+    die Noten der Spur gehen ins Plugin (Host-MIDI), sein Audio in den Master —
+    pro Spur eine eigene Instanz, mit Spur-Gain/Pan/Transpose.
+  • Zuweisungen überleben Neustart (Restore beim App-Start), reagieren auf
+    Ändern/Löschen/Undo sofort, und JEDER Fehlerpfad fällt auf die interne
+    Voice zurück — nie Stille. Max 4 Instanzen (ehrlich geloggt).
+  • Die primäre Roll-Spur spielt weiter über den globalen Plugin-Host (kein
+    Doppel-Hosting desselben Plugins).
+  • EHRLICHE GRENZE: Detune (Cent) ist als MIDI nicht ausdrückbar und wird auf
+    AU-Spuren bewusst NICHT angewendet (Transpose in Halbtönen schon).
 
-  H3 — SAMPLE-TAUSCH-RACE GEHEILT (Beat-Sampler):
-  • Sample-Wechsel während der Beat läuft: lock-frei über SPSC-Slab-Handshake —
-    kein Free-under-Read-Fenster mehr auf dem Audio-Thread.
-  • Reviewer-Fund dabei GEFIXT bevor er je auslief: die erste Fassung hätte jede
-    Sample-Browser-Vorschau stumm gemacht (Adoption schluckte den Audition-
-    Trigger) — 6 Bestandstests hätten es gefangen, jetzt grün.
-  • SPSC-Queue bekam die fehlende Acquire-Barrier (arm64: veralteter Slot-Read
-    nach Ring-Wrap hätte einen bereits freigegebenen Puffer wiederbeleben können).
+  SICHER (2 volle Review-Pässe, alle Funde gefixt):
+  • Stale-Guard: Zuweisung mitten im async-Laden geändert/gelöscht → die alte
+    Instanz wird verworfen, nie installiert.
+  • Offs-to-both: Plugin-Zuweisung WÄHREND die Spur spielt → kein hängender
+    Ton mehr (Note-Offs gehen an alte UND neue Voice; vorher hätte der Flip
+    gehaltene Noten gestrandet — überlebte sogar Stop).
+  • Fail-Parking: ein kaputtes Plugin wird nicht bei jedem Regler-Zug neu
+    geladen (Retry nur bei geänderter Zuweisung).
+  • Ordnungs-Gesetz im Fan-out: Alt-Take-Offs durch die alte Bindung, DANN
+    umbinden — kein Noten-Hänger beim Clip-Wechsel zwischen zwei AU-Spuren.
+  Kette fbf49ff→c9e23af→c0a5209→60f52f1 Gates grün. Flag laneAUInstruments
+  default-ON (Risiko aktiviert sich erst durch den expliziten Assign-Akt;
+  Dev-OFF bleibt der Ein-Zeilen-Rollback).
 
-  SICHER: audio-thread-reviewer PASS ("control-plane only" bestätigt; sein
-  MEDIUM — Engine-Pause durch Mid-Song-Attach bei unauflösbarem erstem Clip —
-  gefixt: Vorwärmen fällt auf die erste AUFLÖSBARE Region durch) · code-reviewer
-  APPROVE (Solo-Wedge gefixt: gelöschte Solo-Spur hielt alle anderen bis Stop
-  stumm; Integrationstest Step→Store→Slot ergänzt; NaN⇒Stille in beiden
-  setGain). +16 Tests. Kette eecf259→df67799→eea3ae4 alle Gates grün.
+  GERÄTE-VERIFY-BITTE (NEEDS-FOUNDER-VERIFY): ein AUv3-Instrument (Eventide o. ä.)
+  im Plugins-Browser laden → Spur-Menü "Assign '<Name>' to this track" auf einer
+  ZWEITEN MIDI-Spur → Play. Die Spur klingt durchs Plugin; Fader/Pan/Mute greifen
+  live; Zuweisung löschen → interne Voice übernimmt wieder.
 
-  EHRLICH (dokumentiert, eigene Zyklen): Editor-Fades/Warp auf der Timeline (A5)
-  · Sekundär-MIDI faltet Mehrtakt-Clips (M1c) · Spur-hinzufügen/-löschen während
-  der Wiedergabe bleibt strukturell eingefroren bis Stop (Rank-Invariante).
-
-  Heilungs-Stand Welle 1: M1 ✓ (v247) · A1 ✓ (v248) · H3 ✓ + H4 ✓ (dieser
-  Build) · als Nächstes H5 AU-Instrument-Routing (Eventide & Co auf Spuren).
+  HEILUNGS-WELLE 1 KOMPLETT ("Es klingt, wie es aussieht"):
+  M1 MIDI-Takte v247 · A1 Audio-Spuren v248 · H3 Sample-Race + H4 Live-Mixer
+  v249 · H5 AU-Instrumente v250. Als Nächstes Welle 2: H6 relative Medien-Pfade
+  (stiller Datenverlust beim App-Update) · H7 SurfaceHost-Identität · H9 AU-FX
+  pro Spur + musicalContext.
 
   Reihenfolge: v246 Video-Monitor · v247 MIDI-Takte · v248 Audio-Klang ·
-  v249 Live-Mixer + Sample-Race.
+  v249 Live-Mixer + Sample-Race · v250 AU-Instrumente.

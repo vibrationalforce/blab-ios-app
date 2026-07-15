@@ -5899,3 +5899,35 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   braucht einen expliziten Merge-Pfad; mixer-only-Merge ist das sichere Muster.
 - **Nächster Punkt:** H5 AU-Instrument-Routing (Task #50, Eventide & Co auf
   Spuren; TimelineLane.instrument ist bisher reine Daten ohne Engine-Pfad).
+
+## 2026-07-15 (Fortsetzung 3) — H5 komplett, v250 = WELLE 1 KOMPLETT
+- **v250 (H5, Kette fbf49ff→c9e23af→c0a5209→60f52f1, Gates grün):** per-Lane
+  AUv3-Instrumente klingen. Explore-Map vorab: AU-Hosting war REAL aber
+  global-single (AUv3Host, nur Primary-Roll-Noten); lane.instrument war reine
+  Daten. Bau: AUNoteMIDI (pure) + AUNoteVoice (scheduleMIDIEventBlock,
+  laneMixer-Stufe für Gain/Pan) + LaneAUInstrumentHost (laneID-keyed,
+  syncAssignments-Reconcile, Cap 4) + AudioEngine.attach/detachLaneInstrument +
+  TimelineRegionPlayer.slotLaneSink (Ordnungs-Gesetz) + App-Sink-Branch +
+  TimelineStore.onDocumentChanged (persist-Hook) + Flag laneAUInstruments
+  default-ON. Plan: PLAN_H5_AU_LANE_ROUTING_2026-07-15.md.
+- **LEDGER-Lehren (Muster für künftige Zyklen):**
+  1. **Offs-to-both bei Voice-Flips:** wechselt die Ziel-Voice eines Slots
+     MID-TAKE (async Hosting, Flag-Flip), gehen Note-Offs an ALLE möglichen
+     Ziele — ein Off für eine nie gestartete Note ist überall harmlos, ein
+     gestrandetes On hängt für immer (überlebte sogar Stop).
+  2. **inFlight-Ref-Map als Stale-Guard:** async Instantiate + veränderliche
+     Zuweisung ⇒ pending-Ref pro Key mitführen; der resumte Task attached nur,
+     wenn sein Ref noch der pending ist; defer cleart nur den eigenen Eintrag.
+  3. **persist()-Hook = der eine Reconcile-Pfad** für dokument-getriebene
+     Engine-Ressourcen (deckt Assign/Löschen/Undo ab) — aber Konsument muss
+     idempotent+billig sein UND Fehl-Refs parken (sync läuft pro Fader-Zug).
+  4. **Ordnungs-Gesetz:** Alt-Take-Offs IMMER durch die alte Bindung senden,
+     bevor ein Slot neu gebunden/re-timbriert wird.
+- **NEEDS-FOUNDER-VERIFY (v250 auf dem Gerät):** AUv3-Instrument im
+  Plugins-Browser laden → "Assign to this track" auf ZWEITER MIDI-Spur → Play:
+  Spur klingt durchs Plugin, Mixer greift live, Zuweisung löschen → interne
+  Voice zurück.
+- **Welle 1 KOMPLETT:** M1 v247 · A1 v248 · H3+H4 v249 · H5 v250.
+  **Welle 2 als Nächstes:** H6 relative mediaRef (App-Update-Datenverlust;
+  MediaLibrary.resolveRef = die eine Fix-Heimat) · H7 SurfaceHost-Identität ·
+  H9 AU-FX pro Spur + musicalContext · H10 MIDIInput-Flood (#30).
