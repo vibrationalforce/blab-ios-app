@@ -152,18 +152,24 @@ struct SurfaceHost: View {
                         .clipped()
                 )
                 Divider().overlay(EchoelTheme.border)
-                AnyView(
-                    EchoelStudioView()
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                )
-            } else {
-                AnyView(
-                    EchoelStudioView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                )
             }
+            // ONE EchoelStudioView at ONE structural position (H7, audit
+            // CRITICAL): both branches used to create their own copy, so the
+            // fold/unfold toggle changed the view's IDENTITY — SwiftUI tore the
+            // whole instrument zone down and its `.onDisappear` ran
+            // stopEverything(), killing a LIVE session (bio, camera, transport)
+            // on a pure layout toggle, and dropping every open dropdown/@State.
+            // The conditional timeline above is one structural slot; the studio
+            // stays the LAST slot in both states, so identity — and the running
+            // session — survives the fold. Only the frame flexes (value change,
+            // not structure): timeline shown ⇒ natural height (chip bar when
+            // idle); timeline folded ⇒ the instrument takes the full height.
+            AnyView(
+                EchoelStudioView()
+                    .frame(maxWidth: .infinity,
+                           maxHeight: timelineExpanded ? nil : .infinity)
+                    .clipped()
+            )
         }
     }
 
