@@ -854,11 +854,18 @@ private struct RegionBlockView: View {
                 }
                 // Split / Join, ON THE CLIP (founder 2026-07-15). Both read
                 // transport.position / the document ONLY here (menu builds on open).
+                // Split cuts at the playhead when it sits INSIDE this clip; otherwise it
+                // halves the clip. Without the fallback, re-splitting a piece "ging nicht"
+                // (founder 2026-07-15): after a cut the playhead rests on the new boundary,
+                // where `split(at:)` is a no-op for both pieces — so "Split" did nothing.
+                // Now it always divides the clip the founder long-pressed.
                 Button {
-                    let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                    timeline.splitRegion(id: region.id, atTick: tick, bpm: beatPlayer.pattern.tempo)
+                    let playTick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+                    let inside = playTick > region.startTick && playTick < region.endTick
+                    let cut = inside ? playTick : region.startTick + region.lengthTicks / 2
+                    timeline.splitRegion(id: region.id, atTick: cut, bpm: beatPlayer.pattern.tempo)
                 } label: {
-                    Label("Split at playhead", systemImage: "scissors")
+                    Label("Split", systemImage: "scissors")
                 }
                 Button {
                     timeline.mergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo)
@@ -1056,7 +1063,9 @@ private struct TimelinePlayhead: View {
     /// Ticks per transport step (16th) — the seek granularity. 480 / 4 = 120.
     private static var ticksPerStep: Int { TimelineTime.ticksPerBeat / Transport.stepsPerBeat }
     /// Handle band height — matches the ruler so the grab tab sits in the ruler zone.
-    private static let handleHeight: CGFloat = 24
+    private static let handleHeight: CGFloat = 26   // touch-target height (HIG)
+    private static let markerWidth: CGFloat = 20    // visible flag width
+    private static let markerHeight: CGFloat = 16   // visible flag height (tip meets the line)
 
     private var liveTick: Int { transport.position.absoluteStep * Self.ticksPerStep }
 
@@ -1064,6 +1073,8 @@ private struct TimelinePlayhead: View {
         let tick = scrubTick ?? liveTick
         let x = CGFloat(tick) / CGFloat(TimelineTime.ticksPerBeat) * pointsPerBeat
         let active = scrubTick != nil || transport.isPlaying
+        let handleColor = scrubTick != nil ? EchoelTheme.accent
+                                           : (transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
         ZStack(alignment: .topLeading) {
             // The line — full height, thin, NON-hittable so it never blocks a region tap.
             Rectangle()
@@ -1071,20 +1082,23 @@ private struct TimelinePlayhead: View {
                 .frame(width: 2)
                 .frame(maxHeight: .infinity)
                 .allowsHitTesting(false)
-            // The grab handle — a BIG downward marker at the TOP (over the ruler), a fat
-            // touch target the founder asked to enlarge (2026-07-15 "der Playhead muss
-            // größer sein"). Centered on the 2 pt line. Only THIS is hittable → it wins
-            // over the grid's horizontal ScrollView (dedicated-zone drag). The 44 pt frame
-            // is the HIG touch minimum; the 26 pt triangle is the visible marker.
-            Image(systemName: "arrowtriangle.down.fill")
-                .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(scrubTick != nil ? EchoelTheme.accent
-                                                  : (transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text))
-                .frame(width: 44, height: Self.handleHeight + 6, alignment: .top)
-                .contentShape(Rectangle())
-                .offset(x: -22 + 1)   // center the 44-wide target on the 2 pt line
-                .gesture(dragGesture)
-                .accessibilityLabel("Playhead — drag to move")
+            // The grab handle — a flat-topped downward triangle sitting FLUSH at the very
+            // top (y = 0), its tip meeting the line so the line drops straight out of the
+            // point with NO gap (founder 2026-07-15 "Diese Lücke schließen"; the old
+            // SF-Symbol left a stub of line above the glyph — that float was the gap).
+            // A 44 pt clear frame stays the HIG touch target; the drawn marker is the
+            // visible flag, centered on the 2 pt line. Only THIS is hittable → it wins
+            // over the grid's horizontal ScrollView (dedicated-zone drag).
+            ZStack(alignment: .top) {
+                Color.clear.frame(width: 44, height: Self.handleHeight)
+                PlayheadMarker()
+                    .fill(handleColor)
+                    .frame(width: Self.markerWidth, height: Self.markerHeight)
+            }
+            .contentShape(Rectangle())
+            .offset(x: 1 - 22)   // center the 44-wide target on the 2 pt line (line centre x = 1)
+            .gesture(dragGesture)
+            .accessibilityLabel("Playhead — drag to move")
         }
         .offset(x: x)
     }
@@ -1108,6 +1122,20 @@ private struct TimelinePlayhead: View {
         let step = Int((Double(tick) / Double(Self.ticksPerStep)).rounded())
         transport.seek(toBar: step / Transport.stepsPerBar,
                        step: step % Transport.stepsPerBar)
+    }
+}
+
+/// The playhead's grab flag — a flat-topped downward triangle. The flat edge sits at the
+/// top (y = 0) and the tip at the bottom centre, so the playhead line drops straight out
+/// of the tip with no gap between marker and line.
+private struct PlayheadMarker: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        p.closeSubpath()
+        return p
     }
 }
 #endif
