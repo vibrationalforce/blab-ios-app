@@ -64,8 +64,9 @@ Ground-truth via Explore (acc0ef7): siehe unten je Bereich. Ranking nach Wert×g
   fire-once wie Audio); Device-Sink macht Drift-Korrektur (VideoResyncPolicy) im Wiring-Zyklus.
   Muted-only-Gate (Solo/Level = Audio, blanket Video nicht). Reconcile-Pass releast entfernte Lanes
   (gleicher Fix auch in AudioLanePlayer nachgezogen). Reviewer: concurrency PASS · code (Logik korrekt).
-  OFFEN: `nativeDurationSeconds` pro Clip wird noch nicht persistiert (VideoClipView misst, verwirft) —
-  der Wiring-Zyklus braucht eine Clip-Dauer (Codable-Feld, decodeIfPresent) für .exhausted-Erkennung.
+  ✅ NATIV-DAUER PERSISTIERT (v224): `Clip.nativeDurationSeconds: Double?` (Codable, decodeIfPresent,
+  rückwärtskompatibel) — Audio+Video-Import schreiben die gemessene Dauer via Factory. Der Video-Wiring-
+  Prerequisite (.exhausted) ist erfüllt; Audio nutzt sie ebenfalls (EOF-Klemmung statt file.length-Lesen).
 - OFFEN — AVPlayer-Adapter + Transport-Wiring (geräteverifiziert), analog Audio.
 
 ## GEMEINSAME NÄHTE (Audio + Video Import teilen sich)

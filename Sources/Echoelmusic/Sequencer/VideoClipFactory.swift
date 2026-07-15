@@ -17,8 +17,10 @@ public enum VideoClipFactory {
     /// `Documents/Videos` last-path-component. A future resolver (transport-synced
     /// playback / VideoExportPlan, clipID → mediaRef → URL) MUST handle both —
     /// try the absolute path first, then resolve a bare name against Documents/Videos.
-    public static func clip(name: String, mediaRef: String, colorIndex: Int = 0) -> Clip {
-        Clip(name: name, colorIndex: colorIndex, kind: .video, mediaRef: mediaRef)
+    public static func clip(name: String, mediaRef: String, colorIndex: Int = 0,
+                            nativeDurationSeconds: Double? = nil) -> Clip {
+        Clip(name: name, colorIndex: colorIndex, kind: .video, mediaRef: mediaRef,
+             nativeDurationSeconds: nativeDurationSeconds)
     }
 
     /// A region placing a video of `durationSeconds` (already trimmed) at `startTick`

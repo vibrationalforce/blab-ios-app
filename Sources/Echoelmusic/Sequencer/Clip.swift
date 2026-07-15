@@ -77,6 +77,11 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
     public var melody: MelodyClip?
     /// Asset/file reference for audio/video/visual clips; nil for a MIDI pattern clip.
     public var mediaRef: String?
+    /// The media's NATIVE duration in seconds, measured on device at import (audio/
+    /// video). `nil` when unknown (older clips / not measured). The transport players
+    /// need it to detect a clip SHORTER than its placed span (video `.exhausted` /
+    /// audio EOF), so it is persisted with the clip rather than re-measured each launch.
+    public var nativeDurationSeconds: Double?
     /// Parameter automation the clip carries (automation-in-track cycle 4).
     /// Ticks are CLIP-RELATIVE (0 = the clip's first step), so the lanes travel
     /// with the clip wherever it is launched or placed. Clip automation is clip
@@ -91,6 +96,7 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         drums: DrumPattern? = nil,
         melody: MelodyClip? = nil,
         mediaRef: String? = nil,
+        nativeDurationSeconds: Double? = nil,
         automation: [AutomationLane] = []
     ) {
         self.id = id
@@ -100,11 +106,12 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         self.drums = drums
         self.melody = melody
         self.mediaRef = mediaRef
+        self.nativeDurationSeconds = nativeDurationSeconds
         self.automation = automation
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, colorIndex, kind, drums, melody, mediaRef, automation
+        case id, name, colorIndex, kind, drums, melody, mediaRef, nativeDurationSeconds, automation
     }
 
     // Forward/backward-compatible decode: clips saved before `kind`/`mediaRef` existed
@@ -118,6 +125,7 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         drums = try? c.decode(DrumPattern.self, forKey: .drums)
         melody = try? c.decode(MelodyClip.self, forKey: .melody)
         mediaRef = try? c.decode(String.self, forKey: .mediaRef)
+        nativeDurationSeconds = try? c.decode(Double.self, forKey: .nativeDurationSeconds)
         automation = (try? c.decode([AutomationLane].self, forKey: .automation)) ?? []
     }
 

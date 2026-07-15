@@ -192,7 +192,8 @@ struct AudioClipView: View {
         let offset = region.startSeconds
         let bpm = beatPlayer.pattern.tempo
         let name = source.deletingPathExtension().lastPathComponent
-        let clip = AudioClipFactory.clip(name: name, mediaRef: dest.path, colorIndex: slot)
+        let clip = AudioClipFactory.clip(name: name, mediaRef: dest.path, colorIndex: slot,
+                                         nativeDurationSeconds: player.durationSeconds > 0 ? player.durationSeconds : nil)
         let native = AudioClipFactory.nativeBPM(forDurationSeconds: duration, bpm: bpm)
         let startTick = timeline.document.nextStartTick(inLane: laneID)
         let placed = AudioClipFactory.region(forDurationSeconds: duration, bpm: bpm,

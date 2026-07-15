@@ -20,8 +20,10 @@ public enum AudioClipFactory {
     /// resolver — `URL(fileURLWithPath:)` + `fileExists` — finds the file
     /// directly; do NOT switch this to a relative/last-path-component ref
     /// without also changing that resolver.
-    public static func clip(name: String, mediaRef: String, colorIndex: Int = 0) -> Clip {
-        Clip(name: name, colorIndex: colorIndex, kind: .audio, mediaRef: mediaRef)
+    public static func clip(name: String, mediaRef: String, colorIndex: Int = 0,
+                            nativeDurationSeconds: Double? = nil) -> Clip {
+        Clip(name: name, colorIndex: colorIndex, kind: .audio, mediaRef: mediaRef,
+             nativeDurationSeconds: nativeDurationSeconds)
     }
 
     /// Best-guess bar length for an audio clip of `durationSeconds` at `bpm`,

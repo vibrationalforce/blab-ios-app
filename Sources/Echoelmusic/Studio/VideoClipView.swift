@@ -164,7 +164,8 @@ struct VideoClipView: View {
         }
         let bpm = beatPlayer.pattern.tempo
         let name = source.deletingPathExtension().lastPathComponent
-        let clip = VideoClipFactory.clip(name: name, mediaRef: dest.path, colorIndex: slot)
+        let clip = VideoClipFactory.clip(name: name, mediaRef: dest.path, colorIndex: slot,
+                                         nativeDurationSeconds: durationSeconds)
         let startTick = timeline.document.nextStartTick(inLane: laneID)
         let placed = VideoClipFactory.region(forDurationSeconds: durationSeconds, bpm: bpm,
                                              laneID: laneID, clipID: clip.id,
