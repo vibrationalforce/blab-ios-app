@@ -5,6 +5,9 @@ import AVFoundation
 #if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 #endif
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
 
 // VideoClipView.swift
 // Echoel — import a video file from the media library and LAND it on a video lane
@@ -34,6 +37,13 @@ struct VideoClipView: View {
     @State private var player: AVPlayer?
     @State private var durationSeconds: Double = 0
     @State private var landingError: String?
+    #if canImport(PhotosUI)
+    /// Mediathek pick (founder 2026-07-15B: "Bei Video soll der volle Zugriff auf die
+    /// Mediathek abgefragt werden") — the SwiftUI PhotosPicker shows the user's WHOLE
+    /// photo library via the out-of-process system picker (no permission dialog
+    /// needed for picking; the Info.plist string covers later in-app library reads).
+    @State private var photoItem: PhotosPickerItem?
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -69,6 +79,26 @@ struct VideoClipView: View {
                 if case .success(let urls) = result, let url = urls.first { load(url) }
             }
             #endif
+            #if canImport(PhotosUI)
+            // Mediathek pick → copy to a temp file we own (no security scope needed),
+            // then the exact same load/measure/land path as a Files pick.
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                landingError = nil
+                Task { @MainActor in
+                    do {
+                        if let picked = try await item.loadTransferable(type: PickedVideo.self) {
+                            load(picked.url)
+                        } else {
+                            landingError = "Dieses Element enthält kein Video."
+                        }
+                    } catch {
+                        landingError = "Video konnte nicht aus der Mediathek geladen werden."
+                    }
+                    photoItem = nil   // re-picking the same asset fires onChange again
+                }
+            }
+            #endif
             .onDisappear {
                 player?.pause()
                 player = nil
@@ -89,11 +119,26 @@ struct VideoClipView: View {
                 }
             }
             Spacer(minLength: 0)
-            Button("Import") { importerPresented = true }
+            #if canImport(PhotosUI)
+            // PRIMARY: the photo library — where people's videos actually live
+            // (founder: the old door only reached Files, never the Mediathek).
+            PhotosPicker(selection: $photoItem, matching: .videos,
+                         photoLibrary: .shared()) {
+                Text("Mediathek")
+                    .font(EchoelTheme.font(13, .semibold))
+                    .foregroundStyle(EchoelTheme.onPrimary)
+                    .padding(.horizontal, 14).frame(height: 36)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
+            }
+            .buttonStyle(.plain)
+            #endif
+            Button("Dateien") { importerPresented = true }
                 .font(EchoelTheme.font(13, .semibold))
-                .foregroundStyle(EchoelTheme.onPrimary)
-                .padding(.horizontal, 14).frame(height: 36)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12).frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
                 .buttonStyle(.plain)
         }
         .padding(12)
@@ -175,4 +220,23 @@ struct VideoClipView: View {
         dismiss()
     }
 }
+
+#if canImport(PhotosUI)
+/// A video picked from the photo library, received as a FILE copied into our own
+/// temp directory — so downstream (preview + App-Group import) treats it exactly
+/// like a Files pick, without any security-scoped bookkeeping.
+private struct PickedVideo: Transferable {
+    let url: URL
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { picked in
+            SentTransferredFile(picked.url)
+        } importing: { received in
+            let dest = FileManager.default.temporaryDirectory
+                .appendingPathComponent("mediathek-\(UUID().uuidString)-\(received.file.lastPathComponent)")
+            try FileManager.default.copyItem(at: received.file, to: dest)
+            return PickedVideo(url: dest)
+        }
+    }
+}
+#endif
 #endif

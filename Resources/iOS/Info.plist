@@ -67,6 +67,8 @@
 	<string>If you turn on "Save to Apple Health", Echoel writes the heart rate and respiratory rate it measures (camera or Bluetooth sensor) to Apple Health. This is off by default and you can turn it off anytime.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Echoelmusic imports videos and images from your photo library onto the timeline's video tracks. Your library is only read when you pick media yourself; nothing is uploaded or shared.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth MIDI controllers and audio devices for professional music creation.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

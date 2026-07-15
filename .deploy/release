@@ -1,32 +1,29 @@
-build: 2026-07-15 v10.79.243 (Überlapp-Regel: der abgelegte Clip gewinnt — keine Clip-Stapel mehr)
+build: 2026-07-15 v10.79.244 (Video aus der MEDIATHEK importieren — der Picker zeigt jetzt deine ganze Fotobibliothek)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Clip-Game C5 (God-Mode-Mandat, letzter Interaktions-Baustein vor der EchoelAI-Schicht).
+notes: Video-Reihe V2 aus deinem Auftrag: "Bei Video soll der volle Zugriff auf die
+  Mediathek abgefragt werden."
 
-  BISHER: legte man einen Clip auf einen anderen, lagen beide übereinander — beim
-  Abspielen doppelt/unklar. JETZT gilt die DAW-Regel "der bewegte Clip gewinnt":
-  • Landet er auf dem ENDE eines Nachbarn → der Nachbar wird hinten gekürzt und
-    dockt sauber an.
-  • Landet er auf dem ANFANG eines Nachbarn → der Nachbar rückt hinter den Clip;
-    sein Inhalt bleibt dabei an Ort und Stelle (Medien-Offset wandert korrekt mit).
-  • Verschluckt er einen kleineren Nachbarn komplett → der verschwindet.
-  • Landet er MITTEN IN einem größeren Clip → der teilt sich in zwei Stücke davor
-    und dahinter (Inhalt bleibt jeweils an seinem Platz).
-  • ALLES ist EIN Undo-Schritt: ↩ bringt den Zug UND alle umgeformten Nachbarn
-    gemeinsam zurück — furchtlos bleiben.
-  • Exakt angedockte Clips (Magnetkanten aus v242) werden NICHT angefasst — Kante an
-    Kante ist kein Überlapp.
+  BEFUND: der bisherige Video-Import öffnete nur den DATEIEN-Picker (Files-App) — deine
+  Fotobibliothek war gar nicht erreichbar. DAS war die eigentliche Sperre.
 
-  TEST-FIRST: 5 neue Store-Tests (hinten kürzen + Ein-Schritt-Undo, vorne rücken mit
-  exaktem Offset-Nachweis, Verschlucken + Undo, Container-Teilung mit Offset-Prüfung,
-  Alt-Verhalten ohne Regel).
-  SICHER: code-reviewer CONFIRMED — jede Fallmathematik handgeprüft (split/trimmedStart-
-  Guards können nie ein Stück verlieren), Overload-Auflösung eindeutig, keine Regression
-  in Undo/Combine/Magnet; Magnet + Überlapp-Regel komponieren korrekt (erst einrasten,
-  dann am Endplatz aufräumen — auch nach Spurwechsel auf der ZIEL-Spur). Gates v242 grün.
+  NEU auf der Video-Import-Seite (Videospur → Import):
+  • „Mediathek" (Primär-Knopf): öffnet den System-Foto-Picker mit deiner GANZEN
+    Bibliothek (nur Videos gefiltert). Auswahl → Vorschau → „Add to timeline" wie
+    gehabt. Der System-Picker läuft außerhalb der App — Apple-sauber, du musst dafür
+    keinen Berechtigungs-Dialog wegklicken, und trotzdem ist ALLES sichtbar.
+  • „Dateien" bleibt als zweiter Weg (für MP4/MOV aus iCloud Drive etc.).
+  • Der Berechtigungstext für die Fotobibliothek ist jetzt hinterlegt (Info.plist,
+    ehrlich formuliert: lesen nur bei deiner Auswahl, nichts wird hochgeladen) — der
+    eigentliche Voll-Zugriff-Dialog kommt mit dem In-App-Medien-Browser (V3, Bilder),
+    der ihn wirklich braucht. Kein Dialog auf Vorrat = kein Apple-Review-Risiko.
 
-  CLIP-GAME KOMPLETT (dein "seamless workflow"-Auftrag): C1 Drag-to-move ✓ · C2 Undo/
-  Redo ✓ · C3 Multi-Select+Combine ✓ · C4 Magnetkanten+Haptik ✓ · C5 Überlapp-Regel ✓.
-  Als Nächstes: C6 EchoelAI-TimelineToolCore (Sprachbefehle → exakt dieselben Store-
-  Calls) und die Video-Reihe (V2 Mediathek-Zugriff → V4 Kamera-Capture → V5 Kelvin).
+  SICHER: ui-state-reviewer CONFIRMED — Picker-API korrekt, Datei-Transfer nach dem
+  dokumentierten Muster (Kopie in eigenes Temp, dann derselbe Vorschau/Import-Pfad wie
+  Dateien), Plist wohlgeformt + nicht von project.yml überschreibbar, keine neue
+  Sheet-Ebene, Linux-CI unberührt. Gates v243 grün.
 
-  Reihenfolge: v241 Multi-Select · v242 Magnetkanten · v243 Überlapp-Regel.
+  Baustellen-Stand (God-Mode): Clip-Game C1–C5 KOMPLETT ✓ · V2 Mediathek ✓ · als
+  Nächstes V3 Bilder importieren · V4 Kamera-Capture in die Timeline · V5 Profi-Kamera
+  (Kelvin) · C6 EchoelAI-TimelineToolCore.
+
+  Reihenfolge: v242 Magnetkanten · v243 Überlapp-Regel · v244 Mediathek-Import.
