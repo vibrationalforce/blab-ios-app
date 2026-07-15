@@ -1094,17 +1094,18 @@ private struct TimelinePlayhead: View {
                 .frame(width: 2)
                 .frame(maxHeight: .infinity)
                 .allowsHitTesting(false)
-            // The grab handle — a downward tab at the TOP (over the ruler), a fat touch
-            // target the founder asked for ("oben ein Symbol wo man gut anfassen kann").
-            // Centered on the 2 pt line. Only THIS is hittable → it wins over the grid's
-            // horizontal ScrollView (dedicated-zone drag, like the region trim handle).
+            // The grab handle — a BIG downward marker at the TOP (over the ruler), a fat
+            // touch target the founder asked to enlarge (2026-07-15 "der Playhead muss
+            // größer sein"). Centered on the 2 pt line. Only THIS is hittable → it wins
+            // over the grid's horizontal ScrollView (dedicated-zone drag). The 44 pt frame
+            // is the HIG touch minimum; the 26 pt triangle is the visible marker.
             Image(systemName: "arrowtriangle.down.fill")
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 26, weight: .bold))
                 .foregroundStyle(scrubTick != nil ? EchoelTheme.accent
                                                   : (transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text))
-                .frame(width: 30, height: Self.handleHeight, alignment: .center)
+                .frame(width: 44, height: Self.handleHeight + 6, alignment: .top)
                 .contentShape(Rectangle())
-                .offset(x: -15 + 1)   // center the 30-wide target on the 2 pt line
+                .offset(x: -22 + 1)   // center the 44-wide target on the 2 pt line
                 .gesture(dragGesture)
                 .accessibilityLabel("Playhead — drag to move")
         }

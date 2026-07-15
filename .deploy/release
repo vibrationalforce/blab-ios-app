@@ -1,25 +1,22 @@
-build: 2026-07-15 v10.79.231 (Clip-Zittern beim Trimmen behoben — jeder Clip ist ein eigenes Leaf)
+build: 2026-07-15 v10.79.232 (Playhead-Griff größer — passt jetzt zwischen die Linien)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Aus deinem Video: der Clip zitterte beim Trimmen (hinten länger/kürzer ziehen).
+notes: Aus deinem Video: "Der playhead muss größer sein so, dass er da zwischen die
+  Linien passt."
 
-  URSACHE: der Zieh-Zustand (die Live-Breite) hing am WURZEL-View der Timeline und wurde
-  für JEDEN Clip gelesen — dadurch baute sich beim Ziehen JEDES Frame die ganze Timeline
-  neu auf (alle Spuren + Lineal + Playhead), was als Zittern/Ruckeln ankam.
+  FIX: der Greif-Griff oben am Playhead ist jetzt deutlich größer — das sichtbare
+  Dreieck von 15 → 26 pt (fett), das unsichtbare Antipp-Feld von 30 → 44 pt breit
+  (Apple-Fingermindestmaß) und etwas höher, damit man ihn sicher zwischen den
+  Rasterlinien erwischt und ziehen kann.
 
-  FIX: jeder Clip ist jetzt ein eigenständiges View (Leaf) mit SEINEM eigenen Zieh-
-  Zustand. Beim Trimmen aktualisiert sich nur noch DIESER eine Clip — nicht die ganze
-  Timeline. Der Zug wird flüssig.
+  SICHER: ui-state-reviewer CONFIRMED — nur das Playhead-Leaf liest die laufende
+  Position (Freeze-Regel gewahrt), der breitere Griff blockiert höchstens die obersten
+  6 px der ersten Spur direkt unter dem Playhead (schmales Band, kein Blocker), alle
+  Typen/Scopes sauber.
 
-  Reines Umbauen, KEINE Verhaltensänderung: gleiche Darstellung (Wellenform, Name,
-  Farbe, Trim-Griff), gleiches Snap/Commit beim Loslassen, gleiches Lang-Druck-Menü
-  (Edit · Split · Join · Move · Duplicate · Delete), gleiches Antippen-zum-Vorhören.
+  NÄCHSTE RUNDE (dein Video, geplant): "zu viele Play-Knöpfe — einer reicht." Bio-
+  Aktivierung wandert auf den Puls-Pill neben das Echoel-Icon (Tippen = an/aus,
+  Langdruck = Quelle: Kamera-Licht · Bluetooth-Gurt suchen · Simulation); die
+  doppelten Play-Knöpfe (Transport ▶, Puls-Wellenform, "Play timeline") werden auf
+  EINEN reduziert.
 
-  SICHER: ui-state-reviewer CONFIRMED — nur der gezogene Clip rendert neu, Freeze-Regel
-  gewahrt (kein 10-Hz-Read im Leaf-Body), Sheet-Slot bleibt beim Eltern-View, alle
-  Scopes/Env sauber, keine hängenden Referenzen.
-
-  NÄCHSTE RUNDE: Clip auch VORNE trimmen (jetzt sauber möglich, weil der Trim im
-  Clip-Leaf sitzt) — dann der smoothere Playhead-Lauf.
-
-  Reihenfolge heute: v225–229 (Spur-Kopf, Split/Join, Tempo, Puls-Relock, Felder) ·
-  v230 Playhead ziehbar · v231 Clip-Zittern weg.
+  Reihenfolge: v230 Playhead ziehbar · v231 Clip-Zittern weg · v232 Playhead-Griff größer.
