@@ -106,6 +106,50 @@ final class RegionNoteWindowTests: XCTestCase {
                        "degenerate bpm is safe")
     }
 
+    // MARK: - ArrangementLoadPlan (region-relative bar cycling phase)
+
+    func testPlan_stopped_loadsStartBar_offsetEqualsStartBar() {
+        let p = ArrangementLoadPlan.plan(barCount: 4, startBar: 2, playedBars: 99,
+                                         atStepZero: false, playing: false)
+        XCTAssertEqual(p, ArrangementLoadPlan(nowIndex: 2, pendingIndex: nil, phaseOffset: 2),
+                       "caller resets playedBars to 0, so offset = startBar")
+    }
+
+    func testPlan_playingAtStepZero_noStagedBar_andGlobalCounterRotated() {
+        // Region onset ON the bar line at global bar 5 (playedBars == 5), region bar 0.
+        // trigger(0) runs after the load in the SAME tick: it must find nothing staged,
+        // then stages (playedBars+1 + offset) ≡ 1 — the region's bar 1.
+        let p = ArrangementLoadPlan.plan(barCount: 3, startBar: 0, playedBars: 5,
+                                         atStepZero: true, playing: true)
+        XCTAssertEqual(p.nowIndex, 0)
+        XCTAssertNil(p.pendingIndex, "staging here would be consumed this very tick")
+        XCTAssertEqual((5 + 1 + p.phaseOffset) % 3, 1, "next bar line stages region bar 1")
+    }
+
+    func testPlan_playingMidBar_stagesNextBar_andOffsetSkewedByOne() {
+        // Mid-bar onset in global bar 5: playedBars was ALREADY incremented to 6 at
+        // this bar's own step 0. The NEXT trigger(0) first consumes the staged bar
+        // (must be region bar 1), then stages (6+1 + offset) ≡ 2.
+        let p = ArrangementLoadPlan.plan(barCount: 3, startBar: 0, playedBars: 6,
+                                         atStepZero: false, playing: true)
+        XCTAssertEqual(p.nowIndex, 0)
+        XCTAssertEqual(p.pendingIndex, 1)
+        XCTAssertEqual((6 + 1 + p.phaseOffset) % 3, 2, "bar after next stages region bar 2")
+    }
+
+    func testPlan_singleBar_neverStages() {
+        let p = ArrangementLoadPlan.plan(barCount: 1, startBar: 0, playedBars: 7,
+                                         atStepZero: false, playing: true)
+        XCTAssertEqual(p.nowIndex, 0)
+        XCTAssertNil(p.pendingIndex, "a 1-bar region has nothing to cycle")
+    }
+
+    func testPlan_startBarWrapsIntoRange() {
+        let p = ArrangementLoadPlan.plan(barCount: 2, startBar: 5, playedBars: 0,
+                                         atStepZero: true, playing: true)
+        XCTAssertEqual(p.nowIndex, 1, "startBar is taken modulo the bar count")
+    }
+
     // MARK: - The founder scenario, end to end (pure)
 
     func testSplitScenario_rightHalfPlaysBar2Content() {

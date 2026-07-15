@@ -89,6 +89,13 @@ public final class PianoRollModel {
     /// keeping the audio IN SYNC with the transport's "bar N/M" loop indicator (no drift,
     /// even across a live re-seed which hot-swaps the bars without resetting the phase).
     @ObservationIgnored private var playedBars = 0
+    /// Rotation added to `playedBars` when staging the next arrangement bar, so a
+    /// timeline REGION loaded mid-song cycles ITS OWN bars from ITS OWN start
+    /// (M1b — `playedBars` is global since Play; a region landing at global bar G
+    /// must not start on bar G % N of its content). 0 for the generative path
+    /// (loadArrangement/load/clear reset it), computed by `ArrangementLoadPlan`
+    /// for region loads (loadRegionArrangement).
+    @ObservationIgnored private var arrangementPhaseOffset = 0
     /// The note-operator loop clock: −1 before the first bar, then the 0-based
     /// pass number, incremented at EVERY step-0 wrap (unlike `playedBars`, which
     /// only advances for multi-bar arrangements). Drives chance/occurrence so a
@@ -174,6 +181,7 @@ public final class PianoRollModel {
         notes.removeAll()
         pendingNotes = nil   // else a staged bar would resurrect what was just cleared
         arrangementBars = [] // stop cycling — a cleared roll is a single (empty) bar
+        arrangementPhaseOffset = 0
         allNotesOff()        // release anything sounding so clearing never hangs a note
     }
 
@@ -185,6 +193,7 @@ public final class PianoRollModel {
         allNotesOff()
         pendingNotes = nil
         arrangementBars = []
+        arrangementPhaseOffset = 0
         notes = newNotes
     }
 
@@ -261,6 +270,40 @@ public final class PianoRollModel {
         }
     }
 
+    /// Load a timeline REGION's bar slices with REGION-RELATIVE cycling (M1b of
+    /// the clip-pro healing block, founder 2026-07-15 — audit wf_9c6f33b7: only
+    /// bar 1 of a clip ever played). Unlike `loadArrangement` (the generative
+    /// re-seed: sounding bar keeps playing, new content from the next boundary,
+    /// global phase), a region ONSET applies its bar NOW:
+    ///  • playing → seamless hot-swap, NO allNotesOff — sustains from the previous
+    ///    region release at their own end (the pro split/region-change behavior;
+    ///    windowing already clipped every note at its region's end, so nothing
+    ///    outlives its block);
+    ///  • stopped → classic full reset, bar sounds when Play starts.
+    /// The phase mathematics live in `ArrangementLoadPlan` (pure, tested):
+    /// `atStepZero` matters because trigger(0) runs AFTER this call in the same
+    /// tick and would immediately consume anything staged.
+    public func loadRegionArrangement(_ bars: [[Note]], startBar: Int,
+                                      atStepZero: Bool, playing: Bool) {
+        guard !bars.isEmpty else { load([]); return }
+        let plan = ArrangementLoadPlan.plan(barCount: bars.count, startBar: startBar,
+                                            playedBars: playedBars,
+                                            atStepZero: atStepZero, playing: playing)
+        if playing {
+            arrangementBars = bars.count > 1 ? bars : []
+            arrangementPhaseOffset = plan.phaseOffset
+            notes = bars[plan.nowIndex]
+            pendingNotes = plan.pendingIndex.map { bars[$0] }
+        } else {
+            allNotesOff()
+            playedBars = 0
+            arrangementBars = bars.count > 1 ? bars : []
+            arrangementPhaseOffset = plan.phaseOffset
+            notes = bars[plan.nowIndex]
+            pendingNotes = nil
+        }
+    }
+
     /// Stage a new pattern to swap in seamlessly at the next loop boundary.
     /// Unlike `load`, this does NOT cut sounding notes — held notes ring to their
     /// natural end and the new bar layers in on the downbeat (step 0). This is the
@@ -305,6 +348,10 @@ public final class PianoRollModel {
             self.pendingNotes = nil
             self.playedBars = 0
             self.operatorLoopPass = -1   // replay = the identical deterministic take
+            // A stopped roll rewinds to bar 0 of whatever is loaded; a timeline
+            // region's phase rotation is stale after the rewind (a fresh Play
+            // reloads regions via loadRegionArrangement anyway).
+            self.arrangementPhaseOffset = 0
             if self.arrangementBars.count > 1 { self.notes = self.arrangementBars[0] }
             self.allNotesOff()
         }
@@ -438,7 +485,10 @@ public final class PianoRollModel {
             // arrangement leaves this untouched → classic 1-bar loop.
             if arrangementBars.count > 1 {
                 playedBars += 1
-                pendingNotes = arrangementBars[playedBars % arrangementBars.count]
+                // Phase offset keeps a mid-song region's cycle region-relative (M1b);
+                // 0 on the generative path, so that staging is byte-identical.
+                pendingNotes = arrangementBars[(playedBars + arrangementPhaseOffset)
+                                               % arrangementBars.count]
             }
         }
         // Release notes ending now. The engine's noteOff(pitch:) releases EVERY

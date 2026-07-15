@@ -77,3 +77,62 @@ public enum RegionNoteWindow {
         return TimelineTime.ticks(fromSeconds: contentOffsetSeconds, bpm: bpm)
     }
 }
+
+// MARK: - Arrangement load plan (pure)
+
+/// How the piano roll should apply a REGION's bar slices at a region onset —
+/// which bar sounds NOW, what is staged for the next bar line, and the phase
+/// offset that keeps the roll's GLOBAL `playedBars` cycling region-relative.
+///
+/// Why this exists (M1b): the roll's bar-cycling stages
+/// `arrangementBars[(playedBars + phaseOffset) % n]` at every bar line, and
+/// `playedBars` is a global counter that has been running since Play. A region
+/// loading at global bar G must therefore rotate its indexing by a phase offset —
+/// AND the correct staging differs depending on whether the onset lands exactly
+/// on the bar line (the roll's trigger(0) runs AFTER the timeline player in the
+/// same tick, so anything staged would be consumed immediately) or mid-bar (the
+/// staged bar is consumed at the NEXT bar line). Deterministic, exhaustively
+/// tested — the wiring in PianoRollModel just applies the plan.
+public struct ArrangementLoadPlan: Equatable, Sendable {
+    /// Index into the bar slices that must sound from this step on.
+    public let nowIndex: Int
+    /// Index to stage as `pendingNotes` (consumed at the next trigger(0)), or nil
+    /// when nothing may be staged (a step-0 onset would consume it this very tick).
+    public let pendingIndex: Int?
+    /// Value for the roll's `arrangementPhaseOffset` so every FOLLOWING bar line
+    /// stages `(playedBars + offset) % n` region-relatively.
+    public let phaseOffset: Int
+
+    /// Compute the plan. `barCount` ≥ 1; `startBar` = the region-relative bar under
+    /// the playhead now; `playedBars` = the roll's global bar counter at load time;
+    /// `atStepZero` = the onset lands exactly on a bar line (trigger(0) still runs
+    /// this tick, AFTER the load); `playing` = the transport is running.
+    ///
+    /// Derivation (pinned by tests):
+    ///  • stopped        → now = sb, nothing staged, playedBars is reset by the
+    ///    caller to 0 ⇒ offset = sb.
+    ///  • playing, step0 → trigger(0) runs next in THIS tick: it must not find a
+    ///    staged bar (it would replace `now` immediately), then it increments
+    ///    playedBars to P+1 and stages (P+1+offset) which must be sb+1
+    ///    ⇒ offset = sb − P.
+    ///  • playing, mid-bar → playedBars was already incremented at this bar's own
+    ///    step 0, so the NEXT trigger(0) first consumes the staged bar (must be
+    ///    sb+1), then increments to P+1 and stages (P+1+offset) which must be
+    ///    sb+2 ⇒ offset = sb + 1 − P.
+    public static func plan(barCount: Int, startBar: Int, playedBars: Int,
+                            atStepZero: Bool, playing: Bool) -> ArrangementLoadPlan {
+        let n = Swift.max(1, barCount)
+        func mod(_ x: Int) -> Int { ((x % n) + n) % n }
+        let sb = mod(startBar)
+        guard playing else {
+            return ArrangementLoadPlan(nowIndex: sb, pendingIndex: nil, phaseOffset: sb)
+        }
+        if atStepZero {
+            return ArrangementLoadPlan(nowIndex: sb, pendingIndex: nil,
+                                       phaseOffset: mod(sb - playedBars))
+        }
+        return ArrangementLoadPlan(nowIndex: sb,
+                                   pendingIndex: n > 1 ? mod(sb + 1) : nil,
+                                   phaseOffset: mod(sb + 1 - playedBars))
+    }
+}

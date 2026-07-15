@@ -193,7 +193,7 @@ public final class TimelineRegionPlayer {
         if let lane = rollLane {
             switch TimelineScheduling.laneEvent(in: doc, laneID: lane, fromTick: lastTick, toTick: newTick) {
             case .unchanged: break
-            case .load(let region): loadClip(region)
+            case .load(let region): loadClip(region, atTick: newTick, step: step)
             case .clear: clearRoll()
             }
         }
@@ -223,10 +223,17 @@ public final class TimelineRegionPlayer {
         // roll voice to the roll lane's own semitone shift before its notes load.
         rollTransposeSink?(doc.lanes.first(where: { $0.id == lane })?.transposeSemitones ?? 0)
         rollDetuneSink?(doc.lanes.first(where: { $0.id == lane })?.detuneCents ?? 0)
-        loadClip(region)
+        loadClip(region, atTick: tick, step: 0)
     }
 
-    private func loadClip(_ region: TimelineRegion) {
+    /// Load a region's clip WINDOWED to the region (M1b, audit wf_9c6f33b7 — the
+    /// old flat `pianoRoll.load(melody)` played only bar 1 of every clip, ignored
+    /// front-trim/split offsets, and cut sustains with an allNotesOff at every
+    /// boundary). Now: contentOffset → tick window → per-bar slices → region-
+    /// relative bar cycling via `loadRegionArrangement` (seamless while playing).
+    /// `tick` = the song-absolute onset/seek tick; `step` = the within-bar
+    /// transport step it lands on (0 ⇒ the roll's trigger(0) still runs this tick).
+    private func loadClip(_ region: TimelineRegion, atTick tick: Int, step: Int) {
         guard let clip = clips?.clip(id: region.clipID) else {
             clearRoll()
             return
@@ -236,8 +243,18 @@ public final class TimelineRegionPlayer {
         } else {
             pattern?.clear()
         }
-        pianoRoll?.allNotesOff()
-        pianoRoll?.load(clip.melody?.notes ?? [])
+        let bpm = pattern?.tempo ?? 120
+        let offset = RegionNoteWindow.offsetTicks(
+            contentOffsetSeconds: region.contentOffsetSeconds, bpm: bpm)
+        let windowed = RegionNoteWindow.windowed(notes: clip.melody?.notes ?? [],
+                                                 offsetTicks: offset,
+                                                 lengthTicks: region.lengthTicks)
+        let bars = RegionNoteWindow.barSlices(notes: windowed,
+                                              regionLengthTicks: region.lengthTicks)
+        let startBar = max(0, tick - region.startTick) / TimelineTime.ticksPerBar
+        pianoRoll?.loadRegionArrangement(bars, startBar: startBar,
+                                         atStepZero: step == 0,
+                                         playing: pattern?.isPlaying ?? false)
         pianoRoll?.setClipAutomation(clip.automation)   // this region's clip lanes (cycle 4)
         loadedRegionID = region.id
     }
