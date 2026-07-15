@@ -62,7 +62,9 @@ public struct LaneAUAssignment: Equatable, Sendable {
     ///   there is ignored (pre-H9 law, unchanged).
     /// - `lane.effects` keeps only true EFFECT refs (an instrument in the
     ///   insert list would swallow the signal), order preserved, capped at
-    ///   `maxEffectsPerLane` (first stages win; the host logs the skip).
+    ///   `maxEffectsPerLane` (first stages win; stages beyond the cap are
+    ///   silently dropped here — the host's wired-vs-wanted install log is
+    ///   where the honest count surfaces).
     /// - A lane with effects but NO hosted instrument is NOT returned: its
     ///   built-in rack voice has no per-lane node boundary today — honest
     ///   defer, not a half-wired chain.
@@ -201,6 +203,10 @@ public final class LaneAUInstrumentHost {
     }
 
     private func instantiate(_ assignment: LaneAUAssignment, laneID: UUID) {
+        // Deliberately NOT parked in `failed` (review LOW considered): this
+        // guard is reachable only during teardown (use(engine:) precedes the
+        // first sync at app start) — parking here would wedge hosting if a
+        // future caller ever synced before wiring the engine.
         guard engine != nil else {
             log.audio("Lane AU '\(assignment.instrument.name)': no engine wired — not hosted", level: .error)
             return
@@ -230,10 +236,15 @@ public final class LaneAUInstrumentHost {
                 // extension connections; no leak).
                 guard let self, self.inFlight[laneID] == assignment,
                       let engine = self.engine else { return }
-                let voice = AUNoteVoice(avUnit: unit, effectUnits: effectUnits)
+                // Pre-flight (review HIGH): keep only effects that ACCEPT the
+                // chain format — connect() raises on refusal, it doesn't throw.
+                // The voice carries the WIRED set, so release detaches exactly
+                // what attach connected.
+                let wiredFX = engine.effectsAcceptingChainFormat(effectUnits)
+                let voice = AUNoteVoice(avUnit: unit, effectUnits: wiredFX)
                 var attached = false
                 engine.withGraphPaused {
-                    attached = engine.attachLaneInstrument(unit, effects: effectUnits,
+                    attached = engine.attachLaneInstrument(unit, effects: wiredFX,
                                                            laneMixer: voice.laneMixer)
                 }
                 guard attached else {
@@ -243,7 +254,12 @@ public final class LaneAUInstrumentHost {
                 }
                 self.voices[laneID] = voice
                 self.refs[laneID] = assignment
-                let fxNote = effectUnits.isEmpty ? "" : " + \(effectUnits.count) FX"
+                self.capLogged.remove(laneID)   // a fresh over-budget episode logs again (review LOW)
+                // Honest chain report (review MEDIUM): wired-vs-wanted stage
+                // count, so a skipped stage is visible at every install AND at
+                // app-start restore (which re-runs this whole path).
+                let fxNote = assignment.effects.isEmpty ? ""
+                    : " + \(wiredFX.count)/\(assignment.effects.count) FX"
                 log.audio("Lane AU hosted: '\(assignment.instrument.name)'\(fxNote) → lane \(laneID)")
             } catch {
                 // Park the failed assignment only if this load is still the

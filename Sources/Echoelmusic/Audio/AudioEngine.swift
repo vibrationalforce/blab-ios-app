@@ -844,12 +844,41 @@ public final class AudioEngine {
         masterEngine.connect(node, to: masterMixer, format: format)
     }
 
+    /// H9a pre-flight (review HIGH): the subset of hosted effect units that
+    /// ACCEPT the canonical chain format, their bus formats set as a side
+    /// effect. `connect()` RAISES an ObjC exception (kAudioUnitErr_
+    /// FormatNotSupported) on refusal rather than throwing — and third-party
+    /// EFFECTS with channel restrictions (mono-only, fixed layouts) are
+    /// common — so setting the bus formats up front and skipping refusing
+    /// stages is the only safe gate ("a failing stage is skipped, never
+    /// fatal"). No graph mutation happens here; call BEFORE
+    /// `attachLaneInstrument` and wire/carry ONLY the returned units.
+    func effectsAcceptingChainFormat(_ units: [AVAudioUnit]) -> [AVAudioUnit] {
+        guard let format = auChainFormat else { return [] }
+        return units.filter { u in
+            let au = u.auAudioUnit
+            guard au.inputBusses.count > 0, au.outputBusses.count > 0 else {
+                log.audio("Lane FX '\(au.componentName ?? "effect")' has no I/O bus — stage skipped", level: .error)
+                return false
+            }
+            do {
+                try au.inputBusses[0].setFormat(format)
+                try au.outputBusses[0].setFormat(format)
+                return true
+            } catch {
+                log.audio("Lane FX '\(au.componentName ?? "effect")' rejects the chain format — stage skipped", level: .error)
+                return false
+            }
+        }
+    }
+
     /// H5/H9a: attach a PER-LANE hosted chain — AU → [fx…] → laneMixer →
     /// master — so the lane's own mixer stage carries its live gain/pan and
-    /// its insert effects sit before it, all on one canonical format. Call
-    /// inside `withGraphPaused` (assignment/restore time only, never
-    /// mid-song). Returns false (attaching nothing) when no valid format
-    /// exists yet.
+    /// its insert effects sit before it, all on one canonical format. Pass
+    /// ONLY effects that passed `effectsAcceptingChainFormat` (connect raises,
+    /// it does not throw). Call inside `withGraphPaused` (assignment/restore
+    /// time only, never mid-song). Returns false (attaching nothing) when no
+    /// valid format exists yet.
     @discardableResult
     func attachLaneInstrument(_ unit: AVAudioUnit, effects: [AVAudioUnit] = [],
                               laneMixer: AVAudioMixerNode) -> Bool {

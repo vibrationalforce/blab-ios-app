@@ -61,6 +61,20 @@ final class LaneAUAssignmentTests: XCTestCase {
         XCTAssertEqual(LaneAUAssignment.maxEffectsPerLane, 3)
     }
 
+    func testWanted_filtersBeforeCap_rogueInstrumentDoesNotEatACapSlot() {
+        // [fx, INST, fx, fx, fx]: all four true effects compete for the 3 slots.
+        let lane = TimelineLane(name: "L", kind: .midi, instrument: instRef(),
+                                effects: [fxRef("A"), instRef("Rogue"),
+                                          fxRef("B"), fxRef("C"), fxRef("D")])
+        let a = LaneAUAssignment.wanted(lanes: [lane], rollLane: nil)[lane.id]
+        XCTAssertEqual(a?.effects.map(\.name), ["A", "B", "C"])
+    }
+
+    func testWanted_nilRollLane_hostsAnyEligibleLane() {
+        let lane = TimelineLane(name: "L", kind: .midi, instrument: instRef())
+        XCTAssertNotNil(LaneAUAssignment.wanted(lanes: [lane], rollLane: nil)[lane.id])
+    }
+
     // MARK: - Change-detection currency
 
     func testEquality_effectEditChangesAssignment() {
@@ -71,6 +85,14 @@ final class LaneAUAssignmentTests: XCTestCase {
                           "adding/removing an effect must read as a CHANGED assignment (chain rebuild)")
         XCTAssertNotEqual(withFX, LaneAUAssignment(instrument: inst, effects: [fxRef("Verb")]))
         XCTAssertEqual(withFX, LaneAUAssignment(instrument: inst, effects: [fxRef("Delay")]))
+    }
+
+    func testEquality_effectORDERChangesAssignment() {
+        // Insert order IS the signal path — reordering must rebuild the chain.
+        let inst = instRef()
+        XCTAssertNotEqual(
+            LaneAUAssignment(instrument: inst, effects: [fxRef("A"), fxRef("B")]),
+            LaneAUAssignment(instrument: inst, effects: [fxRef("B"), fxRef("A")]))
     }
 
     func testUnitCount_isInstrumentPlusStages() {
