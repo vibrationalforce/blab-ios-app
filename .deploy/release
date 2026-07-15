@@ -1,29 +1,28 @@
-build: 2026-07-15 v10.79.244 (Video aus der MEDIATHEK importieren — der Picker zeigt jetzt deine ganze Fotobibliothek)
+build: 2026-07-15 v10.79.245 (Bilder importieren — Standbilder als Clips auf der Videospur)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Video-Reihe V2 aus deinem Auftrag: "Bei Video soll der volle Zugriff auf die
-  Mediathek abgefragt werden."
-
-  BEFUND: der bisherige Video-Import öffnete nur den DATEIEN-Picker (Files-App) — deine
-  Fotobibliothek war gar nicht erreichbar. DAS war die eigentliche Sperre.
+notes: Video-Reihe V3 aus deinem Auftrag: "Bilder importieren soll auch gehen."
 
   NEU auf der Video-Import-Seite (Videospur → Import):
-  • „Mediathek" (Primär-Knopf): öffnet den System-Foto-Picker mit deiner GANZEN
-    Bibliothek (nur Videos gefiltert). Auswahl → Vorschau → „Add to timeline" wie
-    gehabt. Der System-Picker läuft außerhalb der App — Apple-sauber, du musst dafür
-    keinen Berechtigungs-Dialog wegklicken, und trotzdem ist ALLES sichtbar.
-  • „Dateien" bleibt als zweiter Weg (für MP4/MOV aus iCloud Drive etc.).
-  • Der Berechtigungstext für die Fotobibliothek ist jetzt hinterlegt (Info.plist,
-    ehrlich formuliert: lesen nur bei deiner Auswahl, nichts wird hochgeladen) — der
-    eigentliche Voll-Zugriff-Dialog kommt mit dem In-App-Medien-Browser (V3, Bilder),
-    der ihn wirklich braucht. Kein Dialog auf Vorrat = kein Apple-Review-Risiko.
+  • Der Mediathek-Picker zeigt jetzt VIDEOS UND BILDER; auch der Dateien-Weg nimmt
+    Bilder an (JPG/PNG/HEIC …).
+  • Ein gewähltes Bild bekommt eine große Vorschau und landet mit „Add to timeline"
+    als Clip auf der Spur — standardmäßig EINEN Takt lang im aktuellen Tempo.
+  • Länger/kürzer? Einfach auf der Timeline an den Kanten ziehen (die Trimm-Griffe
+    aus v236) — ein Standbild hat keine Medienlänge, die es begrenzt; es lässt sich
+    beliebig dehnen. Verschieben/Magnetkanten/Undo — das ganze Clip-Game gilt.
 
-  SICHER: ui-state-reviewer CONFIRMED — Picker-API korrekt, Datei-Transfer nach dem
-  dokumentierten Muster (Kopie in eigenes Temp, dann derselbe Vorschau/Import-Pfad wie
-  Dateien), Plist wohlgeformt + nicht von project.yml überschreibbar, keine neue
-  Sheet-Ebene, Linux-CI unberührt. Gates v243 grün.
+  EHRLICH: wie beim Video-Import gilt — das Bild liegt jetzt als Clip in der Timeline
+  (sichtbar, arrangierbar); das RENDERN der Videospur beim Abspielen (Bild/Video im
+  Visual-Fenster zur Musik) ist der nächste große Baustein der Video-Reihe.
 
-  Baustellen-Stand (God-Mode): Clip-Game C1–C5 KOMPLETT ✓ · V2 Mediathek ✓ · als
-  Nächstes V3 Bilder importieren · V4 Kamera-Capture in die Timeline · V5 Profi-Kamera
-  (Kelvin) · C6 EchoelAI-TimelineToolCore.
+  SICHER: ui-state-reviewer CONFIRMED — Ein-Takt-Länge mathematisch EXAKT bei jedem
+  Tempo (kein Rundungs-Tick), Video/Bild-Zustandsmaschine ohne Doppel- oder
+  Leer-Zustand, alle Plattform-Guards vollständig (Linux-CI unberührt), Import-Kopie
+  nach demselben geprüften Muster wie Audio/Video. Gates v244 grün.
 
-  Reihenfolge: v242 Magnetkanten · v243 Überlapp-Regel · v244 Mediathek-Import.
+  Baustellen-Stand (God-Mode): Clip-Game C1–C5 ✓ · V2 Mediathek ✓ · V3 Bilder ✓ ·
+  als Nächstes V4 Kamera-Capture direkt in die Timeline (Aufnahme-Knopf auf der
+  Videospur) · V5 Profi-Kamera (Fokus/ISO/Belichtung/KELVIN manuell) · C6 EchoelAI-
+  TimelineToolCore.
+
+  Reihenfolge: v243 Überlapp-Regel · v244 Mediathek-Import · v245 Bilder-Import.
