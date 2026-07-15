@@ -6100,3 +6100,39 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   explizite User-Aktionen dürfen stumme Mixe heilen, Automatik nie.
 - **Nächster Punkt (Welle 2, letzter): H13** Audio-Audition/Edit-Tür mit
   Offset (A2/A3) — read-only Audit zuerst. Danach H8 (Donuts) → Welle 3.
+
+## 2026-07-15 (Fortsetzung 10) — v257: H13a Audition-Fenster + Founder-Log 2361 + Ultraprogramm-Start
+- **v257 deployed (33ff36b + ba8e85f + 2160b21, Reviewer APPROVE, Gates 4/4):**
+  H13a — Audio-Region-Tap spielt das EIGENE Fenster der Region (contentOffset +
+  musikalische Länge beim aktuellen Tempo) via `AudioRegionPlayback.auditionWindow`
+  (pure, +5 Tests) → `BeatPlayer.audition(url:fromSeconds:lengthSeconds:)` →
+  `TimelineAudioSink.scheduleSegment` (lazy Sink, EIN geteilter Knoten). Vorher:
+  previewVoice = Dateianfang + 2-s-Deckel. Gesetze: nil-while-playing (Doppelklang
+  + Attach-Pause nur im Stand), Transport-Start und View-Unmount stoppen Audition.
+- **Review-Funde (REQUEST_CHANGES → APPROVE):** F1 Kill-Switch hing am konditional
+  gemounteten View → `.onDisappear { stopAudition() }` (Zwilling der Forts.-9-Lehre
+  "Engine-Bindings nie in faltbare Views"). F2 geteilter Sink blieb im Format der
+  ERSTEN Datei verbunden — AVAudioPlayerNode konvertiert Samplerate, NICHT Kanäle
+  (channelCount-NSException bei Stereo→Mono) → `connectedFormat`-Tracking +
+  Detach/Re-Attach bei Kanal/Rate-Wechsel in ensureLoaded. Heilt auch Multi-Format-
+  Regionen auf einer Lane. Notiert (LOW, später): Lane-Sink-Format-Wechsel mid-song
+  = hörbare Pause statt Crash (besser, aber Prime sollte Formate vorwärmen); F3
+  Lazy-First-Attach pausiert Engine während armed Synth klingt (Preload-Kandidat).
+- **Founder-Log Build 2361 (v256 noch nicht drauf) — Triage:** (1) ERSTER echter
+  rPPG-Lock: Session 3 q→0.97, conf 0.96, bpm 57–60, lock-snap-Reseed. (2) TOP-
+  SCHMERZ: 2× `stopEverything(transport-stopped)` nach 13 s/48 s mit Finger auf
+  Kamera — Transport stoppt SICH SELBST (mutmaßlich Arrangement-Ende), reißt
+  Bio-Session mit (EchoelStudioView:637). (3) Session 2: 92 s NIE gelockt — Finger-
+  Detektor flattert yes/no bei Grenzlicht, jedes Flattern reseted das Analyse-
+  Fenster (win→0); Dunkelheit war NICHT der Killer (Session 3 lockte bei bright
+  0.10). (4) Erste BLE-Gurt-Versuche, beide <5 s abgebrochen (Scan ohne Feedback?);
+  bei t=1377 startete Kamera 3.4 s NACH BLE (Quellen-Kampf?). (5) generate[evolve]
+  playing=true nach Stop (t=1341) — prüfen. (6) auv3-Scan-Bursts mehrfach/Session.
+- **Founder-Mandat (8h+, ultracode): "gesamte DMMW und alle besprochenen Dinge
+  funktionieren... Ultrascan/-audith/-heal/-clean/-design/-marketing/-deepresearch,
+  ein Bereich nach dem anderen, accessible bis Profi."** → Ultrascan-Workflow
+  wf_232c22de-6d4 gestartet: 10 parallele Bereichs-Auditoren (transport-loop ·
+  bio-rppg · bio-sources/BLE · clips-daw · auv3 · studio-structure H14/H15 ·
+  ux-accessible-pro · cleanliness H16 · honesty-marketing/#52 · perf-audio/H17),
+  jede CRITICAL/HIGH-Behauptung adversarial verifiziert. Danach: HEALING_DMMW
+  aktualisieren, Zyklus 1 = transport-stopped-Selbststopp. Task #53.
