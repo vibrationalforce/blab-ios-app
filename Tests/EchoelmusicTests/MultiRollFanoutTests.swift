@@ -293,6 +293,25 @@ final class MultiRollFanoutTests: XCTestCase {
                        "never silence on a mapping gap (matches audible's stance)")
     }
 
+    // MARK: - H5: per-slot AU instrument ref
+
+    func testInstrumentForSlot_resolvesEachLanesOwnRef() {
+        let ref = AUPluginRef(name: "TestSynth", manufacturerName: "Acme",
+                              componentType: 0x61756d75, componentSubType: 0x74657374,
+                              componentManufacturer: 0x61636d65, isInstrument: true)
+        let bio = TimelineLane(name: "Bio", kind: .midi, isBio: true)
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let s1 = TimelineLane(name: "MIDI 2", kind: .midi, instrument: ref)
+        let s2 = TimelineLane(name: "MIDI 3", kind: .midi)
+        let doc = TimelineDocument(lanes: [bio, roll, s1, s2], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        XCTAssertEqual(MultiRollFanout.instrument(forSlot: 0, in: doc, rollLane: roll.id), ref)
+        XCTAssertNil(MultiRollFanout.instrument(forSlot: 1, in: doc, rollLane: roll.id),
+                     "unset lane ⇒ nil ⇒ built-in voice fallback")
+        XCTAssertNil(MultiRollFanout.instrument(forSlot: 9, in: doc, rollLane: roll.id))
+    }
+
     // MARK: - H4: live-mixer merge into the playback snapshot
 
     func testMergeMixer_takesMixerFields_keepsStructure() {

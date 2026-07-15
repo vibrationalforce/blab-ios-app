@@ -844,6 +844,32 @@ public final class AudioEngine {
         masterEngine.connect(node, to: masterMixer, format: format)
     }
 
+    /// H5: attach a PER-LANE hosted-instrument chain — AU → laneMixer → master —
+    /// so the lane's own mixer stage carries its live gain/pan. Call inside
+    /// `withGraphPaused` (assignment/restore time only, never mid-song). Returns
+    /// false (attaching nothing) when no valid format exists yet.
+    @discardableResult
+    func attachLaneInstrument(_ unit: AVAudioUnit, laneMixer: AVAudioMixerNode) -> Bool {
+        guard let format = auChainFormat else {
+            log.audio("Cannot attach lane AU — no valid format", level: .error)
+            return false
+        }
+        masterEngine.attach(unit)
+        masterEngine.attach(laneMixer)
+        masterEngine.connect(unit, to: laneMixer, format: format)
+        masterEngine.connect(laneMixer, to: masterMixer, format: format)
+        return true
+    }
+
+    /// H5: release a per-lane instrument chain (lane unassigned/removed). Call
+    /// inside `withGraphPaused`.
+    func detachLaneInstrument(_ unit: AVAudioUnit, laneMixer: AVAudioMixerNode) {
+        masterEngine.disconnectNodeOutput(unit)
+        masterEngine.disconnectNodeOutput(laneMixer)
+        masterEngine.detach(unit)
+        masterEngine.detach(laneMixer)
+    }
+
     // MARK: - Video audio capture (mux the mix into a visual recording)
 
     /// Grab the last `seconds` of the master mix from RetroCapture's always-on ring
