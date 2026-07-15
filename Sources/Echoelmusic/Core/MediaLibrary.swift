@@ -75,6 +75,8 @@ public enum MediaLibrary {
     ///    against every media home. Without this, every imported clip silently
     ///    lost its audio/video on the first app update (audit CRITICAL H6).
     /// 3. a bare file name against Documents/Videos (VisualRecorder captures).
+    /// Side effect: probing creates the media home directories if missing (the
+    /// same dirs import would create) — not a pure function by design.
     public static func resolveRef(_ ref: String?) -> URL? {
         guard let ref, !ref.isEmpty else { return nil }
         let fm = FileManager.default

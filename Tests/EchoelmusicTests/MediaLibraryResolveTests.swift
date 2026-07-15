@@ -31,10 +31,23 @@ final class MediaLibraryResolveTests: XCTestCase {
         let url = try plantAudioFile(named: "\(UUID().uuidString).wav")
         let deadRef = "/private/var/mobile/Containers/Shared/AppGroup/DEAD-BEEF/"
             + "Media/Audio/\(url.lastPathComponent)"
-        XCTAssertEqual(MediaLibrary.resolveRef(deadRef)?.lastPathComponent,
-                       url.lastPathComponent,
-                       "a dead absolute ref re-roots to the surviving file")
-        XCTAssertNotNil(MediaLibrary.resolveRef(deadRef))
+        XCTAssertEqual(MediaLibrary.resolveRef(deadRef), url,
+                       "a dead absolute ref re-roots to the surviving file (full URL)")
+    }
+
+    func testResolveRef_bareName_resolvesAgainstDocumentsVideos() throws {
+        // Convention 3 (VisualRecorder captures persist a BARE name): the old
+        // dedicated `!ref.contains("/")` branch was subsumed by the re-root
+        // path — pin that the convention still resolves.
+        let fm = FileManager.default
+        let docs = try XCTUnwrap(fm.urls(for: .documentDirectory, in: .userDomainMask).first)
+        let dir = docs.appendingPathComponent("Videos", isDirectory: true)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let name = "echoel_\(UUID().uuidString).mp4"
+        let url = dir.appendingPathComponent(name, isDirectory: false)
+        try Data([0x00, 0x00, 0x00, 0x18]).write(to: url)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        XCTAssertEqual(MediaLibrary.resolveRef(name), url)
     }
 
     func testResolveRef_trulyVanishedFile_isNil() {
