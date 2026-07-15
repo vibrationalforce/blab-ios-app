@@ -1063,7 +1063,8 @@ private struct RegionBlockView: View {
                 .disabled(!timeline.canMergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo))
                 Button {
                     let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                    timeline.moveRegion(id: region.id, toStartTick: tick)
+                    timeline.moveRegion(id: region.id, toStartTick: tick,
+                                        bpm: beatPlayer.pattern.tempo)   // C5 overlap rule
                 } label: {
                     Label("Move to playhead", systemImage: "arrow.right.to.line")
                 }
@@ -1148,8 +1149,10 @@ private struct RegionBlockView: View {
                     // a later refinement).
                     committed = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
                 }
+                // bpm engages the C5 overlap rule: the dropped clip wins — neighbours
+                // trim/split/vanish to make room, all in this one undo step.
                 timeline.moveRegion(id: region.id, toStartTick: committed,
-                                    laneOffset: laneShift)
+                                    laneOffset: laneShift, bpm: beatPlayer.pattern.tempo)
                 if committed != rawStart { snapPulse += 1 }   // fühlbares Einrasten (C4)
                 isMoving = false
                 moveDelta = .zero

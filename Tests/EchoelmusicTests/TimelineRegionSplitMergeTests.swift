@@ -178,6 +178,89 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
                       "the rejoined region spans the original first bar again")
     }
 
+    // MARK: - Overlap rule (C5 — clip game: the moved clip wins)
+
+    /// Fresh store + one real lane + regions; returns (store, laneID).
+    @MainActor
+    private func overlapFixture(_ regions: [(start: Int, len: Int, offset: Double)])
+        -> (TimelineStore, UUID, [TimelineRegion]) {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "ovl-\(UUID())")
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let made = regions.map { spec in
+            TimelineRegion(laneID: lane, clipID: clip, startTick: spec.start,
+                           lengthTicks: spec.len, contentOffsetSeconds: spec.offset)
+        }
+        made.forEach { store.addRegion($0) }
+        return (store, lane, made)
+    }
+
+    func testOverlap_moveOntoTail_trimsNeighbourToAbut() {
+        // n = 0…960; move m (480 long) to 480 → n's tail is cut: n = 0…480.
+        let (store, lane, made) = overlapFixture([(0, 960, 0), (1920, 480, 0)])
+        let n = made[0], m = made[1]
+        store.moveRegion(id: m.id, toStartTick: 480, laneOffset: 0, bpm: 120)
+        let regions = store.document.regions.filter { $0.laneID == lane }
+        XCTAssertEqual(regions.count, 2)
+        let nNow = regions.first { $0.id == n.id }
+        XCTAssertEqual(nNow?.lengthTicks, 480, "neighbour's tail trimmed to abut the drop")
+        XCTAssertEqual(regions.first { $0.id == m.id }?.startTick, 480)
+        store.undo()
+        XCTAssertEqual(store.document.regions.first { $0.id == n.id }?.lengthTicks, 960,
+                       "move + overlap reshaping revert in ONE undo step")
+    }
+
+    func testOverlap_moveOntoHead_frontTrimsNeighbour_offsetAdvances() {
+        // n = 960…1920 (offset 1.0); move m (480 long) to 720 → overlap 960…1200.
+        // n must now start at 1200 with its media offset advanced by 240 ticks = 0.25 s @120.
+        let (store, lane, made) = overlapFixture([(960, 960, 1.0), (2880, 480, 0)])
+        let n = made[0], m = made[1]
+        store.moveRegion(id: m.id, toStartTick: 720, laneOffset: 0, bpm: 120)
+        let nNow = store.document.regions.first { $0.id == n.id }
+        XCTAssertEqual(nNow?.startTick, 1200, "neighbour front-trimmed to the drop's end")
+        XCTAssertEqual(nNow?.endTick, 1920, "neighbour's end unchanged")
+        XCTAssertEqual(nNow?.contentOffsetSeconds ?? 0, 1.25, accuracy: 1e-9,
+                       "media offset advances so the content stays put")
+        _ = lane
+    }
+
+    func testOverlap_fullyCoveredNeighbour_isSwallowed() {
+        // n = 600…840 sits fully inside the drop zone of m (480…1440) → n vanishes.
+        let (store, lane, made) = overlapFixture([(600, 240, 0), (1920, 960, 0)])
+        let n = made[0], m = made[1]
+        store.moveRegion(id: m.id, toStartTick: 480, laneOffset: 0, bpm: 120)
+        XCTAssertNil(store.document.regions.first { $0.id == n.id }, "covered neighbour removed")
+        XCTAssertEqual(store.document.regions.filter { $0.laneID == lane }.count, 1)
+        store.undo()
+        XCTAssertNotNil(store.document.regions.first { $0.id == n.id }, "undo brings it back")
+    }
+
+    func testOverlap_containerSplitsAroundDrop() {
+        // n = 0…1920; drop m (480 long) at 480 → n splits into 0…480 and 960…1920,
+        // the right piece's offset advanced by 960 ticks = 1.0 s @120.
+        let (store, lane, made) = overlapFixture([(0, 1920, 0), (3840, 480, 0)])
+        let n = made[0], m = made[1]
+        store.moveRegion(id: m.id, toStartTick: 480, laneOffset: 0, bpm: 120)
+        let laneRegions = store.document.regions.filter { $0.laneID == lane }
+        XCTAssertEqual(laneRegions.count, 3, "container became two pieces around the drop")
+        XCTAssertTrue(laneRegions.contains { $0.id == n.id && $0.startTick == 0 && $0.lengthTicks == 480 },
+                      "left piece keeps the container's identity")
+        let right = laneRegions.first { $0.id != n.id && $0.id != m.id }
+        XCTAssertEqual(right?.startTick, 960)
+        XCTAssertEqual(right?.endTick, 1920)
+        XCTAssertEqual(right?.contentOffsetSeconds ?? 0, 1.0, accuracy: 1e-9)
+    }
+
+    func testOverlap_withoutBPM_legacyKeepsOverlap() {
+        let (store, lane, made) = overlapFixture([(0, 960, 0), (1920, 480, 0)])
+        let n = made[0], m = made[1]
+        store.moveRegion(id: m.id, toStartTick: 480, laneOffset: 0)   // no bpm → no rule
+        XCTAssertEqual(store.document.regions.first { $0.id == n.id }?.lengthTicks, 960,
+                       "without bpm the neighbour is untouched (legacy)")
+        _ = lane
+    }
+
     // MARK: - Edge magnetism (C4 — clip game: snapWithEdges, pure)
 
     func testSnapWithEdges_edgeWins_whenCloserThanGridAndInsideMagnet() {

@@ -151,11 +151,13 @@ public final class TimelineStore {
     }
 
     /// Move a region's start (caller applies snap/magnet first — the store
-    /// stays gesture-agnostic). Clamped ≥ 0.
-    public func moveRegion(id: UUID, toStartTick tick: Int) {
+    /// stays gesture-agnostic). Clamped ≥ 0. Passing `bpm` applies the C5
+    /// overlap rule (the moved clip wins) inside the same undo step.
+    public func moveRegion(id: UUID, toStartTick tick: Int, bpm: Double? = nil) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
         snapshotForUndo()
         document.regions[i].startTick = max(0, tick)
+        if let bpm { resolveOverlaps(around: id, bpm: bpm) }
         persist()
     }
 
@@ -165,7 +167,14 @@ public final class TimelineStore {
     /// the region keeps its lane and only the time move applies. One store method =
     /// one command, so the future EchoelAI edit tools call exactly this (plan
     /// PLAN_CLIP_GAME_2026-07-15: store-first, gestures stay thin).
-    public func moveRegion(id: UUID, toStartTick tick: Int, laneOffset: Int) {
+    ///
+    /// C5 overlap rule (opt-in via `bpm`): the MOVED clip wins — neighbours it now
+    /// overlaps are trimmed to make room, fully-covered ones are removed, and a
+    /// neighbour that fully contains the drop is split into the two surrounding
+    /// pieces. All inside THIS command's one undo step. `bpm` drives the media-offset
+    /// maths (nil = legacy behaviour, overlaps left as-is).
+    public func moveRegion(id: UUID, toStartTick tick: Int, laneOffset: Int,
+                           bpm: Double? = nil) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
         snapshotForUndo()
         document.regions[i].startTick = max(0, tick)
@@ -178,7 +187,52 @@ public final class TimelineStore {
                 document.regions[i].laneID = document.lanes[targetIdx].id
             }
         }
+        if let bpm { resolveOverlaps(around: id, bpm: bpm) }
         persist()
+    }
+
+    /// C5 — "the edited clip wins": reshape every SAME-LANE region that overlaps
+    /// region `id` so playback stays unambiguous (the DAW overwrite rule). Left
+    /// overlappers keep their head (tail trimmed to abut), right overlappers keep
+    /// their tail (front-trimmed via `trimmedStart`, media offset advancing so the
+    /// content stays put), containers split into both surviving pieces, fully-covered
+    /// neighbours drop. Pure region maths (`split`/`trimmedStart`); the CALLER's
+    /// snapshot already covers this, so the whole command stays one undo step.
+    private func resolveOverlaps(around id: UUID, bpm: Double) {
+        guard let e = document.regions.first(where: { $0.id == id }) else { return }
+        var result: [TimelineRegion] = []
+        result.reserveCapacity(document.regions.count)
+        for r in document.regions {
+            // Untouched: the edited region itself, other lanes, and non-overlappers.
+            if r.id == e.id || r.laneID != e.laneID
+                || r.endTick <= e.startTick || r.startTick >= e.endTick {
+                result.append(r)
+                continue
+            }
+            let coversLeft = r.startTick < e.startTick
+            let coversRight = r.endTick > e.endTick
+            if coversLeft && coversRight {
+                // r fully contains e → keep the piece before AND the piece after.
+                if let (left, rest) = r.split(at: e.startTick, bpm: bpm) {
+                    result.append(left)
+                    if let right = rest.trimmedStart(toTick: e.endTick, bpm: bpm) {
+                        result.append(right)
+                    }
+                }
+            } else if coversLeft {
+                // r sticks out to the left → trim its tail to abut e.
+                var left = r
+                left.lengthTicks = e.startTick - r.startTick   // ≥ 1 (strictly left)
+                result.append(left)
+            } else if coversRight {
+                // r sticks out to the right → front-trim it to start at e's end.
+                if let right = r.trimmedStart(toTick: e.endTick, bpm: bpm) {
+                    result.append(right)
+                }
+            }
+            // else: r fully inside e → swallowed (dropped).
+        }
+        document.regions = result
     }
 
     /// Resize a region (trim); minimum one tick so a region can't vanish.
