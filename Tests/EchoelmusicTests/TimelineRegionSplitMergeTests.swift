@@ -142,6 +142,31 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
         XCTAssertFalse(mine().contains { $0.id == drop.id }, "the deleted region is gone")
     }
 
+    func testDuplicated_freshIdAtEndTick_sameContent() {
+        let r = region(start: 240, length: 960, offset: 1.25)
+        let dup = r.duplicated()
+        XCTAssertNotEqual(dup.id, r.id, "the duplicate gets a fresh identity")
+        XCTAssertEqual(dup.startTick, r.endTick, "lands right after the original by default")
+        XCTAssertEqual(dup.lengthTicks, r.lengthTicks)
+        XCTAssertEqual(dup.laneID, r.laneID)
+        XCTAssertEqual(dup.clipID, r.clipID, "shares the same clip — no new slot")
+        XCTAssertEqual(dup.contentOffsetSeconds, r.contentOffsetSeconds, accuracy: 1e-9)
+    }
+
+    func testDuplicateRegion_appendsCopyAfterOriginalOnSameLane() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        func mine() -> [TimelineRegion] { store.document.regions.filter { $0.laneID == lane } }
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 1920)
+        store.addRegion(r)
+
+        store.duplicateRegion(id: r.id)
+        XCTAssertEqual(mine().count, 2, "a duplicate is added")
+        let dup = try? XCTUnwrap(mine().first { $0.id != r.id })
+        XCTAssertEqual(dup?.startTick, 1920, "the copy starts at the original's end")
+        XCTAssertEqual(dup?.clipID, clip, "shares the same clip")
+    }
+
     func testMoveRegion_setsStartTick_clampedAtZero() {
         let store = TimelineStore()
         let lane = UUID(); let clip = UUID()

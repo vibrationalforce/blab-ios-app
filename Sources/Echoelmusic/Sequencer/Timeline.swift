@@ -214,6 +214,17 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         r.lengthTicks = other.endTick - startTick
         return r
     }
+
+    /// A copy of this region with a FRESH identity, placed at `startTick` (default:
+    /// right AFTER this region, i.e. its `endTick`). Same lane, clip, length and
+    /// media offset — the duplicate plays identical content, just later on the grid.
+    /// Regions may share a `clipID`, so duplicating needs no new clip slot. Pure.
+    public func duplicated(atStartTick tick: Int? = nil) -> TimelineRegion {
+        var copy = self
+        copy.id = UUID()
+        copy.startTick = max(0, tick ?? endTick)
+        return copy
+    }
 }
 
 /// The whole timeline document: ordered lanes + their regions.

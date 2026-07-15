@@ -902,6 +902,13 @@ struct ArrangeTimelineView: View {
                 } label: {
                     Label("Move to playhead", systemImage: "arrow.right.to.line")
                 }
+                // Duplicate — the "copy" verb: an identical region right after this one
+                // (same clip, no new slot). Completes split/join/delete/move/duplicate.
+                Button {
+                    timeline.duplicateRegion(id: region.id)
+                } label: {
+                    Label("Duplicate", systemImage: "plus.square.on.square")
+                }
                 Button(role: .destructive) {
                     timeline.removeRegion(id: region.id)
                 } label: {

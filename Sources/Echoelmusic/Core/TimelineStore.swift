@@ -84,6 +84,15 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Duplicate a region: append an identical copy (fresh id) right AFTER it on the
+    /// same lane, sharing the same clip (regions may share a clipID → no new slot).
+    /// The arrangement's "copy" verb, alongside split/join/delete/move.
+    public func duplicateRegion(id: UUID) {
+        guard let r = document.regions.first(where: { $0.id == id }) else { return }
+        document.regions.append(r.duplicated())
+        persist()
+    }
+
     /// Move a region's start (caller applies snap/magnet first — the store
     /// stays gesture-agnostic). Clamped ≥ 0.
     public func moveRegion(id: UUID, toStartTick tick: Int) {
