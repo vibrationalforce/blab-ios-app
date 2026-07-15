@@ -6055,3 +6055,27 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   durch denselben Flow).
 - **Nächster Punkt (Welle 2):** H11 Bau nach PLAN_H11 (clip-scoped Roll +
   updateMelody + Multi-Bar-Gate). Danach H8 · H12 · H13.
+
+## 2026-07-15 (Fortsetzung 9, WIP — wird mit v256-Bump finalisiert)
+- **Founder-Reel (vision-gate):** Instagram-Reel über `claude-code-best-practice`
+  (Boris Cherny; Agents/Commands/Skills, Workflows, Memory, Orchestrierung).
+  Tier: **ADOPT-PIPELINE / BEREITS ADOPTIERT** — das Echoel-Repo fährt exakt
+  diese Architektur seit Wochen (.claude/skills 20+, memory/, HARNESS_LEDGER,
+  Reviewer-Subagents, Council, Cron-Mandat, Workflows). Kein neuer Baustein;
+  konkrete Einzel-Skills des Repos bei Bedarf einzeln gaten. Founder-Frage
+  „Jetzt können wir richtig arbeiten?" → beantwortet: tun wir bereits (heute
+  v253/v254/v255 + v256-Bündel in Arbeit).
+- **Heal-Review (9ec24eb) REQUEST_CHANGES → alle Funde in 353dac9:** HIGH:
+  mixGain-Spiegel wohnte in der FALTBAREN ArrangeTimelineView → bei gefalteter
+  Timeline erreichte Heal/Mixer-Edit den Klangpfad nie; jetzt always-mounted
+  im onDocumentChanged-Hook der App (sync in persist(), Initial-Sync), View-
+  onChange entfernt (EIN Writer). MEDIUMs: Heal delegiert an unsilenceRollSlot
+  (EIN Gesetz, Start = #22-Banner) + Schwelle ≤0.001 statt ==0 (0.0005-Riss).
+  H12-Review (b7a6fb9) APPROVE; LOW-Pins (unknown-id, Lane-Bedingung) gelandet.
+- **LEDGER-Lehren:** (1) Engine-Mirror-Bindings NIE in konditional gemountete
+  Views legen (onChange beobachtet nichts wenn unmounted) — always-mounted
+  Owner (App-Hook) ist der Platz; Root-Ursache-Zwilling des 10-Hz-Gesetzes.
+  (2) Audibility-Schwelle ist app-weit ≤0.001 — jeder neue Gain-Vergleich
+  nutzt SIE, nie ==0. (3) Duplikat-Gesetze sofort delegieren (zwei Heals
+  drifteten schon bei Geburt). (4) Subagent kann HEAD detachen — vor JEDEM
+  Commit `git status`/Branch prüfen; Reviewer-Prompts: nur `git show`.
