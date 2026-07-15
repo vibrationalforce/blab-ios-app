@@ -321,7 +321,9 @@ private struct TransportBar: View {
             // clips via the always-on onTick relay (PianoRollView) — so this ONE button
             // covers both the loop and the arrangement.
             let doc = timeline.document
-            if doc.rollLaneID != nil, !doc.regions.isEmpty {
+            // Playable = a MIDI (roll) lane OR an audio lane exists (A1: a pure-audio
+            // arrangement must sound too — the old rollLaneID-only check silenced it).
+            if doc.rollLaneID != nil || !doc.audioLaneIDs.isEmpty, !doc.regions.isEmpty {
                 timelinePlayer.play(document: doc, clips: clips,
                                     pattern: player.pattern, pianoRoll: pianoRoll)
             } else {

@@ -97,6 +97,12 @@ public final class TimelineRegionPlayer {
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
+    /// AUDIO lanes (A1, healing wave 1): the tested `AudioLanePlayer` coordinator,
+    /// injected by the app with its device sink factory (`TimelineAudioSink`) —
+    /// this file stays Foundation-only. nil ⇒ audio lanes stay silent (pre-A1).
+    /// Primed on play, driven per transport window, released on every stop path.
+    @ObservationIgnored public var audioLanes: AudioLanePlayer?
+
     public init() {}
 
     /// Enable secondary-lane fan-out over a fixed rack of `capacity` voices. Called
@@ -133,7 +139,11 @@ public final class TimelineRegionPlayer {
         pattern: PatternEngine,
         pianoRoll: PianoRollModel
     ) {
-        guard document.rollLaneID != nil, !document.regions.isEmpty else { return }
+        // A song is playable when ANY playable lane has content — a MIDI (roll)
+        // lane, or an audio lane (A1: a pure-audio arrangement must sound too;
+        // the old rollLaneID-only guard silenced it).
+        guard document.rollLaneID != nil || !document.audioLaneIDs.isEmpty,
+              !document.regions.isEmpty else { return }
         self.doc = document
         self.clips = clips
         self.pattern = pattern
@@ -151,6 +161,7 @@ public final class TimelineRegionPlayer {
         pianoRoll.setTimelineAutomationTick(0)
         loadRollRegion(at: 0)            // whatever is under the playhead at the top
         primeSecondaryLanes(at: 0)       // secondary lanes active at the downbeat (fixes bar-1 silence)
+        audioLanes?.prime(in: document, atTick: 0, bpm: pattern.tempo)   // audio lanes at the downbeat (A1)
         if !pattern.isPlaying { pattern.play() }
     }
 
@@ -161,6 +172,7 @@ public final class TimelineRegionPlayer {
         pattern?.stop()
         pianoRoll?.allNotesOff()
         flushPumps()                           // release every secondary-lane voice
+        audioLanes?.stopAll()                  // release every audio lane (A1)
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
     }
 
@@ -172,6 +184,7 @@ public final class TimelineRegionPlayer {
         isPlaying = false
         pianoRoll?.allNotesOff()
         flushPumps()                           // release every secondary-lane voice
+        audioLanes?.stopAll()                  // release every audio lane (A1)
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
     }
 
@@ -203,6 +216,10 @@ public final class TimelineRegionPlayer {
         if multiRollCapacity > 0 {
             fanOutSecondaryLanes(fromTick: lastTick, toTick: newTick, step: step)
         }
+        // AUDIO lanes ride the same tick window (A1): region onsets start their
+        // file segment, gaps stop the lane — the tested AudioLanePlayer decides.
+        audioLanes?.apply(in: doc, fromTick: lastTick, toTick: newTick,
+                          bpm: pattern?.tempo ?? 120)
         // Feed the arrangement automation the absolute playhead BEFORE the roll's
         // onTick chain reaches AutomationPlayer.applyStep (cycle 5). loadClip above
         // may have installed a clip's own lanes; the timeline layer applies last.

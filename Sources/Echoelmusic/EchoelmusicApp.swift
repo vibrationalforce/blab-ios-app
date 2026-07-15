@@ -532,6 +532,16 @@ struct EchoelmusicApp: App {
                 timelinePlayer.rollDetuneSink = { [weak polyVoice] cents in
                     polyVoice?.setDetune(cents: cents)
                 }
+                // A1 (healing wave 1, audit-verified CRITICAL "audio lanes silent"):
+                // the tested AudioLanePlayer coordinator finally gets its device sink —
+                // one streaming AVAudioPlayerNode per audio lane, additive into the
+                // master mix — and rides timelinePlayer's transport (prime/apply/stop).
+                timelinePlayer.audioLanes = AudioLanePlayer(
+                    makeSink: { [weak audioEngine] in TimelineAudioSink(engine: audioEngine) },
+                    resolveURL: { [weak clipStore] id in
+                        guard let clip = clipStore?.clip(id: id) else { return nil }
+                        return MediaLibrary.resolveRef(clip.mediaRef)
+                    })
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
