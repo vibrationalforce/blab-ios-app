@@ -27,10 +27,11 @@ public enum MIDIInEvent: Equatable, Sendable {
 }
 
 /// Pure UMP word(s) → event mapping. Behavior-identical to the pre-H10 inline
-/// parsing (verified case-by-case in tests), including the MIDI-1.0 bend
-/// arithmetic, where `lsb | ((msb << 7) - 8192)` equals `(lsb | (msb << 7)) -
-/// 8192` because the OR operands never share set bits (two's complement makes
-/// the negative branch additive too).
+/// parsing (verified case-by-case in tests). MIDI-1.0 bend note: Swift parses
+/// `lsb | (msb << 7) - 8192` as `(lsb | (msb << 7)) - 8192` (`|` and `-` share
+/// AdditionPrecedence, left-associative) — the standard 14-bit formula; the
+/// other grouping would be equal anyway (the OR operands never share set bits),
+/// and the mixed-LSB test pins it.
 public enum MIDIEventParse {
 
     /// `word0` is the packet's first UMP word; `word1` its second (MIDI 2.0
@@ -127,6 +128,9 @@ public final class MIDIInEventQueue: @unchecked Sendable {
         let out = events
         let lost = dropped
         events.removeAll(keepingCapacity: true)
+        // `out` shares the buffer (CoW), so the removeAll above detaches —
+        // re-reserve so the next burst appends without a growth allocation.
+        events.reserveCapacity(Self.capacity)
         dropped = 0
         drainScheduled = false
         return (out, lost)

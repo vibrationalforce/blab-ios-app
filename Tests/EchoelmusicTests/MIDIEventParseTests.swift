@@ -142,4 +142,25 @@ final class MIDIEventParseTests: XCTestCase {
         XCTAssertEqual(dropped, 5, "overflow is counted honestly, never silent")
         XCTAssertEqual(events.first, .noteOff(note: 0, channel: 0), "oldest kept (drop-newest)")
     }
+
+    func testQueue_burstWithDrops_stillArmsADrain_andReportsThem() {
+        // A push that DROPS (queue full) must still leave a drain scheduled —
+        // the drop report needs that drain to be delivered.
+        let q = MIDIInEventQueue()
+        var armed = false
+        for _ in 0..<(MIDIInEventQueue.capacity + 1) {
+            if q.push(.noteOff(note: 1, channel: 0)) { armed = true }
+        }
+        XCTAssertTrue(armed, "the burst containing drops arms exactly one drain")
+        let (_, droppedCount) = q.drain()
+        XCTAssertEqual(droppedCount, 1, "the drop is reported at that drain")
+    }
+
+    func testQueue_emptyDrain_isHarmless() {
+        let q = MIDIInEventQueue()
+        let (events, dropped) = q.drain()
+        XCTAssertTrue(events.isEmpty)
+        XCTAssertEqual(dropped, 0)
+        XCTAssertTrue(q.push(.noteOff(note: 1, channel: 0)), "still arms normally afterwards")
+    }
 }

@@ -120,14 +120,17 @@ final class MIDIInput {
     /// As before, only the FIRST message of a packet is consumed (multi-
     /// message UMP packets were never split here — unchanged, documented).
     private nonisolated func handleMIDIEvents(_ eventList: UnsafePointer<MIDIEventList>) {
-        let list = eventList.pointee
-        var packet = list.packet
         var needDrain = false
 
-        for _ in 0..<list.numPackets {
-            let wordCount = Int(packet.wordCount)
+        // Iterate packets over the ORIGINAL buffer (review MEDIUM, pre-existing
+        // UB): the old `MIDIEventPacketNext(&localCopy)` computed the next
+        // packet's address relative to a stack copy — for numPackets > 1 that
+        // read past the copy's storage. `unsafeSequence()` walks CoreMIDI's own
+        // variable-length list in place.
+        for packetPtr in eventList.unsafeSequence() {
+            let wordCount = Int(packetPtr.pointee.wordCount)
             if wordCount >= 1 {
-                let (word0, word1): (UInt32, UInt32?) = withUnsafeBytes(of: packet.words) { raw in
+                let (word0, word1): (UInt32, UInt32?) = withUnsafeBytes(of: packetPtr.pointee.words) { raw in
                     let words = raw.bindMemory(to: UInt32.self)
                     return (words[0], wordCount >= 2 ? words[1] : nil)
                 }
@@ -135,7 +138,6 @@ final class MIDIInput {
                     if inQueue.push(event) { needDrain = true }
                 }
             }
-            packet = MIDIEventPacketNext(&packet).pointee
         }
 
         if needDrain {
