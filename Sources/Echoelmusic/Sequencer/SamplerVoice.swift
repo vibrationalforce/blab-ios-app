@@ -236,6 +236,13 @@ private final class RenderState: @unchecked Sendable {
     private struct SampleSlab {
         var ptr: UnsafeMutablePointer<Float>?
         var count: Int
+        /// `triggerCount` snapshot at install time. Adoption absorbs triggers only
+        /// UP TO this value — a `fire()` issued after `installBuffer` (the
+        /// loadSample→fire audition flow) must still play the NEW sample; setting
+        /// `lastSeenTrigger = triggerCount` at adoption instead would swallow it,
+        /// making every browser preview silent (review HIGH on the slab handshake).
+        /// Main is the sole writer of `triggerCount`, so the snapshot is exact.
+        var trigAtInstall: UInt32 = 0
     }
 
     /// AUDIO-THREAD-owned after adoption (main never dereferences these).
@@ -243,6 +250,11 @@ private final class RenderState: @unchecked Sendable {
     private var activeCount: Int = 0
 
     /// main → render: freshly installed slabs (newest wins at adoption).
+    /// INVARIANT: install and retire capacities must stay EQUAL and installBuffer
+    /// must drain retires before every enqueue — a capacity-8 ring holds 7 usable
+    /// slots, and adopting k slabs retires exactly k pointers (previous active +
+    /// k−1 superseded) ≤ 7, so the retire queue can never overflow (= never leak).
+    /// Changing one capacity without the other silently breaks this proof.
     private let installQueue = SPSCQueue<SampleSlab>(capacity: 8)
     /// render → main: superseded slabs awaiting a main-thread free.
     private let retireQueue = SPSCQueue<SampleSlab>(capacity: 8)
@@ -304,12 +316,16 @@ private final class RenderState: @unchecked Sendable {
                 ptr.update(from: base, count: count)
             }
         }
-        if installQueue.tryEnqueue(SampleSlab(ptr: ptr, count: count)) {
+        if installQueue.tryEnqueue(SampleSlab(ptr: ptr, count: count, trigAtInstall: triggerCount)) {
             mainInstalledCount = count
         } else {
             // Pathological install burst filled the queue — drop THIS install and
             // keep the current sample. Freeing here is safe: render never saw it.
+            // (Requires ≥7 un-adopted installs inside one render block; the UI may
+            // briefly label the new sample while the old one keeps sounding.)
             ptr.deallocate()
+            log.log(.error, category: .audio,
+                    "SamplerVoice: install queue full — dropped a sample install")
         }
     }
 
@@ -319,7 +335,9 @@ private final class RenderState: @unchecked Sendable {
     }
 
     deinit {
-        // Engine is torn down before a voice deallocates — no render is running.
+        // Safe regardless of teardown order: the AVAudioSourceNode's render block
+        // captures this RenderState STRONGLY (deliberate — do not weaken it), so
+        // deinit can only run once no render callback can ever execute again.
         while let slab = installQueue.dequeue() { slab.ptr?.deallocate() }
         while let slab = retireQueue.dequeue() { slab.ptr?.deallocate() }
         activeBuf?.deallocate()
@@ -328,6 +346,7 @@ private final class RenderState: @unchecked Sendable {
     /// Main thread. Set gain BEFORE bumping the counter so the audio thread
     /// reads a consistent gain when it observes the new trigger.
     func requestTrigger(gain: Float = 1.0) {
+        drainRetired()   // free superseded slabs promptly, not only at the next install
         triggerGain = gain
         triggerCount &+= 1
     }
@@ -401,7 +420,10 @@ private final class RenderState: @unchecked Sendable {
             posF = 0
             playedOut = 0
             isPlaying = false
-            lastSeenTrigger = triggerCount   // absorb triggers aimed at the old sample
+            // Absorb only triggers issued BEFORE this install (aimed at the old
+            // sample). A fire() issued after installBuffer — the audition flow —
+            // stays pending and plays the new sample in this same block below.
+            lastSeenTrigger = slab.trigAtInstall
             silenceRequested = false
         }
 

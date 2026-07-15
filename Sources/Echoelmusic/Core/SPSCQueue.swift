@@ -210,6 +210,13 @@ public final class SPSCQueue<Element> {
             return nil
         }
 
+        // Acquire barrier: pair with the producer's release barrier before the
+        // tail publish. Without it, on arm64 (non-TSO) the slot load below may be
+        // satisfied BEFORE the tail load above — for pointer-carrying payloads
+        // (SamplerVoice slabs) a stale slot after ring wrap would resurrect an
+        // already-freed pointer on the consumer thread.
+        OSMemoryBarrier()
+
         // Load element
         let element = buffer[currentHead]
         buffer[currentHead] = nil
@@ -234,6 +241,9 @@ public final class SPSCQueue<Element> {
         if currentHead == currentTail {
             return nil
         }
+
+        // Acquire barrier — same pairing as dequeue() (see comment there).
+        OSMemoryBarrier()
 
         return buffer[currentHead]
     }
