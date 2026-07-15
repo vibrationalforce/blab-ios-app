@@ -60,15 +60,11 @@ struct ArrangeTimelineView: View {
     /// Snap resolution — persisted; default 1/16 (research: snap ON by default).
     @AppStorage("timeline.snap") private var snapRaw = SnapResolution.sixteenth.rawValue
 
-    /// Region trim (B11): which region is being resized + its live handle offset.
-    /// These re-evaluate the body during an ACTIVE edge-drag only — transient, and
-    /// no `.menu` popover can be open under the same finger, so the menu-freeze law
-    /// (no CONTINUOUS ancestor churn while a menu is open) is not tripped. Reset on
-    /// release; the snapped length is committed to the store in `onEnded`.
-    @State private var resizingRegionID: UUID?
-    @State private var resizeDeltaX: CGFloat = 0
+    // (Region trim state moved INTO RegionBlockView — each clip owns its own live
+    //  resize @State so a drag re-renders only that clip, not the whole timeline.)
 
-    private static let laneHeight: CGFloat = 56
+    // fileprivate: the extracted RegionBlockView leaf (same file) reuses laneHeight.
+    fileprivate static let laneHeight: CGFloat = 56
     private static let labelWidth: CGFloat = 140
     private static let rulerHeight: CGFloat = 24
 
@@ -77,7 +73,7 @@ struct ArrangeTimelineView: View {
     /// audio = material amber, everything without an engine = muted. Used for
     /// the lane's leading stripe and its regions, so a lane and its content
     /// read as one system across the whole Hackbrett.
-    private static func kindTint(_ kind: ClipKind?) -> Color {
+    fileprivate static func kindTint(_ kind: ClipKind?) -> Color {
         switch kind {
         case .midi:  return EchoelTheme.accent
         case .audio: return EchoelTheme.warning
@@ -770,39 +766,73 @@ struct ArrangeTimelineView: View {
                 }
             }
             ForEach(timeline.document.regions(in: lane.id)) { region in
-                regionBlock(region)
+                // Each region is its OWN leaf view that owns its live-resize @State —
+                // so a trim drag re-renders ONLY that clip, never the whole timeline
+                // (the old root-@State resize made every drag frame rebuild all lanes +
+                // ruler + playhead → the "zittern" the founder saw, 2026-07-15).
+                RegionBlockView(region: region, ppb: ppb, snap: snap,
+                                onEdit: { activeModal = .region(region) })
             }
         }
         .frame(width: gridWidth, height: Self.laneHeight, alignment: .topLeading)
         .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
     }
 
-    private func regionBlock(_ region: TimelineRegion) -> some View {
+    /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
+    /// nothing writes relative refs yet — extend here when import lands).
+    fileprivate static func mediaURL(_ clip: Clip) -> URL? {
+        guard let ref = clip.mediaRef, !ref.isEmpty else { return nil }
+        let url = URL(fileURLWithPath: ref)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    private var magnify: some Gesture {
+        MagnificationGesture()
+            .updating($pinch) { value, state, _ in state = value }
+            .onEnded { value in
+                pointsPerBeat = min(96, max(8, pointsPerBeat * value))
+            }
+    }
+
+}
+
+/// One region block — its OWN leaf view so a trim drag re-renders only THIS clip,
+/// not the whole timeline (fixes the founder's "Clip zittert" 2026-07-15). Owns the
+/// live-resize @State locally; commits the snapped length to the store on release.
+@MainActor
+private struct RegionBlockView: View {
+    let region: TimelineRegion
+    let ppb: CGFloat
+    let snap: SnapResolution
+    /// Opens this region's editor (the parent owns the one sheet slot).
+    let onEdit: () -> Void
+
+    @Environment(ClipStore.self) private var clips
+    @Environment(TimelineStore.self) private var timeline
+    @Environment(BeatPlayer.self) private var beatPlayer
+    @Environment(Transport.self) private var transport
+
+    /// Live trailing-trim offset for THIS clip only (root no longer churns).
+    @State private var resizeDelta: CGFloat = 0
+    @State private var isResizing = false
+
+    private var laneHeight: CGFloat { ArrangeTimelineView.laneHeight }
+
+    var body: some View {
         let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb
-        // Live trim (B11): while THIS region's edge is dragged, its width follows
-        // the finger; released → snapped + committed to the store.
-        let liveDelta = resizingRegionID == region.id ? resizeDeltaX : 0
-        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + liveDelta)
+        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeDelta)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
-        // Tap an AUDIO region = hear its file immediately (founder: "Audio mit
-        // direkt die wav Dateien vorhören") — auditions on BeatPlayer's preview
-        // voice, so the kit and transport are untouched.
-        let auditionURL = clip.flatMap { $0.kind == .audio ? Self.mediaURL($0) : nil }
-        // Long-press a region opens its editor (U1, founder: "Lange draufdrücken
-        // öffnet ein Fenster, wo man Audio, MIDI, Video etc bearbeiten kann").
-        // Only kinds with a real engine offer one.
+        // Tap an AUDIO region = hear its file immediately (founder: "Audio mit direkt
+        // die wav Dateien vorhören") — auditions on BeatPlayer's preview voice.
+        let auditionURL = clip.flatMap { $0.kind == .audio ? ArrangeTimelineView.mediaURL($0) : nil }
+        // Long-press a region opens its editor (only kinds with a real engine offer one).
         let editableKind = clip.map { $0.kind == .midi || $0.kind == .audio } ?? false
-        // Region blocks wear their lane's kind colour (V3: "plain grey blocks" →
-        // the DAW read: colour = content type, matching the lane-head stripe).
-        let tint = Self.kindTint(clip?.kind)
+        let tint = ArrangeTimelineView.kindTint(clip?.kind)
         return RoundedRectangle(cornerRadius: 6)
             .fill(tint.opacity(0.14))
             .overlay {
-                // Audio regions show their waveform (Stage 2) the moment the
-                // clip references a real file — recording/import (Stage A/3)
-                // feeds this; MIDI/empty regions stay plain blocks.
-                if let clip, clip.kind == .audio, let url = Self.mediaURL(clip) {
+                if let clip, clip.kind == .audio, let url = ArrangeTimelineView.mediaURL(clip) {
                     FileWaveformView(url: url, tint: EchoelTheme.text)
                         .padding(.horizontal, 3).padding(.vertical, 8)
                         .allowsHitTesting(false)
@@ -812,8 +842,6 @@ struct ArrangeTimelineView: View {
             .overlay(RoundedRectangle(cornerRadius: 6)
                 .strokeBorder(tint.opacity(0.55), lineWidth: 1))
             .overlay(alignment: .topLeading) {
-                // Name at the TOP edge (DAW convention) so the audio waveform
-                // below stays unobstructed.
                 Text(name)
                     .font(EchoelTheme.font(9, .medium))
                     .foregroundStyle(EchoelTheme.text)
@@ -821,49 +849,34 @@ struct ArrangeTimelineView: View {
                     .padding(.horizontal, 5).padding(.top, 3)
             }
             .overlay(alignment: .trailing) {
-                // Trim handle (B11): a fat invisible grab zone at the trailing
-                // edge with a thin visible grip. Because the drag starts on this
-                // dedicated zone it wins over the horizontal ScrollView (no
-                // scroll fight); moving the whole body is a later, device-tuned
-                // cycle. Snap-aware via `resizeGesture`.
+                // Trailing trim handle (B11): a fat invisible grab zone + a thin grip.
+                // The drag starts on this dedicated zone so it wins over the horizontal
+                // ScrollView. Live width tracks the finger; released → snapped + committed.
                 ZStack(alignment: .trailing) {
                     Color.clear.frame(width: 22)
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(tint.opacity(resizingRegionID == region.id ? 0.9 : 0.5))
-                        .frame(width: 4, height: Self.laneHeight - 20)
+                        .fill(tint.opacity(isResizing ? 0.9 : 0.5))
+                        .frame(width: 4, height: laneHeight - 20)
                         .padding(.trailing, 3)
                 }
                 .contentShape(Rectangle())
-                .gesture(resizeGesture(region))
+                .gesture(resizeGesture)
             }
-            .frame(width: w, height: Self.laneHeight - 8)
+            .frame(width: w, height: laneHeight - 8)
             .offset(x: x, y: 4)
             .contentShape(RoundedRectangle(cornerRadius: 6))
             .onTapGesture {
-                // A muted (or not-soloed while another solos) lane stays silent —
-                // the strip is honest: what you see on M/S is what you hear.
                 guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
                 if let url = auditionURL { beatPlayer.audition(url: url) }
             }
-            // Long-press → context menu: Edit (kinds with an engine) + Delete (every
-            // kind, incl. video, which has no editor). Replaces the old direct
-            // long-press-opens-editor gesture — editing is still one hold away, and
-            // the region now has a delete verb (completing Split/Join/Delete). A
-            // native contextMenu is NOT a sheet (the metadata chain is untouched) and
-            // its content builds on open (no body-time / high-frequency read).
             .contextMenu {
                 if editableKind {
-                    Button { activeModal = .region(region) } label: {
+                    Button { onEdit() } label: {
                         Label("Edit", systemImage: "slider.horizontal.3")
                     }
                 }
-                // Split / Join, ON THE CLIP (founder 2026-07-15: "wenn man lange auf den
-                // Clip drückt [hat] man Optionen wie cut" — the razor + rejoin belong to
-                // the clip's own long-press, not a separate toolbar button). Split cuts
-                // THIS region at the playhead; Join swallows the same-lane/clip piece
-                // that abuts right after it (media-lossless — disabled when none does).
-                // Both read `transport.position`/the document ONLY here (menu builds on
-                // open), never in `body` → freeze-safe.
+                // Split / Join, ON THE CLIP (founder 2026-07-15). Both read
+                // transport.position / the document ONLY here (menu builds on open).
                 Button {
                     let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
                     timeline.splitRegion(id: region.id, atTick: tick, bpm: beatPlayer.pattern.tempo)
@@ -876,18 +889,12 @@ struct ArrangeTimelineView: View {
                     Label("Join with next", systemImage: "arrow.triangle.merge")
                 }
                 .disabled(!timeline.canMergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo))
-                // Move to playhead — the arrangement's move verb (drag-move fights the
-                // horizontal ScrollView, deferred as device-tuned; playhead-driven is
-                // freeze-safe like Split/Join). Reads `transport.position` ONLY in this
-                // action closure, never in body. Snaps the region's START to the playhead.
                 Button {
                     let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
                     timeline.moveRegion(id: region.id, toStartTick: tick)
                 } label: {
                     Label("Move to playhead", systemImage: "arrow.right.to.line")
                 }
-                // Duplicate — the "copy" verb: an identical region right after this one
-                // (same clip, no new slot). Completes split/join/delete/move/duplicate.
                 Button {
                     timeline.duplicateRegion(id: region.id)
                 } label: {
@@ -909,31 +916,14 @@ struct ArrangeTimelineView: View {
             )
     }
 
-    /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
-    /// nothing writes relative refs yet — extend here when import lands).
-    private static func mediaURL(_ clip: Clip) -> URL? {
-        guard let ref = clip.mediaRef, !ref.isEmpty else { return nil }
-        let url = URL(fileURLWithPath: ref)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
-    }
-
-    private var magnify: some Gesture {
-        MagnificationGesture()
-            .updating($pinch) { value, state, _ in state = value }
-            .onEnded { value in
-                pointsPerBeat = min(96, max(8, pointsPerBeat * value))
-            }
-    }
-
-    /// Trailing-edge trim gesture (B11) — turns a region block into a resizable
-    /// clip. Live width tracks the finger via `resizeDeltaX`; on release the new
-    /// length is snapped to the current grid (`.off` = stepless) and committed.
-    /// Floored at one transport step so a region can't collapse to nothing.
-    private func resizeGesture(_ region: TimelineRegion) -> some Gesture {
+    /// Trailing-edge trim (B11) — live width tracks the finger via this clip's OWN
+    /// `resizeDelta` @State (no root churn → no jitter); on release the new length is
+    /// snapped to the grid (`.off` = stepless) and committed. Floored at one step.
+    private var resizeGesture: some Gesture {
         DragGesture(minimumDistance: 3)
             .onChanged { value in
-                resizingRegionID = region.id
-                resizeDeltaX = value.translation.width
+                isResizing = true
+                resizeDelta = value.translation.width
             }
             .onEnded { value in
                 let deltaTicks = Int((value.translation.width / ppb
@@ -943,8 +933,8 @@ struct ArrangeTimelineView: View {
                 timeline.resizeRegion(
                     id: region.id,
                     lengthTicks: max(TimelineTime.ticksPerTransportStep, snapped))
-                resizingRegionID = nil
-                resizeDeltaX = 0
+                isResizing = false
+                resizeDelta = 0
             }
     }
 }

@@ -1,29 +1,25 @@
-build: 2026-07-15 v10.79.230 (Playhead lässt sich ziehen — Griff oben, snap-verbunden)
+build: 2026-07-15 v10.79.231 (Clip-Zittern beim Trimmen behoben — jeder Clip ist ein eigenes Leaf)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Erster Teil deiner Timeline-Wünsche (Video + Text): der Playhead ließ sich gar
-  nicht mit der Hand verschieben.
+notes: Aus deinem Video: der Clip zitterte beim Trimmen (hinten länger/kürzer ziehen).
 
-  NEU: oben am Playhead sitzt jetzt ein Griff-Symbol (▼) — gut anfassbar (30 pt breit).
-  Damit ziehst du den Playhead hin und her; beim Ziehen rastet er auf das aktuelle
-  Snap-Raster (Bar · Beat · 1/8 · 1/16 · 1/8T · Off — oben rechts umstellbar), genau
-  wie du es beschrieben hast. Die Linie selbst bleibt „durchlässig" (blockiert keine
-  Clip-Taps), nur der Griff oben fängt die Berührung — so gewinnt er sauber gegen das
-  horizontale Scrollen.
+  URSACHE: der Zieh-Zustand (die Live-Breite) hing am WURZEL-View der Timeline und wurde
+  für JEDEN Clip gelesen — dadurch baute sich beim Ziehen JEDES Frame die ganze Timeline
+  neu auf (alle Spuren + Lineal + Playhead), was als Zittern/Ruckeln ankam.
 
-  Technisch: der Griff-Zug rechnet die Finger-Position (scroll-fest über einen benannten
-  Koordinatenraum) in einen Tick um, snappt ihn und setzt den Transport per seek auf den
-  nächsten 16tel-Schritt. Der Playhead bleibt ein eigenes Leaf-View (Freeze-Regel: nur er
-  aktualisiert sich im Takt, nicht die Spuren/Menüs).
+  FIX: jeder Clip ist jetzt ein eigenständiges View (Leaf) mit SEINEM eigenen Zieh-
+  Zustand. Beim Trimmen aktualisiert sich nur noch DIESER eine Clip — nicht die ganze
+  Timeline. Der Zug wird flüssig.
 
-  SICHER: ui-state-reviewer CONFIRMED — Freeze-Regel gewahrt, Clip-Taps nicht blockiert,
-  Koordinaten-Mapping exakt (deckt sich mit der Clip-Positionierung), alle APIs vorhanden.
-  (Kosmetik-Notiz: ganz am Anfang bei Takt 1 ist der Griff halb am linken Rand — verifiziere
-  am Gerät, ob dich das stört, dann klemme ich ihn rein.)
+  Reines Umbauen, KEINE Verhaltensänderung: gleiche Darstellung (Wellenform, Name,
+  Farbe, Trim-Griff), gleiches Snap/Commit beim Loslassen, gleiches Lang-Druck-Menü
+  (Edit · Split · Join · Move · Duplicate · Delete), gleiches Antippen-zum-Vorhören.
 
-  NÄCHSTE RUNDEN aus deinem Feedback (je einzeln): Playhead-Lauf smoother machen
-  (zwischen den 16teln interpolieren) · Clip-Zittern beim Trimmen beheben · Clip auch
-  VORNE trimmen (nicht nur hinten). „Suche nach Quellen" — mache ich für die
-  Interpolation + zweiseitiges Trimmen im nächsten Zyklus.
+  SICHER: ui-state-reviewer CONFIRMED — nur der gezogene Clip rendert neu, Freeze-Regel
+  gewahrt (kein 10-Hz-Read im Leaf-Body), Sheet-Slot bleibt beim Eltern-View, alle
+  Scopes/Env sauber, keine hängenden Referenzen.
+
+  NÄCHSTE RUNDE: Clip auch VORNE trimmen (jetzt sauber möglich, weil der Trim im
+  Clip-Leaf sitzt) — dann der smoothere Playhead-Lauf.
 
   Reihenfolge heute: v225–229 (Spur-Kopf, Split/Join, Tempo, Puls-Relock, Felder) ·
-  v230 Playhead ziehbar.
+  v230 Playhead ziehbar · v231 Clip-Zittern weg.
