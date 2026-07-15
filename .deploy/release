@@ -1,33 +1,35 @@
-build: 2026-07-15 v10.79.246 (Video-Monitor — schwebendes Fenster, Videospur rendert endlich)
+build: 2026-07-15 v10.79.247 (MIDI-Clips spielen ihre echten Takte — Heilungs-Welle 1)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dein roter Kreis auf dem Film-Button: "Dort soll der Video Monitor zum
-  anklicken. Verschiedene größen einstellbar wie visualiser."
+notes: Erster Heilungs-Build aus deinem Ultracode-Mandat ("Midi Clip und Audio Clip
+  verhalten sich nicht wie von einer professionellen Software erwartet"). Das
+  28-Agenten-Audit hat die Wurzel verifiziert: die Wiedergabe hat die Region
+  KOMPLETT ignoriert — nur Takt 1 jedes Clips erklang je, Mehrtakt-Aufnahmen
+  falteten sich übereinander, Trim/Split versteckten keine Noten.
 
-  NEU — der Film-Button oben rechts öffnet jetzt den VIDEO-MONITOR:
-  • Ein schwebendes Fenster wie das Visual: gleiche Größenstufen (S/M/L/Vollbild
-    per Knopf durchschaltbar, Größe wird gemerkt), am Film-Griff verschiebbar,
-    × zum Schließen. Es dockt unten LINKS an, damit Visual + Video-Monitor
-    gleichzeitig offen sein können.
-  • Und er zeigt endlich BILD: die Videospur wird darin GERENDERT — Bilder und
-    Videos folgen dem Playhead bei Play, Stop und Scrubbing, driftkorrigiert zur
-    Musik-Uhr (Halten / ±3%-Angleich / harter Seek — die getestete Resync-Regel).
-    Erste unstummgeschaltete Videospur mit Clip unter dem Playhead gewinnt.
-  • Die Clips-Bibliothek (bisheriger Tap) liegt jetzt auf LANGEM Drücken des
-    Film-Buttons — nichts ist gestrandet.
+  GEHEILT auf der Haupt-MIDI-Spur (M1a+M1b):
+  • Ein 4-Takt-Clip spielt Takt 1→2→3→4 in Folge — nicht mehr Takt 1 geloopt.
+  • Vorne trimmen / schneiden versteckt exakt die weggetrimmten Noten; die
+    rechte Split-Hälfte spielt den Inhalt AB dem Schnitt (nicht nochmal von vorn).
+  • Region-Wechsel und Split-Grenzen sind JETZT NAHTLOS — kein hörbarer
+    allNotesOff-Schnitt mehr; ausklingende Noten enden an ihrer eigenen Kante
+    (Noten werden an der Clip-Kante mathematisch gekappt, nichts überlebt
+    seinen Block).
+  • TEMPO-FEST: der Trim lebt jetzt in Ticks (nicht Sekunden) — bei 112 statt
+    120 BPM abgespielt bleibt das Fenster exakt (Reviewer-Fund, gefixt).
+  • Noten im letzten Halb-Step eines Takts verschwanden stumm — geklemmt.
 
-  EHRLICH: Der Monitor ist bewusst STUMM (der Ton der Timeline kommt aus den
-  Audio-/MIDI-Spuren; Video-Clip-Ton ist eine eigene, spätere Entscheidung).
-  V1 zeigt EINE Spur; Mehrspur-Compositing/Effekte sind der nächste Baustein.
+  EHRLICH (dokumentierte Grenzen, nächste Zyklen): Sekundär-MIDI-Spuren falten
+  Mehrtakt-Clips noch (M1c als Nächstes) · Clips ABSEITS der Taktlinie spielen
+  am globalen Taktraster (M2) · Audio-Spuren im Arrangement sind noch stumm —
+  der Player ist gebaut+getestet, die Verdrahtung ist der übernächste Build (A1).
 
-  SICHER: ui-state-reviewer + code-reviewer beide durch; alle Funde gefixt —
-  u.a. Scrub bei Stopp folgt jetzt jedem 16tel-Schritt (nicht erst ab 0,25 s),
-  keine AVPlayer-Allokation pro Drag-Frame, Freeze-Regel geprüft intakt (die
-  Transport-Reads leben im eigenen Leaf). 6 neue Tests für die Bildauswahl-
-  Logik (pure). Gates v245 grün.
+  SICHER: Phasen-Mathematik pur + handverifiziert (ArrangementLoadPlan, 21 neue
+  Tests gesamt); der generative Instrument-Pfad bleibt byte-identisch (eigener
+  Reviewer-Fund, gefixt + getestet). Gates M1a grün; M1b/Fixes laufen.
 
-  Baustellen-Stand (God-Mode): Clip-Game C1–C5 ✓ · V2 Mediathek ✓ · V3 Bilder ✓ ·
-  Video-Monitor ✓ · NEUER AUFTRAG (2026-07-15): MIDI-/Audio-Clip-Verhalten auf
-  Profi-Niveau (Ultracode-Audit läuft) + Third-Party-AUv3 (Eventide u.a.) ·
-  danach V4 Kamera-Capture in die Timeline · V5 Profi-Kamera (Kelvin).
+  Heilungsprogramm (beide Deep-Audits, 28 Agenten, alle Top-Funde verifiziert):
+  scratchpads/HEALING_DMMW_2026-07-15.md — Welle 1: es KLINGT wie es aussieht
+  (M1 ✓ · A1 Audio-Spuren · Sample-Race · Pan-Fan-out · AU-Routing) → Welle 2:
+  Datensicherheit (Medien-Pfade, Fold-Kill) → Welle 3: DMMW-Command-Cores.
 
-  Reihenfolge: v244 Mediathek · v245 Bilder · v246 Video-Monitor.
+  Reihenfolge: v245 Bilder · v246 Video-Monitor · v247 MIDI-Takte.
