@@ -77,8 +77,9 @@ struct WorkspaceView: View {
                 Divider().overlay(EchoelTheme.border)
                 TransportBar()
                 Divider().overlay(EchoelTheme.border)
-                composeHeaderRow
-                Divider().overlay(EchoelTheme.border)
+                // (The standalone Tempo row is gone — the tempo control moved UP into
+                //  the transport bar next to Play, founder 2026-07-15 "Das soll da oben
+                //  hin". Its vertical band is reclaimed for the timeline.)
                 // THE one main view (founder 2026-07-10): Arrange timeline over
                 // the instrument zone — no surface chips, no view-switching.
                 SurfaceHost()
@@ -173,26 +174,6 @@ struct WorkspaceView: View {
         .background(EchoelTheme.bg)
     }
 
-    /// Compact compose header — the musical controls that used to live in the bottom
-    /// "Comp" dropdown, lifted up so the bottom bar can dissolve (founder 2026-07-14:
-    /// "Unten die Leiste sollte längst aufgelöst sein und sich an anderer Stelle wieder
-    /// finden"). Step 2b-i: Tempo. `BodyTempoField` is a self-contained LEAF that reads
-    /// the ~10 Hz pulse INSIDE its own body, so this row — and WorkspaceView.body — never
-    /// subscribe to the 10 Hz churn (the freeze rule, same as PulseMonitorMiniLive). Its
-    /// lock replaces the transport-bar bare-lock shortcut (which existed only because the
-    /// tempo number wasn't up here); "Tempo fixen muss immer gehen" still holds — the lock
-    /// is now ALWAYS on screen in this row. Key/Scale + tuning follow in 2b-ii once the
-    /// header layout is device-verified.
-    private var composeHeaderRow: some View {
-        HStack(spacing: 12) {
-            BodyTempoField()
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(EchoelTheme.bg)
-    }
-
     /// Open the website in the system default browser (no-op if the URL fails to
     /// parse, which it can't for the constant above — defensive).
     private func openWebsite() {
@@ -249,25 +230,37 @@ private struct TransportBar: View {
             // oben"). Green ring = the body is live (green is reserved for live bio).
             pulseButton
 
-            // The musical tempo — number, live pulse-follow, and its LOCK — now lives one
-            // row down in `composeHeaderRow` (BodyTempoField), lifted out of the bottom
-            // "Comp" dropdown (founder 2026-07-14: dissolve the bottom bar). The bare
-            // transport-bar lock shortcut is retired: its job ("Tempo fixen muss immer
-            // gehen") is served by that always-visible field's own lock.
+            // THE tempo control, up in the transport chrome next to Play (founder
+            // 2026-07-15 "Das soll da oben hin", "beide behalten" — the pulse monitor
+            // stays in the brand header above; the wasteful full-width Tempo row is
+            // gone). Compact 4-decimal field + its lock. A self-contained LEAF that
+            // reads the ~10 Hz pulse in its OWN body, so the transport bar / root never
+            // subscribe to the churn (freeze rule, same as PulseMonitorMiniLive).
+            BodyTempoField(compact: true)
 
-            // Global doors in the chrome (founder 2026-07-12,
-            // shell v3): Master · Export · Live · Learn. Icon chips posting the
-            // door notification — the studio opens its dropdown/sheet.
-            doorButton("slider.vertical.3", door: "master",
-                       a11y: "Master — loudness, output")
-            doorButton("square.and.arrow.up", door: "export",
-                       a11y: "Export — WAV loop")
-            #if canImport(MultipeerConnectivity)
-            doorButton("dot.radiowaves.left.and.right", door: "live",
-                       a11y: "Live Colabo — play together nearby")
-            #endif
-            doorButton("book", door: "learn",
-                       a11y: "Learn and news")
+            // Global doors, grouped into ONE overflow menu (founder 2026-07-12 placed
+            // Master · Export · Live · Learn "oben in die Leiste"; collapsing them to a
+            // single "•••" frees the width for the tempo WITHOUT touching the brand
+            // header — fully reversible). Each entry still posts its chrome-door
+            // notification; the studio opens its dropdown/sheet.
+            Menu {
+                doorMenuButton("Master — loudness, output", icon: "slider.vertical.3", door: "master")
+                doorMenuButton("Export — WAV loop", icon: "square.and.arrow.up", door: "export")
+                #if canImport(MultipeerConnectivity)
+                doorMenuButton("Live Colabo — play together nearby",
+                               icon: "dot.radiowaves.left.and.right", door: "live")
+                #endif
+                doorMenuButton("Learn and news", icon: "book", door: "learn")
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 30, height: 32)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .accessibilityLabel("More — Master, Export, Live, Learn")
 
             Spacer(minLength: 0)
 
@@ -301,22 +294,15 @@ private struct TransportBar: View {
         .accessibilityHint("Your body composes and plays the music. Tap again to stop.")
     }
 
-    /// One compact chrome door: posts the studio's door notification.
-    private func doorButton(_ icon: String, door: String, a11y: String) -> some View {
+    /// One chrome-door entry inside the transport bar's "•••" overflow menu: posts
+    /// the studio's door notification (same decoupling as before — the chrome never
+    /// reaches into studio state).
+    private func doorMenuButton(_ title: String, icon: String, door: String) -> some View {
         Button {
             NotificationCenter.default.post(name: .echoelChromeDoor, object: door)
         } label: {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(EchoelTheme.text)
-                .frame(width: 30, height: 32)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            Label(title, systemImage: icon)
         }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle().inset(by: -5))
-        .accessibilityLabel(a11y)
     }
 
     private func toggle() {

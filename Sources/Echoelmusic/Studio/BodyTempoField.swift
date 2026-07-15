@@ -4,14 +4,16 @@
 // eine Anzeige mit, die gesynct ist mit der Biofeedback-BPM-Rate. Vier Stellen nach dem
 // Komma und lockbar.")
 //
-// One row in the Composition panel, styled like the Kammerton field (4 decimals):
+// Styled like the Kammerton field (4 decimals):
 //   • UNLOCKED — the number RUNS ALONG with the live biofeedback BPM (trust-gated calm
 //     display value; falls back to the clock tempo when no pulse is live).
 //   • Tap the lock — the number FREEZES: the shown body value becomes the musical tempo
 //     (the clock GLIDES to it, never jumps) and is then editable to 0.0001 BPM via the
 //     Echoel number pad. Unlock → it follows the body again.
-// The chrome (transport bar) shows NO tempo number anymore — the pulse in the bio strip
-// is the one live number on screen; this field is the one musical-tempo control.
+// HOME (founder 2026-07-15 "Das soll da oben hin"): the `compact` variant lives in the
+// transport bar next to Play (word labels dropped to fit); the full variant is available
+// for panels. This is THE one musical-tempo control — the pulse monitor (live rate) stays
+// separately in the brand header ("beide behalten").
 //
 // RENDER SAFETY (freeze rule): `cameraRPPG.displayBPM` updates ~10 Hz. This is a LEAF
 // view — the read lives HERE, so only this row rebuilds; the Picker-hosting Composition
@@ -37,6 +39,12 @@ struct BodyTempoField: View {
     /// Parent hook (recompose after a lock change) — called on lock/unlock/edit.
     var onLockChanged: () -> Void = {}
 
+    /// COMPACT mode for the top chrome (founder 2026-07-15 "Das soll da oben hin",
+    /// beide behalten): drops the "Tempo"/"BPM" word labels so the field fits the
+    /// transport bar next to Play. Same 4-decimal value + lock, just narrower —
+    /// still the one musical-tempo control (no second widget).
+    var compact: Bool = false
+
     /// The live body rate when a trustworthy pulse is on screen, else 0.
     private var liveBodyBPM: Double {
         #if canImport(AVFoundation)
@@ -49,12 +57,29 @@ struct BodyTempoField: View {
     private var followingValue: Double { liveBodyBPM > 0 ? liveBodyBPM : transport.tempo }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: compact ? 6 : 10) {
             if lockBPM {
                 // Locked: exact, editable to 0.0001 BPM (Echoel number pad), like Kammerton.
-                EchoelValueField(label: "Tempo", value: lockedBinding,
+                // Compact chrome: empty label (box-only) so it fits next to Play.
+                EchoelValueField(label: compact ? "" : "Tempo", value: lockedBinding,
                                  range: Transport.minTempo...Transport.maxTempo, unit: "BPM",
-                                 onCommit: onLockChanged)
+                                 onCommit: onLockChanged,
+                                 boxWidth: compact ? 76 : nil)
+                    .accessibilityLabel("Tempo, locked")
+            } else if compact {
+                // Following, compact: just the running number (no word labels) — a tap
+                // opens nothing (it follows the body); the lock beside it freezes it.
+                Text(String(format: "%.4f", followingValue))
+                    .font(EchoelTheme.font(14, .semibold).monospacedDigit())
+                    .foregroundStyle(liveBodyBPM > 0 ? EchoelTheme.accent : EchoelTheme.text)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(width: 76, height: 32)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Tempo, following your pulse")
+                    .accessibilityValue(String(format: "%.1f beats per minute", followingValue))
             } else {
                 // Following: the number runs along with the live biofeedback rate.
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -82,7 +107,7 @@ struct BodyTempoField: View {
                 Image(systemName: lockBPM ? "lock.fill" : "lock.open")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(lockBPM ? EchoelTheme.accent : EchoelTheme.dim)
-                    .frame(width: 34, height: 32)
+                    .frame(width: compact ? 30 : 34, height: 32)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
