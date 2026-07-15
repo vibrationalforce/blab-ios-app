@@ -64,21 +64,34 @@ public enum MediaLibrary {
     }
 
     /// Resolve a clip's `mediaRef` to an EXISTING file URL — nil for empty refs or
-    /// vanished files. Single source for every surface that turns a region into
-    /// playable media (timeline audition, the Video Monitor; ArrangeTimelineView's
-    /// private twin predates this). Handles BOTH documented conventions
-    /// (VideoClipFactory contract): an absolute path (timeline imports) first, then
-    /// a bare file name resolved against Documents/Videos (VisualRecorder captures).
+    /// truly vanished files. THE single resolver for every surface that turns a
+    /// region into playable media (timeline audition, audio lanes, the Video
+    /// Monitor, ArrangeTimelineView). Handles all conventions:
+    /// 1. an absolute path that still exists (timeline imports, pre-update),
+    /// 2. H6 re-rooting: an absolute path whose CONTAINER PREFIX died — an app
+    ///    update/device migration changes the app-group container UUID, but the
+    ///    file itself still sits under the same media subdirectory in the NEW
+    ///    container. Re-resolve by file name (import names are UUIDs — unique)
+    ///    against every media home. Without this, every imported clip silently
+    ///    lost its audio/video on the first app update (audit CRITICAL H6).
+    /// 3. a bare file name against Documents/Videos (VisualRecorder captures).
     public static func resolveRef(_ ref: String?) -> URL? {
         guard let ref, !ref.isEmpty else { return nil }
+        let fm = FileManager.default
         let url = URL(fileURLWithPath: ref)
-        if FileManager.default.fileExists(atPath: url.path) { return url }
-        if !ref.contains("/"),
-           let docs = FileManager.default.urls(for: .documentDirectory,
-                                               in: .userDomainMask).first {
+        if fm.fileExists(atPath: url.path) { return url }
+        let name = url.lastPathComponent
+        guard !name.isEmpty else { return nil }
+        for sub in ["Media/Audio", "Media/Video", "Media/Image"] {
+            if let dir = directory(sub) {
+                let candidate = dir.appendingPathComponent(name, isDirectory: false)
+                if fm.fileExists(atPath: candidate.path) { return candidate }
+            }
+        }
+        if let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
             let candidate = docs.appendingPathComponent("Videos", isDirectory: true)
-                .appendingPathComponent(ref, isDirectory: false)
-            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+                .appendingPathComponent(name, isDirectory: false)
+            if fm.fileExists(atPath: candidate.path) { return candidate }
         }
         return nil
     }

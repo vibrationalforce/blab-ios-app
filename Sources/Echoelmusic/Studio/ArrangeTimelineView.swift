@@ -890,12 +890,11 @@ struct ArrangeTimelineView: View {
         }
     }
 
-    /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
-    /// nothing writes relative refs yet — extend here when import lands).
+    /// Resolve a clip's `mediaRef` to an existing file — delegates to the ONE
+    /// resolver (H6: MediaLibrary.resolveRef re-roots refs whose container
+    /// prefix changed on an app update; this private twin used to die on them).
     fileprivate static func mediaURL(_ clip: Clip) -> URL? {
-        guard let ref = clip.mediaRef, !ref.isEmpty else { return nil }
-        let url = URL(fileURLWithPath: ref)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        MediaLibrary.resolveRef(clip.mediaRef)
     }
 
     private var magnify: some Gesture {
