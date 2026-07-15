@@ -1,33 +1,34 @@
-build: 2026-07-15 v10.79.252 (Timeline falten killt keine Live-Session mehr + Stop-Quellen im Log)
+build: 2026-07-15 v10.79.253 (MIDI-Eingang flutet den Main-Executor nicht mehr — H10)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zweiter Welle-2-Punkt geheilt (H7) + Diagnose-Verbesserung aus deinem
-  v249-Log.
+notes: Dritter Welle-2-Punkt geheilt (H10) — der MIDI-Eingangspfad ist jetzt
+  flut- und reihenfolgesicher.
 
-  H7 — FOLD/UNFOLD IST JETZT EIN REINER LAYOUT-TOGGLE:
-  • Timeline ein-/ausklappen zerstörte die View-Identität der Instrument-Zone —
-    SwiftUI riss sie ab und baute sie neu, und ihr onDisappear feuerte
-    stopEverything(): ein Klapp-Tap beendete eine LAUFENDE Session (Bio,
-    Kamera, Transport) und warf offene Dropdowns/Zustand weg.
-  • Fix (chirurgisch, 1 Datei): EIN EchoelStudioView an EINER stabilen
-    Struktur-Position; nur der Timeline-Block ist konditional, nur Frame-WERTE
-    flexen. Bonus mitgeheilt: das Falten re-triggerte bisher auch die
-    onAppear-Effekte und überschrieb live editierte Patches — vorbei.
-  • ui-state-Review: CORRECT (Identität, Layout-Äquivalenz, Lifecycle alle
-    verifiziert; Keep-Awake bleibt bei gefalteter Timeline korrekt AN, weil
-    die Session ja weiterläuft). Offene Kosmetik, bewusst: die Fold-Animation
-    snappt; der Timeline-Zoom reset beim Falten (sag Bescheid, wenn's stört).
+  H10 — MIDI-EINGANGS-FLUT GEHEILT:
+  • Vorher spawnte JEDES eingehende MIDI-Event (Note, CC, Pitchbend) einen
+    eigenen Main-Actor-Task — ein dichter MPE-Stream (Pitchbend pro Finger,
+    ~100 Hz × Dimensionen) flutete den Main-Executor: exakt die Krankheit,
+    die früher den Kamera-Freeze verursachte. Und: separate Tasks garantieren
+    KEINE Reihenfolge — ein Note-Off konnte sein Note-On überholen → hängende
+    Note unter Last.
+  • Jetzt: Batch-Queue (dasselbe erprobte Muster wie beim Kamera-Fix) — der
+    CoreMIDI-Thread parst allokationsfrei und pusht in eine Queue; GENAU EIN
+    Drain pro Burst aufs Main-Actor, FIFO garantiert, Latenz unverändert
+    (ein Hop wie vorher). Overflow wird ehrlich gezählt und geloggt.
+  • Mit-geheilt: Mirror-Reflection (Allokation pro Paket auf dem CoreMIDI-
+    Thread) entfernt; dazu ein PRE-EXISTING Undefined Behavior gefixt —
+    Multi-Paket-Listen wurden über eine Stack-Kopie iteriert (Lesen hinter
+    dem Speicherende); jetzt in-place über CoreMIDIs Original-Puffer.
+  • Review: APPROVE (audio-thread/concurrency), alle Funde eingearbeitet.
+    +16 Tests (Parse-Gesetze MIDI 1.0/2.0 inkl. Bend-Mathe, Queue-FIFO,
+    Ein-Drain-pro-Burst, ehrlicher Overflow).
 
-  AUS DEINEM v249-LOG (Triage beantwortet im Chat):
-  • Jede stopEverything-Zeile nennt jetzt ihre QUELLE (user-stop / intent-stop /
-    transport-stopped / unmount) — deine zwei "Stopps ohne Auslöser" sind ab
-    diesem Build eindeutig zuordenbar.
-  • Erinnerung AU-Test: dein Gerät hat 0 Third-Party-AUv3 — die 4 Apple-
-    Instrumente im Plugins-Browser gehen durch denselben Assign-Flow (v250).
+  Hörbar wird das beim Spielen mit externem MIDI/MPE-Controller unter Last:
+  keine hängenden Noten, keine einfrierende UI bei dichten Streams.
 
-  Gates c41d938 → 67d248d → 35affb2 alle grün.
+  Gates fc6728a + 1c1b016 alle grün.
 
-  Welle-2-Rest: H10 MIDI-Eingangs-Flut (als Nächstes) · H9 AU-FX pro Spur +
-  musicalContext · H11-13.
+  Welle-2-Rest: H9 AU-EFFEKT-Inserts pro Spur + Tempo-Kontext für Plugins
+  (Audit + Plan liegen schon: 04d802d) · H8 · H11-13.
 
   Reihenfolge: v249 Live-Mixer+Sample-Race · v250 AU-Instrumente ·
-  v251 Update-feste Medien · v252 Fold-Fix + Stop-Quellen.
+  v251 Update-feste Medien · v252 Fold-Fix + Stop-Quellen · v253 MIDI-Flut.

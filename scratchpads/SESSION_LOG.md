@@ -5970,3 +5970,31 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Nächster Punkt (Welle 2):** H10 MIDI-Eingangs-Flut (#30) — Task-per-Event
   → Batch-Queue (RGBSampleQueue-Muster 10.76.48); read-only Audit zuerst,
   audio-thread-reviewer Pflicht.
+
+## 2026-07-15 (Fortsetzung 6) — H10 geheilt, v253 deployed + H9-Audit/Plan
+- **v253 (fc6728a + Review-Pass 1c1b016, Gates 4/4 grün, Review APPROVE):**
+  H10 MIDI-Eingangs-Flut (#30) geheilt. Vorher: Task-per-Event vom CoreMIDI-
+  Thread (Main-Executor-Flut = 10.76.48-Krankheit) + Mirror-Reflection pro
+  Paket + KEINE FIFO-Garantie (Note-Off konnte Note-On überholen → hängende
+  Note). Jetzt: allokationsfreies pures Parsen (MIDIEventParse, Linux-
+  getestet) → MIDIInEventQueue (NSLock, Cap 512) → GENAU EIN Main-Drain pro
+  Burst, FIFO garantiert, Latenz unverändert, Overflow ehrlich gezählt.
+  Review-Pass fixte zusätzlich PRE-EXISTING UB: MIDIEventPacketNext auf
+  Stack-Kopie las hinter dem Speicherende bei numPackets>1 → jetzt
+  eventList.unsafeSequence() in-place. +16 Tests.
+- **LEDGER-Lehren:** (1) Task-per-Event von Hochraten-Threads = Executor-Flut
+  UND FIFO-Bruch — Batch-Queue mit One-Drain-per-Burst (push→true genau
+  einmal pro Burst) ist das Muster ohne Latenz-Verlust. (2)
+  MIDIEventPacketNext NIE auf einer Struct-Kopie — unsafeSequence() über den
+  Original-Puffer.
+- **H9 vorbereitet (04d802d, docs):** Read-only-Graph-Audit + Council +
+  PLAN_H9_AU_EFFECT_INSERTS_2026-07-15.md. Kernbefunde: einzige per-Lane-
+  Node-Grenze heute = H5-laneMixer (AU-Instrument-Spuren); TimelineAudioSink
+  ist per-Lane aber ohne Mixer-Grenze; Rack-Voices sind gepoolte Slots (per-
+  Lane-FX dort = deferred, Re-Bind bei Play-Start dürfte den Graph nicht
+  pausieren); lane.effects + setLaneEffects existieren daten-seitig komplett
+  ohne Engine-Konsument (exakte prä-H5-Lage); musicalContextBlock/
+  transportStateBlock = 0 Treffer im Repo (H9b: lock-freier Host-State-
+  Spiegel, Render-Thread-Auflage!).
+- **Nächster Punkt:** H9a Bau — Effekt-Ketten in LaneAUInstrumentHost
+  (AU → fx… → laneMixer, withGraphPaused, inFlight/failed-Muster wie H5).
