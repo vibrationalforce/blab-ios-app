@@ -1,28 +1,32 @@
-build: 2026-07-15 v10.79.242 (Magnetkanten + fühlbares Einrasten — Clips küssen ihre Nachbarn)
+build: 2026-07-15 v10.79.243 (Überlapp-Regel: der abgelegte Clip gewinnt — keine Clip-Stapel mehr)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Clip-Game C4 (dein God-Mode-Mandat: Baustellen eigenständig fertig bauen).
+notes: Clip-Game C5 (God-Mode-Mandat, letzter Interaktions-Baustein vor der EchoelAI-Schicht).
 
-  NEU beim Clip-Verschieben:
-  • MAGNETKANTEN: beim Loslassen zieht es den Clip nicht nur ans Raster, sondern auch
-    an die KANTEN der Nachbar-Clips derselben Spur — Anfang-an-Ende und Ende-an-Anfang
-    (das DAW-übliche "Butt-Join": Clips docken nahtlos aneinander, keine Mini-Lücken,
-    keine Mini-Überlappungen mehr). Der nähere Sog gewinnt (Kante vs. Rasterlinie).
-  • Auch bei Snap = OFF: das Raster zieht dann gar nicht (stufenlos), aber die
-    Nachbar-Kanten fangen weiter — gridloses, sauberes Andocken.
-  • Das Magnetfenster ist immer ~8 Bildschirm-Punkte — bei jeder Zoomstufe dieselbe
-    Fingerdistanz.
-  • FÜHLBARES EINRASTEN: ein leichter Haptik-Tick, wenn der Clip beim Loslassen
-    tatsächlich eingerastet ist (Raster oder Kante). Lag er schon exakt richtig,
-    bleibt es still — kein Dauergebrumme.
+  BISHER: legte man einen Clip auf einen anderen, lagen beide übereinander — beim
+  Abspielen doppelt/unklar. JETZT gilt die DAW-Regel "der bewegte Clip gewinnt":
+  • Landet er auf dem ENDE eines Nachbarn → der Nachbar wird hinten gekürzt und
+    dockt sauber an.
+  • Landet er auf dem ANFANG eines Nachbarn → der Nachbar rückt hinter den Clip;
+    sein Inhalt bleibt dabei an Ort und Stelle (Medien-Offset wandert korrekt mit).
+  • Verschluckt er einen kleineren Nachbarn komplett → der verschwindet.
+  • Landet er MITTEN IN einem größeren Clip → der teilt sich in zwei Stücke davor
+    und dahinter (Inhalt bleibt jeweils an seinem Platz).
+  • ALLES ist EIN Undo-Schritt: ↩ bringt den Zug UND alle umgeformten Nachbarn
+    gemeinsam zurück — furchtlos bleiben.
+  • Exakt angedockte Clips (Magnetkanten aus v242) werden NICHT angefasst — Kante an
+    Kante ist kein Überlapp.
 
-  TEST-FIRST: 4 neue pure Snap-Tests (Kante schlägt Raster, Raster schlägt Kante,
-  Off-Grid-Andocken, Fallback + Klemmung).
-  SICHER: ui-state-reviewer CONFIRMED — Mathematik handverifiziert, Haptik-API
-  korrekt (iOS-18-nativ, Leaf-Modifier, Root-Kette unberührt), Nachbar-Lesen nur im
-  Loslass-Moment (Freeze-Regel). Gates v241 grün.
+  TEST-FIRST: 5 neue Store-Tests (hinten kürzen + Ein-Schritt-Undo, vorne rücken mit
+  exaktem Offset-Nachweis, Verschlucken + Undo, Container-Teilung mit Offset-Prüfung,
+  Alt-Verhalten ohne Regel).
+  SICHER: code-reviewer CONFIRMED — jede Fallmathematik handgeprüft (split/trimmedStart-
+  Guards können nie ein Stück verlieren), Overload-Auflösung eindeutig, keine Regression
+  in Undo/Combine/Magnet; Magnet + Überlapp-Regel komponieren korrekt (erst einrasten,
+  dann am Endplatz aufräumen — auch nach Spurwechsel auf der ZIEL-Spur). Gates v242 grün.
 
-  Clip-Game-Stand: C1 Drag-to-move ✓ · C2 Undo/Redo ✓ · C3 Multi-Select+Combine ✓ ·
-  C4 Magnetkanten+Haptik ✓ · als Nächstes C5 Überlapp-Regel · C6 EchoelAI-
-  TimelineToolCore. Danach die Video-Reihe (V2 Mediathek-Zugriff → V5 Kelvin-Kamera).
+  CLIP-GAME KOMPLETT (dein "seamless workflow"-Auftrag): C1 Drag-to-move ✓ · C2 Undo/
+  Redo ✓ · C3 Multi-Select+Combine ✓ · C4 Magnetkanten+Haptik ✓ · C5 Überlapp-Regel ✓.
+  Als Nächstes: C6 EchoelAI-TimelineToolCore (Sprachbefehle → exakt dieselben Store-
+  Calls) und die Video-Reihe (V2 Mediathek-Zugriff → V4 Kamera-Capture → V5 Kelvin).
 
-  Reihenfolge: v240 Undo/Redo · v241 Multi-Select · v242 Magnetkanten+Haptik.
+  Reihenfolge: v241 Multi-Select · v242 Magnetkanten · v243 Überlapp-Regel.
