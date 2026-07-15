@@ -5946,3 +5946,27 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   eines Alt-Refs zahlt den Dead-Path-Probe erneut.
 - **Nächster Punkt (Welle 2):** H7 SurfaceHost Fold/Unfold-Identitäts-Kill
   (read-only Audit zuerst, ui-state-reviewer Pflicht).
+
+## 2026-07-15 (Fortsetzung 5) — H7 geheilt + Founder-Log-Triage, v252 deployed
+- **v252 (H7 c41d938 + Polish 67d248d + Log-Quellen 35affb2, Gates grün):**
+  Fold/Unfold ist reiner Layout-Toggle. EchoelStudioView stand in BEIDEN
+  Branches des timelineExpanded-Conditionals → Identitäts-Kill → onDisappear
+  → stopEverything() mitten in der Live-Session. Fix: EIN Studio-View an
+  EINER Struktur-Position, nur der Timeline-Block konditional, Frame per
+  Ternary. ui-state-Review CORRECT (Bonus verifiziert: Fold clobberte via
+  re-onAppear auch live editierte Patches — mitgeheilt).
+- **LEDGER-Lehren:** (1) Ein View in BEIDEN Branches eines `if/else` =
+  Identitäts-Kill (Teardown+Rebuild, onDisappear/onAppear feuern) — lebende/
+  teure Subtrees IMMER an EINE stabile Struktur-Position, nur Modifier-WERTE
+  ternary flexen. (2) Ein `.onDisappear` mit Session-Teardown ist ein
+  ALARMSIGNAL: jeden Mount-Punkt des Views auf Konditional-Identität auditen.
+- **Founder-Log v249 (Build 2355) triagiert:** Launch/Engine/rPPG gesund
+  (Resilienz-Relock feuerte 1× und erholte sich). Funde: (a) Gerät hat 0
+  Third-Party-AUv3 ("makers: Apple", 5 Scans konsistent) → AU-Test-Guidance:
+  Apples 4 Instrumente gehen durch denselben Assign-Flow; ownAUv3 false =
+  erwartet (Target deferred). (b) 2 stopEverything ohne zuordenbaren Auslöser
+  → Stop-Quellen-Logging eingebaut (user-stop/intent-stop/transport-stopped/
+  unmount). (c) rPPG-Confidence-Oszillation dokumentiert → Material für #25.
+- **Nächster Punkt (Welle 2):** H10 MIDI-Eingangs-Flut (#30) — Task-per-Event
+  → Batch-Queue (RGBSampleQueue-Muster 10.76.48); read-only Audit zuerst,
+  audio-thread-reviewer Pflicht.
