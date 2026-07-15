@@ -1,30 +1,31 @@
-build: 2026-07-15 v10.79.227 (Tempo wandert nach oben in die Transport-Leiste neben Play)
+build: 2026-07-15 v10.79.228 (Puls lockt nach Finger-Wackler wieder — Fenster-Flush bei Finger-Verlust)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Antwort auf dein Feedback ("Das soll da oben hin") + deine Wahl "beide behalten":
-  die eigene, breite Tempo-Zeile ist WEG — das Tempo sitzt jetzt kompakt OBEN in der
-  Transport-Leiste, direkt neben Play. Der Puls-Monitor bleibt wie gewünscht in der
-  Marken-Kopfzeile (deshalb "beide": Puls oben-links, Tempo in der Transport-Zeile).
+notes: Aus deinem Geräte-Log (v224): der Puls lockte beim ERSTEN Auflegen sauber
+  (bpm 59, conf 0.90 nach ~20 s) — dann, nachdem der Finger kurz abhob, lockte er
+  ~50 s lang NIE wieder (amp im Diagnose-Log eingefroren bei 0.2546, pk=0, bpm=0,
+  conf=0.00), obwohl das Fenster voll blieb.
 
-  WAS neu:
-  · Kompaktes Tempo-Feld (weiter 4 Nachkommastellen + Schloss, nur ohne die Wörter
-    „Tempo"/„BPM", damit es neben Play passt) — folgt unverriegelt dem Puls, verriegelt
-    exakt editierbar wie bisher.
-  · Die vier Chrome-Türen (Master · Export · Live · Learn) sind in EIN „•••"-Menü in der
-    Transport-Leiste zusammengefasst — so wird der Platz fürs Tempo frei, OHNE die
-    Marken-Kopfzeile anzufassen. Alle vier Türen bleiben erreichbar (voll umkehrbar).
-  · Die separate Tempo-Zeile entfällt → mehr vertikaler Platz für die Timeline.
+  URSACHE (echter Logik-Fehler, kein Blind-Tuning): beim Finger-Verlust wurde die
+  Belichtung zurückgesetzt, ABER das rollende Analyse-Fenster NICHT geleert. So blieben
+  die alten, gesättigten Samples + der Helligkeits-Sprung (vom Belichtungs-Entsperren)
+  im Fenster liegen → der Bandpass saß auf einer Stufe, amp fror ein, ein neues Auflegen
+  konnte nie sauber neu-locken. Genau dieser Flush existierte SCHON im Kamera-Neustart-
+  Pfad (handleCameraSessionReset) für exakt denselben Effekt — der Finger-Verlust-Pfad
+  hatte ihn nur nicht.
 
-  GERÄTE-CHECK NÖTIG (bitte Screenshot): auf sehr schmalen iPhones (SE/mini) könnte die
-  Transport-Zeile eng werden — sag mir, ob alles sauber passt oder ob ich Tempo/Türen
-  noch kompakter machen soll. Falls du das „•••"-Menü NICHT magst, stelle ich die vier
-  Türen mit einem Wort zurück.
+  FIX: beim Lock-Abwurf nach Finger-Verlust wird jetzt `analyzer.resetForRecovery()`
+  aufgerufen (leert Fenster, DC/Bandpass-State, setzt amp/bpm/conf zurück) — das nächste
+  Auflegen re-akquiriert sauber wie beim Start. Der ANGEZEIGTE Puls bleibt dabei stehen
+  (die Anzeige rückt nur bei vertrauenswürdiger Messung nach), springt also nicht auf 0.
 
-  Reviewer ui-state CONFIRMED: Freeze-Regel gewahrt (Tempo-Feld ist ein eigenes Leaf,
-  liest den 10-Hz-Puls nur in SEINEM Body — die Transport-Leiste/Menüs bleiben ruhig),
-  keine Sheet-Ketten-Änderung (natives Menu), Environment erreicht das Feld. Ein vom
-  Reviewer gefundener Kompilier-Fehler (Argument-Reihenfolge boxWidth/onCommit) wurde
-  VOR dem Deploy behoben.
+  SICHER: dsp-reviewer CONFIRMED — behebt das Einfrieren, verschlechtert kein gutes Lock
+  (ein ruhiger Finger löst den Zweig nie aus, weil er nur bei bestehendem Lock erreichbar
+  ist → Flush genau einmal pro Lock→Verlust-Zyklus), keine Nebenläufigkeits-Änderung
+  (@MainActor Publish-Loop wie bisher), Rausch-Triad unangetastet.
 
-  Reihenfolge deiner heutigen Rückmeldungen: v225 Spur-Kopf-Fit · v226 Split/Join am
-  Clip · v227 Tempo hoch. Noch offen: Sample/MIDI per Lang-Druck einfügen · Mehrfach-
-  auswahl „Combine".
+  GERÄTE-CHECK: bitte einmal Puls locken, Finger kurz abheben, wieder auflegen — er
+  sollte jetzt zügig wieder locken statt ~50 s tot zu bleiben. (Tipp bleibt: Finger ruhig
+  halten; die Coaching-Hinweise „Finger ruhig"/„sanft drücken" führen.)
+
+  Reihenfolge heute: v225 Spur-Kopf · v226 Split/Join am Clip · v227 Tempo hoch ·
+  v228 Puls-Relock. Offen aus Feedback: Sample/MIDI per Lang-Druck · Combine (Mehrfachauswahl).

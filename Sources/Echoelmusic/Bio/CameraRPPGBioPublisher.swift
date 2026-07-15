@@ -865,6 +865,17 @@ public final class CameraRPPGBioPublisher {
             fingerPresentTicks = 0
             weakAcfTicks = 0
             weakRelocksUsed = 0   // a NEW placement earns a fresh re-lock budget
+            // Flush the analyzer's rolling window too — the SAME clean-slate the camera
+            // session-reset path takes (see handleCameraSessionReset). Dropping the lock
+            // without this left the pre-loss SATURATED samples + the exposure-unlock
+            // brightness STEP in the window, so the next finger placement re-acquired
+            // against poisoned data: amp froze and conf stayed 0.00 for the whole window
+            // (device log 1784100xxx: first placement locked to conf 0.90, then after a
+            // brief finger-off the pulse never re-locked for ~50 s — amp frozen at 0.2546).
+            // With the flush a fresh placement re-acquires from clean, exactly like startup.
+            // displayBPM is held by the publish loop (never advances on bpm=0), so the SHOWN
+            // pulse holds through re-acquire instead of snapping to 0.
+            analyzer.resetForRecovery()
         }
     }
 
