@@ -198,6 +198,8 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
     func testFingerFrame_releasesBelowHoldFloor() {
         // Finger truly gone: below the 0.12 hold floor it releases even when previously
         // held (log t=1141: R=0.09 with the finger actually drifting off stays released).
+        // The floor itself is a strict `>`: exactly 0.12 releases (review pin).
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.12, avgG: 0.04, avgB: 0.03, wasDetected: true))
         XCTAssertFalse(A.isFingerFrame(avgR: 0.10, avgG: 0.04, avgB: 0.03, wasDetected: true))
         XCTAssertFalse(A.isFingerFrame(avgR: 0.09, avgG: 0.04, avgB: 0.03, wasDetected: true))
     }
