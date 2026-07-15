@@ -57,6 +57,12 @@ public enum MediaLibrary {
         try copyIn(source, subdirectory: "Media/Video", fallbackExt: "mov")
     }
 
+    /// Copy a user-picked IMAGE into `Media/Image` (V3 — stills land on video lanes
+    /// as fixed-length clips; same contract as importVideo).
+    public static func importImage(from source: URL) throws -> URL {
+        try copyIn(source, subdirectory: "Media/Image", fallbackExt: "jpg")
+    }
+
     /// Shared copy: resolve the media subdir, pick a fresh UUID name (preserving
     /// the source extension), copy the file in. Throws on no container / copy fail.
     private static func copyIn(_ source: URL, subdirectory: String, fallbackExt: String) throws -> URL {
