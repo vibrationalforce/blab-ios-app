@@ -32,12 +32,18 @@ public final class LaneAUInstrumentHost {
 
     @ObservationIgnored private weak var engine: AudioEngine?
     /// Live per-lane voices (laneID → hosted instrument). Read by the note
-    /// fan-out; written only by `syncAssignments`.
+    /// fan-out; written only via `syncAssignments`' lifecycle (async completion
+    /// of instantiate, and release).
     public private(set) var voices: [UUID: AUNoteVoice] = [:]
     /// The ref each live voice was built from (change detection on re-assign).
     @ObservationIgnored private var refs: [UUID: AUPluginRef] = [:]
-    /// Lanes with an instantiation in flight (re-entrancy guard — async load).
-    @ObservationIgnored private var inFlight: Set<UUID> = []
+    /// The PENDING ref per lane with an instantiation in flight. Carrying the
+    /// ref (not a bare Set) is the stale-guard: an assignment cleared/changed
+    /// while a load is suspended at `await instantiate` clears/replaces this
+    /// entry, and the resumed Task checks its ref is STILL the pending one
+    /// before attaching — a superseded load drops its unit un-attached
+    /// (review HIGH: the Set version installed the removed plugin).
+    @ObservationIgnored private var inFlight: [UUID: AUPluginRef] = [:]
 
     public init() {}
 
@@ -48,22 +54,29 @@ public final class LaneAUInstrumentHost {
     public func voice(laneID: UUID) -> AUNoteVoice? { voices[laneID] }
 
     /// Reconcile hosted instances with the document's lane assignments:
-    /// removed/changed assignments detach their instance; new assignments
-    /// instantiate asynchronously (capped). Idempotent — safe to call on every
-    /// assignment edit and at app-start restore.
-    public func syncAssignments(lanes: [TimelineLane]) {
+    /// removed/changed assignments detach their instance (and invalidate any
+    /// in-flight load); new assignments instantiate asynchronously (capped).
+    /// `rollLane` is EXCLUDED (review MEDIUM): the primary roll lane plays
+    /// through the app-global AUv3Host — hosting it here too would instantiate
+    /// the same plugin twice (RAM/CPU, a wasted cap slot, double-sounding risk).
+    /// Idempotent — safe on every assignment edit and at app-start restore.
+    public func syncAssignments(lanes: [TimelineLane], rollLane: UUID?) {
         var wanted: [UUID: AUPluginRef] = [:]
-        for lane in lanes where lane.kind == .midi && !lane.isBio {
+        for lane in lanes where lane.kind == .midi && !lane.isBio && lane.id != rollLane {
             if let ref = lane.instrument, ref.isInstrument { wanted[lane.id] = ref }
         }
-        // Tear down instances whose lane is gone or whose plugin changed.
+        // Tear down live instances whose lane is gone or whose plugin changed,
+        // and invalidate in-flight loads the same way (the resumed Task checks).
         for (laneID, ref) in refs where wanted[laneID] != ref {
             release(laneID: laneID)
+        }
+        for (laneID, ref) in inFlight where wanted[laneID] != ref {
+            inFlight[laneID] = nil
         }
         // Instantiate what's missing, oldest-first by lane order, capped.
         for lane in lanes {
             guard let ref = wanted[lane.id], refs[lane.id] == nil,
-                  !inFlight.contains(lane.id) else { continue }
+                  inFlight[lane.id] != ref else { continue }
             guard refs.count + inFlight.count < Self.maxInstances else {
                 log.audio("Lane AU cap (\(Self.maxInstances)) reached — '\(ref.name)' on '\(lane.name)' not hosted", level: .error)
                 continue
@@ -80,18 +93,27 @@ public final class LaneAUInstrumentHost {
     // MARK: - Private
 
     private func instantiate(_ ref: AUPluginRef, laneID: UUID) {
-        guard engine != nil else { return }
-        inFlight.insert(laneID)
+        guard engine != nil else {
+            log.audio("Lane AU '\(ref.name)': no engine wired — not hosted", level: .error)
+            return
+        }
+        inFlight[laneID] = ref
         let desc = AudioComponentDescription(
             componentType: ref.componentType,
             componentSubType: ref.componentSubType,
             componentManufacturer: ref.componentManufacturer,
             componentFlags: 0, componentFlagsMask: 0)
         Task { @MainActor [weak self] in
-            defer { self?.inFlight.remove(laneID) }
+            // Clear only OUR pending entry — a newer load for the same lane may
+            // have replaced it while we were suspended.
+            defer { if self?.inFlight[laneID] == ref { self?.inFlight[laneID] = nil } }
             do {
                 let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
-                guard let self, let engine = self.engine else { return }
+                // Stale-guard (review HIGH): the assignment may have been cleared
+                // or changed while we were suspended — a superseded load drops its
+                // unit un-attached (ARC closes the extension connection; no leak).
+                guard let self, self.inFlight[laneID] == ref,
+                      let engine = self.engine else { return }
                 let voice = AUNoteVoice(avUnit: unit)
                 var attached = false
                 engine.withGraphPaused {
