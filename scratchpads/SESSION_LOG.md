@@ -6024,3 +6024,34 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Nächster Punkt (Welle 2):** H9b musicalContextBlock + transportStateBlock
   aus lock-freiem Host-State-Spiegel (PLAN_H9 §H9b; audio-thread-reviewer
   Pflicht — die Blocks laufen auf dem Render-Thread).
+
+## 2026-07-15 (Fortsetzung 8) — H9b geheilt, v255 deployed (H9-Block komplett)
+- **v255 (4a61935 + Review-Pass 0477aa0, Gates 4/4 grün):** H9b Tempo/
+  Transport-Kontext. musicalContextBlock + transportStateBlock auf JEDEM
+  gehosteten AU (AUv3Host-Kanal + Master-FX + LaneAUInstrumentHost-Ketten),
+  installiert nach instantiate, VOR attach (vor allocateRenderResources —
+  Block-cachende AUs abgedeckt). Render-Thread-Blocks lesen lock-freien
+  HostMusicalState-Spiegel (Core/, Foundation-only; HostBeatMath pur);
+  Writer: Transport auf setTempo/play/stop/seek/tick (PatternEngine relayt
+  alles dorthin) + Engine-SampleRate-Stamp. Review REQUEST_CHANGES → beide
+  HIGHs gefixt: samplePosition akkumuliert (monoton unter Bio-Glide),
+  Spiegel-Wire flag-frei. +13 Tests (inkl. Monotonie unter Tempo-Rampe —
+  der Test, der HIGH-2 gefangen hätte).
+- **LEDGER-Lehren:** (1) Render-Thread-Host-Blocks = lock-freier Spiegel;
+  Blocks capturen NUR Sendable-State (nie self/Engine); der Spiegel darf
+  NIE @Observable werden — der Observation-Registrar legt Alloc+Lock in
+  jeden Render-Read. (2) Host-samplePosition IMMER akkumulieren (Integral
+  der gespielten Steps), NIE beat×tempo ableiten — unter Tempo-Glides läuft
+  die Ableitung rückwärts und Plugins deuten den Sprung als Relocation
+  (hörbare Re-Syncs). Der Monotonie-unter-Rampe-Test gehört von Anfang an
+  dazu. (3) Kontext-Wiring nie in einen FREMDEN Feature-Flag-Block stecken,
+  wenn der Consumer unconditional installiert — Flag-OFF friert sonst auf
+  Defaults ein (schlimmer als kein Kontext). (4) AVAudioEngine-Blocks vor
+  attach installieren = vor allocateRenderResources (Cache-sicher).
+- **H9-Block (U2/U3-Fortsetzung) KOMPLETT:** v250 AU-Instrumente pro Spur ·
+  v254 AU-Effekte pro Spur · v255 Tempo-Kontext. Founder-Mandat "auv3 von
+  Third Party wie Eventide ermöglichen" ist engine-seitig durchgebaut;
+  Device-Verify steht aus (Gerät hat 0 Third-Party-AUv3 — Apple-AUs gehen
+  durch denselben Flow).
+- **Nächster Punkt (Welle 2):** H11 Bau nach PLAN_H11 (clip-scoped Roll +
+  updateMelody + Multi-Bar-Gate). Danach H8 · H12 · H13.

@@ -1,38 +1,38 @@
-build: 2026-07-15 v10.79.254 (Effekt-Plugins pro Spur klingen jetzt — H9a)
+build: 2026-07-15 v10.79.255 (Plugins bekommen das Song-Tempo — H9b)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Vierter Welle-2-Punkt geheilt (H9a) — die Insert-Effekte einer Spur
-  sind jetzt ein klingender Signalweg, nicht mehr nur gespeicherte Daten.
+notes: Fünfter Welle-2-Punkt geheilt (H9b) — gehostete Plugins kennen jetzt
+  Tempo, Beat-Position und Play-Zustand des Songs.
 
-  H9a — PER-SPUR-EFFEKT-INSERTS:
-  • lane.effects war seit U3 persistierte Daten, die KEIN Engine-Code las
-    (exakt die Lage von lane.instrument vor v250). Jetzt baut der Lane-Host
-    die Kette Instrument → FX… → Spur-Mixer → Master — mit denselben
-    erprobten v250-Mechaniken (Instanziierung nur zur Zuweisungszeit bei
-    pausiertem Graph, nie mid-song; Stale-Guard; Failed-Parking).
-  • NIE STILLE: eine ausfallende FX-Stufe wird übersprungen, die Kette
-    klingt weiter. Und der Crash-Pfad ist zu: connect() wirft bei Format-
-    Ablehnung keine Exception, es RAISED eine ObjC-Exception — ein Format-
-    Pre-Flight pro Stufe (setFormat auf beiden Bussen) fängt Format-
-    verweigernde Third-Party-Effekte ab, BEVOR der Graph angefasst wird.
-  • Grenzen ehrlich: max 3 Inserts pro Spur, gemeinsames 8-Unit-Budget
-    (Instrumente + Effekte); das Install-Log zeigt wired/wanted (z. B.
-    "2/3 FX"), damit eine übersprungene Stufe sichtbar bleibt.
-  • Die UI-Tür gab es schon: „Assign … to this track" im Spur-Menü schreibt
-    Instrument + geladene Effekte auf die Spur — ab diesem Build klingt sie.
-  • Ehrliche Grenze: FX auf Spuren mit EINGEBAUTEN Instrumenten (Rack-Voices)
-    sind noch deferred — die gepoolten Slots haben keine per-Spur-Node-Grenze
-    (eigener Zyklus, PLAN_H9).
-  • Review: APPROVE (audio-thread, adversarial auf Races/Graph-Korruption:
-    keine gefunden); HIGH+MEDIUM+LOWs eingearbeitet. +11 Tests.
+  H9b — TEMPO/TRANSPORT-KONTEXT FÜR ALLE GEHOSTETEN PLUGINS:
+  • Bisher bekamen gehostete AUv3s nur MIDI-Noten und NULL musikalischen
+    Kontext — ein tempo-synced Delay oder LFO lief frei statt im Song-Tempo.
+    Jetzt installiert jeder Host-Pfad (globaler Plugin-Kanal, Master-Bus-
+    Effekte, per-Spur-Ketten aus v250/v254) beim Laden die zwei Host-Blocks
+    (musicalContext + transportState), über die Plugins ihren Host befragen.
+  • Die Blocks laufen auf dem RENDER-Thread — sie lesen deshalb einen
+    lock-freien Spiegel (kein Lock, keine Allokation), den ausschließlich
+    der Transport (die eine autoritative Clock) beschreibt: Tempo, Beat-
+    Position, Play-Zustand, Sample-Position.
+  • Zwei Review-HIGHs vor dem Deploy gefixt: (1) die Sample-Position wird
+    AKKUMULIERT statt abgeleitet — die Ableitung lief unter deinem Body→
+    Tempo-Glide RÜCKWÄRTS, und Plugins deuten das als Sprung und re-syncen
+    hörbar bei jedem Glide-Tick; akkumuliert ist sie monoton durch jeden
+    Glide. (2) Die Spiegel-Verdrahtung war versehentlich an ein Feature-Flag
+    gekoppelt — bei Flag-OFF wären alle Plugins auf 120 BPM/„gestoppt"
+    eingefroren. Jetzt flag-frei.
+  • Ehrliche Grenzen (dokumentiert): Beat-Position rückt pro 16tel vor
+    (Plugins interpolieren übers Tempo), Taktart fix 4/4, kein Loop-Cycle-
+    Report. +13 Tests (inkl. Monotonie unter Tempo-Rampe).
 
-  TESTEN AUF DEINEM GERÄT: Spur-Menü → Browse AUv3 → Instrument + Effekt(e)
-  laden → „Assign … to this track". (Dein Gerät hat 0 Third-Party-AUv3 —
-  Apples Effekte wie AUDelay/AUReverb gehen durch denselben Flow.)
+  HÖRBAR: lade z. B. Apples AUDelay auf eine Spur (v254-Flow) und stelle
+  es auf Tempo-Sync — die Delay-Zeit folgt jetzt dem Song-Tempo, auch
+  während der Bio-Glide das Tempo verschiebt.
 
-  Gates 6e79e0f + 68eef39 alle grün.
+  Gates 4a61935 + 0477aa0 alle grün. Damit ist der H9-Block (U2/U3-
+  Fortsetzung) komplett: v254 Per-Spur-FX + v255 Tempo-Kontext.
 
-  Welle-2-Rest: H9b Tempo-Kontext für Plugins (musicalContext/transportState —
-  Delays/LFOs im Song-Tempo) · H8 · H11-13.
+  Welle-2-Rest: H11 Clip-scoped MIDI-Edit + Rückschreiben (als Nächstes;
+  Audit + Plan liegen) · H8 · H12 · H13.
 
-  Reihenfolge: v250 AU-Instrumente · v251 Update-feste Medien · v252 Fold-Fix ·
-  v253 MIDI-Flut · v254 Per-Spur-FX.
+  Reihenfolge: v251 Update-feste Medien · v252 Fold-Fix · v253 MIDI-Flut ·
+  v254 Per-Spur-FX · v255 Plugin-Tempo-Kontext.
