@@ -1,46 +1,28 @@
-build: 2026-07-15 v10.79.256 (Clip-Edit wie eine DAW + Start klingt IMMER + Combine-Schutz)
+build: 2026-07-15 v10.79.257 (Audio-Clip-Tap spielt SEIN Fenster — wie eine Profi-DAW)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Drei Punkte in einem Build — H11 + dein v255-Log-Fix + H12.
+notes: H13 — der letzte Punkt des MIDI/Audio-Clip-Profi-Mandats (Engine-Seite).
 
-  [A] H11 — MIDI-CLIP-EDIT EDITIERT JETZT DEN CLIP (mit Rückschreiben):
-  • Vorher öffnete „Edit" auf einer MIDI-Region die geteilte App-Roll — die
-    Clip-Noten wurden nie geladen, Edits landeten nie im Clip, und der Player
-    überschrieb dieselbe Roll mid-play an jeder Region-Grenze.
-  • Jetzt: „Edit" lädt den getappten Takt der CLIP-EIGENEN Melodie in eine
-    Wegwerf-Roll (vom Playback entkoppelt). „Done" schreibt den Takt in den
-    Clip zurück; Wegwischen = Abbrechen. Multi-Takt-Schutz: Noten außerhalb
-    des editierten Takts überleben byte-identisch — ein 4-Takt-Clip kann nie
-    stumm auf einen Takt abgeflacht werden. Titel zeigt „Edit Clip — Bar k/N".
-  • Ehrlicher stummer Editor (v1): kein Play-Button/Playhead im Clip-Editor —
-    der alte Play hätte den LIVE-TAKE abgespielt, während der Playhead über
-    deine editierten Noten fährt (lügende Vorschau; beide Reviewer HIGH).
-    Anhören: Region im Arrangement abspielen. Echte Vorschau-Voice kommt.
+  AUDIO-REGION ANTIPPEN = DIE REGION HÖREN, NICHT DIE DATEI:
+  • Vorher spielte der Tap auf einen Audio-Clip immer den DATEIANFANG über
+    die Drum-Preview-Voice (~2 s Puffer-Deckel) — eine vorne getrimmte
+    Region klang beim Antippen FALSCH (du hörtest Audio, das gar nicht im
+    Clip liegt) und nie länger als 2 Sekunden.
+  • Jetzt: Der Tap spielt das EIGENE Fenster der Region — ab ihrem
+    Trim-Punkt (contentOffset), genau für ihre musikalische Länge beim
+    aktuellen Tempo — gestreamt über denselben ehrlichen Segment-Pfad,
+    den auch die Spur-Wiedergabe nutzt (kein Puffer-Deckel mehr).
+  • Schutzgesetze: Während der Transport läuft, audioniert der Tap NICHT
+    (die Spur klingt ja schon — Doppelklang/Phasen-Gefahr); Transport-Start
+    und Timeline-Einklappen stoppen eine laufende Audition sofort.
+  • Reviewer-Fund gleich mitgeheilt: Der Audition-Knoten verbindet sich
+    bei Format-Wechsel (Mono↔Stereo, Samplerate) jetzt ehrlich neu — vorher
+    drohte beim Wechsel Stereo-Import → Mono-Aufnahme ein harter Crash
+    (channelCount-Exception). Gilt auch für Multi-Format-Clips auf einer Spur.
+  • Drum-Pad-Preview im Sample-Browser unverändert (eigener, richtiger Pfad).
 
-  [B] DEIN v255-LOG — „START KLINGT IMMER":
-  • Dein Log zeigte generate[start] mit rollMixGain=0.00: die Melodie-Spur
-    stand im gespeicherten Dokument stumm (Mute/Level 0/altes Solo) → 15 s
-    Stille → Exit. Ein expliziter Start heilt das jetzt VOR dem ersten Ton
-    (Unmute, Level-Floor, alte Solos weg — dieselbe Regel wie der „Ton an"-
-    Banner, eine einzige Heil-Logik). Ist die Spur hörbar, ändert Start
-    nichts — bewusste Mutes überleben. Automatik (Evolve) fasst den Mix nie an.
-  • Der Reviewer fand dabei ein tieferes Loch, auch zu: die Gain-Spiegelung
-    wohnte in der EINKLAPPBAREN Timeline-View — bei gefalteter Timeline
-    erreichte KEIN Mixer-Edit den Klangpfad. Der Spiegel sitzt jetzt
-    always-mounted auf App-Ebene; die Heilung ist im selben Start hörbar.
-  • rPPG in deinem Log: kein Lock, weil die Belichtung zu DUNKEL lockte
-    (bright 0.21→0.09, Amplitude kollabierte) — Gegenstück zur Übersättigung
-    aus v202, dokumentiertes Material für #25 (kein Blind-Tuning). Mitigation:
-    leichter aufdrücken.
+  +5 reine Tests (Fenster = Offset+Länge, nil-während-Play, Tempo-Länge,
+  Negativ-Offset-Klammer). Audio-Thread-Review: APPROVE, alle 4 Gates grün.
 
-  [C] H12 — COMBINE KANN KEINE INHALTE MEHR VERSCHLUCKEN:
-  • Combine über Regionen VERSCHIEDENER Clips hätte still alle Inhalte außer
-    dem ersten Clip verworfen (die Region behält eine clipID). Jetzt: Button
-    ist bei gemischter Auswahl sichtbar deaktiviert; Split-Stücke desselben
-    Clips kombinieren verlustfrei wie bisher. Echtes Inhalts-Mergen
-    verschiedener Clips = eigener späterer Zyklus.
-
-  +18 Tests über die drei Punkte. Alle Gates grün, alle Review-Funde
-  eingearbeitet (2× REQUEST_CHANGES → gefixt, 1× APPROVE).
-
-  Reihenfolge: v253 MIDI-Flut · v254 Per-Spur-FX · v255 Plugin-Tempo-Kontext ·
-  v256 Clip-Edit + Start-Heal + Combine-Guard.
+  NÄCHSTES (dein 8h-Mandat läuft): 10-Bereiche-Ultrascan in Arbeit —
+  Zyklus 1 danach = dein Log-Befund "Transport stoppt sich selbst nach
+  13/48 s und reißt die Bio-Session mit".
