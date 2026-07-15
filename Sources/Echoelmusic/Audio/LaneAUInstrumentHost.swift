@@ -241,6 +241,10 @@ public final class LaneAUInstrumentHost {
                 // The voice carries the WIRED set, so release detaches exactly
                 // what attach connected.
                 let wiredFX = engine.effectsAcceptingChainFormat(effectUnits)
+                // H9b: tempo/transport context on the whole chain (instrument
+                // AND effect stages) — tempo-synced plugins lock to the song.
+                AUHostContext.install(on: unit.auAudioUnit)
+                for fx in wiredFX { AUHostContext.install(on: fx.auAudioUnit) }
                 let voice = AUNoteVoice(avUnit: unit, effectUnits: wiredFX)
                 var attached = false
                 engine.withGraphPaused {

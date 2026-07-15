@@ -84,12 +84,30 @@ public final class Transport {
     @ObservationIgnored private var stopSubs: [String: () -> Void] = [:]
     @ObservationIgnored private var lastStep = 0
 
+    /// H9b: the lock-free mirror hosted AUv3 plugins read their musical
+    /// context from (render-thread readers — see HostMusicalState). nil by
+    /// default so Transport stays pure in unit tests; the app wires `.shared`.
+    /// Written on every state change below — Transport is the ONE clock, so
+    /// this is the one write point.
+    @ObservationIgnored public var hostStateMirror: HostMusicalState?
+
     public init() {}
+
+    /// Push the current control-plane state into the host mirror (call after
+    /// every mutation — cheap plain stores).
+    private func syncHostMirror() {
+        guard let m = hostStateMirror else { return }
+        m.tempo = tempo
+        m.isPlaying = isPlaying
+        m.beatPosition = HostBeatMath.beats(fromAbsoluteStep: position.absoluteStep,
+                                            stepsPerBeat: Self.stepsPerBeat)
+    }
 
     // MARK: - Tempo / swing (clamped exactly like PatternEngine)
 
     public func setTempo(_ bpm: Double) {
         tempo = Swift.min(Swift.max(bpm, Self.minTempo), Self.maxTempo)
+        syncHostMirror()
     }
 
     public func setSwing(_ amount: Double) {
@@ -102,12 +120,14 @@ public final class Transport {
         position = .zero
         lastStep = 0
         isPlaying = true
+        syncHostMirror()
     }
 
     public func stop() {
         isPlaying = false
         position = .zero
         lastStep = 0
+        syncHostMirror()
         for cb in stopSubs.values { cb() }
     }
 
@@ -116,6 +136,7 @@ public final class Transport {
         let s = Swift.min(Swift.max(step, 0), Self.stepsPerBar - 1)
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
+        syncHostMirror()
     }
 
     // MARK: - Tick
@@ -130,6 +151,7 @@ public final class Transport {
         if s == 0 && lastStep != 0 { bar += 1 }
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
+        syncHostMirror()
         for sub in stepSubs { sub.cb(position) }
     }
 

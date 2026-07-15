@@ -562,6 +562,11 @@ struct EchoelmusicApp: App {
                         laneVoiceRack?.voice(slot: slot)?.setGain(gain)
                         laneAUHost?.voice(slot: slot)?.setGain(gain)
                     }
+                    // H9b: Transport (the ONE clock) feeds the lock-free mirror
+                    // hosted plugins read tempo/beat/play-state from — their
+                    // musicalContext/transportState blocks lock tempo-synced
+                    // delays and LFOs to the song.
+                    transport.hostStateMirror = .shared
                     // H5b: host per-lane AU instruments — wire the engine, restore
                     // persisted assignments, reconcile on every document change
                     // (assign/clear/lane-delete/undo — all funnel through persist),

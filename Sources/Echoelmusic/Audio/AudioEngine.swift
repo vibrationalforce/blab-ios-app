@@ -320,6 +320,10 @@ public final class AudioEngine {
             return
         }
 
+        // H9b: hosted plugins' transportStateBlock estimates sample positions
+        // from the mirror — give it the real graph rate (main-actor write).
+        HostMusicalState.shared.sampleRate = processingFormat.sampleRate
+
         masterEngine.connect(masterPlayerNode, to: masterMixer, format: processingFormat)
         // Insert AutoMixChain: masterMixer → EQ → gainNode → mainMixerNode
         autoMixChain.insert(

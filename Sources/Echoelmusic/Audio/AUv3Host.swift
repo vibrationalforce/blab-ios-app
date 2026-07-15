@@ -195,6 +195,8 @@ public final class AUv3Host {
             // Recall this plugin's saved settings (knob positions etc.) so a loaded
             // plugin comes back exactly as you left it across sessions.
             restoreState(unit, id: info.id)
+            // H9b: tempo/transport context for tempo-synced delays & LFOs.
+            AUHostContext.install(on: unit.auAudioUnit)
             engine.withGraphPaused {                        // one pause cycle: attach + re-wire
                 engine.attachAU(unit)
                 if info.isInstrument {
@@ -266,6 +268,8 @@ public final class AUv3Host {
         do {
             let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
             restoreState(unit, id: info.id)
+            // H9b: tempo/transport context for tempo-synced delays & LFOs.
+            AUHostContext.install(on: unit.auAudioUnit)
             engine.withGraphPaused {
                 engine.attachAU(unit)
                 masterEffectUnits.append(unit)
