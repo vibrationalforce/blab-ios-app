@@ -1,26 +1,27 @@
-build: 2026-07-15 v10.79.237 (Playhead läuft jetzt flüssig — zwischen den 16teln interpoliert)
+build: 2026-07-15 v10.79.238 (Lange auf leere Spur drücken = Import direkt dort — für jede Spurart)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Letzter Punkt aus deinem Timeline-Video: "läuft auch etwas unflüssig."
+notes: Aus deinem großen Input — erster Schritt (der Rest ist geplant, s.u.).
 
-  URSACHE: der Transport zählt nur in 16tel-Schritten, also sprang der Playhead pro
-  Sechzehntel weiter — bei ruhigem Tempo als Ruckeln sichtbar.
+  "Lange gedrückt halten auf die leere Spur in der Timeline = Import on the spot für alle
+  Spurarten."
 
-  FIX: der Playhead gleitet jetzt mit 60 fps ZWISCHEN den Schritten. Er interpoliert vom
-  Moment, in dem der aktuelle 16tel-Schritt begann, sanft zum nächsten — die Bewegung
-  ist durchgehend flüssig statt gestuft. Beim Loop-Zurückspringen SNAPPT er sauber auf
-  den Anfang (kein Rückwärts-Wischen). Beim Stoppen/Ziehen zeigt er exakt die Position,
-  ohne Glide. Steht er still, kostet die Animation nichts (pausiert).
+  UMGESETZT: langer Druck auf den LEEREN Bereich einer Spur öffnet direkt den passenden
+  Import/Editor dieser Spur — Audiospur → Audio importieren, Videospur → Video
+  importieren, MIDI-Spur → Roll-Editor. Dieselbe Tür wie im Spurkopf-Menü, jetzt auch
+  direkt an der Spur ("on the spot"). Ein langer Druck AUF einen Clip bleibt das
+  Clip-Menü (Schneiden/Verschieben/…); nur der leere Platz öffnet den Import.
 
-  SICHER: ui-state-reviewer CONFIRMED — nur das Playhead-Leaf rendert mit 60 fps neu
-  (es ist ein Overlay NEBEN dem Raster, kein Vorfahr der Clips/Menüs → Freeze-Regel
-  gewahrt; der gleitende Pfad liest nicht mal den 16tel-Zähler, nur den Zeit-Anker),
-  Loop-Wrap snappt, kein Vorwärts/Rückwärts-Sprung im Normallauf, idle 0 fps. Gates
-  v234–v236 grün.
+  SICHER: ui-state-reviewer CONFIRMED — kein Menü-Konflikt (Clip-Menü bleibt Clip-Menü),
+  keine Region-Taps geklaut, Freeze-Regel gewahrt (Menü baut erst beim Öffnen), KEINE
+  neue Sheet-Ebene (nutzt die bestehende `.lane`-Tür). Gates v235–v237 grün.
 
-  DAMIT ist dein Timeline-Video komplett: Playhead greifbar (v232) · ziehbar mit Snap
-  (v230) · Lücke am Griff zu (v235) · erneut schneidbar (v235) · Clip vorne trimmbar
-  (v236) · Playhead flüssig (v237). Plus separat: ein Play-Knopf (v234), Bio auf den
-  Pill (v233).
+  ── GEPLANTER REST deines Inputs (eigene Zyklen, scratchpads/PLAN_VIDEO_IMPORT_CAPTURE_
+     2026-07-15.md) ──
+  V2  Voller Mediathek-Zugriff (Foto-Berechtigung abfragen) für Video/Bild.
+  V3  Bilder importieren (Standbild als Clip auf der Videospur).
+  V4  Video-CAPTURE — mit der iPhone-Kamera direkt in die Timeline aufnehmen.
+  V5  Profi-Kamera (Blackmagic-Stil): manueller Fokus / ISO / Belichtung / WEISSABGLEICH
+      in KELVIN von Hand eintragbar.
+  V6/V7  MIDI- und Audio-Import verbessern.
 
-  Reihenfolge: v235 Playhead-Lücke + Schnitt · v236 Clip vorne trimmbar · v237 Playhead
-  flüssig.
+  Reihenfolge: v237 Playhead flüssig · v238 Import direkt an der leeren Spur.

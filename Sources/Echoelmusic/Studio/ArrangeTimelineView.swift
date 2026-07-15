@@ -752,7 +752,42 @@ struct ArrangeTimelineView: View {
             }
         }
         .frame(width: gridWidth, height: Self.laneHeight, alignment: .topLeading)
+        // Long-press the EMPTY lane body = "import on the spot" (founder 2026-07-15:
+        // "Lange gedrückt halten auf die Spur = Import on the spot für alle Spurarten").
+        // Opens the SAME kind-routed importer/editor as the lane-head menu (`.lane`):
+        // audio → import audio, video → import video, midi → the roll. A long-press on a
+        // REGION still hits that region's own menu (it's drawn on top with its own
+        // contextMenu); this outer menu only answers empty space. contentShape makes the
+        // gaps between clips hittable. contextMenu builds on open (freeze-safe, no sheet
+        // added — it just sets the existing `.sheet(item:)` binding).
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                activeModal = .lane(lane)
+            } label: {
+                Label(Self.laneImportLabel(lane.kind), systemImage: Self.laneImportIcon(lane.kind))
+            }
+        }
         .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
+    }
+
+    /// Menu label for the empty-lane import gesture, by track kind.
+    private static func laneImportLabel(_ kind: ClipKind) -> String {
+        switch kind {
+        case .audio:  return "Import audio\u{2026}"
+        case .video:  return "Import video\u{2026}"
+        case .midi:   return "Open MIDI editor\u{2026}"
+        case .visual: return "Open\u{2026}"
+        }
+    }
+
+    private static func laneImportIcon(_ kind: ClipKind) -> String {
+        switch kind {
+        case .audio:  return "waveform"
+        case .video:  return "film"
+        case .midi:   return "pianokeys"
+        case .visual: return "sparkles"
+        }
     }
 
     /// Resolve a clip's `mediaRef` to an existing file (absolute path today;
