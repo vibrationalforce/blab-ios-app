@@ -176,16 +176,30 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
     }
 
     func testFingerFrame_holdsThroughDipsOnceAcquired() {
-        // The device-log regression: once acquired, a lit finger dipping to R≈0.21–0.25
-        // must STILL read as present (hold floor 0.18) so the window stays continuous and
+        // The 2026-07-02 device-log regression: once acquired, a lit finger dipping to
+        // R≈0.21–0.25 must STILL read as present so the window stays continuous and
         // the pulse can lock — the old single 0.28 floor dropped these → bpm never locked.
         XCTAssertTrue(A.isFingerFrame(avgR: 0.25, avgG: 0.10, avgB: 0.08, wasDetected: true))
         XCTAssertTrue(A.isFingerFrame(avgR: 0.21, avgG: 0.09, avgB: 0.07, wasDetected: true))
     }
 
+    func testFingerFrame_holdsThroughOwnDarkExposureLock() {
+        // The 2026-07-15 device-log regression (build 2361, session 2, 92 s NO lock):
+        // the app's own strict-dark exposure lock froze exposure at bright≈0.08–0.10,
+        // which puts a genuinely-held finger at R≈0.15–0.17 — BELOW the old 0.18 hold
+        // floor → finger=no → window flush → re-acquire needs 0.28 which the dark lock
+        // never reaches = limit cycle. Session 3 proved bright 0.10 LOCKS (q 0.97) when
+        // the detector holds. The hold floor must sit below the dark lock's R output.
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.17, avgG: 0.07, avgB: 0.05, wasDetected: true))
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.15, avgG: 0.06, avgB: 0.05, wasDetected: true))
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.13, avgG: 0.05, avgB: 0.04, wasDetected: true))
+    }
+
     func testFingerFrame_releasesBelowHoldFloor() {
-        // Finger truly gone: below the 0.18 hold floor it releases even when previously held.
-        XCTAssertFalse(A.isFingerFrame(avgR: 0.15, avgG: 0.06, avgB: 0.05, wasDetected: true))
+        // Finger truly gone: below the 0.12 hold floor it releases even when previously
+        // held (log t=1141: R=0.09 with the finger actually drifting off stays released).
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.10, avgG: 0.04, avgB: 0.03, wasDetected: true))
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.09, avgG: 0.04, avgB: 0.03, wasDetected: true))
     }
 
     func testFingerFrame_redDominanceGatesRejectNonFinger() {

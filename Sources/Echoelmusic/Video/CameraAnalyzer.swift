@@ -770,14 +770,23 @@ final class CameraAnalyzer {
     /// flip-flopped yes/no, which both wiped the BPM state (the conf<0.05 reset) and gapped
     /// the pulse buffer (no samples fed while finger=no) → acf=0.00, bpm never locked. It was
     /// a limit cycle: finger-loss dropped the exposure lock, the re-lock brightened R back
-    /// over 0.28, repeat. Holding finger-present down to a lower floor (0.18) once acquired
+    /// over 0.28, repeat. Holding finger-present down to a lower floor once acquired
     /// keeps the window continuous so the pulse can actually lock; the 1.2×/1.3× red-dominance
     /// gates still reject a non-finger scene at either floor, and a fully saturated frame (all
     /// channels clipped, finger pressed too hard) still counts as present. Pure → Linux-testable.
+    ///
+    /// Hold floor 0.18 → 0.12 (device log 2026-07-15, build 2361, session 2: 92 s NO lock):
+    /// the app's OWN strict-dark exposure lock freezes exposure at bright≈0.08–0.10, which
+    /// puts a genuinely-held finger at R≈0.15–0.17 — below the old 0.18 hold floor. Same
+    /// limit cycle one level darker: sub-floor R → finger=no → window flush → re-acquire
+    /// needs 0.28 which the dark lock never reaches. Session 3 of the same log proved
+    /// bright 0.10 LOCKS (q 0.97, conf 0.96) when the detector merely keeps holding — so
+    /// the hold floor must sit BELOW the dark lock's own R output, and the ACQUIRE floor
+    /// stays hard at 0.28 (acquisition still demands a clearly lit finger).
     nonisolated static func isFingerFrame(avgR: Float, avgG: Float, avgB: Float,
                                           wasDetected: Bool) -> Bool {
         let saturated = Swift.min(avgR, avgG, avgB) > 0.92
-        let redFloor: Float = wasDetected ? 0.18 : 0.28
+        let redFloor: Float = wasDetected ? 0.12 : 0.28
         return saturated || (avgR > redFloor && avgR > avgG * 1.2 && avgR > avgB * 1.3)
     }
 
