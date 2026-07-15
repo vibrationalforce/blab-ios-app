@@ -1,27 +1,36 @@
-build: 2026-07-15 v10.79.238 (Lange auf leere Spur drücken = Import direkt dort — für jede Spurart)
+build: 2026-07-15 v10.79.239 (Clips einfach packen und verschieben — Zeit UND Spur; Clip-Game-Plan steht)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Aus deinem großen Input — erster Schritt (der Rest ist geplant, s.u.).
+notes: Dein Auftrag: "Das gesamte Clip Game aufräumen — seamless workflow, kein
+  unbeholfenes Rumdrücken, und am Ende steuert EchoelAI alles."
 
-  "Lange gedrückt halten auf die leere Spur in der Timeline = Import on the spot für alle
-  Spurarten."
+  AUDIT GEMACHT (scratchpads/PLAN_CLIP_GAME_2026-07-15.md): Die größte Lücke war, dass
+  man Clips NICHT mit dem Finger verschieben konnte — nur über das Menü ("Move to
+  playhead"). Genau das war das unbeholfene Rumdrücken.
 
-  UMGESETZT: langer Druck auf den LEEREN Bereich einer Spur öffnet direkt den passenden
-  Import/Editor dieser Spur — Audiospur → Audio importieren, Videospur → Video
-  importieren, MIDI-Spur → Roll-Editor. Dieselbe Tür wie im Spurkopf-Menü, jetzt auch
-  direkt an der Spur ("on the spot"). Ein langer Druck AUF einen Clip bleibt das
-  Clip-Menü (Schneiden/Verschieben/…); nur der leere Platz öffnet den Import.
+  NEU (C1): Clip packen und ziehen.
+  • Horizontal = in der Zeit verschieben (rastet beim Loslassen aufs Raster,
+    stufenlos bei Snap = off).
+  • Vertikal = auf eine ANDERE Spur ziehen — nur auf eine Spur gleicher Art
+    (Audio bleibt auf Audio, MIDI auf MIDI; falsche Spur → er bleibt, nur die
+    Zeit ändert sich).
+  • Während des Zugs schwebt der Clip sichtbar über den Nachbarn; Tippen (Vorhören),
+    langer Druck (Menü) und die Trimm-Griffe an den Kanten funktionieren alle weiter.
 
-  SICHER: ui-state-reviewer CONFIRMED — kein Menü-Konflikt (Clip-Menü bleibt Clip-Menü),
-  keine Region-Taps geklaut, Freeze-Regel gewahrt (Menü baut erst beim Öffnen), KEINE
-  neue Sheet-Ebene (nutzt die bestehende `.lane`-Tür). Gates v235–v237 grün.
+  ECHOELAI-FUNDAMENT (die Leitplanke aus deinem Auftrag): Jede Clip-Operation ist eine
+  STORE-METHODE mit purer, getesteter Mathematik — die Geste ist nur ein dünner
+  Auslöser. Die spätere EchoelAI-Editing-Schicht ("schneide alle Clips am Takt 4")
+  ruft exakt dieselben Befehle auf wie dein Finger. Kein Umbau nötig, nur ein Mapping.
 
-  ── GEPLANTER REST deines Inputs (eigene Zyklen, scratchpads/PLAN_VIDEO_IMPORT_CAPTURE_
-     2026-07-15.md) ──
-  V2  Voller Mediathek-Zugriff (Foto-Berechtigung abfragen) für Video/Bild.
-  V3  Bilder importieren (Standbild als Clip auf der Videospur).
-  V4  Video-CAPTURE — mit der iPhone-Kamera direkt in die Timeline aufnehmen.
-  V5  Profi-Kamera (Blackmagic-Stil): manueller Fokus / ISO / Belichtung / WEISSABGLEICH
-      in KELVIN von Hand eintragbar.
-  V6/V7  MIDI- und Audio-Import verbessern.
+  TEST-FIRST: 3 neue Store-Tests (Spurwechsel gleiche Art, Art-Konflikt, Grenzen).
+  SICHER: code-reviewer + ui-state-reviewer CONFIRMED — Gesten-Vorrang sauber
+  (Trimm-Griffe/Tap/Menü unangetastet, leerer Platz scrollt weiter), ein einziges
+  sauberes Einrasten beim Loslassen, Freeze-Regel gewahrt. Gates v237+v238 grün.
 
-  Reihenfolge: v237 Playhead flüssig · v238 Import direkt an der leeren Spur.
+  DEVICE-VERIFY BITTE: Clip packen und ziehen (auch schnell) — fühlt sich der Zug
+  direkt an, und gewinnt der Zug zuverlässig gegen das Timeline-Scrollen?
+
+  GEPLANTE NÄCHSTE CLIP-GAME-ZYKLEN (im Plan): C2 Undo/Redo · C3 Multi-Select +
+  Combine · C4 Einrast-Haptik + Magnetkanten · C5 Überlapp-Regel · C6 EchoelAI-
+  TimelineToolCore (Sprachbefehle → dieselben Store-Calls).
+
+  Reihenfolge: v238 Import an der leeren Spur · v239 Drag-to-move + Clip-Game-Plan.
