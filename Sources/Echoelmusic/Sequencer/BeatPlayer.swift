@@ -454,6 +454,33 @@ public final class BeatPlayer {
         if (try? previewVoice.loadSample(from: url)) != nil { previewVoice.fire() }
     }
 
+    /// H13/A2: the offset-aware REGION audition sink. An AVAudioPlayerNode that
+    /// STREAMS a segment of the file (scheduleSegment) — unlike `previewVoice`
+    /// (SamplerVoice: ~2 s buffer cap, always from frame 0; right for drum
+    /// samples, wrong for a region window). Lazily created on the first region
+    /// audition: the caller's plan law (`AudioRegionPlayback.auditionWindow`)
+    /// only permits auditioning while the transport is STOPPED, so the one-time
+    /// attach pause is inaudible by construction.
+    @ObservationIgnored private var auditionSink: TimelineAudioSink?
+
+    /// Audition a REGION window: play `url` from `fromSeconds` for
+    /// `lengthSeconds` (the region's own content — pro-DAW tap behavior).
+    /// Callers derive the window via `AudioRegionPlayback.auditionWindow`,
+    /// which refuses while the transport plays (double-sound hazard).
+    public func audition(url: URL, fromSeconds: Double, lengthSeconds: Double) {
+        guard let engine = audioEngine else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        if auditionSink == nil { auditionSink = TimelineAudioSink(engine: engine) }
+        auditionSink?.play(url: url, fromSeconds: fromSeconds,
+                           lengthSeconds: lengthSeconds, gain: 1)
+    }
+
+    /// Stop a running region audition (transport start / user action).
+    public func stopAudition() {
+        auditionSink?.stop()
+    }
+
     /// Assign a built-in sample to a pad (clears any custom bookmark).
     public func assignBundled(track: Int, name: String) {
         guard voices.indices.contains(track), let url = Self.bundledSampleURL(name) else { return }

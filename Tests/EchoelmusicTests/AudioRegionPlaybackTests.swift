@@ -100,4 +100,50 @@ final class AudioRegionPlaybackTests: XCTestCase {
         XCTAssertEqual(AudioRegionPlayback.frameCount(for: r, fromTick: 0, bpm: 120, sampleRate: 48_000),
                        96_000)
     }
+
+    // MARK: - auditionWindow (H13: region tap plays ITS window, never file-start)
+
+    func testAuditionWindow_startsAtContentOffset_forRegionLength() {
+        // A 1-bar region @120 (2.0 s) trimmed 1.5 s into its media.
+        let r = region(start: 480, offset: 1.5)
+        let w = AudioRegionPlayback.auditionWindow(for: r, bpm: 120, transportPlaying: false)
+        XCTAssertEqual(w?.fromSeconds ?? -1, 1.5, accuracy: 1e-9,
+                       "audition starts at the region's trim-in point, not file-start")
+        XCTAssertEqual(w?.lengthSeconds ?? -1, 2.0, accuracy: 1e-9,
+                       "audition lasts exactly the region's musical length")
+    }
+
+    func testAuditionWindow_whileTransportPlays_isNil() {
+        // The lane sink already sounds this lane while playing — a second node would
+        // double-sound; nil also keeps the sink's lazy attach-pause off running audio.
+        let r = region(start: 0, offset: 1.0)
+        XCTAssertNil(AudioRegionPlayback.auditionWindow(for: r, bpm: 120, transportPlaying: true))
+    }
+
+    func testAuditionWindow_badTempoOrEmptyRegion_isNil() {
+        XCTAssertNil(AudioRegionPlayback.auditionWindow(for: region(start: 0), bpm: 0,
+                                                        transportPlaying: false))
+        XCTAssertNil(AudioRegionPlayback.auditionWindow(for: region(start: 0), bpm: -120,
+                                                        transportPlaying: false))
+        XCTAssertNil(AudioRegionPlayback.auditionWindow(for: region(start: 0, length: 0), bpm: 120,
+                                                        transportPlaying: false))
+    }
+
+    func testAuditionWindow_negativeContentOffset_clampsToZero() {
+        // Defensive: a corrupt/legacy negative trim never asks the file for time < 0.
+        let r = region(start: 0, offset: -0.75)
+        let w = AudioRegionPlayback.auditionWindow(for: r, bpm: 120, transportPlaying: false)
+        XCTAssertEqual(w?.fromSeconds ?? -1, 0, accuracy: 1e-9)
+    }
+
+    func testAuditionWindow_lengthTracksTempo() {
+        // The same 1920-tick region is 4.0 s @60 and 1.0 s @240 — musical length, not media length.
+        let r = region(start: 0)
+        XCTAssertEqual(AudioRegionPlayback.auditionWindow(for: r, bpm: 60,
+                                                          transportPlaying: false)?.lengthSeconds ?? -1,
+                       4.0, accuracy: 1e-9)
+        XCTAssertEqual(AudioRegionPlayback.auditionWindow(for: r, bpm: 240,
+                                                          transportPlaying: false)?.lengthSeconds ?? -1,
+                       1.0, accuracy: 1e-9)
+    }
 }

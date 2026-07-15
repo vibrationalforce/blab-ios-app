@@ -23,6 +23,22 @@ import Foundation
 
 public enum AudioRegionPlayback {
 
+    /// H13/A2: the audition window for a REGION tap — pro-DAW behavior: hear the
+    /// region's OWN windowed content (`contentOffsetSeconds`, the audio-media
+    /// authority; the tick offset is MIDI's twin) for the region's length, not
+    /// the whole file from 0. `nil` = don't audition: while the transport plays,
+    /// the lane sink is already sounding this lane and a second node would
+    /// double-sound/phase (audit hazard) — and nil-while-playing also guarantees
+    /// the audition sink's one-time lazy attach (which pauses the engine) can
+    /// only ever happen while the transport is stopped, where it is inaudible.
+    public static func auditionWindow(for region: TimelineRegion, bpm: Double,
+                                      transportPlaying: Bool)
+        -> (fromSeconds: Double, lengthSeconds: Double)? {
+        guard !transportPlaying, bpm > 0, region.lengthTicks > 0 else { return nil }
+        return (max(0, region.contentOffsetSeconds),
+                TimelineTime.seconds(fromTicks: region.lengthTicks, bpm: bpm))
+    }
+
     /// The media-file position (seconds from the FILE's start) that should be
     /// sounding at song-absolute `tick`, for a region whose media starts at
     /// `contentOffsetSeconds`. `nil` when `tick` is outside the region's half-open

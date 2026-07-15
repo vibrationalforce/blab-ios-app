@@ -159,6 +159,13 @@ struct ArrangeTimelineView: View {
             synth.setDetune(cents: cents)
             leadSynth?.setDetune(cents: cents)
         }
+        // H13: transport start cuts any running region audition — the lane sink is
+        // about to sound the same lane and a leftover audition would double-sound
+        // (the same hazard auditionWindow's nil-while-playing guards at tap time).
+        // Start/stop-frequency read (never 10 Hz) — freeze-rule safe.
+        .onChange(of: beatPlayer.pattern.isPlaying) { _, playing in
+            if playing { beatPlayer.stopAudition() }
+        }
         .gesture(magnify)
         .sheet(item: $activeModal, onDismiss: {
             // H11 review MEDIUM (dismiss race): tapping Edit on ANOTHER region
@@ -1039,8 +1046,9 @@ private struct RegionBlockView: View {
         let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeDelta - frontDelta)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
-        // Tap an AUDIO region = hear its file immediately (founder: "Audio mit direkt
-        // die wav Dateien vorhören") — auditions on BeatPlayer's preview voice.
+        // Tap an AUDIO region = hear ITS window immediately (founder: "Audio mit direkt
+        // die wav Dateien vorhören") — H13: streams via the audition sink from the
+        // region's contentOffset for the region's length (pro-DAW), not file-start.
         let auditionURL = clip.flatMap { $0.kind == .audio ? ArrangeTimelineView.mediaURL($0) : nil }
         // Long-press a region opens its editor (only kinds with a real engine offer one).
         let editableKind = clip.map { $0.kind == .midi || $0.kind == .audio } ?? false
@@ -1115,7 +1123,13 @@ private struct RegionBlockView: View {
                 // Select mode (C3): tap marks/unmarks; otherwise tap auditions audio.
                 if selectMode { onSelectToggle(); return }
                 guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
-                if let url = auditionURL { beatPlayer.audition(url: url) }
+                if let url = auditionURL,
+                   let window = AudioRegionPlayback.auditionWindow(
+                       for: region, bpm: beatPlayer.pattern.tempo,
+                       transportPlaying: beatPlayer.pattern.isPlaying) {
+                    beatPlayer.audition(url: url, fromSeconds: window.fromSeconds,
+                                        lengthSeconds: window.lengthSeconds)
+                }
             }
             .contextMenu {
                 if editableKind {
