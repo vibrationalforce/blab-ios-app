@@ -95,6 +95,38 @@ final class RegionNoteWindowTests: XCTestCase {
         XCTAssertTrue(slices[1].isEmpty)
     }
 
+    func testBarSlices_noteInLastHalfStep_clampsOntoStep15_notDropped() {
+        // Bar-relative tick 1880 would round to startStep 16 — a step the 0…15
+        // trigger never fires. The slice clamps it onto the last real step instead.
+        let notes = [note(1880)]
+        let slices = RegionNoteWindow.barSlices(notes: notes, regionLengthTicks: 1920)
+        XCTAssertEqual(slices[0].count, 1, "the note must not silently vanish")
+        XCTAssertEqual(slices[0][0].startStep, 15)
+    }
+
+    // MARK: - stepAligned + tick-domain trim (tempo-proof)
+
+    func testStepAligned_snapsToNearestStep() {
+        XCTAssertEqual(RegionNoteWindow.stepAligned(0), 0)
+        XCTAssertEqual(RegionNoteWindow.stepAligned(59), 0)
+        XCTAssertEqual(RegionNoteWindow.stepAligned(60), 120)
+        XCTAssertEqual(RegionNoteWindow.stepAligned(1919), 1920)
+        XCTAssertEqual(RegionNoteWindow.stepAligned(-5), 0)
+    }
+
+    func testRegionSplit_maintainsTickOffset_exactAtAnyLaterTempo() {
+        // Split at bar 1 @120 stores seconds AND ticks; the tick twin must be
+        // exactly one bar regardless of what the tempo does afterwards (the
+        // reviewer's HIGH: seconds re-converted at play-time tempo drift).
+        let region = TimelineRegion(laneID: UUID(), clipID: UUID(),
+                                    startTick: 0, lengthTicks: 3840)
+        let pieces = region.split(at: 1920, bpm: 120)
+        XCTAssertEqual(pieces?.1.contentOffsetTicks, 1920)
+        // Chained edit at a DIFFERENT tempo stays in the tick domain.
+        let trimmed = pieces?.1.trimmedStart(toTick: 2040, bpm: 93.7)
+        XCTAssertEqual(trimmed?.contentOffsetTicks, 2040)
+    }
+
     // MARK: - offsetTicks(contentOffsetSeconds:bpm:)
 
     func testOffsetTicks_convertsSecondsAtTempo() {

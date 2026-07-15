@@ -233,6 +233,11 @@ public final class TimelineRegionPlayer {
     /// relative bar cycling via `loadRegionArrangement` (seamless while playing).
     /// `tick` = the song-absolute onset/seek tick; `step` = the within-bar
     /// transport step it lands on (0 ⇒ the roll's trigger(0) still runs this tick).
+    /// KNOWN CONSTRAINT (reviewer M1b): the roll is bar-locked to the GLOBAL grid,
+    /// so a region starting mid-bar plays its content pinned to global bar lines
+    /// (content ticks before the first global line are skipped) — not phase-shifted
+    /// to the region start. Bar-aligned regions (the default snap) are exact; the
+    /// region-relative phase for free placements is the M2 cycle.
     private func loadClip(_ region: TimelineRegion, atTick tick: Int, step: Int) {
         guard let clip = clips?.clip(id: region.clipID) else {
             clearRoll()
@@ -243,9 +248,18 @@ public final class TimelineRegionPlayer {
         } else {
             pattern?.clear()
         }
+        // Trim-in: the TICK offset is authoritative for MIDI (exact at any tempo —
+        // reviewer HIGH: the seconds field re-converted at play-time tempo shifts
+        // the window when the tempo changed since the edit). Legacy regions
+        // (pre-M1b, ticks == 0 but seconds set) fall back to the conversion at the
+        // current tempo. Step-aligned either way: the roll is a step-grid
+        // instrument, an off-grid window would shift every note off the trigger grid.
         let bpm = pattern?.tempo ?? 120
-        let offset = RegionNoteWindow.offsetTicks(
-            contentOffsetSeconds: region.contentOffsetSeconds, bpm: bpm)
+        let rawOffset = region.contentOffsetTicks > 0
+            ? region.contentOffsetTicks
+            : RegionNoteWindow.offsetTicks(contentOffsetSeconds: region.contentOffsetSeconds,
+                                           bpm: bpm)
+        let offset = RegionNoteWindow.stepAligned(rawOffset)
         let windowed = RegionNoteWindow.windowed(notes: clip.melody?.notes ?? [],
                                                  offsetTicks: offset,
                                                  lengthTicks: region.lengthTicks)

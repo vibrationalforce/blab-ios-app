@@ -19,8 +19,11 @@
 //  • A note SOUNDS iff its START lies inside the window [offset, offset+length).
 //    A note starting before the trim-in never sounds (its tail does not leak in).
 //  • Sustains are clipped at the REGION end (the block edge is a hard stop) but
-//    NOT at bar lines inside the region (a cross-bar sustain keeps its length;
-//    its noteOff simply falls in a later bar).
+//    NOT at bar lines inside the region: a sustain of up to one bar crosses the
+//    line intact (its noteOff falls in the next bar). NOTE the roll's release
+//    matcher is `endStep % 16 == step`, so a windowed note LONGER than one bar
+//    still releases at the first match — one bar after its start (pre-existing
+//    roll mechanics; per-bar tied segments are a later refinement).
 //  • All returned times are REBASED (region-relative, then bar-relative for
 //    slices) so consumers never see song-absolute or clip-absolute ticks.
 //
@@ -59,14 +62,28 @@ public enum RegionNoteWindow {
         let perBar = TimelineTime.ticksPerBar
         let bars = Swift.max(1, (Swift.max(1, regionLengthTicks) + perBar - 1) / perBar)
         var slices = Array(repeating: [Note](), count: bars)
+        // The roll triggers on `startStep` (nearest-step rounding): a bar-relative
+        // tick in the last HALF-step of a bar (≥ perBar − 60) would round to step 16,
+        // which the 0…15 trigger never fires — the note silently vanishes (reviewer
+        // M1b). Clamp such stragglers onto the last real step instead.
+        let lastTriggerableTick = perBar - Note.ticksPerStep / 2 - 1
         for n in notes {
             let bar = n.startTick / perBar
             guard bar >= 0, bar < bars else { continue }
             var rebased = n
-            rebased.startTick = n.startTick - bar * perBar
+            rebased.startTick = Swift.min(n.startTick - bar * perBar, lastTriggerableTick)
             slices[bar].append(rebased)
         }
         return slices
+    }
+
+    /// Snap a window offset onto the 16th-step grid (nearest step). The roll is a
+    /// step-grid instrument: an off-grid offset (a "Frei"-snap split, or the seconds
+    /// fallback at a drifted tempo) would shift every rebased note off the trigger
+    /// grid. Snapping the WINDOW keeps grid-authored content on the grid.
+    public static func stepAligned(_ ticks: Int) -> Int {
+        let step = Note.ticksPerStep
+        return Swift.max(0, (ticks + step / 2) / step * step)
     }
 
     /// The MIDI twin of a region's `contentOffsetSeconds`: the trim-in converted

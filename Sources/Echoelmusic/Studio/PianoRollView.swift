@@ -227,6 +227,10 @@ public final class PianoRollModel {
     /// When stopped, bar 0 loads now so it is present before playback starts.
     public func loadArrangement(_ bars: [[Note]], playing: Bool) {
         guard bars.count > 1 else { load(bars.first ?? []); return }   // 0/1 bar → classic path
+        // Generative path is phase-0 by definition — without this reset a stale
+        // region rotation (loadRegionArrangement) would permanently skew every
+        // Generate/evolve cycle after timeline playback (reviewer M1b MEDIUM).
+        arrangementPhaseOffset = 0
         if playing {
             arrangementBars = bars
             // Next boundary already plays NEW content, at the current phase (keeps sync

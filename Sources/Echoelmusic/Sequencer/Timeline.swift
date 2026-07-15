@@ -159,15 +159,44 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     public var startTick: Int
     public var lengthTicks: Int
     public var contentOffsetSeconds: Double
+    /// Trim-in in TICKS — the MIDI twin of `contentOffsetSeconds` (M1b reviewer
+    /// HIGH): seconds are the right domain for MEDIA (audio/video files play in
+    /// real time), but MIDI content lives in ticks, and a seconds-stored trim
+    /// re-converted at PLAY-time tempo shifts the note window whenever the tempo
+    /// changed since the edit (split @120 → play @112 = 128 ticks off). Split and
+    /// front-trim maintain BOTH fields; MIDI playback reads this one (exact at any
+    /// tempo), media playback keeps reading seconds. Legacy regions decode as 0 —
+    /// consumers fall back to the seconds conversion for them.
+    public var contentOffsetTicks: Int
 
     public init(id: UUID = UUID(), laneID: UUID, clipID: UUID,
-                startTick: Int, lengthTicks: Int, contentOffsetSeconds: Double = 0) {
+                startTick: Int, lengthTicks: Int, contentOffsetSeconds: Double = 0,
+                contentOffsetTicks: Int = 0) {
         self.id = id
         self.laneID = laneID
         self.clipID = clipID
         self.startTick = max(0, startTick)
         self.lengthTicks = max(1, lengthTicks)
         self.contentOffsetSeconds = max(0, contentOffsetSeconds)
+        self.contentOffsetTicks = max(0, contentOffsetTicks)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, laneID, clipID, startTick, lengthTicks, contentOffsetSeconds
+        case contentOffsetTicks
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        laneID = try c.decode(UUID.self, forKey: .laneID)
+        clipID = try c.decode(UUID.self, forKey: .clipID)
+        startTick = max(0, try c.decode(Int.self, forKey: .startTick))
+        lengthTicks = max(1, try c.decode(Int.self, forKey: .lengthTicks))
+        contentOffsetSeconds = max(0, (try? c.decode(Double.self, forKey: .contentOffsetSeconds)) ?? 0)
+        // Legacy regions (pre-M1b) carry no tick offset — 0 signals "fall back to
+        // the seconds conversion" to consumers.
+        contentOffsetTicks = max(0, (try? c.decode(Int.self, forKey: .contentOffsetTicks)) ?? 0)
     }
 
     public var endTick: Int { startTick + lengthTicks }
@@ -188,6 +217,8 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         second.lengthTicks = endTick - tick
         second.contentOffsetSeconds = contentOffsetSeconds
             + TimelineTime.seconds(fromTicks: tick - startTick, bpm: bpm)
+        // Tick twin, maintained in the tick domain directly — exact at any tempo.
+        second.contentOffsetTicks = contentOffsetTicks + (tick - startTick)
         return (first, second)
     }
 
@@ -212,6 +243,8 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         r.lengthTicks = endTick - clampedStart
         r.contentOffsetSeconds = Swift.max(0, contentOffsetSeconds
             + TimelineTime.seconds(fromTicks: clampedStart - startTick, bpm: bpm))
+        // Tick twin, maintained in the tick domain directly — exact at any tempo.
+        r.contentOffsetTicks = Swift.max(0, contentOffsetTicks + (clampedStart - startTick))
         return r
     }
 
