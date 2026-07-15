@@ -209,6 +209,14 @@ struct WorkspaceView: View {
 private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
+    // The ONE transport plays the ARRANGEMENT when the timeline has regions (founder
+    // 2026-07-15 video: "zu viele Play Knöpfe, einer reicht" — the separate "Play
+    // timeline" button is gone). These are read ONLY inside toggle()'s action, never in
+    // body, so the transport bar subscribes to none of them (freeze rule).
+    @Environment(TimelineStore.self) private var timeline
+    @Environment(ClipStore.self) private var clips
+    @Environment(PianoRollModel.self) private var pianoRoll
+    @Environment(TimelineRegionPlayer.self) private var timelinePlayer
 
     var body: some View {
         HStack(spacing: 12) {
@@ -285,8 +293,24 @@ private struct TransportBar: View {
     }
 
     private func toggle() {
-        if transport.isPlaying { player.pattern.stop() }
-        else { player.pattern.play() }
+        if transport.isPlaying {
+            // Stop whichever engine is running: timeline-follow releases its region clips
+            // + secondary-lane voices; a plain pattern loop just stops.
+            if timelinePlayer.isPlaying { timelinePlayer.stop() }
+            else { player.pattern.stop() }
+        } else {
+            // Play the SONG if anything is arranged on the timeline, else the live loop.
+            // timelinePlayer.play starts the shared pattern itself and chains the region
+            // clips via the always-on onTick relay (PianoRollView) — so this ONE button
+            // covers both the loop and the arrangement.
+            let doc = timeline.document
+            if doc.rollLaneID != nil, !doc.regions.isEmpty {
+                timelinePlayer.play(document: doc, clips: clips,
+                                    pattern: player.pattern, pianoRoll: pianoRoll)
+            } else {
+                player.pattern.play()
+            }
+        }
     }
 }
 

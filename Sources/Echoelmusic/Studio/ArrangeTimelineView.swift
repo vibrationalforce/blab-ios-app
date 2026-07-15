@@ -26,7 +26,8 @@ struct ArrangeTimelineView: View {
     @Environment(ClipStore.self) private var clips
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
-    @Environment(TimelineRegionPlayer.self) private var timelinePlayer
+    // (TimelineRegionPlayer env removed with the "Play timeline" button — the chrome
+    //  transport ▶ owns arrangement playback now; founder 2026-07-15 "einer reicht".)
     @Environment(RecordController.self) private var recordController
     // Transport, for the "Split at playhead" razor. Read ONLY in the button's tap
     // action (never in `body`), so `position` (~8 Hz) creates no observation on the
@@ -297,35 +298,11 @@ struct ArrangeTimelineView: View {
 
     private var toolbar: some View {
         HStack(spacing: 10) {
-            // Play / Stop the TIMELINE's regions over the shared transport (reorg P3).
-            // Opt-in and SEPARATE from the instrument's Generate+Play: engaging this
-            // takes the roll/pattern over with the placed regions. Reads only the
-            // low-frequency `isPlaying` (never `currentTick`) so the toolbar's menus
-            // don't churn during playback (render-safe). Disabled with no regions.
-            Button {
-                if timelinePlayer.isPlaying {
-                    timelinePlayer.stop()
-                } else {
-                    timelinePlayer.play(document: timeline.document, clips: clips,
-                                        pattern: beatPlayer.pattern, pianoRoll: pianoRoll)
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: timelinePlayer.isPlaying ? "stop.fill" : "play.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text(timelinePlayer.isPlaying ? "Stop" : "Play timeline")
-                        .font(EchoelTheme.font(12, .medium))
-                }
-                .foregroundStyle(timelinePlayer.isPlaying ? EchoelTheme.onPrimary : EchoelTheme.text)
-                .padding(.horizontal, 10).frame(height: 28)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .fill(timelinePlayer.isPlaying ? EchoelTheme.accent : EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: timelinePlayer.isPlaying ? 0 : 1))
-            }
-            .buttonStyle(.plain)
-            .disabled(timeline.document.regions.isEmpty)
-            .accessibilityLabel(timelinePlayer.isPlaying ? "Stop timeline" : "Play timeline")
+            // (The "Play timeline" button is GONE — founder 2026-07-15 video: "zu viele
+            //  Play Knöpfe, einer reicht." The ONE transport ▶ in the chrome above now
+            //  plays the arrangement whenever the timeline has regions [it engages
+            //  TimelineRegionPlayer], else the live loop — so this separate button was
+            //  redundant. Recording keeps its own arm control below.)
 
             // Record: arm the take + start the clock. Every note/bio input on an armed
             // track is captured; Stop drops a Clip + region onto that lane. Reads only
