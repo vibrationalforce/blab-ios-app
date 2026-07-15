@@ -73,7 +73,7 @@ final class TimelineAudioSink: AudioRegionSink {
     /// H4 live mixer: level/solo edits mid-region land on the node's mixer volume —
     /// control-plane only (AVAudioMixing downstream), no re-scheduling.
     func setGain(_ gain: Float) {
-        node.volume = min(2, max(0, gain))
+        node.volume = min(2, max(0, gain.isFinite ? gain : 0))   // non-finite ⇒ silent
     }
 
     /// H4 live mixer: the lane's stereo position (B2 pan finally reaches audio lanes).

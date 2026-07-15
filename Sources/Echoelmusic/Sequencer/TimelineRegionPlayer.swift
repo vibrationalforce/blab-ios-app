@@ -412,6 +412,9 @@ public final class TimelineRegionPlayer {
     /// snapshot and — only when something actually changed — re-push every live
     /// slot's gain + pan to its rack voice. Runs once per transport step (~8 Hz);
     /// the merge is a small value compare, the push fires only on real edits.
+    /// Covers `pumps.keys` (loaded slots) only: a slot cleared this bar has had its
+    /// note-offs sent, so at most its envelope RELEASE TAIL rings at the old gain —
+    /// accepted; the next `.load` re-pushes that slot's values anyway.
     private func refreshMixer() {
         guard let fresh = liveDocument?() else { return }
         guard doc.mergeMixer(from: fresh) else { return }

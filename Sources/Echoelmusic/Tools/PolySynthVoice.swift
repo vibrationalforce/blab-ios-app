@@ -477,7 +477,7 @@ public final class PolySynthVoice {
     /// already-ringing notes). Control-plane only, like `setPan`: `sourceNode`
     /// conforms to `AVAudioMixing`, the ENGINE scales downstream of the render.
     public func setGain(_ gain: Float) {
-        sourceNode.volume = max(0, min(2, gain.isFinite ? gain : 1))
+        sourceNode.volume = max(0, min(2, gain.isFinite ? gain : 0))   // non-finite ⇒ silent
     }
 
     // MARK: - Bus subscription (bio modulation only — reads latestBio snapshot)

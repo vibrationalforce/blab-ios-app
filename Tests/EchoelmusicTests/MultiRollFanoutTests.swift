@@ -317,6 +317,23 @@ final class MultiRollFanoutTests: XCTestCase {
         XCTAssertFalse(snapshot.mergeMixer(from: docBase))
     }
 
+    func testMergeMixer_deletedSoloedLane_clearsItsStaleSolo() {
+        // Review MEDIUM (the solo wedge): solo a lane while playing, then DELETE it
+        // in the store. The snapshot lane can never merge-match again — its stale
+        // isSoloed would keep every OTHER lane at effectiveGain 0 until stop while
+        // the UI shows no solo anywhere. The merge must clear it.
+        let (docBase, roll) = makeMixedDoc(solo: [true, false])   // s1 soloed in the snapshot
+        var snapshot = docBase
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 1, in: snapshot, rollLane: roll), 0,
+                       "foreign solo gates slot 1 while the soloed lane exists")
+        var fresh = docBase
+        fresh.lanes.removeAll { $0.id == snapshot.lanes[2].id }   // s1 deleted in the store
+        XCTAssertTrue(snapshot.mergeMixer(from: fresh))
+        XCTAssertFalse(snapshot.lanes[2].isSoloed, "stale solo on the deleted lane is cleared")
+        XCTAssertEqual(MultiRollFanout.gain(forSlot: 1, in: snapshot, rollLane: roll), 1,
+                       "the other lanes are audible again")
+    }
+
     func testMergeMixer_freshLaneSetDiffers_ignoresMembershipChanges() {
         let (docBase, _) = makeMixedDoc()
         var snapshot = docBase

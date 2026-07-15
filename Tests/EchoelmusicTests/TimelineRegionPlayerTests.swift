@@ -68,3 +68,50 @@ final class TimelineRegionPlayerTests: XCTestCase {
         XCTAssertEqual(TimelineRegionPlayer.loopTicks(for: TimelineDocument()), 0)
     }
 }
+
+#if canImport(SwiftUI)
+// H4 integration (code review MEDIUM: the pure helpers alone stay green even if
+// the per-step glue is deleted): transportStep must PULL the live document, merge
+// its mixer fields, and push the changed gain/pan to the slot sinks.
+@MainActor
+final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
+
+    func testTransportStep_pullsLiveMixerEdit_andPushesSlotGainPan() {
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let secondary = TimelineLane(name: "MIDI 2", kind: .midi)
+        let document = TimelineDocument(lanes: [roll, secondary], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 3840),
+            TimelineRegion(laneID: secondary.id, clipID: UUID(), startTick: 0, lengthTicks: 3840),
+        ])
+
+        let player = TimelineRegionPlayer()
+        var gains: [Int: Float] = [:]
+        var pans: [Int: Float] = [:]
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotGainSink = { gains[$0] = $1 }
+        player.slotPanSink = { pans[$0] = $1 }
+
+        var storeDocument = document                    // the "store" the app injects
+        player.liveDocument = { storeDocument }
+
+        // Locals kept alive for the whole test — the player only holds them weakly.
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips,
+                    pattern: pattern, pianoRoll: pianoRoll)
+        defer { player.stop() }
+        XCTAssertEqual(gains[0], 1, "prime pushes the secondary slot's initial gain")
+        XCTAssertEqual(pans[0], 0)
+
+        // Live mixer edit in the STORE while playing — never handed to play().
+        storeDocument.lanes[1].level = 0.25
+        storeDocument.lanes[1].pan = -0.5
+        player.transportStep(1)
+
+        XCTAssertEqual(gains[0] ?? -1, 0.25, accuracy: 1e-6,
+                       "the step pulls the store edit and re-pushes the slot gain")
+        XCTAssertEqual(pans[0] ?? -1, -0.5, accuracy: 1e-6)
+    }
+}
+#endif

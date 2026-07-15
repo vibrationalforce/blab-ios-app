@@ -408,11 +408,21 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     /// order, regions and every other field stay untouched — the region player's
     /// playback snapshot must keep its lane ranks stable (its pumps are rank-keyed),
     /// so a mid-play lane add/remove in `fresh` is deliberately IGNORED here.
+    /// KNOWN ASYMMETRY (accepted): a lane ADDED and soloed mid-play never enters the
+    /// snapshot, so its solo cannot gate the playing lanes — consistent with the
+    /// structure freeze (that lane can't sound until restart either).
     /// Returns true when anything changed (the caller re-pushes gains/pans then).
     public mutating func mergeMixer(from fresh: TimelineDocument) -> Bool {
         var changed = false
         for i in lanes.indices {
-            guard let live = fresh.lanes.first(where: { $0.id == lanes[i].id }) else { continue }
+            guard let live = fresh.lanes.first(where: { $0.id == lanes[i].id }) else {
+                // Snapshot lane DELETED from the store mid-play: its stale solo would
+                // otherwise keep every OTHER lane at effectiveGain 0 until stop while
+                // the UI shows no solo anywhere (review MEDIUM). Membership stays
+                // ignored, but the cross-lane solo bit must reconcile.
+                if lanes[i].isSoloed { lanes[i].isSoloed = false; changed = true }
+                continue
+            }
             if lanes[i].isMuted != live.isMuted { lanes[i].isMuted = live.isMuted; changed = true }
             if lanes[i].isSoloed != live.isSoloed { lanes[i].isSoloed = live.isSoloed; changed = true }
             if lanes[i].level != live.level { lanes[i].level = live.level; changed = true }
