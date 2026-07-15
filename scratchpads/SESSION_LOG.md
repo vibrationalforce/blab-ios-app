@@ -5931,3 +5931,18 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   **Welle 2 als Nächstes:** H6 relative mediaRef (App-Update-Datenverlust;
   MediaLibrary.resolveRef = die eine Fix-Heimat) · H7 SurfaceHost-Identität ·
   H9 AU-FX pro Spur + musicalContext · H10 MIDIInput-Flood (#30).
+
+## 2026-07-15 (Fortsetzung 4) — H6 geheilt, v251 deployed
+- **v251 (H6, e4df4d8 + 826057e, Gates grün):** mediaRef update-fest.
+  resolveRef re-rootet tote absolute Container-Pfade per Dateiname gegen alle
+  Medien-Heimaten (Media/Audio|Video|Image + Documents/Videos); der private
+  Resolver-Zwilling in ArrangeTimelineView delegiert jetzt. Review APPROVE
+  (nur LOWs; Voll-URL-Assertion, Bare-Name-Test, Nebeneffekt-Doku eingearbeitet).
+- **LEDGER-Lehre:** absolute App-/Group-Container-Pfade sind UPDATE-STERBLICH
+  (Container-UUID wechselt pro Update) — persistierte Datei-Refs immer über
+  EINEN Resolver auflösen, der per (UUID-)Dateiname re-rootet. Negative-Caches
+  im Resolver sind falsch: der Retry ist die Selbstheilung. Offenes Ticket
+  (kosmetisch): geheilte Pfade werden nicht zurückgeschrieben — jeder Resolve
+  eines Alt-Refs zahlt den Dead-Path-Probe erneut.
+- **Nächster Punkt (Welle 2):** H7 SurfaceHost Fold/Unfold-Identitäts-Kill
+  (read-only Audit zuerst, ui-state-reviewer Pflicht).

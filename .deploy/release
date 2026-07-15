@@ -1,45 +1,31 @@
-build: 2026-07-15 v10.79.250 (Third-Party-AUv3-Instrumente KLINGEN auf Spuren — Heilungs-Welle 1 KOMPLETT)
+build: 2026-07-15 v10.79.251 (Importierte Clips überleben App-Updates — Heilungs-Welle 2 startet)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Fünfter und letzter verifizierter CRITICAL aus deinem Ultracode-Mandat
-  geheilt — H5, dein direkter Wunsch: "auv3 Plugins von third Party wie Eventide
-  und anderen Herstellern ermöglichen."
+notes: Erster Welle-2-Punkt geheilt (H6, Audit-CRITICAL "stiller Datenverlust
+  beim App-Update").
 
-  H5 — AU-INSTRUMENTE PRO SPUR (bisher war "Assign to this track" nur ein Label):
-  • Ein einer MIDI-Spur zugewiesenes Third-Party-AUv3-Instrument KLINGT jetzt:
-    die Noten der Spur gehen ins Plugin (Host-MIDI), sein Audio in den Master —
-    pro Spur eine eigene Instanz, mit Spur-Gain/Pan/Transpose.
-  • Zuweisungen überleben Neustart (Restore beim App-Start), reagieren auf
-    Ändern/Löschen/Undo sofort, und JEDER Fehlerpfad fällt auf die interne
-    Voice zurück — nie Stille. Max 4 Instanzen (ehrlich geloggt).
-  • Die primäre Roll-Spur spielt weiter über den globalen Plugin-Host (kein
-    Doppel-Hosting desselben Plugins).
-  • EHRLICHE GRENZE: Detune (Cent) ist als MIDI nicht ausdrückbar und wird auf
-    AU-Spuren bewusst NICHT angewendet (Transpose in Halbtönen schon).
+  H6 — MEDIEN-PFADE UPDATE-FEST:
+  • Importierte Audio-/Video-/Bild-Clips speicherten den ABSOLUTEN Pfad in den
+    App-Container — dessen UUID wechselt bei JEDEM App-Update/Gerätewechsel.
+    Die Datei überlebt, der Pfad nicht: nach dem ersten Update hätte jeder
+    importierte Clip still sein Medium verloren (Region da, Klang/Bild weg).
+  • Jetzt: der eine Resolver (MediaLibrary.resolveRef) re-rootet tote Pfade
+    per Dateiname gegen alle Medien-Heimaten (Import-Namen sind UUIDs —
+    kollisionsfrei; Kamera-Captures über Documents/Videos gepinnt). Wirklich
+    verschwundene Dateien bleiben ehrlich nil — nichts wird erfunden.
+  • Der private Resolver-Zwilling der Timeline (der an genau diesen Refs
+    starb) delegiert jetzt an den einen Resolver.
 
-  SICHER (2 volle Review-Pässe, alle Funde gefixt):
-  • Stale-Guard: Zuweisung mitten im async-Laden geändert/gelöscht → die alte
-    Instanz wird verworfen, nie installiert.
-  • Offs-to-both: Plugin-Zuweisung WÄHREND die Spur spielt → kein hängender
-    Ton mehr (Note-Offs gehen an alte UND neue Voice; vorher hätte der Flip
-    gehaltene Noten gestrandet — überlebte sogar Stop).
-  • Fail-Parking: ein kaputtes Plugin wird nicht bei jedem Regler-Zug neu
-    geladen (Retry nur bei geänderter Zuweisung).
-  • Ordnungs-Gesetz im Fan-out: Alt-Take-Offs durch die alte Bindung, DANN
-    umbinden — kein Noten-Hänger beim Clip-Wechsel zwischen zwei AU-Spuren.
-  Kette fbf49ff→c9e23af→c0a5209→60f52f1 Gates grün. Flag laneAUInstruments
-  default-ON (Risiko aktiviert sich erst durch den expliziten Assign-Akt;
-  Dev-OFF bleibt der Ein-Zeilen-Rollback).
+  SICHER: code-reviewer APPROVE (nur LOWs, die billigen drei eingearbeitet:
+  Voll-URL-Assertion, Bare-Name-Konventions-Test, Nebeneffekt-Doku). Verifiziert:
+  Re-Rooting kann praktisch nie die falsche Datei treffen; Playback-Retry-Kosten
+  ~0,3 % eines Kerns worst-case (und der Retry IST die Selbstheilung). 6 Tests.
+  Gates e4df4d8 + 826057e alle grün.
 
-  GERÄTE-VERIFY-BITTE (NEEDS-FOUNDER-VERIFY): ein AUv3-Instrument (Eventide o. ä.)
-  im Plugins-Browser laden → Spur-Menü "Assign '<Name>' to this track" auf einer
-  ZWEITEN MIDI-Spur → Play. Die Spur klingt durchs Plugin; Fader/Pan/Mute greifen
-  live; Zuweisung löschen → interne Voice übernimmt wieder.
+  GERÄTE-VERIFY v250 WEITER OFFEN (AU-Instrumente): AUv3-Instrument im
+  Plugins-Browser laden → "Assign to this track" auf zweiter MIDI-Spur → Play.
 
-  HEILUNGS-WELLE 1 KOMPLETT ("Es klingt, wie es aussieht"):
-  M1 MIDI-Takte v247 · A1 Audio-Spuren v248 · H3 Sample-Race + H4 Live-Mixer
-  v249 · H5 AU-Instrumente v250. Als Nächstes Welle 2: H6 relative Medien-Pfade
-  (stiller Datenverlust beim App-Update) · H7 SurfaceHost-Identität · H9 AU-FX
-  pro Spur + musicalContext.
+  Welle-2-Rest: H7 SurfaceHost-Identität · H9 AU-FX pro Spur + musicalContext ·
+  H10 MIDI-Flood (#30) · H11-13.
 
-  Reihenfolge: v246 Video-Monitor · v247 MIDI-Takte · v248 Audio-Klang ·
-  v249 Live-Mixer + Sample-Race · v250 AU-Instrumente.
+  Reihenfolge: v247 MIDI-Takte · v248 Audio-Klang · v249 Live-Mixer+Sample-Race ·
+  v250 AU-Instrumente · v251 Update-feste Medien.
