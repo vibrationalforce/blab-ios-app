@@ -296,18 +296,12 @@ struct EchoelmusicApp: App {
         #if canImport(CoreMIDI)
         midiPub.thruEnabled = g.hasEnabledRoute(from: "midi.in", to: "midi.out")  // MIDI thru
         #endif
-        // B4/#21: the universal BLE heart-rate strap (0x180D). Wiring the
-        // "Herzgurt (BLE)" source in the Patchbay starts the scan (this is the
-        // user-initiated moment for the Bluetooth permission prompt); removing
-        // the last route stops it. start/stop are idempotent. NEEDS-FOUNDER-
-        // VERIFY with a real strap at the milestone.
-        #if canImport(CoreBluetooth)
-        if g.hasEnabledRoute(fromSource: "blehrs.in") {
-            polarH10.start(publishing: bus)
-        } else {
-            polarH10.stop()
-        }
-        #endif
+        // BLE-3 (ultrascan 2026-07-15): the strap has ONE owner — the pulse-pill
+        // source dropdown (studio startBioSource). The former blehrs.in coupling
+        // here made applyRouting a SECOND owner that stopped a pill-started strap
+        // on EVERY unrelated Patchbay edit (mid-performance kill) and could start
+        // it alongside the camera (the one real both-sources-at-once path). The
+        // blehrs.in port remains a data-flow port; it no longer drives lifecycle.
         // Broadcast comes online on demand: a route to rtmp.out / srt.out starts the
         // stream (engine permitting), removing the last connection stops it.
         let wantsBroadcast = g.hasEnabledRoute(toSink: "rtmp.out") || g.hasEnabledRoute(toSink: "srt.out")

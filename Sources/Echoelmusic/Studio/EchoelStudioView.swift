@@ -1253,12 +1253,12 @@ struct EchoelStudioView: View {
     /// tap-to-learn and the source control render UNCHANGED inside the
     /// dropdown — BioStripView stays the leaf that reads the 10 Hz camera
     /// state (freeze rule), so opening this panel never churns the root body.
-    /// Sources: camera pulse starts right here; the BLE strap connects via
-    /// Routing (its "Herzgurt (BLE)" port is the door, B4); Watch via Health.
+    /// Sources: camera pulse starts right here; the BLE strap's ONE door is the
+    /// pulse-pill dropdown (BLE-3 single owner); Watch via Health.
     private var bioPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             BioStripView(measuring: running, onStartPulse: { startBiofeedback() })
-            Text("Camera pulse starts here. A BLE chest strap connects in Routing (wire \u{201E}Herzgurt (BLE)\u{201C}); Apple Watch feeds in through Health.")
+            Text("Camera pulse starts here. For a BLE chest strap, touch and hold the pulse pill in the header and pick \u{201C}Search for Bluetooth device\u{201D}; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             Button {

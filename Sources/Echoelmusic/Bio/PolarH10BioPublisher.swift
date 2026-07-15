@@ -107,7 +107,17 @@ public final class PolarH10BioPublisher: NSObject {
         guard !isPublishing else { return }
         self.bus = bus
         isPublishing = true
-        central = CBCentralManager(delegate: self, queue: .main)
+        if let central {
+            // BLE-4: REUSE the existing central. Constructing a second manager
+            // orphaned the first (delegate still self) — a zombie that kept
+            // scanning/connecting behind the app's back after a stop-during-
+            // permission-prompt, draining phone + strap battery. A reused
+            // central fires no fresh didUpdateState, so re-drive the handler:
+            // .poweredOn starts scanning immediately, others surface honestly.
+            handleCentralStateChange(central)
+        } else {
+            central = CBCentralManager(delegate: self, queue: .main)
+        }
     }
 
     public func stop() {
@@ -255,6 +265,11 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
 
     @MainActor
     private func handleCentralStateChange(_ central: CBCentralManager) {
+        // BLE-4: a state change landing after stop() must be inert. The founder's
+        // exact logged pattern: first BLE pick raises the iOS permission prompt →
+        // user stops within seconds → prompt granted AFTER stop → .poweredOn fires
+        // on a stopped publisher and (pre-guard) started a zombie scan.
+        guard isPublishing else { return }
         switch central.state {
         case .poweredOn:
             state = .scanning
@@ -301,6 +316,9 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
 
     @MainActor
     private func handleDiscovered(_ peripheral: CBPeripheral, named name: String, on central: CBCentralManager) {
+        // BLE-4: a discovery landing after stop() must not connect (pre-guard, a
+        // zombie scan's find issued connect() and shadowed the next session).
+        guard isPublishing else { return }
         guard self.peripheral == nil else { return }
         scanWatchdog?.cancel()
         scanWatchdog = nil
