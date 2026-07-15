@@ -125,7 +125,14 @@ public final class PolarH10BioPublisher: NSObject {
         scanWatchdog = nil
         publishTask?.cancel()
         publishTask = nil
-        if let peripheral, peripheral.state == .connected {
+        // Cancel unconditionally (review HIGH-1): a PENDING connect (.connecting,
+        // from discovery or auto-reconnect) is exactly what cancelPeripheral-
+        // Connection exists to cancel — the old `.connected`-only guard let a
+        // stop-during-"Connecting…" leave the connect pending on the now-REUSED
+        // central forever (strap connects while stopped, untracked → the next
+        // scan can never find it → eternal "No strap" until app kill). Cancel
+        // on an already-disconnected peripheral is a documented no-op.
+        if let peripheral {
             central?.cancelPeripheralConnection(peripheral)
         }
         if let central, central.state == .poweredOn {
@@ -332,9 +339,14 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
 
     public nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor [weak self] in
-            // Ignore a connect that lands after stop() — otherwise state desyncs to
-            // .connected after the user already stopped.
-            guard let self, self.isPublishing else { return }
+            // A connect that lands after stop() must be actively RELEASED, not just
+            // ignored (review HIGH-2): silently returning left the established CB
+            // link alive and orphaned (self.peripheral is nil — nothing could ever
+            // cancel it, and a connected strap stops advertising → unfindable).
+            guard let self, self.isPublishing else {
+                central.cancelPeripheralConnection(peripheral)
+                return
+            }
             self.state = .connected
             peripheral.discoverServices([Self.hrServiceUUID])
         }
@@ -359,7 +371,9 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
                 self.state = .connecting
                 self.central?.connect(p)
             } else {
-                self.state = .disconnected
+                // Stopped publisher: rest at .idle (review LOW-3 — .disconnected on a
+                // stopped session was invisible but impure; .idle is the honest rest).
+                self.state = self.isPublishing ? .disconnected : .idle
                 self.connectedDeviceName = ""
             }
         }
