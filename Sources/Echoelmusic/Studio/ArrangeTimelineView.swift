@@ -304,6 +304,36 @@ struct ArrangeTimelineView: View {
             //  TimelineRegionPlayer], else the live loop — so this separate button was
             //  redundant. Recording keeps its own arm control below.)
 
+            // Undo / Redo (clip game C2 — fearless editing): every region edit (move,
+            // trim, split, join, duplicate, delete, import-add) is one history step in
+            // the store. `canUndo`/`canRedo` flip only on edits (low-frequency reads —
+            // render-safe in this toolbar).
+            Button { timeline.undo() } label: {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(timeline.canUndo ? EchoelTheme.text : EchoelTheme.dim)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(!timeline.canUndo)
+            .accessibilityLabel("Undo the last clip edit")
+
+            Button { timeline.redo() } label: {
+                Image(systemName: "arrow.uturn.forward")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(timeline.canRedo ? EchoelTheme.text : EchoelTheme.dim)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(!timeline.canRedo)
+            .accessibilityLabel("Redo the undone clip edit")
+
             // Record: arm the take + start the clock. Every note/bio input on an armed
             // track is captured; Stop drops a Clip + region onto that lane. Reads only
             // the low-frequency `isRecording` bool (render-safe). Disabled until a track

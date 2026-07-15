@@ -72,14 +72,70 @@ public final class TimelineStore {
         return TimelineDocument(lanes: [midiLane, audioLane], regions: regions)
     }
 
+    // MARK: - Undo / Redo (clip game C2 — founder 2026-07-15 "seamless workflow")
+
+    /// REGION-array snapshots BEFORE each region edit (value-type copies — cheap). Kept
+    /// off observation; the observable `canUndo`/`canRedo` flags drive the toolbar
+    /// buttons. Deliberately NOT whole-document snapshots: lanes/mixer/automation are
+    /// not part of this history, so an undo can never silently revert a fader move,
+    /// rename, or instrument assignment made after the region edit (reviewer-caught
+    /// cross-contamination). All 11 snapshotted commands mutate ONLY `document.regions`.
+    /// EchoelAI's "mach das rückgängig" will call exactly `undo()` (store-first, plan C6).
+    @ObservationIgnored private var undoStack: [[TimelineRegion]] = []
+    @ObservationIgnored private var redoStack: [[TimelineRegion]] = []
+    public private(set) var canUndo = false
+    public private(set) var canRedo = false
+    private static let undoDepth = 50
+
+    /// Call AFTER a method's guards pass and BEFORE its first mutation, so every
+    /// snapshot equals exactly one real user command (no dead undo steps).
+    private func snapshotForUndo() {
+        undoStack.append(document.regions)
+        if undoStack.count > Self.undoDepth { undoStack.removeFirst() }
+        redoStack.removeAll()
+        syncUndoFlags()
+    }
+
+    /// Restore a snapshot, dropping regions whose lane no longer exists (a lane deleted
+    /// AFTER the snapshot must not resurrect invisible orphans that inflate the song end).
+    private func restoreRegions(_ regions: [TimelineRegion]) {
+        document.regions = regions.filter { r in document.lanes.contains { $0.id == r.laneID } }
+    }
+
+    /// Revert the last region edit. No-op with an empty history.
+    public func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(document.regions)
+        restoreRegions(previous)
+        persist()
+        syncUndoFlags()
+    }
+
+    /// Re-apply the last undone edit. No-op unless the previous action was `undo()`.
+    public func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(document.regions)
+        restoreRegions(next)
+        persist()
+        syncUndoFlags()
+    }
+
+    private func syncUndoFlags() {
+        canUndo = !undoStack.isEmpty
+        canRedo = !redoStack.isEmpty
+    }
+
     // MARK: - Region edits (persist per edit)
 
     public func addRegion(_ region: TimelineRegion) {
+        snapshotForUndo()
         document.regions.append(region)
         persist()
     }
 
     public func removeRegion(id: UUID) {
+        guard document.regions.contains(where: { $0.id == id }) else { return }
+        snapshotForUndo()
         document.regions.removeAll { $0.id == id }
         persist()
     }
@@ -89,6 +145,7 @@ public final class TimelineStore {
     /// The arrangement's "copy" verb, alongside split/join/delete/move.
     public func duplicateRegion(id: UUID) {
         guard let r = document.regions.first(where: { $0.id == id }) else { return }
+        snapshotForUndo()
         document.regions.append(r.duplicated())
         persist()
     }
@@ -97,6 +154,7 @@ public final class TimelineStore {
     /// stays gesture-agnostic). Clamped ≥ 0.
     public func moveRegion(id: UUID, toStartTick tick: Int) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        snapshotForUndo()
         document.regions[i].startTick = max(0, tick)
         persist()
     }
@@ -109,6 +167,7 @@ public final class TimelineStore {
     /// PLAN_CLIP_GAME_2026-07-15: store-first, gestures stay thin).
     public func moveRegion(id: UUID, toStartTick tick: Int, laneOffset: Int) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        snapshotForUndo()
         document.regions[i].startTick = max(0, tick)
         if laneOffset != 0,
            let fromIdx = document.lanes.firstIndex(where: { $0.id == document.regions[i].laneID }) {
@@ -125,6 +184,7 @@ public final class TimelineStore {
     /// Resize a region (trim); minimum one tick so a region can't vanish.
     public func resizeRegion(id: UUID, lengthTicks: Int) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        snapshotForUndo()
         document.regions[i].lengthTicks = max(1, lengthTicks)
         persist()
     }
@@ -135,6 +195,7 @@ public final class TimelineStore {
     public func trimRegionStart(id: UUID, toTick tick: Int, bpm: Double) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }),
               let trimmed = document.regions[i].trimmedStart(toTick: tick, bpm: bpm) else { return }
+        snapshotForUndo()
         document.regions[i] = trimmed
         persist()
     }
@@ -147,6 +208,7 @@ public final class TimelineStore {
     public func splitRegion(id: UUID, atTick tick: Int, bpm: Double) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }),
               let (first, second) = document.regions[i].split(at: tick, bpm: bpm) else { return }
+        snapshotForUndo()
         document.regions[i] = first
         document.regions.append(second)
         persist()
@@ -156,15 +218,18 @@ public final class TimelineStore {
     /// playhead" gesture — no per-region selection needed). No-op if the tick is
     /// inside no region.
     public func splitRegions(atTick tick: Int, bpm: Double) {
+        // Work on a local copy so the undo snapshot lands only when something splits.
+        var regions = document.regions
         var newPieces: [TimelineRegion] = []
-        for i in document.regions.indices {
-            if let (first, second) = document.regions[i].split(at: tick, bpm: bpm) {
-                document.regions[i] = first
+        for i in regions.indices {
+            if let (first, second) = regions[i].split(at: tick, bpm: bpm) {
+                regions[i] = first
                 newPieces.append(second)
             }
         }
         guard !newPieces.isEmpty else { return }
-        document.regions.append(contentsOf: newPieces)
+        snapshotForUndo()
+        document.regions = regions + newPieces
         persist()
     }
 
@@ -189,6 +254,7 @@ public final class TimelineStore {
             }
         }
         guard didMerge else { return }
+        snapshotForUndo()
         document.regions = regions
         persist()
     }
@@ -205,6 +271,7 @@ public final class TimelineStore {
         guard let bi = document.regions.firstIndex(where: { $0.id != id && a.abuts($0, bpm: bpm) })
         else { return }
         let merged = a.merged(with: document.regions[bi])
+        snapshotForUndo()
         document.regions.remove(at: bi)
         // Removal may have shifted `a`'s index — re-find by id before writing back.
         if let newAI = document.regions.firstIndex(where: { $0.id == id }) {

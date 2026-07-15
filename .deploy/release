@@ -1,36 +1,29 @@
-build: 2026-07-15 v10.79.239 (Clips einfach packen und verschieben — Zeit UND Spur; Clip-Game-Plan steht)
+build: 2026-07-15 v10.79.240 (Undo/Redo fürs Clip-Editing — furchtlos schneiden, schieben, löschen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dein Auftrag: "Das gesamte Clip Game aufräumen — seamless workflow, kein
-  unbeholfenes Rumdrücken, und am Ende steuert EchoelAI alles."
+notes: Clip-Game C2 aus deinem Auftrag ("seamless workflow"): UNDO/REDO.
 
-  AUDIT GEMACHT (scratchpads/PLAN_CLIP_GAME_2026-07-15.md): Die größte Lücke war, dass
-  man Clips NICHT mit dem Finger verschieben konnte — nur über das Menü ("Move to
-  playhead"). Genau das war das unbeholfene Rumdrücken.
+  NEU: zwei Pfeil-Knöpfe (↩ ↪) links in der Timeline-Leiste.
+  • JEDER Clip-Eingriff ist ein Schritt in der Historie: verschieben, vorne/hinten
+    trimmen, schneiden, zusammenfügen, duplizieren, löschen, importieren — bis zu 50
+    Schritte zurück.
+  • Undo macht den letzten Schritt rückgängig, Redo holt ihn zurück; ein neuer Eingriff
+    nach Undo öffnet einen frischen Verlauf (wie in jeder DAW).
+  • WICHTIG (Reviewer-Fund, behoben): die Historie umfasst NUR Clip-Eingriffe — Fader,
+    Umbenennen, Mute/Solo, Instrument-Zuweisung werden von einem Undo NIE mit
+    zurückgedreht. Und eine gelöschte Spur läßt per Undo keine unsichtbaren
+    Geister-Clips zurück.
 
-  NEU (C1): Clip packen und ziehen.
-  • Horizontal = in der Zeit verschieben (rastet beim Loslassen aufs Raster,
-    stufenlos bei Snap = off).
-  • Vertikal = auf eine ANDERE Spur ziehen — nur auf eine Spur gleicher Art
-    (Audio bleibt auf Audio, MIDI auf MIDI; falsche Spur → er bleibt, nur die
-    Zeit ändert sich).
-  • Während des Zugs schwebt der Clip sichtbar über den Nachbarn; Tippen (Vorhören),
-    langer Druck (Menü) und die Trimm-Griffe an den Kanten funktionieren alle weiter.
+  ECHOELAI: "mach das rückgängig" ruft später exakt dieses undo() auf — die Historie
+  liegt im Befehlskern (Store), nicht in der Oberfläche.
 
-  ECHOELAI-FUNDAMENT (die Leitplanke aus deinem Auftrag): Jede Clip-Operation ist eine
-  STORE-METHODE mit purer, getesteter Mathematik — die Geste ist nur ein dünner
-  Auslöser. Die spätere EchoelAI-Editing-Schicht ("schneide alle Clips am Takt 4")
-  ruft exakt dieselben Befehle auf wie dein Finger. Kein Umbau nötig, nur ein Mapping.
+  TEST-FIRST: 4 neue Historie-Tests (Verschieben rückgängig + wiederholen, Löschen
+  rückgängig, neuer Eingriff leert Redo, No-Ops erzeugen keine toten Schritte).
+  SICHER: code-reviewer CONFIRMED (Snapshot-Platzierung in allen 11 Befehlen nach den
+  Guards geprüft; der Ganz-Dokument-Kontaminations-Fund wurde VOR dem Ship auf
+  Nur-Clips-Snapshots umgebaut). Gates v239 grün.
 
-  TEST-FIRST: 3 neue Store-Tests (Spurwechsel gleiche Art, Art-Konflikt, Grenzen).
-  SICHER: code-reviewer + ui-state-reviewer CONFIRMED — Gesten-Vorrang sauber
-  (Trimm-Griffe/Tap/Menü unangetastet, leerer Platz scrollt weiter), ein einziges
-  sauberes Einrasten beim Loslassen, Freeze-Regel gewahrt. Gates v237+v238 grün.
+  Clip-Game-Stand: C1 Drag-to-move (v239) ✓ · C2 Undo/Redo (v240) ✓ · als Nächstes
+  C3 Multi-Select + Combine · C4 Einrast-Haptik/Magnetkanten · C5 Überlapp-Regel ·
+  C6 EchoelAI-TimelineToolCore.
 
-  DEVICE-VERIFY BITTE: Clip packen und ziehen (auch schnell) — fühlt sich der Zug
-  direkt an, und gewinnt der Zug zuverlässig gegen das Timeline-Scrollen?
-
-  GEPLANTE NÄCHSTE CLIP-GAME-ZYKLEN (im Plan): C2 Undo/Redo · C3 Multi-Select +
-  Combine · C4 Einrast-Haptik + Magnetkanten · C5 Überlapp-Regel · C6 EchoelAI-
-  TimelineToolCore (Sprachbefehle → dieselben Store-Calls).
-
-  Reihenfolge: v238 Import an der leeren Spur · v239 Drag-to-move + Clip-Game-Plan.
+  Reihenfolge: v239 Drag-to-move · v240 Undo/Redo.

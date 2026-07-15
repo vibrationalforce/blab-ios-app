@@ -178,6 +178,71 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
                       "the rejoined region spans the original first bar again")
     }
 
+    // MARK: - Undo / Redo (C2 — clip game)
+
+    func testUndo_revertsMove_andRedoReapplies() {
+        let store = TimelineStore()
+        // A REAL lane: undo's restore drops regions whose lane is gone (orphan guard),
+        // so history tests must place their region on a lane the document knows.
+        store.addLane(kind: .audio, name: "undoMove-\(UUID())")
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 480, lengthTicks: 960)
+        store.addRegion(r)
+        store.moveRegion(id: r.id, toStartTick: 1920)
+        func mine() -> TimelineRegion? { store.document.regions.first { $0.id == r.id } }
+        XCTAssertEqual(mine()?.startTick, 1920)
+        XCTAssertTrue(store.canUndo)
+
+        store.undo()
+        XCTAssertEqual(mine()?.startTick, 480, "undo reverts the move")
+        XCTAssertTrue(store.canRedo)
+
+        store.redo()
+        XCTAssertEqual(mine()?.startTick, 1920, "redo re-applies the move")
+    }
+
+    func testUndo_revertsDelete_regionComesBack() {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "undoDel-\(UUID())")   // real lane (orphan guard)
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 960)
+        store.addRegion(r)
+        store.removeRegion(id: r.id)
+        XCTAssertNil(store.document.regions.first { $0.id == r.id })
+        store.undo()
+        XCTAssertNotNil(store.document.regions.first { $0.id == r.id },
+                        "undo brings the deleted region back")
+    }
+
+    func testNewEdit_clearsRedo() {
+        let store = TimelineStore()
+        store.addLane(kind: .audio, name: "undoFork-\(UUID())")  // real lane (orphan guard)
+        let lane = store.document.lanes.last!.id
+        let clip = UUID()
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 0, lengthTicks: 960)
+        store.addRegion(r)
+        store.moveRegion(id: r.id, toStartTick: 960)
+        store.undo()
+        XCTAssertTrue(store.canRedo)
+        store.moveRegion(id: r.id, toStartTick: 1920)   // a fresh edit forks history
+        XCTAssertFalse(store.canRedo, "a new edit clears the redo branch")
+    }
+
+    func testNoOpCommand_pushesNoUndoState() {
+        let store = TimelineStore()
+        let lane = UUID(); let clip = UUID()
+        let r = TimelineRegion(laneID: lane, clipID: clip, startTick: 100, lengthTicks: 800)
+        store.addRegion(r)
+        // No-ops WHILE r exists, so each hits its intended guard (reviewer note: undoing
+        // first would make the edge split no-op on unknown-id instead of the edge guard).
+        store.splitRegion(id: r.id, atTick: 100, bpm: 120)   // edge split = no-op
+        store.removeRegion(id: UUID())                       // unknown id = no-op
+        store.undo()                                         // pops the ONE addRegion snapshot
+        XCTAssertFalse(store.canUndo, "no-op commands must not create dead undo steps")
+    }
+
     // MARK: - Drag-to-move (C1 — clip game: horizontal time + vertical lane change)
 
     func testMoveRegion_laneOffset_movesToSameKindLane() {
