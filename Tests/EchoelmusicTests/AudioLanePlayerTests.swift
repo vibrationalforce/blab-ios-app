@@ -137,6 +137,23 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? false, "warm-up must not sound")
     }
 
+    func testPrime_firstClipUnresolvable_stillWarmsTheLaneFromALaterRegion() {
+        // The earliest region's file is missing; a later region's resolves. Prime
+        // must still attach/warm the lane NOW — otherwise the later onset (or an
+        // unmute) attaches mid-song and pauses the whole engine (H4 review MEDIUM).
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let missing = UUID(), present = UUID()
+        let document = TimelineDocument(lanes: [lane], regions: [
+            TimelineRegion(laneID: lane.id, clipID: missing, startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: lane.id, clipID: present, startTick: 3840, lengthTicks: 1920),
+        ])
+        let factory = Factory()
+        let p = player(factory) { id in id == present ? self.fileURL : nil }
+        p.prime(in: document, atTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.preloads, [fileURL],
+                       "warm-up falls through to the first RESOLVABLE region")
+    }
+
     func testRemovedLane_reconcileDetachesItsSink() {
         let (document, _) = doc()
         let factory = Factory()
