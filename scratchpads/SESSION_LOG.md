@@ -3,6 +3,22 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-16 (Forts. 46, ULTRACODE) — EchoelStretchEngine Spine (Founder: „eigene Stretch Engine")
+- **Founder:** „Können wir eine eigene Stretch Engine mit wählbaren Algorithmen (Qualität +
+  Charakter) entwickeln, die besten überall integriert?" → JA (Council proceed).
+- **GEBAUT + gepusht (8afad0f), Review CLEAN:** Slice 0 = pure Spine. `StretchMode` (enum:
+  clean=LIVE Apple-spectral · tape=varispeed · beats=WSOLA · studio=Signalsmith-gated; nur
+  FREIE Executoren, ehrlicher `.clean`-Fallback für unverdrahtete Modi, `selectable`=nur
+  implementierte). `StretchPlan.resolve` = eine Rate+Pitch-Entscheidung, beweisbar identisch
+  zu `AudioClipRegion.effectiveStretchRate` (Parity-Test). `AudioClipRegion.stretchMode`
+  persistiert (decodeIfPresent .clean, Legacy lädt clean). `StretchEngineTests`.
+- **Fassade + Executor-Architektur:** jeder Executor = ein Graph-Node (audio-thread-safe),
+  Modus-Wechsel = Rewire unter Pause (selten). Konsumenten lesen `StretchPlan`.
+- **Nächste Scheiben (PLAN_STRETCH_ENGINE.md):** Slice 1 Tape-Executor (erster HÖRBARER
+  Charakter, Founder-A/B, UI-Picker) → Slice 2 Beats/WSOLA (pairt EchoelBreak) → Slice 3
+  Studio/Signalsmith (Founder-gated) → Slice 4 überall (Video-Ton/Sampler/Browser).
+- **KEIN Deploy** (Freeze). NICHT alle Algorithmen auf einmal (die Falle).
+
 ## 2026-07-16 (Forts. 45, ULTRACODE) — Video-Judder gefixt + Video-Sound root-caused
 - **Founder-Input:** „keinen Video-Sound gehört + Bild ruckelt" + Akai-Emulationen für EchoelBreak.
 - **Explore-Map (a6b74edb):** (1) KEIN Video-Sound = Monitor-`AVPlayer.isMuted=true` BY DESIGN;
