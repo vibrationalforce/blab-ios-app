@@ -703,6 +703,12 @@ struct EchoelmusicApp: App {
                     resolveURL: { [weak clipStore] id in
                         guard let clip = clipStore?.clip(id: id) else { return nil }
                         return MediaLibrary.resolveRef(clip.mediaRef)
+                    },
+                    // Stretch Slice B: the clip's native tempo feeds the region's
+                    // StretchPlan, so a warp+Tape placement sounds on the timeline
+                    // exactly like the editor preview.
+                    resolveNativeBPM: { [weak clipStore] id in
+                        clipStore?.clip(id: id)?.nativeBPM ?? 0
                     })
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()

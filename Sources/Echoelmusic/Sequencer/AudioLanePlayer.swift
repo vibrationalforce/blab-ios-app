@@ -27,16 +27,23 @@ import Foundation
 @MainActor
 public protocol AudioRegionSink: AnyObject {
     /// Begin playing `url` from `fromSeconds` into the file, for up to
-    /// `lengthSeconds`, at linear `gain`. Replaces any current playback on this sink.
-    func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float)
+    /// `lengthSeconds` of MEDIA time, at linear `gain`. Replaces any current
+    /// playback on this sink. `stretch` (Slice B) is the resolved Echoel stretch
+    /// plan for the region: rate 1.0 plays on the plain, bit-identical path;
+    /// rate ≠ 1.0 renders through the sink's warp chain (pitch held for Clean,
+    /// riding the tempo for Tape).
+    func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float,
+              stretch: StretchPlan)
     /// Stop this sink's playback.
     func stop()
     /// Open `url` and attach to the engine WITHOUT playing (warm-up). Called at
     /// prime time for every lane so the graph mutation (which pauses the whole
     /// engine in this codebase's attach pattern) happens BEFORE playback — a lane
     /// whose first region starts at bar 9 must not pause the running mix mid-song
-    /// (audio-thread review HIGH 2). Default: no-op.
-    func preload(url: URL)
+    /// (audio-thread review HIGH 2). `warped` (Slice B): true when any region of
+    /// this lane plays `url` warped, so the sink can attach its warp chain NOW,
+    /// at prime time, never mid-song. Default: no-op.
+    func preload(url: URL, warped: Bool)
     /// Release engine resources when the lane is removed (reconcile). Default: no-op.
     func detach()
     /// Live mixer (H4): set this lane's output gain WITHOUT re-scheduling — a
@@ -47,7 +54,7 @@ public protocol AudioRegionSink: AnyObject {
 }
 
 public extension AudioRegionSink {
-    func preload(url: URL) {}
+    func preload(url: URL, warped: Bool) {}
     func detach() {}
     func setGain(_ gain: Float) {}
     func setPan(_ pan: Float) {}
@@ -62,6 +69,10 @@ public final class AudioLanePlayer {
     /// Resolves a clip id to a playable file URL (injected; the wiring cycle passes
     /// `clips.clip(id:)` → mediaRef → URL). `nil` ⇒ nothing to play (the lane stops).
     private let resolveURL: (UUID) -> URL?
+    /// Resolves a clip id to the media's NATIVE tempo (Slice B; injected —
+    /// `clips.clip(id:)?.nativeBPM`). `0` ⇒ unknown ⇒ a warped region honestly
+    /// plays unstretched (rate 1.0), exactly like the editor preview.
+    private let resolveNativeBPM: (UUID) -> Double
 
     private var sinks: [UUID: AudioRegionSink] = [:]
     /// H4 live mixer: the gain/pan last pushed to each lane's sink, so the per-step
@@ -72,9 +83,11 @@ public final class AudioLanePlayer {
     private var appliedPan: [UUID: Float] = [:]
 
     public init(makeSink: @escaping () -> AudioRegionSink,
-                resolveURL: @escaping (UUID) -> URL?) {
+                resolveURL: @escaping (UUID) -> URL?,
+                resolveNativeBPM: @escaping (UUID) -> Double = { _ in 0 }) {
         self.makeSink = makeSink
         self.resolveURL = resolveURL
+        self.resolveNativeBPM = resolveNativeBPM
     }
 
     /// Apply the transport window `fromTick`→`toTick`: for each audio lane, start
@@ -126,10 +139,23 @@ public final class AudioLanePlayer {
             // re-prime is a pure no-op.
             let laneRegions = doc.regions.filter { $0.laneID == laneID }
                 .sorted { $0.startTick < $1.startTick }
-            var seen = Set<URL>()
-            for url in laneRegions.compactMap({ self.resolveURL($0.clipID) })
-            where seen.insert(url).inserted {
-                sink(for: laneID).preload(url: url)
+            // Slice B: OR-merge the warp need per URL — if ANY region plays this
+            // file warped (and its native tempo is known), the sink must attach
+            // its warp chain NOW, at prime time, never mid-song (review HIGH 2).
+            var need: [URL: Bool] = [:]
+            var order: [URL] = []
+            for region in laneRegions {
+                guard let url = self.resolveURL(region.clipID) else { continue }
+                let warped = region.warpEnabled && resolveNativeBPM(region.clipID) > 0
+                if let existing = need[url] {
+                    need[url] = existing || warped
+                } else {
+                    need[url] = warped
+                    order.append(url)
+                }
+            }
+            for url in order {
+                sink(for: laneID).preload(url: url, warped: need[url] ?? false)
             }
             guard let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) else {
                 sinks[laneID]?.stop()
@@ -163,14 +189,25 @@ public final class AudioLanePlayer {
             if gain > 0 { appliedGain[laneID] = 0 }   // unresolvable file ⇒ not sounding
             return
         }
-        // Media position at this tick (mid-region entry advances it); remaining
-        // length to the region boundary. AudioRegionPlayback is the tested map.
-        let from = AudioRegionPlayback.filePositionSeconds(for: region, atTick: tick, bpm: bpm)
+        // Slice B: the region's stretch plan — rate 1.0 unless the placement opts
+        // in (warpEnabled) AND the clip's native tempo is known. Same resolver the
+        // editor preview uses (AudioClipPlayer), so timeline and preview agree.
+        let plan = StretchPlan.resolve(mode: region.stretchMode,
+                                       warpEnabled: region.warpEnabled,
+                                       nativeBPM: resolveNativeBPM(region.clipID),
+                                       projectBPM: bpm)
+        // Media position at this tick (mid-region entry advances it — rate-aware:
+        // a warped region consumes media rate× as fast as song time passes);
+        // remaining MEDIA length to the region boundary (source = output × rate,
+        // the AudioRegionPlayback.frameCount identity). Both are the tested maps.
+        let from = AudioRegionPlayback.filePositionSeconds(for: region, atTick: tick,
+                                                           bpm: bpm, stretchRate: plan.rate)
             ?? region.contentOffsetSeconds
         let length = TimelineTime.seconds(fromTicks: region.endTick - tick, bpm: bpm)
+            * plan.rate
         let lane = sink(for: laneID)
         lane.play(url: url, fromSeconds: from,
-                  lengthSeconds: max(0, length), gain: gain)
+                  lengthSeconds: max(0, length), gain: gain, stretch: plan)
         // H4: audio lanes take the lane's stereo position too (B2 gave TimelineLane
         // a pan; the synth voices honored it, audio lanes never did).
         let pan = clampedPan(in: doc, laneID: laneID)

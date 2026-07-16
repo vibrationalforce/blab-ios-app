@@ -25,6 +25,10 @@ public struct StretchPlan: Equatable, Sendable {
         self.mode = mode
     }
 
+    /// The identity plan — no tempo change, pitch held, Clean path. What every
+    /// non-warping consumer (region audition, plain playback) passes.
+    public static let unstretched = StretchPlan(rate: 1.0, preservesPitch: true, mode: .clean)
+
     /// Resolve the plan. `rate` is 1.0 (no stretch) whenever warp is off, the native
     /// tempo is unknown, or the project tempo is non-positive — identical to
     /// `AudioClipRegion.effectiveStretchRate`, so the two never diverge. The rendered

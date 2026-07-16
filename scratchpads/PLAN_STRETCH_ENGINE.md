@@ -78,10 +78,22 @@ Persistenz, damit der Entscheid auf der Region ÜBERLEBT; Editor-Preview warpt h
 Timeline-Warp = dokumentierte Slice-B-Lücke. `structurallyEqual` behandelt Modus-Wechsel
 korrekt als strukturell (via `regions ==`, konsistent zu `warpEnabled`).
 
-### Slice B (offen, device-verify-schwer) — Timeline-Audio wendet rate/mode an
-`AudioRegionSink.play` um einen rate/mode-Param erweitern + `resolveNativeBPM` in
-`AudioLanePlayer` injizieren + Sink-Impl setzt `timePitch.rate`/`.pitch` aus `StretchPlan`.
-DANN klingt eine platzierte warp+Tape-Region auf der Timeline wie im Editor-Preview.
+### Slice B (✅ GEBAUT 2026-07-16) — Timeline-Audio wendet rate/mode an
+`AudioRegionSink.play` trägt jetzt `stretch: StretchPlan`; `preload` trägt `warped: Bool`
+(Prime-Zeit-Attach der Warp-Kette — nie mid-song, Review-HIGH-2-Disziplin).
+`AudioLanePlayer` bekam `resolveNativeBPM` injiziert (App: `clipStore.clip(id:)?.nativeBPM`),
+löst pro Region den `StretchPlan` auf und rechnet Position/Länge rate-bewusst
+(`filePositionSeconds(stretchRate:)`, Media-Länge = Song-Sekunden × rate — die
+`frameCount`-Identität). `TimelineAudioSink` hält pro FormatKey ZUSÄTZLICH eine Warp-Kette
+(Player → `AVAudioUnitTimePitch` → Master, via `attachPlayerNode(_:through:format:)`):
+rate ≠ 1 rendert dort (Clean hält Pitch, Tape = `tapePitchCents`), rate = 1 bleibt auf dem
+BIT-IDENTISCHEN Plain-Node (Spectral-Färbung erreicht ungewapptes Timeline-Audio nie).
+stop/setGain/setPan/detach decken die Warp-Player mit ab. Tests: rate-bewusste
+from/length + Plan-Durchreichung, unknown-native = ehrlich rate 1, OR-gemergte
+Warp-Preload-Flags. EHRLICHE Grenze: Tempo-Änderung MITTEN in einer laufenden Region
+re-scheduled nicht (bestehendes Verhalten aller Lane-Player; nächster Region-Onset
+übernimmt die neue Rate). **Device-Hörtest offen:** warp+Tape-Clip platzieren →
+Timeline-Playback klingt wie der Editor-Preview.
 
 ### Slice 4 — Überall
 Video-Ton (PLAN_VIDEO_AUDIO), Sampler, Browser-Audition lesen dieselbe `StretchPlan`.

@@ -186,9 +186,8 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// Only meaningful when `warpEnabled` is true. A property of the PLACEMENT — the
     /// same clip can sit Clean here and Tape there. Legacy regions decode as `.clean`.
     /// Split/front-trim/duplicate carry it; Join refuses a mismatch (like `gain`/warp).
-    /// NOTE: timeline audio does not yet APPLY the mode (that is the pending Slice B —
-    /// `AudioRegionSink.play` has no rate/mode param today); this field is the honest
-    /// persistence so the editor's choice survives onto the placed region.
+    /// Applied on the timeline since Stretch Slice B: `AudioLanePlayer` resolves the
+    /// region's `StretchPlan` and the lane sink renders it (warp chain for rate ≠ 1).
     public var stretchMode: StretchMode
 
     public init(id: UUID = UUID(), laneID: UUID, clipID: UUID,

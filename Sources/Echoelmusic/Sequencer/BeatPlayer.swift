@@ -473,7 +473,8 @@ public final class BeatPlayer {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         if auditionSink == nil { auditionSink = TimelineAudioSink(engine: engine) }
         auditionSink?.play(url: url, fromSeconds: fromSeconds,
-                           lengthSeconds: lengthSeconds, gain: 1)
+                           lengthSeconds: lengthSeconds, gain: 1,
+                           stretch: .unstretched)
     }
 
     /// Stop a running region audition (transport start / user action).

@@ -31,7 +31,12 @@
 // Live mixer (H4): `setGain`/`setPan` land mid-region on the node's AVAudioMixing
 // volume/pan — control-plane, no re-scheduling (the coordinator decides when a
 // mute/unmute needs a real stop/restart instead).
-// Honest limits (documented, later cycles): per-clip fades/warp from the audio
+// Stretch (Slice B): a region placed warped renders through a per-format warp
+// chain (player → AVAudioUnitTimePitch → master) — Clean holds pitch, Tape lets
+// it ride the tempo — while UNWARPED regions keep the plain, uncolored node
+// (the spectral unit is not bit-transparent even at rate 1.0). Warp chains
+// attach at prime time via `preload(url:warped:)`.
+// Honest limits (documented, later cycles): per-clip fades from the audio
 // editor are not consumed on the timeline yet (audit A5).
 
 #if canImport(AVFoundation)
@@ -49,6 +54,16 @@ final class TimelineAudioSink: AudioRegionSink {
 
     /// One attached player node per distinct format this lane's media needs.
     private var nodes: [FormatKey: AVAudioPlayerNode] = [:]
+    /// Slice B: one warp chain (player → AVAudioUnitTimePitch → master) per format
+    /// that this lane plays WARPED. Kept SEPARATE from the plain nodes on purpose:
+    /// the spectral node is not bit-transparent even at rate 1.0 (overlap-add
+    /// latency, faint coloration — see AudioClipPlayer), so unwarped timeline
+    /// audio must keep its plain, uncolored path. Attached at PRIME time via
+    /// `preload(url:warped:)`; a warped region whose format was never primed
+    /// still attaches mid-song — same bounded cost as the plain unseen-format
+    /// path, absorbed by the next prime.
+    private var warpChains: [FormatKey: (player: AVAudioPlayerNode,
+                                         timePitch: AVAudioUnitTimePitch)] = [:]
     /// URLs whose file was already opened once → their format key, so a loop-wrap
     /// prime (which re-preloads every lane URL) is a pure no-op instead of
     /// re-opening files each round.
@@ -71,14 +86,35 @@ final class TimelineAudioSink: AudioRegionSink {
     /// (before playback), never lazily at a mid-song onset (review HIGH 2).
     /// PERF-01: the coordinator now preloads EVERY distinct URL a lane will
     /// play, so every needed format has its node before the song runs.
-    func preload(url: URL) {
-        if let key = knownURLs[url], nodes[key] != nil { return }   // wrap re-prime: no-op
-        _ = ensureLoaded(url)
+    func preload(url: URL, warped: Bool) {
+        if let key = knownURLs[url], nodes[key] != nil,
+           !warped || warpChains[key] != nil { return }   // wrap re-prime: no-op
+        guard ensureLoaded(url) != nil else { return }
+        // Slice B: this URL plays warped somewhere on the lane — attach its warp
+        // chain now, while the transport is parked (the attach pause is inaudible).
+        if warped, let key = knownURLs[url] {
+            _ = ensureWarpChain(for: key)
+        }
     }
 
-    func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float) {
+    func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float,
+              stretch: StretchPlan) {
         guard lengthSeconds > 0 else { stop(); return }
-        guard let node = ensureLoaded(url), let file else { return }
+        guard let plainNode = ensureLoaded(url), let file else { return }
+        // Slice B: rate ≠ 1.0 renders through the warp chain (rate 1.0 tape ≡
+        // clean by design — tapePitchCents(1) = 0 — so the plain path is honest).
+        // Unwarped playback stays on the plain node: bit-identical to pre-Slice-B.
+        let node: AVAudioPlayerNode
+        if stretch.rate != 1.0, let key = knownURLs[url],
+           let chain = ensureWarpChain(for: key) {
+            chain.timePitch.rate = Float(stretch.rate)
+            chain.timePitch.pitch = stretch.preservesPitch
+                ? 0
+                : Float(StretchPlan.tapePitchCents(forRate: stretch.rate))
+            node = chain.player
+        } else {
+            node = plainNode
+        }
         let sampleRate = file.processingFormat.sampleRate
         guard sampleRate > 0 else { return }
         let startFrame = AVAudioFramePosition((max(0, fromSeconds) * sampleRate).rounded())
@@ -100,6 +136,7 @@ final class TimelineAudioSink: AudioRegionSink {
 
     func stop() {
         for node in nodes.values where node.isPlaying { node.stop() }
+        for chain in warpChains.values where chain.player.isPlaying { chain.player.stop() }
     }
 
     /// H4 live mixer: level/solo edits mid-region land on the nodes' mixer volume —
@@ -110,6 +147,7 @@ final class TimelineAudioSink: AudioRegionSink {
         let g = min(2, max(0, gain.isFinite ? gain : 0))   // non-finite ⇒ silent
         self.gain = g
         for node in nodes.values { node.volume = g }
+        for chain in warpChains.values { chain.player.volume = g }
     }
 
     /// H4 live mixer: the lane's stereo position (B2 pan finally reaches audio lanes).
@@ -117,6 +155,7 @@ final class TimelineAudioSink: AudioRegionSink {
         let p = max(-1, min(1, pan))
         self.pan = p
         for node in nodes.values { node.pan = p }
+        for chain in warpChains.values { chain.player.pan = p }
     }
 
     /// Release every engine node (lane removed). Detach mutates the graph without
@@ -125,8 +164,12 @@ final class TimelineAudioSink: AudioRegionSink {
         stop()
         if let engine {
             for node in nodes.values { engine.detachPlayerNode(node) }
+            for chain in warpChains.values {
+                engine.detachPlayerNode(chain.player, timePitch: chain.timePitch)
+            }
         }
         nodes.removeAll()
+        warpChains.removeAll()
         knownURLs.removeAll()
         file = nil
     }
@@ -158,6 +201,27 @@ final class TimelineAudioSink: AudioRegionSink {
         node.pan = pan
         nodes[key] = node
         return node
+    }
+
+    /// Slice B: the ATTACHED warp chain (player → timePitch → master) for `key`,
+    /// creating + attaching one on first need. By construction that happens at
+    /// prime time (`preload(url:warped:)`); mid-song only for a region warped
+    /// live after the last prime — bounded, like the plain unseen-format path.
+    /// The player joins at the lane's CURRENT mixer state (a chain attached
+    /// after a live edit must not resurrect a stale level — same rule as
+    /// `ensureLoaded`). Returns nil when no engine is available.
+    private func ensureWarpChain(for key: FormatKey)
+        -> (player: AVAudioPlayerNode, timePitch: AVAudioUnitTimePitch)? {
+        if let existing = warpChains[key] { return existing }
+        guard let engine, let file else { return nil }
+        let player = AVAudioPlayerNode()
+        let timePitch = AVAudioUnitTimePitch()
+        engine.attachPlayerNode(player, through: timePitch, format: file.processingFormat)
+        player.volume = gain
+        player.pan = pan
+        let chain = (player: player, timePitch: timePitch)
+        warpChains[key] = chain
+        return chain
     }
 }
 #endif

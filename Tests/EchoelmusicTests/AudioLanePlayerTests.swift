@@ -15,18 +15,26 @@ final class AudioLanePlayerTests: XCTestCase {
     final class SpySink: AudioRegionSink {
         struct Play: Equatable {
             let url: URL; let from: Double; let length: Double; let gain: Float
+            let stretch: StretchPlan
         }
         var plays: [Play] = []
         var stops = 0
         var preloads: [URL] = []
+        /// Slice B: the `warped` flag passed with each preload, parallel to `preloads`.
+        var preloadWarps: [Bool] = []
         var detaches = 0
         var gains: [Float] = []
         var pans: [Float] = []
-        func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float) {
-            plays.append(Play(url: url, from: fromSeconds, length: lengthSeconds, gain: gain))
+        func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float,
+                  stretch: StretchPlan) {
+            plays.append(Play(url: url, from: fromSeconds, length: lengthSeconds,
+                              gain: gain, stretch: stretch))
         }
         func stop() { stops += 1 }
-        func preload(url: URL) { preloads.append(url) }
+        func preload(url: URL, warped: Bool) {
+            preloads.append(url)
+            preloadWarps.append(warped)
+        }
         func detach() { detaches += 1 }
         func setGain(_ gain: Float) { gains.append(gain) }
         func setPan(_ pan: Float) { pans.append(pan) }
@@ -48,8 +56,10 @@ final class AudioLanePlayerTests: XCTestCase {
         return (TimelineDocument(lanes: [lane], regions: [region]), lane.id)
     }
 
-    private func player(_ factory: Factory, resolve: @escaping (UUID) -> URL?) -> AudioLanePlayer {
-        AudioLanePlayer(makeSink: factory.make, resolveURL: resolve)
+    private func player(_ factory: Factory, resolve: @escaping (UUID) -> URL?,
+                        nativeBPM: @escaping (UUID) -> Double = { _ in 0 }) -> AudioLanePlayer {
+        AudioLanePlayer(makeSink: factory.make, resolveURL: resolve,
+                        resolveNativeBPM: nativeBPM)
     }
 
     // MARK: - Onset
@@ -274,6 +284,79 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertEqual(factory.sinks.first?.plays.count, 1, "unmute inside the region starts playback")
         XCTAssertEqual(factory.sinks.first?.plays.first?.from ?? -1, 0.5, accuracy: 1e-9,
                        "starts at the elapsed position (480 ticks = 0.5 s), not the region top")
+    }
+
+    // MARK: - Stretch Slice B (timeline applies the region's StretchPlan)
+
+    func testWarpedRegion_rateAwarePositionLengthAndPlan() {
+        // Native 60 BPM media in a 120 BPM song → rate 2.0 (media consumed 2× as
+        // fast). Enter 480 ticks (0.5 song-s) into a warped Tape region with a
+        // 1.0 s trim-in: file position = 1.0 + 0.5·2 = 2.0 s; remaining 1440
+        // ticks (1.5 song-s) schedule 3.0 s of MEDIA. Tape ⇒ pitch rides tempo.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let region = TimelineRegion(laneID: lane.id, clipID: UUID(), startTick: 0,
+                                    lengthTicks: 1920, contentOffsetSeconds: 1.0,
+                                    warpEnabled: true, stretchMode: .tape)
+        let document = TimelineDocument(lanes: [lane], regions: [region])
+        let factory = Factory()
+        let p = player(factory, resolve: { _ in self.fileURL }, nativeBPM: { _ in 60 })
+        p.prime(in: document, atTick: 480, bpm: 120)
+        let play = try? XCTUnwrap(factory.sinks.first?.plays.first)
+        XCTAssertEqual(play?.stretch.rate ?? -1, 2.0, accuracy: 1e-9)
+        XCTAssertEqual(play?.stretch.preservesPitch, false, "Tape lets pitch ride the tempo")
+        XCTAssertEqual(play?.stretch.mode, .tape)
+        XCTAssertEqual(play?.from ?? -1, 2.0, accuracy: 1e-9, "offset + elapsed·rate")
+        XCTAssertEqual(play?.length ?? -1, 3.0, accuracy: 1e-9, "media = song-seconds × rate")
+    }
+
+    func testUnwarpedRegion_playsPlanRateOne_pitchHeld() {
+        // The default (no warp) is bit-identical to pre-Slice-B: rate 1.0, Clean.
+        let (document, _) = doc()
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
+        let play = try? XCTUnwrap(factory.sinks.first?.plays.first)
+        XCTAssertEqual(play?.stretch.rate ?? -1, 1.0, accuracy: 1e-9)
+        XCTAssertEqual(play?.stretch.preservesPitch, true)
+        XCTAssertEqual(play?.stretch.mode, .clean)
+    }
+
+    func testWarpedRegion_unknownNativeBPM_honestlyUnstretched() {
+        // Warp ON but the clip's tempo is unknown (resolver returns 0) → rate 1.0,
+        // exactly like the editor preview — never a guessed stretch.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let region = TimelineRegion(laneID: lane.id, clipID: UUID(), startTick: 0,
+                                    lengthTicks: 1920, warpEnabled: true, stretchMode: .tape)
+        let document = TimelineDocument(lanes: [lane], regions: [region])
+        let factory = Factory()
+        let p = player(factory, resolve: { _ in self.fileURL })   // nativeBPM stays 0
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
+        let play = try? XCTUnwrap(factory.sinks.first?.plays.first)
+        XCTAssertEqual(play?.stretch.rate ?? -1, 1.0, accuracy: 1e-9)
+        XCTAssertEqual(play?.length ?? -1, 2.0, accuracy: 1e-9, "unstretched bar length")
+    }
+
+    func testPrime_marksWarpNeedPerURL_orMergedAcrossRegions() {
+        // One file placed unwarped AND warped on the same lane: its single preload
+        // must carry warped=true (OR-merge) so the sink attaches the warp chain at
+        // prime time, never mid-song. A second, never-warped file stays false.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let clipA = UUID(), clipB = UUID()
+        let urlA = URL(fileURLWithPath: "/tmp/echoel-a.wav")
+        let urlB = URL(fileURLWithPath: "/tmp/echoel-b.wav")
+        let document = TimelineDocument(lanes: [lane], regions: [
+            TimelineRegion(laneID: lane.id, clipID: clipA, startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: lane.id, clipID: clipB, startTick: 1920, lengthTicks: 1920),
+            TimelineRegion(laneID: lane.id, clipID: clipA, startTick: 3840, lengthTicks: 1920,
+                           warpEnabled: true, stretchMode: .clean),
+        ])
+        let factory = Factory()
+        let p = player(factory, resolve: { id in id == clipA ? urlA : urlB },
+                       nativeBPM: { id in id == clipA ? 90 : 0 })
+        p.prime(in: document, atTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.preloads, [urlA, urlB], "still one preload per file")
+        XCTAssertEqual(factory.sinks.first?.preloadWarps, [true, false],
+                       "warp need OR-merges across a file's regions")
     }
 
     func testPan_appliedAtOnset_andLiveEdit() {
