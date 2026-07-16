@@ -6949,3 +6949,18 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   Invariante ist unit-getestet.
 - Pure Kerne (`notesInRect`, `remove(ids:)`) waren schon beidseitig als korrekt
   bestätigt (nur die View-State-Kohärenz war zu fixen). Re-Verify via SendMessage.
+
+## Fortsetzung 40 (2026-07-16) — Slice 5a grün+2×APPROVE, Slice 5b (Gruppen-Move) gebaut
+
+- **Slice 5a (e0b639b) FERTIG:** 4/4 Gates grün, BEIDE Reviewer (code + ui-state)
+  re-APPROVE nach dem RollSelection-Enum-Fix. Marquee-Auswahl + Gruppen-Löschen live.
+- **Slice 5b (Gruppen-Move) gebaut, test-first:** Drag auf eine Note IN der Gruppe
+  → `RollDrag.groupMove` verschiebt ALLE selektierten mit EINEM formerhaltenden
+  Delta. Pure `RollHitTest.clampedGroupDelta` clampt als Einheit (nicht per-Note →
+  Gruppe komprimiert nicht am Rand), aus `orig`-Snapshot (kein Drift). 1 Test-Set
+  (frei-in-range, Rechts/Links-Clamp auf die randnächste Note, Pitch-Clamp, leer).
+  Einzel-Move/Tap unberührt (Gruppe ≥2, sonst .single). Kein Audio/Render-Change.
+- **Sechs Editing-Primitive live:** setzen · verschieben · Länge · Velocity-malen ·
+  Marquee-Auswahl+Löschen · **Gruppen-Verschieben**.
+- Reviewer: code-reviewer (4. Gesten-Berührung). Kein Deploy (Founder-Freeze).
+  Nächster: Slice 6 (Pro-Note-MPE, Council davor — berührt trigger-Notenpfad).

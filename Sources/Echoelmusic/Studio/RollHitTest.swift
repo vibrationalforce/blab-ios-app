@@ -118,6 +118,28 @@ public enum RollHitTest {
         }
     }
 
+    /// Clamp a group-move delta so EVERY selected note stays in range while the
+    /// group keeps its shape (ONE delta for all, not per-note clamping which would
+    /// compress the group against an edge). #58 Slice 5b. Empty selection → (0,0).
+    public static func clampedGroupDelta(
+        dPitch: Int, dStep: Int, selected: [Note],
+        lowPitch: Int, highPitch: Int, stepCount: Int
+    ) -> (dPitch: Int, dStep: Int) {
+        guard !selected.isEmpty else { return (0, 0) }
+        // Pitch: low ≤ pitch+dPitch ≤ high for all → dPitch ∈ [low−minPitch, high−maxPitch].
+        let minPitch = selected.map(\.pitch).min() ?? lowPitch
+        let maxPitch = selected.map(\.pitch).max() ?? highPitch
+        let cdP = Swift.max(lowPitch - minPitch, Swift.min(dPitch, highPitch - maxPitch))
+        // Step: 0 ≤ start+dStep ≤ stepCount−len for all → intersect each note's window.
+        var loD = Int.min, hiD = Int.max
+        for n in selected {
+            loD = Swift.max(loD, -n.startStep)
+            hiD = Swift.min(hiD, (stepCount - n.lengthSteps) - n.startStep)
+        }
+        let cdS = Swift.max(loD, Swift.min(dStep, hiD))
+        return (cdP, cdS)
+    }
+
     /// The clamped grid cell under a point — the `.empty` payload and the public
     /// helper the view uses for create/select geometry.
     public static func emptyCell(

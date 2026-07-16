@@ -194,6 +194,35 @@ final class RollHitTestTests: XCTestCase {
                                               notes: [n], stepW: 0, rowH: 0, highPitch: high).isEmpty)
     }
 
+    func testClampedGroupDelta_movesFreelyInRange_thenClampsAsAUnit() {
+        // Two notes: pitch 60 @ step 2 (len 2), pitch 64 @ step 8 (len 2).
+        let sel = [Note(pitch: 60, startStep: 2, lengthSteps: 2),
+                   Note(pitch: 64, startStep: 8, lengthSteps: 2)]
+        let low = PianoRollModel.lowPitch, high = PianoRollModel.highPitch
+        let steps = PianoRollModel.stepCount
+        // A small in-range delta passes through untouched.
+        var d = RollHitTest.clampedGroupDelta(dPitch: 3, dStep: 1, selected: sel,
+                                              lowPitch: low, highPitch: high, stepCount: steps)
+        XCTAssertEqual(d.dPitch, 3); XCTAssertEqual(d.dStep, 1)
+        // Push right hard: the higher note (step 8, len 2) hits stepCount-2=14 first,
+        // so dStep clamps to 14-8 = 6 (shape preserved — NOT each note to its own max).
+        d = RollHitTest.clampedGroupDelta(dPitch: 0, dStep: 99, selected: sel,
+                                          lowPitch: low, highPitch: high, stepCount: steps)
+        XCTAssertEqual(d.dStep, 6, "group step delta clamps on the closest-to-edge note")
+        // Push left hard: the lower note (step 2) hits 0 first → dStep clamps to -2.
+        d = RollHitTest.clampedGroupDelta(dPitch: 0, dStep: -99, selected: sel,
+                                          lowPitch: low, highPitch: high, stepCount: steps)
+        XCTAssertEqual(d.dStep, -2)
+        // Pitch clamps to the top note: max pitch 64 → dPitch ≤ high-64.
+        d = RollHitTest.clampedGroupDelta(dPitch: 999, dStep: 0, selected: sel,
+                                          lowPitch: low, highPitch: high, stepCount: steps)
+        XCTAssertEqual(d.dPitch, high - 64)
+        // Empty selection → no move.
+        let z = RollHitTest.clampedGroupDelta(dPitch: 5, dStep: 5, selected: [],
+                                              lowPitch: low, highPitch: high, stepCount: steps)
+        XCTAssertEqual(z.dPitch, 0); XCTAssertEqual(z.dStep, 0)
+    }
+
     func testDegenerateGeometry_returnsSafeEmpty() {
         let hit = RollHitTest.classify(x: 10, y: 10, notes: [sampleNote()],
                                        stepW: 0, rowH: 0,

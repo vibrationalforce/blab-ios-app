@@ -718,6 +718,10 @@ private enum RollDrag {
     /// at the touch-down point (#58 Slice 5). Promoted from `.create` once the
     /// finger leaves the anchor cell, so a zero-distance tap still creates/selects.
     case marquee(startX: CGFloat, startY: CGFloat)
+    /// Dragging a note that is part of the marquee group moves the WHOLE group by
+    /// one shape-preserving delta (#58 Slice 5b). `orig` snapshots each selected
+    /// note's position at grab time so the delta applies from the original layout.
+    case groupMove(grabPitch: Int, grabStep: Int, orig: [Note])
 }
 
 /// The roll's ONE selection state (#58 Slice 5) — a single value so the illegal
@@ -1143,7 +1147,12 @@ struct PianoRollView: View {
                         stepCount: PianoRollModel.stepCount, edgeSlop: edgeSlopPt
                     ) {
                     case let .body(id):
-                        if let n = model.notes.first(where: { $0.id == id }) {
+                        if let g = selection.group, g.contains(id) {
+                            // Grabbing a note in the marquee group → move all of them.
+                            drag = .groupMove(grabPitch: pitch(atY: value.startLocation.y),
+                                              grabStep: step(atX: value.startLocation.x),
+                                              orig: model.notes.filter { g.contains($0.id) })
+                        } else if let n = model.notes.first(where: { $0.id == id }) {
                             drag = .move(id: id,
                                          grabPitch: pitch(atY: value.startLocation.y),
                                          grabStep: step(atX: value.startLocation.x),
@@ -1178,6 +1187,18 @@ struct PianoRollView: View {
                     let len = RollHitTest.resizedLengthSteps(
                         fingerStep: step(atX: value.location.x), startStep: origStart)
                     model.setLength(id: id, lengthSteps: len)
+                case let .groupMove(grabPitch, grabStep, orig):
+                    // One shape-preserving delta for the whole group, applied from
+                    // each note's ORIGINAL position so the layout can't drift.
+                    let d = RollHitTest.clampedGroupDelta(
+                        dPitch: pitch(atY: value.location.y) - grabPitch,
+                        dStep: step(atX: value.location.x) - grabStep, selected: orig,
+                        lowPitch: PianoRollModel.lowPitch, highPitch: PianoRollModel.highPitch,
+                        stepCount: PianoRollModel.stepCount)
+                    for n in orig {
+                        model.move(id: n.id, toPitch: n.pitch + d.dPitch,
+                                   toStartStep: n.startStep + d.dStep)
+                    }
                 case let .marquee(sx, sy):
                     marqueeRect = CGRect(x: min(sx, value.location.x), y: min(sy, value.location.y),
                                          width: abs(value.location.x - sx),
@@ -1207,9 +1228,9 @@ struct PianoRollView: View {
                                              lengthSteps: drawLength)
                         selection = .single(note.id)
                     }
-                case .move, .resize, .marquee, .none:
-                    break   // move/resize already set .single; marquee set selection
-                            // live; the rubber-band rect is cleared in `defer`.
+                case .move, .resize, .groupMove, .marquee, .none:
+                    break   // move/resize already set .single; groupMove/marquee
+                            // applied live; the rubber-band rect is cleared in `defer`.
                 }
             }
     }

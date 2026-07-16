@@ -112,8 +112,12 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
 - **Verhaltensänderung** (Founder-Verify): empty-drag = jetzt Auswahl statt lange
   Note ziehen. Kein Audio/Render-Change (nur Model-Edits + selection state).
 
-### Slice 5b — Gruppen-Move (ausstehend)
-- Drag auf eine Note IN der Auswahl verschiebt ALLE selektierten (Delta an alle).
+### Slice 5b — Gruppen-Move · ✅ GEBAUT (Review+Gates ausstehend)
+- Drag auf eine Note IN der Marquee-Gruppe → `RollDrag.groupMove` verschiebt ALLE
+  selektierten mit EINEM formerhaltenden Delta. Pure `RollHitTest.clampedGroupDelta`
+  clampt das Delta als Einheit (nicht per-Note → keine Kompression am Rand),
+  angewandt aus dem `orig`-Snapshot (kein Drift). 1 Test-Set. Einzel-Move/Tap-Pfade
+  unberührt (Gruppe ist ≥2, sonst `.single`). Kein Audio/Render-Change.
 
 ### Slice 6 — Pro-Note-MPE-Expression-Seam (die echte „MPE-Station")
 - `Note` bekommt optionale Per-Note-Expression-Overrides (Bend/Slide/Pressure,
