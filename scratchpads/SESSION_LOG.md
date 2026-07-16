@@ -3,6 +3,25 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-16 (Forts. 44, ULTRACODE) — #54 Warp Deep-Research + Slice A gebaut
+- **Deep-Research (wf_bc68b344-d26, 23 Agents, 13 Kandidaten verifiziert, 1.3M tokens)** zur
+  besten Warp/Time-Stretch-Engine für Echoel. Synthese aus `result` recovered (nicht aus dem
+  leeren `synthesis`-Top-Level-Query). Verdikt: `AVAudioUnitTimePitch` = frei/nativ/realtime/
+  zero-dep → **v1-Baseline**. Alle bezahlten (zplane élastique: Ableton Complex/SOLOIST/
+  Efficient/Tune) = REJECT (Royalty). Rubber Band (GPL/paid) + SoundTouch (LGPL-auf-iOS) =
+  REJECT. **Signalsmith Stretch (MIT, header-C++, Accelerate, transient-erhaltend, > Rubber
+  Band v2/v3)** = die EINE offene Engine, die die Baseline schlägt → **Slice C, Founder-Ja +
+  Council + on-device A/B gated** (erstes C++/erste Dep, contained außerhalb Render-Core).
+  Plan-Korrektur: `AVAudioTimePitchAlgorithm`-Enum ist offline-only, KEINE Node-Property.
+- **Slice A GEBAUT + gepusht (9f11d53):** `AudioClipPlayer` besitzt `AVAudioUnitTimePitch`
+  always-in-chain (`node → timePitch → masterMixer`, neue Engine-Attach/Detach). `play(region:
+  projectBPM:)` setzt `rate = effectiveStretchRate` (getestete Math). UI: Warp-Toggle + „Clip
+  BPM"-Field + Stretch-Anzeige. Nur Editor-Preview; Timeline bleibt bit-transparent (Slice B).
+- **Reviews:** audio-thread-reviewer CLEAN; code-reviewer clean-on-hard-rules, 1 MEDIUM
+  (rate-1.0-Node nicht bit-transparent) → Kommentare ehrlich gefixt + Device-Gate G notiert.
+- **KEIN Deploy** (Freeze; Warp-Hörtest = Geräte-Session G). Decisions #54-ladder + #54-Slice-A
+  in decisions.csv. Offen an Founder: die EINE Dependency-Frage (Signalsmith Slice C).
+
 ## 2026-07-14 (Forts. 68, ULTRACODE) — v202-Log-Triage: rPPG-Sättigung sichtbar gemacht (Header-Cue)
 - **Founder v202-Log (2308):** Launch gesund, Ton läuft, Per-Spur-Build ok, rPPG LOCKT (conf 0.83, bio=1) —
   DANN sättigt das Fingerbild (bright 0.43→0.94), conf bricht ein, bpm friert, bio flappt 1→0,
