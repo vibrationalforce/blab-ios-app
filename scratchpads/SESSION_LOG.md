@@ -3,6 +3,23 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-16 (Forts. 47, ULTRACODE) — Dependency-Entscheid + Video-Sound Slice 1a
+- **Founder-Entscheid:** „Python/C++ egal, wichtig gebührenfrei, erstmal nur Apple, andere OS
+  später." → löst die offene Dependency-Frage: **Signalsmith Stretch (MIT) freigegeben** für
+  StretchMode.studio / #54 Slice C (weiter on-device-A/B-gated, contained C++-Bridge). Free-only
+  bleibt (paid/copyleft REJECT). decisions.csv + PLAN_STRETCH_ENGINE/PLAN_54_WARP aktualisiert.
+- **CI-Gates:** 8afad0f (Stretch-Spine) + 56ba9c2 + 9f11d53 alle grün (Xcode Compile + CI/CD).
+- **GEBAUT + gepusht:** Video-Sound Slice 1a = pure `VideoAudioPairing`-Core. Der extrahierte
+  Video-Ton wird ein first-class Audio-Clip, der startTick+lengthTicks des Video-Regions ERBT
+  (Bild+Ton nie Drift), erste `.audio`-Lane sonst createNew, Slot-Room ≥2, NaN/neg sanitisiert.
+  10 Tests. Review ship-as-is (2 LOW-Verträge für 1b im Plan notiert).
+- **Slice 1b = async-Extraktion (AVAssetExportSession) + addToTimeline-Wiring** → nächster
+  Zyklus, audio-review Pflicht. Dann hat Video ECHTEN Ton.
+- **Ledger of Connection** (Founder-Design-Ask): Konzept+Skelett geliefert (PLAN_LEDGER_OF_
+  CONNECTION.md, ADOPT-PIPELINE/v1.2, on-device-first). 2 Forks offen an Founder (Placement +
+  Zero-Server-Grenze). KEIN Sources-Code bis Gate.
+- **KEIN Deploy** (Freeze).
+
 ## 2026-07-16 (Forts. 46, ULTRACODE) — EchoelStretchEngine Spine (Founder: „eigene Stretch Engine")
 - **Founder:** „Können wir eine eigene Stretch Engine mit wählbaren Algorithmen (Qualität +
   Charakter) entwickeln, die besten überall integriert?" → JA (Council proceed).
