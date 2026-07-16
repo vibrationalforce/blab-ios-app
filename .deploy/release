@@ -1,33 +1,34 @@
-build: 2026-07-16 v10.79.277 (Puls hält den Lock + Timeline-Warp klingt)
+build: 2026-07-17 v10.79.278 (AUv3 registriert sich + Piano Roll erwachsen + Stille sichtbar)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Nacht-Build direkt aus deinem 2382-Log — beide Fixes sind log-getrieben.
+notes: Die Nachtschicht-Ernte — der AUv3-Bug war ein echter Registrierungs-Fehler bei uns.
 
-  1) PULS BLEIBT NACH DEM LOCK (dein Log heute Abend, exakt diese Frames):
-     Der Puls hat gelockt (64 bpm, Konfidenz 0.87) und wurde 2 s später
-     resettet — nicht weil der Finger weg war, sondern weil der dunkle
-     Exposure-Lock das Rot unter den "Finger da"-Schwellwert drückte.
-     Jetzt gilt: solange ein echter Puls GEMESSEN wird, ist die Messung
-     selbst der Beweis — der Lock hält durch die Dunkelphase.
-     TEST: Finger auf die Linse, Lock abwarten (~15 s), dann 30–60 s
-     LIEGEN LASSEN → bpm bleibt stehen statt auf 0 zu springen.
+  1) AUv3 — DER MORGEN-TEST (wichtigster der Nacht):
+     AudioComponents lag im Extension-Manifest an der falschen Stelle —
+     deshalb hat iOS unsere AUv3 NIE registriert ("ownAUv3 false" in
+     deinem Log, seit es sie gibt). Gefixt + Factory-Konformität gefixt
+     (ohne die hätte kein Host sie instanziieren können) + CI beweist die
+     korrekte Struktur ab jetzt nach jedem Build.
+     TEST: v278 installieren → iPhone NEU STARTEN → GarageBand oder AUM
+     öffnen → "Echoelmusic" sollte ERSTMALS als Instrument auftauchen.
+     Danach in Echoelmusic: Spur-Menü → Browse AUv3 → im Log sollte
+     "ownAUv3 true" stehen.
+     DRITT-PLUGINS: App scannt jetzt beim Start; wenn die Registry kalt
+     ist, sagt der Browser ehrlich "App neu starten". Bitte prüfen: Sind
+     AUv3-Apps (Eventide/Moog/…) installiert? Dein Log zeigte nur Apple.
 
-  2) TIMELINE-WARP KLINGT (Slice B): Ein im Audio-Clip-Editor gewarpter
-     Clip (Warp ON + Clean/Tape) klingt jetzt AUF DER TIMELINE wie im
-     Editor-Preview — Clean hält die Tonhöhe, Tape lässt sie mit dem
-     Tempo reiten. Ungewarpte Clips bleiben bit-identisch (kein
-     Spectral-Färben des normalen Audios).
-     TEST: Audio-Clip importieren → Editor: Warp ON, Clip-BPM setzen,
-     Tape wählen → Add to timeline → Song-Tempo ändern → Play:
-     die Region folgt dem Tempo (Tape: Tonhöhe wandert mit).
+  2) PIANO ROLL (deine "noch sehr rudimentär"-Ansage):
+     • Undo/Redo-Pfeile in der Werkzeugleiste — jede Geste (Note setzen,
+       ziehen, löschen, Velocity malen, Clear) ist EIN Schritt zurück.
+     • "Q" = Quantisieren (Auswahl, sonst alles) — explizit und undoable.
+     • Noten-Ziehen zerstört kein Feeling mehr: eingespielte Off-Grid-
+       Noten behalten ihren Versatz beim Verschieben (vorher: erster
+       Griff = hartes Grid-Snap).
 
-  3) AUv3-BITTE (aus deinem Log: eigene Extension registriert sich nicht):
-     Einmal das iPhone NEU STARTEN, dann GarageBand oder AUM öffnen →
-     taucht "Echoelmusic" als Instrument auf? Das Ergebnis sagt mir, ob
-     es ein Registry-Delay oder ein echter Build-Fehler ist. Dritt-AUv3:
-     dein Gerät zeigt aktuell NUR Apple-Komponenten — sind AUv3-Apps
-     (z. B. Eventide, Moog) installiert? Ohne installierte AUv3-Apps
-     kann kein Scan sie finden.
+  3) STILLE IST JETZT SICHTBAR: Eine gemutete / weg-solierte / Pegel-0-
+     Spur zeichnet ihre Clips gedimmt+entsättigt, und der Pegel-0-Fader
+     bekommt einen Warnrahmen — mehrere "Sound geht nicht"-Momente waren
+     genau dieser unsichtbare Mixer-Zustand.
 
-  Danach (heute Nacht in Arbeit): AUv3-Extern-Tiefenprüfung (CI beweist
-  ab jetzt, dass die Extension im Build steckt), Design-Pass, offene
-  Aufgabenliste — Status kommt am Morgen gesammelt.
+  4) Noch offen aus v277 (falls nicht getestet): Puls-Hold (Finger drauf,
+     Lock abwarten, 30-60 s halten → bpm bleibt) + Timeline-Warp-Hörtest
+     (Warp+Tape-Clip → Add to timeline → Tempo ändern → Play).
