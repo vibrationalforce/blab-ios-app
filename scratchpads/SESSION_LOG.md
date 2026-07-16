@@ -7126,3 +7126,27 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Batch B (uncommitted, Reviewer laufen): scenePhase-.background stoppt Idle-Engine (2.5.4 "silent audio", audioNeeded-Prädikat über 7 Konsumenten) + wasBackgrounded-Flag (Resume order-proof) + onOutputDeviceLost-Hook → Transport-Stop-Kaskade bei Kopfhörer-Abziehen (HIG: nie auf Lautsprecher weiterspielen).
 
 **Neu:** Task #65 Multipeer-Auto-Accept (Bio an Fremdgeräte, vor Launch). Früher am Tag: `c6a55dd` TimelineRegion.stretchMode-Persistenz (Slice 1½; Classifier-Ausfall verzögerte den Push um ~2 h).
+
+## 2026-07-16 (Forts. 51) — Batch B ship + Colabo-Consent + Sub-Culture + Deploy v276
+
+- **Gates:** Xcode Compile Check + Echoelmusic CI/CD Pipeline GRÜN für 1b8cb4d,
+  7605c63, 0f73dff, 832f3ae, 8237f17, efd28d3 (zweifach verifiziert). Der
+  send_later-CI-Check ist damit erfüllt; sein "kein Deploy (Freeze)" war stale —
+  Founder-Status-Frage trieb Deploy v10.79.276 (`cec3089`, TestFlight-Run
+  29533635045 in_progress beim Vermerk).
+- `7605c63`+`1b8cb4d` Batch B — 2.5.4 Background-Idle-Stop (audioNeeded-Prädikat,
+  7 Konsumenten + polyVoice.activeVoiceCount), wasBackgrounded-Resume,
+  onOutputDeviceLost→Transport-Stop (HIG), intentionallyStopped-Standdown der
+  Selbstheilung (Audio-Review F1/F2), "background-idle"-Stop-Subscriber.
+- `0f73dff` Colabo-Consent: PendingInvitation + Accept/Decline-Karte, nie
+  Auto-Accept; UncheckedBox für handler+mcSession über den MainActor-Hop;
+  MultipeerInvitationTests (Task #65 Code-Teil ✓, Geräte-Verify offen).
+- `832f3ae` ehrlicher Health-Write-Hint + kein toter Record-Arm auf Home.
+- `8237f17` AUv3-Plist-Drift (#32 ✓) + Keychain-Entitlement raus + Review-Notes.
+- `efd28d3` **Sub-Culture** (Founder-Wunsch, in-house): DSP/SubCharacter.swift
+  (presence/heat-Makros, Defaults bit-identisch, Oktav-only-Gesetz getestet,
+  7 Tests) + SubBassVoice-Mirrors + 2 EchoelValueField-Rows. 529-Ausfälle der
+  Reviewer ×3 → dokumentierte Inline-Reviews (clean).
+- **DMMW-Statusantwort an Founder:** Audio/Bio/Licht/Spatial = Produktionslevel;
+  Video partiell; Broadcast bewusst Roadmap. Nächste Prioritäten benannt:
+  Stretch Slice B → #13 Mic-Capture → Video.
