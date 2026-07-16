@@ -16,6 +16,10 @@ import Foundation
 
 /// Why the camera pulse is / isn't locking — the coaching state, typed.
 public enum PulseCue: Equatable, Sendable {
+    /// Camera access is denied/restricted in Settings — no placement coaching can
+    /// help; the ONLY fix is re-enabling access there. Without this case the UI
+    /// kept saying "Cover camera" forever (UX-1: a silent dead end).
+    case cameraDenied
     /// A clean pulse is locked.
     case locked
     /// No finger on the rear camera + flash.
@@ -32,6 +36,7 @@ public enum PulseCue: Equatable, Sendable {
     /// The full guidance shown on the measurement screen (unchanged wording).
     public var fullHint: String {
         switch self {
+        case .cameraDenied: return "Camera access is off — enable it in Settings to read your pulse"
         case .locked:      return "Locked"
         case .coverLens:   return "Cover the rear camera + flash"
         case .tooBright:   return "Press a little lighter"
@@ -44,6 +49,7 @@ public enum PulseCue: Equatable, Sendable {
     /// A 1–2 word form for the compact header monitor (no room for the full line).
     public var shortLabel: String {
         switch self {
+        case .cameraDenied: return "Camera off"
         case .locked:      return "Locked"
         case .coverLens:   return "Cover lens"
         case .tooBright:   return "Too bright"
@@ -58,7 +64,7 @@ public enum PulseCue: Equatable, Sendable {
     /// is normal warmup (just wait) and `.locked` is fine, so neither is actionable.
     public var isActionable: Bool {
         switch self {
-        case .coverLens, .tooBright, .holdStill, .pressGently: return true
+        case .cameraDenied, .coverLens, .tooBright, .holdStill, .pressGently: return true
         case .locked, .finding: return false
         }
     }

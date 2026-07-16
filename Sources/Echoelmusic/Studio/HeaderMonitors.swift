@@ -179,8 +179,13 @@ struct PulseMonitorMiniLive: View {
                          locked: cameraLive ? cameraRPPG.isLocked : (fresh != nil),
                          coherence: fresh.map { Double($0.coherence) },
                          // Only the camera has an acquisition cue ("cover the lens"); a
-                         // strap/sim monitor stays plain.
-                         cue: cameraLive ? cameraRPPG.acquisitionCue : nil,
+                         // strap/sim monitor stays plain. Denied access must surface even
+                         // though the camera is NOT running (it can never run — UX-1) —
+                         // but not while ANOTHER source delivers a live body (fresh frames).
+                         // `permissionDenied` is a low-frequency start-attempt flag and this
+                         // pill is already the 10 Hz leaf, so the freeze rule holds.
+                         cue: (cameraRPPG.permissionDenied && fresh == nil) ? .cameraDenied
+                             : (cameraLive ? cameraRPPG.acquisitionCue : nil),
                          // BLE-1: while the strap is the source, the scan/connect
                          // lifecycle is VISIBLE here instead of a dead flat trace.
                          status: strapStatus(cameraLive: cameraLive,

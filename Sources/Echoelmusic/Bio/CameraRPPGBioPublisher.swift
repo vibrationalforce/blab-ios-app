@@ -94,6 +94,13 @@ public final class CameraRPPGBioPublisher {
 
     public private(set) var isRunning = false
 
+    /// Camera access is denied/restricted in Settings (UX-1). Set when a start
+    /// attempt fails WITH that authorization status, cleared by a successful
+    /// start — low-frequency (start attempts only), safe to read in leaf views.
+    /// Without it, a denied camera left `isRunning == false` with NO explanation:
+    /// the strip said "Cover camera" forever and the header showed no cue at all.
+    public private(set) var permissionDenied = false
+
     // Live status for the UI so the user can position correctly (rPPG is
     // position-sensitive). Updated ~3×/s while running.
     public private(set) var fingerDetected = false
@@ -209,6 +216,9 @@ public final class CameraRPPGBioPublisher {
     /// compact header amber cue). Derived from the live analyzer signals on the main
     /// actor; the string/label/actionable mapping is the pure, tested `PulseCue`.
     public var acquisitionCue: PulseCue {
+        // Denied access wins over EVERYTHING — no placement coaching can help,
+        // and "Cover camera" for a permission dead end misleads (UX-1).
+        if permissionDenied { return .cameraDenied }
         if isLocked { return .locked }
         if !fingerDetected { return .coverLens }
         // Finger is on the lit lens but no lock yet — say WHY, from the live signal.
@@ -446,6 +456,11 @@ public final class CameraRPPGBioPublisher {
                 isRunning = false
                 capture.onFrame = nil
                 capture.onSessionReset = nil
+                // Denied/restricted access is a SYSTEM fact, read fresh (not inferred
+                // from the error) — the UI must say "enable it in Settings" instead of
+                // coaching finger placement that can never work (UX-1).
+                let status = AVCaptureDevice.authorizationStatus(for: .video)
+                permissionDenied = (status == .denied || status == .restricted)
             }
             return
         }
@@ -459,6 +474,10 @@ public final class CameraRPPGBioPublisher {
         // Finger-on-lens PPG needs the back-camera torch to illuminate the
         // fingertip — without it there is no red-channel pulse signal. Driven on
         // the session's own running device for reliability.
+        // The camera started — access is provably granted (also covers the
+        // first-run flow where the user just tapped Allow on the system prompt).
+        permissionDenied = false
+
         capture.setTorch(true)
         analyzer.startPulseDetection()
         stallTicks = 0

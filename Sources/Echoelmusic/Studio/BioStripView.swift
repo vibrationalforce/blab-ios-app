@@ -77,6 +77,12 @@ struct BioStripView: View {
     @ViewBuilder private var statusBanner: some View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
             banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
+        } else if cameraRPPG.permissionDenied, !hasLiveSignal {
+            // UX-1: denied camera access was a SILENT dead end — the strip kept
+            // coaching "Cover camera" which can never work. Name the real fix.
+            // Hidden once another source (strap/Watch/demo) delivers a live body.
+            banner(PulseCue.cameraDenied.fullHint,
+                   color: EchoelTheme.warning, systemImage: "video.slash")
         } else if lockedCueVisible {
             banner("Pulse detected — you can let go & play",
                    color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
@@ -246,11 +252,34 @@ struct BioStripView: View {
     @ViewBuilder private var sourceControl: some View {
         if hasLiveSignal {
             liveTag
+        } else if cameraRPPG.permissionDenied {
+            // UX-1: with access denied the camera can never start, so neither
+            // "Reading…" nor "Read pulse" is honest — offer the one real door.
+            openSettingsButton
         } else if measuring {
             measuringTag
         } else {
             startPulseButton
         }
+    }
+
+    /// The honest replacement for the dead end: camera access is off, and the
+    /// only fix lives in the system Settings — one tap takes the user there.
+    private var openSettingsButton: some View {
+        Button { openAppSettings() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "video.slash").font(.system(size: 9))
+                Text("Enable camera")
+            }
+            .lineLimit(1)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(EchoelTheme.warning.opacity(0.20))
+            .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
+            .foregroundStyle(EchoelTheme.warning)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Camera access is off")
+        .accessibilityHint("Opens Settings so you can allow camera access and read your pulse")
     }
 
     private var liveTag: some View {

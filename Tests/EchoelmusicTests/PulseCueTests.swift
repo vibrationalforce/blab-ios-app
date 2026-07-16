@@ -8,6 +8,10 @@ import XCTest
 final class PulseCueTests: XCTestCase {
 
     func testFullHint_matchesTheShippedWording() {
+        // UX-1: denied camera access names the ONLY real fix (Settings), never
+        // placement coaching — "Cover camera" can't help a permission dead end.
+        XCTAssertEqual(PulseCue.cameraDenied.fullHint,
+                       "Camera access is off — enable it in Settings to read your pulse")
         XCTAssertEqual(PulseCue.locked.fullHint, "Locked")
         XCTAssertEqual(PulseCue.coverLens.fullHint, "Cover the rear camera + flash")
         XCTAssertEqual(PulseCue.tooBright.fullHint, "Press a little lighter")
@@ -18,7 +22,7 @@ final class PulseCueTests: XCTestCase {
 
     func testShortLabel_isCompactForTheHeader() {
         // Header room is tight — every short label must stay brief.
-        for cue in [PulseCue.locked, .coverLens, .tooBright, .holdStill, .pressGently, .finding] {
+        for cue in [PulseCue.cameraDenied, .locked, .coverLens, .tooBright, .holdStill, .pressGently, .finding] {
             XCTAssertLessThanOrEqual(cue.shortLabel.count, 12, "\(cue) short label too long")
             XCTAssertFalse(cue.shortLabel.isEmpty)
         }
@@ -26,7 +30,9 @@ final class PulseCueTests: XCTestCase {
     }
 
     func testIsActionable_onlyForCorrectablePlacementIssues() {
-        // Amber only when the user can DO something now.
+        // Amber only when the user can DO something now. Denied access IS
+        // actionable — the user can flip the switch in Settings right now.
+        XCTAssertTrue(PulseCue.cameraDenied.isActionable)
         XCTAssertTrue(PulseCue.coverLens.isActionable)
         XCTAssertTrue(PulseCue.tooBright.isActionable)
         XCTAssertTrue(PulseCue.holdStill.isActionable)
