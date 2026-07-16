@@ -111,7 +111,14 @@ struct AUv3BrowserView: View {
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if host.hasNoThirdPartyUnits {
+                if host.registryColdForProcess {
+                    // Night audit 2026-07-16: in this state Rescan provably hits the
+                    // same cold cache (performScan's own backstop comment) — the one
+                    // action that reliably helps is restarting the app. Say THAT.
+                    Text("iOS hasn't handed this app the plugin registry yet (not even Echoelmusic's own Audio Unit is visible). Quit Echoelmusic fully and reopen it — that reliably refreshes the registry. If plugins are still missing afterwards, open each plugin's app once, then restart again.")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if host.hasNoThirdPartyUnits {
                     Text("Only Apple's built-in units showed up. Third-party AUv3 sometimes register late — this list keeps refreshing for a few seconds. If yours still don't appear, open each plugin's app once (that registers its AUv3 with iOS), then tap Rescan.")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
