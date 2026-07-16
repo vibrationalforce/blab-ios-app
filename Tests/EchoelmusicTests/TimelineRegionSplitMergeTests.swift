@@ -640,6 +640,24 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
         XCTAssertTrue(a.abuts(b, bpm: 120), "a clean split stays joinable — equal gains")
     }
 
+    func testSetRegionGain_writesGainOnly_windowStaysByteIdentical() {
+        // CLIP-6a review: the gain-only Done path must never touch the media
+        // window — offset (both domains) and length stay byte-identical.
+        let store = TimelineStore()
+        let r = TimelineRegion(laneID: UUID(), clipID: UUID(), startTick: 0,
+                               lengthTicks: 1920, contentOffsetSeconds: 1.5,
+                               contentOffsetTicks: 777)
+        store.addRegion(r)
+        store.setRegionGain(id: r.id, 0.5)
+        let after = store.document.regions.first { $0.id == r.id }
+        XCTAssertEqual(after?.gain, 0.5)
+        XCTAssertEqual(after?.contentOffsetSeconds, 1.5)
+        XCTAssertEqual(after?.contentOffsetTicks, 777, "tick twin untouched")
+        XCTAssertEqual(after?.lengthTicks, 1920)
+        store.setRegionGain(id: r.id, 9)   // out-of-range clamps like every sibling
+        XCTAssertEqual(store.document.regions.first { $0.id == r.id }?.gain, 2)
+    }
+
     func testAbuts_differingGain_refusesJoin() {
         var r = region(start: 0, length: 1920)
         r.gain = 0.5
