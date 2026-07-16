@@ -549,3 +549,18 @@ nichts für Sources/. Abgleich mit bestehenden Verdikten (kein Re-Litigieren):
   nummerierte Tool-Liste, Caption-Overlays, „Kommentiere X und ich schicke dir die Liste"
   als Lead-Hook — ist ein validiertes Muster für #52 (Echoel-Reels). → echoel-marketing.
 **Kein App-Code-Impact. Höchster Wert: Reel-FORMAT für #52.**
+
+### 2026-07-16 — YouTube-Vortrag Schmedding „KI Second Brains scheitern" (Founder-Upload, JSON-Summary)
+Vision-Gate: trifft REPO-GEDÄCHTNIS + FOUNDER, nicht die App.
+- **Validierung (kein Handlungsbedarf):** Sein Layer-5-Mapping empfiehlt für Coding-Agents
+  wörtlich „LLM Knowledge Base, Bash/Grep-Navigation im Repo" = unser memory/+scratchpads/
+  +CLAUDE.md-System; „Decision Logbook" = unsere decisions.csv. Sein Anti-Markdown-Verdikt
+  zielt auf Enterprise-OPS, nicht auf Agent-Repos. EchoelAI N0-N4 (Registry+Tools statt
+  Generic-RAG) = sein „use-case-specific pipelines"-Prinzip.
+- **ADOPT-PIPELINE (billig, real): systematisches Vergessen.** Collector's-Fallacy trifft
+  uns: ~65 PLAN_*-Dateien, viele supersedet → Attention-Verschmutzung. Hygiene-Zyklus:
+  supersedete Scratchpads nach scratchpads/archive/ (Session-Start lädt nur Lebendes).
+- **ADOPT-RITUAL (der schärfste Punkt): „Der Mann des Buches" = der Founder.** Ungeschriebenes
+  Jahres-Wissen (EEG-Beispiel heute) ist der einzige echte SPOF. Ritual: jede erinnerte
+  Alt-Planung sofort einwerfen → wird in Tasks + memory/ verankert (Tacit-Knowledge-Capture).
+- **REJECT:** „Company Brain" als Produkt-Pivot — off-vision, Scope-Creep. Echoel bleibt Instrument.
