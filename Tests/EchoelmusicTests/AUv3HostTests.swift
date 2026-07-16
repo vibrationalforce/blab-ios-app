@@ -79,6 +79,61 @@ final class AUv3HostTests: XCTestCase {
         XCTAssertEqual(survivedMasters, masters)
     }
 
+    // MARK: - Silence trap: Apple Generator "instruments" (founder 2026-07-16)
+
+    func testIsAppleGeneratorRecord_onlyTheFilePlayerTrapMatches() {
+        let trap = HostedAUInfo(id: "Apple.AUAudioFilePlayer.x", name: "AUAudioFilePlayer",
+                                manufacturer: "Apple", isInstrument: true,
+                                componentType: AUv3Host.fourCC("augn"),
+                                componentManufacturer: AUv3Host.fourCC("appl"))
+        XCTAssertTrue(AUv3Host.isAppleGeneratorRecord(trap))
+        // Third-party generators are REAL instruments for many makers — must pass.
+        let thirdParty = HostedAUInfo(id: "m.Gen", name: "Gen", manufacturer: "m",
+                                      isInstrument: true,
+                                      componentType: AUv3Host.fourCC("augn"),
+                                      componentManufacturer: AUv3Host.fourCC("Evnt"))
+        XCTAssertFalse(AUv3Host.isAppleGeneratorRecord(thirdParty))
+        // Apple music devices (AUMIDISynth, AUSampler) are playable — must pass.
+        let appleSynth = HostedAUInfo(id: "Apple.AUMIDISynth.x", name: "AUMIDISynth",
+                                      manufacturer: "Apple", isInstrument: true,
+                                      componentType: AUv3Host.fourCC("aumu"),
+                                      componentManufacturer: AUv3Host.fourCC("appl"))
+        XCTAssertFalse(AUv3Host.isAppleGeneratorRecord(appleSynth))
+        // Effects never match, and legacy records without codes (0) pass through
+        // to fail instantiation honestly.
+        XCTAssertFalse(AUv3Host.isAppleGeneratorRecord(au("FX", instrument: false)))
+        XCTAssertFalse(AUv3Host.isAppleGeneratorRecord(au("Legacy", instrument: true)))
+    }
+
+    @MainActor
+    func testRestoreChains_appleGeneratorInstrumentRecord_isHealedNotResurrected() async throws {
+        // v267 restored EVERY persisted instrument — including one experimental tap
+        // on AUAudioFilePlayer (a file-player API unit that never sounds from
+        // notes), permanently silencing the track on every launch. An invalid
+        // record is HEALED (removed, visibly), not retried: the retention law
+        // covers transient cold-registry failures, not impossible instruments.
+        let d = UserDefaults.standard
+        let key = "auHost.chain.instrument"
+        let saved = d.data(forKey: key)
+        defer {
+            if let saved { d.set(saved, forKey: key) } else { d.removeObject(forKey: key) }
+        }
+        let filePlayer = HostedAUInfo(id: "Apple.AUAudioFilePlayer.x", name: "AUAudioFilePlayer",
+                                      manufacturer: "Apple", isInstrument: true,
+                                      componentType: AUv3Host.fourCC("augn"),
+                                      componentSubType: AUv3Host.fourCC("afpl"),
+                                      componentManufacturer: AUv3Host.fourCC("appl"))
+        d.set(try JSONEncoder().encode(filePlayer), forKey: key)
+
+        let host = AUv3Host()
+        await host.restoreChains()
+
+        XCTAssertNil(d.data(forKey: key), "the invalid record is gone for good")
+        XCTAssertNil(host.loaded, "the mute pseudo-instrument is NOT re-loaded")
+        XCTAssertNotNil(host.restoreNotice, "the healing is visible, not silent")
+        XCTAssertFalse(host.isRestoringChains)
+    }
+
     // MARK: - AU-2: chain persistence carrier
 
     func testHostedAUInfo_codableRoundTrip_losslessIncludingComponentCodes() throws {

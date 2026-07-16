@@ -179,6 +179,13 @@ public final class AUv3Host {
     /// existing unit of the same kind and re-wires the chain.
     public func load(_ info: HostedAUInfo) async {
         guard let engine else { loadError = "Audio engine unavailable."; return }
+        // Defense-in-depth for records that predate the scan filter: an Apple
+        // Generator (file-player API unit) must never become THE instrument —
+        // it cannot sound from notes, so loading it silences the track.
+        if Self.isAppleGeneratorRecord(info) {
+            loadError = "\(info.name) is a system file-player unit, not a playable instrument."
+            return
+        }
         if info.isInstrument, loaded == info, instrumentUnit != nil { return }
         // Re-entrancy guard: a load suspends at `await instantiate`, so a second
         // fast tap must not interleave (last-writer-wins on `loaded`, a re-wire
@@ -411,12 +418,24 @@ public final class AUv3Host {
         hasRestoredChains = true
         let d = UserDefaults.standard
         let decoder = JSONDecoder()
-        let instrument = d.data(forKey: Self.chainInstrumentKey)
+        var instrument = d.data(forKey: Self.chainInstrumentKey)
             .flatMap { try? decoder.decode(HostedAUInfo.self, from: $0) }
         let effects = d.data(forKey: Self.chainEffectsKey)
             .flatMap { try? decoder.decode([HostedAUInfo].self, from: $0) } ?? []
         let masters = d.data(forKey: Self.chainMasterKey)
             .flatMap { try? decoder.decode([HostedAUInfo].self, from: $0) } ?? []
+        // HEAL, don't retry: a persisted Apple-Generator "instrument" (file-player
+        // API unit — can never sound from notes) is INVALID data, not a transient
+        // cold-registry failure, so the retention law does not apply. Before this
+        // filter existed, one experimental tap on AUAudioFilePlayer was resurrected
+        // on EVERY launch, permanently silencing the track (founder 2026-07-16).
+        // Drop the record, say so, and the built-in voice returns.
+        if let inst = instrument, Self.isAppleGeneratorRecord(inst) {
+            d.removeObject(forKey: Self.chainInstrumentKey)
+            instrument = nil
+            restoreNotice = "\(inst.name) is a system file-player, not a playable instrument — removed. The built-in voice is back."
+            log.audio("AUv3 restore pruned Apple generator instrument record: \(inst.name)", level: .error)
+        }
         guard instrument != nil || !effects.isEmpty || !masters.isEmpty else { return }
         isRestoringChains = true
         // Structural invariant (review hardening): if a future edit adds an early
@@ -441,6 +460,17 @@ public final class AUv3Host {
             restoreNotice = "Not restored: \(failed.joined(separator: ", ")) — the plugin may still be waking up; reload it from this list."
             log.audio("AUv3 chain restore incomplete: \(failed.joined(separator: ", "))", level: .error)
         }
+    }
+
+    /// True for an Apple Generator-typed record claiming to be an instrument —
+    /// AUAudioFilePlayer / AUScheduledSoundPlayer etc. are programmatic file-player
+    /// API units that never sound from MIDI notes (the "one tap = silent track"
+    /// trap). Pure + static so tests pin it. Records predating the component
+    /// codes (componentType == 0) pass — they fail instantiation honestly instead.
+    nonisolated static func isAppleGeneratorRecord(_ info: HostedAUInfo) -> Bool {
+        info.isInstrument
+            && info.componentType == kAudioUnitType_Generator
+            && info.componentManufacturer == kAudioUnitManufacturer_Apple
     }
 
     // MARK: - Plugin state (fullState) persistence
@@ -608,6 +638,16 @@ public final class AUv3Host {
             let isEffect = (type == kAudioUnitType_Effect || type == kAudioUnitType_MusicEffect)
             guard isInstrument || isEffect else { return nil }
             let desc = c.audioComponentDescription
+            // APPLE's own Generator units (AUAudioFilePlayer, AUScheduledSoundPlayer)
+            // are programmatic file-player API building blocks — they NEVER sound
+            // from MIDI notes. Listed as "Instruments" they were a silence trap:
+            // one tap replaced the built-in voice with a player that stays mute,
+            // and since v267 the chain restore resurrected that mistake on every
+            // launch (founder 2026-07-16: "Sound funktioniert gerade generell
+            // nicht"). Third-party Generators stay — many real instruments
+            // register with that type.
+            if type == kAudioUnitType_Generator,
+               desc.componentManufacturer == kAudioUnitManufacturer_Apple { return nil }
             return HostedAUInfo(
                 id: "\(c.manufacturerName).\(c.name).\(desc.componentSubType)",
                 name: c.name,
