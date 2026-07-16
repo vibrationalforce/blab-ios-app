@@ -7109,3 +7109,20 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Nächster Bau: Slice A (AudioClipPlayer→AVAudioUnitTimePitch + Warp-Toggle),
   audio-thread-reviewer + code-reviewer. Kein Deploy (Founder-Freeze; Warp-Hörtest =
   Geräte-Session).
+
+## 2026-07-16 (Forts. 50) — App-Store-Readiness: Ultracode-Audit + Compliance-Batches A–E
+
+**Founder-Auftrag:** Deep-Research-Audit (4 Bereiche: 3.1.1/Reader · Background-Audio/Interruptions · Info.plist/Privacy · SwiftUI-State), Report, dann "Du entscheidest… Ultracode and Ultradecide" (CEO-Delegation).
+
+**Ablauf:** Read-only-Audit → Report (Tabelle, 6 Befunde) → 10-Agenten-Workflow (6 adversariale Verifizierer + 4 Sweep-Linsen: Health-Claims, 2.1-Vollständigkeit, Entitlements, Datenflüsse; 859k Tokens) → Entscheidungen → Umsetzung.
+
+**Wichtigste Korrektur durch die Verifizierer:** bluetooth-central ist KEIN Ship-Blocker (mein HIGH war falsch) — die App stoppt PolarH10/Engine beim Backgrounden nicht, der Gurt moduliert Background-Audio weiter = echte Background-Nutzung. ENTSCHEID: behalten (Task #27 ✓), Kommentar korrigiert. NowPlaying wäre bei .mixWithOthers inert (iOS liefert mixbaren Sessions keine Remote-Events) — Roadmap, kein Fix.
+
+**Commits:**
+- `ca7be07` Batch A — ehrliche Strings: BT-Purpose (HR-Gurte statt nur MIDI), Location+WeatherKit-Offenlegung (Plist + 2 In-App-Strings), Onboarding (kein "drum-free", kein unshipped Broadcast), TestFlight-Hint raus, BioScienceInfo no-claim-Satz, fastlane-Metadata (en/de) OSC-Ausnahme.
+- `660c346` Batch C — 2.1: rtmp.out/srt.out aus defaultInventory (live-only + Test; Task #28 ✓); News-Toggle hinter cloudKitConfigured-Gate.
+- `eafacbc` Batch D — **BioEgressPolicy** (pure, getestet): HealthKit/Watch/Oura-Frames verlassen NIE das Gerät; OSCSender.sendIfFresh + ADMOSCSender-Bio-Pfad gaten auf .cameraPPG/.ble/.fallback (5.1.3, schärfste Exposure des Audits). Event-Pfad dokumentiert HealthKit-frei.
+- `f1b5fbb` Batch E — PrivacyInfo in AUv3+Widgets-Targets (project.yml resources), 1C8F.1 (App-Group-Defaults), NSPrivacyCollectedDataTypes geleert (= ASC-Label "Data Not Collected", eine Story), Watch-WKCompanionAppBundleIdentifier in project.yml-info (C6b-Clobber-Guard), CLAUDE.md-Push-Zeile entstale-t.
+- Batch B (uncommitted, Reviewer laufen): scenePhase-.background stoppt Idle-Engine (2.5.4 "silent audio", audioNeeded-Prädikat über 7 Konsumenten) + wasBackgrounded-Flag (Resume order-proof) + onOutputDeviceLost-Hook → Transport-Stop-Kaskade bei Kopfhörer-Abziehen (HIG: nie auf Lautsprecher weiterspielen).
+
+**Neu:** Task #65 Multipeer-Auto-Accept (Bio an Fremdgeräte, vor Launch). Früher am Tag: `c6a55dd` TimelineRegion.stretchMode-Persistenz (Slice 1½; Classifier-Ausfall verzögerte den Push um ~2 h).
