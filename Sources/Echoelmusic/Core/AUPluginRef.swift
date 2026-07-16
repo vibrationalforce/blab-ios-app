@@ -37,4 +37,17 @@ public struct AUPluginRef: Codable, Sendable, Equatable, Identifiable {
         AUParameterMapping.pluginPrefix(manufacturer: componentManufacturer,
                                         subType: componentSubType)
     }
+
+    /// True for an Apple Generator-typed ref claiming to be an instrument —
+    /// AUAudioFilePlayer / AUScheduledSoundPlayer are programmatic file-player
+    /// API units that never sound from MIDI notes. A lane assigned one (possible
+    /// on pre-v272 builds, persisted in the timeline document) instantiates fine
+    /// and then stays MUTE — the "silent track" trap, per-lane edition. Twin of
+    /// AUv3Host.isAppleGeneratorRecord; literal FourCCs ('augn', 'appl') because
+    /// this file is Foundation-only and Linux-CI-tested (no AudioToolbox).
+    public var isAppleGeneratorTrap: Bool {
+        isInstrument
+            && componentType == 0x6175_676E      // 'augn' = kAudioUnitType_Generator
+            && componentManufacturer == 0x6170_706C  // 'appl' = kAudioUnitManufacturer_Apple
+    }
 }

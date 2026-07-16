@@ -33,6 +33,34 @@ final class LaneAUAssignmentTests: XCTestCase {
                        "only the secondary MIDI lane hosts (roll = global AUv3Host's channel)")
     }
 
+    func testWanted_appleGeneratorTrap_isIgnored_thirdPartyGeneratorHosts() {
+        // Founder 2026-07-16: a lane assigned AUAudioFilePlayer on a pre-v272
+        // build (persisted in the timeline document) instantiated fine and then
+        // stayed permanently MUTE — file-player API units never sound from
+        // notes. wanted() drops the trap so the built-in voice takes the lane
+        // back; a THIRD-PARTY generator instrument keeps hosting (many real
+        // instruments register with that type).
+        let trap = AUPluginRef(name: "AUAudioFilePlayer", manufacturerName: "Apple",
+                               componentType: 0x6175_676E,          // 'augn'
+                               componentSubType: 0x6166_706C,
+                               componentManufacturer: 0x6170_706C,  // 'appl'
+                               isInstrument: true)
+        XCTAssertTrue(trap.isAppleGeneratorTrap)
+        let thirdParty = AUPluginRef(name: "Gen", manufacturerName: "Maker",
+                                     componentType: 0x6175_676E,          // 'augn'
+                                     componentSubType: 0x74657374,
+                                     componentManufacturer: 0x54455354,   // not Apple
+                                     isInstrument: true)
+        XCTAssertFalse(thirdParty.isAppleGeneratorTrap)
+        XCTAssertFalse(instRef().isAppleGeneratorTrap, "music devices never match")
+
+        let trapped = TimelineLane(name: "Mute", kind: .midi, instrument: trap)
+        let hosted = TimelineLane(name: "Gen", kind: .midi, instrument: thirdParty)
+        let wanted = LaneAUAssignment.wanted(lanes: [trapped, hosted], rollLane: nil)
+        XCTAssertNil(wanted[trapped.id], "the trap lane falls back to the built-in voice")
+        XCTAssertNotNil(wanted[hosted.id])
+    }
+
     func testWanted_effectRefInInstrumentSlot_isIgnored() {
         let lane = TimelineLane(name: "L", kind: .midi, instrument: fxRef("NotAnInstrument"))
         XCTAssertTrue(LaneAUAssignment.wanted(lanes: [lane], rollLane: nil).isEmpty,

@@ -60,6 +60,10 @@ public struct LaneAUAssignment: Equatable, Sendable {
     ///   same plugin twice).
     /// - `lane.instrument` must be an instrument ref; an effect ref stored
     ///   there is ignored (pre-H9 law, unchanged).
+    /// - An Apple file-player Generator ref (AUAudioFilePlayer etc.) is ignored
+    ///   too: it instantiates fine and then never sounds from notes — a lane
+    ///   assigned one on a pre-v272 build was permanently mute (founder
+    ///   2026-07-16 silence report; the built-in voice takes the lane back).
     /// - `lane.effects` keeps only true EFFECT refs (an instrument in the
     ///   insert list would swallow the signal), order preserved, capped at
     ///   `maxEffectsPerLane` (first stages win; stages beyond the cap are
@@ -71,7 +75,8 @@ public struct LaneAUAssignment: Equatable, Sendable {
     public static func wanted(lanes: [TimelineLane], rollLane: UUID?) -> [UUID: LaneAUAssignment] {
         var out: [UUID: LaneAUAssignment] = [:]
         for lane in lanes where lane.kind == .midi && !lane.isBio && lane.id != rollLane {
-            guard let inst = lane.instrument, inst.isInstrument else { continue }
+            guard let inst = lane.instrument, inst.isInstrument,
+                  !inst.isAppleGeneratorTrap else { continue }
             let fx = lane.effects.filter { !$0.isInstrument }.prefix(maxEffectsPerLane)
             out[lane.id] = LaneAUAssignment(instrument: inst, effects: Array(fx))
         }
