@@ -1,35 +1,48 @@
-build: 2026-07-16 v10.79.260 (Mehrtakt-Clips spielen auf ALLEN Spuren richtig)
+build: 2026-07-16 v10.79.261 (Ehrlicher Record-Arm + Live-Struktur: Edits während der Wiedergabe hörbar)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 1 — das verifizierte CRITICAL.
+notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkte 2+3 — zwei verifizierte Funde in einem Build.
 
-  MEHRTAKT-CLIPS AUF SEKUNDÄREN MIDI-SPUREN — GEHEILT:
-  • Vorher: Nur die ERSTE MIDI-Spur (die Haupt-Roll) spielte einen
-    Mehrtakt-Clip Takt für Takt. Jede weitere MIDI-Spur faltete ALLE
-    Takte übereinander — ein 2-Takt-Clip klang als beide Takte
-    GLEICHZEITIG, jede Runde wiederholt; vorne trimmen oder splitten
-    änderte hörbar nichts.
-  • Jetzt: Die Spur-Pumps spielen die Region mit exakt derselben
-    Fensterungs-Mathematik wie die Haupt-Roll — Trim-Offset (tick-genau,
-    bei jedem Tempo), Takt für Takt, Einstieg mitten in der Region bei
-    Seek/Play, Sustains über Taktgrenzen klingen bis zu ihrem echten Ende.
-    Der Reviewer hat die Takt-Phase adversarial gegen die Haupt-Roll
-    geprüft: exakte Parität (auch im Randfall „Region startet mitten im
-    Takt" verhalten sich beide identisch).
-  • 8 neue pure Tests pinnen die Gesetze (Takt-Sequenz statt Faltung,
-    Rundlauf, Mitten-Einstieg, Taktgrenzen-Sustain, Alt-Verhalten der
-    Ein-Takt-Clips unverändert).
+  1) RECORD-ARM VERSPRICHT NUR NOCH, WAS ER AUFNIMMT (CLIP-2):
+  • Vorher: Der Arm-Knopf auf Audio- (Mikrofon) und Video-Spuren leuchtete
+    rot, der globale Record lief — und am Ende war STILL nichts da
+    (die Audio/Video-Aufnahme ist schlicht noch nicht gebaut; nur
+    MIDI-Eingang und Bio werden heute wirklich erfasst). Stiller
+    Datenverlust einer Performance = das Schlimmste, was ein
+    Aufnahmegerät tun kann.
+  • Jetzt: Auf Spuren, deren Quelle noch nicht erfasst wird, ist der
+    Arm-Knopf sichtbar deaktiviert (gedimmt), mit Hinweis „recording
+    arrives soon" für VoiceOver. Eine scharf geschaltete Mikrofon-Spur
+    zählt auch im Aufnahme-Plan nicht mehr als Ziel. Sobald die echte
+    Audio/Video-Erfassung kommt, dreht EIN Schalter pro Quelle das
+    wieder auf.
 
-  Damit spielt das Arrangement jetzt auf JEDER Spur, was du siehst:
-  Haupt-Roll gefenstert (v253) + Audio-Spuren mit Offset (v256/257) +
-  sekundäre MIDI-Spuren gefenstert (dieses Build).
+  2) STRUKTUR-EDITS ERREICHEN DIE LAUFENDE WIEDERGABE (CLIP-3):
+  • Vorher: Während der Song lief, spielte er einen eingefrorenen
+    Schnappschuss — Clip verschieben/trimmen/löschen, Spur
+    hinzufügen/entfernen, Automation ändern: alles blieb UNHÖRBAR bis
+    Stop+Play. (Nur Mixer — Mute/Solo/Level/Pan — floss schon live.)
+  • Jetzt: Ein Struktur-Edit wird innerhalb eines Transport-Steps
+    (~0,1 s) in die laufende Session gezogen: Stimmen sauber
+    freigegeben (keine hängenden Noten), Dokument übernommen,
+    Loop-Länge neu berechnet, alle Spuren an der aktuellen Position
+    neu aufgesetzt — die klingende Melodie der Haupt-Roll wird dabei
+    NUR neu geladen, wenn sich ihre eigene Region wirklich geändert
+    hat (ein Edit auf einer anderen Spur unterbricht sie nicht).
+  • Aus dem adversarialen Review: Transpose/Detune fließen jetzt LIVE
+    in die laufende Wiedergabe (wie Pan, ohne Neustart der Stimmen) —
+    vorher landete ein Transpose-Edit erst beim nächsten Region-Load,
+    und ein Scrub hätte im neuen Pfad einen 8-Hz-Relocate-Sturm
+    ausgelöst. Beides behoben und getestet.
+  • 10 neue pure Tests pinnen die Grenze „Mixer-Edit = live ohne
+    Unterbrechung / Struktur-Edit = ein sauberer Relocate".
 
-  Review: APPROVE (adversarial, 6 Prüfpunkte) · alle 4 Gates grün
-  (inkl. CI-Testlauf der neuen Pump-Tests).
+  Review: APPROVE (adversarial, 7 Prüfpunkte + Re-Review des Fixes) ·
+  alle 4 Gates grün auf beiden Commits.
 
-  NÄCHSTER PUNKT (Bereich 2): Record-arm auf Audio/Video-Spuren leuchtet
-  heute rot und nimmt STILL nichts auf (stiller Datenverlust) — der
-  ehrliche Fix kommt als nächstes Build; danach Struktur-Edits hörbar
-  ohne Stop+Play.
+  NÄCHSTER PUNKT (Bereich 2): Playhead-Relocate (Play startet heute
+  immer bei Takt 1 — Tippen auf die Timeline soll die Wiedergabe dort
+  fortsetzen; der Relocate-Pfad aus diesem Build ist genau dafür
+  wiederverwendbar) oder die leere Audio-Clip-Edit-Tür.
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).

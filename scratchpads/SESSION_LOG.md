@@ -6208,3 +6208,42 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   ohne Stop+Play) → CLIP-4/5/6 · PERF-01 Format-Vorwärmen.
 - Deploys heute Nacht: v257 · v258 · v259 · v260 (vier Zyklen, vier Deploys,
   alle Reviews eingearbeitet, ein Gate-Rot [LogCategory .bio] in 1 Zeile gefixt).
+
+## 2026-07-16 (Fortsetzung 14) — v261: Ehrlicher Record-Arm (CLIP-2) + Live-Struktur (CLIP-3)
+- **v261 deployed (902b22b + 7e9a32c + 210626c, Reviews APPROVE, Gates 4/4 auf
+  allen drei Commits):** Zwei Bereich-2-Punkte gebündelt.
+- **CLIP-2 (902b22b):** RecordSource.captureImplemented (nur .midiInput/.bio
+  heute wahr); Arm-Knopf auf nicht-erfassbaren Quellen sichtbar deaktiviert
+  (0.45-Dim + a11y „recording arrives soon"); RecordPlan.targets filtert
+  captureImplemented — eine scharfe Mic-Spur zählt nicht mehr als Ziel.
+  Reviewer-Footgun für Task #13 notiert: vor dem Umlegen von
+  captureImplemented(.audioInput) müssen persistierte stale isArmed migriert
+  werden, sonst werden sie schlagartig live.
+- **CLIP-3 (7e9a32c + Review-Fix 210626c):** transportStep ruft
+  refreshStructure() nach refreshMixer(); pures Gate
+  TimelineDocument.structurallyEqual (normalisiert Mixer-Felder + name/isArmed
+  + transpose/detune) trennt Mixer-Pfad (billig, live, kein Re-Attack) vom
+  Relocate (flushPumps durch ALTE Bindings [H5b], Snapshot-Swap, loopTicks neu,
+  Roll-Reload NUR wenn eigene aktive Region geändert, primeSecondaryLanes +
+  audioLanes.prime an lastTick — dieselben Pfade wie play()/Wrap).
+- **Review-HIGH (behoben in 210626c):** Transpose/Detune zählten als
+  strukturell → EchoelValueField-Scrub während Playback = 8-Hz-Relocate-Sturm
+  (alle Stimmen geflusht, jedes Audio-Segment neu gestartet). Fix Option a:
+  beide Felder sind Sink-applied wie Pan → mergeMixer merged sie,
+  structurallyEqual normalisiert sie, refreshMixer pusht roll+slot
+  Transpose/Detune-Sinks live. Schließt nebenbei die Alt-Lücke „Transpose-Edit
+  landet erst beim nächsten Region-Load". Re-Review: APPROVE (Signaturen,
+  nil-rollLane, Idempotenz, kein Relocate mehr aus Transpose-only — alles PASS).
+- **LEDGER-Lehre:** Ein Live-Pull-Pfad (Struktur-Refresh gegen den Store)
+  macht JEDES kontinuierlich gescrubbte Feld zur Falle — vor dem Bauen eines
+  Equality-Gates ALLE EchoelValueField-gebundenen Lane-Felder auflisten und
+  explizit dem Mixer- oder Struktur-Pfad zuweisen (safe default „structural"
+  ist für Drag-Felder genau falsch).
+- **Akzeptiert/deferred (Reviewer):** Flush-all-Konservatismus bei
+  Struktur-Edits (dokumentiert, per-Lane-Diff späteres Refinement) · doppelter
+  liveDocument-Fetch pro Step (Style) · mid-bar loadRollRegion atStepZero
+  (Verify-Item: Phase-Test bei Mid-Bar-Relocate).
+- **Ultraprogramm-Stand:** Bereich 2: U-B2.1 (v260) + U-B2.2 + U-B2.3 (v261)
+  SHIPPED → als Nächstes CLIP-5 (Playhead-Relocate — Play immer Takt 1;
+  refreshStructure-Muster wiederverwendbar) oder CLIP-4 (Audio-Clip-Edit-Tür
+  lädt leer). Danach CLIP-6 (Clip-Gain/Fades) · PERF-01 (Format-Vorwärmen).
