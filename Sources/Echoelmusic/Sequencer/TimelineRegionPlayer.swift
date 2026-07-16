@@ -210,25 +210,46 @@ public final class TimelineRegionPlayer {
     /// CLIP-5: jump the PLAYING session to the bar containing `tick` (playhead
     /// drag-drop). A locate is a hard cut — sounding voices are released (a jump
     /// must not smear old-position sustains into the new bar), then every layer
-    /// re-primes at the target through the SAME paths play()/refreshStructure use.
-    /// Bar-granular (see play(fromTick:)). No-op while stopped — the parked
-    /// playhead is picked up by the next play(fromTick:).
+    /// re-primes through the SAME paths play()/refreshStructure use — at the
+    /// PHASE-CONSISTENT anchor tick, not the bar downbeat: the shared pattern's
+    /// 16-step phase keeps running through a jump, so the next transport step
+    /// lands at `bar + patternPhase`. Anchoring the audio-lane files (and the
+    /// window edge) there keeps audio and MIDI in lockstep (review HIGH: a
+    /// downbeat anchor lagged audio behind MIDI by up to 15/16 bar until the
+    /// next onset) — the exact recipe refreshStructure (lastTick) and the loop
+    /// wrap (newTick) already follow. Bar-granular target (see play(fromTick:)).
+    /// No-op while stopped — the parked playhead is picked up by play(fromTick:).
     /// NEVER call this per drag frame — drag END only (a continuous scrub through
     /// this path is a relocate storm; HARNESS_LEDGER 2026-07-16).
     public func relocate(toTick tick: Int) {
         guard isPlaying else { return }
         let target = Self.barStartTick(for: tick, loopTicks: loopTicks)
+        // PatternEngine.currentStep is the NEXT step its timer fires (advance()
+        // plays `currentStep`, then increments) — exactly the phase the next
+        // transportStep will carry. A stopped/absent pattern anchors at 0.
+        let nextStep = (pattern?.isPlaying == true) ? (pattern?.currentStep ?? 0) : 0
+        let anchor = Self.relocateAnchorTick(targetBarTick: target, nextPatternStep: nextStep)
         pianoRoll?.allNotesOff()   // hard locate: cut the primary roll's ringing notes
         flushPumps()               // offs through current bindings (H5b), slots released
         cursor = TimelinePlaybackCursor(startBar: target / TimelineTime.ticksPerBar)
-        lastTick = target
-        currentTick = target
+        lastTick = anchor
+        currentTick = anchor
         loadedRegionID = nil       // force a fresh region decision at the target
-        loadRollRegion(at: target)
-        pianoRoll?.setTimelineAutomationTick(target)
-        primeSecondaryLanes(at: target)
-        audioLanes?.prime(in: doc, atTick: target, bpm: pattern?.tempo ?? 120)
-        log.log(.info, category: .audio, "timeline: relocate to tick \(target)")
+        loadRollRegion(at: anchor)
+        pianoRoll?.setTimelineAutomationTick(anchor)
+        primeSecondaryLanes(at: anchor)
+        audioLanes?.prime(in: doc, atTick: anchor, bpm: pattern?.tempo ?? 120)
+        log.log(.info, category: .audio, "timeline: relocate to tick \(anchor)")
+    }
+
+    /// The phase-consistent tick a relocate must anchor at: the target bar's
+    /// downbeat plus the pattern phase the NEXT transport step will carry
+    /// (clamped 0…15). Pure — the seeded cursor's next advance(step:) produces
+    /// exactly this tick, so the post-relocate window (lastTick → newTick] is
+    /// empty and nothing double-fires.
+    nonisolated static func relocateAnchorTick(targetBarTick: Int, nextPatternStep: Int) -> Int {
+        let phase = min(max(nextPatternStep, 0), 15)
+        return targetBarTick + phase * TimelineTime.ticksPerTransportStep
     }
 
     /// Stop timeline-follow and the transport.

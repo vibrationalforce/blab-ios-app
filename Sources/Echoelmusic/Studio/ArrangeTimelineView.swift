@@ -1533,6 +1533,16 @@ private struct TimelinePlayhead: View {
                     // continuous scrub through the relocate path is a voice-flush
                     // storm (HARNESS_LEDGER 2026-07-16).
                     timelinePlayer.relocate(toTick: t)
+                    if timelinePlayer.isPlaying {
+                        // Align the transport with the bar-granular jump (review
+                        // MEDIUM): the seek above left lastStep at the snapped
+                        // step, so a drop landing right before the pattern's
+                        // 15→0 tick would count a PHANTOM wrap — visual head one
+                        // bar ahead of the audio until Stop. Re-seek to the
+                        // folded bar (step 0 ⇒ wrap accounting agrees in every
+                        // phase; the next tick adopts the pattern phase anyway).
+                        transport.seek(toBar: timelinePlayer.currentTick / TimelineTime.ticksPerBar)
+                    }
                 }
                 scrubTick = nil
             }

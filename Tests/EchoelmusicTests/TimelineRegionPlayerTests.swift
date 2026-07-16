@@ -85,6 +85,21 @@ final class TimelineRegionPlayerTests: XCTestCase {
         XCTAssertEqual(TimelineRegionPlayer.barStartTick(for: 5000, loopTicks: 0), 0)
     }
 
+    // MARK: - CLIP-5 review HIGH: the phase-consistent relocate anchor
+
+    func testRelocateAnchorTick_addsThePatternPhase() {
+        // The pattern's 16-step phase keeps running through a jump — the anchor
+        // must land where the NEXT transport step lands, or audio lags MIDI.
+        XCTAssertEqual(TimelineRegionPlayer.relocateAnchorTick(targetBarTick: 3840, nextPatternStep: 0), 3840)
+        XCTAssertEqual(TimelineRegionPlayer.relocateAnchorTick(targetBarTick: 3840, nextPatternStep: 7), 3840 + 7 * 120)
+        XCTAssertEqual(TimelineRegionPlayer.relocateAnchorTick(targetBarTick: 3840, nextPatternStep: 15), 3840 + 15 * 120)
+    }
+
+    func testRelocateAnchorTick_clampsOutOfRangePhase() {
+        XCTAssertEqual(TimelineRegionPlayer.relocateAnchorTick(targetBarTick: 1920, nextPatternStep: -3), 1920)
+        XCTAssertEqual(TimelineRegionPlayer.relocateAnchorTick(targetBarTick: 1920, nextPatternStep: 99), 1920 + 15 * 120)
+    }
+
     // MARK: - loopTicks (whole-bar song length)
 
     private func doc(endTick: Int) -> TimelineDocument {
