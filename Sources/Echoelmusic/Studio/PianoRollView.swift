@@ -193,6 +193,17 @@ public final class PianoRollModel {
         notes[i].velocity = min(max(velocity, 0), 1)
     }
 
+    /// Reposition a note to a new pitch + start step, preserving its length. Pitch
+    /// clamps to the roll's range; the start clamps so the note never crosses the
+    /// loop boundary (its tail stays inside the bar). The drag-to-move primitive —
+    /// #58 Slice 2. No-op if the note was deleted mid-drag.
+    public func move(id: UUID, toPitch pitch: Int, toStartStep startStep: Int) {
+        guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
+        let len = notes[i].lengthSteps
+        notes[i].pitch = min(max(pitch, Self.lowPitch), Self.highPitch)
+        notes[i].startStep = min(max(startStep, 0), max(0, Self.stepCount - len))
+    }
+
     public func clear() {
         notes.removeAll()
         pendingNotes = nil   // else a staged bar would resurrect what was just cleared
@@ -684,6 +695,17 @@ public final class PianoRollModel {
 /// Drag anchor captured at the start of a create/select gesture.
 private struct RollDragAnchor { let pitch: Int; let startStep: Int }
 
+/// What the in-flight canvas drag is doing, decided at touch-down by the pure
+/// `RollHitTest`: an empty-grid drag creates/selects (the anchor), a drag that
+/// began on a note body moves that note (#58 Slice 2). Right-edge resize is a
+/// later slice; until then an edge grab also moves (a graspable whole note).
+private enum RollDrag {
+    case create(RollDragAnchor)
+    /// The moving note's id, the cell first grabbed, and its original position —
+    /// so the note follows the finger by a clamped delta, not by absolute cell.
+    case move(id: UUID, grabPitch: Int, grabStep: Int, origPitch: Int, origStep: Int)
+}
+
 /// Piano-roll editor surface. Presented from the Tools tab; drives the synth.
 @MainActor
 struct PianoRollView: View {
@@ -711,15 +733,17 @@ struct PianoRollView: View {
     @State private var stepW: CGFloat = 26
     @State private var rowH: CGFloat = 22
 
-    // Live drag state
-    @State private var anchor: RollDragAnchor?
-    @State private var dragStep: Int?
+    // Live drag state — one in-flight gesture (create-or-move), decided at touch-down.
+    @State private var drag: RollDrag?
 
     private let gutterW: CGFloat = 42
     private let minStepW: CGFloat = 16
     private let maxStepW: CGFloat = 56
     private let minRowH: CGFloat = 14
     private let maxRowH: CGFloat = 34
+    /// Width of the right-edge grab zone (points) handed to `RollHitTest`. Resize
+    /// lives there from Slice 3; today it just decides body-vs-edge classification.
+    private let edgeSlopPt: Double = 9
 
     private var canvasW: CGFloat { stepW * CGFloat(PianoRollModel.stepCount) }
     private var canvasH: CGFloat { rowH * CGFloat(PianoRollModel.pitchCount) }
@@ -985,32 +1009,57 @@ struct PianoRollView: View {
     private var canvasDrag: some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named("roll"))
             .onChanged { value in
-                if anchor == nil {
-                    anchor = RollDragAnchor(
-                        pitch: pitch(atY: value.startLocation.y),
-                        startStep: step(atX: value.startLocation.x)
-                    )
+                if drag == nil {
+                    // Decide the gesture ONCE, at touch-down, from the pure hit-test.
+                    switch RollHitTest.classify(
+                        x: Double(value.startLocation.x), y: Double(value.startLocation.y),
+                        notes: model.notes,
+                        stepW: Double(stepW), rowH: Double(rowH),
+                        highPitch: PianoRollModel.highPitch, lowPitch: PianoRollModel.lowPitch,
+                        stepCount: PianoRollModel.stepCount, edgeSlop: edgeSlopPt
+                    ) {
+                    case let .body(id), let .rightEdge(id):
+                        // Edge resize is Slice 3; for now an edge grab moves too.
+                        if let n = model.notes.first(where: { $0.id == id }) {
+                            drag = .move(id: id,
+                                         grabPitch: pitch(atY: value.startLocation.y),
+                                         grabStep: step(atX: value.startLocation.x),
+                                         origPitch: n.pitch, origStep: n.startStep)
+                            selectedID = id
+                        }
+                    case let .empty(pitch, step):
+                        drag = .create(RollDragAnchor(pitch: pitch, startStep: step))
+                    }
                 }
-                dragStep = step(atX: value.location.x)
+                // Live-follow a move so the note tracks the finger.
+                if case let .move(id, grabPitch, grabStep, origPitch, origStep) = drag {
+                    let dPitch = pitch(atY: value.location.y) - grabPitch
+                    let dStep = step(atX: value.location.x) - grabStep
+                    model.move(id: id, toPitch: origPitch + dPitch, toStartStep: origStep + dStep)
+                }
             }
             .onEnded { value in
-                defer { anchor = nil; dragStep = nil }
-                guard let anchor else { return }
-                let endStep = step(atX: value.location.x)
-                let s0 = min(anchor.startStep, endStep)
-                let s1 = max(anchor.startStep, endStep)
-                let span = s1 - s0 + 1
-                if span <= 1 {
-                    if let existing = model.note(atPitch: anchor.pitch, step: s0) {
-                        selectedID = existing.id
+                defer { drag = nil }
+                switch drag {
+                case let .create(anchor):
+                    let endStep = step(atX: value.location.x)
+                    let s0 = min(anchor.startStep, endStep)
+                    let s1 = max(anchor.startStep, endStep)
+                    let span = s1 - s0 + 1
+                    if span <= 1 {
+                        if let existing = model.note(atPitch: anchor.pitch, step: s0) {
+                            selectedID = existing.id
+                        } else {
+                            let note = model.add(pitch: anchor.pitch, startStep: s0,
+                                                 lengthSteps: drawLength)
+                            selectedID = note.id
+                        }
                     } else {
-                        let note = model.add(pitch: anchor.pitch, startStep: s0,
-                                             lengthSteps: drawLength)
+                        let note = model.add(pitch: anchor.pitch, startStep: s0, lengthSteps: span)
                         selectedID = note.id
                     }
-                } else {
-                    let note = model.add(pitch: anchor.pitch, startStep: s0, lengthSteps: span)
-                    selectedID = note.id
+                case .move, .none:
+                    break   // the note already followed the finger in onChanged
                 }
             }
     }

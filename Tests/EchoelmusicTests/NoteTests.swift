@@ -124,6 +124,48 @@ final class PianoRollModelTests: XCTestCase {
         XCTAssertTrue(model.notes.isEmpty)
     }
 
+    // MARK: - move (#58 Slice 2: drag-to-reposition)
+
+    func testMove_repositionsPitchAndStart_preservingLength() {
+        let model = PianoRollModel()
+        let note = model.add(pitch: 60, startStep: 2, lengthSteps: 3, velocity: 0.7)
+        model.move(id: note.id, toPitch: 67, toStartStep: 5)
+        let m = model.notes.first { $0.id == note.id }
+        XCTAssertEqual(m?.pitch, 67)
+        XCTAssertEqual(m?.startStep, 5)
+        XCTAssertEqual(m?.lengthSteps, 3, "length is preserved by a move")
+        XCTAssertEqual(m?.velocity, 0.7, "velocity is untouched by a move")
+    }
+
+    func testMove_clampsPitchToRollRange() {
+        let model = PianoRollModel()
+        let note = model.add(pitch: 60, startStep: 0)
+        model.move(id: note.id, toPitch: 999, toStartStep: 0)
+        XCTAssertEqual(model.notes.first?.pitch, PianoRollModel.highPitch)
+        model.move(id: note.id, toPitch: -5, toStartStep: 0)
+        XCTAssertEqual(model.notes.first?.pitch, PianoRollModel.lowPitch)
+    }
+
+    func testMove_clampsStartSoTailStaysInBar() {
+        let model = PianoRollModel()
+        let note = model.add(pitch: 60, startStep: 0, lengthSteps: 4)
+        // Pushing a 4-step note to step 15 must clamp so it ends at the boundary.
+        model.move(id: note.id, toPitch: 60, toStartStep: 15)
+        XCTAssertEqual(model.notes.first?.startStep, PianoRollModel.stepCount - 4)
+        // Negative start clamps to 0.
+        model.move(id: note.id, toPitch: 60, toStartStep: -3)
+        XCTAssertEqual(model.notes.first?.startStep, 0)
+    }
+
+    func testMove_missingID_isNoOp() {
+        let model = PianoRollModel()
+        let note = model.add(pitch: 60, startStep: 2, lengthSteps: 2)
+        model.move(id: UUID(), toPitch: 70, toStartStep: 8)   // unknown id
+        XCTAssertEqual(model.notes.first?.pitch, 60)
+        XCTAssertEqual(model.notes.first?.startStep, 2)
+        _ = note
+    }
+
     func testLoadReplacesNotes() {
         let model = PianoRollModel()
         model.add(pitch: 60, startStep: 0)

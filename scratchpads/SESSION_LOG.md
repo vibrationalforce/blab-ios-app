@@ -6853,3 +6853,25 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Strecke 6/8. Slices 7-8 sind FOUNDER-GATED (Flag-Flip erst bei Geräte-Verify).
   KEIN Deploy, KEIN Flag-Flip. Nächster autonomer Punkt: Sheet-Chain-
   Konsolidierung (SIGSEGV-Schutz, swiftui-render-safety zuerst) ODER #58-Plan.
+
+## Fortsetzung 36 (2026-07-16) — #58 MIDI/MPE-Station: Slice 1 grün + Slice 2 gebaut
+
+- **Slice 1 (390e6fb) FERTIG:** RollHitTest-Kern (body/right-edge/empty), 4/4
+  Gates grün, code-reviewer APPROVE (0 HIGH). 3 Review-LOWs (exakte Slop-Grenze,
+  Adjazenz-Kante, Kappe-am-Limit) sofort nachgezogen — pinnen die `>=`/`<`-Ränder.
+- **Slice 2 (Note verschieben) gebaut, test-first:**
+  - `PianoRollModel.move(id:toPitch:toStartStep:)` — Pitch clamp low…high, Start
+    clamp so der Tail im Takt bleibt (Länge erhalten), No-op bei fehlender id.
+    4 Tests (Reposition+Länge/Velocity erhalten, Pitch-Clamp, Start-Clamp, Miss).
+  - `PianoRollView.canvasDrag` verzweigt jetzt am Touch-Down über den reinen
+    `RollHitTest`: leerer Grid → create/select (wie bisher), Body/Edge → MOVE
+    (Note folgt dem Finger per geclamptem Delta; Edge-Resize ist Slice 3, bis
+    dahin greift Edge = Move einer ganzen Note). Alter `anchor`/`dragStep`-State
+    → EIN `RollDrag`-Enum (create/move), am Touch-Down entschieden.
+  - **Audio-sicher (verifiziert):** `trigger` snapshottet die Note beim Attack in
+    `active[id] = note`; Releases lesen den Snapshot → Move-während-Wiedergabe
+    gibt die ALTE Tonhöhe korrekt frei und re-attackt an der neuen Position, kein
+    hängender Ton. Gleiche Semantik wie remove/setLength. Kein Render/DSP-Change
+    ⇒ code-reviewer genügt (kein audio-thread-reviewer).
+- Kein Deploy (Founder-Freeze; Slice fühlbar erst am Gerät verifizierbar).
+- Nächster Punkt: Slice 3 (Edge-Resize splittet den Edge-Zweig ab).

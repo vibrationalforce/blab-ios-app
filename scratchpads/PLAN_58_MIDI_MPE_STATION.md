@@ -59,14 +59,15 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
 - Code-Review APPROVE (0 HIGH); 3 LOW-Test-Lücken nachgezogen (exakte Slop-Grenze,
   Adjazenz, Kappe-am-Limit) — pinnen `>=`/`<` gegen Regression.
 
-### Slice 2 — Note verschieben (Body-Drag → Pitch+Step) · test-first Model
+### Slice 2 — Note verschieben (Body-Drag → Pitch+Step) · ✅ GEBAUT (Review+Gates ausstehend)
 - **Model** `PianoRollModel.move(id:toPitch:toStartStep:)` (clamp Pitch in
-  low…high, Step in 0…stepCount-len, Länge bleibt). Test: Clamp + Idempotenz +
-  Überlauf-Schutz.
-- **View** `canvasDrag`: Start klassifiziert via S1; `.body` → Move-Modus,
-  `onChanged` schiebt Pitch/Step live, `onEnded` committet; `.empty` wie bisher
-  create/select. Selected-Note-Feedback bleibt.
-- Optional (später, nicht S2): Pitch beim Ziehen audibel vorhören.
+  low…high, Start in 0…stepCount-len, Länge bleibt, No-op bei Miss). 4 Tests.
+- **View** `canvasDrag`: EIN `RollDrag`-Enum (create/move), am Touch-Down via S1
+  klassifiziert; `.body`/`.rightEdge` → Move (Note folgt Finger per geclamptem
+  Delta), `.empty` wie bisher create/select. Edge-Resize kommt in S3.
+- **Audio-sicher:** `active[id]=note`-Snapshot beim Attack ⇒ Move-während-Play
+  gibt alte Tonhöhe frei, re-attackt neu, kein hängender Ton. Kein Render-Change.
+- Optional (später): Pitch beim Ziehen audibel vorhören.
 
 ### Slice 3 — Edge-Resize (rechte Kante ziehen → Länge)
 - `.rightEdge` → Resize-Modus: `onChanged` Preview, `onEnded` `setLength`
