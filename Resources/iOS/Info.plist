@@ -79,7 +79,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>If you turn on "Place in session name", Echoel looks up your city once to stamp it into the session name (e.g. Echoel_2026-07-10_Hamburg_Am_72bpm_A440). If you turn on "Weather shapes the music", the same location is used to fetch local weather from Apple Weather. Both are off by default; nothing is stored by Echoel or sent anywhere else.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Echoelmusic uses the local network for Art-Net &amp; sACN lighting control and external audio interfaces, and — when you enable OSC or ADM output — to send live bio values (heart rate, HRV, breath, coherence) to the devices you choose.</string>
+	<string>Echoelmusic uses the local network for Art-Net &amp; sACN lighting control and external audio interfaces; for nearby collaboration with other Echoelmusic users (sharing sessions and, only if you choose, your live pulse); and — when you enable OSC or ADM output — to send live bio values (heart rate, HRV, breath, coherence) to the devices you choose.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>

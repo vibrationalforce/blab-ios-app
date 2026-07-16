@@ -35,6 +35,10 @@ struct LiveColaboView: View {
                     Text(colab.status)
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
 
+                    if let invite = colab.pendingInvitation {
+                        invitationCard(invite)
+                    }
+
                     if let inc = colab.incoming, let project = inc.project {
                         incomingCard(inc.senderName, project)
                     }
@@ -174,6 +178,39 @@ struct LiveColaboView: View {
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Explicit consent for a join request (never auto-accepted — audit 2026-07-16):
+    /// the user decides WHO connects, because bio sharing may be on.
+    private func invitationCard(_ invite: PendingInvitation) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(invite.peerName) wants to join")
+                .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+            Text(shareBio
+                 ? "Joining lets them share sessions with you — and see your live pulse while sharing is on."
+                 : "Joining lets them share sessions with you.")
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button { colab.respondToInvitation(accept: true) } label: {
+                    Text("Accept").font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
+                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
+                }
+                .buttonStyle(.plain)
+                Button { colab.respondToInvitation(accept: false) } label: {
+                    Text("Decline").font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
+                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.accent.opacity(0.5), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(invite.peerName) wants to join your session")
     }
 
     private func incomingCard(_ from: String, _ project: Project) -> some View {

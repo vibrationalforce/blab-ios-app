@@ -37,6 +37,16 @@ public struct DiscoveredPeer: Identifiable, Equatable, Sendable {
     public var name: String { id }
 }
 
+/// An incoming invitation awaiting the user's EXPLICIT consent. Never auto-accepted
+/// (App Store audit 2026-07-16, 5.1.1/5.1.2): while colab is live the user may be
+/// sharing live bio readings — WHO receives them is the user's call, not any nearby
+/// device's. `respond` wraps MC's invitationHandler; call it exactly once.
+public struct PendingInvitation: Identifiable {
+    public let id = UUID()
+    public let peerName: String
+    let respond: (Bool) -> Void
+}
+
 @MainActor
 @Observable
 public final class MultipeerSession: NSObject {
@@ -50,6 +60,9 @@ public final class MultipeerSession: NSObject {
     public private(set) var discovered: [DiscoveredPeer] = []
     /// Set when a peer sends us a session — the UI offers to load/import it.
     public private(set) var incoming: ColabPayload?
+    /// Set when a nearby device asks to join — the UI shows an Accept/Decline
+    /// card; nothing connects until the user answers (never auto-accepted).
+    public private(set) var pendingInvitation: PendingInvitation?
     /// Last status line for the UI (e.g. "Shared with 2 peers").
     public private(set) var status: String = "Off"
     /// Live bio numbers per connected peer (E5): display name → last reading.
@@ -106,6 +119,10 @@ public final class MultipeerSession: NSObject {
     }
 
     public func stop() {
+        // Never leave an MC invitation handler dangling — decline it so the
+        // inviter gets an answer instead of a 20 s timeout.
+        pendingInvitation?.respond(false)
+        pendingInvitation = nil
         advertiser?.stopAdvertisingPeer()
         browser?.stopBrowsingForPeers()
         advertiser = nil
@@ -142,6 +159,28 @@ public final class MultipeerSession: NSObject {
 
     /// Clear the incoming-session prompt after the UI handles it.
     public func clearIncoming() { incoming = nil }
+
+    /// The user's answer to the pending join request. Responds to MC exactly
+    /// once and clears the card; a no-op when nothing is pending.
+    public func respondToInvitation(accept: Bool) {
+        guard let pending = pendingInvitation else { return }
+        pendingInvitation = nil
+        pending.respond(accept)
+        if accept {
+            status = "Joining \(pending.peerName)…"
+        } else if isLive {
+            status = connectedPeerNames.isEmpty ? "Looking for nearby Echoelmusic…" : status
+        }
+    }
+
+    /// Surface an invitation for explicit consent. One at a time: a newer
+    /// invitation DECLINES the previous pending one (an unanswered MC handler
+    /// would dangle into the inviter's timeout). Internal for tests.
+    func handleInvitation(from name: String, respond: @escaping (Bool) -> Void) {
+        pendingInvitation?.respond(false)
+        pendingInvitation = PendingInvitation(peerName: name, respond: respond)
+        status = "\(name) wants to join"
+    }
 
     /// Stream one live bio reading to every connected peer (E5). Unreliable
     /// transport by design — a lost 2–3 Hz telemetry frame is worthless a
@@ -212,15 +251,30 @@ extension MultipeerSession: MCSessionDelegate {
     public nonisolated func session(_ session: MCSession, didFinishReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, at localURL: URL?, withError error: Error?) {}
 }
 
-// MARK: - Advertiser (auto-accept invitations into our session)
+// MARK: - Advertiser (invitations require explicit user consent)
 
 extension MultipeerSession: MCNearbyServiceAdvertiserDelegate {
     public nonisolated func advertiser(_ advertiser: MCNearbyServiceAdvertiser,
                                        didReceiveInvitationFromPeer peerID: MCPeerID,
                                        withContext context: Data?,
                                        invitationHandler: @escaping (Bool, MCSession?) -> Void) {
-        // Accept onto our (immutable, thread-safe) session.
-        invitationHandler(true, mcSession)
+        // NEVER auto-accept (App Store audit 2026-07-16): while colab is live the
+        // user may be streaming live bio to connected peers — a silent join would
+        // hand that stream to any nearby device. Hop to the MainActor and surface
+        // an Accept/Decline card; the handler (non-Sendable closure) crosses the
+        // hop boxed, and `mcSession` is the nonisolated(unsafe) immutable ref MC
+        // accepts from any thread. If the user never answers, MC's own inviter
+        // timeout (20 s) resolves it; stop() declines a still-pending card.
+        let name = peerID.displayName
+        let handlerBox = UncheckedBox(value: invitationHandler)
+        // MCSession is non-Sendable — box it across the hop like MCPeerID
+        // (immutable ref; MC accepts the handler's session from any thread).
+        let sessionBox = UncheckedBox(value: mcSession)
+        Task { @MainActor [weak self] in
+            self?.handleInvitation(from: name) { accept in
+                handlerBox.value(accept, accept ? sessionBox.value : nil)
+            }
+        }
     }
 }
 
