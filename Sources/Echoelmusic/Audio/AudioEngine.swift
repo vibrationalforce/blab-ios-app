@@ -27,6 +27,12 @@ public final class AudioEngine {
 
     // MARK: - Self-healing recovery state (MainActor-confined)
 
+    /// App-layer hook fired when the audio OUTPUT device disappears (headphones
+    /// unplugged / BT lost). The app wires the transport-stop cascade here so a
+    /// playing arrangement PAUSES instead of resuming on the loudspeaker (HIG).
+    /// Called on the MainActor (the route observer runs on the main queue).
+    @ObservationIgnored var onOutputDeviceLost: (() -> Void)?
+
     /// De-bounce guard so overlapping recovery triggers (route flap + config
     /// change firing together) don't schedule competing `start()` calls.
     @ObservationIgnored private var isRecovering = false
@@ -193,6 +199,11 @@ public final class AudioEngine {
             guard let self else { return }
             self.masterEngine.pause()
             self.isRunning = false
+            // HIG: unplugging headphones must PAUSE playback, not continue on the
+            // loudspeaker. The engine restart below only re-wires the graph onto the
+            // new route (silent while the transport is stopped); the app layer stops
+            // the transport via this hook — the Audio layer holds no Sequencer refs.
+            self.onOutputDeviceLost?()
             log.audio("Audio route lost — restarting on new output...")
             self.recoverEngine(reason: "route lost")
         }

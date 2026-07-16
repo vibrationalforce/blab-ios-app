@@ -178,6 +178,11 @@ struct EchoelmusicApp: App {
     /// app for the rest of this process even though this launch booted into Safe Mode.
     @State private var forceNormalMode = false
     @Environment(\.scenePhase) private var scenePhase
+    /// Order-proof backgrounding marker: iOS may deliver .background → .inactive →
+    /// .active, so a `oldPhase == .background` gate alone can miss the resume. Set on
+    /// .background, consumed by the .active branch to restart the (possibly stopped)
+    /// audio engine + bio loop exactly once per return to foreground.
+    @State private var wasBackgrounded = false
 
     init() {
         EchoelCrashLog.begin()   // diagnostics first: capture any crash from here on
@@ -501,6 +506,17 @@ struct EchoelmusicApp: App {
                 // Same coherence for the timeline player: any Stop resets its follow-state.
                 transport.addStopSubscriber("timeline") { [weak timelinePlayer] in
                     timelinePlayer?.handleTransportStopped()
+                }
+                // HIG: unplugging headphones pauses playback instead of resuming on
+                // the loudspeaker. The engine's route-loss recovery only re-wires the
+                // graph (silent once stopped); THIS runs the exact TransportBar stop
+                // cascade so every player/voice releases through the proven path.
+                audioEngine.onOutputDeviceLost = { [weak timelinePlayer, weak beatPlayer] in
+                    guard beatPlayer?.pattern.isPlaying == true
+                            || timelinePlayer?.isPlaying == true else { return }
+                    EchoelCrashLog.breadcrumb("stop source: route-lost (output device gone)")
+                    if timelinePlayer?.isPlaying == true { timelinePlayer?.stop() }
+                    else { beatPlayer?.pattern.stop() }
                 }
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
@@ -835,15 +851,45 @@ struct EchoelmusicApp: App {
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {
                 case .active:
-                    if oldPhase == .background {
+                    // Resume must survive BOTH transition orders — iOS can deliver
+                    // .background → .active directly OR .background → .inactive →
+                    // .active (then oldPhase is .inactive and an == .background gate
+                    // never fires). The wasBackgrounded flag is order-proof; start()
+                    // is idempotent (guards !masterEngine.isRunning), so a spurious
+                    // call is a no-op. Critical since the .background branch may now
+                    // deliberately STOP an idle engine (2.5.4) — a missed resume
+                    // would mean silence until relaunch.
+                    if oldPhase == .background || wasBackgrounded {
+                        wasBackgrounded = false
                         audioEngine.start()
                         bioFeedback.start(publishingFrom: bus)
                         log.log(.info, category: .system, "App active — audio resumed")
                     }
                 case .background:
+                    wasBackgrounded = true
                     bioFeedback.stop()
                     auHost.persistState()   // save hosted-plugin settings across relaunch
-                    log.log(.info, category: .system, "App backgrounded")
+                    // Guideline 2.5.4: the `audio` background mode may keep the session
+                    // alive ONLY while something audible (or a recording) needs it. An
+                    // idle engine would render silence forever — the classic "plays
+                    // silent audio to stay alive" rejection signature, and a battery
+                    // drain (real-time audio thread). stop() also deactivates the
+                    // session with .notifyOthersOnDeactivation, giving other apps
+                    // their audio back; the .active branch below restarts idempotently.
+                    let audioNeeded = transport.isPlaying
+                        || beatPlayer.pattern.isPlaying
+                        || timelinePlayer.isPlaying
+                        || arrangementPlayer.isPlaying
+                        || audioEngine.multiTrackRecorder.isRecording
+                        || microphoneManager.isRecording
+                        || audioEngine.isInputMonitoring
+                    if !audioNeeded {
+                        audioEngine.stop()
+                        log.log(.info, category: .system,
+                                "App backgrounded — idle audio engine stopped (2.5.4)")
+                    } else {
+                        log.log(.info, category: .system, "App backgrounded — audio continues")
+                    }
                 case .inactive:
                     break
                 @unknown default:
