@@ -12,6 +12,12 @@ extension Notification.Name {
     /// owns all three publishers and switches the active one — same decoupling as the
     /// toggle (the chrome never reaches into studio state).
     static let echoelSelectBioSource = Notification.Name("echoel.selectBioSource")
+    /// Studio → app layer: a user-initiated take's bio source finished starting
+    /// (posted AFTER `startBioSource()` returns, so any camera permission dialog
+    /// has already been answered — no stacked system sheets). The app uses it to
+    /// run the HealthKit ask at a REAL bio-use moment instead of context-free at
+    /// launch (UX-3). Same chrome/app decoupling as the toggle above.
+    static let echoelBioSourceStarted = Notification.Name("echoel.bioSourceStarted")
     /// Chrome → studio global doors (founder 2026-07-12 shell v3: "Master,
     /// Export, Live und Learn kommt oben in die Leiste neben das Schloss").
     /// `object` = the door name ("master" · "export" · "live" · "learn"); the

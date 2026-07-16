@@ -3314,6 +3314,11 @@ struct EchoelStudioView: View {
             // the instant the lock arrives (see snapToLockWhenReady()).
             await startBioSource()
             guard running, !Task.isCancelled else { return }
+            // The user just STARTED a bio take and any camera permission dialog is
+            // answered (startBioSource awaited it) — this is the honest moment for
+            // the app layer to run its deferred HealthKit ask (UX-3), sequentially,
+            // never stacked on another system sheet.
+            NotificationCenter.default.post(name: .echoelBioSourceStarted, object: nil)
             // Let the body continuously modulate the polyphonic timbre at 10 Hz
             // between re-seeds — the sound hugs the live heartbeat/HRV in realtime
             // instead of staying static until the next ~6 s recompose.

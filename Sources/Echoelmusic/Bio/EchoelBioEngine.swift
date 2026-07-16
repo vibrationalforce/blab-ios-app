@@ -167,6 +167,28 @@ public final class EchoelBioEngine {
         }
     }
 
+    /// Whether calling `requestAuthorization()` would present the system Health
+    /// permission sheet right now (UX-3: launch must NEVER prompt — only a real,
+    /// user-initiated bio moment may). Best-effort: unknown/error counts as
+    /// "would prompt" so the caller defers instead of surprising the user.
+    public func authorizationRequestNeeded() async -> Bool {
+        guard let healthStore = healthStore else { return false }
+        guard let hrType = HKObjectType.quantityType(forIdentifier: .heartRate),
+              let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
+              let brType = HKObjectType.quantityType(forIdentifier: .respiratoryRate) else {
+            return false
+        }
+        let readTypes: Set<HKObjectType> = [hrType, hrvType, brType]
+        do {
+            let status = try await healthStore.statusForAuthorizationRequest(toShare: [], read: readTypes)
+            return status != .unnecessary
+        } catch {
+            log.log(.warning, category: .audio,
+                    "HealthKit authorization status check failed: \(error.localizedDescription)")
+            return true
+        }
+    }
+
     // MARK: - Streaming
 
     /// Start real-time bio data streaming
@@ -513,6 +535,7 @@ public final class EchoelBioEngine {
     private init() {}
 
     public func requestAuthorization() async -> Bool { false }
+    public func authorizationRequestNeeded() async -> Bool { false }
     public func startStreaming() { isStreaming = true }
     public func stopStreaming() { isStreaming = false }
 

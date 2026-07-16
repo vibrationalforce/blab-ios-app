@@ -18,6 +18,9 @@ struct EchoelmusicApp: App {
     /// Opt-in "Works with Apple Health" write-back of Echoel's own HR / respiratory
     /// measurements (camera rPPG / BLE). Off by default.
     @State private var healthWriter = HealthKitWriter()
+    /// UX-3 once-per-run latch: the deferred HealthKit ask fires at the first
+    /// user-initiated bio start (.echoelBioSourceStarted), then never again this run.
+    @State private var healthAskFired = false
     #endif
     #if canImport(CoreBluetooth)
     @State private var polarH10: PolarH10BioPublisher
@@ -759,7 +762,13 @@ struct EchoelmusicApp: App {
                 // These await (HealthKit permission dialog, StoreKit network) and
                 // run OFF the launch path so a hang here can never silence the app.
                 #if canImport(HealthKit)
-                Task { await healthBio.start(publishing: bus) }
+                // UX-3: launch may START Health publishing but never PROMPT — the
+                // context-free full-screen Health sheet used to interrupt the very
+                // first studio render (and could stack under the camera dialog if
+                // the user tapped the pulse pill). Previously-granted users keep
+                // their launch behavior; on a fresh install the ask fires at the
+                // first real bio use (.echoelBioSourceStarted below).
+                Task { await healthBio.startIfAlreadyAuthorized(publishing: bus) }
                 // Opt-in Health write-back: the poll loop is started always but
                 // no-ops unless the user has enabled it (near-zero cost when off).
                 healthWriter.start(reading: bus)
@@ -778,6 +787,19 @@ struct EchoelmusicApp: App {
                 locationNamer.attach(session: sessionContext)
                 #endif
             }
+            #if canImport(HealthKit)
+            // UX-3: the deferred HealthKit ask fires at the FIRST user-initiated bio
+            // start of this run (the studio posts after its source is up, so the
+            // camera dialog — if any — is already answered; system sheets appear
+            // sequentially, never stacked). One ask per run: start() is idempotent
+            // (isPublishing guard) and iOS re-prompts only while undetermined, but
+            // the flag also spares repeated no-op authorization round-trips.
+            .onReceive(NotificationCenter.default.publisher(for: .echoelBioSourceStarted)) { _ in
+                guard !healthAskFired else { return }
+                healthAskFired = true
+                Task { await healthBio.start(publishing: bus) }
+            }
+            #endif
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 switch newPhase {
                 case .active:

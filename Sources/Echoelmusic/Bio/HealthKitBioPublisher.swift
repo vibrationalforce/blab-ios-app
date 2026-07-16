@@ -60,6 +60,21 @@ public final class HealthKitBioPublisher {
         }
     }
 
+    /// Launch-safe start: begins publishing ONLY when the Health permission sheet
+    /// would NOT appear (already answered on an earlier run). On a fresh install
+    /// this is a silent no-op — the ASK moves to the first real bio use (UX-3:
+    /// the context-free sheet used to interrupt the very first studio render).
+    /// Previously-granted users (Watch) keep their launch behavior unchanged.
+    public func startIfAlreadyAuthorized(publishing bus: EngineBus) async {
+        guard !isPublishing else { return }
+        if await engine.authorizationRequestNeeded() {
+            log.log(.info, category: .audio,
+                    "HealthKitBioPublisher: authorization ask deferred to first bio use")
+            return
+        }
+        await start(publishing: bus)
+    }
+
     public func stop() {
         task?.cancel()
         task = nil
