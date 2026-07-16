@@ -69,9 +69,11 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
   gibt alte Tonhöhe frei, re-attackt neu, kein hängender Ton. Kein Render-Change.
 - Optional (später): Pitch beim Ziehen audibel vorhören.
 
-### Slice 3 — Edge-Resize (rechte Kante ziehen → Länge)
-- `.rightEdge` → Resize-Modus: `onChanged` Preview, `onEnded` `setLength`
-  (existiert). Test: Kante am 1-Step-Note, Max-Länge-Clamp, kein Negativ.
+### Slice 3 — Edge-Resize (rechte Kante ziehen → Länge) · ✅ GEBAUT (Review+Gates ausstehend)
+- `.rightEdge` vom Move abgespalten → `RollDrag.resize(id:origStart:)`; live-follow
+  ruft `setLength` (existiert, clampt Tail an Takt). Neue reine Länge-vom-Finger-
+  Regel `RollHitTest.resizedLengthSteps(fingerStep:startStep:)` (=max(1,f−s+1)),
+  3 Tests. Tap auf die Kante = Delta 0 ⇒ nur Auswahl, keine Zufalls-Resize.
 - Draw-Length-Picker bleibt für NEUE Notes (Ersteingabe-Bequemlichkeit).
 
 ### Slice 4 — Velocity-Lane (Paint) · Audit-Wunsch

@@ -138,6 +138,15 @@ final class RollHitTestTests: XCTestCase {
         XCTAssertEqual(hit, .empty(pitch: high, step: steps - 1))
     }
 
+    func testResizedLength_fingerStepBecomesLastCoveredStep() {
+        // Note starts at step 3; dragging the edge to step 8 → covers 3…8 = 6 steps.
+        XCTAssertEqual(RollHitTest.resizedLengthSteps(fingerStep: 8, startStep: 3), 6)
+        // Finger on the start step → a single-step note.
+        XCTAssertEqual(RollHitTest.resizedLengthSteps(fingerStep: 3, startStep: 3), 1)
+        // Dragging left past the start collapses to the 1-step floor, never 0/negative.
+        XCTAssertEqual(RollHitTest.resizedLengthSteps(fingerStep: 0, startStep: 3), 1)
+    }
+
     func testDegenerateGeometry_returnsSafeEmpty() {
         let hit = RollHitTest.classify(x: 10, y: 10, notes: [sampleNote()],
                                        stepW: 0, rowH: 0,

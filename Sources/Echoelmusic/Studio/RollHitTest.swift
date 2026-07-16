@@ -71,6 +71,15 @@ public enum RollHitTest {
         return cell
     }
 
+    /// Length in steps for a right-edge resize: the step under the finger becomes
+    /// the note's LAST covered step, so length = fingerStep − startStep + 1, never
+    /// below 1 (drag past the start collapses to a single step). #58 Slice 3. The
+    /// caller still passes the result through `PianoRollModel.setLength`, which
+    /// clamps the tail to the bar — this is just the finger→length law.
+    public static func resizedLengthSteps(fingerStep: Int, startStep: Int) -> Int {
+        Swift.max(1, fingerStep - startStep + 1)
+    }
+
     /// The clamped grid cell under a point — the `.empty` payload and the public
     /// helper the view uses for create/select geometry.
     public static func emptyCell(

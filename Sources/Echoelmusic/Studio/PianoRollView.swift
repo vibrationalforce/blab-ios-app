@@ -697,13 +697,16 @@ private struct RollDragAnchor { let pitch: Int; let startStep: Int }
 
 /// What the in-flight canvas drag is doing, decided at touch-down by the pure
 /// `RollHitTest`: an empty-grid drag creates/selects (the anchor), a drag that
-/// began on a note body moves that note (#58 Slice 2). Right-edge resize is a
-/// later slice; until then an edge grab also moves (a graspable whole note).
+/// began on a note body moves that note (#58 Slice 2), and a drag on a note's
+/// right edge resizes its length (#58 Slice 3).
 private enum RollDrag {
     case create(RollDragAnchor)
     /// The moving note's id, the cell first grabbed, and its original position —
     /// so the note follows the finger by a clamped delta, not by absolute cell.
     case move(id: UUID, grabPitch: Int, grabStep: Int, origPitch: Int, origStep: Int)
+    /// The resizing note's id and its (fixed) start step — the right edge tracks
+    /// the finger's step, so length = fingerStep − start + 1.
+    case resize(id: UUID, origStart: Int)
 }
 
 /// Piano-roll editor surface. Presented from the Tools tab; drives the synth.
@@ -1018,8 +1021,7 @@ struct PianoRollView: View {
                         highPitch: PianoRollModel.highPitch, lowPitch: PianoRollModel.lowPitch,
                         stepCount: PianoRollModel.stepCount, edgeSlop: edgeSlopPt
                     ) {
-                    case let .body(id), let .rightEdge(id):
-                        // Edge resize is Slice 3; for now an edge grab moves too.
+                    case let .body(id):
                         if let n = model.notes.first(where: { $0.id == id }) {
                             drag = .move(id: id,
                                          grabPitch: pitch(atY: value.startLocation.y),
@@ -1027,15 +1029,28 @@ struct PianoRollView: View {
                                          origPitch: n.pitch, origStep: n.startStep)
                             selectedID = id
                         }
+                    case let .rightEdge(id):
+                        if let n = model.notes.first(where: { $0.id == id }) {
+                            drag = .resize(id: id, origStart: n.startStep)
+                            selectedID = id
+                        }
                     case let .empty(pitch, step):
                         drag = .create(RollDragAnchor(pitch: pitch, startStep: step))
                     }
                 }
-                // Live-follow a move so the note tracks the finger.
-                if case let .move(id, grabPitch, grabStep, origPitch, origStep) = drag {
+                // Live-follow so the note tracks the finger (move) / the edge tracks
+                // the finger's step (resize).
+                switch drag {
+                case let .move(id, grabPitch, grabStep, origPitch, origStep):
                     let dPitch = pitch(atY: value.location.y) - grabPitch
                     let dStep = step(atX: value.location.x) - grabStep
                     model.move(id: id, toPitch: origPitch + dPitch, toStartStep: origStep + dStep)
+                case let .resize(id, origStart):
+                    let len = RollHitTest.resizedLengthSteps(
+                        fingerStep: step(atX: value.location.x), startStep: origStart)
+                    model.setLength(id: id, lengthSteps: len)
+                case .create, .none:
+                    break
                 }
             }
             .onEnded { value in
@@ -1058,7 +1073,7 @@ struct PianoRollView: View {
                         let note = model.add(pitch: anchor.pitch, startStep: s0, lengthSteps: span)
                         selectedID = note.id
                     }
-                case .move, .none:
+                case .move, .resize, .none:
                     break   // the note already followed the finger in onChanged
                 }
             }

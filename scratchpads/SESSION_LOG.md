@@ -6875,3 +6875,18 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
     ⇒ code-reviewer genügt (kein audio-thread-reviewer).
 - Kein Deploy (Founder-Freeze; Slice fühlbar erst am Gerät verifizierbar).
 - Nächster Punkt: Slice 3 (Edge-Resize splittet den Edge-Zweig ab).
+
+## Fortsetzung 37 (2026-07-16) — #58 Slice 2 grün, Slice 3 (Edge-Resize) gebaut
+
+- **Slice 2 (deea54f) FERTIG:** 4/4 Gates grün, code-reviewer APPROVE (0 HIGH;
+  3 LOWs explizit nicht-blockierend). Note verschieben ist live.
+- **Slice 3 (Edge-Resize) gebaut, test-first:** der `.rightEdge`-Zweig ist vom
+  Move abgespalten → `RollDrag.resize(id:origStart:)`; die rechte Kante folgt dem
+  Finger-Step, `setLength` (bestehend, Takt-clamp) committet live. Neue REINE
+  Regel `RollHitTest.resizedLengthSteps(fingerStep:startStep:) = max(1, f−s+1)`
+  (3 Tests: Kante→letzter Step, Finger-auf-Start→1, Links-über-Start→1-Floor).
+  Tap auf die Kante = Delta 0 ⇒ nur Auswahl. Kein Render-Change ⇒ code-reviewer.
+- Damit: Note setzen · **verschieben** · **in der Länge ziehen** — die drei
+  Basis-Primitive, die „rudimentär" waren, sind da. Als Nächstes Slice 4
+  (Velocity-Mal-Lane) oder Slice 5 (Marquee-Mehrfachauswahl).
+- Kein Deploy (Founder-Freeze).
