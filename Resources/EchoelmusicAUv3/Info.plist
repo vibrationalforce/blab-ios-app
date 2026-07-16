@@ -20,6 +20,13 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- AudioComponents kept BYTE-IDENTICAL to the project.yml `info:` block
+	     (task #32, audit 2026-07-16): XcodeGen REGENERATES this file from
+	     project.yml on every `xcodegen generate`, so project.yml is the source
+	     of truth for what ships in host DAWs — this committed copy exists so
+	     git shows the real shipping values. Change BOTH places or neither.
+	     Component identity (type/subtype/manufacturer/version) must never
+	     drift: hosts key persisted sessions on it. -->
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
@@ -30,9 +37,9 @@
 		<array>
 			<dict>
 				<key>name</key>
-				<string>Echoelmusic Technologies: EchoelmusicAUv3</string>
+				<string>Echoelmusic: Bio-Reactive Synth</string>
 				<key>description</key>
-				<string>Bio-Reactive Ambient Generator</string>
+				<string>Bio-reactive performance synthesizer</string>
 				<key>manufacturer</key>
 				<string>Echo</string>
 				<key>type</key>
@@ -45,8 +52,8 @@
 				<true/>
 				<key>tags</key>
 				<array>
-					<string>Generators</string>
-					<string>Synthesizers</string>
+					<string>Generator</string>
+					<string>Ambient</string>
 				</array>
 			</dict>
 		</array>

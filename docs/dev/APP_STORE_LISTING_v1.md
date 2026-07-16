@@ -144,7 +144,18 @@ beyond that name string.
 Local network / Bluetooth: OSC, ADM-OSC, Art-Net and sACN send control data
 to devices the user explicitly configures (stage lights, immersive audio).
 Bluetooth connects standard heart-rate straps. MultipeerConnectivity shares
-sessions between two nearby iPhones (peer-to-peer, no server).
+sessions between two nearby iPhones (peer-to-peer, no server); incoming join
+requests always require explicit user acceptance.
+
+Background modes: `audio` — the generative instrument keeps playing when the
+user backgrounds the app mid-performance (and stops itself when nothing is
+playing). `bluetooth-central` — a connected Bluetooth heart-rate strap keeps
+streaming heart data that modulates that still-playing audio in the
+background; the two modes work together in live performance.
+
+Health data never leaves the device: values read from Apple Health are
+excluded from every network output by policy (only the app's own camera/strap
+measurements can be sent, and only to devices the user configures).
 
 Bio readings are presented for creative control and self-observation, not
 medical diagnosis — the app states this, visual flash rates are capped at

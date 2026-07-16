@@ -29,16 +29,16 @@
 	<key>com.apple.developer.weatherkit</key>
 	<true/>
 
-	<!-- App Groups (shared data with extensions) -->
+	<!-- App Groups (shared data with extensions — the REAL sharing channel:
+	     BioFeedbackManager App-Group UserDefaults). keychain-access-groups was
+	     REMOVED 2026-07-16 (audit): zero keychain API usage anywhere in Sources,
+	     no extension declared the group either, and the "Notification Service"
+	     the old comment named does not exist — a declared-but-unused entitlement
+	     only invites capability questions. Re-add when code actually stores
+	     keychain items. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.echoelmusic</string>
-	</array>
-
-	<!-- Keychain Sharing (extensions: AUv3, Notification Service) -->
-	<key>keychain-access-groups</key>
-	<array>
-		<string>$(AppIdentifierPrefix)com.echoelmusic.app</string>
 	</array>
 </dict>
 </plist>
