@@ -1,35 +1,36 @@
-build: 2026-07-16 v10.79.268 (Kamera verweigert ist keine Sackgasse mehr)
+build: 2026-07-16 v10.79.269 (Der erste Play klingt — immer)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 5 (UX), Punkt 1 — der CRITICAL aus dem Ultrascan.
+notes: Ultraprogramm Bereich 5 (UX), Punkt 2.
 
-  KAMERA VERWEIGERT = EHRLICHER WEG STATT SACKGASSE (UX-1):
-  • Vorher: Wer den Kamera-Zugriff ablehnte (oder später in den
-    Einstellungen entzog), landete in einer stummen Sackgasse — der
-    Bio-Strip coachte für immer „Cover camera" (was nie helfen kann),
-    die Puls-Pille im Header zeigte gar nichts, und nirgends stand der
-    einzige echte Fix: Kamera-Zugriff in den Einstellungen einschalten.
-  • Jetzt: Die App erkennt den verweigerten Zugriff beim Start-Versuch
-    (frisch vom System gelesen, nicht geraten) und sagt die Wahrheit:
-    – Bio-Strip: amber „Enable camera"-Knopf, ein Tipp öffnet direkt
-      die iOS-Einstellungen; dazu die Banner-Zeile „Camera access is
-      off — enable it in Settings to read your pulse".
-    – Header-Puls-Pille: „Camera off" in amber — sichtbar, obwohl die
-      Kamera nicht läuft (sie KANN ja nicht laufen).
-    – Mess-Screen: derselbe ehrliche Hinweis statt Finger-Coaching.
-  • Kein Nörgeln: Sobald ein anderer Sensor liefert (BLE-Gurt, Watch,
-    oder die bewusst gewählte Simulation), verschwinden Hinweis und
-    Knopf auf ALLEN Flächen — Strip und Header nutzen jetzt dieselbe
-    Unterdrückungs-Logik (das fing das adversariale Review: Runde 1
-    hätte Demo-Nutzer die ganze Session genervt).
-  • Erlaubt der User den Zugriff wieder, startet der nächste Puls-Read
-    normal — der Hinweis räumt sich selbst weg.
+  DER ERSTE PLAY SPIELT NIE MEHR STILLE (UX-2):
+  • Vorher: Frische Installation = leere Spuren, leeres Drum-Grid,
+    leere Piano-Roll. Das eine offensichtliche ▶ bewegte nur die
+    Positions-Anzeige über pure Stille — ein neuer User schließt in
+    der ersten Minute „die App ist kaputt". Die einzige Klang-Tür war
+    die Puls-Pille im Header, auf die nichts hinweist.
+  • Jetzt: Ist NIRGENDS etwas komponiert (keine Region irgendeiner
+    Art, kein Drum-Step, keine Roll-Note), startet ▶ das
+    bio-generative Instrument — exakt dieselbe Tür, die die Puls-Pille
+    öffnet. Sofortiger Klang, ▶ wird ehrlich zu ■ (das Generieren
+    startet das Transport selbst mit).
+  • Alles mit Inhalt bleibt EXAKT wie bisher: Arrangement spielt das
+    Arrangement, Drum-Steps/Roll-Notes spielen den Loop, auch ein
+    Video-only-Arrangement behält seinen Pfad (explizit abgesichert).
+    Nach einem gestoppten Take liegen die generierten Noten in der
+    Roll — der nächste ▶ spielt sie normal weiter, kein Doppel-Start,
+    kein versehentliches Session-Aus (instrumentRunning-Guard).
+  • Erster Start überhaupt: ▶ fragt einmal nach der Kamera (der
+    Puls-Moment); auch bei „Nicht erlauben" klingt es trotzdem —
+    neutrale Defaults, und seit v268 zeigt die App den ehrlichen
+    Settings-Weg.
 
-  Review: APPROVE (2 Runden; MEDIUM aus Runde 1 sofort geschlossen) ·
-  alle 4 Gates grün auf dem Tip · PulseCue-Mapping pur getestet.
+  Review: APPROVE (alle 6 adversarialen Proben bestanden: kein
+  Toggle-off-Fenster, Verhalten mit Inhalt byte-gleich, Freeze-Regel
+  intakt) · alle 4 Gates grün.
 
-  BEREICH-STAND: Bereich 2 (Clips/DAW) alle HIGHs ✓ · Bereich 3 AU-1 +
-  AU-2 ✓ · Bereich 5 UX-1 (dieses Build) ✓. NÄCHSTER PUNKT: UX-2
-  (First-Run-Stille) oder AU-3 (Scan-Bursts).
+  BEREICH-STAND: Bereich 5: UX-1 (v268) + UX-2 (dieses Build) ✓.
+  NÄCHSTER PUNKT: UX-3 (Health-Abfrage kommt kontextlos beim ersten
+  Studio-Start — soll erst bei echter Bio-Nutzung fragen).
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).

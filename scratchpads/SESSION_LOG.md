@@ -6469,3 +6469,28 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Gates 4/4 grün auf 6e38c9e UND 6ea2592 → v268 deployed.
 - **Ultraprogramm-Stand:** Bereich 5: UX-1 ✓ → als Nächstes UX-2 (First-Run-
   Stille) oder zurück zu Bereich 3 AU-3 (Scan-Bursts).
+
+## Fortsetzung 22 (2026-07-16, Ultraprogramm Bereich 5 — UX-2) → v269
+- **UX-2 (Ultrascan-HIGH): erster ▶ spielte Stille.** Frische Installation
+  seedet zwei LEERE Lanes; toggle() fiel auf pattern.play() über ein
+  all-false-Grid — Playhead lief, nichts klang; einzige Klang-Tür war die
+  unbeschriftete Puls-Pille.
+- **Bau (0513606, 1 Datei, +20 Zeilen):** toggle() bekam EINEN Zweig zwischen
+  Timeline-Check und pattern.play()-Fallback: doc.regions.isEmpty (explizit —
+  Video-only-Arrangement behält seinen Pfad) + kein Drum-Step + Roll leer +
+  !bus.instrumentRunning → post .echoelToggleBio (dieselbe Notification wie
+  die Header-Pille; startBiofeedback → generate(startTransport:true) = Klang
+  + ▶→■ ehrlich). @Environment(EngineBus.self) in TransportBar, Read NUR im
+  Tap-Handler (Freeze-Regel: Environment-Injection allein subscribed nicht).
+- **Review APPROVE, alle 6 Proben:** running/instrumentRunning werden
+  synchron als Paar gesetzt (kein Disagree-Fenster); zweiter ▶ im
+  Start-Fenster fällt harmlos auf pattern.play() und generate() sieht
+  wasPlaying==true (kein Doppel-Start, selbstheilend); Komma-Präzedenz der
+  bestehenden Bedingung verifiziert; PatternEngine @MainActor, O(128)-Read im
+  Tap ok. LOW (Produkt, nicht Defekt): erster ▶ zeigt den Kamera-Dialog vor
+  dem ersten Klang — Purpose-String sollte auch aus dem Play-Kontext sinnvoll
+  lesen; verwandt mit UX-3 (nächster Punkt).
+- Gates 4/4 grün → v269 deployed.
+- **Ultraprogramm-Stand:** Bereich 5: UX-1 ✓ UX-2 ✓ → UX-3 (HealthKit-Sheet
+  kontextlos beim ersten Studio-Render; Fix: healthBio.start aus dem
+  Launch-.task in den ersten echten Bio-Use verlegen).
