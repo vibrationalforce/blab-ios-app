@@ -51,6 +51,11 @@ public final class HealthKitBioPublisher {
         }
         engine.startStreaming()
         isPublishing = true
+        // Two callers can pass the guard above concurrently (isPublishing flips
+        // only after the requestAuthorization await — e.g. the launch
+        // startIfAlreadyAuthorized racing the first-bio-use start). Cancel any
+        // earlier poll loop before replacing it so it can't leak uncancelled.
+        task?.cancel()
         task = Task { @MainActor [weak self, weak bus] in
             while !Task.isCancelled {
                 guard let self, let bus else { break }
