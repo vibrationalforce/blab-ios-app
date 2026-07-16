@@ -6340,3 +6340,38 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   (v262) · CLIP-4 (v263) · CLIP-6a (v264) SHIPPED → Rest: CLIP-6b (Fades
   persistieren + Sink-Rampe + Anti-Klick-Kanten, MIT audio-thread-reviewer),
   PERF-01 (Format-Vorwärmen), CLIP-7..11.
+
+## 2026-07-16 (Fortsetzung 18) — v265: Format-Grenzen ohne Ganzes-Mix-Dropout (PERF-01)
+- **v265 deployed (8c0bf8f, Code-Review APPROVE + Audio-Thread-Review APPROVE,
+  Gates 4/4):** TimelineAudioSink neu: `nodes: [FormatKey(channels,rate):
+  AVAudioPlayerNode]` — ein Node pro distinktem Format, attach beim ersten
+  Auftreten (Prime); Mid-Song-Region-Wechsel schedult nur auf dem bereits
+  attachten Node (keine Graph-Mutation, keine Engine-Pause). `knownURLs`-Memo
+  macht Loop-Wrap-Re-Prime zum No-Op. setGain/setPan/stop/detach decken alle
+  Nodes; neuer Node joint bei gespeichertem gain/pan. AudioLanePlayer.prime
+  wärmt JEDE distinkte Datei pro Lane (dedupe, Lane-Reihenfolge) statt nur die
+  früheste. Single-Format-Lane verhält sich per Konstruktion identisch zu vorher.
+- **Reviewer-Verifikationen:** Fehl-Open clobbert nie das geladene File und kann
+  nie das alte File für die neue URL schedulen; MediaLibrary vergibt
+  UUID-Dateinamen → stale-Format-Memo praktisch unerreichbar; detachPlayerNode
+  = stop→disconnect→detach ohne Pause; masterEngine wird NIE neu gebaut →
+  kein Orphan-Node-Fenster; Interruption-Guard sitzt auf dem richtigen
+  (Format-)Node; Speicher gebunden (≤~4 Formate/Lane realistisch).
+- **Advisories (non-blocking, für spätere Zyklen):** (1) MEDIUM vorbestehend,
+  N×-verstärkt: attachPlayerNode-Failed-Restart-Pfad loggt nur — isRunning/
+  degraded bleiben stale, kein recoverEngine; Fix: Prime-Attaches unter EINE
+  withGraphPaused-Batch-Pause (AudioEngine.swift:807) + Failed-Restart →
+  recoverEngine. (2) LOW: Format-Nodes werden bis Lane-Removal nie gepruned.
+  (3) LOW: korrupte Datei wird nicht memoized → Log-Spam pro Wrap.
+- **LEDGER-Lehre:** "Passiert nur zur Prime-Zeit"-Kommentare sind nur so wahr
+  wie die Prime-ABDECKUNG — wer beim Prime nur das ERSTE Element wärmt,
+  verschiebt die teure Operation still auf den Mid-Song-Onset des zweiten.
+  Prime-Pfade müssen ALLES vorwärmen, was der Lauf brauchen wird (und ein Memo
+  macht Re-Primes kostenlos).
+- **Ehrlichkeit:** Sink = device-verified Shell — der hörbare Beweis (Grenze
+  Mikro-Take↔Loop ohne Dropout) steht auf dem Gerät aus [NEEDS-FOUNDER-VERIFY].
+- **Ultraprogramm-Stand:** Bereich 2 ALLE HIGHs SHIPPED (CLIP-1/2/3/4/5/6a +
+  PERF-01, v260–v265). Offen: CLIP-6b (Fades+Anti-Klick, audio-reviewed),
+  CLIP-7..11 MEDIUMs/LOWs. → NÄCHSTER BEREICH 3 (AUv3): AU-1 Format-Preflight
+  in globalen Pfaden (CRASH), AU-2 globale Chains nicht restauriert, AU-3
+  Scan-Bursts, AU-4 Guidance.

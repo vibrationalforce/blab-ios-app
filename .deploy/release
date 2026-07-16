@@ -1,38 +1,38 @@
-build: 2026-07-16 v10.79.264 (Clip-Lautstärke erreicht den Song)
+build: 2026-07-16 v10.79.265 (Kein Ganzes-Mix-Aussetzer mehr an Audio-Format-Grenzen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 6 — der Gain-Regler des Audio-Editors wird ehrlich.
+notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 7 — der letzte HIGH-Fund des Clip-Bereichs.
 
-  CLIP-GAIN END-TO-END (CLIP-6a):
-  • Vorher: Der Gain-Regler im Audio-Clip-Editor wirkte nur in der
-    Vorschau — „Add to timeline" verwarf ihn still, im Song spielte
-    der Clip IMMER auf voller Stufe. Ein leiser gelegtes Sample war
-    eine Illusion.
-  • Jetzt: Jede Clip-Instanz auf der Timeline trägt ihre eigene
-    Lautstärke (0…2, Standard neutral):
-    – Der Editor-Gain LANDET mit dem Clip auf der Spur.
-    – Die Edit-Tür (v263) zeigt den Gain der Region und schreibt ihn
-      mit „Done" zurück — ein reiner Gain-Edit fasst das Trim-Fenster
-      dabei garantiert nicht an (eigener Schreibpfad, Review-Fund).
-    – Die Wiedergabe multipliziert Region-Gain × Spur-Mixer — auch
-      live: Gain 0 gattet wie Mute, ein zurückkehrender Gain startet
-      an der ehrlichen Datei-Position.
-    – Split erbt den Gain auf beide Hälften; Join verweigert ehrlich
-      bei ungleichen Gains (nichts wird still verworfen).
-    – Alte Projekte laden bit-identisch (fehlender Gain = neutral).
-  • Fades bleiben vorerst Editor-Vorschau — das Persistieren + die
-    klickfreien Rampen (auch Anti-Klick an Schnittkanten) sind der
-    nächste Zyklus, mit Audio-Thread-Review.
-  • 7 neue Tests (Clamp/NaN, Legacy-Dekodierung, Split/Join-Gesetze,
-    Onset-Multiplikation, 0-Gain-Gate, Gain-only-Schreibpfad).
+  FORMAT-GRENZEN OHNE DROPOUT (PERF-01):
+  • Vorher: Lagen auf EINER Audio-Spur Dateien mit unterschiedlichem
+    Format (z. B. eine 48-kHz-Mono-Aufnahme und ein 44,1-kHz-Stereo-
+    Loop), pausierte an JEDER Grenze zwischen ihnen die komplette
+    Engine — ein hörbarer Aussetzer über den GANZEN Mix (Drums, Synths,
+    alles), bei jeder Überquerung und jedem Loop-Durchlauf aufs Neue.
+  • Jetzt: Jede Spur hält einen eigenen Player pro benötigtem Format,
+    alle werden beim Start (Play/Seek) vorbereitet — der Format-Wechsel
+    mitten im Song wechselt nur noch den Player, der Audio-Graph bleibt
+    unangetastet. Eine Spur mit einheitlichem Format verhält sich
+    exakt wie bisher. Loop-Durchläufe sind dank Datei-Memo komplett
+    kostenlos.
+  • Ehrlichkeit: Der Sink ist die geräte-verifizierte AVFoundation-
+    Schale — CI kompiliert, beide Reviews (Code + Audio-Thread) sind
+    APPROVE, aber der hörbare Beweis braucht ein Gerät: eine Spur mit
+    Mikro-Aufnahme + importiertem Loop abspielen und die Grenze hören.
+  • Notiert für später (Audio-Review-Advisory, vorbestehend): die
+    Start-Vorbereitung mehrerer Formate unter EINE gebatchte Graph-
+    Pause legen.
+  • Neuer Test: die Vorbereitung wärmt jede unterschiedliche Datei
+    einer Spur genau einmal, in Spur-Reihenfolge.
 
-  Review: APPROVE (adversarial + Re-Review; appliedGain-Semantik,
-  Grenz-Übergänge, kein Doppel-Trigger mit der Live-Struktur — alles
-  verifiziert) · alle 4 Gates grün auf dem Tip.
+  Review: Code-Review APPROVE (9 adversariale Proben) + Audio-Thread-
+  Review APPROVE (Render-Pfad sauber, keine Locks/Allokationen, alle
+  NSException-Pfade geprüft) · alle 4 Gates grün.
 
-  Bereich-2-Stand: CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5 (v262) ·
-  CLIP-4 (v263) · CLIP-6a (dieses Build) SHIPPED. NÄCHSTER PUNKT:
-  CLIP-6b (Fades + klickfreie Schnittkanten) oder PERF-01
-  (Format-Vorwärmen gegen die Engine-Pause bei Format-Wechsel).
+  BEREICH 2 (Clips/DAW) DAMIT DURCH ALLE HIGHS: CLIP-1 (v260) ·
+  CLIP-2+3 (v261) · CLIP-5 (v262) · CLIP-4 (v263) · CLIP-6a (v264) ·
+  PERF-01 (dieses Build). Offen im Bereich: CLIP-6b (Fades + klickfreie
+  Schnittkanten) + MEDIUMs/LOWs. NÄCHSTER BEREICH: AUv3 (Bereich 3,
+  beginnend mit dem Format-Preflight-CRASH-Fund AU-1).
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
