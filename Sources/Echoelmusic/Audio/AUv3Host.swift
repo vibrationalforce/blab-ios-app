@@ -98,6 +98,23 @@ public final class AUv3Host {
         }
     }
 
+    /// Night audit 2026-07-16: the registry is COLD for this process — the scan
+    /// saw neither any third-party component NOR Echoel's own embedded AUv3
+    /// (device log: "3rd-party 0, ownAUv3 false"). In that state the retry
+    /// ladder and the manual Rescan hit the same cold cache (see performScan's
+    /// backstop comment) — the only user action that reliably helps is
+    /// RESTARTING the app. The browser shows that honestly instead of the
+    /// provably ineffective "tap Rescan" advice.
+    public private(set) var registryColdForProcess = false
+
+    /// Restore records that failed against the cold registry, held for ONE
+    /// retry when kAudioComponentRegistrationsChanged announces late arrivals
+    /// (before this, a failed restore was never re-attempted for the whole
+    /// process — the plugin came back only after the user manually reloaded it).
+    @ObservationIgnored private var pendingRestoreInstrument: HostedAUInfo?
+    @ObservationIgnored private var pendingRestoreEffects: [HostedAUInfo] = []
+    @ObservationIgnored private var pendingRestoreMasters: [HostedAUInfo] = []
+
     // MARK: - Live hosting (instrument → audio graph)
 
     /// The plugin currently loaded into the audio graph (nil = none).
@@ -446,15 +463,24 @@ public final class AUv3Host {
         var failed: [String] = []
         if let instrument {
             await load(instrument)
-            if loaded != instrument { failed.append(instrument.name) }
+            if loaded != instrument {
+                failed.append(instrument.name)
+                pendingRestoreInstrument = instrument   // one retry when the registry warms
+            }
         }
         for info in effects {
             await load(info)
-            if !loadedEffects.contains(info) { failed.append(info.name) }
+            if !loadedEffects.contains(info) {
+                failed.append(info.name)
+                pendingRestoreEffects.append(info)
+            }
         }
         for info in masters {
             await loadMasterEffect(info)
-            if !loadedMasterEffects.contains(info) { failed.append(info.name) }
+            if !loadedMasterEffects.contains(info) {
+                failed.append(info.name)
+                pendingRestoreMasters.append(info)
+            }
         }
         if !failed.isEmpty {
             // COMPOSE, don't assign: the trap-heal note set above must survive a
@@ -615,7 +641,12 @@ public final class AUv3Host {
             registrationObserver = NotificationCenter.default.addObserver(
                 forName: Notification.Name(kAudioComponentRegistrationsChangedNotification as String),
                 object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor [weak self] in self?.scan() }
+                Task { @MainActor [weak self] in
+                    self?.scan()
+                    // Late registrations may include exactly the plugins whose
+                    // chain restore failed at launch — re-drive those loads ONCE.
+                    self?.retryFailedRestores()
+                }
             }
         }
         // Query the all-match wildcard AND each hosted type explicitly, AND the
@@ -696,6 +727,10 @@ public final class AUv3Host {
             + ", rawMakers: [\(rawMakers.joined(separator: ","))]"
             + " rawTypes: [\(rawTypes.joined(separator: ","))]")
         didScan = true
+        // Honest cold-state flag (tracks every pass; flips false the moment ANY
+        // non-built-in appears — incl. our own AUv3, which proves the registry
+        // serves out-of-process components to this process).
+        registryColdForProcess = (thirdPartyCount == 0 && !ownAUv3)
         // Cold-cache / late-registration backstop: when the OS returns only Apple
         // built-ins, the third-party registry is likely not warm yet for this
         // process — and because those extensions were registered BEFORE this launch,
@@ -716,6 +751,28 @@ public final class AUv3Host {
         #else
         didScan = true
         #endif
+    }
+
+    /// One-shot retry of restore records that failed at launch, fired from the
+    /// registrationsChanged observer (the registry just announced new arrivals).
+    /// Cleared BEFORE the loads so a second notification can't double-drive them;
+    /// a load that fails again surfaces its normal loadError — no loop.
+    private func retryFailedRestores() {
+        guard pendingRestoreInstrument != nil
+                || !pendingRestoreEffects.isEmpty
+                || !pendingRestoreMasters.isEmpty else { return }
+        let instrument = pendingRestoreInstrument
+        let fx = pendingRestoreEffects
+        let masters = pendingRestoreMasters
+        pendingRestoreInstrument = nil
+        pendingRestoreEffects = []
+        pendingRestoreMasters = []
+        log.audio("AUv3 registry warmed — retrying failed chain restores")
+        Task { @MainActor in
+            if let instrument { await self.load(instrument) }
+            for info in fx { await self.load(info) }
+            for info in masters { await self.loadMasterEffect(info) }
+        }
     }
 
     /// Pure split + de-dupe + alphabetical sort (testable without any installed AUs).

@@ -802,6 +802,13 @@ struct EchoelmusicApp: App {
                 // (AU-1 pre-flight, settings recall, param bridge); an uninstalled
                 // plugin degrades to a load error + built-in voice. Launch silence
                 // holds — nothing sounds until notes flow.
+                // Night audit 2026-07-16: scan() FIRST — before this, no scan and no
+                // kAudioComponentRegistrationsChanged observer existed until the user
+                // found the hidden AUv3 browser, so restoreChains() always ran against
+                // the cold registry and failures were never retried. scan() installs
+                // the observer + warms the registry; late registrations then retry the
+                // failed restores once (AUv3Host.retryFailedRestores).
+                auHost.scan()
                 Task { await auHost.restoreChains() }
 
                 // External MIDI input: passive (the CoreMIDI client is created in
