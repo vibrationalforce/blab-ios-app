@@ -49,9 +49,25 @@ recompose nötig).
 **Modal-Budget:** KEIN neuer Sheet — LaneFXEditor (ArrangeModal .laneFX,
 EIN item-Sheet) wird um die Bus-Sektion erweitert. Root-Kette unangetastet.
 
-**Scheiben:** S2a Bus-Mapping pur (`TrackInstrument → MixBus?` + Tests) ·
-S2b LaneFX-Bus-Sektion (EchoelValueField, nur bei gemapptem builtinInstrument)
-· S2c Mix-Chip fällt NACH Founder-Geräte-Verify (Reihenfolge wie Bio B3).
+**REVIEW-KORREKTUR (75e4899 REQUEST_CHANGES — der Kern-Fund):**
+`builtinInstrument` steuert den Klangpfad heute NICHT (voiceKind hat null
+Konsumenten; JEDE Sekundär-Lane spielt eine Rack-PolySynthVoice, die Primär-
+Lane spielt synth+leadSynth egal was ihr Instrument sagt). Die Buses
+bass/drums treffen den BeatPlayer-Kit bzw. den Sub-DOUBLING-Layer der
+Primär-Roll — NICHT die Lane. Instrument-keyed Bus-Strips wären lügende UI.
+
+**Korrigierte Scheiben:**
+- S2a✓ (korrigiert): `TrackInstrument.fxBus: FXBus?` — nur .polySynth →
+  .melodic (qualifiziert), Rest ehrlich nil; nutzt das EINE FXBus-Enum.
+- **S2-W1:** setMelodicFX (+ LaneFXEditor-apply + Launch-Restore) pusht den
+  Insert AUCH auf die Rack-Voices (`PolySynthVoice.setInsert` existiert; eine
+  Schleife über laneVoiceRack.voices) → melodic Filter/Drive erreicht ehrlich
+  ALLE Poly-Lanes. Audio-thread-reviewer (Control-Path, aber Voice-nah).
+- **S2-W2 (der echte Fix):** voiceKind-aware Routing — drums/sampler/subBass-
+  Lanes bekommen ihre ECHTE Stimme (LaneVoiceKind konsumieren) → erst dann
+  flippen ihre fxBus-Pins auf .drums/.bass (Test erzwingt das Zusammen-Flippen).
+- S2b: LaneFX-Bus-Sektion nur wo fxBus != nil (nach W1: melodic ehrlich).
+- S2c: Mix-Chip fällt NACH Founder-Geräte-Verify (Reihenfolge wie Bio B3).
 
 ## Reihenfolge (Rest)
 

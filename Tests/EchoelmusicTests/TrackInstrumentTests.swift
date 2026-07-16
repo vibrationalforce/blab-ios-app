@@ -91,22 +91,21 @@ final class TrackInstrumentTests: XCTestCase {
 
     // MARK: - S2 lane↔bus mapping (Mix → track heads; founder 07-12/07-16)
 
-    func testMixBus_mapsEveryInstrumentToItsHonestEngineBus() {
-        // The mapping source for the track-head mix strip. Engine reality:
-        // subBass = bass bus; drums/break/sampler ride the BeatPlayer path
-        // (drums); polySynth = melodic (synth + leadSynth). bioVoice is nil —
-        // NO bus reaches BioReactiveSynthVoice today; a strip there would be
-        // a dead control lying about reach.
-        XCTAssertEqual(TrackInstrument.subBass.mixBus, .bass)
-        XCTAssertEqual(TrackInstrument.drums.mixBus, .drums)
-        XCTAssertEqual(TrackInstrument.breakLoop.mixBus, .drums)
-        XCTAssertEqual(TrackInstrument.sampler.mixBus, .drums)
-        XCTAssertEqual(TrackInstrument.polySynth.mixBus, .melodic)
-        XCTAssertNil(TrackInstrument.bioVoice.mixBus)
-        // Exhaustive: every case has an explicit verdict (adding a new
-        // instrument without deciding its bus must fail here, not ship blind).
-        for inst in TrackInstrument.allCases {
-            _ = inst.mixBus   // compiles exhaustively via the switch
-        }
+    func testFxBus_isHonestToTodaysEngineWiring() {
+        // Review-corrected (75e4899): builtinInstrument does NOT steer the
+        // sound path yet — a drums/sampler/subBass lane plays a rack
+        // PolySynthVoice, so claiming the drums/bass bus would let a strip
+        // mute the FOREIGN BeatPlayer kit / sub-doubling layer while the lane
+        // keeps sounding. Only polySynth honestly maps (melodic, primary-
+        // qualified — see doc). These pins flip ONLY together with the
+        // voiceKind-aware routing (S2-W1/W2), never alone.
+        XCTAssertEqual(TrackInstrument.polySynth.fxBus, .melodic)
+        XCTAssertNil(TrackInstrument.subBass.fxBus)
+        XCTAssertNil(TrackInstrument.drums.fxBus)
+        XCTAssertNil(TrackInstrument.breakLoop.fxBus)
+        XCTAssertNil(TrackInstrument.sampler.fxBus)
+        XCTAssertNil(TrackInstrument.bioVoice.fxBus)
+        // A new instrument case fails the default-less switch at COMPILE time,
+        // forcing an explicit bus verdict before it ships.
     }
 }
