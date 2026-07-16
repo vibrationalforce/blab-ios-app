@@ -1,34 +1,40 @@
-build: 2026-07-16 v10.79.275 (Clips springen beim Loslassen nicht mehr)
+build: 2026-07-16 v10.79.276 (App-Store-ready + Sub-Culture + Colabo-Consent)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: #56 Scheibe 2 — die zweite Hälfte von "rudimentär in der Handhabung".
+notes: Der große Compliance-+Charakter-Tag — 58 Commits seit v275, alle Gates grün.
 
-  WAS NEU IST:
-  • Bisher folgte der Clip beim Ziehen STUFENLOS dem Finger, aber der
-    Commit beim Loslassen rastete ein (Raster + Mindestlänge) — jeder
-    Release war ein Sprung, bis zu einer halben 1/16-Zelle; der vordere
-    Griff konnte optisch sogar übers Clip-Ende hinausrutschen.
-  • Jetzt zeichnet der Clip beim Ziehen LIVE an der Position, die das
-    Loslassen speichern wird (gleiche Snap/Clamp-Regeln, testgepinnt) —
-    Loslassen ist ein visuelles No-Op. Vertikales Ziehen zeigt
-    zeilen-gerastet die Ziel-Spur.
-  • Review-Fund gleich mitgeschlossen: Der vordere Trim-Anschlag
-    rechnete in Sekunden beim AKTUELLEN Tempo — sobald Bio→Tempo das
-    Tempo seit dem Schnitt verschoben hatte, sprang der Anschlag beim
-    Loslassen doch (bis zu eine ganze Rasterzelle). Der Anschlag nutzt
-    jetzt den tempo-festen Tick-Wert: Vorschau, Commit UND Playback
-    stimmen bei jedem Tempo überein.
-  • Rest-Scheiben (geplant): Nachbar-Magnet auch live · vertikale
-    Vorschau respektiert verbotene Spuren (Audio-Clip auf MIDI-Spur) ·
-    Gesten-Vorrang Clip vs. Scrollen (wartet auf dein Screen-Recording).
+  WAS NEU IST (hörbar/fühlbar):
+  • EchoelBass "Sub Culture" (dein Wunsch von heute, in-house statt Baby-Audio-
+    Plugin): zwei neue Regler unter Sub/Bass (felt) — "Sub presence" macht den
+    Sub auf dem iPhone-Lautsprecher LESBAR (nur Oktav-Harmonische, immer in der
+    Tonart), "Sub heat" sättigt DICKER ohne lauter zu werden. 0.50/0.50 = exakt
+    der bisherige Klang (test-gepinnt) — erst Drehen ändert etwas.
+    HÖRTEST: Loop spielen → Presence hoch → Sub erscheint auf dem Speaker;
+    Heat hoch → fetter, gleiche Lautstärke.
+  • Warp/Tape-Wahl im Audio-Clip-Editor ÜBERLEBT jetzt "Add to timeline"
+    (vorher ging der Entscheid still verloren; Timeline WENDET den Warp noch
+    nicht an — das ist die nächste Scheibe, ehrlich gestuft).
 
-  Review: 2× APPROVE (inkl. Re-Verify des Tempo-Fixes: "no regression,
-  preview == commit at any tempo") · alle 4 Gates grün.
+  WAS NEU IST (Verhalten/Compliance — der App-Store-Audit-Tag, 21 Befunde):
+  • Kopfhörer abziehen PAUSIERT jetzt (vorher spielte es nach ~0,3 s auf dem
+    Lautsprecher weiter). PRÜFEN: Loop spielen, Kopfhörer ziehen → Stille,
+    Play startet auf dem neuen Ausgang.
+  • App im Hintergrund ohne laufende Musik stoppt die Audio-Engine (Akku!);
+    spielende Musik/Aufnahme/gehaltene MPE-Noten laufen weiter. PRÜFEN:
+    (a) idle backgrounden → wieder öffnen → Play klingt sofort;
+    (b) spielend backgrounden → Musik läuft weiter.
+  • Live Colabo: Beitritt braucht jetzt DEINE Zustimmung (Accept/Decline-
+    Karte) — vorher konnte jedes Gerät in der Nähe still joinen und bei
+    aktivem Puls-Sharing deine Herzdaten sehen. PRÜFEN (2 Geräte): Einladen
+    → Karte erscheint → Decline blockt, Accept verbindet.
+  • Apple-Health-Daten verlassen das Gerät NIE mehr per OSC/ADM (nur eigene
+    Messungen Kamera/Gurt streamen). Patchbay zeigt keine "soon"-Broadcast-
+    Ports mehr. Ehrliche Permission-Texte (BT nennt Herzgurte, Location nennt
+    Wetter). Toter Record-Arm auf nicht-aufnehmbaren Spuren ist ein schlichtes
+    Icon. Onboarding bewirbt nur noch Gebautes.
 
-  PRÜF-LISTE GERÄT (v274+v275 zusammen): (1) rechte Clip-Kante beim
-  Trimmen mit ruhendem Finger — vibriert nicht mehr? (2) Loslassen nach
-  Ziehen/Trimmen — springt nicht mehr? (3) Nach abgebrochenem Griff —
-  kein Geister-Versatz mehr?
+  EINORDNUNG: Aus Code-Sicht ist das der App-Store-submission-reife Stand —
+  alle Audit-Befunde gefixt/entschieden. Was noch NICHT Produktions-Level ist,
+  steht im Status-Delta im Chat (Video-Capture/Export, Broadcast, Mic-Multitrack).
 
-  WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
-  überleben lassen — ja/nein?) · Reihenfolge EEG-Plan vs.
-  Bio-Session-Plan vs. Clip/Warp-Reihe.
+  WEITER OFFEN: ■-Frage v258/259 (Musik-Stopp vs. Bio-Session) · Reihenfolge
+  EEG vs. Bio-Session vs. Clip/Warp-Reihe · #56-Restscheiben.
