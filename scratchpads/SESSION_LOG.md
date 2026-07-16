@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-16 (Forts. 48, ULTRACODE) — Video-Sound Slice 1b: Video hat Ton
+- **CI:** Slice 1a (0c4a54a) grün (Xcode Compile + CI/CD).
+- **GEBAUT + gepusht (d6e3015):** `VideoAudioExtractor` (iOS-18 `export(to:as:)` → m4a, silent→nil,
+  partial-cleanup, non-deprecated) + `VideoClipView.addToTimeline` async: extract-first → Slot-
+  Budget → Video landen → `placePairedAudio` (importAudio-first=kein Orphan-Lane; Region direkt mit
+  plan.lengthTicks; erste non-bio audio-Lane sonst createNew; weiche Fehler, Sheet bleibt offen).
+  Re-Entrancy-Guard. `VideoAudioPairing` span-floor 1 Bar→1 Tick (echter Lock) + Test.
+- **Reviews:** concurrency PASS (0 crit/high/med); code MEDIUM+2LOW alle gefixt (dead soft-failure-
+  UI → return statt dismiss; span-floor; Orphan-Lane).
+- **⚠️ API-Risiko:** `AVAssetExportSession.export(to:as:)` lokal nicht compile-geprüft (kein
+  Toolchain) — CI-Gate von d6e3015 nächsten Takt verifizieren, rot sofort fixen.
+- **Damit ist der Founder-„kein Ton"-Gap geschlossen** (Device-Hörtest offen unter Freeze):
+  Video importieren → Bild auf Video-Spur + Ton auf Audio-Spur, synchron, erbt Warp/FX.
+- **KEIN Deploy** (Freeze).
+
 ## 2026-07-16 (Forts. 47, ULTRACODE) — Dependency-Entscheid + Video-Sound Slice 1a
 - **Founder-Entscheid:** „Python/C++ egal, wichtig gebührenfrei, erstmal nur Apple, andere OS
   später." → löst die offene Dependency-Frage: **Signalsmith Stretch (MIT) freigegeben** für
