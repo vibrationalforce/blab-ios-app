@@ -243,6 +243,25 @@ public final class TimelineStore {
         persist()
     }
 
+    /// CLIP-4: write the audio-clip EDIT door's trimmed media window back to a
+    /// placed region — content offset (file seconds, the audio authority; the
+    /// tick twin follows so the two offsets never diverge) + musical length.
+    /// The region's song position (startTick) stays — trimming the media never
+    /// moves the clip in the song. No-op when nothing changed (no undo spam).
+    public func setAudioRegionWindow(id: UUID, contentOffsetSeconds: Double,
+                                     lengthTicks: Int, bpm: Double) {
+        guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        let offset = max(0, contentOffsetSeconds)
+        let length = max(1, lengthTicks)
+        guard document.regions[i].contentOffsetSeconds != offset
+                || document.regions[i].lengthTicks != length else { return }
+        snapshotForUndo()
+        document.regions[i].contentOffsetSeconds = offset
+        document.regions[i].contentOffsetTicks = TimelineTime.ticks(fromSeconds: offset, bpm: bpm)
+        document.regions[i].lengthTicks = length
+        persist()
+    }
+
     /// Trim/extend a region's LEADING edge to an absolute tick, holding the end fixed
     /// (front-trim; the media offset shifts so the content stays put). Caller applies snap.
     /// No-op if the start can't move (clamped by the region's own trimmedStart).

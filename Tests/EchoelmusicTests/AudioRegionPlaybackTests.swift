@@ -146,4 +146,57 @@ final class AudioRegionPlaybackTests: XCTestCase {
                                                           transportPlaying: false)?.lengthSeconds ?? -1,
                        1.0, accuracy: 1e-9)
     }
+
+    // MARK: - editWindow (CLIP-4: the trim window the EDIT door seeds)
+
+    func testEditWindow_selectsTheRegionsMediaWindow() {
+        // Trim-in 1.5 s, one bar @120 = 2.0 s → the door selects file [1.5, 3.5].
+        let r = region(start: 1920, offset: 1.5)
+        let w = AudioRegionPlayback.editWindow(for: r, bpm: 120)
+        XCTAssertEqual(w?.startSeconds ?? -1, 1.5, accuracy: 1e-9)
+        XCTAssertEqual(w?.endSeconds ?? -1, 3.5, accuracy: 1e-9)
+    }
+
+    func testEditWindow_badTempoOrEmptyRegion_isNil() {
+        XCTAssertNil(AudioRegionPlayback.editWindow(for: region(start: 0), bpm: 0))
+        XCTAssertNil(AudioRegionPlayback.editWindow(for: region(start: 0, length: 0), bpm: 120))
+    }
+
+    func testEditWindow_negativeOffset_clampsToZero() {
+        let w = AudioRegionPlayback.editWindow(for: region(start: 0, offset: -2), bpm: 120)
+        XCTAssertEqual(w?.startSeconds ?? -1, 0, accuracy: 1e-9)
+    }
+
+    // MARK: - regionTrim (CLIP-4: the EDIT door's write-back)
+
+    func testRegionTrim_mapsWindowToOffsetAndTicks() {
+        // File window [1.5, 3.5] @120 → offset 1.5 s, 2.0 s = one bar = 1920 ticks.
+        let t = AudioRegionPlayback.regionTrim(startSeconds: 1.5, endSeconds: 3.5, bpm: 120)
+        XCTAssertEqual(t?.contentOffsetSeconds ?? -1, 1.5, accuracy: 1e-9)
+        XCTAssertEqual(t?.lengthTicks, 1920)
+    }
+
+    func testRegionTrim_roundTripsEditWindow() {
+        // editWindow → regionTrim must reproduce the region's own media fields.
+        let r = region(start: 0, length: 2880, offset: 0.75)   // 1.5 bars
+        guard let w = AudioRegionPlayback.editWindow(for: r, bpm: 120),
+              let t = AudioRegionPlayback.regionTrim(startSeconds: w.startSeconds,
+                                                     endSeconds: w.endSeconds, bpm: 120) else {
+            return XCTFail("mapping must exist for a valid region")
+        }
+        XCTAssertEqual(t.contentOffsetSeconds, 0.75, accuracy: 1e-9)
+        XCTAssertEqual(t.lengthTicks, 2880)
+    }
+
+    func testRegionTrim_emptyOrInvertedWindow_isNil() {
+        XCTAssertNil(AudioRegionPlayback.regionTrim(startSeconds: 2, endSeconds: 2, bpm: 120))
+        XCTAssertNil(AudioRegionPlayback.regionTrim(startSeconds: 3, endSeconds: 1, bpm: 120))
+        XCTAssertNil(AudioRegionPlayback.regionTrim(startSeconds: 0, endSeconds: 1, bpm: 0))
+    }
+
+    func testRegionTrim_negativeStart_clampsToZero_lengthAtLeastOneTick() {
+        let t = AudioRegionPlayback.regionTrim(startSeconds: -1, endSeconds: 0.0001, bpm: 120)
+        XCTAssertEqual(t?.contentOffsetSeconds ?? -1, 0, accuracy: 1e-9)
+        XCTAssertEqual(t?.lengthTicks, 1, "a sub-tick window still keeps one honest tick")
+    }
 }

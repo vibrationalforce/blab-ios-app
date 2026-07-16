@@ -310,6 +310,11 @@ struct ArrangeTimelineView: View {
                                   ? "Edit Clip — Bar \(session.bar + 1)/\(session.totalBars)"
                                   : "Edit Clip",
                               onDone: { commitClipEdit(session) })
+            } else if clips.clip(id: region.clipID)?.kind == .audio {
+                // CLIP-4: Edit on a placed AUDIO region opens ON the clip —
+                // file + region window loaded, Done writes the trim back (the
+                // blank importer here read as "clip broken/lost").
+                AudioClipView(editRegionID: region.id)
             } else {
                 editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
             }

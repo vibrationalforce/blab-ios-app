@@ -19,6 +19,14 @@ struct AudioClipView: View {
     /// a pure preview/trim editor (button hidden). Default keeps `AudioClipView()`.
     var landingLaneID: UUID? = nil
 
+    /// CLIP-4: when set (the door was opened via "Edit" on a PLACED audio
+    /// region), the view opens ON that clip — file loaded from its mediaRef,
+    /// trim window seeded from the region's media window — instead of a blank
+    /// importer (which read as "clip broken/lost"). Done writes the trimmed
+    /// window back to the region (song position untouched); the playing
+    /// arrangement picks it up live via the CLIP-3 structure refresh.
+    var editRegionID: UUID? = nil
+
     @Environment(AudioEngine.self) private var audioEngine
     @Environment(ClipStore.self) private var clips
     @Environment(TimelineStore.self) private var timeline
@@ -52,11 +60,19 @@ struct AudioClipView: View {
                 .padding(16)
             }
             .background(EchoelTheme.bg.ignoresSafeArea())
-            .navigationTitle("Audio Clip")
+            .navigationTitle(editRegionID != nil ? "Edit Audio Clip" : "Audio Clip")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        commitEditIfNeeded()
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear { seedFromEditRegion() }
             #if canImport(UniformTypeIdentifiers)
             .fileImporter(isPresented: $importerPresented,
                           allowedContentTypes: [.audio],
@@ -203,6 +219,47 @@ struct AudioClipView: View {
         clips.setClip(at: slot, clip)
         timeline.addRegion(placed)
         dismiss()
+    }
+
+    // MARK: - Edit a placed region (CLIP-4)
+
+    /// Open ON the placed clip: resolve the region → clip → media file, load it,
+    /// and select the region's media window in the trim editor. No security
+    /// scope needed — mediaRef lives in the app's own container (MediaLibrary).
+    /// Any resolution failure leaves the plain importer (honest fallback).
+    private func seedFromEditRegion() {
+        guard let id = editRegionID,
+              player.loadedURL == nil,
+              let placed = timeline.document.regions.first(where: { $0.id == id }),
+              let clip = clips.clip(id: placed.clipID),
+              let url = MediaLibrary.resolveRef(clip.mediaRef) else { return }
+        player.attach(to: audioEngine)
+        guard player.load(url: url) else { return }
+        if let window = AudioRegionPlayback.editWindow(for: placed,
+                                                       bpm: beatPlayer.pattern.tempo),
+           player.durationSeconds > 0 {
+            // Clamp to the real file: a region stretched past its media's end
+            // must not seed an end beyond the waveform.
+            let end = min(window.endSeconds, player.durationSeconds)
+            region = AudioClipRegion(startSeconds: min(window.startSeconds, max(0, end - 0.01)),
+                                     endSeconds: end, loop: false)
+        } else {
+            region = AudioClipRegion(startSeconds: 0, endSeconds: player.durationSeconds, loop: false)
+        }
+    }
+
+    /// Done (edit mode only): write the trimmed media window back to the placed
+    /// region — content offset + musical length; song position stays. A playing
+    /// arrangement hears it within one transport step (CLIP-3 refreshStructure).
+    private func commitEditIfNeeded() {
+        guard let id = editRegionID, player.loadedURL != nil,
+              let trim = AudioRegionPlayback.regionTrim(startSeconds: region.startSeconds,
+                                                        endSeconds: region.endSeconds,
+                                                        bpm: beatPlayer.pattern.tempo) else { return }
+        timeline.setAudioRegionWindow(id: id,
+                                      contentOffsetSeconds: trim.contentOffsetSeconds,
+                                      lengthTicks: trim.lengthTicks,
+                                      bpm: beatPlayer.pattern.tempo)
     }
 
     private func load(_ url: URL) {

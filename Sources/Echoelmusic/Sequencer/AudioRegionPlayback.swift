@@ -39,6 +39,34 @@ public enum AudioRegionPlayback {
                 TimelineTime.seconds(fromTicks: region.lengthTicks, bpm: bpm))
     }
 
+    /// CLIP-4: the trim window the audio-clip EDIT door seeds from a PLACED
+    /// region — the region's own media window in FILE seconds (start =
+    /// `contentOffsetSeconds`, the audio-media authority; end = start + the
+    /// region's musical length at `bpm`). The door then shows the clip's real
+    /// waveform with THIS window selected instead of a blank importer. `nil`
+    /// when the mapping is impossible (non-positive bpm / empty region) — the
+    /// door falls back to the whole file.
+    public static func editWindow(for region: TimelineRegion, bpm: Double)
+        -> (startSeconds: Double, endSeconds: Double)? {
+        guard bpm > 0, region.lengthTicks > 0 else { return nil }
+        let start = max(0, region.contentOffsetSeconds)
+        return (start, start + TimelineTime.seconds(fromTicks: region.lengthTicks, bpm: bpm))
+    }
+
+    /// CLIP-4 write-back: the EDIT door's trimmed FILE window → the placed
+    /// region's media fields (content offset in seconds + musical length in
+    /// ticks at `bpm`, min one tick). The region's song position (startTick)
+    /// is NOT part of this — trimming the media never moves the clip in the
+    /// song. `nil` when the window is empty/inverted or bpm can't map — the
+    /// caller leaves the region untouched (never destroy on bad input).
+    public static func regionTrim(startSeconds: Double, endSeconds: Double, bpm: Double)
+        -> (contentOffsetSeconds: Double, lengthTicks: Int)? {
+        guard bpm > 0 else { return nil }
+        let start = max(0, startSeconds)
+        guard endSeconds > start else { return nil }
+        return (start, max(1, TimelineTime.ticks(fromSeconds: endSeconds - start, bpm: bpm)))
+    }
+
     /// The media-file position (seconds from the FILE's start) that should be
     /// sounding at song-absolute `tick`, for a region whose media starts at
     /// `contentOffsetSeconds`. `nil` when `tick` is outside the region's half-open
