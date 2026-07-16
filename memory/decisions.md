@@ -606,3 +606,23 @@ Architectural and strategic decisions with context and rationale.
   angelegt (Boilerplate kurz/lang, Fact Sheet, Story Angles, Assets, Presse-Kontakt
   = veröffentlichte echoel@tropicaldrones.com; KEIN erfundenes Founder-Zitat —
   "quotes on request").
+
+### 2026-07-16 Bio-Hardware committed: Polar H10 (Herz) + Muse S Athena (Hirn) — #61 Hardware-Tor geklärt
+- **Founder-Kauf (Amazon-Warenkorb, Screenshot):** Polar H10 (75,95 €) + Muse S Athena
+  Neurofeedback-Headband (493,45 €), beide bestellt.
+- **Entscheid Herz-Quelle:** Polar H10 bleibt die gold-standard HRV/Kohärenz-Quelle
+  (Brustgurt-EKG, saubere RR-Intervalle) — läuft HEUTE über den universellen BLE-0x180D-
+  Empfänger; einzige offene Sache = Geräte-Verify (der ■-Flag im Listing).
+- **Entscheid Hirn-Quelle:** Muse S Athena = EEG-Zielhardware (#61). Sendet über EIGENES
+  Protokoll (NICHT 0x180D) → braucht neuen MuseBioPublisher + EEG-Felder im Bio-Frame +
+  Parameter-Mapping-Sonifikation (Bandleistung + Hemisphären-Kohärenz → DDSP; NICHT
+  Audifikation/Oktavierung). Athena kann zusätzlich fNIRS + eigenen PPG-Puls/Atem/Motion.
+- **Beide gleichzeitig:** JA — EngineBus ist multi-source (HealthKit+rPPG+BLE+Demo koexistieren
+  schon); Herz und Hirn füllen VERSCHIEDENE Frame-Felder, kein Konflikt; iOS hält zwei
+  BLE-Peripherals problemlos. Ideal: Herz steuert einen Teil der Parameter, Hirn einen anderen.
+- **Muse-allein-Frage:** technisch mit Entwicklung machbar (Muse misst Hirn+Puls+Atem+Motion),
+  ABER sein Puls ist optisch/Stirn = verrauschtere HRV als der Brustgurt → für den wissenschaft-
+  lichen Kern + Live-Performance bleibt der Polar die Herz-Wahrheit. Darum: BEIDE nutzen.
+- **#61 Status:** Hardware-Tor GEKLÄRT (war der Blocker im 07-16-Assessment). Nächster Schritt
+  = Plan + Council für den EEG-Ausbau; Reihenfolge (nach S2-W2 oder verschränkt) folgt aus dem
+  laufenden projektweiten Audit. Kein Heilungs-Claim (harte rote Linie).
