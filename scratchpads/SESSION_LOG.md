@@ -6964,3 +6964,21 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   Marquee-Auswahl+Löschen · **Gruppen-Verschieben**.
 - Reviewer: code-reviewer (4. Gesten-Berührung). Kein Deploy (Founder-Freeze).
   Nächster: Slice 6 (Pro-Note-MPE, Council davor — berührt trigger-Notenpfad).
+
+## Fortsetzung 41 (2026-07-16) — #58 Slice 5b grün; #58-Milestone + Slice-6-Council-Pause
+
+- **Slice 5b (b20d63a) FERTIG:** 4/4 Gates grün, code-reviewer APPROVE (2 LOW
+  non-blocking: toter ??-Fallback belassen; Edge-Slop-auf-Gruppennote→Resize =
+  bewusstes Design). Gruppen-Verschieben live.
+- **#58-MILESTONE:** sechs Editing-Primitive live — setzen · verschieben · Länge ·
+  Velocity-malen · Marquee-Auswahl+Löschen · Gruppen-Verschieben. Alle test-first,
+  alle 2× bzw. review-APPROVE, alle Gates grün. Das adressiert „noch sehr rudimentär".
+- **Slice 6 (manuelles Pro-Note-MPE) = COUNCIL-PAUSE (off-vision-Verdacht):**
+  Ausdruck kommt bei Echoel aus dem Körper (globales Bio→MPE ist das Kern-Narrativ);
+  manuelles Per-Note-Bend/Slide/Pressure konkurriert damit + tendiert zur verbotenen
+  „control-room cosplay". Entscheidung in decisions.csv geloggt; als Richtungsfrage
+  auf FOUNDER_DEVICE_SESSION (F) gelegt. NICHT ohne Founder-Ask bauen.
+- **#57 (Lane-Label + Notice-Compose) war bereits implementiert** (ArrangeTimelineView:790
+  „(not playable — built-in voice plays)" + AUv3Host.composedNotice) → Task auf done.
+- Nächster autonomer Punkt: #54 Warp PLAN (Audit-Roadmap #58→#54→#60) — eigener
+  Plan-Zyklus. Kein Deploy (Founder-Freeze).

@@ -80,6 +80,15 @@ Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-is
       soll ich sie an den unteren Rand PINNEN (immer sichtbar)? Das kostet Horizontal-
       Offset-Sync (fragiler in der Launch-View) — darum warte ich auf dein Ja + wie
       der echte Viewport aussieht, bevor ich es umbaue.
+- **#58-Stand + eine Richtungsfrage (kein Blocker):** die Station kann jetzt Note
+      **setzen · verschieben · in der Länge ziehen · Velocity malen · mehrfach
+      auswählen+löschen · als Gruppe verschieben** (6 Primitive). Das adressiert dein
+      „noch sehr rudimentär". OFFEN: **manuelles Pro-Note-MPE** (pro Note Bend/Slide/
+      Pressure von Hand zeichnen). Council-Einschätzung: das konkurriert mit dem
+      Echoel-Kern (Ausdruck kommt aus dem Körper — globales Bio→MPE) und riecht nach
+      „control-room cosplay". **Willst du manuelles Per-Note-MPE, oder war das Editing
+      der Punkt?** Ich baue Slice 6 nur auf dein Ja (dann eigene Strecke, Note-Feld
+      absent=Bio-MPE unverändert).
 
 ## Was ich WÄHRENDDESSEN autonom weiterbaue (nicht geräte-gebunden)
 
