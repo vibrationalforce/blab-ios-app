@@ -6691,3 +6691,30 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Nächste Kandidaten: #56 Slice 2 (TimelineDragMath: Live-Snap-Vorschau,
   Release-Sprung weg, TDD) · Warp S2 (Engine, Offset-Domain-Entscheidung)
   · S2-W2 Scheibe 1 (pure KindVoiceAllocator).
+
+## Fortsetzung 29 (2026-07-16) — v275 SHIPPED (#56 Slice 2 + Tempo-Fix) + Founder-Turns (EEG/Bio-Session/Inventar)
+
+- **#56 Slice 2 (05c9ae4) + Review-MEDIUM-#1-Fix (4846324) → DEPLOY v275:**
+  pure TimelineDragMath (Vorschau = Commit-Position, Commit-Parität
+  testgepinnt; Release = visuelles No-Op; vertikal zeilen-gerastet).
+  Review-Gold: Front-Trim-Anschlag rechnete Sekunden@aktuellem-Tempo →
+  unter Bio→Tempo-Drift sprang der Commit doch (bis 1 Rasterzelle);
+  Fix AM MODELL: trimmedStart bevorzugt den tempo-festen Tick-Twin
+  (konsistent mit TimelineRegionPlayer.rawOffset). Re-Verify APPROVE,
+  4/4 Gates grün. Doku-Ehrlichkeit: "Linux CI"-Claim entfernt (Repo hat
+  KEINEN Linux-Build-Gate; quick-test-Ubuntu = grep-only) — Ledger-Fakt.
+- **Neue Scheiben dokumentiert:** #62 lane-gate-aware vertikale Vorschau
+  (MEDIUM #2: Vorschau setzt Clip auf Spuren, die moveRegion ablehnt);
+  Audit §Slice-2-Follow-ups aktualisiert.
+- **Founder-Turns:** (1) "Bio Session soll Teil der Instrumente werden
+  ... auch gehirnwellen [Haffelder]" → Assessment geliefert (Session-
+  Engine = Modulations-Brain hinter Bio-Spur, Dateien bleiben; EEG =
+  on-vision, Parameter-Mapping-Sonifikation statt Audifikation/
+  Oktavierung, Hardware-Tor BLE, kein Heilungs-Claim) → Tasks #60/#61 +
+  memory/decisions.md. (2) "Siehst du noch die ganzen Instrumente und
+  Effekte?" → volles Inventar geliefert (gebaut/unverdrahtet/geplant:
+  VocoderCore unverdrahtet, Oktaver #36, Weather #59, EEG #61, …);
+  Rück-Bitte: fehlende Alt-Planungen nennen → werden sofort verankert.
+- Nächster Punkt im Takt: Warp S2 (Engine + Offset-Domain-Entscheidung,
+  Leaning (a) Offset-Delta × Rate beim Edit) ODER S2-W2 Scheibe 1
+  (pure KindVoiceAllocator). Beide Pläne liegen.
