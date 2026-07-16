@@ -18,22 +18,22 @@ final class StretchEngineTests: XCTestCase {
         XCTAssertFalse(StretchMode.tape.preservesPitch)
     }
 
-    func testIsImplemented_onlyCleanToday() {
+    func testIsImplemented_cleanAndTape() {
         XCTAssertTrue(StretchMode.clean.isImplemented)
-        XCTAssertFalse(StretchMode.tape.isImplemented)
+        XCTAssertTrue(StretchMode.tape.isImplemented)   // tape = pitch-follows-tempo, wired
         XCTAssertFalse(StretchMode.beats.isImplemented)
         XCTAssertFalse(StretchMode.studio.isImplemented)
     }
 
-    func testEffectiveMode_unimplementedFallsBackToClean() {
+    func testEffectiveMode_implementedIsItself_unimplementedFallsToClean() {
         XCTAssertEqual(StretchMode.clean.effectiveMode, .clean)
-        XCTAssertEqual(StretchMode.tape.effectiveMode, .clean)
-        XCTAssertEqual(StretchMode.beats.effectiveMode, .clean)
+        XCTAssertEqual(StretchMode.tape.effectiveMode, .tape)    // implemented → itself
+        XCTAssertEqual(StretchMode.beats.effectiveMode, .clean)  // unimplemented → clean
         XCTAssertEqual(StretchMode.studio.effectiveMode, .clean)
     }
 
-    func testSelectable_onlyImplementedModesShown() {
-        XCTAssertEqual(StretchMode.selectable, [.clean])
+    func testSelectable_cleanAndTape() {
+        XCTAssertEqual(StretchMode.selectable, [.clean, .tape])
     }
 
     func testCodable_roundTripsViaRawValue() throws {
@@ -70,13 +70,42 @@ final class StretchEngineTests: XCTestCase {
     }
 
     func testResolve_unimplementedMode_rendersAsCleanPitchPreserved() {
-        // A `.tape` selection today has no executor → renders as `.clean` (pitch preserved),
+        // A `.beats` selection today has no executor → renders as `.clean` (pitch preserved),
         // never silent, never a lying selector. The rate still tempo-conforms.
-        let plan = StretchPlan.resolve(mode: .tape, warpEnabled: true,
+        let plan = StretchPlan.resolve(mode: .beats, warpEnabled: true,
                                        nativeBPM: 100, projectBPM: 120)
         XCTAssertEqual(plan.mode, .clean)
         XCTAssertTrue(plan.preservesPitch)
         XCTAssertEqual(plan.rate, 120.0 / 100.0, accuracy: 1e-9)
+    }
+
+    func testResolve_tapeMode_pitchMovesWithTempo() {
+        // Tape is implemented → renders as itself, pitch NOT preserved (rides tempo).
+        let plan = StretchPlan.resolve(mode: .tape, warpEnabled: true,
+                                       nativeBPM: 100, projectBPM: 120)
+        XCTAssertEqual(plan.mode, .tape)
+        XCTAssertFalse(plan.preservesPitch)
+        XCTAssertEqual(plan.rate, 1.2, accuracy: 1e-9)
+    }
+
+    // MARK: - Tape pitch-follows-tempo math
+
+    func testTapePitchCents_unityRate_isZero() {
+        XCTAssertEqual(StretchPlan.tapePitchCents(forRate: 1.0), 0, accuracy: 1e-9)
+    }
+
+    func testTapePitchCents_octaveUp_is1200() {
+        // rate 2.0 = one octave faster → +1200 cents (pitch rides tempo, like tape).
+        XCTAssertEqual(StretchPlan.tapePitchCents(forRate: 2.0), 1200, accuracy: 1e-6)
+    }
+
+    func testTapePitchCents_octaveDown_isMinus1200() {
+        XCTAssertEqual(StretchPlan.tapePitchCents(forRate: 0.5), -1200, accuracy: 1e-6)
+    }
+
+    func testTapePitchCents_nonPositiveRate_isZero() {
+        XCTAssertEqual(StretchPlan.tapePitchCents(forRate: 0), 0, accuracy: 1e-9)
+        XCTAssertEqual(StretchPlan.tapePitchCents(forRate: -1), 0, accuracy: 1e-9)
     }
 
     func testResolve_matchesRegionEffectiveStretchRate() {

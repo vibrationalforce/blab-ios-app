@@ -17,8 +17,11 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// Apple spectral phase-vocoder (`AVAudioUnitTimePitch`): tempo conforms, PITCH
     /// PRESERVED. The clean, transparent-ish default. LIVE (wired since #54 Slice A).
     case clean
-    /// Apple varispeed (`AVAudioUnitVarispeed`): tempo AND pitch move together — the
-    /// honest "tape"/turntable character. Free, zero-dependency. Executor: next slice.
+    /// Tape/turntable character: tempo AND pitch move together. WIRED — rendered on the
+    /// same `AVAudioUnitTimePitch` node by compensating pitch to ride the tempo
+    /// (`pitch = 1200·log₂(rate)`, see `StretchPlan.tapePitchCents`), so zero graph change.
+    /// (An authentic-resampling `AVAudioUnitVarispeed` variant with tape grit is a later
+    /// refinement; this delivers the defining pitch-follows-tempo behaviour now.)
     case tape
     /// In-house WSOLA/SOLA transient-preserving (Ableton "Beats"-style): best on
     /// drums/loops, patent-free own code. Executor: later slice (pairs with EchoelBreak).
@@ -60,8 +63,8 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// `.clean` at render time — never silent, never a broken control.
     public var isImplemented: Bool {
         switch self {
-        case .clean:               return true
-        case .tape, .beats, .studio: return false
+        case .clean, .tape:   return true    // tape = pitch-follows-tempo on the spectral node
+        case .beats, .studio: return false
         }
     }
 

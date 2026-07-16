@@ -154,9 +154,21 @@ struct AudioClipView: View {
                 EchoelValueField(label: "Clip BPM", value: nativeBPMBinding,
                                  range: Float(AudioClipRegion.nativeBPMRange.lowerBound)...Float(AudioClipRegion.nativeBPMRange.upperBound),
                                  unit: "BPM", decimals: 1)
-                let rate = region.effectiveStretchRate(projectBPM: Double(beatPlayer.pattern.tempo))
+                // Stretch engine character (Clean = pitch held · Tape = pitch rides tempo).
+                // Only implemented modes are offered — no lying selector.
+                Picker("Character", selection: stretchModeBinding) {
+                    ForEach(StretchMode.selectable, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                let plan = StretchPlan.resolve(mode: region.stretchMode, warpEnabled: true,
+                                               nativeBPM: region.nativeBPM,
+                                               projectBPM: Double(beatPlayer.pattern.tempo))
                 Text(region.nativeBPM > 0
-                     ? String(format: "Stretch ×%.3f → project %.0f BPM (pitch preserved).", rate, beatPlayer.pattern.tempo)
+                     ? String(format: "Stretch ×%.3f → project %.0f BPM · %@", plan.rate,
+                               beatPlayer.pattern.tempo,
+                               plan.preservesPitch ? "pitch held" : "pitch rides tempo (tape)")
                      : "Set the clip's own BPM to tempo-match it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -360,6 +372,9 @@ struct AudioClipView: View {
     }
     private var nativeBPMBinding: Binding<Float> {
         Binding(get: { Float(region.nativeBPM) }, set: { region.nativeBPM = Double($0) })
+    }
+    private var stretchModeBinding: Binding<StretchMode> {
+        Binding(get: { region.stretchMode }, set: { region.stretchMode = $0 })
     }
 }
 

@@ -43,4 +43,15 @@ public struct StretchPlan: Equatable, Sendable {
         }
         return StretchPlan(rate: rate, preservesPitch: rendered.preservesPitch, mode: rendered)
     }
+
+    /// Pitch offset in CENTS that makes pitch ride the tempo — the tape/varispeed
+    /// character rendered on a pitch-preserving spectral node (`AVAudioUnitTimePitch`):
+    /// playing at `rate` naturally shifts pitch by `1200·log₂(rate)` cents, so setting the
+    /// node's `pitch` to that value re-introduces exactly the tape pitch trajectory the
+    /// spectral engine would otherwise cancel. Clean modes use 0 (pitch held). `rate ≤ 0`
+    /// or `1.0` → 0 cents (no warp → clean and tape sound identical, by design).
+    public static func tapePitchCents(forRate rate: Double) -> Double {
+        guard rate > 0 else { return 0 }
+        return 1200.0 * log2(rate)
+    }
 }

@@ -38,10 +38,19 @@ Charakter-Erweiterung später: **Vintage** (Akai-artig — 12-bit + Granular, in
 `StretchMode` + `StretchPlan` + `AudioClipRegion.stretchMode`-Persistenz + `StretchEngineTests`.
 Kein Verhalten geändert (Clean = heutiger Pfad). Der Boden, auf dem alles steht.
 
-### Slice 1 — Tape-Executor (erster HÖRBARER Charakter, Founder-A/B)
-`StretchExecutor`-Protokoll + Clean- & Tape-Executor. `AudioClipPlayer` hält beide Nodes,
-routet per `region.stretchMode.effectiveMode` (Rewire unter Pause bei Modus-Wechsel). UI:
-Modus-Picker (nur `selectable`) im Clip-Editor neben Warp. audio-thread/graph-review Pflicht.
+### Slice 1 — Tape-Charakter (✅ GEBAUT 2026-07-16, erster hörbarer A/B)
+Risikoarmer Weg gewählt (kein Graph-Rewire, blind compile-sicher): Tape = Pitch-folgt-Tempo
+auf dem VORHANDENEN `AVAudioUnitTimePitch` via `pitch = 1200·log₂(rate)` (`StretchPlan.
+tapePitchCents`, pur+getestet). `.tape.isImplemented=true` → `selectable=[.clean,.tape]`.
+`AudioClipPlayer.play` liest `StretchPlan`, setzt rate+pitch (Clean=0, Tape=cents). UI:
+`.segmented`-Picker im Warp-Block + modus-bewusster Status ("pitch held" / "pitch rides tempo").
+Reviews: audio-thread CLEAN, code MEDIUM+LOW gefixt. Nur hörbar bei Warp-ON (rate≠1) — by design.
+**Device-Hörtest offen** (Freeze): warp-Clip, Clean vs Tape umschalten → Tonhöhe hält vs. reitet.
+
+### Slice 1+ — authentisches Varispeed/Akai-Grit (Founder „vintage vibe")
+`AVAudioUnitVarispeed`-Executor (echtes Resampling) als eigener Charakter neben dem
+timePitch-Tape — DANN lohnt der Node-Swap-Aufwand (Rewire unter Pause). + Vintage/12-bit-Grit
+(inspiration.csv Akai WATCH). Eigene Scheibe, audio-thread/graph-review.
 
 ### Slice 2 — Beats-Executor (In-house WSOLA)
 Textbuch Verhelst-Roelands WSOLA (vDSP-Kreuzkorrelation, patentfrei). Pairt mit EchoelBreak/

@@ -79,11 +79,15 @@ public final class AudioClipPlayer {
     /// ≤ 0 (or warp off) plays at native tempo (rate 1.0, transparent).
     public func play(region: AudioClipRegion, projectBPM: Double = 0) {
         guard let f = file, attached else { return }
-        // Warp rate is a control-plane parameter set (no render-thread work). Set it
-        // BEFORE scheduling so the very first buffer is stretched. rate 1.0 = no tempo
-        // change (the node stays in-chain; see the `timePitch` note re: warp-off audition).
-        timePitch.rate = Float(region.effectiveStretchRate(projectBPM: projectBPM))
-        timePitch.pitch = 0
+        // Warp rate + character are control-plane parameter sets (no render-thread work).
+        // Set them BEFORE scheduling so the very first buffer is stretched. The Echoel
+        // stretch engine picks the plan: rate (1.0 = no tempo change) + whether pitch is
+        // held (Clean) or rides the tempo (Tape — pitch = 1200·log₂(rate) on the same
+        // spectral node, zero graph change). Unimplemented modes render as Clean.
+        let plan = StretchPlan.resolve(mode: region.stretchMode, warpEnabled: region.warpEnabled,
+                                       nativeBPM: region.nativeBPM, projectBPM: projectBPM)
+        timePitch.rate = Float(plan.rate)
+        timePitch.pitch = plan.preservesPitch ? 0 : Float(StretchPlan.tapePitchCents(forRate: plan.rate))
         let sr = f.processingFormat.sampleRate
         let total = f.length
         let startFrame = region.startFrame(sampleRate: sr, totalFrames: total)
