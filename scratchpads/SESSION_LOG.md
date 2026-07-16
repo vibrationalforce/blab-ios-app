@@ -7165,3 +7165,41 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   alter Build auf Gerät die wahrscheinliche Ursache. Antwort mit Build-Nummer,
   Fundorten der Änderungen, Check-Anleitung. v277-Deploy (Timeline-Warp)
   ZURÜCKGEHALTEN bis 2382 bestätigt (keine zwei Builds im Processing).
+
+## 2026-07-16 Nacht (Forts. 52) — Ultracode-Nachtschicht: AUv3-Root-Cause + MIDI-Station + Design
+
+**Founder-Auftrag (verbatim-Kern):** "Ultracode no sleep all Night Long. Bisher wurde
+nichts weltbewegendes unternommen damit auv3 von extern wirklich in Echoelmusic
+ankommen … funktioniert noch nichts so wie es soll und das Design ist noch rudimentär."
+
+**Nachtaudit** (Workflow wf_58f6e917, 7 Agenten, 745k Tokens): AUv3-Front + Funktions-
+Front + Design-Front → 10-Punkte-Bauliste. Umgesetzt (alle Gates grün bis 921bb5a,
+Rest läuft):
+
+- `637dc41` **AUv3-ROOT-CAUSE:** AudioComponents lag direkt unter NSExtension statt
+  unter NSExtensionAttributes — pluginkit registrierte die eigene Extension NIE
+  (Device-Log "ownAUv3 false" erklärt; Plist + project.yml byte-identisch gefixt).
+- `efa573b` AUAudioUnitFactory-Konformität: createAudioUnit war async + Konformität
+  nie deklariert — selbst registriert wäre die AU in keinem Host instanziierbar.
+  Jetzt: nonisolated synchron, UI-Adoption via MainActor-Hop (AUBox).
+- `4c34627` CI-Beweis-Step nach jedem iOS-Archive: appex embedded + AudioComponents
+  am registrierungswirksamen Pfad + Identität augn/echl/Echo — Build failt bei Drift.
+- `b2bb1c0` Scan beim App-Start (Observer existierte vorher erst nach Browser-Öffnen!)
+  + gescheiterte Chain-Restores werden bei registrationsChanged EINMAL nachgefahren.
+- `921bb5a` registryColdForProcess-Flag + ehrliche Browser-Guidance ("App neu starten"
+  statt des nachweislich wirkungslosen Rescan-Rats).
+- `c814add` **Piano Roll erwachsen** (#58): Undo/Redo (Snapshot-Stack Tiefe 50, ein
+  Undo = eine ganze Geste), Move per Tick-Delta (Off-Grid-Feel überlebt Drags; vorher
+  Grid-Snap beim ERSTEN Anfassen), Quantize-Tür ("Q", Selektion/alles, undoable).
+  10 neue Tests (PianoRollUndoTests).
+- `51d031f` Design: stille Spuren dimmen ihre Clips (gemutet/weg-soliert/Pegel 0 —
+  mehrere "Sound geht nicht"-Fälle waren GENAU das, unsichtbar) + Pegel-0-Warnrahmen
+  am Fader + Accent-Farbgesetz durchgesetzt (4 Chips → menuChip-Muster; Accent bleibt
+  exklusiv Live-Bio).
+- Davor am Abend: `eadfca4` rPPG corroborated-hold (Puls überlebt Dark-Lock) +
+  `01b68f6` Timeline-Warp Slice B + **Deploy v10.79.277** (TestFlight success).
+
+**Bewusst NICHT (gerätegepaart):** Roll-Audition (Stuck-Note-Risiko), Mic-Capture #13,
+Sheet-Enum-Konsolidierung. **Geräte-Verify-Liste v278:** ownAUv3=true im Log,
+GarageBand/AUM zeigt "Echoelmusic", Restore überlebt Neustart, Puls-Hold 30 s,
+Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
