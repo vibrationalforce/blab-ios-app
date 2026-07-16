@@ -1,10 +1,10 @@
 // LaneVoiceRack.swift
 // Multi-Roll device wiring (B07) — a FIXED pool of pre-attached PolySynthVoice slots
-// so each MIDI lane can play its OWN voice. Behind FeatureFlags.multiRoll (default
-// OFF): the rack is created + attached ONLY in `attachAll()`, which the app calls
-// only when the flag is ON — so when OFF the rack holds ZERO voices, nothing is
-// added to the audio graph, and the build is bit-identical to today's single-voice
-// path.
+// so each MIDI lane can play its OWN voice. Behind FeatureFlags.multiRoll (registered
+// DEFAULT-ON since 2026-07-14; the OFF rollback path stays intact): the rack is
+// created + attached ONLY in `attachAll()`, which the app calls only when the flag
+// is ON — with the flag OFF the rack holds ZERO voices, nothing is added to the
+// audio graph, and the build is bit-identical to the single-voice path.
 //
 // Slot assignment is decided by the already-pure, CI-tested LaneVoicePool /
 // LaneVoiceRackPlan; this class is only the device-side voice container + graph

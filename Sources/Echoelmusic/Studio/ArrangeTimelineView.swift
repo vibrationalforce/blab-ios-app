@@ -1303,10 +1303,10 @@ private struct RegionBlockView: View {
 }
 
 /// Per-lane Sound & FX (founder 2026-07-12: settings live ON the tracks). Edits
-/// the MELODIC bus insert — the piano roll's voices (pad/harmony + lead) — via
-/// the same TrackFXStore the Mix menu uses, applied LIVE to both voices on every
-/// change. One source of truth, two doors. Honest scope: all MIDI lanes share
-/// the one roll slot today (multi-roll = A4), so this edits THE melodic sound.
+/// the MELODIC bus insert via the same TrackFXStore the Mix menu uses, applied
+/// LIVE to ALL melodic voices on every change: primary synth+leadSynth AND every
+/// Multi-Roll rack slot voice (S2-W1) — so it reaches the very lane this editor
+/// opened for. One source of truth, two doors; still ONE shared melodic bus.
 @MainActor
 private struct LaneFXEditor: View {
     let laneName: String
