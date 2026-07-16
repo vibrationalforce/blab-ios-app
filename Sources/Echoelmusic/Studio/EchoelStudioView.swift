@@ -63,14 +63,14 @@ struct EchoelStudioView: View {
     /// Patch id for the play surface: "" = follow the take's sound (default).
     @AppStorage("touch.patchID") private var touchPatchID = ""
     /// How much sliding UP the play surface brightens the tone (0 = off … 1 = ±1 octave).
-    @AppStorage("touch.morphDepth") private var touchMorphDepth = 0.6
+    @AppStorage(StudioDefaultKeys.touchMorphDepth.key) private var touchMorphDepth = StudioDefaultKeys.touchMorphDepth.value
     /// Slide-expression depths + glide for the play surface (founder 2026-07-08:
     /// "hin und her sliden verändert den Sound: Filter, ein bisschen Vibrato,
     /// Chorus … Glide bzw. Portamento kann man auch einstellen"). Same keys +
     /// defaults as FloatingVisualWindow, which passes them into the surface.
-    @AppStorage("touch.slideVibrato") private var touchSlideVibrato = 0.35
-    @AppStorage("touch.slideChorus") private var touchSlideChorus = 0.30
-    @AppStorage("touch.glide") private var touchGlide = 0.0
+    @AppStorage(StudioDefaultKeys.touchSlideVibrato.key) private var touchSlideVibrato = StudioDefaultKeys.touchSlideVibrato.value
+    @AppStorage(StudioDefaultKeys.touchSlideChorus.key) private var touchSlideChorus = StudioDefaultKeys.touchSlideChorus.value
+    @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
     @Environment(SubBassVoice.self) private var subBass
     @Environment(MetronomeVoice.self) private var metronome
     /// #22 follow-up: Start heals a silenced roll slot (founder log v255).
@@ -89,7 +89,7 @@ struct EchoelStudioView: View {
     /// primary driver. Low-frequency reads only.
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @Environment(WeatherProvider.self) private var weatherProvider
-    @AppStorage("weather.enabled") private var weatherEnabled = false
+    @AppStorage(StudioDefaultKeys.weatherEnabled.key) private var weatherEnabled = StudioDefaultKeys.weatherEnabled.value
     /// This session's full weather flavour (nil = none yet). Carries the skeleton
     /// salt PLUS the per-parameter sound/visual targets; lands on the next re-seed.
     @State private var weatherContribution: WeatherMood.Contribution?
@@ -145,8 +145,8 @@ struct EchoelStudioView: View {
 
     // Optional locked tempo for tight, DAW-ready loops. When off, the tempo follows
     // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
-    @AppStorage("studio.lockBPM") private var lockBPM = false
-    @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
+    @AppStorage(StudioDefaultKeys.lockBPM.key) private var lockBPM = StudioDefaultKeys.lockBPM.value
+    @AppStorage(StudioDefaultKeys.lockedBPM.key) private var lockedBPM: Double = StudioDefaultKeys.lockedBPM.value
     /// Tap-tempo estimator (performance staple) + the last value it produced for display.
     @State private var tapTempo = TapTempo()
     @State private var lastTappedBPM: Double? = nil
@@ -172,17 +172,17 @@ struct EchoelStudioView: View {
     /// disclosure fallback; in the dropdown it renders force-open anyway.
     @State private var showVideoLibrary = false
     /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
-    @AppStorage("studio.loudnessTarget") private var loudnessTargetRaw = LoudnessTarget.streaming.rawValue
+    @AppStorage(StudioDefaultKeys.loudnessTarget.key) private var loudnessTargetRaw = StudioDefaultKeys.loudnessTarget.value
     /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
     @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
     /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
     /// · 4 Prism · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
     /// Default 5 (Aurora) — a richer look out of the box; MUST match FloatingVisualWindow.
-    @AppStorage("visual.style") private var visualStyle = 5
+    @AppStorage(StudioDefaultKeys.visualStyle.key) private var visualStyle = StudioDefaultKeys.visualStyle.value
     /// Secondary style to blend with `visualStyle` (same index space). 0…9 as above.
-    @AppStorage("visual.styleB") private var visualStyleB = 0
+    @AppStorage(StudioDefaultKeys.visualStyleB.key) private var visualStyleB = StudioDefaultKeys.visualStyleB.value
     /// Mix ratio A↔B [0…1]: 0 = pure primary look, 1 = pure blend look. The "mischend" control.
-    @AppStorage("visual.blend") private var visualBlend = 0.0
+    @AppStorage(StudioDefaultKeys.visualBlend.key) private var visualBlend = StudioDefaultKeys.visualBlend.value
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted
     /// as a compact "3,5,7" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
@@ -237,9 +237,9 @@ struct EchoelStudioView: View {
     // reine meditative Flächen"): the app opens as breath-paced ambient TEXTURES —
     // Self-Observation genre, no drums, pad articulation. Every genre/beat remains
     // one tap away; users who already changed these keep their stored choice.
-    @AppStorage("studio.genre") private var style: MusicStyle = .selfObservation
-    @AppStorage("studio.rootIndex") private var rootIndex = 0
-    @AppStorage("studio.scale") private var scale: Scale = .minor
+    @AppStorage(StudioDefaultKeys.genre.key) private var style: MusicStyle = StudioDefaultKeys.genre.value
+    @AppStorage(StudioDefaultKeys.rootIndex.key) private var rootIndex = StudioDefaultKeys.rootIndex.value
+    @AppStorage(StudioDefaultKeys.scale.key) private var scale: Scale = StudioDefaultKeys.scale.value
     /// Selected tone system (microtonal). "edo12" = standard 12-TET (default, no retune).
     /// Persisted so a chosen world tuning survives relaunch.
     @AppStorage("toneSystemID") private var tuningID = "edo12"
@@ -248,7 +248,7 @@ struct EchoelStudioView: View {
     // Loops sind am besten zum Musik produzieren"): an 8-bar phrase is the produce-able
     // default. Still fully flexible (2/4/8/16/32) via the loop-length picker + free-longer
     // in the arrangement; this only sets the STARTING length for a fresh install.
-    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .eight
+    @AppStorage(StudioDefaultKeys.loopBars.key) private var loopBars: LoopBarLength = StudioDefaultKeys.loopBars.value
     /// Drum layer: Off = pure Flächen (DEFAULT — founder 2026-07-07: "Tendenziell
     /// alles eher ohne Beat und reine meditative Flächen"), Pulse = the deep
     /// shamanic heartbeat drum (2026-07-06C), Genre = the style's archetypal groove.
@@ -431,18 +431,18 @@ struct EchoelStudioView: View {
     // MetalBioView. Stored as Double (@AppStorage has no Float); passed to the renderer as
     // Float(...). EchoelValueField is generic over BinaryFloatingPoint, so the fields bind
     // to Double directly.
-    @AppStorage("visual.intensity") private var visualIntensity = 1.0
-    @AppStorage("visual.detail") private var visualDetail = 40.0   // ring density
-    @AppStorage("visual.motion") private var visualMotion = 1.0    // animation speed (flash-clamped)
-    @AppStorage("visual.spread") private var visualSpread = 1.0
+    @AppStorage(StudioDefaultKeys.visualIntensity.key) private var visualIntensity = StudioDefaultKeys.visualIntensity.value
+    @AppStorage(StudioDefaultKeys.visualDetail.key) private var visualDetail = StudioDefaultKeys.visualDetail.value   // ring density
+    @AppStorage(StudioDefaultKeys.visualMotion.key) private var visualMotion = StudioDefaultKeys.visualMotion.value    // animation speed (flash-clamped)
+    @AppStorage(StudioDefaultKeys.visualSpread.key) private var visualSpread = StudioDefaultKeys.visualSpread.value
     /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
     /// Default saturation 0.82 (professional, not neon); MUST match FloatingVisualWindow.
-    @AppStorage("visual.hue") private var visualHue = 0.0
-    @AppStorage("visual.saturation") private var visualSaturation = 0.82
+    @AppStorage(StudioDefaultKeys.visualHue.key) private var visualHue = StudioDefaultKeys.visualHue.value
+    @AppStorage(StudioDefaultKeys.visualSaturation.key) private var visualSaturation = StudioDefaultKeys.visualSaturation.value
     /// The floating visual window's show/hide state — SHARED with WorkspaceView's header
     /// monitor button and the window's own close button, so the Visual panel can toggle it
     /// directly (founder: everything user-optimized; don't make the header the only way in).
-    @AppStorage("visual.floating.visible") private var floatingVisualVisible = false
+    @AppStorage(StudioDefaultKeys.floatingVisualVisible.key) private var floatingVisualVisible = StudioDefaultKeys.floatingVisualVisible.value
     @State private var showVisualSettings = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true

@@ -60,7 +60,7 @@ private struct MiniTransportView: View {
     // founder: 8-bar produce-able phrase) — @AppStorage defaults are per-declaration,
     // so a diverging copy lies on fresh installs until the key is first written
     // (H15-LOOPBARS).
-    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .eight
+    @AppStorage(StudioDefaultKeys.loopBars.key) private var loopBars: LoopBarLength = StudioDefaultKeys.loopBars.value
 
     var body: some View {
         let pos = transport.position
@@ -112,12 +112,12 @@ struct FloatingVisualWindow: View {
     /// from the generative bed). Falls back to the shared voice if absent.
     @Environment(\.touchSynth) private var touchSynth
     /// Position-morph amount for the play surface (shared key with the Studio panel).
-    @AppStorage("touch.morphDepth") private var touchMorphDepth = 0.6
+    @AppStorage(StudioDefaultKeys.touchMorphDepth.key) private var touchMorphDepth = StudioDefaultKeys.touchMorphDepth.value
     // For a fitting MP4 name (founder: "Session Recording für video und auch passender
     // Name") — same convention as the WAV: Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4.
     @Environment(SessionContext.self) private var session
     @Environment(Transport.self) private var transport
-    @AppStorage("studio.genre") private var genre: MusicStyle = .vaporwave
+    @AppStorage(StudioDefaultKeys.genre.key) private var genre: MusicStyle = StudioDefaultKeys.genre.value
     @State private var recordedClip: RecordedClip?
     /// When recording started — drives the on-screen REC elapsed time.
     @State private var recordStart: Date?
@@ -142,15 +142,15 @@ struct FloatingVisualWindow: View {
     // Rings — and saturation 0.82 (professional, not neon; keeps the physical tone→colour
     // readable). Kept IDENTICAL to EchoelStudioView's declarations so an absent key resolves
     // to the same value in both views (no drift before the user touches a control).
-    @AppStorage("visual.style") private var visualStyle = 5
-    @AppStorage("visual.styleB") private var visualStyleB = 0
-    @AppStorage("visual.blend") private var visualBlend = 0.0
-    @AppStorage("visual.intensity") private var visualIntensity = 1.0
-    @AppStorage("visual.detail") private var visualDetail = 40.0
-    @AppStorage("visual.motion") private var visualMotion = 1.0
-    @AppStorage("visual.spread") private var visualSpread = 1.0
-    @AppStorage("visual.hue") private var visualHue = 0.0
-    @AppStorage("visual.saturation") private var visualSaturation = 0.82
+    @AppStorage(StudioDefaultKeys.visualStyle.key) private var visualStyle = StudioDefaultKeys.visualStyle.value
+    @AppStorage(StudioDefaultKeys.visualStyleB.key) private var visualStyleB = StudioDefaultKeys.visualStyleB.value
+    @AppStorage(StudioDefaultKeys.visualBlend.key) private var visualBlend = StudioDefaultKeys.visualBlend.value
+    @AppStorage(StudioDefaultKeys.visualIntensity.key) private var visualIntensity = StudioDefaultKeys.visualIntensity.value
+    @AppStorage(StudioDefaultKeys.visualDetail.key) private var visualDetail = StudioDefaultKeys.visualDetail.value
+    @AppStorage(StudioDefaultKeys.visualMotion.key) private var visualMotion = StudioDefaultKeys.visualMotion.value
+    @AppStorage(StudioDefaultKeys.visualSpread.key) private var visualSpread = StudioDefaultKeys.visualSpread.value
+    @AppStorage(StudioDefaultKeys.visualHue.key) private var visualHue = StudioDefaultKeys.visualHue.value
+    @AppStorage(StudioDefaultKeys.visualSaturation.key) private var visualSaturation = StudioDefaultKeys.visualSaturation.value
 
     // P5: the sky mixed into the IMAGE, per parameter (founder: "Klang und Bild
     // aber getrennte und mehrere Parameter"). Each visual influence crossfades the
@@ -159,7 +159,7 @@ struct FloatingVisualWindow: View {
     // `current` changes only on the once-per-session fetch → render-safe.
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @Environment(WeatherProvider.self) private var weatherProvider
-    @AppStorage("weather.enabled") private var weatherEnabled = false
+    @AppStorage(StudioDefaultKeys.weatherEnabled.key) private var weatherEnabled = StudioDefaultKeys.weatherEnabled.value
     // Observe the IMAGE mixers so dragging one in the panel updates this visual
     // LIVE (they change only on a user drag → render-safe). Keys + defaults match
     // WeatherMood.Param, so the wiring and these reads agree on "unset = default".
@@ -178,19 +178,19 @@ struct FloatingVisualWindow: View {
 
     /// The Studio's key root — same key + default as EchoelStudioView, so the IDLE tint of
     /// this window matches the fullscreen visual's tonic instead of a hardcoded C4.
-    @AppStorage("studio.rootIndex") private var rootIndex = 0
+    @AppStorage(StudioDefaultKeys.rootIndex.key) private var rootIndex = StudioDefaultKeys.rootIndex.value
     /// The Studio's scale — the fullscreen play surface quantizes touches into
     /// this key (same key + default as EchoelStudioView). Low-frequency reads.
-    @AppStorage("studio.scale") private var touchScale: Scale = .minor
+    @AppStorage(StudioDefaultKeys.scale.key) private var touchScale: Scale = StudioDefaultKeys.scale.value
     /// Fretboard grid over the play surface (founder 2026-07-08: "eine Art
     /// Griffbrett einblenden … Gitter mit Feldern in den passenden Farben").
     @AppStorage("touch.showGrid") private var touchShowGrid = false
     /// Slide-expression depths + glide for the play surface (founder 2026-07-08:
     /// "hin und her sliden verändert den Sound … Glide bzw. Portamento kann man
     /// auch einstellen"). Same keys + defaults as EchoelStudioView's menu.
-    @AppStorage("touch.slideVibrato") private var touchSlideVibrato = 0.35
-    @AppStorage("touch.slideChorus") private var touchSlideChorus = 0.30
-    @AppStorage("touch.glide") private var touchGlide = 0.0
+    @AppStorage(StudioDefaultKeys.touchSlideVibrato.key) private var touchSlideVibrato = StudioDefaultKeys.touchSlideVibrato.value
+    @AppStorage(StudioDefaultKeys.touchSlideChorus.key) private var touchSlideChorus = StudioDefaultKeys.touchSlideChorus.value
+    @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
