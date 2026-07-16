@@ -6787,3 +6787,21 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Gates a0d77b4 bei Log-Zeitpunkt 2/4 grün, Rest lief → Wakeup gestellt.
   Kein Deploy (unhörbar bis S2-W2-4). Nächster Punkt: S2-W2-4
   (slotKindSink + App-Wiring; Kammerton-Fan an rack.subs mitnehmen).
+
+## Fortsetzung 33 (2026-07-16) — S2-W2-4 FERTIG (Player-Anschluss), 4/8
+
+- **S2-W2-4 (9267e49 + Test-LOW b5010b8, 2×APPROVE):** TimelineRegionPlayer
+  bekommt slotKindSink (Foundation-only, LaneVoiceKind), gefeuert an
+  load/prime VOR Patch/Noten + reset→.poly bei clear/silence/stop; NICHT
+  in refreshMixer (Kind ist strukturell, kein Mixer-Merge-Feld). App routet
+  ALLE Per-Slot-Sinks (Note/Patch/Transpose/Detune/Pan/Gain + neu setKind)
+  über die Rack-Fassade statt voice(slot:); AU-Vorrang + AU-Mirrors bleiben.
+  Flag-OFF bit-identisch (setKind→all-poly, idempotent, keine Per-Step-Churn).
+- **Audio-Review:** APPROVE (0 Render-Code, Firing-Order sicher, AU-Mid-Take-
+  Flip hält). **Code-Review:** APPROVE + 1 LOW (billiger host-freier
+  slotKindSink-Test lag als Vorlage bereit) → nachgezogen (b5010b8: pinnt
+  Prime-.drums, Stop-.poly, Kind-vor-Patch-Ordering).
+- Gates 9267e49 4/4 grün; b5010b8 lief noch → Wakeup. KEIN Deploy (Flag OFF
+  = unhörbar bis S2-W2-7 Geräte-Verify; Flag NICHT vorher flippen).
+- Nächster Punkt: S2-W2-5 (Bus-Inserts .drums/.bass an Kit/Sub + der
+  aufgeschobene Kammerton-Fan an rack.subs).

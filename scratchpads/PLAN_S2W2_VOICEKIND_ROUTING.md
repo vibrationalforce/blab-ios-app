@@ -177,6 +177,17 @@ No new render code — reuses DrumSynthVoice's lock-free strike/config counters.
 **audio-thread-reviewer: YES. On-device smoke: drums lane hits, bass lane felt sub,
 poly lanes unchanged, mid-take instrument switch leaves no stuck notes.**
 
+> **S2-W2-4 FERTIG (9267e49 + Test b5010b8, 2×APPROVE).** slotKindSink an allen
+> vier Sink-Sites (load/prime/clear-silence/stop); App routet ALLE Per-Slot-Sinks
+> (Note/Patch/Transpose/Detune/Pan/Gain + setKind) über die Fassade. Ordering-Gesetz
+> (Kind bindet VOR Patch/Noten) test-gepinnt. Flag-OFF bit-identisch bestätigt.
+> Kammerton-Fan HIERHIN aufgeschoben (siehe unten). refreshMixer bewusst OHNE
+> slotKindSink: Kind ist strukturell (refreshStructure→reload), kein Mixer-Merge-Feld.
+>
+> **S2-W2-5 ZUSATZ (aufgeschoben aus S2-W2-4):** LaneVoiceRack.setTuning(a4Hz:) an ALLE
+> subs fannen, gerufen an den 3 subBass.setTuning-Sites in EchoelStudioView
+> (~1984 session-restore, ~3732, ~4110) — sonst läuft der Lane-Sub bei A≠440 verstimmt.
+
 ### S2-W2-5 — DEVICE: fan the `.drums`/`.bass` bus inserts to the lane kind voices
 *Files (2):* `Sources/Echoelmusic/Studio/EchoelStudioView.swift`,
 `Sources/Echoelmusic/Sequencer/LaneVoiceRack.swift`
