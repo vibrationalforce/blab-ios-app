@@ -528,3 +528,24 @@ effektiver macht" + "Natürlich auch alles was kreativ und technisch wertvoll is
 
 **Single highest-value adoption:** the on-device bio-curated Idea-Maze composer
 (ADOPT→PRODUCT). Building the pure core now.
+
+### 2026-07-16 — IG-Reel alan.buildz „Claude ist jetzt dein Kreativstudio" (5 Claude-Tools, Founder-Upload .mp4)
+Analysiert via watch-clip (37 s, Contact-Sheet + Frames). Alles PIPELINE-Kandidaten,
+nichts für Sources/. Abgleich mit bestehenden Verdikten (kein Re-Litigieren):
+- **HyperFrames (heygen) „Claude = dein Video-Editor"** → bleibt **REJECT** (bereits
+  gescort: code→video Scope-Creep; zudem externe Cloud — Founder-Media verließe die Maschine).
+- **Voicebox (jamiepine; 3-Sek-Voice-Clone + On-Device-Whisper-Diktat)** → Clone-Teil
+  fällt unters bestehende Deepfake/Voice-Clone-**REJECT** (nie in-app, nicht bio-getrieben).
+  On-Device-Diktat = persönliches Founder-Produktivitäts-Tool, keine Repo-Sache.
+- **competitive-ads-extractor** (awesome-claude-skills) → **WATCH→PIPELINE**: erst relevant,
+  wenn Echoel Paid/ASO-Konkurrenzanalyse fährt (Launch-Phase); dann als Ergänzung zum
+  vendorierten Marketing-Pack prüfen. Kein Adopt jetzt (wir schalten keine Ads).
+- **last30days-skill** (Nischen-Recherche letzte 30 Tage) → **WATCH**: redundant zum
+  vorhandenen deep-research-Harness; nur übernehmen, falls dessen Recency-Sweeps zu teuer sind.
+- **Voice DNA (Claude schreibt im eigenen Stil)** → **WATCH→PIPELINE**: die Idee (Stil-Profil
+  aus eigenen Texten) ist für echoel-marketing-Copy nützlich; unsere Brand-Guardrails
+  existieren schon — ggf. ein Founder-Stil-Absatz in echoel-marketing statt neuem Skill.
+- **Format-Takeaway (das eigentlich Wertvolle):** das Reel selbst — schneller Schnitt,
+  nummerierte Tool-Liste, Caption-Overlays, „Kommentiere X und ich schicke dir die Liste"
+  als Lead-Hook — ist ein validiertes Muster für #52 (Echoel-Reels). → echoel-marketing.
+**Kein App-Code-Impact. Höchster Wert: Reel-FORMAT für #52.**
