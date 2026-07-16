@@ -6247,3 +6247,36 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   SHIPPED → als Nächstes CLIP-5 (Playhead-Relocate — Play immer Takt 1;
   refreshStructure-Muster wiederverwendbar) oder CLIP-4 (Audio-Clip-Edit-Tür
   lädt leer). Danach CLIP-6 (Clip-Gain/Fades) · PERF-01 (Format-Vorwärmen).
+
+## 2026-07-16 (Fortsetzung 15) — v262: Playhead-Locate (CLIP-5)
+- **v262 deployed (74c8c61 + Review-Fix a609406, Review APPROVE nach
+  REQUEST_CHANGES, Gates 4/4 auf beiden Commits):** Der Playhead ist ein echtes
+  Locate-Werkzeug: TimelinePlaybackCursor.init(startBar:) (erster advance zählt
+  nie als Wrap, übernimmt die einlaufende Step-Phase), play(fromTick:) startet
+  am Takt des geparkten Heads (pure barStartTick: floor auf Takt, Beyond-End
+  faltet per Modulo), relocate(toTick:) springt die LAUFENDE Session
+  (allNotesOff + flushPumps [H5b], Cursor-Reseed, Re-Prime aller Ebenen).
+  WorkspaceView liest die geparkte Position VOR play (pattern.play() →
+  transport.play() nullt sie) und seekt den Transport auf den echten Start-Takt
+  zurück. TimelinePlayhead ruft relocate NUR in onEnded (Relocate-Sturm-Gesetz).
+- **Review-HIGH (behoben):** relocate primte Audio-Lanes am Takt-DOWNBEAT,
+  während die MIDI-Pumps die laufende Pattern-Phase übernehmen → Audio hinge
+  bis zu 15/16 Takt hinter MIDI (bis zum nächsten Region-Onset). Fix: pure
+  relocateAnchorTick(targetBarTick:nextPatternStep:) — PatternEngine.currentStep
+  IST der nächste zu feuernde Step (advance() feuert ihn, dann +1); ALLE Ebenen
+  (lastTick/currentTick/Roll/Automation/Secondary/Audio) ankern auf
+  target+phase*120; der geseedete Cursor produziert exakt diesen Tick → leeres
+  Fenster, kein Double-Fire. Rezept-Parität mit refreshStructure/Loop-Wrap.
+- **Review-MEDIUM (behoben):** Nicht-bar-gesnappter Drop zwischen Step 15 und 0
+  ließ transport.lastStep ≠ 0 → Transport zählte einen PHANTOM-Wrap (sichtbarer
+  Head dauerhaft 1 Takt vor dem Audio bis Stop). Fix: nach Live-Relocate seekt
+  der Playhead den Transport auf den gefalteten Takt (step 0 ⇒ Wrap-Zählung
+  stimmt in jeder Phase).
+- **LEDGER-Lehre (implizit, in relocate-Doc gepinnt):** Bei einem Positions-
+  Sprung mit WEITERLAUFENDER Pattern-Phase muss JEDE Ebene auf den Tick ankern,
+  den der nächste Transport-Step tatsächlich produziert (target + Phase) —
+  Downbeat-Anker desynct Audio gegen MIDI; refreshStructure (lastTick) und
+  Loop-Wrap (newTick) sind die Vorbilder.
+- **Ultraprogramm-Stand Bereich 2:** CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5
+  (v262) SHIPPED → als Nächstes CLIP-4 (Audio-Clip-Edit-Tür lädt leer), dann
+  CLIP-6 (Clip-Gain/Fades) · PERF-01 (Format-Vorwärmen).
