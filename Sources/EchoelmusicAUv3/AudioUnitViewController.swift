@@ -31,7 +31,20 @@ public final class AudioUnitViewController: AUViewController {
     }
 
     /// Called from `createAudioUnit`'s MainActor hop once the AU exists.
+    /// Hosts may create more than one AU per view controller — tear the previous
+    /// UI + parameter observer down first, or children/observers stack up
+    /// (concurrency review #3).
     private func adopt(_ au: EchoelmusicAudioUnit) {
+        if let token = parameterObservationToken {
+            audioUnit?.parameterTree?.removeParameterObserver(token)
+            parameterObservationToken = nil
+        }
+        if let previous = hostingController {
+            previous.willMove(toParent: nil)
+            previous.view.removeFromSuperview()
+            previous.removeFromParent()
+            hostingController = nil
+        }
         audioUnit = au
         if isViewLoaded { setupUI(audioUnit: au) }
     }

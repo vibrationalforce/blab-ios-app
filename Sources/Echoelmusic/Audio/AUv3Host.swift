@@ -755,6 +755,7 @@ public final class AUv3Host {
 
     // MARK: - Instantiation with a hard deadline (night audit MEDIUM)
 
+    #if canImport(AVFoundation)
     /// A defective third-party extension can hang its XPC handshake FOREVER; a
     /// plain `try await AVAudioUnit.instantiate` then never returns, `isLoading`
     /// stays true for the rest of the process — permanent spinner, no other
@@ -788,25 +789,34 @@ public final class AUv3Host {
         }
     }
 
+    /// Sendable carrier for the freshly built (non-Sendable) unit — the closure
+    /// parameter is task-isolated under region isolation, so resuming the
+    /// continuation with it raw is the one plausible Swift-6 compile failure
+    /// here (concurrency review #1); the box is unconditionally correct.
+    private struct AVUnitBox: @unchecked Sendable { let unit: AVAudioUnit }
+
     nonisolated private static func instantiate(_ desc: AudioComponentDescription,
                                                 name: String) async throws -> AVAudioUnit {
-        try await withCheckedThrowingContinuation { cont in
+        let box: AVUnitBox = try await withCheckedThrowingContinuation { cont in
             let once = ResumeOnce()
+            let deadline = Task {
+                try? await Task.sleep(nanoseconds: UInt64(Self.instantiateTimeoutSeconds * 1_000_000_000))
+                once.run { cont.resume(throwing: AUInstantiateError.timedOut(name)) }
+            }
             AVAudioUnit.instantiate(with: desc, options: []) { unit, error in
                 once.run {
+                    deadline.cancel()
                     if let unit {
-                        cont.resume(returning: unit)
+                        cont.resume(returning: AVUnitBox(unit: unit))
                     } else {
                         cont.resume(throwing: error ?? AUInstantiateError.timedOut(name))
                     }
                 }
             }
-            Task {
-                try? await Task.sleep(nanoseconds: UInt64(Self.instantiateTimeoutSeconds * 1_000_000_000))
-                once.run { cont.resume(throwing: AUInstantiateError.timedOut(name)) }
-            }
         }
+        return box.unit
     }
+    #endif
 
     /// One-shot retry of restore records that failed at launch, fired from the
     /// registrationsChanged observer (the registry just announced new arrivals).
@@ -824,9 +834,23 @@ public final class AUv3Host {
         pendingRestoreMasters = []
         log.audio("AUv3 registry warmed — retrying failed chain restores")
         Task { @MainActor in
-            if let instrument { await self.load(instrument) }
-            for info in fx { await self.load(info) }
-            for info in masters { await self.loadMasterEffect(info) }
+            // Lost-update guard (concurrency review #2): a retry can be silently
+            // dropped by load()'s isLoading gate (e.g. the notification fires while
+            // another load is suspended at instantiate) — re-appending on failure
+            // keeps the record for the NEXT registrationsChanged instead of losing
+            // the plugin until a manual reload.
+            if let instrument {
+                await self.load(instrument)
+                if self.loaded != instrument { self.pendingRestoreInstrument = instrument }
+            }
+            for info in fx {
+                await self.load(info)
+                if !self.loadedEffects.contains(info) { self.pendingRestoreEffects.append(info) }
+            }
+            for info in masters {
+                await self.loadMasterEffect(info)
+                if !self.loadedMasterEffects.contains(info) { self.pendingRestoreMasters.append(info) }
+            }
         }
     }
 
