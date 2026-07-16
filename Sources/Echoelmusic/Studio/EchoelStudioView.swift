@@ -4089,7 +4089,10 @@ struct EchoelStudioView: View {
         rootIndex = p.keyRoot
         scale = p.scale
         fxCharacter = p.fxCharacter
-        loopBars = LoopBarLength(rawValue: p.loopBars) ?? .four
+        // Fallback matches the founder's 8-bar default (H15-LOOPBARS review LOW:
+        // this was the last .four literal — an invalid saved rawValue would have
+        // silently written 4 into the shared key).
+        loopBars = LoopBarLength(rawValue: p.loopBars) ?? .eight
         currentPatch = p.patch          // every control reads this, so the UI matches
         presetIndex = -1                // a saved patch is "custom", not a factory preset
         session.adopt(key: p.key)
