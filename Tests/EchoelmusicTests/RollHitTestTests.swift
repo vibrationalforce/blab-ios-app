@@ -75,6 +75,46 @@ final class RollHitTestTests: XCTestCase {
         XCTAssertEqual(classify(noteRight - 2.0, y, [n]), .rightEdge(id: n.id))
     }
 
+    func testExactSlopThreshold_isInclusivelyEdge() {
+        // The slop boundary itself: x == noteRight - slop must read as edge (the
+        // resize zone is the half-open [right-slop, right)). Pins `>=` against a
+        // regression to `>` — which every other test would still pass.
+        let n = sampleNote()
+        let noteRight = Double(n.startStep + n.lengthSteps) * stepW
+        let x = noteRight - slop                       // exactly on the threshold
+        let y = (Double(high - n.pitch) + 0.5) * rowH
+        XCTAssertEqual(classify(x, y, [n]), .rightEdge(id: n.id))
+    }
+
+    func testAdjacentNotes_sharedBoundaryHitsRightNeighbourOnly() {
+        // A ends at step 7; B starts at step 7 — same pitch, touching. A point
+        // exactly on the shared column line belongs to B (left-inclusive),
+        // never A (right-exclusive). Pins the half-open `< noteX+noteW`.
+        let p = high - 4
+        let a = Note(pitch: p, startStep: 3, lengthSteps: 4, velocity: 0.5) // steps 3..<7
+        let b = Note(pitch: p, startStep: 7, lengthSteps: 2, velocity: 0.5) // steps 7..<9
+        let sharedX = Double(7) * stepW                // A's exclusive right == B's left
+        let y = (Double(high - p) + 0.5) * rowH
+        XCTAssertEqual(classify(sharedX, y, [a, b]), .body(id: b.id))
+    }
+
+    func testOneStepNote_slopCapBinds_whenSlopExceedsHalf() {
+        // slop=20 on a 26pt note: the cap clamps it to noteW/2 = 13. Edge zone is
+        // the last 13pt; the first 13pt stays body. Exercises the cap branch that
+        // testOneStepNote (slop=8 < 13) never took.
+        let n = Note(pitch: high - 6, startStep: 4, lengthSteps: 1, velocity: 0.6)
+        let noteLeft = Double(n.startStep) * stepW
+        let y = (Double(high - n.pitch) + 0.5) * rowH
+        func hit(_ x: Double) -> RollHit {
+            RollHitTest.classify(x: x, y: y, notes: [n],
+                                 stepW: stepW, rowH: rowH,
+                                 highPitch: high, lowPitch: low,
+                                 stepCount: steps, edgeSlop: 20.0)
+        }
+        XCTAssertEqual(hit(noteLeft + 6.0), .body(id: n.id))       // inside first half
+        XCTAssertEqual(hit(noteLeft + 20.0), .rightEdge(id: n.id)) // inside capped edge
+    }
+
     func testOverlap_topmostWins() {
         // Two notes on the SAME cell; the later one is drawn on top.
         let under = Note(pitch: high - 1, startStep: 0, lengthSteps: 2, velocity: 0.4)

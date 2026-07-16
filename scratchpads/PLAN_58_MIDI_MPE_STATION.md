@@ -43,17 +43,21 @@ eine Note nicht bewegen". Darum Move/Resize zuerst, Velocity-Lane als S4. Das is
 eine bewusste, reversible Umsortierung eines Audit-VORSCHLAGS (kein Founder-
 Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
 
-### Slice 1 — Hit-Test-Kern (pure, test-first) · KEIN View-Change
+### Slice 1 — Hit-Test-Kern (pure, test-first) · KEIN View-Change — ✅ FERTIG (9656b48, APPROVE)
 - **Neu** `Sources/Echoelmusic/Studio/RollHitTest.swift`: `enum RollHit`
   (`.empty(pitch:Int, step:Int)`, `.body(id:UUID)`, `.rightEdge(id:UUID)`) +
-  `static func classify(x:CGFloat, y:CGFloat, notes:[Note], stepW:CGFloat,
-  rowH:CGFloat, highPitch:Int, lowPitch:Int, stepCount:Int, edgeSlopPt:CGFloat)
-  -> RollHit`. Reihenfolge: Notes-first (obenauf) mit Edge-Zone (letzte
-  `edgeSlop`-Punkte der Note-Breite → `.rightEdge`), sonst `.body`; kein Treffer
+  `static func classify(x:Double, y:Double, notes:[Note], stepW:Double,
+  rowH:Double, highPitch:Int, lowPitch:Int, stepCount:Int, edgeSlop:Double)
+  -> RollHit` (Double statt CGFloat → CoreGraphics-frei, wie AutomationCanvasMath).
+  Reihenfolge: Notes-first (obenauf) mit Edge-Zone (letzte `edgeSlop`-Punkte der
+  Note-Breite, gekappt auf halbe Note → `.rightEdge`), sonst `.body`; kein Treffer
   → `.empty`. Deterministisch, keine Zufälligkeit, keine Allokation im Hot-Path.
-- **Test** `RollHitTestTests`: Edge-Slop-Grenze exakt, Body-Treffer, leere Zelle,
-  überlappende Notes (oberste gewinnt), Clamp an Pitch/Step-Rändern.
+- **Test** `RollHitTestTests`: Edge-Slop-Grenze exakt (inklusiv), Body-Treffer,
+  Halb-Note-Kappe (bei slop>halbe Note), Adjazenz-Grenze (halb-offen), leere
+  Zelle, überlappende Notes (oberste gewinnt), Clamp, degenerierte Geometrie.
 - Risiko: 0 (kein UI-Pfad berührt). CI-verifizierbar. Kein Deploy nötig.
+- Code-Review APPROVE (0 HIGH); 3 LOW-Test-Lücken nachgezogen (exakte Slop-Grenze,
+  Adjazenz, Kappe-am-Limit) — pinnen `>=`/`<` gegen Regression.
 
 ### Slice 2 — Note verschieben (Body-Drag → Pitch+Step) · test-first Model
 - **Model** `PianoRollModel.move(id:toPitch:toStartStep:)` (clamp Pitch in
