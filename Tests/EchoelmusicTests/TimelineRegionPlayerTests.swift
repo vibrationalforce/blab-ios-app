@@ -196,6 +196,60 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
         XCTAssertEqual(bindings.last?.0, 0)
     }
 
+    func testSlotKindSink_firesLaneKindAtPrime_resetsToPolyOnStop() {
+        // S2-W2-4: the player publishes each slot's voice KIND so the app rebinds
+        // the physical voice. A drums lane fires .drums at prime; stop resets to
+        // .poly so a reused slot never keeps a stale kit/sub.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let drums = TimelineLane(name: "EchoelDrums", kind: .midi, builtinInstrument: .drums)
+        let document = TimelineDocument(lanes: [roll, drums], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: drums.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var kinds: [(Int, LaneVoiceKind)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotKindSink = { kinds.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        XCTAssertEqual(kinds.first?.0, 0)
+        XCTAssertEqual(kinds.first?.1, .drums, "prime binds slot 0's drums lane to the .drums kind")
+
+        player.stop()
+        XCTAssertEqual(kinds.last?.1, .poly, "stop resets the slot's kind to poly")
+        XCTAssertEqual(kinds.last?.0, 0)
+    }
+
+    func testSlotKindSink_firesBeforePatchAtPrime() {
+        // ORDERING LAW: the kind must land BEFORE the per-slot patch/value sinks,
+        // so the app's facade routes them to the freshly-bound physical voice.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let drums = TimelineLane(name: "EchoelDrums", kind: .midi, builtinInstrument: .drums)
+        let document = TimelineDocument(lanes: [roll, drums], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: drums.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var order: [String] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in }) { _, _ in order.append("patch") }
+        player.slotKindSink = { _, _ in order.append("kind") }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        defer { player.stop() }
+
+        let k = order.firstIndex(of: "kind")
+        let p = order.firstIndex(of: "patch")
+        XCTAssertNotNil(k, "kind sink must fire at prime")
+        XCTAssertNotNil(p, "patch sink must fire at prime")
+        if let k, let p { XCTAssertLessThan(k, p, "kind binds before patch routes") }
+    }
+
     // MARK: - CLIP-5: play(fromTick:) + relocate(toTick:)
 
     /// Roll lane spans the whole song; the SECONDARY lane has a region ONLY in
