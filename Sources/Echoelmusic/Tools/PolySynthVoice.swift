@@ -435,8 +435,10 @@ public final class PolySynthVoice {
 
     /// The last insert handed to `setInsert(_:)` — control-plane MEMORY (same idea as
     /// `appliedPatch`), so doors and tests can read what the voice was given without
-    /// touching the render-side queue. Never read by the render block.
-    public private(set) var appliedInsert: TrackFX?
+    /// touching the render-side queue. Never read by the render block. Observation-
+    /// ignored (review-hardened): written at UI drag rate, and no view is meant to
+    /// live-track it — a future door reads it once on open, not reactively.
+    @ObservationIgnored public private(set) var appliedInsert: TrackFX?
 
     /// Global filter-cutoff multiplier (1 = no change), driven by parameter
     /// automation. Atomic write; takes effect on the next render block.

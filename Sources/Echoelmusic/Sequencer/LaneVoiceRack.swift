@@ -78,13 +78,16 @@ public final class LaneVoiceRack {
         for v in voices { v.setInsert(fx) }
     }
 
-    /// TEST SEAM: install pre-built voices WITHOUT an engine attach, so the Xcode
-    /// gate can pin the `setInsert` fan-out (attachAll needs a live AudioEngine,
-    /// which unit tests must not construct). Never call from app code — `attachAll`
-    /// is the one production path.
+    #if DEBUG
+    /// TEST SEAM (Debug-only, review-hardened): install pre-built voices WITHOUT an
+    /// engine attach, so the Xcode gate can pin the `setInsert` fan-out (attachAll
+    /// needs a live AudioEngine, which unit tests must not construct). Never call
+    /// from app code — `attachAll` is the one production path, and this flips
+    /// `attached` without any graph work.
     internal func installVoicesForTests(_ testVoices: [PolySynthVoice]) {
         voices = testVoices
         attached = true
     }
+    #endif
 }
 #endif
