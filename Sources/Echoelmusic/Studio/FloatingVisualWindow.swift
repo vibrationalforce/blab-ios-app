@@ -56,7 +56,11 @@ private struct RecordingBadge: View {
 @MainActor
 private struct MiniTransportView: View {
     @Environment(Transport.self) private var transport
-    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
+    // Default MUST match the semantic owner EchoelStudioView.loopBars (= .eight,
+    // founder: 8-bar produce-able phrase) — @AppStorage defaults are per-declaration,
+    // so a diverging copy lies on fresh installs until the key is first written
+    // (H15-LOOPBARS).
+    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .eight
 
     var body: some View {
         let pos = transport.position

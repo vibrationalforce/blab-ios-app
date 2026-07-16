@@ -381,7 +381,11 @@ private struct TransportPositionView: View {
     /// The loop size (shared @AppStorage with the Compose panel). Read here so the chrome
     /// always SHOWS how big the loop is + where we are inside it (founder: "optische Anzeige,
     /// je nachdem wie groß der Loop umgestellt ist"). Low-frequency — safe in this leaf.
-    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .four
+    // Default MUST match the semantic owner EchoelStudioView.loopBars (= .eight,
+    // founder: 8-bar produce-able phrase). @AppStorage defaults are PER-DECLARATION:
+    // on a fresh install (key unwritten) a diverging copy here showed "loop N/4"
+    // while the instrument composed 8 bars (H15-LOOPBARS).
+    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .eight
 
     var body: some View {
         let pos = transport.position
