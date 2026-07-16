@@ -132,5 +132,25 @@ final class SignalRoutingTests: XCTestCase {
         let r2 = SignalRoute(sourcePortID: "a", sinkPortID: "b", amount: .nan)
         XCTAssertEqual(r2.amount, 1, accuracy: 1e-9)
     }
+
+    func testDefaultInventory_containsNoRoadmapPorts() {
+        // Guideline 2.1 (App Store audit 2026-07-16): the shipped patchbay must not
+        // show named-but-unbuilt endpoints — a reviewer opening Routing sees only
+        // features that exist. RTMP/SRT return the moment their transport goes .live.
+        let inventory = SignalRouter.defaultInventory()
+        XCTAssertTrue(inventory.allSatisfy { $0.transport.status == .live },
+                      "shipped inventory is live-only")
+        let ids = Set(inventory.map(\.id))
+        XCTAssertFalse(ids.contains("rtmp.out"))
+        XCTAssertFalse(ids.contains("srt.out"))
+        // The doors that DO ship stay present.
+        for id in ["bus.bio", "bus.musical", "midi.in", "blehrs.in", "midi.out",
+                   "osc.out", "adm.out", "artnet.out", "sacn.out", "audio.master"] {
+            XCTAssertTrue(ids.contains(id), "live port \(id) must remain")
+        }
+        // The full typed inventory still carries the roadmap ports (re-add = flip status).
+        let full = Set(SignalRouter.allPortsIncludingRoadmap().map(\.id))
+        XCTAssertTrue(full.contains("rtmp.out") && full.contains("srt.out"))
+    }
 }
 #endif

@@ -102,7 +102,19 @@ public final class SignalRouter {
     /// The app's actual routable endpoints today. Internal sources (the bus topics)
     /// and the external in/out bridges that ship. Visual/Video/AUv3 join when they
     /// become routable; the transport `status` keeps each honest.
+    ///
+    /// Roadmap-transport ports (RTMP/SRT broadcast) are FILTERED OUT of the shipped
+    /// inventory (App Store audit 2026-07-16, Guideline 2.1: a reviewer opening
+    /// Routing must not see named features that do not exist — even disabled+"soon"
+    /// reads as placeholder UI). The entries stay in the list below so re-adding a
+    /// port on ship day = flipping its transport's `status` to `.live`, nothing else.
     public static func defaultInventory() -> [SignalPort] {
+        allPortsIncludingRoadmap().filter { $0.transport.status == .live }
+    }
+
+    /// The full typed inventory including not-yet-wired roadmap ports. Internal —
+    /// UI and routing must use `defaultInventory()` (live only).
+    static func allPortsIncludingRoadmap() -> [SignalPort] {
         [
             // Internal sources (the bus)
             SignalPort(id: "bus.bio",     name: "Body (bio)",   kind: .controlBio,     direction: .source, transport: .internalBus),

@@ -53,7 +53,14 @@ struct LearnView: View {
                     }
                 }
                 #if canImport(CloudKit) && canImport(UserNotifications)
-                announcementsSection
+                // Hidden until the CloudKit announcement schema is live (v1.1 "Echoel
+                // Live"): with cloudKitConfigured == false the toggle would store a
+                // preference and do nothing — a non-functional control is Guideline
+                // 2.1 placeholder UI to App Review (audit 2026-07-16). Reappears
+                // automatically the release the gate flips.
+                if AnnouncementCenter.cloudKitConfigured {
+                    announcementsSection
+                }
                 #endif
             }
             .padding(16)
