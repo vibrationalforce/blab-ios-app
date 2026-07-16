@@ -6766,3 +6766,24 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   MetricKit) — null SDK, weil "Data Not Collected" + "No tracking" die
   Positionierung SIND. Wochenritual: KPIs → Promo-Text iterieren.
 - Task #64; #52 (Website-SEO-Zyklus) bleibt separat offen.
+
+## Fortsetzung 32 (2026-07-16) — S2-W2-3 FERTIG (heterogene Rack-Fassade), 3/8
+
+- **S2-W2-3 (89814a2 + Härtung a0d77b4, 2×2 APPROVE):** Flag
+  `voiceKindRouting` (default OFF, unregistriert bis S2-W2-7);
+  LaneVoiceRack = Fassade über heterogenen Pool (flag-ON: +1
+  LaneDrumKitVoice +1 Lane-SubBassVoice, attach-before-start);
+  setKind→KindVoiceAllocator-Rebind (keys.sorted, allNotesOff-on-rebind);
+  Param-Routing per Kind (Gain 0…2 überall, Sub-Pan/Detune/Patch
+  dokumentierte No-Ops); Guard AVFoundation+Accelerate.
+- **Review-Gold (Audio-MEDIUM):** der geplante Note-OFF-Fächer an ALLE
+  Subs hätte fremde gehaltene Sub-Noten bei Pitch-Kollision geschnitten
+  UND war redundant (rebindAll released das alte Binding immer; Shift-
+  Wechsel released auch) → Off geht jetzt NUR ans aktuelle Binding.
+  Der Plan-§4-Fächer-Satz ist damit ÜBERHOLT — nicht wieder einführen.
+- Sub bekam gekapselten attach-geschützten setGain (0…2, non-finite→0)
+  + Debug-Command-Seam; Tests pinnen jetzt Enqueue-Pitch (45−12=33),
+  Shift-Wechsel-Release, Rebind-Release, Velocity-Edges (NaN/inf→0).
+- Gates a0d77b4 bei Log-Zeitpunkt 2/4 grün, Rest lief → Wakeup gestellt.
+  Kein Deploy (unhörbar bis S2-W2-4). Nächster Punkt: S2-W2-4
+  (slotKindSink + App-Wiring; Kammerton-Fan an rack.subs mitnehmen).
