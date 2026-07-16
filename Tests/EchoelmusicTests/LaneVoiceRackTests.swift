@@ -65,12 +65,43 @@ final class LaneVoiceRackTests: XCTestCase {
         rack.noteOn(slot: 0, pitch: 36, velocity: 1.0)
         XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue],
                        DrumNoteMap.params(forPitch: 36))
-        // Sub slot + poly slot note paths must be safe no-crash enqueues too.
+        // Sub routing proof via the sub's command seam; poly path no-crash.
         rack.noteOn(slot: 1, pitch: 33, velocity: 0.8)
+        XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.kind, "on")
+        XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.pitch, 33)
         rack.noteOn(slot: 2, pitch: 60, velocity: 0.8)
-        // Note-OFF fan (H5b): offs go to ALL bindable voices, harmlessly.
-        rack.noteOff(slot: 0, pitch: 36)
-        rack.noteOff(slot: 1, pitch: 33)
+        // Note-OFF routes to the CURRENT binding only (audio review MEDIUM on
+        // 89814a2: a fan to all subs could cut a foreign lane's held note).
+        rack.noteOff(slot: 0, pitch: 36)   // drums-bound → kit no-op
+        XCTAssertEqual(rack.subs[0].noteCommandCountForTests, 1,
+                       "a drums slot's off must NOT reach the sub")
+        rack.noteOff(slot: 1, pitch: 33)   // sub-bound → matching off
+        XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.kind, "off")
+        XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.pitch, 33)
+    }
+
+    func testMidiVelocityMapping_edges() {
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(1.0), 127)
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(0.0), 0)
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(0.5), 64, "0.5 × 127 = 63.5 rounds to 64")
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(1.5), 127, "over-range clamps")
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(-1.0), 0, "under-range clamps")
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(.nan), 0, "non-finite fails silent")
+        XCTAssertEqual(LaneVoiceRack.midiVelocity(.infinity), 0)
+    }
+
+    func testRebind_releasesThePreviouslyBoundSub() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        let sub = SubBassVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [sub])
+        rack.setKind(slot: 0, kind: .subBass)
+        rack.noteOn(slot: 0, pitch: 40, velocity: 0.9)
+        XCTAssertEqual(sub.lastNoteCommandForTests?.kind, "on")
+        rack.setKind(slot: 0, kind: .poly)   // rebind ⇒ old voice released
+        XCTAssertEqual(sub.lastNoteCommandForTests?.kind, "allOff",
+                       "carry (b): rebind must allNotesOff the previously bound voice")
+        XCTAssertEqual(rack.bindingsForTests[0], .poly(0))
     }
 
     func testSetKind_lowerRankWinsContention_andRebindRestoresPoly() {
@@ -102,13 +133,18 @@ final class LaneVoiceRackTests: XCTestCase {
     func testTranspose_pitchesSubAtEnqueue_andChangeReleasesHeldSub() {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
-        rack.installKindUnitsForTests(kits: [], subs: [SubBassVoice()])
+        let sub = SubBassVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [sub])
         rack.setKind(slot: 0, kind: .subBass)
         XCTAssertEqual(rack.bindingsForTests[0], .subBass(0))
         rack.setTranspose(slot: 0, semitones: -12)
-        rack.noteOn(slot: 0, pitch: 45, velocity: 0.9)   // enqueues 33 (45−12)
-        rack.setTranspose(slot: 0, semitones: 0)          // change ⇒ allNotesOff (no strand)
+        rack.noteOn(slot: 0, pitch: 45, velocity: 0.9)
+        XCTAssertEqual(sub.lastNoteCommandForTests?.pitch, 33, "sub is pitched at enqueue (45−12)")
+        rack.setTranspose(slot: 0, semitones: 0)
+        XCTAssertEqual(sub.lastNoteCommandForTests?.kind, "allOff",
+                       "shift change while sub-bound must release (off-matching law)")
         rack.noteOff(slot: 0, pitch: 45)                  // off at NEW shift — harmless
+        XCTAssertEqual(sub.lastNoteCommandForTests?.pitch, 45, "off carries the current shift")
     }
 
     func testPolySynthVoice_setInsert_recordsAppliedInsert() {

@@ -170,23 +170,37 @@ public final class LaneVoiceRack {
             voice(slot: slot)?.noteOn(pitch: pitch, velocity: velocity)
         case .drums(let i):
             guard kits.indices.contains(i) else { return }
-            let v = Int((Swift.max(0, Swift.min(1, velocity.isFinite ? velocity : 0)) * 127).rounded())
-            kits[i].noteOn(pitch: pitch, velocity: v)
+            kits[i].noteOn(pitch: pitch, velocity: Self.midiVelocity(velocity))
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].noteOn(pitch: pitch + (transposeBySlot[slot] ?? 0))
         }
     }
 
-    /// Note-OFFs fan to ALL physical voices ever bindable to the slot (the H5b
-    /// mid-take-flip law: a binding can change while a note is gate-held, and an
-    /// off for a never-started pitch is harmless everywhere — the kit's off is a
-    /// documented no-op, the sub releases only its matching pitch).
+    /// Route the note-OFF to the slot's CURRENT binding only. The H5b mid-take-
+    /// flip law is already covered WITHOUT a fan: every binding change goes
+    /// through rebindAll → allNotesOff(old) and every sub shift change releases
+    /// too, so a note can never remain gate-held on a unit the slot is no longer
+    /// bound to. A fan to ALL subs would instead CUT a foreign lane's held sub
+    /// note on a pitch collision (audio review MEDIUM on 89814a2) — the sub's
+    /// off is pitch-matched, not slot-scoped.
     public func noteOff(slot: Int, pitch: Int) {
-        voice(slot: slot)?.noteOff(pitch: pitch)
-        for k in kits { k.noteOff(pitch: pitch) }
-        let shifted = pitch + (transposeBySlot[slot] ?? 0)
-        for s in subs { s.noteOff(pitch: shifted) }
+        switch binding(forSlot: slot) {
+        case .poly:
+            voice(slot: slot)?.noteOff(pitch: pitch)
+        case .drums(let i):
+            guard kits.indices.contains(i) else { return }
+            kits[i].noteOff(pitch: pitch)
+        case .subBass(let i):
+            guard subs.indices.contains(i) else { return }
+            subs[i].noteOff(pitch: pitch + (transposeBySlot[slot] ?? 0))
+        }
+    }
+
+    /// Pure poly→MIDI velocity mapping for the kit path (0…1 Float → 0…127;
+    /// non-finite → 0 BEFORE clamping so NaN can't slip through min/max).
+    internal static func midiVelocity(_ velocity: Float) -> Int {
+        Int((Swift.max(0, Swift.min(1, velocity.isFinite ? velocity : 0)) * 127).rounded())
     }
 
     /// Per-slot transpose: poly shifts render-side as today; the sub is pitched
@@ -227,7 +241,7 @@ public final class LaneVoiceRack {
             kits[i].setGain(gain)
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
-            subs[i].sourceNode.volume = Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0))
+            subs[i].setGain(gain)   // encapsulated: clamps 0…2, attach-guarded
         }
     }
 

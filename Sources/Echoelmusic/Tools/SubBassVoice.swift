@@ -101,9 +101,26 @@ public final class SubBassVoice {
 
     // MARK: - Engine attachment
 
+    /// True once attached to an engine — gates the lazy-node-touching setters
+    /// (mirrors LaneDrumKitVoice, so seam-installed test voices never force
+    /// `sourceNode`). Control-plane only.
+    @ObservationIgnored
+    private var attachedToEngine = false
+
     /// Attach BEFORE `audioEngine.start()` (build-1363 hot-attach rule).
     public func attach(to audioEngine: AudioEngine) {
         audioEngine.attachSourceNode(sourceNode)
+        attachedToEngine = true
+    }
+
+    /// Lane gain via AVAudioMixing volume — the B2 engine path, honoring the
+    /// lane-fader contract 0…2 (1 = unity, like every sibling voice on the same
+    /// node class); non-finite fails SILENT (0). Guarded on attach so unit tests
+    /// never force the lazy source node. Distinct from `subGain`, which scales
+    /// the oscillator inside the render — this is the LANE fader on the node.
+    public func setGain(_ gain: Float) {
+        guard attachedToEngine else { return }
+        sourceNode.volume = Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0))
     }
 
     // MARK: - Note gating (control plane)
@@ -112,16 +129,35 @@ public final class SubBassVoice {
     /// an octave below the melodic bass). Monophonic: retunes if already sounding.
     public func noteOn(pitch: Int) {
         _ = noteCommands.tryEnqueue(SubCommand(kind: .on, pitch: Int32(pitch)))
+        recordEnqueueForTests("on", pitch)
     }
 
     /// Release the sub if `pitch` is the note currently sounding.
     public func noteOff(pitch: Int) {
         _ = noteCommands.tryEnqueue(SubCommand(kind: .off, pitch: Int32(pitch)))
+        recordEnqueueForTests("off", pitch)
     }
 
     public func allNotesOff() {
         _ = noteCommands.tryEnqueue(SubCommand(kind: .allOff, pitch: 0))
+        recordEnqueueForTests("allOff", 0)
     }
+
+    #if DEBUG
+    /// TEST SEAM (Debug-only): the last control-plane note command + a running
+    /// count, so the Xcode gate can PIN facade routing (which pitch reached the
+    /// sub, that a rebind/transpose change really released) without an engine.
+    @ObservationIgnored
+    internal private(set) var lastNoteCommandForTests: (kind: String, pitch: Int)?
+    @ObservationIgnored
+    internal private(set) var noteCommandCountForTests = 0
+    private func recordEnqueueForTests(_ kind: String, _ pitch: Int) {
+        lastNoteCommandForTests = (kind, pitch)
+        noteCommandCountForTests += 1
+    }
+    #else
+    @inline(__always) private func recordEnqueueForTests(_ kind: String, _ pitch: Int) {}
+    #endif
 
     /// Match the instrument's concert pitch so the sub stays in tune with the body.
     public func setTuning(a4Hz: Double) {
