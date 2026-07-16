@@ -20,45 +20,16 @@
 
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
-        <!-- Health Data (HealthKit) -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeHealthData</string>
-
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-            </array>
-        </dict>
-
-        <!-- Audio Data -->
-        <dict>
-            <key>NSPrivacyCollectedDataType</key>
-            <string>NSPrivacyCollectedDataTypeAudioData</string>
-
-            <key>NSPrivacyCollectedDataTypeLinked</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypeTracking</key>
-            <false/>
-
-            <key>NSPrivacyCollectedDataTypePurposes</key>
-            <array>
-                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-            </array>
-        </dict>
-
-        <!-- Note: the app collects no UserID, DeviceID, analytics (Product
-             Interaction) or crash/Performance data — there are no accounts, no
-             analytics SDKs and no crash reporters. Bio/Health and Audio are used
-             only for on-device app functionality, not linked to identity, not
-             tracked. -->
+        <!-- EMPTY on purpose (aligned 2026-07-16 with the ASC privacy label
+             "Data Not Collected"): under Apple's definition, "collected" means
+             transmitted off-device in a way accessible to the developer or
+             partners — which never happens. There are no accounts, no analytics
+             SDKs, no crash reporters, no server. Health/bio and audio data are
+             processed on-device only; HealthKit-sourced values NEVER leave the
+             device (BioEgressPolicy gates the OSC/ADM senders), and the only
+             network egress (OSC/ADM/Art-Net/sACN of the app's own camera/BLE
+             measurements) is user-initiated to devices the USER chooses — it is
+             never available to Echoel. -->
     </array>
 
     <!-- ============================= -->
@@ -75,6 +46,9 @@
             <key>NSPrivacyAccessedAPITypeReasons</key>
             <array>
                 <string>CA92.1</string>  <!-- App preference storage -->
+                <string>1C8F.1</string>  <!-- App-Group suite shared with own
+                                              extensions (BioFeedbackManager:
+                                              group.com.echoelmusic → widget/AUv3) -->
             </array>
         </dict>
 

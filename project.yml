@@ -161,6 +161,12 @@ targets:
       # to it (more-refined than the Comparable one), so the plugin's shared DDSP
       # gets the same NaN→lowerBound safety as the app. Foundation-only; no Core types.
       - path: Sources/Echoelmusic/Core/FloatingPointClamp.swift
+    resources:
+      # Privacy manifest: the extension uses a required-reason API (App-Group
+      # UserDefaults via BioFeedbackManager) — each shipped .appex bundles the
+      # shared manifest (App Store audit 2026-07-16; same pattern as the app).
+      - path: Resources/PrivacyInfo.xcprivacy
+        type: file
     info:
       path: Resources/EchoelmusicAUv3/Info.plist
       properties:
@@ -223,6 +229,11 @@ targets:
       # Foundation-only App-Group bridge for live vitals (shared with the app +
       # AUv3). Compiled into the widget module — no app-framework import.
       - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
+    resources:
+      # Privacy manifest: the widget reads App-Group UserDefaults (required-reason
+      # API) — bundle the shared manifest (App Store audit 2026-07-16).
+      - path: Resources/PrivacyInfo.xcprivacy
+        type: file
     info:
       path: Resources/EchoelmusicWidgets/Info.plist
       properties:
@@ -277,6 +288,12 @@ targets:
         WKApplication: true
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # C6b regression guard (App Store audit 2026-07-16): this `info:` block
+        # REGENERATES the committed plist on every `xcodegen generate`, so the
+        # companion key MUST live here too — its absence once produced an archive
+        # with zero valid distribution methods. Keep in sync with the committed
+        # Resources/EchoelmusicWatch/Info.plist.
+        WKCompanionAppBundleIdentifier: com.echoelmusic.app
     entitlements:
       path: EchoelmusicWatch.entitlements
     settings:
