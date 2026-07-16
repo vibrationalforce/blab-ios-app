@@ -6656,3 +6656,38 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   (Kandidat: Clip-Zittern-Fix falls Audit einen klaren Mechanismus findet,
   sonst S2-W2 Scheibe 1); #57 (Lane-Label + Notice-Compose + Rack-Test)
   als kleiner Zwischen-Commit.
+
+## Fortsetzung 28 (2026-07-16) — Warp S1 + Clip-Zitter-Fix SHIPPED (v274), Sweep komplett
+
+- **Ultraall-Sweep KOMPLETT (6/6):** alle Deliverables committet —
+  PLAN_S2W2_VOICEKIND_ROUTING (heterogener Kind-Pool an der Rack-Grenze,
+  8 Scheiben, Pin-Flip zuletzt) · PLAN_WARP_AUDIO_CLIP (S1 gebaut) ·
+  AUDIT_CLIP_JITTER (C1-C7 gerankt) · PLAN_MIDI_STATION (Velocity-Lane →
+  Quantize → Per-Note-Expression-USP → MPE/MIDI2) · PLAN_WEATHER_SYNTH ·
+  PLAN_DISSOLUTION_S3_S5.
+- **Warp S1 gebaut (3717d3b, APPROVE, 4/4 grün):** Clip.nativeBPM +
+  TimelineRegion.warpEnabled + ratenbewusste AudioRegionPlayback-Mathematik
+  (effectiveStretchRate; Kreuz-Check gegen WarpedClipPlan). Review-MEDIUM
+  als S2-GATE in Plan §8 verankert: Split/Trim führt contentOffsetSeconds
+  in SONG-Domäne — bei Rate ≠ 1 wiederholt eine gesplittete Warp-Region
+  Material; Entscheidung (a) Offset-Delta × Rate beim Edit vs (b)
+  Song-Domäne + Konvertierung im Player. Leaning (a). KEIN Deploy (unhörbar).
+- **#57-Zwischenpunkt (0b7b927 + cef9500, 2× APPROVE):** ehrliches
+  Spurkopf-Label für Apple-File-Player-Records, composedNotice statt
+  Überschreiben, LaneVoiceRackTests (Fan-out-Pin via DEBUG-Test-Seam +
+  PolySynthVoice.appliedInsert @ObservationIgnored Gedächtnis).
+- **Clip-Zitter-Fix Slice 1 (#56, b35fffa, APPROVE „textbook", 4/4 grün)
+  → DEPLOY v274 (8fb0e06):** C1 = Trailing-Trim maß im .local-Raum, den
+  die eigene .frame(width:)-Änderung pro Frame verschiebt → Selbst-
+  Oszillation r(n+1)=d−r(n) = das wörtliche Zittern; Fix: alle drei
+  Gesten messen im stabilen benannten Grid-Raum. C2 = @State-Deltas
+  blieben bei Scroll-Abbruch (kein onEnded) versetzt hängen; Fix:
+  @GestureState (Auto-Reset), Emphasis-Flags abgeleitet. C3
+  (highPriorityGesture) BEWUSST device-gated zurückgestellt: Parent-High-
+  Priority kann die geräteverifizierten Trim-Griff-Subview-Gesten
+  aushungern; Symptom unbestätigt bis Founder-Recording. INFO: committete
+  Trim-Längen waren bisher um den Oszillationsrest verfälscht — Trims
+  landen jetzt exakt (Founder könnte den Unterschied bemerken, korrekt).
+- Nächste Kandidaten: #56 Slice 2 (TimelineDragMath: Live-Snap-Vorschau,
+  Release-Sprung weg, TDD) · Warp S2 (Engine, Offset-Domain-Entscheidung)
+  · S2-W2 Scheibe 1 (pure KindVoiceAllocator).
