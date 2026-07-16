@@ -1756,7 +1756,7 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
-            .accessibilityHint("Stamps your city into session and export names. Resolved on this device, never stored or sent anywhere.")
+            .accessibilityHint("Stamps your city into session and export names. Used only for the city name and, if you enable weather, an Apple Weather lookup — never stored by Echoel.")
             // Manual override (founder 2026-07-14: "auch manuell eingeben … oder der
             // Standort nicht funktioniert"): type a place yourself. Works with or
             // without GPS and overrides the resolved city. Text (not a number) → a
@@ -1799,7 +1799,7 @@ struct EchoelStudioView: View {
             return "In the name: \(manual) (manual)"
         }
         guard locationNamer.enabled else {
-            return "Adds your city to the name — resolved on device, never sent. Or type one above."
+            return "Adds your city to the name — never stored by Echoel. Or type one above."
         }
         if locationNamer.denied {
             return "Location is off for Echoel in Settings — type a place above instead."

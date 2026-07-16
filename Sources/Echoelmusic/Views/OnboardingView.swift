@@ -51,7 +51,7 @@ struct OnboardingView: View {
                 .foregroundStyle(EchoelTheme.text.opacity(0.6))
                 .multilineTextAlignment(.center)
 
-            Text("Bio-reactive, drum-free generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
+            Text("Bio-reactive generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
                 .font(EchoelTheme.font(15))
                 .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.35)
                 .multilineTextAlignment(.center)
@@ -79,11 +79,11 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 12) {
                 row(symbol: "sparkles", text: "Living visuals that move with your body")
                 row(symbol: "lightbulb.fill", text: "Light & stage — DMX / Art-Net")
-                row(symbol: "antenna.radiowaves.left.and.right", text: "Capture, edit & live broadcast")
+                row(symbol: "waveform.circle", text: "Immersive spatial objects — ADM-OSC")
             }
             .padding(.horizontal, 40)
 
-            Text("This release is the bio-reactive instrument. Visuals, light, video and broadcast are in active development.")
+            Text("This release is the bio-reactive instrument — with living visuals, stage light and immersive output built in.")
                 .font(EchoelTheme.font(13))
                 .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.25 — near-invisible)
                 .multilineTextAlignment(.center)

@@ -52,8 +52,11 @@
 	</array>
 	<!-- bluetooth-peripheral removed: no CBPeripheralManager exists in the app
 	     (unbacked capability = Guideline 2.5.4 rejection risk). bluetooth-central
-	     is used foreground for BLE HR straps (PolarH10BioPublisher, 0x180D);
-	     kept for now — see task #27 for whether background BLE HR is wanted. -->
+	     is KEPT and BACKED (decision 2026-07-16, resolves task #27): the app does
+	     not stop PolarH10BioPublisher on backgrounding, so a connected BLE HR strap
+	     (0x180D) keeps streaming heart data that modulates the still-playing
+	     generative audio under the `audio` background mode — a real background use
+	     of the capability. State this in App Review notes if asked. -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
@@ -70,11 +73,11 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Echoelmusic imports videos and images from your photo library onto the timeline's video tracks. Your library is only read when you pick media yourself; nothing is uploaded or shared.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Echoelmusic connects to Bluetooth MIDI controllers and audio devices for professional music creation.</string>
+	<string>Echoelmusic connects to Bluetooth heart-rate sensors (chest straps like Polar, Wahoo or Garmin) to drive the bio-reactive music, and to Bluetooth MIDI controllers and audio devices.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Echoelmusic connects to Bluetooth MIDI controllers for music creation.</string>
+	<string>Echoelmusic connects to Bluetooth heart-rate sensors and MIDI controllers for bio-reactive music creation.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>If you turn on "Place in session name", Echoel looks up your city once to stamp it into the session name (e.g. Echoel_2026-07-10_Hamburg_Am_72bpm_A440). This is off by default; the place name is resolved with Apple's geocoder and the result is not stored by Echoel or sent anywhere else.</string>
+	<string>If you turn on "Place in session name", Echoel looks up your city once to stamp it into the session name (e.g. Echoel_2026-07-10_Hamburg_Am_72bpm_A440). If you turn on "Weather shapes the music", the same location is used to fetch local weather from Apple Weather. Both are off by default; nothing is stored by Echoel or sent anywhere else.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Echoelmusic uses the local network for Art-Net &amp; sACN lighting control and external audio interfaces, and — when you enable OSC or ADM output — to send live bio values (heart rate, HRV, breath, coherence) to the devices you choose.</string>
 	<key>NSBonjourServices</key>

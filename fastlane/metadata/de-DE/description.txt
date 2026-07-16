@@ -38,7 +38,7 @@ VERBINDEN
 
 PRIVATSPHÄRE
 
-Deine Biometrie bleibt auf Deinem Gerät. Keine Konten nötig, keine Werbung, kein Tracking. Was Du erschaffst, gehört Dir.
+Deine Biometrie bleibt auf Deinem Gerät — außer Du aktivierst ausdrücklich die OSC- oder ADM-Ausgabe, die Live-Bio-Werte an Geräte Deiner Wahl in Deinem eigenen Netzwerk sendet. Keine Konten nötig, keine Werbung, kein Tracking. Was Du erschaffst, gehört Dir.
 
 
 BARRIEREFREIHEIT

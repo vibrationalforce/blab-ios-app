@@ -154,7 +154,7 @@ struct WorkspaceView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Echoelmusic \(Self.versionString)")
-            .accessibilityHint("Opens echoelmusic.com — release notes and TestFlight signup")
+            .accessibilityHint("Opens echoelmusic.com — release notes and support")
             HStack(spacing: 8) {
                 Button { openWebsite() } label: {
                     EchoelLogoMark().frame(width: 22, height: 22)

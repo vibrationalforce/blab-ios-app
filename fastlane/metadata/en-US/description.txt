@@ -39,7 +39,7 @@ CONNECT
 
 PRIVACY
 
-Your biometrics stay on your device. No accounts required, no ads, no tracking. What you create is yours.
+Your biometrics stay on your device — unless you explicitly enable OSC or ADM output, which sends live bio values to devices you choose on your own network. No accounts required, no ads, no tracking. What you create is yours.
 
 
 ACCESSIBILITY
