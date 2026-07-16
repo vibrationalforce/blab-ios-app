@@ -1,40 +1,41 @@
-build: 2026-07-16 v10.79.262 (Playhead-Locate: Play startet am geparkten Playhead, Drop springt live)
+build: 2026-07-16 v10.79.263 (Audio-Clip-Edit öffnet AUF dem Clip — nie mehr der leere Importer)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 4 — der Playhead wird ein echtes Locate-Werkzeug.
+notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 5 — die Audio-Edit-Tür wird ehrlich.
 
-  PLAYHEAD-LOCATE (CLIP-5):
-  • Vorher: Play startete IMMER bei Takt 1, egal wo der Playhead stand —
-    und ein Playhead-Drag bewegte nur den sichtbaren Strich, nie das Audio.
-    Einen Song ab Takt 9 prüfen hieß: alles von vorne anhören.
-  • Jetzt (wie in jeder DAW):
-    – Playhead parken → ▶ startet die Wiedergabe an diesem Takt (alle
-      Ebenen: Haupt-Roll, Sekundär-Spuren, Audio-Spuren, Automation).
-    – Playhead-Drop WÄHREND der Song läuft → die Wiedergabe springt
-      dorthin: sauberer Schnitt (keine hängenden Noten), alle Spuren
-      setzen am Ziel wieder auf.
-    – Hinter dem Song-Ende geparkt → faltet ehrlich an den Anfang
-      (wie der Loop).
-  • Takt-genau, bewusst: die Groove-Phase (der 16-Step-Puls) läuft
-    durch den Sprung weiter — die „Eins" bleibt die Eins, nichts
-    stolpert. Mitten-im-Takt-Locate ist als spätere Verfeinerung
-    dokumentiert.
-  • Aus dem adversarialen Review, beide behoben:
-    – Audio-Spuren ankerten am Takt-Anfang, während MIDI die laufende
-      Phase übernahm — Audio hätte bis zu 15/16 Takt hinter MIDI
-      gehangen. Jetzt ankern beide auf demselben Tick (pure, getestete
-      Anker-Mathematik).
-    – Ein Drop kurz vor dem Taktwechsel hätte den sichtbaren Playhead
-      dauerhaft einen Takt vor das Audio gesetzt (Phantom-Wrap) —
-      Transport wird nach dem Sprung takt-ausgerichtet.
-  • 11 neue pure Tests (Cursor-Seeding, Falt-/Anker-Mathematik,
-    Prime-am-Ziel, Stopped-No-Op).
+  AUDIO-CLIP-EDIT (CLIP-4):
+  • Vorher: Lang-Druck auf einen platzierten Audio-Clip → „Edit" öffnete
+    ein LEERES Import-Blatt — keine Datei, keine Wellenform, kein Trim.
+    Das las sich wie „mein Clip ist kaputt/verloren".
+  • Jetzt: Die Edit-Tür öffnet AUF dem Clip — seine Datei ist geladen,
+    die Wellenform zeigt genau das Fenster, das die Region im Song
+    spielt (Trim-In + Länge, aufs echte Datei-Ende geklemmt). Start/
+    Ende an den Griffen oder als Zahl ziehen, „Done" schreibt das
+    getrimmte Fenster zurück in die Region — die Song-Position des
+    Clips bleibt, Undo funktioniert. Läuft der Song dabei, ist der
+    neue Trim innerhalb eines Transport-Steps hörbar (die Live-
+    Struktur aus v261 greift hier direkt).
+  • Aus dem adversarialen Review, alle behoben:
+    – Ein in der Tür importiertes ANDERES File konnte sein Trim-Fenster
+      auf die alte Region zurückschreiben (stille Korruption) — jetzt
+      darf nur die Clip-eigene Datei zurückschreiben; Import bleibt
+      als Vorhören nutzbar.
+    – Unberührtes Öffnen+Done hätte eine musikalisch längere Region
+      still aufs Datei-Ende geschrumpft (und Tempo-Drift unterm Sheet
+      hätte die Länge neu gerechnet) — Done committet jetzt nur eine
+      ECHTE Änderung.
+    – Die stillen Fallbacks (Datei nicht auffindbar/lesbar) loggen
+      jetzt eine Warnung — der Support-Fall „Clip kaputt" ist
+      diagnostizierbar.
+  • 8 neue pure Tests (Fenster-Mathematik, Rückschreib-Mapping,
+    Round-Trip, Guards).
 
-  Review: APPROVE (adversarial + Re-Review, Clock-Relay end-to-end
-  verifiziert) · alle 4 Gates grün auf beiden Commits.
+  Review: APPROVE (adversarial + Re-Review) · alle 4 Gates grün auf
+  beiden Commits.
 
-  Bereich-2-Stand: CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5 (dieses
-  Build) SHIPPED. NÄCHSTER PUNKT: die Audio-Clip-Edit-Tür (öffnet heute
-  leer) — danach Clip-Gain/Fades.
+  Bereich-2-Stand: CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5 (v262) ·
+  CLIP-4 (dieses Build) SHIPPED. NÄCHSTER PUNKT: Clip-Gain/Fades in
+  den Song (heute nur Vorschau, beim Landen verworfen) — danach
+  Format-Vorwärmen (Engine-Pause bei Format-Wechsel mitten im Song).
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).

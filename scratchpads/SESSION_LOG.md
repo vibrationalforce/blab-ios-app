@@ -6280,3 +6280,31 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Ultraprogramm-Stand Bereich 2:** CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5
   (v262) SHIPPED → als Nächstes CLIP-4 (Audio-Clip-Edit-Tür lädt leer), dann
   CLIP-6 (Clip-Gain/Fades) · PERF-01 (Format-Vorwärmen).
+
+## 2026-07-16 (Fortsetzung 16) — v263: Audio-Clip-Edit-Tür ehrlich (CLIP-4)
+- **v263 deployed (6895069 + Review-Fix 09a59a4, Review APPROVE nach
+  REQUEST_CHANGES, Gates 4/4 auf beiden Commits):** „Edit" auf einer
+  platzierten Audio-Region öffnet AUF dem Clip statt eines leeren Importers:
+  AudioClipView.editRegionID → Region→Clip→MediaLibrary.resolveRef(mediaRef),
+  Datei geladen, Trim-Fenster aus purem AudioRegionPlayback.editWindow
+  (contentOffsetSeconds + Regionlänge@Tempo, aufs Datei-Ende geklemmt) geseedet.
+  Done schreibt via pures regionTrim → TimelineStore.setAudioRegionWindow
+  zurück (Sekunden-Offset = Audio-Autorität, Tick-Twin synchron, Länge;
+  startTick bleibt; undo-tracked, No-Op-Guard). Live-Pickup über CLIP-3
+  refreshStructure (regions-Equatable-Vergleich verifiziert).
+- **Review-Findings (alle behoben, 09a59a4):** HIGH: Import in der Edit-Tür +
+  Done schrieb das Fremd-File-Fenster auf die Region der ALTEN Datei (stille
+  Korruption) → editSourceURL-Gate (nur die Clip-eigene Datei darf
+  zurückschreiben; Import bleibt Audition). MEDIUM: unberührtes Öffnen+Done
+  schrumpfte eine über-Datei-lange Region still (Duration-Clamp gebacken;
+  erreichbar via Tempo-Senkung nach Platzierung) + LOW Tempo-Drift-Neuableitung
+  → seededRegion-Gate (Done committet nur region != seededRegion). LOW: stille
+  Fallbacks loggen jetzt .warning.
+- **LEDGER-Lehre:** Edit-Türen mit Rückschreib-Pfad brauchen ZWEI Gates:
+  (1) Identitäts-Gate (nur die Quelle, die geseedet wurde, darf zurückschreiben
+  — jede In-Tür-Ersetzung ist Audition), (2) Delta-Gate (nur echte User-Edits
+  committen — sonst backen Seeding-Clamps/Umrechnungen sich als stille
+  Datenänderung ein). Ein „Done" darf nie mehr verändern als der User anfasste.
+- **Ultraprogramm-Stand Bereich 2:** CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5
+  (v262) · CLIP-4 (v263) SHIPPED → Rest: CLIP-6 (Clip-Gain/Fades in den Song),
+  PERF-01 (Lane-Format-Vorwärmen), CLIP-7..11 MEDIUMs/LOWs.
