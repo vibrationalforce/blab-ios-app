@@ -192,6 +192,19 @@ public final class AUv3Host {
             componentFlags: 0, componentFlagsMask: 0)
         do {
             let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
+            // AU-1 pre-flight (the lane path's H9a gate, now on the global path
+            // too): connect() RAISES kAudioUnitErr_FormatNotSupported as an
+            // uncatchable ObjC exception, and channel-restricted third-party
+            // units are common — a refusing unit must never reach the graph.
+            let accepted = info.isInstrument
+                ? engine.instrumentAcceptsChainFormat(unit)
+                : !engine.effectsAcceptingChainFormat([unit]).isEmpty
+            guard accepted else {
+                loadError = "\(info.name) needs a channel layout Echoel doesn't provide."
+                log.audio("AUv3 \(info.name) rejects the chain format — not connected", level: .error)
+                isLoading = false
+                return
+            }
             // Recall this plugin's saved settings (knob positions etc.) so a loaded
             // plugin comes back exactly as you left it across sessions.
             restoreState(unit, id: info.id)
@@ -267,6 +280,15 @@ public final class AUv3Host {
             componentFlags: 0, componentFlagsMask: 0)
         do {
             let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
+            // AU-1 pre-flight against the MASTER format (rewireMasterFX connects
+            // with the main mixer's output format, not auChainFormat) — a
+            // refusing unit would raise inside withGraphPaused = crash mid-mix.
+            guard !engine.effectsAcceptingMasterFormat([unit]).isEmpty else {
+                loadError = "\(info.name) needs a channel layout Echoel doesn't provide."
+                log.audio("AUv3 \(info.name) rejects the master format — not connected", level: .error)
+                isLoading = false
+                return
+            }
             restoreState(unit, id: info.id)
             // H9b: tempo/transport context for tempo-synced delays & LFOs.
             AUHostContext.install(on: unit.auAudioUnit)

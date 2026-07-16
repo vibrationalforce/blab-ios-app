@@ -863,11 +863,46 @@ public final class AudioEngine {
     /// fatal"). No graph mutation happens here; call BEFORE
     /// `attachLaneInstrument` and wire/carry ONLY the returned units.
     func effectsAcceptingChainFormat(_ units: [AVAudioUnit]) -> [AVAudioUnit] {
-        guard let format = auChainFormat else { return [] }
+        effectsAccepting(format: auChainFormat, units: units)
+    }
+
+    /// AU-1: the same pre-flight for the MASTER-bus chain — `rewireMasterFX`
+    /// connects with the main mixer's output format, not `auChainFormat`, so a
+    /// master-bus candidate must be gated against THAT format before connect
+    /// (which raises, not throws, on refusal).
+    func effectsAcceptingMasterFormat(_ units: [AVAudioUnit]) -> [AVAudioUnit] {
+        effectsAccepting(format: masterFXFormat, units: units)
+    }
+
+    /// AU-1: pre-flight an INSTRUMENT's output bus against the chain format —
+    /// the global browser path (`AUv3Host.connectChainNow`) raw-connects the
+    /// instrument with `auChainFormat`, and a fixed-layout third-party
+    /// instrument would raise there. Setting the bus format up front is the
+    /// same safe gate the effects use. False ⇒ do not attach/connect.
+    func instrumentAcceptsChainFormat(_ unit: AVAudioUnit) -> Bool {
+        guard let format = auChainFormat else { return false }
+        let au = unit.auAudioUnit
+        guard au.outputBusses.count > 0 else {
+            log.audio("AU instrument '\(au.componentName ?? "instrument")' has no output bus — not connected", level: .error)
+            return false
+        }
+        do {
+            try au.outputBusses[0].setFormat(format)
+            return true
+        } catch {
+            log.audio("AU instrument '\(au.componentName ?? "instrument")' rejects the chain format — not connected", level: .error)
+            return false
+        }
+    }
+
+    /// The shared H9a/AU-1 gate body: keep only the units whose first I/O busses
+    /// accept `format` (bus formats set as a side effect — call BEFORE attach).
+    private func effectsAccepting(format: AVAudioFormat?, units: [AVAudioUnit]) -> [AVAudioUnit] {
+        guard let format else { return [] }
         return units.filter { u in
             let au = u.auAudioUnit
             guard au.inputBusses.count > 0, au.outputBusses.count > 0 else {
-                log.audio("Lane FX '\(au.componentName ?? "effect")' has no I/O bus — stage skipped", level: .error)
+                log.audio("Hosted FX '\(au.componentName ?? "effect")' has no I/O bus — stage skipped", level: .error)
                 return false
             }
             do {
@@ -875,7 +910,7 @@ public final class AudioEngine {
                 try au.outputBusses[0].setFormat(format)
                 return true
             } catch {
-                log.audio("Lane FX '\(au.componentName ?? "effect")' rejects the chain format — stage skipped", level: .error)
+                log.audio("Hosted FX '\(au.componentName ?? "effect")' rejects the chain format — stage skipped", level: .error)
                 return false
             }
         }
