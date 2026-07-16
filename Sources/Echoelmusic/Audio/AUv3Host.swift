@@ -419,6 +419,11 @@ public final class AUv3Host {
             .flatMap { try? decoder.decode([HostedAUInfo].self, from: $0) } ?? []
         guard instrument != nil || !effects.isEmpty || !masters.isEmpty else { return }
         isRestoringChains = true
+        // Structural invariant (review hardening): if a future edit adds an early
+        // return or a throwing call below, a stuck-true flag would suppress
+        // persistChains() for the REST OF THE PROCESS — every later user chain
+        // mutation silently unpersisted. defer makes the clear unconditional.
+        defer { isRestoringChains = false }
         var failed: [String] = []
         if let instrument {
             await load(instrument)
@@ -436,7 +441,6 @@ public final class AUv3Host {
             restoreNotice = "Not restored: \(failed.joined(separator: ", ")) — the plugin may still be waking up; reload it from this list."
             log.audio("AUv3 chain restore incomplete: \(failed.joined(separator: ", "))", level: .error)
         }
-        isRestoringChains = false
     }
 
     // MARK: - Plugin state (fullState) persistence

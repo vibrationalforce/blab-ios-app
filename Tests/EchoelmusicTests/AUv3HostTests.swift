@@ -71,6 +71,12 @@ final class AUv3HostTests: XCTestCase {
         let survivedInstrument = try JSONDecoder().decode(
             HostedAUInfo.self, from: XCTUnwrap(d.data(forKey: keys[0])))
         XCTAssertEqual(survivedInstrument, instrument, "byte-identical retry record")
+        let survivedFX = try JSONDecoder().decode(
+            [HostedAUInfo].self, from: XCTUnwrap(d.data(forKey: keys[1])))
+        XCTAssertEqual(survivedFX, fx)
+        let survivedMasters = try JSONDecoder().decode(
+            [HostedAUInfo].self, from: XCTUnwrap(d.data(forKey: keys[2])))
+        XCTAssertEqual(survivedMasters, masters)
     }
 
     // MARK: - AU-2: chain persistence carrier

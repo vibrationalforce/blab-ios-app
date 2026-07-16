@@ -225,6 +225,11 @@ struct AUv3BrowserView: View {
         .padding(10)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        // AU-2 review residual: an Unload/Remove DURING the restore window would
+        // run but its persist is suppressed — the plugin would resurrect next
+        // launch. Disable the whole bar for the few-second restore, like the
+        // load rows.
+        .disabled(host.isRestoringChains)
     }
 
     // 12 keys from middle C — tap to hear the loaded instrument.
