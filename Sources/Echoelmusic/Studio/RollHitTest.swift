@@ -80,6 +80,21 @@ public enum RollHitTest {
         Swift.max(1, fingerStep - startStep + 1)
     }
 
+    /// Velocity (0…1) for a vertical position in the velocity lane: the TOP of the
+    /// lane is full velocity, the bottom is silent (the natural "taller bar = louder"
+    /// reading). Clamped, and safe on a zero-height lane. #58 Slice 4.
+    public static func velocity(forY y: Double, laneHeight: Double) -> Float {
+        guard laneHeight > 0 else { return 0 }
+        return Float(Swift.max(0, Swift.min(1, 1 - y / laneHeight)))
+    }
+
+    /// The note whose velocity a lane drag at `step` should paint: the TOPMOST
+    /// (last-drawn) note covering that step, matching `classify`'s topmost-wins
+    /// rule, or nil if the column is empty. #58 Slice 4.
+    public static func noteToPaint(atStep step: Int, notes: [Note]) -> UUID? {
+        notes.last(where: { $0.covers(step: step) })?.id
+    }
+
     /// The clamped grid cell under a point — the `.empty` payload and the public
     /// helper the view uses for create/select geometry.
     public static func emptyCell(

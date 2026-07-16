@@ -147,6 +147,26 @@ final class RollHitTestTests: XCTestCase {
         XCTAssertEqual(RollHitTest.resizedLengthSteps(fingerStep: 0, startStep: 3), 1)
     }
 
+    func testVelocityForY_topIsLoud_bottomIsSilent_clamped() {
+        XCTAssertEqual(RollHitTest.velocity(forY: 0, laneHeight: 40), 1.0)      // top
+        XCTAssertEqual(RollHitTest.velocity(forY: 40, laneHeight: 40), 0.0)     // bottom
+        XCTAssertEqual(RollHitTest.velocity(forY: 20, laneHeight: 40), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(RollHitTest.velocity(forY: -10, laneHeight: 40), 1.0)    // above → clamp 1
+        XCTAssertEqual(RollHitTest.velocity(forY: 99, laneHeight: 40), 0.0)     // below → clamp 0
+        XCTAssertEqual(RollHitTest.velocity(forY: 10, laneHeight: 0), 0.0)      // degenerate lane
+    }
+
+    func testNoteToPaint_returnsTopmostCoveringNote_orNil() {
+        let under = Note(pitch: 60, startStep: 2, lengthSteps: 4)   // covers 2..<6
+        let over = Note(pitch: 64, startStep: 3, lengthSteps: 2)    // covers 3..<5, drawn later
+        XCTAssertEqual(RollHitTest.noteToPaint(atStep: 4, notes: [under, over]), over.id,
+                       "overlapping column paints the topmost note")
+        XCTAssertEqual(RollHitTest.noteToPaint(atStep: 2, notes: [under, over]), under.id,
+                       "only `under` covers step 2")
+        XCTAssertNil(RollHitTest.noteToPaint(atStep: 10, notes: [under, over]),
+                     "empty column → nil")
+    }
+
     func testDegenerateGeometry_returnsSafeEmpty() {
         let hit = RollHitTest.classify(x: 10, y: 10, notes: [sampleNote()],
                                        stepW: 0, rowH: 0,

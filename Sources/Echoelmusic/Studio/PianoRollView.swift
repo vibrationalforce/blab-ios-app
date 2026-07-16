@@ -747,6 +747,8 @@ struct PianoRollView: View {
     /// Width of the right-edge grab zone (points) handed to `RollHitTest`. Resize
     /// lives there from Slice 3; today it just decides body-vs-edge classification.
     private let edgeSlopPt: Double = 9
+    /// Height of the velocity paint-lane under the canvas (#58 Slice 4).
+    private let laneH: CGFloat = 46
 
     private var canvasW: CGFloat { stepW * CGFloat(PianoRollModel.stepCount) }
     private var canvasH: CGFloat { rowH * CGFloat(PianoRollModel.pitchCount) }
@@ -883,12 +885,61 @@ struct PianoRollView: View {
     private var rollScroller: some View {
         ScrollView(.vertical) {
             HStack(alignment: .top, spacing: 0) {
-                gutter
+                VStack(spacing: 0) { gutter; velLabel }
                 ScrollView(.horizontal, showsIndicators: true) {
-                    canvas
+                    // Canvas + velocity lane share ONE horizontal scroll so their
+                    // time axes stay locked (no offset syncing).
+                    VStack(spacing: 0) { canvas; velocityLane }
                 }
             }
         }
+    }
+
+    /// Left-margin label for the velocity lane, aligned under the pitch gutter.
+    private var velLabel: some View {
+        Text("Vel")
+            .font(.system(size: 8, weight: .semibold, design: .monospaced))
+            .foregroundStyle(EchoelTheme.dim)
+            .frame(width: gutterW, height: laneH, alignment: .trailing)
+            .padding(.trailing, 3)
+            .overlay(Rectangle().frame(height: 0.5)
+                .foregroundStyle(EchoelTheme.border), alignment: .top)
+    }
+
+    /// Velocity paint-lane: one bar per note (height = velocity), drag vertically
+    /// to set the velocity of the note under the finger (#58 Slice 4). Reuses the
+    /// pure `RollHitTest` laws + the existing `setVelocity`; no bio read here, so
+    /// no menu-freeze risk. Bars wear the note's physical tone colour, like the roll.
+    private var velocityLane: some View {
+        Canvas { ctx, size in
+            for note in model.notes {
+                let x = CGFloat(note.startStep) * stepW
+                let w = Swift.max(3, CGFloat(note.lengthSteps) * stepW - 2)
+                let h = Swift.max(1, CGFloat(note.velocity) * size.height)
+                let rect = CGRect(x: x + 1, y: size.height - h, width: w, height: h)
+                let selected = note.id == selectedID
+                ctx.fill(Path(roundedRect: rect, cornerRadius: 2),
+                         with: .color(rowTint(note.pitch).opacity(selected ? 0.95 : 0.5)))
+            }
+        }
+        .frame(width: canvasW, height: laneH)
+        .background(EchoelTheme.bg)
+        .overlay(Rectangle().frame(height: 0.5)
+            .foregroundStyle(EchoelTheme.border), alignment: .top)
+        .contentShape(Rectangle())
+        .coordinateSpace(name: "vel")
+        .gesture(velocityDrag)
+    }
+
+    private var velocityDrag: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("vel"))
+            .onChanged { value in
+                let s = step(atX: value.location.x)
+                guard let id = RollHitTest.noteToPaint(atStep: s, notes: model.notes) else { return }
+                model.setVelocity(id: id,
+                    RollHitTest.velocity(forY: Double(value.location.y), laneHeight: Double(laneH)))
+                selectedID = id
+            }
     }
 
     private var gutter: some View {

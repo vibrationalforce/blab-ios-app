@@ -6890,3 +6890,20 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   Basis-Primitive, die „rudimentär" waren, sind da. Als Nächstes Slice 4
   (Velocity-Mal-Lane) oder Slice 5 (Marquee-Mehrfachauswahl).
 - Kein Deploy (Founder-Freeze).
+
+## Fortsetzung 38 (2026-07-16) — #58 Slice 3 grün, Slice 4 (Velocity-Lane) gebaut
+
+- **Slice 3 (709414c) FERTIG:** 4/4 Gates grün, code-reviewer APPROVE (0
+  HIGH/MEDIUM; die eine LOW — Tap-Shrink bei stepW<9pt — ist durch minStepW=16
+  unerreichbar). Note-Länge per Kanten-Drag ist live.
+- **Slice 4 (Velocity-Mal-Lane) gebaut, test-first:** Canvas-Leaf unter dem
+  Roll-Canvas, in DERSELBEN Horizontal-Scroll (VStack) → Zeitachsen gekoppelt
+  ohne Offset-Sync; „Vel"-Label unterm Gutter. Ein Balken pro Note (Höhe =
+  Velocity, physikalische Ton-Farbe); vertikaler Drag malt die Velocity der
+  topmost Note an der Finger-Spalte. 2 reine Regeln neu — `velocity(forY:
+  laneHeight:)` (oben=laut, clamp, 0-Höhe-safe) + `noteToPaint(atStep:notes:)`
+  (topmost covering) — 2 Test-Sets. Reuse `setVelocity` (bereits geclampt/
+  getestet). KEIN Bio-Read im Leaf ⇒ kein Menü-Freeze; keine Sheet-Kette.
+- Damit sind vier Editing-Primitive live: setzen · verschieben · Länge · **Velocity
+  malen** (Dynamik/Ausdruck — die MPE-nahe Achse, Audit-Wunsch „velocity-lane first").
+- Kein Deploy (Founder-Freeze). Nächster Punkt: Slice 5 (Marquee-Mehrfachauswahl).

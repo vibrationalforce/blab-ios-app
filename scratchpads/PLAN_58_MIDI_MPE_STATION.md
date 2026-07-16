@@ -76,11 +76,14 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
   3 Tests. Tap auf die Kante = Delta 0 ⇒ nur Auswahl, keine Zufalls-Resize.
 - Draw-Length-Picker bleibt für NEUE Notes (Ersteingabe-Bequemlichkeit).
 
-### Slice 4 — Velocity-Lane (Paint) · Audit-Wunsch
-- Neues Leaf `RollVelocityLane` unter dem Canvas: pro Note ein vertikaler Balken
-  an ihrer Step-x; Drag hoch/runter malt Velocity (reuse `setVelocity`, 0…1).
-  Eigenes Leaf ⇒ kein 10-Hz-Read im Roll-Body, keine Sheet-Kette. Test: die
-  reine y→velocity-Abbildung (clamp, invertiert).
+### Slice 4 — Velocity-Lane (Paint) · Audit-Wunsch · ✅ GEBAUT (Review+Gates ausstehend)
+- Velocity-Lane als Canvas-Leaf UNTER dem Canvas, in DERSELBEN Horizontal-Scroll
+  (VStack{canvas; velocityLane}) → Zeitachsen gekoppelt, kein Offset-Sync; „Vel"-
+  Label unter dem Pitch-Gutter. Pro Note ein Balken (Höhe = Velocity, Ton-Farbe);
+  vertikaler Drag malt die Velocity der TOPMOST-Note an der Finger-Step-Spalte.
+- 2 neue reine Regeln: `RollHitTest.velocity(forY:laneHeight:)` (oben=laut, clamp,
+  0-Höhe safe) + `noteToPaint(atStep:notes:)` (topmost covering, wie classify).
+  Reuse `setVelocity`. Kein Bio-Read im Leaf ⇒ kein Menü-Freeze. 2 Test-Sets.
 
 ### Slice 5 — Marquee-Mehrfachauswahl + Gruppen-Move/Delete
 - `@State selectedIDs: Set<UUID>`; Leerflächen-Drag = Marquee-Rechteck (pure
