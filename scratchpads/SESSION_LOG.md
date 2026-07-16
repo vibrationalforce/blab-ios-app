@@ -6308,3 +6308,35 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Ultraprogramm-Stand Bereich 2:** CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5
   (v262) · CLIP-4 (v263) SHIPPED → Rest: CLIP-6 (Clip-Gain/Fades in den Song),
   PERF-01 (Lane-Format-Vorwärmen), CLIP-7..11 MEDIUMs/LOWs.
+
+## 2026-07-16 (Fortsetzung 17) — v264: Clip-Gain end-to-end (CLIP-6a)
+- **v264 deployed (7ff9eeb + Review-Fix 1557084 + Pin-Test 50cdfcf, Review
+  APPROVE nach REQUEST_CHANGES, Tip 4/4 grün):** TimelineRegion.gain
+  (0…2-Clamp, non-finite→1, Legacy-Decode→1 bit-identisch; CodingKeys
+  erweitert); abuts() verlangt Gain-Gleichheit (verlustfreies Join); Factory +
+  addToTimeline landen den Editor-Gain; Edit-Tür seedet placed.gain und Done
+  schreibt zurück; AudioLanePlayer multipliziert Region-Gain × Lane-Mixer in
+  start() UND reconcileMix (Gap = Unity; appliedGain trackt TOTAL-Gain;
+  0-Gain-Region gattet wie Mute, Rückkehr startet an ehrlicher Datei-Position).
+- **Review-MEDIUM (behoben in 1557084):** Gain-only-Done re-derivierte das
+  Fenster aus dem SEED — Duration-Clamp/Tempo-Shift unterm Sheet hätte
+  lengthTicks/Offset still umgeschrieben (Widerspruch zur dokumentierten
+  CLIP-4-Garantie im selben File). Fix: windowUntouched-Pfadsplit → neue
+  TimelineStore.setRegionGain (nur Gain, Fenster+Tick-Twin byte-identisch,
+  No-Op-Guard, undo-tracked). Reviewer verifizierte als Bonus: Loop/Fade-only-
+  Edits laufen in setRegionGains No-Op — echtes Store-No-Op. + LOW: eine
+  activeRegion-Suche im Reconcile wiederverwendet. Pin-Test 50cdfcf.
+- **Reviewer-Verifikationen (CLEAN):** appliedGain lane→total-Migration alle
+  Pfade konsistent; Grenzübergang A(0.5)→B(1.0) via .load sauber; KEIN
+  Doppel-Trigger bei Done während Playback (refreshStructure-prime setzt
+  appliedGain VOR dem reconcile desselben Steps); Scrub-Gesetz eingehalten
+  (Gain-Feld editiert nur lokalen @State, EIN Store-Write auf Done); Codable
+  vorwärts/rückwärts kompatibel (plain JSONDecoder, kein Schema-Reject).
+- **LEDGER-Lehre (bestätigt CLIP-4-Muster):** Beim Erweitern eines
+  Commit-Gates (region != seeded) um ein NEUES Feld immer fragen: löst das
+  neue Feld den ALTEN Schreibpfad aus, der mehr schreibt als das Feld? →
+  Pfad-Split (Feld-eigener Store-Writer) statt ein Gate für alles.
+- **Ultraprogramm-Stand Bereich 2:** CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5
+  (v262) · CLIP-4 (v263) · CLIP-6a (v264) SHIPPED → Rest: CLIP-6b (Fades
+  persistieren + Sink-Rampe + Anti-Klick-Kanten, MIT audio-thread-reviewer),
+  PERF-01 (Format-Vorwärmen), CLIP-7..11.

@@ -1,41 +1,38 @@
-build: 2026-07-16 v10.79.263 (Audio-Clip-Edit öffnet AUF dem Clip — nie mehr der leere Importer)
+build: 2026-07-16 v10.79.264 (Clip-Lautstärke erreicht den Song)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 5 — die Audio-Edit-Tür wird ehrlich.
+notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 6 — der Gain-Regler des Audio-Editors wird ehrlich.
 
-  AUDIO-CLIP-EDIT (CLIP-4):
-  • Vorher: Lang-Druck auf einen platzierten Audio-Clip → „Edit" öffnete
-    ein LEERES Import-Blatt — keine Datei, keine Wellenform, kein Trim.
-    Das las sich wie „mein Clip ist kaputt/verloren".
-  • Jetzt: Die Edit-Tür öffnet AUF dem Clip — seine Datei ist geladen,
-    die Wellenform zeigt genau das Fenster, das die Region im Song
-    spielt (Trim-In + Länge, aufs echte Datei-Ende geklemmt). Start/
-    Ende an den Griffen oder als Zahl ziehen, „Done" schreibt das
-    getrimmte Fenster zurück in die Region — die Song-Position des
-    Clips bleibt, Undo funktioniert. Läuft der Song dabei, ist der
-    neue Trim innerhalb eines Transport-Steps hörbar (die Live-
-    Struktur aus v261 greift hier direkt).
-  • Aus dem adversarialen Review, alle behoben:
-    – Ein in der Tür importiertes ANDERES File konnte sein Trim-Fenster
-      auf die alte Region zurückschreiben (stille Korruption) — jetzt
-      darf nur die Clip-eigene Datei zurückschreiben; Import bleibt
-      als Vorhören nutzbar.
-    – Unberührtes Öffnen+Done hätte eine musikalisch längere Region
-      still aufs Datei-Ende geschrumpft (und Tempo-Drift unterm Sheet
-      hätte die Länge neu gerechnet) — Done committet jetzt nur eine
-      ECHTE Änderung.
-    – Die stillen Fallbacks (Datei nicht auffindbar/lesbar) loggen
-      jetzt eine Warnung — der Support-Fall „Clip kaputt" ist
-      diagnostizierbar.
-  • 8 neue pure Tests (Fenster-Mathematik, Rückschreib-Mapping,
-    Round-Trip, Guards).
+  CLIP-GAIN END-TO-END (CLIP-6a):
+  • Vorher: Der Gain-Regler im Audio-Clip-Editor wirkte nur in der
+    Vorschau — „Add to timeline" verwarf ihn still, im Song spielte
+    der Clip IMMER auf voller Stufe. Ein leiser gelegtes Sample war
+    eine Illusion.
+  • Jetzt: Jede Clip-Instanz auf der Timeline trägt ihre eigene
+    Lautstärke (0…2, Standard neutral):
+    – Der Editor-Gain LANDET mit dem Clip auf der Spur.
+    – Die Edit-Tür (v263) zeigt den Gain der Region und schreibt ihn
+      mit „Done" zurück — ein reiner Gain-Edit fasst das Trim-Fenster
+      dabei garantiert nicht an (eigener Schreibpfad, Review-Fund).
+    – Die Wiedergabe multipliziert Region-Gain × Spur-Mixer — auch
+      live: Gain 0 gattet wie Mute, ein zurückkehrender Gain startet
+      an der ehrlichen Datei-Position.
+    – Split erbt den Gain auf beide Hälften; Join verweigert ehrlich
+      bei ungleichen Gains (nichts wird still verworfen).
+    – Alte Projekte laden bit-identisch (fehlender Gain = neutral).
+  • Fades bleiben vorerst Editor-Vorschau — das Persistieren + die
+    klickfreien Rampen (auch Anti-Klick an Schnittkanten) sind der
+    nächste Zyklus, mit Audio-Thread-Review.
+  • 7 neue Tests (Clamp/NaN, Legacy-Dekodierung, Split/Join-Gesetze,
+    Onset-Multiplikation, 0-Gain-Gate, Gain-only-Schreibpfad).
 
-  Review: APPROVE (adversarial + Re-Review) · alle 4 Gates grün auf
-  beiden Commits.
+  Review: APPROVE (adversarial + Re-Review; appliedGain-Semantik,
+  Grenz-Übergänge, kein Doppel-Trigger mit der Live-Struktur — alles
+  verifiziert) · alle 4 Gates grün auf dem Tip.
 
   Bereich-2-Stand: CLIP-1 (v260) · CLIP-2+3 (v261) · CLIP-5 (v262) ·
-  CLIP-4 (dieses Build) SHIPPED. NÄCHSTER PUNKT: Clip-Gain/Fades in
-  den Song (heute nur Vorschau, beim Landen verworfen) — danach
-  Format-Vorwärmen (Engine-Pause bei Format-Wechsel mitten im Song).
+  CLIP-4 (v263) · CLIP-6a (dieses Build) SHIPPED. NÄCHSTER PUNKT:
+  CLIP-6b (Fades + klickfreie Schnittkanten) oder PERF-01
+  (Format-Vorwärmen gegen die Engine-Pause bei Format-Wechsel).
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
