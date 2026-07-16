@@ -1,35 +1,35 @@
-build: 2026-07-16 v10.79.267 (Deine AUv3-Ketten überleben den Neustart)
+build: 2026-07-16 v10.79.268 (Kamera verweigert ist keine Sackgasse mehr)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 3 (AUv3), Punkt 2.
+notes: Ultraprogramm Bereich 5 (UX), Punkt 1 — der CRITICAL aus dem Ultrascan.
 
-  AUv3-KETTEN ÜBERLEBEN DEN NEUSTART (AU-2):
-  • Vorher: Nach jedem App-Neustart waren Instrument, Kanal-Effekte und
-    Master-Effekte weg — obwohl die Spur weiter „Instrument: X" anzeigte
-    (die Spur-Zuweisung überlebte, die geladene Kette nicht). Track 1
-    spielte still die eingebaute Stimme, die Master-Kette war leer.
-  • Jetzt: Was du geladen hattest, kommt beim Start zurück — Instrument,
-    Kanal-FX und Master-FX in ihrer Reihenfolge, jedes Plugin mit seinen
-    Einstellungen (die waren schon persistent). Alles läuft durch die
-    normalen Lade-Pfade inkl. des neuen Format-Schutzes (v266) — und
-    nichts klingt von allein: Ton gibt es erst, wenn Noten fließen.
-  • Ehrlich bei Fehlern (adversariales Review, drei Runden):
-    – Ein Plugin, dessen System-Registrierung beim Kalt-Start noch
-      schläft, wird NICHT für immer vergessen — es wird beim nächsten
-      Start erneut versucht, und der Browser zeigt sichtbar „Not
-      restored: … reload it from this list".
-    – Während der wenigen Restore-Sekunden ist der Browser gesperrt
-      („Restoring last session…"), damit kein Tipp verschluckt wird.
-    – Der Reviewer fing dabei einen echten kritischen Bug im ersten
-      Wurf (der Restore hätte seine eigenen Aufzeichnungen überschrieben,
-      bevor er sie las) — behoben und mit einem Test gepinnt, der genau
-      dieses Vergessen für immer verbietet.
+  KAMERA VERWEIGERT = EHRLICHER WEG STATT SACKGASSE (UX-1):
+  • Vorher: Wer den Kamera-Zugriff ablehnte (oder später in den
+    Einstellungen entzog), landete in einer stummen Sackgasse — der
+    Bio-Strip coachte für immer „Cover camera" (was nie helfen kann),
+    die Puls-Pille im Header zeigte gar nichts, und nirgends stand der
+    einzige echte Fix: Kamera-Zugriff in den Einstellungen einschalten.
+  • Jetzt: Die App erkennt den verweigerten Zugriff beim Start-Versuch
+    (frisch vom System gelesen, nicht geraten) und sagt die Wahrheit:
+    – Bio-Strip: amber „Enable camera"-Knopf, ein Tipp öffnet direkt
+      die iOS-Einstellungen; dazu die Banner-Zeile „Camera access is
+      off — enable it in Settings to read your pulse".
+    – Header-Puls-Pille: „Camera off" in amber — sichtbar, obwohl die
+      Kamera nicht läuft (sie KANN ja nicht laufen).
+    – Mess-Screen: derselbe ehrliche Hinweis statt Finger-Coaching.
+  • Kein Nörgeln: Sobald ein anderer Sensor liefert (BLE-Gurt, Watch,
+    oder die bewusst gewählte Simulation), verschwinden Hinweis und
+    Knopf auf ALLEN Flächen — Strip und Header nutzen jetzt dieselbe
+    Unterdrückungs-Logik (das fing das adversariale Review: Runde 1
+    hätte Demo-Nutzer die ganze Session genervt).
+  • Erlaubt der User den Zugriff wieder, startet der nächste Puls-Read
+    normal — der Hinweis räumt sich selbst weg.
 
-  Review: APPROVE (2 Runden + Follow-ups sofort geschlossen) · alle 4
-  Gates grün auf dem Tip.
+  Review: APPROVE (2 Runden; MEDIUM aus Runde 1 sofort geschlossen) ·
+  alle 4 Gates grün auf dem Tip · PulseCue-Mapping pur getestet.
 
-  Bereich-3-Stand: AU-1 (v266) + AU-2 (dieses Build) SHIPPED. NÄCHSTER
-  PUNKT: AU-3 (Scan-Bursts entschärfen) / AU-4 (Guidance), danach
-  Bereich 5 UX-1 (Kamera-verweigert = Sackgasse, CRITICAL).
+  BEREICH-STAND: Bereich 2 (Clips/DAW) alle HIGHs ✓ · Bereich 3 AU-1 +
+  AU-2 ✓ · Bereich 5 UX-1 (dieses Build) ✓. NÄCHSTER PUNKT: UX-2
+  (First-Run-Stille) oder AU-3 (Scan-Bursts).
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
