@@ -853,32 +853,40 @@ struct ArrangeTimelineView: View {
     /// Per-track record-arm. Shows the track's INPUT source icon (mic / MIDI / bio),
     /// filled red when armed. Wired to `TimelineLane.isArmed` (persisted); arming an
     /// input is honest DAW intent — the capture take rides the shared transport next.
-    /// CLIP-2: sources TakeRecorder cannot capture yet (mic/video, task #13) render
-    /// DISABLED with a "soon" hint — pre-fix the arm lit red, Record ran, and Stop
-    /// silently committed nothing (a sung take was simply gone). The planner
-    /// (`RecordPlan.targets`) is the second, engine-side layer of the same law.
+    /// CLIP-2: sources TakeRecorder cannot capture yet (mic/video, task #13) get NO
+    /// arm control at all — just the plain source-kind icon (App Store audit
+    /// 2026-07-16, Guideline 2.1: a permanently disabled button whose VoiceOver
+    /// label says "arrives soon" is placeholder UI on the home surface; the earlier
+    /// CLIP-2 disabled-state was the first layer of the same law, this removes the
+    /// dead control entirely). The planner (`RecordPlan.targets`) stays the second,
+    /// engine-side layer. Same 21×28 frame either way, so the lane head never shifts.
+    @ViewBuilder
     private func recordArmButton(_ lane: TimelineLane) -> some View {
         let source = lane.recordSource
-        let capturable = source.captureImplemented
-        return Button {
-            timeline.toggleArm(id: lane.id)
-        } label: {
-            Image(systemName: (lane.isArmed && capturable) ? "record.circle.fill" : source.systemImage)
+        if source.captureImplemented {
+            Button {
+                timeline.toggleArm(id: lane.id)
+            } label: {
+                Image(systemName: lane.isArmed ? "record.circle.fill" : source.systemImage)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(lane.isArmed ? EchoelTheme.onPrimary : EchoelTheme.dim)
+                    .frame(width: 21, height: 28)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                        .fill(lane.isArmed ? EchoelTheme.danger : EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Arm \(source.displayName) recording, \(lane.name)")
+            .accessibilityValue(lane.isArmed ? "Armed" : "Off")
+        } else {
+            // Identity icon only — informative, not interactive (no dead button).
+            Image(systemName: source.systemImage)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle((lane.isArmed && capturable) ? EchoelTheme.onPrimary
-                                 : EchoelTheme.dim.opacity(capturable ? 1 : 0.45))
+                .foregroundStyle(EchoelTheme.dim.opacity(0.45))
                 .frame(width: 21, height: 28)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .fill((lane.isArmed && capturable) ? EchoelTheme.danger : EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .accessibilityLabel("\(source.displayName) track, \(lane.name)")
         }
-        .buttonStyle(.plain)
-        .disabled(!capturable)
-        .accessibilityLabel(capturable
-            ? "Arm \(source.displayName) recording, \(lane.name)"
-            : "\(source.displayName) recording arrives soon, \(lane.name)")
-        .accessibilityValue((lane.isArmed && capturable) ? "Armed" : "Off")
     }
 
     // MARK: - Grid (ruler + lanes + regions + playhead)

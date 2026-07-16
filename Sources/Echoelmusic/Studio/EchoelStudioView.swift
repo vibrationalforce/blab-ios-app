@@ -939,8 +939,11 @@ struct EchoelStudioView: View {
                             .disabled(!midiOut.enabled || !midiOut.mpeEnabled)
                         #if canImport(HealthKit)
                         // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
-                        // BLE) into Apple Health. Off by default; never writes HRV.
+                        // BLE) into Apple Health. Off by default; never writes HRV. The hint is
+                        // honest that camera readings are ESTIMATES (5.1.3(ii)/1.4.1 — audit
+                        // 2026-07-16): straps measure, the camera estimates after lock.
                         Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
+                            .accessibilityHint("Saves the heart rate and breathing rate Echoelmusic measures to Apple Health. Chest-strap readings are measurements; camera readings are estimates, saved only after the pulse locks.")
                         #endif
                     } label: { gridChipLabel("MIDI / Health", "pianokeys.inverse") }
                 }
