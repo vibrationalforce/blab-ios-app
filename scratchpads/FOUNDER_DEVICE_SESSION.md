@@ -93,9 +93,15 @@ Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-is
 ## Was ich WÄHRENDDESSEN autonom weiterbaue (nicht geräte-gebunden)
 
 - S2-W2 Slice 6 (Primary-Roll-Kind-Routing, riskanteste reine Scheibe) — flag-OFF.
-- Sheet-Chain-Konsolidierung in `EchoelStudioView` (Root-Body: 8×.sheet + 1×.cover → EIN
-  `.sheet(item:)`-Enum) — Schutz gegen den SIGSEGV-Black-Screen, BEVOR eine Roadmap-UI eine
-  weitere Sheet anhängt.
+- **Sheet-Chain-Konsolidierung → RECLASSIFIED als GERÄTE-GEPAART (nicht mehr blind-autonom):**
+  `EchoelStudioView` trägt aktuell **12×.sheet + 2×.fullScreenCover** auf 4360 Zeilen. Die
+  Konsolidierung zu EINEM `.sheet(item:)`-Enum ist die sanktionierte SIGSEGV-Abwehr — ABER
+  „launcht es noch?" ist ein Runtime-First-Render-SIGSEGV, den CI NICHT fängt, nur ein Gerät.
+  Mein eigener Audit nannte den Stapel geräte-unverifizierter Launch-View-Commits als DAS
+  Risiko; blind unter Freeze draufsatteln macht deine Geräte-Session fraglicher, nicht sicherer.
+  Kein akuter Blocker (es wird gerade keine neue Root-Sheet angehängt). **Plan: ich mache den
+  Refactor in DEM Moment, wo du einen Launch verifizieren kannst** (Freeze-Lift / Geräte-Session),
+  nicht vorher. — Council 2026-07-16: proceed-with-mitigation.
 - #58 MIDI/MPE-Station (Velocity-Lane zuerst), danach #54 Warp (nach Freeze-Lift-Verify).
 - Kleinschulden: #57 (Lane-Label + Notice-Compose), #62 (lane-gate Move-Vorschau), CI-Guard-
   Symmetrie; #63 Archiv-Hygiene; #52 SEO (Pipeline).
