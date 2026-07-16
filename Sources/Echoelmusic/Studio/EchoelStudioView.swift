@@ -2352,8 +2352,10 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(12, .semibold))
                     .foregroundStyle(spectralDonuts ? EchoelTheme.onPrimary : EchoelTheme.text)
                     .padding(.horizontal, 12).padding(.vertical, 7)
+                    // Selected chips fill with .text (the app-wide menuChip law) —
+                    // accent stays exclusive to the LIVE BIO SIGNAL.
                     .background(RoundedRectangle(cornerRadius: 8)
-                        .fill(spectralDonuts ? EchoelTheme.accent : EchoelTheme.fill))
+                        .fill(spectralDonuts ? EchoelTheme.text : EchoelTheme.fill))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Donuts visual look")
@@ -2413,7 +2415,7 @@ struct EchoelStudioView: View {
                             .foregroundStyle(on ? EchoelTheme.onPrimary : EchoelTheme.text)
                             .padding(.horizontal, 11).frame(height: 30)
                             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                                .fill(on ? EchoelTheme.accent : EchoelTheme.fill))
+                                .fill(on ? EchoelTheme.text : EchoelTheme.fill))
                             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                                 .strokeBorder(EchoelTheme.border, lineWidth: 1))
                         }
@@ -2481,10 +2483,10 @@ struct EchoelStudioView: View {
                         } label: {
                             Text(b.0)
                                 .font(EchoelTheme.font(12, .semibold))
-                                .foregroundStyle(selected ? EchoelTheme.bg : EchoelTheme.text)
+                                .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
                                 .padding(.horizontal, 12).padding(.vertical, 7)
                                 .background(RoundedRectangle(cornerRadius: 8)
-                                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                                    .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Blend with \(b.0)")

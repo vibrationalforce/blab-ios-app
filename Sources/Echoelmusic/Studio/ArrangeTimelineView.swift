@@ -450,7 +450,7 @@ struct ArrangeTimelineView: View {
                     .foregroundStyle(isSelecting ? EchoelTheme.onPrimary : EchoelTheme.text)
                     .frame(width: 28, height: 28)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(isSelecting ? EchoelTheme.accent : EchoelTheme.fill))
+                        .fill(isSelecting ? EchoelTheme.text : EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: isSelecting ? 0 : 1))
             }
@@ -825,6 +825,13 @@ struct ArrangeTimelineView: View {
             // The strip is too narrow for a visible "Level" caption — restore the
             // context for VoiceOver instead (the box shows the bare number).
             .accessibilityLabel("Level, \(lane.name)")
+            // Level 0 = the second confirmed "sound geht nicht" source: warn at the
+            // fader itself (edit-frequency read, freeze-safe).
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                .strokeBorder(EchoelTheme.warning,
+                              lineWidth: (timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1) <= 0 ? 1 : 0))
+            .accessibilityHint((timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1) <= 0
+                               ? "Silent — the level is zero" : "")
         }
         // Fit the whole strip (record-arm · M · S · gain) inside the 140 pt lane
         // column: leading 8, tight 3 pt gaps, a 30 pt gain box (empty-label field =
@@ -947,7 +954,12 @@ struct ArrangeTimelineView: View {
     }
 
     private func laneRow(_ lane: TimelineLane) -> some View {
-        ZStack(alignment: .topLeading) {
+        // Silence made VISIBLE (night audit): a muted / soloed-away / level-0 lane
+        // draws its clips dimmed + desaturated — several founder "Sound geht nicht"
+        // reports were a silent mixer state with no visual trace on the grid.
+        // Document-level read: changes on mixer EDITS only, never at 10 Hz (freeze rule).
+        let audible = lane.isBio || timeline.document.effectiveGain(for: lane.id) > 0
+        return ZStack(alignment: .topLeading) {
             // Bar lines + (zoomed in) lighter beat lines — the working grid a
             // DAW shows, mirroring the ruler's ticks (V3 design pass).
             ForEach(0..<barCount, id: \.self) { bar in
@@ -965,23 +977,27 @@ struct ArrangeTimelineView: View {
                     }
                 }
             }
-            ForEach(timeline.document.regions(in: lane.id)) { region in
-                // Each region is its OWN leaf view that owns its live gesture deltas
-                // (@GestureState since #56 slice 1) — so a trim drag re-renders ONLY
-                // that clip, never the whole timeline (the old root-@State resize made
-                // every drag frame rebuild all lanes + ruler + playhead, 2026-07-15).
-                RegionBlockView(region: region, ppb: ppb, snap: snap,
-                                selectMode: isSelecting,
-                                isSelected: selectedRegions.contains(region.id),
-                                onSelectToggle: {
-                                    if selectedRegions.contains(region.id) {
-                                        selectedRegions.remove(region.id)
-                                    } else {
-                                        selectedRegions.insert(region.id)
-                                    }
-                                },
-                                onEdit: { openRegionEditor(region) })
+            Group {
+                ForEach(timeline.document.regions(in: lane.id)) { region in
+                    // Each region is its OWN leaf view that owns its live gesture deltas
+                    // (@GestureState since #56 slice 1) — so a trim drag re-renders ONLY
+                    // that clip, never the whole timeline (the old root-@State resize made
+                    // every drag frame rebuild all lanes + ruler + playhead, 2026-07-15).
+                    RegionBlockView(region: region, ppb: ppb, snap: snap,
+                                    selectMode: isSelecting,
+                                    isSelected: selectedRegions.contains(region.id),
+                                    onSelectToggle: {
+                                        if selectedRegions.contains(region.id) {
+                                            selectedRegions.remove(region.id)
+                                        } else {
+                                            selectedRegions.insert(region.id)
+                                        }
+                                    },
+                                    onEdit: { openRegionEditor(region) })
+                }
             }
+            .opacity(audible ? 1 : 0.35)
+            .saturation(audible ? 1 : 0)
         }
         .frame(width: gridWidth, height: Self.laneHeight, alignment: .topLeading)
         // Long-press the EMPTY lane body = "import on the spot" (founder 2026-07-15:
