@@ -1,0 +1,74 @@
+// StretchMode.swift
+// Echoelmusic — Sequencer
+//
+// The selectable algorithm/character for the Echoel stretch engine. ONE enum chosen
+// per clip (and, over time, per sampler voice / loop / video-sound) — the single facade
+// every time-stretch consumer routes through, so quality/character choice is uniform
+// app-wide. Each case names a FREE, App-Store-clean executor; the paid/copyleft engines
+// surveyed in the #54 deep-research (every zplane élastique tier, Rubber Band GPL,
+// SoundTouch LGPL) are excluded by the zero-paid-dependency rule and are NOT cases here.
+//
+// Pure value type — no AVFoundation. The executor that actually renders each mode lives
+// on the audio graph (an AVAudioUnit node); this enum only declares intent.
+
+import Foundation
+
+public enum StretchMode: String, CaseIterable, Codable, Sendable {
+    /// Apple spectral phase-vocoder (`AVAudioUnitTimePitch`): tempo conforms, PITCH
+    /// PRESERVED. The clean, transparent-ish default. LIVE (wired since #54 Slice A).
+    case clean
+    /// Apple varispeed (`AVAudioUnitVarispeed`): tempo AND pitch move together — the
+    /// honest "tape"/turntable character. Free, zero-dependency. Executor: next slice.
+    case tape
+    /// In-house WSOLA/SOLA transient-preserving (Ableton "Beats"-style): best on
+    /// drums/loops, patent-free own code. Executor: later slice (pairs with EchoelBreak).
+    case beats
+    /// Signalsmith Stretch (MIT C++): highest transient fidelity — FOUNDER-GATED
+    /// dependency (first C++ in the tree, contained bridge). Executor: approved slice only.
+    case studio
+
+    /// Human label for the picker.
+    public var displayName: String {
+        switch self {
+        case .clean:  return "Clean"
+        case .tape:   return "Tape"
+        case .beats:  return "Beats"
+        case .studio: return "Studio"
+        }
+    }
+
+    /// One-line character description (UI subtitle / tap-to-learn).
+    public var characterHint: String {
+        switch self {
+        case .clean:  return "Pitch preserved — transparent (Apple spectral)."
+        case .tape:   return "Pitch follows tempo — tape/turntable feel."
+        case .beats:  return "Transient-locked — best on drums & loops."
+        case .studio: return "Highest-fidelity transient stretch (Signalsmith)."
+        }
+    }
+
+    /// Whether pitch is held constant when the tempo is stretched. Only `.tape` lets
+    /// pitch move with tempo; the rest are pitch-preserving. NOTE: this is the RAW mode's
+    /// property — for what actually renders, read it off `effectiveMode` or (preferably)
+    /// take `StretchPlan.resolve(...).preservesPitch`, which already applies the `.clean`
+    /// fallback for unimplemented modes. Configuring an executor off the raw value would
+    /// mis-set pitch for a not-yet-wired mode.
+    public var preservesPitch: Bool { self != .tape }
+
+    /// Executors that are actually wired today. UI MUST offer only these (a mode whose
+    /// executor is unbuilt would be a lying selector); unimplemented modes fall back to
+    /// `.clean` at render time — never silent, never a broken control.
+    public var isImplemented: Bool {
+        switch self {
+        case .clean:               return true
+        case .tape, .beats, .studio: return false
+        }
+    }
+
+    /// The mode to actually render: the chosen one if implemented, else the `.clean`
+    /// baseline. Honest fallback so an unbuilt selection still sounds.
+    public var effectiveMode: StretchMode { isImplemented ? self : .clean }
+
+    /// The subset a picker should show today (implemented only).
+    public static var selectable: [StretchMode] { allCases.filter(\.isImplemented) }
+}

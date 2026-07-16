@@ -34,6 +34,10 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
     /// otherwise clamped to `nativeBPMRange`. Detected via `TempoMatch.guessBars`/
     /// `nativeBPM` at import, or set by the user (a "Clip BPM" field).
     public var nativeBPM: Double
+    /// The stretch algorithm/character used when this region warps (Echoel stretch engine
+    /// facade). Default `.clean` (Apple spectral, pitch-preserving) — bit-compatible with
+    /// pre-engine regions. Unimplemented modes render as `.clean` (honest fallback).
+    public var stretchMode: StretchMode
 
     /// Sane native-tempo bounds. Outside this a "BPM" is almost certainly a
     /// mis-detection; 0 is the sentinel for "unknown / no warp basis".
@@ -42,7 +46,9 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
     public init(startSeconds: Double = 0, endSeconds: Double = 1,
                 loop: Bool = false, gain: Float = 1.0,
                 fadeInSeconds: Double = 0, fadeOutSeconds: Double = 0,
-                warpEnabled: Bool = false, nativeBPM: Double = 0) {
+                warpEnabled: Bool = false, nativeBPM: Double = 0,
+                stretchMode: StretchMode = .clean) {
+        self.stretchMode = stretchMode
         let s = Swift.max(0, startSeconds.isFinite ? startSeconds : 0)
         self.startSeconds = s
         let e = endSeconds.isFinite ? endSeconds : s + 0.001
@@ -63,7 +69,7 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case startSeconds, endSeconds, loop, gain, fadeInSeconds, fadeOutSeconds
-        case warpEnabled, nativeBPM
+        case warpEnabled, nativeBPM, stretchMode
     }
 
     /// Backward-compatible decode: regions saved before fades/warp load with none,
@@ -79,7 +85,8 @@ public struct AudioClipRegion: Codable, Sendable, Equatable {
             fadeInSeconds: (try? c.decode(Double.self, forKey: .fadeInSeconds)) ?? 0,
             fadeOutSeconds: (try? c.decode(Double.self, forKey: .fadeOutSeconds)) ?? 0,
             warpEnabled: (try? c.decode(Bool.self, forKey: .warpEnabled)) ?? false,
-            nativeBPM: (try? c.decode(Double.self, forKey: .nativeBPM)) ?? 0)
+            nativeBPM: (try? c.decode(Double.self, forKey: .nativeBPM)) ?? 0,
+            stretchMode: (try? c.decode(StretchMode.self, forKey: .stretchMode)) ?? .clean)
     }
 
     /// Region length in seconds (always > 0).
