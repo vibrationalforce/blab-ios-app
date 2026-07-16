@@ -95,6 +95,29 @@ public enum RollHitTest {
         notes.last(where: { $0.covers(step: step) })?.id
     }
 
+    /// IDs of every note whose drawn rectangle overlaps the marquee rectangle
+    /// (given by any two opposite corners). Half-open cell geometry matches
+    /// `classify`: a note spans x ∈ [startStep·stepW, endStep·stepW) and y ∈
+    /// [(highPitch−pitch)·rowH, +rowH). #58 Slice 5 (marquee select). Empty on
+    /// degenerate geometry. Order follows `notes` (draw order).
+    public static func notesInRect(
+        x0: Double, y0: Double, x1: Double, y1: Double,
+        notes: [Note], stepW: Double, rowH: Double, highPitch: Int
+    ) -> [UUID] {
+        guard stepW > 0, rowH > 0 else { return [] }
+        let loX = Swift.min(x0, x1), hiX = Swift.max(x0, x1)
+        let loY = Swift.min(y0, y1), hiY = Swift.max(y0, y1)
+        return notes.compactMap { n in
+            let nx0 = Double(n.startStep) * stepW
+            let nx1 = Double(n.endStep) * stepW
+            let ny0 = Double(highPitch - n.pitch) * rowH
+            let ny1 = ny0 + rowH
+            // Standard AABB overlap (touching edges don't count → half-open).
+            let hit = nx0 < hiX && nx1 > loX && ny0 < hiY && ny1 > loY
+            return hit ? n.id : nil
+        }
+    }
+
     /// The clamped grid cell under a point — the `.empty` payload and the public
     /// helper the view uses for create/select geometry.
     public static func emptyCell(

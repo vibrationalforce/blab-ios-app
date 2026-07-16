@@ -166,6 +166,17 @@ final class PianoRollModelTests: XCTestCase {
         _ = note
     }
 
+    func testRemoveIDs_deletesTheSet_keepsOthers_emptyIsNoOp() {
+        let model = PianoRollModel()
+        let a = model.add(pitch: 60, startStep: 0)
+        let b = model.add(pitch: 62, startStep: 4)
+        let c = model.add(pitch: 64, startStep: 8)
+        model.remove(ids: [])                        // no-op
+        XCTAssertEqual(model.notes.count, 3)
+        model.remove(ids: [a.id, c.id])              // group delete
+        XCTAssertEqual(model.notes.map(\.id), [b.id], "only b survives")
+    }
+
     func testLoadReplacesNotes() {
         let model = PianoRollModel()
         model.add(pitch: 60, startStep: 0)

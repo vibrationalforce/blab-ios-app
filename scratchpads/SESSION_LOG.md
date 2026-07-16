@@ -6918,3 +6918,19 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   verifizierende Scheibe → als **Slice 4b** abgespalten, auf FOUNDER_DEVICE_SESSION
   (Abschnitt F) gelegt. Kein fragiler Offset-Sync in die Launch-View während Freeze.
 - Nächster Bau: Slice 5 (Marquee), 4b wartet auf Founder-Ja + echten Viewport.
+
+## Fortsetzung 39 (2026-07-16) — #58 Slice 5a (Marquee-Auswahl) gebaut
+
+- **Slice 5a (Marquee-Mehrfachauswahl + Gruppen-Delete) gebaut, test-first:**
+  Leerflächen-DRAG wird zum Marquee-Rechteck — Promotion aus `.create`, sobald der
+  Finger die Anker-Zelle verlässt, sodass der **Zero-Distance-Tap-Pfad exakt
+  erhalten** bleibt (die Warnung des Wakeups: 3. Anfassen der Kern-Geste). Pure
+  `RollHitTest.notesInRect` (AABB-Overlap, halb-offen wie classify, corner-order-
+  egal) + `PianoRollModel.remove(ids:)` — beide getestet (3 neue Test-Sets). Live-
+  Rubber-Band, Highlight, Inspector „N selected" + Gruppen-Trash. Der alte
+  empty-drag-CREATE (spanning note) ENTFÄLLT — ersetzt durch Tap-Create +
+  Kanten-Resize (S3); Hint-Text angepasst. Kein Audio/Render-Change.
+- **Verhaltensänderung für Founder-Verify:** leeres Ziehen = jetzt Auswahl statt
+  lange Note aufziehen (auf FOUNDER_DEVICE_SESSION F mit-abgedeckt).
+- Reviewer: code-reviewer + ui-state-reviewer (Extra-Rigor Gesten-Automat).
+- Kein Deploy (Founder-Freeze). Nächster: Slice 5b (Gruppen-Move) oder Slice 6 MPE.

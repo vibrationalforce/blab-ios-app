@@ -167,6 +167,33 @@ final class RollHitTestTests: XCTestCase {
                      "empty column → nil")
     }
 
+    func testNotesInRect_selectsOverlapping_excludesOutside_anyCornerOrder() {
+        // Three notes on distinct rows/steps.
+        let a = Note(pitch: high - 1, startStep: 0, lengthSteps: 2)  // x[0,52) row1
+        let b = Note(pitch: high - 3, startStep: 4, lengthSteps: 2)  // x[104,156) row3
+        let c = Note(pitch: high - 8, startStep: 10, lengthSteps: 1) // x[260,286) row8
+        let notes = [a, b, c]
+        // A rect covering rows 0..4 and steps 0..6 → a and b, not c.
+        let ids = RollHitTest.notesInRect(x0: 0, y0: 0, x1: 6 * stepW, y1: 4 * rowH,
+                                          notes: notes, stepW: stepW, rowH: rowH, highPitch: high)
+        XCTAssertEqual(Set(ids), Set([a.id, b.id]))
+        // Same rect drawn bottom-right → top-left corner (order independence).
+        let ids2 = RollHitTest.notesInRect(x0: 6 * stepW, y0: 4 * rowH, x1: 0, y1: 0,
+                                           notes: notes, stepW: stepW, rowH: rowH, highPitch: high)
+        XCTAssertEqual(Set(ids2), Set([a.id, b.id]))
+    }
+
+    func testNotesInRect_touchingEdgeDoesNotSelect_andDegenerateIsEmpty() {
+        let n = Note(pitch: high, startStep: 2, lengthSteps: 2)  // x[52,104), y[0,rowH)
+        // A zero-area rect exactly on the note's left edge → touching, not overlapping.
+        let touching = RollHitTest.notesInRect(x0: 2 * stepW, y0: 0, x1: 2 * stepW, y1: 0,
+                                               notes: [n], stepW: stepW, rowH: rowH, highPitch: high)
+        XCTAssertTrue(touching.isEmpty, "a touching edge is half-open → not selected")
+        // Degenerate geometry → empty.
+        XCTAssertTrue(RollHitTest.notesInRect(x0: 0, y0: 0, x1: 99, y1: 99,
+                                              notes: [n], stepW: 0, rowH: 0, highPitch: high).isEmpty)
+    }
+
     func testDegenerateGeometry_returnsSafeEmpty() {
         let hit = RollHitTest.classify(x: 10, y: 10, notes: [sampleNote()],
                                        stepW: 0, rowH: 0,

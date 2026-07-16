@@ -95,10 +95,19 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
   Darum ABGESPALTEN + auf die Founder-Geräte-Session gelegt (dort sieht man den
   echten Viewport). Bis dahin: im Build nach unten scrollen. Kein Blocker für S5.
 
-### Slice 5 — Marquee-Mehrfachauswahl + Gruppen-Move/Delete
-- `@State selectedIDs: Set<UUID>`; Leerflächen-Drag = Marquee-Rechteck (pure
-  „welche Notes liegen im Rect"-Funktion, testbar); Gruppen-Delete + Gruppen-
-  Move (Delta an alle). Inspector zeigt „N selected". Sheet-Kette unberührt.
+### Slice 5a — Marquee-Auswahl + Highlight + Gruppen-Delete · ✅ GEBAUT (Review+Gates ausstehend)
+- `@State selectedIDs: Set<UUID>` + `marqueeRect`. Leerflächen-DRAG wird zum
+  Marquee (Promotion aus `.create`, sobald der Finger die Anker-Zelle verlässt →
+  **Zero-Distance-Tap-Pfad bleibt unangetastet**). Pure `RollHitTest.notesInRect`
+  (AABB-Overlap, halb-offen, corner-order-egal) — 2 Test-Sets. Live-Rubber-Band-
+  Overlay, Highlight der selektierten Notes, Inspector „N selected" + Gruppen-Trash
+  (`model.remove(ids:)`, getestet). Leerflächen-Drag-CREATE (spanning) ENTFÄLLT —
+  ersetzt durch Tap-Create + Kanten-Resize (S3); Hint-Text angepasst.
+- **Verhaltensänderung** (Founder-Verify): empty-drag = jetzt Auswahl statt lange
+  Note ziehen. Kein Audio/Render-Change (nur Model-Edits + selection state).
+
+### Slice 5b — Gruppen-Move (ausstehend)
+- Drag auf eine Note IN der Auswahl verschiebt ALLE selektierten (Delta an alle).
 
 ### Slice 6 — Pro-Note-MPE-Expression-Seam (die echte „MPE-Station")
 - `Note` bekommt optionale Per-Note-Expression-Overrides (Bend/Slide/Pressure,

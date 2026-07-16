@@ -182,6 +182,13 @@ public final class PianoRollModel {
 
     public func remove(id: UUID) { notes.removeAll { $0.id == id } }
 
+    /// Remove every note in `ids` (marquee group-delete, #58 Slice 5). Empty set
+    /// is a no-op; unknown ids are ignored.
+    public func remove(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        notes.removeAll { ids.contains($0.id) }
+    }
+
     public func setLength(id: UUID, lengthSteps: Int) {
         guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
         let maxLen = max(1, Self.stepCount - notes[i].startStep)
@@ -707,6 +714,10 @@ private enum RollDrag {
     /// The resizing note's id and its (fixed) start step — the right edge tracks
     /// the finger's step, so length = fingerStep − start + 1.
     case resize(id: UUID, origStart: Int)
+    /// An empty-space drag became a marquee (rubber-band multi-select), anchored
+    /// at the touch-down point (#58 Slice 5). Promoted from `.create` once the
+    /// finger leaves the anchor cell, so a zero-distance tap still creates/selects.
+    case marquee(startX: CGFloat, startY: CGFloat)
 }
 
 /// Piano-roll editor surface. Presented from the Tools tab; drives the synth.
@@ -738,6 +749,11 @@ struct PianoRollView: View {
 
     // Live drag state — one in-flight gesture (create-or-move), decided at touch-down.
     @State private var drag: RollDrag?
+    /// Marquee multi-selection (#58 Slice 5). Empty when only the single
+    /// `selectedID` inspector selection is active. The live rubber-band rect is
+    /// held separately while a marquee drag is in flight.
+    @State private var selectedIDs: Set<UUID> = []
+    @State private var marqueeRect: CGRect?
 
     private let gutterW: CGFloat = 42
     private let minStepW: CGFloat = 16
@@ -807,7 +823,7 @@ struct PianoRollView: View {
             .frame(width: 120)
 
             Spacer(minLength: 0)
-            Button(role: .destructive) { model.clear(); selectedID = nil } label: {
+            Button(role: .destructive) { model.clear(); selectedID = nil; selectedIDs = [] } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(EchoelTheme.danger)
@@ -844,7 +860,25 @@ struct PianoRollView: View {
 
     @ViewBuilder
     private var inspector: some View {
-        if let id = selectedID, let note = model.notes.first(where: { $0.id == id }) {
+        if selectedIDs.count > 1 {
+            // Marquee group selection: count + group-delete (#58 Slice 5).
+            HStack(spacing: 12) {
+                Text("\(selectedIDs.count) selected")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 0)
+                Button {
+                    model.remove(ids: selectedIDs); selectedIDs = []; selectedID = nil
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(EchoelTheme.danger)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Delete selected notes")
+            }
+            .frame(height: 30)
+        } else if let id = selectedID, let note = model.notes.first(where: { $0.id == id }) {
             HStack(spacing: 12) {
                 Text(model.name(forPitch: note.pitch))
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -872,7 +906,7 @@ struct PianoRollView: View {
             }
             .frame(height: 30)
         } else {
-            Text("Tap to add a note · drag to stretch · tap a note to edit")
+            Text("Tap to add · drag a note to move · its edge to resize · empty to select")
                 .font(.caption2)
                 .foregroundStyle(EchoelTheme.dim)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -965,6 +999,14 @@ struct PianoRollView: View {
         ZStack(alignment: .topLeading) {
             gridBackground
             ForEach(model.notes) { note in noteRect(note) }
+            if let r = marqueeRect {
+                Rectangle()
+                    .fill(EchoelTheme.accent.opacity(0.12))
+                    .overlay(Rectangle().strokeBorder(EchoelTheme.accent, lineWidth: 1))
+                    .frame(width: r.width, height: r.height)
+                    .offset(x: r.minX, y: r.minY)
+                    .allowsHitTesting(false)
+            }
             if pattern.isPlaying && !isClipScoped { playhead }
         }
         .frame(width: canvasW, height: canvasH, alignment: .topLeading)
@@ -1008,7 +1050,7 @@ struct PianoRollView: View {
         let x = CGFloat(note.startStep) * stepW
         let w = CGFloat(note.lengthSteps) * stepW
         let y = yForPitch(note.pitch)
-        let selected = note.id == selectedID
+        let selected = note.id == selectedID || selectedIDs.contains(note.id)
         // A note block wears ITS OWN physical tone colour (same CIE mapping as the
         // grid rows and the touch fretboard), velocity → opacity as before.
         let tint = rowTint(note.pitch)
@@ -1089,8 +1131,17 @@ struct PianoRollView: View {
                         drag = .create(RollDragAnchor(pitch: pitch, startStep: step))
                     }
                 }
+                // An empty-space drag that leaves the anchor cell becomes a marquee
+                // (rubber-band multi-select). A zero-distance tap never leaves the
+                // cell, so `.create` survives to onEnded → the tap path is intact.
+                if case let .create(anchor) = drag,
+                   step(atX: value.location.x) != anchor.startStep
+                    || pitch(atY: value.location.y) != anchor.pitch {
+                    drag = .marquee(startX: value.startLocation.x, startY: value.startLocation.y)
+                    selectedID = nil
+                }
                 // Live-follow so the note tracks the finger (move) / the edge tracks
-                // the finger's step (resize).
+                // the finger's step (resize) / the marquee tracks the drag (select).
                 switch drag {
                 case let .move(id, grabPitch, grabStep, origPitch, origStep):
                     let dPitch = pitch(atY: value.location.y) - grabPitch
@@ -1100,32 +1151,37 @@ struct PianoRollView: View {
                     let len = RollHitTest.resizedLengthSteps(
                         fingerStep: step(atX: value.location.x), startStep: origStart)
                     model.setLength(id: id, lengthSteps: len)
+                case let .marquee(sx, sy):
+                    marqueeRect = CGRect(x: min(sx, value.location.x), y: min(sy, value.location.y),
+                                         width: abs(value.location.x - sx),
+                                         height: abs(value.location.y - sy))
+                    selectedIDs = Set(RollHitTest.notesInRect(
+                        x0: Double(sx), y0: Double(sy),
+                        x1: Double(value.location.x), y1: Double(value.location.y),
+                        notes: model.notes, stepW: Double(stepW), rowH: Double(rowH),
+                        highPitch: PianoRollModel.highPitch))
                 case .create, .none:
                     break
                 }
             }
-            .onEnded { value in
-                defer { drag = nil }
+            .onEnded { _ in
+                defer { drag = nil; marqueeRect = nil }
                 switch drag {
                 case let .create(anchor):
-                    let endStep = step(atX: value.location.x)
-                    let s0 = min(anchor.startStep, endStep)
-                    let s1 = max(anchor.startStep, endStep)
-                    let span = s1 - s0 + 1
-                    if span <= 1 {
-                        if let existing = model.note(atPitch: anchor.pitch, step: s0) {
-                            selectedID = existing.id
-                        } else {
-                            let note = model.add(pitch: anchor.pitch, startStep: s0,
-                                                 lengthSteps: drawLength)
-                            selectedID = note.id
-                        }
+                    // A tap (the finger never left the anchor cell — any movement
+                    // would have promoted this to a marquee). Select the note there,
+                    // or create one. A fresh tap clears the marquee group.
+                    selectedIDs = []
+                    if let existing = model.note(atPitch: anchor.pitch, step: anchor.startStep) {
+                        selectedID = existing.id
                     } else {
-                        let note = model.add(pitch: anchor.pitch, startStep: s0, lengthSteps: span)
+                        let note = model.add(pitch: anchor.pitch, startStep: anchor.startStep,
+                                             lengthSteps: drawLength)
                         selectedID = note.id
                     }
-                case .move, .resize, .none:
-                    break   // the note already followed the finger in onChanged
+                case .move, .resize, .marquee, .none:
+                    break   // move/resize already followed the finger; marquee set
+                            // selectedIDs live and its rect is cleared in `defer`.
                 }
             }
     }
