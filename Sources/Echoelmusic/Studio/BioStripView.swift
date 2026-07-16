@@ -77,10 +77,12 @@ struct BioStripView: View {
     @ViewBuilder private var statusBanner: some View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
             banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
-        } else if cameraRPPG.permissionDenied, !hasLiveSignal {
+        } else if cameraRPPG.permissionDenied, bus.freshBio() == nil {
             // UX-1: denied camera access was a SILENT dead end — the strip kept
             // coaching "Cover camera" which can never work. Name the real fix.
-            // Hidden once another source (strap/Watch/demo) delivers a live body.
+            // Gate on RAW fresh frames (not hasLiveSignal, which excludes the
+            // .fallback demo): a user who deliberately picked Simulation must not
+            // be nagged about the camera — matches the header pill's suppression.
             banner(PulseCue.cameraDenied.fullHint,
                    color: EchoelTheme.warning, systemImage: "video.slash")
         } else if lockedCueVisible {
@@ -252,9 +254,11 @@ struct BioStripView: View {
     @ViewBuilder private var sourceControl: some View {
         if hasLiveSignal {
             liveTag
-        } else if cameraRPPG.permissionDenied {
+        } else if cameraRPPG.permissionDenied, bus.freshBio() == nil {
             // UX-1: with access denied the camera can never start, so neither
             // "Reading…" nor "Read pulse" is honest — offer the one real door.
+            // Raw fresh-frame gate (not hasLiveSignal): the .fallback demo is a
+            // deliberate source choice, don't override it with a camera nag.
             openSettingsButton
         } else if measuring {
             measuringTag
