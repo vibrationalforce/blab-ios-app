@@ -1,40 +1,33 @@
-build: 2026-07-16 v10.79.276 (App-Store-ready + Sub-Culture + Colabo-Consent)
+build: 2026-07-16 v10.79.277 (Puls hält den Lock + Timeline-Warp klingt)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Der große Compliance-+Charakter-Tag — 58 Commits seit v275, alle Gates grün.
+notes: Nacht-Build direkt aus deinem 2382-Log — beide Fixes sind log-getrieben.
 
-  WAS NEU IST (hörbar/fühlbar):
-  • EchoelBass "Sub Culture" (dein Wunsch von heute, in-house statt Baby-Audio-
-    Plugin): zwei neue Regler unter Sub/Bass (felt) — "Sub presence" macht den
-    Sub auf dem iPhone-Lautsprecher LESBAR (nur Oktav-Harmonische, immer in der
-    Tonart), "Sub heat" sättigt DICKER ohne lauter zu werden. 0.50/0.50 = exakt
-    der bisherige Klang (test-gepinnt) — erst Drehen ändert etwas.
-    HÖRTEST: Loop spielen → Presence hoch → Sub erscheint auf dem Speaker;
-    Heat hoch → fetter, gleiche Lautstärke.
-  • Warp/Tape-Wahl im Audio-Clip-Editor ÜBERLEBT jetzt "Add to timeline"
-    (vorher ging der Entscheid still verloren; Timeline WENDET den Warp noch
-    nicht an — das ist die nächste Scheibe, ehrlich gestuft).
+  1) PULS BLEIBT NACH DEM LOCK (dein Log heute Abend, exakt diese Frames):
+     Der Puls hat gelockt (64 bpm, Konfidenz 0.87) und wurde 2 s später
+     resettet — nicht weil der Finger weg war, sondern weil der dunkle
+     Exposure-Lock das Rot unter den "Finger da"-Schwellwert drückte.
+     Jetzt gilt: solange ein echter Puls GEMESSEN wird, ist die Messung
+     selbst der Beweis — der Lock hält durch die Dunkelphase.
+     TEST: Finger auf die Linse, Lock abwarten (~15 s), dann 30–60 s
+     LIEGEN LASSEN → bpm bleibt stehen statt auf 0 zu springen.
 
-  WAS NEU IST (Verhalten/Compliance — der App-Store-Audit-Tag, 21 Befunde):
-  • Kopfhörer abziehen PAUSIERT jetzt (vorher spielte es nach ~0,3 s auf dem
-    Lautsprecher weiter). PRÜFEN: Loop spielen, Kopfhörer ziehen → Stille,
-    Play startet auf dem neuen Ausgang.
-  • App im Hintergrund ohne laufende Musik stoppt die Audio-Engine (Akku!);
-    spielende Musik/Aufnahme/gehaltene MPE-Noten laufen weiter. PRÜFEN:
-    (a) idle backgrounden → wieder öffnen → Play klingt sofort;
-    (b) spielend backgrounden → Musik läuft weiter.
-  • Live Colabo: Beitritt braucht jetzt DEINE Zustimmung (Accept/Decline-
-    Karte) — vorher konnte jedes Gerät in der Nähe still joinen und bei
-    aktivem Puls-Sharing deine Herzdaten sehen. PRÜFEN (2 Geräte): Einladen
-    → Karte erscheint → Decline blockt, Accept verbindet.
-  • Apple-Health-Daten verlassen das Gerät NIE mehr per OSC/ADM (nur eigene
-    Messungen Kamera/Gurt streamen). Patchbay zeigt keine "soon"-Broadcast-
-    Ports mehr. Ehrliche Permission-Texte (BT nennt Herzgurte, Location nennt
-    Wetter). Toter Record-Arm auf nicht-aufnehmbaren Spuren ist ein schlichtes
-    Icon. Onboarding bewirbt nur noch Gebautes.
+  2) TIMELINE-WARP KLINGT (Slice B): Ein im Audio-Clip-Editor gewarpter
+     Clip (Warp ON + Clean/Tape) klingt jetzt AUF DER TIMELINE wie im
+     Editor-Preview — Clean hält die Tonhöhe, Tape lässt sie mit dem
+     Tempo reiten. Ungewarpte Clips bleiben bit-identisch (kein
+     Spectral-Färben des normalen Audios).
+     TEST: Audio-Clip importieren → Editor: Warp ON, Clip-BPM setzen,
+     Tape wählen → Add to timeline → Song-Tempo ändern → Play:
+     die Region folgt dem Tempo (Tape: Tonhöhe wandert mit).
 
-  EINORDNUNG: Aus Code-Sicht ist das der App-Store-submission-reife Stand —
-  alle Audit-Befunde gefixt/entschieden. Was noch NICHT Produktions-Level ist,
-  steht im Status-Delta im Chat (Video-Capture/Export, Broadcast, Mic-Multitrack).
+  3) AUv3-BITTE (aus deinem Log: eigene Extension registriert sich nicht):
+     Einmal das iPhone NEU STARTEN, dann GarageBand oder AUM öffnen →
+     taucht "Echoelmusic" als Instrument auf? Das Ergebnis sagt mir, ob
+     es ein Registry-Delay oder ein echter Build-Fehler ist. Dritt-AUv3:
+     dein Gerät zeigt aktuell NUR Apple-Komponenten — sind AUv3-Apps
+     (z. B. Eventide, Moog) installiert? Ohne installierte AUv3-Apps
+     kann kein Scan sie finden.
 
-  WEITER OFFEN: ■-Frage v258/259 (Musik-Stopp vs. Bio-Session) · Reihenfolge
-  EEG vs. Bio-Session vs. Clip/Warp-Reihe · #56-Restscheiben.
+  Danach (heute Nacht in Arbeit): AUv3-Extern-Tiefenprüfung (CI beweist
+  ab jetzt, dass die Extension im Build steckt), Design-Pass, offene
+  Aufgabenliste — Status kommt am Morgen gesammelt.
