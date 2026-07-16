@@ -122,6 +122,15 @@ Linux CI green. **TDD: tests first.**
 No new render code — reuses DrumSynthVoice's lock-free strike/config counters.
 **audio-thread-reviewer: flag (voice-adjacent), expected pass.**
 
+> **S2-W2-1 SHIPPED (4b962d1, APPROVE).** Review-Hinweise für die nächsten Scheiben:
+> (a) `allocate` liefert ein Dictionary — ein Konsument, dessen ANWENDUNGS-Reihenfolge
+> Nebenwirkungen hat (allNotesOff, Engine-Calls, Logging), MUSS über `keys.sorted()`
+> iterieren (Dict-Iteration ist nondeterministisch). (b) Der Allocator garantiert NUR
+> "gleiche Ranks rein ⇒ gleiche Bindings raus" + Append-Monotonie — KEINE
+> Lane-Identitäts-Stabilität über Rank-Shifts; S2-W2-3 darf das allNotesOff-on-rebind
+> deshalb nicht einsparen (refreshStructure flusht ohnehin alle Pumps bei Rank-Shift).
+> (c) Wenn per-Kind-Kapazität > 1 kommt (§6): zuerst den `.drums(1)`-Index-Test ergänzen.
+
 ### S2-W2-3 — DEVICE: heterogeneous rack + `FeatureFlags.voiceKindRouting`
 *Files (2):* `Sources/Echoelmusic/Sequencer/LaneVoiceRack.swift`,
 `Sources/Echoelmusic/Core/FeatureFlags.swift`
