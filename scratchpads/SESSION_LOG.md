@@ -6744,3 +6744,25 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Kein Deploy: unhörbar bis S2-W2-4 (Player-Sink); Fassade S2-W2-3 =
   nächster Punkt (Carries: keys.sorted()-Iteration, allNotesOff-on-
   rebind, Gain 0…2 — jetzt erfüllt).
+
+## Fortsetzung 31 (2026-07-16) — Founder-Delegation → Launch-Marketing-Zyklus (PIPELINE)
+
+- Founder: "Du entscheidest wie es am effektivsten in Vision weitergeht" →
+  Council: beide Gleise — Code-Takt (S2-W2-3) läuft auf Gate-Wakeup weiter,
+  parallel der Launch-Marketing-Zyklus via `echoel-marketing` (nie Sources/).
+- **(1) ASO final:** APP_STORE_LISTING_v1 Claim-für-Claim gegen Code +
+  FEATURE_MATRIX verifiziert (Colabo = MultipeerSession/LiveColaboView
+  wired ✓, AUv3 shipped 1467/1469 ✓, universal BLE ✓); Keyword-Feld
+  96→100/100 Bytes (+",daw"); Screenshot #8 "Sync tab"→Routing-Panel;
+  2 Device-Verify-Flags dokumentiert (BLE-Gurt e2e, AUv3-im-Host).
+- **(2) Presse-Kit:** `docs/press.html` NEU (Site-Stil gespiegelt):
+  One-liner, Boilerplate kurz/lang, Fact Sheet, "What ships today"
+  (nur LIVE), Story Angles, Brand Assets + Schreibregel (kein Wellness-
+  Framing), Kontakt = veröffentlichte echoel@tropicaldrones.com. Kein
+  erfundenes Founder-Zitat ("quotes on request"). Geht erst mit Merge
+  auf main live.
+- **(3) Mess-Entscheid geloggt** (decisions.csv + memory/decisions.md):
+  v1.0 misst NUR Apple-seitig (ASC App Analytics, TestFlight, Ratings,
+  MetricKit) — null SDK, weil "Data Not Collected" + "No tracking" die
+  Positionierung SIND. Wochenritual: KPIs → Promo-Text iterieren.
+- Task #64; #52 (Website-SEO-Zyklus) bleibt separat offen.

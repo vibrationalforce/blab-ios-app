@@ -28,10 +28,11 @@ Your heartbeat makes music
 ## Keyword field (100 bytes max, no words repeated from name/subtitle, commas without spaces)
 
 ```
-hrv,coherence,meditation,beat,sequencer,midi,mpe,drum,generative,pulse,breath,instrument,dj,live
+hrv,coherence,meditation,beat,sequencer,midi,mpe,drum,generative,pulse,breath,instrument,dj,live,daw
 ```
-(96/100 bytes. No repeats of: echoelmusic, biofeedback, synth, your,
-heartbeat, makes, music.)
+(100/100 bytes — "daw" added 2026-07-16 to use the last 4 bytes; high-signal
+for the studio-handoff audience. No repeats of: echoelmusic, biofeedback,
+synth, your, heartbeat, makes, music.)
 
 ## Promotional Text (170 chars max, updatable without release)
 
@@ -189,8 +190,9 @@ Checklist before submitting:
    plays with your studio."
 7. Live Colabo side-by-side bio. Caption: "Play together, nearby — each
    person's own numbers."
-8. Sync tab (OSC/ADM-OSC/Art-Net). Caption: "Open standards for stage,
-   light and immersive audio."
+8. Routing panel (PatchbayView — the OSC/ADM-OSC/Art-Net door since the
+   2026-07-12 slot-reuse; the old "Sync tab" no longer exists). Caption:
+   "Open standards for stage, light and immersive audio."
 
 Captions are indexed by Apple since 2025 — keep the keyword-bearing captions
 above (heartbeat, pulse, genres, synth, MIDI, AUv3, Art-Net).
@@ -199,6 +201,21 @@ Preview video (optional, +20–40% conversion): 15–30 s — finger on lens →
 pulse locks → play → music + visual react → "Free. Private. No account."
 
 ---
+
+## Claim verification (2026-07-16, against code + FEATURE_MATRIX)
+
+Every description claim re-checked against the repo — all grounded:
+camera rPPG / universal BLE 0x180D / HealthKit (LIVE) · real HRV coherence
+Lomb-Scargle+Welch (LIVE) · 23 genres, 10 scales, A4 432–444 (LIVE) ·
+poly synth + patch editor + presets, drum sequencer velocity/accent/swing,
+piano roll, loop cutter, FX chain (LIVE) · stamped MIDI export, MIDI/MPE
+in+out (LIVE) · AUv3 plugin (shipped builds 1467/1469) · OSC + ADM-OSC +
+Art-Net + sACN unicast (LIVE) · Metal visual + MP4 clip recording (LIVE) ·
+nearby session share (`Sync/MultipeerSession` + `Studio/LiveColaboView`,
+wired). **Two claims are DEVICE-verify-pending before submission (founder):**
+(1) BLE strap end-to-end (strap on order — NEEDS-FOUNDER-VERIFY since B4),
+(2) AUv3 inside a third-party host on current builds. If either fails on
+device, soften or cut that line before submitting.
 
 ## Remaining founder to-dos for submission
 

@@ -585,3 +585,24 @@ Architectural and strategic decisions with context and rationale.
      Therapie-Claim (Haffelder ist therapie-nah), Anzeige science-first.
 - **Status:** 2 Tasks angelegt (Bio-Session-Instrument-Plan; EEG-Modulations-Plan). Reihenfolge
   vs. aktuelle Clip/Warp-Reihe founder-gefragt (offen). review_date: 2026-08-15.
+
+### 2026-07-16 Mess-Stack v1.0: nur Apple-seitig, null Analytics-SDK (Launch-Marketing-Zyklus, Founder-Delegation "Du entscheidest")
+- **Entscheid:** Für v1.0 wird AUSSCHLIESSLICH Apple-seitig gemessen: App Store Connect
+  App Analytics (Impressions → Product-Page-Views → Conversion-Rate, Downloads,
+  D1/D7-Retention), TestFlight-Feedback/-Crashes, Ratings/Reviews, MetricKit
+  (Apples Opt-in-System). KEIN Analytics-SDK, kein In-App-Tracking, Website vorerst
+  ohne Analytics.
+- **Warum:** Privacy ist die Positionierung — das Listing verspricht wörtlich "No
+  tracking", das Privacy-Label ist "Data Not Collected", die Review-Notes erklären
+  "no server, no analytics SDK". Jedes SDK bräche alle drei gleichzeitig. Apples
+  eigene Analytics sind SDK-frei (Apple-Opt-in aggregiert) und decken den Launch-
+  Funnel vollständig.
+- **Ritual:** wöchentlich post-Launch ASC-KPIs lesen → ASO iterieren (Promotional
+  Text ist ohne Release änderbar — der schnellste Hebel). Privacy-freundliche
+  Website-Analytics (z. B. serverloses Zählen) = separater Founder-Entscheid.
+- **Kontext desselben Zyklus:** APP_STORE_LISTING_v1 vollständig gegen Code +
+  FEATURE_MATRIX verifiziert (2 Device-Verify-Flags: BLE-Gurt end-to-end, AUv3 im
+  Host); Keyword-Feld auf 100/100 Bytes (+",daw"); Presse-Kit `docs/press.html`
+  angelegt (Boilerplate kurz/lang, Fact Sheet, Story Angles, Assets, Presse-Kontakt
+  = veröffentlichte echoel@tropicaldrones.com; KEIN erfundenes Founder-Zitat —
+  "quotes on request").
