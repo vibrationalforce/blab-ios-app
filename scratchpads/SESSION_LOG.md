@@ -6592,3 +6592,37 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **NÄCHSTER BLOCK (Founder-Auftrag):** #55 Leiste unten auflösen →
   Spurköpfe/oben (Council pro Chip), parallel #54-Plan (Warp) schreiben;
   #56 braucht Geräte-Evidenz (Screen-Recording angefragt).
+
+## Fortsetzung 26 (2026-07-16, FOUNDER-DEEP-AUDIT Leisten-Auflösung + S2a)
+- **Founder-Turns:** (1) „Auflösung mehrfach beauftragt … mache deepaudith bzw
+  optimiere" → zweigleisiger Parallel-Audit (Auftrags-Historie + HEAD-Inventur).
+  (2) MIDI-Frage → ehrliche Bestandsaufnahme (Eingang 1.0/2.0/MPE stark,
+  Editing rudimentär) → Task #58. (3) Wetter-Synth-Idee → Task #59.
+- **Audit-Ergebnis (kanonisch, PLAN_MENUBAR_DISSOLUTION.md):** 6+ Aufträge
+  07-09→07-16; ERLEDIGT: Bio→Header v199, Tempo→Transport 8ae8522,
+  Master/Export/Live/Learn→•••, Transpose gelöscht v208, Spuren=Instrumente
+  v191, Multi-Roll v194, Plugins→Spur-Türen, 6 Duplikat-Sheets v207.
+  OFFEN (Unzufriedenheits-Kern): Mix→Spurköpfe (S2), Sound→Instrument (S4,
+  #23), Genre/Variation/Mood-UI pro Spur (S3 — DATEN liegen seit ce248bf!),
+  Session/Tonart→oben (S5). Widersprüche: neuester gewinnt (Spurköpfe/Header
+  jetzt; EchoelBioSynth-AUv3 vom 07-12 = Langstrecke E4).
+- **S2a gebaut → Review-REQUEST_CHANGES (Gold-Fund) → korrigiert (c8d7b8d,
+  Re-Verify APPROVE):** builtinInstrument steuert den Klangpfad heute NICHT
+  (voiceKind: null Konsumenten; Sekundär-Lanes = Rack-PolySynthVoices; Primär
+  spielt synth+leadSynth egal welches Instrument). Bass/Drums-Buses treffen
+  BeatPlayer-Kit bzw. Sub-Doubling der Primär-Roll — NICHT die Lane.
+  Instrument-keyed Strips = lügende UI, die fremde Pfade mutet.
+  Korrektur: TrackInstrument.fxBus: FXBus? (EIN Enum, kein Parallel-Typ);
+  nur .polySynth→.melodic (qualifiziert), Rest ehrlich nil; Test pinnt
+  „flippt nur ZUSAMMEN mit voiceKind-Routing".
+- **Korrigierte S2-Reihenfolge:** S2-W1 Melodic-Insert → Rack-Voices
+  (PolySynthVoice.setInsert existiert; 3 Push-Sites: setMelodicFX,
+  LaneFXEditor-apply, Launch-Restore; audio-thread-reviewer) → S2-W2
+  voiceKind-aware Routing (der ECHTE Fix: EchoelDrums klingt wie Drums; dann
+  fxBus-Pins mitflippen) → S2b Spurkopf-Strip-UI (nur fxBus != nil) → S2c
+  Mix-Chip fällt nach Geräte-Verify.
+- **LEDGER-Lehre:** Ein Mapping, das UI-Reichweite VERSPRICHT, braucht den
+  Konsumenten-Beweis pro Case (grep: wer liest das Feld im Klangpfad?) —
+  „das Feld heißt so" ist kein Engine-Beweis.
+- Kein Deploy dieses Zyklus (Docs + pures Mapping, nichts Hörbares) — v273
+  kommt mit S2-W1 (hörbar: Filter/Drive erreicht alle Poly-Spuren).
