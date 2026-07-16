@@ -34,7 +34,19 @@ LaneChoice = erste non-bio `.audio`-Lane sonst `.createNew`. `hasRoom(freeSlotCo
 NaN/negativ sanitisiert, Länge ≥ 1 Bar. `VideoAudioPairingTests` (10 Tests). Rein — keine
 AVFoundation, keine Stores. Der korrektheits-kritische Teil, bevor der async-Rand kommt.
 
-### Slice 1b — Async-Extraktion + Wiring (NÄCHSTE Scheibe, audio-review Pflicht)
+### Slice 1b — ✅ GEBAUT 2026-07-16 (async-Extraktion + Wiring)
+`VideoAudioExtractor` (`Video/`, protokoll-fronted, Test-Stub-fähig): iOS-18
+`AVAssetExportSession.export(to:as:)` → m4a; silent video → nil; Partial-File-Cleanup bei
+throw; non-deprecated (build -warnings-as-errors). `VideoClipView.addToTimeline` ist async:
+Extract-first → Slot-Budget (Video 1 + Ton 1) → Video landen → `placePairedAudio` (importAudio
+FIRST → kein Orphan-Lane; Region DIREKT mit `plan.lengthTicks`; erste non-bio `.audio`-Lane
+sonst createNew). Fehler = weich (Video bleibt, Sheet offen zeigt `landingError`, kein Rollback).
+Re-Entrancy-Guard gegen Doppel-Land. Reviews: concurrency PASS, code MEDIUM+2LOW gefixt (dead
+soft-failure-UI → return statt dismiss; span-floor 1 Bar→1 Tick = echter Lock; Orphan-Lane weg).
+**Device-Hörtest offen** (Freeze): Video importieren → Bild auf Video-Spur + Ton auf Audio-Spur,
+synchron, Ton hörbar, erbt Warp/FX. Historische Slice-1b-Notiz unten = ursprünglicher Plan.
+
+### Slice 1b (ursprünglicher Plan — umgesetzt wie oben)
 - Naht: `VideoClipView.addToTimeline` (`VideoClipView.swift:236-271`), nach `importVideo`.
 - **Impure Rand:** `VideoAudioExtractor` — `AVAssetExportSession(preset: AppleM4A)` (oder
   AVAssetReader-Muster aus SingleExport) → m4a; async, injizierbar (Test-Stub). Guard

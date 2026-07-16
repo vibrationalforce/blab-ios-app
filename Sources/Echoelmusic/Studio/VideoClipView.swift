@@ -37,6 +37,13 @@ struct VideoClipView: View {
     @State private var player: AVPlayer?
     @State private var durationSeconds: Double = 0
     @State private var landingError: String?
+    /// Slice 1b: true while the video's audio track is being extracted to a paired
+    /// audio clip (a short async export) — disables the land button + shows a spinner.
+    @State private var isPreparingAudio = false
+    /// Pulls a video's audio track out to an m4a so it becomes a first-class audio clip
+    /// (→ AudioLanePlayer → masterMixer, inheriting the stretch engine). Protocol-typed
+    /// so a test can inject a stub; trivial value, cheap to hold on the view.
+    private let audioExtractor: any VideoAudioExtracting = VideoAudioExtractor()
     /// V3: the picked source is a STILL IMAGE (Bild) — it previews as a picture and
     /// lands as a one-bar clip at the current tempo (stretch it on the timeline with
     /// the trim handles; a still has no native duration to respect).
@@ -173,8 +180,9 @@ struct VideoClipView: View {
 
     private func landRow(_ laneID: UUID) -> some View {
         VStack(spacing: 8) {
-            Button { addToTimeline(laneID) } label: {
-                Label("Add to timeline", systemImage: "plus.rectangle.on.rectangle")
+            Button { Task { await addToTimeline(laneID) } } label: {
+                Label(isPreparingAudio ? "Ton wird extrahiert…" : "Add to timeline",
+                      systemImage: isPreparingAudio ? "waveform" : "plus.rectangle.on.rectangle")
                     .font(EchoelTheme.font(14, .semibold))
                     .foregroundStyle(EchoelTheme.onPrimary)
                     .frame(maxWidth: .infinity).frame(height: 44)
@@ -183,7 +191,7 @@ struct VideoClipView: View {
             }
             .buttonStyle(.plain)
             // Video waits until its duration is measured; a still has none to wait for.
-            .disabled(durationSeconds <= 0 && !stillImage)
+            .disabled((durationSeconds <= 0 && !stillImage) || isPreparingAudio)
             if let landingError {
                 Text(landingError)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
@@ -230,17 +238,51 @@ struct VideoClipView: View {
 
     // MARK: - Land onto the timeline
 
-    /// Copy the picked video into the App Group and place a region on `laneID`,
-    /// sized to the (whole-file) duration at the current tempo, after the lane's
-    /// existing content. Pure placement; the only impure step is the file copy.
-    private func addToTimeline(_ laneID: UUID) {
+    /// Copy the picked video into the App Group and place a region on `laneID`. For a
+    /// VIDEO (not a still) the audio track is extracted FIRST to a paired audio clip so
+    /// the timeline actually has sound — the monitor stays muted by design; the sound
+    /// comes from the audio lane (Slice 1b, PLAN_VIDEO_AUDIO.md). Extract-first keeps the
+    /// slot budget honest (video + audio) and the landing atomic. Silent video / an
+    /// extraction failure → the video lands alone. Impure steps: the file copies.
+    private func addToTimeline(_ laneID: UUID) async {
+        // Re-entrancy guard: MainActor serializes, and the first suspension (the await
+        // below) only happens after `isPreparingAudio = true` — so a rapid double-tap's
+        // second Task sees the flag and bails, no double-land during extraction.
+        guard !isPreparingAudio else { return }
         landingError = nil
         guard let source = sourceURL, durationSeconds > 0 || stillImage else { return }
+        let bpm = beatPlayer.pattern.tempo
+
+        // Extract the video's audio up front (not for stills) so the true slot need is
+        // known before anything lands. Failure is non-fatal — the video still lands.
+        var extractedAudio: URL?
+        if !stillImage {
+            isPreparingAudio = true
+            do {
+                if let tmp = MediaLibrary.directory("Media/Tmp") {
+                    extractedAudio = try await audioExtractor.extractAudio(from: source, to: tmp)
+                }
+            } catch {
+                log.log(.warning, category: .ui, "Video audio extraction failed: \(error)")
+            }
+            isPreparingAudio = false
+        }
+
+        // Slot budget: video (1) + paired audio (1 more, only if audio was extracted).
+        let freeSlots = clips.slots.lazy.filter { $0 == nil }.count
+        let needsAudioSlot = extractedAudio != nil
+        guard freeSlots >= (needsAudioSlot ? 2 : 1) else {
+            if let a = extractedAudio { try? FileManager.default.removeItem(at: a) }
+            landingError = needsAudioSlot
+                ? "2 Slots frei nötig (Video + Ton) — leere zuerst Slots."
+                : "Clip-Raster voll (8 Slots) — leere zuerst einen Slot."
+            return
+        }
         guard let slot = clips.firstEmptySlotIndex else {
+            if let a = extractedAudio { try? FileManager.default.removeItem(at: a) }
             landingError = "Clip-Raster voll (8 Slots) — leere zuerst einen Slot."
             return
         }
-        let bpm = beatPlayer.pattern.tempo
         let dest: URL
         // A STILL (V3) has no native duration — it lands one bar long at the current
         // tempo (stretch it afterwards with the trim handles; nothing clamps a still).
@@ -254,6 +296,7 @@ struct VideoClipView: View {
                 placedSeconds = durationSeconds
             }
         } catch {
+            if let a = extractedAudio { try? FileManager.default.removeItem(at: a) }
             landingError = stillImage ? "Bild konnte nicht importiert werden."
                                       : "Video konnte nicht importiert werden."
             return
@@ -267,7 +310,67 @@ struct VideoClipView: View {
                                              startTick: startTick)
         clips.setClip(at: slot, clip)
         timeline.addRegion(placed)
+
+        // Pair the extracted audio so the video has sound (locked to the video region).
+        if let audioURL = extractedAudio {
+            let paired = placePairedAudio(audioURL, videoRegion: placed, name: name)
+            try? FileManager.default.removeItem(at: audioURL)   // tmp copy no longer needed
+            // On a pairing failure the video HAS landed, but the sound didn't — keep the
+            // sheet open so the `landingError` note is actually seen (dismiss would eat it).
+            if !paired { return }
+        }
         dismiss()
+    }
+
+    /// Land the extracted audio as a first-class audio clip LOCKED to the video region
+    /// (identical start + span, via `VideoAudioPairing`), on the first non-bio audio lane
+    /// (creating one if none). Returns `true` on success. On failure the video stays placed
+    /// (the picture already landed) and `landingError` explains it — the caller keeps the
+    /// sheet open so that note is seen. The durable copy is done FIRST so a failed import
+    /// never leaves an orphan empty lane. The region is built DIRECTLY with the plan's
+    /// `lengthTicks` (not `AudioClipFactory.region`, which re-derives bars → would drift).
+    private func placePairedAudio(_ audioURL: URL, videoRegion: TimelineRegion, name: String) -> Bool {
+        // Durable import FIRST — a failed copy must not create a lane or consume a slot.
+        let audioDest: URL
+        do {
+            audioDest = try MediaLibrary.importAudio(from: audioURL)
+        } catch {
+            landingError = "Ton konnte nicht importiert werden (Video ist gelandet)."
+            return false
+        }
+        let audioLaneIDs = timeline.document.lanes
+            .filter { $0.kind == .audio && !$0.isBio }
+            .map(\.id)
+        let plan = VideoAudioPairing.plan(videoStartTick: videoRegion.startTick,
+                                          videoLengthTicks: videoRegion.lengthTicks,
+                                          existingAudioLaneIDs: audioLaneIDs)
+        let audioLaneID: UUID
+        switch plan.lane {
+        case .existing(let id):
+            audioLaneID = id
+        case .createNew:
+            timeline.addLane(kind: .audio)
+            guard let created = timeline.document.lanes
+                .last(where: { $0.kind == .audio && !$0.isBio })?.id else {
+                landingError = "Ton-Spur konnte nicht angelegt werden (Video ist gelandet)."
+                return false
+            }
+            audioLaneID = created
+        }
+        guard let audioSlot = clips.firstEmptySlotIndex else {
+            landingError = "Kein Slot für den Ton frei (Video ist gelandet)."
+            return false
+        }
+        let audioClip = AudioClipFactory.clip(name: name + " · Ton", mediaRef: audioDest.path,
+                                              colorIndex: audioSlot,
+                                              nativeDurationSeconds: durationSeconds > 0 ? durationSeconds : nil)
+        let audioRegion = TimelineRegion(laneID: audioLaneID, clipID: audioClip.id,
+                                         startTick: plan.startTick, lengthTicks: plan.lengthTicks,
+                                         contentOffsetSeconds: plan.contentOffsetSeconds,
+                                         gain: plan.gain)
+        clips.setClip(at: audioSlot, audioClip)
+        timeline.addRegion(audioRegion)
+        return true
     }
 }
 

@@ -53,8 +53,9 @@ public enum VideoAudioPairing {
     ///
     /// - Parameters:
     ///   - videoStartTick: the placed video region's start (audio aligns exactly to it).
-    ///   - videoLengthTicks: the video region's musical span (audio inherits it verbatim, so
-    ///     the two never drift; floored at one bar so a mis-sized video can't zero the audio).
+    ///   - videoLengthTicks: the video region's span (audio inherits it VERBATIM so the two
+    ///     have identical spans; floored at one tick — matching the video region's own
+    ///     `max(1, …)` floor — so a degenerate 0 can't produce a zero-length audio clip).
     ///   - existingAudioLaneIDs: non-bio `.audio` lane ids in document order; `.first` wins,
     ///     else `.createNew`.
     ///   - contentOffsetSeconds: the video's trim in-point (audio starts at the same media pos).
@@ -67,7 +68,7 @@ public enum VideoAudioPairing {
         let lane: LaneChoice = existingAudioLaneIDs.first.map(LaneChoice.existing) ?? .createNew
         return Plan(lane: lane,
                     startTick: max(0, videoStartTick),
-                    lengthTicks: max(TimelineTime.ticksPerBar, videoLengthTicks),
+                    lengthTicks: max(1, videoLengthTicks),   // == the video region's span (never 0)
                     contentOffsetSeconds: max(0, contentOffsetSeconds.isFinite ? contentOffsetSeconds : 0),
                     gain: gain.isFinite ? gain : 1)
     }

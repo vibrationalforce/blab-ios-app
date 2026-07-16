@@ -39,10 +39,19 @@ final class VideoAudioPairingTests: XCTestCase {
         XCTAssertEqual(plan.startTick, 0)
     }
 
-    func testPlan_zeroOrTinyLength_floorsAtOneBar() {
+    func testPlan_inheritsSubBarSpanVerbatim() {
+        // A sub-bar video (e.g. ~1.5 s @120 → ~1440 ticks < one 1920-tick bar) must yield an
+        // audio span IDENTICAL to the video region — no 1-bar over-floor (that would make the
+        // audio box longer than the picture). True lock.
+        let plan = VideoAudioPairing.plan(videoStartTick: 0, videoLengthTicks: 1440,
+                                          existingAudioLaneIDs: [UUID()])
+        XCTAssertEqual(plan.lengthTicks, 1440)
+    }
+
+    func testPlan_zeroLength_floorsAtOneTick() {
         let plan = VideoAudioPairing.plan(videoStartTick: 0, videoLengthTicks: 0,
                                           existingAudioLaneIDs: [UUID()])
-        XCTAssertEqual(plan.lengthTicks, TimelineTime.ticksPerBar) // never a zero-length clip
+        XCTAssertEqual(plan.lengthTicks, 1)        // never a zero-length clip (matches video's max(1,…))
     }
 
     // MARK: - Offset / gain passthrough + guards
