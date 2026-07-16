@@ -5,13 +5,19 @@ import SwiftUI
 import Observation
 import os
 
+/// File-scope log handle: `createAudioUnit` runs nonisolated (host thread), so it
+/// must not touch MainActor-isolated statics of the view controller.
+private let auv3FactoryLog = OSLog(
+    subsystem: "com.echoelmusic.app.auv3",
+    category: "ViewController"
+)
+
+/// Minimal Sendable box to carry the (non-Sendable) freshly built AU across the
+/// nonisolated-factory → MainActor-UI hop. Single producer, single consumer.
+private struct AUBox: @unchecked Sendable { let value: EchoelmusicAudioUnit }
+
 /// View controller for the AUv3 plugin UI in DAW hosts.
 public final class AudioUnitViewController: AUViewController {
-
-    private static let auLog = OSLog(
-        subsystem: "com.echoelmusic.app.auv3",
-        category: "ViewController"
-    )
 
     private var audioUnit: EchoelmusicAudioUnit?
     private var parameterObservationToken: AUParameterObserverToken?
@@ -24,16 +30,10 @@ public final class AudioUnitViewController: AUViewController {
         if let audioUnit { setupUI(audioUnit: audioUnit) }
     }
 
-    public func createAudioUnit(
-        with componentDescription: AudioComponentDescription
-    ) async throws -> AUAudioUnit {
-        let au = try EchoelmusicAudioUnit(
-            componentDescription: componentDescription, options: []
-        )
-        self.audioUnit = au
+    /// Called from `createAudioUnit`'s MainActor hop once the AU exists.
+    private func adopt(_ au: EchoelmusicAudioUnit) {
+        audioUnit = au
         if isViewLoaded { setupUI(audioUnit: au) }
-        os_log(.info, log: Self.auLog, "Audio unit created via view controller")
-        return au
     }
 
     private func setupUI(audioUnit: EchoelmusicAudioUnit) {
@@ -61,6 +61,29 @@ public final class AudioUnitViewController: AUViewController {
         ])
         hosting.didMove(toParent: self)
         hostingController = hosting
+    }
+}
+
+// MARK: - AUAudioUnitFactory (the extension's actual vending point)
+
+/// REGISTRATION LAW twin (device log 2026-07-16, "ownAUv3 false"): the principal
+/// class MUST conform to `AUAudioUnitFactory`, and the protocol's requirement is
+/// SYNCHRONOUS `createAudioUnit(with:) throws`. The previous `async` method never
+/// satisfied it — even a registered component could not be instantiated by any
+/// host. The host may call this on any thread, so it is `nonisolated`; the AU
+/// itself is a plain (nonisolated) AUAudioUnit subclass, and only the UI adoption
+/// hops to the MainActor.
+extension AudioUnitViewController: AUAudioUnitFactory {
+    public nonisolated func createAudioUnit(
+        with componentDescription: AudioComponentDescription
+    ) throws -> AUAudioUnit {
+        let au = try EchoelmusicAudioUnit(
+            componentDescription: componentDescription, options: []
+        )
+        let box = AUBox(value: au)
+        Task { @MainActor in self.adopt(box.value) }
+        os_log(.info, log: auv3FactoryLog, "Audio unit created via factory")
+        return au
     }
 }
 
