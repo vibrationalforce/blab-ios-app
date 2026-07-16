@@ -169,3 +169,18 @@ a founder-requested feature; any change needs a Council look at gesture preceden
   snap/clamp preview so release never jumps.
 - **Slice 3 (1-2 files):** C5 — cache `resolveRef` per mediaRef out of the per-frame body;
   then reassess C6/C7 against the recording.
+
+## Slice-2 review follow-ups (05c9ae4 APPROVE, addressed in the next commit)
+
+- **MEDIUM #1 — FIXED in-model:** `trimmedStart` now prefers the exact tick twin
+  (`contentOffsetTicks`) over seconds-at-current-bpm, so the front-trim floor is
+  tempo-invariant and the live preview == commit even under bio→tempo drift
+  (previously up to a full grid cell jump at release). Test pins it.
+- **NEW SLICE (MEDIUM #2): lane-gate-aware vertical move preview.** The row-snapped
+  preview seats a clip on ANY lane, incl. ones `TimelineStore.moveRegion` refuses
+  (kind mismatch / out-of-bounds / `isBio`) → jump-back at release. Fix: thread the
+  clip's own lane index + a plain `[LaneKind]`/bio-flag array into RegionBlockView
+  (values, not the document — freeze-law) and clamp/validate `rowShift` in
+  `TimelineDragMath.laneShift`. Own cycle; device-verify with the founder recording.
+- Doc-honesty (done): the pure-math files said "Linux CI" — the repo has no Linux
+  build/test gate (quick-test.yml Ubuntu jobs are grep-only; build/test run on macOS).

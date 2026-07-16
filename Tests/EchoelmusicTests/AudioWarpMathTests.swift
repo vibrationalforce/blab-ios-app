@@ -3,7 +3,7 @@
 // effective-rate truth (AudioRegionPlayback.effectiveStretchRate), the rate-aware
 // media-time mapping, warp carry through split/trim/duplicate/join, and the
 // document-safe decode of pre-warp clips/regions (fields absent → 0/false,
-// bit-identical playback, nothing pruned). Foundation-only — runs on Linux CI.
+// bit-identical playback, nothing pruned). Pure value math — macOS SwiftPM CI.
 
 import XCTest
 @testable import Echoelmusic

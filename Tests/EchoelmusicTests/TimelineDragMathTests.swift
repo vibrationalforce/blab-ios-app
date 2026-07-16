@@ -3,7 +3,7 @@
 // commits, so letting go is a visual no-op. These tests pin the pure preview
 // math AND its parity with the commit formulas (replicated here from
 // RegionBlockView's onEnded closures / TimelineRegion.trimmedStart).
-// Foundation-only — runs on Linux CI.
+// Pure value math — runs on the macOS SwiftPM CI (the repo has no Linux gate).
 
 import XCTest
 @testable import Echoelmusic
@@ -107,7 +107,7 @@ final class TimelineDragMathTests: XCTestCase {
         let d = TimelineDragMath.frontTrimPreviewDeltaX(
             rawDeltaX: raw, startTick: start, endTick: end,
             contentOffsetTicks: twin, contentOffsetSeconds: 0.5, ppb: 24, snap: .sixteenth)
-        let previewStart = start + Int(d / 24 * 480)
+        let previewStart = start + Int((d / 24 * 480).rounded())
         XCTAssertEqual(previewStart, end - 1, "preview must stop at ≥ 1 tick, like the commit")
 
         // Mid-range parity: +10 pt → +200 ticks → snap 1/16.
@@ -121,7 +121,7 @@ final class TimelineDragMathTests: XCTestCase {
                                     lengthTicks: end - start,
                                     contentOffsetSeconds: 0.5, contentOffsetTicks: twin)
         let committed = region.trimmedStart(toTick: max(0, snapped), bpm: 120)?.startTick
-        XCTAssertEqual(start + Int(d2 / 24 * 480), committed,
+        XCTAssertEqual(start + Int((d2 / 24 * 480).rounded()), committed,
                        "preview start must equal the committed start")
     }
 

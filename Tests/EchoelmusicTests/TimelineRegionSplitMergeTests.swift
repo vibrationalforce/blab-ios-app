@@ -79,6 +79,26 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
                        "offset reduced by the revealed media time")
     }
 
+    func testTrimmedStart_tickTwin_floorIsExactAtAnyTempo() {
+        // #56 C4 MEDIUM: split @120 BPM gives the second piece an exact tick twin;
+        // the front-extend floor must use THAT twin, not seconds-at-current-bpm, so
+        // it stays exact after bio→tempo drifts the tempo (else the commit floor
+        // jumps a grid cell vs the live preview). Region start 960, twin 480.
+        let r = TimelineRegion(laneID: UUID(), clipID: UUID(), startTick: 960,
+                               lengthTicks: 960, contentOffsetSeconds: 0.5,
+                               contentOffsetTicks: 480)
+        // Play tempo drifted to 90 BPM — the seconds path would floor at
+        // 960 - ticks(0.5s @90) = 960 - 360 = 600; the twin floors at 960 - 480 = 480.
+        let t = try! XCTUnwrap(r.trimmedStart(toTick: 0, bpm: 90))
+        XCTAssertEqual(t.startTick, 480, "twin floor is tempo-invariant (not 600)")
+        // And it agrees with the live preview at the same drifted tempo.
+        let previewDelta = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -100_000, startTick: 960, endTick: 1920,
+            contentOffsetTicks: 480, contentOffsetSeconds: 0.5, ppb: 24, snap: .off)
+        XCTAssertEqual(960 + Int((previewDelta / 24 * 480).rounded()), t.startTick,
+                       "preview floor == commit floor under tempo drift")
+    }
+
     func testTrimmedStart_cannotRevealBeforeMediaStart() {
         // Only 0.5 s (480 ticks @ 120 BPM) of pre-roll — can't extend the front further left.
         let r = region(start: 960, length: 960, offset: 0.5)

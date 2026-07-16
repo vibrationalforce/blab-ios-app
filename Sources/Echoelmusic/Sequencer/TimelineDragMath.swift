@@ -5,20 +5,30 @@
 // position its release will commit, so letting go is a visual no-op instead of
 // a half-grid-cell jump.
 //
-// Foundation-only, no SwiftUI, no store — unit-tested on Linux CI. The view
-// keeps its raw @GestureState finger deltas and derives the drawn delta through
-// these functions in body (a few integer ops per frame, leaf-local).
+// Foundation-only, no SwiftUI, no store — pure value math, unit-tested on the
+// macOS SwiftPM CI (the repo has no Linux build/test gate; Sequencer's other
+// pure core, AutomationCanvasMath, uses Double — CGFloat here matches the view's
+// point geometry). The view keeps its raw @GestureState finger deltas and
+// derives the drawn delta through these functions in body (a few ops/frame,
+// leaf-local).
 //
-// HONEST SCOPE (documented deltas from the commit path, both release-safe):
+// HONEST SCOPE (documented deltas from the commit path, all release-safe):
 // • Neighbour-edge magnetism (snapWithEdges, ±8 pt) stays COMMIT-ONLY — the
 //   live preview would need per-frame store reads for the edge candidates
 //   (freeze-law). Residual release motion: at most the small magnet pull,
 //   not the half-cell grid jump this slice removes.
 // • The front-trim min-start clamp uses the EXACT tick twin
-//   (`contentOffsetTicks`, M1b) when present; a legacy region (tick twin 0,
-//   seconds-only offset) previews without that clamp and the commit clamps —
-//   reading the tempo in a leaf BODY is forbidden (bio→tempo modulates it
-//   live; a body read would churn every clip leaf at modulation rate).
+//   (`contentOffsetTicks`, M1b). `trimmedStart` now prefers the SAME twin, so
+//   preview and commit agree exactly for every modern region at ANY tempo
+//   (including under bio→tempo drift). Only a legacy seconds-only region (twin
+//   0, seconds > 0) previews without the clamp and lets the commit apply it —
+//   reading the tempo in a leaf BODY for the seconds→ticks conversion is
+//   forbidden (bio→tempo modulates it live; a body read would churn every clip
+//   leaf at modulation rate).
+// • Exact-zero mid-drag frame: with snap on and an off-grid region, the single
+//   frame where the finger delta is exactly 0 renders the raw store position
+//   (not the snapped preview) — a one-frame ≤half-cell flick. Requires exact
+//   CGFloat-zero translation mid-gesture; cosmetic, rare.
 
 import Foundation
 
@@ -78,13 +88,14 @@ public enum TimelineDragMath {
     /// never reveal media before its start (mirrors `trimmedStart`).
     /// Positive = trim (start moves right, width shrinks), negative = extend.
     ///
-    /// Media clamp, in the tick domain: an exact tick twin (`contentOffsetTicks`
-    /// > 0, M1b) gives the precise floor; a genuinely zero offset (twin 0 AND
-    /// seconds 0 — every fresh region, all MIDI) can only trim, never extend
-    /// (floor = the current start, exactly like the commit); ONLY a legacy
-    /// seconds-only region (seconds > 0, twin 0) previews without the media
-    /// floor and lets the commit clamp — reading the tempo for the seconds→
-    /// ticks conversion in a leaf BODY is forbidden (bio→tempo modulates live).
+    /// Media clamp, in the tick domain, mirroring `trimmedStart` exactly (which
+    /// now also prefers the twin): an exact tick twin (`contentOffsetTicks` > 0,
+    /// M1b) gives the precise floor at ANY tempo; a genuinely zero offset (twin 0
+    /// AND seconds 0 — every fresh region, all MIDI) can only trim, never extend
+    /// (floor = the current start); ONLY a legacy seconds-only region (seconds >
+    /// 0, twin 0) previews without the media floor and lets the commit clamp —
+    /// reading the tempo for the seconds→ticks conversion in a leaf BODY is
+    /// forbidden (bio→tempo modulates live).
     public static func frontTrimPreviewDeltaX(rawDeltaX: CGFloat, startTick: Int,
                                               endTick: Int, contentOffsetTicks: Int,
                                               contentOffsetSeconds: Double,

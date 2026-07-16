@@ -252,7 +252,15 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// MIDI/offset-0 region can only trim, not front-extend). Returns nil when the start
     /// doesn't move. Pure + testable.
     public func trimmedStart(toTick newStart: Int, bpm: Double) -> TimelineRegion? {
-        let offsetTicks = TimelineTime.ticks(fromSeconds: contentOffsetSeconds, bpm: bpm)
+        // Media-start floor in the TICK domain. Prefer the exact tick twin
+        // (`contentOffsetTicks`, M1b) when present — it is exact at ANY tempo, so
+        // the floor no longer drifts when bio→tempo moves the tempo since the edit
+        // (a seconds→ticks(at current bpm) floor jumped up to a full grid cell at
+        // release, and disagreed with the live drag preview — jitter audit #56 C4
+        // MEDIUM). A legacy seconds-only region (twin 0) keeps the seconds path.
+        let offsetTicks = contentOffsetTicks > 0
+            ? contentOffsetTicks
+            : TimelineTime.ticks(fromSeconds: contentOffsetSeconds, bpm: bpm)
         let minStart = Swift.max(0, startTick - offsetTicks)   // extending left bottoms out at the media start
         let maxStart = endTick - 1                             // keep ≥ 1 tick
         guard maxStart >= minStart else { return nil }
