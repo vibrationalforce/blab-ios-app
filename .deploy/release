@@ -1,42 +1,34 @@
-build: 2026-07-16 v10.79.274 (Clips zittern nicht mehr — der Mechanismus ist gefunden)
+build: 2026-07-16 v10.79.275 (Clips springen beim Loslassen nicht mehr)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Dein Report "Die Clips ... zittern" (#56) — Tiefen-Audit + erste Fix-Scheibe.
+notes: #56 Scheibe 2 — die zweite Hälfte von "rudimentär in der Handhabung".
 
-  WAS GEFUNDEN WURDE (statisches Audit, ohne Recording):
-  • Das wörtliche ZITTERN: Der Griff an der RECHTEN Clip-Kante maß
-    seine Fingerbewegung in einem Koordinatenraum, den die Live-
-    Breitenänderung des Clips selbst pro Frame verschiebt — die
-    Messung fütterte sich selbst und die Kante vibrierte in
-    Bildwiederholrate, sogar bei ruhendem Finger. Jetzt messen alle
-    drei Clip-Gesten (Trim vorn/hinten, Verschieben) im stabilen
-    Raster-Koordinatenraum: reine Fingerbewegung, keine Rückkopplung.
-    Nebeneffekt: auch die BESTÄTIGTE Trim-Länge war bisher um den
-    Oszillationsrest verfälscht — Trims landen jetzt exakt.
-  • Das "Springen zwischen Griffen": Klaut das Scrollen eine
-    angefangene Geste, wurde der Clip bisher versetzt stehen gelassen
-    (nichts gespeichert, nächster Griff startete von einer Lüge).
-    Die Gesten-Zustände setzen sich jetzt bei Abbruch automatisch
-    zurück — kein Geister-Versatz mehr.
-  • NOCH OFFEN in #56 (nächste Scheiben, geplant): der Sprung beim
-    LOSLASSEN (Live-Vorschau folgt stufenlos, Commit rastet ein —
-    kommt als Live-Snap-Vorschau) und der Gesten-Vorrang Clip vs.
-    Scrollen (device-gated — dein Screen-Recording entscheidet).
+  WAS NEU IST:
+  • Bisher folgte der Clip beim Ziehen STUFENLOS dem Finger, aber der
+    Commit beim Loslassen rastete ein (Raster + Mindestlänge) — jeder
+    Release war ein Sprung, bis zu einer halben 1/16-Zelle; der vordere
+    Griff konnte optisch sogar übers Clip-Ende hinausrutschen.
+  • Jetzt zeichnet der Clip beim Ziehen LIVE an der Position, die das
+    Loslassen speichern wird (gleiche Snap/Clamp-Regeln, testgepinnt) —
+    Loslassen ist ein visuelles No-Op. Vertikales Ziehen zeigt
+    zeilen-gerastet die Ziel-Spur.
+  • Review-Fund gleich mitgeschlossen: Der vordere Trim-Anschlag
+    rechnete in Sekunden beim AKTUELLEN Tempo — sobald Bio→Tempo das
+    Tempo seit dem Schnitt verschoben hatte, sprang der Anschlag beim
+    Loslassen doch (bis zu eine ganze Rasterzelle). Der Anschlag nutzt
+    jetzt den tempo-festen Tick-Wert: Vorschau, Commit UND Playback
+    stimmen bei jedem Tempo überein.
+  • Rest-Scheiben (geplant): Nachbar-Magnet auch live · vertikale
+    Vorschau respektiert verbotene Spuren (Audio-Clip auf MIDI-Spur) ·
+    Gesten-Vorrang Clip vs. Scrollen (wartet auf dein Screen-Recording).
 
-  AUSSERDEM SEIT v273 (Fundament, unhörbar bis die UI-Tür kommt):
-  • Warp-Kern (#54) gebaut: Clip-BPM am Material + Warp-Schalter an
-    der Platzierung + die Zeitdehnungs-Mathematik — test-gepinnt,
-    Alt-Projekte laden bit-identisch. Engine + Editor-Tür folgen.
-  • Ultraall-Sweep: 6 Tiefen-Pläne im Repo (Instrument-Routing S2-W2,
-    Warp, Clip-Zittern-Audit, MIDI/MPE-Station, EchoelWeather-Synth,
-    Genre/Mood pro Spur + Header). Wird Zyklus für Zyklus gebaut.
+  Review: 2× APPROVE (inkl. Re-Verify des Tempo-Fixes: "no regression,
+  preview == commit at any tempo") · alle 4 Gates grün.
 
-  Review: APPROVE (Zitter-Fix als "textbook, minimal" bestätigt) ·
-  alle 4 Gates grün.
-
-  BITTE AUF DEM GERÄT PRÜFEN: (1) rechte Clip-Kante beim Trimmen mit
-  ruhendem Finger — vibriert sie noch? (2) Nach einem abgebrochenen
-  Griff (Timeline scrollte stattdessen) — bleibt ein Clip versetzt
-  stehen? Ein Screen-Recording hilft für die restlichen Scheiben.
+  PRÜF-LISTE GERÄT (v274+v275 zusammen): (1) rechte Clip-Kante beim
+  Trimmen mit ruhendem Finger — vibriert nicht mehr? (2) Loslassen nach
+  Ziehen/Trimmen — springt nicht mehr? (3) Nach abgebrochenem Griff —
+  kein Geister-Versatz mehr?
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
-  überleben lassen — ja/nein?).
+  überleben lassen — ja/nein?) · Reihenfolge EEG-Plan vs.
+  Bio-Session-Plan vs. Clip/Warp-Reihe.
