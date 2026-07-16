@@ -449,6 +449,29 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         }
         return changed
     }
+
+    /// CLIP-3: true when `a` and `b` differ at most in NON-SOUND-STRUCTURAL state —
+    /// the mixer fields `mergeMixer` flows per step (mute/solo/level/pan) plus lane
+    /// rename and record-arm. Everything that changes WHAT sounds at a tick counts
+    /// as structural: region set (move/trim/split/delete/add), lane membership,
+    /// ORDER (pump ranks!), kind/instrument, and the automation lanes. The playing
+    /// TimelineRegionPlayer relocates only on a structural change; mixer-only edits
+    /// keep flowing through the cheap merge (no voice re-attack). Pure — tested.
+    public static func structurallyEqual(_ a: TimelineDocument, _ b: TimelineDocument) -> Bool {
+        guard a.regions == b.regions, a.automation == b.automation,
+              a.lanes.count == b.lanes.count else { return false }
+        for (la, lb) in zip(a.lanes, b.lanes) {
+            var n = la
+            n.isMuted = lb.isMuted
+            n.isSoloed = lb.isSoloed
+            n.level = lb.level
+            n.pan = lb.pan
+            n.name = lb.name
+            n.isArmed = lb.isArmed
+            if n != lb { return false }
+        }
+        return true
+    }
 }
 
 // MARK: - Musical constants + conversions

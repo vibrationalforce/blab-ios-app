@@ -214,8 +214,13 @@ public final class TimelineRegionPlayer {
         guard isPlaying else { return }
         // H4: pull live mixer state (mute/solo/level/pan) into the playback snapshot
         // BEFORE this step's gates run, so a mid-region mixer edit is heard now —
-        // not at the next region boundary. Structure (lanes/regions) stays frozen.
+        // not at the next region boundary.
         refreshMixer()
+        // CLIP-3: pull STRUCTURE edits (region move/trim/split/delete/add, lane
+        // add/remove/reorder, automation) in as well — pre-fix the song played the
+        // play()-time snapshot until Stop+Play while the UI showed a different
+        // arrangement. Runs BEFORE this step's window so the edit sounds this step.
+        refreshStructure()
         var newTick = cursor.advance(step: step)
         var wrapped = false
         if loopTicks > 0, newTick >= loopTicks {
@@ -358,10 +363,11 @@ public final class TimelineRegionPlayer {
     /// via `LaneVoiceScheduling.plan` → `LaneVoiceRackPlan.commands`; the primary lane is
     /// filtered out (the PianoRollModel plays it richly, so it must not double here).
     // INVARIANT: `pumps` is keyed by a lane's priority rank/slot, which is stable only
-    // while `doc.midiLaneIDs` is immutable for the session (doc is captured once in
-    // play()). Live lane add/remove/re-type mid-playback would shift ranks and strand a
-    // slot-keyed pump (hung note / wrong voice) — if the timeline doc ever becomes
-    // mutable during play, migrate `pumps` on the lane-set change before shipping it.
+    // while `doc.midiLaneIDs` is unchanged. Since CLIP-3 the doc IS mutable during
+    // play — refreshStructure() upholds the invariant conservatively: any structural
+    // change (incl. lane add/remove/re-type) flushes ALL pumps (offs through the OLD
+    // ranks/bindings) BEFORE the snapshot swap, then re-primes on the new ranks. No
+    // pump ever survives a rank shift.
     private func fanOutSecondaryLanes(fromTick: Int, toTick: Int, step: Int) {
         guard let sink = slotNoteSink else { return }
         let steps = LaneVoiceScheduling
@@ -482,6 +488,38 @@ public final class TimelineRegionPlayer {
     private func slotAudible(_ slot: Int) -> Bool {
         guard let laneID = MultiRollFanout.laneID(forSlot: slot, in: doc, rollLane: rollLane) else { return true }
         return MultiRollFanout.audible(doc, laneID: laneID)
+    }
+
+    /// CLIP-3: relocate the playing session onto an edited document. Gate is the
+    /// pure `structurallyEqual` — mixer-only edits never land here (refreshMixer's
+    /// merge is cheaper and never re-attacks a voice). Relocation is the honest
+    /// DAW "chase": flush the secondary voices (offs through the OLD ranks/
+    /// bindings — the H5b order law; ranks may have shifted with the lane set),
+    /// swap the snapshot, and re-drive every layer at the current position via
+    /// the SAME prime paths play() and the song-loop wrap already exercise.
+    /// The primary roll reloads only when ITS active region actually changed —
+    /// an edit on another lane must not restage the sounding melody.
+    private func refreshStructure() {
+        guard let fresh = liveDocument?() else { return }
+        guard !TimelineDocument.structurallyEqual(doc, fresh) else { return }
+        let oldActive = rollLane.flatMap {
+            TimelineScheduling.activeRegion(in: doc, laneID: $0, at: lastTick)
+        }
+        flushPumps()
+        doc = fresh
+        rollLane = fresh.rollLaneID
+        loopTicks = Self.loopTicks(for: fresh)   // grew/shrank: the wrap logic reads it next step
+        pianoRoll?.setTimelineAutomation(fresh.automation)
+        let newActive = rollLane.flatMap {
+            TimelineScheduling.activeRegion(in: doc, laneID: $0, at: lastTick)
+        }
+        if oldActive != newActive {
+            loadedRegionID = nil                 // force a fresh region decision
+            loadRollRegion(at: lastTick)         // loadClip or clearRoll, mid-region aware
+        }
+        primeSecondaryLanes(at: lastTick)
+        audioLanes?.prime(in: doc, atTick: lastTick, bpm: pattern?.tempo ?? 120)
+        log.log(.info, category: .audio, "timeline: structure edit pulled into playback at tick \(lastTick)")
     }
 
     /// Release every sounding secondary voice and clear the fan-out state (stop/reset).
