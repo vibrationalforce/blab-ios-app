@@ -363,6 +363,12 @@ public final class AUv3Host {
     /// was silently empty. Called on every chain mutation, so a force-kill
     /// loses nothing.
     private func persistChains() {
+        // Review HIGH (b8258e7): NEVER rewrite the record from a mid-restore
+        // load — memory holds only the entries restored SO FAR, so a write here
+        // would forget everything still pending or transiently failed (cold AU
+        // registry). The record stays byte-identical through restore; the next
+        // USER chain mutation prunes stale entries naturally.
+        guard !isRestoringChains else { return }
         let d = UserDefaults.standard
         if let loaded, let data = try? JSONEncoder().encode(loaded) {
             d.set(data, forKey: Self.chainInstrumentKey)
@@ -373,32 +379,64 @@ public final class AUv3Host {
         d.set((try? JSONEncoder().encode(loadedMasterEffects)) ?? Data(), forKey: Self.chainMasterKey)
     }
 
+    /// True while `restoreChains()` re-drives the persisted chains. The browser
+    /// disables its rows on it (a tap in the gap between two restore loads would
+    /// otherwise hit `load()`'s re-entrancy guard and be dropped silently).
+    public private(set) var isRestoringChains = false
+    /// AU-2 review MEDIUM: a restore FAILURE must stay visible — the browser
+    /// clears `loadError` on every appear (stale-error hygiene), which would
+    /// erase the one clue why a plugin vanished. This notice is NOT cleared by
+    /// `clearLoadError()`; the browser shows it until explicitly dismissed.
+    public private(set) var restoreNotice: String?
+    public func clearRestoreNotice() { restoreNotice = nil }
+
     /// AU-2: re-load the chains the user had at last run — call ONCE at startup,
     /// after `use(engine:)` + `useParameters`. Each entry re-drives the normal
     /// async load paths (AU-1 format pre-flight, fullState recall, parameter
     /// bridge), so an uninstalled or format-refusing plugin degrades exactly
-    /// like a user tap: loadError + built-in voice, never a crash. The final
-    /// persist drops entries that failed to come back. Nothing here makes
-    /// SOUND by itself — a restored instrument sounds only when notes reach it
-    /// (launch silence holds).
+    /// like a user tap: loadError + built-in voice, never a crash. Nothing here
+    /// makes SOUND by itself — a restored instrument sounds only when notes
+    /// reach it (launch silence holds).
+    ///
+    /// REVIEW LAWS (b8258e7 CRITICAL/HIGH): (1) decode ALL THREE payloads into
+    /// locals BEFORE the first await — every successful load() rewrites all
+    /// three keys from in-memory state, so a lazy read would find the FX/master
+    /// records already overwritten with []. (2) NO final persist: the AU
+    /// registry is often cold at process start (see scan()'s retry ladder), so
+    /// a transiently failing plugin must degrade THIS launch and retry the
+    /// next — never be forgotten forever. Stale entries prune naturally at the
+    /// next successful chain mutation.
     public func restoreChains() async {
         guard !hasRestoredChains else { return }
         hasRestoredChains = true
         let d = UserDefaults.standard
         let decoder = JSONDecoder()
-        if let data = d.data(forKey: Self.chainInstrumentKey),
-           let info = try? decoder.decode(HostedAUInfo.self, from: data) {
+        let instrument = d.data(forKey: Self.chainInstrumentKey)
+            .flatMap { try? decoder.decode(HostedAUInfo.self, from: $0) }
+        let effects = d.data(forKey: Self.chainEffectsKey)
+            .flatMap { try? decoder.decode([HostedAUInfo].self, from: $0) } ?? []
+        let masters = d.data(forKey: Self.chainMasterKey)
+            .flatMap { try? decoder.decode([HostedAUInfo].self, from: $0) } ?? []
+        guard instrument != nil || !effects.isEmpty || !masters.isEmpty else { return }
+        isRestoringChains = true
+        var failed: [String] = []
+        if let instrument {
+            await load(instrument)
+            if loaded != instrument { failed.append(instrument.name) }
+        }
+        for info in effects {
             await load(info)
+            if !loadedEffects.contains(info) { failed.append(info.name) }
         }
-        if let data = d.data(forKey: Self.chainEffectsKey),
-           let infos = try? decoder.decode([HostedAUInfo].self, from: data) {
-            for info in infos { await load(info) }
+        for info in masters {
+            await loadMasterEffect(info)
+            if !loadedMasterEffects.contains(info) { failed.append(info.name) }
         }
-        if let data = d.data(forKey: Self.chainMasterKey),
-           let infos = try? decoder.decode([HostedAUInfo].self, from: data) {
-            for info in infos { await loadMasterEffect(info) }
+        if !failed.isEmpty {
+            restoreNotice = "Not restored: \(failed.joined(separator: ", ")) — the plugin may still be waking up; reload it from this list."
+            log.audio("AUv3 chain restore incomplete: \(failed.joined(separator: ", "))", level: .error)
         }
-        persistChains()
+        isRestoringChains = false
     }
 
     // MARK: - Plugin state (fullState) persistence

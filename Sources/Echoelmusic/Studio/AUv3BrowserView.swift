@@ -120,6 +120,27 @@ struct AUv3BrowserView: View {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // AU-2: restore state stays visible — a failed restore is the one
+                // clue why a plugin "vanished" after relaunch (loadError above is
+                // cleared on every appear; this notice is dismissed explicitly).
+                if host.isRestoringChains {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Restoring last session…")
+                            .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    }
+                }
+                if let notice = host.restoreNotice {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(notice).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.warning)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        Button("OK") { host.clearRestoreNotice() }
+                            .font(EchoelTheme.font(12, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                            .buttonStyle(.plain)
+                    }
+                }
                 if host.loaded != nil || !host.loadedEffects.isEmpty || !host.loadedMasterEffects.isEmpty { loadedBar }
                 section("Instruments", host.instruments, icon: "pianokeys")
                 if !host.effects.isEmpty { effectTargetPicker }
@@ -285,7 +306,10 @@ struct AUv3BrowserView: View {
                 .strokeBorder(highlighted ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .disabled(host.isLoading)   // one load at a time — matches the host's re-entrancy guard
+        // One load at a time (host re-entrancy guard) — AND the whole restore
+        // window (AU-2 review: a tap in the gap between two restore loads would
+        // be guard-dropped with no feedback while the row looked enabled).
+        .disabled(host.isLoading || host.isRestoringChains)
     }
 }
 #endif
