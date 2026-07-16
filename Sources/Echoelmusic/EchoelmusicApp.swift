@@ -639,6 +639,18 @@ struct EchoelmusicApp: App {
                 timelinePlayer.rollDetuneSink = { [weak polyVoice] cents in
                     polyVoice?.setDetune(cents: cents)
                 }
+                // S2-W2-6: route the PRIMARY roll through its lane's kind voice when
+                // that lane is a drums kit / sub-bass. The rack's single kit/sub back
+                // it; nil (poly, OR the units are absent because voiceKindRouting is
+                // OFF ⇒ kits/subs empty) restores today's polyVoice path — bit-identical.
+                timelinePlayer.rollKindSink = { [weak pianoRoll, weak laneVoiceRack] kind in
+                    guard let pianoRoll else { return }
+                    switch kind {
+                    case .drums:   pianoRoll.setKindVoice(laneVoiceRack?.kits.first)
+                    case .subBass: pianoRoll.setKindVoice(laneVoiceRack?.subs.first)
+                    default:       pianoRoll.setKindVoice(nil)
+                    }
+                }
                 // A1 (healing wave 1, audit-verified CRITICAL "audio lanes silent"):
                 // the tested AudioLanePlayer coordinator finally gets its device sink —
                 // one streaming AVAudioPlayerNode per audio lane, additive into the

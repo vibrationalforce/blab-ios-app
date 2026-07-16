@@ -101,6 +101,12 @@ public final class TimelineRegionPlayer {
     /// Applies the PRIMARY roll lane's fine DETUNE (cents) to the roll voice on region
     /// load (the roll lane plays PianoRollModel, not a rack slot). nil ⇒ no detune.
     @ObservationIgnored public var rollDetuneSink: ((_ cents: Float) -> Void)?
+    /// S2-W2-6: the voice KIND the PRIMARY roll lane plays through. Fired at roll-
+    /// region load (before the clip's notes) and reset to `.poly` on clear, so a
+    /// drums / sub-bass primary lane routes the whole roll to that kind voice.
+    /// Structural (an instrument change rides refreshStructure → loadRollRegion),
+    /// so it is NOT re-pushed in refreshMixer. nil ⇒ poly, bit-identical.
+    @ObservationIgnored public var rollKindSink: ((_ kind: LaneVoiceKind) -> Void)?
     /// Applies a SECONDARY lane's stereo PAN (−1…1) to its slot's rack voice — on
     /// region load AND live on a mid-play mixer edit (H4, healing wave 1: pan was
     /// silently inert for rack voices). Injected (AVFoundation stays in the app).
@@ -352,6 +358,9 @@ public final class TimelineRegionPlayer {
         // roll voice to the roll lane's own semitone shift before its notes load.
         rollTransposeSink?(doc.lanes.first(where: { $0.id == lane })?.transposeSemitones ?? 0)
         rollDetuneSink?(doc.lanes.first(where: { $0.id == lane })?.detuneCents ?? 0)
+        // S2-W2-6: bind the roll's KIND voice BEFORE its notes load (a drums/sub
+        // primary lane plays the kit/sub; poly ⇒ today's voice).
+        rollKindSink?(doc.lanes.first(where: { $0.id == lane })?.builtinInstrument?.voiceKind ?? .poly)
         loadClip(region, atTick: tick, step: 0)
     }
 
@@ -407,6 +416,7 @@ public final class TimelineRegionPlayer {
         pianoRoll?.allNotesOff()
         pianoRoll?.load([])
         pianoRoll?.setClipAutomation([])
+        rollKindSink?(.poly)   // S2-W2-6: no region ⇒ back to the poly voice
         loadedRegionID = nil
     }
 

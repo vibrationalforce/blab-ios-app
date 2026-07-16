@@ -132,6 +132,11 @@ public final class SubBassVoice {
         recordEnqueueForTests("on", pitch)
     }
 
+    /// NoteVoice conformance (S2-W2-6 primary-roll routing): the mono sub has no
+    /// per-note velocity (its level is the felt-sub gain), so this routes to the
+    /// existing pitch-only noteOn — a sub-bass PRIMARY lane plays its notes here.
+    public func noteOn(pitch: Int, velocity: Float) { noteOn(pitch: pitch) }
+
     /// Release the sub if `pitch` is the note currently sounding.
     public func noteOff(pitch: Int) {
         _ = noteCommands.tryEnqueue(SubCommand(kind: .off, pitch: Int32(pitch)))

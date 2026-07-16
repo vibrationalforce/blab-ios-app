@@ -21,6 +21,15 @@ public protocol NoteVoice: AnyObject {
     func allNotesOff()
 }
 extension PolySynthVoice: NoteVoice {}
+// S2-W2-6: the rack kind voices also route the PRIMARY roll when its lane is a
+// drums / sub-bass instrument. Guarded on Accelerate (LaneDrumKitVoice's extra
+// dependency); SubBassVoice needs only AVFoundation, which this SwiftUI file
+// already requires (it stores a SubBassVoice). No Apple platform has SwiftUI
+// without both, so the flag-ON path compiles on every real target.
+extension SubBassVoice: NoteVoice {}
+#if canImport(Accelerate)
+extension LaneDrumKitVoice: NoteVoice {}
+#endif
 
 /// Editable polyphonic melodic pattern + its trigger logic.
 @MainActor
@@ -45,6 +54,13 @@ public final class PianoRollModel {
     /// Optional sub-bass voice — the lowest notes of each take also drive this an
     /// octave down so the bass can be FELT (sub/headphones/haptics). nil = no sub.
     @ObservationIgnored private weak var subVoice: SubBassVoice?
+    /// S2-W2-6 ("Spur = Instrument"): when the PRIMARY roll lane carries a
+    /// non-poly instrument (a drums kit / dedicated sub), the app sets this to
+    /// that physical kind voice and the WHOLE roll plays through it instead of
+    /// the poly `voice`/`lead` — and the mono sub-DOUBLING is skipped (the kind
+    /// voice IS the instrument, not something to double). nil ⇒ today's poly
+    /// path, bit-identical. Weak like the other voice refs (the rack owns it).
+    @ObservationIgnored private weak var kindVoice: (any NoteVoice)?
     /// Optional live MIDI/MPE OUT — mirrors every note the synth plays to the
     /// virtual "Echoelmusic" source so a DAW records the body's take in real time.
     /// nil or disabled = silent (no-op); never affects the audio path.
@@ -374,6 +390,7 @@ public final class PianoRollModel {
         voice?.allNotesOff()
         lead?.allNotesOff()
         subVoice?.allNotesOff()
+        kindVoice?.allNotesOff()   // S2-W2-6: release the kind voice too
         midiOut?.allNotesOff()
         auHost?.allNotesOff()
     }
@@ -382,7 +399,22 @@ public final class PianoRollModel {
     /// `.lead` → the dedicated lead voice when present, else the main voice;
     /// everything else → the main voice. All warm synth (no real instruments).
     private func outputVoice(for role: NoteRole) -> (any NoteVoice)? {
+        // S2-W2-6: a non-poly primary lane routes EVERY role through its one kind
+        // voice (a kit/sub is single-timbre — no pad/lead split). All the existing
+        // active-tracking, wrap-tie and release-grouping logic flows through this
+        // one router, so `sameVoice` stays correct (every role → the same voice).
+        if let kindVoice { return kindVoice }
         return (role == .lead) ? (lead ?? voice) : voice
+    }
+
+    /// S2-W2-6: bind (or clear) the primary roll's kind voice. Releasing every
+    /// sounding note first (offs route through the CURRENT `outputVoice`) so a
+    /// mid-take swap never strands a gate-held note on the old voice. nil restores
+    /// the poly path. Idempotent for an unchanged binding.
+    public func setKindVoice(_ v: (any NoteVoice)?) {
+        guard kindVoice !== v else { return }
+        allNotesOff()
+        kindVoice = v
     }
 
     /// Whether two roles play on the SAME underlying voice — used to group
@@ -593,7 +625,10 @@ public final class PianoRollModel {
         // `active` set. Stateful + symmetric so a re-seed/register shift can never
         // leave a stranded wrong-pitch sub (the old per-tick bassCeiling gate could).
         // The sub voice octave-folds into its felt band, so the pitch class is kept.
-        let desiredSub = (suppressBuiltIn || !laneAudible)
+        // S2-W2-6: skip the poly DOUBLING sub when a kind voice is the instrument —
+        // a drum kit must not also drive the felt sub, and a sub-bass lane already
+        // IS the sub (its notes play through kindVoice at pitch, not octave-doubled).
+        let desiredSub = (suppressBuiltIn || !laneAudible || kindVoice != nil)
             ? nil : active.values.map(\.pitch).min().map { $0 - 12 }
         if desiredSub != currentSubPitch {
             if let p = desiredSub { subVoice?.noteOn(pitch: p) }   // monophonic → retunes

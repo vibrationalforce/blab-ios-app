@@ -61,6 +61,14 @@ public final class LaneDrumKitVoice {
         pads[i].fire(gain: hit.gain)
     }
 
+    /// NoteVoice conformance (S2-W2-6 primary-roll routing): map the roll's 0…1
+    /// velocity to the kit's MIDI 0…127 (same convention as LaneVoiceRack.midiVelocity;
+    /// non-finite → 0 before the clamp so NaN can't slip through), then strike.
+    public func noteOn(pitch: Int, velocity: Float) {
+        let v = Int((Swift.max(0, Swift.min(1, velocity.isFinite ? velocity : 0)) * 127).rounded())
+        noteOn(pitch: pitch, velocity: v)
+    }
+
     /// One-shots decay naturally — a drum has no gate to release.
     public func noteOff(pitch: Int) {}
 
