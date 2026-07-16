@@ -798,6 +798,50 @@ public final class AudioEngine {
         log.audio("Clip player node detached from master engine")
     }
 
+    /// Attach a clip player through a time-pitch stretch node: `player → timePitch →
+    /// masterMixer`. The `AVAudioUnitTimePitch` is a first-party graph node (Apple's
+    /// spectral phase-vocoder) — it does its OWN rendering, so this adds no work to the
+    /// render callback and never touches the master OUTPUT path (audition path only).
+    /// Warp #54 Slice A: the node stays IN the chain always; the caller sets
+    /// `timePitch.rate` per play (rate 1.0 = no tempo change — but the spectral node is
+    /// NOT bit-transparent, it carries overlap-add latency; fine on this audition path).
+    func attachPlayerNode(_ node: AVAudioPlayerNode,
+                          through timePitch: AVAudioUnitTimePitch,
+                          format: AVAudioFormat) {
+        prepareGraph()
+        let wasRunning = masterEngine.isRunning
+        if wasRunning { masterEngine.pause() }
+        masterEngine.attach(node)
+        masterEngine.attach(timePitch)
+        let fmt: AVAudioFormat? = (format.sampleRate > 0 && format.channelCount > 0)
+            ? format
+            : { let f = masterMixer.outputFormat(forBus: 0)
+                return (f.sampleRate > 0 && f.channelCount > 0) ? f : nil }()
+        if let fmt {
+            masterEngine.connect(node, to: timePitch, format: fmt)
+            masterEngine.connect(timePitch, to: masterMixer, format: fmt)
+        } else {
+            masterEngine.detach(node)
+            masterEngine.detach(timePitch)
+            log.audio("Warpable clip player attach aborted — no valid format", level: .error)
+        }
+        if wasRunning {
+            do { try masterEngine.start() }
+            catch { log.audio("Failed to restart engine after warpable player attach: \(error)", level: .error) }
+        }
+        log.audio("Warpable clip player attached (player → timePitch → masterMixer)")
+    }
+
+    /// Detach a warpable clip player and its time-pitch node.
+    func detachPlayerNode(_ node: AVAudioPlayerNode, timePitch: AVAudioUnitTimePitch) {
+        if node.isPlaying { node.stop() }
+        masterEngine.disconnectNodeOutput(node)
+        masterEngine.disconnectNodeOutput(timePitch)
+        masterEngine.detach(node)
+        masterEngine.detach(timePitch)
+        log.audio("Warpable clip player detached from master engine")
+    }
+
     // MARK: - AUv3 Node Hosting
 
     /// Run graph-mutating work with the engine paused, restarting it afterwards if

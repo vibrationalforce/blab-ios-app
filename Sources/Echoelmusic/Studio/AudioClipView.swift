@@ -144,12 +144,29 @@ struct AudioClipView: View {
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // Warp (#54): tempo-conform the clip to the project tempo, pitch preserved
+            // (Apple on-device spectral stretch). Off = plays at the file's own tempo.
+            Toggle(isOn: warpBinding) {
+                Text("Warp").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+            }
+            .tint(EchoelTheme.accent)
+            if region.warpEnabled {
+                EchoelValueField(label: "Clip BPM", value: nativeBPMBinding,
+                                 range: Float(AudioClipRegion.nativeBPMRange.lowerBound)...Float(AudioClipRegion.nativeBPMRange.upperBound),
+                                 unit: "BPM", decimals: 1)
+                let rate = region.effectiveStretchRate(projectBPM: Double(beatPlayer.pattern.tempo))
+                Text(region.nativeBPM > 0
+                     ? String(format: "Stretch ×%.3f → project %.0f BPM (pitch preserved).", rate, beatPlayer.pattern.tempo)
+                     : "Set the clip's own BPM to tempo-match it.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     private var transport: some View {
         HStack(spacing: 10) {
-            Button { player.play(region: region) } label: {
+            Button { player.play(region: region, projectBPM: Double(beatPlayer.pattern.tempo)) } label: {
                 Label("Play", systemImage: "play.fill")
                     .font(EchoelTheme.font(14, .semibold))
                     .foregroundStyle(EchoelTheme.onPrimary)
@@ -327,6 +344,22 @@ struct AudioClipView: View {
     }
     private var loopBinding: Binding<Bool> {
         Binding(get: { region.loop }, set: { region.loop = $0 })
+    }
+    private var warpBinding: Binding<Bool> {
+        Binding(
+            get: { region.warpEnabled },
+            // Enabling warp with no clip BPM yet: seed the project tempo as a sensible
+            // starting point (rate ≈ 1.0) so the field isn't a dead 0 the user must fix.
+            set: { on in
+                region.warpEnabled = on
+                if on, region.nativeBPM <= 0 {
+                    region.nativeBPM = Double(beatPlayer.pattern.tempo)
+                }
+            }
+        )
+    }
+    private var nativeBPMBinding: Binding<Float> {
+        Binding(get: { Float(region.nativeBPM) }, set: { region.nativeBPM = Double($0) })
     }
 }
 

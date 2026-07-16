@@ -24,14 +24,23 @@ public final class AudioClipPlayer {
     public private(set) var durationSeconds: Double = 0
 
     @ObservationIgnored public let node = AVAudioPlayerNode()
+    /// Warp #54: pitch-preserving stretch node (Apple spectral phase-vocoder). Always
+    /// in the chain `node → timePitch → masterMixer`; `rate` is set per play (1.0 =
+    /// no tempo change), so no graph re-wire ever happens mid-audition. NOTE: the
+    /// spectral node is NOT bit-transparent even at rate 1.0 — it carries the phase-
+    /// vocoder's inherent overlap-add latency and can add faint coloration; acceptable
+    /// on this preview AUDITION path (not the master/timeline). Device-verify that a
+    /// warp-OFF preview still sounds clean; if it colours audibly, route warp-off clips
+    /// through the plain single-node `attachPlayerNode(_:format:)` instead.
+    @ObservationIgnored public let timePitch = AVAudioUnitTimePitch()
     @ObservationIgnored private weak var engine: AudioEngine?
     @ObservationIgnored private var file: AVAudioFile?
     @ObservationIgnored private var attached = false
 
     public init() {}
 
-    /// Attach the player node into the master mix. Call once, before/after engine
-    /// start (the attach pauses/restarts safely). Idempotent.
+    /// Attach the player node (through the warp node) into the master mix. Call once,
+    /// before/after engine start (the attach pauses/restarts safely). Idempotent.
     public func attach(to engine: AudioEngine) {
         self.engine = engine
         guard !attached, let file else {
@@ -39,7 +48,7 @@ public final class AudioClipPlayer {
             self.engine = engine
             return
         }
-        engine.attachPlayerNode(node, format: file.processingFormat)
+        engine.attachPlayerNode(node, through: timePitch, format: file.processingFormat)
         attached = true
     }
 
@@ -57,15 +66,24 @@ public final class AudioClipPlayer {
         durationSeconds = sr > 0 ? Double(f.length) / sr : 0
         // Attach now that we have a concrete format (if an engine is set).
         if let engine, !attached {
-            engine.attachPlayerNode(node, format: f.processingFormat)
+            engine.attachPlayerNode(node, through: timePitch, format: f.processingFormat)
             attached = true
         }
         return true
     }
 
     /// Play the loaded file trimmed to `region` (one-shot, or looping if set).
-    public func play(region: AudioClipRegion) {
+    /// When `region` is warp-enabled with a native BPM, the clip is time-stretched to
+    /// `projectBPM` (pitch preserved) via the always-in-chain `timePitch` node — the
+    /// tested `region.effectiveStretchRate(projectBPM:)` picks the rate. `projectBPM`
+    /// ≤ 0 (or warp off) plays at native tempo (rate 1.0, transparent).
+    public func play(region: AudioClipRegion, projectBPM: Double = 0) {
         guard let f = file, attached else { return }
+        // Warp rate is a control-plane parameter set (no render-thread work). Set it
+        // BEFORE scheduling so the very first buffer is stretched. rate 1.0 = no tempo
+        // change (the node stays in-chain; see the `timePitch` note re: warp-off audition).
+        timePitch.rate = Float(region.effectiveStretchRate(projectBPM: projectBPM))
+        timePitch.pitch = 0
         let sr = f.processingFormat.sampleRate
         let total = f.length
         let startFrame = region.startFrame(sampleRate: sr, totalFrames: total)
@@ -123,7 +141,7 @@ public final class AudioClipPlayer {
     /// Detach from the engine (e.g. on teardown).
     public func detach() {
         stop()
-        if attached, let engine { engine.detachPlayerNode(node); attached = false }
+        if attached, let engine { engine.detachPlayerNode(node, timePitch: timePitch); attached = false }
     }
 }
 #endif

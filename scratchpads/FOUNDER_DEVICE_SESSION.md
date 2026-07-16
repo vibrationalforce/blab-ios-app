@@ -90,6 +90,19 @@ Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-is
       der Punkt?** Ich baue Slice 6 nur auf dein Ja (dann eigene Strecke, Note-Feld
       absent=Bio-MPE unverändert).
 
+## G · Warp #54 Slice A — Editor-Preview-Hörtest (Flag-frei, reversibel)
+
+- [ ] **Warp-ON:** Audio-Clip-Editor öffnen, Warp einschalten, „Clip BPM" auf einen vom
+      Projekt-Tempo abweichenden Wert → Play: der Clip zieht hörbar aufs Projekt-Tempo,
+      **Tonhöhe bleibt** (kein Chipmunk). Stretch-Zeile zeigt den ×-Faktor.
+- [ ] **Warp-OFF klingt sauber?** Der Spectral-Node (`AVAudioUnitTimePitch`) bleibt bei
+      Slice A IMMER in der Preview-Kette (rate 1.0 ≠ bit-transparent, trägt Overlap-Add-
+      Latenz). Prüfen: ein Warp-OFF-Preview vs. vorher — hörbare Färbung/Latenz? Falls ja,
+      Ein-Commit-Follow-up: Warp-OFF durch den plain Single-Node-Pfad routen.
+- Nur der **Editor-Preview** warpt; die Timeline-Wiedergabe bleibt unangetastet (Slice B).
+- **Slice C offen (Founder-Ja):** die EINE Dependency-Frage (Signalsmith Stretch MIT-C++-
+  Bridge) steht im Chat-Delta — Slice A/B brauchen KEINE Entscheidung (gratis Apple-Nodes).
+
 ## Was ich WÄHRENDDESSEN autonom weiterbaue (nicht geräte-gebunden)
 
 - S2-W2 Slice 6 (Primary-Roll-Kind-Routing, riskanteste reine Scheibe) — flag-OFF.
