@@ -3,6 +3,9 @@ import SwiftUI
 #if canImport(AVFoundation)
 import AVFoundation   // AVAudioSession — Session-cue Latenzausgleich (outputLatency)
 #endif
+#if canImport(UIKit)
+import UIKit          // applicationState — background idle-engine gate (2.5.4)
+#endif
 
 /// Echoelmusic — Make Beats. Record Video. Stream Live.
 @main
@@ -518,6 +521,30 @@ struct EchoelmusicApp: App {
                     if timelinePlayer?.isPlaying == true { timelinePlayer?.stop() }
                     else { beatPlayer?.pattern.stop() }
                 }
+                #if canImport(UIKit)
+                // 2.5.4, second hole (code review 2026-07-16): audio that ENDS while
+                // the app is ALREADY backgrounded (an arrangement finishes on its own,
+                // or the route-loss hook above stops it) previously left the engine
+                // rendering silence indefinitely — the .background branch only checks
+                // at the transition. Any transport stop landing in the background
+                // re-runs the idle gate; recording / monitoring / held performer
+                // notes still keep the session alive. stop() sets the engine's
+                // intentionallyStopped flag, which also stands down the route-loss
+                // recovery task, so this closes both reported paths.
+                transport.addStopSubscriber("background-idle") {
+                    [weak audioEngine, weak microphoneManager, weak polyVoice] in
+                    guard UIApplication.shared.applicationState == .background,
+                          let audioEngine else { return }
+                    let audioNeeded = audioEngine.multiTrackRecorder.isRecording
+                        || microphoneManager?.isRecording == true
+                        || audioEngine.isInputMonitoring
+                        || (polyVoice?.activeVoiceCount ?? 0) > 0
+                    guard !audioNeeded else { return }
+                    audioEngine.stop()
+                    log.log(.info, category: .system,
+                            "Transport stopped in background — idle audio engine stopped (2.5.4)")
+                }
+                #endif
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 leadVoice.start(subscribing: bus)
@@ -883,6 +910,7 @@ struct EchoelmusicApp: App {
                         || audioEngine.multiTrackRecorder.isRecording
                         || microphoneManager.isRecording
                         || audioEngine.isInputMonitoring
+                        || polyVoice.activeVoiceCount > 0   // held MPE/performer notes
                     if !audioNeeded {
                         audioEngine.stop()
                         log.log(.info, category: .system,

@@ -33,6 +33,14 @@ public final class AudioEngine {
     /// Called on the MainActor (the route observer runs on the main queue).
     @ObservationIgnored var onOutputDeviceLost: (() -> Void)?
 
+    /// True between a deliberate `stop()` (e.g. backgrounding with nothing
+    /// audible) and the next explicit `start()`. While set, ALL self-healing
+    /// paths (route-loss recovery, its 300 ms settle-Task, the config-change
+    /// watchdog) stand down — an intentionally stopped engine is not broken,
+    /// and resurrecting it in the background would re-create the 2.5.4
+    /// silent-audio state (audio-thread review 2026-07-16, findings F1/F2).
+    @ObservationIgnored private var intentionallyStopped = false
+
     /// De-bounce guard so overlapping recovery triggers (route flap + config
     /// change firing together) don't schedule competing `start()` calls.
     @ObservationIgnored private var isRecovering = false
@@ -262,8 +270,10 @@ public final class AudioEngine {
                     self.retroCapture.install(on: self.masterEngine)
                     return
                 }
-                // Engine actually stopped or we were intentionally stopped: recover only
-                // if we were meant to be running.
+                // Engine actually stopped: recover only if we were meant to be
+                // running. A deliberate stop() never self-heals (review F2 — a
+                // stale `degraded` must not re-open the gate in the background).
+                guard !self.intentionallyStopped else { return }
                 guard self.isRunning || self.degraded else { return }
                 self.recoverEngine(reason: "engine configuration changed")
             }
@@ -275,6 +285,9 @@ public final class AudioEngine {
     /// attempt counter resets and `degraded` clears; after `maxRecoveryAttempts`
     /// consecutive failures it surfaces `degraded` so the UI can offer a manual retry.
     private func recoverEngine(reason: String) {
+        // An intentionally stopped engine is not "broken" — never self-heal it
+        // (only an explicit start() re-arms recovery).
+        guard !intentionallyStopped else { return }
         guard !isRecovering else { return }
         guard recoveryAttempts < Self.maxRecoveryAttempts else {
             degraded = true
@@ -293,6 +306,10 @@ public final class AudioEngine {
             try? await Task.sleep(for: .milliseconds(300))
             guard let self else { return }
             self.isRecovering = false
+            // Re-check after the settle: a deliberate stop() (backgrounding) may
+            // have landed during the 300 ms — restarting now would resurrect a
+            // silent engine in the background (review F1).
+            guard !self.intentionallyStopped else { return }
             self.start()
             if self.masterEngine.isRunning {
                 self.recoveryAttempts = 0
@@ -449,6 +466,9 @@ public final class AudioEngine {
     }
 
     func start() {
+        // An explicit start (startup, scenePhase .active, user retry) always
+        // re-arms self-healing after an intentional stop.
+        intentionallyStopped = false
         // Ensure the session + graph exist before starting, regardless of caller
         // (startup task, scenePhase .active, or route-change recovery).
         prepareGraph()
@@ -596,6 +616,12 @@ public final class AudioEngine {
     }
 
     func stop() {
+        // Deliberate stop (e.g. backgrounding with nothing audible, 2.5.4): the
+        // self-healing paths must NOT resurrect the engine — an in-flight
+        // recoverEngine settle-Task or a late config-change notification would
+        // otherwise restart it in the background, re-creating the silent-audio
+        // state the caller just removed (audio-thread review 2026-07-16, F1/F2).
+        intentionallyStopped = true
         meterPollTimer?.invalidate()
         meterPollTimer = nil
         microphoneManager.stopRecording()
