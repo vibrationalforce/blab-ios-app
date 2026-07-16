@@ -102,6 +102,26 @@ final class AudioClipFactoryTests: XCTestCase {
         XCTAssertEqual(region.lengthTicks, TimelineTime.ticksPerBar)
     }
 
+    func testRegion_defaultsWarpOffCleanMode() {
+        // The unadorned import (no editor warp) lands bit-identical: warp off, Clean.
+        let region = AudioClipFactory.region(forDurationSeconds: 8.0, bpm: 120,
+                                             laneID: UUID(), clipID: UUID(),
+                                             startTick: 0, nativeBPM: 120)
+        XCTAssertFalse(region.warpEnabled)
+        XCTAssertEqual(region.stretchMode, .clean)
+    }
+
+    func testRegion_carriesWarpAndStretchModeOntoPlacement() {
+        // The editor's Warp gate + Tape character must reach the placed region
+        // (else "Add to timeline" would silently drop the user's choice).
+        let region = AudioClipFactory.region(forDurationSeconds: 8.0, bpm: 120,
+                                             laneID: UUID(), clipID: UUID(),
+                                             startTick: 0, nativeBPM: 120,
+                                             warpEnabled: true, stretchMode: .tape)
+        XCTAssertTrue(region.warpEnabled)
+        XCTAssertEqual(region.stretchMode, .tape)
+    }
+
     func testRegion_deterministic() {
         let lane = UUID()
         let clip = UUID()

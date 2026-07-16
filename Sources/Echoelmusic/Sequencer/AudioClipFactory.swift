@@ -70,7 +70,9 @@ public enum AudioClipFactory {
                               startTick: Int,
                               nativeBPM: Double,
                               contentOffsetSeconds: Double = 0,
-                              gain: Float = 1) -> TimelineRegion {
+                              gain: Float = 1,
+                              warpEnabled: Bool = false,
+                              stretchMode: StretchMode = .clean) -> TimelineRegion {
         let bars = barCount(forDurationSeconds: durationSeconds, nativeBPM: nativeBPM)
         let lengthTicks = bars * TimelineTime.ticksPerBar
         return TimelineRegion(laneID: laneID,
@@ -78,7 +80,9 @@ public enum AudioClipFactory {
                               startTick: max(0, startTick),
                               lengthTicks: lengthTicks,
                               contentOffsetSeconds: max(0, contentOffsetSeconds),
-                              gain: gain)
+                              gain: gain,
+                              warpEnabled: warpEnabled,
+                              stretchMode: stretchMode)
     }
 
     /// Whole-bar count for `durationSeconds` at `nativeBPM`, rounded to the

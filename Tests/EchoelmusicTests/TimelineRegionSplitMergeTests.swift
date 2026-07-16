@@ -169,6 +169,50 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
         XCTAssertEqual(m.startTick, r.startTick)
         XCTAssertEqual(m.lengthTicks, r.lengthTicks)
     }
+
+    // MARK: - Stretch mode (the editor's Warp/Tape choice persists onto the placement)
+
+    func testRegion_defaultStretchModeIsClean() {
+        XCTAssertEqual(region(start: 0, length: 1920).stretchMode, .clean)
+    }
+
+    func testRegion_legacyJSONWithoutStretchMode_decodesAsClean() throws {
+        var r = region(start: 0, length: 1920)
+        r.stretchMode = .tape
+        var object = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(r)) as? [String: Any] ?? [:]
+        object.removeValue(forKey: "stretchMode")   // a pre-stretch-engine document
+        let legacy = try JSONDecoder().decode(
+            TimelineRegion.self,
+            from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(legacy.stretchMode, .clean, "legacy regions load Clean (Apple spectral)")
+    }
+
+    func testRegion_stretchModeRoundTrips() throws {
+        var r = region(start: 0, length: 1920)
+        r.stretchMode = .tape
+        let back = try JSONDecoder().decode(TimelineRegion.self, from: JSONEncoder().encode(r))
+        XCTAssertEqual(back.stretchMode, .tape)
+    }
+
+    func testSplit_bothPiecesKeepTheStretchMode() {
+        var r = region(start: 0, length: 1920)
+        r.stretchMode = .tape
+        guard let (a, b) = r.split(at: 960, bpm: 120) else { return XCTFail("split must succeed") }
+        XCTAssertEqual(a.stretchMode, .tape)
+        XCTAssertEqual(b.stretchMode, .tape)
+        XCTAssertTrue(a.abuts(b, bpm: 120), "a clean split stays joinable — equal modes")
+    }
+
+    func testAbuts_differingStretchMode_refusesJoin() {
+        var r = region(start: 0, length: 1920)
+        r.stretchMode = .tape
+        guard let (a, b0) = r.split(at: 960, bpm: 120) else { return XCTFail("split must succeed") }
+        var b = b0
+        b.stretchMode = .clean
+        XCTAssertFalse(a.abuts(b, bpm: 120),
+                       "joining a Tape half onto a Clean half would silently pick one — refuse")
+    }
 }
 
 /// Store-level razor (split-at-playhead) + join round-trip across the whole document.

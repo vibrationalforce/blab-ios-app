@@ -255,7 +255,9 @@ struct AudioClipView: View {
                                              laneID: laneID, clipID: clip.id,
                                              startTick: startTick, nativeBPM: native,
                                              contentOffsetSeconds: offset,
-                                             gain: region.gain)   // CLIP-6: the editor's gain lands too
+                                             gain: region.gain,              // CLIP-6: the editor's gain lands too
+                                             warpEnabled: region.warpEnabled, // #54: the editor's Warp gate lands
+                                             stretchMode: region.stretchMode) // stretch engine: Clean/Tape choice lands
         clips.setClip(at: slot, clip)
         timeline.addRegion(placed)
         dismiss()

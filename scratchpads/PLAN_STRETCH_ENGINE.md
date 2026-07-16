@@ -63,6 +63,26 @@ A/B gegen `.clean`/Apple-spectral BEVOR committen; contained MIT-C++-Bridge AUSS
 Swift-Render-Cores (nie im Render-Callback); Council-Node-Review. Reihenfolge unverändert:
 NACH Tape + Beats, nicht als erste hörbare Scheibe.
 
+### Slice 1½ — Modell-Lücke geschlossen (✅ 2026-07-16): `TimelineRegion.stretchMode`
+Der Editor-Warp+Tape-Entscheid ging beim „Add to timeline" VERLOREN — die platzierte
+`TimelineRegion` hatte `warpEnabled`, aber KEIN `stretchMode`, und `AudioClipFactory.region`
+trug nicht mal `warpEnabled` durch. Jetzt: `TimelineRegion.stretchMode: StretchMode`
+(spiegelt `warpEnabled` — Init-Default `.clean`, CodingKey, `decodeIfPresent .clean`,
+`abuts`-Guard verweigert Tape↔Clean-Join wie bei gain/warp; split/trim/merge/duplicate
+erben via `var x = self`). `AudioClipFactory.region` bekam `warpEnabled`/`stretchMode`-
+Parameter; `AudioClipView.addToTimeline` reicht `region.warpEnabled`/`region.stretchMode`
+durch. Tests: Default/Legacy-Decode/Roundtrip/Split-carry/abuts-refuse + Factory-carry.
+**EHRLICH GESTUFT:** Timeline-Audio WENDET den Modus noch NICHT an (`AudioRegionSink.play`
+hat keinen rate/mode-Param → das ist Slice B unten). Diese Scheibe = die ehrliche
+Persistenz, damit der Entscheid auf der Region ÜBERLEBT; Editor-Preview warpt hörbar,
+Timeline-Warp = dokumentierte Slice-B-Lücke. `structurallyEqual` behandelt Modus-Wechsel
+korrekt als strukturell (via `regions ==`, konsistent zu `warpEnabled`).
+
+### Slice B (offen, device-verify-schwer) — Timeline-Audio wendet rate/mode an
+`AudioRegionSink.play` um einen rate/mode-Param erweitern + `resolveNativeBPM` in
+`AudioLanePlayer` injizieren + Sink-Impl setzt `timePitch.rate`/`.pitch` aus `StretchPlan`.
+DANN klingt eine platzierte warp+Tape-Region auf der Timeline wie im Editor-Preview.
+
 ### Slice 4 — Überall
 Video-Ton (PLAN_VIDEO_AUDIO), Sampler, Browser-Audition lesen dieselbe `StretchPlan`.
 Ein Selektor, ein Verhalten app-weit.

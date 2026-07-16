@@ -181,10 +181,20 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// Legacy regions decode as false (bit-identical playback). Split/front-trim/
     /// duplicate carry it; Join refuses a mismatch (like `gain`).
     public var warpEnabled: Bool
+    /// The stretch algorithm/character for THIS placement (Echoel stretch engine):
+    /// `.clean` (Apple spectral, pitch preserved), `.tape` (pitch rides tempo), etc.
+    /// Only meaningful when `warpEnabled` is true. A property of the PLACEMENT — the
+    /// same clip can sit Clean here and Tape there. Legacy regions decode as `.clean`.
+    /// Split/front-trim/duplicate carry it; Join refuses a mismatch (like `gain`/warp).
+    /// NOTE: timeline audio does not yet APPLY the mode (that is the pending Slice B —
+    /// `AudioRegionSink.play` has no rate/mode param today); this field is the honest
+    /// persistence so the editor's choice survives onto the placed region.
+    public var stretchMode: StretchMode
 
     public init(id: UUID = UUID(), laneID: UUID, clipID: UUID,
                 startTick: Int, lengthTicks: Int, contentOffsetSeconds: Double = 0,
-                contentOffsetTicks: Int = 0, gain: Float = 1, warpEnabled: Bool = false) {
+                contentOffsetTicks: Int = 0, gain: Float = 1, warpEnabled: Bool = false,
+                stretchMode: StretchMode = .clean) {
         self.id = id
         self.laneID = laneID
         self.clipID = clipID
@@ -194,11 +204,12 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         self.contentOffsetTicks = max(0, contentOffsetTicks)
         self.gain = Swift.min(2, Swift.max(0, gain.isFinite ? gain : 1))
         self.warpEnabled = warpEnabled
+        self.stretchMode = stretchMode
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, laneID, clipID, startTick, lengthTicks, contentOffsetSeconds
-        case contentOffsetTicks, gain, warpEnabled
+        case contentOffsetTicks, gain, warpEnabled, stretchMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -217,6 +228,8 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         gain = Swift.min(2, Swift.max(0, g.isFinite ? g : 1))
         // Legacy regions (pre-#54) carry no warp gate — off, bit-identical playback.
         warpEnabled = (try? c.decode(Bool.self, forKey: .warpEnabled)) ?? false
+        // Legacy regions (pre stretch-engine) carry no mode — Clean (Apple spectral).
+        stretchMode = (try? c.decode(StretchMode.self, forKey: .stretchMode)) ?? .clean
     }
 
     public var endTick: Int { startTick + lengthTicks }
@@ -290,7 +303,8 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         // for the warp gate (#54): warped + unwarped halves play different media
         // timelines — joining them would silently pick one state.
         guard laneID == other.laneID, clipID == other.clipID, endTick == other.startTick,
-              gain == other.gain, warpEnabled == other.warpEnabled
+              gain == other.gain, warpEnabled == other.warpEnabled,
+              stretchMode == other.stretchMode
         else { return false }
         let expectedOffset = contentOffsetSeconds
             + TimelineTime.seconds(fromTicks: lengthTicks, bpm: bpm)
