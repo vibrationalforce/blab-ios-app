@@ -6545,3 +6545,50 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   Bereich 4: H15-LOOPBARS ✓ → NÄCHSTER PUNKT H15-KEYSTORE
   (Core/StudioDefaultKeys.swift, WeatherMood.Param-Muster, Unit-Test der
   Default-Kohärenz — killt die Divergenz-Klasse), danach H15-LIGHT/H14-CORE.
+
+## Fortsetzung 25 (2026-07-16, FOUNDER-TURN + Stille-Fix + H15-KEYSTORE) → v272
+- **FOUNDER-TURN (4 Screenshots, Build 2373/v267):** (1) „AUv3 getrennt
+  scannen?" (2) „sehe keine Third-Party" (3) „Sound funktioniert gerade
+  generell nicht" (4) „Clips rudimentär + zittern" (5) „EchoelTools/Leiste
+  unten auflösen → Spuren/oben" (rot markiert: Comp/Session/Sound/Mix/FX/
+  Mood/Synth/Video-Chips) (6) „Warp im Audio-Clip mit neuster Technologie".
+  → Tasks #54 (Warp), #55 (Leiste), #56 (Clip-Zittern) angelegt.
+- **STILLE-URSACHE im Screenshot gefunden:** AUAudioFilePlayer/
+  AUScheduledSoundPlayer standen als ladbare INSTRUMENTE in der Liste
+  (scan klassifizierte MusicDevice||Generator als Instrument — Generator
+  war bewusst drin, weil viele Third-Party-Instrumente so registrieren).
+  Apples Generator-Units sind File-Player-API-Bausteine: klingen auf Noten
+  NIE. Ein Tipp = eingebaute Stimme ersetzt durch stummes Pseudo-Instrument;
+  v267-Restore verewigte es bei jedem Start.
+- **Fix a716ccd (3 Schichten):** scan filtert NUR Apple-Generatoren
+  (Third-Party bleibt) · load() verweigert ehrlich (isAppleGeneratorRecord,
+  vor isLoading) · restoreChains HEILT den gespeicherten Fehlgriff (Key weg,
+  Notice „The built-in voice is back") — Retention-Gesetz gilt transienten
+  Failures, nicht unmöglichen Instrumenten. Tests: Prädikat-Matrix +
+  engine-less Heal.
+- **Review-MEDIUM → Fix 41a93f5:** Per-SPUR-Pfad (TimelineLane.instrument
+  AUPluginRef, persistiert im Dokument; LaneAUInstrumentHost instanziiert
+  unabhängig — lädt fehlerfrei, bleibt stumm). AUPluginRef.isAppleGeneratorTrap
+  (LITERALE FourCCs 'augn'/'appl' — Foundation-only, Linux-getestet) + Guard
+  in wanted(); Dokument-Ref bleibt (Nutzerdaten heilt man nicht beim Laden —
+  anders als der UserDefaults-App-State). Re-Verify: APPROVE; FourCCs
+  byte-verifiziert; Trap-Lane degeneriert konsistent zum „effects ohne
+  Instrument = deferred"-Gesetz.
+- **LOW-Schulden (#57):** Lane-Label „(not playable — built-in voice)" +
+  restoreNotice komponieren statt überschreiben.
+- **Founder-Antworten:** getrennt scannen bringt nichts (ein Scan, geteilte
+  Anzeige); Third-Party braucht einmaliges App-Öffnen + Rescan; Audio-1-Fader
+  steht im Screenshot auf 0.00 (zweite Stille-Quelle); Sofort-Hilfe = Unload
+  in der geladenen Leiste; 2373=v267, v268–272 unterwegs.
+- **H15-KEYSTORE im selben Zug (3b8dfa3+3acd5f0, APPROVE, 4/4):** 22 geteilte
+  Keys single-sourced (Core/StudioDefaultKeys.swift); zwei WEITERE live-
+  Divergenzen behoben (visual.floating.visible true/false — der alte false-
+  Default hätte nach Fullscreen-Roundtrip das Visual dauerhaft gekillt;
+  studio.genre .vaporwave in MP4-Namen); Test pinnt Defaults + Key-Strings.
+  S3b offen (WorkspaceView/MoodPads/BodyTempoField/SurfaceSwitcher/
+  ArrangementView/MasterLoudnessGrid — Werte stimmen, reine Absicherung).
+- Gates 4/4 grün auf 41a93f5 → v272 deployed (Founder-Headline: „Die
+  Stille-Falle ist zu — und heilt sich selbst").
+- **NÄCHSTER BLOCK (Founder-Auftrag):** #55 Leiste unten auflösen →
+  Spurköpfe/oben (Council pro Chip), parallel #54-Plan (Warp) schreiben;
+  #56 braucht Geräte-Evidenz (Screen-Recording angefragt).

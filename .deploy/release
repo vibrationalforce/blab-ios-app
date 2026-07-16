@@ -1,30 +1,49 @@
-build: 2026-07-16 v10.79.271 (Loop-Anzeige und Instrument sagen dieselbe Zahl)
+build: 2026-07-16 v10.79.272 (Die Stille-Falle ist zu — und heilt sich selbst)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 4 (Struktur), Punkt 1 — kleinste Scheibe zuerst.
+notes: Direkter Founder-Report (2026-07-16, 4 Screenshots): "Sound
+  funktioniert gerade generell nicht." Ursache gefunden + dreifach zu.
 
-  LOOP-ANZEIGE = LOOP-REALITÄT (H15-LOOPBARS):
-  • Vorher: Auf einer frischen Installation zeigte die Transport-Leiste
-    „loop N/4" (und das Mini-Transport im Visual-Fenster ebenso),
-    während das Instrument tatsächlich deine 8-Takte-Phrase komponierte
-    — zwei Chrome-Kopien des Loop-Defaults widersprachen dem
-    Composition-Panel (dein Entscheid: 8 Takte sind die produzierbare
-    Phrase). Sobald man die Loop-Länge einmal anfasste, war es weg —
-    aber der ERSTE Eindruck log.
-  • Jetzt: Alle drei Stellen (Transport-Chrome, Visual-Mini-Transport,
-    Composition-Panel) sagen dieselbe 8 — auch der Projekt-Öffnen-
-    Fallback (Review-Fund: ein defekter gespeicherter Wert hätte still
-    4 in den geteilten Schlüssel geschrieben). Wer die Loop-Länge je
-    geändert hat: null Änderung, der gespeicherte Wert gewinnt.
-  • Dauerhaft killt diese Fehler-KLASSE erst das Single-Sourcing aller
-    geteilten Keys+Defaults — das ist der nächste Punkt (H15-KEYSTORE).
+  DIE STILLE-FALLE (dein Screenshot zeigte sie):
+  • In der Instrument-Liste standen AUAudioFilePlayer und
+    AUScheduledSoundPlayer — Apples programmatische File-Player-
+    Bausteine, die sich als „Generator" registrieren und auf
+    MIDI-Noten NIE klingen. Ein experimenteller Tipp ersetzte die
+    eingebaute Stimme durch ein dauerhaft stummes Pseudo-Instrument —
+    und seit v267 stellte der Ketten-Restore genau diesen Fehlgriff
+    bei JEDEM Start wieder her.
+  • Jetzt: (1) Apples Generator-Units fliegen aus der Liste —
+    Third-Party-Generatoren bleiben, viele echte Instrumente
+    registrieren so. (2) Ein Lade-Versuch wird ehrlich verweigert
+    („…is a system file-player unit, not a playable instrument").
+    (3) Ein GESPEICHERTER Fehlgriff wird beim nächsten Start GEHEILT:
+    Record entfernt, sichtbare Meldung „The built-in voice is back."
+    (4) Auch der Per-Spur-Pfad ist zu: eine Spur, der auf einem alten
+    Build so ein Player zugewiesen wurde, fällt auf die eingebaute
+    Stimme zurück statt stumm zu bleiben.
+  • SOFORT-HILFE auf deinem Gerät (bis dieses Update da ist):
+    Plugins-Browser → geladene Leiste unten → Unload beim Instrument.
+    Und: Deine Audio-1-Spur steht im Screenshot auf Gain 0.00 — die
+    Jungle-Loop ist damit vom eigenen Fader stumm (Wert hochziehen).
 
-  Review: APPROVE (alle Proben: nur 3 Deklarationen existieren,
-  Bar-Faltung längen-generisch mit Division-Guard, Bestandsnutzer
-  no-op; LOW sofort geschlossen) · alle 4 Gates grün auf dem Tip.
+  AUSSERDEM IN DIESEM BUILD (H15-KEYSTORE):
+  • 22 geteilte Einstellungen (Loop-Länge, Genre, Visual-Look, Touch,
+    …) haben jetzt EIN Zuhause mit deinen kanonischen Defaults — zwei
+    weitere stille Widersprüche behoben: der EchoelSynth-Panel-Knopf
+    log über die Visual-Sichtbarkeit („Show" während es sichtbar war),
+    und MP4-Dateinamen trugen auf frischen Installs das falsche Genre.
+    Ein Test pinnt jeden Default und jeden Key-String.
 
-  BEREICH-STAND: Bereiche 1/2/3/5 aus dem verifizierten Ultrascan
-  geschlossen; Bereich 4 läuft (H15-LOOPBARS ✓ → H15-KEYSTORE →
-  H15-LIGHT → H14-CORE).
+  DEINE ANTWORTEN (Kurzfassung; ausführlich im Chat):
+  • Getrennt scannen bringt nichts — EIN Scan, getrennte Anzeige; das
+    Problem war die Generator-Klassifikation (jetzt behoben).
+  • Third-Party-AUv3 erscheinen erst, wenn ihre App EINMAL geöffnet
+    wurde (iOS-Registrierung) → dann Rescan.
+  • Warp im Audio-Clip (#54), Leiste-unten-Auflösung (#55, dein rot
+    markierter Screenshot) und Clip-Zittern (#56) sind als nächste
+    Blöcke eingeplant — fürs Zittern hilft ein Screen-Recording.
+
+  Review: APPROVE (2 Runden + Re-Verify; MEDIUM Per-Spur-Pfad sofort
+  geschlossen) · alle 4 Gates grün auf dem Tip.
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
