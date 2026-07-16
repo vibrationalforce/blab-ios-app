@@ -6437,3 +6437,35 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Ultraprogramm-Stand:** Bereich 3: AU-1 (v266) + AU-2 (v267) SHIPPED →
   Rest: AU-3 (Scan-Bursts), AU-4 (Guidance). Danach Bereich 5 UX-1 (CRITICAL
   Kamera-verweigert-Sackgasse).
+
+## Fortsetzung 21 (2026-07-16, Ultraprogramm Bereich 5 — UX-1) → v268
+- **UX-1 (Ultrascan-CRITICAL): Kamera verweigert = stumme Sackgasse → ehrlicher
+  Settings-Weg.** Vorher: denied/restricted ließ start() scheitern, isRunning
+  blieb false OHNE Erklärung — Strip coachte für immer „Cover camera",
+  Header-Pille zeigte nichts, kein Weg zu den Einstellungen.
+- **Bau (6e38c9e, 5 Dateien):** PulseCue.cameraDenied (ERSTER Case in allen
+  drei Mappings; fullHint nennt Settings, shortLabel „Camera off", actionable)
+  + Tests · CameraRPPGBioPublisher.permissionDenied (im start()-catch FRISCH
+  via AVCaptureDevice.authorizationStatus gelesen — Systemfakt, nicht aus dem
+  Error geraten; nur unter gen==startGeneration geschrieben; nach erfolgreichem
+  Start geräumt; stop() fasst es nicht an — der Fakt ändert sich nicht durch
+  Stop) · acquisitionCue liefert .cameraDenied VOR allem Placement-Coaching
+  (auch PulseMeasurementView erbt den Hinweis gratis via coachingHint) ·
+  BioStripView: openSettingsButton (openAppSettings()) + Banner ·
+  HeaderMonitors: Pille zeigt .cameraDenied obwohl cameraLive false ist.
+- **Review-MEDIUM (Runde 1, sofort geschlossen in 6ea2592):** die zwei
+  Strip-Gates nutzten hasLiveSignal, das die .fallback-Demo AUSSCHLIESST —
+  wer bewusst Simulation wählte, wäre die ganze Session mit dem Kamera-Banner
+  genervt worden, und Strip ≠ Header-Pille. Fix: beide Gates auf ROHES
+  bus.freshBio() == nil (identisch zur Pille); hasLiveSignal bleibt für
+  liveTag (grün darf die Demo nie als lebenden Körper ausgeben).
+- **Re-Review: APPROVE.** Generation-Interleavings korrekt (stale-true über
+  Re-Grant unmöglich: iOS killt die App bei Kamera-Permission-Wechsel, und
+  der nächste erfolgreiche Start räumt ohnehin); Freeze-Regel hält (beide
+  neuen Reads in bestehenden 10-Hz-Leaves); kein exhaustiver PulseCue-Switch
+  außerhalb; „Cover camera" im Demo-Modus = VORBESTEHEND (separates LOW für
+  den Demo-Pfad: measuringTag könnte „Demo" zeigen — nicht UX-1).
+- **LEDGER-Lehre:** Unterdrückungs-Gates vs. Claim-Gates sind ZWEI Prädikate.
+- Gates 4/4 grün auf 6e38c9e UND 6ea2592 → v268 deployed.
+- **Ultraprogramm-Stand:** Bereich 5: UX-1 ✓ → als Nächstes UX-2 (First-Run-
+  Stille) oder zurück zu Bereich 3 AU-3 (Scan-Bursts).
