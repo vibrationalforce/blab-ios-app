@@ -6626,3 +6626,33 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   „das Feld heißt so" ist kein Engine-Beweis.
 - Kein Deploy dieses Zyklus (Docs + pures Mapping, nichts Hörbares) — v273
   kommt mit S2-W1 (hörbar: Filter/Drive erreicht alle Poly-Spuren).
+
+## Fortsetzung 27 (2026-07-16) — S2-W1 SHIPPED (v273) + Founder „Ultraall" → 6-Planer-Sweep
+
+- **S2-W1 gebaut + geshippt (e73122c → Deploy c329818 = v10.79.273):**
+  `LaneVoiceRack.setInsert(_:)` fächert den Melodic-Insert auf alle
+  Rack-Slot-Voices; Attach-Seed in EchoelmusicApp (persistierter Insert
+  sofort beim Anlegen — kein ungefiltertes Fenster); 3 Push-Sites erweitert
+  (Launch-Restore + setMelodicFX in EchoelStudioView, LaneFXEditor-apply in
+  ArrangeTimelineView); LaneVoiceRack environment-injiziert; fxBus-Doku +
+  Pin-Test-Kommentar ehrlich nachgezogen.
+- **Reviews:** code-reviewer APPROVE (3 LOWs: 2 Doku-Staleness sofort im
+  Deploy-Commit gefixt; LOW 3 = Xcode-Gate-Test für den Rack-Fan-out →
+  in #57-Umfang aufgenommen) + audio-thread-reviewer APPROVE (setInsert =
+  reiner SPSC-Enqueue, POD-Payload TrackFX, Drain VOR den Idle-Early-Outs
+  → auch stumme Rack-Voices drainen; 60-Hz-Drag × 4 Voices unkritisch).
+  Reviewer-Nebenfund (nicht blockierend, Alt-Muster): SPSC-FIFO für
+  „letzter-Wert-gewinnt"-Parameter wäre besser als Mailbox-Slot; OSAtomic
+  deprecated — Modernisierungskandidat, kein Zyklus-Thema.
+- **Gates:** 4/4 grün auf e73122c; Deploy-Bump c329818 gepusht (TestFlight).
+- **Founder-Turn „Ultraall":** als Maximal-Breite gelesen (alle offenen
+  07-16-Blöcke parallel vorbereiten, seriell shippen). Workflow
+  `ultraall-founder-sweep` (wf_ae22a160-83a) läuft: 6 parallele Planer →
+  PLAN_S2W2_VOICEKIND_ROUTING.md · PLAN_WARP_AUDIO_CLIP.md ·
+  AUDIT_CLIP_JITTER_2026-07-16.md · PLAN_MIDI_STATION.md ·
+  PLAN_WEATHER_SYNTH.md · PLAN_DISSOLUTION_S3_S5.md. NICHT als Antwort auf
+  die ■-Frage (ja/nein) gewertet — die bleibt offen und im Release-Note.
+- Nächster Zyklus: Plan-Ergebnisse sichten → beste erste Scheibe bauen
+  (Kandidat: Clip-Zittern-Fix falls Audit einen klaren Mechanismus findet,
+  sonst S2-W2 Scheibe 1); #57 (Lane-Label + Notice-Compose + Rack-Test)
+  als kleiner Zwischen-Commit.
