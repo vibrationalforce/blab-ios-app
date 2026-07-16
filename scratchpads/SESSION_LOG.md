@@ -6494,3 +6494,36 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Ultraprogramm-Stand:** Bereich 5: UX-1 ✓ UX-2 ✓ → UX-3 (HealthKit-Sheet
   kontextlos beim ersten Studio-Render; Fix: healthBio.start aus dem
   Launch-.task in den ersten echten Bio-Use verlegen).
+
+## Fortsetzung 23 (2026-07-16, Ultraprogramm Bereich 5 — UX-3) → v270
+- **UX-3 (Ultrascan-HIGH): Health-Sheet feuerte kontextlos beim ersten
+  Studio-Render** (Launch-.task rief healthBio.start unconditional →
+  requestAuthorization → Sheet), stapelbar unter den Kamera-Dialog.
+- **Bau (c72267a, 5 Dateien):** EchoelBioEngine.authorizationRequestNeeded()
+  (statusForAuthorizationRequest != .unnecessary; Fehler = would-prompt →
+  deferieren; Read-Type-Set BYTE-IDENTISCH zum requestAuthorization-Set —
+  deshalb greift „schon beantwortet" exakt; Stub-Variante false) ·
+  HealthKitBioPublisher.startIfAlreadyAuthorized (Launch-sicher: startet nur
+  ohne Sheet) · Launch-.task auf startIfAlreadyAuthorized ·
+  .echoelBioSourceStarted (Studio postet in startTask NACH await
+  startBioSource() + running-Guard — Kamera-Dialog ist da beantwortet →
+  sequenziell, nie gestapelt) · App .onReceive + healthAskFired-Latch →
+  voller start() beim ersten echten Bio-Start.
+- **Review APPROVE (7 Proben):** API-Name korrekt (async-Rendering von
+  getRequestStatusForAuthorization, iOS 12+); granted → Launch-Verhalten
+  exakt erhalten; denied → strikte No-Op-Änderung; Latch race-frei
+  (synchroner Main-Post); Post-Coverage selbstheilend (abgebrochener Start
+  → Latch bleibt false → nächster Start fragt); Linux-Compile sauber
+  (Notification.Name außerhalb jedes HealthKit-Guards).
+- **LOW geschlossen (b6362f8):** zwei start()-Aufrufer konnten den
+  isPublishing-Guard gleichzeitig passieren (Flag flippt erst nach dem
+  Auth-await) → geleakter 500-ms-Poll-Loop; task?.cancel() vor Ersatz.
+- **LOW notiert (offen, nur falls BLE-first-Onboarding je zählt):** BLE/sim
+  kehren aus startBioSource() synchron zurück — der Bluetooth-Alert kommt
+  danach asynchron, das Health-Sheet könnte überlappen, wenn BLE die ERSTE
+  Bio-Quelle eines frischen Installs ist (Kamera ist Default; strikt besser
+  als der alte Launch-Prompt). Informational: auch die Sim triggert die
+  Health-Frage (Post ist quellen-agnostisch — vertretbar).
+- Gates 4/4 grün auf c72267a UND b6362f8 → v270 deployed.
+- **Ultraprogramm-Stand:** Bereich 5: UX-1 ✓ UX-2 ✓ UX-3 ✓ (die drei
+  Top-Findings zu) → weiter mit Bereich 3 Rest: AU-3 (Scan-Bursts), AU-4.

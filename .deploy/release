@@ -1,36 +1,32 @@
-build: 2026-07-16 v10.79.269 (Der erste Play klingt — immer)
+build: 2026-07-16 v10.79.270 (Die Health-Frage kommt im richtigen Moment)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 5 (UX), Punkt 2.
+notes: Ultraprogramm Bereich 5 (UX), Punkt 3 — damit sind die drei
+  Top-UX-Findings des Ultrascans (UX-1/2/3) alle geschlossen.
 
-  DER ERSTE PLAY SPIELT NIE MEHR STILLE (UX-2):
-  • Vorher: Frische Installation = leere Spuren, leeres Drum-Grid,
-    leere Piano-Roll. Das eine offensichtliche ▶ bewegte nur die
-    Positions-Anzeige über pure Stille — ein neuer User schließt in
-    der ersten Minute „die App ist kaputt". Die einzige Klang-Tür war
-    die Puls-Pille im Header, auf die nichts hinweist.
-  • Jetzt: Ist NIRGENDS etwas komponiert (keine Region irgendeiner
-    Art, kein Drum-Step, keine Roll-Note), startet ▶ das
-    bio-generative Instrument — exakt dieselbe Tür, die die Puls-Pille
-    öffnet. Sofortiger Klang, ▶ wird ehrlich zu ■ (das Generieren
-    startet das Transport selbst mit).
-  • Alles mit Inhalt bleibt EXAKT wie bisher: Arrangement spielt das
-    Arrangement, Drum-Steps/Roll-Notes spielen den Loop, auch ein
-    Video-only-Arrangement behält seinen Pfad (explizit abgesichert).
-    Nach einem gestoppten Take liegen die generierten Noten in der
-    Roll — der nächste ▶ spielt sie normal weiter, kein Doppel-Start,
-    kein versehentliches Session-Aus (instrumentRunning-Guard).
-  • Erster Start überhaupt: ▶ fragt einmal nach der Kamera (der
-    Puls-Moment); auch bei „Nicht erlauben" klingt es trotzdem —
-    neutrale Defaults, und seit v268 zeigt die App den ehrlichen
-    Settings-Weg.
+  KEIN KONTEXTLOSES HEALTH-SHEET MEHR BEIM ERSTEN START (UX-3):
+  • Vorher: Sekunden nach dem Onboarding — mitten in den ersten
+    Studio-Moment hinein — erschien unvermittelt das bildschirmfüllende
+    Apple-Health-Berechtigungs-Sheet. Null Kontext („warum will die App
+    JETZT meine Gesundheitsdaten?"), und wer danach die Puls-Pille
+    antippte, bekam den Kamera-Dialog obendrauf gestapelt.
+    Reflex-Ablehner verloren Watch/Health-Bio dauerhaft.
+  • Jetzt: Der Launch fragt NIE. Die Health-Frage kommt beim ersten
+    echten Bio-Start (▶ auf leerem Projekt oder Puls-Pille) — dem
+    Moment, in dem „dein Körper steuert die Musik" selbsterklärend ist.
+    Und sie kommt sequenziell NACH dem Kamera-Dialog (der Start wartet
+    dessen Antwort ab), nie gestapelt.
+  • Wer Health schon erlaubt hatte (Apple-Watch-Nutzer): exakt das
+    bisherige Verhalten — Watch-Daten fließen ab Launch, ohne Sheet.
+    Wer früher abgelehnt hat: keinerlei Änderung, iOS fragt ohnehin
+    nicht erneut.
 
-  Review: APPROVE (alle 6 adversarialen Proben bestanden: kein
-  Toggle-off-Fenster, Verhalten mit Inhalt byte-gleich, Freeze-Regel
-  intakt) · alle 4 Gates grün.
+  Review: APPROVE (7 adversariale Proben bestanden: API korrekt,
+  identische Datentypen-Sets, Latch race-frei, keine Regression für
+  erteilte/verweigerte Bestandsnutzer); ein LOW (geleakter Poll-Loop
+  bei Doppel-Start) sofort geschlossen · alle 4 Gates grün.
 
-  BEREICH-STAND: Bereich 5: UX-1 (v268) + UX-2 (dieses Build) ✓.
-  NÄCHSTER PUNKT: UX-3 (Health-Abfrage kommt kontextlos beim ersten
-  Studio-Start — soll erst bei echter Bio-Nutzung fragen).
+  BEREICH-STAND: Bereich 5: UX-1 (v268) + UX-2 (v269) + UX-3 (dieses
+  Build) ✓. NÄCHSTER PUNKT: AU-3 (Scan-Bursts entschärfen), dann AU-4.
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
