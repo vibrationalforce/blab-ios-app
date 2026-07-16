@@ -75,6 +75,9 @@ public final class LaneDrumKitVoice {
             p.configureInsertFX(type: fx.filter.rawValue, cutoff: fx.cutoffHz,
                                 resonance: fx.resonance, drive: fx.drive)
         }
+        #if DEBUG
+        lastInsertForTests = fx
+        #endif
     }
 
     /// Lane gain via the pads' AVAudioMixing volume (the B2 engine path).
@@ -104,6 +107,9 @@ public final class LaneDrumKitVoice {
     /// pins the cache LAW (a steady groove must not reconfigure per hit), not
     /// just the cached value.
     internal private(set) var configureCountForTests = 0
+    /// TEST SEAM (Debug-only): the last bus insert fanned to the pads, so the
+    /// S2-W2-5 setDrumsInsert fan can be pinned without an engine.
+    internal private(set) var lastInsertForTests: TrackFX?
     #endif
 }
 #endif

@@ -613,6 +613,7 @@ struct EchoelStudioView: View {
             // Apply the persisted per-track inserts at launch (bass → sub; melodic → both
             // the pad/harmony and lead voices).
             subBass.setInsert(trackFX.bass)
+            laneVoiceRack.setBassInsert(trackFX.bass)  // S2-W2-5: lane subs too
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
             laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
@@ -1490,6 +1491,7 @@ struct EchoelStudioView: View {
     private func setBassFX(_ fx: TrackFX) {
         trackFX.set(fx, for: .bass)
         subBass.setInsert(fx)
+        laneVoiceRack.setBassInsert(fx)   // S2-W2-5: bus insert → lane subs too
     }
 
     /// Melodic-bus filter cutoff. Full-open (max) disengages; lower engages a low-pass.
@@ -1557,6 +1559,7 @@ struct EchoelStudioView: View {
         for i in BeatPlayer.trackNames.indices {
             beatPlayer.setFX(track: i, ch)
         }
+        laneVoiceRack.setDrumsInsert(fx)   // S2-W2-5: bus insert → lane drum kits too
     }
 
     /// A binding to one mixer level that re-balances the running take when changed.
@@ -1981,7 +1984,7 @@ struct EchoelStudioView: View {
         // to save space.)
         return EchoelValueField(label: "Concert pitch A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
                                 onCommit: {
-                                    synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz)
+                                    synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz)
                                     // Note grids recolour with the concert pitch (founder
                                     // 2026-07-12) — push the new A4 to the roll immediately,
                                     // not only on the next compose, so an open/soon-opened
@@ -3730,6 +3733,7 @@ struct EchoelStudioView: View {
         // Honor the user's concert pitch + live timbre on the next notes.
         synth.setTuning(a4Hz: session.a4Hz)
         subBass.setTuning(a4Hz: session.a4Hz)
+        laneVoiceRack.setTuning(a4Hz: session.a4Hz)   // S2-W2-5: lane subs in tune too
         touchSynth?.setTuning(a4Hz: session.a4Hz)
         synth.apply(currentPatch)
         syncTouchSound()
@@ -4108,6 +4112,7 @@ struct EchoelStudioView: View {
         session.a4Hz = p.a4Hz
         synth.setTuning(a4Hz: p.a4Hz)
         subBass.setTuning(a4Hz: p.a4Hz)
+        laneVoiceRack.setTuning(a4Hz: p.a4Hz)   // S2-W2-5: lane subs in tune too
         touchSynth?.setTuning(a4Hz: p.a4Hz)
         synth.apply(p.patch)
         syncTouchSound()

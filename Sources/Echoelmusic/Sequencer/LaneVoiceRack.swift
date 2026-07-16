@@ -115,6 +115,28 @@ public final class LaneVoiceRack {
         // inserts, fanned in S2-W2-5 via setDrumsInsert/setBassInsert.
     }
 
+    /// S2-W2-5: push the `.drums` bus insert (filter/drive) to every lane drum
+    /// kit — the mirror of the S2-W1 melodic fan for the kit voices. No-op while
+    /// unattached / voiceKindRouting OFF (kits is empty), so an un-dialed drums
+    /// bus stays bit-identical. Control-path only (kit.setInsert enqueues).
+    public func setDrumsInsert(_ fx: TrackFX) {
+        for k in kits { k.setInsert(fx) }
+    }
+
+    /// S2-W2-5: push the `.bass` bus insert to every dedicated lane sub — mirror
+    /// of setDrumsInsert. No-op while unattached / flag OFF (subs is empty).
+    public func setBassInsert(_ fx: TrackFX) {
+        for s in subs { s.setInsert(fx) }
+    }
+
+    /// S2-W2-5: match every lane sub to the instrument's concert pitch, so a
+    /// sub-bound lane stays in tune when A4 leaves 440 (the primary sub already
+    /// gets this; without it a lane sub droned off-pitch at e.g. A=432). No-op
+    /// while flag OFF (subs empty). Control-path (setTuning writes an atomic).
+    public func setTuning(a4Hz: Double) {
+        for s in subs { s.setTuning(a4Hz: a4Hz) }
+    }
+
     // MARK: - S2-W2-3 kind-routing facade
     // Rank slots stay authoritative; ONLY here does a slot resolve to a physical
     // voice. Every method is control-plane (main actor) — the physical voices'

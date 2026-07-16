@@ -147,6 +147,42 @@ final class LaneVoiceRackTests: XCTestCase {
         XCTAssertEqual(sub.lastNoteCommandForTests?.pitch, 45, "off carries the current shift")
     }
 
+    // MARK: - S2-W2-5 bus-insert + tuning fans
+
+    func testBusFans_emptyRack_areSafeNoOps() {
+        // flag-OFF shape: no kits/subs ⇒ the .drums/.bass/tuning fans touch nothing.
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests([PolySynthVoice(maxVoices: 2), PolySynthVoice(maxVoices: 2)])
+        rack.setDrumsInsert(TrackFX(filter: .lowPass, cutoffHz: 800, resonance: 1.0, drive: 0.2))
+        rack.setBassInsert(TrackFX(filter: .lowPass, cutoffHz: 120, resonance: 0.8, drive: 0.1))
+        rack.setTuning(a4Hz: 432)
+        XCTAssertTrue(rack.kits.isEmpty)
+        XCTAssertTrue(rack.subs.isEmpty)
+    }
+
+    func testSetDrumsInsert_fansToEveryKit() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests([PolySynthVoice(maxVoices: 2)])
+        let kit = LaneDrumKitVoice()
+        rack.installKindUnitsForTests(kits: [kit], subs: [])
+        let fx = TrackFX(filter: .highPass, cutoffHz: 300, resonance: 1.2, drive: 0.4)
+        rack.setDrumsInsert(fx)
+        XCTAssertEqual(kit.lastInsertForTests, fx, "drums bus insert must reach the kit")
+    }
+
+    func testSetBassInsert_andTuning_fanToEverySub() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests([PolySynthVoice(maxVoices: 2)])
+        let sub = SubBassVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [sub])
+        let fx = TrackFX(filter: .lowPass, cutoffHz: 90, resonance: 0.7, drive: 0.15)
+        rack.setBassInsert(fx)
+        XCTAssertEqual(sub.lastInsertForTests, fx, "bass bus insert must reach the sub")
+        rack.setTuning(a4Hz: 432)
+        XCTAssertEqual(sub.lastTuningForTests ?? -1, 432, accuracy: 1e-6,
+                       "concert pitch must reach the lane sub (in tune at A=432)")
+    }
+
     func testPolySynthVoice_setInsert_recordsAppliedInsert() {
         let v = PolySynthVoice(maxVoices: 2)
         XCTAssertNil(v.appliedInsert, "fresh voice has no insert memory")

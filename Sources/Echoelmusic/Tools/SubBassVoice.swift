@@ -151,6 +151,12 @@ public final class SubBassVoice {
     internal private(set) var lastNoteCommandForTests: (kind: String, pitch: Int)?
     @ObservationIgnored
     internal private(set) var noteCommandCountForTests = 0
+    /// TEST SEAM (Debug-only): the last bus insert + concert pitch fanned in, so
+    /// the S2-W2-5 setBassInsert / setTuning fans can be pinned without an engine.
+    @ObservationIgnored
+    internal private(set) var lastInsertForTests: TrackFX?
+    @ObservationIgnored
+    internal private(set) var lastTuningForTests: Double?
     private func recordEnqueueForTests(_ kind: String, _ pitch: Int) {
         lastNoteCommandForTests = (kind, pitch)
         noteCommandCountForTests += 1
@@ -162,6 +168,9 @@ public final class SubBassVoice {
     /// Match the instrument's concert pitch so the sub stays in tune with the body.
     public func setTuning(a4Hz: Double) {
         self.a4Hz = Float(min(max(a4Hz, 380), 500))
+        #if DEBUG
+        lastTuningForTests = a4Hz
+        #endif
     }
 
     /// Install the per-bus insert FX (control thread). `.off`/passthrough removes it.
@@ -169,6 +178,9 @@ public final class SubBassVoice {
     /// knob drag never races the render. Off by default → bit-identical until dialed.
     public func setInsert(_ fx: TrackFX) {
         _ = fxCommands.tryEnqueue(fx)
+        #if DEBUG
+        lastInsertForTests = fx
+        #endif
     }
 
     private nonisolated func frequency(forMIDINote note: Int32) -> Float {
