@@ -13,10 +13,19 @@
 // in the startup "attaching voices" block BEFORE audioEngine.start() (attach-before-
 // start law); the render/graph correctness is device-verified before the flag flips.
 //
-// AVFoundation-guarded like AudioEngine (which it attaches to) — so on non-Apple CI
-// it compiles out; its gate is the Xcode compile check + on-device verification.
+// S2-W2-3 (dissolution, "Spur = Instrument"): the rack is now a FACADE over a
+// heterogeneous pool — behind FeatureFlags.voiceKindRouting (default OFF) it also
+// carries 1 LaneDrumKitVoice + 1 dedicated lane SubBassVoice, and the pure
+// KindVoiceAllocator binds each rank slot's KIND to a physical voice. Rank slots
+// stay the authoritative contract everywhere else; only the routing INSIDE this
+// class changes meaning. Flag OFF ⇒ zero kind units ⇒ the allocator resolves every
+// slot to `.poly(slot)` ⇒ bit-identical to the S2-W1 rack.
+//
+// Guarded AVFoundation+Accelerate since S2-W2-3 (LaneDrumKitVoice/DrumSynthVoice
+// live behind Accelerate; every Apple platform has both, non-Apple CI compiles out
+// either way) — the gate is the Xcode compile check + on-device verification.
 
-#if canImport(AVFoundation)
+#if canImport(AVFoundation) && canImport(Accelerate)
 import Foundation
 #if canImport(Observation)
 import Observation
@@ -35,6 +44,21 @@ public final class LaneVoiceRack {
     public private(set) var voices: [PolySynthVoice] = []
     private var attached = false
 
+    // MARK: - S2-W2 heterogeneous pool (flag-gated; empty while OFF)
+
+    /// Physical kind units — created in attachAll ONLY when
+    /// FeatureFlags.voiceKindRouting is ON. Control-plane state: never read by
+    /// SwiftUI bodies (leaf-body law), so observation is ignored throughout.
+    @ObservationIgnored public private(set) var kits: [LaneDrumKitVoice] = []
+    @ObservationIgnored public private(set) var subs: [SubBassVoice] = []
+    /// The declared kind per rank slot (setKind) and the allocator's current
+    /// slot→physical bindings. Absent slot ⇒ `.poly(slot)` — today's sound.
+    @ObservationIgnored private var kinds: [Int: LaneVoiceKind] = [:]
+    @ObservationIgnored private var bindings: [Int: PhysicalVoiceRef] = [:]
+    /// Per-slot semitone shift, needed control-side because the mono sub is
+    /// pitched at enqueue time (poly voices shift render-side themselves).
+    @ObservationIgnored private var transposeBySlot: [Int: Int] = [:]
+
     public init(capacity: Int = 4, maxVoicesPerSlot: Int = 8) {
         self.capacity = Swift.max(1, capacity)
         self.maxVoicesPerSlot = Swift.max(1, maxVoicesPerSlot)
@@ -51,6 +75,17 @@ public final class LaneVoiceRack {
         guard !attached else { return }
         voices = (0..<capacity).map { _ in PolySynthVoice(maxVoices: maxVoicesPerSlot) }
         for v in voices { v.attach(to: audioEngine) }
+        // S2-W2-3: the heterogeneous units, still strictly before
+        // audioEngine.start() (attach-before-start law). Flag OFF ⇒ none exist
+        // ⇒ the allocator maps every slot to poly ⇒ bit-identical graph.
+        if FeatureFlags.voiceKindRouting {
+            let kit = LaneDrumKitVoice()
+            kit.attach(to: audioEngine)
+            kits = [kit]
+            let sub = SubBassVoice()
+            sub.attach(to: audioEngine)
+            subs = [sub]
+        }
         attached = true
     }
 
@@ -76,6 +111,138 @@ public final class LaneVoiceRack {
     /// while unattached (multiRoll OFF) — bit-identical then.
     public func setInsert(_ fx: TrackFX) {
         for v in voices { v.setInsert(fx) }
+        // Deliberately poly-only: kits/subs belong to the .drums/.bass BUS
+        // inserts, fanned in S2-W2-5 via setDrumsInsert/setBassInsert.
+    }
+
+    // MARK: - S2-W2-3 kind-routing facade
+    // Rank slots stay authoritative; ONLY here does a slot resolve to a physical
+    // voice. Every method is control-plane (main actor) — the physical voices'
+    // own lock-free counters/queues carry the change to the render thread.
+
+    /// Declare the voice KIND slot `slot`'s lane plays through, then re-run the
+    /// pure allocation. On any binding change the PREVIOUSLY bound physical
+    /// voice gets allNotesOff (S2-W2-1 carry: the allocator guarantees no lane-
+    /// identity stability across rank shifts, so rebind must never strand a
+    /// gate-held note). Idempotent for an unchanged kind.
+    public func setKind(slot: Int, kind: LaneVoiceKind) {
+        guard attached, slot >= 0, slot < voices.count else { return }
+        guard kinds[slot] != kind else { return }
+        kinds[slot] = kind
+        rebindAll()
+    }
+
+    /// The physical voice a slot currently resolves to (absent ⇒ poly — the
+    /// allocator's "never silence" law, and the flag-OFF shape).
+    private func binding(forSlot slot: Int) -> PhysicalVoiceRef {
+        bindings[slot] ?? .poly(slot)
+    }
+
+    /// Recompute all bindings from the declared kinds. Side-effectful iteration
+    /// runs over keys.sorted() (S2-W2-1 carry: dictionary order is
+    /// nondeterministic and allNotesOff is a side effect).
+    private func rebindAll() {
+        let ordered = kinds.keys.sorted().map { (slot: $0, kind: kinds[$0] ?? .poly) }
+        let fresh = KindVoiceAllocator.allocate(ordered: ordered,
+                                                drumUnits: kits.count, subUnits: subs.count)
+        let touched = Set(bindings.keys).union(fresh.keys)
+        for slot in touched.sorted() {
+            let old = bindings[slot] ?? .poly(slot)
+            let new = fresh[slot] ?? .poly(slot)
+            if old != new { allNotesOff(on: old) }
+        }
+        bindings = fresh
+    }
+
+    private func allNotesOff(on ref: PhysicalVoiceRef) {
+        switch ref {
+        case .poly(let i):    if voices.indices.contains(i) { voices[i].allNotesOff() }
+        case .drums(let i):   if kits.indices.contains(i) { kits[i].allNotesOff() }
+        case .subBass(let i): if subs.indices.contains(i) { subs[i].allNotesOff() }
+        }
+    }
+
+    /// Route a note-ON to the slot's bound physical voice. Velocity arrives in
+    /// the poly convention (0…1 Float); the kit takes MIDI 0…127.
+    public func noteOn(slot: Int, pitch: Int, velocity: Float) {
+        switch binding(forSlot: slot) {
+        case .poly:
+            voice(slot: slot)?.noteOn(pitch: pitch, velocity: velocity)
+        case .drums(let i):
+            guard kits.indices.contains(i) else { return }
+            let v = Int((Swift.max(0, Swift.min(1, velocity.isFinite ? velocity : 0)) * 127).rounded())
+            kits[i].noteOn(pitch: pitch, velocity: v)
+        case .subBass(let i):
+            guard subs.indices.contains(i) else { return }
+            subs[i].noteOn(pitch: pitch + (transposeBySlot[slot] ?? 0))
+        }
+    }
+
+    /// Note-OFFs fan to ALL physical voices ever bindable to the slot (the H5b
+    /// mid-take-flip law: a binding can change while a note is gate-held, and an
+    /// off for a never-started pitch is harmless everywhere — the kit's off is a
+    /// documented no-op, the sub releases only its matching pitch).
+    public func noteOff(slot: Int, pitch: Int) {
+        voice(slot: slot)?.noteOff(pitch: pitch)
+        for k in kits { k.noteOff(pitch: pitch) }
+        let shifted = pitch + (transposeBySlot[slot] ?? 0)
+        for s in subs { s.noteOff(pitch: shifted) }
+    }
+
+    /// Per-slot transpose: poly shifts render-side as today; the sub is pitched
+    /// control-side at enqueue, so a CHANGE while sub-bound releases the mono
+    /// sub first (a held note's OFF would arrive with the new shift and miss —
+    /// the off-matching law); a drum kit is unpitched — documented ignore.
+    public func setTranspose(slot: Int, semitones: Int) {
+        let old = transposeBySlot[slot] ?? 0
+        transposeBySlot[slot] = semitones
+        voice(slot: slot)?.setTranspose(semitones: semitones)
+        if old != semitones, case .subBass(let i) = binding(forSlot: slot),
+           subs.indices.contains(i) {
+            subs[i].allNotesOff()
+        }
+    }
+
+    /// Fine detune is a poly-voice capability (the sub folds octaves, the kit is
+    /// unpitched) — documented poly-only.
+    public func setDetune(slot: Int, cents: Float) {
+        voice(slot: slot)?.setDetune(cents: cents)
+    }
+
+    /// A SynthPatch shapes the poly engine — documented no-op for kit/sub (their
+    /// timbre comes from DrumNoteMap presets / the sub's fixed felt-band voice).
+    public func applyPatch(slot: Int, _ patch: SynthPatch) {
+        voice(slot: slot)?.apply(patch)
+    }
+
+    /// Lane gain per bound kind. All paths honor the lane-fader contract 0…2
+    /// (1 = unity; PolySynthVoice/LaneDrumKitVoice clamp internally); non-finite
+    /// fails SILENT (0) per app convention.
+    public func setGain(slot: Int, _ gain: Float) {
+        switch binding(forSlot: slot) {
+        case .poly:
+            voice(slot: slot)?.setGain(gain)
+        case .drums(let i):
+            guard kits.indices.contains(i) else { return }
+            kits[i].setGain(gain)
+        case .subBass(let i):
+            guard subs.indices.contains(i) else { return }
+            subs[i].sourceNode.volume = Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0))
+        }
+    }
+
+    /// Lane pan per bound kind. The mono sub stays un-panned (pro-audio
+    /// convention: subs are not localized) — documented no-op.
+    public func setPan(slot: Int, _ pan: Float) {
+        switch binding(forSlot: slot) {
+        case .poly:
+            voice(slot: slot)?.setPan(pan)
+        case .drums(let i):
+            guard kits.indices.contains(i) else { return }
+            kits[i].setPan(pan)
+        case .subBass:
+            break
+        }
     }
 
     #if DEBUG
@@ -88,6 +255,17 @@ public final class LaneVoiceRack {
         voices = testVoices
         attached = true
     }
+    /// TEST SEAM (Debug-only): install kind units WITHOUT an engine so the Xcode
+    /// gate can pin the S2-W2-3 facade routing (attachAll's unit creation is
+    /// flag+engine-gated). Call AFTER installVoicesForTests.
+    internal func installKindUnitsForTests(kits testKits: [LaneDrumKitVoice],
+                                           subs testSubs: [SubBassVoice]) {
+        kits = testKits
+        subs = testSubs
+    }
+    /// TEST SEAM (Debug-only): the live slot→physical bindings, to pin the
+    /// allocator integration (first-rank-wins, fallback, flag-OFF shape).
+    internal var bindingsForTests: [Int: PhysicalVoiceRef] { bindings }
     #endif
 }
 #endif

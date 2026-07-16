@@ -56,6 +56,14 @@ public enum FeatureFlags {
         /// track — no assignment ⇒ bit-identical. `FeatureFlags.set(.laneAUInstruments,
         /// false)` stays the one-line rollback lever; NEVER delete the OFF branches.
         case laneAUInstruments = "feature.laneAUInstruments"
+        /// S2-W2 ("Spur = Instrument"): heterogeneous rack voices — a drums lane
+        /// plays a LaneDrumKitVoice, a sub-bass lane a dedicated SubBassVoice,
+        /// bound at the rack boundary by the pure KindVoiceAllocator. Default
+        /// **OFF** (absent key = false; Release bit-identical: attachAll creates
+        /// zero kind units, the allocator resolves every slot to poly — exactly
+        /// today's sound). Flips to registration-ON only after the S2-W2-7
+        /// device verify. NEVER delete the OFF branches.
+        case voiceKindRouting  = "feature.voiceKindRouting"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -77,6 +85,7 @@ public enum FeatureFlags {
     public static var storeKit: Bool { isOn(.storeKit) }
     public static var multiRoll: Bool { isOn(.multiRoll) }
     public static var laneAUInstruments: Bool { isOn(.laneAUInstruments) }
+    public static var voiceKindRouting: Bool { isOn(.voiceKindRouting) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 

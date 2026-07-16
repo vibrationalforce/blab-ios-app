@@ -40,6 +40,77 @@ final class LaneVoiceRackTests: XCTestCase {
         XCTAssertNil(rack.voice(slot: -1))
     }
 
+    // MARK: - S2-W2-3 kind-routing facade (pure allocation + routing laws)
+
+    func testSetKind_zeroUnits_isTheFlagOffShape_allPoly() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests([PolySynthVoice(maxVoices: 2), PolySynthVoice(maxVoices: 2)])
+        rack.setKind(slot: 0, kind: .drums)      // no kit units installed
+        rack.setKind(slot: 1, kind: .subBass)    // no sub units installed
+        XCTAssertEqual(rack.bindingsForTests[0], .poly(0), "no units ⇒ poly fallback (today's sound)")
+        XCTAssertEqual(rack.bindingsForTests[1], .poly(1))
+    }
+
+    func testSetKind_bindsKitAndSub_andNoteOnRoutesToTheKit() {
+        let rack = LaneVoiceRack(capacity: 3)
+        rack.installVoicesForTests((0..<3).map { _ in PolySynthVoice(maxVoices: 2) })
+        let kit = LaneDrumKitVoice()
+        rack.installKindUnitsForTests(kits: [kit], subs: [SubBassVoice()])
+        rack.setKind(slot: 0, kind: .drums)
+        rack.setKind(slot: 1, kind: .subBass)
+        XCTAssertEqual(rack.bindingsForTests[0], .drums(0))
+        XCTAssertEqual(rack.bindingsForTests[1], .subBass(0))
+        // Routing proof: a note-ON on the drums slot configures the kit's pad
+        // (the kit's per-pad preset cache is the observable), not the poly slot.
+        rack.noteOn(slot: 0, pitch: 36, velocity: 1.0)
+        XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue],
+                       DrumNoteMap.params(forPitch: 36))
+        // Sub slot + poly slot note paths must be safe no-crash enqueues too.
+        rack.noteOn(slot: 1, pitch: 33, velocity: 0.8)
+        rack.noteOn(slot: 2, pitch: 60, velocity: 0.8)
+        // Note-OFF fan (H5b): offs go to ALL bindable voices, harmlessly.
+        rack.noteOff(slot: 0, pitch: 36)
+        rack.noteOff(slot: 1, pitch: 33)
+    }
+
+    func testSetKind_lowerRankWinsContention_andRebindRestoresPoly() {
+        let rack = LaneVoiceRack(capacity: 3)
+        rack.installVoicesForTests((0..<3).map { _ in PolySynthVoice(maxVoices: 2) })
+        rack.installKindUnitsForTests(kits: [LaneDrumKitVoice()], subs: [])
+        rack.setKind(slot: 2, kind: .drums)
+        XCTAssertEqual(rack.bindingsForTests[2], .drums(0), "sole drums lane takes the kit")
+        rack.setKind(slot: 0, kind: .drums)
+        XCTAssertEqual(rack.bindingsForTests[0], .drums(0), "lower rank claims the kit on rebind")
+        XCTAssertEqual(rack.bindingsForTests[2], .poly(2), "outbid lane falls back to poly, never silence")
+        rack.setKind(slot: 0, kind: .poly)
+        XCTAssertEqual(rack.bindingsForTests[0], .poly(0))
+        XCTAssertEqual(rack.bindingsForTests[2], .drums(0), "freed kit returns to the remaining drums lane")
+    }
+
+    func testFacade_unattached_isSafeNoOp() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.setKind(slot: 0, kind: .drums)
+        XCTAssertTrue(rack.bindingsForTests.isEmpty, "setKind must gate on attach")
+        rack.noteOn(slot: 0, pitch: 36, velocity: 1.0)   // routes nowhere, no crash
+        rack.noteOff(slot: 0, pitch: 36)
+        rack.setGain(slot: 0, 1.0)
+        rack.setPan(slot: 0, 0.5)
+        rack.setTranspose(slot: 0, semitones: 12)
+        rack.setDetune(slot: 0, cents: 10)
+    }
+
+    func testTranspose_pitchesSubAtEnqueue_andChangeReleasesHeldSub() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        rack.installKindUnitsForTests(kits: [], subs: [SubBassVoice()])
+        rack.setKind(slot: 0, kind: .subBass)
+        XCTAssertEqual(rack.bindingsForTests[0], .subBass(0))
+        rack.setTranspose(slot: 0, semitones: -12)
+        rack.noteOn(slot: 0, pitch: 45, velocity: 0.9)   // enqueues 33 (45−12)
+        rack.setTranspose(slot: 0, semitones: 0)          // change ⇒ allNotesOff (no strand)
+        rack.noteOff(slot: 0, pitch: 45)                  // off at NEW shift — harmless
+    }
+
     func testPolySynthVoice_setInsert_recordsAppliedInsert() {
         let v = PolySynthVoice(maxVoices: 2)
         XCTAssertNil(v.appliedInsert, "fresh voice has no insert memory")
