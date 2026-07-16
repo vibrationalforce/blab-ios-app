@@ -330,6 +330,26 @@ public final class TimelineRegionPlayer {
         loadedRegionID = nil
     }
 
+    /// M1c (CLIP-1): the region's windowed, bar-sliced melody for a SECONDARY lane
+    /// pump — the EXACT windowing `loadClip` applies to the primary roll (tick-
+    /// authoritative offset, legacy seconds fallback, step-aligned, region-length
+    /// bar slices). Pre-fix, secondary lanes loaded the FULL clip melody flat and
+    /// the pump's %16 fold superimposed every bar of a multi-bar clip.
+    private func windowedBars(for region: TimelineRegion) -> [[Note]] {
+        let clipNotes = clips?.clip(id: region.clipID)?.melody?.notes ?? []
+        let bpm = pattern?.tempo ?? 120
+        let rawOffset = region.contentOffsetTicks > 0
+            ? region.contentOffsetTicks
+            : RegionNoteWindow.offsetTicks(contentOffsetSeconds: region.contentOffsetSeconds,
+                                           bpm: bpm)
+        let offset = RegionNoteWindow.stepAligned(rawOffset)
+        let windowed = RegionNoteWindow.windowed(notes: clipNotes,
+                                                 offsetTicks: offset,
+                                                 lengthTicks: region.lengthTicks)
+        return RegionNoteWindow.barSlices(notes: windowed,
+                                          regionLengthTicks: region.lengthTicks)
+    }
+
     // MARK: - Multi-roll fan-out (B08)
 
     /// Advance every SECONDARY lane's pump this tick and route its note events to the
@@ -366,7 +386,18 @@ public final class TimelineRegionPlayer {
                 // mixer position/level to THIS lane's values before its first notes.
                 slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
                 slotGainSink?(slot, MultiRollFanout.gain(forSlot: slot, in: doc, rollLane: rollLane))
-                pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
+                // M1c: window + bar-slice the region's melody exactly like the
+                // primary roll (loadClip). Defensive flat fallback when the lane's
+                // active region can't be resolved (should not happen: the .load
+                // command IS this tick's onset).
+                if let laneID = MultiRollFanout.laneID(forSlot: slot, in: doc, rollLane: rollLane),
+                   let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: toTick),
+                   region.clipID == clipID {
+                    pump.load(bars: windowedBars(for: region),
+                              startBar: max(0, toTick - region.startTick) / TimelineTime.ticksPerBar)
+                } else {
+                    pump.load(clips?.clip(id: clipID)?.melody?.notes ?? [])
+                }
                 pumps[slot] = pump
             case .clear(let slot), .silence(let slot):
                 if var pump = pumps[slot] {
@@ -416,7 +447,15 @@ public final class TimelineRegionPlayer {
             slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotPanSink?(load.slot, MultiRollFanout.pan(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotGainSink?(load.slot, MultiRollFanout.gain(forSlot: load.slot, in: doc, rollLane: rollLane))
-            pump.load(clips?.clip(id: load.clipID)?.melody?.notes ?? [])
+            // M1c: same windowing as the fan-out — and the PRIME case is exactly
+            // where startBar matters (seek / region already active mid-way).
+            if let region = TimelineScheduling.activeRegion(in: doc, laneID: load.laneID, at: tick),
+               region.clipID == load.clipID {
+                pump.load(bars: windowedBars(for: region),
+                          startBar: max(0, tick - region.startTick) / TimelineTime.ticksPerBar)
+            } else {
+                pump.load(clips?.clip(id: load.clipID)?.melody?.notes ?? [])
+            }
             pumps[load.slot] = pump
         }
     }

@@ -135,4 +135,93 @@ final class LaneNotePumpTests: XCTestCase {
         let e = pump.step(16)
         XCTAssertEqual(e.map(\.pitch), [60])
     }
+
+    // MARK: - Multi-bar region cycling (M1c — CLIP-1: secondary lanes must play
+    // a multi-bar clip bar BY bar, never fold every bar onto steps 0-15)
+
+    /// Walk the pump through one full bar of transport steps.
+    private func runBar(_ pump: inout LaneNotePump, collect: inout [LaneNotePump.Event]) {
+        for s in 0..<16 { collect.append(contentsOf: pump.step(s)) }
+    }
+
+    func testMultiBar_playsEachBarInSequence_notFolded() {
+        var pump = LaneNotePump()
+        // Bar 0: pitch 60 @0 · Bar 1: pitch 72 @0. The old %16 fold sounded BOTH
+        // every bar, superimposed — the verified CLIP-1 failure.
+        pump.load(bars: [[Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 0.8)],
+                         [Note(pitch: 72, startStep: 0, lengthSteps: 2, velocity: 0.8)]],
+                  startBar: 0)
+        var bar0: [LaneNotePump.Event] = []
+        runBar(&pump, collect: &bar0)
+        XCTAssertEqual(bar0.filter(\.isOn).map(\.pitch), [60], "bar 0 plays ONLY bar 0's note")
+        var bar1: [LaneNotePump.Event] = []
+        runBar(&pump, collect: &bar1)
+        XCTAssertEqual(bar1.filter(\.isOn).map(\.pitch), [72], "bar 1 plays ONLY bar 1's note")
+    }
+
+    func testMultiBar_wrapsBackToBarZero() {
+        var pump = LaneNotePump()
+        pump.load(bars: [[Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 0.8)],
+                         [Note(pitch: 72, startStep: 0, lengthSteps: 2, velocity: 0.8)]],
+                  startBar: 0)
+        var all: [LaneNotePump.Event] = []
+        runBar(&pump, collect: &all)   // bar 0
+        runBar(&pump, collect: &all)   // bar 1
+        var bar2: [LaneNotePump.Event] = []
+        runBar(&pump, collect: &bar2)  // wraps → bar 0 again
+        XCTAssertEqual(bar2.filter(\.isOn).map(\.pitch), [60], "region loops back to bar 0")
+    }
+
+    func testMultiBar_startBarOffset_beginsMidRegion() {
+        var pump = LaneNotePump()
+        // Prime mid-region (seek / region already active at play): startBar 1
+        // must play bar 1 FIRST, without advancing on its own onset step 0.
+        pump.load(bars: [[Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 0.8)],
+                         [Note(pitch: 72, startStep: 0, lengthSteps: 2, velocity: 0.8)]],
+                  startBar: 1)
+        let e = pump.step(0)
+        XCTAssertEqual(e.filter(\.isOn).map(\.pitch), [72])
+    }
+
+    func testMultiBar_sustainAcrossBarBoundary_releasesInNextBar() {
+        var pump = LaneNotePump()
+        // Bar 0: note @12 sustaining 8 steps → exclusive end 20 ≡ step 4 of bar 1
+        // (barSlices keeps sustains whole; active-note release is bar-agnostic).
+        pump.load(bars: [[Note(pitch: 55, startStep: 12, lengthSteps: 8, velocity: 0.8)],
+                         []],
+                  startBar: 0)
+        for s in 0..<16 { _ = pump.step(s) }
+        XCTAssertEqual(pump.soundingPitches, [55], "sustain survives the bar boundary")
+        _ = pump.step(0)   // bar advance to (empty) bar 1
+        _ = pump.step(1); _ = pump.step(2); _ = pump.step(3)
+        let s4 = pump.step(4)
+        XCTAssertEqual(s4.map(\.pitch), [55])
+        XCTAssertFalse(s4[0].isOn, "release lands at its true step in the NEXT bar")
+    }
+
+    func testMultiBar_singleBarLoadKeepsLegacyBehavior() {
+        var pump = LaneNotePump()
+        pump.load(bars: [[Note(pitch: 60, startStep: 0, lengthSteps: 1, velocity: 0.8)]],
+                  startBar: 3)   // out-of-range startBar folds into the 1-bar region
+        let e = pump.step(0)
+        XCTAssertEqual(e.map(\.pitch), [60])
+        var again: [LaneNotePump.Event] = []
+        for s in 1..<16 { again.append(contentsOf: pump.step(s)) }
+        let next = pump.step(0)  // wrap: same single bar again
+        XCTAssertEqual(next.filter(\.isOn).map(\.pitch), [60])
+    }
+
+    func testMultiBar_emptyBarsLoad_isEmptyAndSilent() {
+        var pump = LaneNotePump()
+        pump.load(bars: [], startBar: 0)
+        XCTAssertTrue(pump.isEmpty)
+        XCTAssertTrue(pump.step(0).isEmpty)
+    }
+
+    func testMultiBar_contentInLaterBarOnly_isNotEmpty() {
+        var pump = LaneNotePump()
+        pump.load(bars: [[], [Note(pitch: 72, startStep: 0, lengthSteps: 2, velocity: 0.8)]],
+                  startBar: 0)
+        XCTAssertFalse(pump.isEmpty, "a region with notes only in bar 2 still has content")
+    }
 }
