@@ -54,6 +54,23 @@ public final class SubBassVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var audioSubGain: Float = SubBassVoice.defaultSubGain
 
+    /// Sub character "presence" [0…1] — octave-harmonic stack so the sub READS on
+    /// small speakers (SubCharacter; founder "sub culture" ask 2026-07-16). The
+    /// 0.5 default reproduces the previous hard-coded shaping bit-identically.
+    public var subPresence: Float = SubCharacter.defaultPresence {
+        didSet { audioPresence = min(max(subPresence, 0), 1) }
+    }
+    /// Sub character "heat" [0…1] — loudness-compensated tanh drive (character,
+    /// not level). 0.5 default = the previous hard-coded drive, bit-identical.
+    public var subHeat: Float = SubCharacter.defaultHeat {
+        didSet { audioHeat = min(max(subHeat, 0), 1) }
+    }
+    /// Audio-thread mirrors of the character params (same bridge as `audioSubGain`).
+    @ObservationIgnored
+    nonisolated(unsafe) private var audioPresence: Float = SubCharacter.defaultPresence
+    @ObservationIgnored
+    nonisolated(unsafe) private var audioHeat: Float = SubCharacter.defaultHeat
+
     @ObservationIgnored
     nonisolated(unsafe) private var a4Hz: Float = 440
 
@@ -267,6 +284,9 @@ public final class SubBassVoice {
         let envCoeff: Float = 0.0015
         let gainCoeff: Float = 0.01
         let gateTarget: Float = gateOpen ? 1 : 0
+        // Sub character coefficients ONCE per block (control-rate params; pure
+        // arithmetic, no alloc). Defaults reproduce the old inline shaping exactly.
+        let character = SubCharacter.coefficients(presence: audioPresence, heat: audioHeat)
 
         for frame in 0..<frameCount {
             currentFreq += freqGlide * (targetFreq - currentFreq)
@@ -279,17 +299,13 @@ public final class SubBassVoice {
             phase += twoPi * currentFreq / sr
             if phase > twoPi { phase -= twoPi }
 
-            // Felt sub + audible on small speakers: the true sub fundamental
-            // (28–55 Hz) is below most phone/laptop speakers, so we add the 2nd
-            // harmonic (one octave up, always CONSONANT) off the same phase
-            // accumulator — that octave reads on small speakers while the
-            // fundamental is FELT on a sub/haptics. We deliberately do NOT add the
-            // 3rd harmonic (a twelfth = octave-plus-fifth): that pitched fifth
-            // fought the chord and, with heavy saturation, made the sub buzz —
-            // the "komische Töne". Light shaping only. All C math (audio-safe).
-            let h1 = sinf(phase)
-            let h2 = sinf(2 * phase) * 0.32
-            let shaped = tanhf((h1 + h2) * 1.05) * 0.6
+            // Felt sub + audible on small speakers: the SubCharacter shaper stacks
+            // OCTAVE harmonics (2f, and above the default also 4f) on the felt
+            // fundamental and saturates loudness-compensated — presence/heat are
+            // the user's "sub culture" macros. Octave-only is law (never the 3rd:
+            // that pitched fifth fought the chord — the "komische Töne"). Defaults
+            // = the old inline shaping bit-identically. All C math (audio-safe).
+            let shaped = SubCharacter.sample(phase: phase, coefficients: character)
             var out = shaped * env * smoothedGain
             // Per-bus insert (dub filter / drive). Off = untouched (bit-identical).
             if insertActive { out = insertFX.process(out) }

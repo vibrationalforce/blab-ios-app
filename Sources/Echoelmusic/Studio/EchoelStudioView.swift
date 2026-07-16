@@ -2779,7 +2779,18 @@ struct EchoelStudioView: View {
                 get: { subBass.subGain },
                 set: { subBass.subGain = min(max($0, 0), 1) }
             ), range: Float(0)...Float(1))
-            Text("Reinforces the bass an octave below — feel it on a sub, in headphones, or as haptics.")
+            // Sub character (founder "sub culture" 2026-07-16, in-house SubCharacter
+            // DSP): presence = octave-harmonic read on small speakers; heat =
+            // loudness-compensated saturation. 0.50/0.50 = the previous fixed sound.
+            EchoelValueField(label: "Sub presence", value: Binding(
+                get: { subBass.subPresence },
+                set: { subBass.subPresence = min(max($0, 0), 1) }
+            ), range: Float(0)...Float(1))
+            EchoelValueField(label: "Sub heat", value: Binding(
+                get: { subBass.subHeat },
+                set: { subBass.subHeat = min(max($0, 0), 1) }
+            ), range: Float(0)...Float(1))
+            Text("Reinforces the bass an octave below — feel it on a sub, in headphones, or as haptics. Presence makes it read on small speakers (octaves only, always in key); heat saturates without getting louder.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
