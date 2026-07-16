@@ -234,6 +234,10 @@ private struct TransportBar: View {
     @Environment(ClipStore.self) private var clips
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(TimelineRegionPlayer.self) private var timelinePlayer
+    /// Read ONLY inside toggle() (a tap handler, not body) for the UX-2 empty-project
+    /// branch — `instrumentRunning` is the Start/Stop-frequency chrome mirror, and a
+    /// closure read registers no body observation anyway (freeze rule intact).
+    @Environment(EngineBus.self) private var bus
 
     var body: some View {
         HStack(spacing: 12) {
@@ -338,6 +342,22 @@ private struct TransportBar: View {
                 if timelinePlayer.isPlaying, timelinePlayer.currentTick > 0 {
                     transport.seek(toBar: timelinePlayer.currentTick / TimelineTime.ticksPerBar)
                 }
+            } else if doc.regions.isEmpty,
+                      !player.pattern.steps.contains(where: { $0.contains(true) }),
+                      pianoRoll.notes.isEmpty, !bus.instrumentRunning {
+                // UX-2 (first-run silence): NOTHING is composed anywhere — no timeline
+                // region of ANY kind (explicit: a video-only arrangement must fall to
+                // pattern.play() below, not get generative music it never asked for),
+                // no drum step, no roll note. pattern.play()
+                // would move the playhead over pure silence and a new user concludes
+                // the app is broken. The one obvious ▶ must SOUND: start the
+                // bio-generative instrument through the exact notification the header
+                // pulse pill posts (the studio owns start/stop; chrome stays decoupled).
+                // generate() starts the transport itself, so ▶ flips to ■ honestly.
+                // Guarded on instrumentRunning so a tap in the brief start window
+                // (before the first roll notes land) can't toggle the session OFF.
+                EchoelCrashLog.breadcrumb("play: empty project → universal Start (toggleBio)")
+                NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
             } else {
                 player.pattern.play()
             }
