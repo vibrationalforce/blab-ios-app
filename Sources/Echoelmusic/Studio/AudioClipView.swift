@@ -39,6 +39,16 @@ struct AudioClipView: View {
     @State private var scopedURL: URL?
     /// Non-nil while a landing failed (grid full / copy error) — shown inline.
     @State private var landingError: String?
+    /// CLIP-4 review: the CLIP's own file as seeded by the edit door. The
+    /// write-back is gated on `player.loadedURL == editSourceURL` — Import in
+    /// edit mode stays usable as an audition, but a FOREIGN file's trim must
+    /// never be written onto a region whose clip still references the old media.
+    @State private var editSourceURL: URL?
+    /// CLIP-4 review: the window as seeded. Done commits only a REAL edit
+    /// (`region != seededRegion`) — an untouched open+Done is a true no-op, so
+    /// a file-duration clamp or a tempo shift under the sheet can never
+    /// silently rewrite the region's musical length.
+    @State private var seededRegion: AudioClipRegion?
 
     var body: some View {
         NavigationStack {
@@ -231,10 +241,18 @@ struct AudioClipView: View {
         guard let id = editRegionID,
               player.loadedURL == nil,
               let placed = timeline.document.regions.first(where: { $0.id == id }),
-              let clip = clips.clip(id: placed.clipID),
-              let url = MediaLibrary.resolveRef(clip.mediaRef) else { return }
+              let clip = clips.clip(id: placed.clipID) else { return }
+        guard let url = MediaLibrary.resolveRef(clip.mediaRef) else {
+            log.log(.warning, category: .ui,
+                    "Audio clip edit: mediaRef unresolvable — falling back to importer")
+            return
+        }
         player.attach(to: audioEngine)
-        guard player.load(url: url) else { return }
+        guard player.load(url: url) else {
+            log.log(.warning, category: .ui,
+                    "Audio clip edit: media file unreadable — falling back to importer")
+            return
+        }
         if let window = AudioRegionPlayback.editWindow(for: placed,
                                                        bpm: beatPlayer.pattern.tempo),
            player.durationSeconds > 0 {
@@ -246,13 +264,22 @@ struct AudioClipView: View {
         } else {
             region = AudioClipRegion(startSeconds: 0, endSeconds: player.durationSeconds, loop: false)
         }
+        editSourceURL = url
+        seededRegion = region
     }
 
     /// Done (edit mode only): write the trimmed media window back to the placed
     /// region — content offset + musical length; song position stays. A playing
     /// arrangement hears it within one transport step (CLIP-3 refreshStructure).
     private func commitEditIfNeeded() {
-        guard let id = editRegionID, player.loadedURL != nil,
+        guard let id = editRegionID,
+              // Review HIGH: only the CLIP's OWN file may write back — after an
+              // in-door Import of a different file the region's clip still
+              // references the old media; a foreign trim would corrupt it.
+              let source = editSourceURL, player.loadedURL == source,
+              // Review MEDIUM/LOWs: commit only a REAL edit — an untouched Done
+              // never bakes the duration clamp or a tempo drift into the song.
+              region != seededRegion,
               let trim = AudioRegionPlayback.regionTrim(startSeconds: region.startSeconds,
                                                         endSeconds: region.endSeconds,
                                                         bpm: beatPlayer.pattern.tempo) else { return }
