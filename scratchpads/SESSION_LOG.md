@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-16 (Forts. 49, ULTRACODE) — Stretch-Engine REAL: Tape-Charakter (Founder-A/B)
+- **Founder delegiert:** „Du entscheidest — von vintage vibe bis präziser Technologie alles."
+  → Entscheid: Engine jetzt real+hörbar machen mit erstem A/B (Clean↔Tape), risikoärmster Weg.
+- **CI-VERIFY:** Video-Sound 1b (d6e3015, das geflaggte `export(to:as:)`-Risiko) = GRÜN auf
+  Xcode Compile + CI/CD. API kompiliert. Video-Sound compile-bestätigt.
+- **GEBAUT + gepusht (3677b41):** Tape = Pitch-folgt-Tempo auf dem VORHANDENEN
+  `AVAudioUnitTimePitch` via `pitch=1200·log₂(rate)` (`StretchPlan.tapePitchCents`, pur+getestet)
+  — KEIN Graph-Rewire, blind-compile-sicher. `.tape.isImplemented=true` → selectable=[clean,tape].
+  `AudioClipPlayer.play` liest StretchPlan (rate+pitch). UI: segmented Character-Picker im
+  Warp-Block + modus-bewusster Status. Reviews: audio-thread CLEAN, code MEDIUM+LOW gefixt.
+- **Nur hörbar bei Warp-ON** (rate≠1) — by design. Device-Hörtest offen (Freeze).
+- **Nächste Charaktere (PLAN_STRETCH_ENGINE):** authentisches Varispeed/Akai-Grit (echtes
+  Resampling, dann lohnt Node-Swap) → WSOLA Beats → Signalsmith Studio (MIT, freigegeben).
+- **KEIN Deploy** (Freeze).
+
 ## 2026-07-16 (Forts. 48, ULTRACODE) — Video-Sound Slice 1b: Video hat Ton
 - **CI:** Slice 1a (0c4a54a) grün (Xcode Compile + CI/CD).
 - **GEBAUT + gepusht (d6e3015):** `VideoAudioExtractor` (iOS-18 `export(to:as:)` → m4a, silent→nil,
