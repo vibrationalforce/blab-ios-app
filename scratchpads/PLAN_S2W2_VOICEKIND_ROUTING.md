@@ -152,6 +152,16 @@ No new render code — reuses DrumSynthVoice's lock-free strike/config counters.
   existing poly path — bit-identical.
 **audio-thread-reviewer: YES (attach-before-start + control→SPSC handoff).**
 
+> **S2-W2-3 GEBAUT (89814a2, Reviews laufen).** Flag `voiceKindRouting` default OFF
+> (absent-key-false, KEINE Registrierung — erst S2-W2-7). Fassade wie geplant; die
+> Carries (a) keys.sorted()-Iteration und (b) allNotesOff-on-rebind sind implementiert,
+> Gain-Kontrakt 0…2 + non-finite→0 erfüllt (Kit klemmt intern seit 0b3f6fa). Zusatz-
+> Entscheid: Sub-Transpose wird control-seitig beim Enqueue gepitcht; ein Shift-WECHSEL
+> bei sub-gebundenem Slot released die gehaltene Mono-Note (Off-Matching-Gesetz).
+> Datei-Guard von LaneVoiceRack auf AVFoundation+Accelerate verbreitert (Kit-Typ).
+> Offen fuer S2-W2-4/5: Lane-Sub bekommt noch KEIN setTuning(a4Hz:)-Mitlaufen —
+> beim App-Wiring den Kammerton an rack.subs fannen (wie der Primary-Sub ihn erhaelt).
+
 ### S2-W2-4 — DEVICE: player `slotKindSink` + app wiring
 *Files (2):* `Sources/Echoelmusic/Sequencer/TimelineRegionPlayer.swift`,
 `Sources/Echoelmusic/EchoelmusicApp.swift`
