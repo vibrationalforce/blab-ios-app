@@ -6718,3 +6718,29 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Nächster Punkt im Takt: Warp S2 (Engine + Offset-Domain-Entscheidung,
   Leaning (a) Offset-Delta × Rate beim Edit) ODER S2-W2 Scheibe 1
   (pure KindVoiceAllocator). Beide Pläne liegen.
+
+## Fortsetzung 30 (2026-07-16) — S2-W2 Scheiben 1+2 GEBAUT (Allocator + Lane-Drum-Kit), 2/8
+
+- **S2-W2-1 (4b962d1, APPROVE, 4/4 grün):** pure `KindVoiceAllocator`
+  (deterministisch, first-RANK-wins, Poly-Fallback bei Erschöpfung,
+  Compile-Zeit-Exhaustiveness ohne default) + `MultiRollFanout.voiceKind
+  (forSlot:)` (Lane ohne Instrument → .poly, nie Überraschung) +
+  KindVoiceAllocatorTests.
+- **S2-W2-2 (c7e6b17, 2× APPROVE audio+code, 4/4 grün):** pure
+  `DrumNoteMap` (GM-Zonen kick/snare/hat/pitched-perc, TOTAL — keine
+  tote Taste; Hat-Familie via Plate-Material, Damping-Ordnung pedal>
+  closed>open musikalisch KORREKT da höheres Damping = kürzerer Decay,
+  Reviewer numerisch verifiziert) + `LaneDrumKitVoice` (4 vor-attachte
+  DrumSynthVoice-Pads, per-Pad Preset-Cache → kein Modal-Reconfigure
+  pro Hit im Groove, Insert-FX-Fan, ZERO neuer Render-Code) +
+  DrumNoteMapTests.
+- **Review-Härtung (0b3f6fa, Re-Verify APPROVE, 0 Restfunde):** setGain
+  auf den Lane-Fader-Kontrakt 0…2 (1=unity, wie alle Geschwister-Voices
+  am selben Node-Typ; MEDIUM), non-finite→0 fail-silent (LOW), Material-
+  Strings → `MaterialPreset.drum/.plate.rawValue` (Compiler im Loop,
+  LOW), Debug-`configureCountForTests` pinnt das Cache-GESETZ statt nur
+  den Wert (LOW). Gates: 2/4 grün, 2 liefen bei Log-Zeitpunkt noch →
+  send_later-Re-Check gestellt.
+- Kein Deploy: unhörbar bis S2-W2-4 (Player-Sink); Fassade S2-W2-3 =
+  nächster Punkt (Carries: keys.sorted()-Iteration, allNotesOff-on-
+  rebind, Gain 0…2 — jetzt erfüllt).
