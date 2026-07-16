@@ -899,8 +899,11 @@ struct ArrangeTimelineView: View {
         .coordinateSpace(name: Self.playheadSpace)
     }
 
-    /// Name of the grid's coordinate space (playhead drag → tick).
-    private static let playheadSpace = "echoel.timeline.grid"
+    /// Name of the grid's coordinate space (playhead drag → tick; region drags —
+    /// jitter audit C1 — measure in it too, so a clip's own re-layout can never
+    /// feed back into its gesture translation). Fileprivate like `laneHeight`:
+    /// RegionBlockView lives in this file.
+    fileprivate static let playheadSpace = "echoel.timeline.grid"
 
     /// Beat subdivisions appear once a beat is wide enough to read (≥ 18 pt) —
     /// zoomed out, only bars; zoomed in, the working grid a DAW shows.
@@ -1049,18 +1052,26 @@ private struct RegionBlockView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(Transport.self) private var transport
 
-    /// Live trailing-trim offset for THIS clip only (root no longer churns).
-    @State private var resizeDelta: CGFloat = 0
-    @State private var isResizing = false
-    /// Live LEADING-trim offset for THIS clip (founder 2026-07-15 "auch vorne"): moving
-    /// the left edge shifts x AND shrinks/grows the width, holding the right edge fixed.
-    @State private var frontDelta: CGFloat = 0
-    @State private var isFrontResizing = false
-    /// Live DRAG-TO-MOVE offset (clip game C1, founder 2026-07-15 "seamless workflow"):
-    /// grab the clip BODY and slide it — horizontally in time, vertically to another
-    /// same-kind lane. Leaf state, so only this clip re-renders while dragging.
-    @State private var moveDelta: CGSize = .zero
-    @State private var isMoving = false
+    // Live gesture deltas — @GestureState, not @State (jitter audit #56 C2): when
+    // the surrounding ScrollView steals a drag mid-gesture, SwiftUI CANCELS it and
+    // `.onEnded` never fires — a plain @State delta then sticks and the clip
+    // renders displaced from its store truth until the next successful drag
+    // ("clips twitch/jump between grabs"). @GestureState auto-resets on cancel.
+    // Still leaf-local (#44): only this clip re-renders while dragging.
+    /// Live trailing-trim offset for THIS clip only.
+    @GestureState private var resizeDelta: CGFloat = 0
+    /// Live LEADING-trim offset (founder 2026-07-15 "auch vorne"): moving the left
+    /// edge shifts x AND shrinks/grows the width, holding the right edge fixed.
+    @GestureState private var frontDelta: CGFloat = 0
+    /// Live DRAG-TO-MOVE offset (clip game C1, founder 2026-07-15 "seamless
+    /// workflow"): grab the clip BODY and slide it — horizontally in time,
+    /// vertically to another same-kind lane.
+    @GestureState private var moveDelta: CGSize = .zero
+    // Grip/float emphasis derives from the live deltas (the old separate bool
+    // @States could also stick on cancellation — same C2 class).
+    private var isResizing: Bool { resizeDelta != 0 }
+    private var isFrontResizing: Bool { frontDelta != 0 }
+    private var isMoving: Bool { moveDelta != .zero }
     /// Increments whenever a drop actually SNAPPED (grid or neighbour edge) — drives
     /// the `.sensoryFeedback` light tick (clip game C4: fühlbares Einrasten).
     @State private var snapPulse = 0
@@ -1218,13 +1229,18 @@ private struct RegionBlockView: View {
     }
 
     /// Trailing-edge trim (B11) — live width tracks the finger via this clip's OWN
-    /// `resizeDelta` @State (no root churn → no jitter); on release the new length is
+    /// `resizeDelta` (leaf-local, no root churn); on release the new length is
     /// snapped to the grid (`.off` = stepless) and committed. Floored at one step.
+    /// Jitter audit #56 C1: the drag measures in the STABLE grid space — the live
+    /// width change is a `.frame(width:)` LAYOUT shift that moves this trailing
+    /// handle's own `.local` space every frame, so a local-space translation fed
+    /// back into itself (r(n+1) = d − r(n)) and the right edge vibrated at display
+    /// rate under a resting finger. Grid-space translation is pure finger delta.
     private var resizeGesture: some Gesture {
-        DragGesture(minimumDistance: 3)
-            .onChanged { value in
-                isResizing = true
-                resizeDelta = value.translation.width
+        DragGesture(minimumDistance: 3,
+                    coordinateSpace: .named(ArrangeTimelineView.playheadSpace))
+            .updating($resizeDelta) { value, state, _ in
+                state = value.translation.width
             }
             .onEnded { value in
                 let deltaTicks = Int((value.translation.width / ppb
@@ -1234,22 +1250,21 @@ private struct RegionBlockView: View {
                 timeline.resizeRegion(
                     id: region.id,
                     lengthTicks: max(TimelineTime.ticksPerTransportStep, snapped))
-                isResizing = false
-                resizeDelta = 0
             }
     }
 
     /// Drag-to-move (clip game C1) — the whole clip follows the finger live via this
-    /// clip's OWN `moveDelta` @State (no root churn); on release the new start tick is
+    /// clip's OWN `moveDelta` (leaf-local, no root churn); on release the new start tick is
     /// snapped (`.off` = stepless) and a vertical pull of ≥ half a lane row moves the
     /// clip to that same-kind lane (the store enforces the kind check). ONE store
     /// command — the same call the context menu's "Move to playhead" and, later, the
     /// EchoelAI edit tools use.
     private var moveGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { value in
-                isMoving = true
-                moveDelta = value.translation
+        // Grid space + @GestureState (jitter audit C1/C2) — see resizeGesture.
+        DragGesture(minimumDistance: 8,
+                    coordinateSpace: .named(ArrangeTimelineView.playheadSpace))
+            .updating($moveDelta) { value, state, _ in
+                state = value.translation
             }
             .onEnded { value in
                 let deltaTicks = Int((value.translation.width / ppb
@@ -1281,20 +1296,22 @@ private struct RegionBlockView: View {
                 timeline.moveRegion(id: region.id, toStartTick: committed,
                                     laneOffset: laneShift, bpm: beatPlayer.pattern.tempo)
                 if committed != rawStart { snapPulse += 1 }   // fühlbares Einrasten (C4)
-                isMoving = false
-                moveDelta = .zero
             }
     }
 
     /// Leading-edge trim (founder 2026-07-15 "auch vorne") — live x/width track the
-    /// finger via this clip's OWN `frontDelta` @State (no root churn); on release the new
+    /// finger via this clip's OWN `frontDelta` (leaf-local, no root churn); on release the new
     /// start tick is snapped and committed via `trimRegionStart`, which holds the end
     /// fixed and shifts the media offset so content stays put (clamped in the model).
     private var frontResizeGesture: some Gesture {
-        DragGesture(minimumDistance: 3)
-            .onChanged { value in
-                isFrontResizing = true
-                frontDelta = value.translation.width
+        // Grid space + @GestureState (jitter audit C1/C2) — see resizeGesture.
+        // (The front handle rode `.offset`, a render transform that does NOT move
+        // layout space, so it never self-oscillated — but the stable space also
+        // protects it against future layout changes, and cancel-reset applies.)
+        DragGesture(minimumDistance: 3,
+                    coordinateSpace: .named(ArrangeTimelineView.playheadSpace))
+            .updating($frontDelta) { value, state, _ in
+                state = value.translation.width
             }
             .onEnded { value in
                 let deltaTicks = Int((value.translation.width / ppb
@@ -1303,8 +1320,6 @@ private struct RegionBlockView: View {
                 let snapped = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
                 timeline.trimRegionStart(id: region.id, toTick: max(0, snapped),
                                          bpm: beatPlayer.pattern.tempo)
-                isFrontResizing = false
-                frontDelta = 0
             }
     }
 }

@@ -155,10 +155,16 @@ a founder-requested feature; any change needs a Council look at gesture preceden
 ## Slices (Ralph Wiggum, ≤3 files each; laws respected — no new sheets, leaf-only live state,
 ## no audio-thread involvement, pure cores tested on Linux CI)
 
-- **Slice 1 (FIRST, 1 file — ArrangeTimelineView.swift):** C1 + C2 + C3 together: named stable
-  coordinate space on all three region gestures (widen `playheadSpace` to fileprivate),
-  `@GestureState` deltas, `.highPriorityGesture` for the body move. Smallest change that
-  attacks the literal per-frame Zittern + the stuck-ghost handling complaints.
+- **Slice 1 (FIRST, 1 file — ArrangeTimelineView.swift):** C1 + C2 together: named stable
+  coordinate space on all three region gestures (widen `playheadSpace` to fileprivate) +
+  `@GestureState` deltas. Smallest change that attacks the literal per-frame Zittern + the
+  stuck-ghost handling complaints. **BUILT 2026-07-16** (this slice deliberately EXCLUDES C3).
+- **C3 DEFERRED (Council, device-gated):** `.highPriorityGesture` on the clip body is attached
+  AFTER the trim-handle overlays — a parent high-priority gesture can take precedence over
+  SUBVIEW gestures, risking the device-verified 22 pt trim-grip wins. The C3 symptom (grid
+  pans while a clip also moves) is unconfirmed until the founder's recording. If confirmed:
+  try attaching the high-priority move BELOW the handle overlays in the modifier chain (base
+  shape), verify grips + tap-audition + long-press menu on device before shipping.
 - **Slice 2 (3 files, TDD):** C4 — `TimelineDragMath` pure core + tests + wire live
   snap/clamp preview so release never jumps.
 - **Slice 3 (1-2 files):** C5 — cache `resolveRef` per mediaRef out of the per-frame body;
