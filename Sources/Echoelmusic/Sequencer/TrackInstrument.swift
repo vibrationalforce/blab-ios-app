@@ -71,6 +71,31 @@ public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable 
         default:        return .midiInput
         }
     }
+
+    /// The GLOBAL mix bus whose Level/Filter/Drive strip HONESTLY reaches this
+    /// instrument's voice today (S2, Mix → track heads — founder: "Mix wird
+    /// Teil der Spuren in der Timeline"). This is the lane↔bus mapping source;
+    /// matching by lane NAME would lie. Engine reality per case:
+    /// drums/break/sampler ride the BeatPlayer path (drums bus level = the kit
+    /// master; drums FX fan across its channels); polySynth is the melodic bus
+    /// (synth + leadSynth); subBass is the bass bus. `nil` = NO bus touches
+    /// that voice today (bioVoice) — a track head must then show no bus strip
+    /// instead of a control that does nothing.
+    public var mixBus: LaneMixBus? {
+        switch self {
+        case .subBass:                     return .bass
+        case .drums, .breakLoop, .sampler: return .drums
+        case .polySynth:                   return .melodic
+        case .bioVoice:                    return nil
+        }
+    }
+}
+
+/// One of the three real FX/mix buses of the generative engine (MixerStore
+/// levels + TrackFXStore filter/drive). Pure value — the S2 track-head strip
+/// keys off this, and the Mix panel's three cards group by exactly these.
+public enum LaneMixBus: String, Sendable, Equatable, CaseIterable {
+    case bass, melodic, drums
 }
 
 /// What a track's record button captures — wired to the track's input (founder:

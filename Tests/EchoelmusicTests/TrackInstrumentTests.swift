@@ -88,4 +88,25 @@ final class TrackInstrumentTests: XCTestCase {
         XCTAssertEqual(back.builtinInstrument, .sampler)
         XCTAssertTrue(back.isArmed)
     }
+
+    // MARK: - S2 lane↔bus mapping (Mix → track heads; founder 07-12/07-16)
+
+    func testMixBus_mapsEveryInstrumentToItsHonestEngineBus() {
+        // The mapping source for the track-head mix strip. Engine reality:
+        // subBass = bass bus; drums/break/sampler ride the BeatPlayer path
+        // (drums); polySynth = melodic (synth + leadSynth). bioVoice is nil —
+        // NO bus reaches BioReactiveSynthVoice today; a strip there would be
+        // a dead control lying about reach.
+        XCTAssertEqual(TrackInstrument.subBass.mixBus, .bass)
+        XCTAssertEqual(TrackInstrument.drums.mixBus, .drums)
+        XCTAssertEqual(TrackInstrument.breakLoop.mixBus, .drums)
+        XCTAssertEqual(TrackInstrument.sampler.mixBus, .drums)
+        XCTAssertEqual(TrackInstrument.polySynth.mixBus, .melodic)
+        XCTAssertNil(TrackInstrument.bioVoice.mixBus)
+        // Exhaustive: every case has an explicit verdict (adding a new
+        // instrument without deciding its bus must fail here, not ship blind).
+        for inst in TrackInstrument.allCases {
+            _ = inst.mixBus   // compiles exhaustively via the switch
+        }
+    }
 }
