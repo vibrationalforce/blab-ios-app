@@ -457,7 +457,11 @@ public final class AUv3Host {
             if !loadedMasterEffects.contains(info) { failed.append(info.name) }
         }
         if !failed.isEmpty {
-            restoreNotice = "Not restored: \(failed.joined(separator: ", ")) — the plugin may still be waking up; reload it from this list."
+            // COMPOSE, don't assign: the trap-heal note set above must survive a
+            // simultaneous load failure — an assignment here would overwrite the
+            // only explanation of why the instrument record vanished (review LOW).
+            restoreNotice = Self.composedNotice(restoreNotice,
+                adding: "Not restored: \(failed.joined(separator: ", ")) — the plugin may still be waking up; reload it from this list.")
             log.audio("AUv3 chain restore incomplete: \(failed.joined(separator: ", "))", level: .error)
         }
     }
@@ -471,6 +475,15 @@ public final class AUv3Host {
         info.isInstrument
             && info.componentType == kAudioUnitType_Generator
             && info.componentManufacturer == kAudioUnitManufacturer_Apple
+    }
+
+    /// Append a restore problem to an existing notice instead of overwriting it —
+    /// during one restore pass several things can go wrong (trap-heal + a failed
+    /// plugin load) and each explanation must stay visible. Pure + static so
+    /// tests pin the compose behavior.
+    nonisolated static func composedNotice(_ existing: String?, adding addition: String) -> String {
+        guard let existing, !existing.isEmpty else { return addition }
+        return existing + "\n" + addition
     }
 
     // MARK: - Plugin state (fullState) persistence

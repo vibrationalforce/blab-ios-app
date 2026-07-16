@@ -782,7 +782,14 @@ struct ArrangeTimelineView: View {
     /// `TimelineLane.instrument`/`effects`, nothing loaded-but-unassigned.
     private func pluginAssignmentSummary(_ lane: TimelineLane) -> String {
         var parts: [String] = []
-        if let inst = lane.instrument { parts.append("Instrument: \(inst.name)") }
+        if let inst = lane.instrument {
+            // A persisted Apple file-player record is kept (user document data) but
+            // never hosted — say so, or the head claims an instrument that the
+            // built-in voice is actually playing (silence-trap review LOW).
+            parts.append(inst.isAppleGeneratorTrap
+                ? "Instrument: \(inst.name) (not playable — built-in voice plays)"
+                : "Instrument: \(inst.name)")
+        }
         if !lane.effects.isEmpty { parts.append("FX: \(lane.effects.map(\.name).joined(separator: ", "))") }
         return parts.isEmpty ? "No plugin assigned" : parts.joined(separator: " · ")
     }

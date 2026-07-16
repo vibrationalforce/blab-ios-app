@@ -105,6 +105,14 @@ final class AUv3HostTests: XCTestCase {
         XCTAssertFalse(AUv3Host.isAppleGeneratorRecord(au("Legacy", instrument: true)))
     }
 
+    func testComposedNotice_appendsInsteadOfOverwriting() {
+        // One restore pass can hit BOTH a trap-heal and a failed plugin load —
+        // the second message must not erase the first (review LOW, task #57).
+        XCTAssertEqual(AUv3Host.composedNotice(nil, adding: "B"), "B")
+        XCTAssertEqual(AUv3Host.composedNotice("", adding: "B"), "B")
+        XCTAssertEqual(AUv3Host.composedNotice("A", adding: "B"), "A\nB")
+    }
+
     @MainActor
     func testRestoreChains_appleGeneratorInstrumentRecord_isHealedNotResurrected() async throws {
         // v267 restored EVERY persisted instrument — including one experimental tap

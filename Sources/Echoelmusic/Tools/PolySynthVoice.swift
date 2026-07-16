@@ -429,8 +429,14 @@ public final class PolySynthVoice {
     /// removes it. Enqueued lock-free; applied on the audio thread at the next render block.
     /// Off by default → bit-identical until dialed.
     public func setInsert(_ fx: TrackFX) {
+        appliedInsert = fx
         _ = fxCommands.tryEnqueue(fx)
     }
+
+    /// The last insert handed to `setInsert(_:)` — control-plane MEMORY (same idea as
+    /// `appliedPatch`), so doors and tests can read what the voice was given without
+    /// touching the render-side queue. Never read by the render block.
+    public private(set) var appliedInsert: TrackFX?
 
     /// Global filter-cutoff multiplier (1 = no change), driven by parameter
     /// automation. Atomic write; takes effect on the next render block.
