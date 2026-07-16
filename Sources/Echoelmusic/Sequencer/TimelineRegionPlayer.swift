@@ -466,20 +466,31 @@ public final class TimelineRegionPlayer {
         }
     }
 
-    /// H4 (live mixer): merge the store's CURRENT mixer fields into the playback
+    /// H4 (live mixer): merge the store's CURRENT mixer-like fields into the playback
     /// snapshot and — only when something actually changed — re-push every live
-    /// slot's gain + pan to its rack voice. Runs once per transport step (~8 Hz);
+    /// lane's sink-applied voice values. Runs once per transport step (~8 Hz);
     /// the merge is a small value compare, the push fires only on real edits.
-    /// Covers `pumps.keys` (loaded slots) only: a slot cleared this bar has had its
-    /// note-offs sent, so at most its envelope RELEASE TAIL rings at the old gain —
-    /// accepted; the next `.load` re-pushes that slot's values anyway.
+    /// CLIP-3 review: transpose/detune ride this SAME path (they are voice-sink
+    /// fields exactly like pan) — a Transpose/Detune scrub during playback lands
+    /// live here instead of triggering refreshStructure's relocate at ~8 Hz, and
+    /// this closes the old gap where a secondary lane's transpose only landed on
+    /// its next region load. Covers `pumps.keys` (loaded slots) only: a slot
+    /// cleared this bar has had its note-offs sent, so at most its envelope
+    /// RELEASE TAIL rings at the old values — accepted; the next `.load`
+    /// re-pushes that slot's values anyway.
     private func refreshMixer() {
         guard let fresh = liveDocument?() else { return }
         guard doc.mergeMixer(from: fresh) else { return }
+        if let lane = rollLane, let live = doc.lanes.first(where: { $0.id == lane }) {
+            rollTransposeSink?(live.transposeSemitones)
+            rollDetuneSink?(live.detuneCents)
+        }
         guard multiRollCapacity > 0 else { return }
         for slot in pumps.keys.sorted() {
             slotGainSink?(slot, MultiRollFanout.gain(forSlot: slot, in: doc, rollLane: rollLane))
             slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
+            slotTransposeSink?(slot, MultiRollFanout.transpose(forSlot: slot, in: doc, rollLane: rollLane))
+            slotDetuneSink?(slot, MultiRollFanout.detune(forSlot: slot, in: doc, rollLane: rollLane))
         }
     }
 

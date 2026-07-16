@@ -45,6 +45,17 @@ final class TimelineStructuralEqualityTests: XCTestCase {
         XCTAssertTrue(TimelineDocument.structurallyEqual(a, b))
     }
 
+    func testTransposeDetuneEdits_areNotStructural() {
+        // CLIP-3 review HIGH: transpose/detune are sink-applied voice fields (like
+        // pan) that flow live through refreshMixer — a scrub during playback must
+        // NEVER trigger a relocate storm (voice flush + audio-lane restart at ~8 Hz).
+        let a = doc()
+        var b = a
+        b.lanes[0].transposeSemitones = -12
+        b.lanes[0].detuneCents = 25
+        XCTAssertTrue(TimelineDocument.structurallyEqual(a, b))
+    }
+
     func testRegionMove_isStructural() {
         let a = doc()
         var b = a

@@ -422,8 +422,9 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         for i in lanes.indices where i != idx && lanes[i].isSoloed { lanes[i].isSoloed = false }
     }
 
-    /// H4 (live mixer while playing): merge ONLY the mixer fields (mute/solo/level/
-    /// pan) from `fresh` into this document, matched by lane id. Lane membership,
+    /// H4 (live mixer while playing): merge ONLY the sink-applied per-lane voice
+    /// fields (mute/solo/level/pan + transpose/detune — CLIP-3 review) from
+    /// `fresh` into this document, matched by lane id. Lane membership,
     /// order, regions and every other field stay untouched — the region player's
     /// playback snapshot must keep its lane ranks stable (its pumps are rank-keyed),
     /// so a mid-play lane add/remove in `fresh` is deliberately IGNORED here.
@@ -446,13 +447,23 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
             if lanes[i].isSoloed != live.isSoloed { lanes[i].isSoloed = live.isSoloed; changed = true }
             if lanes[i].level != live.level { lanes[i].level = live.level; changed = true }
             if lanes[i].pan != live.pan { lanes[i].pan = live.pan; changed = true }
+            // CLIP-3 review: transpose/detune are sink-applied per-lane voice fields
+            // exactly like pan — they flow LIVE here, never through a relocate (a
+            // scrub during playback must not flush voices at ~8 Hz).
+            if lanes[i].transposeSemitones != live.transposeSemitones {
+                lanes[i].transposeSemitones = live.transposeSemitones; changed = true
+            }
+            if lanes[i].detuneCents != live.detuneCents {
+                lanes[i].detuneCents = live.detuneCents; changed = true
+            }
         }
         return changed
     }
 
     /// CLIP-3: true when `a` and `b` differ at most in NON-SOUND-STRUCTURAL state —
-    /// the mixer fields `mergeMixer` flows per step (mute/solo/level/pan) plus lane
-    /// rename and record-arm. Everything that changes WHAT sounds at a tick counts
+    /// the per-lane fields `mergeMixer` flows per step (mute/solo/level/pan +
+    /// transpose/detune, all sink-applied to the lane's voice without a reload)
+    /// plus lane rename and record-arm. Everything that changes WHAT sounds at a tick counts
     /// as structural: region set (move/trim/split/delete/add), lane membership,
     /// ORDER (pump ranks!), kind/instrument, and the automation lanes. The playing
     /// TimelineRegionPlayer relocates only on a structural change; mixer-only edits
@@ -468,6 +479,8 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
             n.pan = lb.pan
             n.name = lb.name
             n.isArmed = lb.isArmed
+            n.transposeSemitones = lb.transposeSemitones
+            n.detuneCents = lb.detuneCents
             if n != lb { return false }
         }
         return true
