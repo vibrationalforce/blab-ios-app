@@ -1080,12 +1080,25 @@ private struct RegionBlockView: View {
     private var laneHeight: CGFloat { ArrangeTimelineView.laneHeight }
 
     var body: some View {
-        // Leading trim moves the left edge (x += frontDelta) and adjusts width the
-        // opposite way so the RIGHT edge stays put; trailing trim adds to the width.
-        // Drag-to-move shifts the WHOLE clip live (x + moveDelta.width, y follows the
-        // finger toward another lane); width is untouched by a move.
-        let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontDelta + moveDelta.width
-        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeDelta - frontDelta)
+        // Leading trim moves the left edge and adjusts width the opposite way so the
+        // RIGHT edge stays put; trailing trim adds to the width; a move shifts the
+        // whole clip (rows snap live). #56 C4: the raw finger deltas are transformed
+        // through pure TimelineDragMath so the clip PREVIEWS at the exact snapped/
+        // clamped position its release will commit — letting go is a visual no-op
+        // instead of a half-grid jump. (Neighbour-edge magnetism stays commit-only:
+        // its candidates would need per-frame store reads — freeze law.)
+        let frontX = isFrontResizing ? TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: frontDelta, startTick: region.startTick, endTick: region.endTick,
+            contentOffsetTicks: region.contentOffsetTicks,
+            contentOffsetSeconds: region.contentOffsetSeconds, ppb: ppb, snap: snap) : 0
+        let resizeW = isResizing ? TimelineDragMath.trailingTrimPreviewDeltaW(
+            rawDeltaX: resizeDelta, lengthTicks: region.lengthTicks, ppb: ppb, snap: snap) : 0
+        let moveX = isMoving ? TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: moveDelta.width, startTick: region.startTick, ppb: ppb, snap: snap) : 0
+        let rowShift = isMoving ? TimelineDragMath.laneShift(fromPoints: moveDelta.height,
+                                                             laneHeight: laneHeight) : 0
+        let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontX + moveX
+        let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeW - frontX)
         let clip = clips.clip(id: region.clipID)
         let name = clip?.name ?? "Clip"
         // Tap an AUDIO region = hear ITS window immediately (founder: "Audio mit direkt
@@ -1145,7 +1158,9 @@ private struct RegionBlockView: View {
                 .gesture(resizeGesture)
             }
             .frame(width: w, height: laneHeight - 8)
-            .offset(x: x, y: 4 + moveDelta.height)
+            // Vertical move previews ROW-snapped (the lane the release will land on),
+            // not free-floating — the drop target is visible while dragging (#56 C4).
+            .offset(x: x, y: 4 + CGFloat(rowShift) * laneHeight)
             // While dragging, float this clip above its lane siblings so it never
             // slides "under" a neighbouring region.
             .zIndex(isMoving ? 10 : 0)
