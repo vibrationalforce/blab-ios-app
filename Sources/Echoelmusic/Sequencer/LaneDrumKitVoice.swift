@@ -54,6 +54,9 @@ public final class LaneDrumKitVoice {
         if appliedParams[i] != hit.params {
             pads[i].configure(hit.params)
             appliedParams[i] = hit.params
+            #if DEBUG
+            configureCountForTests += 1
+            #endif
         }
         pads[i].fire(gain: hit.gain)
     }
@@ -75,11 +78,14 @@ public final class LaneDrumKitVoice {
     }
 
     /// Lane gain via the pads' AVAudioMixing volume (the B2 engine path).
-    /// Guarded on `attached` so unit tests never force a lazy source node;
-    /// clamped to AVAudioMixing's documented 0…1.
+    /// Guarded on `attached` so unit tests never force a lazy source node.
+    /// Clamped to the LANE-FADER contract 0…2 (1 = unity) — the same range
+    /// Timeline.effectiveGain emits and every sibling voice honors
+    /// (PolySynthVoice drives the same AVAudioSourceNode.volume to 2).
+    /// Non-finite gain fails SILENT (0), matching the app-wide convention.
     public func setGain(_ gain: Float) {
         guard attached else { return }
-        let g = Swift.max(0, Swift.min(1, gain.isFinite ? gain : 1))
+        let g = Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0))
         for p in pads { p.sourceNode.volume = g }
     }
 
@@ -94,6 +100,10 @@ public final class LaneDrumKitVoice {
     /// TEST SEAM (Debug-only): expose the per-pad preset cache so the Xcode gate
     /// can pin the reconfigure-only-on-change behavior without an engine.
     internal var appliedParamsForTests: [DrumSynthParams?] { appliedParams }
+    /// TEST SEAM (Debug-only): total modal-bank reconfigure requests issued —
+    /// pins the cache LAW (a steady groove must not reconfigure per hit), not
+    /// just the cached value.
+    internal private(set) var configureCountForTests = 0
     #endif
 }
 #endif

@@ -61,7 +61,7 @@ public enum DrumNoteMap {
     /// Deterministic + total; frequencies stay in a musical band.
     public static func params(forPitch pitch: Int) -> DrumSynthParams {
         var p = DrumSynthParams()
-        p.material = "Drum"
+        p.material = EchoelModalBank.MaterialPreset.drum.rawValue
         switch pad(forPitch: pitch) {
         case .kick:
             // 35 = acoustic bass drum (deeper), 36 = bass drum 1.
@@ -86,7 +86,7 @@ public enum DrumNoteMap {
         case .hat:
             // Metallic character via the plate modes; damping orders the family:
             // pedal (44) chokes hardest, closed (42) tight, open (46) rings.
-            p.material = "Plate"
+            p.material = EchoelModalBank.MaterialPreset.plate.rawValue
             p.frequency = 780
             p.size = 0.35
             p.brightness = 0.9

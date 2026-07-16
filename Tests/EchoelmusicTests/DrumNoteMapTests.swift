@@ -106,11 +106,16 @@ final class DrumNoteMapTests: XCTestCase {
         kit.noteOn(pitch: 36, velocity: 100)   // kick
         let kickParams = kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue]
         XCTAssertEqual(kickParams, DrumNoteMap.params(forPitch: 36))
+        XCTAssertEqual(kit.configureCountForTests, 1, "first hit configures once")
         kit.noteOn(pitch: 36, velocity: 60)    // same pad, same params → cache holds
+        kit.noteOn(pitch: 36, velocity: 127)   // steady groove — still no reconfigure
         XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue], kickParams)
+        XCTAssertEqual(kit.configureCountForTests, 1,
+                       "repeat hits with the same preset must NOT reconfigure (the cache law)")
         kit.noteOn(pitch: 35, velocity: 100)   // kick pad, DIFFERENT preset → recache
         XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue],
                        DrumNoteMap.params(forPitch: 35))
+        XCTAssertEqual(kit.configureCountForTests, 2, "a preset CHANGE reconfigures exactly once")
         XCTAssertNil(kit.appliedParamsForTests[DrumNoteMap.Pad.hat.rawValue],
                      "untouched pads stay unconfigured")
     }
