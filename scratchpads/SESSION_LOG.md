@@ -3,6 +3,21 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-16 (Forts. 45, ULTRACODE) — Video-Judder gefixt + Video-Sound root-caused
+- **Founder-Input:** „keinen Video-Sound gehört + Bild ruckelt" + Akai-Emulationen für EchoelBreak.
+- **Explore-Map (a6b74edb):** (1) KEIN Video-Sound = Monitor-`AVPlayer.isMuted=true` BY DESIGN;
+  Video-Ton nie extrahiert → Naht gehört an den IMPORT (extrahieren → gepaarter Audio-Clip →
+  `AudioLanePlayer→masterMixer`, erbt Warp/FX = „selben Algorithmen"). (2) Judder = zero-tolerance
+  Seeks (Keyframe-Re-Decode) + Rate-Ping-Pong am Deadband.
+- **GEBAUT + gepusht (56ba9c2), Review CLEAN:** `VideoResyncPolicy` — Nudge rampt jetzt von 0 an
+  der Deadband-Kante (nur Drift JENSEITS der Deadband korrigiert) statt diskontinuierlich zu
+  springen → kein 8-Hz-Shimmer. Test-first (Kontinuitäts-Test neu). `FloatingVideoMonitor` — Play-
+  Hard-Seek mit ±½-Frame-Toleranz (1/60 s) statt `.zero`; Paused-Scrub bleibt exakt.
+- **Sound = eigener Zyklus:** `PLAN_VIDEO_AUDIO.md` (Slice 1 = Import-Extraktion + gepaarter
+  Audio-Clip, pure `VideoAudioPairing`-Core test-first). Akai→EchoelBreak = inspiration.csv WATCH.
+- **KEIN Deploy** (Freeze; Judder-Watch + Sound-Hörtest = Geräte-Session G). CI-Gate 9f11d53 (Warp
+  Slice A) = alle grün (Xcode Compile + CI/CD + Quick Test).
+
 ## 2026-07-16 (Forts. 44, ULTRACODE) — #54 Warp Deep-Research + Slice A gebaut
 - **Deep-Research (wf_bc68b344-d26, 23 Agents, 13 Kandidaten verifiziert, 1.3M tokens)** zur
   besten Warp/Time-Stretch-Engine für Echoel. Synthese aus `result` recovered (nicht aus dem
