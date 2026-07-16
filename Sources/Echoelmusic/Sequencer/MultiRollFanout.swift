@@ -109,6 +109,16 @@ public enum MultiRollFanout {
         return document.lanes.first(where: { $0.id == id })?.instrument
     }
 
+    /// The voice KIND slot `slot`'s lane plays through (S2-W2: "Spur = Instrument").
+    /// Reads the lane's `builtinInstrument?.voiceKind`; a lane without an instrument
+    /// — and an out-of-range slot — resolves to `.poly` (today's voice, never a
+    /// surprise). Mirrors `patch(forSlot:)`; the KindVoiceAllocator turns this into
+    /// a physical voice binding at the rack boundary.
+    public static func voiceKind(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> LaneVoiceKind {
+        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return .poly }
+        return document.lanes.first(where: { $0.id == id })?.builtinInstrument?.voiceKind ?? .poly
+    }
+
     /// The stereo PAN slot `slot`'s lane carries, clamped −1…1 (0 = center, and 0
     /// for an out-of-range slot). H4 (healing wave 1, "Pan silently inert"): mirrors
     /// `transpose(forSlot:)` so each rack voice sits at its own lane's position.
