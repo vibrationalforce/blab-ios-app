@@ -626,3 +626,20 @@ Architectural and strategic decisions with context and rationale.
 - **#61 Status:** Hardware-Tor GEKLÄRT (war der Blocker im 07-16-Assessment). Nächster Schritt
   = Plan + Council für den EEG-Ausbau; Reihenfolge (nach S2-W2 oder verschränkt) folgt aus dem
   laufenden projektweiten Audit. Kein Heilungs-Claim (harte rote Linie).
+
+### 2026-07-16 ■-Frage geschlossen + projektweiter Audit → gebündelte Founder-Geräte-Session
+- **■-Frage (v258/259, lange offen):** „Soll Musik-Stopp die Bio-Session überleben?" →
+  GESCHLOSSEN mit dem Default **fusionierter Stopp** (Musik-Stopp stoppt Bio mit). Grund:
+  ist bereits Shipping-Verhalten (EchoelStudioView.swift:641-642). Kein Code-Change. Nur
+  neu entscheiden, falls #60 die Bio-Session als Modulations-Brain wiederbelebt.
+- **Projektweiter Audit (wf_a57ff877-49d, 7 Agents, 2026-07-16):** gerankte Entscheidungen.
+  Autonom (proceed): S2-W2 Slices 5-6 flag-OFF weiter; **Sheet-Chain-Konsolidierung** in
+  EchoelStudioView (8×.sheet+1×.cover → EIN .sheet(item:)-Enum) VOR jeder Roadmap-UI
+  (SIGSEGV-Schutz); Roadmap-Reihenfolge #58 (MIDI/MPE, Velocity-Lane zuerst) → #54 Warp →
+  #60 Bio-Brain; Kleinschulden #57/#62/CI-Guard; #63 Archiv + #52 SEO als Nebengleise.
+  Hold-for-founder → ALLES in EINE Geräte-Session gebündelt (scratchpads/FOUNDER_DEVICE_
+  SESSION.md): 2 DEFAULT-ON-Flags + S2-W2-Slice-7 + BLE-Gurt + AUv3-im-Host + Screenshots +
+  Ein-Feld-Store-Entscheide. Kern-Einsicht: 352 device-unverifizierte Commits + 2 flags auf
+  dem Klangpfad = das eigentliche Risiko, nicht ein einzelnes Feature.
+- **Deferred:** #36 Oktaver (audio-thread-Zyklus), #61 EEG (Hardware unterwegs), #59/#51
+  (net-new, bio-first pre-launch).

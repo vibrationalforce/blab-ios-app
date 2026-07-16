@@ -199,6 +199,15 @@ poly lanes unchanged, mid-take instrument switch leaves no stuck notes.**
   launch-restore site (same file `.task` restore, S2-W1 precedent — verify during impl).
 Exact mirror of the S2-W1 melodic fan. **audio-thread-reviewer: light (control path).**
 
+> **S2-W2-5 FERTIG (17e690e, 2×APPROVE, 4/4 grün).** setDrumsInsert/setBassInsert +
+> setTuning(a4Hz:) an Kit/Sub; EchoelStudioView an setBassFX/setDrumsFX/Launch-Restore +
+> allen 3 subBass.setTuning-Sites verdrahtet; Debug-Seams pinnen Delivery. Flag-OFF
+> bit-identisch. Kammerton-Fan (aufgeschoben aus S2-W2-4) = ERLEDIGT. Projektweiter Audit
+> 2026-07-16 bestätigt: Slices 5-6 = autonom flag-OFF; Slices 7-8 founder-gated (Geräte-
+> Session-Checkliste scratchpads/FOUNDER_DEVICE_SESSION.md). Slice-7-Checkliste MERKE:
+> Becken-freien Groove testen (4-Pad-Kit voiced GM-Becken als Toms); .drums-Bus ist GETEILT
+> (BeatPlayer + alle Lane-Kits, ein Charakter) — Founder-Design-Bestätigung vor Slice 8.
+
 ### S2-W2-6 — DEVICE (riskiest): PRIMARY roll lane kind routing
 *Files (2):* `Sources/Echoelmusic/Studio/PianoRollView.swift`,
 `Sources/Echoelmusic/EchoelmusicApp.swift`

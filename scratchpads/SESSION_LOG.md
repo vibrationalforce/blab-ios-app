@@ -6805,3 +6805,25 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   = unhörbar bis S2-W2-7 Geräte-Verify; Flag NICHT vorher flippen).
 - Nächster Punkt: S2-W2-5 (Bus-Inserts .drums/.bass an Kit/Sub + der
   aufgeschobene Kammerton-Fan an rack.subs).
+
+## Fortsetzung 34 (2026-07-16) — S2-W2-5 FERTIG (5/8) + projektweiter Audit + ■-Frage geschlossen
+
+- **S2-W2-5 (17e690e, 2×APPROVE, 4/4 grün):** setDrumsInsert/setBassInsert-Fan
+  an Kit/Sub + setTuning(a4Hz:)-Kammerton-Fan (der aufgeschobene S2-W2-4-Punkt);
+  EchoelStudioView an setBassFX/setDrumsFX/Launch-Restore + 3 Tuning-Sites;
+  Debug-Seams (kit/sub lastInsert, sub lastTuning) pinnen Delivery. Flag-OFF
+  bit-identisch. Strecke 5/8.
+- **Projektweiter Audit (wf_a57ff877-49d, 7 Agents, 597k Tokens):** gerankte
+  Entscheidungen. Kern-Einsicht: 352 device-unverifizierte Commits + 2
+  DEFAULT-ON-Flags (multiRoll/laneAUInstruments) auf dem Klangpfad = das
+  eigentliche Risiko. Founder-SPOF → EINE gebündelte Geräte-Session
+  (scratchpads/FOUNDER_DEVICE_SESSION.md: 2 Flags + Slice-7 + BLE + AUv3-Host +
+  Screenshots + Ein-Feld-Store-Entscheide).
+- **■-Frage GESCHLOSSEN** (decisions.csv + memory): fusionierter Stopp = Default
+  (Musik-Stopp stoppt Bio mit, ist Shipping-Code EchoelStudioView:641-642); kein
+  Code-Change; nur neu bei #60-Revival.
+- **Autonome Roadmap (Audit):** nächste Bau-Punkte = S2-W2 Slice 6 (primary-roll
+  kind routing) ODER Sheet-Chain-Konsolidierung (SIGSEGV-Schutz, VOR Roadmap-UI);
+  danach #58 MIDI/MPE-Station (Velocity-Lane zuerst) → #54 Warp. Kleinschulden
+  #57/#62/CI-Guard fold-in; #63 Archiv + #52 SEO Nebengleise. Deferred #36/#61/#59/#51.
+- Kein Deploy (Flag OFF; Freeze bis Founder-Geräte-Session).
