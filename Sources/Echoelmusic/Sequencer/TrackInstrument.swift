@@ -105,4 +105,14 @@ public enum RecordSource: String, Codable, Sendable, CaseIterable, Equatable {
 
     /// A record button is only offered where there's a real input to arm.
     public var canRecord: Bool { self != .none }
+
+    /// CLIP-2 (honest arm): the sources TakeRecorder actually CAPTURES today —
+    /// MIDI notes and the bio automation lane. Audio (mic) and video capture are
+    /// task #13; until their recorders exist, an armed mic/video lane must not
+    /// promise a take (pre-fix: the arm lit red, Record ran, Stop committed
+    /// NOTHING — silent data loss of a sung performance). Flip a source here
+    /// only together with its recorder in `TakeRecorder.begin`.
+    public var captureImplemented: Bool {
+        self == .midiInput || self == .bio
+    }
 }

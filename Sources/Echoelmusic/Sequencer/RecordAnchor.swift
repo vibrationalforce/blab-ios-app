@@ -72,15 +72,18 @@ public struct RecordAnchor: Sendable, Equatable, Codable {
 /// consults this to wire its per-source recorders.
 public enum RecordPlan {
 
-    /// The armed, recordable lanes in `doc`, in document (lane) order. A lane is a
-    /// target only when it is `isArmed` AND its `recordSource.canRecord` (a pure
-    /// visual lane, `.none`, is never a target even if armed). Deterministic — the
+    /// The armed, CAPTURABLE lanes in `doc`, in document (lane) order. A lane is a
+    /// target only when it is `isArmed` AND its source is `captureImplemented`
+    /// (CLIP-2: an armed mic/video lane used to count as a target, which enabled
+    /// the global Record button and ran a take that silently committed nothing —
+    /// TakeRecorder has no audio/video recorder yet, task #13). A pure visual
+    /// lane (`.none`) is never a target even if armed. Deterministic — the
     /// result order follows `doc.lanes`.
     public static func targets(in doc: TimelineDocument) -> [(laneID: UUID, source: RecordSource)] {
         doc.lanes.compactMap { lane in
             guard lane.isArmed else { return nil }
             let source = lane.recordSource
-            guard source.canRecord else { return nil }
+            guard source.captureImplemented else { return nil }
             return (laneID: lane.id, source: source)
         }
     }

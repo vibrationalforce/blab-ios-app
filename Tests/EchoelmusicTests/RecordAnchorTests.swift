@@ -92,18 +92,41 @@ final class RecordAnchorTests: XCTestCase {
         let doc = TimelineDocument(lanes: lanes)
 
         let targets = RecordPlan.targets(in: doc)
-        XCTAssertEqual(targets.count, 3)
+        XCTAssertEqual(targets.count, 2)
         // Order follows document lane order.
         XCTAssertEqual(targets[0].laneID, bioID)
         XCTAssertEqual(targets[0].source, .bio)
         XCTAssertEqual(targets[1].laneID, midiID)
         XCTAssertEqual(targets[1].source, .midiInput)
-        XCTAssertEqual(targets[2].laneID, audioID)
-        XCTAssertEqual(targets[2].source, .audioInput)
 
+        // CLIP-2 (honest planner): the armed MIC lane is NOT a target —
+        // TakeRecorder cannot capture audio yet (task #13), and counting it let
+        // Record run a take that silently recorded nothing (data loss).
+        XCTAssertFalse(targets.contains { $0.laneID == audioID })
         // The visual + disarmed lanes are absent.
         XCTAssertFalse(targets.contains { $0.laneID == visualID })
         XCTAssertFalse(targets.contains { $0.laneID == disarmedID })
+    }
+
+    func testCaptureImplemented_truthTable_matchesTakeRecorder() {
+        // The one law behind CLIP-2: sources TakeRecorder actually captures today.
+        // If a new recorder lands (task #13), flip the source here AND in
+        // TakeRecorder.begin — this table is the honest promise the arm UI makes.
+        XCTAssertTrue(RecordSource.midiInput.captureImplemented)
+        XCTAssertTrue(RecordSource.bio.captureImplemented)
+        XCTAssertFalse(RecordSource.audioInput.captureImplemented)
+        XCTAssertFalse(RecordSource.videoCapture.captureImplemented)
+        XCTAssertFalse(RecordSource.none.captureImplemented)
+    }
+
+    func testTargets_onlyUncapturableArmed_isEmpty_soRecordStaysDisabled() {
+        // An armed mic/video lane alone must NOT enable the global Record button
+        // (hasArmedTarget reads targets) — pre-fix it lit red and lost the take.
+        let lanes = [
+            TimelineLane(name: "Mic", kind: .audio, isArmed: true),
+            TimelineLane(name: "Cam", kind: .video, isArmed: true),
+        ]
+        XCTAssertTrue(RecordPlan.targets(in: TimelineDocument(lanes: lanes)).isEmpty)
     }
 
     func testTargets_emptyDocument_isEmpty() {

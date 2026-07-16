@@ -841,23 +841,32 @@ struct ArrangeTimelineView: View {
     /// Per-track record-arm. Shows the track's INPUT source icon (mic / MIDI / bio),
     /// filled red when armed. Wired to `TimelineLane.isArmed` (persisted); arming an
     /// input is honest DAW intent — the capture take rides the shared transport next.
+    /// CLIP-2: sources TakeRecorder cannot capture yet (mic/video, task #13) render
+    /// DISABLED with a "soon" hint — pre-fix the arm lit red, Record ran, and Stop
+    /// silently committed nothing (a sung take was simply gone). The planner
+    /// (`RecordPlan.targets`) is the second, engine-side layer of the same law.
     private func recordArmButton(_ lane: TimelineLane) -> some View {
         let source = lane.recordSource
+        let capturable = source.captureImplemented
         return Button {
             timeline.toggleArm(id: lane.id)
         } label: {
-            Image(systemName: lane.isArmed ? "record.circle.fill" : source.systemImage)
+            Image(systemName: (lane.isArmed && capturable) ? "record.circle.fill" : source.systemImage)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(lane.isArmed ? EchoelTheme.onPrimary : EchoelTheme.dim)
+                .foregroundStyle((lane.isArmed && capturable) ? EchoelTheme.onPrimary
+                                 : EchoelTheme.dim.opacity(capturable ? 1 : 0.45))
                 .frame(width: 21, height: 28)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .fill(lane.isArmed ? EchoelTheme.danger : EchoelTheme.fill))
+                    .fill((lane.isArmed && capturable) ? EchoelTheme.danger : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Arm \(source.displayName) recording, \(lane.name)")
-        .accessibilityValue(lane.isArmed ? "Armed" : "Off")
+        .disabled(!capturable)
+        .accessibilityLabel(capturable
+            ? "Arm \(source.displayName) recording, \(lane.name)"
+            : "\(source.displayName) recording arrives soon, \(lane.name)")
+        .accessibilityValue((lane.isArmed && capturable) ? "Armed" : "Off")
     }
 
     // MARK: - Grid (ruler + lanes + regions + playhead)
