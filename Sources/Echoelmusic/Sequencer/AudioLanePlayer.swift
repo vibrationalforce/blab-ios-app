@@ -114,17 +114,21 @@ public final class AudioLanePlayer {
     /// its onset twin — the audio analog of the MIDI `primeSecondaryLanes`.
     public func prime(in doc: TimelineDocument, atTick tick: Int, bpm: Double) {
         for laneID in doc.audioLaneIDs {
-            // Warm EVERY lane that has any content: open the file + attach the node
+            // Warm EVERY lane that has any content: open the files + attach nodes
             // now, while nothing is sounding — the attach pattern pauses the whole
             // engine, which must never happen mid-song at a late region's onset
-            // (audio-thread review HIGH 2). The earliest region's format is what the
-            // sink pins its connection to anyway — but if ITS file doesn't resolve,
-            // fall through to the first region whose file DOES (review MEDIUM on
-            // H4: an unresolvable first clip left the node un-attached, and the
-            // later onset/unmute would attach mid-song = engine pause + hiccup).
+            // (audio-thread review HIGH 2). PERF-01: preload EVERY DISTINCT file
+            // the lane will play, not just the earliest — the sink keeps one node
+            // per distinct format, so a lane mixing (say) a 48 kHz mono take with
+            // a 44.1 kHz stereo loop crosses their boundary with NO mid-song
+            // attach (the old single-node sink re-attached = full-mix dropout at
+            // every crossing). The sink memoizes known URLs, so a loop-wrap
+            // re-prime is a pure no-op.
             let laneRegions = doc.regions.filter { $0.laneID == laneID }
                 .sorted { $0.startTick < $1.startTick }
-            if let url = laneRegions.lazy.compactMap({ self.resolveURL($0.clipID) }).first {
+            var seen = Set<URL>()
+            for url in laneRegions.compactMap({ self.resolveURL($0.clipID) })
+            where seen.insert(url).inserted {
                 sink(for: laneID).preload(url: url)
             }
             guard let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) else {

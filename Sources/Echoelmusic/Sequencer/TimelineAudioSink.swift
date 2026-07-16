@@ -4,7 +4,7 @@
 // A1 of the healing block (founder 2026-07-15 ultracode; audit wf_9c6f33b7
 // verified CRITICAL: "Audio regions on the arrange timeline are SILENT during
 // song playback — AudioLanePlayer is dead code, never instantiated"). This is
-// the missing DEVICE half of `AudioRegionSink`: one AVAudioPlayerNode per audio
+// the missing DEVICE half of `AudioRegionSink`: player nodes for one audio
 // lane, attached additively into the master mix (never the output path), driven
 // by the tested `AudioLanePlayer` coordinator from the timeline transport.
 //
@@ -14,6 +14,19 @@
 // bake-into-buffer path is right for short auditions/fades, wrong here).
 // Control-plane only: scheduling happens on @MainActor; AVAudioPlayerNode does
 // its own rendering and file I/O off our threads.
+//
+// PERF-01 (multi-format lanes): AVAudioPlayerNode sample-rate-converts scheduled
+// files but does NOT convert channel counts, and re-attaching a node PAUSES the
+// whole engine (full-mix dropout). Pre-PERF-01 this sink held ONE node and
+// re-attached whenever a region's file format differed from the connection —
+// audible at EVERY boundary between (say) a 48 kHz mono mic take and a 44.1 kHz
+// stereo loop, re-firing on every loop wrap. Now the sink keeps ONE NODE PER
+// DISTINCT processingFormat, attached at PRIME time (transport parked — the
+// pause is inaudible); a mid-song region switch just schedules on the format's
+// own, already-attached node. A single-format lane behaves exactly as before
+// (one node, same paths). Only a file format NEVER seen at prime (a region
+// added live mid-song) still attaches mid-song — same cost as the old first
+// attach, bounded, and the next prime absorbs it.
 //
 // Live mixer (H4): `setGain`/`setPan` land mid-region on the node's AVAudioMixing
 // volume/pan — control-plane, no re-scheduling (the coordinator decides when a
@@ -28,32 +41,44 @@ import Foundation
 @MainActor
 final class TimelineAudioSink: AudioRegionSink {
 
-    private let node = AVAudioPlayerNode()
+    /// A distinct connection format (channel layout + rate) → its own node.
+    private struct FormatKey: Hashable {
+        let channels: AVAudioChannelCount
+        let rate: Double
+    }
+
+    /// One attached player node per distinct format this lane's media needs.
+    private var nodes: [FormatKey: AVAudioPlayerNode] = [:]
+    /// URLs whose file was already opened once → their format key, so a loop-wrap
+    /// prime (which re-preloads every lane URL) is a pure no-op instead of
+    /// re-opening files each round.
+    private var knownURLs: [URL: FormatKey] = [:]
     private weak var engine: AudioEngine?
+    /// The most recently loaded file (play() schedules from it). Single-slot —
+    /// the transport plays one region per lane at a time.
     private var file: AVAudioFile?
-    private var attached = false
-    /// The processingFormat the node is CONNECTED with. AVAudioPlayerNode
-    /// sample-rate-converts scheduled files but does NOT convert channel counts —
-    /// scheduling a mono file on a stereo-connected node (or vice versa) raises
-    /// the `_outputFormat.channelCount` NSException. H13a made cross-format
-    /// traffic normal (one shared audition sink for every region), so a format
-    /// change must reconnect (review F2).
-    private var connectedFormat: AVAudioFormat?
+    /// Last applied mixer values — a node attached AFTER a live edit (unseen
+    /// format mid-song) must join at the lane's current level, not a stale one.
+    private var gain: Float = 1
+    private var pan: Float = 0
 
     init(engine: AudioEngine?) {
         self.engine = engine
     }
 
-    /// Open `url` (if not already the loaded file) and attach the node. The attach
-    /// pattern pauses the whole engine, so this belongs at PRIME time (before
-    /// playback), never lazily at a mid-song onset (review HIGH 2).
+    /// Open `url` (if not seen before) and attach a node for ITS format. The
+    /// attach pattern pauses the whole engine, so this belongs at PRIME time
+    /// (before playback), never lazily at a mid-song onset (review HIGH 2).
+    /// PERF-01: the coordinator now preloads EVERY distinct URL a lane will
+    /// play, so every needed format has its node before the song runs.
     func preload(url: URL) {
+        if let key = knownURLs[url], nodes[key] != nil { return }   // wrap re-prime: no-op
         _ = ensureLoaded(url)
     }
 
     func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float) {
         guard lengthSeconds > 0 else { stop(); return }
-        guard ensureLoaded(url), let file else { return }
+        guard let node = ensureLoaded(url), let file else { return }
         let sampleRate = file.processingFormat.sampleRate
         guard sampleRate > 0 else { return }
         let startFrame = AVAudioFramePosition((max(0, fromSeconds) * sampleRate).rounded())
@@ -67,69 +92,72 @@ final class TimelineAudioSink: AudioRegionSink {
         // transport keeps stepping (review MEDIUM 1). Degrade to silence instead;
         // the next region onset re-drives the lane once the engine is back.
         guard node.engine?.isRunning == true else { return }
-        node.stop()
+        stop()   // one region per lane: silence every node before the new segment
         node.scheduleSegment(file, startingFrame: startFrame, frameCount: frames, at: nil)
         setGain(gain)
         node.play()
     }
 
     func stop() {
-        if node.isPlaying { node.stop() }
+        for node in nodes.values where node.isPlaying { node.stop() }
     }
 
-    /// H4 live mixer: level/solo edits mid-region land on the node's mixer volume —
-    /// control-plane only (AVAudioMixing downstream), no re-scheduling.
+    /// H4 live mixer: level/solo edits mid-region land on the nodes' mixer volume —
+    /// control-plane only (AVAudioMixing downstream), no re-scheduling. Applied to
+    /// every node (only one is audible at a time; a later format switch must not
+    /// resurrect a stale level).
     func setGain(_ gain: Float) {
-        node.volume = min(2, max(0, gain.isFinite ? gain : 0))   // non-finite ⇒ silent
+        let g = min(2, max(0, gain.isFinite ? gain : 0))   // non-finite ⇒ silent
+        self.gain = g
+        for node in nodes.values { node.volume = g }
     }
 
     /// H4 live mixer: the lane's stereo position (B2 pan finally reaches audio lanes).
     func setPan(_ pan: Float) {
-        node.pan = max(-1, min(1, pan))
+        let p = max(-1, min(1, pan))
+        self.pan = p
+        for node in nodes.values { node.pan = p }
     }
 
-    /// Release the engine node (lane removed). Detach mutates the graph without
+    /// Release every engine node (lane removed). Detach mutates the graph without
     /// pausing (disconnect+detach only) — permitted for removal.
     func detach() {
         stop()
-        if attached, let engine {
-            engine.detachPlayerNode(node)
-            attached = false
-            connectedFormat = nil
+        if let engine {
+            for node in nodes.values { engine.detachPlayerNode(node) }
         }
+        nodes.removeAll()
+        knownURLs.removeAll()
         file = nil
     }
 
-    /// Open `url` if it isn't the loaded file, and attach the node on first load.
-    /// A file whose processingFormat differs from the current connection re-attaches
-    /// (detach mutates without pausing; attach pauses — by construction this only
-    /// happens at prime time or while the transport is stopped, like the first attach).
-    /// Returns false when the file can't be read.
-    private func ensureLoaded(_ url: URL) -> Bool {
-        guard let engine else { return false }
+    /// Open `url` if it isn't the loaded file, and return the ATTACHED node for
+    /// its format — creating + attaching one on the format's first appearance
+    /// (attach pauses the engine; by construction that happens at prime time,
+    /// or mid-song only for a format never seen at prime — see header).
+    /// Returns nil when the file can't be read.
+    private func ensureLoaded(_ url: URL) -> AVAudioPlayerNode? {
+        guard let engine else { return nil }
         if file == nil || file?.url != url {
             guard let f = try? AVAudioFile(forReading: url) else {
                 log.log(.error, category: .audio,
                         "TimelineAudioSink: cannot read \(url.lastPathComponent)")
                 stop()
-                return false
+                return nil
             }
             file = f
-            if attached, let connectedFormat,
-               connectedFormat.channelCount != f.processingFormat.channelCount
-                || connectedFormat.sampleRate != f.processingFormat.sampleRate {
-                stop()
-                engine.detachPlayerNode(node)
-                attached = false
-                self.connectedFormat = nil
-            }
-            if !attached {
-                engine.attachPlayerNode(node, format: f.processingFormat)
-                attached = true
-                connectedFormat = f.processingFormat
-            }
         }
-        return file != nil
+        guard let file else { return nil }
+        let format = file.processingFormat
+        let key = FormatKey(channels: format.channelCount, rate: format.sampleRate)
+        knownURLs[url] = key
+        if let existing = nodes[key] { return existing }
+        let node = AVAudioPlayerNode()
+        engine.attachPlayerNode(node, format: format)
+        node.volume = gain
+        node.pan = pan
+        nodes[key] = node
+        return node
     }
 }
 #endif

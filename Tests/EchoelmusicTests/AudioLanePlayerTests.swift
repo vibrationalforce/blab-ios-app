@@ -159,6 +159,26 @@ final class AudioLanePlayerTests: XCTestCase {
 
     // MARK: - Warm-up + teardown (audio-thread review on the wiring cycle)
 
+    func testPrime_preloadsEveryDistinctFile_notJustTheEarliest() {
+        // PERF-01: a lane mixing two different files must have BOTH warmed at
+        // prime — the sink attaches one node per distinct format, so their
+        // boundary crosses with no mid-song engine pause.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let clipA = UUID(), clipB = UUID()
+        let urlA = URL(fileURLWithPath: "/tmp/echoel-a.wav")
+        let urlB = URL(fileURLWithPath: "/tmp/echoel-b.wav")
+        let document = TimelineDocument(lanes: [lane], regions: [
+            TimelineRegion(laneID: lane.id, clipID: clipA, startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: lane.id, clipID: clipB, startTick: 1920, lengthTicks: 1920),
+            TimelineRegion(laneID: lane.id, clipID: clipA, startTick: 3840, lengthTicks: 1920),
+        ])
+        let factory = Factory()
+        let p = player(factory) { id in id == clipA ? urlA : urlB }
+        p.prime(in: document, atTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.preloads, [urlA, urlB],
+                       "every distinct file warms once, in lane order — no duplicates")
+    }
+
     func testPrime_preloadsLateStartingLane_withoutPlayingIt() {
         // The lane's only region starts at bar 2 — inactive at tick 0. Prime must
         // still PRELOAD it (attach happens before playback; a lazy attach at the
