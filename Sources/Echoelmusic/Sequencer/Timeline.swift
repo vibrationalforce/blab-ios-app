@@ -174,10 +174,17 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// pre-CLIP-6 the editor value was audition-only and silently dropped.
     /// MIDI regions ignore it today. Legacy regions decode as 1 (unity).
     public var gain: Float
+    /// Warp gate for THIS placement (task #54): when true AND the resolved clip
+    /// knows its `nativeBPM` (> 0), the audio lane player time-stretches the media
+    /// to the project tempo (pitch preserved, rate via `TempoMatch`). A property
+    /// of the PLACEMENT — the same clip can sit warped and unwarped in one song.
+    /// Legacy regions decode as false (bit-identical playback). Split/front-trim/
+    /// duplicate carry it; Join refuses a mismatch (like `gain`).
+    public var warpEnabled: Bool
 
     public init(id: UUID = UUID(), laneID: UUID, clipID: UUID,
                 startTick: Int, lengthTicks: Int, contentOffsetSeconds: Double = 0,
-                contentOffsetTicks: Int = 0, gain: Float = 1) {
+                contentOffsetTicks: Int = 0, gain: Float = 1, warpEnabled: Bool = false) {
         self.id = id
         self.laneID = laneID
         self.clipID = clipID
@@ -186,11 +193,12 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         self.contentOffsetSeconds = max(0, contentOffsetSeconds)
         self.contentOffsetTicks = max(0, contentOffsetTicks)
         self.gain = Swift.min(2, Swift.max(0, gain.isFinite ? gain : 1))
+        self.warpEnabled = warpEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, laneID, clipID, startTick, lengthTicks, contentOffsetSeconds
-        case contentOffsetTicks, gain
+        case contentOffsetTicks, gain, warpEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -207,6 +215,8 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         // Legacy regions (pre-CLIP-6) carry no gain — unity, bit-identical playback.
         let g = (try? c.decode(Float.self, forKey: .gain)) ?? 1
         gain = Swift.min(2, Swift.max(0, g.isFinite ? g : 1))
+        // Legacy regions (pre-#54) carry no warp gate — off, bit-identical playback.
+        warpEnabled = (try? c.decode(Bool.self, forKey: .warpEnabled)) ?? false
     }
 
     public var endTick: Int { startTick + lengthTicks }
@@ -268,9 +278,11 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// would silently drop the trim). `bpm` converts this region's length to seconds.
     public func abuts(_ other: TimelineRegion, bpm: Double) -> Bool {
         // Gain must match too (CLIP-6): joining a 0.5-gain half onto a unity half
-        // would silently pick one — refuse, like a mismatched media offset.
+        // would silently pick one — refuse, like a mismatched media offset. Same
+        // for the warp gate (#54): warped + unwarped halves play different media
+        // timelines — joining them would silently pick one state.
         guard laneID == other.laneID, clipID == other.clipID, endTick == other.startTick,
-              gain == other.gain
+              gain == other.gain, warpEnabled == other.warpEnabled
         else { return false }
         let expectedOffset = contentOffsetSeconds
             + TimelineTime.seconds(fromTicks: lengthTicks, bpm: bpm)

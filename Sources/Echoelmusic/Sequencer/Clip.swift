@@ -82,6 +82,12 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
     /// need it to detect a clip SHORTER than its placed span (video `.exhausted` /
     /// audio EOF), so it is persisted with the clip rather than re-measured each launch.
     public var nativeDurationSeconds: Double?
+    /// The media's NATIVE tempo in BPM — a property of the AUDIO itself (task #54
+    /// Warp): seeded from the import bar-guess (`TempoMatch`), user-correctable in
+    /// the editor ("Clip BPM"). `0` = unknown → the clip NEVER warps. Clamped to
+    /// `AudioClipRegion.nativeBPMRange` when set; older documents decode as 0
+    /// (bit-identical playback, nothing pruned). MIDI clips ignore it.
+    public var nativeBPM: Double
     /// Parameter automation the clip carries (automation-in-track cycle 4).
     /// Ticks are CLIP-RELATIVE (0 = the clip's first step), so the lanes travel
     /// with the clip wherever it is launched or placed. Clip automation is clip
@@ -97,6 +103,7 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         melody: MelodyClip? = nil,
         mediaRef: String? = nil,
         nativeDurationSeconds: Double? = nil,
+        nativeBPM: Double = 0,
         automation: [AutomationLane] = []
     ) {
         self.id = id
@@ -107,11 +114,21 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         self.melody = melody
         self.mediaRef = mediaRef
         self.nativeDurationSeconds = nativeDurationSeconds
+        self.nativeBPM = Clip.clampedNativeBPM(nativeBPM)
         self.automation = automation
     }
 
+    /// `0` stays 0 (unknown — never warps); anything else clamps into the ONE
+    /// musical range shared with the editor model (`AudioClipRegion.nativeBPMRange`).
+    public static func clampedNativeBPM(_ bpm: Double) -> Double {
+        guard bpm.isFinite, bpm > 0 else { return 0 }
+        return Swift.min(AudioClipRegion.nativeBPMRange.upperBound,
+                         Swift.max(AudioClipRegion.nativeBPMRange.lowerBound, bpm))
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case id, name, colorIndex, kind, drums, melody, mediaRef, nativeDurationSeconds, automation
+        case id, name, colorIndex, kind, drums, melody, mediaRef, nativeDurationSeconds
+        case nativeBPM, automation
     }
 
     // Forward/backward-compatible decode: clips saved before `kind`/`mediaRef` existed
@@ -126,6 +143,8 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         melody = try? c.decode(MelodyClip.self, forKey: .melody)
         mediaRef = try? c.decode(String.self, forKey: .mediaRef)
         nativeDurationSeconds = try? c.decode(Double.self, forKey: .nativeDurationSeconds)
+        // Pre-warp clips carry no tempo — 0 = unknown, never warps (bit-identical).
+        nativeBPM = Clip.clampedNativeBPM((try? c.decode(Double.self, forKey: .nativeBPM)) ?? 0)
         automation = (try? c.decode([AutomationLane].self, forKey: .automation)) ?? []
     }
 
