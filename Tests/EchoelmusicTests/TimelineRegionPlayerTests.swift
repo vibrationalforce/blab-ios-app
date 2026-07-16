@@ -45,6 +45,46 @@ final class TimelineRegionPlayerTests: XCTestCase {
         XCTAssertEqual(c.advance(step: 99), 15 * 120, "over-15 clamps to 15")
     }
 
+    // MARK: - CLIP-5: cursor seeding (play from the playhead / relocate)
+
+    func testCursor_seededStartBar_landsInThatBar() {
+        var c = TimelinePlaybackCursor(startBar: 2)
+        XCTAssertEqual(c.advance(step: 0), 2 * 1920, "seeded cursor starts at bar 2's downbeat")
+        XCTAssertEqual(c.advance(step: 5), 2 * 1920 + 5 * 120)
+    }
+
+    func testCursor_seededMidPhase_firstStepIsNotAWrap() {
+        // A relocate can land while the pattern is mid-bar — the first advance
+        // must adopt that phase inside the seeded bar, never count a wrap.
+        var c = TimelinePlaybackCursor(startBar: 3)
+        XCTAssertEqual(c.advance(step: 9), 3 * 1920 + 9 * 120)
+        // …and the NEXT real 15→0 wrap advances to bar 4 as usual.
+        _ = c.advance(step: 15)
+        XCTAssertEqual(c.advance(step: 0), 4 * 1920)
+    }
+
+    func testCursor_seededNegativeBar_clampsToZero() {
+        var c = TimelinePlaybackCursor(startBar: -3)
+        XCTAssertEqual(c.advance(step: 0), 0)
+    }
+
+    // MARK: - CLIP-5: barStartTick (pure locate-target math)
+
+    func testBarStartTick_floorsToBar() {
+        XCTAssertEqual(TimelineRegionPlayer.barStartTick(for: 1920 + 500, loopTicks: 7680), 1920)
+        XCTAssertEqual(TimelineRegionPlayer.barStartTick(for: 0, loopTicks: 7680), 0)
+    }
+
+    func testBarStartTick_beyondEndFoldsIntoSong() {
+        XCTAssertEqual(TimelineRegionPlayer.barStartTick(for: 7680, loopTicks: 7680), 0,
+                       "the tick AT the loop end is the top")
+        XCTAssertEqual(TimelineRegionPlayer.barStartTick(for: 7680 + 1920, loopTicks: 7680), 1920)
+    }
+
+    func testBarStartTick_zeroLoop_isZero() {
+        XCTAssertEqual(TimelineRegionPlayer.barStartTick(for: 5000, loopTicks: 0), 0)
+    }
+
     // MARK: - loopTicks (whole-bar song length)
 
     private func doc(endTick: Int) -> TimelineDocument {
@@ -139,6 +179,96 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
         player.stop()
         XCTAssertNil(bindings.last?.1, "stop releases the slot's lane binding")
         XCTAssertEqual(bindings.last?.0, 0)
+    }
+
+    // MARK: - CLIP-5: play(fromTick:) + relocate(toTick:)
+
+    /// Roll lane spans the whole song; the SECONDARY lane has a region ONLY in
+    /// bars 2–3 — whether its slot binds at prime reveals WHERE playback started.
+    private func makeLocateFixture() -> (doc: TimelineDocument, secondary: TimelineLane) {
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let secondary = TimelineLane(name: "MIDI 2", kind: .midi)
+        let document = TimelineDocument(lanes: [roll, secondary], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 4 * 1920),
+            TimelineRegion(laneID: secondary.id, clipID: UUID(), startTick: 2 * 1920, lengthTicks: 2 * 1920),
+        ])
+        return (document, secondary)
+    }
+
+    func testPlayFromTick_startsAtThatBar_andPrimesItsLanes() {
+        let (document, secondary) = makeLocateFixture()
+        let player = TimelineRegionPlayer()
+        var bindings: [(Int, UUID?)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotLaneSink = { bindings.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern,
+                    pianoRoll: pianoRoll, fromTick: 2 * 1920 + 500)   // mid-bar 2
+        defer { player.stop() }
+
+        XCTAssertEqual(player.currentTick, 2 * 1920, "start folds to bar 2's downbeat")
+        XCTAssertEqual(bindings.first?.1, secondary.id,
+                       "the lane active at bar 2 primes — playback really starts there")
+    }
+
+    func testPlayFromTick_beyondEnd_foldsToTop() {
+        let (document, secondary) = makeLocateFixture()
+        let player = TimelineRegionPlayer()
+        var bindings: [(Int, UUID?)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotLaneSink = { bindings.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern,
+                    pianoRoll: pianoRoll, fromTick: 4 * 1920)   // exactly the song end
+        defer { player.stop() }
+
+        XCTAssertEqual(player.currentTick, 0, "at/past the end folds to the top")
+        XCTAssertFalse(bindings.contains { $0.1 == secondary.id },
+                       "the bars-2–3 lane is NOT active at the top")
+    }
+
+    func testRelocate_whilePlaying_reprimesAtTargetBar() {
+        let (document, secondary) = makeLocateFixture()
+        let player = TimelineRegionPlayer()
+        var bindings: [(Int, UUID?)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotLaneSink = { bindings.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        defer { player.stop() }
+        XCTAssertFalse(bindings.contains { $0.1 == secondary.id },
+                       "at the top the bars-2–3 lane is silent")
+
+        player.relocate(toTick: 2 * 1920 + 500)   // drop the head mid-bar 2
+
+        XCTAssertEqual(player.currentTick, 2 * 1920, "relocate folds to the bar")
+        XCTAssertEqual(bindings.last?.1, secondary.id,
+                       "the target bar's lane primes after the jump")
+    }
+
+    func testRelocate_whileStopped_isANoOp() {
+        let (document, _) = makeLocateFixture()
+        let player = TimelineRegionPlayer()
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        player.stop()
+
+        player.relocate(toTick: 2 * 1920)
+        XCTAssertEqual(player.currentTick, 0,
+                       "a stopped player ignores relocate — play(fromTick:) owns the parked head")
     }
 }
 #endif

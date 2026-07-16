@@ -327,8 +327,17 @@ private struct TransportBar: View {
             // Playable = a MIDI (roll) lane OR an audio lane exists (A1: a pure-audio
             // arrangement must sound too — the old rollLaneID-only check silenced it).
             if doc.rollLaneID != nil || !doc.audioLaneIDs.isEmpty, !doc.regions.isEmpty {
+                // CLIP-5: start at the PARKED playhead's bar (drag-then-play), not
+                // always bar 1. Read the position BEFORE play — pattern.play() →
+                // transport.play() zeroes it.
+                let parkedTick = transport.position.absoluteStep * TimelineTime.ticksPerTransportStep
                 timelinePlayer.play(document: doc, clips: clips,
-                                    pattern: player.pattern, pianoRoll: pianoRoll)
+                                    pattern: player.pattern, pianoRoll: pianoRoll,
+                                    fromTick: parkedTick)
+                // Show the REAL start bar (the player folded/clamped the tick).
+                if timelinePlayer.isPlaying, timelinePlayer.currentTick > 0 {
+                    transport.seek(toBar: timelinePlayer.currentTick / TimelineTime.ticksPerBar)
+                }
             } else {
                 player.pattern.play()
             }

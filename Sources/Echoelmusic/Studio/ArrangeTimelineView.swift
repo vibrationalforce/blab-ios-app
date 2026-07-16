@@ -1421,6 +1421,9 @@ private struct LaneFXEditor: View {
 @MainActor
 private struct TimelinePlayhead: View {
     @Environment(Transport.self) private var transport
+    /// CLIP-5: dropping the head while the SONG plays relocates the audio too.
+    /// Read only in the drag's onEnded closure — never in body (freeze rule).
+    @Environment(TimelineRegionPlayer.self) private var timelinePlayer
     let pointsPerBeat: CGFloat
     /// The active snap grid — the drag lands the playhead on bar/beat/8th/16th/off,
     /// the same magnet the regions use (founder 2026-07-15: "beim Schieben verbunden
@@ -1522,7 +1525,15 @@ private struct TimelinePlayhead: View {
                 seek(toTick: snapped)
             }
             .onEnded { _ in
-                if let t = scrubTick { seek(toTick: t) }
+                if let t = scrubTick {
+                    seek(toTick: t)
+                    // CLIP-5: while the arrangement plays, the DROP relocates the
+                    // audio (bar-granular; no-op when stopped — play() picks the
+                    // parked head up). Drag END only, never per drag frame — a
+                    // continuous scrub through the relocate path is a voice-flush
+                    // storm (HARNESS_LEDGER 2026-07-16).
+                    timelinePlayer.relocate(toTick: t)
+                }
                 scrubTick = nil
             }
     }

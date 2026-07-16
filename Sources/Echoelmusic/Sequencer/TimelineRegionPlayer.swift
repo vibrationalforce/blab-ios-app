@@ -29,6 +29,13 @@ public struct TimelinePlaybackCursor: Equatable {
 
     public init() {}
 
+    /// Start the cursor at the top of `startBar` (CLIP-5: play from the playhead /
+    /// relocate). Like a fresh cursor, the FIRST advance() never counts as a wrap —
+    /// it lands within `startBar` at the incoming step's phase.
+    public init(startBar: Int) {
+        barsCompleted = max(0, startBar)
+    }
+
     /// Consume the next within-bar step (0…15) and return the new absolute tick.
     /// A bar completes only on a real wrap back to step 0 (15→0), matching
     /// ArrangementPlayer's bar-boundary detection.
@@ -150,13 +157,20 @@ public final class TimelineRegionPlayer {
 
     // MARK: - Transport
 
-    /// Start playing `document` from the top. No-op if it has no MIDI (roll) lane
-    /// or no regions — nothing to chain.
+    /// Start playing `document` from the bar containing `fromTick` (CLIP-5: the
+    /// playhead the user parked — 0 = the top, the old behavior). No-op if the
+    /// document has no MIDI (roll) lane or no regions — nothing to chain.
+    /// GRANULARITY: the start folds to the BAR — the shared PatternEngine always
+    /// starts its 16-step phase at 0, so a mid-bar start tick is not representable
+    /// at the transport layer (the within-bar phase belongs to the pattern; exact
+    /// mid-bar locate is the same M2-class refinement as mid-bar region phase).
+    /// A tick beyond the song end folds to the top, like the loop wrap.
     public func play(
         document: TimelineDocument,
         clips: ClipStore,
         pattern: PatternEngine,
-        pianoRoll: PianoRollModel
+        pianoRoll: PianoRollModel,
+        fromTick: Int = 0
     ) {
         // A song is playable when ANY playable lane has content — a MIDI (roll)
         // lane, or an audio lane (A1: a pure-audio arrangement must sound too;
@@ -169,19 +183,52 @@ public final class TimelineRegionPlayer {
         self.pianoRoll = pianoRoll
         self.rollLane = document.rollLaneID
         self.loopTicks = Self.loopTicks(for: document)
-        self.cursor = TimelinePlaybackCursor()
-        self.lastTick = 0
-        self.currentTick = 0
+        let startTick = Self.barStartTick(for: fromTick, loopTicks: loopTicks)
+        self.cursor = TimelinePlaybackCursor(startBar: startTick / TimelineTime.ticksPerBar)
+        self.lastTick = startTick
+        self.currentTick = startTick
         // Fresh multi-roll state: release any lingering take (symmetric with stop —
         // never drop a sounding pitch without its note-off), clear slots, rebuild pool.
         flushPumps()
         isPlaying = true
         pianoRoll.setTimelineAutomation(document.automation)   // arrangement automation (cycle 5)
-        pianoRoll.setTimelineAutomationTick(0)
-        loadRollRegion(at: 0)            // whatever is under the playhead at the top
-        primeSecondaryLanes(at: 0)       // secondary lanes active at the downbeat (fixes bar-1 silence)
-        audioLanes?.prime(in: document, atTick: 0, bpm: pattern.tempo)   // audio lanes at the downbeat (A1)
+        pianoRoll.setTimelineAutomationTick(startTick)
+        loadRollRegion(at: startTick)            // whatever is under the playhead
+        primeSecondaryLanes(at: startTick)       // secondary lanes active at the start bar
+        audioLanes?.prime(in: document, atTick: startTick, bpm: pattern.tempo)   // audio lanes (A1)
         if !pattern.isPlaying { pattern.play() }
+    }
+
+    /// The song-absolute BAR-start tick for a requested locate tick: floors to the
+    /// bar, folds a beyond-end tick back into the song (like the loop wrap). Pure.
+    nonisolated static func barStartTick(for tick: Int, loopTicks: Int) -> Int {
+        var t = (max(0, tick) / TimelineTime.ticksPerBar) * TimelineTime.ticksPerBar
+        if loopTicks > 0 { t %= loopTicks } else { t = 0 }
+        return t
+    }
+
+    /// CLIP-5: jump the PLAYING session to the bar containing `tick` (playhead
+    /// drag-drop). A locate is a hard cut — sounding voices are released (a jump
+    /// must not smear old-position sustains into the new bar), then every layer
+    /// re-primes at the target through the SAME paths play()/refreshStructure use.
+    /// Bar-granular (see play(fromTick:)). No-op while stopped — the parked
+    /// playhead is picked up by the next play(fromTick:).
+    /// NEVER call this per drag frame — drag END only (a continuous scrub through
+    /// this path is a relocate storm; HARNESS_LEDGER 2026-07-16).
+    public func relocate(toTick tick: Int) {
+        guard isPlaying else { return }
+        let target = Self.barStartTick(for: tick, loopTicks: loopTicks)
+        pianoRoll?.allNotesOff()   // hard locate: cut the primary roll's ringing notes
+        flushPumps()               // offs through current bindings (H5b), slots released
+        cursor = TimelinePlaybackCursor(startBar: target / TimelineTime.ticksPerBar)
+        lastTick = target
+        currentTick = target
+        loadedRegionID = nil       // force a fresh region decision at the target
+        loadRollRegion(at: target)
+        pianoRoll?.setTimelineAutomationTick(target)
+        primeSecondaryLanes(at: target)
+        audioLanes?.prime(in: doc, atTick: target, bpm: pattern?.tempo ?? 120)
+        log.log(.info, category: .audio, "timeline: relocate to tick \(target)")
     }
 
     /// Stop timeline-follow and the transport.
