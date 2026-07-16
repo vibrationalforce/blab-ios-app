@@ -3387,9 +3387,12 @@ struct EchoelStudioView: View {
     private func goImmersiveForTake() {
         #if canImport(MetalKit) && canImport(UIKit)
         let d = UserDefaults.standard
-        preTakeVisualVisible = d.object(forKey: "visual.floating.visible") as? Bool ?? true
+        // Key + default via the namespace (H15-KEYSTORE): these programmatic reads
+        // must fall back to the SAME canonical default as every @AppStorage site.
+        preTakeVisualVisible = d.object(forKey: StudioDefaultKeys.floatingVisualVisible.key)
+            as? Bool ?? StudioDefaultKeys.floatingVisualVisible.value
         preTakeVisualSize = d.object(forKey: "visual.floating.size") as? Int
-        d.set(true, forKey: "visual.floating.visible")
+        d.set(true, forKey: StudioDefaultKeys.floatingVisualVisible.key)
         d.set(FloatingVisualWindow.WindowSize.fullscreen.rawValue, forKey: "visual.floating.size")
         #endif
     }
@@ -3402,10 +3405,11 @@ struct EchoelStudioView: View {
         defer { preTakeVisualVisible = nil; preTakeVisualSize = nil }
         guard preTakeVisualVisible != nil || preTakeVisualSize != nil else { return }
         let d = UserDefaults.standard
-        let visibleNow = d.object(forKey: "visual.floating.visible") as? Bool ?? true
+        let visibleNow = d.object(forKey: StudioDefaultKeys.floatingVisualVisible.key)
+            as? Bool ?? StudioDefaultKeys.floatingVisualVisible.value
         let sizeNow = d.object(forKey: "visual.floating.size") as? Int
         guard visibleNow, sizeNow == FloatingVisualWindow.WindowSize.fullscreen.rawValue else { return }
-        if let v = preTakeVisualVisible { d.set(v, forKey: "visual.floating.visible") }
+        if let v = preTakeVisualVisible { d.set(v, forKey: StudioDefaultKeys.floatingVisualVisible.key) }
         d.set(preTakeVisualSize ?? FloatingVisualWindow.WindowSize.small.rawValue,
               forKey: "visual.floating.size")
         #endif
