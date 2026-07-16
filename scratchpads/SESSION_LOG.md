@@ -7150,3 +7150,18 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **DMMW-Statusantwort an Founder:** Audio/Bio/Licht/Spatial = Produktionslevel;
   Video partiell; Broadcast bewusst Roadmap. Nächste Prioritäten benannt:
   Stretch Slice B → #13 Mic-Capture → Video.
+
+## 2026-07-16 (Forts. 52) — Warp Slice B grün + TestFlight-2382-Klärung
+
+- `01b68f6` **Warp Slice B**: Timeline wendet den StretchPlan an (Sink-Protokoll
+  +stretch/+warped, AudioLanePlayer resolveNativeBPM + rate-bewusste Maps,
+  TimelineAudioSink-Warp-Ketten Prime-Zeit-attacht, ungewarpt bleibt Plain-Node
+  bit-identisch; StretchPlan.unstretched für BeatPlayer-Audition). Beide Gates
+  GRÜN. Reviewer-Agenten 2× an 529 gestorben → dokumentierte Inline-Reviews
+  (Audio CLEAN; Code fand 1 CRITICAL: BeatPlayer-Audition alte play-Signatur,
+  gefixt vor Commit). Geräte-Hörtest offen (nächste Deploy-Notes).
+- **Founder: "sehe die Änderungen nicht in TestFlight"** → Diagnose: v276 =
+  Build 2382, Upload + ASC-Landung CI-verifiziert 20:56Z; Apple-Processing /
+  alter Build auf Gerät die wahrscheinliche Ursache. Antwort mit Build-Nummer,
+  Fundorten der Änderungen, Check-Anleitung. v277-Deploy (Timeline-Warp)
+  ZURÜCKGEHALTEN bis 2382 bestätigt (keine zwei Builds im Processing).
