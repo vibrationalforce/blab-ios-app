@@ -6401,3 +6401,39 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   nicht restauriert nach Relaunch), AU-3 (Scan-Bursts), AU-4 (Guidance).
 - **Geräte-Verify offen:** PERF-01 (Format-Grenze Mikro↔Loop hörbar prüfen) ·
   AU-1-Negativfall (echtes kanal-restringiertes Plugin).
+
+## 2026-07-16 (Fortsetzung 20) — v267: AUv3-Ketten überleben den Neustart (AU-2)
+- **v267 deployed (b8258e7 + aa7a04c + 0dd2f7f, Review APPROVE nach
+  REQUEST_CHANGES + Follow-ups, Tip 4/4 grün):** HostedAUInfo Codable;
+  AUv3Host.persistChains() (3 UserDefaults-Keys, auf JEDER Chain-Mutation +
+  persistState); restoreChains() einmal beim Start (nach use(engine:)+
+  useParameters via Task) — re-driven durch die NORMALEN Lade-Pfade (AU-1-
+  Preflight, fullState-Recall, Param-Bridge).
+- **Review-CRITICAL (gefangen + behoben):** restoreChains las die Keys LAZY,
+  während jeder erfolgreiche load() ALLE DREI Keys aus dem (noch leeren)
+  Speicher neu schrieb — Instrument-Restore zerstörte die ungelesenen
+  FX/Master-Records mit []. Fix: alle drei Payloads in Locals VOR dem ersten
+  await + persistChains während des GESAMTEN Restore-Fensters unterdrückt
+  (guard isRestoringChains; defer-Clear als Struktur-Invariante).
+- **Review-HIGH (behoben, über den Vorschlag hinaus):** finales persistChains
+  hätte bei kaltem AU-Registry (scan()-Retry-Ladder dokumentiert es) transient
+  scheiternde Plugins FÜR IMMER vergessen — entfernt; Record bleibt
+  byte-identisch durch den Restore, Retry beim nächsten Start, Prune bei der
+  nächsten USER-Mutation.
+- **Review-MEDIUMs (behoben):** Restore-Fehler sichtbar via restoreNotice
+  (überlebt clearLoadError; „Not restored: … reload it from this list", OK-
+  Dismiss) + „Restoring last session…"-Zeile; Browser-Rows UND loadedBar
+  (Unload/Remove) während des Restore-Fensters disabled (Unload-mid-restore
+  wäre unpersistiert = Resurrection nächsten Start).
+- **Host-Level-Test pinnt das Retention-Gesetz:** alle Loads scheitern
+  (engine-less Host) → alle drei Records überleben byte-identisch (decode-
+  equal), Notice sichtbar, Flag cleared.
+- **LEDGER-Lehre:** Restore-Routinen, deren Lade-Pfade den PERSIST-Pfad
+  teilen, brauchen ZWEI Gesetze: (1) alle Records VOR dem ersten Load in
+  Locals lesen (der Load überschreibt den Store), (2) Persist während des
+  Restore-Fensters komplett unterdrücken (sonst vergisst ein Teil-Erfolg die
+  pending/failed Einträge). Und: „Drop failed entries" ist bei transient
+  kaltem Registry Datenverlust — degradieren + retry, nie vergessen.
+- **Ultraprogramm-Stand:** Bereich 3: AU-1 (v266) + AU-2 (v267) SHIPPED →
+  Rest: AU-3 (Scan-Bursts), AU-4 (Guidance). Danach Bereich 5 UX-1 (CRITICAL
+  Kamera-verweigert-Sackgasse).
