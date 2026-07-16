@@ -25,19 +25,32 @@ engine-umgehende Pfad. Die Naht gehört an den **Import**, nicht an den Player.
 
 ## Scheiben (test-first wo pur; Review Pflicht)
 
-### Slice 1 — Import extrahiert Ton → gepaarter Audio-Clip (die Kern-Naht)
-- Naht: `VideoClipView.addToTimeline` (`VideoClipView.swift:236-271`), direkt nach
-  `MediaLibrary.importVideo`.
-- **Pure Core (test-first):** `VideoAudioPairing` — entscheidet Ziel-Audio-Lane (erste
-  `.audio`-Lane, sonst „neu anlegen"), Start-Tick = identisch zum Video-Region-Start,
-  Länge = Video-Dauer. Reine Werte (LaneID-Wahl, Tick, Dauer) → Unit-Test ohne AVFoundation.
-- **Impure Rand:** `AVAssetExportSession(preset: AppleM4A)` (oder AVAssetReader-Muster aus
-  SingleExport) → m4a; `MediaLibrary.importAudio`; `AudioClipFactory.clip/region` auf der
-  Audio-Lane platzieren. Async (Export) — Fortschritt/Fehler wie `landingError`.
-- **Kein Ton im Video? → nur Video landen** (guard `loadTracks(.audio).first != nil`),
-  keine leere Audio-Spur.
-- **Slot-Haushalt:** Video + Audio verbrauchen je einen `clips`-Slot — bei < 2 freien Slots
-  ehrliche `landingError` („2 Slots frei nötig"), nicht halb landen.
+### Slice 1a — Pure Pairing-Core (✅ GEBAUT 2026-07-16, test-first)
+`VideoAudioPairing` (`Sequencer/VideoAudioPairing.swift`): `plan(videoStartTick:
+videoLengthTicks:existingAudioLaneIDs:contentOffsetSeconds:gain:)` → `Plan{lane, startTick,
+lengthTicks, contentOffsetSeconds, gain}`. Lock-Gesetz: der Audio-Clip erbt **identischen
+startTick + lengthTicks** des Video-Regions (nie Drift), Trim-In-Point = contentOffset.
+LaneChoice = erste non-bio `.audio`-Lane sonst `.createNew`. `hasRoom(freeSlotCount:)` ≥ 2.
+NaN/negativ sanitisiert, Länge ≥ 1 Bar. `VideoAudioPairingTests` (10 Tests). Rein — keine
+AVFoundation, keine Stores. Der korrektheits-kritische Teil, bevor der async-Rand kommt.
+
+### Slice 1b — Async-Extraktion + Wiring (NÄCHSTE Scheibe, audio-review Pflicht)
+- Naht: `VideoClipView.addToTimeline` (`VideoClipView.swift:236-271`), nach `importVideo`.
+- **Impure Rand:** `VideoAudioExtractor` — `AVAssetExportSession(preset: AppleM4A)` (oder
+  AVAssetReader-Muster aus SingleExport) → m4a; async, injizierbar (Test-Stub). Guard
+  `loadTracks(.audio).first != nil` → **kein Ton? nur Video landen** (keine leere Spur).
+- **Wiring:** `VideoAudioPairing.plan(...)` liest die vorhandenen Audio-Lanes + `videoStartTick/
+  LengthTicks` der eben gelandeten Video-Region; `.createNew` → `timeline.addLane(kind:.audio)`
+  dann `document.lanes.last`. TimelineRegion DIREKT mit `plan.lengthTicks` bauen (NICHT
+  `AudioClipFactory.region`, das re-derived die Länge → Drift). `MediaLibrary.importAudio` +
+  `AudioClipFactory.clip` + `clips.setClip`.
+- **Slot-Haushalt:** `VideoAudioPairing.hasRoom(freeSlotCount:)` VOR dem Landen — < 2 freie
+  Slots → ehrliche `landingError`, nicht halb landen.
+- **Review-Verträge (Slice-1a-LOWs) für 1b:** (1) an `plan()` den **bar-gefloorten
+  `lengthTicks` der GELANDETEN Video-Region** übergeben, NIE eine rohe Media-Dauer — sonst
+  greift der 1-Bar-Floor und Ton (1 Bar) ≠ Bild (Sub-Bar). (2) `existingAudioLaneIDs` am
+  Call-Site auf **non-bio, non-master `.audio`-Lanes** filtern (der pure Core prüft das nicht)
+  — sonst landet der Ton auf der falschen Spur. Beide mit 1b-Test absichern.
 
 ### Slice 2 — Bild + Ton bewegen sich zusammen (Pairing-Link)
 - Ein optionales `pairedRegionID` (Video↔Audio), damit Move/Trim/Delete des einen den

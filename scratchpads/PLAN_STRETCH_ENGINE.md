@@ -47,8 +47,12 @@ Modus-Picker (nur `selectable`) im Clip-Editor neben Warp. audio-thread/graph-re
 Textbuch Verhelst-Roelands WSOLA (vDSP-Kreuzkorrelation, patentfrei). Pairt mit EchoelBreak/
 BioEventGraph-Onsets. Pure WSOLA-Core test-first, dann Node-Wrapper.
 
-### Slice 3 — Studio-Executor (Signalsmith, FOUNDER-GATED)
-Nur nach Founder-Ja + Council + on-device A/B: MIT-C++-Bridge außerhalb des Render-Cores.
+### Slice 3 — Studio-Executor (Signalsmith) — DEPENDENCY FOUNDER-APPROVED 2026-07-16
+Founder-Ja liegt vor („Python/C++ egal, wichtig gebührenfrei, Apple-first"): Signalsmith
+Stretch (MIT, gratis) ist im Prinzip freigegeben. RESTLICHE Disziplin bleibt: on-device
+A/B gegen `.clean`/Apple-spectral BEVOR committen; contained MIT-C++-Bridge AUSSERHALB des
+Swift-Render-Cores (nie im Render-Callback); Council-Node-Review. Reihenfolge unverändert:
+NACH Tape + Beats, nicht als erste hörbare Scheibe.
 
 ### Slice 4 — Überall
 Video-Ton (PLAN_VIDEO_AUDIO), Sampler, Browser-Audition lesen dieselbe `StretchPlan`.

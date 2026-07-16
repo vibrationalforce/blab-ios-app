@@ -76,11 +76,12 @@ gibt **keine UI**, um Warp einzuschalten. Die Falle wäre, die getestete Math ne
   akzeptieren `stretchRate:` bereits — nur durchreichen. (+ `addToTimeline`
   `warpEnabled` setzen, wenn nativeBPM erkannt.)
 
-### Slice C — „neuste Technologie" (Founder-OK-gated)
+### Slice C — „neuste Technologie" — DEPENDENCY FOUNDER-APPROVED 2026-07-16
 - `AVAudioUnitTimePitch`-Executor gegen **Signalsmith Stretch** tauschen (höhere
-  Qualität/Transienten). NUR nach A+B mit Stock-Unit hörbar; nicht die erste hörbare
-  Scheibe an die Dependency-Entscheidung koppeln. (Dependency = Founder-Ask;
-  inspiration.csv:110.)
+  Qualität/Transienten). Founder-Ja liegt vor („C++ egal, gebührenfrei, Apple-first") →
+  MIT-Dependency freigegeben. Disziplin bleibt: NUR nach A+B mit Stock-Unit hörbar +
+  on-device A/B-Gewinn; contained C++-Bridge außerhalb des Render-Cores. = StretchMode
+  `.studio` (siehe PLAN_STRETCH_ENGINE.md Slice 3).
 
 ## Erste Scheibe = Slice A (Preview-Render + minimaler Enable), audio-thread-reviewer.
 ## NICHT Math/Model neu bauen — Schritte 1–2 sind fertig + getestet (die Falle).
