@@ -66,7 +66,8 @@ final class VideoResyncPolicyTests: XCTestCase {
     }
 
     func testResolve_smallInBandDrift_proportionalUnclamped() {
-        // 0.05 s drift: past the 0.033 deadband, delta = 0.05 * 0.5 = 0.025 < 0.03 → unclamped.
+        // 0.05 s drift: only the EXCESS beyond the deadband is corrected —
+        // (0.05 - 0.033) * 0.5 = 0.0085 → rate 0.9915, well inside the ±3% band.
         let action = VideoResyncPolicy.resolve(expectedSourceSeconds: 0.0,
                                                observedSeconds: 0.05, // ahead
                                                dt: 0.033,
@@ -74,9 +75,27 @@ final class VideoResyncPolicyTests: XCTestCase {
         guard case let .nudgeRate(rate) = action else {
             return XCTFail("expected nudgeRate, got \(action)")
         }
-        XCTAssertEqual(rate, 0.975, accuracy: 1e-5) // 1 - 0.025
+        XCTAssertEqual(rate, 0.9915, accuracy: 1e-5) // 1 - (0.05 - 0.033) * 0.5
         XCTAssertGreaterThan(rate, VideoResyncPolicy.minRate)
         XCTAssertLessThan(rate, VideoResyncPolicy.maxRate)
+    }
+
+    func testResolve_justPastDeadband_nudgesNearUnity() {
+        // Anti-shimmer guarantee: a drift a hair past the deadband produces a nudge that
+        // RAMPS FROM ~1.0 (continuous with `hold`), NOT a discontinuous jump. This is the
+        // fix for the visible rate judder at the ~8 Hz correction cadence.
+        let drift = VideoResyncPolicy.deadbandSeconds + 0.002 // 0.035 s ahead
+        let action = VideoResyncPolicy.resolve(expectedSourceSeconds: 0.0,
+                                               observedSeconds: drift,
+                                               dt: 0.033,
+                                               regionSwitchedOrWrapped: false)
+        guard case let .nudgeRate(rate) = action else {
+            return XCTFail("expected nudgeRate just past the deadband, got \(action)")
+        }
+        // excess 0.002 × 0.5 = 0.001 → rate ≈ 0.999, essentially unity (no visible jump).
+        XCTAssertEqual(rate, 0.999, accuracy: 5e-4)
+        XCTAssertLessThan(rate, 1.0)
+        XCTAssertGreaterThan(rate, 0.99)
     }
 
     // MARK: - Large drift / wrap → hard seek

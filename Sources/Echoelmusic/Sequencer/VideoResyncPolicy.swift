@@ -21,8 +21,9 @@ public enum VideoResyncAction: Equatable, Sendable {
     /// Drift is within one frame — do nothing (a seek here would add visible judder).
     case hold
     /// Multiply the player's nominal rate by this factor to slew the picture back into
-    /// lock. Always in `0.97...1.03` (±3%). `1.0` would be no change (never emitted —
-    /// `hold` covers the deadband instead).
+    /// lock. Always in `0.97...1.03` (±3%). Ramps from ~1.0 at the deadband edge (a value
+    /// arbitrarily close to — but effectively never exactly — 1.0, since only drift BEYOND
+    /// the deadband is corrected); `player.rate = 1.0` would simply be a no-op anyway.
     case nudgeRate(Float)
     /// The gap is too large to slew away (or the region switched / media wrapped) —
     /// seek the player straight to `toSeconds` (the expected source time).
@@ -39,16 +40,18 @@ public enum VideoResyncPolicy {
     /// Slew clamp: the nudged rate stays within `[minRate, maxRate]` (±3%).
     public static let minRate: Float = 0.97
     public static let maxRate: Float = 1.03
-    /// Rate change per second of drift, before clamping. Chosen so the nudge band is
-    /// meaningful: drift just past the ~0.033 s deadband produces a small proportional
-    /// nudge, and drift approaching the 0.25 s hard-seek threshold saturates the ±3%
-    /// clamp (e.g. |drift| 0.06 s → 0.03 delta → clamp onset; |drift| 0.20 s → clamped).
+    /// Rate change per second of drift BEYOND the deadband, before clamping. The nudge
+    /// ramps from ZERO at the deadband edge (continuous with `hold`), so crossing the
+    /// deadband no longer jumps the rate — the correction grows smoothly with the excess
+    /// drift. |drift| ≈ 0.093 s reaches the ±3% clamp onset (0.06 excess × 0.5 = 0.03);
+    /// |drift| approaching the 0.25 s hard-seek threshold is fully clamped.
     private static let rateGainPerSecond: Double = 0.5
 
     /// Decide how the video lane should correct this tick.
     ///
-    /// `drift = observedSeconds - expectedSourceSeconds`. Negative means the picture is
-    /// AHEAD of the audio (slow it down); positive means BEHIND (speed it up).
+    /// `drift = observedSeconds - expectedSourceSeconds`. POSITIVE means the picture is
+    /// AHEAD of the audio (slow it down, rate < 1); NEGATIVE means BEHIND (speed it up,
+    /// rate > 1). (Matches the inline law below and the sign used throughout.)
     ///
     /// - Parameters:
     ///   - expectedSourceSeconds: source time the playhead maps to (from `VideoRegionSync`).
@@ -87,10 +90,16 @@ public enum VideoResyncPolicy {
             return .hold
         }
 
-        // Proportional nudge. drift = observed - expected:
+        // Proportional nudge that RAMPS FROM ZERO at the deadband edge: only the drift
+        // BEYOND the deadband is corrected, so the rate is continuous with `hold` at the
+        // boundary. Without this, drift crossing the deadband jumped the rate from 1.0 to
+        // a ~1.7% slew instantly, and at the ~8 Hz correction cadence the value oscillated
+        // in and out of the deadband → visible rate shimmer/judder. drift = observed-expected:
         //   drift > 0 → player AHEAD of the audio → slow down (rate < 1).
         //   drift < 0 → player BEHIND the audio → speed up (rate > 1).
-        let rawRate = 1.0 - drift * rateGainPerSecond
+        let excess = magnitude - deadbandSeconds            // > 0 here (past the deadband)
+        let signedExcess = drift > 0 ? excess : -excess
+        let rawRate = 1.0 - signedExcess * rateGainPerSecond
         let clamped = Float(min(max(rawRate, Double(minRate)), Double(maxRate)))
         return .nudgeRate(clamped)
     }

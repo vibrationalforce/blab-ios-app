@@ -65,11 +65,16 @@ final class MonitorVideoSink: VideoRegionSink {
             } else {
                 // Paused SCRUB: a rate nudge can't move a paused frame, and a
                 // 16th-step scrub (0.125 s @120) sits inside the nudge band — the
-                // picture must follow every scrub step, so seek instead.
-                seek(to: sourceSeconds)
+                // picture must follow every scrub step, so seek EXACTLY (parked on a
+                // precise frame; no motion to hide an approximate landing).
+                seek(to: sourceSeconds, exact: true)
             }
         case .hardSeek(let toSeconds):
-            seek(to: toSeconds)
+            // While PLAYING, land approximately (±½ frame): an exact zero-tolerance seek
+            // forces a full keyframe re-decode to the precise frame — the visible hitch
+            // the founder saw. Motion hides a half-frame offset; the nudge law closes the
+            // rest. Paused hard-seeks (region switch under scrub) stay exact.
+            seek(to: toSeconds, exact: !playing)
             // A pre-seek nudge is stale the instant continuity re-anchors.
             if playing, player.rate != 0, player.rate != 1 { player.rate = 1 }
         }
@@ -84,9 +89,14 @@ final class MonitorVideoSink: VideoRegionSink {
         player.pause()
     }
 
-    private func seek(to seconds: Double) {
+    /// Half-a-frame (@30 fps) seek tolerance — invisible during motion, but lets AVPlayer
+    /// land on a nearby already-decodable frame instead of forcing a keyframe re-decode.
+    private static let seekTolerance = CMTime(value: 10, timescale: 600) // 1/60 s
+
+    private func seek(to seconds: Double, exact: Bool) {
+        let tol = exact ? CMTime.zero : Self.seekTolerance
         player.seek(to: CMTime(seconds: max(0, seconds), preferredTimescale: 600),
-                    toleranceBefore: .zero, toleranceAfter: .zero)
+                    toleranceBefore: tol, toleranceAfter: tol)
     }
 }
 
