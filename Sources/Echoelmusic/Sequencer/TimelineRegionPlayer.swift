@@ -120,6 +120,13 @@ public final class TimelineRegionPlayer {
     /// prime; nil on clear/silence/stop. The app binds it into the per-lane AU
     /// host so the note sink can route a slot to its lane's hosted instrument.
     @ObservationIgnored public var slotLaneSink: ((_ slot: Int, _ laneID: UUID?) -> Void)?
+    /// S2-W2-4 ("Spur = Instrument"): publishes the voice KIND a slot should play
+    /// through (from MultiRollFanout.voiceKind), so the app can rebind the slot's
+    /// physical voice (drums kit / sub / poly) via LaneVoiceRack.setKind. Fired at
+    /// exactly the sibling-sink sites (prime, window load, live merge) and reset to
+    /// `.poly` on clear/silence/stop — a slot never keeps a stale kind. nil sink ⇒
+    /// every slot stays poly (bit-identical to today, and the flag-OFF shape).
+    @ObservationIgnored public var slotKindSink: ((_ slot: Int, _ kind: LaneVoiceKind) -> Void)?
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
@@ -450,6 +457,11 @@ public final class TimelineRegionPlayer {
                 var pump = pumps[slot] ?? LaneNotePump()
                 if !pump.isEmpty { sink(slot, pump.reset()) }
                 slotLaneSink?(slot, MultiRollFanout.laneID(forSlot: slot, in: doc, rollLane: rollLane))
+                // S2-W2-4: bind the slot's KIND (drums/sub/poly) BEFORE patch/gain/
+                // notes — the app's facade routes every following per-slot sink by the
+                // CURRENT binding, so the kind must land first (else patch/notes hit
+                // the old physical voice). Rebinding releases the old voice internally.
+                slotKindSink?(slot, MultiRollFanout.voiceKind(forSlot: slot, in: doc, rollLane: rollLane))
                 // Per-lane timbre: set this slot's voice to its lane's own patch BEFORE
                 // its first notes (apply() enqueues ahead of the notes in the voice's
                 // render drain, so timbre precedes attack). nil ⇒ app falls back.
@@ -479,6 +491,7 @@ public final class TimelineRegionPlayer {
                     pumps[slot] = nil
                 }
                 slotLaneSink?(slot, nil)   // offs above went through the old binding
+                slotKindSink?(slot, .poly) // reset kind so a reused slot never keeps a stale drum/sub voice
             }
         }
         // Fire this step on every live slot pump (offs before ons, per pump). A
@@ -516,6 +529,8 @@ public final class TimelineRegionPlayer {
             var pump = pumps[load.slot] ?? LaneNotePump()
             if !pump.isEmpty { sink(load.slot, pump.reset()) }
             slotLaneSink?(load.slot, load.laneID)
+            // S2-W2-4: kind before patch/gain/notes (same ordering law as the fan-out).
+            slotKindSink?(load.slot, MultiRollFanout.voiceKind(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotPatchSink?(load.slot, load.patch)
             slotTransposeSink?(load.slot, MultiRollFanout.transpose(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
@@ -609,6 +624,7 @@ public final class TimelineRegionPlayer {
                 pumps[slot] = nil
             }
             slotLaneSink?(slot, nil)       // then release the slot's lane binding
+            slotKindSink?(slot, .poly)     // and reset the kind so a restart starts poly-clean
         }
         pumps.removeAll()
         lanePool = LaneVoicePool(capacity: multiRollCapacity)

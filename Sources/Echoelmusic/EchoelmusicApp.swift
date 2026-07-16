@@ -527,19 +527,29 @@ struct EchoelmusicApp: App {
                         // gate-held notes on the old one, surviving even transport
                         // stop; an off for a never-started pitch is harmless on both).
                         let au = FeatureFlags.laneAUInstruments ? laneAUHost?.voice(slot: slot) : nil
-                        let rack = laneVoiceRack?.voice(slot: slot)
+                        // S2-W2-4: the built-in path now goes through the rack FACADE,
+                        // which routes the slot to its bound KIND (poly/drums/sub). With
+                        // voiceKindRouting OFF every slot binds .poly ⇒ the facade calls
+                        // voice(slot:) — bit-identical to the pre-S2-W2 rack path.
                         for event in events {
                             if event.isOn {
                                 if let au { au.noteOn(pitch: event.pitch, velocity: event.velocity) }
-                                else { rack?.noteOn(pitch: event.pitch, velocity: event.velocity) }
+                                else { laneVoiceRack?.noteOn(slot: slot, pitch: event.pitch, velocity: event.velocity) }
                             } else {
                                 au?.noteOff(pitch: event.pitch)
-                                rack?.noteOff(pitch: event.pitch)
+                                laneVoiceRack?.noteOff(slot: slot, pitch: event.pitch)
                             }
                         }
                     } patchSink: { [weak laneVoiceRack] slot, patch in
-                        guard let voice = laneVoiceRack?.voice(slot: slot) else { return }
-                        if let resolved = patch ?? fallbackPatch { voice.apply(resolved) }
+                        // Facade: applies to the poly voice, a documented no-op for a
+                        // kit/sub-bound slot (their timbre is the kit presets / sub voice).
+                        if let resolved = patch ?? fallbackPatch { laneVoiceRack?.applyPatch(slot: slot, resolved) }
+                    }
+                    // S2-W2-4: publish each slot's voice KIND so the rack rebinds its
+                    // physical voice. Idempotent + poly-only while voiceKindRouting is
+                    // OFF (zero kind units ⇒ allocator resolves every slot to poly).
+                    timelinePlayer.slotKindSink = { [weak laneVoiceRack] slot, kind in
+                        laneVoiceRack?.setKind(slot: slot, kind: kind)
                     }
                     // H5b: the player publishes which lane a slot plays (from the
                     // playback snapshot); the AU host resolves slot → hosted voice.
@@ -549,7 +559,10 @@ struct EchoelmusicApp: App {
                     // Per-instrument Transpose (founder 2026-07-14): pitch each SECONDARY
                     // lane's rack voice by its own semitone shift when the lane loads.
                     timelinePlayer.slotTransposeSink = { [weak laneVoiceRack, weak laneAUHost] slot, semitones in
-                        laneVoiceRack?.voice(slot: slot)?.setTranspose(semitones: semitones)
+                        // Facade: poly shifts render-side; a sub-bound slot pitches its
+                        // mono note at enqueue (and releases a held note on a change);
+                        // a kit is unpitched (documented ignore).
+                        laneVoiceRack?.setTranspose(slot: slot, semitones: semitones)
                         laneAUHost?.voice(slot: slot)?.transposeSemitones = semitones
                     }
                     // Per-instrument Detune (founder 2026-07-14 "transpose detune"): fine
@@ -557,7 +570,7 @@ struct EchoelmusicApp: App {
                     // AU lanes deliberately get NO detune (not expressible as plain MIDI —
                     // the honest limit documented on AUNoteVoice).
                     timelinePlayer.slotDetuneSink = { [weak laneVoiceRack] slot, cents in
-                        laneVoiceRack?.voice(slot: slot)?.setDetune(cents: cents)
+                        laneVoiceRack?.setDetune(slot: slot, cents: cents)   // poly-only (documented)
                     }
                     // H4 (healing wave 1, "Pan silently inert"): each SECONDARY lane's
                     // pan + continuous gain reach its rack voice — at region load AND
@@ -565,11 +578,11 @@ struct EchoelmusicApp: App {
                     // mixer state each step via `liveDocument` below). H5b: mirrored
                     // to a hosted AU voice's lane-mixer stage when the slot has one.
                     timelinePlayer.slotPanSink = { [weak laneVoiceRack, weak laneAUHost] slot, pan in
-                        laneVoiceRack?.voice(slot: slot)?.setPan(pan)
+                        laneVoiceRack?.setPan(slot: slot, pan)   // sub un-panned (documented no-op)
                         laneAUHost?.voice(slot: slot)?.setPan(pan)
                     }
                     timelinePlayer.slotGainSink = { [weak laneVoiceRack, weak laneAUHost] slot, gain in
-                        laneVoiceRack?.voice(slot: slot)?.setGain(gain)
+                        laneVoiceRack?.setGain(slot: slot, gain)   // 0…2 per bound kind
                         laneAUHost?.voice(slot: slot)?.setGain(gain)
                     }
                     // The roll-slot GAIN mirror (K2a), relocated here (heal-review
