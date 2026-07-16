@@ -66,5 +66,16 @@ public final class LaneVoiceRack {
         guard attached, slot >= 0, slot < voices.count else { return nil }
         return voices[slot]
     }
+
+    /// S2-W1 (dissolution): push the melodic-bus insert (filter/drive) to EVERY
+    /// rack slot voice, so the "Melodic" strip and "Sound & FX (this track)"
+    /// honestly reach ALL poly lanes — before this, only the primary
+    /// synth+leadSynth received the insert and a secondary lane's filter edit
+    /// silently did nothing to that lane's own voice. Control-path only
+    /// (PolySynthVoice.setInsert mirrors params for the render thread); no-op
+    /// while unattached (multiRoll OFF) — bit-identical then.
+    public func setInsert(_ fx: TrackFX) {
+        for v in voices { v.setInsert(fx) }
+    }
 }
 #endif

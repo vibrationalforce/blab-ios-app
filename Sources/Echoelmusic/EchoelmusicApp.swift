@@ -330,6 +330,7 @@ struct EchoelmusicApp: App {
             .environment(\.touchSynth, touchVoice)
             .environment(\.leadSynth, leadVoice)
             .environment(subBass)
+            .environment(laneVoiceRack)
             .environment(metronome)
             .environment(bioEvents)
             #if canImport(CoreBluetooth)
@@ -450,7 +451,13 @@ struct EchoelmusicApp: App {
                 sessionEngine.attach(to: audioEngine)
                 // Multi-Roll (B07): attach the per-lane voice rack BEFORE start()
                 // (attach-before-start law). No-op + zero voices while the flag is OFF.
-                if FeatureFlags.multiRoll { laneVoiceRack.attachAll(to: audioEngine) }
+                if FeatureFlags.multiRoll {
+                    laneVoiceRack.attachAll(to: audioEngine)
+                    // S2-W1: seed the freshly-created rack voices with the PERSISTED
+                    // melodic insert right at attach — otherwise a secondary lane
+                    // plays unfiltered until the next Melodic edit pushes one.
+                    laneVoiceRack.setInsert(trackFXStore.melodic)
+                }
 
                 log.log(.info, category: .system, "STARTUP [3/4] Starting audio engine...")
                 EchoelCrashLog.breadcrumb("startup 3/4: starting audio engine")

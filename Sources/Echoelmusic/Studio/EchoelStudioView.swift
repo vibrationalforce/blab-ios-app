@@ -72,6 +72,9 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.touchSlideChorus.key) private var touchSlideChorus = StudioDefaultKeys.touchSlideChorus.value
     @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
     @Environment(SubBassVoice.self) private var subBass
+    /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
+    /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
+    @Environment(LaneVoiceRack.self) private var laneVoiceRack
     @Environment(MetronomeVoice.self) private var metronome
     /// #22 follow-up: Start heals a silenced roll slot (founder log v255).
     @Environment(TimelineStore.self) private var timelineStore
@@ -612,6 +615,7 @@ struct EchoelStudioView: View {
             subBass.setInsert(trackFX.bass)
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
+            laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
             // Drums bus master → fan the persisted insert across all 8 channels.
             setDrumsFX(trackFX.drums)
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
@@ -1507,13 +1511,14 @@ struct EchoelStudioView: View {
                 })
     }
 
-    /// Persist the melodic insert AND push it to BOTH melodic voices (pad/harmony `synth`
-    /// and the dedicated `leadSynth`), so the whole melody — the shrill lead included — is
-    /// covered by one "Melodic" control.
+    /// Persist the melodic insert AND push it to ALL melodic voices: pad/harmony `synth`,
+    /// the dedicated `leadSynth`, and every Multi-Roll rack slot voice (S2-W1) — so the
+    /// whole melody, secondary lanes included, is covered by one "Melodic" control.
     private func setMelodicFX(_ fx: TrackFX) {
         trackFX.set(fx, for: .melodic)
         synth.setInsert(fx)
         leadSynth?.setInsert(fx)
+        laneVoiceRack.setInsert(fx)
     }
 
     /// Drums-bus filter cutoff. Full-open (max) disengages; lower engages a low-pass

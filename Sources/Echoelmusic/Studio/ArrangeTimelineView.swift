@@ -1315,6 +1315,9 @@ private struct LaneFXEditor: View {
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
     @Environment(\.leadSynth) private var leadSynth
+    /// S2-W1: the Multi-Roll slot voices — this track's own voice IS a rack
+    /// voice for secondary lanes, so the insert must reach the rack too.
+    @Environment(LaneVoiceRack.self) private var laneVoiceRack
     @Environment(TimelineStore.self) private var timeline
 
     var body: some View {
@@ -1371,11 +1374,14 @@ private struct LaneFXEditor: View {
         .background(EchoelTheme.bg)
     }
 
-    /// Write-through: store (persists + Mix panel follows) AND both live voices.
+    /// Write-through: store (persists + Mix panel follows) AND all live melodic
+    /// voices — primary synth+lead plus every rack slot voice (S2-W1), so the
+    /// edit audibly reaches the very lane whose editor this is.
     private func apply(_ fx: TrackFX) {
         trackFX.set(fx, for: .melodic)
         synth.setInsert(fx)
         leadSynth?.setInsert(fx)
+        laneVoiceRack.setInsert(fx)
     }
 
     private var filterBinding: Binding<ChannelInsertFX.FilterType> {

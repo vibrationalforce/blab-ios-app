@@ -96,9 +96,9 @@ final class TrackInstrumentTests: XCTestCase {
         // sound path yet — a drums/sampler/subBass lane plays a rack
         // PolySynthVoice, so claiming the drums/bass bus would let a strip
         // mute the FOREIGN BeatPlayer kit / sub-doubling layer while the lane
-        // keeps sounding. Only polySynth honestly maps (melodic, primary-
-        // qualified — see doc). These pins flip ONLY together with the
-        // voiceKind-aware routing (S2-W1/W2), never alone.
+        // keeps sounding. polySynth → melodic is honest since S2-W1 (the
+        // insert reaches synth+leadSynth AND every rack voice). The nil pins
+        // flip ONLY together with voiceKind-aware routing (S2-W2), never alone.
         XCTAssertEqual(TrackInstrument.polySynth.fxBus, .melodic)
         XCTAssertNil(TrackInstrument.subBass.fxBus)
         XCTAssertNil(TrackInstrument.drums.fxBus)

@@ -79,10 +79,10 @@ public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable 
     /// sound path yet — voiceKind has no consumers; every secondary MIDI lane
     /// plays a rack PolySynthVoice and the primary roll plays synth+leadSynth
     /// WHATEVER its instrument says. So:
-    /// - .polySynth → .melodic — and even that is qualified: the melodic
-    ///   Filter/Drive reaches the PRIMARY voices (synth+leadSynth) only; the
-    ///   rack voices receive no insert yet (S2-W1 wires it), and the pad/lead
-    ///   LEVELS bake into the primary take's velocities at compose time.
+    /// - .polySynth → .melodic: the melodic Filter/Drive reaches synth+leadSynth
+    ///   AND (since S2-W1) every Multi-Roll rack slot voice — so it honestly
+    ///   covers all poly lanes. The pad/lead LEVELS still bake into the primary
+    ///   take's velocities at compose time (level ≠ insert).
     /// - drums/breakLoop/sampler/subBass → nil: their buses drive the
     ///   BeatPlayer kit / the primary-roll sub DOUBLING layer — NOT a lane of
     ///   that instrument. A strip there would mute a foreign path while the
