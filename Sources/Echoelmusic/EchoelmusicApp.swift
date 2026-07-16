@@ -693,7 +693,9 @@ struct EchoelmusicApp: App {
                 applyRouting()   // honor any persisted routes from a previous session
 
                 // AUv3 host: wire to the live graph so a user-chosen instrument can
-                // be loaded into it. Discovery + load are user-driven (no auto-load).
+                // be loaded into it. Discovery + load are user-driven; AU-2 restores
+                // the chains the USER had loaded last run (their choice persists,
+                // like lane assignments) — see the restoreChains Task below.
                 auHost.use(engine: audioEngine)
                 // Parameter-unification spine (U2c): the host registers + binds a
                 // loaded plugin's parameters into this registry/router, and the
@@ -709,6 +711,14 @@ struct EchoelmusicApp: App {
                 // them (the picker widens past the 3 enum targets). Bio-contested params
                 // are excluded in bindAutomatable (they need automation×bio composition).
                 polyVoice.bindAutomatable(into: parameterRouter)
+                // AU-2: bring back the hosted chains (instrument · channel FX ·
+                // master FX) the user had loaded — pre-AU-2 a relaunch showed the
+                // lane badge "Instrument: X" but played the built-in voice, and
+                // the master chain was silently empty. Runs the normal load paths
+                // (AU-1 pre-flight, settings recall, param bridge); an uninstalled
+                // plugin degrades to a load error + built-in voice. Launch silence
+                // holds — nothing sounds until notes flow.
+                Task { await auHost.restoreChains() }
 
                 // External MIDI input: passive (the CoreMIDI client is created in
                 // MIDIInput.init, no permission prompt), so start it at launch — a

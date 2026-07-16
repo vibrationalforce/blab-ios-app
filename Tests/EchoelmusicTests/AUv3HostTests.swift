@@ -32,5 +32,26 @@ final class AUv3HostTests: XCTestCase {
         XCTAssertTrue(s.instruments.isEmpty)
         XCTAssertTrue(s.effects.isEmpty)
     }
+
+    // MARK: - AU-2: chain persistence carrier
+
+    func testHostedAUInfo_codableRoundTrip_losslessIncludingComponentCodes() throws {
+        // The persisted chain record must re-instantiate EXACTLY this component:
+        // the four OSType codes are the identity AVAudioUnit.instantiate needs.
+        let info = HostedAUInfo(id: "Eventide.Blackhole.efct", name: "Blackhole",
+                                manufacturer: "Eventide", isInstrument: false,
+                                componentType: AUv3Host.fourCC("aufx"),
+                                componentSubType: AUv3Host.fourCC("blkh"),
+                                componentManufacturer: AUv3Host.fourCC("Evnt"))
+        let decoded = try JSONDecoder().decode(HostedAUInfo.self,
+                                               from: JSONEncoder().encode(info))
+        XCTAssertEqual(decoded, info, "every field round-trips, incl. UInt32 codes")
+
+        let chain = [info, HostedAUInfo(id: "m.Synth", name: "Synth",
+                                        manufacturer: "m", isInstrument: true)]
+        let decodedChain = try JSONDecoder().decode([HostedAUInfo].self,
+                                                    from: JSONEncoder().encode(chain))
+        XCTAssertEqual(decodedChain, chain, "chain ORDER survives — fx order is audible")
+    }
 }
 #endif

@@ -22,7 +22,9 @@ import AudioToolbox
 #endif
 
 /// A discovered Audio Unit (value type — safe to list, persist, test).
-public struct HostedAUInfo: Identifiable, Sendable, Equatable {
+/// Codable (AU-2): the host records WHICH plugins occupy the global slots so
+/// the loaded chains survive a relaunch like lane assignments already do.
+public struct HostedAUInfo: Identifiable, Sendable, Equatable, Codable {
     public var id: String          // stable: manufacturer + name + subtype
     public var name: String
     public var manufacturer: String
@@ -226,6 +228,7 @@ public final class AUv3Host {
                 connectChainNow()
             }
             if info.isInstrument { loaded = info } else { loadedEffects.append(info) }
+            persistChains()   // AU-2: the chain survives a force-kill too
             bridgeParameters(of: unit, info: info)   // params → registry + router (U2c)
             log.audio("AUv3 \(info.isInstrument ? "instrument" : "effect") loaded: \(info.name)")
         } catch {
@@ -242,6 +245,7 @@ public final class AUv3Host {
         let unit = instrumentUnit
         instrumentUnit = nil
         loaded = nil
+        persistChains()   // AU-2
         engine?.withGraphPaused {
             if let unit { engine?.detachAU(unit) }
             connectChainNow()
@@ -258,6 +262,7 @@ public final class AUv3Host {
         }
         effectUnits.remove(at: index)
         if loadedEffects.indices.contains(index) { loadedEffects.remove(at: index) }
+        persistChains()   // AU-2
         engine?.withGraphPaused {
             engine?.detachAU(unit)
             connectChainNow()
@@ -298,6 +303,7 @@ public final class AUv3Host {
                 engine.rewireMasterFX(masterEffectUnits)
             }
             loadedMasterEffects.append(info)
+            persistChains()   // AU-2
             bridgeParameters(of: unit, info: info)   // params → registry + router (U2c)
             log.audio("AUv3 master-bus effect loaded: \(info.name)")
         } catch {
@@ -318,6 +324,7 @@ public final class AUv3Host {
         }
         masterEffectUnits.remove(at: index)
         if loadedMasterEffects.indices.contains(index) { loadedMasterEffects.remove(at: index) }
+        persistChains()   // AU-2
         engine?.withGraphPaused {
             engine?.detachAU(unit)
             engine?.rewireMasterFX(masterEffectUnits)
@@ -339,6 +346,59 @@ public final class AUv3Host {
         for (i, u) in masterEffectUnits.enumerated() where loadedMasterEffects.indices.contains(i) {
             saveState(u, id: loadedMasterEffects[i].id)
         }
+        persistChains()   // AU-2: the slot occupancy backgrounds with the settings
+    }
+
+    // MARK: - Chain persistence (AU-2: the loaded chains survive a relaunch)
+
+    private static let chainInstrumentKey = "auHost.chain.instrument"
+    private static let chainEffectsKey = "auHost.chain.effects"
+    private static let chainMasterKey = "auHost.chain.masterEffects"
+    @ObservationIgnored private var hasRestoredChains = false
+
+    /// Record WHICH plugins occupy the three global slots (instrument · channel
+    /// FX · master FX). Pre-AU-2 only per-plugin fullState settings persisted —
+    /// after a relaunch the roll lane still showed "Instrument: X" (the lane
+    /// assignment restores) but played the built-in voice, and the master chain
+    /// was silently empty. Called on every chain mutation, so a force-kill
+    /// loses nothing.
+    private func persistChains() {
+        let d = UserDefaults.standard
+        if let loaded, let data = try? JSONEncoder().encode(loaded) {
+            d.set(data, forKey: Self.chainInstrumentKey)
+        } else {
+            d.removeObject(forKey: Self.chainInstrumentKey)
+        }
+        d.set((try? JSONEncoder().encode(loadedEffects)) ?? Data(), forKey: Self.chainEffectsKey)
+        d.set((try? JSONEncoder().encode(loadedMasterEffects)) ?? Data(), forKey: Self.chainMasterKey)
+    }
+
+    /// AU-2: re-load the chains the user had at last run — call ONCE at startup,
+    /// after `use(engine:)` + `useParameters`. Each entry re-drives the normal
+    /// async load paths (AU-1 format pre-flight, fullState recall, parameter
+    /// bridge), so an uninstalled or format-refusing plugin degrades exactly
+    /// like a user tap: loadError + built-in voice, never a crash. The final
+    /// persist drops entries that failed to come back. Nothing here makes
+    /// SOUND by itself — a restored instrument sounds only when notes reach it
+    /// (launch silence holds).
+    public func restoreChains() async {
+        guard !hasRestoredChains else { return }
+        hasRestoredChains = true
+        let d = UserDefaults.standard
+        let decoder = JSONDecoder()
+        if let data = d.data(forKey: Self.chainInstrumentKey),
+           let info = try? decoder.decode(HostedAUInfo.self, from: data) {
+            await load(info)
+        }
+        if let data = d.data(forKey: Self.chainEffectsKey),
+           let infos = try? decoder.decode([HostedAUInfo].self, from: data) {
+            for info in infos { await load(info) }
+        }
+        if let data = d.data(forKey: Self.chainMasterKey),
+           let infos = try? decoder.decode([HostedAUInfo].self, from: data) {
+            for info in infos { await loadMasterEffect(info) }
+        }
+        persistChains()
     }
 
     // MARK: - Plugin state (fullState) persistence
