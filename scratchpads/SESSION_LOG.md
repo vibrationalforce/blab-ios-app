@@ -6907,3 +6907,14 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Damit sind vier Editing-Primitive live: setzen · verschieben · Länge · **Velocity
   malen** (Dynamik/Ausdruck — die MPE-nahe Achse, Audit-Wunsch „velocity-lane first").
 - Kein Deploy (Founder-Freeze). Nächster Punkt: Slice 5 (Marquee-Mehrfachauswahl).
+
+## Fortsetzung 38b (2026-07-16) — Slice 4 grün + APPROVE, MEDIUM als 4b abgespalten
+
+- **Slice 4 (8831d2b): 4/4 Gates grün, code-reviewer APPROVE.** Ein MEDIUM
+  (UX, kein Bug): die Velocity-Lane sitzt ~1078 pt (49 Reihen) unter dem Canvas-Top
+  im Vertikal-Scroll → unter dem Falz. Review: „no code change required to merge".
+- **Entscheid (Council: Shipper/User-Advocate/Skeptic):** Slice 4 shippen; echtes
+  Pinnen = frozen-row/column + Horizontal-Offset-Sync = eigene, am-Gerät-zu-
+  verifizierende Scheibe → als **Slice 4b** abgespalten, auf FOUNDER_DEVICE_SESSION
+  (Abschnitt F) gelegt. Kein fragiler Offset-Sync in die Launch-View während Freeze.
+- Nächster Bau: Slice 5 (Marquee), 4b wartet auf Founder-Ja + echten Viewport.

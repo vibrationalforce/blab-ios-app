@@ -85,6 +85,16 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
   0-Höhe safe) + `noteToPaint(atStep:notes:)` (topmost covering, wie classify).
   Reuse `setVelocity`. Kein Bio-Read im Leaf ⇒ kein Menü-Freeze. 2 Test-Sets.
 
+### Slice 4b — Velocity-Lane an den Viewport-Boden pinnen (UX, geräteinformiert)
+- Slice-4-Review-MEDIUM: die Lane sitzt ~1078 pt (49 Pitch-Reihen) unter dem
+  Canvas-Top INNERHALB des Vertikal-Scrolls → unter dem Falz, nur durch Ganz-nach-
+  unten-Scrollen erreichbar (Zeit-Lock-Design-Kosten, KEIN Bug — Review APPROVE,
+  merge-ok). Ein echtes Pinnen = frozen-row/column (Gutter horizontal-fix +
+  vertikal-scrollend, Lane vertikal-fix + horizontal-scrollend) braucht Horizontal-
+  Offset-Sync — fragil in der launch-fähigen View, am Gerät nicht CI-verifizierbar.
+  Darum ABGESPALTEN + auf die Founder-Geräte-Session gelegt (dort sieht man den
+  echten Viewport). Bis dahin: im Build nach unten scrollen. Kein Blocker für S5.
+
 ### Slice 5 — Marquee-Mehrfachauswahl + Gruppen-Move/Delete
 - `@State selectedIDs: Set<UUID>`; Leerflächen-Drag = Marquee-Rechteck (pure
   „welche Notes liegen im Rect"-Funktion, testbar); Gruppen-Delete + Gruppen-

@@ -70,6 +70,17 @@ Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-is
 
 ---
 
+## F · Piano-Roll-Editing (#58 „nicht mehr rudimentär") — kurz durchspielen
+
+- [ ] **Note verschieben** (Body ziehen → neue Tonhöhe/Position), **Länge ziehen**
+      (rechte Kante), **Velocity malen** (die Lane UNTER dem Raster). Alles über die
+      eine Geste, entschieden beim Antippen. Fühlt sich das flüssig an?
+- [ ] **Velocity-Lane-Erreichbarkeit (Slice-4b-Entscheid):** die Lane sitzt aktuell
+      UNTER den 49 Tonreihen — im Editor NACH UNTEN scrollen, um sie zu sehen. Frage:
+      soll ich sie an den unteren Rand PINNEN (immer sichtbar)? Das kostet Horizontal-
+      Offset-Sync (fragiler in der Launch-View) — darum warte ich auf dein Ja + wie
+      der echte Viewport aussieht, bevor ich es umbaue.
+
 ## Was ich WÄHRENDDESSEN autonom weiterbaue (nicht geräte-gebunden)
 
 - S2-W2 Slice 6 (Primary-Roll-Kind-Routing, riskanteste reine Scheibe) — flag-OFF.
