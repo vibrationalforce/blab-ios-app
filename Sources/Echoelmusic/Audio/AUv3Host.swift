@@ -217,7 +217,7 @@ public final class AUv3Host {
             componentManufacturer: info.componentManufacturer,
             componentFlags: 0, componentFlagsMask: 0)
         do {
-            let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
+            let unit = try await Self.instantiate(desc, name: info.name)
             // AU-1 pre-flight (the lane path's H9a gate, now on the global path
             // too): connect() RAISES kAudioUnitErr_FormatNotSupported as an
             // uncatchable ObjC exception, and channel-restricted third-party
@@ -308,7 +308,7 @@ public final class AUv3Host {
             componentManufacturer: info.componentManufacturer,
             componentFlags: 0, componentFlagsMask: 0)
         do {
-            let unit = try await AVAudioUnit.instantiate(with: desc, options: [])
+            let unit = try await Self.instantiate(desc, name: info.name)
             // AU-1 pre-flight against the MASTER format (rewireMasterFX connects
             // with the main mixer's output format, not auChainFormat) — a
             // refusing unit would raise inside withGraphPaused = crash mid-mix.
@@ -751,6 +751,61 @@ public final class AUv3Host {
         #else
         didScan = true
         #endif
+    }
+
+    // MARK: - Instantiation with a hard deadline (night audit MEDIUM)
+
+    /// A defective third-party extension can hang its XPC handshake FOREVER; a
+    /// plain `try await AVAudioUnit.instantiate` then never returns, `isLoading`
+    /// stays true for the rest of the process — permanent spinner, no other
+    /// plugin loadable. NOTE a task-group timeout would NOT help here: the group
+    /// awaits its (un-cancellable) instantiate child on scope exit, so the hang
+    /// just moves. The completion-handler API + an exactly-once gate gives a real
+    /// deadline: on timeout the load path surfaces a loadError and releases the
+    /// gate; a unit arriving late is discarded on the spot (never attached).
+    private static let instantiateTimeoutSeconds: Double = 10
+
+    private enum AUInstantiateError: LocalizedError {
+        case timedOut(String)
+        var errorDescription: String? {
+            switch self {
+            case .timedOut(let name):
+                return "\(name) is not responding — open the plugin's own app once, or reinstall it."
+            }
+        }
+    }
+
+    /// Exactly-once gate for racing the completion handler against the deadline.
+    /// Control-plane only (never the audio thread), so the lock is fine.
+    private final class ResumeOnce: @unchecked Sendable {
+        private let lock = NSLock()
+        private var resumed = false
+        func run(_ body: () -> Void) {
+            lock.lock(); defer { lock.unlock() }
+            guard !resumed else { return }
+            resumed = true
+            body()
+        }
+    }
+
+    nonisolated private static func instantiate(_ desc: AudioComponentDescription,
+                                                name: String) async throws -> AVAudioUnit {
+        try await withCheckedThrowingContinuation { cont in
+            let once = ResumeOnce()
+            AVAudioUnit.instantiate(with: desc, options: []) { unit, error in
+                once.run {
+                    if let unit {
+                        cont.resume(returning: unit)
+                    } else {
+                        cont.resume(throwing: error ?? AUInstantiateError.timedOut(name))
+                    }
+                }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(Self.instantiateTimeoutSeconds * 1_000_000_000))
+                once.run { cont.resume(throwing: AUInstantiateError.timedOut(name)) }
+            }
+        }
     }
 
     /// One-shot retry of restore records that failed at launch, fired from the
