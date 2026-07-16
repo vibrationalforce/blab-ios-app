@@ -6375,3 +6375,29 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   CLIP-7..11 MEDIUMs/LOWs. → NÄCHSTER BEREICH 3 (AUv3): AU-1 Format-Preflight
   in globalen Pfaden (CRASH), AU-2 globale Chains nicht restauriert, AU-3
   Scan-Bursts, AU-4 Guidance.
+
+## 2026-07-16 (Fortsetzung 19) — v266: AUv3-Format-Preflight auf allen Pfaden (AU-1)
+- **v266 deployed (c72910f, Review APPROVE 7 Proben, Gates 4/4):** Das
+  H9a-Format-Gate greift jetzt auch auf den GLOBALEN Lade-Pfaden:
+  AUv3Host.load() gated Instrumente via neuem instrumentAcceptsChainFormat
+  (Output-Bus setFormat gegen auChainFormat) und Effekte via
+  effectsAcceptingChainFormat; loadMasterEffect() gated gegen das ECHTE
+  Master-Format via neuem effectsAcceptingMasterFormat (rewireMasterFX
+  verbindet mit mainMixer-Output, nicht auChainFormat). Gate-Body geteilt
+  (privates effectsAccepting(format:units:)). Verweigerung → loadError
+  („… needs a channel layout Echoel doesn't provide.") + isLoading=false,
+  Unit wird NIE attached (ARC schließt die Extension-Verbindung — etabliertes
+  Lane-Pfad-Muster). Akzeptierende Units: exakt null Verhaltensänderung.
+- **Reviewer-Verifikationen:** Early-Return-Hygiene (kein stuck-Spinner,
+  loadError überlebt); kein Cleanup-Schulden am verweigerten Unit;
+  Output-Bus-only für Instrumente korrekt (Input = Host-MIDI; MusicEffect
+  klassifiziert als Effekt → voller I/O-Check); restoreState-nach-setFormat
+  unkritisch (connect re-imponiert das bewiesene Format); nil-masterFXFormat
+  → ehrlicher Fehler statt undefinierter Verbindung (konsistent mit dem
+  Kanal-Pfad, kein Regress — Engine startet lange vor Browser-Erreichbarkeit).
+  LOW (Style): Fehler-String 2× — bei drittem Pfad in Helper ziehen.
+- **Ultraprogramm-Stand:** Bereich 2 KOMPLETT (alle HIGHs, v260–v265).
+  Bereich 3 (AUv3): AU-1 SHIPPED (v266) → als Nächstes AU-2 (globale Chains
+  nicht restauriert nach Relaunch), AU-3 (Scan-Bursts), AU-4 (Guidance).
+- **Geräte-Verify offen:** PERF-01 (Format-Grenze Mikro↔Loop hörbar prüfen) ·
+  AU-1-Negativfall (echtes kanal-restringiertes Plugin).

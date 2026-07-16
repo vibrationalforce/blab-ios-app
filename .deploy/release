@@ -1,38 +1,33 @@
-build: 2026-07-16 v10.79.265 (Kein Ganzes-Mix-Aussetzer mehr an Audio-Format-Grenzen)
+build: 2026-07-16 v10.79.266 (Dritt-Plugins mit Sonderformaten crashen nicht mehr — ehrlicher Fehler statt Absturz)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 2 (Clips/DAW), Punkt 7 — der letzte HIGH-Fund des Clip-Bereichs.
+notes: Ultraprogramm Bereich 3 (AUv3), Punkt 1 — der Crash-Fund.
 
-  FORMAT-GRENZEN OHNE DROPOUT (PERF-01):
-  • Vorher: Lagen auf EINER Audio-Spur Dateien mit unterschiedlichem
-    Format (z. B. eine 48-kHz-Mono-Aufnahme und ein 44,1-kHz-Stereo-
-    Loop), pausierte an JEDER Grenze zwischen ihnen die komplette
-    Engine — ein hörbarer Aussetzer über den GANZEN Mix (Drums, Synths,
-    alles), bei jeder Überquerung und jedem Loop-Durchlauf aufs Neue.
-  • Jetzt: Jede Spur hält einen eigenen Player pro benötigtem Format,
-    alle werden beim Start (Play/Seek) vorbereitet — der Format-Wechsel
-    mitten im Song wechselt nur noch den Player, der Audio-Graph bleibt
-    unangetastet. Eine Spur mit einheitlichem Format verhält sich
-    exakt wie bisher. Loop-Durchläufe sind dank Datei-Memo komplett
-    kostenlos.
-  • Ehrlichkeit: Der Sink ist die geräte-verifizierte AVFoundation-
-    Schale — CI kompiliert, beide Reviews (Code + Audio-Thread) sind
-    APPROVE, aber der hörbare Beweis braucht ein Gerät: eine Spur mit
-    Mikro-Aufnahme + importiertem Loop abspielen und die Grenze hören.
-  • Notiert für später (Audio-Review-Advisory, vorbestehend): die
-    Start-Vorbereitung mehrerer Formate unter EINE gebatchte Graph-
-    Pause legen.
-  • Neuer Test: die Vorbereitung wärmt jede unterschiedliche Datei
-    einer Spur genau einmal, in Spur-Reihenfolge.
+  AUv3-FORMAT-SCHUTZ AUF ALLEN LADE-PFADEN (AU-1):
+  • Vorher: Dritt-AUv3 mit Kanal-Einschränkungen (mono-only Effekte,
+    fixe Layouts — bei Profi-Plugins verbreitet) rissen die App beim
+    Antippen im AUv3-Browser mitten in der Performance ab: Der
+    Verbinde-Aufruf wirft dabei keine abfangbare Fehlermeldung, sondern
+    eine harte Ausnahme. Der Spur-Pfad hatte den Schutz bereits — die
+    globalen Browser-Pfade (Kanal-Effekt, Master-Effekt, Instrument)
+    nicht.
+  • Jetzt: Jede Einheit wird VOR dem Verbinden gegen das tatsächlich
+    verwendete Format geprüft (Kanal-Pfad gegen das Chain-Format,
+    Master-Pfad gegen das echte Master-Format, Instrumente am
+    Ausgangs-Bus). Verweigert das Plugin, erscheint im Browser eine
+    klare Meldung („… braucht ein Kanal-Layout, das Echoel nicht
+    bereitstellt") — nichts berührt den Audio-Graph, nichts stürzt ab.
+  • Für Plugins, die das Format akzeptieren (der Normalfall), ändert
+    sich exakt nichts.
+  • Geräte-Verify: der Negativ-Fall braucht ein echtes kanal-
+    restringiertes Dritt-Plugin auf dem Gerät.
 
-  Review: Code-Review APPROVE (9 adversariale Proben) + Audio-Thread-
-  Review APPROVE (Render-Pfad sauber, keine Locks/Allokationen, alle
-  NSException-Pfade geprüft) · alle 4 Gates grün.
+  Review: APPROVE (7 adversariale Proben — Spinner-Hygiene, kein
+  Cleanup-Schulden am verweigerten Plugin, Format-Reihenfolge,
+  nil-Format-Ecke) · alle 4 Gates grün.
 
-  BEREICH 2 (Clips/DAW) DAMIT DURCH ALLE HIGHS: CLIP-1 (v260) ·
-  CLIP-2+3 (v261) · CLIP-5 (v262) · CLIP-4 (v263) · CLIP-6a (v264) ·
-  PERF-01 (dieses Build). Offen im Bereich: CLIP-6b (Fades + klickfreie
-  Schnittkanten) + MEDIUMs/LOWs. NÄCHSTER BEREICH: AUv3 (Bereich 3,
-  beginnend mit dem Format-Preflight-CRASH-Fund AU-1).
+  Bereich-3-Fortschritt: AU-1 (dieses Build) SHIPPED. NÄCHSTER PUNKT:
+  AU-2 — global geladene AUv3-Ketten (Instrument + Effekte + Master-FX)
+  überleben den App-Neustart heute nicht.
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
