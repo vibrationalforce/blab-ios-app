@@ -216,3 +216,27 @@ offline "freeze clip" bounce (option B, where it IS right).
 2. NewTimePitch added latency audible against MIDI lanes? (measure; compensate in a follow-up).
 3. CPU with 8 warped lanes on the oldest supported device (Adaptive Quality tier interplay).
 4. Bio→tempo modulation cadence vs. the 2% restart threshold — tune on device, not blind.
+
+## 8. REVIEW FINDINGS from S1 (3717d3b APPROVE) — MUST resolve in S2, BEFORE S3 exposes the toggle
+
+**MEDIUM — split/trim media-offset identity breaks at rate ≠ 1 (latent, unreachable in S1).**
+`TimelineRegion.split(at:bpm:)` and `trimmedStart(toTick:bpm:)` advance
+`contentOffsetSeconds` by SONG-domain elapsed seconds — correct only at rate 1.0.
+Once S2 wires playback, splitting a warped (rate 1.25) region makes the second
+half repeat ~20% of already-played media (offset should advance by
+`songSeconds × rate`). `abuts()` uses the same song-domain expectation, so
+split/join stay internally consistent — but the persisted offset is wrong for
+playback. DECIDE in S2 (explicitly, not by accident):
+  (a) scale the offset delta by the effective rate at EDIT time — requires
+      passing rate (clip nativeBPM + project BPM) into split/trim; or
+  (b) define `contentOffsetSeconds` as SONG-domain for warped regions and
+      convert (`× rate`) at schedule time in the player — no edit-math change,
+      one conversion point, but a domain that depends on a flag.
+Leaning (a): keeps the field's media-domain meaning unconditional; the split/trim
+call sites (TimelineStore) already receive `bpm` and can resolve the clip.
+Add the S2 test: split a warped region mid-play window → second piece's media
+continuity (no repeat/gap) at rate 1.25.
+
+**LOW — rounding identity `frameCount` vs `WarpedClipPlan` can differ ±1 frame at
+non-exact tempi** (one-step vs two-step rounding). Schedule-boundary only; add a
+tolerance property test or comment in S2 when the sink consumes both.

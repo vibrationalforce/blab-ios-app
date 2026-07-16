@@ -167,8 +167,7 @@ final class AudioWarpMathTests: XCTestCase {
         let old = try JSONDecoder().decode(TimelineRegion.self, from: Data(legacy.utf8))
         XCTAssertFalse(old.warpEnabled, "pre-warp documents must load bit-identical")
 
-        var warped = region(warp: true)
-        warped.warpEnabled = true
+        let warped = region(warp: true)
         let back = try JSONDecoder().decode(TimelineRegion.self,
                                             from: JSONEncoder().encode(warped))
         XCTAssertTrue(back.warpEnabled, "warp must persist with the document")
