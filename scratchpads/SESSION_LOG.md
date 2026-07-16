@@ -6934,3 +6934,18 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   lange Note aufziehen (auf FOUNDER_DEVICE_SESSION F mit-abgedeckt).
 - Reviewer: code-reviewer + ui-state-reviewer (Extra-Rigor Gesten-Automat).
 - Kein Deploy (Founder-Freeze). Nächster: Slice 5b (Gruppen-Move) oder Slice 6 MPE.
+
+## Fortsetzung 39b (2026-07-16) — Slice 5a Review-Fix: EIN RollSelection-Enum
+
+- **Beide Reviewer CHANGES-REQUESTED, identische 2 MEDIUM:** (1) stale
+  `selectedIDs` nach Einzel-Auswahl (Marquee 3 → Tap 1 → Inspector zeigt weiter
+  „3 selected", Einzel-Editor maskiert), (2) 1-Note-Marquee-Dead-State (markiert,
+  aber kein Editor/Trash). Root-cause: zwei hand-synchrone Selektions-States.
+- **Fix = ui-state-Reviewer Finding 3:** `selectedID` + `selectedIDs` → EIN
+  `RollSelection`-Enum (`.none/.single/.group`, `init(ids:)` kollabiert
+  0→none/1→single/2+→group). „Beide gesetzt" ist jetzt unrepräsentierbar; beide
+  MEDIUMs strukturell weg. Alle Sites (noteRect, vel-lane, inspector, gesture,
+  delete, clear) lesen/schreiben das eine Value. Enum internal → Collapse-
+  Invariante ist unit-getestet.
+- Pure Kerne (`notesInRect`, `remove(ids:)`) waren schon beidseitig als korrekt
+  bestätigt (nur die View-State-Kohärenz war zu fixen). Re-Verify via SendMessage.

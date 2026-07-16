@@ -166,6 +166,21 @@ final class PianoRollModelTests: XCTestCase {
         _ = note
     }
 
+    func testRollSelection_collapsesZeroToNone_oneToSingle_manyToGroup() {
+        // The invariant the marquee relies on: exactly-one collapses to .single
+        // (so a 1-note marquee is editable, not an editor-less dead state), and
+        // .group only ever holds ≥2. Fixes the two reviewer MEDIUMs structurally.
+        let a = UUID(), b = UUID()
+        XCTAssertEqual(RollSelection(ids: []), .none)
+        XCTAssertEqual(RollSelection(ids: [a]), .single(a))
+        XCTAssertEqual(RollSelection(ids: [a, b]), .group([a, b]))
+        XCTAssertTrue(RollSelection.single(a).contains(a))
+        XCTAssertFalse(RollSelection.single(a).contains(b))
+        XCTAssertTrue(RollSelection.group([a, b]).contains(b))
+        XCTAssertEqual(RollSelection.single(a).single, a)
+        XCTAssertNil(RollSelection.none.group)
+    }
+
     func testRemoveIDs_deletesTheSet_keepsOthers_emptyIsNoOp() {
         let model = PianoRollModel()
         let a = model.add(pitch: 60, startStep: 0)

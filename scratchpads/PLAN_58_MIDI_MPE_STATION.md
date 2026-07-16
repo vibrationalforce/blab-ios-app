@@ -95,7 +95,13 @@ Verdikt) — bei Founder-Widerspruch triviale Rückordnung.
   Darum ABGESPALTEN + auf die Founder-Geräte-Session gelegt (dort sieht man den
   echten Viewport). Bis dahin: im Build nach unten scrollen. Kein Blocker für S5.
 
-### Slice 5a — Marquee-Auswahl + Highlight + Gruppen-Delete · ✅ GEBAUT (Review+Gates ausstehend)
+### Slice 5a — Marquee-Auswahl + Highlight + Gruppen-Delete · ✅ GEBAUT + Review-Fix (Re-Verify ausstehend)
+- **Review-Fix (beide Reviewer CHANGES-REQUESTED, gleiche 2 MEDIUM):** `selectedID` +
+  `selectedIDs` → EIN `RollSelection`-Enum (`.none/.single/.group`, `init(ids:)`
+  kollabiert 0→none, 1→single, 2+→group). Macht „beide gesetzt" unrepräsentierbar
+  → behebt (a) stale-group-nach-Einzel-Auswahl UND (b) 1-Note-Marquee-Dead-State
+  strukturell. Alle Selektions-Sites (noteRect/vel-lane/inspector/gesture/delete/
+  clear) lesen/schreiben das eine Value. Test pinnt die Collapse-Invariante.
 - `@State selectedIDs: Set<UUID>` + `marqueeRect`. Leerflächen-DRAG wird zum
   Marquee (Promotion aus `.create`, sobald der Finger die Anker-Zelle verlässt →
   **Zero-Distance-Tap-Pfad bleibt unangetastet**). Pure `RollHitTest.notesInRect`

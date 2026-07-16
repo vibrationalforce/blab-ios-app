@@ -720,6 +720,35 @@ private enum RollDrag {
     case marquee(startX: CGFloat, startY: CGFloat)
 }
 
+/// The roll's ONE selection state (#58 Slice 5) — a single value so the illegal
+/// "both a single note AND a group are selected" state is unrepresentable. A
+/// marquee catching exactly one note collapses to `.single` (no editor-less
+/// dead state); `.group` therefore always holds ≥2. Internal (not private) so
+/// the collapse invariant is unit-tested.
+enum RollSelection: Equatable {
+    case none
+    case single(UUID)
+    case group(Set<UUID>)
+
+    /// Build from a marquee hit-list, collapsing 0→none and 1→single.
+    init(ids: [UUID]) {
+        switch ids.count {
+        case 0: self = .none
+        case 1: self = .single(ids[0])
+        default: self = .group(Set(ids))
+        }
+    }
+    func contains(_ id: UUID) -> Bool {
+        switch self {
+        case .none: return false
+        case .single(let s): return s == id
+        case .group(let g): return g.contains(id)
+        }
+    }
+    var single: UUID? { if case .single(let s) = self { return s }; return nil }
+    var group: Set<UUID>? { if case .group(let g) = self { return g }; return nil }
+}
+
 /// Piano-roll editor surface. Presented from the Tools tab; drives the synth.
 @MainActor
 struct PianoRollView: View {
@@ -742,17 +771,16 @@ struct PianoRollView: View {
     /// later refinement.
     private var isClipScoped: Bool { onDone != nil }
 
-    @State private var selectedID: UUID?
     @State private var drawLength: Int = 1
     @State private var stepW: CGFloat = 26
     @State private var rowH: CGFloat = 22
 
     // Live drag state — one in-flight gesture (create-or-move), decided at touch-down.
     @State private var drag: RollDrag?
-    /// Marquee multi-selection (#58 Slice 5). Empty when only the single
-    /// `selectedID` inspector selection is active. The live rubber-band rect is
-    /// held separately while a marquee drag is in flight.
-    @State private var selectedIDs: Set<UUID> = []
+    /// The ONE selection (#58 Slice 5) — none / a single note / a group. Replaces
+    /// the old `selectedID` + `selectedIDs` pair so the two can never disagree.
+    @State private var selection: RollSelection = .none
+    /// The live rubber-band rect while a marquee drag is in flight.
     @State private var marqueeRect: CGRect?
 
     private let gutterW: CGFloat = 42
@@ -823,7 +851,7 @@ struct PianoRollView: View {
             .frame(width: 120)
 
             Spacer(minLength: 0)
-            Button(role: .destructive) { model.clear(); selectedID = nil; selectedIDs = [] } label: {
+            Button(role: .destructive) { model.clear(); selection = .none } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(EchoelTheme.danger)
@@ -860,15 +888,15 @@ struct PianoRollView: View {
 
     @ViewBuilder
     private var inspector: some View {
-        if selectedIDs.count > 1 {
+        if let ids = selection.group {
             // Marquee group selection: count + group-delete (#58 Slice 5).
             HStack(spacing: 12) {
-                Text("\(selectedIDs.count) selected")
+                Text("\(ids.count) selected")
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
                 Button {
-                    model.remove(ids: selectedIDs); selectedIDs = []; selectedID = nil
+                    model.remove(ids: ids); selection = .none
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 13, weight: .semibold))
@@ -878,7 +906,7 @@ struct PianoRollView: View {
                 .accessibilityLabel("Delete selected notes")
             }
             .frame(height: 30)
-        } else if let id = selectedID, let note = model.notes.first(where: { $0.id == id }) {
+        } else if let id = selection.single, let note = model.notes.first(where: { $0.id == id }) {
             HStack(spacing: 12) {
                 Text(model.name(forPitch: note.pitch))
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
@@ -896,7 +924,7 @@ struct PianoRollView: View {
                 ), range: Float(0)...Float(1))
 
                 Button {
-                    model.remove(id: id); selectedID = nil
+                    model.remove(id: id); selection = .none
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 13, weight: .semibold))
@@ -951,7 +979,7 @@ struct PianoRollView: View {
                 let w = Swift.max(3, CGFloat(note.lengthSteps) * stepW - 2)
                 let h = Swift.max(1, CGFloat(note.velocity) * size.height)
                 let rect = CGRect(x: x + 1, y: size.height - h, width: w, height: h)
-                let selected = note.id == selectedID
+                let selected = selection.contains(note.id)
                 ctx.fill(Path(roundedRect: rect, cornerRadius: 2),
                          with: .color(rowTint(note.pitch).opacity(selected ? 0.95 : 0.5)))
             }
@@ -972,7 +1000,7 @@ struct PianoRollView: View {
                 guard let id = RollHitTest.noteToPaint(atStep: s, notes: model.notes) else { return }
                 model.setVelocity(id: id,
                     RollHitTest.velocity(forY: Double(value.location.y), laneHeight: Double(laneH)))
-                selectedID = id
+                selection = .single(id)
             }
     }
 
@@ -1050,7 +1078,7 @@ struct PianoRollView: View {
         let x = CGFloat(note.startStep) * stepW
         let w = CGFloat(note.lengthSteps) * stepW
         let y = yForPitch(note.pitch)
-        let selected = note.id == selectedID || selectedIDs.contains(note.id)
+        let selected = selection.contains(note.id)
         // A note block wears ITS OWN physical tone colour (same CIE mapping as the
         // grid rows and the touch fretboard), velocity → opacity as before.
         let tint = rowTint(note.pitch)
@@ -1120,12 +1148,12 @@ struct PianoRollView: View {
                                          grabPitch: pitch(atY: value.startLocation.y),
                                          grabStep: step(atX: value.startLocation.x),
                                          origPitch: n.pitch, origStep: n.startStep)
-                            selectedID = id
+                            selection = .single(id)   // single-select replaces any group
                         }
                     case let .rightEdge(id):
                         if let n = model.notes.first(where: { $0.id == id }) {
                             drag = .resize(id: id, origStart: n.startStep)
-                            selectedID = id
+                            selection = .single(id)
                         }
                     case let .empty(pitch, step):
                         drag = .create(RollDragAnchor(pitch: pitch, startStep: step))
@@ -1138,7 +1166,6 @@ struct PianoRollView: View {
                    step(atX: value.location.x) != anchor.startStep
                     || pitch(atY: value.location.y) != anchor.pitch {
                     drag = .marquee(startX: value.startLocation.x, startY: value.startLocation.y)
-                    selectedID = nil
                 }
                 // Live-follow so the note tracks the finger (move) / the edge tracks
                 // the finger's step (resize) / the marquee tracks the drag (select).
@@ -1155,7 +1182,9 @@ struct PianoRollView: View {
                     marqueeRect = CGRect(x: min(sx, value.location.x), y: min(sy, value.location.y),
                                          width: abs(value.location.x - sx),
                                          height: abs(value.location.y - sy))
-                    selectedIDs = Set(RollHitTest.notesInRect(
+                    // 0 notes → .none, 1 → .single (no editor-less dead state),
+                    // ≥2 → .group. The whole selection is this one value.
+                    selection = RollSelection(ids: RollHitTest.notesInRect(
                         x0: Double(sx), y0: Double(sy),
                         x1: Double(value.location.x), y1: Double(value.location.y),
                         notes: model.notes, stepW: Double(stepW), rowH: Double(rowH),
@@ -1170,18 +1199,17 @@ struct PianoRollView: View {
                 case let .create(anchor):
                     // A tap (the finger never left the anchor cell — any movement
                     // would have promoted this to a marquee). Select the note there,
-                    // or create one. A fresh tap clears the marquee group.
-                    selectedIDs = []
+                    // or create one — a fresh single selection replaces any group.
                     if let existing = model.note(atPitch: anchor.pitch, step: anchor.startStep) {
-                        selectedID = existing.id
+                        selection = .single(existing.id)
                     } else {
                         let note = model.add(pitch: anchor.pitch, startStep: anchor.startStep,
                                              lengthSteps: drawLength)
-                        selectedID = note.id
+                        selection = .single(note.id)
                     }
                 case .move, .resize, .marquee, .none:
-                    break   // move/resize already followed the finger; marquee set
-                            // selectedIDs live and its rect is cleared in `defer`.
+                    break   // move/resize already set .single; marquee set selection
+                            // live; the rubber-band rect is cleared in `defer`.
                 }
             }
     }
