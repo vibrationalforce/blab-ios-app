@@ -6186,3 +6186,25 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - **Nächster Zyklus (Bereich 2): U-B2.1 = CLIP-1 M1c** — Sekundär-MIDI-Lanes
   ohne Fensterung (TimelineRegionPlayer:369/419 lädt volle Melodie;
   LaneNotePump %16-Faltung). Test-first, RegionNoteWindow existiert.
+
+## 2026-07-16 (Fortsetzung 13) — v260: M1c Sekundär-Lane-Fensterung (CLIP-1 CRITICAL)
+- **v260 deployed (c4633de, Review APPROVE adversarial 6 Punkte, Gates 4/4):**
+  LaneNotePump hält Region-relative Takt-Slices (RegionNoteWindow.barSlices)
+  mit Takt-Cursor (Advance bei lokalem Step-Wrap auf 0; Onset-Step exempt via
+  lastLocalStep nil-until-first-step); load(bars:startBar:) für Mitten-Einstieg;
+  legacy load(_:) = Ein-Takt-Wrapper (Alt-Tests unverändert grün). Beide
+  Player-Ladestellen (Fanout + Prime) lösen die aktive Region auf und laden
+  gefensterte Slices. Reviewer bestätigt: exakte Takt-Phasen-PARITÄT zur
+  Haupt-Roll (auch mid-bar-Onset — beide teilen dieselbe Global-Grid-Näherung,
+  M2-Zyklus dokumentiert); .load-Timing safe (clipID-Guard redundant-defensiv).
+- **Reviewer-LOWs (nächste Berührung):** (1) Defensive-Fallback lädt den alten
+  Fold — pump.load([]) wäre ehrlicher; (2) windowedBars dupliziert loadClips
+  Fensterungs-Block → in EINEN Helper ziehen (strukturelle Paritäts-Pinnung);
+  (3) sink(slot, []) möglich (harmlos). Commit-Message sagt +8, es sind 7 Tests.
+- **Ultraprogramm-Stand:** Bereich 1 KOMPLETT (v258+v259; U-B1.5 founder-gated
+  offen). Bereich 2: U-B2.1 SHIPPED (v260) → als Nächstes U-B2.2 (CLIP-2
+  Record-arm Audio/Video = stiller Datenverlust; ehrlicher Fix: canRecord false
+  + "soon"-Hint, echte Mic-Capture = Task #13) → CLIP-3 (Struktur-Edits hörbar
+  ohne Stop+Play) → CLIP-4/5/6 · PERF-01 Format-Vorwärmen.
+- Deploys heute Nacht: v257 · v258 · v259 · v260 (vier Zyklen, vier Deploys,
+  alle Reviews eingearbeitet, ein Gate-Rot [LogCategory .bio] in 1 Zeile gefixt).
