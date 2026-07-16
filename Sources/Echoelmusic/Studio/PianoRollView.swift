@@ -144,6 +144,45 @@ public final class PianoRollModel {
 
     public init() {}
 
+    // MARK: - Undo / Redo (#58 — TimelineStore's proven snapshot-stack pattern)
+
+    /// Whole-pattern snapshots (Note is a small value type; 50 × a bar of notes
+    /// is tiny). One snapshot per USER EDIT: add/remove/clear/quantize snapshot
+    /// internally; drags snapshot ONCE at gesture-begin via `snapshotForUndo()`
+    /// (never per onChanged tick — that would explode the stack).
+    @ObservationIgnored private var undoStack: [[Note]] = []
+    @ObservationIgnored private var redoStack: [[Note]] = []
+    private static let undoDepth = 50
+    /// Observable button states (the stacks themselves are @ObservationIgnored).
+    public private(set) var canUndo = false
+    public private(set) var canRedo = false
+
+    /// Push the CURRENT pattern as an undo point. Call before a mutation batch
+    /// (the model's own editing methods do this; views call it at drag-begin).
+    public func snapshotForUndo() {
+        undoStack.append(notes)
+        if undoStack.count > Self.undoDepth { undoStack.removeFirst() }
+        redoStack.removeAll()
+        canUndo = true
+        canRedo = false
+    }
+
+    public func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(notes)
+        notes = previous
+        canUndo = !undoStack.isEmpty
+        canRedo = true
+    }
+
+    public func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(notes)
+        notes = next
+        canUndo = true
+        canRedo = !redoStack.isEmpty
+    }
+
     // MARK: - Editing
 
     /// The note (if any) sounding at `pitch` during `step`.
@@ -154,6 +193,7 @@ public final class PianoRollModel {
     /// Add a note, clamping its length so it never crosses the loop boundary.
     @discardableResult
     public func add(pitch: Int, startStep: Int, lengthSteps: Int = 1, velocity: Float = 0.8) -> Note {
+        snapshotForUndo()
         let maxLen = max(1, Self.stepCount - startStep)
         let note = Note(
             pitch: pitch, startStep: startStep,
@@ -180,12 +220,17 @@ public final class PianoRollModel {
         return (out, arrangementBars.count)
     }
 
-    public func remove(id: UUID) { notes.removeAll { $0.id == id } }
+    public func remove(id: UUID) {
+        guard notes.contains(where: { $0.id == id }) else { return }
+        snapshotForUndo()
+        notes.removeAll { $0.id == id }
+    }
 
     /// Remove every note in `ids` (marquee group-delete, #58 Slice 5). Empty set
     /// is a no-op; unknown ids are ignored.
     public func remove(ids: Set<UUID>) {
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty, notes.contains(where: { ids.contains($0.id) }) else { return }
+        snapshotForUndo()
         notes.removeAll { ids.contains($0.id) }
     }
 
@@ -204,14 +249,45 @@ public final class PianoRollModel {
     /// clamps to the roll's range; the start clamps so the note never crosses the
     /// loop boundary (its tail stays inside the bar). The drag-to-move primitive —
     /// #58 Slice 2. No-op if the note was deleted mid-drag.
+    /// NON-DESTRUCTIVE (#58, night audit 2026-07-16): moves by whole-step TICK
+    /// DELTA instead of the rounding `startStep` setter — a recorded note sitting
+    /// 30 ticks behind the grid keeps its feel through any number of drags (the
+    /// old path snapped it to the grid on the FIRST touch). Quantizing is an
+    /// explicit, separate action (`quantize(ids:)`), never a drag side-effect.
     public func move(id: UUID, toPitch pitch: Int, toStartStep startStep: Int) {
         guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
         let len = notes[i].lengthSteps
         notes[i].pitch = min(max(pitch, Self.lowPitch), Self.highPitch)
-        notes[i].startStep = min(max(startStep, 0), max(0, Self.stepCount - len))
+        let target = min(max(startStep, 0), max(0, Self.stepCount - len))
+        let deltaSteps = target - notes[i].startStep
+        guard deltaSteps != 0 else { return }
+        let maxStart = max(0, Self.stepCount * Note.ticksPerStep - notes[i].lengthTicks)
+        notes[i].startTick = min(max(0, notes[i].startTick + deltaSteps * Note.ticksPerStep),
+                                 maxStart)
+    }
+
+    /// Quantize note starts to the step grid — the door for the previously
+    /// never-wired `Note.quantizedStart`. Empty `ids` = the whole pattern.
+    /// One undoable edit.
+    public func quantize(ids: Set<UUID>) {
+        let affected = notes.indices.filter { ids.isEmpty || ids.contains(notes[$0].id) }
+        guard !affected.isEmpty else { return }
+        snapshotForUndo()
+        for i in affected {
+            notes[i] = notes[i].quantizedStart(toTicks: Note.ticksPerStep)
+        }
+    }
+
+    /// Test seam: plant an off-grid start tick (simulates a recorded note).
+    /// Internal on purpose — production paths go through add/move/quantize.
+    func setStartTickForTesting(index: Int, tick: Int) {
+        guard notes.indices.contains(index) else { return }
+        notes[index].startTick = max(0, tick)
     }
 
     public func clear() {
+        guard !notes.isEmpty else { return allNotesOff() }
+        snapshotForUndo()
         notes.removeAll()
         pendingNotes = nil   // else a staged bar would resurrect what was just cleared
         arrangementBars = [] // stop cycling — a cleared roll is a single (empty) bar
@@ -786,6 +862,8 @@ struct PianoRollView: View {
     @State private var selection: RollSelection = .none
     /// The live rubber-band rect while a marquee drag is in flight.
     @State private var marqueeRect: CGRect?
+    /// One undo snapshot per velocity-paint gesture (reset on gesture end).
+    @State private var velDragSnapshotTaken = false
 
     private let gutterW: CGFloat = 42
     private let minStepW: CGFloat = 16
@@ -855,6 +933,30 @@ struct PianoRollView: View {
             .frame(width: 120)
 
             Spacer(minLength: 0)
+            // Undo / Redo (#58 — every edit incl. a whole drag is one step back).
+            zoomButton(systemName: "arrow.uturn.backward") { model.undo() }
+                .disabled(!model.canUndo)
+                .opacity(model.canUndo ? 1 : 0.35)
+                .accessibilityLabel("Undo")
+            zoomButton(systemName: "arrow.uturn.forward") { model.redo() }
+                .disabled(!model.canRedo)
+                .opacity(model.canRedo ? 1 : 0.35)
+                .accessibilityLabel("Redo")
+            // Quantize: selection if present, else the whole pattern. Explicit —
+            // dragging never snaps recorded feel (tick-delta move law).
+            Button {
+                model.quantize(ids: selection.group ?? selection.single.map { Set([$0]) } ?? [])
+            } label: {
+                Text("Q")
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .foregroundStyle(EchoelTheme.text)
+                    .frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Quantize")
+            .accessibilityHint("Snaps the selected notes (or all notes) to the step grid")
             Button(role: .destructive) { model.clear(); selection = .none } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
@@ -1002,10 +1104,16 @@ struct PianoRollView: View {
             .onChanged { value in
                 let s = step(atX: value.location.x)
                 guard let id = RollHitTest.noteToPaint(atStep: s, notes: model.notes) else { return }
+                // ONE undo point per velocity-paint gesture (not per tick).
+                if !velDragSnapshotTaken {
+                    velDragSnapshotTaken = true
+                    model.snapshotForUndo()
+                }
                 model.setVelocity(id: id,
                     RollHitTest.velocity(forY: Double(value.location.y), laneHeight: Double(laneH)))
                 selection = .single(id)
             }
+            .onEnded { _ in velDragSnapshotTaken = false }
     }
 
     private var gutter: some View {
@@ -1149,10 +1257,12 @@ struct PianoRollView: View {
                     case let .body(id):
                         if let g = selection.group, g.contains(id) {
                             // Grabbing a note in the marquee group → move all of them.
+                            model.snapshotForUndo()   // ONE undo point per gesture
                             drag = .groupMove(grabPitch: pitch(atY: value.startLocation.y),
                                               grabStep: step(atX: value.startLocation.x),
                                               orig: model.notes.filter { g.contains($0.id) })
                         } else if let n = model.notes.first(where: { $0.id == id }) {
+                            model.snapshotForUndo()
                             drag = .move(id: id,
                                          grabPitch: pitch(atY: value.startLocation.y),
                                          grabStep: step(atX: value.startLocation.x),
@@ -1161,6 +1271,7 @@ struct PianoRollView: View {
                         }
                     case let .rightEdge(id):
                         if let n = model.notes.first(where: { $0.id == id }) {
+                            model.snapshotForUndo()
                             drag = .resize(id: id, origStart: n.startStep)
                             selection = .single(id)
                         }
