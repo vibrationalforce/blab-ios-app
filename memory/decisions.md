@@ -559,3 +559,29 @@ Architectural and strategic decisions with context and rationale.
   Plattform-ToS ("inauthentic behavior"), Sperr-Risiko echter Accounts, App-Store-Risiko,
   Widerspruch zu "handgemachter Content". Legitime Alternative: Verteilungs-Automatisierung
   auf eigenen Accounts, nie Identitäts-Erstellung.
+
+### 2026-07-16 EEG/Gehirnwellen als Modulationsquelle + Bio-Session-als-Instrument (Founder-Wiederaufnahme)
+- **Founder (verbatim-Kern):** "Bio Session soll Teil der instrumente werden. Oder geht da
+  sonst was verloren? ... nicht nur Herz rhytmen ... auch gehirnwellen [haffelder.de] ... wir
+  haben uns [letztes Jahr] geeinigt wegen den komplexen Daten der Gehirnströme ... beide
+  Hemisphären ... fft ... aufwändig ... ästhetisch brauchbare Musik ... direkt per
+  oktavierung ... eher unangenehm ... Vielleicht gibts ja mittlerweile da neue Ansätze?"
+- **Einschätzung (kein Bau diesen Zyklus — Assessment-Turn):**
+  1. **Bio-Session-als-Instrument = richtig, nichts verloren SOLANGE die Session-Dateien
+     bleiben.** bioVoice-Spur (BioReactiveSynthVoice) existiert bereits. Session
+     (SessionEngine/Guide/Clock/EntrainmentEngine) hält die GETESTETEN Gesetze (Flash-Safety
+     ≤3 Hz, Latenzausgleich, Entrainment-Pacing). Weg: Bio wird vollwertiges Spur-Instrument,
+     Session-Engine wird der Modulations-Brain DAHINTER (Pacing/Entrainment → Bio-Spur), NICHT
+     eine eigene Tür. Gefahr = Session löschen → Gesetze verloren. Additiv planen.
+  2. **EEG = ON-VISION** (Marke: "brain rhythm drive sound"). DSP-Basis schon EEG-förmig
+     (HilbertSensorMapper für EEG-Elektroden, BioEventGraph EEG-bursts, OSC bio/event/eeg);
+     nur EEGSensorBridge (Hardware) entfernt. Alte Einschätzung bleibt korrekt: Audifikation
+     (Roh/FFT → Oktavierung → hörbar) klingt unangenehm. NEUER/richtiger Ansatz = dasselbe wie
+     beim Herz: Parameter-Mapping-Sonifikation — Bandleistungen (Delta/Theta/Alpha/Beta/Gamma)
+     + Hemisphären-Kohärenz/-Asymmetrie als LANGSAME Modulationsquellen in die DDSP-Mappings.
+     Haffelders METHODE (Spektralanalyse beider Hemisphären) übernehmen, NICHT das Therapie-
+     Framing. Zwei Tore: (a) Hardware — iPhone hat kein EEG, braucht externes BLE (Muse/
+     OpenBCI), echte Dep-Entscheidung wie 0x180D-Gurt; (b) HARTE rote Linie: kein Heilungs-/
+     Therapie-Claim (Haffelder ist therapie-nah), Anzeige science-first.
+- **Status:** 2 Tasks angelegt (Bio-Session-Instrument-Plan; EEG-Modulations-Plan). Reihenfolge
+  vs. aktuelle Clip/Warp-Reihe founder-gefragt (offen). review_date: 2026-08-15.
