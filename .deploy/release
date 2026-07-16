@@ -1,32 +1,30 @@
-build: 2026-07-16 v10.79.270 (Die Health-Frage kommt im richtigen Moment)
+build: 2026-07-16 v10.79.271 (Loop-Anzeige und Instrument sagen dieselbe Zahl)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultraprogramm Bereich 5 (UX), Punkt 3 — damit sind die drei
-  Top-UX-Findings des Ultrascans (UX-1/2/3) alle geschlossen.
+notes: Ultraprogramm Bereich 4 (Struktur), Punkt 1 — kleinste Scheibe zuerst.
 
-  KEIN KONTEXTLOSES HEALTH-SHEET MEHR BEIM ERSTEN START (UX-3):
-  • Vorher: Sekunden nach dem Onboarding — mitten in den ersten
-    Studio-Moment hinein — erschien unvermittelt das bildschirmfüllende
-    Apple-Health-Berechtigungs-Sheet. Null Kontext („warum will die App
-    JETZT meine Gesundheitsdaten?"), und wer danach die Puls-Pille
-    antippte, bekam den Kamera-Dialog obendrauf gestapelt.
-    Reflex-Ablehner verloren Watch/Health-Bio dauerhaft.
-  • Jetzt: Der Launch fragt NIE. Die Health-Frage kommt beim ersten
-    echten Bio-Start (▶ auf leerem Projekt oder Puls-Pille) — dem
-    Moment, in dem „dein Körper steuert die Musik" selbsterklärend ist.
-    Und sie kommt sequenziell NACH dem Kamera-Dialog (der Start wartet
-    dessen Antwort ab), nie gestapelt.
-  • Wer Health schon erlaubt hatte (Apple-Watch-Nutzer): exakt das
-    bisherige Verhalten — Watch-Daten fließen ab Launch, ohne Sheet.
-    Wer früher abgelehnt hat: keinerlei Änderung, iOS fragt ohnehin
-    nicht erneut.
+  LOOP-ANZEIGE = LOOP-REALITÄT (H15-LOOPBARS):
+  • Vorher: Auf einer frischen Installation zeigte die Transport-Leiste
+    „loop N/4" (und das Mini-Transport im Visual-Fenster ebenso),
+    während das Instrument tatsächlich deine 8-Takte-Phrase komponierte
+    — zwei Chrome-Kopien des Loop-Defaults widersprachen dem
+    Composition-Panel (dein Entscheid: 8 Takte sind die produzierbare
+    Phrase). Sobald man die Loop-Länge einmal anfasste, war es weg —
+    aber der ERSTE Eindruck log.
+  • Jetzt: Alle drei Stellen (Transport-Chrome, Visual-Mini-Transport,
+    Composition-Panel) sagen dieselbe 8 — auch der Projekt-Öffnen-
+    Fallback (Review-Fund: ein defekter gespeicherter Wert hätte still
+    4 in den geteilten Schlüssel geschrieben). Wer die Loop-Länge je
+    geändert hat: null Änderung, der gespeicherte Wert gewinnt.
+  • Dauerhaft killt diese Fehler-KLASSE erst das Single-Sourcing aller
+    geteilten Keys+Defaults — das ist der nächste Punkt (H15-KEYSTORE).
 
-  Review: APPROVE (7 adversariale Proben bestanden: API korrekt,
-  identische Datentypen-Sets, Latch race-frei, keine Regression für
-  erteilte/verweigerte Bestandsnutzer); ein LOW (geleakter Poll-Loop
-  bei Doppel-Start) sofort geschlossen · alle 4 Gates grün.
+  Review: APPROVE (alle Proben: nur 3 Deklarationen existieren,
+  Bar-Faltung längen-generisch mit Division-Guard, Bestandsnutzer
+  no-op; LOW sofort geschlossen) · alle 4 Gates grün auf dem Tip.
 
-  BEREICH-STAND: Bereich 5: UX-1 (v268) + UX-2 (v269) + UX-3 (dieses
-  Build) ✓. NÄCHSTER PUNKT: AU-3 (Scan-Bursts entschärfen), dann AU-4.
+  BEREICH-STAND: Bereiche 1/2/3/5 aus dem verifizierten Ultrascan
+  geschlossen; Bereich 4 läuft (H15-LOOPBARS ✓ → H15-KEYSTORE →
+  H15-LIGHT → H14-CORE).
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).

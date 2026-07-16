@@ -6527,3 +6527,21 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
 - Gates 4/4 grün auf c72267a UND b6362f8 → v270 deployed.
 - **Ultraprogramm-Stand:** Bereich 5: UX-1 ✓ UX-2 ✓ UX-3 ✓ (die drei
   Top-Findings zu) → weiter mit Bereich 3 Rest: AU-3 (Scan-Bursts), AU-4.
+
+## Fortsetzung 24 (2026-07-16, Ultraprogramm Bereich 4 — H15-LOOPBARS) → v271
+- **H15-LOOPBARS (Ultrascan-HIGH):** @AppStorage-Defaults sind PER-DEKLARATION —
+  Owner EchoelStudioView:251 sagte .eight (Founder: 8-Takte-Phrase), die zwei
+  Chrome-Kopien (WorkspaceView TransportPositionView + FloatingVisualWindow
+  MiniTransportView) sagten .four → frische Installation zeigte „loop N/4"
+  während 8 Takte komponiert wurden. Fix 033c13d: beide .eight + Cross-Ref.
+- **Review APPROVE**; LOW sofort geschlossen (29093ee): open()-Fallback
+  `?? .four` war das LETZTE abweichende Literal — ein defekter gespeicherter
+  rawValue hätte still 4 in den geteilten Key GESCHRIEBEN.
+- Bestandsnutzer: no-op (gespeicherter Wert gewinnt); Bar-Faltung in beiden
+  Leaves längen-generisch (max(1,·)-Guard).
+- Gates 4/4 grün auf 29093ee → v271 deployed.
+- **Ultraprogramm-Stand:** Bereiche 1/2/3/5 verifiziert geschlossen (Hinweis:
+  AU-3/AU-4 existieren im VERIFIZIERTEN Scan nicht — AUv3-Area = AU-1+AU-2).
+  Bereich 4: H15-LOOPBARS ✓ → NÄCHSTER PUNKT H15-KEYSTORE
+  (Core/StudioDefaultKeys.swift, WeatherMood.Param-Muster, Unit-Test der
+  Default-Kohärenz — killt die Divergenz-Klasse), danach H15-LIGHT/H14-CORE.
