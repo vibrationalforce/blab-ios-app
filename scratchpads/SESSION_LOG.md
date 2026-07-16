@@ -6997,3 +6997,18 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   den EXAKTEN Rest-Gap (rendert der Stretch hörbar? UI? Algo-Qualität für „neuste
   Technologie"?) → nächster Zyklus baut die richtige Scheibe, nicht Bestehendes neu.
 - Kein Deploy (Founder-Freeze).
+
+## Fortsetzung 43 (2026-07-16) — #54 Warp Gap-Audit → präziser Plan (kein Neubau der Math)
+
+- **#54 Warp Gap-Audit (Explore a103c199) fertig:** NICHT greenfield. Model + Math
+  (TempoMatch/WarpedClipPlan/AudioRegionPlayback) + Persistenz sind FERTIG und
+  best-getestet (AudioWarpMathTests). Fehlt: (1) RENDER — kein AVAudioUnitTimePitch
+  existiert, `warpEnabled` ist ein persistierter No-Op; (2) UI — AudioClipView hat
+  keinen Warp-Toggle/Clip-BPM-Feld. Die Falle = die getestete Math neu bauen.
+- **PLAN_54_WARP.md geschrieben:** Council-Verdikt (Preview-Render zuerst, gepaart mit
+  minimalem Enable = nicht-lügender Regler) + Slices A (Editor-Preview hörbar) →
+  B (Timeline-Executor rate durchreichen) → C (Signalsmith-Qualität, Founder-gated).
+  2 Entscheide in decisions.csv (Gap + Qualitäts-Executor).
+- Nächster Bau: Slice A (AudioClipPlayer→AVAudioUnitTimePitch + Warp-Toggle),
+  audio-thread-reviewer + code-reviewer. Kein Deploy (Founder-Freeze; Warp-Hörtest =
+  Geräte-Session).
