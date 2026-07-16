@@ -225,7 +225,8 @@ struct AudioClipView: View {
         let placed = AudioClipFactory.region(forDurationSeconds: duration, bpm: bpm,
                                              laneID: laneID, clipID: clip.id,
                                              startTick: startTick, nativeBPM: native,
-                                             contentOffsetSeconds: offset)
+                                             contentOffsetSeconds: offset,
+                                             gain: region.gain)   // CLIP-6: the editor's gain lands too
         clips.setClip(at: slot, clip)
         timeline.addRegion(placed)
         dismiss()
@@ -260,9 +261,11 @@ struct AudioClipView: View {
             // must not seed an end beyond the waveform.
             let end = min(window.endSeconds, player.durationSeconds)
             region = AudioClipRegion(startSeconds: min(window.startSeconds, max(0, end - 0.01)),
-                                     endSeconds: end, loop: false)
+                                     endSeconds: end, loop: false,
+                                     gain: placed.gain)   // CLIP-6: the region's own gain
         } else {
-            region = AudioClipRegion(startSeconds: 0, endSeconds: player.durationSeconds, loop: false)
+            region = AudioClipRegion(startSeconds: 0, endSeconds: player.durationSeconds,
+                                     loop: false, gain: placed.gain)
         }
         editSourceURL = url
         seededRegion = region
@@ -286,7 +289,8 @@ struct AudioClipView: View {
         timeline.setAudioRegionWindow(id: id,
                                       contentOffsetSeconds: trim.contentOffsetSeconds,
                                       lengthTicks: trim.lengthTicks,
-                                      bpm: beatPlayer.pattern.tempo)
+                                      bpm: beatPlayer.pattern.tempo,
+                                      gain: region.gain)   // CLIP-6: gain writes back with the window
     }
 
     private func load(_ url: URL) {

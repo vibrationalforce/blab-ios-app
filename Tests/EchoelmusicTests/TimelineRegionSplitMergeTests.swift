@@ -605,4 +605,48 @@ final class TimelineStoreSplitMergeTests: XCTestCase {
         store.splitRegions(atTick: 5000, bpm: 120)   // past the region
         XCTAssertEqual(mineCount(), before, "edge/outside razor changes nothing")
     }
+
+    // MARK: - Region gain (CLIP-6: the editor's gain reaches the song)
+
+    func testRegionGain_initClamps_andDefaultsToUnity() {
+        XCTAssertEqual(region(start: 0, length: 1920).gain, 1, "default is unity")
+        XCTAssertEqual(TimelineRegion(laneID: lane, clipID: clip, startTick: 0,
+                                      lengthTicks: 1920, gain: -0.5).gain, 0)
+        XCTAssertEqual(TimelineRegion(laneID: lane, clipID: clip, startTick: 0,
+                                      lengthTicks: 1920, gain: 9).gain, 2)
+        XCTAssertEqual(TimelineRegion(laneID: lane, clipID: clip, startTick: 0,
+                                      lengthTicks: 1920, gain: .nan).gain, 1,
+                       "non-finite falls back to unity, never NaN into the mixer")
+    }
+
+    func testRegionGain_legacyJSONWithoutGain_decodesAsUnity() throws {
+        var r = region(start: 0, length: 1920)
+        r.gain = 0.5
+        var object = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(r)) as? [String: Any] ?? [:]
+        object.removeValue(forKey: "gain")   // a pre-CLIP-6 document
+        let legacy = try JSONDecoder().decode(
+            TimelineRegion.self,
+            from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(legacy.gain, 1, "legacy regions play bit-identical (unity)")
+    }
+
+    func testSplit_bothPiecesKeepTheRegionGain() {
+        var r = region(start: 0, length: 1920)
+        r.gain = 0.5
+        guard let (a, b) = r.split(at: 960, bpm: 120) else { return XCTFail("split must succeed") }
+        XCTAssertEqual(a.gain, 0.5)
+        XCTAssertEqual(b.gain, 0.5)
+        XCTAssertTrue(a.abuts(b, bpm: 120), "a clean split stays joinable — equal gains")
+    }
+
+    func testAbuts_differingGain_refusesJoin() {
+        var r = region(start: 0, length: 1920)
+        r.gain = 0.5
+        guard let (a, b0) = r.split(at: 960, bpm: 120) else { return XCTFail("split must succeed") }
+        var b = b0
+        b.gain = 1.0
+        XCTAssertFalse(a.abuts(b, bpm: 120),
+                       "joining halves with different gains would silently pick one — refuse")
+    }
 }

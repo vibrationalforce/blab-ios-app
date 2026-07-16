@@ -168,10 +168,16 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// tempo), media playback keeps reading seconds. Legacy regions decode as 0 —
     /// consumers fall back to the seconds conversion for them.
     public var contentOffsetTicks: Int
+    /// CLIP-6: this REGION INSTANCE's linear output gain (0…2, clamped; 1 =
+    /// unity), multiplied into the lane's mixer gain at playback. Set from the
+    /// audio-clip editor's Gain field ("Add to timeline" + Edit-door Done);
+    /// pre-CLIP-6 the editor value was audition-only and silently dropped.
+    /// MIDI regions ignore it today. Legacy regions decode as 1 (unity).
+    public var gain: Float
 
     public init(id: UUID = UUID(), laneID: UUID, clipID: UUID,
                 startTick: Int, lengthTicks: Int, contentOffsetSeconds: Double = 0,
-                contentOffsetTicks: Int = 0) {
+                contentOffsetTicks: Int = 0, gain: Float = 1) {
         self.id = id
         self.laneID = laneID
         self.clipID = clipID
@@ -179,11 +185,12 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         self.lengthTicks = max(1, lengthTicks)
         self.contentOffsetSeconds = max(0, contentOffsetSeconds)
         self.contentOffsetTicks = max(0, contentOffsetTicks)
+        self.gain = Swift.min(2, Swift.max(0, gain.isFinite ? gain : 1))
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, laneID, clipID, startTick, lengthTicks, contentOffsetSeconds
-        case contentOffsetTicks
+        case contentOffsetTicks, gain
     }
 
     public init(from decoder: Decoder) throws {
@@ -197,6 +204,9 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
         // Legacy regions (pre-M1b) carry no tick offset — 0 signals "fall back to
         // the seconds conversion" to consumers.
         contentOffsetTicks = max(0, (try? c.decode(Int.self, forKey: .contentOffsetTicks)) ?? 0)
+        // Legacy regions (pre-CLIP-6) carry no gain — unity, bit-identical playback.
+        let g = (try? c.decode(Float.self, forKey: .gain)) ?? 1
+        gain = Swift.min(2, Swift.max(0, g.isFinite ? g : 1))
     }
 
     public var endTick: Int { startTick + lengthTicks }
@@ -257,7 +267,10 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
     /// piece, the offsets no longer line up and Join correctly refuses (rejoining
     /// would silently drop the trim). `bpm` converts this region's length to seconds.
     public func abuts(_ other: TimelineRegion, bpm: Double) -> Bool {
-        guard laneID == other.laneID, clipID == other.clipID, endTick == other.startTick
+        // Gain must match too (CLIP-6): joining a 0.5-gain half onto a unity half
+        // would silently pick one — refuse, like a mismatched media offset.
+        guard laneID == other.laneID, clipID == other.clipID, endTick == other.startTick,
+              gain == other.gain
         else { return false }
         let expectedOffset = contentOffsetSeconds
             + TimelineTime.seconds(fromTicks: lengthTicks, bpm: bpm)

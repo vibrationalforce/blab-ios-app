@@ -245,20 +245,24 @@ public final class TimelineStore {
 
     /// CLIP-4: write the audio-clip EDIT door's trimmed media window back to a
     /// placed region — content offset (file seconds, the audio authority; the
-    /// tick twin follows so the two offsets never diverge) + musical length.
-    /// The region's song position (startTick) stays — trimming the media never
-    /// moves the clip in the song. No-op when nothing changed (no undo spam).
+    /// tick twin follows so the two offsets never diverge) + musical length +
+    /// the region's own gain (CLIP-6, clamped 0…2). The region's song position
+    /// (startTick) stays — trimming the media never moves the clip in the song.
+    /// No-op when nothing changed (no undo spam).
     public func setAudioRegionWindow(id: UUID, contentOffsetSeconds: Double,
-                                     lengthTicks: Int, bpm: Double) {
+                                     lengthTicks: Int, bpm: Double, gain: Float = 1) {
         guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
         let offset = max(0, contentOffsetSeconds)
         let length = max(1, lengthTicks)
+        let g = min(2, max(0, gain.isFinite ? gain : 1))
         guard document.regions[i].contentOffsetSeconds != offset
-                || document.regions[i].lengthTicks != length else { return }
+                || document.regions[i].lengthTicks != length
+                || document.regions[i].gain != g else { return }
         snapshotForUndo()
         document.regions[i].contentOffsetSeconds = offset
         document.regions[i].contentOffsetTicks = TimelineTime.ticks(fromSeconds: offset, bpm: bpm)
         document.regions[i].lengthTicks = length
+        document.regions[i].gain = g
         persist()
     }
 

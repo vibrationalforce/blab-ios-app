@@ -147,7 +147,9 @@ public final class AudioLanePlayer {
     /// sink. A muted / soloed-away lane or an unresolvable file stops instead.
     private func start(_ region: TimelineRegion, laneID: UUID, atTick tick: Int,
                        in doc: TimelineDocument, bpm: Double) {
-        let gain = doc.effectiveGain(for: laneID)
+        // CLIP-6: the region instance's own gain rides on the lane's mixer gain
+        // (region.gain is init/decode-clamped 0…2; the sink clamps the product).
+        let gain = doc.effectiveGain(for: laneID) * region.gain
         // Record the gate result even when silenced: an unmute mid-region must know
         // the lane was at 0 so it restarts the region (see reconcileMix).
         appliedGain[laneID] = gain
@@ -178,7 +180,11 @@ public final class AudioLanePlayer {
     /// (the previous one-shot segment is gone); level moved (>0→>0): live re-gain.
     private func reconcileMix(_ laneID: UUID, in doc: TimelineDocument, atTick tick: Int, bpm: Double) {
         guard let lane = sinks[laneID] else { return }
-        let gain = doc.effectiveGain(for: laneID)
+        // CLIP-6: the TOTAL gain (lane mixer × active region's own gain) is what
+        // `appliedGain` tracks — a gap (no active region) contributes unity so a
+        // silent lane's gate bookkeeping stays lane-driven.
+        let regionGain = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick)?.gain ?? 1
+        let gain = doc.effectiveGain(for: laneID) * regionGain
         let oldGain = appliedGain[laneID] ?? gain
         if gain != oldGain {
             if gain <= 0 {

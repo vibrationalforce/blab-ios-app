@@ -70,6 +70,41 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertEqual(play?.gain ?? -1, 1.0, accuracy: 1e-6, "default lane level")
     }
 
+    func testOnset_regionGain_multipliesLaneGain() {
+        // CLIP-6: a 0.5-gain region on a 0.8-level lane plays at 0.4 — the
+        // editor's Gain finally reaches the song instead of being dropped.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio, level: 0.8)
+        var placed = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                    startTick: 0, lengthTicks: 1920)
+        placed.gain = 0.5
+        let document = TimelineDocument(lanes: [lane], regions: [placed])
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
+        let play = try? XCTUnwrap(factory.sinks.first?.plays.first)
+        XCTAssertEqual(play?.gain ?? -1, 0.4, accuracy: 1e-6)
+    }
+
+    func testZeroGainRegion_isSilent_untilGainReturns() {
+        // A 0-gain region gates like a mute; raising the region gain mid-region
+        // (reconcile path) restarts the lane at the honest file position.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        var placed = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                    startTick: 0, lengthTicks: 1920)
+        placed.gain = 0
+        var document = TimelineDocument(lanes: [lane], regions: [placed])
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.prime(in: document, atTick: 0, bpm: 120)   // warms the sink; 0-gain stays silent
+        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? true, "0-gain region never plays")
+
+        document.regions[0].gain = 1
+        p.apply(in: document, fromTick: 0, toTick: 480, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1, "gain returning starts the region")
+        XCTAssertEqual(factory.sinks.first?.plays.first?.from ?? -1, 0.5, accuracy: 1e-9,
+                       "restart lands at the honest mid-region file position")
+    }
+
     func testOnset_midRegionEntry_advancesFilePosition() {
         let (document, _) = doc(offset: 1.0)
         let factory = Factory()
