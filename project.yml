@@ -173,20 +173,24 @@ targets:
         CFBundleDisplayName: EchoelmusicAUv3
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # REGISTRATION LAW (device log 2026-07-16: "ownAUv3 false"): AudioComponents
+        # MUST sit under NSExtensionAttributes — pluginkit only registers audio
+        # components found there. Keep byte-identical with the committed Info.plist.
         NSExtension:
           NSExtensionPointIdentifier: com.apple.AudioUnit-UI
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).AudioUnitViewController
-          AudioComponents:
-            - name: "Echoelmusic: Bio-Reactive Synth"
-              description: "Bio-reactive performance synthesizer"
-              manufacturer: Echo
-              type: augn
-              subtype: echl
-              version: 10000
-              sandboxSafe: true
-              tags:
-                - Generator
-                - Ambient
+          NSExtensionAttributes:
+            AudioComponents:
+              - name: "Echoelmusic: Bio-Reactive Synth"
+                description: "Bio-reactive performance synthesizer"
+                manufacturer: Echo
+                type: augn
+                subtype: echl
+                version: 10000
+                sandboxSafe: true
+                tags:
+                  - Generator
+                  - Ambient
     entitlements:
       path: EchoelmusicAUv3.entitlements
     settings:
