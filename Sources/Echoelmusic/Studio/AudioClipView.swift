@@ -282,8 +282,18 @@ struct AudioClipView: View {
               let source = editSourceURL, player.loadedURL == source,
               // Review MEDIUM/LOWs: commit only a REAL edit — an untouched Done
               // never bakes the duration clamp or a tempo drift into the song.
-              region != seededRegion,
-              let trim = AudioRegionPlayback.regionTrim(startSeconds: region.startSeconds,
+              let seeded = seededRegion, region != seeded else { return }
+        // CLIP-6a review MEDIUM: a GAIN-ONLY edit must not re-derive the media
+        // window either — the seed's file-duration clamp / a tempo shift under
+        // the sheet would silently rewrite the region's musical length (the
+        // same CLIP-4 guarantee). Only a REAL trim edit touches the window.
+        let windowUntouched = region.startSeconds == seeded.startSeconds
+            && region.endSeconds == seeded.endSeconds
+        if windowUntouched {
+            timeline.setRegionGain(id: id, region.gain)
+            return
+        }
+        guard let trim = AudioRegionPlayback.regionTrim(startSeconds: region.startSeconds,
                                                         endSeconds: region.endSeconds,
                                                         bpm: beatPlayer.pattern.tempo) else { return }
         timeline.setAudioRegionWindow(id: id,

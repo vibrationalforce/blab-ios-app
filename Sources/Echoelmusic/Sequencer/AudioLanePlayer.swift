@@ -182,16 +182,17 @@ public final class AudioLanePlayer {
         guard let lane = sinks[laneID] else { return }
         // CLIP-6: the TOTAL gain (lane mixer × active region's own gain) is what
         // `appliedGain` tracks — a gap (no active region) contributes unity so a
-        // silent lane's gate bookkeeping stays lane-driven.
-        let regionGain = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick)?.gain ?? 1
-        let gain = doc.effectiveGain(for: laneID) * regionGain
+        // silent lane's gate bookkeeping stays lane-driven. One lookup, reused
+        // by the un-silence branch (review LOW).
+        let active = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick)
+        let gain = doc.effectiveGain(for: laneID) * (active?.gain ?? 1)
         let oldGain = appliedGain[laneID] ?? gain
         if gain != oldGain {
             if gain <= 0 {
                 lane.stop()
                 appliedGain[laneID] = 0
             } else if oldGain <= 0 {
-                if let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) {
+                if let region = active {
                     start(region, laneID: laneID, atTick: tick, in: doc, bpm: bpm)
                 }
                 // No active region (gap): stay at 0 — the next onset starts it.

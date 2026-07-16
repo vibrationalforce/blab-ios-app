@@ -243,6 +243,20 @@ public final class TimelineStore {
         persist()
     }
 
+    /// CLIP-6a review: set ONLY a region's own gain (clamped 0…2) — the media
+    /// window (offset/length, tick twin) stays byte-identical. The edit door
+    /// uses this for a gain-only Done so the seed's file-duration clamp or a
+    /// tempo shift under the sheet can never rewrite the region's musical
+    /// length (the CLIP-4 untouched-Done guarantee). No-op when unchanged.
+    public func setRegionGain(id: UUID, _ gain: Float) {
+        guard let i = document.regions.firstIndex(where: { $0.id == id }) else { return }
+        let g = min(2, max(0, gain.isFinite ? gain : 1))
+        guard document.regions[i].gain != g else { return }
+        snapshotForUndo()
+        document.regions[i].gain = g
+        persist()
+    }
+
     /// CLIP-4: write the audio-clip EDIT door's trimmed media window back to a
     /// placed region — content offset (file seconds, the audio authority; the
     /// tick twin follows so the two offsets never diverge) + musical length +
