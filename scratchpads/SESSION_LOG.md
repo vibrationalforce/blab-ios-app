@@ -6827,3 +6827,29 @@ Founder: "transpose detune und Oktaver … Tape/Bandmaschine/VHS … arbeite die
   danach #58 MIDI/MPE-Station (Velocity-Lane zuerst) → #54 Warp. Kleinschulden
   #57/#62/CI-Guard fold-in; #63 Archiv + #52 SEO Nebengleise. Deferred #36/#61/#59/#51.
 - Kein Deploy (Flag OFF; Freeze bis Founder-Geräte-Session).
+
+## Fortsetzung 35 (2026-07-16) — S2-W2-6 FERTIG (6/8): der PRIMARY-Roll spielt die Kind-Stimme
+
+- **S2-W2-6 (6ccb35a, 2×APPROVE, 4/4 grün):** Ist die PRIMARY-Lane des Piano-
+  Rolls ein Drums-Kit / Sub-Bass, spielt der Roll durch DEREN Kind-Stimme
+  statt durch den Poly-Voice. `NoteVoice`-Protokoll bekam zwei neue Konformer
+  (LaneDrumKitVoice via Accelerate-Guard, SubBassVoice), beide mit
+  Float-Velocity→MIDI-Mapping (Kit: 0…1→0…127; Sub: mono, Velocity ignoriert).
+  PianoRollModel: `setKindVoice` mit Release-on-Swap + Idempotenz-Guard,
+  `outputVoice(for:)` bevorzugt kindVoice, `desiredSub` gated auf kindVoice≠nil.
+  TimelineRegionPlayer `rollKindSink` (Foundation-only) an loadRollRegion VOR
+  loadClip gefeuert, reset .poly bei clearRoll — strukturell, NICHT in
+  refreshMixer. App verdrahtet den Sink (.drums→kits.first, .subBass→subs.first,
+  sonst nil). Flag-OFF bit-identisch (rack kits/subs leer → kindVoice bleibt nil
+  → Poly-Pfad wie bisher).
+- **Audio-Review:** APPROVE (0 Render-Code; ein kosmetischer currentSubPitch-
+  Self-Heal-Hinweis, kein Change). **Code-Review:** APPROVE + 1 LOW: live
+  Same-Region-Instrument-Wechsel re-bindet kindVoice NICHT (refreshStructure
+  feuert rollKindSink nur bei oldActive≠newActive) → stale bis Region-Grenze /
+  Transport-Restart. Reviewer: "Worth an explicit item on the S2-W2-7 checklist
+  rather than a code change now" → in FOUNDER_DEVICE_SESSION.md aufgenommen.
+- Neuer Test PianoRollKindVoiceTests (SwiftUI+AVFoundation+Accelerate-guarded):
+  setKindVoice Swap-Release+Idempotenz, Kit/Sub NoteVoice-Konformanz+Velocity.
+- Strecke 6/8. Slices 7-8 sind FOUNDER-GATED (Flag-Flip erst bei Geräte-Verify).
+  KEIN Deploy, KEIN Flag-Flip. Nächster autonomer Punkt: Sheet-Chain-
+  Konsolidierung (SIGSEGV-Schutz, swiftui-render-safety zuerst) ODER #58-Plan.

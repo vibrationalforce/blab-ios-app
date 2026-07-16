@@ -35,6 +35,12 @@ Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-is
       (der Kammerton-Fan aus Slice 5 muss greifen; teste einmal mit A=432).
 - [ ] Poly-Spuren unverändert; kein Menü-Freeze; CPU < 30 % bei 4-Spur-Doc.
 - [ ] Kein hängender Ton beim Mid-Take-Instrumentwechsel.
+- [ ] **Live-Same-Region-Instrumentwechsel** (S2-W2-6 Code-Review-LOW): ändere die
+      builtinInstrument der PRIMARY-Lane MITTEN im Take ohne Region-Grenze zu kreuzen —
+      der Roll bindet die Kind-Stimme erst an der nächsten Region-Grenze / beim
+      Transport-Restart neu (refreshStructure feuert rollKindSink nur bei
+      oldActive≠newActive). Falls das am Gerät stört, ist der Fix ein gezieltes
+      rollKindSink-Re-Fire bei builtinInstrument-Change (kein Blocker fürs Gate).
 - **Design-Bestätigung nötig:** der `.drums`-Bus-Effekt ist EIN geteilter Charakter über
       BeatPlayer UND alle Lane-Kits (kein Per-Lane-Kit-FX in v1). Ist das gewollt? (Per-Lane-
       Kit-FX wäre ein separater, aufgeschobener Workstream.)
