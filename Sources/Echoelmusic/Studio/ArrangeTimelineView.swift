@@ -958,10 +958,10 @@ struct ArrangeTimelineView: View {
                 }
             }
             ForEach(timeline.document.regions(in: lane.id)) { region in
-                // Each region is its OWN leaf view that owns its live-resize @State —
-                // so a trim drag re-renders ONLY that clip, never the whole timeline
-                // (the old root-@State resize made every drag frame rebuild all lanes +
-                // ruler + playhead → the "zittern" the founder saw, 2026-07-15).
+                // Each region is its OWN leaf view that owns its live gesture deltas
+                // (@GestureState since #56 slice 1) — so a trim drag re-renders ONLY
+                // that clip, never the whole timeline (the old root-@State resize made
+                // every drag frame rebuild all lanes + ruler + playhead, 2026-07-15).
                 RegionBlockView(region: region, ppb: ppb, snap: snap,
                                 selectMode: isSelecting,
                                 isSelected: selectedRegions.contains(region.id),
@@ -1033,7 +1033,8 @@ struct ArrangeTimelineView: View {
 
 /// One region block — its OWN leaf view so a trim drag re-renders only THIS clip,
 /// not the whole timeline (fixes the founder's "Clip zittert" 2026-07-15). Owns the
-/// live-resize @State locally; commits the snapped length to the store on release.
+/// live gesture deltas locally as @GestureState (#56 slice 1: stable grid-space
+/// measurement + auto-reset on cancelled drags); commits snapped values on release.
 @MainActor
 private struct RegionBlockView: View {
     let region: TimelineRegion

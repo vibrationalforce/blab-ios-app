@@ -1,32 +1,42 @@
-build: 2026-07-16 v10.79.273 (Der Spur-Filter wirkt jetzt auf JEDE Synth-Spur)
+build: 2026-07-16 v10.79.274 (Clips zittern nicht mehr — der Mechanismus ist gefunden)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Leisten-Auflösung S2-W1 (dein Auftrag „Mix wird Teil der Spuren").
+notes: Dein Report "Die Clips ... zittern" (#56) — Tiefen-Audit + erste Fix-Scheibe.
 
-  WAS NEU IST:
-  • „Sound & FX (this track)" an einer Spur — Filter/Drive — erreichte
-    bisher nur die HAUPT-Stimme (Pad/Harmony + Lead). Jede weitere
-    Synth-Spur spielt ihre eigene Rack-Stimme, und die bekam den Filter
-    NIE: der Regler an einer Zweitspur änderte hörbar nichts an genau
-    der Spur, deren Editor offen war.
-  • Jetzt erreicht der Melodic-Insert ALLE Synth-Stimmen: Haupt-Stimme,
-    Lead UND jede Rack-Spur — beim Drehen, beim App-Start (persistierter
-    Wert) und sofort beim Anlegen der Rack-Stimmen (kein ungefiltertes
-    Fenster mehr bis zum nächsten Edit).
-  • Es bleibt EIN gemeinsamer Melodic-Bus (eine Einstellung für alle
-    Synth-Spuren — „changed here, it changes there"). Eigene Filter PRO
-    Spur kommen mit S2-W2 (echte Instrument-Stimmen pro Spur: EchoelDrums
-    klingt dann wie Drums — in Planung).
+  WAS GEFUNDEN WURDE (statisches Audit, ohne Recording):
+  • Das wörtliche ZITTERN: Der Griff an der RECHTEN Clip-Kante maß
+    seine Fingerbewegung in einem Koordinatenraum, den die Live-
+    Breitenänderung des Clips selbst pro Frame verschiebt — die
+    Messung fütterte sich selbst und die Kante vibrierte in
+    Bildwiederholrate, sogar bei ruhendem Finger. Jetzt messen alle
+    drei Clip-Gesten (Trim vorn/hinten, Verschieben) im stabilen
+    Raster-Koordinatenraum: reine Fingerbewegung, keine Rückkopplung.
+    Nebeneffekt: auch die BESTÄTIGTE Trim-Länge war bisher um den
+    Oszillationsrest verfälscht — Trims landen jetzt exakt.
+  • Das "Springen zwischen Griffen": Klaut das Scrollen eine
+    angefangene Geste, wurde der Clip bisher versetzt stehen gelassen
+    (nichts gespeichert, nächster Griff startete von einer Lüge).
+    Die Gesten-Zustände setzen sich jetzt bei Abbruch automatisch
+    zurück — kein Geister-Versatz mehr.
+  • NOCH OFFEN in #56 (nächste Scheiben, geplant): der Sprung beim
+    LOSLASSEN (Live-Vorschau folgt stufenlos, Commit rastet ein —
+    kommt als Live-Snap-Vorschau) und der Gesten-Vorrang Clip vs.
+    Scrollen (device-gated — dein Screen-Recording entscheidet).
 
-  ULTRAALL (dein Wort heute): parallel laufen gerade 6 Tiefen-Pläne/
-  Audits — S2-W2 Instrument-Routing · Warp im Audio-Clip (#54) ·
-  Clip-Zittern-Ursachen (#56, statisch; ein Screen-Recording hilft
-  weiter) · MIDI/MPE-Station (#58) · EchoelWeather-Synth (#59) ·
-  Genre/Mood pro Spur + Header-Umzug (S3/S5). Ergebnisse werden Zyklus
-  für Zyklus gebaut und geshippt.
+  AUSSERDEM SEIT v273 (Fundament, unhörbar bis die UI-Tür kommt):
+  • Warp-Kern (#54) gebaut: Clip-BPM am Material + Warp-Schalter an
+    der Platzierung + die Zeitdehnungs-Mathematik — test-gepinnt,
+    Alt-Projekte laden bit-identisch. Engine + Editor-Tür folgen.
+  • Ultraall-Sweep: 6 Tiefen-Pläne im Repo (Instrument-Routing S2-W2,
+    Warp, Clip-Zittern-Audit, MIDI/MPE-Station, EchoelWeather-Synth,
+    Genre/Mood pro Spur + Header). Wird Zyklus für Zyklus gebaut.
 
-  Review: code-reviewer APPROVE + audio-thread-reviewer APPROVE
-  (setInsert = lock-freier SPSC-Enqueue, kein Render-Thread-Risiko) ·
-  alle 4 Gates grün auf dem Tip.
+  Review: APPROVE (Zitter-Fix als "textbook, minimal" bestätigt) ·
+  alle 4 Gates grün.
+
+  BITTE AUF DEM GERÄT PRÜFEN: (1) rechte Clip-Kante beim Trimmen mit
+  ruhendem Finger — vibriert sie noch? (2) Nach einem abgebrochenen
+  Griff (Timeline scrollte stattdessen) — bleibt ein Clip versetzt
+  stehen? Ein Screen-Recording hilft für die restlichen Scheiben.
 
   WEITER OFFEN: die ■-Frage aus v258/259 (Musik-Stopp soll Bio-Session
   überleben lassen — ja/nein?).
