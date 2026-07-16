@@ -175,7 +175,9 @@ public final class ADMOSCSender {
         if let m = music, m.isSounding {
             sourceTimestamp = m.timestamp
             messages = MusicMediaMap.admMessages(forMusic: m, object: objectIndex)
-        } else if let frame = bus.latestBio {
+        } else if let frame = bus.latestBio, BioEgressPolicy.allowsEgress(frame.source) {
+            // 5.1.3: the bio→object co-modulation path sends breath/coherence/HRV-
+            // derived positions — only Echoel-measured sources may leave the device.
             sourceTimestamp = frame.timestamp
             messages = Self.admMessages(for: frame, object: objectIndex)
         } else {

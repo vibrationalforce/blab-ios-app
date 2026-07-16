@@ -127,6 +127,10 @@ public final class OSCSender {
         guard let frame = bus.latestBio else { return }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
+        // 5.1.3: HealthKit-store data never leaves the device — only Echoel's own
+        // measurements (camera / BLE strap / demo) stream out (BioEgressPolicy).
+        // The timestamp is still recorded above so a blocked frame is not retried.
+        guard BioEgressPolicy.allowsEgress(frame.source) else { return }
         send(frame: frame)
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()
     }
