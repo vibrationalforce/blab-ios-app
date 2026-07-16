@@ -195,6 +195,40 @@ final class CameraAnalyzerOctaveTests: XCTestCase {
         XCTAssertTrue(A.isFingerFrame(avgR: 0.13, avgG: 0.05, avgB: 0.04, wasDetected: true))
     }
 
+    func testFingerFrame_pulseCorroboratedHold_survivesDarkLockRedDecay() {
+        // Device log 2026-07-16 (build 2382): pulse LOCKED at conf 0.87 / bpm 64,
+        // then the dark exposure lock pushed R 0.16→0.11 (bright 0.04, G+B≈0.01 —
+        // still massively red-dominant) → R fell below the 0.12 hold floor →
+        // finger=no → full reset 2 s AFTER locking. While the pulse itself is
+        // corroborated, the measurement is the evidence: the absolute floor
+        // relaxes to 0.05 and the red-dominance ratios remain the scene gate.
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.11, avgG: 0.005, avgB: 0.005,
+                                      wasDetected: true, pulseCorroborated: true))
+        XCTAssertTrue(A.isFingerFrame(avgR: 0.09, avgG: 0.02, avgB: 0.02,
+                                      wasDetected: true, pulseCorroborated: true))
+        // WITHOUT corroboration the 0.12 hold floor still releases (unchanged pin).
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.11, avgG: 0.005, avgB: 0.005,
+                                       wasDetected: true, pulseCorroborated: false))
+    }
+
+    func testFingerFrame_pulseCorroboratedHold_stillReleasesInNearDarkness() {
+        // Torch reflection gone (R ≤ 0.05): even a corroborated hold releases —
+        // the finger is genuinely off the lens.
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.05, avgG: 0.01, avgB: 0.01,
+                                       wasDetected: true, pulseCorroborated: true))
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.03, avgG: 0.01, avgB: 0.01,
+                                       wasDetected: true, pulseCorroborated: true))
+    }
+
+    func testFingerFrame_pulseCorroboration_neverLoosensAcquireOrDominance() {
+        // Corroboration only eases the HOLD: acquisition still demands R > 0.28,
+        // and a non-red-dominant scene is rejected at every floor.
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.25, avgG: 0.10, avgB: 0.08,
+                                       wasDetected: false, pulseCorroborated: true))
+        XCTAssertFalse(A.isFingerFrame(avgR: 0.11, avgG: 0.10, avgB: 0.10,
+                                       wasDetected: true, pulseCorroborated: true))
+    }
+
     func testFingerFrame_releasesBelowHoldFloor() {
         // Finger truly gone: below the 0.12 hold floor it releases even when previously
         // held (log t=1141: R=0.09 with the finger actually drifting off stays released).

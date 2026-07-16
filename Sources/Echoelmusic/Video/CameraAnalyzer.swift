@@ -253,8 +253,11 @@ final class CameraAnalyzer {
         let isSaturated = Swift.min(avgR, avgG, avgB) > 0.92
         // Per-frame finger test with red-floor HYSTERESIS — extracted to a pure static so
         // the acquire-hard/hold-easy behaviour is unit-tested (see CameraAnalyzerOctaveTests).
+        // A locked, corroborated pulse (conf ≥ 0.35 = the publisher's "locked"
+        // boundary) eases the hold floor — see isFingerFrame's device-log rationale.
         let isFingerFrame = Self.isFingerFrame(avgR: avgR, avgG: avgG, avgB: avgB,
-                                               wasDetected: isFingerDetected)
+                                               wasDetected: isFingerDetected,
+                                               pulseCorroborated: bpmConfidence >= 0.35)
         updateFingerDetection(isFingerFrame)
 
         // Pulse detection
@@ -783,10 +786,24 @@ final class CameraAnalyzer {
     /// bright 0.10 LOCKS (q 0.97, conf 0.96) when the detector merely keeps holding — so
     /// the hold floor must sit BELOW the dark lock's own R output, and the ACQUIRE floor
     /// stays hard at 0.28 (acquisition still demands a clearly lit finger).
+    ///
+    /// `pulseCorroborated` (device log 2026-07-16, build 2382 — the floor chase's
+    /// third rung): the pulse LOCKED at conf 0.87 / bpm 64, then the dark exposure
+    /// lock kept decaying R 0.16→0.11 (bright 0.04, G+B≈0.01 — still massively
+    /// red-dominant) → R fell below the 0.12 hold floor → finger=no → full reset
+    /// 2 s AFTER locking. Lowering the floor again (0.28→0.18→0.12→…) just chases
+    /// the exposure lock downward. Instead: while a real periodicity is being
+    /// MEASURED (the caller passes bpmConfidence ≥ lock threshold), the measurement
+    /// itself is the evidence a finger is there — the absolute floor relaxes to
+    /// 0.05 and the red-DOMINANCE ratios remain the gate against a non-finger
+    /// scene. Near-darkness (R ≤ 0.05, no torch reflection) still releases, and a
+    /// truly removed finger kills the periodicity → confidence decays → the normal
+    /// 0.12 floor returns. Acquisition is never loosened. Pure → Linux-testable.
     nonisolated static func isFingerFrame(avgR: Float, avgG: Float, avgB: Float,
-                                          wasDetected: Bool) -> Bool {
+                                          wasDetected: Bool,
+                                          pulseCorroborated: Bool = false) -> Bool {
         let saturated = Swift.min(avgR, avgG, avgB) > 0.92
-        let redFloor: Float = wasDetected ? 0.12 : 0.28
+        let redFloor: Float = wasDetected ? (pulseCorroborated ? 0.05 : 0.12) : 0.28
         return saturated || (avgR > redFloor && avgR > avgG * 1.2 && avgR > avgB * 1.3)
     }
 
