@@ -700,6 +700,75 @@ public final class TimelineStore {
         persist()
     }
 
+    // MARK: - Arrangement automation (T1 — inline timeline automation row)
+    // `document.automation` is the song-ABSOLUTE automation layer (480-PPQ ticks,
+    // same base as regions). Playback is already wired: TimelineRegionPlayer
+    // pushes these lanes into AutomationPlayer's timeline layer on play() AND on
+    // every structural refresh — and an automation change IS structural
+    // (`structurallyEqual` compares it), so a persisted edit here reaches a
+    // playing song via the existing refreshStructure path. These were the FIRST
+    // writers of the field (until T1 it was play-only scaffolding).
+    //
+    // UNDO: deliberately OUTSIDE the region undo history — the undo stack
+    // snapshots ONLY `document.regions` (see snapshotForUndo's contract), so
+    // automation edits are not undoable today. Documented limit, not extended
+    // here (extending the history to a second field would cross-contaminate
+    // region undo — the exact hazard that contract exists to prevent).
+
+    /// Lane index for a parameter, matched under EITHER identity (legacy enum
+    /// rawValue or registry keyPath alias) so "masterLevel" and
+    /// "master.amp.level" can never split into two lanes.
+    private func automationLaneIndex(forParameter parameter: String) -> Int? {
+        document.automation.firstIndex {
+            TimelineAutomationRowMath.sameParameter($0.parameter, parameter)
+        }
+    }
+
+    /// The song-absolute automation lane for a parameter (alias-aware). nil =
+    /// no lane yet (the first added point creates it).
+    public func automationLane(forParameter parameter: String) -> AutomationLane? {
+        automationLaneIndex(forParameter: parameter).map { document.automation[$0] }
+    }
+
+    /// Add a keyframe at a song-absolute tick (normalized value 0…1). Creates
+    /// the lane on first use — the inline row's empty-state tap lands here.
+    @discardableResult
+    public func addAutomationPoint(parameter: String, tick: Int,
+                                   value: Double) -> AutomationPoint? {
+        guard !parameter.isEmpty else { return nil }
+        let idx: Int
+        if let existing = automationLaneIndex(forParameter: parameter) {
+            idx = existing
+        } else {
+            document.automation.append(AutomationLane(parameter: parameter))
+            idx = document.automation.count - 1
+        }
+        let p = document.automation[idx].addPoint(tick: max(0, tick), value: value)
+        persist()
+        return p
+    }
+
+    /// Move + revalue a keyframe in one committed gesture (the row's point-drag
+    /// commits ONCE on release — never per drag frame: each persist here is a
+    /// structural change, and a per-frame commit would relocate-storm a playing
+    /// song; HARNESS_LEDGER 2026-07-16).
+    public func moveAutomationPoint(parameter: String, id: UUID, toTick tick: Int,
+                                    normalized value: Double) {
+        guard let i = automationLaneIndex(forParameter: parameter) else { return }
+        document.automation[i].movePoint(id: id, toTick: max(0, tick))
+        document.automation[i].setValue(id: id, value)
+        persist()
+    }
+
+    /// Remove a keyframe; a lane emptied by the removal is dropped entirely
+    /// (no ghost lanes in the document — the row's empty state returns).
+    public func removeAutomationPoint(parameter: String, id: UUID) {
+        guard let i = automationLaneIndex(forParameter: parameter) else { return }
+        document.automation[i].removePoint(id: id)
+        if document.automation[i].isEmpty { document.automation.remove(at: i) }
+        persist()
+    }
+
     // MARK: - Persistence
 
     /// H5b: fires after EVERY persisted document change (assignment edits, lane

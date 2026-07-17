@@ -66,6 +66,13 @@ struct ArrangeTimelineView: View {
     @State private var isSelecting = false
     @State private var selectedRegions: Set<UUID> = []
 
+    /// T1 inline automation (founder 2026-07-17 "Automations Sektionen … in der
+    /// Timeline direkt"): which tracks show their fold-out automation row, and
+    /// each track's picked target parameter. Session UI state (like selection);
+    /// the CURVES persist in the timeline document. Toggle-frequency — no churn.
+    @State private var automationOpen: Set<UUID> = []
+    @State private var automationTarget: [UUID: String] = [:]
+
     /// Zoom: screen points per quarter-note beat (Stage 3 couples snap to this).
     @State private var pointsPerBeat: CGFloat = 24
     @GestureState private var pinch: CGFloat = 1
@@ -711,10 +718,55 @@ struct ArrangeTimelineView: View {
             Color.clear.frame(width: Self.labelWidth, height: Self.rulerHeight)
             ForEach(timeline.document.lanes) { lane in
                 laneHeader(lane)
+                // T1: the open automation row's HEAD cell — same height as the
+                // grid-side canvas row, so both columns stay line-aligned.
+                if automationOpen.contains(lane.id), !lane.isBio {
+                    automationHeadCell(lane)
+                }
             }
             Spacer(minLength: 0)
         }
         .background(EchoelTheme.bg)
+    }
+
+    // MARK: - Inline automation row (T1 — see TimelineAutomationRow.swift)
+
+    /// Label-column cell of an open automation row: target picker + "⋯" into
+    /// the EXISTING `.automation` sheet slot (precision editor — no new sheet,
+    /// metadata law) + fold-up chevron.
+    private func automationHeadCell(_ lane: TimelineLane) -> some View {
+        TimelineAutomationHeadCell(
+            laneName: lane.name,
+            selectedParameter: automationTargetBinding(lane.id),
+            onOpenEditor: { activeModal = .automation },
+            onClose: { automationOpen.remove(lane.id) })
+    }
+
+    private func automationTargetBinding(_ laneID: UUID) -> Binding<String> {
+        Binding(get: { automationTarget[laneID] ?? AutomationTarget.masterLevel.rawValue },
+                set: { automationTarget[laneID] = $0 })
+    }
+
+    /// Grid-column canvas of an open automation row: the selected parameter's
+    /// song-absolute curve on the SAME x-scale as the clips (tick · ppb/480 —
+    /// coupled by construction). Edits commit through TimelineStore's
+    /// automation API (persisted; playback pulls them in via the region
+    /// player's structural refresh). Document-level reads only (freeze law).
+    private func automationGridRow(_ lane: TimelineLane) -> some View {
+        let parameter = automationTarget[lane.id] ?? AutomationTarget.masterLevel.rawValue
+        let points = timeline.automationLane(forParameter: parameter)?.points ?? []
+        return TimelineAutomationRow(
+            points: points, ppb: ppb, barCount: barCount, snap: snap,
+            onAdd: { tick, value in
+                _ = timeline.addAutomationPoint(parameter: parameter, tick: tick, value: value)
+            },
+            onMove: { id, tick, value in
+                timeline.moveAutomationPoint(parameter: parameter, id: id,
+                                             toTick: tick, normalized: value)
+            },
+            onDelete: { id in
+                timeline.removeAutomationPoint(parameter: parameter, id: id)
+            })
     }
 
     /// One track head — a DOOR (Stage 3a) plus the K2a mixer strip (M · S ·
@@ -921,12 +973,40 @@ struct ArrangeTimelineView: View {
                               lineWidth: (timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1) <= 0 ? 1 : 0))
             .accessibilityHint((timeline.document.lanes.first(where: { $0.id == lane.id })?.level ?? 1) <= 0
                                ? "Silent — the level is zero" : "")
+            // T1: fold-out toggle for the inline automation row — same 21×28
+            // chip pattern as M/S. Fits: 114 pt strip + 3 + 21 = 138 ≤ 140.
+            automationRowToggle(lane)
         }
         // Fit the whole strip (record-arm · M · S · gain) inside the 140 pt lane
         // column: leading 8, tight 3 pt gaps, a 30 pt gain box (empty-label field =
         // box only now). Founder 2026-07-15: the old 40 pt box + label dead-space
         // overflowed → the record button + colour stripe clipped off the left edge.
         .padding(.leading, 8).padding(.trailing, 4)
+    }
+
+    /// T1: the automation-row chevron/glyph on the track head — a mixToggle-
+    /// sized chip (the head's established button pattern; the Menu LABEL above
+    /// swallows taps, so interactive controls live in this strip). Accent when
+    /// the row is open. Bio lanes have no strip → no automation row (their lane
+    /// IS a curve already, and every offered target is global).
+    private func automationRowToggle(_ lane: TimelineLane) -> some View {
+        let isOpen = automationOpen.contains(lane.id)
+        return Button {
+            if isOpen { automationOpen.remove(lane.id) }
+            else { automationOpen.insert(lane.id) }
+        } label: {
+            Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(isOpen ? EchoelTheme.onPrimary : EchoelTheme.dim)
+                .frame(width: 21, height: 28)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .fill(isOpen ? EchoelTheme.accent : EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Automation row, \(lane.name)")
+        .accessibilityValue(isOpen ? "Shown" : "Hidden")
     }
 
     private func mixToggle(_ letter: String, isOn: Bool, onTint: Color,
@@ -992,6 +1072,11 @@ struct ArrangeTimelineView: View {
             ruler
             ForEach(timeline.document.lanes) { lane in
                 laneRow(lane)
+                // T1: the open automation row's CANVAS — same width + x-scale
+                // as the clip row above it (time axes coupled by construction).
+                if automationOpen.contains(lane.id), !lane.isBio {
+                    automationGridRow(lane)
+                }
             }
             Spacer(minLength: 0)
         }
