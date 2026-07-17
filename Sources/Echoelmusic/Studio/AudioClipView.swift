@@ -162,13 +162,17 @@ struct AudioClipView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+                // Status describes THIS editor's preview consumer, which can
+                // additionally pre-render Beats (WSOLA) — hence previewCapabilities.
                 let plan = StretchPlan.resolve(mode: region.stretchMode, warpEnabled: true,
                                                nativeBPM: region.nativeBPM,
-                                               projectBPM: Double(beatPlayer.pattern.tempo))
+                                               projectBPM: Double(beatPlayer.pattern.tempo),
+                                               capabilities: StretchMode.previewCapabilities)
                 Text(region.nativeBPM > 0
                      ? String(format: "Stretch ×%.3f → project %.0f BPM · %@", plan.rate,
                                beatPlayer.pattern.tempo,
-                               plan.preservesPitch ? "pitch held" : "pitch rides tempo (tape)")
+                               plan.mode == .beats ? "transient-locked (beats)"
+                                 : plan.preservesPitch ? "pitch held" : "pitch rides tempo (tape)")
                      : "Set the clip's own BPM to tempo-match it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)

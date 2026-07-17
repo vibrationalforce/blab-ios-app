@@ -23,8 +23,11 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// (An authentic-resampling `AVAudioUnitVarispeed` variant with tape grit is a later
     /// refinement; this delivers the defining pitch-follows-tempo behaviour now.)
     case tape
-    /// In-house WSOLA/SOLA transient-preserving (Ableton "Beats"-style): best on
-    /// drums/loops, patent-free own code. Executor: later slice (pairs with EchoelBreak).
+    /// In-house WSOLA transient-preserving (Ableton "Beats"-style): best on
+    /// drums/loops, patent-free own code (`EchoelWSOLA`). Executor: OFFLINE
+    /// pre-render in the editor-preview consumer (AudioClipPlayer); the timeline
+    /// keeps the honest `.clean` fallback until its own executor slice (see
+    /// per-consumer `capabilities` on `StretchPlan.resolve`).
     case beats
     /// Signalsmith Stretch (MIT C++): highest transient fidelity — FOUNDER-GATED
     /// dependency (first C++ in the tree, contained bridge). Executor: approved slice only.
@@ -58,20 +61,31 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// mis-set pitch for a not-yet-wired mode.
     public var preservesPitch: Bool { self != .tape }
 
-    /// Executors that are actually wired today. UI MUST offer only these (a mode whose
-    /// executor is unbuilt would be a lying selector); unimplemented modes fall back to
-    /// `.clean` at render time — never silent, never a broken control.
+    /// Executors wired in AT LEAST ONE consumer today. UI MUST offer only these
+    /// (a mode no consumer executes would be a lying selector). Which consumer
+    /// actually renders a mode is decided per call via `StretchPlan.resolve`'s
+    /// `capabilities` — a consumer that can't execute a mode gets the honest
+    /// `.clean` fallback, never silence, never a broken control.
     public var isImplemented: Bool {
         switch self {
-        case .clean, .tape:   return true    // tape = pitch-follows-tempo on the spectral node
-        case .beats, .studio: return false
+        case .clean, .tape: return true      // tape = pitch-follows-tempo on the spectral node
+        case .beats:        return true      // WSOLA offline pre-render (editor preview)
+        case .studio:       return false     // Signalsmith — founder-gated dependency slice
         }
     }
 
-    /// The mode to actually render: the chosen one if implemented, else the `.clean`
-    /// baseline. Honest fallback so an unbuilt selection still sounds.
-    public var effectiveMode: StretchMode { isImplemented ? self : .clean }
+    /// The BASE capability set — what every realtime consumer (timeline lanes,
+    /// audition sink) executes on the always-in-chain spectral node.
+    public static let baseCapabilities: Set<StretchMode> = [.clean, .tape]
+    /// The editor-preview consumer's set: it can additionally pre-render Beats
+    /// offline (`AudioClipPlayer` — no realtime constraint on the audition path).
+    public static let previewCapabilities: Set<StretchMode> = [.clean, .tape, .beats]
 
-    /// The subset a picker should show today (implemented only).
+    /// The mode the BASE (realtime) path renders: itself when base-capable, else
+    /// the `.clean` baseline. Kept for callers without a capability context;
+    /// prefer `StretchPlan.resolve(..., capabilities:)`.
+    public var effectiveMode: StretchMode { StretchMode.baseCapabilities.contains(self) ? self : .clean }
+
+    /// The subset a picker should show today (implemented in ≥1 consumer).
     public static var selectable: [StretchMode] { allCases.filter(\.isImplemented) }
 }

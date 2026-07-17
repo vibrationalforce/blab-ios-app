@@ -36,6 +36,9 @@ public final class AudioClipPlayer {
     @ObservationIgnored private weak var engine: AudioEngine?
     @ObservationIgnored private var file: AVAudioFile?
     @ObservationIgnored private var attached = false
+    /// Cancellation token for the async Beats pre-render: every play()/stop()
+    /// bumps it, so a stale render finishing late can never hijack the node.
+    @ObservationIgnored private var playGeneration: UInt64 = 0
 
     public init() {}
 
@@ -79,14 +82,19 @@ public final class AudioClipPlayer {
     /// ≤ 0 (or warp off) plays at native tempo (rate 1.0, transparent).
     public func play(region: AudioClipRegion, projectBPM: Double = 0) {
         guard let f = file, attached else { return }
+        playGeneration &+= 1
         // Warp rate + character are control-plane parameter sets (no render-thread work).
         // Set them BEFORE scheduling so the very first buffer is stretched. The Echoel
         // stretch engine picks the plan: rate (1.0 = no tempo change) + whether pitch is
         // held (Clean) or rides the tempo (Tape — pitch = 1200·log₂(rate) on the same
-        // spectral node, zero graph change). Unimplemented modes render as Clean.
+        // spectral node, zero graph change). This PREVIEW consumer can additionally
+        // pre-render Beats offline (WSOLA); other modes it can't execute render Clean.
         let plan = StretchPlan.resolve(mode: region.stretchMode, warpEnabled: region.warpEnabled,
-                                       nativeBPM: region.nativeBPM, projectBPM: projectBPM)
-        timePitch.rate = Float(plan.rate)
+                                       nativeBPM: region.nativeBPM, projectBPM: projectBPM,
+                                       capabilities: StretchMode.previewCapabilities)
+        let beatsPreRender = plan.mode == .beats && plan.rate != 1.0
+        // Beats plays an ALREADY-stretched buffer → the spectral node must be neutral.
+        timePitch.rate = beatsPreRender ? 1 : Float(plan.rate)
         timePitch.pitch = plan.preservesPitch ? 0 : Float(StretchPlan.tapePitchCents(forRate: plan.rate))
         let sr = f.processingFormat.sampleRate
         let total = f.length
@@ -124,6 +132,66 @@ public final class AudioClipPlayer {
                 for ch in 0..<chCount { channels[ch][i] *= g }
             }
         }
+        // Beats (#54 Slice 2b): the audition path has no realtime constraint, so
+        // WSOLA renders OFFLINE off the main thread (a long clip would otherwise
+        // stall the UI for seconds), then the finished buffer schedules at rate 1
+        // (tempo already stretched, pitch already held). Fades are baked BEFORE
+        // the stretch, so their musical position scales with the clip — honest
+        // preview limitation, documented. A stale render (user re-tapped/stopped
+        // meanwhile) is dropped by the generation token.
+        if beatsPreRender, let channels = buffer.floatChannelData {
+            let n = Int(buffer.frameLength)
+            let chCount = Int(buffer.format.channelCount)
+            let inputs: [[Float]] = (0..<chCount).map {
+                Array(UnsafeBufferPointer(start: channels[$0], count: n))
+            }
+            let rate = Float(plan.rate)
+            let generation = playGeneration
+            isPlaying = true    // pending: the button reads "playing" while it renders
+            Task.detached(priority: .userInitiated) { [weak self] in
+                let stretcher = WSOLAStretcher()
+                let rendered = inputs.map { stretcher.stretch($0, rate: rate) }
+                await self?.scheduleStretched(rendered, region: region, generation: generation)
+            }
+            return
+        }
+        node.stop()
+        let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
+        node.scheduleBuffer(buffer, at: nil, options: options, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            guard let self else { return }
+            if !region.loop {
+                Task { @MainActor in self.isPlaying = false }
+            }
+        }
+        node.volume = min(2, max(0, region.gain))
+        node.play()
+        isPlaying = true
+    }
+
+    /// Schedule a finished offline Beats render. MainActor: rebuilds the PCM
+    /// buffer in the file's own processing format (no cross-actor AVAudioFormat)
+    /// and drops stale renders via the generation token.
+    private func scheduleStretched(_ rendered: [[Float]], region: AudioClipRegion,
+                                   generation: UInt64) {
+        guard generation == playGeneration, attached, let f = file,
+              let first = rendered.first, !first.isEmpty,
+              let buffer = AVAudioPCMBuffer(pcmFormat: f.processingFormat,
+                                            frameCapacity: AVAudioFrameCount(first.count)) else {
+            if generation == playGeneration { isPlaying = false }
+            return
+        }
+        buffer.frameLength = AVAudioFrameCount(first.count)
+        if let dst = buffer.floatChannelData {
+            let chCount = Int(buffer.format.channelCount)
+            for ch in 0..<chCount {
+                // Mono renders fan out to every channel; extra channels are ignored.
+                let src = rendered[Swift.min(ch, rendered.count - 1)]
+                src.withUnsafeBufferPointer { sb in
+                    guard let base = sb.baseAddress else { return }
+                    dst[ch].update(from: base, count: Swift.min(first.count, src.count))
+                }
+            }
+        }
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
         node.scheduleBuffer(buffer, at: nil, options: options, completionCallbackType: .dataPlayedBack) { [weak self] _ in
@@ -138,6 +206,7 @@ public final class AudioClipPlayer {
     }
 
     public func stop() {
+        playGeneration &+= 1     // invalidates any in-flight Beats render
         if node.isPlaying || isPlaying { node.stop() }
         isPlaying = false
     }

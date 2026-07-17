@@ -18,22 +18,48 @@ final class StretchEngineTests: XCTestCase {
         XCTAssertFalse(StretchMode.tape.preservesPitch)
     }
 
-    func testIsImplemented_cleanAndTape() {
+    func testIsImplemented_cleanTapeAndBeats() {
         XCTAssertTrue(StretchMode.clean.isImplemented)
         XCTAssertTrue(StretchMode.tape.isImplemented)   // tape = pitch-follows-tempo, wired
-        XCTAssertFalse(StretchMode.beats.isImplemented)
+        XCTAssertTrue(StretchMode.beats.isImplemented)  // WSOLA pre-render (editor preview)
         XCTAssertFalse(StretchMode.studio.isImplemented)
     }
 
-    func testEffectiveMode_implementedIsItself_unimplementedFallsToClean() {
+    func testEffectiveMode_baseFallback_keepsTimelineHonest() {
         XCTAssertEqual(StretchMode.clean.effectiveMode, .clean)
-        XCTAssertEqual(StretchMode.tape.effectiveMode, .tape)    // implemented → itself
-        XCTAssertEqual(StretchMode.beats.effectiveMode, .clean)  // unimplemented → clean
+        XCTAssertEqual(StretchMode.tape.effectiveMode, .tape)    // base-capable → itself
+        // Beats IS implemented, but only the preview consumer executes it — the
+        // BASE fallback (what resolve's default renders) stays .clean so the
+        // timeline never claims a character it can't render.
+        XCTAssertEqual(StretchMode.beats.effectiveMode, .clean)
         XCTAssertEqual(StretchMode.studio.effectiveMode, .clean)
     }
 
-    func testSelectable_cleanAndTape() {
-        XCTAssertEqual(StretchMode.selectable, [.clean, .tape])
+    func testSelectable_offersBeats() {
+        XCTAssertEqual(StretchMode.selectable, [.clean, .tape, .beats])
+    }
+
+    // MARK: - Per-consumer capabilities (#54 Beats preview)
+
+    func testResolve_defaultCapabilities_rendersBeatsAsClean() {
+        let plan = StretchPlan.resolve(mode: .beats, warpEnabled: true,
+                                       nativeBPM: 120, projectBPM: 140)
+        XCTAssertEqual(plan.mode, .clean, "timeline consumers keep the honest fallback")
+        XCTAssertTrue(plan.preservesPitch)
+    }
+
+    func testResolve_previewCapabilities_rendersBeats() {
+        let plan = StretchPlan.resolve(mode: .beats, warpEnabled: true,
+                                       nativeBPM: 120, projectBPM: 140,
+                                       capabilities: StretchMode.previewCapabilities)
+        XCTAssertEqual(plan.mode, .beats)
+        XCTAssertTrue(plan.preservesPitch, "WSOLA holds pitch")
+        XCTAssertEqual(plan.rate, 140.0 / 120.0, accuracy: 1e-9)
+        // Studio stays gated even for the preview consumer.
+        let studio = StretchPlan.resolve(mode: .studio, warpEnabled: true,
+                                         nativeBPM: 120, projectBPM: 140,
+                                         capabilities: StretchMode.previewCapabilities)
+        XCTAssertEqual(studio.mode, .clean)
     }
 
     func testCodable_roundTripsViaRawValue() throws {

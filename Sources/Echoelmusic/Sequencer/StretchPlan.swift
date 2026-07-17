@@ -32,13 +32,17 @@ public struct StretchPlan: Equatable, Sendable {
     /// Resolve the plan. `rate` is 1.0 (no stretch) whenever warp is off, the native
     /// tempo is unknown, or the project tempo is non-positive — identical to
     /// `AudioClipRegion.effectiveStretchRate`, so the two never diverge. The rendered
-    /// `mode` is the chosen mode's `effectiveMode` (honest `.clean` fallback), and
-    /// `preservesPitch` follows that rendered mode.
+    /// `mode` is the chosen mode when the CALLING CONSUMER can execute it
+    /// (`capabilities`, default = the realtime base set) — else the honest `.clean`
+    /// fallback; `preservesPitch` follows the rendered mode. This is how Beats can
+    /// be real in the editor preview while the timeline stays truthful about what
+    /// its node actually renders.
     public static func resolve(mode: StretchMode,
                                warpEnabled: Bool,
                                nativeBPM: Double,
-                               projectBPM: Double) -> StretchPlan {
-        let rendered = mode.effectiveMode
+                               projectBPM: Double,
+                               capabilities: Set<StretchMode> = StretchMode.baseCapabilities) -> StretchPlan {
+        let rendered = capabilities.contains(mode) && mode.isImplemented ? mode : .clean
         let rate: Double
         if warpEnabled, nativeBPM > 0, projectBPM > 0 {
             rate = TempoMatch.stretchRate(nativeBPM: nativeBPM, masterBPM: projectBPM)
