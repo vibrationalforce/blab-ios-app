@@ -1626,6 +1626,27 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         unisonDetuneCents = min(max(detuneCents, 0), 50)
     }
 
+    // MARK: - Oktaver
+
+    /// Octave-double direction (founder 2026-07-14 "transpose detune und Oktaver"):
+    /// −1 = add a sub-octave voice, +1 = an upper-octave voice, 0 = off (default,
+    /// bit-identical). Control-path only — `noteOn` spawns ONE extra voice at 2×/0.5×
+    /// the base frequency, keyed on the SAME note number, so `noteOff`/`slideNote`
+    /// handle it with zero extra bookkeeping (the glide ratio is octave-invariant).
+    /// Same atomic-Int discipline as `unisonCount` (aligned word, next-note effect).
+    public var octaveDouble: Int = 0
+    /// Level of the octave voice relative to the main stack (0…1, default 0.5).
+    /// 0 skips the spawn entirely (a silent voice must not burn a slot). Same
+    /// atomic-Float discipline as `a4Hz`.
+    public var octaveMix: Float = 0.5
+
+    /// Set the octaver live (clamped; non-finite mix falls back to the 0.5 default —
+    /// the repo NaN law: fail quiet/neutral, never propagate).
+    public func setOctaver(direction: Int, mix: Float) {
+        octaveDouble = min(max(direction, -1), 1)
+        octaveMix = min(max(mix.isFinite ? mix : 0.5, 0), 1)
+    }
+
     /// Global filter-cutoff multiplier (1 = no change), fanned to every voice in the
     /// render. Driven by parameter automation; clamped to a musical range.
     public var cutoffScale: Float = 1.0
@@ -1698,18 +1719,31 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         if u == 1 {
             // OFF: spawn one voice with the original pan/amplitude behaviour (unchanged).
             spawnVoice(note: note, frequency: baseFreq, velocity: v, unisonPan: nil, unisonGain: 1)
-            return
+        } else {
+            // ON: stack `u` detuned voices, symmetric about the played pitch, panned
+            // across the stereo field. Per-voice gain 1/√u keeps the summed loudness sane.
+            let gain = 1 / sqrt(Float(u))
+            let panSpread: Float = 0.6
+            let spread = unisonDetuneCents  // snapshot once (atomic read) for this note
+            for k in 0..<u {
+                let t = Float(k) / Float(u - 1) * 2 - 1      // -1 … +1
+                let detune = pow(2.0, (t * spread * 0.5) / 1200.0)
+                spawnVoice(note: note, frequency: baseFreq * detune, velocity: v,
+                           unisonPan: t * panSpread, unisonGain: gain)
+            }
         }
-        // ON: stack `u` detuned voices, symmetric about the played pitch, panned
-        // across the stereo field. Per-voice gain 1/√u keeps the summed loudness sane.
-        let gain = 1 / sqrt(Float(u))
-        let panSpread: Float = 0.6
-        let spread = unisonDetuneCents      // snapshot once (atomic read) for this note
-        for k in 0..<u {
-            let t = Float(k) / Float(u - 1) * 2 - 1          // -1 … +1
-            let detune = pow(2.0, (t * spread * 0.5) / 1200.0)
-            spawnVoice(note: note, frequency: baseFreq * detune, velocity: v,
-                       unisonPan: t * panSpread, unisonGain: gain)
+
+        // Oktaver: ONE extra voice an octave up/down, keyed on the SAME note number —
+        // noteOff releases it and slideNote glides it (the ratio is octave-invariant)
+        // with zero extra bookkeeping. Snapshot reads (atomic); 0/0 skips entirely,
+        // so the default path stays bit-identical. Gain rides the unison per-voice
+        // gain scaled by the mix, panned where its SOUNDING pitch sits (key-follow).
+        let oct = min(max(octaveDouble, -1), 1)
+        let mix = octaveMix
+        if oct != 0, mix.isFinite, mix > 0 {
+            spawnVoice(note: note, frequency: baseFreq * (oct > 0 ? 2 : 0.5), velocity: v,
+                       unisonPan: Self.keyFollowPan(forNote: note + 12 * oct),
+                       unisonGain: (u == 1 ? 1 : 1 / sqrt(Float(u))) * min(mix, 1))
         }
     }
 

@@ -1718,6 +1718,73 @@ final class EchoelDDSPPitchDriftTests: XCTestCase {
         p.setPortamento(seconds: .nan)              // garbage -> safe legacy value
         XCTAssertEqual(p.portamentoCoeff, 0.01)
     }
+
+    // MARK: - Oktaver (#36: one doubled voice an octave up/down, control path only)
+
+    func testOctaver_defaultOff_spawnsExactlyOneVoice() {
+        let p = EchoelPolyDDSP(maxVoices: 8)
+        p.noteOn(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 1, "octaver off (default) must stay bit-identical: one voice")
+        p.noteOff(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 0)
+    }
+
+    func testOctaver_upAndDown_spawnOneExtraVoice_keyedOnTheSameNote() {
+        for direction in [-1, 1] {
+            let p = EchoelPolyDDSP(maxVoices: 8)
+            p.setOctaver(direction: direction, mix: 0.5)
+            p.noteOn(note: 60)
+            XCTAssertEqual(p.activeVoiceCount, 2,
+                           "direction \(direction): main + octave voice")
+            // Keyed on the SAME note: one noteOff releases BOTH voices.
+            p.noteOff(note: 60)
+            XCTAssertEqual(p.activeVoiceCount, 0,
+                           "direction \(direction): the octave voice must release with its note")
+        }
+    }
+
+    func testOctaver_stacksWithUnison() {
+        let p = EchoelPolyDDSP(maxVoices: 8)
+        p.setUnison(count: 3, detuneCents: 12)
+        p.setOctaver(direction: 1, mix: 0.5)
+        p.noteOn(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 4, "3 unison voices + 1 octave voice")
+        p.noteOff(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 0)
+    }
+
+    func testOctaver_zeroMix_spawnsNoExtraVoice() {
+        let p = EchoelPolyDDSP(maxVoices: 8)
+        p.setOctaver(direction: 1, mix: 0)
+        p.noteOn(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 1, "mix 0 = silent octave -> don't burn a voice slot")
+        p.noteOff(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 0)
+    }
+
+    func testOctaver_followsSlideNote() {
+        let p = EchoelPolyDDSP(maxVoices: 8)
+        p.setOctaver(direction: 1, mix: 0.7)
+        p.noteOn(note: 60)
+        p.slideNote(from: 60, to: 62)
+        p.noteOff(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 2, "both voices slid to the new pitch key")
+        p.noteOff(note: 62)
+        XCTAssertEqual(p.activeVoiceCount, 0, "both release via the new pitch")
+    }
+
+    func testSetOctaver_clampsGarbage() {
+        let p = EchoelPolyDDSP(maxVoices: 4)
+        p.setOctaver(direction: 5, mix: 2.0)        // out of range -> clamped
+        XCTAssertEqual(p.octaveDouble, 1)
+        XCTAssertEqual(p.octaveMix, 1)
+        p.setOctaver(direction: -3, mix: -0.5)
+        XCTAssertEqual(p.octaveDouble, -1)
+        XCTAssertEqual(p.octaveMix, 0)
+        p.setOctaver(direction: 0, mix: .nan)       // NaN law -> neutral default, never NaN
+        XCTAssertEqual(p.octaveDouble, 0)
+        XCTAssertEqual(p.octaveMix, 0.5)
+    }
 }
 
 #endif
