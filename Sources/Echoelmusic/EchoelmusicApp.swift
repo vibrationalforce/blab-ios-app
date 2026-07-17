@@ -615,6 +615,13 @@ struct EchoelmusicApp: App {
                     timelinePlayer.slotDetuneSink = { [weak laneVoiceRack] slot, cents in
                         laneVoiceRack?.setDetune(slot: slot, cents: cents)   // poly-only (documented)
                     }
+                    // Per-instrument Oktaver (founder 2026-07-14 "transpose detune und
+                    // Oktaver"): octave-double each SECONDARY lane's rack voice per its
+                    // lane direction. Poly-only like detune (sub folds octaves, kit
+                    // unpitched, AU lanes deliberately excluded).
+                    timelinePlayer.slotOctaveSink = { [weak laneVoiceRack] slot, direction in
+                        laneVoiceRack?.setOctave(slot: slot, direction: direction)
+                    }
                     // H4 (healing wave 1, "Pan silently inert"): each SECONDARY lane's
                     // pan + continuous gain reach its rack voice — at region load AND
                     // live on a mid-play mixer edit (the player merges the store's
@@ -681,6 +688,9 @@ struct EchoelmusicApp: App {
                 }
                 timelinePlayer.rollDetuneSink = { [weak polyVoice] cents in
                     polyVoice?.setDetune(cents: cents)
+                }
+                timelinePlayer.rollOctaveSink = { [weak polyVoice] direction in
+                    polyVoice?.setOctaver(direction: direction, mix: 0.5)
                 }
                 // S2-W2-6: route the PRIMARY roll through its lane's kind voice when
                 // that lane is a drums kit / sub-bass. The rack's single kit/sub back

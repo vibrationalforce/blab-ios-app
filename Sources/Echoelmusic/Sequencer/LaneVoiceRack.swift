@@ -245,6 +245,14 @@ public final class LaneVoiceRack {
         voice(slot: slot)?.setDetune(cents: cents)
     }
 
+    /// Oktaver (one doubled voice an octave up/down) is a poly-voice capability,
+    /// same limits as detune (the sub folds octaves anyway, the kit is unpitched)
+    /// — documented poly-only. Mix stays the engine's 0.5 default; direction is
+    /// the one per-lane control.
+    public func setOctave(slot: Int, direction: Int) {
+        voice(slot: slot)?.setOctaver(direction: direction, mix: 0.5)
+    }
+
     /// A SynthPatch shapes the poly engine — documented no-op for kit/sub (their
     /// timbre comes from DrumNoteMap presets / the sub's fixed felt-band voice).
     public func applyPatch(slot: Int, _ patch: SynthPatch) {

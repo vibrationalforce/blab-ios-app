@@ -76,6 +76,15 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// 0 = no detune (bit-identical). Persisted DATA; read per lane like transpose
     /// (primary via `rollDetuneSink`, secondary via `slotDetuneSink`).
     public var detuneCents: Float
+    /// Per-instrument OKTAVER direction (founder 2026-07-14: "transpose detune und
+    /// Oktaver" — the third element, after Transpose and Detune): −1 doubles every
+    /// note of THIS lane with a sub-octave voice, +1 with an upper-octave voice,
+    /// 0 = off (bit-identical). The doubled voice's level is the engine's mix
+    /// default (0.5) — direction is the ONE per-lane control for now. Persisted
+    /// DATA; read per lane like transpose/detune (primary via `rollOctaveSink`,
+    /// secondary via `slotOctaveSink`), poly voices only (sub folds octaves, kit
+    /// unpitched, AU not expressible — the documented detune limits apply alike).
+    public var octaveDouble: Int
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
@@ -83,7 +92,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
                 builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false,
                 patch: SynthPatch? = nil, genreOverride: MusicStyle? = nil,
                 mood: MoodProfile? = nil, variationSeed: UInt64? = nil,
-                transposeSemitones: Int = 0, detuneCents: Float = 0) {
+                transposeSemitones: Int = 0, detuneCents: Float = 0,
+                octaveDouble: Int = 0) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -102,6 +112,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.variationSeed = variationSeed
         self.transposeSemitones = transposeSemitones
         self.detuneCents = detuneCents
+        self.octaveDouble = octaveDouble
     }
 
     /// What this track's record button captures — derived from its kind + built-in
@@ -146,6 +157,8 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         transposeSemitones = try c.decodeIfPresent(Int.self, forKey: .transposeSemitones) ?? 0
         // Pre-2026-07-14 docs carry no per-track detune ⇒ 0 (no offset, bit-identical).
         detuneCents = try c.decodeIfPresent(Float.self, forKey: .detuneCents) ?? 0
+        // Pre-Oktaver docs carry no per-track octave ⇒ 0 (off, bit-identical).
+        octaveDouble = try c.decodeIfPresent(Int.self, forKey: .octaveDouble) ?? 0
     }
 }
 
@@ -439,6 +452,15 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         return max(-100, min(100, lane.detuneCents))
     }
 
+    /// The OKTAVER direction the ONE shared Piano-Roll slot plays at (the third
+    /// rollSlot pitch twin — founder 2026-07-14 "transpose detune und Oktaver").
+    /// Clamped −1…+1; no MIDI lane → 0 (off). The surface's onChange pushes it into
+    /// both melodic voices live, so a primary-lane octave edit is heard immediately.
+    public var rollSlotOctave: Int {
+        guard let lane = lanes.first(where: { $0.kind == .midi && !$0.isBio }) else { return 0 }
+        return max(-1, min(1, lane.octaveDouble))
+    }
+
     /// Why the roll-slot lane is INAUDIBLE (nil = audible), so the UI can explain a
     /// silent generative instrument in plain words. Founder 2026-07-14 ("alles ist
     /// still", verified from the device log): the generative melody plays through the
@@ -502,6 +524,9 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
             if lanes[i].detuneCents != live.detuneCents {
                 lanes[i].detuneCents = live.detuneCents; changed = true
             }
+            if lanes[i].octaveDouble != live.octaveDouble {
+                lanes[i].octaveDouble = live.octaveDouble; changed = true
+            }
         }
         return changed
     }
@@ -527,6 +552,7 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
             n.isArmed = lb.isArmed
             n.transposeSemitones = lb.transposeSemitones
             n.detuneCents = lb.detuneCents
+            n.octaveDouble = lb.octaveDouble
             if n != lb { return false }
         }
         return true

@@ -159,6 +159,14 @@ struct ArrangeTimelineView: View {
             synth.setDetune(cents: cents)
             leadSynth?.setDetune(cents: cents)
         }
+        // Per-instrument Oktaver, primary lane (founder 2026-07-14 "transpose detune
+        // und Oktaver"): octave-double both melodic voices live per the lane's
+        // direction — same live-push discipline (document-level read, fires on edit
+        // not at 10 Hz; freeze-rule safe). Mix stays the engine's 0.5 default.
+        .onChange(of: timeline.document.rollSlotOctave, initial: true) { _, direction in
+            synth.setOctaver(direction: direction, mix: 0.5)
+            leadSynth?.setOctaver(direction: direction, mix: 0.5)
+        }
         // H13: transport start cuts any running region audition — the lane sink is
         // about to sound the same lane and a leftover audition would double-sound
         // (the same hazard auditionWindow's nil-while-playing guards at tap time).
@@ -1464,8 +1472,14 @@ private struct LaneFXEditor: View {
             EchoelValueField(label: "Detune",
                              value: detuneBinding,
                              range: Float(-100)...Float(100), unit: "¢", decimals: 0)
+            // Per-instrument OKTAVER (founder 2026-07-14 "transpose detune und Oktaver"):
+            // double this track's notes an octave up (+1) or down (−1). Per-lane, saved
+            // with the song; the doubled voice plays at half level (engine default).
+            EchoelValueField(label: "Octave",
+                             value: octaveBinding,
+                             range: Float(-1)...Float(1), decimals: 0)
 
-            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan, Transpose and Detune are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift, Detune 0 = in tune).")
+            Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan, Transpose, Detune and Octave are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift, Detune 0 = in tune, Octave −1/+1 = add a doubled voice an octave down/up, 0 = off).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1524,6 +1538,14 @@ private struct LaneFXEditor: View {
     private var detuneBinding: Binding<Float> {
         Binding(get: { timeline.document.lanes.first(where: { $0.id == laneID })?.detuneCents ?? 0 },
                 set: { timeline.setLaneDetune(id: laneID, $0) })
+    }
+
+    /// Per-instrument Oktaver direction lives on the lane (persisted, −1/0/+1). The
+    /// region player octaves this lane's voice on load — one push path, like detune.
+    /// Bridged through Float for EchoelValueField, rounded back to a whole step.
+    private var octaveBinding: Binding<Float> {
+        Binding(get: { Float(timeline.document.lanes.first(where: { $0.id == laneID })?.octaveDouble ?? 0) },
+                set: { timeline.setLaneOctave(id: laneID, Int($0.rounded())) })
     }
 }
 

@@ -497,6 +497,16 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Per-instrument OKTAVER direction (founder 2026-07-14 "transpose detune und
+    /// Oktaver"), clamped −1…+1 to match the voice (−1 sub-octave, +1 upper, 0 off).
+    /// State only — the region player octaves each lane's voice on load AND live
+    /// per step (refreshMixer), like transpose/detune.
+    public func setLaneOctave(id: UUID, _ direction: Int) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
+        document.lanes[i].octaveDouble = max(-1, min(1, direction))
+        persist()
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()

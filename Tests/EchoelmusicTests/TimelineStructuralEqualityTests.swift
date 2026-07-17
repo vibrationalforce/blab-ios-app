@@ -56,6 +56,15 @@ final class TimelineStructuralEqualityTests: XCTestCase {
         XCTAssertTrue(TimelineDocument.structurallyEqual(a, b))
     }
 
+    func testOctaveEdit_isNotStructural() {
+        // The Oktaver direction is the third sink-applied pitch field (transpose/
+        // detune twin) — it flows live through mergeMixer, never a relocate.
+        let a = doc()
+        var b = a
+        b.lanes[0].octaveDouble = 1
+        XCTAssertTrue(TimelineDocument.structurallyEqual(a, b))
+    }
+
     func testRegionMove_isStructural() {
         let a = doc()
         var b = a

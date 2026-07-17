@@ -101,6 +101,13 @@ public final class TimelineRegionPlayer {
     /// Applies the PRIMARY roll lane's fine DETUNE (cents) to the roll voice on region
     /// load (the roll lane plays PianoRollModel, not a rack slot). nil ⇒ no detune.
     @ObservationIgnored public var rollDetuneSink: ((_ cents: Float) -> Void)?
+    /// Applies a SECONDARY lane's OKTAVER direction (−1/0/+1) to its slot's rack voice
+    /// on region load AND live per step (founder 2026-07-14 "transpose detune und
+    /// Oktaver"), alongside transpose + detune. nil ⇒ no octave doubling.
+    @ObservationIgnored public var slotOctaveSink: ((_ slot: Int, _ direction: Int) -> Void)?
+    /// Applies the PRIMARY roll lane's OKTAVER direction to the roll voice (the roll
+    /// lane plays PianoRollModel, not a rack slot). nil ⇒ no octave doubling.
+    @ObservationIgnored public var rollOctaveSink: ((_ direction: Int) -> Void)?
     /// S2-W2-6: the voice KIND the PRIMARY roll lane plays through. Fired at roll-
     /// region load (before the clip's notes) and reset to `.poly` on clear, so a
     /// drums / sub-bass primary lane routes the whole roll to that kind voice.
@@ -358,6 +365,7 @@ public final class TimelineRegionPlayer {
         // roll voice to the roll lane's own semitone shift before its notes load.
         rollTransposeSink?(doc.lanes.first(where: { $0.id == lane })?.transposeSemitones ?? 0)
         rollDetuneSink?(doc.lanes.first(where: { $0.id == lane })?.detuneCents ?? 0)
+        rollOctaveSink?(doc.lanes.first(where: { $0.id == lane })?.octaveDouble ?? 0)
         // S2-W2-6: bind the roll's KIND voice BEFORE its notes load (a drums/sub
         // primary lane plays the kit/sub; poly ⇒ today's voice).
         rollKindSink?(doc.lanes.first(where: { $0.id == lane })?.builtinInstrument?.voiceKind ?? .poly)
@@ -478,6 +486,7 @@ public final class TimelineRegionPlayer {
                 slotPatchSink?(slot, MultiRollFanout.patch(forSlot: slot, in: doc, rollLane: rollLane))
                 slotTransposeSink?(slot, MultiRollFanout.transpose(forSlot: slot, in: doc, rollLane: rollLane))
                 slotDetuneSink?(slot, MultiRollFanout.detune(forSlot: slot, in: doc, rollLane: rollLane))
+                slotOctaveSink?(slot, MultiRollFanout.octave(forSlot: slot, in: doc, rollLane: rollLane))
                 // H4: the slot voice may be reused from another lane — reset its
                 // mixer position/level to THIS lane's values before its first notes.
                 slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
@@ -544,6 +553,7 @@ public final class TimelineRegionPlayer {
             slotPatchSink?(load.slot, load.patch)
             slotTransposeSink?(load.slot, MultiRollFanout.transpose(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
+            slotOctaveSink?(load.slot, MultiRollFanout.octave(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotPanSink?(load.slot, MultiRollFanout.pan(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotGainSink?(load.slot, MultiRollFanout.gain(forSlot: load.slot, in: doc, rollLane: rollLane))
             // M1c: same windowing as the fan-out — and the PRIME case is exactly
@@ -577,6 +587,7 @@ public final class TimelineRegionPlayer {
         if let lane = rollLane, let live = doc.lanes.first(where: { $0.id == lane }) {
             rollTransposeSink?(live.transposeSemitones)
             rollDetuneSink?(live.detuneCents)
+            rollOctaveSink?(live.octaveDouble)
         }
         guard multiRollCapacity > 0 else { return }
         for slot in pumps.keys.sorted() {
@@ -584,6 +595,7 @@ public final class TimelineRegionPlayer {
             slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
             slotTransposeSink?(slot, MultiRollFanout.transpose(forSlot: slot, in: doc, rollLane: rollLane))
             slotDetuneSink?(slot, MultiRollFanout.detune(forSlot: slot, in: doc, rollLane: rollLane))
+            slotOctaveSink?(slot, MultiRollFanout.octave(forSlot: slot, in: doc, rollLane: rollLane))
         }
     }
 

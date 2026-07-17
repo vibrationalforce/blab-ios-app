@@ -218,6 +218,48 @@ final class MultiRollFanoutTests: XCTestCase {
         XCTAssertEqual(legacy.detuneCents, 0)
     }
 
+    // MARK: - Per-instrument Oktaver (founder 2026-07-14 "transpose detune und Oktaver")
+
+    private func makeOctavedDoc(_ o0: Int, _ o1: Int) -> (TimelineDocument, roll: UUID) {
+        let bio = TimelineLane(name: "Bio", kind: .midi, isBio: true)
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let s1 = TimelineLane(name: "MIDI 2", kind: .midi, octaveDouble: o0)
+        let s2 = TimelineLane(name: "MIDI 3", kind: .midi, octaveDouble: o1)
+        let regions = [TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920)]
+        return (TimelineDocument(lanes: [bio, roll, s1, s2], regions: regions), roll.id)
+    }
+
+    func testOctaveForSlot_resolvesEachLanesOwnDirection() {
+        let (doc, roll) = makeOctavedDoc(-1, 1)
+        XCTAssertEqual(MultiRollFanout.octave(forSlot: 0, in: doc, rollLane: roll), -1)
+        XCTAssertEqual(MultiRollFanout.octave(forSlot: 1, in: doc, rollLane: roll), 1)
+    }
+
+    func testOctaveForSlot_unsetLane_isZero() {
+        let (doc, roll) = makeOctavedDoc(0, 0)
+        XCTAssertEqual(MultiRollFanout.octave(forSlot: 0, in: doc, rollLane: roll), 0)
+    }
+
+    func testOctaveForSlot_outOfRange_isZero() {
+        let (doc, roll) = makeOctavedDoc(1, 1)
+        XCTAssertEqual(MultiRollFanout.octave(forSlot: 9, in: doc, rollLane: roll), 0)
+    }
+
+    /// Model backward-compat: a lane's octave direction round-trips, and a document
+    /// saved BEFORE the field existed (no `octaveDouble` key) decodes to 0 (off).
+    func testOctaveDouble_codableRoundTripsAndDefaultsToZero() throws {
+        let lane = TimelineLane(name: "Pad", kind: .midi, octaveDouble: -1)
+        let data = try JSONEncoder().encode(lane)
+        let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+        XCTAssertEqual(back.octaveDouble, -1)
+
+        var obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        obj.removeValue(forKey: "octaveDouble")
+        let stripped = try JSONSerialization.data(withJSONObject: obj)
+        let legacy = try JSONDecoder().decode(TimelineLane.self, from: stripped)
+        XCTAssertEqual(legacy.octaveDouble, 0)
+    }
+
     /// REGRESSION GUARD: the fan-out fires a slot's notes from `LaneVoiceRackPlan`
     /// (ranked by index in `LaneVoiceScheduling.plan(...).filter{ != roll }`) but
     /// resolves that slot's PATCH and MUTE from `MultiRollFanout.laneID(forSlot:)`.
@@ -321,11 +363,13 @@ final class MultiRollFanoutTests: XCTestCase {
         fresh.lanes[2].level = 0.25
         fresh.lanes[2].pan = -1
         fresh.lanes[3].isMuted = true
+        fresh.lanes[2].octaveDouble = 1          // third pitch field rides the merge
         fresh.regions = []                       // structural edits must NOT leak
         XCTAssertTrue(snapshot.mergeMixer(from: fresh))
         XCTAssertEqual(snapshot.lanes[2].level, 0.25)
         XCTAssertEqual(snapshot.lanes[2].pan, -1)
         XCTAssertTrue(snapshot.lanes[3].isMuted)
+        XCTAssertEqual(snapshot.lanes[2].octaveDouble, 1, "octave flows live like detune")
         XCTAssertEqual(snapshot.regions.count, 1, "regions stay the playback snapshot's")
         XCTAssertEqual(MultiRollFanout.gain(forSlot: 0, in: snapshot, rollLane: roll), 0.25)
     }

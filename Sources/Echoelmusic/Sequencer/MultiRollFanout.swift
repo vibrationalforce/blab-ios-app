@@ -94,6 +94,14 @@ public enum MultiRollFanout {
         return document.lanes.first(where: { $0.id == id })?.detuneCents ?? 0
     }
 
+    /// The lane's OKTAVER direction for a rack slot (0 = off for an unset lane /
+    /// out-of-range slot). Third pitch twin (founder 2026-07-14 "transpose detune
+    /// und Oktaver"); mirrors `detune(forSlot:)` exactly.
+    public static func octave(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> Int {
+        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return 0 }
+        return document.lanes.first(where: { $0.id == id })?.octaveDouble ?? 0
+    }
+
     /// Whether a secondary lane is audible this tick — mute/foreign-solo/0-level all
     /// silence it, matching the primary roll lane's rollSlotGain→laneAudible gate.
     public static func audible(_ document: TimelineDocument, laneID: UUID) -> Bool {
