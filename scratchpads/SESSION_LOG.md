@@ -7279,3 +7279,6 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Mono-Downmix-Suche (Timeline-Executor-Scheibe).
 - **NACHT KOMPLETT — ab hier STILL bis Founder-Morgen-Test v278/v279.** v280-Kandidat:
   5D-Kanal-Reset + MPE-Tür + Quantize-Triolen + Playhead-Fix + Beats-Preview.
+- `bd4638a` Format-Re-Attach bei Load (Review APPROVE, 4/4 grün) — die NSException-
+  Falle 44.1-nach-48-kHz im Preview-Node ist zu (isEqual = Settings-Vergleich,
+  Generation-Token deckt das Detach-Fenster, verifiziert).
