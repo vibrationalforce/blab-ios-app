@@ -73,6 +73,28 @@ final class WSOLAStretcherTests: XCTestCase {
         }
     }
 
+    func testHeadReachesFullLevel_kickAttackSurvives() {
+        // DSP-review M1: without window-sum normalization the first half-frame
+        // fades in over ~5 ms — a kick at sample 0 loses its attack. A constant
+        // signal must come out at full level well inside the first half-frame.
+        let x = [Float](repeating: 0.5, count: 48_000)
+        let y = WSOLAStretcher().stretch(x, rate: 0.5)
+        XCTAssertEqual(y[64], 0.5, accuracy: 0.05,
+                       "sample 64 sits deep in the old fade-in region — must be full level")
+        XCTAssertEqual(y[y.count / 2], 0.5, accuracy: 0.05, "steady state stays unit gain")
+    }
+
+    func testTail_hasNoZeroGap_atSlowRates() {
+        // DSP-review L1: for rate < 1 the nominal position could pass the last
+        // valid frame start and the old break left hard zeros in the allocated
+        // tail. Clamped search: the end of a stretched loop keeps sounding.
+        let x = sine(hz: 440, seconds: 1.0)
+        let y = WSOLAStretcher().stretch(x, rate: 0.5)
+        let tail = Array(y.suffix(512))
+        XCTAssertGreaterThan(tail.map { abs($0) }.max() ?? 0, 0.3,
+                             "allocated tail must carry signal, not silence")
+    }
+
     func testOutputLevel_isSane_noWindowingGapsOrDoubling() {
         // Hann 50% overlap-add is constant-gain; the similarity search must not
         // tear that apart: RMS of the stretched sine stays near the input RMS

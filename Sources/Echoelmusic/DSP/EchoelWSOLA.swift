@@ -34,7 +34,8 @@ public struct WSOLAStretcher: Sendable {
 
     /// Stretch `input` by `rate`. Degenerate input (shorter than one frame) or a
     /// non-finite / non-positive rate passes through unchanged (fail quiet, the
-    /// repo NaN law); rate 1 is bit-transparent. Output length ≈ count / rate.
+    /// repo NaN law); rate 1 is bit-transparent. Output length ≈ count / rate
+    /// (never longer than one frame beyond it — see the trim below).
     public func stretch(_ input: [Float], rate: Float) -> [Float] {
         guard rate.isFinite, rate > 0, rate != 1.0, input.count > frameSize else { return input }
 
@@ -44,16 +45,21 @@ public struct WSOLAStretcher: Sendable {
         let outCount = Int(Double(input.count) / Double(rate))
         let frames = Swift.max(1, (outCount - n) / synthesisHop + 1)
 
-        // Hann window (periodic form keeps the 50% overlap-add constant-gain).
+        // Hann window (vDSP's PERIODIC form: w[i]+w[i+n/2] == 1 exactly, so the
+        // 50% overlap-add is constant-gain in the steady state; DENORM peaks at 1).
         var window = [Float](repeating: 0, count: n)
         vDSP_hann_window(&window, vDSP_Length(n), Int32(vDSP_HANN_DENORM))
-        // vDSP_HANN_DENORM peaks at 1.0 → 50% OLA sums to unit gain.
 
         var out = [Float](repeating: 0, count: (frames - 1) * synthesisHop + n)
+        // Window-sum twin (DSP-review M1): the head/tail half-frames get only ONE
+        // window contribution — unnormalized, a kick at sample 0 fades in over
+        // ~5 ms, exactly the attack the Beats character exists to protect.
+        // Normalizing by the accumulated window sum restores full level there.
+        var winSum = [Float](repeating: 0, count: out.count)
         var chosen = 0                                             // analysis start of frame 0
 
         // Frame 0: straight copy-in (windowed) from the input head.
-        overlapAdd(input, from: 0, into: &out, at: 0, window: window)
+        overlapAdd(input, from: 0, into: &out, winSum: &winSum, at: 0, window: window)
 
         for k in 1..<frames {
             let outPos = k * synthesisHop
@@ -61,7 +67,12 @@ public struct WSOLAStretcher: Sendable {
             // if we kept reading — maximal waveform similarity by construction.
             let natural = chosen + synthesisHop
             let nominal = Int((Double(k) * analysisHop).rounded())
-            let lo = Swift.max(0, nominal - tolerance)
+            // DSP-review L1: clamp lo into the valid range instead of breaking —
+            // for rate < 1 the nominal can pass count−n+tolerance near the tail;
+            // a break left hard zeros in the allocated end. Clamped, the search
+            // window degenerates to the last valid positions and every frame
+            // renders. lo ≤ hi now holds for all inputs (guard = belt-and-braces).
+            let lo = Swift.max(0, Swift.min(nominal - tolerance, input.count - n))
             let hi = Swift.min(input.count - n, nominal + tolerance)
             guard lo <= hi, natural + synthesisHop <= input.count else { break }
 
@@ -73,19 +84,36 @@ public struct WSOLAStretcher: Sendable {
                 guard let base = buf.baseAddress else { return }
                 let refEnergy = energy(base + natural, count: synthesisHop)
                 guard refEnergy > 0 else { best = Swift.min(Swift.max(natural, lo), hi); return }
+                let refNorm = refEnergy.squareRoot()               // L3: no product overflow
                 var d = lo
                 while d <= hi {
                     var dot: Float = 0
                     vDSP_dotpr(base + natural, 1, base + d, 1, &dot, vDSP_Length(synthesisHop))
                     let candEnergy = energy(base + d, count: synthesisHop)
-                    let score = candEnergy > 0 ? dot / (refEnergy * candEnergy).squareRoot() : -1
+                    let score = candEnergy > 0 ? dot / (refNorm * candEnergy.squareRoot()) : -1
                     if score > bestScore { bestScore = score; best = d }
                     d += 1
                 }
             }
             chosen = best
-            overlapAdd(input, from: chosen, into: &out, at: outPos, window: window)
+            overlapAdd(input, from: chosen, into: &out, winSum: &winSum, at: outPos, window: window)
         }
+
+        // M1: normalize by the window sum (floored — a zero window weight stays
+        // silent rather than exploding). Steady state divides by exactly 1.
+        // Explicit buffer pointers: the same array as vDSP in+out via implicit
+        // conversion would be an overlapping-access violation (CLAUDE.md table).
+        var floorVal: Float = 1e-3
+        out.withUnsafeMutableBufferPointer { ob in
+            winSum.withUnsafeMutableBufferPointer { wb in
+                guard let op = ob.baseAddress, let wp = wb.baseAddress else { return }
+                vDSP_vthr(wp, 1, &floorVal, wp, 1, vDSP_Length(wb.count))
+                vDSP_vdiv(wp, 1, op, 1, op, 1, vDSP_Length(ob.count))
+            }
+        }
+        // L2: never return MORE than the contracted length (reachable only for
+        // sub-frame outCount, e.g. a <100 ms clip at rate 4 — frames floors at 1).
+        if out.count > Swift.max(outCount, 1) { out.removeLast(out.count - Swift.max(outCount, 1)) }
         return out
     }
 
@@ -97,9 +125,10 @@ public struct WSOLAStretcher: Sendable {
         return e
     }
 
-    /// Windowed overlap-add of `input[from ..< from+frameSize]` at `out[at...]`.
+    /// Windowed overlap-add of `input[from ..< from+frameSize]` at `out[at...]`,
+    /// accumulating the window itself into `winSum` for the M1 normalization.
     private func overlapAdd(_ input: [Float], from: Int, into out: inout [Float],
-                            at: Int, window: [Float]) {
+                            winSum: inout [Float], at: Int, window: [Float]) {
         let n = frameSize
         guard from >= 0, from + n <= input.count, at >= 0, at + n <= out.count else { return }
         input.withUnsafeBufferPointer { inBuf in
@@ -110,6 +139,12 @@ public struct WSOLAStretcher: Sendable {
                     // out[at+i] += input[from+i] * window[i]
                     vDSP_vma(ip + from, 1, wp, 1, op + at, 1, op + at, 1, vDSP_Length(n))
                 }
+            }
+        }
+        winSum.withUnsafeMutableBufferPointer { wsBuf in
+            window.withUnsafeBufferPointer { winBuf in
+                guard let sp = wsBuf.baseAddress, let wp = winBuf.baseAddress else { return }
+                vDSP_vadd(wp, 1, sp + at, 1, sp + at, 1, vDSP_Length(n))
             }
         }
     }
