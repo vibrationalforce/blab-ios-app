@@ -3708,7 +3708,12 @@ struct EchoelStudioView: View {
             // erreichbaren Schalter — der Founder-Hörtest IST das Verify):
             // echte Stimmführung statt Blockshift; Kohärenz führt die Strenge,
             // Atemtiefe die Lage. Rollback = dieses eine Wort auf false.
-            voiceLeading: true
+            voiceLeading: true,
+            // H3 DEFAULT-ON (gleiche Lehre): die ECHTE HRV des Spielers ist die
+            // Amplitude der finalen Velocity-Mikrovariabilität — variables Herz
+            // löst den Take, starres Herz lässt ihn maschinen-eng; hrv 0 ⇒ exakt
+            // null Jitter. Rollback = dieses eine Wort auf false.
+            humanize: true
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }
