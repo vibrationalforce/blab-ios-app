@@ -360,6 +360,19 @@ struct ArrangeTimelineView: View {
         }
     }
 
+    /// Founder 2026-07-17 ("Pianoroll macht Sinn, wenn man einen MIDI Clip generiert"): the
+    /// clip editor's title names the TRACK whose clip is edited — e.g.
+    /// "Drums — Clip", not a generic "Edit Clip" — so the roll always reads as
+    /// clip-scoped. Vanished/unnamed lane falls back to the old generic title.
+    private func clipEditTitle(_ session: ClipEditSession, region: TimelineRegion) -> String {
+        let laneName = timeline.document.lanes
+            .first(where: { $0.id == region.laneID })?.name ?? ""
+        let base = laneName.isEmpty ? "Edit Clip" : "\(laneName) — Clip"
+        return session.totalBars > 1
+            ? "\(base) · Bar \(session.bar + 1)/\(session.totalBars)"
+            : base
+    }
+
     @ViewBuilder
     private func modalEditor(_ modal: ArrangeModal) -> some View {
         switch modal {
@@ -373,9 +386,7 @@ struct ArrangeTimelineView: View {
             // fallback covers the non-MIDI kinds and a vanished session.
             if let session = clipEdit {
                 PianoRollView(pattern: beatPlayer.pattern, model: session.model,
-                              title: session.totalBars > 1
-                                  ? "Edit Clip — Bar \(session.bar + 1)/\(session.totalBars)"
-                                  : "Edit Clip",
+                              title: clipEditTitle(session, region: region),
                               onDone: { commitClipEdit(session) })
             } else if clips.clip(id: region.clipID)?.kind == .audio {
                 // CLIP-4: Edit on a placed AUDIO region opens ON the clip —

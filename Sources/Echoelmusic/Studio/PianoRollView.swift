@@ -914,6 +914,24 @@ struct PianoRollView: View {
     @State private var drawLength: Int = 1
     @State private var stepW: CGFloat = 26
     @State private var rowH: CGFloat = 22
+    /// Adaptive fit (founder 2026-07-17 "Piano Roll passt immer noch nicht in den
+    /// Bildschirm"): on first layout — and on rotation/size change — the cell
+    /// metrics are FIT to the measured roll size (`RollFitMath`) so the whole
+    /// 16-step bar is visible without blind horizontal scrolling. A manual
+    /// zoom latches `userZoomed` and wins permanently; the Fit button clears
+    /// the latch. Auto-fit NEVER fires mid-gesture — the drag/marquee/velocity
+    /// paths convert finger→cell through stepW/rowH live, so shifting them
+    /// under a finger would teleport notes (see `applyAutoFit` guards).
+    @State private var userZoomed = false
+    /// One-shot open-centering latch (founder 2026-07-17): scroll to the take's median pitch
+    /// once the first real size is known, then never fight the user's scroll.
+    @State private var didAutoCenter = false
+    @State private var rollSize: CGSize = .zero
+    /// Width of the last applied fit — a re-fit keys on WIDTH change only
+    /// (open/rotation/split-view), so transient HEIGHT wobble (the selected-
+    /// note inspector growing, keyboard) never visibly re-scales the grid.
+    @State private var lastFitWidth: CGFloat = 0
+    @State private var rollScroll = ScrollPosition(edge: .top)
 
     // Live drag state — one in-flight gesture (create-or-move), decided at touch-down.
     @State private var drag: RollDrag?
@@ -935,6 +953,13 @@ struct PianoRollView: View {
     private let edgeSlopPt: Double = 9
     /// Height of the velocity paint-lane under the canvas (#58 Slice 4).
     private let laneH: CGFloat = 46
+    /// Height of the beat ruler above the grid (founder 2026-07-17).
+    private let rulerH: CGFloat = 16
+    /// Auto-fit clamps TIGHTER than the manual zoom range: rows stay readable
+    /// (≥16pt) without wasting height (≤26pt); ~2 octaves visible on a phone.
+    private let fitMinRowH: CGFloat = 16
+    private let fitMaxRowH: CGFloat = 26
+    private let fitTargetRows = 25
 
     private var canvasW: CGFloat { stepW * CGFloat(PianoRollModel.stepCount) }
     private var canvasH: CGFloat { rowH * CGFloat(PianoRollModel.pitchCount) }
@@ -1049,6 +1074,14 @@ struct PianoRollView: View {
             .accessibilityLabel("Clear all notes")
             zoomButton(systemName: "minus.magnifyingglass") { zoom(-1) }
             zoomButton(systemName: "plus.magnifyingglass") { zoom(1) }
+            // Fit (founder 2026-07-17): clear the manual-zoom latch and re-fit the whole bar
+            // to the current screen. Reuses the zoomButton chrome — no new
+            // surface, no sheet.
+            zoomButton(systemName: "arrow.down.right.and.arrow.up.left") {
+                userZoomed = false
+                applyAutoFit()
+            }
+            .accessibilityLabel("Fit to screen")
         }
         }
     }
@@ -1066,9 +1099,48 @@ struct PianoRollView: View {
     }
 
     private func zoom(_ direction: Int) {
+        userZoomed = true   // manual zoom wins over auto-fit until the Fit button
         let f: CGFloat = direction > 0 ? 1.2 : 1 / 1.2
         stepW = min(max(stepW * f, minStepW), maxStepW)
         rowH = min(max(rowH * f, minRowH), maxRowH)
+    }
+
+    // MARK: - Adaptive fit (founder 2026-07-17)
+
+    /// Fit the cell metrics to the measured roll size (`RollFitMath` — pure,
+    /// tested). Skipped once the user zoomed manually, and NEVER while a
+    /// gesture is in flight: canvas drag, marquee, and velocity paint all map
+    /// finger→cell through the live stepW/rowH.
+    private func applyAutoFit() {
+        guard !userZoomed, drag == nil, marqueeRect == nil, !velDragSnapshotTaken,
+              rollSize.width > 0, rollSize.height > 0 else { return }
+        lastFitWidth = rollSize.width
+        // stepCount is 16 (ONE bar) — the whole loop fits every iPhone width
+        // at ≥ minStepW, so the fit target is always the full bar.
+        stepW = CGFloat(RollFitMath.fittedStepW(
+            availableWidth: Double(rollSize.width), gutterWidth: Double(gutterW),
+            stepCount: PianoRollModel.stepCount,
+            minStepW: Double(minStepW), maxStepW: Double(maxStepW)))
+        rowH = CGFloat(RollFitMath.fittedRowH(
+            availableHeight: Double(rollSize.height - rulerH - laneH),
+            targetRows: fitTargetRows,
+            minRowH: Double(fitMinRowH), maxRowH: Double(fitMaxRowH)))
+    }
+
+    /// One-shot on open: scroll vertically so the take's median pitch (empty
+    /// clip → C4 region) sits mid-viewport — the roll never opens "irgendwo
+    /// im Nichts" above or below the notes.
+    private func autoCenterIfNeeded() {
+        guard !didAutoCenter, rollSize.height > 0 else { return }
+        didAutoCenter = true
+        let pitch = min(max(RollFitMath.medianPitch(of: model.notes.map(\.pitch),
+                                                    fallback: 60),
+                            PianoRollModel.lowPitch), PianoRollModel.highPitch)
+        let offset = RollFitMath.centeredOffsetY(
+            targetCenterY: Double(rulerH + yForPitch(pitch) + rowH / 2),
+            visibleHeight: Double(rollSize.height),
+            contentHeight: Double(rulerH + canvasH + laneH))
+        rollScroll.scrollTo(y: CGFloat(offset))
     }
 
     // MARK: - Selected-note inspector
@@ -1188,14 +1260,63 @@ struct PianoRollView: View {
     private var rollScroller: some View {
         ScrollView(.vertical) {
             HStack(alignment: .top, spacing: 0) {
-                VStack(spacing: 0) { gutter; velLabel }
+                VStack(spacing: 0) { rulerCorner; gutter; velLabel }
                 ScrollView(.horizontal, showsIndicators: true) {
-                    // Canvas + velocity lane share ONE horizontal scroll so their
-                    // time axes stay locked (no offset syncing).
-                    VStack(spacing: 0) { canvas; velocityLane }
+                    // Ruler + canvas + velocity lane share ONE horizontal scroll
+                    // so their time axes stay locked (no offset syncing).
+                    VStack(spacing: 0) { beatRuler; canvas; velocityLane }
                 }
             }
         }
+        .scrollPosition($rollScroll)
+        // Adaptive fit (founder 2026-07-17): measure the roll viewport (fires on first layout
+        // AND on rotation/size change), fit the cell metrics, then center the
+        // vertical scroll on the take ONCE. Size changes at layout frequency,
+        // not bio/playhead frequency — no churn-law risk here.
+        .onGeometryChange(for: CGSize.self) { proxy in
+            proxy.size
+        } action: { newSize in
+            rollSize = newSize
+            if abs(newSize.width - lastFitWidth) > 0.5 { applyAutoFit() }
+            autoCenterIfNeeded()
+        }
+    }
+
+    /// Top-left corner above the pitch gutter, so the beat ruler and the grid
+    /// start on the same x. Carries the ruler's bottom border across.
+    private var rulerCorner: some View {
+        Color.clear
+            .frame(width: gutterW, height: rulerH)
+            .overlay(Rectangle().frame(height: 0.5)
+                .foregroundStyle(EchoelTheme.border), alignment: .bottom)
+    }
+
+    /// Beat ruler above the grid (founder 2026-07-17): tick + number at every beat (4 steps),
+    /// stronger tick on the bar edge. The roll is ONE 16-step bar — bar-in-clip
+    /// context lives in the editor title ("… Bar k/N") — so the ruler numbers
+    /// the bar-internal beats 1…4. Monospaced, thin, no decoration; scrolls
+    /// horizontally WITH the canvas (same VStack in the one horizontal scroll).
+    private var beatRuler: some View {
+        Canvas { ctx, size in
+            for step in stride(from: 0, through: PianoRollModel.stepCount, by: 4) {
+                let x = CGFloat(step) * stepW
+                let isBar = step % PianoRollModel.stepCount == 0
+                ctx.stroke(Path { p in
+                    p.move(to: CGPoint(x: x, y: size.height - (isBar ? 8 : 5)))
+                    p.addLine(to: CGPoint(x: x, y: size.height))
+                }, with: .color(EchoelTheme.text.opacity(isBar ? 0.3 : 0.16)),
+                   lineWidth: isBar ? 1.5 : 1)
+                if step < PianoRollModel.stepCount {
+                    ctx.draw(Text("\(step / 4 + 1)")
+                        .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(EchoelTheme.dim),
+                        at: CGPoint(x: x + 3, y: 2), anchor: .topLeading)
+                }
+            }
+        }
+        .frame(width: canvasW, height: rulerH)
+        .overlay(Rectangle().frame(height: 0.5)
+            .foregroundStyle(EchoelTheme.border), alignment: .bottom)
     }
 
     /// Left-margin label for the velocity lane, aligned under the pitch gutter.
@@ -1313,13 +1434,16 @@ struct PianoRollView: View {
                                with: .color(EchoelTheme.border), lineWidth: 0.5)
                 }
             }
-            // Bar/beat lines every 4 steps.
+            // Grid verticals — three-level hierarchy Bar > Beat > Step (founder 2026-07-17):
+            // the bar edges frame the loop strongest, beats carry the pulse,
+            // steps recede. Subtle opacities only — no decoration.
             for step in 0...PianoRollModel.stepCount {
                 let x = CGFloat(step) * stepW
-                let strong = step % 4 == 0
+                let isBar = step % PianoRollModel.stepCount == 0
+                let isBeat = step % 4 == 0
                 ctx.stroke(Path { p in p.move(to: CGPoint(x: x, y: 0)); p.addLine(to: CGPoint(x: x, y: size.height)) },
-                           with: .color(EchoelTheme.text.opacity(strong ? 0.16 : 0.06)),
-                           lineWidth: strong ? 1 : 0.5)
+                           with: .color(EchoelTheme.text.opacity(isBar ? 0.28 : (isBeat ? 0.15 : 0.06))),
+                           lineWidth: isBar ? 1.5 : (isBeat ? 1 : 0.5))
             }
         }
         .frame(width: canvasW, height: canvasH)
