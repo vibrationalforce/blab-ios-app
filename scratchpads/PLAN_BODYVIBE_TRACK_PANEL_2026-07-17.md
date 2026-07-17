@@ -35,6 +35,15 @@ Sound · Mix · FX · Mood · Synth (Video NICHT markiert, bleibt).
   (KindVoiceAllocator .bioVoice-Fall — letzte v1-Deferral fällt) UND ihr
   Spur-Panel trägt die Create-from-Within-Steuern (Generate/Evolve/Bio-Quelle).
   Erst hier fällt der Sonderstatus der Bio-Spur.
+  **B2 — Kamera-Modulator (Founder 2026-07-17; Audit+Research in
+  RESEARCH_BODYVIBE_CAMERA_2026-07-17.md):** 3 Stufen — (1) Vision-Face-Publisher
+  (Frontkamera, CameraRPPG-Muster, smile/jawOpen/browRaise → neue Frame-Felder +
+  ModSource-Cases, 10 Hz, EMA), (2) ARKit blendShapes (52 Regler, exklusiver
+  Modus, Puls via Gurt/Watch), (3) Body-Pose Rückkamera → motionEnergy-Kanal
+  (ModSource.motion + MotionPeakDetector + 4 Konsumenten warten bereits leer).
+  Copy-Gesetz: "Expression/Bewegung als Steuerung", NIE "Emotion" (EU AI Act
+  Recital 18). Es GAB lauffähigen Code (a29c8b2, Pre-Rebuild: Smile→Intensität,
+  browRaise→Licht) — Konzept ist founder-erprobt, nicht spekulativ.
 - **C — Chips auflösen:** Sound/Mix/FX/Mood/Synth aus der unteren Leiste entfernen,
   sobald A2 ihre Funktion pro Spur trägt. **UPDATE (2. Founder-Screenshot, X über
   Video-Chip+Panel): auch der Video-Chip fällt** — Begründung Founder: Aufnahmen
