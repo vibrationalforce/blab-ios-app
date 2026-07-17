@@ -126,6 +126,31 @@ final class PianoRollUndoTests: XCTestCase {
                        "unselected note keeps its feel")
     }
 
+    // MARK: - Quantize subdivisions + triplets (#58 S7)
+
+    func testQuantizeDivision_tickValues() {
+        // PPQ 480: straight grids halve; a triplet fits THREE into the next
+        // division up (1/8T = 480/3 = 160, 1/16T = 240/3 = 80).
+        XCTAssertEqual(QuantizeDivision.eighth.ticks, 240)
+        XCTAssertEqual(QuantizeDivision.sixteenth.ticks, 120)
+        XCTAssertEqual(QuantizeDivision.thirtySecond.ticks, 60)
+        XCTAssertEqual(QuantizeDivision.eighthTriplet.ticks, 160)
+        XCTAssertEqual(QuantizeDivision.sixteenthTriplet.ticks, 80)
+        XCTAssertEqual(QuantizeDivision.sixteenth.ticks, Note.ticksPerStep,
+                       "default division stays today's behaviour")
+    }
+
+    func testQuantize_tripletGrid_snapsToTripletTicks() {
+        let m = PianoRollModel()
+        m.add(pitch: 60, startStep: 0)
+        m.setStartTickForTesting(index: 0, tick: 100)
+        m.quantize(ids: [], toTicks: QuantizeDivision.sixteenthTriplet.ticks)
+        XCTAssertEqual(m.notes.first?.startTick, 80,
+                       "tick 100 on the 80-tick 1/16T grid rounds to 80")
+        m.undo()
+        XCTAssertEqual(m.notes.first?.startTick, 100, "triplet quantize is undoable")
+    }
+
     func testQuantize_emptySelection_quantizesWholePattern_andIsUndoable() {
         let m = PianoRollModel()
         let a = m.add(pitch: 60, startStep: 0)

@@ -276,15 +276,17 @@ public final class PianoRollModel {
                                  maxStart)
     }
 
-    /// Quantize note starts to the step grid — the door for the previously
-    /// never-wired `Note.quantizedStart`. Empty `ids` = the whole pattern.
-    /// One undoable edit.
-    public func quantize(ids: Set<UUID>) {
+    /// Quantize note starts to a grid — the door for the previously never-wired
+    /// `Note.quantizedStart`. Empty `ids` = the whole pattern. `toTicks` picks
+    /// the grid (#58 S7: subdivisions + triplets via `QuantizeDivision`);
+    /// default = today's 1/16 behaviour. One undoable edit.
+    public func quantize(ids: Set<UUID>, toTicks division: Int = Note.ticksPerStep) {
+        guard division > 0 else { return }
         let affected = notes.indices.filter { ids.isEmpty || ids.contains(notes[$0].id) }
         guard !affected.isEmpty else { return }
         snapshotForUndo()
         for i in affected {
-            notes[i] = notes[i].quantizedStart(toTicks: Note.ticksPerStep)
+            notes[i] = notes[i].quantizedStart(toTicks: division)
         }
     }
 
@@ -959,9 +961,18 @@ struct PianoRollView: View {
                 .opacity(model.canRedo ? 1 : 0.35)
                 .accessibilityLabel("Redo")
             // Quantize: selection if present, else the whole pattern. Explicit —
-            // dragging never snaps recorded feel (tick-delta move law).
-            Button {
-                model.quantize(ids: selection.group ?? selection.single.map { Set([$0]) } ?? [])
+            // dragging never snaps recorded feel (tick-delta move law). #58 S7:
+            // the Q door is a MENU of grids (straight + triplet); each entry
+            // quantizes immediately. Menu content builds on open and reads only
+            // edit-frequency state — no live bio in this subtree (freeze law).
+            Menu {
+                ForEach(QuantizeDivision.allCases, id: \.self) { division in
+                    Button(division.rawValue) {
+                        model.quantize(
+                            ids: selection.group ?? selection.single.map { Set([$0]) } ?? [],
+                            toTicks: division.ticks)
+                    }
+                }
             } label: {
                 Text("Q")
                     .font(.system(size: 14, weight: .bold, design: .monospaced))
@@ -971,6 +982,8 @@ struct PianoRollView: View {
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Quantize")
+            .accessibilityHint("Choose a grid — straight or triplet — to snap the selected notes")
             .accessibilityLabel("Quantize")
             .accessibilityHint("Snaps the selected notes (or all notes) to the step grid")
             Button(role: .destructive) { model.clear(); selection = .none } label: {

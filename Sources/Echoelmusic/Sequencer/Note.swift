@@ -58,6 +58,30 @@ public struct NoteMPE: Codable, Sendable, Equatable {
     }
 }
 
+/// Quantize grid choices for the roll's Q door (#58 S7) — straight subdivisions
+/// plus triplets, expressed in PPQ ticks. A triplet fits THREE notes into the
+/// next straight division up (1/8T = quarter/3, 1/16T = eighth/3), the standard
+/// swing/shuffle grid. Pure value math; `Note.quantizedStart(toTicks:)` accepts
+/// any of these directly.
+public enum QuantizeDivision: String, CaseIterable, Sendable {
+    case eighth = "1/8"
+    case sixteenth = "1/16"
+    case thirtySecond = "1/32"
+    case eighthTriplet = "1/8T"
+    case sixteenthTriplet = "1/16T"
+
+    /// Grid size in PPQ ticks (PPQ 480).
+    public var ticks: Int {
+        switch self {
+        case .eighth:           return Note.ticksPerQuarter / 2      // 240
+        case .sixteenth:        return Note.ticksPerQuarter / 4      // 120 (= ticksPerStep)
+        case .thirtySecond:     return Note.ticksPerQuarter / 8      // 60
+        case .eighthTriplet:    return Note.ticksPerQuarter / 3      // 160
+        case .sixteenthTriplet: return Note.ticksPerQuarter / 6      // 80
+        }
+    }
+}
+
 /// A single melodic note, timed in PPQ ticks.
 ///
 /// `startTick` is the 0-based tick it begins on; `lengthTicks` is how long it
