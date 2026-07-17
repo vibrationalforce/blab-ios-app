@@ -7442,3 +7442,15 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - Nächste integrierte Slices (Reihenfolge nach Hörbarkeit): SamplerVoice-Einheit in
   den Rack (Menü-Ehrlichkeit), ModulationMatrix-Default-Route + Editor-Tür (#4),
   per-Lane-Composition Cycle A (#3), VocoderCore Input-Hälfte (#5).
+
+## 2026-07-17 Forts. 65 — S2-W3: EchoelSampler-Spur klingt echt (e528b60)
+- Agent-gebaut + selbst reviewt: PhysicalVoiceRef.sampler + Allocator samplerUnits,
+  SamplerVoice-Einheit im Rack (attachSourceNode, attach-before-start), Note-On =
+  configurePlayback(pitch−60+transpose)+fire(velocity) (Mono-One-Shot dokumentiert),
+  TimelineLane.samplePath (beide bestehende Ref-Konventionen: drum:/lib:-Bundle-Refs
+  + mediaRef-Absolutpfad; EIN Resolver BeatPlayer.resolveSampleRef), slotSampleSink
+  an allen 4 kind-Sites (Kind vor Sample, nil bei Slot-Reuse), Sample-Tür im
+  LaneFXEditor (Sheet-auf-Sheet, Root-Kette wächst nicht), 271 Test-Zeilen.
+- Primary-Roll-Sampler bewusst ausgelassen (SamplerVoice ≠ NoteVoice; kein lügender
+  Halbpfad). UX-Niggle notiert: Files-Import zeigt UUID-Stem als Namen (Folge-Slice).
+- Gates auf e528b60 laufen; grün ⇒ v282-Bundle (Sampler hörbar).
