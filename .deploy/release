@@ -1,24 +1,24 @@
-build: 2026-07-17 v10.79.284 (Antwort auf deinen Test: MIDI-Clip pro Spur + Drums klingen im Editor + Roll-Leiste sichtbar)
+build: 2026-07-17 v10.79.285 (Akkordwechsel klingen organisch — echte Stimmführung im Composer)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkte Antwort auf deine drei Test-Punkte von heute Nachmittag:
+notes: Der erste hörbare Harmony-Baustein aus der Scaler-Analyse:
 
-  b) ALLE DREI URSACHEN GEFIXT:
-     - "Wo bleibt MIDI Clip?" → Eine Instrument-Spur legt beim Öffnen
-       ihres Editors jetzt automatisch ihren eigenen "MIDI · <Spurname>"-
-       Clip mit Region an (dein Clip — der Composer überschreibt ihn nie).
-     - "Keine Drums sondern irgendwelche Töne" → Der Editor öffnet auf
-       DIESEM Clip, und das Antippen/Einzeichnen hört über das Instrument
-       der Spur vor: Drums-Spur klingt als Kit, Bass-Spur als Sub.
-       (Play spielt die Region ebenfalls über das richtige Instrument.)
-     - "Pianoroll links abgeschnitten" → Gefunden: die Werkzeug-Leiste
-       der Roll war seit dem MPE-Ausbau breiter als jedes iPhone; die
-       linke Kante (Play + Tasten) fiel raus. Sie scrollt jetzt seitlich —
-       alles erreichbar.
+  1) ECHTE STIMMFÜHRUNG (Voice-Leading): Bei jedem Akkordwechsel der
+     Fläche bewegen sich die Stimmen jetzt minimal — gemeinsame Töne
+     bleiben liegen, der Rest gleitet zur nächsten Lage, statt dass der
+     ganze Akkord als Block springt. Im Messtest: 9 statt 55 Halbtöne
+     Gesamtbewegung über eine Jazz-Progression. Das ist der "klingt
+     organisch/professionell"-Kern.
+     BIO-GEFÜHRT: Deine Kohärenz steuert die Strenge der Führung
+     (gesettelt = engste Führung), deine Atemtiefe die Lage (flach =
+     eng, tief = offen). Bass, Lead und Struktur bleiben unverändert —
+     nur die Flächen-Voicings atmen.
 
-  c) Die Composition-Änderungen (Genre/Mood/Würfel pro Spur) sind seit
-     v283 drin — falls du direkt von 2388 kommst: einmal updaten.
+  2) Weiter drin: v284-Fixes (MIDI-Clip pro Spur, Drums klingen im
+     Editor, Roll-Leiste scrollt) + v283 (Composition pro Spur).
 
-  a) EXTERNE AUv3: dafür brauche ich weiter deinen LOG (die App schreibt
-     jetzt "self-probe: …" + die Scan-Zeilen — einfach wie heute Morgen
-     schicken). Bekannter iOS-Weg falls die Liste nach Neustart leer ist:
-     einmal GarageBand öffnen, dann in Echoel neu scannen.
+  3) HÖRTEST-BITTE: Generate laufen lassen und auf die Akkordübergänge
+     der Fläche achten — springen sie noch, oder gleiten sie? Falls es
+     dir NICHT gefällt: sag Bescheid, der Rückweg ist eine Zeile.
+
+  4) Und weiterhin: der Log nach dem Neustart (self-probe-Zeile) löst
+     das AUv3-Thema.

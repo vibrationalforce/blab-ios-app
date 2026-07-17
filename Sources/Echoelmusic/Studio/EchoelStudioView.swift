@@ -3703,7 +3703,12 @@ struct EchoelStudioView: View {
             mood: moodForInput,
             seed: evolvingSeed,
             structureSeed: structureSeed,
-            progressionPhase: basePhase
+            progressionPhase: basePhase,
+            // H1 DEFAULT-ON (Modus-Lehre 2026-07-17: kein Verify-Gate ohne
+            // erreichbaren Schalter — der Founder-Hörtest IST das Verify):
+            // echte Stimmführung statt Blockshift; Kohärenz führt die Strenge,
+            // Atemtiefe die Lage. Rollback = dieses eine Wort auf false.
+            voiceLeading: true
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }

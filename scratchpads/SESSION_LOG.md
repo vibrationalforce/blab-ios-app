@@ -7503,3 +7503,11 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - Tages-Bilanz bisher: 4 Deploys (v281–v284), alle founder-getrieben; Serie #67
   Stand A✓ A2✓ (B1/B2/C offen); Harmony H1-Core✓; Kamera-Modulator-Research✓;
   Scaler-Mapping✓. Wartet auf Founder: Neustart-Log (AUv3-Triage), Hör-Verify.
+
+## 2026-07-17 Forts. 71 — H1-Wiring GRÜN (4/4) → voiceLeading DEFAULT-ON → v10.79.285
+- 5c85cfe alle Gates grün (Golden + Wächter + Beweis-Tests bestehen in CI).
+- Modus-Lehre angewandt: voiceLeading: true im makeComposerInput (EchoelStudioView
+  ~3706, Ein-Wort-Rollback dokumentiert) — der Founder-Hörtest ist das Verify.
+- v285 deployt: "Akkordwechsel klingen organisch" + Hörtest-Bitte + Rollback-Angebot.
+  Harmony-Stand: H1 KOMPLETT (Core+Wiring+ON). Als Nächstes H3 HRV-Humanize oder
+  B1 EchoelBodyVibe je nach Founder-Feedback.
