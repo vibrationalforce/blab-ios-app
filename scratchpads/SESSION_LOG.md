@@ -7341,3 +7341,23 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Stand war bei 8c37efb minuten zuvor grün (Flaky am Limit; Ledger-Playbook).
 - `75adb7d` verhaltensgleiche Aufteilung (7 benannte Helfer: Waveform/Ring/Name/
   Griffe/Tap/Menü) + .deploy/release-Retouch → v280-Deploy-Retry ausgelöst.
+
+### Forts. 61 (09:15–09:35): Timeline-Beats-Executor GEBAUT + Review-Härtung + Toolchain-Fix
+- `516e5f5` **Timeline-Beats-Executor** (4/4 grün): timelineCapabilities enthält
+  .beats; AudioLanePlayer.prime() lässt den Sink jede gewarpte Beats-Region zur
+  Prime-Zeit offline durch stretchMultichannel rendern; Onset scheduled den
+  fertigen Buffer mit Rate 1 auf dem Plain-Node; jeder Nicht-bereit-Fall →
+  ehrliche Clean-Kette. Editor-Status jetzt "transient-locked (beats)".
+- Beide Pflicht-Reviews REQUEST_CHANGES (konvergent) → `79e5ed8` alle Pflicht/
+  Medium-Findings: Format-Capture pro URL in ensureLoaded (CRITICAL Mixed-Rate-
+  NSException zu), Fensterlänge im Cache + play-Match (Silent-Tail/Overplay zu),
+  Read+Cap im detached Task auf frischem Handle (Prime nicht immer geparkt),
+  fromSeconds im Key (Ping-Pong zu), Rate-Eviction, In-Flight-Dedup, Log-
+  Symmetrie. Verify-Pass: **APPROVE** (alle 6 real geschlossen) → `1ae53b1`
+  LOW-Rest gehärtet (Format-Wechsel evictet Beats-Fenster).
+- `3ed0c02` Toolchain-Rot zu: Xcode isoliert `static let` auf @MainActor-Klasse
+  (SwiftPM-CI nicht — SE-0434-Inferenz-Divergenz) → `nonisolated` explizit.
+  CLAUDE.md-Pattern-Tabelle ergänzt. Deferred (Reviewer-Vermerk): globales
+  Cache-Budget + Onset-Match-Verbreiterung auf einen Transport-Step.
+- Warp-Stand: Clean ✅ Tape ✅ Beats Editor-Preview ✅ **Beats TIMELINE ✅ (gebaut,
+  Hörtest device-gated)** · Signalsmith wartet auf On-Device-A/B.
