@@ -7212,3 +7212,17 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   (roher resume mit non-Sendable AVAudioUnit). `0fd183f` (AVUnitBox + Retry-Retention
   + Factory-UI-Teardown) heilte: beide Gates GRÜN. Ledger-Playbook notiert.
 - Nächster Punkt: #62 lane-gate-aware vertikale Clip-Move-Vorschau.
+
+### Forts. 53 (Morgen 00:16–00:40): #62 + #63 + Deploy v279
+- `893f46c` **#62 Lane-Gate-Move-Vorschau** (Jitter-Audit MEDIUM #2, letzter Punkt):
+  `TimelineDragMath.LaneGate` + `gatedLaneShift` spiegeln die `moveRegion`-Akzeptanz
+  als pure Funktion (legales Ziel → Shift, sonst 0 = Zeit-Move). Preview UND Commit
+  laufen durch denselben Aufruf — illegaler Vertikal-Zug nimmt beim Loslassen den
+  Gleiche-Spur-Zweig (Kanten-Magnetismus) statt des doomed Spurwechsels. Spur-Fakten
+  als plain values aus der Eltern-Zeile (kein Doc-Read im Leaf — Freeze-Gesetz).
+  3 neue Tests. **Alle 4 Gates GRÜN.**
+- `be17220` **#63 Scratchpad-Hygiene**: 28 supersedete Pläne/Reports per git mv nach
+  archive/ (122→94 Top-Level); archive/README.md hält Kriterien + Nie-archivieren-
+  Liste (CLAUDE.md-Referenzen, SESSION_LOG, HARNESS_LEDGER, laufende Pläne).
+- **Deploy v10.79.279** — trägt die Post-v278-Commits: 984d68c Instantiate-Deadline
+  (AUv3-Laden kann nicht mehr ewig hängen) + 0fd183f Concurrency-Härtung + 893f46c #62.

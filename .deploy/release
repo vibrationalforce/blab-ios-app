@@ -1,34 +1,22 @@
-build: 2026-07-17 v10.79.278 (AUv3 registriert sich + Piano Roll erwachsen + Stille sichtbar)
+build: 2026-07-17 v10.79.279 (AUv3-Lade-Deadline + Clip-Move-Vorschau ehrlich)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Die Nachtschicht-Ernte — der AUv3-Bug war ein echter Registrierungs-Fehler bei uns.
+notes: Morgen-Nachschlag zur Nachtschicht — zwei Punkte, die v278 noch nicht hatte.
 
-  1) AUv3 — DER MORGEN-TEST (wichtigster der Nacht):
-     AudioComponents lag im Extension-Manifest an der falschen Stelle —
-     deshalb hat iOS unsere AUv3 NIE registriert ("ownAUv3 false" in
-     deinem Log, seit es sie gibt). Gefixt + Factory-Konformität gefixt
-     (ohne die hätte kein Host sie instanziieren können) + CI beweist die
-     korrekte Struktur ab jetzt nach jedem Build.
-     TEST: v278 installieren → iPhone NEU STARTEN → GarageBand oder AUM
-     öffnen → "Echoelmusic" sollte ERSTMALS als Instrument auftauchen.
-     Danach in Echoelmusic: Spur-Menü → Browse AUv3 → im Log sollte
-     "ownAUv3 true" stehen.
-     DRITT-PLUGINS: App scannt jetzt beim Start; wenn die Registry kalt
-     ist, sagt der Browser ehrlich "App neu starten". Bitte prüfen: Sind
-     AUv3-Apps (Eventide/Moog/…) installiert? Dein Log zeigte nur Apple.
+  1) AUv3-LADEN KANN NICHT MEHR EWIG HÄNGEN: Wenn ein Plugin-Prozess
+     beim Laden nicht antwortet (hängender XPC), bricht Echoelmusic
+     nach 10 Sekunden sauber ab statt die Spur/den Start zu blockieren.
+     Dazu Concurrency-Härtung aus dem Review (Retry merkt sich
+     fehlgeschlagene Restores wirklich; Plugin-UI räumt beim
+     Wieder-Instanziieren sauber auf).
 
-  2) PIANO ROLL (deine "noch sehr rudimentär"-Ansage):
-     • Undo/Redo-Pfeile in der Werkzeugleiste — jede Geste (Note setzen,
-       ziehen, löschen, Velocity malen, Clear) ist EIN Schritt zurück.
-     • "Q" = Quantisieren (Auswahl, sonst alles) — explizit und undoable.
-     • Noten-Ziehen zerstört kein Feeling mehr: eingespielte Off-Grid-
-       Noten behalten ihren Versatz beim Verschieben (vorher: erster
-       Griff = hartes Grid-Snap).
+  2) CLIP-ZIEHEN LÜGT NICHT MEHR VERTIKAL: Beim Verschieben zeigt die
+     Vorschau einen Clip nur noch auf Spuren an, auf denen er beim
+     Loslassen wirklich landen darf (gleiche Art, keine Bio-Spur,
+     innerhalb der Liste). Vorher legte sich der Clip sichtbar auf
+     JEDE Zeile und sprang beim Loslassen zurück — das war der letzte
+     offene Punkt aus dem Clip-Zittern-Audit.
 
-  3) STILLE IST JETZT SICHTBAR: Eine gemutete / weg-solierte / Pegel-0-
-     Spur zeichnet ihre Clips gedimmt+entsättigt, und der Pegel-0-Fader
-     bekommt einen Warnrahmen — mehrere "Sound geht nicht"-Momente waren
-     genau dieser unsichtbare Mixer-Zustand.
-
-  4) Noch offen aus v277 (falls nicht getestet): Puls-Hold (Finger drauf,
-     Lock abwarten, 30-60 s halten → bpm bleibt) + Timeline-Warp-Hörtest
-     (Warp+Tape-Clip → Add to timeline → Tempo ändern → Play).
+  3) WEITER GÜLTIG AUS v278 (falls noch nicht getestet): iPhone neu
+     starten → GarageBand/AUM sollte "Echoelmusic" ERSTMALS zeigen;
+     in Echoelmusic "ownAUv3 true" im Log. Piano-Roll: Undo/Redo + "Q".
+     Puls-Hold 30-60 s. Timeline-Warp-Hörtest. Stille Spuren dimmen.
