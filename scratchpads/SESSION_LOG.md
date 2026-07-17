@@ -7203,3 +7203,12 @@ Rest läuft):
 Sheet-Enum-Konsolidierung. **Geräte-Verify-Liste v278:** ownAUv3=true im Log,
 GarageBand/AUM zeigt "Echoelmusic", Restore überlebt Neustart, Puls-Hold 30 s,
 Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
+
+### Forts. 52b (Nacht, ~23:15): v278 DRAUSSEN + Gate-Rot geheilt
+- **v10.79.278 TestFlight success** (Run 29540567256) — inkl. erstem Lauf des neuen
+  AUv3-Embed-Beweis-Steps (appex + NSExtensionAttributes-Pfad + Identität maschinell
+  bestätigt). Morgen-Test: Neustart → GarageBand/AUM zeigt "Echoelmusic"?
+- `984d68c` (instantiate-Timeout) war ROT am Compile-Gate — exakt Reviewer-Finding #1
+  (roher resume mit non-Sendable AVAudioUnit). `0fd183f` (AVUnitBox + Retry-Retention
+  + Factory-UI-Teardown) heilte: beide Gates GRÜN. Ledger-Playbook notiert.
+- Nächster Punkt: #62 lane-gate-aware vertikale Clip-Move-Vorschau.
