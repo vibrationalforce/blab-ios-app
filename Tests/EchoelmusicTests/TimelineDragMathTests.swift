@@ -59,6 +59,45 @@ final class TimelineDragMathTests: XCTestCase {
         XCTAssertEqual(TimelineDragMath.laneShift(fromPoints: 85, laneHeight: 56), 2)
     }
 
+    // MARK: - Lane-gate-aware move preview (#56 MEDIUM #2)
+
+    /// Rows: 0 audio · 1 audio · 2 midi · 3 bio(midi). Mirrors TimelineStore's
+    /// acceptance: same kind + in bounds + not bio, else the shift is REFUSED (0)
+    /// and only the time move previews/commits.
+    private let gates: [TimelineDragMath.LaneGate] = [
+        .init(kind: .audio, isBio: false),
+        .init(kind: .audio, isBio: false),
+        .init(kind: .midi, isBio: false),
+        .init(kind: .midi, isBio: true),
+    ]
+
+    func testGatedLaneShift_allowsSameKindNeighbour() {
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: 56, laneHeight: 56, laneIndex: 0, gates: gates), 1)
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: -56, laneHeight: 56, laneIndex: 1, gates: gates), -1)
+    }
+
+    func testGatedLaneShift_refusesKindMismatch_outOfBounds_andBio() {
+        // audio → midi row: refused (preview must not seat where release rejects).
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: 112, laneHeight: 56, laneIndex: 0, gates: gates), 0)
+        // above the first row: out of bounds.
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: -56, laneHeight: 56, laneIndex: 0, gates: gates), 0)
+        // midi → bio(midi) row: same kind but bio is never a drop target.
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: 56, laneHeight: 56, laneIndex: 2, gates: gates), 0)
+        // unknown own index: defensive 0.
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: 56, laneHeight: 56, laneIndex: 9, gates: gates), 0)
+    }
+
+    func testGatedLaneShift_zeroRawStaysZero() {
+        XCTAssertEqual(TimelineDragMath.gatedLaneShift(
+            fromPoints: 10, laneHeight: 56, laneIndex: 0, gates: gates), 0)
+    }
+
     // MARK: - Trailing trim
 
     func testTrailingTrimPreview_snapsAndParityWithCommit() {

@@ -56,6 +56,34 @@ public enum TimelineDragMath {
         return Int((height / laneHeight).rounded())
     }
 
+    /// The drop-acceptance facts of one lane row, as plain VALUES so the region
+    /// leaf never reads the document during a drag (freeze law).
+    public struct LaneGate: Equatable, Sendable {
+        public let kind: ClipKind
+        public let isBio: Bool
+        public init(kind: ClipKind, isBio: Bool) {
+            self.kind = kind
+            self.isBio = isBio
+        }
+    }
+
+    /// Lane-GATE-aware row shift (#56 MEDIUM #2): the raw preview seated a clip
+    /// on ANY row — including ones `TimelineStore.moveRegion` refuses (kind
+    /// mismatch, out of bounds, bio lane) — so the clip visibly landed there and
+    /// JUMPED BACK at release. This mirrors the store's acceptance exactly:
+    /// a legal target returns the shift, everything else returns 0 (the store
+    /// keeps the lane and applies only the time move — preview == commit).
+    public static func gatedLaneShift(fromPoints height: CGFloat, laneHeight: CGFloat,
+                                      laneIndex: Int, gates: [LaneGate]) -> Int {
+        let raw = laneShift(fromPoints: height, laneHeight: laneHeight)
+        guard raw != 0, gates.indices.contains(laneIndex) else { return 0 }
+        let target = laneIndex + raw
+        guard gates.indices.contains(target),
+              gates[target].kind == gates[laneIndex].kind,
+              !gates[target].isBio else { return 0 }
+        return raw
+    }
+
     /// The horizontal preview delta (points) for a body move: the clip draws at
     /// the grid-snapped start tick its release will commit (`.off` = stepless,
     /// clamped ≥ 0 like the commit). Edge magnetism is commit-only (see header).

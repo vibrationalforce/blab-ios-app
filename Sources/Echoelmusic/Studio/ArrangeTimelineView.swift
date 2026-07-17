@@ -959,6 +959,13 @@ struct ArrangeTimelineView: View {
         // reports were a silent mixer state with no visual trace on the grid.
         // Document-level read: changes on mixer EDITS only, never at 10 Hz (freeze rule).
         let audible = lane.isBio || timeline.document.effectiveGain(for: lane.id) > 0
+        // #56 MEDIUM #2: the drop-acceptance facts as plain values for the region
+        // leaves (edit-frequency read here in the PARENT; the leaf never touches
+        // the document during a drag — freeze law).
+        let laneIndex = timeline.document.lanes.firstIndex(where: { $0.id == lane.id }) ?? 0
+        let laneGates = timeline.document.lanes.map {
+            TimelineDragMath.LaneGate(kind: $0.kind, isBio: $0.isBio)
+        }
         return ZStack(alignment: .topLeading) {
             // Bar lines + (zoomed in) lighter beat lines — the working grid a
             // DAW shows, mirroring the ruler's ticks (V3 design pass).
@@ -993,6 +1000,8 @@ struct ArrangeTimelineView: View {
                                             selectedRegions.insert(region.id)
                                         }
                                     },
+                                    laneIndex: laneIndex,
+                                    laneGates: laneGates,
                                     onEdit: { openRegionEditor(region) })
                 }
             }
@@ -1069,6 +1078,11 @@ private struct RegionBlockView: View {
     var selectMode: Bool = false
     var isSelected: Bool = false
     var onSelectToggle: () -> Void = {}
+    /// #56 MEDIUM #2: this clip's lane INDEX + every row's drop-acceptance facts,
+    /// as plain VALUES (never the document — freeze law), so the vertical move
+    /// preview seats only on rows the store will actually accept.
+    var laneIndex: Int = 0
+    var laneGates: [TimelineDragMath.LaneGate] = []
     /// Opens this region's editor (the parent owns the one sheet slot).
     let onEdit: () -> Void
 
@@ -1119,8 +1133,12 @@ private struct RegionBlockView: View {
             rawDeltaX: resizeDelta, lengthTicks: region.lengthTicks, ppb: ppb, snap: snap) : 0
         let moveX = isMoving ? TimelineDragMath.movePreviewDeltaX(
             rawDeltaX: moveDelta.width, startTick: region.startTick, ppb: ppb, snap: snap) : 0
-        let rowShift = isMoving ? TimelineDragMath.laneShift(fromPoints: moveDelta.height,
-                                                             laneHeight: laneHeight) : 0
+        // Gate-aware (#56 MEDIUM #2): a row the store refuses (kind mismatch /
+        // out of bounds / bio) previews as NO shift — release is a visual no-op
+        // instead of a jump-back.
+        let rowShift = isMoving ? TimelineDragMath.gatedLaneShift(
+            fromPoints: moveDelta.height, laneHeight: laneHeight,
+            laneIndex: laneIndex, gates: laneGates) : 0
         let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontX + moveX
         let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeW - frontX)
         let clip = clips.clip(id: region.clipID)
@@ -1310,7 +1328,13 @@ private struct RegionBlockView: View {
                 let deltaTicks = Int((value.translation.width / ppb
                                       * CGFloat(TimelineTime.ticksPerBeat)).rounded())
                 let rawStart = Swift.max(0, region.startTick + deltaTicks)
-                let laneShift = Int((value.translation.height / ArrangeTimelineView.laneHeight).rounded())
+                // Same gate as the live preview (parity: preview == commit) — an
+                // illegal vertical pull commits as a pure time move AND therefore
+                // correctly takes the same-lane edge-magnetism branch below.
+                let laneShift = TimelineDragMath.gatedLaneShift(
+                    fromPoints: value.translation.height,
+                    laneHeight: ArrangeTimelineView.laneHeight,
+                    laneIndex: laneIndex, gates: laneGates)
                 let committed: Int
                 if laneShift == 0 {
                     // C4 edge magnetism: within ~8 screen-points, the drop kisses a
