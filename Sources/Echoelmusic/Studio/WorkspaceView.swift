@@ -376,7 +376,12 @@ private struct TransportBar: View {
             let doc = timeline.document
             // Playable = a MIDI (roll) lane OR an audio lane exists (A1: a pure-audio
             // arrangement must sound too — the old rollLaneID-only check silenced it).
-            if doc.rollLaneID != nil || !doc.audioLaneIDs.isEmpty, !doc.regions.isEmpty {
+            // Founder v287/v288: `hasArrangementContent` (not the raw `!regions.isEmpty`)
+            // so the primary roll lane's auto-composer MIRROR — the new visible MIDI-clip
+            // tile Generate places — does NOT flip ▶ from the live bio-generative loop to
+            // a frozen region. Any real arrangement content still engages the arrangement.
+            if doc.rollLaneID != nil || !doc.audioLaneIDs.isEmpty,
+               doc.hasArrangementContent(isComposerOwned: { clips.clip(id: $0)?.composerOwned ?? false }) {
                 // CLIP-5: start at the PARKED playhead's bar (drag-then-play), not
                 // always bar 1. Read the position BEFORE play — pattern.play() →
                 // transport.play() zeroes it.

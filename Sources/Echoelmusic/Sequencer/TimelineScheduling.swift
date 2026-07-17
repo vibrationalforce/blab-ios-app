@@ -106,6 +106,23 @@ public extension TimelineDocument {
         lanes.filter { $0.kind == .audio && !$0.isBio }.map(\.id)
     }
 
+    /// Founder v287/v288 "Es wird kein midi Clip erzeugt": transport ▶ must engage
+    /// the ARRANGEMENT engine (TimelineRegionPlayer) only when there is arrangement
+    /// content BEYOND the primary roll lane's auto-composer mirror — the visible,
+    /// editable MIDI-clip tile that Generate now places on the roll lane. A project
+    /// whose ONLY region is that mirror still plays the LIVE bio-generative loop on ▶
+    /// (`pattern.play()`), so the core "the music evolves with the body" behaviour is
+    /// NEVER replaced by a frozen region. Any real arrangement content — a region on
+    /// a secondary lane, an audio/video region, or a USER (non-composer) clip on the
+    /// roll lane — engages the arrangement exactly as before. `isComposerOwned` maps a
+    /// clipID to its ownership (from ClipStore); an unknown clip counts as content.
+    func hasArrangementContent(isComposerOwned: (UUID) -> Bool) -> Bool {
+        let roll = rollLaneID
+        return regions.contains { region in
+            !(region.laneID == roll && isComposerOwned(region.clipID))
+        }
+    }
+
     /// The video lanes (in order) — each drives its own VideoLanePlayer (AVPlayer),
     /// mirroring `audioLaneIDs`. Read by the device-side player; pure/additive.
     var videoLaneIDs: [UUID] {

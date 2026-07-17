@@ -277,6 +277,13 @@ struct EchoelStudioView: View {
     /// lose menu identity on rebuild). The buttons only ever read it as `== nil`, so a Bool
     /// is equivalent and stops the re-seed churn.
     @State private var hasComposed = false
+    /// Founder v287/v288 "Es wird kein midi Clip erzeugt": true when the last user
+    /// Generate could NOT give the generated take its visible MIDI clip because the
+    /// 8-slot clip grid is full. Honest, VISIBLE feedback (never a silent no-op) —
+    /// the live sound is unaffected either way; only the clip TILE is withheld until
+    /// a slot frees. A plain low-frequency Bool (flips on a user Generate), read only
+    /// in a small leaf Text, never near a `.menu` (freeze rule).
+    @State private var composerClipGridFull = false
     /// Ever-advancing evolution counter folded into every seed so the composition
     /// keeps developing and never repeats, even when the body holds steady.
     @State private var evolution: UInt64 = 0
@@ -3086,6 +3093,15 @@ struct EchoelStudioView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if composerClipGridFull {
+                // Founder v287/v288: the generated take could not get its own MIDI clip
+                // because the 8-slot clip grid is full. Honest + visible (the sound still
+                // plays) — mirror of the Arrange track panel's gridFullWarning.
+                Text("Clip grid full (\(ClipStore.slotCount) slots) — clear a slot so the generated take can get its own MIDI clip on the timeline.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             loopLengthSelector
             Button { Task { await exportWav() } } label: {
                 Label(exportLabel, systemImage: exportIcon)
@@ -3863,6 +3879,16 @@ struct EchoelStudioView: View {
         // nothing and today's take stays bit-identical. Every re-seed path funnels
         // through generate(), so evolve ticks refresh the lane takes too.
         applyLaneOverrides(input: input)
+        // FOUNDER v287/v288 "Es wird kein midi Clip erzeugt": make the generated take a
+        // VISIBLE, editable MIDI clip on the PRIMARY roll lane's timeline. Purely
+        // ADDITIVE — the live-loop path above (pattern.play + pianoRoll.loadArrangement)
+        // is untouched and still drives the sound; this only MIRRORS the same finished
+        // bars into a composer-OWNED clip+region so a tile shows on the Arrange
+        // timeline, the clip is editable, and every Evolve keeps rewriting it (ownership
+        // = composerOwned, so a re-seed may fortschreiben the take but never a user clip).
+        // `startTransport` is the user's OWN Generate — only that creates the clip once;
+        // background evolve re-seeds only feed the existing one (no duplicate, no undo spam).
+        syncPrimaryRollClip(bars: bars, createIfNeeded: startTransport)
         // GENRE DRUMS (audit B5, founder 2026-07-04 "Weiter mit B4/B5"): load the
         // composer's groove — every beat-driven genre carries its defining rhythm
         // (four-on-floor/backbeat/offbeat/half-time archetypes + the dub/trap
@@ -3991,6 +4017,48 @@ struct EchoelStudioView: View {
                 log.log(.info, category: .audio,
                         "Lane override take: \(glued.count) notes → lane \(laneID.uuidString.prefix(8)) (\(genre.rawValue))")
             }
+        }
+    }
+
+    /// Founder v287/v288 "Es wird kein midi Clip erzeugt": mirror the just-composed
+    /// loop into the PRIMARY roll lane's composer-OWNED clip, so the generated take
+    /// shows as a visible + editable MIDI clip on the Arrange timeline. The primary
+    /// roll lane = the FIRST non-bio MIDI lane (same ownership rule as
+    /// `TimelineDocument.rollSlotGain` / `rollLaneID`).
+    ///
+    /// OWNERSHIP DECISION (Council-Skeptic): `composerOwned == true`. Generate CREATES
+    /// the clip and the user may edit it (the H11 clip editor writes via
+    /// `updateMelody`, which is ownership-agnostic), but every Evolve is allowed to
+    /// FORTSCHREIBEN it — exactly the founder's model "Generate erzeugt, Evolve
+    /// entwickelt weiter". A user-captured/imported clip on the lane stays untouched:
+    /// `updateComposerMelody` refuses any non-composer clip (the never-clobber law).
+    ///
+    /// - `createIfNeeded` (the user's OWN Generate, `startTransport == true`) lazily
+    ///   creates the clip+region ONCE via `ensureComposerRegion` (idempotent — repeat
+    ///   Generates add nothing, no undo spam). A full 8-slot grid ⇒ honest VISIBLE
+    ///   flag; the live sound is unaffected.
+    /// - Background evolve re-seeds (`false`) only FEED the existing clip, so the
+    ///   visible tile always carries the latest take.
+    ///
+    /// Additive to the silence-critical generate path — never starts/stops the
+    /// transport, never touches the audio thread. @MainActor generate-time only.
+    private func syncPrimaryRollClip(bars: [[Note]], createIfNeeded: Bool) {
+        guard let laneID = timelineStore.document.lanes
+                .first(where: { $0.kind == .midi && !$0.isBio })?.id else { return }
+        if createIfNeeded {
+            // true when a composer region already exists (idempotent) OR was created;
+            // false ONLY on a full grid — the one honest, visible failure.
+            composerClipGridFull = !timelineStore.ensureComposerRegion(
+                for: laneID, clipStore: clipStore, loopBars: max(1, loopBars.rawValue))
+        }
+        // Flatten the loop's per-bar (bar-relative) notes into clip-absolute ticks so
+        // RegionNoteWindow.barSlices reproduces exactly these bars on region playback.
+        let flat = MelodyClip.flatten(loopBars: bars)
+        let windowTicks = max(1, loopBars.rawValue) * TimelineTime.ticksPerBar
+        for region in timelineStore.document.regions(in: laneID)
+        where region.startTick < windowTicks {
+            // Ownership guard lives in the store — a user clip returns false, untouched.
+            _ = clipStore.updateComposerMelody(id: region.clipID, notes: flat)
         }
     }
 

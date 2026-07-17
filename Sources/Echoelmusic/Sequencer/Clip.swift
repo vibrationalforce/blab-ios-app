@@ -19,6 +19,28 @@ public struct DrumPattern: Codable, Sendable, Equatable {
 public struct MelodyClip: Codable, Sendable, Equatable {
     public var notes: [Note]
     public init(notes: [Note]) { self.notes = notes }
+
+    /// Founder v287/v288 "Es wird kein midi Clip erzeugt": flatten a loop's per-bar
+    /// (bar-relative) note arrays into ONE clip-absolute note array — bar `b`'s notes
+    /// shifted by `b × ticksPerBar` — so the generative take can be MIRRORED into a
+    /// composer-owned MIDI clip that shows + edits on the arrange timeline. This is
+    /// the exact inverse of `RegionNoteWindow.barSlices` (the region player's
+    /// windowing), so the placed clip plays back the identical bars. Pure + lossless:
+    /// a plain tick shift preserves every note field (velocity / role / operators /
+    /// mpe). Foundation-only → unit-tested on Linux CI (lives here, not on the
+    /// SwiftUI-gated studio view, so the pure test compiles without SwiftUI).
+    public static func flatten(loopBars bars: [[Note]]) -> [Note] {
+        var out: [Note] = []
+        for (barIndex, bar) in bars.enumerated() {
+            let offset = barIndex * TimelineTime.ticksPerBar
+            for note in bar {
+                var shifted = note
+                shifted.startTick = note.startTick + offset
+                out.append(shifted)
+            }
+        }
+        return out
+    }
 }
 
 /// What a clip carries. The DMMW main view is a clip-typed timeline (audio · MIDI ·
