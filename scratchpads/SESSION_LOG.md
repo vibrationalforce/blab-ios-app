@@ -7230,3 +7230,18 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   raus aus dem Drag-Frame-Body, .task(id:)-Cache; Review APPROVE, 2 LOWs notiert:
   optionales Off-Main-Resolve + A11y-Hint-First-Frame) — 4 Gates grün. Jitter-Audit
   damit autonom KOMPLETT (offen nur C3 device-gated + C6/C7 gegen Founder-Aufnahme).
+
+### Forts. 54 (01:25–02:00): #58 S6 — Per-Note-MPE-Seam GRÜN (Council: proceed)
+- `440005d` **NoteMPE** am Note-Modell (bend ±1 / slide / pressure 0…1, operators-
+  Muster: decodeIfPresent + encodeIfPresent, plain Note = byte-identische JSON) +
+  `MPEExpression.merging` (pure: gesetzte Dimension gewinnt über Bio, ungesetzte
+  fallen durch; neutral-Basis Slide 64/Press 0/Bend 0) + trigger-Mix pro Note
+  (5D-Gate unverändert). 10 Tests (NoteMPETests).
+- `d5128c2` Audio-Review-MEDIUM: **5D-Kanal-Reset** — bei armiertem 5D sendet JEDE
+  Note-On ihre Dimensionen (.neutral wenn keine), sonst erbt eine Note den Bend
+  der Vorgänger-Note auf ihrem Member-Channel (extern hörbar verstimmt). Plus
+  Decode durch den Clamping-Init.
+- `c3d7dbe` Code-Review-LOWs: non-finite ⇒ UNSET statt Vollausschlag (NaN-Gesetz)
+  + Init-Doc. Beide Reviewer konvergierten unabhängig auf den Decode-Clamp.
+- Gates: Tip c3d7dbe 4/4 grün. **Noch nicht bedienbar** — S6b (UI-Tür im Roll-
+  Inspector) ist der nächste Slice; erst dann founder-erlebbar.
