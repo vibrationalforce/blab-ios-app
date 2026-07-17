@@ -95,6 +95,42 @@ final class WSOLAStretcherTests: XCTestCase {
                              "allocated tail must carry signal, not silence")
     }
 
+    // MARK: - Multichannel coherence (timeline-executor prep: mono-downmix search)
+
+    func testMultichannel_channelsStayPhaseLocked() {
+        // Both reviews flagged independent per-channel searches: different chosen
+        // offsets per channel decorrelate L/R (image smear on stereo drums). The
+        // multichannel API searches ONCE on a mono downmix and applies the SAME
+        // offsets everywhere. Pin it with an exact linear relation: R = 0.5·L on
+        // input ⇒ R = 0.5·L on output, sample for sample (identical offsets make
+        // the processing identical up to the scalar).
+        let left = sine(hz: 440, seconds: 0.5)
+        let right = left.map { $0 * 0.5 }
+        let out = WSOLAStretcher().stretchMultichannel([left, right], rate: 0.5)
+        XCTAssertEqual(out.count, 2)
+        XCTAssertEqual(out[0].count, out[1].count, "channel lengths must match")
+        for i in stride(from: 0, to: out[0].count, by: 7) {
+            XCTAssertEqual(out[1][i], out[0][i] * 0.5, accuracy: 1e-4,
+                           "sample \(i): offsets must be shared across channels")
+        }
+        // And the stretch itself still happened (duration law).
+        XCTAssertEqual(Double(out[0].count), Double(left.count) / 0.5,
+                       accuracy: Double(left.count) * 0.08)
+    }
+
+    func testMultichannel_degenerateInputs_failQuiet() {
+        let s = WSOLAStretcher()
+        XCTAssertTrue(s.stretchMultichannel([], rate: 0.5).isEmpty)
+        // Mismatched channel lengths: passthrough unchanged (fail quiet).
+        let a: [Float] = sine(hz: 220, seconds: 0.2)
+        let b: [Float] = Array(a.dropLast(100))
+        let out = s.stretchMultichannel([a, b], rate: 0.5)
+        XCTAssertEqual(out[0], a)
+        XCTAssertEqual(out[1], b)
+        // Mono input behaves exactly like stretch().
+        XCTAssertEqual(s.stretchMultichannel([a], rate: 2.0)[0], s.stretch(a, rate: 2.0))
+    }
+
     func testOutputLevel_isSane_noWindowingGapsOrDoubling() {
         // Hann 50% overlap-add is constant-gain; the similarity search must not
         // tear that apart: RMS of the stretched sine stays near the input RMS

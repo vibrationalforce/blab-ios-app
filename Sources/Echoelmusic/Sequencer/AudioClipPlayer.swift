@@ -175,8 +175,9 @@ public final class AudioClipPlayer {
             node.stop()
             isPlaying = true    // pending: the button reads "playing" while it renders
             Task.detached(priority: .userInitiated) { [weak self] in
-                let stretcher = WSOLAStretcher()
-                let rendered = inputs.map { stretcher.stretch($0, rate: rate) }
+                // Multichannel: ONE similarity search on the mono downmix, same
+                // offsets on every channel — L/R stay phase-locked (both reviews).
+                let rendered = WSOLAStretcher().stretchMultichannel(inputs, rate: rate)
                 await self?.scheduleStretched(rendered, region: region, generation: generation)
             }
             return
