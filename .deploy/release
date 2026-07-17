@@ -1,30 +1,32 @@
-build: 2026-07-17 v10.79.280 (Oktaver komplett + MPE-Tür + Triolen-Q + AUv3-Selbstdiagnose) [retry 2: Type-Check-Budget-Fix RegionBlockView]
+build: 2026-07-17 v10.79.281 (Spur=Instrument HÖRBAR + Beats auf der Timeline + Musik-Identität im Header)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Antwort auf den Morgen-Test-Log (v279/2385) — danke, der Log war Gold wert.
+notes: Direkte Antwort auf deine Nachricht ("Es funktioniert noch nichts … lockere
+  zu dogmatische Grenzen"). Verstanden — und umgesetzt, ab diesem Build:
 
-  WAS DEIN LOG GEZEIGT HAT: Launch gesund, Puls-Lock exzellent (BPM 67-68,
-  Konfidenz bis 0.97 — die Kette hält), Instrument spielt. ABER ownAUv3
-  weiter false. Serverseitig verifiziert: die AUv3-Extension IST korrekt
-  im Build 2385 eingebettet (Archiv-Check grün, Registrierungsstruktur
-  korrekt). Das Problem liegt auf dem Gerät — dieser Build sagt dir WO:
+  1) SPUR = INSTRUMENT KLINGT JETZT ECHT: Weise einer Spur "EchoelDrums"
+     oder "EchoelBass" zu → sie klingt ab sofort WIRKLICH nach Drum-Kit
+     bzw. Mono-Sub (vorher: nur Name+Icon änderten sich, der Klang blieb
+     immer derselbe Poly-Synth — das war dein "funktioniert nicht", und
+     es lag an einer selbstauferlegten Sicherung, die niemand je
+     freischalten konnte. Die Sicherung ist jetzt gelöst.) Ehrlich:
+     EchoelSampler + Bio-Voice fallen noch auf den Poly-Synth zurück —
+     deren eigene Stimmen sind die nächsten Zyklen.
 
-  1) AUv3-SELBSTDIAGNOSE: Wenn die eigene AUv3 nach allen Scan-Retries
-     fehlt, versucht die App sie EINMAL direkt zu instanziieren. Im Log
-     steht dann eine von zwei Zeilen: "self-probe: INSTANTIATE OK"
-     (= Registry liefert sie, nur die Liste ist kalt) oder "self-probe:
-     FAILED …#-3000" (= iOS hat sie nicht registriert → iPhone NEU
-     STARTEN, dann GarageBand öffnen — das ist der bekannte iOS-Weg).
-     → Bitte: neuen Log nach einem Geräte-Neustart schicken.
+  2) WARP "BEATS" AUF DER TIMELINE: Audio-Clips mit Charakter "Beats"
+     spielen jetzt auch im Arrangement transient-fest (eigener
+     WSOLA-Kern, beim Laden vor-gerendert). Randfälle fallen ehrlich
+     auf Clean zurück — nie Stille.
 
-  2) OKTAVER (dein Wunsch "transpose detune und Oktaver" — jetzt komplett):
-     Im Spur-Editor neben Detune gibt es "Octave" (−1/0/+1): dopplet jede
-     Note dieser Spur eine Oktave tiefer/höher (halbe Lautstärke, folgt
-     Slides). Wird mit dem Song gespeichert.
+  3) MUSIK-IDENTITÄT IM HEADER: Tonart · Genre · Skala · Kammerton +
+     Session-Name sitzen jetzt als kompakte Zeile im Kopf — die
+     Comp/Session-Chips darunter sind aufgelöst (weniger Ebenen,
+     mehr Direktheit). Tempo-Werkzeuge + Ort/Wetter hinter "•••".
 
-  3) PIANO-ROLL: MPE pro Note (Bend/Slide/Pressure im Inspector, wirkt
-     auf MIDI-Out an externe Synths) + Triolen-Quantize im Q-Menü
-     (1/8T, 1/16T) + Menü friert beim Playback nicht mehr ein.
+  4) AUv3-Selbstdiagnose aus v280 ist weiter drin — bitte weiterhin:
+     iPhone einmal NEU STARTEN, dann einen frischen Log schicken
+     (die "self-probe:"-Zeile sagt uns, welcher der zwei Wege es ist).
 
-  4) AUDIO-CLIP-EDITOR: Warp-Charakter "Beats" ist jetzt HÖRBAR in der
-     Vorschau (transient-fest, eigener WSOLA-Kern). Timeline spielt
-     vorerst weiter Clean — ehrlich beschriftet.
+  ARBEITSMODUS AB JETZT (dein Mandat): größere zusammenhängende
+  Schnitte statt Mini-Schritte, jede grüne Runde geht sofort zu dir
+  aufs Gerät, und "gebaut-aber-abgeschaltet" gibt es nicht mehr —
+  was gebaut ist, wird hörbar/sichtbar gemacht oder fliegt raus.

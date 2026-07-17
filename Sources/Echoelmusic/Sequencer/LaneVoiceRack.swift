@@ -14,7 +14,8 @@
 // start law); the render/graph correctness is device-verified before the flag flips.
 //
 // S2-W2-3 (dissolution, "Spur = Instrument"): the rack is now a FACADE over a
-// heterogeneous pool — behind FeatureFlags.voiceKindRouting (default OFF) it also
+// heterogeneous pool — behind FeatureFlags.voiceKindRouting (registration-ON
+// since 2026-07-17; dev-OFF override stays the rollback lever) it also
 // carries 1 LaneDrumKitVoice + 1 dedicated lane SubBassVoice, and the pure
 // KindVoiceAllocator binds each rank slot's KIND to a physical voice. Rank slots
 // stay the authoritative contract everywhere else; only the routing INSIDE this

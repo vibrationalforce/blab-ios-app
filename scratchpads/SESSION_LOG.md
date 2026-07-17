@@ -7421,3 +7421,24 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   `.echoelCompositionEdited`-Post nötig (das Leaf ist ein READOUT, kein
   Control; Place/Wetter-Edits behalten ihre In-Panel-Side-Effects). Code
   verbatim verschoben; kein lokaler Build (CI kompiliert), konservativ.
+
+## 2026-07-17 Forts. 64 — ECHTE Founder-Nachricht #2: "Es funktioniert noch nichts" → Modus-Wechsel + v281
+- Founder schickte ein Reel (sebastiankauffmann über Claude-Code-Systeme: "nicht
+  rumprobieren, Systeme bauen" — Hooks/Skills/MCP/fertige Workflows) + die Ansage:
+  nichts funktioniert, besprochene Änderungen fehlen, nicht auf der Stelle treten,
+  zu dogmatische Grenzen lockern.
+- Analyse: dominanter Fehlermodus = "gebaut-aber-abgeschaltet" (Baustellen-Ledger #7:
+  Instrument-Zuweisung ändert Name+Icon, nie den Klang — LaneVoiceRack-Kind-Routing
+  (Kit+Sub) war KOMPLETT GEBAUT hinter voiceKindRouting default-OFF "bis S2-W2-7
+  Geräte-Verify" — ein Deadlock, da kein Flag-UI existiert; multiRoll-Präzedenz-
+  Kommentar benennt genau das).
+- Umgesetzt: voiceKindRouting Registration-ON (EchoelmusicApp neben multiRoll;
+  FeatureFlags+LaneVoiceRack-Doku ehrlich nachgezogen; Sampler/BioVoice = ehrlicher
+  Poly-Fallback bis deren Einheiten kommen). decisions.csv + memory/decisions.md:
+  Arbeitsmodus gelockert (integrierte Slices, jede grüne Runde deployt, kein
+  gebaut-aber-abgeschaltet; Hard-Laws bleiben). v10.79.281 deployt: Kind-Routing
+  hörbar + Timeline-Beats + Header-Identität (2b/2c) — der aufgestaute Branch-Stand
+  geht komplett aufs Gerät.
+- Nächste integrierte Slices (Reihenfolge nach Hörbarkeit): SamplerVoice-Einheit in
+  den Rack (Menü-Ehrlichkeit), ModulationMatrix-Default-Route + Editor-Tür (#4),
+  per-Lane-Composition Cycle A (#3), VocoderCore Input-Hälfte (#5).

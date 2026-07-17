@@ -643,3 +643,28 @@ Architectural and strategic decisions with context and rationale.
   dem Klangpfad = das eigentliche Risiko, nicht ein einzelnes Feature.
 - **Deferred:** #36 Oktaver (audio-thread-Zyklus), #61 EEG (Hardware unterwegs), #59/#51
   (net-new, bio-first pre-launch).
+
+---
+
+### 2026-07-17 ARBEITSMODUS GELOCKERT (Founder-Verdikt) + "gebaut-aber-abgeschaltet" beendet
+- **Founder (verbatim-Kern):** "Es funktioniert noch nichts und viele Änderungen wurden
+  besprochen aber nicht umgesetzt. … Vermeide es auf der Stelle zu treten und lockere
+  zu dogmatische Grenzen die wir uns anfangs gesetzt haben." (+ Reel über Claude-Code-
+  Systeme: nicht rumprobieren, Systeme bauen.)
+- **Diagnose:** Der dominante Fehlermodus war NICHT fehlender Code, sondern
+  "gebaut-aber-abgeschaltet/nicht-verdrahtet" (Baustellen-Ledger 2026-07-14):
+  fertige Fähigkeiten hinter Default-OFF-Flags mit "erst Geräte-Verify"-Gates,
+  die der Founder nie auslösen KONNTE (kein Flag-UI) — ein Deadlock. Dazu
+  Ein-Punkt-Ralph-Zyklen, die einzeln grün, aber als Ganzes tretend wirkten.
+- **Beschlüsse (gelten ab sofort):**
+  1. **voiceKindRouting DEFAULT-ON** (Registration wie multiRoll/laneAUInstruments):
+     Drums-/Sub-Bass-Spuren klingen echt. Rollback-Hebel bleibt.
+  2. **Integrierte Schnitte statt Ein-Punkt-Zyklen:** pro Zyklus ein ganzer
+     hörbarer/fühlbarer User-Weg (die Max-3-Dateien-Regel fällt für kohärente
+     Slices). Reviews bleiben, gebündelt pro Slice.
+  3. **Jede grüne Runde deployt** — kein Aufstauen bis "Profi-Milestone".
+  4. **Kein "gebaut-aber-abgeschaltet" mehr:** was fertig ist, wird hörbar/sichtbar
+     gemacht (Registration-ON, Tür einbauen) oder explizit als dormant markiert.
+  5. **NICHT gelockert (Physik/Sicherheit, kein Dogma):** Audio-Thread-Gesetze,
+     Rausch-Triade READ-ONLY, Flash ≤3 Hz, keine Heilversprechen, Sheet-Ketten-
+     Decke, 10-Hz-Freeze-Regel, keine neuen Dependencies ohne Ask.

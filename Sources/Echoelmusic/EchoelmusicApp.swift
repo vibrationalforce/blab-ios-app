@@ -436,6 +436,16 @@ struct EchoelmusicApp: App {
                 // multiRoll (risk activates only through the explicit assign act;
                 // dev-OFF override stays the one-line rollback lever).
                 UserDefaults.standard.register(defaults: [FeatureFlags.Key.laneAUInstruments.rawValue: true])
+                // S2-W2 kind routing DEFAULT-ON (founder verdict 2026-07-17: "Es
+                // funktioniert noch nichts … lockere zu dogmatische Grenzen"): a
+                // drums/sub-bass track now actually SOUNDS like its instrument. The
+                // old "OFF until device verify" gate was a deadlock — the founder
+                // cannot verify a path he has no way to switch on (same rationale
+                // that made multiRoll/laneAUInstruments registration-ON). Risk
+                // activates only through the explicit act of assigning a drums/sub
+                // instrument to a track; `FeatureFlags.set(.voiceKindRouting, false)`
+                // stays the one-line rollback lever. NEVER delete the OFF branches.
+                UserDefaults.standard.register(defaults: [FeatureFlags.Key.voiceKindRouting.rawValue: true])
                 // Breadcrumbs at every STARTUP milestone: this is the most crash-prone
                 // window (the build-1363 hot-attach + audio-engine start). They land in
                 // the shared diagnostic log, so a launch that dies here names the phase

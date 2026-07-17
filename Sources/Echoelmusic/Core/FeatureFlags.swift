@@ -58,11 +58,14 @@ public enum FeatureFlags {
         case laneAUInstruments = "feature.laneAUInstruments"
         /// S2-W2 ("Spur = Instrument"): heterogeneous rack voices — a drums lane
         /// plays a LaneDrumKitVoice, a sub-bass lane a dedicated SubBassVoice,
-        /// bound at the rack boundary by the pure KindVoiceAllocator. Default
-        /// **OFF** (absent key = false; Release bit-identical: attachAll creates
-        /// zero kind units, the allocator resolves every slot to poly — exactly
-        /// today's sound). Flips to registration-ON only after the S2-W2-7
-        /// device verify. NEVER delete the OFF branches.
+        /// bound at the rack boundary by the pure KindVoiceAllocator. DEFAULT-ON
+        /// since 2026-07-17 (registered true at EchoelmusicApp startup — founder
+        /// verdict: the OFF-until-device-verify gate was a deadlock, since no UI
+        /// exposes the flag; risk activates only through the explicit act of
+        /// assigning a drums/sub instrument to a track). Sampler/bioVoice kinds
+        /// still resolve to poly (honest allocator fallback) until their units
+        /// ship. `FeatureFlags.set(.voiceKindRouting, false)` is the one-line
+        /// rollback lever. NEVER delete the OFF branches.
         case voiceKindRouting  = "feature.voiceKindRouting"
     }
 
