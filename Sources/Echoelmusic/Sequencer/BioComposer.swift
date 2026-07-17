@@ -157,6 +157,16 @@ public enum BioComposer {
         /// the body does the rest. `false` (default) keeps today's path
         /// byte-identical (Golden law — pinned in BioComposerVoiceLeadingTests).
         public var voiceLeading: Bool
+        /// H3 HRV-humanize switch (PLAN_HARMONY_CORE.md): `true` adds a FINAL
+        /// velocity micro-variability stage drawn from the player's REAL heart
+        /// rate variability — jitter amplitude = hrvNormalized · ±12% (see
+        /// `hrvHumanize`), so a variable heart loosens the take and a rigid one
+        /// leaves it machine-tight ("the body humanizes its own pattern"). KEIN
+        /// Zufalls-Humanize: deterministic per seed + note index, hrv 0 ⇒ exactly
+        /// zero jitter. Distinct from `mood.humanize` (the stylistic feel dial,
+        /// untouched) — this stage is ADDITIVE and opt-in. `false` (default)
+        /// keeps today's path byte-identical (pinned in BioComposerHumanizeTests).
+        public var humanize: Bool
 
         public init(
             heartRateBPM: Float = 70,
@@ -172,7 +182,8 @@ public enum BioComposer {
             seed: UInt64 = 0x5EED,
             structureSeed: UInt64? = nil,
             progressionPhase: Int = 0,
-            voiceLeading: Bool = false
+            voiceLeading: Bool = false,
+            humanize: Bool = false
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -188,6 +199,7 @@ public enum BioComposer {
             self.structureSeed = structureSeed
             self.progressionPhase = progressionPhase
             self.voiceLeading = voiceLeading
+            self.humanize = humanize
         }
     }
 
@@ -362,6 +374,43 @@ public enum BioComposer {
         }
     }
 
+    /// H3 (PLAN_HARMONY_CORE.md): maximum HRV-humanize velocity depth — at full
+    /// vagal tone (hrvNormalized 1) a note's velocity may swing up to ±12%.
+    /// Tested law (BioComposerHumanizeTests): jitter amplitude = hrv · this depth,
+    /// so hrv 0 ⇒ EXACTLY zero jitter. Kept small — micro-variability, not swing.
+    static let hrvHumanizeDepth: Float = 0.12
+
+    /// Seed salt for the H3 stream ("HRVHUMNZ" in ASCII): XOR-derived from the
+    /// take seed WITHOUT consuming either RNG stream (H1 wiring discipline), and
+    /// decorrelated from `humanizeVelocity`'s per-note streams (which mix the
+    /// raw seed) so the two stages never share a jitter sequence.
+    static let hrvHumanizeSeedSalt: UInt64 = 0x4852_5648_554D_4E5A
+
+    /// H3 HRV-HUMANIZE — the body humanizes its own pattern. A FINAL, opt-in
+    /// per-note velocity micro-variability stage whose AMPLITUDE is the player's
+    /// real heart rate variability: span = hrvNormalized · `hrvHumanizeDepth`.
+    /// A variable heart (high RMSSD → high hrvNormalized) loosens the take like a
+    /// relaxed player; a rigid heart leaves it machine-tight. NOT random-humanize:
+    /// deterministic per (seed, note index) via the same golden-ratio per-note
+    /// SeededRNG derivation as `humanizeVelocity` (own salted stream, no draws
+    /// consumed from the compose streams), and hrv 0 returns the notes UNTOUCHED.
+    /// Velocity clamped to the musical [0.05, 1] window; pitch/timing/role are
+    /// never touched (Slice 1 is velocity-only — the live trigger clock is
+    /// step-quantized, see `PianoRollModel.trigger`, so tick offsets would be
+    /// inaudible in-app; a timing slice waits for the sub-step clock). Pure.
+    static func hrvHumanize(_ notes: [Note], hrvNormalized: Float, seed: UInt64) -> [Note] {
+        let span = clamp01(hrvNormalized) * hrvHumanizeDepth
+        guard span > 0 else { return notes }         // hrv 0 ⇒ exactly zero jitter
+        let salted = seed ^ hrvHumanizeSeedSalt
+        return notes.enumerated().map { idx, note in
+            var rng = SeededRNG(seed: salted &+ (UInt64(bitPattern: Int64(idx + 1)) &* 0x9E3779B97F4A7C15))
+            let v = rng.unit() * 2 - 1               // -1…1
+            var n = note
+            n.velocity = min(max(note.velocity * (1 + v * span), 0.05), 1)
+            return n
+        }
+    }
+
     /// MOTIF CONTOUR (Cycle 3, "singt statt noodelt"). Per-note scale-step deltas
     /// for a melodic line that STATES a short seeded cell, then RESTATES it as a
     /// varied answer (statement→answer / call-and-response), and RESOLVES back toward
@@ -521,12 +570,17 @@ public enum BioComposer {
             }
         }
 
+        // Shape the bar's dynamics (metric accent + swell) so the whole texture breathes,
+        // THEN add the seeded humanize jitter on top — flat loops read as unprofessional.
+        let shaped = humanizeVelocity(
+            shapeBarDynamics(notes, depth: Self.dynamicDepth, stepCount: stepCount),
+            amount: input.mood.humanize, seed: input.seed)
         return BioComposition(
-            // Shape the bar's dynamics (metric accent + swell) so the whole texture breathes,
-            // THEN add the seeded humanize jitter on top — flat loops read as unprofessional.
-            notes: humanizeVelocity(
-                shapeBarDynamics(notes, depth: Self.dynamicDepth, stepCount: stepCount),
-                amount: input.mood.humanize, seed: input.seed),
+            // H3 (opt-in): the body's OWN heart rate variability as the final
+            // micro-variability stage — off (default) is byte-identical to `shaped`.
+            notes: input.humanize
+                ? hrvHumanize(shaped, hrvNormalized: input.hrvNormalized, seed: input.seed)
+                : shaped,
             drumSteps: drumSteps,
             drumAccents: drumAccents,
             suggestedTempo: playTempo
