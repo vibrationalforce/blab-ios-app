@@ -78,6 +78,10 @@ struct EchoelStudioView: View {
     @Environment(MetronomeVoice.self) private var metronome
     /// #22 follow-up: Start heals a silenced roll slot (founder log v255).
     @Environment(TimelineStore.self) private var timelineStore
+    /// Per-lane composition Slice A: the composer writes an override lane's take
+    /// into that lane's composer-OWNED clip (never a user clip). Read only inside
+    /// `generate()` — never in `body` (no observation churn).
+    @Environment(ClipStore.self) private var clipStore
     // The one shared transport. Read ONLY via `.onChange(of: transport.isPlaying)` (a
     // LOW-frequency flag — flips on play/stop, never 10 Hz) so the global transport bar's
     // Stop can end the whole bio session; NOT read in `body` (freeze rule).
@@ -3836,6 +3840,14 @@ struct EchoelStudioView: View {
         // it's present before playback starts. The cycler advances one bar per loop, in sync
         // with the transport's "bar N/M" indicator.
         pianoRoll.loadArrangement(bars, playing: running && beatPlayer.pattern.isPlaying)
+        // Per-lane composition Slice A (founder 2026-07-17 "Genre, Sound, Mix, FX,
+        // Mood, Synth kommt alles in ein Instrument"): AFTER the primary take, fan
+        // out to every override-carrying SECONDARY MIDI lane with the SAME input
+        // (pre bar-loop mutations — shared skeleton = cohesion). Writes are gated
+        // to composer-OWNED clips only; no overrides anywhere ⇒ this composes
+        // nothing and today's take stays bit-identical. Every re-seed path funnels
+        // through generate(), so evolve ticks refresh the lane takes too.
+        applyLaneOverrides(input: input)
         // GENRE DRUMS (audit B5, founder 2026-07-04 "Weiter mit B4/B5"): load the
         // composer's groove — every beat-driven genre carries its defining rhythm
         // (four-on-floor/backbeat/offbeat/half-time archetypes + the dub/trap
@@ -3912,6 +3924,59 @@ struct EchoelStudioView: View {
         // gated off (PianoRollView:529 `laneAudible`) → total silence even though notes
         // generate + the transport plays. Logging it makes the cause pastable.
         EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain))")
+    }
+
+    /// Per-lane composition fan-out (Slice A): compose each override-carrying
+    /// SECONDARY MIDI lane in its own genre/mood/variation against the SAME body
+    /// input as the primary take (LaneComposerInput pins the shared skeleton →
+    /// same piece, different voice), then write each result ONLY into a
+    /// composer-OWNED clip that lane places inside the active loop window.
+    ///
+    /// OWNERSHIP LAW (Council-Skeptic): `ClipStore.updateComposerMelody` refuses
+    /// any clip with `composerOwned == false`, so a user-captured/imported clip
+    /// can never be clobbered by an automatic re-seed. A lane with an override
+    /// but no composer-owned region simply stays as-is — CREATING the
+    /// composer-owned clip+region is the track panel's explicit act (Slice A2);
+    /// generate() never invents regions (and never touches the region undo
+    /// history). @MainActor generate-time only — never the audio thread.
+    private func applyLaneOverrides(input: BioComposer.Input) {
+        let doc = timelineStore.document
+        let rollLaneID = doc.lanes.first(where: { $0.kind == .midi && !$0.isBio })?.id
+        let overrides = LaneComposerInput.composeLaneOverrides(base: input,
+                                                               lanes: doc.lanes,
+                                                               rollLane: rollLaneID)
+        guard !overrides.isEmpty else { return }
+        // The generative instrument cycles bars 0..<loopBars — the active window.
+        let windowTicks = max(1, loopBars.rawValue) * TimelineTime.ticksPerBar
+        for (laneID, notes) in overrides {
+            // Same mix glue the primary take's finish() applies, but with THIS
+            // lane's genre (its override) so its roles balance like that style.
+            let genre = doc.lanes.first(where: { $0.id == laneID })?.genreOverride ?? style
+            let mix = genre.mixLevels
+            let glued = notes.map { n -> Note in
+                var m = n
+                let genreF: Float
+                switch n.role {
+                case .bass:    genreF = mix.bass
+                case .lead:    genreF = mix.lead
+                case .harmony: genreF = mix.harmony
+                }
+                let f = MixerStore.combined(genre: genreF, user: mixer.level(for: n.role))
+                m.velocity = min(1, max(0, n.velocity * f))
+                return m
+            }
+            var wrote = false
+            for region in doc.regions(in: laneID) where region.startTick < windowTicks {
+                // Ownership guard lives in the store — a user clip returns false.
+                if clipStore.updateComposerMelody(id: region.clipID, notes: glued) {
+                    wrote = true
+                }
+            }
+            if wrote {
+                log.log(.info, category: .audio,
+                        "Lane override take: \(glued.count) notes → lane \(laneID.uuidString.prefix(8)) (\(genre.rawValue))")
+            }
+        }
     }
 
     // MARK: - Variation maze (#19)

@@ -65,6 +65,25 @@ public final class ClipStore {
         return true
     }
 
+    /// Per-lane composition Slice A: the COMPOSER's write-back — like
+    /// `updateMelody` (whole-value write, next-onset audibility) but hard-gated
+    /// on `Clip.composerOwned`, so an automatic generate/evolve can rewrite ONLY
+    /// clips the composer itself created for a lane's override take. A
+    /// user-captured/imported clip (`composerOwned == false`) is refused —
+    /// returns false, writes nothing (the never-clobber law). No-op (true,
+    /// no persist) when the notes are already identical, so the ~30 s evolve
+    /// tick doesn't spam App-Group persistence.
+    @discardableResult
+    public func updateComposerMelody(id: UUID, notes: [Note]) -> Bool {
+        guard let i = slots.firstIndex(where: { $0?.id == id }),
+              let clip = slots[i], clip.kind == .midi, clip.composerOwned
+        else { return false }
+        guard clip.melody?.notes != notes else { return true }   // unchanged → no persist
+        slots[i]?.melody = MelodyClip(notes: notes)
+        persist()
+        return true
+    }
+
     public func rename(at index: Int, to name: String) {
         guard slots.indices.contains(index), var clip = slots[index] else { return }
         clip.name = name

@@ -93,6 +93,13 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
     /// with the clip wherever it is launched or placed. Clip automation is clip
     /// CONTENT — it plays whenever the clip plays, like its notes.
     public var automation: [AutomationLane]
+    /// OWNERSHIP guard (per-lane composition Slice A): `true` marks a clip the
+    /// COMPOSER created for a lane's override take — only these may be rewritten
+    /// by a later generate/evolve. A user-captured/imported/placed clip is `false`
+    /// forever, so the per-lane composer can NEVER clobber user content. Set
+    /// ONLY in the composer write path; every other creation path leaves the
+    /// default. Older clips decode as `false` (user-owned — the safe side).
+    public var composerOwned: Bool
 
     public init(
         id: UUID = UUID(),
@@ -104,7 +111,8 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         mediaRef: String? = nil,
         nativeDurationSeconds: Double? = nil,
         nativeBPM: Double = 0,
-        automation: [AutomationLane] = []
+        automation: [AutomationLane] = [],
+        composerOwned: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -116,6 +124,7 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         self.nativeDurationSeconds = nativeDurationSeconds
         self.nativeBPM = Clip.clampedNativeBPM(nativeBPM)
         self.automation = automation
+        self.composerOwned = composerOwned
     }
 
     /// `0` stays 0 (unknown — never warps); anything else clamps into the ONE
@@ -128,7 +137,7 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, colorIndex, kind, drums, melody, mediaRef, nativeDurationSeconds
-        case nativeBPM, automation
+        case nativeBPM, automation, composerOwned
     }
 
     // Forward/backward-compatible decode: clips saved before `kind`/`mediaRef` existed
@@ -146,6 +155,8 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
         // Pre-warp clips carry no tempo — 0 = unknown, never warps (bit-identical).
         nativeBPM = Clip.clampedNativeBPM((try? c.decode(Double.self, forKey: .nativeBPM)) ?? 0)
         automation = (try? c.decode([AutomationLane].self, forKey: .automation)) ?? []
+        // Pre-Slice-A clips carry no ownership mark — user-owned (never rewritten).
+        composerOwned = (try? c.decode(Bool.self, forKey: .composerOwned)) ?? false
     }
 
     /// True if the clip carries no content (per kind).

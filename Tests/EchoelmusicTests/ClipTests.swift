@@ -103,5 +103,36 @@ final class ClipStoreTests: XCTestCase {
         store.clear(at: 0)
         XCTAssertNil(store.slots[0])
     }
+
+    /// Slice A ownership law: the composer write-back may touch ONLY clips the
+    /// composer created (`composerOwned`); a user clip is refused untouched.
+    func testUpdateComposerMelody_refusesUserClip_writesOwnClip() {
+        let store = ClipStore()
+        let userNotes = [Note(pitch: 60, startStep: 0)]
+        let user = Clip(name: "User take", melody: MelodyClip(notes: userNotes))
+        let owned = Clip(name: "Lane take", melody: MelodyClip(notes: []),
+                         composerOwned: true)
+        store.setClip(at: 0, user)
+        store.setClip(at: 1, owned)
+
+        let composed = [Note(pitch: 64, startStep: 4)]
+        XCTAssertFalse(store.updateComposerMelody(id: user.id, notes: composed))
+        XCTAssertEqual(store.slots[0]?.melody?.notes, userNotes)   // never clobbered
+
+        XCTAssertTrue(store.updateComposerMelody(id: owned.id, notes: composed))
+        XCTAssertEqual(store.slots[1]?.melody?.notes, composed)
+    }
+
+    /// Back-compat: clips persisted before the ownership mark decode as
+    /// user-owned (`false`) — the safe side of the never-clobber law.
+    func testComposerOwned_decodesFalseForLegacyClip() throws {
+        let legacy = Clip(name: "Old", melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0)]))
+        var json = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(legacy)) as? [String: Any] ?? [:]
+        json.removeValue(forKey: "composerOwned")   // simulate a pre-Slice-A document
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(Clip.self, from: data)
+        XCTAssertFalse(decoded.composerOwned)
+    }
 }
 #endif

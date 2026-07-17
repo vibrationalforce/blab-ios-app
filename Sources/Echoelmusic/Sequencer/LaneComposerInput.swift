@@ -42,4 +42,43 @@ public enum LaneComposerInput {
     public static func hasOverride(_ lane: TimelineLane) -> Bool {
         lane.genreOverride != nil || lane.mood != nil || lane.variationSeed != nil
     }
+
+    /// Slice A (founder 2026-07-17 "Genre, Sound, Mix, FX, Mood, Synth kommt alles
+    /// in ein Instrument"): compose every SECONDARY MIDI lane that carries an
+    /// override, in its OWN character, against the SAME body take.
+    ///
+    /// Cohesion (the proven BioVariationMaze pattern): every lane shares ONE
+    /// structural skeleton — `base.structureSeed ?? base.seed` is pinned into each
+    /// lane's input — so the lanes are voices of the SAME piece (same journey),
+    /// while only the melodic DETAIL seed differs per lane:
+    /// `variationSeed ?? base.seed ^ fold(laneID)` (the repo's stable UUID-fold —
+    /// `Hasher` is process-random and banned here; no Date, no SystemRandom, so a
+    /// take is bit-reproducible).
+    ///
+    /// Excluded (never in the result): the `rollLane` (that IS the primary take),
+    /// non-MIDI lanes, bio lanes, and any lane without an override. No overrides
+    /// anywhere ⇒ an EMPTY dictionary — the caller composes nothing extra and
+    /// today's sound stays bit-identical.
+    ///
+    /// Pure + deterministic (Foundation-only) — generate-time on the main actor,
+    /// never the audio thread.
+    public static func composeLaneOverrides(base: BioComposer.Input,
+                                            lanes: [TimelineLane],
+                                            rollLane: UUID?) -> [UUID: [Note]] {
+        // ONE shared skeleton for every lane (BioVariationMaze.explore convention).
+        let skeleton = base.structureSeed ?? base.seed
+        var result: [UUID: [Note]] = [:]
+        for lane in lanes
+        where lane.kind == .midi && !lane.isBio && lane.id != rollLane && hasOverride(lane) {
+            var input = apply(lane, to: base)
+            input.structureSeed = skeleton
+            if lane.variationSeed == nil {
+                // No explicit variation → a per-lane detail seed, stable across
+                // launches (fold, not Hasher) and distinct per lane.
+                input.seed = base.seed ^ NoteOperators.fold(lane.id)
+            }
+            result[lane.id] = BioComposer.compose(input).notes
+        }
+        return result
+    }
 }
