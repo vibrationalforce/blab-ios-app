@@ -1539,6 +1539,15 @@ private struct LaneFXEditor: View {
                 }
             }
 
+            // A2 "alles in ein Instrument" (founder 2026-07-17): per-track
+            // COMPOSITION — genre / mood / variation overrides. Secondary MIDI
+            // lanes only: the FIRST MIDI lane IS the primary take (the roll),
+            // its composition is the song's global Composition panel. Own leaf
+            // struct (type-check budget) with document-level reads only.
+            if isSecondaryMidiLane {
+                LaneCompositionSection(laneName: laneName, laneID: laneID)
+            }
+
             Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan, Transpose, Detune and Octave are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift, Detune 0 = in tune, Octave −1/+1 = add a doubled voice an octave down/up, 0 = off).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1546,6 +1555,17 @@ private struct LaneFXEditor: View {
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(EchoelTheme.bg)
+    }
+
+    /// A SECONDARY MIDI lane: MIDI, not bio, and not the roll slot (the FIRST
+    /// non-bio MIDI lane — that one is the primary take; `applyLaneOverrides`
+    /// excludes it, so its panel must not offer per-track composition either).
+    /// Document-level read only (freeze law).
+    private var isSecondaryMidiLane: Bool {
+        let lanes = timeline.document.lanes
+        guard let lane = lanes.first(where: { $0.id == laneID }),
+              lane.kind == .midi, !lane.isBio else { return false }
+        return lanes.first(where: { $0.kind == .midi && !$0.isBio })?.id != laneID
     }
 
     /// Write-through: store (persists + Mix panel follows) AND all live melodic
@@ -1606,6 +1626,185 @@ private struct LaneFXEditor: View {
     private var octaveBinding: Binding<Float> {
         Binding(get: { Float(timeline.document.lanes.first(where: { $0.id == laneID })?.octaveDouble ?? 0) },
                 set: { timeline.setLaneOctave(id: laneID, Int($0.isFinite ? $0.rounded() : 0)) })
+    }
+}
+
+/// A2 "Composition (this track)" (founder 2026-07-17 "Genre, Sound, Mix, FX,
+/// Mood, Synth kommt alles in ein Instrument"): per-track genre / mood /
+/// variation overrides for a SECONDARY MIDI lane. Setting an override is the
+/// EXPLICIT act that also creates this lane's composer-owned "Composed" clip +
+/// region (ensureComposerRegion) — from then on every Generate/Evolve rewrites
+/// that clip in this lane's own character (Slice A fan-out), never a user clip.
+///
+/// Own leaf struct: keeps LaneFXEditor's body inside the type-check budget
+/// (ArrangeTimelineView exit-65 history) and reads ONLY document-level state —
+/// no 10 Hz observable anywhere near this sheet (freeze law). Mood offers the
+/// curated MoodPreset.factory names (pick a feeling, not 8 dials — per-dimension
+/// fine-tuning is a deliberate later slice).
+@MainActor
+private struct LaneCompositionSection: View {
+    let laneName: String
+    let laneID: UUID
+    @Environment(TimelineStore.self) private var timeline
+    @Environment(ClipStore.self) private var clips
+    /// The active loop window the composer cycles — same key/default as the
+    /// semantic owner EchoelStudioView.loopBars (pattern: FloatingVisualWindow).
+    @AppStorage(StudioDefaultKeys.loopBars.key) private var loopBars: LoopBarLength = StudioDefaultKeys.loopBars.value
+    /// Honest feedback when the 8-slot clip grid is full (ensureComposerRegion
+    /// refuses rather than displacing a user clip).
+    @State private var gridFullWarning = false
+
+    private static let songTag = "song"
+    private static let customTag = "custom"
+
+    private var lane: TimelineLane? {
+        timeline.document.lanes.first(where: { $0.id == laneID })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().overlay(EchoelTheme.dim.opacity(0.4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Composition (this track)")
+                    .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
+                Text("Own genre, mood and variation — \"Song\" follows the global take")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            }
+            genreRow
+            moodRow
+            variationRow
+            if gridFullWarning {
+                Text("Clip grid full (\(ClipStore.slotCount) slots) — clear a slot so this track can get its own \"Composed\" clip.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Changes sound from the next Generate/Evolve. The track gets its own \"Composed\" clip for this — the composer rewrites only that clip, never your own clips.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: Rows
+
+    private var genreRow: some View {
+        HStack {
+            Text("Genre")
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            Spacer()
+            Picker("Genre", selection: genreBinding) {
+                Text("Song").tag(MusicStyle?.none)
+                // Same grouped roster as the global Genre picker (WorkspaceView).
+                ForEach(MusicStyle.Category.allCases) { cat in
+                    Section(cat.title) {
+                        ForEach(cat.genres) { s in
+                            Text(s.displayName).tag(MusicStyle?.some(s))
+                        }
+                    }
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.accent)
+            .accessibilityLabel("Genre for \(laneName)")
+        }
+    }
+
+    private var moodRow: some View {
+        HStack {
+            Text("Mood")
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            Spacer()
+            Picker("Mood", selection: moodBinding) {
+                Text("Song").tag(Self.songTag)
+                ForEach(MoodPreset.factory) { p in
+                    Text(p.name).tag(p.id.uuidString)
+                }
+                // A stored profile that matches no factory preset (e.g. set by a
+                // future fine-tune slice) still renders a valid selection.
+                if moodSelection == Self.customTag {
+                    Text("Custom").tag(Self.customTag)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.accent)
+            .accessibilityLabel("Mood for \(laneName)")
+        }
+    }
+
+    private var variationRow: some View {
+        HStack(spacing: 10) {
+            Text("Variation")
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            Spacer()
+            if let seed = lane?.variationSeed {
+                Text(Self.seedLabel(seed))
+                    .font(EchoelTheme.font(12, .semibold).monospaced())
+                    .foregroundStyle(EchoelTheme.text)
+                Button("Song") { timeline.setLaneVariationSeed(laneID, seed: nil) }
+                    .font(EchoelTheme.font(12))
+                    .buttonStyle(.plain).foregroundStyle(EchoelTheme.dim)
+                    .accessibilityLabel("Variation follows the song")
+            } else {
+                Text("Song")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            }
+            Button { rollVariationSeed() } label: {
+                Image(systemName: "dice")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Roll a new variation for \(laneName)")
+        }
+    }
+
+    // MARK: Bindings + actions
+
+    private var genreBinding: Binding<MusicStyle?> {
+        Binding(get: { timeline.document.lanes.first(where: { $0.id == laneID })?.genreOverride },
+                set: { newValue in
+                    timeline.setLaneGenreOverride(laneID, genre: newValue)
+                    if newValue != nil { ensureComposedClip() }
+                })
+    }
+
+    /// Current mood as a stable picker tag: "song" (nil), a factory preset's id,
+    /// or "custom" for a stored profile no factory preset matches.
+    private var moodSelection: String {
+        guard let mood = lane?.mood else { return Self.songTag }
+        return MoodPreset.factory.first(where: { $0.profile == mood })?.id.uuidString
+            ?? Self.customTag
+    }
+
+    private var moodBinding: Binding<String> {
+        Binding(get: { moodSelection },
+                set: { sel in
+                    if sel == Self.songTag {
+                        timeline.setLaneMood(laneID, mood: nil)
+                    } else if let preset = MoodPreset.factory.first(where: { $0.id.uuidString == sel }) {
+                        timeline.setLaneMood(laneID, mood: preset.profile)
+                        ensureComposedClip()
+                    }
+                    // Re-selecting "Custom" keeps the stored profile untouched.
+                })
+    }
+
+    /// Dice: a fresh random seed for THIS lane. UI-initiated randomness is fine —
+    /// the ENGINE stays deterministic because the rolled seed is persisted on the
+    /// lane and every Generate/Evolve replays it bit-identically.
+    private func rollVariationSeed() {
+        timeline.setLaneVariationSeed(laneID, seed: UInt64.random(in: UInt64.min...UInt64.max))
+        ensureComposedClip()
+    }
+
+    /// The explicit override act also guarantees the composer-owned clip+region
+    /// exists in the loop window (idempotent; honest refusal on a full grid).
+    private func ensureComposedClip() {
+        gridFullWarning = !timeline.ensureComposerRegion(for: laneID, clipStore: clips,
+                                                         loopBars: max(1, loopBars.rawValue))
+    }
+
+    /// Short, stable seed display (8 hex digits of the high word) — enough to see
+    /// "it changed" without spilling a 20-digit number into the row.
+    private static func seedLabel(_ seed: UInt64) -> String {
+        String(format: "%08X", UInt32(truncatingIfNeeded: seed >> 32))
     }
 }
 

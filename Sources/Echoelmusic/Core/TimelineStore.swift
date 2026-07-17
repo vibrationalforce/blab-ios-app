@@ -520,6 +520,85 @@ public final class TimelineStore {
         persist()
     }
 
+    // MARK: - Per-track composition (Slice A2 — founder 2026-07-17 "Genre, Sound,
+    // Mix, FX, Mood, Synth kommt alles in ein Instrument")
+
+    /// Assign (or clear, with nil) this lane's own GENRE — the per-track composer
+    /// (LaneComposerInput, Slice A) then composes this lane in its own style
+    /// against the same body take. nil = follow the song's global genre. State
+    /// only, persisted like setLaneOctave; NOT part of the region undo history
+    /// (lane fields never are — undo must not revert a composition choice).
+    public func setLaneGenreOverride(_ laneID: UUID, genre: MusicStyle?) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == laneID }) else { return }
+        document.lanes[i].genreOverride = genre
+        persist()
+    }
+
+    /// Assign (or clear, with nil) this lane's own MOOD profile (the 8
+    /// composition-character dimensions). nil = follow the song's global mood.
+    public func setLaneMood(_ laneID: UUID, mood: MoodProfile?) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == laneID }) else { return }
+        document.lanes[i].mood = mood
+        persist()
+    }
+
+    /// Assign (or clear, with nil) this lane's own melodic VARIATION seed — the
+    /// DETAIL seed the per-lane composer uses (the shared structure skeleton stays,
+    /// so lanes remain voices of the same piece). The seed itself may come from a
+    /// UI dice roll; the ENGINE stays deterministic because the rolled value is
+    /// persisted here and replayed bit-identically. nil = follow the song.
+    public func setLaneVariationSeed(_ laneID: UUID, seed: UInt64?) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == laneID }) else { return }
+        document.lanes[i].variationSeed = seed
+        persist()
+    }
+
+    /// Slice A2 — the EXPLICIT act that makes a lane's composition override
+    /// audible: make sure the lane owns a composer-owned clip + a region inside
+    /// the active loop window [0, loopBars×ticksPerBar), so the generate/evolve
+    /// fan-out (`applyLaneOverrides` → `ClipStore.updateComposerMelody`, which
+    /// only ever writes `composerOwned` clips) has somewhere to land its notes.
+    /// Called from the track panel exactly when an override is set — generate()
+    /// itself never invents regions.
+    ///
+    /// - Idempotent: a composer-owned clip region already inside the window ⇒
+    ///   true, nothing created (a second override on the same lane reuses it).
+    /// - Full clip grid ⇒ HONEST abort: returns false, logs, touches nothing —
+    ///   user clips are never displaced (the never-clobber law).
+    /// - MIDI, non-bio lanes only (the per-lane composer composes only those).
+    /// - Undo: the region add goes through `addRegion` → ONE region undo step,
+    ///   like every structural region edit. Undoing removes the region; the clip
+    ///   stays in its slot (clip slots sit outside the region history, same as
+    ///   the audio/video import paths).
+    @discardableResult
+    public func ensureComposerRegion(for laneID: UUID, clipStore: ClipStore,
+                                     loopBars: Int,
+                                     ticksPerBar: Int = TimelineTime.ticksPerBar) -> Bool {
+        guard let lane = document.lanes.first(where: { $0.id == laneID }),
+              lane.kind == .midi, !lane.isBio else { return false }
+        let windowTicks = max(1, loopBars) * max(1, ticksPerBar)
+        // Already provided for → done (idempotent).
+        if document.regions(in: laneID).contains(where: { region in
+            region.startTick < windowTicks
+                && (clipStore.clip(id: region.clipID)?.composerOwned ?? false)
+        }) {
+            return true
+        }
+        guard let slot = clipStore.firstEmptySlotIndex else {
+            log.log(.warning, category: .audio,
+                    "ensureComposerRegion: clip grid full (\(ClipStore.slotCount) slots) — no composer clip for lane \(lane.name)")
+            return false
+        }
+        let clip = Clip(name: "Composed · \(lane.name)", colorIndex: slot, kind: .midi,
+                        melody: MelodyClip(notes: []), composerOwned: true)
+        clipStore.setClip(at: slot, clip)
+        addRegion(TimelineRegion(laneID: laneID, clipID: clip.id,
+                                 startTick: 0, lengthTicks: windowTicks))
+        log.log(.info, category: .audio,
+                "ensureComposerRegion: created 'Composed · \(lane.name)' (slot \(slot), \(max(1, loopBars)) bars)")
+        return true
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()
