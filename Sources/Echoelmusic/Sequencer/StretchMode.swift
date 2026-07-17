@@ -57,8 +57,8 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// pitch move with tempo; the rest are pitch-preserving. NOTE: this is the RAW mode's
     /// property — for what actually renders, read it off `effectiveMode` or (preferably)
     /// take `StretchPlan.resolve(...).preservesPitch`, which already applies the `.clean`
-    /// fallback for unimplemented modes. Configuring an executor off the raw value would
-    /// mis-set pitch for a not-yet-wired mode.
+    /// fallback for modes the CALLING CONSUMER can't execute. Configuring an executor
+    /// off the raw value would mis-set pitch for a mode that consumer doesn't render.
     public var preservesPitch: Bool { self != .tape }
 
     /// Executors wired in AT LEAST ONE consumer today. UI MUST offer only these

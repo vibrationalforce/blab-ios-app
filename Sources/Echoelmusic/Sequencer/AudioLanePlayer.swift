@@ -190,8 +190,10 @@ public final class AudioLanePlayer {
             return
         }
         // Slice B: the region's stretch plan — rate 1.0 unless the placement opts
-        // in (warpEnabled) AND the clip's native tempo is known. Same resolver the
-        // editor preview uses (AudioClipPlayer), so timeline and preview agree.
+        // in (warpEnabled) AND the clip's native tempo is known. Same resolver as
+        // the editor preview, but with BASE capabilities: Beats renders Clean
+        // HERE (pitch held) until the timeline's own executor slice — the
+        // per-consumer capability set is the truth mechanism for that.
         let plan = StretchPlan.resolve(mode: region.stretchMode,
                                        warpEnabled: region.warpEnabled,
                                        nativeBPM: resolveNativeBPM(region.clipID),

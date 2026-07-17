@@ -169,10 +169,17 @@ public final class AudioClipPlayer {
         }
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
+        // Generation-guarded (code-review LOW): a stopped/replaced buffer's
+        // completion also fires — un-guarded it could land AFTER a newer play
+        // and clear isPlaying while audio sounds (Stop button dead). The async
+        // Beats render window widens exactly this race.
+        let scheduledGeneration = playGeneration
         node.scheduleBuffer(buffer, at: nil, options: options, completionCallbackType: .dataPlayedBack) { [weak self] _ in
             guard let self else { return }
             if !region.loop {
-                Task { @MainActor in self.isPlaying = false }
+                Task { @MainActor in
+                    if self.playGeneration == scheduledGeneration { self.isPlaying = false }
+                }
             }
         }
         node.volume = min(2, max(0, region.gain))
@@ -206,10 +213,14 @@ public final class AudioClipPlayer {
         }
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
+        // Same generation guard as the direct path (see play()).
+        let scheduledGeneration = playGeneration
         node.scheduleBuffer(buffer, at: nil, options: options, completionCallbackType: .dataPlayedBack) { [weak self] _ in
             guard let self else { return }
             if !region.loop {
-                Task { @MainActor in self.isPlaying = false }
+                Task { @MainActor in
+                    if self.playGeneration == scheduledGeneration { self.isPlaying = false }
+                }
             }
         }
         node.volume = min(2, max(0, region.gain))

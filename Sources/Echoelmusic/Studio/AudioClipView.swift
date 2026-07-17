@@ -171,7 +171,7 @@ struct AudioClipView: View {
                 Text(region.nativeBPM > 0
                      ? String(format: "Stretch ×%.3f → project %.0f BPM · %@", plan.rate,
                                beatPlayer.pattern.tempo,
-                               plan.mode == .beats ? "transient-locked (beats)"
+                               plan.mode == .beats ? "transient-locked (beats · preview; timeline plays clean for now)"
                                  : plan.preservesPitch ? "pitch held" : "pitch rides tempo (tape)")
                      : "Set the clip's own BPM to tempo-match it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -261,7 +261,7 @@ struct AudioClipView: View {
                                              contentOffsetSeconds: offset,
                                              gain: region.gain,              // CLIP-6: the editor's gain lands too
                                              warpEnabled: region.warpEnabled, // #54: the editor's Warp gate lands
-                                             stretchMode: region.stretchMode) // stretch engine: Clean/Tape choice lands
+                                             stretchMode: region.stretchMode) // stretch character lands (Beats renders clean on the timeline for now)
         clips.setClip(at: slot, clip)
         timeline.addRegion(placed)
         dismiss()
