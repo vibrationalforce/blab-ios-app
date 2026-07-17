@@ -708,7 +708,13 @@ public final class PianoRollModel {
             let v = min(1, note.velocity * laneGain * exp.velocityScale)
             if !suppressBuiltIn, laneAudible { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: v) }
             if laneAudible {
-                midiOut?.noteOn(pitch: note.pitch, velocity: v, expression: expression)
+                // #58 S6: a note's fixed MPE overrides win per dimension over the
+                // body's live 5D; unset dimensions fall through. Same 5D-armed gate
+                // as before — with 5D off nothing is sent (behaviour-preserving).
+                let noteExpr = midiOut?.expressionEnabled == true
+                    ? MPEExpression.merging(bio: expression, override: note.mpe)
+                    : nil
+                midiOut?.noteOn(pitch: note.pitch, velocity: v, expression: noteExpr)
                 auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(v))
             }
             active[note.id] = note

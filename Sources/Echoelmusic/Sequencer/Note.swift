@@ -20,6 +20,30 @@ public enum NoteRole: String, Codable, Sendable {
     case bass      // the low root line
 }
 
+/// Per-note MPE expression OVERRIDES (#58 Slice 6 — the "MPE station" seam):
+/// fixed, user-drawn 5D values that take precedence over the live bio-derived
+/// dimension WHERE SET. Every dimension is optional — an unset one falls through
+/// to the body (or the neutral base). `nil` on the note ⇒ byte-identical JSON to
+/// pre-S6 builds (same contract as `NoteOperators`). Values are stored normalized
+/// (bend −1…+1, slide/pressure 0…1) and converted to wire units at merge time.
+public struct NoteMPE: Codable, Sendable, Equatable {
+    /// Per-note pitch bend, normalized −1…+1 (maps onto the MPE bend range).
+    public var bend: Float?
+    /// Slide / brightness (CC74), normalized 0…1.
+    public var slide: Float?
+    /// Press / channel pressure, normalized 0…1.
+    public var pressure: Float?
+
+    public init(bend: Float? = nil, slide: Float? = nil, pressure: Float? = nil) {
+        self.bend = bend.map { Swift.max(-1, Swift.min(1, $0)) }
+        self.slide = slide.map { Swift.max(0, Swift.min(1, $0)) }
+        self.pressure = pressure.map { Swift.max(0, Swift.min(1, $0)) }
+    }
+
+    /// True when no dimension is set — merging a transparent override is a no-op.
+    public var isTransparent: Bool { bend == nil && slide == nil && pressure == nil }
+}
+
 /// A single melodic note, timed in PPQ ticks.
 ///
 /// `startTick` is the 0-based tick it begins on; `lengthTicks` is how long it
@@ -47,6 +71,10 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     /// `NoteOperators()`); legacy clips decode as `nil`. Encoded only when set,
     /// so older builds keep reading new clips unchanged.
     public var operators: NoteOperators?
+    /// Per-note MPE overrides (#58 S6). `nil` = today's behaviour: the live
+    /// bio-derived expression (or none) drives all dimensions. Encoded only
+    /// when set — same backward-compat contract as `operators`.
+    public var mpe: NoteMPE?
 
     // MARK: Init
 
@@ -134,7 +162,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     // MARK: Codable (ticks primary; falls back to legacy steps)
 
     private enum CodingKeys: String, CodingKey {
-        case id, pitch, startTick, lengthTicks, velocity, role, operators
+        case id, pitch, startTick, lengthTicks, velocity, role, operators, mpe
         case startStep, lengthSteps   // legacy fallback (pre-PPQ clips)
     }
 
@@ -157,6 +185,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         }
         self.role = try c.decodeIfPresent(NoteRole.self, forKey: .role) ?? .harmony
         self.operators = try c.decodeIfPresent(NoteOperators.self, forKey: .operators)
+        self.mpe = try c.decodeIfPresent(NoteMPE.self, forKey: .mpe)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -170,6 +199,7 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         // Only when set — a plain note's JSON is byte-identical to pre-operator
         // builds, and older builds simply ignore the key when it is present.
         try c.encodeIfPresent(operators, forKey: .operators)
+        try c.encodeIfPresent(mpe, forKey: .mpe)
         // Legacy mirror so an older build can still read the clip.
         try c.encode(startStep, forKey: .startStep)
         try c.encode(lengthSteps, forKey: .lengthSteps)

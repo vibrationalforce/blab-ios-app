@@ -40,6 +40,25 @@ public struct MPEExpression: Equatable, Sendable {
         return MPEExpression(slideCC74: slide, pressure: press, bend: drift)
     }
 
+    /// Neutral 5D state: slide centred (CC74 = 64, the MPE initial-value
+    /// convention), no pressure, no bend. The base a per-note override lands on
+    /// when no body is present.
+    public static let neutral = MPEExpression(slideCC74: 64, pressure: 0, bend: 0)
+
+    /// #58 S6 — mix a note's fixed OVERRIDES over the live bio-derived expression.
+    /// Per dimension: a SET override wins; an unset one falls through to `bio`
+    /// (or to `.neutral` when there is no body). Both nil / transparent override
+    /// ⇒ exactly today's behaviour (`bio` passes through, including nil — a
+    /// transparent override never conjures an expression out of nothing).
+    public static func merging(bio: MPEExpression?, override note: NoteMPE?) -> MPEExpression? {
+        guard let note, !note.isTransparent else { return bio }
+        let base = bio ?? .neutral
+        return MPEExpression(
+            slideCC74: note.slide.map { u7(clamp01($0)) } ?? base.slideCC74,
+            pressure: note.pressure.map { u7(clamp01($0)) } ?? base.pressure,
+            bend: note.bend ?? base.bend)
+    }
+
     /// 14-bit pitch-bend bytes (lsb, msb) for a normalized −1…+1 value. Centre (0) →
     /// 8192 = (lsb 0, msb 64); −1 → 0; +1 → 16383.
     public static func pitchBend14(_ normalized: Float) -> (lsb: UInt8, msb: UInt8) {
