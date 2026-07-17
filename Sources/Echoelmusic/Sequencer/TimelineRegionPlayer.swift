@@ -158,6 +158,56 @@ public final class TimelineRegionPlayer {
     /// Primed on play, driven per transport window, released on every stop path.
     @ObservationIgnored public var audioLanes: AudioLanePlayer?
 
+    // MARK: - Clip-Launch (P0 performance core — PLAN_TIMELINE_AUTOMATION_PERFORMANCE)
+
+    /// The pure launch layer OVER the arrangement (Ableton lane-override): a lane
+    /// with a LAUNCHED region plays that region's window looping instead of its
+    /// arrangement regions; lanes without a launch play the arrangement untouched
+    /// (while the engine `isIdle`, every path below is byte-identical to the
+    /// pre-launch code — the golden gate). RUNTIME-ONLY state: never persisted,
+    /// reset on play/stop/relocate. @ObservationIgnored deliberately — `tick`
+    /// runs every transport step and must not register ~8 Hz observation churn;
+    /// the UI observes `launchGeneration` instead.
+    @ObservationIgnored private var launch = ClipLaunchEngine()
+
+    /// Observation hook for the (P1) launch UI: bumps on every launch request and
+    /// every fired boundary transition — low-frequency by construction (user taps
+    /// + quantize boundaries), never per-tick, so a leaf view may read it.
+    public private(set) var launchGeneration = 0
+
+    /// Queue a MIDI region to LAUNCH on its lane at the next `quantize` boundary
+    /// (`.off` = immediate, i.e. the next transport tick). The launched clip
+    /// overrides its lane's arrangement and LOOPS over its own length until
+    /// `stopLaunched`. No-op while stopped (P0: launch rides the running
+    /// transport) and for non-MIDI/bio lanes (audio/video launch = later slice).
+    public func launchRegion(_ regionID: UUID, quantize: LaunchQuantize) {
+        guard isPlaying else { return }
+        let live = liveDocument?() ?? doc
+        guard let region = live.regions.first(where: { $0.id == regionID })
+                ?? doc.regions.first(where: { $0.id == regionID }) else { return }
+        guard let lane = live.lanes.first(where: { $0.id == region.laneID })
+                ?? doc.lanes.first(where: { $0.id == region.laneID }),
+              lane.kind == .midi, !lane.isBio else { return }
+        launch.requestLaunch(laneID: region.laneID, regionID: regionID,
+                             atTick: currentTick, quantize: quantize)
+        launchGeneration &+= 1
+    }
+
+    /// Queue the lane's launched clip to STOP at the next `quantize` boundary —
+    /// the lane returns to its arrangement content. A queued-but-unstarted
+    /// launch is simply cancelled. No-op while stopped or idle.
+    public func stopLaunched(laneID: UUID, quantize: LaunchQuantize) {
+        guard isPlaying else { return }
+        launch.requestStop(laneID: laneID, atTick: currentTick, quantize: quantize)
+        launchGeneration &+= 1
+    }
+
+    /// The lane's launch state (`.idle` when nothing is launched) — the (P1) UI
+    /// reads this to render play/queued/playing/stopping glyphs.
+    public func launchState(laneID: UUID) -> LaneLaunchState {
+        launch.state(laneID: laneID)
+    }
+
     public init() {}
 
     /// Enable secondary-lane fan-out over a fixed rack of `capacity` voices. Called
@@ -219,6 +269,7 @@ public final class TimelineRegionPlayer {
         // Fresh multi-roll state: release any lingering take (symmetric with stop —
         // never drop a sounding pitch without its note-off), clear slots, rebuild pool.
         flushPumps()
+        launch.removeAll()   // launch state never survives a transport reset (P0)
         isPlaying = true
         pianoRoll.setTimelineAutomation(document.automation)   // arrangement automation (cycle 5)
         pianoRoll.setTimelineAutomationTick(startTick)
@@ -260,6 +311,9 @@ public final class TimelineRegionPlayer {
         let anchor = Self.relocateAnchorTick(targetBarTick: target, nextPatternStep: nextStep)
         pianoRoll?.allNotesOff()   // hard locate: cut the primary roll's ringing notes
         flushPumps()               // offs through current bindings (H5b), slots released
+        launch.removeAll()         // P0 policy: a locate is a hard cut — launches do not
+                                   // survive it (their boundaries reference the old
+                                   // position); the arrangement re-primes below.
         cursor = TimelinePlaybackCursor(startBar: target / TimelineTime.ticksPerBar)
         lastTick = anchor
         currentTick = anchor
@@ -287,6 +341,7 @@ public final class TimelineRegionPlayer {
         isPlaying = false
         pattern?.stop()
         pianoRoll?.allNotesOff()
+        launch.removeAll()                     // launches die with the transport (P0)
         flushPumps()                           // release every secondary-lane voice
         audioLanes?.stopAll()                  // release every audio lane (A1)
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
@@ -299,6 +354,7 @@ public final class TimelineRegionPlayer {
         guard isPlaying else { return }
         isPlaying = false
         pianoRoll?.allNotesOff()
+        launch.removeAll()                     // launches die with the transport (P0)
         flushPumps()                           // release every secondary-lane voice
         audioLanes?.stopAll()                  // release every audio lane (A1)
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
@@ -330,7 +386,22 @@ public final class TimelineRegionPlayer {
                 return
             }
         }
-        if let lane = rollLane {
+        // P0 Clip-Launch: the launch layer rides the SAME transport tick — no
+        // second clock. On a song-loop wrap the whole launch timebase folds back
+        // by the loop length FIRST (boundaries and loopTicks are whole bars, so
+        // grid alignment survives), then due boundaries fire. An idle engine
+        // emits nothing and every path below is byte-identical (golden gate).
+        if wrapped, !launch.isIdle { launch.shift(by: -loopTicks) }
+        let launchTransitions: [LaunchTransition] = launch.isIdle ? [] : launch.tick(now: newTick)
+        if !launchTransitions.isEmpty {
+            applyLaunchTransitions(launchTransitions, atTick: newTick, step: step)
+            launchGeneration &+= 1
+        }
+        // A roll-lane transition this tick already made the region decision at
+        // newTick (launched load / back-to-arrangement) — skip the incremental
+        // arrangement event; an OVERRIDDEN roll lane skips it every tick.
+        let rollLaunchDecided = launchTransitions.contains { $0.laneID == rollLane }
+        if let lane = rollLane, !rollLaunchDecided, !launch.isOverriding(laneID: lane) {
             switch TimelineScheduling.laneEvent(in: doc, laneID: lane, fromTick: lastTick, toTick: newTick) {
             case .unchanged: break
             case .load(let region): loadClip(region, atTick: newTick, step: step)
@@ -370,14 +441,10 @@ public final class TimelineRegionPlayer {
             clearRoll()
             return
         }
-        // Per-instrument transpose for the PRIMARY lane (founder 2026-07-14): pitch the
-        // roll voice to the roll lane's own semitone shift before its notes load.
-        rollTransposeSink?(doc.lanes.first(where: { $0.id == lane })?.transposeSemitones ?? 0)
-        rollDetuneSink?(doc.lanes.first(where: { $0.id == lane })?.detuneCents ?? 0)
-        rollOctaveSink?(doc.lanes.first(where: { $0.id == lane })?.octaveDouble ?? 0)
-        // S2-W2-6: bind the roll's KIND voice BEFORE its notes load (a drums/sub
-        // primary lane plays the kit/sub; poly ⇒ today's voice).
-        rollKindSink?(doc.lanes.first(where: { $0.id == lane })?.builtinInstrument?.voiceKind ?? .poly)
+        // Per-instrument transpose/detune/octave + KIND for the PRIMARY lane —
+        // pushed BEFORE its notes load (extracted so the launch path applies the
+        // same lane voice; see applyRollLaneVoice).
+        applyRollLaneVoice()
         loadClip(region, atTick: tick, step: 0)
     }
 
@@ -472,9 +539,19 @@ public final class TimelineRegionPlayer {
     // pump ever survives a rank shift.
     private func fanOutSecondaryLanes(fromTick: Int, toTick: Int, step: Int) {
         guard let sink = slotNoteSink else { return }
+        // P0 Clip-Launch: a LAUNCHED secondary lane ignores ARRANGEMENT onsets/
+        // gaps — its pump keeps the launched clip until the stop transition
+        // restores the arrangement. The step keeps its POSITION in the array
+        // (rank == slot in LaneVoiceRackPlan.commands, which enumerates by
+        // index): filtering the lane OUT would shift every later lane one slot
+        // up mid-play. Idle engine ⇒ the map is the identity (golden).
         let steps = LaneVoiceScheduling
             .plan(in: doc, fromTick: fromTick, toTick: toTick, pool: &lanePool)
             .filter { $0.laneID != rollLane }
+            .map { s -> LanePlaybackStep in
+                guard !launch.isIdle, launch.isOverriding(laneID: s.laneID) else { return s }
+                return LanePlaybackStep(laneID: s.laneID, event: .unchanged, slot: s.slot)
+            }
         for command in LaneVoiceRackPlan.commands(steps: steps, capacity: multiRollCapacity) {
             switch command {
             case .load(let slot, let clipID):
@@ -556,6 +633,10 @@ public final class TimelineRegionPlayer {
         guard multiRollCapacity > 0, let sink = slotNoteSink else { return }
         for load in MultiRollFanout.activeLoads(in: doc, at: tick,
                                                 rollLane: rollLane, capacity: multiRollCapacity) {
+            // P0 Clip-Launch: a launched lane keeps its launched clip through
+            // re-primes — reapplyLaunched (structure path) reloads it; the
+            // arrangement must not overwrite it here.
+            guard !launch.isOverriding(laneID: load.laneID) else { continue }
             // Same ORDER LAW as the window fan-out: old take out through the
             // old binding, THEN re-bind + re-timbre (H5b).
             var pump = pumps[load.slot] ?? LaneNotePump()
@@ -636,19 +717,37 @@ public final class TimelineRegionPlayer {
         let oldActive = rollLane.flatMap {
             TimelineScheduling.activeRegion(in: doc, laneID: $0, at: lastTick)
         }
+        // P0 Clip-Launch: remember whether the (old) roll lane was overridden —
+        // if its launch gets pruned below, the roll still holds LAUNCHED content
+        // and must be handed back to the arrangement even when the arrangement's
+        // active region did not change.
+        let oldRollOverridden = rollLane.map { launch.isOverriding(laneID: $0) } ?? false
         flushPumps()
         doc = fresh
         rollLane = fresh.rollLaneID
         loopTicks = Self.loopTicks(for: fresh)   // grew/shrank: the wrap logic reads it next step
         pianoRoll?.setTimelineAutomation(fresh.automation)
+        // P0 Clip-Launch: the edit may have deleted a launched region or lane —
+        // prune those states silently (voices were flushed above; the prime
+        // paths below cover the freed lanes). Surviving launches are re-applied
+        // after the prime so their content reflects the EDITED document.
+        if !launch.isIdle {
+            launch.prune(validLaneIDs: Set(fresh.lanes.map(\.id)),
+                         validRegionIDs: Set(fresh.regions.map(\.id)))
+        }
         let newActive = rollLane.flatMap {
             TimelineScheduling.activeRegion(in: doc, laneID: $0, at: lastTick)
         }
-        if oldActive != newActive {
+        if let lane = rollLane, launch.isOverriding(laneID: lane) {
+            reapplyLaunched(laneID: lane, atTick: lastTick)   // launched roll re-windows
+        } else if oldRollOverridden || oldActive != newActive {
             loadedRegionID = nil                 // force a fresh region decision
             loadRollRegion(at: lastTick)         // loadClip or clearRoll, mid-region aware
         }
-        primeSecondaryLanes(at: lastTick)
+        primeSecondaryLanes(at: lastTick)        // skips overridden lanes (see guard there)
+        for laneID in launch.overriddenLaneIDs where laneID != rollLane {
+            reapplyLaunched(laneID: laneID, atTick: lastTick)
+        }
         audioLanes?.prime(in: doc, atTick: lastTick, bpm: pattern?.tempo ?? 120)
         log.log(.info, category: .audio, "timeline: structure edit pulled into playback at tick \(lastTick)")
     }
@@ -666,5 +765,170 @@ public final class TimelineRegionPlayer {
         }
         pumps.removeAll()
         lanePool = LaneVoicePool(capacity: multiRollCapacity)
+    }
+
+    // MARK: - Clip-Launch application (P0 — the AUDIO side of ClipLaunchEngine)
+    //
+    // ClipLaunchEngine is pure state; these helpers are its ONLY audio effect. They
+    // reuse the SAME load paths the arrangement uses (loadClip for the roll lane, the
+    // secondary-slot sink+pump sequence for rack lanes) so a LAUNCHED region sounds
+    // byte-identical to that region playing from the arrangement — the launch layer
+    // only changes WHICH region a lane windows, never HOW it is rendered. While the
+    // engine `isIdle` none of these run (the golden gate): launch adds zero cost to
+    // plain arrangement playback.
+    //
+    // PHASE CAVEAT (P0, documented): a launched clip is loaded as a normal region
+    // window. The SECONDARY path anchors the loop phase to the launch timebase
+    // (`LaunchedRegion.startedAtTick` → whole-bar phase), so a launch fires from the
+    // clip's top at its boundary and re-windows at the right whole bar after edits.
+    // The ROLL path reuses `loadClip`, whose startBar is the ARRANGEMENT phase
+    // (tick − region.startTick). Both loop correctly in WHOLE BARS; exact clip-internal
+    // (sub-bar) phase offset is a follow-up slice — `ClipLaunchEngine.loopedContentTick`
+    // is the pure reference for it.
+
+    /// Apply this tick's launch transitions to the audio side. `.started`/`.switched`
+    /// window the launched region onto its lane (a switch loads exactly ONCE — the new
+    /// region — never a double load); `.stopped` hands the lane back to its arrangement
+    /// at `tick`. Roll lane (== rollLane) vs. a secondary rack slot are dispatched
+    /// separately; a region that vanished between request and boundary falls silently
+    /// back to the arrangement.
+    private func applyLaunchTransitions(_ transitions: [LaunchTransition], atTick tick: Int, step: Int) {
+        for t in transitions {
+            let isRoll = (t.laneID == rollLane)
+            switch t.kind {
+            case .started(let regionID), .switched(_, let regionID):
+                guard let region = doc.regions.first(where: { $0.id == regionID }) else {
+                    if isRoll {
+                        loadedRegionID = nil
+                        loadRollRegion(at: tick)
+                    } else if let slot = secondarySlot(forLane: t.laneID) {
+                        restoreSecondaryArrangement(laneID: t.laneID, slot: slot, at: tick)
+                    }
+                    continue
+                }
+                if isRoll {
+                    applyRollLaneVoice()
+                    loadClip(region, atTick: tick, step: step)
+                } else if let slot = secondarySlot(forLane: t.laneID) {
+                    loadSecondaryWindow(region, laneID: t.laneID, slot: slot,
+                                        startBar: launchedStartBar(laneID: t.laneID, atTick: tick))
+                }
+            case .stopped:
+                if isRoll {
+                    loadedRegionID = nil
+                    loadRollRegion(at: tick)          // arrangement region at this tick (mid-region aware)
+                } else if let slot = secondarySlot(forLane: t.laneID) {
+                    restoreSecondaryArrangement(laneID: t.laneID, slot: slot, at: tick)
+                }
+            }
+        }
+    }
+
+    /// Push the PRIMARY roll lane's per-instrument voice params (transpose/detune/
+    /// octave + KIND) for the CURRENT rollLane — extracted from `loadRollRegion` so the
+    /// launch path applies the identical lane voice before a launched roll region's
+    /// notes load. No roll lane (or a missing lane object) ⇒ no effect.
+    private func applyRollLaneVoice() {
+        guard let lane = rollLane else { return }
+        // Byte-identical to the extracted loadRollRegion inline block: a MISSING
+        // lane object still resets the voice to neutral (0/0/0/.poly) via the
+        // `?? default` fallbacks — not an early return — so the golden gate holds
+        // literally even on an inconsistent document (rollLane set, lane absent).
+        let laneObj = doc.lanes.first(where: { $0.id == lane })
+        rollTransposeSink?(laneObj?.transposeSemitones ?? 0)
+        rollDetuneSink?(laneObj?.detuneCents ?? 0)
+        rollOctaveSink?(laneObj?.octaveDouble ?? 0)
+        rollKindSink?(laneObj?.builtinInstrument?.voiceKind ?? .poly)
+    }
+
+    /// Re-window the region currently LAUNCHED on `laneID` after a structural edit +
+    /// re-prime (`refreshStructure`): reload the launched region as a fresh window at
+    /// `tick` so its content reflects the EDITED document. Region gone ⇒ fall silently
+    /// back to the arrangement (the launch was pruned; this is its defensive twin).
+    private func reapplyLaunched(laneID: UUID, atTick tick: Int) {
+        let isRoll = (laneID == rollLane)
+        guard let launched = launch.soundingRegion(laneID: laneID),
+              let region = doc.regions.first(where: { $0.id == launched.regionID }) else {
+            if isRoll {
+                loadedRegionID = nil
+                loadRollRegion(at: tick)
+            } else if let slot = secondarySlot(forLane: laneID) {
+                restoreSecondaryArrangement(laneID: laneID, slot: slot, at: tick)
+            }
+            return
+        }
+        if isRoll {
+            applyRollLaneVoice()
+            loadClip(region, atTick: tick, step: 0)
+        } else if let slot = secondarySlot(forLane: laneID) {
+            loadSecondaryWindow(region, laneID: laneID, slot: slot,
+                                startBar: launchedStartBar(laneID: laneID, atTick: tick))
+        }
+    }
+
+    // MARK: Clip-Launch secondary-lane load helpers (shared arrangement/launch path)
+
+    /// The physical rack slot (priority rank) a SECONDARY MIDI lane owns, or nil when
+    /// the lane isn't a rack secondary or the rack has no room for it (`multiRollCapacity`).
+    /// The roll lane has no slot (it plays the rich PianoRollModel), so it never resolves.
+    private func secondarySlot(forLane laneID: UUID) -> Int? {
+        guard multiRollCapacity > 0 else { return nil }
+        let secondaries = MultiRollFanout.secondaryLaneIDs(in: doc, rollLane: rollLane)
+        guard let rank = secondaries.firstIndex(of: laneID), rank < multiRollCapacity else { return nil }
+        return rank
+    }
+
+    /// The whole-bar loop phase a launched lane resumes at: bars elapsed since the
+    /// launch boundary (`LaunchedRegion.startedAtTick`), which the pump folds into the
+    /// region length. At the boundary (`.started`) this is 0 → the clip plays from its
+    /// top; on a re-window after edits it resumes at the right whole bar. Sub-bar phase
+    /// is the documented follow-up.
+    private func launchedStartBar(laneID: UUID, atTick tick: Int) -> Int {
+        guard let launched = launch.soundingRegion(laneID: laneID) else { return 0 }
+        let elapsed = max(0, tick - launched.startedAtTick)
+        return elapsed / TimelineTime.ticksPerBar
+    }
+
+    /// Window a region onto a SECONDARY lane's rack slot via the SAME sink+pump
+    /// sequence as the arrangement fan-out's `.load` case (H5b order law: release the
+    /// old take through the old binding, THEN rebind lane → kind → sample → patch →
+    /// pitch → mix, then load the windowed bars). `startBar` is the loop entry bar —
+    /// the launch timebase for a launched clip, the arrangement phase for a restore.
+    private func loadSecondaryWindow(_ region: TimelineRegion, laneID: UUID,
+                                     slot: Int, startBar: Int) {
+        guard let sink = slotNoteSink else { return }
+        var pump = pumps[slot] ?? LaneNotePump()
+        if !pump.isEmpty { sink(slot, pump.reset()) }
+        slotLaneSink?(slot, laneID)
+        slotKindSink?(slot, MultiRollFanout.voiceKind(forSlot: slot, in: doc, rollLane: rollLane))
+        slotSampleSink?(slot, MultiRollFanout.samplePath(forSlot: slot, in: doc, rollLane: rollLane))
+        slotPatchSink?(slot, MultiRollFanout.patch(forSlot: slot, in: doc, rollLane: rollLane))
+        slotTransposeSink?(slot, MultiRollFanout.transpose(forSlot: slot, in: doc, rollLane: rollLane))
+        slotDetuneSink?(slot, MultiRollFanout.detune(forSlot: slot, in: doc, rollLane: rollLane))
+        slotOctaveSink?(slot, MultiRollFanout.octave(forSlot: slot, in: doc, rollLane: rollLane))
+        slotPanSink?(slot, MultiRollFanout.pan(forSlot: slot, in: doc, rollLane: rollLane))
+        slotGainSink?(slot, MultiRollFanout.gain(forSlot: slot, in: doc, rollLane: rollLane))
+        pump.load(bars: windowedBars(for: region), startBar: startBar)
+        pumps[slot] = pump
+    }
+
+    /// Hand a secondary lane's slot BACK to its arrangement at `tick` (a launch
+    /// `.stopped` or a pruned launch): window the arrangement region active at `tick`,
+    /// or release the slot when the lane sits in a gap. Needed because the per-step
+    /// fan-out reads `.unchanged` for a region that started earlier and would otherwise
+    /// leave the launched clip in the pump.
+    private func restoreSecondaryArrangement(laneID: UUID, slot: Int, at tick: Int) {
+        if let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) {
+            loadSecondaryWindow(region, laneID: laneID, slot: slot,
+                                startBar: max(0, tick - region.startTick) / TimelineTime.ticksPerBar)
+        } else if let sink = slotNoteSink {
+            if var pump = pumps[slot] {
+                sink(slot, pump.reset())
+                pumps[slot] = nil
+            }
+            slotLaneSink?(slot, nil)
+            slotKindSink?(slot, .poly)
+            slotSampleSink?(slot, nil)
+        }
     }
 }
