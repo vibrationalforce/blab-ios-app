@@ -148,6 +148,15 @@ public enum BioComposer {
         /// freezing on one chord. Melodic genres rotate their progression start by it
         /// too. 0 (default) = the progression's first chord — original behaviour.
         public var progressionPhase: Int
+        /// H1 voice-leading switch (PLAN_HARMONY_CORE.md): `true` routes the pad's
+        /// chord-to-chord movement through `VoiceLeader.resolve` (real inversions,
+        /// common tones held) instead of the whole-chord octave shift. Deliberately
+        /// a BOOL, not a spec struct, for Slice 1: strictness/spread are derived
+        /// from the BIO fields already on this Input (see `compose` — coherence →
+        /// strictness, breath depth → spread), so the caller flips one switch and
+        /// the body does the rest. `false` (default) keeps today's path
+        /// byte-identical (Golden law — pinned in BioComposerVoiceLeadingTests).
+        public var voiceLeading: Bool
 
         public init(
             heartRateBPM: Float = 70,
@@ -162,7 +171,8 @@ public enum BioComposer {
             mood: MoodProfile = MoodProfile(),
             seed: UInt64 = 0x5EED,
             structureSeed: UInt64? = nil,
-            progressionPhase: Int = 0
+            progressionPhase: Int = 0,
+            voiceLeading: Bool = false
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -177,7 +187,33 @@ public enum BioComposer {
             self.seed = seed
             self.structureSeed = structureSeed
             self.progressionPhase = progressionPhase
+            self.voiceLeading = voiceLeading
         }
+    }
+
+    /// Resolved per-take voice-leading controls (H1). Built in `compose` from the
+    /// Input's bio fields when `input.voiceLeading` is on; `nil` = legacy octave
+    /// shift. Internal so the mapping law is unit-testable.
+    struct VoiceLeadControl: Sendable {
+        var strictness: Float
+        var spread: Float
+        var seed: UInt64
+    }
+
+    /// H1 bio → voice-leading mapping (tested law, BioComposerVoiceLeadingTests):
+    ///   strictness = 0.6 + 0.4·clamp01(coherence) — a settled body voice-leads at
+    ///     the strict cost optimum; low coherence relaxes toward the seeded freer
+    ///     pick, never below 0.6 (the leading always stays recognizably smooth).
+    ///   spread = clamp01(breathDepth) — deep breathing opens the voicing
+    ///     (close ↔ open ambitus), shallow breathing keeps it close.
+    ///   seed = structureSeed ?? seed — the SKELETON stream, so the chosen
+    ///     inversions are part of the stable structure across evolving takes.
+    /// Only fields Input really carries are used (coherence, breathDepth).
+    static func voiceLeadControl(for input: Input) -> VoiceLeadControl? {
+        guard input.voiceLeading else { return nil }
+        return VoiceLeadControl(strictness: 0.6 + 0.4 * clamp01(input.coherence),
+                                spread: clamp01(input.breathDepth),
+                                seed: input.structureSeed ?? input.seed)
     }
 
     private static func clamp01(_ x: Float) -> Float { min(max(x, 0), 1) }
@@ -416,6 +452,10 @@ public enum BioComposer {
         let playTempo = tempo(for: input)
         let densityScale = tempoDensityScale(bpm: playTempo)
 
+        // H1 voice-leading (opt-in): the bio→control mapping lives here in the
+        // composer, not on the caller — see `voiceLeadControl`. nil = legacy path.
+        let voiceLead = voiceLeadControl(for: input)
+
         let notes: [Note]
         let drumSteps: [[Bool]]
         let drumAccents: [[Bool]]
@@ -438,6 +478,7 @@ public enum BioComposer {
                                     progressionPhase: input.progressionPhase,
                                     densityScale: densityScale,
                                     quarterAnchor: input.style == .trap,
+                                    voiceLead: voiceLead,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -464,6 +505,7 @@ public enum BioComposer {
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
                                     densityScale: densityScale,
+                                    voiceLead: voiceLead,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -1046,6 +1088,7 @@ public enum BioComposer {
                                         mood: MoodProfile, progressionPhase: Int,
                                         densityScale: Float = 1,
                                         quarterAnchor: Bool = false,
+                                        voiceLead: VoiceLeadControl? = nil,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
@@ -1113,6 +1156,12 @@ public enum BioComposer {
         // classes never change (so it stays perfectly in-key), but the chords
         // stop leaping in parallel and instead move smoothly, like a real player.
         var prevPadCenter: Float? = nil
+        // H1 (voiceLead != nil only): the previous pad voicing's actual pitches,
+        // so VoiceLeader can hold common tones and move single voices instead of
+        // shifting the whole block. Call-local like prevPadCenter — continuity
+        // lives within ONE compose() (across its sections); cross-bar journey
+        // continuity is a follow-up slice.
+        var prevPadVoicing: [Int] = []
 
         for (idx, rootDegree) in prog.enumerated() {
             let secStart = idx * sectionLen
@@ -1138,18 +1187,53 @@ public enum BioComposer {
             //    the section or gently arpeggiated.
             var basePitches: [Int] = []
             for tone in tones { basePitches.append(key.degree(rootDegree + tone, octave: profile.padOctave + octShift)) }
-            var shift = 0
-            if let center = prevPadCenter, !basePitches.isEmpty {
-                let avg = Float(basePitches.reduce(0, +)) / Float(basePitches.count)
-                var best = Float.greatestFiniteMagnitude
-                for cand in [-12, 0, 12] {
-                    let d = abs((avg + Float(cand)) - center)
-                    if d < best { best = d; shift = cand }
+            let voiced: [Int]
+            if let vl = voiceLead, !basePitches.isEmpty {
+                // H1: real voice-leading (VoiceLeader.resolve) — inversions and
+                // held common tones instead of the whole-block octave shift.
+                // Order note (deliberate): resolve returns ASCENDING pitches.
+                // basePitches are ascending scale degrees too (a block shift
+                // preserves that), so the `voiced[t % count]` arp/pulse iteration
+                // convention is normally unchanged — only the chosen inversion
+                // differs (which is the point). Sole corner: romance > 0.5 on a
+                // power-chord profile appends the 7th AFTER the octave ([0,4,7,6]),
+                // where the legacy arp runs that unsorted order; the voice-led
+                // branch always arpeggiates low→high. Accepted for the new branch.
+                if prevPadVoicing.isEmpty {
+                    // First chord: exactly what the legacy path plays (shift 0) —
+                    // keeps the genre's opening voicing AND the voice count
+                    // (power-chord octave doublings included) for every section.
+                    voiced = basePitches
+                } else {
+                    // Register = the SAME window the legacy shift path can reach:
+                    // the chord's root position ± one whole octave ({−12,0,+12}).
+                    let lo = Swift.max(0, (basePitches.min() ?? 0) - 12)
+                    let hi = Swift.min(127, (basePitches.max() ?? 0) + 12)
+                    // Per-chord skeleton seed, derived WITHOUT consuming either
+                    // RNG stream (same golden-ratio mix as humanizeVelocity) so
+                    // progression/lead structure stays identical to the OFF path.
+                    let chordSeed = vl.seed &+ (UInt64(bitPattern: Int64(idx + 1)) &* 0x9E3779B97F4A7C15)
+                    voiced = VoiceLeader.resolve(from: prevPadVoicing, to: basePitches,
+                                                 register: lo...hi,
+                                                 strictness: vl.strictness,
+                                                 spread: vl.spread,
+                                                 seed: chordSeed)
                 }
-            }
-            let voiced = basePitches.map { $0 + shift }
-            if !voiced.isEmpty {
-                prevPadCenter = Float(voiced.reduce(0, +)) / Float(voiced.count)
+                prevPadVoicing = voiced
+            } else {
+                var shift = 0
+                if let center = prevPadCenter, !basePitches.isEmpty {
+                    let avg = Float(basePitches.reduce(0, +)) / Float(basePitches.count)
+                    var best = Float.greatestFiniteMagnitude
+                    for cand in [-12, 0, 12] {
+                        let d = abs((avg + Float(cand)) - center)
+                        if d < best { best = d; shift = cand }
+                    }
+                }
+                voiced = basePitches.map { $0 + shift }
+                if !voiced.isEmpty {
+                    prevPadCenter = Float(voiced.reduce(0, +)) / Float(voiced.count)
+                }
             }
 
             if profile.arpeggiated {
