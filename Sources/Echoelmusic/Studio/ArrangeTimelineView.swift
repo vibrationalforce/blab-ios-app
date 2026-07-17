@@ -1114,6 +1114,13 @@ private struct RegionBlockView: View {
     /// Increments whenever a drop actually SNAPPED (grid or neighbour edge) — drives
     /// the `.sensoryFeedback` light tick (clip game C4: fühlbares Einrasten).
     @State private var snapPulse = 0
+    /// #56 C5: `MediaLibrary.resolveRef` probes the file system (up to ~5 exists
+    /// checks + a directory-creation side effect per MISS) — body used to call it
+    /// TWICE per frame while a drag's @GestureState churns this leaf at display
+    /// rate (main-thread micro-hitches = stutter under the finger, worst for a
+    /// vanished/re-rooted ref). Resolved ONCE per mediaRef here; body reads the
+    /// cached URL only.
+    @State private var resolvedMediaURL: URL?
 
     private var laneHeight: CGFloat { ArrangeTimelineView.laneHeight }
 
@@ -1146,14 +1153,14 @@ private struct RegionBlockView: View {
         // Tap an AUDIO region = hear ITS window immediately (founder: "Audio mit direkt
         // die wav Dateien vorhören") — H13: streams via the audition sink from the
         // region's contentOffset for the region's length (pro-DAW), not file-start.
-        let auditionURL = clip.flatMap { $0.kind == .audio ? ArrangeTimelineView.mediaURL($0) : nil }
+        let auditionURL = clip?.kind == .audio ? resolvedMediaURL : nil   // C5: cached, no per-frame probe
         // Long-press a region opens its editor (only kinds with a real engine offer one).
         let editableKind = clip.map { $0.kind == .midi || $0.kind == .audio } ?? false
         let tint = ArrangeTimelineView.kindTint(clip?.kind)
         return RoundedRectangle(cornerRadius: 6)
             .fill(tint.opacity(0.14))
             .overlay {
-                if let clip, clip.kind == .audio, let url = ArrangeTimelineView.mediaURL(clip) {
+                if clip?.kind == .audio, let url = resolvedMediaURL {
                     FileWaveformView(url: url, tint: EchoelTheme.text)
                         .padding(.horizontal, 3).padding(.vertical, 8)
                         .allowsHitTesting(false)
@@ -1284,6 +1291,13 @@ private struct RegionBlockView: View {
                  "Delete region"]
                     .compactMap { $0 }.joined(separator: ". ")
             )
+            // C5: resolve once per mediaRef (re-runs when an import swaps the ref;
+            // nil id for non-audio clips resolves to nil). Leaf modifier — the root
+            // sheet chain is untouched.
+            .task(id: clip?.kind == .audio ? clip?.mediaRef : nil) {
+                resolvedMediaURL = clip?.kind == .audio
+                    ? clip.flatMap(ArrangeTimelineView.mediaURL) : nil
+            }
     }
 
     /// Trailing-edge trim (B11) — live width tracks the finger via this clip's OWN
