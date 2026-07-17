@@ -1165,55 +1165,19 @@ private struct RegionBlockView: View {
         // Long-press a region opens its editor (only kinds with a real engine offer one).
         let editableKind = clip.map { $0.kind == .midi || $0.kind == .audio } ?? false
         let tint = ArrangeTimelineView.kindTint(clip?.kind)
+        // TYPE-CHECK BUDGET (v280 deploy red, exit 65 "unable to type-check this
+        // expression in reasonable time" HERE): this body was ONE ~140-line generic
+        // expression carrying every closure (waveform, ring, grips, tap, context
+        // menu, a11y). It sat exactly at the compiler's limit — green on one runner,
+        // red on the next. The heavy closures now live in named helpers below; the
+        // chain stays, the inference load per expression collapses. Behavior-identical.
         return RoundedRectangle(cornerRadius: 6)
             .fill(tint.opacity(0.14))
-            .overlay {
-                if clip?.kind == .audio, let url = resolvedMediaURL {
-                    FileWaveformView(url: url, tint: EchoelTheme.text)
-                        .padding(.horizontal, 3).padding(.vertical, 8)
-                        .allowsHitTesting(false)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-            }
-            .overlay(RoundedRectangle(cornerRadius: 6)
-                // Selected (C3) = accent ring; moving = full-strength tint; idle = subtle.
-                .strokeBorder(isSelected ? EchoelTheme.accent : tint.opacity(isMoving ? 1.0 : 0.55),
-                              lineWidth: isSelected ? 2 : 1))
-            .overlay(alignment: .topLeading) {
-                Text(name)
-                    .font(EchoelTheme.font(9, .medium))
-                    .foregroundStyle(EchoelTheme.text)
-                    .lineLimit(1)
-                    .padding(.horizontal, 5).padding(.top, 3)
-            }
-            .overlay(alignment: .leading) {
-                // Leading trim handle (founder 2026-07-15 "auch vorne"): mirror of the
-                // trailing grip. Moves the front edge; the right edge stays fixed, media
-                // stays put. Released → snapped + committed via trimRegionStart.
-                ZStack(alignment: .leading) {
-                    Color.clear.frame(width: 22)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(tint.opacity(isFrontResizing ? 0.9 : 0.5))
-                        .frame(width: 4, height: laneHeight - 20)
-                        .padding(.leading, 3)
-                }
-                .contentShape(Rectangle())
-                .gesture(frontResizeGesture)
-            }
-            .overlay(alignment: .trailing) {
-                // Trailing trim handle (B11): a fat invisible grab zone + a thin grip.
-                // The drag starts on this dedicated zone so it wins over the horizontal
-                // ScrollView. Live width tracks the finger; released → snapped + committed.
-                ZStack(alignment: .trailing) {
-                    Color.clear.frame(width: 22)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(tint.opacity(isResizing ? 0.9 : 0.5))
-                        .frame(width: 4, height: laneHeight - 20)
-                        .padding(.trailing, 3)
-                }
-                .contentShape(Rectangle())
-                .gesture(resizeGesture)
-            }
+            .overlay { audioWaveformOverlay(isAudio: clip?.kind == .audio) }
+            .overlay(selectionRing(tint: tint))
+            .overlay(alignment: .topLeading) { nameTag(name) }
+            .overlay(alignment: .leading) { frontTrimHandle(tint: tint) }
+            .overlay(alignment: .trailing) { trailingTrimHandle(tint: tint) }
             .frame(width: w, height: laneHeight - 8)
             // Vertical move previews ROW-snapped (the lane the release will land on),
             // not free-floating — the drop target is visible while dragging (#56 C4).
@@ -1233,63 +1197,8 @@ private struct RegionBlockView: View {
             // pattern the trim handles proved against the scrolling grid (device-
             // verified) — the store call is the ONE command EchoelAI will also use.
             .gesture(moveGesture)
-            .onTapGesture {
-                // Select mode (C3): tap marks/unmarks; otherwise tap auditions audio.
-                if selectMode { onSelectToggle(); return }
-                guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
-                if let url = auditionURL,
-                   let window = AudioRegionPlayback.auditionWindow(
-                       for: region, bpm: beatPlayer.pattern.tempo,
-                       transportPlaying: beatPlayer.pattern.isPlaying) {
-                    beatPlayer.audition(url: url, fromSeconds: window.fromSeconds,
-                                        lengthSeconds: window.lengthSeconds)
-                }
-            }
-            .contextMenu {
-                if editableKind {
-                    Button { onEdit() } label: {
-                        Label("Edit", systemImage: "slider.horizontal.3")
-                    }
-                }
-                // Split / Join, ON THE CLIP (founder 2026-07-15). Both read
-                // transport.position / the document ONLY here (menu builds on open).
-                // Split cuts at the playhead when it sits INSIDE this clip; otherwise it
-                // halves the clip. Without the fallback, re-splitting a piece "ging nicht"
-                // (founder 2026-07-15): after a cut the playhead rests on the new boundary,
-                // where `split(at:)` is a no-op for both pieces — so "Split" did nothing.
-                // Now it always divides the clip the founder long-pressed.
-                Button {
-                    let playTick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                    let inside = playTick > region.startTick && playTick < region.endTick
-                    let cut = inside ? playTick : region.startTick + region.lengthTicks / 2
-                    timeline.splitRegion(id: region.id, atTick: cut, bpm: beatPlayer.pattern.tempo)
-                } label: {
-                    Label("Split", systemImage: "scissors")
-                }
-                Button {
-                    timeline.mergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo)
-                } label: {
-                    Label("Join with next", systemImage: "arrow.triangle.merge")
-                }
-                .disabled(!timeline.canMergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo))
-                Button {
-                    let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
-                    timeline.moveRegion(id: region.id, toStartTick: tick,
-                                        bpm: beatPlayer.pattern.tempo)   // C5 overlap rule
-                } label: {
-                    Label("Move to playhead", systemImage: "arrow.right.to.line")
-                }
-                Button {
-                    timeline.duplicateRegion(id: region.id)
-                } label: {
-                    Label("Duplicate", systemImage: "plus.square.on.square")
-                }
-                Button(role: .destructive) {
-                    timeline.removeRegion(id: region.id)
-                } label: {
-                    Label("Delete region", systemImage: "trash")
-                }
-            }
+            .onTapGesture { handleTap(auditionURL: auditionURL) }
+            .contextMenu { regionMenu(editableKind: editableKind) }
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
             .accessibilityHint(
                 [auditionURL != nil ? "Tap to play this audio clip" : nil,
@@ -1306,6 +1215,123 @@ private struct RegionBlockView: View {
                 resolvedMediaURL = clip?.kind == .audio
                     ? clip.flatMap(ArrangeTimelineView.mediaURL) : nil
             }
+    }
+
+    // MARK: body helpers (type-check budget — see the note at the top of `body`)
+
+    @ViewBuilder
+    private func audioWaveformOverlay(isAudio: Bool) -> some View {
+        if isAudio, let url = resolvedMediaURL {
+            FileWaveformView(url: url, tint: EchoelTheme.text)
+                .padding(.horizontal, 3).padding(.vertical, 8)
+                .allowsHitTesting(false)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
+    /// Selected (C3) = accent ring; moving = full-strength tint; idle = subtle.
+    private func selectionRing(tint: Color) -> some View {
+        RoundedRectangle(cornerRadius: 6)
+            .strokeBorder(isSelected ? EchoelTheme.accent : tint.opacity(isMoving ? 1.0 : 0.55),
+                          lineWidth: isSelected ? 2 : 1)
+    }
+
+    private func nameTag(_ name: String) -> some View {
+        Text(name)
+            .font(EchoelTheme.font(9, .medium))
+            .foregroundStyle(EchoelTheme.text)
+            .lineLimit(1)
+            .padding(.horizontal, 5).padding(.top, 3)
+    }
+
+    /// Leading trim handle (founder 2026-07-15 "auch vorne"): mirror of the
+    /// trailing grip. Moves the front edge; the right edge stays fixed, media
+    /// stays put. Released → snapped + committed via trimRegionStart.
+    private func frontTrimHandle(tint: Color) -> some View {
+        ZStack(alignment: .leading) {
+            Color.clear.frame(width: 22)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(tint.opacity(isFrontResizing ? 0.9 : 0.5))
+                .frame(width: 4, height: laneHeight - 20)
+                .padding(.leading, 3)
+        }
+        .contentShape(Rectangle())
+        .gesture(frontResizeGesture)
+    }
+
+    /// Trailing trim handle (B11): a fat invisible grab zone + a thin grip.
+    /// The drag starts on this dedicated zone so it wins over the horizontal
+    /// ScrollView. Live width tracks the finger; released → snapped + committed.
+    private func trailingTrimHandle(tint: Color) -> some View {
+        ZStack(alignment: .trailing) {
+            Color.clear.frame(width: 22)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(tint.opacity(isResizing ? 0.9 : 0.5))
+                .frame(width: 4, height: laneHeight - 20)
+                .padding(.trailing, 3)
+        }
+        .contentShape(Rectangle())
+        .gesture(resizeGesture)
+    }
+
+    /// Select mode (C3): tap marks/unmarks; otherwise tap auditions audio.
+    private func handleTap(auditionURL: URL?) {
+        if selectMode { onSelectToggle(); return }
+        guard timeline.document.effectiveGain(for: region.laneID) > 0 else { return }
+        if let url = auditionURL,
+           let window = AudioRegionPlayback.auditionWindow(
+               for: region, bpm: beatPlayer.pattern.tempo,
+               transportPlaying: beatPlayer.pattern.isPlaying) {
+            beatPlayer.audition(url: url, fromSeconds: window.fromSeconds,
+                                lengthSeconds: window.lengthSeconds)
+        }
+    }
+
+    /// The clip's long-press menu. Split / Join, ON THE CLIP (founder 2026-07-15).
+    /// Both read transport.position / the document ONLY here (menu builds on open).
+    /// Split cuts at the playhead when it sits INSIDE this clip; otherwise it
+    /// halves the clip. Without the fallback, re-splitting a piece "ging nicht"
+    /// (founder 2026-07-15): after a cut the playhead rests on the new boundary,
+    /// where `split(at:)` is a no-op for both pieces — so "Split" did nothing.
+    /// Now it always divides the clip the founder long-pressed.
+    @ViewBuilder
+    private func regionMenu(editableKind: Bool) -> some View {
+        if editableKind {
+            Button { onEdit() } label: {
+                Label("Edit", systemImage: "slider.horizontal.3")
+            }
+        }
+        Button {
+            let playTick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+            let inside = playTick > region.startTick && playTick < region.endTick
+            let cut = inside ? playTick : region.startTick + region.lengthTicks / 2
+            timeline.splitRegion(id: region.id, atTick: cut, bpm: beatPlayer.pattern.tempo)
+        } label: {
+            Label("Split", systemImage: "scissors")
+        }
+        Button {
+            timeline.mergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo)
+        } label: {
+            Label("Join with next", systemImage: "arrow.triangle.merge")
+        }
+        .disabled(!timeline.canMergeRegionWithNext(id: region.id, bpm: beatPlayer.pattern.tempo))
+        Button {
+            let tick = TimelineTime.tick(fromAbsoluteStep: transport.position.absoluteStep)
+            timeline.moveRegion(id: region.id, toStartTick: tick,
+                                bpm: beatPlayer.pattern.tempo)   // C5 overlap rule
+        } label: {
+            Label("Move to playhead", systemImage: "arrow.right.to.line")
+        }
+        Button {
+            timeline.duplicateRegion(id: region.id)
+        } label: {
+            Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+        Button(role: .destructive) {
+            timeline.removeRegion(id: region.id)
+        } label: {
+            Label("Delete region", systemImage: "trash")
+        }
     }
 
     /// Trailing-edge trim (B11) — live width tracks the finger via this clip's OWN
