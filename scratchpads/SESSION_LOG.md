@@ -7293,3 +7293,23 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Kanal-Summe == Stretch der Mono-Summe). Beide Commits 4/4 grün.
 - **Timeline-Beats-Executor entblockt** (nächste größere Scheibe, prime-time
   Pre-Render pro Region). Ab hier still bis Founder-Morgen-Test; v280 bereit.
+
+### Forts. 58 (07:09–07:45): #36 Oktaver — Engine-Slice GEBAUT (Founder-Wunsch komplett bis auf Tür)
+- `66a5861` **Oktaver-Engine** (test-first): `EchoelPolyDDSP.octaveDouble` (−1/0/+1)
+  + `octaveMix` (0…1, Default 0.5) + `setOctaver` (geklemmt, NaN→0.5). `noteOn`
+  spawnt EINE Extra-Stimme bei 2×/0,5× der Basisfrequenz, auf DERSELBEN Notennummer
+  gekeyt → `noteOff`/`slideNote` nehmen sie ohne Buchhaltung mit (Glide-Ratio
+  oktav-invariant). Gain = Unison-Per-Voice-Gain × Mix, Pan = Key-Follow bei der
+  KLINGENDEN Tonhöhe (Note ± 12), Mix 0 überspringt den Spawn (kein verbrannter
+  Slot). Default aus = bit-identisch (u==1-Early-Return wurde if/else, identischer
+  Spawn-Call). Facade `PolySynthVoice.setOctaver` neben Transpose/Detune. 6 Tests.
+- Reviews: **audio-thread APPROVE** (kein Selbst-Stealing innerhalb eines noteOn —
+  jeder Spawn bekommt einen strikt neueren ageCounter, Steal trifft immer die
+  älteste GEHALTENE Note als Ganzes; Makeup-Gain zählt die Oktav-Stimme mit;
+  P1-Idle-Skip greift normal) · **code APPROVE** (nur LOWs). `132bf65` LOWs
+  umgesetzt: Extreme-MIDI-Tests (120/+1, 0/−1), Direct-Var-Bypass-Test (Richtung 5
+  → +1, NaN-Mix → kein Spawn), Doc "direction 0 = off". Beide Commits 4/4 grün.
+- Deferred (Test-Hook nötig, `voices` privat): 2×-Ratio-Erhalt über slideNote
+  per Test pinnen — per Inspektion + Audio-Review belegt.
+- Nächster Slice: #36 Slice 2 = SynthPatch-Persistenz (decodeIfPresent) + UI-Tür
+  (Oktaver neben Detune). Weiter kein Deploy vor Founder-Morgen-Test v278/v279.
