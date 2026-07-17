@@ -7528,3 +7528,29 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Grid-Hierarchie Bar>Beat>Step, Clip-Titel nennt die Spur. Gates laufen;
   Check 16:44Z armiert → bei Grün v286 (Roll + Humanize zusammen).
 - Wartet auf Founder: Neustart-Log (AUv3, Board B1), Hörtests v285/v286 (B2).
+
+## 2026-07-17 Forts. 73 — v287 auf Gerät · BodyVibe heißt + AUv3-Brücke · Timeline-Duo in Bau
+- v287 (Akkord-Journeys AN + Roll-Ops/Scale-Lock/Bio-Humanize + Bio-Spur klingt)
+  komplett grün + TestFlight success; Founder-Log build 2394 = v287 LIEF auf
+  Gerät. Founder-Q "Ist EchoelBodyVibe ein eigenes Instrument? AUv3" →
+  Delegation "Du entscheidest": Rename ausgeführt (c000c48, App-displayName +
+  Kind-Picker + AUv3-Marketing-Name "Echoelmusic: EchoelBodyVibe"; Komponenten-
+  Identität augn/echl/Echo UNVERÄNDERT — Host-Sessions überleben).
+- App-Group-Puls-Brücke (6a568d8): existierte zu ~70% (BioVitals) — Slice
+  schloss Freshness-Gate (2 s), 5.1.3-Loch (egressAllowed via BioEgressPolicy —
+  HealthKit-Frames nie in host-lesbare AUParameter), 10-Hz-Live-Rate (Publisher-
+  Timer ELIMINIERT, reitet onPollTick), NaN-Härtung, Background-Publish AN
+  (dokumentierter 1-Zeilen-Revert). 8 Tests.
+- Founder-Log-Triage: auv3 self-probe FAILED -3000 "own appex not registered"
+  + raw 101 comps ALLE Apple ⇒ Geräte-pluginkit-Register korrupt. Ansage an
+  Founder: App löschen + TestFlight-Neuinstallation (registriert eigenen AUv3
+  neu); Dritt-AUv3s = deren Apps einmal öffnen. rPPG: Lock 125 bpm conf 0.69
+  kurz, Sättigungs-Relock griff (O8 bleibt device-iterate).
+- Founder-Direktiven (Screenshot Automation-Sheet): (1) Automation gehört
+  inline in die Timeline → T1-Agent baut TimelineAutomationRow (Kurve unter
+  der Spur, AutomationCanvasMath-Gesten, Sheet bleibt Präzisions-Editor);
+  (2) "Play Button auf den Clips + Performance Mode — mache dafür alles klar"
+  → P0-Agent baut ClipLaunchEngine (quantisiertes Launch/Stop, Lane-Override,
+  Ableton-Prinzip) + TimelineRegionPlayer-Schicht; P1 (Clip-Play-Glyph +
+  Performance-Toggle) folgt nach T1-Commit (gleiche Datei).
+  PLAN_TIMELINE_AUTOMATION_PERFORMANCE.md (08f03fd).
