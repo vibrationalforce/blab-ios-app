@@ -332,6 +332,13 @@ final class TimelineAudioSink: AudioRegionSink {
         knownURLs[url] = key
         // Audio-review V1/V2: remember the exact connection format per URL — the
         // Beats rebuild must use it (never the shared `file` slot at completion time).
+        // Verify-pass LOW: a file REPLACED in-place with a different format must
+        // also drop its cached Beats windows (an old-format buffer scheduled on
+        // the new-format node would raise the scheduleBuffer NSException). The
+        // app's import/record flow mints new URLs, so this is belt-and-braces.
+        if let old = urlFormats[url], !old.isEqual(format) {
+            for k in beatsBuffers.keys where k.url == url { beatsBuffers[k] = nil }
+        }
         urlFormats[url] = format
         if let existing = nodes[key] { return existing }
         let node = AVAudioPlayerNode()
