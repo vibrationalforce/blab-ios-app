@@ -92,14 +92,22 @@ public final class AudioClipPlayer {
         let plan = StretchPlan.resolve(mode: region.stretchMode, warpEnabled: region.warpEnabled,
                                        nativeBPM: region.nativeBPM, projectBPM: projectBPM,
                                        capabilities: StretchMode.previewCapabilities)
-        let beatsPreRender = plan.mode == .beats && plan.rate != 1.0
-        // Beats plays an ALREADY-stretched buffer → the spectral node must be neutral.
-        timePitch.rate = beatsPreRender ? 1 : Float(plan.rate)
-        timePitch.pitch = plan.preservesPitch ? 0 : Float(StretchPlan.tapePitchCents(forRate: plan.rate))
         let sr = f.processingFormat.sampleRate
         let total = f.length
         let startFrame = region.startFrame(sampleRate: sr, totalFrames: total)
         let frameCount = AVAudioFrameCount(region.frameCount(sampleRate: sr, totalFrames: total))
+        // Beats gates (audio-review): sub-frame regions pass through WSOLA anyway
+        // (≤ one analysis frame), and very long renders would stack ~130 MB of
+        // transient Float copies against the 200 MB law — both fall back to the
+        // spectral path (pitch still held; Clean-equivalent, honest per plan doc).
+        // 1.5 M output frames ≈ 31 s @ 48 kHz → ~55-60 MB stereo transient peak.
+        let wsolaFrame = WSOLAStretcher().frameSize
+        let beatsPreRender = plan.mode == .beats && plan.rate != 1.0
+            && Int(frameCount) > wsolaFrame
+            && Double(frameCount) / plan.rate < 1_500_000
+        // Beats plays an ALREADY-stretched buffer → the spectral node must be neutral.
+        timePitch.rate = beatsPreRender ? 1 : Float(plan.rate)
+        timePitch.pitch = plan.preservesPitch ? 0 : Float(StretchPlan.tapePitchCents(forRate: plan.rate))
         guard frameCount > 0,
               let buffer = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: frameCount) else { return }
         do {
@@ -147,6 +155,10 @@ public final class AudioClipPlayer {
             }
             let rate = Float(plan.rate)
             let generation = playGeneration
+            // Silence the node NOW (audio-review LOW): a clip still auditioning
+            // would otherwise keep sounding through the render window — and snap
+            // to rate 1 audibly, since the neutral write above already landed.
+            node.stop()
             isPlaying = true    // pending: the button reads "playing" while it renders
             Task.detached(priority: .userInitiated) { [weak self] in
                 let stretcher = WSOLAStretcher()
