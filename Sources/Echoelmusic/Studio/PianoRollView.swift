@@ -984,8 +984,6 @@ struct PianoRollView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Quantize")
             .accessibilityHint("Choose a grid — straight or triplet — to snap the selected notes")
-            .accessibilityLabel("Quantize")
-            .accessibilityHint("Snaps the selected notes (or all notes) to the step grid")
             Button(role: .destructive) { model.clear(); selection = .none } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
@@ -1042,6 +1040,11 @@ struct PianoRollView: View {
             }
             .frame(height: 30)
         } else if let id = selection.single, let note = model.notes.first(where: { $0.id == id }) {
+            // Retro-review MEDIUM-1: the rows' rigid minimum (value boxes are fixed
+            // frames) exceeds a 390 pt iPhone — without this scroll the trailing
+            // controls (delete / the MPE reset chip, the ONLY way back to
+            // body-driven) clip off-screen. Precedent: the draw-length row below.
+            ScrollView(.horizontal, showsIndicators: false) {
             VStack(spacing: 6) {
                 HStack(spacing: 12) {
                     Text(model.name(forPitch: note.pitch))
@@ -1100,6 +1103,10 @@ struct PianoRollView: View {
 
                     if note.mpe != nil {
                         Button {
+                            // One tap destroys up to three authored values — a
+                            // discrete destructive edit, so it snapshots like
+                            // remove/clear/quantize (scrub writes stay unsnapshotted).
+                            model.snapshotForUndo()
                             model.setMPE(id: id, bend: nil, slide: nil, pressure: nil)
                         } label: {
                             Image(systemName: "xmark.circle")
@@ -1111,6 +1118,7 @@ struct PianoRollView: View {
                     }
                 }
                 .frame(height: 30)
+            }
             }
         } else {
             Text("Tap to add · drag a note to move · its edge to resize · empty to select")
@@ -1220,7 +1228,11 @@ struct PianoRollView: View {
                     .offset(x: r.minX, y: r.minY)
                     .allowsHitTesting(false)
             }
-            if pattern.isPlaying && !isClipScoped { playhead }
+            // isPlaying = start/stop-frequency (fine here); currentStep churns at
+            // step rate and is confined to the leaf (retro-review HIGH-1).
+            if pattern.isPlaying && !isClipScoped {
+                RollPlayheadView(pattern: pattern, stepW: stepW, canvasH: canvasH)
+            }
         }
         .frame(width: canvasW, height: canvasH, alignment: .topLeading)
         .contentShape(Rectangle())
@@ -1275,11 +1287,21 @@ struct PianoRollView: View {
             .offset(x: x + 1, y: y + 1)
     }
 
-    private var playhead: some View {
-        Rectangle()
-            .fill(EchoelTheme.text.opacity(0.5))
-            .frame(width: 1.5, height: canvasH)
-            .offset(x: CGFloat(pattern.currentStep) * stepW)
+    // (Retro-review HIGH-1) The playhead lives in its OWN leaf struct: reading
+    // `pattern.currentStep` (16th-note rate, 8–16 Hz while playing) in a computed
+    // var of THIS body registered the whole roll — transport row included — as a
+    // step-rate observer, and every rebuild tore down the open Q Menu popover
+    // (freeze law 10.76.41/50: a computed var is NOT an observation boundary).
+    private struct RollPlayheadView: View {
+        let pattern: PatternEngine
+        let stepW: CGFloat
+        let canvasH: CGFloat
+        var body: some View {
+            Rectangle()
+                .fill(EchoelTheme.text.opacity(0.5))
+                .frame(width: 1.5, height: canvasH)
+                .offset(x: CGFloat(pattern.currentStep) * stepW)
+        }
     }
 
     // MARK: - Geometry helpers
