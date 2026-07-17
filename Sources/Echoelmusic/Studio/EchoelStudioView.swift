@@ -164,7 +164,8 @@ struct EchoelStudioView: View {
     /// compact header. Persisted so a user who opens a panel keeps it open.
     @AppStorage("studio.showComposition") private var showComposition = false
     @AppStorage("studio.showMix") private var showMix = false
-    /// R1 (2026-07-10): the Session card — name preview · place · weather.
+    /// R1 (2026-07-10): the Session card — place · weather (the name preview
+    /// moved to the header CompositionHeaderStrip in step 2c).
     @AppStorage("studio.showSession") private var showSession = false
     @AppStorage("studio.showExport") private var showExport = false
     @State private var showMood = false
@@ -397,7 +398,7 @@ struct EchoelStudioView: View {
             switch self {
             case .bio:         return "Bio — pulse, HRV, coherence, source"
             case .composition: return "Tempo and variations — tap tempo, metronome, haptic beat, variation ideas"
-            case .session:     return "Session — name, place, weather"
+            case .session:     return "Session — place, weather"
             case .sound:       return "Sound and texture"
             case .mix:         return "Mix — level per part"
             case .effects:     return "Effects"
@@ -521,6 +522,9 @@ struct EchoelStudioView: View {
                     // Step 2b: the Comp chip fell — the residual tempo tools +
                     // variation maze open through the transport "•••" door.
                     case "tempo":   activeMenu = .composition
+                    // Step 2c: the Session chip fell — the name preview lives in
+                    // the header strip; place/weather open through this door.
+                    case "session": activeMenu = .session
                     default: break
                     }
                 }
@@ -1153,10 +1157,15 @@ struct EchoelStudioView: View {
     //               control in the TransportBar; the residual tempo tools +
     //               variation maze open via the transport "•••" door ("tempo"),
     //               same chrome-door-only pattern as Master/Export.
+    //  · .session → chip REMOVED (step 2c, 2026-07-17): the live name preview
+    //               (SessionNamePreviewLeaf) rides at the end of the header
+    //               CompositionHeaderStrip; the place/weather toggles that feed
+    //               the name open via the transport "•••" door ("session") —
+    //               chrome-door-only, same pattern as Master/Export/Tempo.
     // Master/Export were already chrome-door-only.
     private static let studioChips: [StudioMenu] =
         StudioMenu.allCases.filter { $0 != .master && $0 != .export && $0 != .bio
-                                     && $0 != .composition }
+                                     && $0 != .composition && $0 != .session }
 
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -1609,7 +1618,8 @@ struct EchoelStudioView: View {
     /// duplicated here (one tempo control app-wide, founder "einer reicht").
     // (Historical, unchanged: beatModeRow removed 2026-07-07 "Schmeiß den Beat
     // komplett raus" — stays defined below, unpresented, reversible. placeRow/
-    // weatherRow live on the SESSION card since R1 2026-07-10.)
+    // weatherRow live in the Session dropdown — chrome-door "session" since
+    // step 2c; its name preview moved to the header strip.)
     private var tempoToolsPanel: some View {
         panel("Tempo & variations", "Tap · metronome · haptic beat · ideas",
               isExpanded: $showComposition) {
@@ -1756,14 +1766,17 @@ struct EchoelStudioView: View {
         .accessibilityHint(subtitle)
     }
 
-    // MARK: Panel 1b — Session (name preview · place · weather)
+    // MARK: Panel 1b — Session (place · weather)
 
-    /// The session's identity, made VISIBLE: the live stamped name (the value
-    /// of the place/weather features shows itself — the city appears in the
-    /// name the moment it resolves) plus the two opt-in toggles that feed it.
+    /// The two opt-in toggles that FEED the session name (place token · weather
+    /// flavour). Step 2c: the live name preview itself (SessionNamePreviewLeaf)
+    /// moved into the header CompositionHeaderStrip — always visible, so the
+    /// city still shows itself in the name the moment it resolves. This panel
+    /// is chrome-door-only (transport "•••" → "Session"), the exact
+    /// Master/Export/Tempo pattern; its Session chip fell with it.
     private var sessionPanel: some View {
-        panel("Session", "Name · place · weather", isExpanded: $showSession) {
-            SessionNamePreviewLeaf()
+        panel("Session", "Place · weather — stamped into the name",
+              isExpanded: $showSession) {
             #if canImport(CoreLocation)
             placeRow
             #endif
@@ -4215,47 +4228,9 @@ private struct WeatherMixRow: View {
     }
 }
 
-/// R1: the live stamped session name (artist · date · [place] · key · BPM ·
-/// Kammerton) — its OWN leaf because the tempo runs along with the body
-/// (freeze rule: only this label churns, never the Session card's toggles).
-@MainActor
-private struct SessionNamePreviewLeaf: View {
-    @Environment(SessionContext.self) private var session
-    @Environment(Transport.self) private var transport
-
-    /// The name as READABLE fields in the founder's order (E · date · place ·
-    /// key · BPM · Kammerton) instead of the raw underscore filename. Place is
-    /// shown only once it resolves, so the line never carries an empty slot.
-    private var readableFields: [String] {
-        var f: [String] = []
-        let artist = session.artistName.trimmingCharacters(in: .whitespaces)
-        f.append(artist.isEmpty ? "E~" : artist)                           // E~ (brand mark)
-        f.append(Date().formatted(date: .abbreviated, time: .omitted))     // date
-        if !session.placeToken.isEmpty { f.append(session.placeToken) }    // place
-        f.append(session.key.name)                                         // Tonart, spelled out
-        f.append("\(Int(transport.tempo.rounded())) BPM")                  // tempo
-        f.append("\(Int(session.a4Hz.rounded())) Hz")                      // Kammerton
-        return f
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            // Human-readable identity — the value of the whole card, made legible.
-            Text(readableFields.joined(separator: "  ·  "))
-                .font(EchoelTheme.font(13, .medium))
-                .foregroundStyle(EchoelTheme.text)
-                .fixedSize(horizontal: false, vertical: true)
-            // The exact export/save filename, kept for reference but de-emphasised.
-            Text("Datei: \(session.sessionName(bpm: transport.tempo.rounded()))")
-                .font(EchoelTheme.font(10).monospacedDigit())
-                .foregroundStyle(EchoelTheme.dim)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Session: \(readableFields.joined(separator: ", "))")
-    }
-}
+// (Step 2c: SessionNamePreviewLeaf moved verbatim into WorkspaceView.swift —
+//  it now rides at the end of the header CompositionHeaderStrip, still its own
+//  leaf so the body-following BPM churns only that label, never the chrome.)
 
 /// Identifiable wrapper so the diagnostics sheet can present the log text.
 private struct DiagReport: Identifiable {

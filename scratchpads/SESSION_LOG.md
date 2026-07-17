@@ -7387,3 +7387,37 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - **Modal-Kette unangetastet** (kein neues .sheet am Root; der Strip-Sheet lebt
   IN EchoelValueFields eigenem Leaf wie beim Transport-Tempo). Kein lokaler
   Build (CI kompiliert) — Änderungen verbatim-verschiebend, konservativ.
+
+### Forts. 63: #55 Step 2b ABGESCHLOSSEN + Step 2c — Session-Name → Header (Session-Chip aufgelöst)
+- **2b-Abschluss (ebb60bf + 08ff4fc):** Reviews — ui-state REQUEST_CHANGES →
+  gefixt mit `08ff4fc` (Equality-Guard im `edited(_:posts:)`-Binding: ein
+  `.menu`-Picker feuert `set` auch beim Re-Pick des AKTUELLEN Werts; ohne Guard
+  hätte ein No-op-Tap presetIndex/currentPatch resettet und die laufende
+  Aufnahme hörbar rekomponiert — jetzt: kein Write, kein Post ohne echte
+  Änderung). code-Review APPROVE. Beide Commits 4/4 CI-Gates grün. Offene LOWs
+  (dokumentiert, bewusst nicht gefixt): der konditionale Retune-Hinweis der
+  alten tuningRow ist gefallen (der unpresentete `nonStandardTuningBanner`
+  hält den vollen Erklärtext, reversibel) + `noteNames`-Duplikat
+  (CompositionHeaderStrip vs. Studio — zwei private Kopien derselben 12er-Liste).
+- **2c GEBAUT:** `SessionNamePreviewLeaf` VERBATIM nach WorkspaceView.swift —
+  fährt jetzt am Ende des `CompositionHeaderStrip` (nach A4, hinter dünnem
+  Divider), immer sichtbar. Bleibt sein EIGENES Leaf: liest `transport.tempo`
+  (läuft mit dem Körper mit, solange Tempo unlocked) — nur seine Labels churnen,
+  nie der Picker-hostende Strip-Body (Freeze-Regel 10.76.50; Strip-Doku +
+  WorkspaceView-Render-Safety-Notizen aktualisiert).
+- **placeRow passt NICHT in eine dünne Header-Zeile** (Toggle + manuelles
+  Ort-TextField + Statuszeile = kleines Formular) — und weatherRow hängt daran
+  (Wetter braucht den Orts-Fix). Beide bleiben ZUSAMMEN im schlanken
+  `sessionPanel` ("Place · weather — stamped into the name", weiterhin der
+  `.session`-Dropdown-Case), erreichbar über NEUEN Transport-"•••"-Eintrag
+  `"session"` (Menu-Item, KEIN Modal — exaktes Master/Export/Tempo-Muster;
+  Chrome-Door-Receiver: `case "session": activeMenu = .session`). Session-Chip
+  aus studioChips entfernt. NICHTS stillschweigend gedroppt: Name → Header-
+  Strip; Ort + Wetter + manuelles Ortsfeld → "•••" → Session.
+- **Gesetze eingehalten:** Presentation-Modifier-Zählung UNVERÄNDERT
+  (EchoelStudioView 17 vorher/nachher, WorkspaceView 0/0 — verifiziert per
+  grep gegen HEAD); kein 10-Hz-Read in WorkspaceView/Strip-Body (das Leaf
+  konfiniert seinen transport.tempo-Read selbst); kein neuer
+  `.echoelCompositionEdited`-Post nötig (das Leaf ist ein READOUT, kein
+  Control; Place/Wetter-Edits behalten ihre In-Panel-Side-Effects). Code
+  verbatim verschoben; kein lokaler Build (CI kompiliert), konservativ.

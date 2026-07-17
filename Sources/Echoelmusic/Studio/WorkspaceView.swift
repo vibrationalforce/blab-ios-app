@@ -58,12 +58,13 @@ extension Notification.Name {
 //    needs it; never more without consolidating first.
 //  • No high-frequency @Observable is read in this body; the header monitor
 //    reads only the LOW-frequency isRunning flag. Live bio lives in leaves
-//    (BioStripView, PulseMonitorMiniLive).
+//    (BioStripView, PulseMonitorMiniLive, SessionNamePreviewLeaf).
 //  • The surface selection is @AppStorage (changes on user tap only).
-//  • CompositionHeaderStrip (step 2b of the bottom-bar dissolve) is its own
+//  • CompositionHeaderStrip (steps 2b/2c of the bottom-bar dissolve) is its own
 //    leaf: it reads only shared @AppStorage keys + session.a4Hz (user-edit
 //    frequency) — never a bio/playhead value — and talks to the studio only
-//    via the .echoelCompositionEdited notification.
+//    via the .echoelCompositionEdited notification. The body-following BPM in
+//    its session-name preview is confined to SessionNamePreviewLeaf's own body.
 
 @MainActor
 struct WorkspaceView: View {
@@ -315,6 +316,13 @@ private struct TransportBar: View {
                 // door — same pattern as Master/Export (chrome-door-only panel).
                 doorMenuButton("Tempo and variations — tap, metronome, ideas",
                                icon: "metronome", door: "tempo")
+                // Step 2c: the Session chip fell; the live name preview moved into
+                // the header CompositionHeaderStrip, and the place/weather toggles
+                // that FEED the name stay reachable through this door — same
+                // chrome-door-only pattern as Master/Export/Tempo. A Menu entry,
+                // not a modal (the studio's presentation chain is untouched).
+                doorMenuButton("Session — place and weather in the name",
+                               icon: "mappin.and.ellipse", door: "session")
                 #if canImport(MultipeerConnectivity)
                 doorMenuButton("Live Colabo — play together nearby",
                                icon: "dot.radiowaves.left.and.right", door: "live")
@@ -329,7 +337,7 @@ private struct TransportBar: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
-            .accessibilityLabel("More — Master, Export, Live, Learn")
+            .accessibilityLabel("More — Master, Export, Tempo, Session, Live, Learn")
 
             Spacer(minLength: 0)
 
@@ -450,21 +458,26 @@ private struct TransportPositionView: View {
     }
 }
 
-// MARK: - Composition header strip (bottom-bar dissolve, step 2b)
+// MARK: - Composition header strip (bottom-bar dissolve, steps 2b/2c)
 
 /// The musical identity in the chrome: Genre · Key · Scale · Tone system · Concert
-/// pitch A4, one thin always-visible row (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14 step
-/// 2b — these rows lived in the bottom menu bar's Composition dropdown; founder
-/// 2026-07-14: "Unten die Leiste sollte längst aufgelöst sein und sich an anderer
-/// Stelle wieder finden"). THE tempo control is NOT duplicated here — it already
-/// lives in the TransportBar (BodyTempoField, "einer reicht").
+/// pitch A4 — plus, since step 2c, the live session-name preview (the stamped
+/// identity those settings produce) — one thin always-visible row
+/// (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14 steps 2b/2c — these rows lived in the
+/// bottom menu bar's Composition/Session dropdowns; founder 2026-07-14: "Unten die
+/// Leiste sollte längst aufgelöst sein und sich an anderer Stelle wieder finden").
+/// THE tempo control is NOT duplicated here — it already lives in the TransportBar
+/// (BodyTempoField, "einer reicht").
 ///
 /// RENDER SAFETY (skill: swiftui-render-safety):
 ///  • A LEAF view reading ONLY low-frequency state — the shared @AppStorage keys
 ///    (EchoelStudioView stays the semantic owner; same keys + defaults) and
 ///    `session.a4Hz` (changes on user edit / project open only). No bio, playhead
-///    or any ~10 Hz value is read anywhere in this subtree, so the Menu Pickers it
-///    hosts are never torn down by churn (freeze rule 10.76.50).
+///    or any ~10 Hz value is read in THIS body, so the Menu Pickers it hosts are
+///    never torn down by churn (freeze rule 10.76.50). The one churny value in
+///    the row — the live session-name preview, whose BPM runs along with the
+///    body while the tempo is unlocked — is confined to `SessionNamePreviewLeaf`'s
+///    OWN body (step 2c): only that label rebuilds, never this Picker host.
 ///  • No presentation modifier is added to any root: the only sheet is INSIDE
 ///    EchoelValueField's own leaf (the shared number pad), exactly like the
 ///    transport bar's BodyTempoField.
@@ -542,6 +555,15 @@ struct CompositionHeaderStrip: View {
                                      boxWidth: 104, boxHeight: 30)
                         .accessibilityLabel("Concert pitch A4")
                 }
+                // Step 2c (bottom-bar dissolve): the live stamped session name —
+                // the head of the old Session card — rides at the end of the
+                // strip, always visible in the chrome. ITS OWN leaf (it reads
+                // `transport.tempo`, which runs along with the body while the
+                // tempo is unlocked) so only its labels churn — see RENDER
+                // SAFETY above. The place/weather toggles that FEED the name
+                // open via the transport "•••" door ("session").
+                Divider().frame(height: 24).overlay(EchoelTheme.border)
+                SessionNamePreviewLeaf()
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
@@ -578,6 +600,50 @@ struct CompositionHeaderStrip: View {
                     NotificationCenter.default.post(name: .echoelCompositionEdited,
                                                     object: field)
                 })
+    }
+}
+
+/// R1: the live stamped session name (artist · date · [place] · key · BPM ·
+/// Kammerton) — its OWN leaf because the tempo runs along with the body
+/// (freeze rule: only this label churns, never the strip's Picker host).
+/// Moved verbatim from EchoelStudioView's Session card (bottom-bar dissolve
+/// step 2c) — it now rides at the end of the CompositionHeaderStrip.
+@MainActor
+private struct SessionNamePreviewLeaf: View {
+    @Environment(SessionContext.self) private var session
+    @Environment(Transport.self) private var transport
+
+    /// The name as READABLE fields in the founder's order (E · date · place ·
+    /// key · BPM · Kammerton) instead of the raw underscore filename. Place is
+    /// shown only once it resolves, so the line never carries an empty slot.
+    private var readableFields: [String] {
+        var f: [String] = []
+        let artist = session.artistName.trimmingCharacters(in: .whitespaces)
+        f.append(artist.isEmpty ? "E~" : artist)                           // E~ (brand mark)
+        f.append(Date().formatted(date: .abbreviated, time: .omitted))     // date
+        if !session.placeToken.isEmpty { f.append(session.placeToken) }    // place
+        f.append(session.key.name)                                         // Tonart, spelled out
+        f.append("\(Int(transport.tempo.rounded())) BPM")                  // tempo
+        f.append("\(Int(session.a4Hz.rounded())) Hz")                      // Kammerton
+        return f
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            // Human-readable identity — the value of the whole card, made legible.
+            Text(readableFields.joined(separator: "  ·  "))
+                .font(EchoelTheme.font(13, .medium))
+                .foregroundStyle(EchoelTheme.text)
+                .fixedSize(horizontal: false, vertical: true)
+            // The exact export/save filename, kept for reference but de-emphasised.
+            Text("Datei: \(session.sessionName(bpm: transport.tempo.rounded()))")
+                .font(EchoelTheme.font(10).monospacedDigit())
+                .foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Session: \(readableFields.joined(separator: ", "))")
     }
 }
 #endif

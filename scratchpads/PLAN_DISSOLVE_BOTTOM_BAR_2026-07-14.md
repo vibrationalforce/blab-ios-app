@@ -73,8 +73,26 @@ sequences the redesign into atomic, render-safe Ralph steps.
     fell; the unpresented `nonStandardTuningBanner` keeps the full explainer.
     Modal chain untouched (the strip's only sheet is INSIDE EchoelValueField's
     leaf, like the transport tempo field). VISIBLE.
-  - **2c — Session name/place → header.** Lift `SessionNamePreviewLeaf`+`placeRow`;
-    remove the `Session` chip + sessionPanel. Low-freq, no visual entanglement. VISIBLE.
+  - **2c — Session name/place → header. GEBAUT (2026-07-17, Forts. 63).**
+    `SessionNamePreviewLeaf` moved VERBATIM into WorkspaceView.swift — it rides at
+    the end of the `CompositionHeaderStrip` (after A4, behind a thin divider),
+    always visible in the chrome. It stays its OWN leaf: it reads
+    `transport.tempo`, which runs along with the body while the tempo is
+    unlocked, so only its labels churn — never the strip's Picker-hosting body
+    (freeze rule 10.76.50; strip doc + WorkspaceView render-safety notes updated).
+    `placeRow` does NOT fit a thin header row (Toggle + manual-place TextField +
+    status line, a small form) — and `weatherRow` is coupled to it (weather needs
+    the place fix). Both stay TOGETHER in the slimmed `sessionPanel` ("Place ·
+    weather — stamped into the name", still the `.session` dropdown case),
+    reachable via a NEW transport "•••" entry `"session"` (a Menu item, not a
+    modal — exact Master/Export/Tempo chrome-door pattern; chrome-door receiver
+    got `case "session": activeMenu = .session`). Session chip REMOVED from
+    studioChips. Nothing dropped: name → header strip; place + weather + manual
+    place field → "•••" → Session. Modal chain untouched (17 presentation
+    modifiers on EchoelStudioView before AND after; WorkspaceView still 0).
+    No `.echoelCompositionEdited` post needed — the leaf is a READOUT (no
+    control), and place/weather edits keep their own in-panel side effects.
+    VISIBLE.
 - **Step 3 — Per-instrument EchoelSynth panel (#23).** Attach a per-lane panel to the
   lane door backed by the EXISTING `lane.patch`/`genreOverride`/`mood`/`variationSeed`
   fields (Sound&Texture · Mix · FX ; Composition: Genre · Variation · Mood ; Weather).
