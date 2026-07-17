@@ -52,9 +52,16 @@ Reviews: audio-thread CLEAN, code MEDIUM+LOW gefixt. Nur hörbar bei Warp-ON (ra
 timePitch-Tape — DANN lohnt der Node-Swap-Aufwand (Rewire unter Pause). + Vintage/12-bit-Grit
 (inspiration.csv Akai WATCH). Eigene Scheibe, audio-thread/graph-review.
 
-### Slice 2 — Beats-Executor (In-house WSOLA)
+### Slice 2 — Beats-Executor (In-house WSOLA) — ✅ KERN GEBAUT (2026-07-17, ffb06b9+fa31417)
 Textbuch Verhelst-Roelands WSOLA (vDSP-Kreuzkorrelation, patentfrei). Pairt mit EchoelBreak/
-BioEventGraph-Onsets. Pure WSOLA-Core test-first, dann Node-Wrapper.
+BioEventGraph-Onsets. **Pure Offline-Core steht:** `DSP/EchoelWSOLA.swift` (Foundation+
+Accelerate only, DSP-Isolations-Gesetz; periodische vDSP-Hann → 50%-OLA exakt gain-konstant;
+Tail-Continuation-Suche mit normierter Kreuzkorrelation; rate-Vertrag == StretchPlan.rate,
+rate 1 bit-transparent, NaN/≤0 fail-quiet). DSP-Review APPROVE; M1 (Window-Sum-Normalisierung
+— Kick-Attack am Kopf überlebt) + L1 (geclampte Suche — kein Stille-Loch am Tail bei rate<1)
++ L2/L3 eingearbeitet. 7 Test-Sets grün auf CI. **Node-Wrapper = EIGENE Scheibe** (realtime:
+pre-render/pre-alloc Pflicht, audio-thread-review; Kandidat: offline Pre-Render in den
+AudioClipPlayer-Preview-Pfad wie Slice A).
 
 ### Slice 3 — Studio-Executor (Signalsmith) — DEPENDENCY FOUNDER-APPROVED 2026-07-16
 Founder-Ja liegt vor („Python/C++ egal, wichtig gebührenfrei, Apple-first"): Signalsmith

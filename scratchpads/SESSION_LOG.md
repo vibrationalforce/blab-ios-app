@@ -7263,3 +7263,8 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   des ganzen Rolls beim Spielen; das neue Q-Menü wäre nach ~125 ms zugeklappt
   (10.76.50-Klasse). Jetzt RollPlayheadView-Leaf. + Inspector-H-Scroll (Reset-
   Chip war off-screen auf 390 pt) + MPE-Clear snapshottet + A11y-Dedupe.
+- `ffb06b9`+`fa31417` **Stretch Slice 2 pure WSOLA-Kern GRÜN** (8/8 Gates, DSP-Review
+  APPROVE; M1 Window-Sum-Normalisierung + L1 Clamp + L2/L3 eingearbeitet; 7 Test-Sets).
+  Warp-Stand: Clean ✅ Tape ✅ Beats-KERN ✅ (Node-Wrapper eigene Scheibe) · Signalsmith
+  wartet auf On-Device-A/B. #65 Multipeer-Consent als GEBAUT verifiziert + Task zu.
+  Nacht ab hier STILL bis Founder-Morgen-Test v278/v279; v280-Kandidat notiert.
