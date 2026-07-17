@@ -7454,3 +7454,11 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - Primary-Roll-Sampler bewusst ausgelassen (SamplerVoice ≠ NoteVoice; kein lügender
   Halbpfad). UX-Niggle notiert: Files-Import zeigt UUID-Stem als Namen (Folge-Slice).
 - Gates auf e528b60 laufen; grün ⇒ v282-Bundle (Sampler hörbar).
+
+## 2026-07-17 Forts. 66 — Gates e528b60 GRÜN (alle 4) → Deploy v10.79.282
+- Sampler-Slice kompiliert auf beiden Toolchains, Tests grün (Swift-6-Isolations-
+  Restrisiko der BeatPlayer-Statics nicht materialisiert). v282 gebumpt: Sampler
+  hörbar + Sample-Tür; Release-Notes nennen ehrlich die One-Shot-Grenzen (~2 s,
+  mono, kein Pan) und wiederholen die Neustart-Log-Bitte (self-probe).
+- Serie weiter: nächster Slice per-Lane-Composition Cycle A (Baustellen-#3,
+  überschneidet #55 Step 3) — bit-identisch solange kein Override gesetzt.

@@ -1,32 +1,21 @@
-build: 2026-07-17 v10.79.281 (Spur=Instrument HÖRBAR + Beats auf der Timeline + Musik-Identität im Header)
+build: 2026-07-17 v10.79.282 (EchoelSampler-Spur klingt echt — Sample-Tür im Spur-Editor)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkte Antwort auf deine Nachricht ("Es funktioniert noch nichts … lockere
-  zu dogmatische Grenzen"). Verstanden — und umgesetzt, ab diesem Build:
+notes: Fortsetzung der Serie "Spur = Instrument" (nach Drums + Bass in v281):
 
-  1) SPUR = INSTRUMENT KLINGT JETZT ECHT: Weise einer Spur "EchoelDrums"
-     oder "EchoelBass" zu → sie klingt ab sofort WIRKLICH nach Drum-Kit
-     bzw. Mono-Sub (vorher: nur Name+Icon änderten sich, der Klang blieb
-     immer derselbe Poly-Synth — das war dein "funktioniert nicht", und
-     es lag an einer selbstauferlegten Sicherung, die niemand je
-     freischalten konnte. Die Sicherung ist jetzt gelöst.) Ehrlich:
-     EchoelSampler + Bio-Voice fallen noch auf den Poly-Synth zurück —
-     deren eigene Stimmen sind die nächsten Zyklen.
+  1) ECHOELSAMPLER-SPUR KLINGT JETZT ECHT: Leg eine EchoelSampler-Spur
+     an, öffne den Spur-Editor → neue Zeile "Sample" ("No sample" →
+     tippen öffnet den Sample-Browser: Bundle-Kits, Library, eigene
+     Dateien via Files-Import). Danach spielt die Spur WIRKLICH dieses
+     Sample: jede Note pitcht es (±24 Halbtöne um C3, Transpose der
+     Spur zählt mit), Velocity = Anschlagstärke, One-Shot wie ein
+     Drum-Pad (Retrigger startet neu). Das Sample wird mit dem Song
+     gespeichert und übersteht App-Updates.
+     Ehrlich: max. ~2 s Sample-Länge (One-Shot-Kern), mono, noch kein
+     eigenes Pan; Bio-Voice-Spuren bleiben vorerst Poly-Fallback.
 
-  2) WARP "BEATS" AUF DER TIMELINE: Audio-Clips mit Charakter "Beats"
-     spielen jetzt auch im Arrangement transient-fest (eigener
-     WSOLA-Kern, beim Laden vor-gerendert). Randfälle fallen ehrlich
-     auf Clean zurück — nie Stille.
+  2) Aus v281 weiter drin: Drums-/Bass-Spuren klingen echt, Warp
+     "Beats" im Arrangement, Musik-Identität als Header-Zeile.
 
-  3) MUSIK-IDENTITÄT IM HEADER: Tonart · Genre · Skala · Kammerton +
-     Session-Name sitzen jetzt als kompakte Zeile im Kopf — die
-     Comp/Session-Chips darunter sind aufgelöst (weniger Ebenen,
-     mehr Direktheit). Tempo-Werkzeuge + Ort/Wetter hinter "•••".
-
-  4) AUv3-Selbstdiagnose aus v280 ist weiter drin — bitte weiterhin:
-     iPhone einmal NEU STARTEN, dann einen frischen Log schicken
-     (die "self-probe:"-Zeile sagt uns, welcher der zwei Wege es ist).
-
-  ARBEITSMODUS AB JETZT (dein Mandat): größere zusammenhängende
-  Schnitte statt Mini-Schritte, jede grüne Runde geht sofort zu dir
-  aufs Gerät, und "gebaut-aber-abgeschaltet" gibt es nicht mehr —
-  was gebaut ist, wird hörbar/sichtbar gemacht oder fliegt raus.
+  3) AUv3-Selbstdiagnose weiter aktiv — bitte: iPhone einmal NEU
+     STARTEN, dann frischen Log schicken (die "self-probe:"-Zeile
+     entscheidet den nächsten Schritt).
