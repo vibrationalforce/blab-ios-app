@@ -167,6 +167,17 @@ public enum BioComposer {
         /// untouched) — this stage is ADDITIVE and opt-in. `false` (default)
         /// keeps today's path byte-identical (pinned in BioComposerHumanizeTests).
         public var humanize: Bool
+        /// H2 chord-journey switch (PLAN_HARMONY_CORE.md): `true` replaces the
+        /// legacy progression logic (profile rotation / weird splice /
+        /// turnaround) with a `ChordSuggest` journey — harmonic-function
+        /// ranking (T→S→D circulation, cadence resolution) smoothed by the
+        /// VoiceLeader distance, with the body's COHERENCE selecting how deep
+        /// into the ranking each step reaches (settled → the expected
+        /// consonant continuation, unsettled → borrowings/tension). Like H1 a
+        /// plain BOOL: coherence + the skeleton seed are read from the fields
+        /// already on this Input (see `chordSuggestControl`). `false` (default)
+        /// keeps today's path byte-identical (pinned in ChordSuggestTests).
+        public var suggestJourney: Bool
 
         public init(
             heartRateBPM: Float = 70,
@@ -183,7 +194,8 @@ public enum BioComposer {
             structureSeed: UInt64? = nil,
             progressionPhase: Int = 0,
             voiceLeading: Bool = false,
-            humanize: Bool = false
+            humanize: Bool = false,
+            suggestJourney: Bool = false
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -200,6 +212,7 @@ public enum BioComposer {
             self.progressionPhase = progressionPhase
             self.voiceLeading = voiceLeading
             self.humanize = humanize
+            self.suggestJourney = suggestJourney
         }
     }
 
@@ -227,6 +240,33 @@ public enum BioComposer {
                                 spread: clamp01(input.breathDepth),
                                 seed: input.structureSeed ?? input.seed)
     }
+
+    /// Resolved per-take chord-journey controls (H2). Built in `compose` from
+    /// the Input when `input.suggestJourney` is on; `nil` = the legacy
+    /// progression logic (rotation / weird splice / turnaround), byte-identical.
+    struct ChordSuggestControl: Sendable {
+        var coherence: Float
+        var seed: UInt64
+    }
+
+    /// H2 bio → journey mapping (tested law, ChordSuggestTests):
+    ///   coherence = clamp01(input.coherence) — drives the selection depth
+    ///     (high → the expected consonant top pick, low → deeper/tenser
+    ///     candidates incl. the curated borrowings; the window law itself lives
+    ///     in `ChordSuggest.selectionWindow`).
+    ///   seed = structureSeed ?? seed — the SKELETON stream (the chord journey
+    ///     IS structure, stable across evolving takes). ChordSuggest salts it
+    ///     internally; no draws are consumed from either compose RNG stream.
+    static func chordSuggestControl(for input: Input) -> ChordSuggestControl? {
+        guard input.suggestJourney else { return nil }
+        return ChordSuggestControl(coherence: clamp01(input.coherence),
+                                   seed: input.structureSeed ?? input.seed)
+    }
+
+    /// H2: the journey repeats after this many chords — `progressionPhase` is
+    /// wrapped into it, so per-bar/per-evolve advances travel an 8-chord arc
+    /// before looping (the legacy path loops after `progression.count`).
+    static let chordJourneyLoopLength = 8
 
     private static func clamp01(_ x: Float) -> Float { min(max(x, 0), 1) }
 
@@ -505,6 +545,10 @@ public enum BioComposer {
         // composer, not on the caller — see `voiceLeadControl`. nil = legacy path.
         let voiceLead = voiceLeadControl(for: input)
 
+        // H2 chord journey (opt-in): coherence + skeleton seed for ChordSuggest —
+        // see `chordSuggestControl`. nil = the legacy progression logic.
+        let suggest = chordSuggestControl(for: input)
+
         let notes: [Note]
         let drumSteps: [[Bool]]
         let drumAccents: [[Bool]]
@@ -528,6 +572,7 @@ public enum BioComposer {
                                     densityScale: densityScale,
                                     quarterAnchor: input.style == .trap,
                                     voiceLead: voiceLead,
+                                    suggest: suggest,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -555,6 +600,7 @@ public enum BioComposer {
                                     progressionPhase: input.progressionPhase,
                                     densityScale: densityScale,
                                     voiceLead: voiceLead,
+                                    suggest: suggest,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -1011,7 +1057,15 @@ public enum BioComposer {
                                    rootDegree: Int, nextRoot: Int, octave: Int,
                                    secStart: Int, len: Int, busy: Float, calm: Float,
                                    velocity: Float, sustained: Bool,
-                                   quarterAnchor: Bool = false, rng: inout SeededRNG) {
+                                   quarterAnchor: Bool = false,
+                                   alterations: [Int] = [], rng: inout SeededRNG) {
+        // H2: semitone alteration of a chord tone (root / fifth) when the
+        // section's chord is a borrowed suggestion. Empty (legacy: always) ⇒ 0.
+        func alt(_ tone: Int) -> Int {
+            ChordSuggest.alteration(forToneOffset: tone,
+                                    degreesPerOctave: key.degreesPerOctave,
+                                    in: alterations)
+        }
         // TRAP quarter-note 808 pedal (B8): a sustained trap profile whose body is aroused
         // drives the chord root on the quarter grid — one pitch class, downbeat accented —
         // so beats 2 & 4 no longer drop out. Calm trap (and every non-trap caller, which
@@ -1027,7 +1081,7 @@ public enum BioComposer {
                 // splice makes sections an odd length); off-quarters sit back.
                 let vel = ((s - secStart) % 8 == 0) ? velocity : velocity * 0.7
                 notes.append(Note(id: nextUUID(&rng),
-                                  pitch: key.degree(rootDegree, octave: octave),
+                                  pitch: key.degree(rootDegree, octave: octave) + alt(0),
                                   startStep: s, lengthSteps: noteLen,
                                   velocity: hVel(vel, &rng), role: .bass))
                 s += gap
@@ -1039,7 +1093,7 @@ public enum BioComposer {
         // single held root — no walking line, whatever the body is doing.
         guard !sustained, motion > 0.32, len >= 4 else {
             notes.append(Note(id: nextUUID(&rng),
-                              pitch: key.degree(rootDegree, octave: octave),
+                              pitch: key.degree(rootDegree, octave: octave) + alt(0),
                               startStep: secStart, lengthSteps: len,
                               velocity: hVel(velocity, &rng), role: .bass))
             return
@@ -1054,16 +1108,20 @@ public enum BioComposer {
             let isDown = (j == 0)
             let isLast = (j == hitStarts.count - 1)
             let degree: Int
+            let alteration: Int
             if isDown {
                 degree = rootDegree                                  // foundation on the downbeat
+                alteration = alt(0)
             } else if isLast, nextRoot != rootDegree, nextRoot > 0 {
                 degree = nextRoot - 1                                // walk a step up into the next root
+                alteration = 0                                       // diatonic passing tone
             } else {
                 degree = (j % 2 == 1) ? rootDegree + 4 : rootDegree  // fifth / root alternation
+                alteration = (j % 2 == 1) ? alt(4) : alt(0)
             }
             let vel = isDown ? velocity : velocity * 0.82
             notes.append(Note(id: nextUUID(&rng),
-                              pitch: key.degree(degree, octave: octave),
+                              pitch: key.degree(degree, octave: octave) + alteration,
                               startStep: start, lengthSteps: noteLen,
                               velocity: hVel(vel, &rng), role: .bass))
         }
@@ -1143,12 +1201,50 @@ public enum BioComposer {
                                         densityScale: Float = 1,
                                         quarterAnchor: Bool = false,
                                         voiceLead: VoiceLeadControl? = nil,
+                                        suggest: ChordSuggestControl? = nil,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
         let baseProg = profile.progression.isEmpty ? [0] : profile.progression
         var prog: [Int]
-        if profile.sustained && baseProg.count > 2 {
+        // H2 (suggest != nil only): per-section semitone alterations of the
+        // suggested chords, aligned with `prog`. A diatonic suggestion carries
+        // [0,0,0]; a borrowing alters 1–2 triad tones. nil (legacy: always) ⇒
+        // every alteration lookup below reads 0 — byte-identical arithmetic.
+        var sectionAlterations: [[Int]]?
+        if let sc = suggest {
+            // H2 CHORD JOURNEY (PLAN_HARMONY_CORE.md): ChordSuggest replaces the
+            // legacy progression choice. Section layout is preserved — the
+            // sustained many-chord Flächen still hold ONE chord per bar, every
+            // other profile keeps its section count — but WHICH chords come from
+            // the function-ranked, coherence-selected journey. progressionPhase
+            // stays the cursor: it walks an 8-chord arc (chordJourneyLoopLength)
+            // instead of the profile's short loop. The journey runs on its own
+            // salted skeleton stream — structureRNG is NOT consumed here, so the
+            // legacy branches below stay untouched when suggest is nil.
+            let n = (profile.sustained && baseProg.count > 2) ? 1 : Swift.max(1, baseProg.count)
+            let loop = Self.chordJourneyLoopLength
+            // Nominal ranking register: the pad's home octave ± the same whole-
+            // octave window the voicing logic can reach. Reference only (the
+            // smoothness term); actual voicing happens per section below.
+            let anchor = key.degree(0, octave: profile.padOctave)
+            let lo = Swift.max(0, Swift.min(115, anchor - 12))
+            let hi = Swift.min(127, Swift.max(lo + 12, anchor + 16))
+            let full = ChordSuggest.journey(length: loop + n, in: key,
+                                            coherence: sc.coherence,
+                                            register: lo...hi, seed: sc.seed)
+            if full.count == loop + n {
+                let start = ((progressionPhase % loop) + loop) % loop
+                let chords = Array(full[start..<(start + n)])
+                prog = chords.map(\.rootDegree)
+                sectionAlterations = chords.map(\.alterations)
+            } else {
+                // Unreachable in practice (a non-empty scale always fills the
+                // journey); fail safe to the profile's plain progression.
+                prog = baseProg
+                sectionAlterations = nil
+            }
+        } else if profile.sustained && baseProg.count > 2 {
             // MEDITATIVE FLÄCHE JOURNEY (founder 2026-07-11: "bleibt auf Flächen liegen
             // … soll weitergehen und sich mit dem Herzschlag weiterentwickeln"). The two
             // frozen single-chord drones (Self-Observation, Deep Ambient) now carry a
@@ -1223,6 +1319,15 @@ public enum BioComposer {
             guard secEnd > secStart else { continue }
             let len = secEnd - secStart
 
+            // H2: this section's chord alterations ([] = diatonic — always so
+            // on the legacy path, where every lookup then adds 0).
+            let secAlts: [Int]
+            if let alts = sectionAlterations, idx < alts.count {
+                secAlts = alts[idx]
+            } else {
+                secAlts = []
+            }
+
             // 1) Bass foundation — a MOVING bass line an octave below the pad, not a
             //    single held root. The downbeat grounds the chord; on takes with drive
             //    it steps through root/fifth and walks up into the next chord's root, so
@@ -1234,13 +1339,19 @@ public enum BioComposer {
             appendBass(into: &notes, key: key, rootDegree: rootDegree, nextRoot: nextRoot,
                        octave: bassOct, secStart: secStart, len: len,
                        busy: busy, calm: calm, velocity: bassVelocity,
-                       sustained: profile.sustained, quarterAnchor: quarterAnchor, rng: &rng)
+                       sustained: profile.sustained, quarterAnchor: quarterAnchor,
+                       alterations: secAlts, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
             //    the section or gently arpeggiated.
             var basePitches: [Int] = []
-            for tone in tones { basePitches.append(key.degree(rootDegree + tone, octave: profile.padOctave + octShift)) }
+            for tone in tones {
+                basePitches.append(key.degree(rootDegree + tone, octave: profile.padOctave + octShift)
+                                   + ChordSuggest.alteration(forToneOffset: tone,
+                                                             degreesPerOctave: key.degreesPerOctave,
+                                                             in: secAlts))
+            }
             let voiced: [Int]
             if let vl = voiceLead, !basePitches.isEmpty {
                 // H1: real voice-leading (VoiceLeader.resolve) — inversions and
@@ -1416,8 +1527,19 @@ public enum BioComposer {
                 lastStart = startStep
                 let section = min(prog.count - 1, startStep / sectionLen)
                 let chordRoot = prog[section]
+                // H2: the sounding chord's alterations follow the lead too, so a
+                // borrowed suggestion never clashes with its own melody ([] = 0s).
+                let leadAlts: [Int]
+                if let alts = sectionAlterations, section < alts.count {
+                    leadAlts = alts[section]
+                } else {
+                    leadAlts = []
+                }
                 let chordTone = tones[((toneIdx % tones.count) + tones.count) % tones.count]
-                var pitch = key.degree(chordRoot + chordTone, octave: profile.leadOctave + octShift)
+                let leadAlteration = ChordSuggest.alteration(forToneOffset: chordTone,
+                                                             degreesPerOctave: key.degreesPerOctave,
+                                                             in: leadAlts)
+                var pitch = key.degree(chordRoot + chordTone, octave: profile.leadOctave + octShift) + leadAlteration
                 // Tension (friendly→scary): occasionally bend a lead note a semitone
                 // out of the chord for dissonance — scaled by tension so "friendly"
                 // stays fully consonant.
@@ -1455,7 +1577,11 @@ public enum BioComposer {
                 if length >= 2, startStep + 1 < stepCount, structureRNG.unit() < ornamentP {
                     let gIdx = toneIdx + (rng.unit() < 0.5 ? 1 : -1)
                     let gTone = tones[((gIdx % tones.count) + tones.count) % tones.count]
-                    let gPitch = Self.tameLeadPitch(key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift) + lift)
+                    let gPitch = Self.tameLeadPitch(key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift)
+                                                    + ChordSuggest.alteration(forToneOffset: gTone,
+                                                                              degreesPerOctave: key.degreesPerOctave,
+                                                                              in: leadAlts)
+                                                    + lift)
                     notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, gPitch)),
                                       startStep: startStep, lengthSteps: 1,
                                       velocity: hVel(velocity * 0.7, &rng), role: .lead))
