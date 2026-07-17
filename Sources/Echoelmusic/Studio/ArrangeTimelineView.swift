@@ -73,6 +73,18 @@ struct ArrangeTimelineView: View {
     @State private var automationOpen: Set<UUID> = []
     @State private var automationTarget: [UUID: String] = [:]
 
+    /// Performance mode (founder 2026-07-17 "Play Button auf den Clips und
+    /// Performance Mode"). OFF = today's arrange behavior byte-identical (no launch
+    /// glyphs, region move/trim untouched). ON = every MIDI clip shows a launch
+    /// play/stop glyph (`ClipLaunchGlyph`) and that region's move/trim gestures are
+    /// suspended so a tap always LAUNCHES instead of scrubbing the clip. Session
+    /// UI state (like `isSelecting`) — toggle-frequency, no churn (freeze law).
+    @State private var performanceMode = false
+    /// The launch quantize grid a clip snaps to when armed in Performance mode
+    /// (default Bar — musical, forgiving). Enum picker (EchoelValueField is the
+    /// one control for NUMBERS; a grid is an enum, so a compact Menu is correct).
+    @State private var launchQuantize: LaunchQuantize = .bar
+
     /// Zoom: screen points per quarter-note beat (Stage 3 couples snap to this).
     @State private var pointsPerBeat: CGFloat = 24
     @GestureState private var pinch: CGFloat = 1
@@ -622,6 +634,12 @@ struct ArrangeTimelineView: View {
             .disabled(!recordController.isRecording && !recordController.hasArmedTarget())
             .accessibilityLabel(recordController.isRecording ? "Stop recording" : "Record armed tracks")
 
+            // Performance mode: launch clips live (founder 2026-07-17). Own leaf
+            // helpers keep this HStack's type-check budget flat; the quantize menu
+            // shows only while Performance is armed.
+            performanceToggle
+            if performanceMode { launchQuantizeMenu }
+
             // Split / Join moved ONTO the clip (founder 2026-07-15: "wenn man lange auf
             // den Clip drückt [hat] man Optionen wie cut"). The razor + rejoin now live
             // in each region's long-press menu (per-region, not a playhead-wide toolbar
@@ -709,6 +727,60 @@ struct ArrangeTimelineView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 40)
+    }
+
+    // MARK: - Performance mode (clip launch) — toolbar leaves
+
+    /// The Performance-mode toggle. Accent-filled when armed. Reads only the
+    /// low-frequency `performanceMode` @State (freeze-safe in the toolbar body).
+    private var performanceToggle: some View {
+        Button { performanceMode.toggle() } label: {
+            HStack(spacing: 5) {
+                Image(systemName: performanceMode ? "play.circle.fill" : "play.circle")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Performance")
+                    .font(EchoelTheme.font(12, .medium))
+            }
+            .foregroundStyle(performanceMode ? EchoelTheme.onPrimary : EchoelTheme.text)
+            .padding(.horizontal, 10).frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .fill(performanceMode ? EchoelTheme.accent : EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.border, lineWidth: performanceMode ? 0 : 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Performance mode")
+        .accessibilityValue(performanceMode ? "On" : "Off")
+        .accessibilityHint("Shows a launch button on every MIDI clip to trigger it live")
+    }
+
+    /// Launch quantization picker (Performance mode only) — the grid a clip launch
+    /// snaps to. The current grid is checkmarked; default Bar.
+    private var launchQuantizeMenu: some View {
+        Menu {
+            ForEach(LaunchQuantize.allCases, id: \.self) { q in
+                Button {
+                    launchQuantize = q
+                } label: {
+                    if q == launchQuantize { Label(q.displayName, systemImage: "checkmark") }
+                    else { Text(q.displayName) }
+                }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "metronome")
+                    .font(.system(size: 11, weight: .medium))
+                Text("Quant \(launchQuantize.displayName)")
+                    .font(EchoelTheme.font(12))
+            }
+            .foregroundStyle(EchoelTheme.text)
+            .padding(.horizontal, 10).frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .accessibilityLabel("Launch quantize")
+        .accessibilityValue(launchQuantize.displayName)
     }
 
     // MARK: - Lane labels (fixed column, never scrolls away)
@@ -1176,6 +1248,9 @@ struct ArrangeTimelineView: View {
                                     },
                                     laneIndex: laneIndex,
                                     laneGates: laneGates,
+                                    performanceMode: performanceMode,
+                                    launchQuantize: launchQuantize,
+                                    laneIsBio: lane.isBio,
                                     onEdit: { openRegionEditor(region) })
                 }
             }
@@ -1259,6 +1334,14 @@ private struct RegionBlockView: View {
     /// preview seats only on rows the store will actually accept.
     var laneIndex: Int = 0
     var laneGates: [TimelineDragMath.LaneGate] = []
+    /// Performance mode (founder 2026-07-17): draws the launch glyph on MIDI clips
+    /// and SUSPENDS this region's move/trim gestures (a tap must launch, not scrub).
+    var performanceMode: Bool = false
+    /// The launch grid the glyph arms to (Performance mode only).
+    var launchQuantize: LaunchQuantize = .bar
+    /// Whether this region's lane is a BIO lane — those never launch (the P0 core
+    /// guards `!lane.isBio`), so they get no glyph even in Performance mode.
+    var laneIsBio: Bool = false
     /// Opens this region's editor (the parent owns the one sheet slot).
     let onEdit: () -> Void
 
@@ -1357,6 +1440,12 @@ private struct RegionBlockView: View {
             // edge). Leaf modifier — the root sheet chain is untouched (metadata law).
             .sensoryFeedback(.impact(weight: .light), trigger: snapPulse)
             .contentShape(RoundedRectangle(cornerRadius: 6))
+            // Performance mode (founder 2026-07-17): a launch play/stop glyph on
+            // every MIDI clip. Drawn on top so its Button wins taps in its 28 pt
+            // circle; the state lives in the ClipLaunchGlyph LEAF (freeze law —
+            // launchGeneration is read there, never here). EmptyView otherwise, so
+            // Performance OFF is behavior-identical.
+            .overlay(alignment: .center) { launchGlyphOverlay(isMidi: clip?.kind == .midi) }
             // Drag-to-move on the clip BODY (clip game C1 — founder: "seamless workflow,
             // kein unbeholfenes Rumdrücken"): grab and slide. The trim grips are child
             // overlays drawn on top, so they keep winning their 22 pt edge zones; an
@@ -1364,7 +1453,9 @@ private struct RegionBlockView: View {
             // stationary long-press opening the context menu. Same dedicated-drag
             // pattern the trim handles proved against the scrolling grid (device-
             // verified) — the store call is the ONE command EchoelAI will also use.
-            .gesture(moveGesture)
+            // Performance mode suspends this move (`.subviews` mask) so the launch
+            // glyph tap is unambiguous — the clip is a trigger, not a draggable then.
+            .gesture(moveGesture, including: performanceMode ? .subviews : .all)
             .onTapGesture { handleTap(auditionURL: auditionURL) }
             .contextMenu { regionMenu(editableKind: editableKind) }
             .accessibilityLabel("\(name), bar \(region.startTick / TimelineTime.ticksPerBar + 1)")
@@ -1386,6 +1477,17 @@ private struct RegionBlockView: View {
     }
 
     // MARK: body helpers (type-check budget — see the note at the top of `body`)
+
+    /// Performance-mode launch glyph — only for MIDI clips (audio/video/bio do NOT
+    /// launch in P0). Own leaf so the launch-state observation stays out of this
+    /// block's body (freeze law).
+    @ViewBuilder
+    private func launchGlyphOverlay(isMidi: Bool) -> some View {
+        if performanceMode, isMidi, !laneIsBio {
+            ClipLaunchGlyph(regionID: region.id, laneID: region.laneID,
+                            quantize: launchQuantize)
+        }
+    }
 
     @ViewBuilder
     private func audioWaveformOverlay(isAudio: Bool) -> some View {
@@ -1424,7 +1526,9 @@ private struct RegionBlockView: View {
                 .padding(.leading, 3)
         }
         .contentShape(Rectangle())
-        .gesture(frontResizeGesture)
+        // Performance mode suspends trimming (`.subviews` mask) — the clip is a
+        // live trigger then, not an editable region.
+        .gesture(frontResizeGesture, including: performanceMode ? .subviews : .all)
     }
 
     /// Trailing trim handle (B11): a fat invisible grab zone + a thin grip.
@@ -1439,7 +1543,8 @@ private struct RegionBlockView: View {
                 .padding(.trailing, 3)
         }
         .contentShape(Rectangle())
-        .gesture(resizeGesture)
+        // Performance mode suspends trimming (`.subviews` mask) — see frontTrimHandle.
+        .gesture(resizeGesture, including: performanceMode ? .subviews : .all)
     }
 
     /// Select mode (C3): tap marks/unmarks; otherwise tap auditions audio.
