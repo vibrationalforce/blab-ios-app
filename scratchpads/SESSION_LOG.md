@@ -7226,3 +7226,7 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Liste (CLAUDE.md-Referenzen, SESSION_LOG, HARNESS_LEDGER, laufende Pläne).
 - **Deploy v10.79.279** — trägt die Post-v278-Commits: 984d68c Instantiate-Deadline
   (AUv3-Laden kann nicht mehr ewig hängen) + 0fd183f Concurrency-Härtung + 893f46c #62.
+- **v10.79.279 TestFlight SUCCESS** (Run 29545339997). `9253e0e` #56 C5 (resolveRef
+  raus aus dem Drag-Frame-Body, .task(id:)-Cache; Review APPROVE, 2 LOWs notiert:
+  optionales Off-Main-Resolve + A11y-Hint-First-Frame) — 4 Gates grün. Jitter-Audit
+  damit autonom KOMPLETT (offen nur C3 device-gated + C6/C7 gegen Founder-Aufnahme).
