@@ -7313,3 +7313,24 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   per Test pinnen — per Inspektion + Audio-Review belegt.
 - Nächster Slice: #36 Slice 2 = SynthPatch-Persistenz (decodeIfPresent) + UI-Tür
   (Oktaver neben Detune). Weiter kein Deploy vor Founder-Morgen-Test v278/v279.
+
+### Forts. 59 (08:00–08:30): FOUNDER-MORGEN-TEST-LOG (v279/2385) + #36 komplett + v280 DEPLOY
+- **Founder-Log-Triage (echter User-Turn!):** Launch gesund · Puls-Lock exzellent
+  (BPM 67-68, conf bis 0.97, q 0.98 — rPPG-Kette hält inkl. Exposure-Lock) ·
+  Instrument spielt (Evolve ~25 s) · sauberer Stop. ABER **ownAUv3 false in JEDEM
+  Scan** (raw 101 comps, nur Apple). Serverseitig verifiziert: Registration-Fix
+  637dc41 IST in Build 2385, TestFlight-Run 29545339997 Verify-Step beweist
+  "AUv3 embed OK" (PlugIns/EchoelmusicAUv3.appex, augn/echl/Echo unter
+  NSExtensionAttributes, Principal korrekt). Scan beweisbar ungefiltert
+  (Wildcard + per-Typ + passingTest). ⇒ Artefakt korrekt, Problem geräteseitig:
+  Prozess-Cache ODER System-Registrierung.
+- `8c37efb` **Self-Instantiate-Probe**: nach letztem Scan-Retry ohne eigene
+  Komponente EINMAL pro Prozess die eigene Description durch die vorhandene
+  Deadline-Instantiate jagen → nächster Log sagt "INSTANTIATE OK" (Liste kalt)
+  vs "FAILED #-3000" (nicht registriert → Neustart/Reinstall-Territorium).
+- **#36 Oktaver KOMPLETT** (Engine 66a5861/132bf65 + Tür bac6936 + LOW-Batch
+  da2967e; alle Reviews APPROVE, alle 16 Runs grün). Founder-Wunsch "transpose
+  detune und Oktaver" = Ende-zu-Ende gebaut; Hörtest device-gated.
+- `aab879a` **DEPLOY v10.79.280** (Founder-Test erfolgt → Freeze aufgehoben):
+  Oktaver + MPE-Tür + Triolen-Q + Playhead-Fix + Beats-Preview + Selbst-Probe.
+  Release-Notes bitten explizit um neuen Log NACH Geräte-Neustart.
