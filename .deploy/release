@@ -1,21 +1,29 @@
-build: 2026-07-17 v10.79.282 (EchoelSampler-Spur klingt echt — Sample-Tür im Spur-Editor)
+build: 2026-07-17 v10.79.283 (Mehrere Genres gleichzeitig — Composition pro Spur + Photos-Sicherung der Aufnahmen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Fortsetzung der Serie "Spur = Instrument" (nach Drums + Bass in v281):
+notes: Der Tages-Abschluss-Build — alles Heutige in einem:
 
-  1) ECHOELSAMPLER-SPUR KLINGT JETZT ECHT: Leg eine EchoelSampler-Spur
-     an, öffne den Spur-Editor → neue Zeile "Sample" ("No sample" →
-     tippen öffnet den Sample-Browser: Bundle-Kits, Library, eigene
-     Dateien via Files-Import). Danach spielt die Spur WIRKLICH dieses
-     Sample: jede Note pitcht es (±24 Halbtöne um C3, Transpose der
-     Spur zählt mit), Velocity = Anschlagstärke, One-Shot wie ein
-     Drum-Pad (Retrigger startet neu). Das Sample wird mit dem Song
-     gespeichert und übersteht App-Updates.
-     Ehrlich: max. ~2 s Sample-Länge (One-Shot-Kern), mono, noch kein
-     eigenes Pan; Bio-Voice-Spuren bleiben vorerst Poly-Fallback.
+  1) COMPOSITION PRO SPUR: Spur-Editor jeder zweiten MIDI-Spur hat jetzt
+     "Composition (this track)": eigenes GENRE ("Song" = global), MOOD
+     (8 kuratierte Presets) und ein VARIATIONS-WÜRFEL. Beim Setzen legt
+     die Spur ihren eigenen "Composed"-Clip an — deine eigenen Clips
+     rührt der Composer NIE an. Ab dem nächsten Generate/Evolve
+     komponiert die Spur in ihrem eigenen Charakter: Dub-Techno-Bass
+     unter Ambient-Fläche, zusammengehalten vom selben Körper-Take.
 
-  2) Aus v281 weiter drin: Drums-/Bass-Spuren klingen echt, Warp
-     "Beats" im Arrangement, Musik-Identität als Header-Zeile.
+  2) VISUAL-AUFNAHMEN → MEDIATHEK: Jede fertige Aufnahme aus dem
+     Visual-Fenster landet jetzt zusätzlich automatisch in deiner
+     Photos-Mediathek (einmalige iOS-Nachfrage beim ersten Mal) —
+     von dort per Video-Spur-Import zurück in den Song. Vorstufe zum
+     Wegfall des Video-Chips.
 
-  3) AUv3-Selbstdiagnose weiter aktiv — bitte: iPhone einmal NEU
-     STARTEN, dann frischen Log schicken (die "self-probe:"-Zeile
-     entscheidet den nächsten Schritt).
+  3) Weiter drin aus v281/282: Drums-/Bass-/Sampler-Spuren klingen
+     echt · Warp "Beats" im Arrangement · Musik-Identität im Header.
+
+  NACH DEINEM NEUSTART — Kurz-Checkliste:
+  a) App öffnen, ~30 s warten, Log schicken → die "self-probe:"-Zeile
+     löst das AUv3-Rätsel (INSTANTIATE OK vs. FAILED).
+  b) Hör-Test: Spur + EchoelDrums zuweisen → klingt sie nach Kit?
+     EchoelBass → Sub? EchoelSampler + Sample aus dem Browser → spielt
+     sie dein Sample gepitcht?
+  c) Zweite MIDI-Spur → Spur-Editor → Composition: Genre auf z.B.
+     Ambient stellen, Generate → zwei Charaktere gleichzeitig?
