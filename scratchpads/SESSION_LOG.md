@@ -7511,3 +7511,20 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - v285 deployt: "Akkordwechsel klingen organisch" + Hörtest-Bitte + Rollback-Angebot.
   Harmony-Stand: H1 KOMPLETT (Core+Wiring+ON). Als Nächstes H3 HRV-Humanize oder
   B1 EchoelBodyVibe je nach Founder-Feedback.
+
+## 2026-07-17 Forts. 72 — H3 KOMPLETT+ON · ECC→Baustellen-Board · Roll adaptiv gepusht
+- H3 HRV-Humanize: e8d124b (Core+7 Tests, velocity-only — Trigger-Clock ist
+  step-quantisiert, Timing-Slice wartet auf Sub-Step-Clock) + a511205 (default-ON,
+  Modus-Lehre) — a511205 alle 4 Gates GRÜN (der eine rote e8d124b-Lauf ist durch
+  den grünen Superset-Lauf überholt). Harmony-Stand: H1✓ H3✓, H2-Agent läuft.
+- Founder-Reel "Everything Claude Code" (affaan-m, MIT, 228k Stars): Council-
+  Entscheid = MUSTER adoptieren, kein Paket-Import (decisions.csv). Gebaut:
+  scratchpads/BAUSTELLEN_BOARD.md (AKTIV≤6/OFFEN/BLOCKIERT/ERLEDIGT, jede Zeile
+  mit Verify-Weg) + .claude/skills/baustellen (Closeout-Loop: keine Baustelle
+  schließt ohne Founder-Verify). Commit aecf24c.
+- Piano Roll adaptiv (Founder: "passt immer noch nicht… professioneller,
+  adaptiv"): 804dfdc gepusht — RollFitMath (pure, 15 Tests), Fit-to-Screen +
+  Fit-Button + userZoomed-Latch, Auto-Zentrierung auf Median-Pitch, Beat-Lineal,
+  Grid-Hierarchie Bar>Beat>Step, Clip-Titel nennt die Spur. Gates laufen;
+  Check 16:44Z armiert → bei Grün v286 (Roll + Humanize zusammen).
+- Wartet auf Founder: Neustart-Log (AUv3, Board B1), Hörtests v285/v286 (B2).
