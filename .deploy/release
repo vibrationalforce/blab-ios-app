@@ -1,30 +1,36 @@
-build: 2026-07-17 v10.79.286 (Piano Roll passt sich dem Bildschirm an + dein Puls lockert den Take)
+build: 2026-07-17 v10.79.287 (Akkord-Journeys + Piano-Roll-Werkzeugkiste + die Bio-Spur klingt)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zwei hörbare/sichtbare Antworten auf deine letzten Tests:
+notes: Drei Bausteine in einem Build:
 
-  1) PIANO ROLL ADAPTIV (dein Befund "passt immer noch nicht"):
-     Beim Öffnen wird der GANZE Takt in die Bildschirmbreite gefittet —
-     nichts ist mehr links abgeschnitten, kein blindes Scrollen. Dazu:
-     Beat-Lineal (1·2·3·4) über dem Grid, klare Linien-Hierarchie
-     Takt > Beat > Step, automatisches Zentrieren auf deine Noten
-     (statt "irgendwo im Nichts"), Fit-Button neben den Zoom-Lupen,
-     und der Editor-Titel nennt jetzt die Spur ("Drums — Clip · Bar 2/4").
-     TEST-BITTE: MIDI-Clip öffnen — ist der ganze Takt sofort sichtbar?
-     Zoomen, drehen, Fit drücken — bleibt alles bedienbar?
+  1) AKKORD-JOURNEYS (neu, an): Die Harmonie erzählt jetzt eine
+     Geschichte — statt kurzer Progression-Loops wandert der Composer
+     einen 8-Akkord-Bogen mit echter Funktions-Logik (Spannung →
+     Auflösung, Kadenzen lösen zur Tonika). DEINE KOHÄRENZ wählt die
+     Spannung: gesettelt = die erwartete, konsonante Fortsetzung;
+     unruhig = geliehene Akkorde und mehr Reibung. Zusammen mit der
+     Stimmführung (v285) und dem HRV-Humanize (v286) ist damit die
+     komplette Harmony-Serie AN.
+     HÖRTEST: Generate über mehrere Takte/Evolves laufen lassen —
+     erzählt die Harmonie eine Geschichte statt zu kreisen? Rollback
+     ist wie immer ein Wort.
 
-  2) HRV-HUMANIZE (neu, an): Die Streuung DEINES Herzschlags ist jetzt
-     die Amplitude einer feinen Velocity-Lockerung über dem ganzen Take —
-     variables Herz = lebendiger Take, starres Herz = maschinen-eng.
-     Kein Zufall: gleicher Seed + gleiche HRV = gleicher Take.
-     TEST-BITTE: Generate laufen lassen — atmet der Take, ohne dass
-     der Groove verloren geht? (Zusammen mit der Stimmführung aus v285:
-     gleiten die Akkorde UND lebt die Dynamik?)
-     Falls dir EINES nicht gefällt: sag welches — jeder der beiden
-     Schalter ist eine Ein-Wort-Zeile zurück.
+  2) PIANO-ROLL-WERKZEUGKISTE (dein "siehe Ableton… mit Echoel-Twist"):
+     Neues "Ops"-Menü im Roll: Reverse · Invert · Legato · Double/Half
+     Time · Velocity-Ramp ↑↓ · Echo — wirkt auf die Selektion (ohne
+     Selektion: alle), jede Op ein Undo-Schritt. Dazu SCALE LOCK:
+     skalen-fremde Reihen treten zurück, neu gezeichnete Noten snappen
+     in die Session-Tonart (kein Setup — der Roll kennt deine Tonart).
+     Und der Twist, den kein DAW hat: BIO-HUMANIZE — markiere Noten,
+     tippe Bio-Humanize, und deine ECHTE aktuelle HRV lockert genau
+     diese Noten.
 
-  3) In Arbeit dahinter: ChordSuggest (Akkord-Journeys, deine Kohärenz
-     wählt die Spannung) ist gebaut und in den Gates — kommt als
-     nächster Build, wenn grün.
+  3) DIE BIO-SPUR KLINGT (BodyVibe-Fundament): Eine Spur mit dem
+     Bio-Instrument spielt jetzt wirklich im Arrangement — als eigene
+     bio-reaktive Stimme, die dem Sequencer folgt und deren Klangfarbe
+     live vom Körper gefüttert wird (Bio-Quelle an = Timbre atmet mit).
+     TEST: Bio-Spur anlegen, MIDI-Clip drauf, Play — klingt sie, und
+     reagiert der Klang auf deinen Puls?
 
   4) Weiterhin offen von dir: der Log nach dem iPhone-Neustart
-     (self-probe-Zeile) löst das Externe-AUv3-Thema.
+     (self-probe-Zeile) für das Externe-AUv3-Thema — und die Hörtests
+     zu v285/v286, falls noch nicht geschehen.

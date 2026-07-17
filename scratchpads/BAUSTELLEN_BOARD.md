@@ -15,10 +15,10 @@
 
 | # | Baustelle | Founder-Quelle | Nächste Slice | Verify-Weg | Route |
 |---|-----------|----------------|---------------|------------|-------|
-| A1 | **Piano Roll adaptiv + Pro-Funktionen** | „passt immer noch nicht…adaptiv" + „mehr Funktion… siehe Ableton… Echoel twist" (07-17) | Adaptiv: in v286 (Gerät offen). R1 läuft: Ops-Menü (Reverse/Invert/Legato/Double/Half/Ramp/Echo) + Scale-Lock + Bio-Humanize (H3-Core auf Selektion mit echter HRV) — PLAN_ROLL_PRO.md | Founder editiert Clip mit Ops; Bio-Humanize hörbar | Kein neues Sheet; Type-Check-Budget |
-| A2 | **Harmony H2 ChordSuggest** | Scaler-Analyse-Ask (07-17) | GEBAUT bf1ee63 (opt-in), Gates laufen → bei Grün default-ON-Flip (v287) | Hörtest Akkord-Journey | Golden-Tests ✓ (20) |
-| A3 | **Hörtest v285/v286** (VoiceLeading + HRV-Humanize default-ON) | Modus-Lehre 07-17 | v286 DEPLOYT — wartet auf Ohr | Founder: „gleiten die Akkorde? atmet der Take?" — Rollback je 1 Wort | — |
-| A4 | **BodyVibe B1 — EchoelBodyVibe-Instrument** | Screenshot „Bio Instrument → EchoelBodyVibe" (07-17) | KindVoiceAllocator .bioVoice + BioReactiveSynthVoice als Rack-Einheit | BodyVibe-Spur klingt hörbar bio-reaktiv auf Gerät | PLAN_BODYVIBE §B; audio-thread-reviewer |
+| A1 | **Piano Roll adaptiv + Pro-Funktionen** | „passt immer noch nicht…adaptiv" + „mehr Funktion… siehe Ableton… Echoel twist" (07-17) | Adaptiv in v286 ✓, R1 Ops/Scale-Lock/Bio-Humanize in v287 ✓ (b9e0973, Gates 4/4). Nächste: R2 ChordSuggest-Stempel, Fold via RollRowMap | Founder editiert Clip mit Ops; Bio-Humanize hörbar — **Gerät offen** | PLAN_ROLL_PRO.md |
+| A2 | **Harmony-Serie H1+H2+H3** | Scaler-Analyse-Ask (07-17) | KOMPLETT + AN (H2-Flip 411e972 grün, in v287) | Hörtest: erzählt die Harmonie eine Geschichte? | Rollback je 1 Wort |
+| A3 | **Hörtests v285–v287** (VoiceLeading·Humanize·Journey·Roll·Bio-Spur) | Modus-Lehre 07-17 | v287 DEPLOYT — wartet auf Ohr | Founder-Urteile | — |
+| A4 | **BodyVibe B1 — EchoelBodyVibe-Instrument** | Screenshot „Bio Instrument → EchoelBodyVibe" (07-17) | ENGINE ✓ in v287 (45dc157: .bioVoice-Allokation + eigene Rack-Instanz, Sequencer-Gate, SPSC-Kontrakt geschützt). Nächste: B1-UI (Create-from-Within-Panel) + Umbenennung NACH Geräte-Klang-Verify | Bio-Spur klingt + reagiert auf Puls auf Gerät | Kein lügendes Label |
 | A5 | **BodyVibe B2 — Kamera-Modulator Stufe 1** | „Grimassen/Smile/Arme als Modulator" (07-17) | Vision-Face-Publisher (CameraRPPG-Muster, smile/jawOpen/browRaise, 10 Hz EMA) | Lächeln verändert hörbar die Komposition | RESEARCH_BODYVIBE_CAMERA; Copy: „Expression", NIE „Emotion" |
 | A6 | **Chips auflösen C** (Sound·Mix·FX·Mood·Synth·Video weg) | 2 Screenshots (07-17) | Erst wenn A4 die Spur-Panels trägt; Video-Voraussetzung (Photos-Save) GEBAUT | Untere Leiste leer/weg auf Gerät, nichts unerreichbar | PLAN_BODYVIBE §C |
 
