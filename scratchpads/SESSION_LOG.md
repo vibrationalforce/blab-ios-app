@@ -7554,3 +7554,22 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Ableton-Prinzip) + TimelineRegionPlayer-Schicht; P1 (Clip-Play-Glyph +
   Performance-Toggle) folgt nach T1-Commit (gleiche Datei).
   PLAN_TIMELINE_AUTOMATION_PERFORMANCE.md (08f03fd).
+
+## 2026-07-17 Forts. 74 — v288 Quadrupel (Opus 4.8, ultracode Workflow-Rettung)
+- Fable-5-Limit killte den P0-Agenten mit BUILD-BROKEN Baum (3 aufgerufene,
+  undefinierte Methoden in TimelineRegionPlayer). Statt blind-committen:
+  4-Agenten-Workflow (P0-Fertigstellen + P1-UI parallel, dann adversariale
+  Prüfung beider). Beide Verdikte ship, Golden-Gate hält.
+- P0 750c293: ClipLaunchEngine (quantisiertes Launch/Stop, Lane-Override
+  Ableton-Prinzip, wrap-shift/prune/removeAll, 39 Tests) + 3 Helfer definiert
+  (applyLaunchTransitions/applyRollLaneVoice/reapplyLaunched). Review-Fix:
+  applyRollLaneVoice byte-identisch bei fehlendem Lane-Objekt + 2 queuedStop-
+  Tests ergänzt.
+- P1 7fcf9cb: Play-Glyph auf MIDI-Clips + Performance-Toggle + Quantize-Menu;
+  launchGeneration NUR im ClipLaunchGlyph-Leaf (Freeze-Gesetz), keine 2. Sheet,
+  Blink 2,5 Hz. Tip 4/4 grün ⇒ P0+P1+T1(f60a0e9)+Brücke(6a568d8) alle grün.
+- v288 deployt: Timeline-Automation (T1) + Clip-Launch/Performance (P0+P1) +
+  Puls-Brücke + EchoelBodyVibe-Rename. AUv3-Register-Ansage (App löschen+neu).
+- Board A7/A8/A9 ergänzt. Nächste unblockierte Zeile: A5 Kamera-Modulator
+  Stufe 1 ODER Roll R2. Founder-Verify offen: Log nach Neuinstall, Hörtests,
+  Automation/Performance auf Gerät.

@@ -1,36 +1,34 @@
-build: 2026-07-17 v10.79.287 (Akkord-Journeys + Piano-Roll-Werkzeugkiste + die Bio-Spur klingt)
+build: 2026-07-17 v10.79.288 (Automation in der Timeline + Clips launchen + dein Puls im AUv3)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Drei Bausteine in einem Build:
+notes: Vier Bausteine — der dichteste Build des Tages:
 
-  1) AKKORD-JOURNEYS (neu, an): Die Harmonie erzählt jetzt eine
-     Geschichte — statt kurzer Progression-Loops wandert der Composer
-     einen 8-Akkord-Bogen mit echter Funktions-Logik (Spannung →
-     Auflösung, Kadenzen lösen zur Tonika). DEINE KOHÄRENZ wählt die
-     Spannung: gesettelt = die erwartete, konsonante Fortsetzung;
-     unruhig = geliehene Akkorde und mehr Reibung. Zusammen mit der
-     Stimmführung (v285) und dem HRV-Humanize (v286) ist damit die
-     komplette Harmony-Serie AN.
-     HÖRTEST: Generate über mehrere Takte/Evolves laufen lassen —
-     erzählt die Harmonie eine Geschichte statt zu kreisen? Rollback
-     ist wie immer ein Wort.
+  1) AUTOMATION WOHNT IN DER TIMELINE (deine Direktive): Am Spurkopf
+     klappt ein Kurven-Chip eine Automation-Zeile DIREKT unter der Spur
+     auf — über den ganzen Song-Verlauf, auf exakt der Zeitachse der
+     Clips. Tippen setzt einen Punkt, Ziehen formt, Doppel-Tipp löscht;
+     Ziel-Picker (Master Level/Tempo/Filter/…) in der Zeile, "⋯" öffnet
+     weiterhin das Zahlen-Sheet für exakte Werte.
+     TEST: Spur-Chevron antippen → Kurve unter der Spur ziehen.
 
-  2) PIANO-ROLL-WERKZEUGKISTE (dein "siehe Ableton… mit Echoel-Twist"):
-     Neues "Ops"-Menü im Roll: Reverse · Invert · Legato · Double/Half
-     Time · Velocity-Ramp ↑↓ · Echo — wirkt auf die Selektion (ohne
-     Selektion: alle), jede Op ein Undo-Schritt. Dazu SCALE LOCK:
-     skalen-fremde Reihen treten zurück, neu gezeichnete Noten snappen
-     in die Session-Tonart (kein Setup — der Roll kennt deine Tonart).
-     Und der Twist, den kein DAW hat: BIO-HUMANIZE — markiere Noten,
-     tippe Bio-Humanize, und deine ECHTE aktuelle HRV lockert genau
-     diese Noten.
+  2) CLIPS LAUNCHEN + PERFORMANCE MODE (dein "Play Button auf den Clips"):
+     Neuer Performance-Schalter im Timeline-Chrome. Ist er an, trägt jeder
+     MIDI-Clip einen Play-Button — Antippen startet den Clip quantisiert
+     auf der nächsten Bar-Grenze (loopt), nochmal antippen stoppt ihn
+     wieder quantisiert. Der gelaunchte Clip überstimmt seine Spur im
+     Arrangement (Ableton-Prinzip). Aus = alles wie gehabt.
+     TEST: Performance an → Play-Glyph auf einem MIDI-Clip tippen; springt
+     der Start sauber auf die Eins? Nochmal tippen = Stop?
 
-  3) DIE BIO-SPUR KLINGT (BodyVibe-Fundament): Eine Spur mit dem
-     Bio-Instrument spielt jetzt wirklich im Arrangement — als eigene
-     bio-reaktive Stimme, die dem Sequencer folgt und deren Klangfarbe
-     live vom Körper gefüttert wird (Bio-Quelle an = Timbre atmet mit).
-     TEST: Bio-Spur anlegen, MIDI-Clip drauf, Play — klingt sie, und
-     reagiert der Klang auf deinen Puls?
+  3) DEIN PULS SPIELT DEN AUv3 IN GARAGEBAND: "Echoelmusic: EchoelBodyVibe"
+     bekommt in fremden Hosts (GarageBand/AUM/Logic) jetzt deine echten
+     Live-Bio-Werte (Herz/HRV/Kohärenz/Atem) — die App misst, das Plugin
+     spielt danach. Ohne laufende App gilt die Host-Automation.
 
-  4) Weiterhin offen von dir: der Log nach dem iPhone-Neustart
-     (self-probe-Zeile) für das Externe-AUv3-Thema — und die Hörtests
-     zu v285/v286, falls noch nicht geschehen.
+  4) ECHOELBODYVIBE heißt jetzt so — am Spurkopf, im Instrument-Menü und
+     als AUv3-Name. Die Bio-Spur ist ein Instrument unter Instrumenten.
+
+  ⚠️ AUv3 NEU INSTALLIEREN: Dein letzter Log zeigte, dass iOS auf dem
+     Gerät KEIN einziges Nicht-Apple-Plugin registriert hat (self-probe
+     -3000). Das ist eine Register-Korruption, kein App-Bug. Bitte: App
+     LÖSCHEN und frisch aus TestFlight installieren — das registriert
+     unser Plugin neu. Danach sollte der Log "ownAUv3 true" zeigen.
