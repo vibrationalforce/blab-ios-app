@@ -217,7 +217,7 @@ struct EchoelStudioView: View {
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
-    private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+    // (noteNames moved with the Key picker into CompositionHeaderStrip, step 2b.)
 
     /// Max BPM the take tempo may drift toward the body per evolve tick (~every 30 s), glided.
     /// Small enough that the beat never lurches, large enough that a stale startup seed
@@ -380,7 +380,7 @@ struct EchoelStudioView: View {
         var label: String {
             switch self {
             case .bio:         return "Bio"
-            case .composition: return "Comp"
+            case .composition: return "Tempo"
             case .session:     return "Session"
             case .sound:       return "Sound"
             case .mix:         return "Mix"
@@ -396,7 +396,7 @@ struct EchoelStudioView: View {
         var fullName: String {
             switch self {
             case .bio:         return "Bio — pulse, HRV, coherence, source"
-            case .composition: return "Composition — genre, key, tuning, tempo"
+            case .composition: return "Tempo and variations — tap tempo, metronome, haptic beat, variation ideas"
             case .session:     return "Session — name, place, weather"
             case .sound:       return "Sound and texture"
             case .mix:         return "Mix — level per part"
@@ -420,8 +420,8 @@ struct EchoelStudioView: View {
 
     // Variation maze (#19) — the bio-curated idea-maze made auditionable. Explore
     // stores a ranked snapshot (NOT a live read — these @State values change only on
-    // a user tap, so hosting them in the composition dropdown never churns the root
-    // body). `mazeBase` keeps the exact Input the board was scored from, so applying a
+    // a user tap, so hosting them in the Tempo & variations dropdown never churns the
+    // root body). `mazeBase` keeps the exact Input the board was scored from, so applying a
     // candidate replays the picked skeleton + detail seed precisely.
     @State private var mazeBoard: BioVariationMaze.Leaderboard?
     @State private var mazeBase: BioComposer.Input?
@@ -518,8 +518,20 @@ struct EchoelStudioView: View {
                     case "routing": activeMenu = nil; showRouting = true
                     // The header pulse monitor opens the Bio dropdown (B3).
                     case "bio":     activeMenu = .bio
+                    // Step 2b: the Comp chip fell — the residual tempo tools +
+                    // variation maze open through the transport "•••" door.
+                    case "tempo":   activeMenu = .composition
                     default: break
                     }
+                }
+                // Step 2b (bottom-bar dissolve): the header CompositionHeaderStrip +
+                // the transport BodyTempoField own the musical-identity CONTROLS now;
+                // this receiver applies their audible side effects (retune ·
+                // recompose) — the strip posts only on USER edits, so a programmatic
+                // write (project open) can never trigger these and clobber the
+                // loaded patch. Same chrome↔studio decoupling as the doors above.
+                .onReceive(NotificationCenter.default.publisher(for: .echoelCompositionEdited)) { note in
+                    handleCompositionEdit(note.object as? String)
                 })
             // ADAPTIVE HOME (founder 2026-07-14: "integriere alles im adaptiven Design,
             // keine Duplikate, alles greift ineinander"): the instrument zone below the
@@ -1136,9 +1148,15 @@ struct EchoelStudioView: View {
     //               it no longer lives as a bottom chip too (no double home).
     //  · .transpose → DELETED (founder net-architecture 2026-07-14): the case, panel
     //               and state are gone (it was already unreachable / always 0).
+    //  · .composition → chip REMOVED (step 2b, 2026-07-17): genre/key/scale/tone
+    //               system/A4 live in the header CompositionHeaderStrip, THE tempo
+    //               control in the TransportBar; the residual tempo tools +
+    //               variation maze open via the transport "•••" door ("tempo"),
+    //               same chrome-door-only pattern as Master/Export.
     // Master/Export were already chrome-door-only.
     private static let studioChips: [StudioMenu] =
-        StudioMenu.allCases.filter { $0 != .master && $0 != .export && $0 != .bio }
+        StudioMenu.allCases.filter { $0 != .master && $0 != .export && $0 != .bio
+                                     && $0 != .composition }
 
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -1243,7 +1261,7 @@ struct EchoelStudioView: View {
     private var dropdownContent: AnyView {
         switch activeMenu {
         case .bio:         return AnyView(bioPanel)
-        case .composition: return AnyView(compositionPanel)
+        case .composition: return AnyView(tempoToolsPanel)
         case .session:     return AnyView(sessionPanel)
         case .sound:       return AnyView(soundPanel)
         case .mix:         return AnyView(mixerPanel)
@@ -1307,9 +1325,11 @@ struct EchoelStudioView: View {
 
     private var soundControls: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Essentials first (Composition open by default), advanced (Mood) last — the
-            // view reads top-down from "what most people touch" to "deep tweaks".
-            compositionPanel
+            // Essentials first, advanced (Mood) last — the view reads top-down from
+            // "what most people touch" to "deep tweaks". (Step 2b: the Composition
+            // panel dissolved — genre/key/scale/tuning/A4 live in the header
+            // CompositionHeaderStrip, its residue in tempoToolsPanel.)
+            tempoToolsPanel
             sessionPanel
             soundPanel
             mixerPanel
@@ -1578,29 +1598,35 @@ struct EchoelStudioView: View {
                 set: { mixer.drums = $0; beatPlayer.masterLevel = $0 })
     }
 
-    private var compositionPanel: some View {
-        panel("Composition", "Genre · key · tuning · tempo", isExpanded: $showComposition) {
-            genrePicker
-            // beatModeRow REMOVED (founder 2026-07-07: "Schmeiß den Beat komplett
-            // raus") — pure meditative Flächen only. The row stays defined below,
-            // just unpresented (reversible).
-            // soundSourceRow REMOVED (founder 2026-07-07: "Real Instruments komplett
-            // raus. Also auch den Schalter weg") — pure warm synth, no Real/Synth
-            // switch and no sampled-instrument path anywhere.
-            tonartRow
-            kammertonRow
-            tuningRow
-            tempoRow
+    /// Step 2b (2026-07-17, PLAN_DISSOLVE_BOTTOM_BAR): the Composition panel's
+    /// musical identity moved UP into the chrome — genre/key/scale/tone system/A4
+    /// live in `CompositionHeaderStrip` (WorkspaceView), THE tempo control in the
+    /// TransportBar's `BodyTempoField` (their edits arrive via
+    /// `.echoelCompositionEdited` → `handleCompositionEdit`). What remains here
+    /// are the tempo TOOLS (tap · metronome · haptic beat) and the variation
+    /// maze — reachable via the transport "•••" door (chrome door "tempo"),
+    /// exactly like Master/Export. The full-width BodyTempoField row is NOT
+    /// duplicated here (one tempo control app-wide, founder "einer reicht").
+    // (Historical, unchanged: beatModeRow removed 2026-07-07 "Schmeiß den Beat
+    // komplett raus" — stays defined below, unpresented, reversible. placeRow/
+    // weatherRow live on the SESSION card since R1 2026-07-10.)
+    private var tempoToolsPanel: some View {
+        panel("Tempo & variations", "Tap · metronome · haptic beat · ideas",
+              isExpanded: $showComposition) {
+            tapTempoRow
+            metronomeRow
+            #if canImport(CoreHaptics)
+            hapticsRow
+            #endif
             variationsCard
-            // placeRow/weatherRow moved to the SESSION card (R1 2026-07-10):
-            // buried at the bottom of this card, the founder couldn't find them.
         }
     }
 
     // MARK: Variation maze audition (#19)
 
-    /// The bio-curated idea-maze, made auditionable INSIDE the composition dropdown
-    /// (no new sheet — the EchoelStudioView modal chain is at its metadata ceiling).
+    /// The bio-curated idea-maze, made auditionable INSIDE the Tempo & variations
+    /// dropdown (since step 2b; previously the Composition dropdown — no new sheet,
+    /// the EchoelStudioView modal chain is at its metadata ceiling).
     /// Reads only @State snapshots (board/appliedSeed), so hosting it in the root-body
     /// dropdown never churns (freeze rule). "Explore" ranks 6 variations of the same
     /// groove by how close each sits to what the body is asking for; tapping one plays
@@ -1904,25 +1930,12 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// Tone system — 12-TET by default; selecting just intonation, a maqām, gamelan
-    /// etc. retunes the take to that intonation in the current key. Applied live.
-    private var tuningRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            labeledRow("Tone system") {
-                Picker("Tone system", selection: $tuningID) {
-                    ForEach(TuningSystem.library) { t in Text(t.name).tag(t.id) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: tuningID) { _, _ in applyTuning() }
-                .accessibilityLabel("Tone system")
-            }
-            if tuningID != "edo12" {
-                Text("Notes are retuned to this system in the current key. Choose 12-TET for standard tuning.")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
+    // (Step 2b: tuningRow / genrePicker / tonartRow / kammertonRow / tempoRow moved
+    // verbatim into the chrome — CompositionHeaderStrip owns the Pickers/A4 field,
+    // the TransportBar's BodyTempoField the tempo; their audible side effects run in
+    // handleCompositionEdit below. tuningRow's conditional retune hint text fell
+    // with it; nonStandardTuningBanner below keeps the full explainer, unpresented
+    // since 2026-07-09, reversible.)
 
     /// Push the selected tone system's per-pitch-class retune table to the synth
     /// (relative to the current key root). 12-TET → all zeros → identical playback.
@@ -1934,87 +1947,44 @@ struct EchoelStudioView: View {
         touchSynth?.setTuningCents(cents)
     }
 
-    private var genrePicker: some View {
-        labeledRow("Genre") {
-            Picker("Genre", selection: $style) {
-                // Founder 2026-07-11 "Alles rein. Logisch sortiert. Gehe tief rein":
-                // every genre offered, grouped by sound-world so the calm meditative
-                // set stays first and rock/electronic/acoustic worlds open up. `.menu`
-                // Picker renders each Section as a grouped header — no new sheet, no
-                // high-frequency bio read, so the render-safety rules hold.
-                ForEach(MusicStyle.Category.allCases) { cat in
-                    Section(cat.title) {
-                        ForEach(cat.genres) { s in Text(s.displayName).tag(s) }
-                    }
-                }
-            }
-            .pickerStyle(.menu).tint(EchoelTheme.text)
-            .onChange(of: style) { _, s in
-                scale = s.scale
-                presetIndex = -1
-                currentPatch = s.synthPatch   // load the genre's timbre as a starting point
-                recomposeIfRunning()
-            }
-            .accessibilityLabel("Genre")
-        }
-    }
-
-    private var tonartRow: some View {
-        HStack(spacing: 12) {
-            labeledRow("Key") {
-                Picker("Key", selection: $rootIndex) {
-                    ForEach(0..<12, id: \.self) { i in Text(Self.noteNames[i]).tag(i) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: rootIndex) { _, _ in applyTuning(); recomposeIfRunning() }
-                .accessibilityLabel("Key root")
-            }
-            labeledRow("Scale") {
-                Picker("Scale", selection: $scale) {
-                    ForEach(Scale.allCases, id: \.self) { sc in Text(sc.displayName).tag(sc) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: scale) { _, _ in recomposeIfRunning() }
-                .accessibilityLabel("Scale")
-            }
-        }
-    }
-
-    private var kammertonRow: some View {
-        @Bindable var session = session
-        // Concert pitch A4 — number-pad entry only, exact to 0.01 Hz (380–500).
-        // Standard 440.00; the saved preference persists. (Slider + chips removed
-        // to save space.)
-        return EchoelValueField(label: "Concert pitch A4", value: $session.a4Hz, range: 380...500, unit: "Hz",
-                                onCommit: {
-                                    synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz)
-                                    // Note grids recolour with the concert pitch (founder
-                                    // 2026-07-12) — push the new A4 to the roll immediately,
-                                    // not only on the next compose, so an open/soon-opened
-                                    // piano roll paints the raster in the NEW tone colours.
-                                    pianoRoll.musicalA4Hz = session.a4Hz
-                                    recomposeIfRunning()
-                                })
-    }
-
-    private var tempoRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // THE tempo control (founder 2026-07-04: "zwei Anzeigen irritieren immernoch"):
-            // one Kammerton-style row whose number RUNS ALONG with the live biofeedback BPM
-            // (4 decimals) and freezes on lock — see BodyTempoField. The transport bar shows
-            // NO tempo number anymore; the strip's pulse is the one live number in the chrome.
-            // BodyTempoField is a LEAF so its ~10 Hz pulse read never rebuilds this panel
-            // (freeze rule — the genre/key Pickers above must stay stable).
-            // NOTE: lock adoption now happens INSIDE the controls (BodyTempoField, transport
-            // lock button, tap tempo) — the old onChange here would have overwritten a
-            // body-value lock with the clock tempo an instant later.
-            BodyTempoField(onLockChanged: { recomposeIfRunning() })
-
-            tapTempoRow
-            metronomeRow
-            #if canImport(CoreHaptics)
-            hapticsRow
-            #endif
+    /// Step 2b: applies the audible side effects of a USER edit in the chrome's
+    /// musical-identity controls (CompositionHeaderStrip Pickers/A4 field, transport
+    /// BodyTempoField lock) — posted as `.echoelCompositionEdited`. Each case is the
+    /// verbatim onChange/onCommit body of the row it replaces (genrePicker ·
+    /// tonartRow · kammertonRow · tuningRow · tempoRow's BodyTempoField), so the
+    /// behavior is unchanged; only the control's home moved. The strip posts on
+    /// user interaction ONLY (Picker binding set / field commit) — programmatic
+    /// writes of the shared keys (e.g. `open(_:)` restoring a project) do NOT
+    /// arrive here, exactly like the old panel whose Pickers were unmounted
+    /// while a project loaded.
+    private func handleCompositionEdit(_ field: String?) {
+        switch field {
+        case "genre":
+            scale = style.scale
+            presetIndex = -1
+            currentPatch = style.synthPatch   // load the genre's timbre as a starting point
+            recomposeIfRunning()
+        case "key":
+            applyTuning()
+            recomposeIfRunning()
+        case "scale":
+            recomposeIfRunning()
+        case "tuning":
+            applyTuning()
+        case "a4":
+            synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz)
+            // Note grids recolour with the concert pitch (founder
+            // 2026-07-12) — push the new A4 to the roll immediately,
+            // not only on the next compose, so an open/soon-opened
+            // piano roll paints the raster in the NEW tone colours.
+            pianoRoll.musicalA4Hz = session.a4Hz
+            recomposeIfRunning()
+        case "tempoLock":
+            // Lock adoption happens INSIDE BodyTempoField (clock glide + metronome);
+            // this is the recompose hook the panel's full field used to pass.
+            recomposeIfRunning()
+        default:
+            break
         }
     }
 
@@ -4145,9 +4115,11 @@ struct EchoelStudioView: View {
         pianoRoll.musicalTempoBPM = loadedTempo
         lockedBPM = loadedTempo
         hasComposed = true
-        // Re-push the microtonal retune for the restored root. onChange(of:rootIndex)
-        // won't fire if the opened key matches the current one, so do it explicitly
-        // — otherwise a non-12-TET system would play against the previous root.
+        // Re-push the microtonal retune for the restored root. Programmatic writes
+        // of rootIndex never post .echoelCompositionEdited (step 2b — by design, so
+        // this very function can't be clobbered by strip side effects), so do it
+        // explicitly — otherwise a non-12-TET system would play against the
+        // previous root.
         applyTuning()
     }
 

@@ -7361,3 +7361,29 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Cache-Budget + Onset-Match-Verbreiterung auf einen Transport-Step.
 - Warp-Stand: Clean ✅ Tape ✅ Beats Editor-Preview ✅ **Beats TIMELINE ✅ (gebaut,
   Hörtest device-gated)** · Signalsmith wartet auf On-Device-A/B.
+
+### Forts. 62: #55 Step 2b — Composition → Header (Comp-Chip aufgelöst)
+- **CompositionHeaderStrip** (neues Leaf in WorkspaceView, dünne Chrome-Zeile
+  zwischen TransportBar und SurfaceHost): Genre · Key · Scale · Tone system ·
+  A4 — dieselben shared @AppStorage-Keys + session.a4Hz, NUR Low-Frequency-Reads
+  (Freeze-Regel 10.76.50 eingehalten; kein Bio/Playhead-Read im Header-Body).
+- **Entkopplung** wie die Chrome-Doors: User-Edits posten
+  `.echoelCompositionEdited` (genre/key/scale/tuning/a4/tempoLock) → Studio-
+  `handleCompositionEdit` = die wortgleichen alten onChange/onCommit-Bodies.
+  Posts sitzen im Picker-BINDING-set (nur User-Interaktion) — programmatische
+  Writes (Projekt-`open(_:)`) aktualisieren die Strip-Anzeige OHNE Side-Effects
+  (die Always-mounted-onChange-Falle, die p.patch geclobbert hätte, bewusst
+  umgangen; open()-Kommentar aktualisiert).
+- **Tempo NICHT dupliziert** ("einer reicht"): der Transport-`BodyTempoField`
+  bekam den `onLockChanged`-Recompose-Hook (postet "tempoLock"), den vorher nur
+  die Panel-Instanz hatte — Lock/Unlock/Edit rekomponiert jetzt konsistent.
+- **Comp-Chip weg** (studioChips-Filter wie .master/.export/.bio);
+  compositionPanel-Builder weg; genrePicker/tonartRow/kammertonRow/tuningRow/
+  tempoRow gelöscht (Strip übernimmt verbatim). Residuum ohne Header-Platz —
+  tapTempoRow · metronomeRow · hapticsRow · variationsCard — im schlanken
+  `tempoToolsPanel` ("Tempo & variations", weiterhin der .composition-Case),
+  erreichbar über die Transport-"•••"-Tür `"tempo"` (Master/Export-Muster).
+  Loop-Size war NIE im Comp-Panel (liegt im Export-Panel, unberührt).
+- **Modal-Kette unangetastet** (kein neues .sheet am Root; der Strip-Sheet lebt
+  IN EchoelValueFields eigenem Leaf wie beim Transport-Tempo). Kein lokaler
+  Build (CI kompiliert) — Änderungen verbatim-verschiebend, konservativ.

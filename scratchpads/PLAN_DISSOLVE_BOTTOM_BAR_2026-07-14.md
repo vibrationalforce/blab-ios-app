@@ -52,11 +52,27 @@ sequences the redesign into atomic, render-safe Ralph steps.
   - **2a (DONE, v208) — delete Transpose.** Behavior-preserving (was always 0 /
     unreachable): removed the StudioMenu.transpose case + arms, state, panel, and the
     always-0 semis math in currentToneHz + generate. Clears the Comp-area dependency.
-  - **2b — Key/Scale + tuning + tempo → header.** Lift `tonartRow`, `kammertonRow`+
-    `tuningRow`, `tempoRow`/`BodyTempoField` into a compact header strip; remove the
-    `Comp` chip + compositionPanel. `BodyTempoField` is ALREADY a leaf → moving it up
-    is freeze-safe (its 10 Hz pulse read stays inside itself; the header body must NOT
-    read it). VISIBLE.
+  - **2b — Key/Scale + tuning + tempo → header. GEBAUT (2026-07-17, Forts. 62).**
+    New `CompositionHeaderStrip` leaf in WorkspaceView (thin chrome row between
+    TransportBar and SurfaceHost): Genre · Key · Scale · Tone system · A4, bound to
+    the SAME shared @AppStorage keys / `session.a4Hz`. Tempo was ALREADY in the
+    TransportBar (`BodyTempoField(compact:)` since 2026-07-15) — NOT duplicated; it
+    now posts the recompose hook the panel version carried. Decoupling: user edits
+    post `.echoelCompositionEdited` ("genre"/"key"/"scale"/"tuning"/"a4"/"tempoLock");
+    the studio's menu-bar onReceive runs `handleCompositionEdit` = the verbatim old
+    onChange/onCommit bodies. Posts live in the Picker BINDING's set, so programmatic
+    writes (project `open(_:)`) update the strip WITHOUT side effects (no patch
+    clobber — the always-mounted-onChange trap was avoided deliberately).
+    Comp chip REMOVED from studioChips; compositionPanel builder REMOVED. Residue
+    that does NOT fit a thin header row — `tapTempoRow` · `metronomeRow` ·
+    `hapticsRow` · `variationsCard` — lives in the slimmed `tempoToolsPanel`
+    ("Tempo & variations", same `.composition` dropdown case), reachable via the
+    transport "•••" door `"tempo"` (chrome-door-only, exact Master/Export pattern).
+    Loop size was never in this panel (it lives in the Export panel's
+    `loopLengthSelector`) — untouched. tuningRow's conditional retune hint text
+    fell; the unpresented `nonStandardTuningBanner` keeps the full explainer.
+    Modal chain untouched (the strip's only sheet is INSIDE EchoelValueField's
+    leaf, like the transport tempo field). VISIBLE.
   - **2c — Session name/place → header.** Lift `SessionNamePreviewLeaf`+`placeRow`;
     remove the `Session` chip + sessionPanel. Low-freq, no visual entanglement. VISIBLE.
 - **Step 3 — Per-instrument EchoelSynth panel (#23).** Attach a per-lane panel to the

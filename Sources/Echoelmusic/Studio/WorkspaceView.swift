@@ -24,6 +24,16 @@ extension Notification.Name {
     /// studio listens and opens its dropdown/sheet — same decoupling as the
     /// pulse button, the chrome never reaches into studio state.
     static let echoelChromeDoor = Notification.Name("echoel.chromeDoor")
+    /// Header composition strip / transport tempo → studio (bottom-bar dissolve
+    /// step 2b, 2026-07-17): a musical setting was edited BY THE USER in the
+    /// chrome. `object` = the field ("genre" · "key" · "scale" · "tuning" ·
+    /// "a4" · "tempoLock"); the studio applies the audible side effects
+    /// (retune · recompose) — same decoupling as the doors, the chrome never
+    /// reaches into studio state. Posted ONLY from user interaction (Picker
+    /// binding set / field commit), never from programmatic writes, so a
+    /// project open can update the shared keys without triggering strip
+    /// side effects that would clobber the loaded patch.
+    static let echoelCompositionEdited = Notification.Name("echoel.compositionEdited")
 }
 
 // WorkspaceView.swift
@@ -50,6 +60,10 @@ extension Notification.Name {
 //    reads only the LOW-frequency isRunning flag. Live bio lives in leaves
 //    (BioStripView, PulseMonitorMiniLive).
 //  • The surface selection is @AppStorage (changes on user tap only).
+//  • CompositionHeaderStrip (step 2b of the bottom-bar dissolve) is its own
+//    leaf: it reads only shared @AppStorage keys + session.a4Hz (user-edit
+//    frequency) — never a bio/playhead value — and talks to the studio only
+//    via the .echoelCompositionEdited notification.
 
 @MainActor
 struct WorkspaceView: View {
@@ -94,6 +108,13 @@ struct WorkspaceView: View {
                 topBar
                 Divider().overlay(EchoelTheme.border)
                 TransportBar()
+                Divider().overlay(EchoelTheme.border)
+                // Step 2b of the bottom-bar dissolve (founder 2026-07-14: "Unten die
+                // Leiste sollte längst aufgelöst sein und sich an anderer Stelle
+                // wieder finden"): the musical identity — Genre · Key · Scale ·
+                // Tone system · Concert pitch A4 — lives HERE in the chrome, always
+                // visible, one thin row. A LEAF (low-frequency reads only).
+                CompositionHeaderStrip()
                 Divider().overlay(EchoelTheme.border)
                 // (The standalone Tempo row is gone — the tempo control moved UP into
                 //  the transport bar next to Play, founder 2026-07-15 "Das soll da oben
@@ -273,7 +294,13 @@ private struct TransportBar: View {
             // gone). Compact 4-decimal field + its lock. A self-contained LEAF that
             // reads the ~10 Hz pulse in its OWN body, so the transport bar / root never
             // subscribe to the churn (freeze rule, same as PulseMonitorMiniLive).
-            BodyTempoField(compact: true)
+            // Lock/unlock/edit posts "tempoLock" so the studio recomposes to the new
+            // musical tempo (step 2b: this hook lived on the Composition panel's full
+            // BodyTempoField, which is gone — THE tempo control is this one).
+            BodyTempoField(onLockChanged: {
+                NotificationCenter.default.post(name: .echoelCompositionEdited,
+                                                object: "tempoLock")
+            }, compact: true)
 
             // Global doors, grouped into ONE overflow menu (founder 2026-07-12 placed
             // Master · Export · Live · Learn "oben in die Leiste"; collapsing them to a
@@ -283,6 +310,11 @@ private struct TransportBar: View {
             Menu {
                 doorMenuButton("Master — loudness, output", icon: "slider.vertical.3", door: "master")
                 doorMenuButton("Export — WAV loop", icon: "square.and.arrow.up", door: "export")
+                // Step 2b: the Comp chip fell; its tempo TOOLS (tap · metronome ·
+                // haptic beat) + the variation maze stay reachable through this
+                // door — same pattern as Master/Export (chrome-door-only panel).
+                doorMenuButton("Tempo and variations — tap, metronome, ideas",
+                               icon: "metronome", door: "tempo")
                 #if canImport(MultipeerConnectivity)
                 doorMenuButton("Live Colabo — play together nearby",
                                icon: "dot.radiowaves.left.and.right", door: "live")
@@ -415,6 +447,131 @@ private struct TransportPositionView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Position")
         .accessibilityValue("Bar \(barInLoop + 1) of \(bars), beat \(pos.beat + 1)")
+    }
+}
+
+// MARK: - Composition header strip (bottom-bar dissolve, step 2b)
+
+/// The musical identity in the chrome: Genre · Key · Scale · Tone system · Concert
+/// pitch A4, one thin always-visible row (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14 step
+/// 2b — these rows lived in the bottom menu bar's Composition dropdown; founder
+/// 2026-07-14: "Unten die Leiste sollte längst aufgelöst sein und sich an anderer
+/// Stelle wieder finden"). THE tempo control is NOT duplicated here — it already
+/// lives in the TransportBar (BodyTempoField, "einer reicht").
+///
+/// RENDER SAFETY (skill: swiftui-render-safety):
+///  • A LEAF view reading ONLY low-frequency state — the shared @AppStorage keys
+///    (EchoelStudioView stays the semantic owner; same keys + defaults) and
+///    `session.a4Hz` (changes on user edit / project open only). No bio, playhead
+///    or any ~10 Hz value is read anywhere in this subtree, so the Menu Pickers it
+///    hosts are never torn down by churn (freeze rule 10.76.50).
+///  • No presentation modifier is added to any root: the only sheet is INSIDE
+///    EchoelValueField's own leaf (the shared number pad), exactly like the
+///    transport bar's BodyTempoField.
+///
+/// DECOUPLING (chrome ↔ studio law): the chrome never reaches into studio state.
+/// Every USER edit posts `.echoelCompositionEdited` with the field name; the studio
+/// listens (menu-bar onReceive, like `.echoelChromeDoor`) and applies the audible
+/// side effects (retune · recompose). Posts happen in the Picker BINDING's set —
+/// i.e. only when the user picks — so a programmatic write of the same shared key
+/// (e.g. project open) updates the shown value WITHOUT triggering side effects
+/// that would clobber the loaded patch.
+@MainActor
+struct CompositionHeaderStrip: View {
+    @Environment(SessionContext.self) private var session
+
+    // Shared with EchoelStudioView — same keys + defaults (@AppStorage defaults are
+    // PER-DECLARATION: a diverging copy here would lie until the key is written).
+    @AppStorage(StudioDefaultKeys.genre.key) private var style: MusicStyle = StudioDefaultKeys.genre.value
+    @AppStorage(StudioDefaultKeys.rootIndex.key) private var rootIndex = StudioDefaultKeys.rootIndex.value
+    @AppStorage(StudioDefaultKeys.scale.key) private var scale: Scale = StudioDefaultKeys.scale.value
+    @AppStorage("toneSystemID") private var tuningID = "edo12"
+
+    private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+
+    var body: some View {
+        @Bindable var session = session
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                labeled("Genre") {
+                    Picker("Genre", selection: edited($style, posts: "genre")) {
+                        // Every genre, grouped by sound-world (founder 2026-07-11
+                        // "Alles rein. Logisch sortiert.") — moved verbatim from the
+                        // Composition dropdown's genrePicker.
+                        ForEach(MusicStyle.Category.allCases) { cat in
+                            Section(cat.title) {
+                                ForEach(cat.genres) { s in Text(s.displayName).tag(s) }
+                            }
+                        }
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Genre")
+                }
+                labeled("Key") {
+                    Picker("Key", selection: edited($rootIndex, posts: "key")) {
+                        ForEach(0..<12, id: \.self) { i in Text(Self.noteNames[i]).tag(i) }
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Key root")
+                }
+                labeled("Scale") {
+                    Picker("Scale", selection: edited($scale, posts: "scale")) {
+                        ForEach(Scale.allCases, id: \.self) { sc in Text(sc.displayName).tag(sc) }
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Scale")
+                }
+                labeled("Tone system") {
+                    Picker("Tone system", selection: edited($tuningID, posts: "tuning")) {
+                        ForEach(TuningSystem.library) { t in Text(t.name).tag(t.id) }
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Tone system")
+                }
+                labeled("A4") {
+                    // Concert pitch — number-pad entry, exact to 0.01 Hz (380–500),
+                    // standard 440.00. Commit posts "a4"; the studio pushes the new
+                    // tuning to every voice + the roll and recomposes (the exact
+                    // side effects the Composition panel's kammertonRow ran).
+                    EchoelValueField(label: "", value: $session.a4Hz, range: 380...500,
+                                     unit: "Hz",
+                                     onCommit: {
+                                         NotificationCenter.default.post(
+                                             name: .echoelCompositionEdited, object: "a4")
+                                     },
+                                     boxWidth: 104, boxHeight: 30)
+                        .accessibilityLabel("Concert pitch A4")
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+        }
+        .frame(height: 40)
+        .background(EchoelTheme.bg)
+    }
+
+    /// Caption + control, inline (chrome row — the panel's label-above form layout
+    /// would double the strip's height).
+    private func labeled<Content: View>(_ caption: String,
+                                        @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 4) {
+            Text(caption)
+                .font(EchoelTheme.font(11, .medium))
+                .foregroundStyle(EchoelTheme.dim)
+            content()
+        }
+    }
+
+    /// Wraps a shared-storage binding so a USER edit posts its field name (the
+    /// studio hears it and applies retune/recompose). Programmatic writes elsewhere
+    /// set the storage directly and never come through here — they post nothing.
+    private func edited<T>(_ base: Binding<T>, posts field: String) -> Binding<T> {
+        Binding(get: { base.wrappedValue },
+                set: { newValue in
+                    base.wrappedValue = newValue
+                    NotificationCenter.default.post(name: .echoelCompositionEdited,
+                                                    object: field)
+                })
     }
 }
 #endif
