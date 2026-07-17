@@ -81,19 +81,29 @@ final class TimelineAudioSink: AudioRegionSink {
 
     private struct BeatsKey: Hashable {
         let url: URL
-        /// Rate quantized to 1/1000 so prime and play resolve the same entry.
+        /// Rate + window start quantized to 1/1000 so prime and play resolve the
+        /// same entry (audio-review V3b: fromSeconds IS part of the key, so two
+        /// same-file/same-rate regions with different trims each keep their own
+        /// window instead of ping-ponging one entry every loop wrap).
         let rateMilli: Int
-        init(url: URL, rate: Double) {
+        let fromMilli: Int
+        init(url: URL, rate: Double, fromSeconds: Double) {
             self.url = url
             self.rateMilli = Int((rate * 1000).rounded())
+            self.fromMilli = Int((fromSeconds * 1000).rounded())
         }
     }
-    /// One rendered window per (url, rate): the OUTPUT buffer (already stretched,
-    /// plays at rate 1 on the plain node) plus the media window it covers. One
-    /// entry per key — two same-file/same-rate regions with different trims keep
-    /// the last prepared window; a non-matching play falls back to the Clean
-    /// chain (honest, bounded memory).
-    private var beatsBuffers: [BeatsKey: (fromSeconds: Double, buffer: AVAudioPCMBuffer)] = [:]
+    /// Rendered windows: the OUTPUT buffer (already stretched, plays at rate 1 on
+    /// the plain node) plus the prepared media length (audio-review V6: play()
+    /// requires the length to match too — a region trimmed after prime falls back
+    /// to Clean instead of overplaying the cached tail).
+    private var beatsBuffers: [BeatsKey: (lengthSeconds: Double, buffer: AVAudioPCMBuffer)] = [:]
+    /// The node-connection format per URL, captured in `ensureLoaded` (audio-review
+    /// V1/V2: the rebuild must use the SOURCE file's processingFormat — never the
+    /// shared single-slot `file`, which may point at another URL by the time the
+    /// detached render lands, and never `standardFormatWithSampleRate`, which can
+    /// drop a channel layout the node connection carries → scheduleBuffer NSException).
+    private var urlFormats: [URL: AVAudioFormat] = [:]
     /// Matches AudioClipPlayer's preview cap (~31 s @48 k output, ~60 MB stereo
     /// transient): a longer Beats region is not pre-rendered and plays Clean.
     private static let beatsMaxOutputFrames = 1_500_000
@@ -123,49 +133,73 @@ final class TimelineAudioSink: AudioRegionSink {
     /// detached so prime never blocks on DSP). play() schedules the READY buffer
     /// at rate 1 on the plain node; not-ready / mismatched windows fall back to
     /// the Clean chain — honest, never silent. Idempotent per (url, rate, window).
+    /// Renders in flight (audio-review V3: a loop-wrap re-prime before the render
+    /// lands must not re-read + re-render the same window).
+    private var beatsInFlight: Set<BeatsKey> = []
+
     func prepareBeats(url: URL, fromSeconds: Double, lengthSeconds: Double, rate: Double) {
         guard rate.isFinite, rate > 0, rate != 1.0, lengthSeconds > 0 else { return }
-        let key = BeatsKey(url: url, rate: rate)
-        if let existing = beatsBuffers[key], existing.fromSeconds == fromSeconds { return }
-        guard ensureLoaded(url) != nil, let file else { return }
-        let sr = file.processingFormat.sampleRate
-        guard sr > 0 else { return }
-        let startFrame = AVAudioFramePosition((max(0, fromSeconds) * sr).rounded())
-        guard startFrame < file.length else { return }
-        let frames = AVAudioFrameCount(min(Double(file.length - startFrame),
-                                           (lengthSeconds * sr).rounded()))
-        guard frames > 0, Int(Double(frames) / rate) <= Self.beatsMaxOutputFrames else {
-            log.log(.info, category: .audio,
-                    "Beats pre-render skipped (window over memory cap) — region plays Clean")
-            return
-        }
-        guard let raw = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
-                                         frameCapacity: frames) else { return }
-        do {
-            file.framePosition = startFrame
-            try file.read(into: raw, frameCount: frames)
-        } catch { return }
-        guard let data = raw.floatChannelData else { return }
-        let n = Int(raw.frameLength)
-        let inputs: [[Float]] = (0..<Int(raw.format.channelCount)).map {
-            Array(UnsafeBufferPointer(start: data[$0], count: n))
-        }
+        let key = BeatsKey(url: url, rate: rate, fromSeconds: fromSeconds)
+        // Idempotent per WINDOW: same start AND same length (code-review HIGH 2 —
+        // a region lengthened after prime must re-render, or its cached tail
+        // would exhaust into silence forever). In-flight windows are not re-spawned.
+        if let existing = beatsBuffers[key],
+           abs(existing.lengthSeconds - lengthSeconds) < 0.001 { return }
+        if beatsInFlight.contains(key) { return }
+        // Attach the plain node + capture the CONNECTION format NOW (audio-review
+        // V1/V2): the async completion must never derive it from the shared
+        // single-slot `file`, which may point at another URL by then.
+        guard ensureLoaded(url) != nil else { return }
+        beatsInFlight.insert(key)
         Task.detached(priority: .userInitiated) { [weak self] in
-            let rendered = WSOLAStretcher().stretchMultichannel(inputs, rate: Float(rate))
-            await self?.storeBeats(key: key, fromSeconds: fromSeconds, channels: rendered)
+            // Audio-review V3: open + read on a FRESH handle OFF the main actor —
+            // prime also fires at loop wrap / relocate-while-playing, where a
+            // synchronous main-actor decode would delay the transport step.
+            var inputs: [[Float]] = []
+            if let f = try? AVAudioFile(forReading: url) {
+                let sr = f.processingFormat.sampleRate
+                let startFrame = AVAudioFramePosition((max(0, fromSeconds) * sr).rounded())
+                if sr > 0, startFrame < f.length {
+                    let frames = AVAudioFrameCount(min(Double(f.length - startFrame),
+                                                       (lengthSeconds * sr).rounded()))
+                    if frames > 0, Int(Double(frames) / rate) <= Self.beatsMaxOutputFrames,
+                       let raw = AVAudioPCMBuffer(pcmFormat: f.processingFormat,
+                                                  frameCapacity: frames) {
+                        f.framePosition = startFrame
+                        if (try? f.read(into: raw, frameCount: frames)) != nil,
+                           let data = raw.floatChannelData {
+                            let n = Int(raw.frameLength)
+                            inputs = (0..<Int(raw.format.channelCount)).map {
+                                Array(UnsafeBufferPointer(start: data[$0], count: n))
+                            }
+                        }
+                    }
+                }
+            }
+            let rendered = inputs.isEmpty
+                ? []
+                : WSOLAStretcher().stretchMultichannel(inputs, rate: Float(rate))
+            await self?.storeBeats(key: key, lengthSeconds: lengthSeconds, channels: rendered)
         }
     }
 
-    /// Rebuild the rendered channels as a PCM buffer in the file's processing
-    /// format and cache it (main actor — the cache is control-plane state).
-    private func storeBeats(key: BeatsKey, fromSeconds: Double, channels: [[Float]]) {
-        guard let file, file.url == key.url || knownURLs[key.url] != nil,
-              let first = channels.first, !first.isEmpty else { return }
-        guard let fmt = AVAudioFormat(standardFormatWithSampleRate: file.processingFormat.sampleRate,
-                                      channels: AVAudioChannelCount(channels.count)),
+    /// Rebuild the rendered channels as a PCM buffer in the URL's NODE-CONNECTION
+    /// format (captured in `ensureLoaded` — audio-review V1/V2) and cache it.
+    /// Main actor — the cache is control-plane state. Empty channels = the read/
+    /// cap/render failed off-main: clear the in-flight marker, log, play Clean.
+    private func storeBeats(key: BeatsKey, lengthSeconds: Double, channels: [[Float]]) {
+        beatsInFlight.remove(key)
+        guard knownURLs[key.url] != nil, let fmt = urlFormats[key.url] else { return }
+        guard let first = channels.first, !first.isEmpty,
+              channels.count == Int(fmt.channelCount),
               let out = AVAudioPCMBuffer(pcmFormat: fmt,
                                          frameCapacity: AVAudioFrameCount(first.count)),
-              let dst = out.floatChannelData else { return }
+              let dst = out.floatChannelData else {
+            // Symmetric logging (code-review LOW 7): every skip explains a Clean play.
+            log.log(.info, category: .audio,
+                    "Beats pre-render unavailable (read/cap/format) — region plays Clean")
+            return
+        }
         for (c, channel) in channels.enumerated() {
             channel.withUnsafeBufferPointer { src in
                 guard let s = src.baseAddress else { return }
@@ -173,7 +207,12 @@ final class TimelineAudioSink: AudioRegionSink {
             }
         }
         out.frameLength = AVAudioFrameCount(first.count)
-        beatsBuffers[key] = (fromSeconds: fromSeconds, buffer: out)
+        // Audio-review V4: a tempo edit changes the rate — evict this URL's
+        // other-rate entries (only one rate can be current), bounding the cache.
+        for k in beatsBuffers.keys where k.url == key.url && k.rateMilli != key.rateMilli {
+            beatsBuffers[k] = nil
+        }
+        beatsBuffers[key] = (lengthSeconds: lengthSeconds, buffer: out)
     }
 
     func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float,
@@ -186,8 +225,8 @@ final class TimelineAudioSink: AudioRegionSink {
         // entry (seek / unmute restart) falls through to the Clean chain below
         // (honest; the next onset is transient-locked again).
         if stretch.rate != 1.0, stretch.mode == .beats,
-           let entry = beatsBuffers[BeatsKey(url: url, rate: stretch.rate)],
-           abs(entry.fromSeconds - fromSeconds) < 0.001,
+           let entry = beatsBuffers[BeatsKey(url: url, rate: stretch.rate, fromSeconds: fromSeconds)],
+           abs(entry.lengthSeconds - lengthSeconds) < 0.001,
            plainNode.engine?.isRunning == true {
             stop()
             plainNode.scheduleBuffer(entry.buffer, at: nil)
@@ -266,6 +305,8 @@ final class TimelineAudioSink: AudioRegionSink {
         warpChains.removeAll()
         knownURLs.removeAll()
         beatsBuffers.removeAll()
+        beatsInFlight.removeAll()
+        urlFormats.removeAll()
         file = nil
     }
 
@@ -289,6 +330,9 @@ final class TimelineAudioSink: AudioRegionSink {
         let format = file.processingFormat
         let key = FormatKey(channels: format.channelCount, rate: format.sampleRate)
         knownURLs[url] = key
+        // Audio-review V1/V2: remember the exact connection format per URL — the
+        // Beats rebuild must use it (never the shared `file` slot at completion time).
+        urlFormats[url] = format
         if let existing = nodes[key] { return existing }
         let node = AVAudioPlayerNode()
         engine.attachPlayerNode(node, format: format)

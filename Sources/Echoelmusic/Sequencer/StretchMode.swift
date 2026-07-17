@@ -24,10 +24,12 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// refinement; this delivers the defining pitch-follows-tempo behaviour now.)
     case tape
     /// In-house WSOLA transient-preserving (Ableton "Beats"-style): best on
-    /// drums/loops, patent-free own code (`EchoelWSOLA`). Executor: OFFLINE
-    /// pre-render in the editor-preview consumer (AudioClipPlayer); the timeline
-    /// keeps the honest `.clean` fallback until its own executor slice (see
-    /// per-consumer `capabilities` on `StretchPlan.resolve`).
+    /// drums/loops, patent-free own code (`EchoelWSOLA`). Executors: OFFLINE
+    /// pre-render in the editor preview (AudioClipPlayer) AND on the timeline
+    /// (TimelineAudioSink, prime-time per-region render; grid-aligned region
+    /// starts — an off-grid/stepless placement enters as "mid-region" and plays
+    /// the honest Clean chain). Per-consumer `capabilities` on
+    /// `StretchPlan.resolve` stay the truth mechanism.
     case beats
     /// Signalsmith Stretch (MIT C++): highest transient fidelity — FOUNDER-GATED
     /// dependency (first C++ in the tree, contained bridge). Executor: approved slice only.
