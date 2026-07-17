@@ -367,6 +367,23 @@ final class MultiRollFanoutTests: XCTestCase {
         XCTAssertNil(MultiRollFanout.instrument(forSlot: 9, in: doc, rollLane: roll.id))
     }
 
+    // MARK: - samplePath(forSlot:) — the EchoelSampler lane's ref (S2-W3)
+
+    func testSamplePathForSlot_resolvesEachLanesOwnRef_elseNil() {
+        let (base, roll, sec, _) = makeDoc()
+        var doc = base
+        if let i = doc.lanes.firstIndex(where: { $0.id == sec[1] }) {
+            doc.lanes[i].builtinInstrument = .sampler
+            doc.lanes[i].samplePath = "lib:Bass/808"
+        }
+        XCTAssertNil(MultiRollFanout.samplePath(forSlot: 0, in: doc, rollLane: roll),
+                     "a lane without a sample ref reads nil")
+        XCTAssertEqual(MultiRollFanout.samplePath(forSlot: 1, in: doc, rollLane: roll),
+                       "lib:Bass/808")
+        XCTAssertNil(MultiRollFanout.samplePath(forSlot: 9, in: doc, rollLane: roll),
+                     "out-of-range slot ⇒ nil, never a crash")
+    }
+
     // MARK: - H4: live-mixer merge into the playback snapshot
 
     func testMergeMixer_takesMixerFields_keepsStructure() {
@@ -377,12 +394,15 @@ final class MultiRollFanoutTests: XCTestCase {
         fresh.lanes[2].pan = -1
         fresh.lanes[3].isMuted = true
         fresh.lanes[2].octaveDouble = 1          // third pitch field rides the merge
+        fresh.lanes[2].samplePath = "drum:Kick"  // content identity — must NOT ride it
         fresh.regions = []                       // structural edits must NOT leak
         XCTAssertTrue(snapshot.mergeMixer(from: fresh))
         XCTAssertEqual(snapshot.lanes[2].level, 0.25)
         XCTAssertEqual(snapshot.lanes[2].pan, -1)
         XCTAssertTrue(snapshot.lanes[3].isMuted)
         XCTAssertEqual(snapshot.lanes[2].octaveDouble, 1, "octave flows live like detune")
+        XCTAssertNil(snapshot.lanes[2].samplePath,
+                     "samplePath is structural (patch/instrument analog) — the merge skips it")
         XCTAssertEqual(snapshot.regions.count, 1, "regions stay the playback snapshot's")
         XCTAssertEqual(MultiRollFanout.gain(forSlot: 0, in: snapshot, rollLane: roll), 0.25)
     }

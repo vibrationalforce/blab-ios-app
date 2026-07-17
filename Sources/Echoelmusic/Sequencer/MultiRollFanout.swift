@@ -128,6 +128,15 @@ public enum MultiRollFanout {
         return document.lanes.first(where: { $0.id == id })?.builtinInstrument?.voiceKind ?? .poly
     }
 
+    /// The persisted sample REF slot `slot`'s lane carries (nil ⇒ none assigned,
+    /// and nil for an out-of-range slot) — the EchoelSampler lane's one-shot file
+    /// (S2-W3). Mirrors `patch(forSlot:)`; the app resolves the ref to a URL and
+    /// loads it into the slot's bound sampler unit (LaneVoiceRack.setSample).
+    public static func samplePath(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> String? {
+        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return nil }
+        return document.lanes.first(where: { $0.id == id })?.samplePath
+    }
+
     /// The stereo PAN slot `slot`'s lane carries, clamped −1…1 (0 = center, and 0
     /// for an out-of-range slot). H4 (healing wave 1, "Pan silently inert"): mirrors
     /// `transpose(forSlot:)` so each rack voice sits at its own lane's position.

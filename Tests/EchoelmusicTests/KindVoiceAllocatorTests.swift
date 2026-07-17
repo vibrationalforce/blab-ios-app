@@ -3,8 +3,8 @@
 // binds a rank slot + its lane's voice KIND to a physical voice in the
 // heterogeneous rack pool. Laws pinned here (plan §3 S2-W2-1): determinism,
 // rank stability, first-rank-wins contention, poly fallback on exhaustion,
-// sampler/bioVoice → poly (documented v1), zero units = the flag-OFF shape.
-// Zero consumers exist yet — this slice is behavior-frozen foundation.
+// sampler → its unit when one exists (S2-W3), bioVoice → poly (documented v1),
+// zero units = the flag-OFF shape.
 
 import XCTest
 @testable import Echoelmusic
@@ -12,9 +12,11 @@ import XCTest
 final class KindVoiceAllocatorTests: XCTestCase {
 
     private func allocate(_ entries: [(Int, LaneVoiceKind)],
-                          drums: Int = 1, subs: Int = 1) -> [Int: PhysicalVoiceRef] {
+                          drums: Int = 1, subs: Int = 1,
+                          samplers: Int = 1) -> [Int: PhysicalVoiceRef] {
         KindVoiceAllocator.allocate(ordered: entries.map { (slot: $0.0, kind: $0.1) },
-                                    drumUnits: drums, subUnits: subs)
+                                    drumUnits: drums, subUnits: subs,
+                                    samplerUnits: samplers)
     }
 
     // MARK: - The happy path: each kind gets its physical voice
@@ -56,21 +58,39 @@ final class KindVoiceAllocatorTests: XCTestCase {
         XCTAssertEqual(map[1], .poly(1))
     }
 
-    // MARK: - v1 fallbacks (documented in the plan §6)
+    // MARK: - Sampler (S2-W3) + the v1 bioVoice fallback (plan §6)
 
-    func testAllocate_samplerAndBioVoice_resolveToPolyInV1() {
-        let map = allocate([(0, .sampler), (1, .bioVoice)])
-        XCTAssertEqual(map[0], .poly(0), "sampler lane has no sample source yet — poly fallback")
-        XCTAssertEqual(map[1], .poly(1), "bioVoice kind is hold-for-founder — poly fallback")
+    func testAllocate_samplerLane_bindsTheSamplerUnit() {
+        let map = allocate([(0, .sampler), (1, .poly)])
+        XCTAssertEqual(map[0], .sampler(0), "a sampler lane gets the sampler unit (S2-W3)")
+        XCTAssertEqual(map[1], .poly(1))
+    }
+
+    func testAllocate_secondSamplerLane_fallsBackToPoly() {
+        let map = allocate([(0, .sampler), (2, .sampler)], samplers: 1)
+        XCTAssertEqual(map[0], .sampler(0), "first rank wins the single sampler unit")
+        XCTAssertEqual(map[2], .poly(2), "the loser sounds like today (poly), never silence")
+    }
+
+    func testAllocate_zeroSamplerUnits_fallsBackToPoly() {
+        let map = allocate([(0, .sampler)], samplers: 0)
+        XCTAssertEqual(map[0], .poly(0), "no sampler unit ⇒ poly fallback (the flag-OFF shape)")
+    }
+
+    func testAllocate_bioVoice_resolvesToPolyInV1() {
+        let map = allocate([(0, .bioVoice)])
+        XCTAssertEqual(map[0], .poly(0), "bioVoice kind is hold-for-founder — poly fallback")
     }
 
     // MARK: - Zero units = the flag-OFF shape (bit-identical to today)
 
     func testAllocate_zeroUnits_isAllPoly() {
-        let map = allocate([(0, .drums), (1, .subBass), (2, .poly)], drums: 0, subs: 0)
+        let map = allocate([(0, .drums), (1, .subBass), (2, .poly), (3, .sampler)],
+                           drums: 0, subs: 0, samplers: 0)
         XCTAssertEqual(map[0], .poly(0))
         XCTAssertEqual(map[1], .poly(1))
         XCTAssertEqual(map[2], .poly(2))
+        XCTAssertEqual(map[3], .poly(3))
     }
 
     // MARK: - Determinism + stability

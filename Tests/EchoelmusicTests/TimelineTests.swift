@@ -332,6 +332,38 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(back.variationSeed, bigSeed)
     }
 
+    // MARK: - Lane sample ref (EchoelSampler, S2-W3)
+
+    func testLaneSamplePath_defaultInitIsNil_noBehaviorChange() {
+        // Additive field: every existing construction site (no samplePath:) stays
+        // bit-identical.
+        let lane = TimelineLane(name: "EchoelSampler", kind: .midi, builtinInstrument: .sampler)
+        XCTAssertNil(lane.samplePath)
+    }
+
+    func testLaneDecode_preSamplerDocument_defaultsToNilSamplePath() throws {
+        // A lane persisted BEFORE the sampler ref existed carries no `samplePath`
+        // key — it must decode to nil (no sample assigned), never fail to load.
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","name":"MIDI 1","kind":"midi","isBio":false,"level":1}
+        """
+        let lane = try JSONDecoder().decode(TimelineLane.self, from: Data(legacyJSON.utf8))
+        XCTAssertNil(lane.samplePath)
+    }
+
+    func testLaneSamplePath_roundTripsThroughCodable() throws {
+        // Both persisted conventions round-trip verbatim (they are opaque strings
+        // to the document — resolution happens at the rack door).
+        for ref in ["drum:Kick", "lib:Bass/808", "/media/home/ABC.wav"] {
+            let lane = TimelineLane(name: "Smp", kind: .midi,
+                                    builtinInstrument: .sampler, samplePath: ref)
+            let data = try JSONEncoder().encode(lane)
+            let back = try JSONDecoder().decode(TimelineLane.self, from: data)
+            XCTAssertEqual(back, lane)
+            XCTAssertEqual(back.samplePath, ref)
+        }
+    }
+
     // MARK: - Lane pan (B2)
 
     func testRollSlotPan_firstNonBioMIDILane_clampedMuteIgnored() {

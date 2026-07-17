@@ -85,6 +85,16 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// secondary via `slotOctaveSink`), poly voices only (sub folds octaves, kit
     /// unpitched, AU not expressible — the documented detune limits apply alike).
     public var octaveDouble: Int
+    /// EchoelSampler track (S2-W3): the persisted REF of the ONE sample this
+    /// lane's sampler unit plays. Same string conventions as the app's other
+    /// persisted sample choices: `"drum:<Name>"` / `"lib:<Category>/<Name>"`
+    /// for bundled assets (resolved by NAME, survives app updates) or a
+    /// `Clip.mediaRef`-style absolute path into the App-Group media home
+    /// (H6-re-rooted via `MediaLibrary.resolveRef`). `nil` = no sample assigned
+    /// (the sampler unit has nothing to play). CONTENT identity like
+    /// `patch`/`instrument` — a change is structural (what sounds changes), so
+    /// it deliberately rides `refreshStructure`, never `mergeMixer`.
+    public var samplePath: String?
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
@@ -93,7 +103,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
                 patch: SynthPatch? = nil, genreOverride: MusicStyle? = nil,
                 mood: MoodProfile? = nil, variationSeed: UInt64? = nil,
                 transposeSemitones: Int = 0, detuneCents: Float = 0,
-                octaveDouble: Int = 0) {
+                octaveDouble: Int = 0, samplePath: String? = nil) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -113,6 +123,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.transposeSemitones = transposeSemitones
         self.detuneCents = detuneCents
         self.octaveDouble = octaveDouble
+        self.samplePath = samplePath
     }
 
     /// What this track's record button captures — derived from its kind + built-in
@@ -159,6 +170,9 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         detuneCents = try c.decodeIfPresent(Float.self, forKey: .detuneCents) ?? 0
         // Pre-Oktaver docs carry no per-track octave ⇒ 0 (off, bit-identical).
         octaveDouble = try c.decodeIfPresent(Int.self, forKey: .octaveDouble) ?? 0
+        // Pre-sampler docs carry no sample ref ⇒ decodeIfPresent's nil (no
+        // sample, bit-identical) — the back-compat law, like patch/instrument.
+        samplePath = try c.decodeIfPresent(String.self, forKey: .samplePath)
     }
 }
 

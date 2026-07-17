@@ -507,6 +507,19 @@ public final class TimelineStore {
         persist()
     }
 
+    /// EchoelSampler track (S2-W3): assign (or clear, with nil) the persisted
+    /// sample REF this lane's sampler unit plays ("drum:<Name>" / "lib:<Category>/
+    /// <Name>" bundle refs, or a mediaRef-style absolute path — see
+    /// TimelineLane.samplePath). State only, persisted like setLaneOctave; a
+    /// change is STRUCTURAL (content identity, like patch/instrument), so the
+    /// playing region player pulls it in via refreshStructure → prime →
+    /// slotSampleSink, never through the mixer merge.
+    public func setLaneSample(_ laneID: UUID, path: String?) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == laneID }) else { return }
+        document.lanes[i].samplePath = path
+        persist()
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()

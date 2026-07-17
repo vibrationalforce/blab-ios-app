@@ -1453,6 +1453,10 @@ private struct LaneFXEditor: View {
     /// voice for secondary lanes, so the insert must reach the rack too.
     @Environment(LaneVoiceRack.self) private var laneVoiceRack
     @Environment(TimelineStore.self) private var timeline
+    /// S2-W3: the EchoelSampler track's sample picker — a sheet ON this already-
+    /// presented editor (its own modifier on the sheet CONTENT, so the root modal
+    /// chain does not grow — the metadata law).
+    @State private var showSampleBrowser = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1504,6 +1508,36 @@ private struct LaneFXEditor: View {
             EchoelValueField(label: "Octave",
                              value: octaveBinding,
                              range: Float(-1)...Float(1), decimals: 0)
+
+            // EchoelSampler track (S2-W3): the ONE sample this lane's sampler unit
+            // plays. Opens the SAME browser as the B5 drum-pad door, in lane mode
+            // (the completion returns a persistable ref → TimelineStore). Document-
+            // level reads only — this sheet never touches a 10 Hz observable
+            // (freeze law); the picker sheet stacks on THIS sheet's content.
+            if timeline.document.lanes.first(where: { $0.id == laneID })?.builtinInstrument == .sampler {
+                HStack {
+                    Text("Sample")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    Spacer()
+                    Button {
+                        showSampleBrowser = true
+                    } label: {
+                        Text(BeatPlayer.sampleRefDisplayName(
+                            timeline.document.lanes.first(where: { $0.id == laneID })?.samplePath)
+                            ?? "No sample")
+                            .font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(EchoelTheme.accent)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Sample for \(laneName)")
+                }
+                .sheet(isPresented: $showSampleBrowser) {
+                    AnyView(SampleBrowserView(track: 0, onUse: { ref in
+                        timeline.setLaneSample(laneID, path: ref)
+                    }).echoelSheetPanel())
+                }
+            }
 
             Text("Filter/drive: same setting as Mix › Melodic — changed here, it changes there. Full-open cutoff with filter Off and drive 0 means: untouched sound. Pan, Transpose, Detune and Octave are this track's own and are saved with the song (Pan 0 = center, Transpose 0 = no pitch shift, Detune 0 = in tune, Octave −1/+1 = add a doubled voice an octave down/up, 0 = off).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)

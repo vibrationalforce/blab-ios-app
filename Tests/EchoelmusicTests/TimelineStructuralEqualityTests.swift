@@ -65,6 +65,17 @@ final class TimelineStructuralEqualityTests: XCTestCase {
         XCTAssertTrue(TimelineDocument.structurallyEqual(a, b))
     }
 
+    func testSamplePathEdit_isStructural() {
+        // The sampler lane's sample ref is CONTENT identity (like patch/
+        // instrument): a different file sounds different at the same tick, so a
+        // change must relocate — the prime path is what pushes the new sample
+        // into the rack (slotSampleSink), mergeMixer never carries it.
+        let a = doc()
+        var b = a
+        b.lanes[0].samplePath = "drum:Kick"
+        XCTAssertFalse(TimelineDocument.structurallyEqual(a, b))
+    }
+
     func testRegionMove_isStructural() {
         let a = doc()
         var b = a

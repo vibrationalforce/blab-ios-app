@@ -12,10 +12,11 @@
 //                   established voice(slot:) addressing is unchanged for poly)
 //   .drums(i)     — a LaneDrumKitVoice unit (S2-W2-2)
 //   .subBass(i)   — a dedicated lane SubBassVoice (NOT the primary doubling sub)
+//   .sampler(i)   — a lane SamplerVoice one-shot unit (S2-W3, "EchoelSampler klingt")
 //
 // Laws (tested): deterministic (no Date/UUID/random), first-RANK-wins on
 // contention (input order irrelevant), poly fallback on kind exhaustion or for
-// v1-deferred kinds (sampler/bioVoice — plan §6), zero units ⇒ all-poly (the
+// the v1-deferred kind (bioVoice — plan §6), zero units ⇒ all-poly (the
 // flag-OFF shape, bit-identical to today). Foundation-only, no engine, no state.
 
 import Foundation
@@ -27,6 +28,7 @@ public enum PhysicalVoiceRef: Equatable, Sendable, Hashable {
     case poly(Int)
     case drums(Int)
     case subBass(Int)
+    case sampler(Int)
 }
 
 /// Pure slot→physical-voice allocation for the Multi-Roll rack facade.
@@ -41,14 +43,19 @@ public enum KindVoiceAllocator {
     ///   - drumUnits: how many physical drum-kit units exist (0 = none → drums
     ///     lanes fall back to poly; the flag-OFF shape).
     ///   - subUnits: how many dedicated lane sub-bass units exist (dito).
+    ///   - samplerUnits: how many lane sampler one-shot units exist (dito; the
+    ///     sample FILE a bound unit plays comes from the lane's `samplePath`,
+    ///     outside this pure layer).
     /// - Returns: slot → physical voice. A slot NEVER maps to silence: any kind
     ///   that cannot get its dedicated voice resolves to `.poly(slot)` — exactly
     ///   today's sound, so routing can only get MORE honest, never quieter.
     public static func allocate(ordered: [(slot: Int, kind: LaneVoiceKind)],
-                                drumUnits: Int, subUnits: Int) -> [Int: PhysicalVoiceRef] {
+                                drumUnits: Int, subUnits: Int,
+                                samplerUnits: Int) -> [Int: PhysicalVoiceRef] {
         var out: [Int: PhysicalVoiceRef] = [:]
         var nextDrum = 0
         var nextSub = 0
+        var nextSampler = 0
         for entry in ordered.sorted(by: { $0.slot < $1.slot }) {
             guard out[entry.slot] == nil else { continue }   // duplicate slot: first wins
             switch entry.kind {
@@ -58,10 +65,13 @@ public enum KindVoiceAllocator {
             case .subBass where nextSub < subUnits:
                 out[entry.slot] = .subBass(nextSub)
                 nextSub += 1
+            case .sampler where nextSampler < samplerUnits:
+                out[entry.slot] = .sampler(nextSampler)
+                nextSampler += 1
             case .poly, .drums, .subBass, .sampler, .bioVoice:
                 // Poly by choice, by exhaustion (kind units taken by a lower
-                // rank), or by v1 deferral (sampler needs a sample source field,
-                // bioVoice is hold-for-founder — plan §6). Never silence.
+                // rank), or by v1 deferral (bioVoice is hold-for-founder —
+                // plan §6). Never silence.
                 out[entry.slot] = .poly(entry.slot)
             }
         }

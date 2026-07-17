@@ -580,6 +580,34 @@ public final class BeatPlayer {
         }
         return nil
     }
+
+    // MARK: - Persisted sample refs (shared with the EchoelSampler lane, S2-W3)
+
+    /// Resolve a persisted sample REF string to a playable file URL — THE one
+    /// lookup for every surface that stores a sample choice as a string (the
+    /// EchoelSampler lane's `TimelineLane.samplePath` today). Two conventions,
+    /// both already established: "drum:<Name>" / "lib:<Category>/<Name>" bundle
+    /// refs (this class's own pad-persistence format — resolved by NAME, so they
+    /// survive app updates), and everything else as a `Clip.mediaRef`-style
+    /// absolute path (`MediaLibrary.resolveRef`, incl. H6 container re-rooting).
+    /// nil for empty/vanished refs — the caller's sampler simply stays unloaded.
+    public static func resolveSampleRef(_ ref: String?) -> URL? {
+        guard let ref, !ref.isEmpty else { return nil }
+        if let url = bundledAssignmentURL(ref) { return url }
+        return MediaLibrary.resolveRef(ref)
+    }
+
+    /// Human-readable name for a persisted sample REF ("drum:Kick" → "Kick",
+    /// "lib:Bass/808" → "808", a media path → its file stem). nil for nil/empty —
+    /// the UI shows its own "No sample" placeholder then. Pure string math.
+    public static func sampleRefDisplayName(_ ref: String?) -> String? {
+        guard let ref, !ref.isEmpty else { return nil }
+        if let name = ref.stripping(prefix: "drum:") { return name }
+        if let id = ref.stripping(prefix: "lib:") {
+            return id.components(separatedBy: "/").last ?? id
+        }
+        return URL(fileURLWithPath: ref).deletingPathExtension().lastPathComponent
+    }
 }
 
 private extension String {

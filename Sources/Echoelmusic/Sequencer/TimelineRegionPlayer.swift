@@ -140,6 +140,15 @@ public final class TimelineRegionPlayer {
     /// `.poly` on clear/silence/stop — a slot never keeps a stale kind. nil sink ⇒
     /// every slot stays poly (bit-identical to today, and the flag-OFF shape).
     @ObservationIgnored public var slotKindSink: ((_ slot: Int, _ kind: LaneVoiceKind) -> Void)?
+    /// S2-W3 ("EchoelSampler klingt"): publishes the sample REF a slot's lane
+    /// carries (TimelineLane.samplePath via MultiRollFanout.samplePath), so the
+    /// app can load it into the slot's bound sampler unit
+    /// (LaneVoiceRack.setSample). Fired at EXACTLY the slotKindSink sites, always
+    /// AFTER the kind — the binding must land first so the sample loads into the
+    /// unit the slot now plays. nil on clear/silence/stop, so a reused slot never
+    /// keeps a stale sample memo. nil sink ⇒ sampler lanes stay unloaded (their
+    /// unit renders silence until a sample arrives; routing is unaffected).
+    @ObservationIgnored public var slotSampleSink: ((_ slot: Int, _ path: String?) -> Void)?
     @ObservationIgnored private var lanePool = LaneVoicePool(capacity: 0)
     @ObservationIgnored private var pumps: [Int: LaneNotePump] = [:]
 
@@ -480,6 +489,9 @@ public final class TimelineRegionPlayer {
                 // CURRENT binding, so the kind must land first (else patch/notes hit
                 // the old physical voice). Rebinding releases the old voice internally.
                 slotKindSink?(slot, MultiRollFanout.voiceKind(forSlot: slot, in: doc, rollLane: rollLane))
+                // S2-W3: the lane's sample ref, AFTER the kind (binding first, then
+                // the sample lands in the bound sampler unit).
+                slotSampleSink?(slot, MultiRollFanout.samplePath(forSlot: slot, in: doc, rollLane: rollLane))
                 // Per-lane timbre: set this slot's voice to its lane's own patch BEFORE
                 // its first notes (apply() enqueues ahead of the notes in the voice's
                 // render drain, so timbre precedes attack). nil ⇒ app falls back.
@@ -511,6 +523,7 @@ public final class TimelineRegionPlayer {
                 }
                 slotLaneSink?(slot, nil)   // offs above went through the old binding
                 slotKindSink?(slot, .poly) // reset kind so a reused slot never keeps a stale drum/sub voice
+                slotSampleSink?(slot, nil) // and the sample memo (same reuse law)
             }
         }
         // Fire this step on every live slot pump (offs before ons, per pump). A
@@ -550,6 +563,8 @@ public final class TimelineRegionPlayer {
             slotLaneSink?(load.slot, load.laneID)
             // S2-W2-4: kind before patch/gain/notes (same ordering law as the fan-out).
             slotKindSink?(load.slot, MultiRollFanout.voiceKind(forSlot: load.slot, in: doc, rollLane: rollLane))
+            // S2-W3: sample after kind (same ordering law as the fan-out).
+            slotSampleSink?(load.slot, MultiRollFanout.samplePath(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotPatchSink?(load.slot, load.patch)
             slotTransposeSink?(load.slot, MultiRollFanout.transpose(forSlot: load.slot, in: doc, rollLane: rollLane))
             slotDetuneSink?(load.slot, MultiRollFanout.detune(forSlot: load.slot, in: doc, rollLane: rollLane))
@@ -647,6 +662,7 @@ public final class TimelineRegionPlayer {
             }
             slotLaneSink?(slot, nil)       // then release the slot's lane binding
             slotKindSink?(slot, .poly)     // and reset the kind so a restart starts poly-clean
+            slotSampleSink?(slot, nil)     // and the sample memo (stale-sample reuse law)
         }
         pumps.removeAll()
         lanePool = LaneVoicePool(capacity: multiRollCapacity)

@@ -223,6 +223,35 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
         XCTAssertEqual(kinds.last?.0, 0)
     }
 
+    func testSlotSampleSink_firesLaneSampleRefAtPrime_resetsToNilOnStop() {
+        // S2-W3: the player publishes each slot's persisted sample REF (after the
+        // kind — same sites), so the app loads it into the bound sampler unit;
+        // stop resets to nil so a reused slot never keeps a stale sample memo.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let smp = TimelineLane(name: "EchoelSampler", kind: .midi,
+                               builtinInstrument: .sampler, samplePath: "drum:Kick")
+        let document = TimelineDocument(lanes: [roll, smp], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: smp.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var refs: [(Int, String?)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotSampleSink = { refs.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        XCTAssertEqual(refs.first?.0, 0)
+        XCTAssertEqual(refs.first?.1, "drum:Kick",
+                       "prime publishes the sampler lane's sample ref for its slot")
+
+        player.stop()
+        XCTAssertEqual(refs.last?.0, 0)
+        XCTAssertNil(refs.last?.1, "stop clears the slot's sample memo")
+    }
+
     func testSlotKindSink_firesBeforePatchAtPrime() {
         // ORDERING LAW: the kind must land BEFORE the per-slot patch/value sinks,
         // so the app's facade routes them to the freshly-bound physical voice.

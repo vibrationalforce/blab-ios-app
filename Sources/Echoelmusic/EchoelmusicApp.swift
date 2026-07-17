@@ -604,6 +604,14 @@ struct EchoelmusicApp: App {
                     timelinePlayer.slotKindSink = { [weak laneVoiceRack] slot, kind in
                         laneVoiceRack?.setKind(slot: slot, kind: kind)
                     }
+                    // S2-W3 (EchoelSampler klingt): the lane's persisted sample REF,
+                    // fired right after the kind at the same player sites — resolved
+                    // via the ONE ref lookup (drum:/lib: bundle refs + mediaRef-style
+                    // absolute paths) and loaded into the slot's bound sampler unit.
+                    // Unresolvable/nil ⇒ the unit stays as-is (never a crash).
+                    timelinePlayer.slotSampleSink = { [weak laneVoiceRack] slot, path in
+                        laneVoiceRack?.setSample(slot: slot, url: BeatPlayer.resolveSampleRef(path))
+                    }
                     // H5b: the player publishes which lane a slot plays (from the
                     // playback snapshot); the AU host resolves slot → hosted voice.
                     timelinePlayer.slotLaneSink = { [weak laneAUHost] slot, laneID in
@@ -711,6 +719,12 @@ struct EchoelmusicApp: App {
                     switch kind {
                     case .drums:   pianoRoll.setKindVoice(laneVoiceRack?.kits.first)
                     case .subBass: pianoRoll.setKindVoice(laneVoiceRack?.subs.first)
+                    // .sampler deliberately falls through to poly here (S2-W3):
+                    // SamplerVoice is a nonisolated one-shot (fire/silence), not a
+                    // NoteVoice — a PRIMARY-roll sampler lane would need an adapter
+                    // the secondary-lane path doesn't. Secondary sampler lanes are
+                    // fully audible via the rack facade; the primary roll keeps
+                    // today's poly voice — honest, no lying half-path.
                     default:       pianoRoll.setKindVoice(nil)
                     }
                 }

@@ -6,6 +6,7 @@
 // no audio-graph node, so this runs on the Xcode gate without an engine.
 
 #if canImport(AVFoundation) && canImport(Accelerate)
+import AVFoundation
 import XCTest
 @testable import Echoelmusic
 
@@ -128,6 +129,7 @@ final class LaneVoiceRackTests: XCTestCase {
         rack.setPan(slot: 0, 0.5)
         rack.setTranspose(slot: 0, semitones: 12)
         rack.setDetune(slot: 0, cents: 10)
+        rack.setSample(slot: 0, url: URL(fileURLWithPath: "/x.wav"))   // attach-gated no-op
     }
 
     func testTranspose_pitchesSubAtEnqueue_andChangeReleasesHeldSub() {
@@ -181,6 +183,147 @@ final class LaneVoiceRackTests: XCTestCase {
         rack.setTuning(a4Hz: 432)
         XCTAssertEqual(sub.lastTuningForTests ?? -1, 432, accuracy: 1e-6,
                        "concert pitch must reach the lane sub (in tune at A=432)")
+    }
+
+    // MARK: - S2-W3 sampler unit (EchoelSampler lane audible)
+
+    func testSetKind_sampler_bindsTheSamplerUnit_andNoteOnFiresIt() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        let sampler = SamplerVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.setKind(slot: 0, kind: .sampler)
+        XCTAssertEqual(rack.bindingsForTests[0], .sampler(0))
+        // Routing proof: a note-ON on the sampler slot triggers the SAMPLER unit
+        // (its render block picks the trigger up on the next block — the fire
+        // counter is the observable), not the poly slot voice.
+        rack.noteOn(slot: 0, pitch: 60, velocity: 0.8)
+        renderOneBlock(voice: sampler, frameCount: 64)
+        XCTAssertTrue(sampler._testIsPlaying,
+                      "the sampler-bound slot's note-ON must fire the sampler unit")
+        // One-shot: note-OFF is a documented no-op — it must not silence the hit.
+        rack.noteOff(slot: 0, pitch: 60)
+        renderOneBlock(voice: sampler, frameCount: 64)
+        XCTAssertTrue(sampler._testIsPlaying, "a one-shot ignores note-OFF (drum convention)")
+        // allNotesOff on the binding cuts it (silence on the next block).
+        rack.setKind(slot: 0, kind: .poly)   // rebind ⇒ allNotesOff(old) ⇒ silence()
+        renderOneBlock(voice: sampler, frameCount: 64)
+        XCTAssertFalse(sampler._testIsPlaying, "rebind must silence the sampler unit")
+    }
+
+    func testSetKind_sampler_withoutUnit_fallsBackToPoly() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        rack.installKindUnitsForTests(kits: [], subs: [])   // zero sampler units
+        rack.setKind(slot: 0, kind: .sampler)
+        XCTAssertEqual(rack.bindingsForTests[0], .poly(0),
+                       "no sampler unit ⇒ poly fallback, never silence")
+        rack.noteOn(slot: 0, pitch: 60, velocity: 0.8)   // poly path, no crash
+        rack.noteOff(slot: 0, pitch: 60)
+    }
+
+    func testSetSample_loadsIntoTheBoundSamplerUnit() throws {
+        let url = try makeTempWav(seconds: 0.02, frequency: 440)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        let sampler = SamplerVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.setKind(slot: 0, kind: .sampler)
+        rack.setSample(slot: 0, url: url)
+        XCTAssertTrue(sampler.isLoaded, "setSample must load into the bound sampler unit")
+        XCTAssertEqual(sampler.sourceURL, url)
+    }
+
+    func testSetSample_beforeBinding_isLoadedOnRebind() throws {
+        // The sample memo follows the LANE: assigned while the slot is still
+        // poly-bound, it must land in the unit when the slot LATER binds sampler.
+        let url = try makeTempWav(seconds: 0.02, frequency: 220)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        let sampler = SamplerVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.setSample(slot: 0, url: url)                 // slot is poly (no kind yet)
+        XCTAssertFalse(sampler.isLoaded, "an unbound slot's sample must not load yet")
+        rack.setKind(slot: 0, kind: .sampler)             // rebind loads the memo
+        XCTAssertTrue(sampler.isLoaded)
+        XCTAssertEqual(sampler.sourceURL, url)
+    }
+
+    func testSetSample_unresolvableURL_logsAndKeepsCalm() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
+        let sampler = SamplerVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.setKind(slot: 0, kind: .sampler)
+        rack.setSample(slot: 0, url: URL(fileURLWithPath: "/nonexistent/nothing.wav"))
+        XCTAssertFalse(sampler.isLoaded, "a failed load must not fake isLoaded")
+        rack.setSample(slot: 0, url: nil)                 // clear — no crash
+    }
+
+    // MARK: - Persisted sample refs (BeatPlayer conventions shared with the lane)
+
+    func testSampleRefDisplayName_coversAllConventions() {
+        XCTAssertEqual(BeatPlayer.sampleRefDisplayName("drum:Kick"), "Kick")
+        XCTAssertEqual(BeatPlayer.sampleRefDisplayName("lib:Bass/808 Long"), "808 Long")
+        XCTAssertEqual(BeatPlayer.sampleRefDisplayName("/tmp/media/ABC-123.wav"), "ABC-123")
+        XCTAssertNil(BeatPlayer.sampleRefDisplayName(nil))
+        XCTAssertNil(BeatPlayer.sampleRefDisplayName(""))
+    }
+
+    func testResolveSampleRef_absolutePathAndNil() throws {
+        XCTAssertNil(BeatPlayer.resolveSampleRef(nil))
+        XCTAssertNil(BeatPlayer.resolveSampleRef(""))
+        // A mediaRef-style absolute path to an existing file resolves directly.
+        let url = try makeTempWav(seconds: 0.01, frequency: 330)
+        defer { try? FileManager.default.removeItem(at: url) }
+        XCTAssertEqual(BeatPlayer.resolveSampleRef(url.path), url)
+    }
+
+    // MARK: - Sampler test helpers (mirrors SamplerVoiceTests' render harness)
+
+    /// Writes a temporary mono float32 WAV at 44.1 kHz with a sine wave.
+    private func makeTempWav(seconds: Double, frequency: Double) throws -> URL {
+        let sr: Double = 44_100
+        let frames = Int(seconds * sr)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lane-rack-sampler-\(UUID().uuidString).wav")
+        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sr,
+                                         channels: 1, interleaved: false) else {
+            throw NSError(domain: "test", code: 0)
+        }
+        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format,
+                                            frameCapacity: AVAudioFrameCount(frames)) else {
+            throw NSError(domain: "test", code: 1)
+        }
+        buffer.frameLength = AVAudioFrameCount(frames)
+        if let ch = buffer.floatChannelData?[0] {
+            for i in 0..<frames {
+                ch[i] = Float(sin(2 * .pi * frequency * Double(i) / sr) * 0.5)
+            }
+        }
+        try file.write(from: buffer)
+        return url
+    }
+
+    /// Drives one render block synchronously (the SamplerVoice test seam), so
+    /// trigger/silence state becomes observable without a live engine.
+    private func renderOneBlock(voice: SamplerVoice, frameCount: Int) {
+        let out = UnsafeMutablePointer<Float>.allocate(capacity: frameCount)
+        out.initialize(repeating: 0, count: frameCount)
+        let abl = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: 1)
+        abl.pointee.mNumberBuffers = 1
+        abl.pointee.mBuffers.mNumberChannels = 1
+        abl.pointee.mBuffers.mDataByteSize = UInt32(frameCount * MemoryLayout<Float>.size)
+        abl.pointee.mBuffers.mData = UnsafeMutableRawPointer(out)
+        defer {
+            out.deinitialize(count: 1)
+            out.deallocate()
+            abl.deallocate()
+        }
+        voice._testRender(frameCount: frameCount, audioBufferList: abl)
     }
 
     func testPolySynthVoice_setInsert_recordsAppliedInsert() {

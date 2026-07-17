@@ -16,7 +16,8 @@
 // S2-W2-3 (dissolution, "Spur = Instrument"): the rack is now a FACADE over a
 // heterogeneous pool — behind FeatureFlags.voiceKindRouting (registration-ON
 // since 2026-07-17; dev-OFF override stays the rollback lever) it also
-// carries 1 LaneDrumKitVoice + 1 dedicated lane SubBassVoice, and the pure
+// carries 1 LaneDrumKitVoice + 1 dedicated lane SubBassVoice + 1 lane
+// SamplerVoice one-shot unit (S2-W3), and the pure
 // KindVoiceAllocator binds each rank slot's KIND to a physical voice. Rank slots
 // stay the authoritative contract everywhere else; only the routing INSIDE this
 // class changes meaning. Flag OFF ⇒ zero kind units ⇒ the allocator resolves every
@@ -52,6 +53,7 @@ public final class LaneVoiceRack {
     /// SwiftUI bodies (leaf-body law), so observation is ignored throughout.
     @ObservationIgnored public private(set) var kits: [LaneDrumKitVoice] = []
     @ObservationIgnored public private(set) var subs: [SubBassVoice] = []
+    @ObservationIgnored public private(set) var samplers: [SamplerVoice] = []
     /// The declared kind per rank slot (setKind) and the allocator's current
     /// slot→physical bindings. Absent slot ⇒ `.poly(slot)` — today's sound.
     @ObservationIgnored private var kinds: [Int: LaneVoiceKind] = [:]
@@ -59,6 +61,10 @@ public final class LaneVoiceRack {
     /// Per-slot semitone shift, needed control-side because the mono sub is
     /// pitched at enqueue time (poly voices shift render-side themselves).
     @ObservationIgnored private var transposeBySlot: [Int: Int] = [:]
+    /// The sample URL each rank slot's LANE carries (setSample) — kept per SLOT,
+    /// not per unit, so rebinding loads the newly bound lane's own sample into
+    /// the sampler unit (the sample follows the lane, like transpose).
+    @ObservationIgnored private var sampleURLBySlot: [Int: URL] = [:]
 
     public init(capacity: Int = 4, maxVoicesPerSlot: Int = 8) {
         self.capacity = Swift.max(1, capacity)
@@ -86,6 +92,13 @@ public final class LaneVoiceRack {
             let sub = SubBassVoice()
             sub.attach(to: audioEngine)
             subs = [sub]
+            // S2-W3: one lane sampler one-shot unit. SamplerVoice has no
+            // attach(to:) of its own — its sourceNode goes through the SAME
+            // AudioEngine door BeatPlayer uses (pause→attach→connect→restart),
+            // still strictly before audioEngine.start().
+            let sampler = SamplerVoice()
+            audioEngine.attachSourceNode(sampler.sourceNode)
+            samplers = [sampler]
         }
         attached = true
     }
@@ -113,7 +126,9 @@ public final class LaneVoiceRack {
     public func setInsert(_ fx: TrackFX) {
         for v in voices { v.setInsert(fx) }
         // Deliberately poly-only: kits/subs belong to the .drums/.bass BUS
-        // inserts, fanned in S2-W2-5 via setDrumsInsert/setBassInsert.
+        // inserts, fanned in S2-W2-5 via setDrumsInsert/setBassInsert. The
+        // sampler unit has its own per-channel insert (configureInsertFX),
+        // un-fanned in slice 1 — no bus claims it yet.
     }
 
     /// S2-W2-5: push the `.drums` bus insert (filter/drive) to every lane drum
@@ -167,7 +182,8 @@ public final class LaneVoiceRack {
     private func rebindAll() {
         let ordered = kinds.keys.sorted().map { (slot: $0, kind: kinds[$0] ?? .poly) }
         let fresh = KindVoiceAllocator.allocate(ordered: ordered,
-                                                drumUnits: kits.count, subUnits: subs.count)
+                                                drumUnits: kits.count, subUnits: subs.count,
+                                                samplerUnits: samplers.count)
         let touched = Set(bindings.keys).union(fresh.keys)
         for slot in touched.sorted() {
             let old = bindings[slot] ?? .poly(slot)
@@ -175,6 +191,16 @@ public final class LaneVoiceRack {
             if old != new { allNotesOff(on: old) }
         }
         bindings = fresh
+        // The sampler units carry per-LANE buffers: after a binding change, load
+        // each sampler-bound slot's remembered sample into its unit (setSample may
+        // have run while the slot was poly-fallback / bound elsewhere). Sorted for
+        // deterministic order; loadSampleIfNeeded skips an already-loaded URL.
+        for slot in bindings.keys.sorted() {
+            if case .sampler(let i) = bindings[slot], samplers.indices.contains(i),
+               let url = sampleURLBySlot[slot] {
+                loadSampleIfNeeded(url, intoSampler: i)
+            }
+        }
     }
 
     private func allNotesOff(on ref: PhysicalVoiceRef) {
@@ -182,6 +208,7 @@ public final class LaneVoiceRack {
         case .poly(let i):    if voices.indices.contains(i) { voices[i].allNotesOff() }
         case .drums(let i):   if kits.indices.contains(i) { kits[i].allNotesOff() }
         case .subBass(let i): if subs.indices.contains(i) { subs[i].allNotesOff() }
+        case .sampler(let i): if samplers.indices.contains(i) { samplers[i].silence() }
         }
     }
 
@@ -197,6 +224,16 @@ public final class LaneVoiceRack {
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].noteOn(pitch: pitch + (transposeBySlot[slot] ?? 0))
+        case .sampler(let i):
+            guard samplers.indices.contains(i) else { return }
+            // One-shot sampler, drum-machine retrigger convention (SamplerVoice
+            // contract): MONO — a new hit resets playback to the start, no voice
+            // stealing, no overlap. Root = MIDI 60; the note's distance from it
+            // (plus the lane transpose, folded in control-side like the sub)
+            // pitches the sample via playback rate, clamped ±24 st by the voice.
+            samplers[i].configurePlayback(
+                pitchSemitones: Float(pitch - 60 + (transposeBySlot[slot] ?? 0)))
+            samplers[i].fire(gain: velocity)   // velocity is already 0…1
         }
     }
 
@@ -217,6 +254,11 @@ public final class LaneVoiceRack {
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].noteOff(pitch: pitch + (transposeBySlot[slot] ?? 0))
+        case .sampler:
+            // One-shot: the hit plays to its end (or the next retrigger) — a
+            // note-OFF is a documented no-op, like a drum pad. A binding change
+            // or allNotesOff still cuts it via silence().
+            break
         }
     }
 
@@ -273,11 +315,21 @@ public final class LaneVoiceRack {
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].setGain(gain)   // encapsulated: clamps 0…2, attach-guarded
+        case .sampler(let i):
+            guard samplers.indices.contains(i) else { return }
+            // The lane fader lands on the sampler's shape LEVEL (clamped to the
+            // lane-fader contract 0…2, non-finite fails silent per app
+            // convention). attackMs/lengthMs stay at their defaults (0 = no
+            // fade-in, full sample) — the lane path never reshapes the hit.
+            samplers[i].configureShape(
+                level: Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0)),
+                attackMs: 0, lengthMs: 0)
         }
     }
 
     /// Lane pan per bound kind. The mono sub stays un-panned (pro-audio
-    /// convention: subs are not localized) — documented no-op.
+    /// convention: subs are not localized) — documented no-op. The sampler is a
+    /// mono source node without a pan stage (slice 1) — documented no-op too.
     public func setPan(slot: Int, _ pan: Float) {
         switch binding(forSlot: slot) {
         case .poly:
@@ -285,8 +337,39 @@ public final class LaneVoiceRack {
         case .drums(let i):
             guard kits.indices.contains(i) else { return }
             kits[i].setPan(pan)
-        case .subBass:
+        case .subBass, .sampler:
             break
+        }
+    }
+
+    /// Assign (or clear, with nil) the SAMPLE a slot's lane plays through its
+    /// sampler unit. Control-plane only: remembers the URL per SLOT and loads it
+    /// into the CURRENTLY bound sampler unit (rebindAll re-loads on any later
+    /// binding change, so the sample follows the lane). A load failure logs and
+    /// keeps the unit's previous buffer sounding — never a crash, no force-unwrap.
+    /// nil clears the memo; the unit keeps its buffer until another lane's sample
+    /// replaces it (an unbound buffer can't sound — fire() routes by binding).
+    public func setSample(slot: Int, url: URL?) {
+        guard attached, slot >= 0, slot < voices.count else { return }
+        sampleURLBySlot[slot] = url
+        guard let url, case .sampler(let i) = binding(forSlot: slot),
+              samplers.indices.contains(i) else { return }
+        loadSampleIfNeeded(url, intoSampler: i)
+    }
+
+    /// Load `url` into sampler unit `i` unless that exact file is already its
+    /// loaded buffer (region loads re-push the lane's sample every prime — the
+    /// skip keeps that idempotent, no disk churn). Main-thread file I/O at
+    /// load/prime time only; the buffer travels to the render thread over the
+    /// voice's lock-free slab handshake.
+    private func loadSampleIfNeeded(_ url: URL, intoSampler i: Int) {
+        guard samplers.indices.contains(i) else { return }
+        if samplers[i].isLoaded, samplers[i].sourceURL == url { return }
+        do {
+            try samplers[i].loadSample(from: url)
+        } catch {
+            log.log(.error, category: .audio,
+                    "LaneVoiceRack: sample load failed for \(url.lastPathComponent): \(error)")
         }
     }
 
@@ -304,9 +387,11 @@ public final class LaneVoiceRack {
     /// gate can pin the S2-W2-3 facade routing (attachAll's unit creation is
     /// flag+engine-gated). Call AFTER installVoicesForTests.
     internal func installKindUnitsForTests(kits testKits: [LaneDrumKitVoice],
-                                           subs testSubs: [SubBassVoice]) {
+                                           subs testSubs: [SubBassVoice],
+                                           samplers testSamplers: [SamplerVoice] = []) {
         kits = testKits
         subs = testSubs
+        samplers = testSamplers
     }
     /// TEST SEAM (Debug-only): the live slot→physical bindings, to pin the
     /// allocator integration (first-rank-wins, fallback, flag-OFF shape).
