@@ -7492,3 +7492,14 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   ~464pt Festbreite seit #58, zentriertes Clipping fraß die LINKE Kante).
 - v284 deployt mit Founder-facing Antworten auf a/b/c. a) wartet auf Log
   (self-probe + Scan-Zeilen). Danach: H1 VoiceLeader (PLAN_HARMONY_CORE).
+
+## 2026-07-17 Forts. 70 — v284 + H1-Core GRÜN; H1-Wiring in Bau
+- 3c698a9 (v284-Deploy, Founder-Test-Antworten a/b/c) success; f784c60 (VoiceLeader
+  pure Core + 17 Tests) 4/4 grün — Scaler-Top-1 als Fundament steht.
+- H1-Wiring-Agent läuft: Input.voiceLeading (default false = byte-identisch,
+  Golden-Test Pflicht), composeHarmonic-Ersatz des Oktavshift-Blocks opt-in,
+  Bio-Mapping Kohärenz→strictness / Atemtiefe→spread, Beweis-Test movementCost
+  neu < legacy. Danach Review→Commit→Gates→v285-Kandidat.
+- Tages-Bilanz bisher: 4 Deploys (v281–v284), alle founder-getrieben; Serie #67
+  Stand A✓ A2✓ (B1/B2/C offen); Harmony H1-Core✓; Kamera-Modulator-Research✓;
+  Scaler-Mapping✓. Wartet auf Founder: Neustart-Log (AUv3-Triage), Hör-Verify.
