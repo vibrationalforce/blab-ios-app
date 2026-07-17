@@ -245,6 +245,19 @@ final class MultiRollFanoutTests: XCTestCase {
         XCTAssertEqual(MultiRollFanout.octave(forSlot: 9, in: doc, rollLane: roll), 0)
     }
 
+    /// Read-side clamp: a hand-edited / corrupt document value never leaves the
+    /// −1…+1 direction range on the primary-roll read (the fanout passes raw by
+    /// design — the engine clamps; this pins the document-level twin).
+    func testRollSlotOctave_clampsOutOfRangeDocumentValues() {
+        let bio = TimelineLane(name: "Bio", kind: .midi, isBio: true)
+        var roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        roll.octaveDouble = 5
+        var doc = TimelineDocument(lanes: [bio, roll], regions: [])
+        XCTAssertEqual(doc.rollSlotOctave, 1)
+        doc.lanes[1].octaveDouble = -3
+        XCTAssertEqual(doc.rollSlotOctave, -1)
+    }
+
     /// Model backward-compat: a lane's octave direction round-trips, and a document
     /// saved BEFORE the field existed (no `octaveDouble` key) decodes to 0 (off).
     func testOctaveDouble_codableRoundTripsAndDefaultsToZero() throws {

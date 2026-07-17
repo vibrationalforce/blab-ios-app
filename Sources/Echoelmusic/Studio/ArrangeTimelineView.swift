@@ -164,8 +164,8 @@ struct ArrangeTimelineView: View {
         // direction — same live-push discipline (document-level read, fires on edit
         // not at 10 Hz; freeze-rule safe). Mix stays the engine's 0.5 default.
         .onChange(of: timeline.document.rollSlotOctave, initial: true) { _, direction in
-            synth.setOctaver(direction: direction, mix: 0.5)
-            leadSynth?.setOctaver(direction: direction, mix: 0.5)
+            synth.setOctaver(direction: direction)
+            leadSynth?.setOctaver(direction: direction)
         }
         // H13: transport start cuts any running region audition — the lane sink is
         // about to sound the same lane and a leftover audition would double-sound
@@ -1545,7 +1545,7 @@ private struct LaneFXEditor: View {
     /// Bridged through Float for EchoelValueField, rounded back to a whole step.
     private var octaveBinding: Binding<Float> {
         Binding(get: { Float(timeline.document.lanes.first(where: { $0.id == laneID })?.octaveDouble ?? 0) },
-                set: { timeline.setLaneOctave(id: laneID, Int($0.rounded())) })
+                set: { timeline.setLaneOctave(id: laneID, Int($0.isFinite ? $0.rounded() : 0)) })
     }
 }
 

@@ -387,7 +387,9 @@ public final class PolySynthVoice {
     /// next note; safe to call while a loop plays (atomic writes read at the next
     /// noteOn — same discipline as `setTranspose`/`setDetune`). Control-path only:
     /// the extra voice rides the existing poly voice pool, no render-thread change.
-    public func setOctaver(direction: Int, mix: Float) {
+    /// Callers that only steer the direction omit `mix` — the ONE engine default
+    /// applies (no drifting magic numbers at the call sites; code-review LOW).
+    public func setOctaver(direction: Int, mix: Float = EchoelPolyDDSP.defaultOctaveMix) {
         poly.setOctaver(direction: direction, mix: mix)
     }
 

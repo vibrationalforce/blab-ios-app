@@ -1635,16 +1635,19 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// handle it with zero extra bookkeeping (the glide ratio is octave-invariant).
     /// Same atomic-Int discipline as `unisonCount` (aligned word, next-note effect).
     public var octaveDouble: Int = 0
+    /// The ONE octave-voice mix default (code-review: callers that only steer the
+    /// direction reference this instead of re-stating a magic 0.5 that could drift).
+    public static let defaultOctaveMix: Float = 0.5
     /// Level of the octave voice relative to the main stack (0…1, default 0.5).
     /// 0 skips the spawn entirely (a silent voice must not burn a slot). Same
     /// atomic-Float discipline as `a4Hz`.
-    public var octaveMix: Float = 0.5
+    public var octaveMix: Float = EchoelPolyDDSP.defaultOctaveMix
 
     /// Set the octaver live (clamped; non-finite mix falls back to the 0.5 default —
     /// the repo NaN law: fail quiet/neutral, never propagate).
     public func setOctaver(direction: Int, mix: Float) {
         octaveDouble = min(max(direction, -1), 1)
-        octaveMix = min(max(mix.isFinite ? mix : 0.5, 0), 1)
+        octaveMix = min(max(mix.isFinite ? mix : Self.defaultOctaveMix, 0), 1)
     }
 
     /// Global filter-cutoff multiplier (1 = no change), fanned to every voice in the

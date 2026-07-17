@@ -96,7 +96,8 @@ public enum MultiRollFanout {
 
     /// The lane's OKTAVER direction for a rack slot (0 = off for an unset lane /
     /// out-of-range slot). Third pitch twin (founder 2026-07-14 "transpose detune
-    /// und Oktaver"); mirrors `detune(forSlot:)` exactly.
+    /// und Oktaver"); mirrors `detune(forSlot:)` exactly. Passes the RAW lane value
+    /// like the detune mirror — the engine clamps (EchoelPolyDDSP.setOctaver).
     public static func octave(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> Int {
         guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return 0 }
         return document.lanes.first(where: { $0.id == id })?.octaveDouble ?? 0

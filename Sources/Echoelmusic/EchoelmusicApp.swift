@@ -690,7 +690,7 @@ struct EchoelmusicApp: App {
                     polyVoice?.setDetune(cents: cents)
                 }
                 timelinePlayer.rollOctaveSink = { [weak polyVoice] direction in
-                    polyVoice?.setOctaver(direction: direction, mix: 0.5)
+                    polyVoice?.setOctaver(direction: direction)
                 }
                 // S2-W2-6: route the PRIMARY roll through its lane's kind voice when
                 // that lane is a drums kit / sub-bass. The rack's single kit/sub back
