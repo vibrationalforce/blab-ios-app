@@ -565,9 +565,15 @@ struct CompositionHeaderStrip: View {
     /// Wraps a shared-storage binding so a USER edit posts its field name (the
     /// studio hears it and applies retune/recompose). Programmatic writes elsewhere
     /// set the storage directly and never come through here — they post nothing.
-    private func edited<T>(_ base: Binding<T>, posts field: String) -> Binding<T> {
+    /// Equality-guarded (ui-state review MEDIUM): a `.menu` Picker fires `set`
+    /// even when the user re-picks the CURRENT value — the old `.onChange(of:)`
+    /// semantics only fired on a real change, so a no-op tap must neither write
+    /// nor post (else re-picking the current genre reset presetIndex/currentPatch
+    /// and audibly recomposed the running take).
+    private func edited<T: Equatable>(_ base: Binding<T>, posts field: String) -> Binding<T> {
         Binding(get: { base.wrappedValue },
                 set: { newValue in
+                    guard newValue != base.wrappedValue else { return }
                     base.wrappedValue = newValue
                     NotificationCenter.default.post(name: .echoelCompositionEdited,
                                                     object: field)
