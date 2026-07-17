@@ -3713,7 +3713,12 @@ struct EchoelStudioView: View {
             // Amplitude der finalen Velocity-Mikrovariabilität — variables Herz
             // löst den Take, starres Herz lässt ihn maschinen-eng; hrv 0 ⇒ exakt
             // null Jitter. Rollback = dieses eine Wort auf false.
-            humanize: true
+            humanize: true,
+            // H2 DEFAULT-ON (gleiche Lehre): funktionsgerankte Akkord-Journey
+            // statt Legacy-Progression — die KOHÄRENZ wählt die Spannung
+            // (gesettelt → erwartete Fortsetzung, unruhig → Borrowings).
+            // Rollback = dieses eine Wort auf false.
+            suggestJourney: true
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }
