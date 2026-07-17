@@ -288,6 +288,14 @@ struct ArrangeTimelineView: View {
             let bar = RegionNoteWindow.stepAligned(rawOffset) / TimelineTime.ticksPerBar
             let model = PianoRollModel()
             model.load(MelodyBarEdit.slice(bar: bar, of: notes))
+            // R1 Scale-Lock: the clip editor inherits the SESSION's key/concert
+            // pitch (the same context the Studio pushes to the live roll on
+            // every re-seed) — Tonart from the take, not a dropdown. Plain
+            // value copies onto @ObservationIgnored fields; the throwaway
+            // model stays bus-less (Bio-Humanize falls back to hrv 0.5 there).
+            model.musicalA4Hz = pianoRoll.musicalA4Hz
+            model.musicalRootPitchClass = pianoRoll.musicalRootPitchClass
+            model.musicalScaleName = pianoRoll.musicalScaleName
             // H12 kind-true audition: the session previews through the
             // INSTRUMENT of the lane whose region is edited (drums lane
             // sounds like drums, not the poly synth). The session model is

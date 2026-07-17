@@ -290,6 +290,49 @@ public final class PianoRollModel {
         }
     }
 
+    // MARK: - Selection ops (R1 — PLAN_ROLL_PRO.md)
+
+    /// Apply a pure note transform to the selected subset (empty `ids` = ALL
+    /// notes) as ONE undoable edit — the same undo law as `quantize`. The
+    /// transform receives the affected notes and returns their replacement
+    /// (it may add notes — Echo); unaffected notes survive byte-identical.
+    /// A transform that changes nothing skips the snapshot (no phantom undo).
+    public func applyOp(ids: Set<UUID>, _ transform: ([Note]) -> [Note]) {
+        let affected = notes.filter { ids.isEmpty || ids.contains($0.id) }
+        guard !affected.isEmpty else { return }
+        let replaced = transform(affected)
+        guard replaced != affected else { return }
+        snapshotForUndo()
+        let affectedIDs = Set(affected.map(\.id))
+        notes.removeAll { affectedIDs.contains($0.id) }
+        notes.append(contentsOf: replaced)
+    }
+
+    /// The take's key, reconstructed from the pushed musical context (root
+    /// pitch-class + `Scale` rawValue — the same values the Studio pushes on
+    /// every re-seed). nil until a real key arrived (root −1 / unknown scale
+    /// name), so a context-less clip editor hides its scale tools honestly.
+    public var musicalKey: MusicalKey? {
+        guard musicalRootPitchClass >= 0,
+              let scale = Scale(rawValue: musicalScaleName) else { return nil }
+        return MusicalKey(root: musicalRootPitchClass, scale: scale)
+    }
+
+    /// Echoel twist (R1): the body's CURRENT HRV loosens the selected notes'
+    /// velocities via the H3 core (`BioComposer.hrvHumanize` — reused, not
+    /// duplicated). ONE-SHOT read of the control-plane bio snapshot at tap
+    /// time — never a 10 Hz read in a view body (freeze law). No usable body
+    /// (or a bus-less clip editor) falls back to a neutral hrv 0.5. Seed =
+    /// stable hash of the affected notes, so the op is deterministic per
+    /// (selection state, hrv); hrv 0 → zero jitter → no-op, no undo step.
+    public func bioHumanize(ids: Set<UUID>) {
+        let hrv = bus?.usableBio()?.hrvNormalized ?? 0.5
+        applyOp(ids: ids) { affected in
+            BioComposer.hrvHumanize(affected, hrvNormalized: hrv,
+                                    seed: RollNoteOps.stableSeed(for: affected))
+        }
+    }
+
     /// Test seam: plant an off-grid start tick (simulates a recorded note).
     /// Internal on purpose — production paths go through add/move/quantize.
     func setStartTickForTesting(index: Int, tick: Int) {
@@ -942,6 +985,11 @@ struct PianoRollView: View {
     @State private var marqueeRect: CGRect?
     /// One undo snapshot per velocity-paint gesture (reset on gesture end).
     @State private var velDragSnapshotTaken = false
+    /// Scale-Lock (R1): ON = out-of-key rows dim in the grid and newly DRAWN
+    /// notes snap to the take's key (the session Tonart — no dropdown). Only
+    /// offered while `model.musicalKey` resolves; existing notes are never
+    /// touched implicitly ("Snap to Scale" in the Ops menu is the explicit op).
+    @State private var scaleLock = false
 
     private let gutterW: CGFloat = 42
     private let minStepW: CGFloat = 16
@@ -1062,6 +1110,7 @@ struct PianoRollView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Quantize")
             .accessibilityHint("Choose a grid — straight or triplet — to snap the selected notes")
+            opsMenu
             Button(role: .destructive) { model.clear(); selection = .none } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
@@ -1084,6 +1133,109 @@ struct PianoRollView: View {
             .accessibilityLabel("Fit to screen")
         }
         }
+    }
+
+    // MARK: - Ops menu (R1 — DAW selection tools + Echoel twist)
+
+    /// The nine selection operators, menu order = musical workflow order.
+    /// A plain enum keeps the Menu builder one small ForEach (type-check budget).
+    private enum RollOpChoice: String, CaseIterable {
+        case reverse = "Reverse"
+        case invert = "Invert"
+        case legato = "Legato"
+        case doubleTime = "Double Time"
+        case halfTime = "Half Time"
+        case rampUp = "Ramp ↑"
+        case rampDown = "Ramp ↓"
+        case echo = "Echo"
+        case bioHumanize = "Bio-Humanize"
+    }
+
+    /// The selection as an id-set for the ops/quantize paths — empty = whole
+    /// pattern (the model treats empty ids as "all", like `quantize`).
+    private var selectedIDs: Set<UUID> {
+        selection.group ?? selection.single.map { Set([$0]) } ?? []
+    }
+
+    /// "Ops" — DAW-grade selection tools in the SAME chrome as the Q menu
+    /// (a Menu on the transport row: NO new sheet, modal ceiling untouched).
+    /// Ops act on the selection; with nothing selected, on ALL notes. Every
+    /// entry is one undoable edit via the model (`applyOp` — Quantize's law).
+    /// Content builds on open and reads only edit-frequency state — no live
+    /// bio in this subtree (freeze law); Bio-Humanize reads its snapshot
+    /// ONCE inside the tap handler, model-side.
+    private var opsMenu: some View {
+        Menu {
+            ForEach(RollOpChoice.allCases, id: \.self) { op in
+                Button(op.rawValue) { performOp(op) }
+            }
+            // Scale tools only when the take's key is known (session Tonart).
+            if model.musicalKey != nil {
+                Divider()
+                Toggle("Scale Lock", isOn: $scaleLock)
+                Button("Snap to Scale") { snapAllToScale() }
+            }
+        } label: {
+            Text("Ops")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(scaleLock ? EchoelTheme.accent : EchoelTheme.text)
+                .frame(width: 38, height: 34)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(scaleLock ? EchoelTheme.accent : EchoelTheme.border,
+                                  lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Note operations")
+        .accessibilityHint("Reverse, invert, legato, time-scale, ramp, echo, bio-humanize the selected notes")
+    }
+
+    /// Route one Ops entry to its pure core (`RollNoteOps`) through the model's
+    /// one undoable-edit door. Fixed, documented parameters — ramps span the
+    /// musical 0.3…1.0 window, Echo = 2 decaying copies at 0.6.
+    private func performOp(_ op: RollOpChoice) {
+        let ids = selectedIDs
+        let lo = PianoRollModel.lowPitch
+        let hi = PianoRollModel.highPitch
+        switch op {
+        case .reverse:
+            model.applyOp(ids: ids) { RollNoteOps.reverse($0) }
+        case .invert:
+            model.applyOp(ids: ids) { RollNoteOps.invertPitch($0, lowPitch: lo, highPitch: hi) }
+        case .legato:
+            model.applyOp(ids: ids) { RollNoteOps.legato($0) }
+        case .doubleTime:
+            model.applyOp(ids: ids) { RollNoteOps.doubleTime($0) }
+        case .halfTime:
+            model.applyOp(ids: ids) { RollNoteOps.halfTime($0) }
+        case .rampUp:
+            model.applyOp(ids: ids) { RollNoteOps.velocityRamp($0, from: 0.3, to: 1.0) }
+        case .rampDown:
+            model.applyOp(ids: ids) { RollNoteOps.velocityRamp($0, from: 1.0, to: 0.3) }
+        case .echo:
+            model.applyOp(ids: ids) { RollNoteOps.echo($0, times: 2, decay: 0.6) }
+        case .bioHumanize:
+            model.bioHumanize(ids: ids)
+        }
+    }
+
+    /// Explicit "Snap to Scale" (selection, else all) — the only path that
+    /// moves EXISTING notes into the key; Scale-Lock alone never rewrites.
+    private func snapAllToScale() {
+        guard let key = model.musicalKey else { return }
+        model.applyOp(ids: selectedIDs) {
+            RollNoteOps.snapToScale($0, key: key,
+                                    lowPitch: PianoRollModel.lowPitch,
+                                    highPitch: PianoRollModel.highPitch)
+        }
+    }
+
+    /// Scale-Lock draw snap: the pitch a NEWLY DRAWN note actually lands on.
+    /// Lock off / no key → the tapped pitch, unchanged.
+    private func placedPitch(_ pitch: Int) -> Int {
+        guard scaleLock, let key = model.musicalKey else { return pitch }
+        return RollNoteOps.snapPitch(pitch, key: key,
+                                     lowPitch: PianoRollModel.lowPitch,
+                                     highPitch: PianoRollModel.highPitch)
     }
 
     private func zoomButton(systemName: String, _ action: @escaping () -> Void) -> some View {
@@ -1423,12 +1575,19 @@ struct PianoRollView: View {
             // stay darker; the root row is anchored a touch stronger, like the touch
             // fretboard marks its tonal home. Subtle alphas — legible numbers first.
             let root = model.musicalRootPitchClass
+            // Scale-Lock (R1): out-of-key rows recede — a subtle dark veil over
+            // the row stripe (no glow/neon; the numbers/notes stay legible).
+            // `musicalKey` reads @ObservationIgnored context — no churn.
+            let lockedKey = scaleLock ? model.musicalKey : nil
             for (i, pitch) in rowsTopDown.enumerated() {
                 let y = CGFloat(i) * rowH
                 let rect = CGRect(x: 0, y: y, width: size.width, height: rowH)
                 let isRoot = root >= 0 && ((pitch % 12) + 12) % 12 == root
                 let alpha = model.isSharp(pitch: pitch) ? 0.045 : (isRoot ? 0.13 : 0.085)
                 ctx.fill(Path(rect), with: .color(rowTint(pitch).opacity(alpha)))
+                if let key = lockedKey, !key.contains(pitch) {
+                    ctx.fill(Path(rect), with: .color(Color.black.opacity(0.22)))
+                }
                 if model.isC(pitch: pitch) {
                     ctx.stroke(Path(CGRect(x: 0, y: y, width: size.width, height: 0.5)),
                                with: .color(EchoelTheme.border), lineWidth: 0.5)
@@ -1615,7 +1774,10 @@ struct PianoRollView: View {
                                            velocity: existing.velocity, role: existing.role)
                         }
                     } else {
-                        let note = model.add(pitch: anchor.pitch, startStep: anchor.startStep,
+                        // Scale-Lock (R1): a newly DRAWN note snaps to the
+                        // nearest in-key pitch (lock off = tapped pitch).
+                        let note = model.add(pitch: placedPitch(anchor.pitch),
+                                             startStep: anchor.startStep,
                                              lengthSteps: drawLength)
                         selection = .single(note.id)
                         if isClipScoped {
