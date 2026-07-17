@@ -91,6 +91,13 @@ public final class BioReactiveSynthVoice {
     @ObservationIgnored
     private let loop = PollingLoop()
 
+    /// BodyVibe B1: invoked once per 10 Hz poll tick, AFTER this voice's own
+    /// bio/controller work. Lets the app fan the SAME tick into the rack's lane
+    /// bio units (LaneVoiceRack.feedBio) without a second timer — the "no new
+    /// timer, no per-frame MainActor hop" law. nil (default) ⇒ zero cost.
+    @ObservationIgnored
+    public var onPollTick: (@MainActor () -> Void)?
+
     /// Lock-free bio-modulation queue: produced on the MainActor 10 Hz poll,
     /// consumed (applied to `synth`) on the audio thread in the render block.
     /// Bio modulation rewrites the synth's spectral-envelope arrays; doing that
@@ -195,6 +202,23 @@ public final class BioReactiveSynthVoice {
         440 * powf(2, (Float(note) - 69) / 12)
     }
 
+    // MARK: - Lane mixer stage (BodyVibe B1 — rack-unit use)
+
+    /// Lane gain: this voice's whole-output level at the mixer, 0…2 (1 = unity —
+    /// the default, so the global voice is bit-identical). Control-plane only,
+    /// exactly the PolySynthVoice pattern: `sourceNode` conforms to
+    /// `AVAudioMixing`, the ENGINE scales downstream of the render block.
+    /// Non-finite fails SILENT (0) per app convention.
+    public func setGain(_ gain: Float) {
+        sourceNode.volume = Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0))
+    }
+
+    /// Lane pan, −1…1 (0 = center — the default). Same AVAudioMixing engine
+    /// path as `setGain`; non-finite is ignored as center.
+    public func setPan(_ pan: Float) {
+        sourceNode.pan = Swift.max(-1, Swift.min(1, pan.isFinite ? pan : 0))
+    }
+
     // MARK: - Bus subscription
 
     /// Begin polling bus.latestBio at 10 Hz and forwarding fresh
@@ -208,7 +232,21 @@ public final class BioReactiveSynthVoice {
             self.applyLatestIfFresh(from: bus)
             self.drainControllerEvents(from: bus)
             self.consumeBioEventsIfFresh(from: bus)
+            self.onPollTick?()
         }
+    }
+
+    /// BodyVibe B1 — the LANE-UNIT bio feed: forward the bus's latest bio
+    /// snapshot into this voice's timbre WITHOUT subscribing. A rack bio unit
+    /// must never call `start(subscribing:)`: that would (a) spin a second
+    /// PollingLoop and (b) drain the SHARED `bus.controllerEvents` SPSC queue —
+    /// single-consumer contract; a second consumer steals MIDI events from the
+    /// global armed voice — and (c) let breath onsets open the envelope outside
+    /// the sequencer gate. This method is timbre-only: the envelope stays owned
+    /// by the caller (playNote/releaseNote from the sequencer note gate).
+    /// Called from the global voice's existing 10 Hz tick via `onPollTick`.
+    public func applyBioFrame(from bus: EngineBus) {
+        applyLatestIfFresh(from: bus)
     }
 
     /// Pulls every queued ControllerEvent since the last tick and

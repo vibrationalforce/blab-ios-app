@@ -567,6 +567,17 @@ struct EchoelmusicApp: App {
                 // commands onto each voice's lock-free SPSC queue — no audio-thread work.
                 if FeatureFlags.multiRoll {
                     laneVoiceRack.startAll(subscribing: bus)
+                    // BodyVibe B1: the rack's lane bio unit(s) ride the GLOBAL
+                    // bio voice's existing 10 Hz tick — no second timer, no
+                    // per-frame MainActor hop. feedBio is timbre-only (the
+                    // sequencer note gate owns the envelope) and zero-cost
+                    // while the rack has no bio unit (voiceKindRouting OFF).
+                    // The global armed voice itself is untouched — the rack
+                    // unit is a SEPARATE BioReactiveSynthVoice instance.
+                    bioVoice.onPollTick = { [weak laneVoiceRack, weak bus] in
+                        guard let bus else { return }
+                        laneVoiceRack?.feedBio(from: bus)
+                    }
                     // A nil-patch lane falls back to the SAME patch the primary voice
                     // gets (patchStore.patches.first, applied at line ~527), so an
                     // unset lane matches the primary timbre — never the bare DDSP default.

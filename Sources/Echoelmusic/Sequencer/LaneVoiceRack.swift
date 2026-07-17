@@ -54,6 +54,16 @@ public final class LaneVoiceRack {
     @ObservationIgnored public private(set) var kits: [LaneDrumKitVoice] = []
     @ObservationIgnored public private(set) var subs: [SubBassVoice] = []
     @ObservationIgnored public private(set) var samplers: [SamplerVoice] = []
+    /// BodyVibe B1: lane BioReactiveSynthVoice units — REAL instances (each owns
+    /// its own EchoelDDSP + source node), COEXISTING with the global armed voice
+    /// (separate instance, separate attach — never a double-attach of one node).
+    /// A rack unit is NEVER `start(subscribing:)`-ed: that would drain the
+    /// shared controllerEvents SPSC queue (single-consumer!) and let breath
+    /// onsets bypass the sequencer gate. Timbre comes via `feedBio(from:)`
+    /// (the app fans the global voice's existing 10 Hz tick); the ENVELOPE is
+    /// owned by the sequencer note gate (noteOn → playNote, noteOff/allNotesOff
+    /// → releaseNote), so the track follows the arrangement instead of droning.
+    @ObservationIgnored public private(set) var bios: [BioReactiveSynthVoice] = []
     /// The declared kind per rank slot (setKind) and the allocator's current
     /// slot→physical bindings. Absent slot ⇒ `.poly(slot)` — today's sound.
     @ObservationIgnored private var kinds: [Int: LaneVoiceKind] = [:]
@@ -65,6 +75,12 @@ public final class LaneVoiceRack {
     /// not per unit, so rebinding loads the newly bound lane's own sample into
     /// the sampler unit (the sample follows the lane, like transpose).
     @ObservationIgnored private var sampleURLBySlot: [Int: URL] = [:]
+    /// BodyVibe B1: the RAW (pre-transpose) pitch currently gating each bio-bound
+    /// slot's mono voice. Mono last-note-wins: only the CURRENT note's off may
+    /// close the envelope — a stale off from an overlap must not cut the newer
+    /// note. Matched on the raw pitch, so a transpose change can never strand
+    /// a held note (offs arrive raw too).
+    @ObservationIgnored private var bioHeldPitchBySlot: [Int: Int] = [:]
 
     public init(capacity: Int = 4, maxVoicesPerSlot: Int = 8) {
         self.capacity = Swift.max(1, capacity)
@@ -99,6 +115,14 @@ public final class LaneVoiceRack {
             let sampler = SamplerVoice()
             audioEngine.attachSourceNode(sampler.sourceNode)
             samplers = [sampler]
+            // BodyVibe B1: one lane bio unit — its OWN BioReactiveSynthVoice
+            // instance (fresh EchoelDDSP + fresh source node), attached exactly
+            // like the global voice but NEVER subscribed to the bus (see `bios`
+            // doc). Launch-silent by construction: the voice's hasEverSounded
+            // gate stays false until the first sequencer noteOn.
+            let bio = BioReactiveSynthVoice()
+            bio.attach(to: audioEngine)
+            bios = [bio]
         }
         attached = true
     }
@@ -183,12 +207,18 @@ public final class LaneVoiceRack {
         let ordered = kinds.keys.sorted().map { (slot: $0, kind: kinds[$0] ?? .poly) }
         let fresh = KindVoiceAllocator.allocate(ordered: ordered,
                                                 drumUnits: kits.count, subUnits: subs.count,
-                                                samplerUnits: samplers.count)
+                                                samplerUnits: samplers.count,
+                                                bioUnits: bios.count)
         let touched = Set(bindings.keys).union(fresh.keys)
         for slot in touched.sorted() {
             let old = bindings[slot] ?? .poly(slot)
             let new = fresh[slot] ?? .poly(slot)
-            if old != new { allNotesOff(on: old) }
+            if old != new {
+                allNotesOff(on: old)
+                // A slot leaving its bio unit must drop the gate memo too, or a
+                // later re-bind could match a stale pitch and mis-release.
+                if case .bio = old { bioHeldPitchBySlot[slot] = nil }
+            }
         }
         bindings = fresh
         // The sampler units carry per-LANE buffers: after a binding change, load
@@ -209,6 +239,7 @@ public final class LaneVoiceRack {
         case .drums(let i):   if kits.indices.contains(i) { kits[i].allNotesOff() }
         case .subBass(let i): if subs.indices.contains(i) { subs[i].allNotesOff() }
         case .sampler(let i): if samplers.indices.contains(i) { samplers[i].silence() }
+        case .bio(let i):     if bios.indices.contains(i) { bios[i].releaseNote() }
         }
     }
 
@@ -234,6 +265,18 @@ public final class LaneVoiceRack {
             samplers[i].configurePlayback(
                 pitchSemitones: Float(pitch - 60 + (transposeBySlot[slot] ?? 0)))
             samplers[i].fire(gain: velocity)   // velocity is already 0…1
+        case .bio(let i):
+            guard bios.indices.contains(i) else { return }
+            // BodyVibe B1: the sequencer GATE. Monophonic last-note-wins (the
+            // voice's own playNote contract); pitched control-side at enqueue
+            // like the sub (transpose folded in, clamped to MIDI range).
+            // Velocity is deliberately unused: the body drives this voice's
+            // dynamics (breath envelope depth, bio timbre) — the lane fader is
+            // the level control. playNote flips the voice's launch-silence
+            // latch, so the unit first sounds when its TRACK actually plays.
+            let midi = UInt8(Swift.max(0, Swift.min(127, pitch + (transposeBySlot[slot] ?? 0))))
+            bios[i].playNote(frequency: BioReactiveSynthVoice.frequency(forMIDINote: midi))
+            bioHeldPitchBySlot[slot] = pitch
         }
     }
 
@@ -259,6 +302,14 @@ public final class LaneVoiceRack {
             // note-OFF is a documented no-op, like a drum pad. A binding change
             // or allNotesOff still cuts it via silence().
             break
+        case .bio(let i):
+            guard bios.indices.contains(i) else { return }
+            // Mono last-note-wins: only the CURRENTLY gating note's off may
+            // close the envelope — a stale off (legato overlap) must not cut
+            // the newer note. Raw-pitch match, see bioHeldPitchBySlot.
+            guard bioHeldPitchBySlot[slot] == pitch else { return }
+            bioHeldPitchBySlot[slot] = nil
+            bios[i].releaseNote()
         }
     }
 
@@ -272,6 +323,9 @@ public final class LaneVoiceRack {
     /// control-side at enqueue, so a CHANGE while sub-bound releases the mono
     /// sub first (a held note's OFF would arrive with the new shift and miss —
     /// the off-matching law); a drum kit is unpitched — documented ignore.
+    /// The bio unit is also pitched at enqueue, but its gate matches the RAW
+    /// pitch (bioHeldPitchBySlot), so a mid-note transpose change cannot strand
+    /// a held note — no release needed; the next noteOn carries the new shift.
     public func setTranspose(slot: Int, semitones: Int) {
         let old = transposeBySlot[slot] ?? 0
         transposeBySlot[slot] = semitones
@@ -324,12 +378,17 @@ public final class LaneVoiceRack {
             samplers[i].configureShape(
                 level: Swift.max(0, Swift.min(2, gain.isFinite ? gain : 0)),
                 attackMs: 0, lengthMs: 0)
+        case .bio(let i):
+            guard bios.indices.contains(i) else { return }
+            bios[i].setGain(gain)   // encapsulated: clamps 0…2 at the mixer stage
         }
     }
 
     /// Lane pan per bound kind. The mono sub stays un-panned (pro-audio
     /// convention: subs are not localized) — documented no-op. The sampler is a
     /// mono source node without a pan stage (slice 1) — documented no-op too.
+    /// The bio unit pans at its source node's mixer stage (AVAudioMixing, the
+    /// B2/PolySynthVoice engine path).
     public func setPan(slot: Int, _ pan: Float) {
         switch binding(forSlot: slot) {
         case .poly:
@@ -337,6 +396,9 @@ public final class LaneVoiceRack {
         case .drums(let i):
             guard kits.indices.contains(i) else { return }
             kits[i].setPan(pan)
+        case .bio(let i):
+            guard bios.indices.contains(i) else { return }
+            bios[i].setPan(pan)   // encapsulated: clamps −1…1
         case .subBass, .sampler:
             break
         }
@@ -355,6 +417,17 @@ public final class LaneVoiceRack {
         guard let url, case .sampler(let i) = binding(forSlot: slot),
               samplers.indices.contains(i) else { return }
         loadSampleIfNeeded(url, intoSampler: i)
+    }
+
+    /// BodyVibe B1: forward the bus's latest bio snapshot into every lane bio
+    /// unit's timbre. Called from the GLOBAL BioReactiveSynthVoice's existing
+    /// 10 Hz poll tick (app wiring via `onPollTick`) — no second timer, no
+    /// per-frame MainActor hop. Zero cost while `bios` is empty (flag OFF /
+    /// unattached). Timbre only: the envelope stays with the sequencer gate,
+    /// so a silent (gated) unit still tracks the body and sounds current the
+    /// moment its track plays.
+    public func feedBio(from bus: EngineBus) {
+        for b in bios { b.applyBioFrame(from: bus) }
     }
 
     /// Load `url` into sampler unit `i` unless that exact file is already its
@@ -388,10 +461,12 @@ public final class LaneVoiceRack {
     /// flag+engine-gated). Call AFTER installVoicesForTests.
     internal func installKindUnitsForTests(kits testKits: [LaneDrumKitVoice],
                                            subs testSubs: [SubBassVoice],
-                                           samplers testSamplers: [SamplerVoice] = []) {
+                                           samplers testSamplers: [SamplerVoice] = [],
+                                           bios testBios: [BioReactiveSynthVoice] = []) {
         kits = testKits
         subs = testSubs
         samplers = testSamplers
+        bios = testBios
     }
     /// TEST SEAM (Debug-only): the live slot→physical bindings, to pin the
     /// allocator integration (first-rank-wins, fallback, flag-OFF shape).
