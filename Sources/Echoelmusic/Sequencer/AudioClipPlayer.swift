@@ -36,6 +36,10 @@ public final class AudioClipPlayer {
     @ObservationIgnored private weak var engine: AudioEngine?
     @ObservationIgnored private var file: AVAudioFile?
     @ObservationIgnored private var attached = false
+    /// The format the node is CONNECTED with — scheduling a buffer in any other
+    /// format raises an NSException inside AVAudioPlayerNode (audio-review
+    /// MEDIUM: load of a 44.1 kHz file after a 48 kHz one, or mono after stereo).
+    @ObservationIgnored private var attachedFormat: AVAudioFormat?
     /// Cancellation token for the async Beats pre-render: every play()/stop()
     /// bumps it, so a stale render finishing late can never hijack the node.
     @ObservationIgnored private var playGeneration: UInt64 = 0
@@ -52,6 +56,7 @@ public final class AudioClipPlayer {
             return
         }
         engine.attachPlayerNode(node, through: timePitch, format: file.processingFormat)
+        attachedFormat = file.processingFormat
         attached = true
     }
 
@@ -67,9 +72,18 @@ public final class AudioClipPlayer {
         loadedURL = url
         let sr = f.processingFormat.sampleRate
         durationSeconds = sr > 0 ? Double(f.length) / sr : 0
+        // Format truth: if the node is already connected in a DIFFERENT format
+        // than the new file's, re-wire through the engine first (the attach
+        // pauses/restarts safely, same as the initial attach path).
+        if attached, let engine, let current = attachedFormat,
+           !current.isEqual(f.processingFormat) {
+            engine.detachPlayerNode(node, timePitch: timePitch)
+            attached = false
+        }
         // Attach now that we have a concrete format (if an engine is set).
         if let engine, !attached {
             engine.attachPlayerNode(node, through: timePitch, format: f.processingFormat)
+            attachedFormat = f.processingFormat
             attached = true
         }
         return true
@@ -237,7 +251,11 @@ public final class AudioClipPlayer {
     /// Detach from the engine (e.g. on teardown).
     public func detach() {
         stop()
-        if attached, let engine { engine.detachPlayerNode(node, timePitch: timePitch); attached = false }
+        if attached, let engine {
+            engine.detachPlayerNode(node, timePitch: timePitch)
+            attached = false
+            attachedFormat = nil
+        }
     }
 }
 #endif
