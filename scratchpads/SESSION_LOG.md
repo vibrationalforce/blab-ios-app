@@ -7484,3 +7484,11 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   ändert sie; Default = 1→2→3 nach B1.
 - Nächster Bau-Slice nach Founder-Log-Triage: B1 EchoelBodyVibe ODER Harmony-Core
   (PLAN_HARMONY_CORE + Council vor 1+2).
+
+## 2026-07-17 Forts. 69 — H12 GRÜN (4/4) → v10.79.284 (Antwort auf Founder-Test b/c)
+- 92b3da6 alle Gates grün: Spur-eigener MIDI-Clip (ensureUserMidiRegion,
+  composerOwned false), kind-richtige Clip-Editor-Audition (Drums→Kit, Sub→Sub,
+  PianoRollModel.audition ~0.2s mono), Roll-Transportzeile scrollt (Root-Cause:
+  ~464pt Festbreite seit #58, zentriertes Clipping fraß die LINKE Kante).
+- v284 deployt mit Founder-facing Antworten auf a/b/c. a) wartet auf Log
+  (self-probe + Scan-Zeilen). Danach: H1 VoiceLeader (PLAN_HARMONY_CORE).
