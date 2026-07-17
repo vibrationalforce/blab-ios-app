@@ -4,6 +4,24 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-17 ECC-MUSTER adoptiert, kein Paket-Import (Baustellen-Board + Verify-Loop)
+- **Founder (Reel „Everything Claude Code", bennyautomates):** „Hiermit können wir die
+  ganzen offenen Baustellen strukturieren und erfolgreich abschließen."
+- **Befund:** ECC = github.com/affaan-m/everything-claude-code (Affaan Mustafa, MIT,
+  228k Stars): 67 Agents · 278 Skills · 94 Commands · Hooks · Instinct/Memory ·
+  AgentShield. Wertvoller Kern für uns: **Verification-Loop** (nichts ist fertig ohne
+  definierten Verify-Weg) + **Board-Orchestrierung** + Continuous-Learning (= unser
+  HARNESS_LEDGER, existiert schon).
+- **Council:** Wholesale-Import würde die Echoel-getunte Harness (Council, Triage-
+  Skills, 15 Reviewer-Agents, memory/, Ledger) duplizieren und die harten Gesetze mit
+  278 generischen (web/SaaS-lastigen) Skills verwässern; Plugin-Install ist zudem eine
+  User-Level-Aktion. Der echte Founder-Schmerz: 20+ Baustellen ohne EINE Übersicht.
+- **Executed:** `scratchpads/BAUSTELLEN_BOARD.md` (AKTIV ≤6 · OFFEN · BLOCKIERT ·
+  ERLEDIGT — jede Zeile mit Founder-Quelle, nächster Slice und **Verify-Weg**) +
+  `.claude/skills/baustellen/SKILL.md` (Closeout-Loop: Board → Slice → Gates → Deploy
+  → Verify-Spalte → Ledger). Gesetz: **keine Baustelle schließt ohne Founder-Verify.**
+- **Offen gelassen:** selektiver ECC-Import (`npx ecc consult`) nur per Founder-Entscheid.
+
 ### 2026-07-10B GESCHÄFTSMODELL v2 + LAUNCH JETZT (supersedet das Einmal-Pro vom selben Vormittag)
 - **Founder-Vorschlag (verbatim-Kern):** "Vielleicht ist das was man mit Pro freischaltet
   ein Jahresabo für weltweites Live musizieren und Biofeedback Sessions ansonsten hat man
