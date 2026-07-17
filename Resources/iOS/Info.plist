@@ -72,6 +72,8 @@
 	<string>Echoelmusic measures your pulse from your fingertip on the rear camera lens to drive bio-reactive music. No images are stored or transmitted.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Echoelmusic imports videos and images from your photo library onto the timeline's video tracks. Your library is only read when you pick media yourself; nothing is uploaded or shared.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Finished visual recordings are saved to your photo library so you can re-import them onto video tracks. Nothing is uploaded or shared.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Echoelmusic connects to Bluetooth heart-rate sensors (chest straps like Polar, Wahoo or Garmin) to drive the bio-reactive music, and to Bluetooth MIDI controllers and audio devices.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

@@ -7,6 +7,9 @@ import QuartzCore
 #if canImport(Observation)
 import Observation
 #endif
+#if canImport(Photos)
+import Photos
+#endif
 
 /// P3 · Video — records the bio-reactive Metal visual (the image the body drives)
 /// to an H.264 `.mp4`. This is the on-brand video source: it does NOT touch the
@@ -58,15 +61,48 @@ final class VisualRecorder {
         let audioURL = duration > 0.2 ? audioEngine?.captureRecentMixAudio(seconds: duration) : nil
         audioEngine = nil
         guard let videoURL else { return nil }
-        guard let audioURL else { return videoURL }
+        guard let audioURL else {
+            Self.saveToPhotoLibrary(videoURL)
+            return videoURL
+        }
         if let muxed = await VideoMuxer.mux(video: videoURL, audio: audioURL) {
             // The muxed clip is the durable library entry (Documents/Videos) —
             // drop the silent intermediate so the Video window never lists a
             // soundless twin of every recording.
             try? FileManager.default.removeItem(at: videoURL)
+            Self.saveToPhotoLibrary(muxed)
             return muxed
         }
+        Self.saveToPhotoLibrary(videoURL)
         return videoURL   // mux failed → return at least the silent video
+    }
+
+    /// Founder 2026-07-17 ("Videos werden direkt in die Mediathek gespeichert und
+    /// von der Video-Spur aus wieder importiert"): every finished recording is
+    /// ALSO added to the user's photo library, so the video LANE's PhotosPicker
+    /// import finds it — the app-private Documents/Videos copy stays the durable
+    /// fallback either way. Best-effort and add-only (`.addOnly` — the narrowest
+    /// permission; denial just logs, nothing else changes, and the Documents copy
+    /// is never deleted before Photos has copied the file, because stop() never
+    /// deletes the FINAL url at all).
+    private static func saveToPhotoLibrary(_ url: URL) {
+        #if canImport(Photos) && !os(macOS)
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else {
+                log.log(.info, category: .video,
+                        "VisualRecorder: photo-library add not authorized — clip stays in-app only")
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+            }) { success, error in
+                if !success {
+                    log.log(.error, category: .video,
+                            "VisualRecorder: photo-library save failed: \(error?.localizedDescription ?? "unknown")")
+                }
+            }
+        }
+        #endif
     }
 
     // MARK: - Frame tap (main thread, from the Metal draw loop)

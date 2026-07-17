@@ -36,7 +36,13 @@ Sound · Mix · FX · Mood · Synth (Video NICHT markiert, bleibt).
   Spur-Panel trägt die Create-from-Within-Steuern (Generate/Evolve/Bio-Quelle).
   Erst hier fällt der Sonderstatus der Bio-Spur.
 - **C — Chips auflösen:** Sound/Mix/FX/Mood/Synth aus der unteren Leiste entfernen,
-  sobald A2 ihre Funktion pro Spur trägt (Video-Chip bleibt — nicht markiert).
+  sobald A2 ihre Funktion pro Spur trägt. **UPDATE (2. Founder-Screenshot, X über
+  Video-Chip+Panel): auch der Video-Chip fällt** — Begründung Founder: Aufnahmen
+  landen in der Mediathek und kommen über den Video-Spur-Import zurück. VORAB
+  GEBAUT (dieser Zyklus): VisualRecorder.stop() sichert jede fertige Aufnahme
+  zusätzlich in die Photos-Mediathek (add-only, best-effort; Documents/Videos
+  bleibt der App-interne Fallback; NSPhotoLibraryAddUsageDescription ergänzt —
+  founder-direktiert). Die VideoLibraryPanel-Datei bleibt kompilierend bis C.
 
 ## Gesetze
 Sheet-Kette nicht wachsen · 10-Hz-Freeze · Rausch-Triade read-only · Audio-Thread
