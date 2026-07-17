@@ -28,6 +28,18 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     private let bioFeedback = BioFeedbackManager()
     nonisolated(unsafe) private var vitalsTimer: DispatchSourceTimer?
 
+    /// Timestamp of the last shared frame folded into the bio params — dedupe
+    /// so an unchanged store never re-fires the param observer. Touched only
+    /// on the vitals timer's serial queue.
+    nonisolated(unsafe) private var lastVitalsTimestamp: TimeInterval = -1
+
+    /// Only shared vitals younger than this may overwrite the host-automatable
+    /// bio params. Stale / absent / non-egress data ⇒ the params keep whatever
+    /// the host, automation, or preset set — byte-identical behavior to running
+    /// without the main app. `nonisolated` explicitly: read from the vitals
+    /// timer queue (CLAUDE.md static-let isolation gotcha).
+    nonisolated private static let vitalsMaxAge: TimeInterval = 2
+
     /// Pre-allocated scratch buffers for render block — NO heap allocation on audio thread
     nonisolated(unsafe) private var padScratch = [Float](repeating: 0, count: 4096)
     nonisolated(unsafe) private var texScratch = [Float](repeating: 0, count: 4096)
@@ -324,13 +336,17 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
 
     // MARK: - Shared vitals (App Group → bio params)
 
-    /// Starts a 2 Hz utility-queue timer (NOT the render thread) that reads the
+    /// Starts a 10 Hz utility-queue timer (NOT the render thread) that reads the
     /// latest vitals shared by the main app and pushes them into the bio params.
+    /// 10 Hz matches the app's publish tick so breath phase moves like a live
+    /// signal; the per-frame timestamp dedupe below keeps actual param writes
+    /// at the source frame rate. UserDefaults reads are cfprefsd-cached — this
+    /// stays control-plane cheap.
     private func startVitalsPolling() {
         let timer = DispatchSource.makeTimerSource(
             queue: DispatchQueue(label: "com.echoelmusic.app.auv3.vitals", qos: .utility)
         )
-        timer.schedule(deadline: .now() + 0.5, repeating: 0.5)
+        timer.schedule(deadline: .now() + 0.1, repeating: 0.1)
         timer.setEventHandler { [weak self] in self?.pullSharedVitals() }
         timer.resume()
         vitalsTimer = timer
@@ -338,12 +354,26 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
 
     /// Folds the latest App-Group vitals into the bio params; the existing
     /// param observer applies them to the synth. Runs off the render thread.
+    ///
+    /// Guard chain (any failure leaves the params EXACTLY as the host set them —
+    /// live bridge and host automation share the same `AUParameter.value` path):
+    ///   1. decodes + all-finite (BioFeedbackManager rejects NaN/∞ payloads),
+    ///   2. `egressAllowed` — 5.1.3: HealthKit-store frames must never surface
+    ///      in host-visible params; only Echoel's own measurements pass,
+    ///   3. fresh (< ~2 s on the shared reference-date clock) — a quit/crashed
+    ///      main app stops steering within 2 s instead of freezing the params
+    ///      on the last value forever,
+    ///   4. new timestamp — an unchanged store never re-fires the observer.
     private func pullSharedVitals() {
-        guard bioFeedback.refreshFromSharedStore() != nil else { return }
-        coherenceParam.value = bioFeedback.coherence
-        hrvParam.value = bioFeedback.hrv
-        heartRateParam.value = max(0, min(1, (bioFeedback.heartRate - 40) / 160))
-        breathPhaseParam.value = bioFeedback.breathPhase
+        guard let vitals = bioFeedback.refreshFromSharedStore(),
+              vitals.egressAllowed,
+              vitals.isFresh(within: Self.vitalsMaxAge),
+              vitals.timestamp != lastVitalsTimestamp else { return }
+        lastVitalsTimestamp = vitals.timestamp
+        coherenceParam.value = min(max(vitals.coherence, 0), 1)
+        hrvParam.value = min(max(vitals.hrvNormalized, 0), 1)
+        heartRateParam.value = max(0, min(1, (vitals.heartRateBPM - 40) / 160))
+        breathPhaseParam.value = min(max(vitals.breathPhase, 0), 1)
     }
 
     public override var internalRenderBlock: AUInternalRenderBlock {

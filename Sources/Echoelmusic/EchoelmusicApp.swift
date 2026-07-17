@@ -565,19 +565,27 @@ struct EchoelmusicApp: App {
                 // sound simultaneously through the rack. The sink runs on @MainActor
                 // (called from timelinePlayer.transportStep) and only enqueues note
                 // commands onto each voice's lock-free SPSC queue — no audio-thread work.
+                // BodyVibe B1 + App-Group-Puls-Brücke: BOTH ride the GLOBAL
+                // bio voice's existing 10 Hz tick — no second timer, no
+                // per-frame MainActor hop. feedBio is timbre-only (the
+                // sequencer note gate owns the envelope) and zero-cost
+                // while the rack has no bio unit (voiceKindRouting OFF).
+                // The global armed voice itself is untouched — the rack
+                // unit is a SEPARATE BioReactiveSynthVoice instance.
+                // publishTick() writes the latest usable bio frame into the
+                // App Group for the AUv3/Widget/Watch — inert until
+                // bioFeedback.start(...) arms it below, ≤10 Hz with per-frame
+                // timestamp dedupe, HealthKit frames marked non-egress
+                // (BioEgressPolicy, 5.1.3). Installed OUTSIDE the multiRoll
+                // gate so the bridge survives the flag's rollback lever.
+                let rackFeedsBio = FeatureFlags.multiRoll
+                bioVoice.onPollTick = { [weak laneVoiceRack, weak bus, weak bioFeedback] in
+                    bioFeedback?.publishTick()
+                    guard rackFeedsBio, let bus else { return }
+                    laneVoiceRack?.feedBio(from: bus)
+                }
                 if FeatureFlags.multiRoll {
                     laneVoiceRack.startAll(subscribing: bus)
-                    // BodyVibe B1: the rack's lane bio unit(s) ride the GLOBAL
-                    // bio voice's existing 10 Hz tick — no second timer, no
-                    // per-frame MainActor hop. feedBio is timbre-only (the
-                    // sequencer note gate owns the envelope) and zero-cost
-                    // while the rack has no bio unit (voiceKindRouting OFF).
-                    // The global armed voice itself is untouched — the rack
-                    // unit is a SEPARATE BioReactiveSynthVoice instance.
-                    bioVoice.onPollTick = { [weak laneVoiceRack, weak bus] in
-                        guard let bus else { return }
-                        laneVoiceRack?.feedBio(from: bus)
-                    }
                     // A nil-patch lane falls back to the SAME patch the primary voice
                     // gets (patchStore.patches.first, applied at line ~527), so an
                     // unset lane matches the primary timbre — never the bare DDSP default.
@@ -952,7 +960,16 @@ struct EchoelmusicApp: App {
                     }
                 case .background:
                     wasBackgrounded = true
-                    bioFeedback.stop()
+                    // App-Group-Puls-Brücke (2026-07-17): bioFeedback deliberately
+                    // KEEPS publishing in the background — the bridge's headline
+                    // scenario is the HOST (GarageBand/AUM) in the foreground with
+                    // Echoel backgrounded but still measuring (audio +
+                    // bluetooth-central background modes). Cost is bounded: the
+                    // 10 Hz tick only runs while the process runs anyway, and
+                    // publishTick writes only NEW usable frames (timestamp dedupe)
+                    // — a suspended app or dropped sensor writes nothing. The old
+                    // `bioFeedback.stop()` here predated the AUv3 bridge (widget-
+                    // only battery trim); restore that one line to revert.
                     auHost.persistState()   // save hosted-plugin settings across relaunch
                     // Guideline 2.5.4: the `audio` background mode may keep the session
                     // alive ONLY while something audible (or a recording) needs it. An

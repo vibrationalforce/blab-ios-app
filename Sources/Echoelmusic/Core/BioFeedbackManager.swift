@@ -9,8 +9,9 @@
 //  ── AUDIO-THREAD SAFETY (the whole point of this design) ──────────────────
 //  `UserDefaults` access is ObjC messaging + file I/O + locking, which is
 //  FORBIDDEN on the audio render thread (CLAUDE.md). So:
-//    • Producer (app): call `publish(_:)` OFF the audio thread (e.g. ~1 Hz on
-//      the main actor) to write the latest vitals into the App Group store.
+//    • Producer (app): call `publish(_:)` OFF the audio thread (≤10 Hz on the
+//      main actor — the shared poll tick) to write the latest vitals into the
+//      App Group store.
 //    • Consumer (AUv3): call `refreshFromSharedStore()` OFF the audio thread
 //      (e.g. on the extension's UI/timer tick). It decodes the latest vitals
 //      into lock-free, atomic-width `Float` fields.
@@ -32,20 +33,79 @@ public struct BioVitals: Codable, Sendable, Equatable {
     public var hrvNormalized: Float
     public var breathPhase: Float
     public var coherence: Float
+    /// `timeIntervalSinceReferenceDate` (== CFAbsoluteTimeGetCurrent) of the
+    /// source frame — the SAME wall clock in every process, so the AUv3
+    /// extension can compare it against its own `Date()` for freshness.
     public var timestamp: TimeInterval
+    /// Breathing rate in breaths/min (`0` = not available). Added 2026-07-17;
+    /// absent in v1 payloads (see `init(from:)`).
+    public var breathRate: Float
+    /// Whether this snapshot may surface OUTSIDE first-party Echoel processes —
+    /// concretely: the AUv3 pushes vitals into HOST-VISIBLE AUParameters, which
+    /// a third-party host (GarageBand/Logic/AUM) can read and record. App Store
+    /// 5.1.3: HealthKit-store data must never take that path, so the app marks
+    /// frames with `BioEgressPolicy.allowsEgress(source)` — the same rule OSC
+    /// applies. First-party readers (Widget, Watch) ignore this flag.
+    /// Absent in v1 payloads ⇒ decodes FALSE (privacy-safe: an old app version
+    /// may have written HealthKit-sourced vitals unmarked).
+    public var egressAllowed: Bool
 
     public init(
         heartRateBPM: Float = 60,
         hrvNormalized: Float = 0.5,
         breathPhase: Float = 0,
         coherence: Float = 0.5,
-        timestamp: TimeInterval = 0
+        timestamp: TimeInterval = 0,
+        breathRate: Float = 0,
+        egressAllowed: Bool = false
     ) {
         self.heartRateBPM = heartRateBPM
         self.hrvNormalized = hrvNormalized
         self.breathPhase = breathPhase
         self.coherence = coherence
         self.timestamp = timestamp
+        self.breathRate = breathRate
+        self.egressAllowed = egressAllowed
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case heartRateBPM, hrvNormalized, breathPhase, coherence, timestamp
+        case breathRate, egressAllowed
+    }
+
+    /// Backward-compatible decode: v1 payloads (shipped builds before
+    /// 2026-07-17) lack `breathRate`/`egressAllowed`. Missing breathRate ⇒ 0
+    /// ("not available"); missing egressAllowed ⇒ false (never host-visible).
+    /// Encoding stays synthesized (always writes both fields).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        heartRateBPM = try c.decode(Float.self, forKey: .heartRateBPM)
+        hrvNormalized = try c.decode(Float.self, forKey: .hrvNormalized)
+        breathPhase = try c.decode(Float.self, forKey: .breathPhase)
+        coherence = try c.decode(Float.self, forKey: .coherence)
+        timestamp = try c.decode(TimeInterval.self, forKey: .timestamp)
+        breathRate = try c.decodeIfPresent(Float.self, forKey: .breathRate) ?? 0
+        egressAllowed = try c.decodeIfPresent(Bool.self, forKey: .egressAllowed) ?? false
+    }
+
+    /// All numeric fields are finite. A corrupted cross-process payload must
+    /// never reach synth parameters — a NaN there is a permanently stuck /
+    /// silent oscillator (same failure class BioReactiveSynthVoice guards).
+    public var payloadIsFinite: Bool {
+        heartRateBPM.isFinite && hrvNormalized.isFinite && breathPhase.isFinite
+            && coherence.isFinite && breathRate.isFinite && timestamp.isFinite
+    }
+
+    /// Whether this snapshot is recent enough to treat as LIVE. Age is measured
+    /// on the shared `timeIntervalSinceReferenceDate` clock; a small negative
+    /// age (≥ −1 s) is tolerated for cross-process clock jitter, anything more
+    /// "from the future" is rejected — mirrors `EngineBus.freshBio`.
+    public func isFresh(
+        within maxAge: TimeInterval = 2,
+        now: TimeInterval = Date().timeIntervalSinceReferenceDate
+    ) -> Bool {
+        let age = now - timestamp
+        return age <= maxAge && age >= -1
     }
 }
 
@@ -89,7 +149,8 @@ public final class BioFeedbackManager: @unchecked Sendable {
     public func refreshFromSharedStore() -> BioVitals? {
         guard let defaults,
               let data = defaults.data(forKey: Self.storageKey),
-              let vitals = try? JSONDecoder().decode(BioVitals.self, from: data) else { return nil }
+              let vitals = try? JSONDecoder().decode(BioVitals.self, from: data),
+              vitals.payloadIsFinite else { return nil }
         heartRate = vitals.heartRateBPM
         hrv = vitals.hrvNormalized
         breathPhase = vitals.breathPhase
