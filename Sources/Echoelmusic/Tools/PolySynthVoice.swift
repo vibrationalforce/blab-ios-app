@@ -382,7 +382,8 @@ public final class PolySynthVoice {
 
     /// Per-instrument OKTAVER (founder 2026-07-14 "transpose detune und Oktaver"):
     /// double every played note with ONE extra voice an octave up (+1) or down (−1)
-    /// at `mix` level (0…1). 0 = off (default, bit-identical). Takes effect on the
+    /// at `mix` level (0…1). Direction 0 = off (default, bit-identical; mix itself
+    /// defaults to 0.5 and is inert while off). Takes effect on the
     /// next note; safe to call while a loop plays (atomic writes read at the next
     /// noteOn — same discipline as `setTranspose`/`setDetune`). Control-path only:
     /// the extra voice rides the existing poly voice pool, no render-thread change.

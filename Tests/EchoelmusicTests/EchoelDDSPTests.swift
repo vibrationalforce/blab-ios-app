@@ -1773,6 +1773,37 @@ final class EchoelDDSPPitchDriftTests: XCTestCase {
         XCTAssertEqual(p.activeVoiceCount, 0, "both release via the new pitch")
     }
 
+    func testOctaver_extremeMIDINotes_spawnAndReleaseCleanly() {
+        // Octave-up at the keyboard top (~16.7 kHz fundamental at note 132) and
+        // octave-down at the bottom (~4 Hz at note −12): frequency stays positive/
+        // finite, the render's Nyquist partial cutoff handles the top — here we pin
+        // that the CONTROL path spawns and releases without a hung voice.
+        for (note, direction) in [(120, 1), (0, -1)] {
+            let p = EchoelPolyDDSP(maxVoices: 8)
+            p.setOctaver(direction: direction, mix: 0.5)
+            p.noteOn(note: note)
+            XCTAssertEqual(p.activeVoiceCount, 2, "note \(note), direction \(direction)")
+            p.noteOff(note: note)
+            XCTAssertEqual(p.activeVoiceCount, 0, "note \(note): no hung octave voice")
+        }
+    }
+
+    func testOctaver_directVarWritesBypassingSetter_areReclampedAtNoteOn() {
+        // Defense-in-depth (code-review): noteOn re-validates BOTH fields, so raw
+        // public-var writes that skip setOctaver's clamps cannot propagate garbage.
+        let p = EchoelPolyDDSP(maxVoices: 8)
+        p.octaveDouble = 5                          // out of range -> sounds as +1
+        p.octaveMix = .nan                          // non-finite -> spawn skipped
+        p.noteOn(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 1, "NaN mix must fail quiet: no octave voice")
+        p.noteOff(note: 60)
+        p.octaveMix = 0.5
+        p.noteOn(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 2, "direction 5 re-clamps to +1: one octave voice")
+        p.noteOff(note: 60)
+        XCTAssertEqual(p.activeVoiceCount, 0)
+    }
+
     func testSetOctaver_clampsGarbage() {
         let p = EchoelPolyDDSP(maxVoices: 4)
         p.setOctaver(direction: 5, mix: 2.0)        // out of range -> clamped
