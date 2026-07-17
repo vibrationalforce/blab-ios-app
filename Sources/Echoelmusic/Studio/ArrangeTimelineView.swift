@@ -45,6 +45,11 @@ struct ArrangeTimelineView: View {
     // record the currently-loaded plugin onto the lane. `loaded`/`loadedEffects`
     // are low-frequency (change only on load/unload) — safe to read in the menu.
     @Environment(AUv3Host.self) private var auHost
+    /// H12 kind-true audition: the rack owns the per-lane kit/sub voices the
+    /// clip editor previews through. `kits`/`subs` are @ObservationIgnored on
+    /// the rack (no churn) and read only inside door-open handlers — never in
+    /// body (freeze law).
+    @Environment(LaneVoiceRack.self) private var laneVoiceRack
 
     /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
     /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
@@ -66,6 +71,10 @@ struct ArrangeTimelineView: View {
     @GestureState private var pinch: CGFloat = 1
     /// Snap resolution — persisted; default 1/16 (research: snap ON by default).
     @AppStorage("timeline.snap") private var snapRaw = SnapResolution.sixteenth.rawValue
+    /// H12: the active loop window sizes a fresh user MIDI clip's region — same
+    /// key/default as the semantic owner EchoelStudioView.loopBars (pattern:
+    /// LaneCompositionSection / FloatingVisualWindow).
+    @AppStorage(StudioDefaultKeys.loopBars.key) private var loopBars: LoopBarLength = StudioDefaultKeys.loopBars.value
 
     // (Region trim state moved INTO RegionBlockView — each clip owns its own live
     //  resize @State so a drag re-renders only that clip, not the whole timeline.)
@@ -279,11 +288,61 @@ struct ArrangeTimelineView: View {
             let bar = RegionNoteWindow.stepAligned(rawOffset) / TimelineTime.ticksPerBar
             let model = PianoRollModel()
             model.load(MelodyBarEdit.slice(bar: bar, of: notes))
+            // H12 kind-true audition: the session previews through the
+            // INSTRUMENT of the lane whose region is edited (drums lane
+            // sounds like drums, not the poly synth). The session model is
+            // its OWN throwaway PianoRollModel — binding a voice here never
+            // touches the shared live-take roll, and nothing needs resetting
+            // on close (the binding dies with the session).
+            model.setKindVoice(auditionVoice(forLane: region.laneID))
             clipEdit = ClipEditSession(clipID: clip.id, bar: bar,
                                        totalBars: max(MelodyBarEdit.barCount(of: notes), bar + 1),
                                        model: model)
         }
         activeModal = .region(region)
+    }
+
+    /// H12: the audition voice for a lane's clip editor, by the lane's built-in
+    /// instrument — drums/break → the rack's kit, sub-bass → the rack's sub.
+    /// Everything else (polySynth, bioVoice, no instrument) returns nil: the
+    /// clip editor keeps today's honest-silent poly path (H11 review HIGH).
+    /// Sampler/AU lanes fall back to nil too — SamplerVoice is a one-shot
+    /// trigger, not a NoteVoice (known limit, same as the primary-roll
+    /// rollKindSink). `kits`/`subs` are empty while
+    /// FeatureFlags.voiceKindRouting is OFF, so `.first` is nil-safe.
+    private func auditionVoice(forLane laneID: UUID) -> (any NoteVoice)? {
+        guard let lane = timeline.document.lanes.first(where: { $0.id == laneID }) else { return nil }
+        switch lane.builtinInstrument {
+        case .drums, .breakLoop: return laneVoiceRack.kits.first
+        case .subBass:           return laneVoiceRack.subs.first
+        default:                 return nil
+        }
+    }
+
+    /// H12: whether this lane is the PRIMARY roll lane — the FIRST non-bio MIDI
+    /// lane, which owns the ONE shared live-take roll (same law as
+    /// `TimelineDocument.rollSlotGain`). Its door keeps opening the shared roll:
+    /// that IS its editor.
+    private func isPrimaryRollLane(_ lane: TimelineLane) -> Bool {
+        timeline.document.lanes.first(where: { $0.kind == .midi && !$0.isBio })?.id == lane.id
+    }
+
+    /// H12 (founder v281 "Wo bleibt Midi Clip?"): open a lane's editor door.
+    /// A SECONDARY MIDI lane gets its own user MIDI clip + region (created on
+    /// first open via `ensureUserMidiRegion`) and the H11 clip editor — the
+    /// old `.lane` route opened the SHARED roll, which plays the poly voice
+    /// regardless of the lane's instrument ("keine Drums sondern irgendwelche
+    /// Töne"). Grid full / no region ⇒ honest fallback to today's shared-roll
+    /// behaviour (the store already logged the warning). Audio/video/primary
+    /// MIDI lanes keep their existing `.lane` doors unchanged.
+    private func openLaneEditor(_ lane: TimelineLane) {
+        if lane.kind == .midi, !lane.isBio, !isPrimaryRollLane(lane),
+           let region = timeline.ensureUserMidiRegion(for: lane.id, clipStore: clips,
+                                                      loopBars: max(1, loopBars.rawValue)) {
+            openRegionEditor(region)
+            return
+        }
+        activeModal = .lane(lane)
     }
 
     /// H11 write-back (Done only): splice the edited bar into the clip's
@@ -661,8 +720,11 @@ struct ArrangeTimelineView: View {
     private func laneDoor(_ lane: TimelineLane) -> some View {
         Menu {
             if !lane.isBio, lane.kind == .midi {
-                Button { activeModal = .lane(lane) } label: {
-                    Label("Open Piano Roll", systemImage: ClipKind.midi.systemImage)
+                // H12: secondary MIDI lanes open THEIR OWN clip (ensure +
+                // region editor); the primary roll lane keeps the shared roll.
+                Button { openLaneEditor(lane) } label: {
+                    Label(isPrimaryRollLane(lane) ? "Open Piano Roll" : "Open MIDI clip",
+                          systemImage: ClipKind.midi.systemImage)
                 }
             }
             if !lane.isBio, lane.kind == .audio {
@@ -1028,7 +1090,9 @@ struct ArrangeTimelineView: View {
         .contentShape(Rectangle())
         .contextMenu {
             Button {
-                activeModal = .lane(lane)
+                // H12: same kind-routed door as the lane head — a secondary
+                // MIDI lane lands in its own clip's editor, not the shared roll.
+                openLaneEditor(lane)
             } label: {
                 Label(Self.laneImportLabel(lane.kind), systemImage: Self.laneImportIcon(lane.kind))
             }

@@ -490,6 +490,7 @@ public final class PianoRollModel {
     }
 
     public func allNotesOff() {
+        endAudition()   // H12: cancel a pending preview note-off + release it
         for note in active.values { outputVoice(for: note.role)?.noteOff(pitch: note.pitch) }
         active.removeAll()
         currentSubPitch = nil
@@ -521,6 +522,47 @@ public final class PianoRollModel {
         guard kindVoice !== v else { return }
         allNotesOff()
         kindVoice = v
+    }
+
+    // MARK: - Tap audition (H12 — kind-true preview in the clip editor)
+
+    /// The voice currently sounding an audition preview + its pitch, so a new
+    /// audition (or allNotesOff) can release it. Weak like every voice ref.
+    @ObservationIgnored private weak var auditioningVoice: (any NoteVoice)?
+    @ObservationIgnored private var auditioningPitch: Int?
+    @ObservationIgnored private var auditionOffTask: Task<Void, Never>?
+
+    /// Preview ONE note through its output voice — the clip editor's
+    /// tap/draw feedback (H12: an EchoelDrums clip previews the KIT, not the
+    /// poly synth). Routed via `outputVoice(for:)`, so a session with no
+    /// bound voice stays silent (the honest-silent H11 editor for poly
+    /// lanes, unchanged). Monophonic: a new audition releases the previous
+    /// one first, so fast sketching never strands a held note. The note-off
+    /// is scheduled UI-side (~0.2 s) and captures voice + pitch directly, so
+    /// it still fires if this throwaway model is dismissed with its sheet.
+    /// Main-actor only — nothing here touches the audio thread (the voices
+    /// enqueue their own render-safe events).
+    public func audition(pitch: Int, velocity: Float, role: NoteRole) {
+        guard let v = outputVoice(for: role) else { return }
+        endAudition()
+        v.noteOn(pitch: pitch, velocity: Swift.min(Swift.max(velocity, 0.05), 1))
+        auditioningVoice = v
+        auditioningPitch = pitch
+        auditionOffTask = Task { [weak v] in
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            guard !Task.isCancelled else { return }
+            v?.noteOff(pitch: pitch)
+        }
+    }
+
+    /// Release the in-flight audition note. Idempotent — a noteOff for a
+    /// pitch that already released is a no-op in every NoteVoice.
+    private func endAudition() {
+        auditionOffTask?.cancel()
+        auditionOffTask = nil
+        if let p = auditioningPitch { auditioningVoice?.noteOff(pitch: p) }
+        auditioningPitch = nil
+        auditioningVoice = nil
     }
 
     /// Whether two roles play on the SAME underlying voice — used to group
@@ -924,6 +966,17 @@ struct PianoRollView: View {
     // MARK: - Transport + tools
 
     private var transport: some View {
+        // H12 (founder v281 "links abgeschnitten"): this row's rigid minimum
+        // (Play 44 + Picker 120 + SIX 34-pt buttons + 8×12 spacing ≈ 464 pt,
+        // ~496 pt with the caller's padding) exceeds every iPhone width since
+        // the #58 batch added undo/redo + the Q menu. An overflowing fixed
+        // HStack widens the WHOLE roll VStack, which the sheet then clips
+        // CENTERED — cutting the LEFT edge (Play button AND the pitch
+        // gutter/key rail) off-screen. Horizontal scroll makes the row fit
+        // any width; precedent: the single-note inspector (retro-review
+        // MEDIUM-1). The Spacer collapses inside a scroll view — the row
+        // packs leading, which is the correct reading order anyway.
+        ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 12) {
             if !isClipScoped {
                 Button {
@@ -996,6 +1049,7 @@ struct PianoRollView: View {
             .accessibilityLabel("Clear all notes")
             zoomButton(systemName: "minus.magnifyingglass") { zoom(-1) }
             zoomButton(systemName: "plus.magnifyingglass") { zoom(1) }
+        }
         }
     }
 
@@ -1429,10 +1483,21 @@ struct PianoRollView: View {
                     // or create one — a fresh single selection replaces any group.
                     if let existing = model.note(atPitch: anchor.pitch, step: anchor.startStep) {
                         selection = .single(existing.id)
+                        // H12: kind-true tap preview — CLIP editor only. The
+                        // live roll's sound is the transport; auditioning it
+                        // here would double-trigger while playing.
+                        if isClipScoped {
+                            model.audition(pitch: existing.pitch,
+                                           velocity: existing.velocity, role: existing.role)
+                        }
                     } else {
                         let note = model.add(pitch: anchor.pitch, startStep: anchor.startStep,
                                              lengthSteps: drawLength)
                         selection = .single(note.id)
+                        if isClipScoped {
+                            model.audition(pitch: note.pitch,
+                                           velocity: note.velocity, role: note.role)
+                        }
                     }
                 case .move, .resize, .groupMove, .marquee, .none:
                     break   // move/resize already set .single; groupMove/marquee

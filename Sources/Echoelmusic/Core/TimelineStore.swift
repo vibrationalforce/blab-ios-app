@@ -599,6 +599,49 @@ public final class TimelineStore {
         return true
     }
 
+    /// H12 (founder v281 "Wo bleibt Midi Clip?"): the USER-clip twin of
+    /// `ensureComposerRegion` — make sure a MIDI lane has a real, user-owned
+    /// clip + region to edit when its track door opens. `addInstrumentTrack`
+    /// creates ONLY the lane; without this, opening an EchoelDrums track fell
+    /// back to the SHARED live-take roll (poly voice — "keine Drums sondern
+    /// irgendwelche Töne"), because the kit routing only runs in region
+    /// playback (slotKindSink), which never runs without a region.
+    ///
+    /// - Lane already has ANY region ⇒ return its FIRST MIDI region, create
+    ///   nothing (never a duplicate; nil if none of its regions is MIDI).
+    /// - Else: clip "MIDI · <lane>" (kind .midi, empty melody,
+    ///   `composerOwned: false` — this is THE USER'S clip, generate/evolve
+    ///   may never rewrite it) in the first free slot + a region spanning
+    ///   [0, loopBars×ticksPerBar) via `addRegion` (ONE region undo step).
+    /// - Full clip grid ⇒ HONEST nil + warning — user clips are never
+    ///   displaced (the never-clobber law).
+    /// - MIDI, non-bio lanes only.
+    public func ensureUserMidiRegion(for laneID: UUID, clipStore: ClipStore,
+                                     loopBars: Int,
+                                     ticksPerBar: Int = TimelineTime.ticksPerBar) -> TimelineRegion? {
+        guard let lane = document.lanes.first(where: { $0.id == laneID }),
+              lane.kind == .midi, !lane.isBio else { return nil }
+        let laneRegions = document.regions(in: laneID)
+        if !laneRegions.isEmpty {
+            return laneRegions.first { clipStore.clip(id: $0.clipID)?.kind == .midi }
+        }
+        guard let slot = clipStore.firstEmptySlotIndex else {
+            log.log(.warning, category: .audio,
+                    "ensureUserMidiRegion: clip grid full (\(ClipStore.slotCount) slots) — no MIDI clip for lane \(lane.name)")
+            return nil
+        }
+        let clip = Clip(name: "MIDI · \(lane.name)", colorIndex: slot, kind: .midi,
+                        melody: MelodyClip(notes: []), composerOwned: false)
+        clipStore.setClip(at: slot, clip)
+        let region = TimelineRegion(laneID: laneID, clipID: clip.id,
+                                    startTick: 0,
+                                    lengthTicks: max(1, loopBars) * max(1, ticksPerBar))
+        addRegion(region)
+        log.log(.info, category: .audio,
+                "ensureUserMidiRegion: created 'MIDI · \(lane.name)' (slot \(slot), \(max(1, loopBars)) bars)")
+        return region
+    }
+
     public func toggleMute(id: UUID) {
         guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
         document.lanes[i].isMuted.toggle()
