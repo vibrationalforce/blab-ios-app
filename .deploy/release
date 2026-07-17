@@ -1,24 +1,30 @@
-build: 2026-07-17 v10.79.285 (Akkordwechsel klingen organisch — echte Stimmführung im Composer)
+build: 2026-07-17 v10.79.286 (Piano Roll passt sich dem Bildschirm an + dein Puls lockert den Take)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Der erste hörbare Harmony-Baustein aus der Scaler-Analyse:
+notes: Zwei hörbare/sichtbare Antworten auf deine letzten Tests:
 
-  1) ECHTE STIMMFÜHRUNG (Voice-Leading): Bei jedem Akkordwechsel der
-     Fläche bewegen sich die Stimmen jetzt minimal — gemeinsame Töne
-     bleiben liegen, der Rest gleitet zur nächsten Lage, statt dass der
-     ganze Akkord als Block springt. Im Messtest: 9 statt 55 Halbtöne
-     Gesamtbewegung über eine Jazz-Progression. Das ist der "klingt
-     organisch/professionell"-Kern.
-     BIO-GEFÜHRT: Deine Kohärenz steuert die Strenge der Führung
-     (gesettelt = engste Führung), deine Atemtiefe die Lage (flach =
-     eng, tief = offen). Bass, Lead und Struktur bleiben unverändert —
-     nur die Flächen-Voicings atmen.
+  1) PIANO ROLL ADAPTIV (dein Befund "passt immer noch nicht"):
+     Beim Öffnen wird der GANZE Takt in die Bildschirmbreite gefittet —
+     nichts ist mehr links abgeschnitten, kein blindes Scrollen. Dazu:
+     Beat-Lineal (1·2·3·4) über dem Grid, klare Linien-Hierarchie
+     Takt > Beat > Step, automatisches Zentrieren auf deine Noten
+     (statt "irgendwo im Nichts"), Fit-Button neben den Zoom-Lupen,
+     und der Editor-Titel nennt jetzt die Spur ("Drums — Clip · Bar 2/4").
+     TEST-BITTE: MIDI-Clip öffnen — ist der ganze Takt sofort sichtbar?
+     Zoomen, drehen, Fit drücken — bleibt alles bedienbar?
 
-  2) Weiter drin: v284-Fixes (MIDI-Clip pro Spur, Drums klingen im
-     Editor, Roll-Leiste scrollt) + v283 (Composition pro Spur).
+  2) HRV-HUMANIZE (neu, an): Die Streuung DEINES Herzschlags ist jetzt
+     die Amplitude einer feinen Velocity-Lockerung über dem ganzen Take —
+     variables Herz = lebendiger Take, starres Herz = maschinen-eng.
+     Kein Zufall: gleicher Seed + gleiche HRV = gleicher Take.
+     TEST-BITTE: Generate laufen lassen — atmet der Take, ohne dass
+     der Groove verloren geht? (Zusammen mit der Stimmführung aus v285:
+     gleiten die Akkorde UND lebt die Dynamik?)
+     Falls dir EINES nicht gefällt: sag welches — jeder der beiden
+     Schalter ist eine Ein-Wort-Zeile zurück.
 
-  3) HÖRTEST-BITTE: Generate laufen lassen und auf die Akkordübergänge
-     der Fläche achten — springen sie noch, oder gleiten sie? Falls es
-     dir NICHT gefällt: sag Bescheid, der Rückweg ist eine Zeile.
+  3) In Arbeit dahinter: ChordSuggest (Akkord-Journeys, deine Kohärenz
+     wählt die Spannung) ist gebaut und in den Gates — kommt als
+     nächster Build, wenn grün.
 
-  4) Und weiterhin: der Log nach dem Neustart (self-probe-Zeile) löst
-     das AUv3-Thema.
+  4) Weiterhin offen von dir: der Log nach dem iPhone-Neustart
+     (self-probe-Zeile) löst das Externe-AUv3-Thema.

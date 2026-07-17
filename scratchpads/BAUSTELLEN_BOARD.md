@@ -15,9 +15,9 @@
 
 | # | Baustelle | Founder-Quelle | Nächste Slice | Verify-Weg | Route |
 |---|-----------|----------------|---------------|------------|-------|
-| A1 | **Piano Roll adaptiv + professionell** | „passt immer noch nicht in den Bildschirm… professioneller, adaptives Design" (07-17) | Agent läuft: Fit-to-Screen, Bar-Ruler, Oktav-Labels, Velocity | Founder öffnet Roll auf iPhone: nichts abgeschnitten, Fit-Button | ui-state-reviewer vor Commit |
-| A2 | **Harmony H2 ChordSuggest** | Scaler-Analyse-Ask (07-17) | Agent läuft: Funktions-Ranking + VoiceLeader-Distanz, opt-in | Gates grün → default-ON → Hörtest Akkord-Journey | Golden-Tests Pflicht |
-| A3 | **Hörtest v285/v286** (VoiceLeading + HRV-Humanize default-ON) | Modus-Lehre 07-17 | v286-Deploy sobald A1 grün | Founder: „gleiten die Akkorde? atmet der Take?" — Rollback je 1 Wort | — |
+| A1 | **Piano Roll adaptiv + professionell** | „passt immer noch nicht in den Bildschirm… professioneller, adaptives Design" (07-17) | GEBAUT 804dfdc, Gates 4/4 grün, in v286 | Founder öffnet Roll auf iPhone: ganzer Takt sichtbar, Fit-Button — **Gerät offen** | — |
+| A2 | **Harmony H2 ChordSuggest** | Scaler-Analyse-Ask (07-17) | GEBAUT bf1ee63 (opt-in), Gates laufen → bei Grün default-ON-Flip (v287) | Hörtest Akkord-Journey | Golden-Tests ✓ (20) |
+| A3 | **Hörtest v285/v286** (VoiceLeading + HRV-Humanize default-ON) | Modus-Lehre 07-17 | v286 DEPLOYT — wartet auf Ohr | Founder: „gleiten die Akkorde? atmet der Take?" — Rollback je 1 Wort | — |
 | A4 | **BodyVibe B1 — EchoelBodyVibe-Instrument** | Screenshot „Bio Instrument → EchoelBodyVibe" (07-17) | KindVoiceAllocator .bioVoice + BioReactiveSynthVoice als Rack-Einheit | BodyVibe-Spur klingt hörbar bio-reaktiv auf Gerät | PLAN_BODYVIBE §B; audio-thread-reviewer |
 | A5 | **BodyVibe B2 — Kamera-Modulator Stufe 1** | „Grimassen/Smile/Arme als Modulator" (07-17) | Vision-Face-Publisher (CameraRPPG-Muster, smile/jawOpen/browRaise, 10 Hz EMA) | Lächeln verändert hörbar die Komposition | RESEARCH_BODYVIBE_CAMERA; Copy: „Expression", NIE „Emotion" |
 | A6 | **Chips auflösen C** (Sound·Mix·FX·Mood·Synth·Video weg) | 2 Screenshots (07-17) | Erst wenn A4 die Spur-Panels trägt; Video-Voraussetzung (Photos-Save) GEBAUT | Untere Leiste leer/weg auf Gerät, nichts unerreichbar | PLAN_BODYVIBE §C |
