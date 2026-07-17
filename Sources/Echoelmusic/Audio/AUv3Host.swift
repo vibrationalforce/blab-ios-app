@@ -74,6 +74,9 @@ public final class AUv3Host {
     @ObservationIgnored private var registrationObserver: NSObjectProtocol?
     /// Retry ladder for a cold / late-registering third-party AUv3 registry (see scan()).
     @ObservationIgnored private var scanAttempt = 0
+    /// Once-per-process gate for the own-AUv3 self-instantiate probe (see the
+    /// diagnostic block at the end of `performScan`).
+    @ObservationIgnored private var didProbeOwnComponent = false
     @ObservationIgnored private var scanGeneration = 0
     private static let maxScanRetries = 4
 
@@ -746,6 +749,36 @@ public final class AUv3Host {
                 try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
                 guard let self, generation == self.scanGeneration else { return }
                 self.performScan(generation: generation)
+            }
+        }
+        // SELF-INSTANTIATE PROBE (founder log 2026-07-17, v279/2385: ownAUv3 false in
+        // EVERY scan although the archive verifiably embeds the appex with the correct
+        // registration structure — TestFlight run 29545339997 "AUv3 embed OK"): the
+        // component LIST and the component REGISTRY can disagree per process. Probing
+        // our OWN component by description makes the NEXT device log discriminate the
+        // two remaining causes: instantiation OK while the list is empty ⇒ the process's
+        // component-list cache is stale (registry actually serves the appex); an
+        // OSStatus error (e.g. -3000 invalidComponentID) ⇒ iOS genuinely has not
+        // registered the appex on this device (restart/reinstall territory). Runs ONCE
+        // per process, only after the LAST retry still shows no own component. The
+        // probed unit is discarded, never attached; the 10 s instantiate deadline and
+        // the exactly-once gate already guard the hang case.
+        if !ownAUv3, scanAttempt >= Self.maxScanRetries, !didProbeOwnComponent {
+            didProbeOwnComponent = true
+            var probeDesc = AudioComponentDescription()
+            probeDesc.componentType = kAudioUnitType_Generator
+            probeDesc.componentSubType = Self.fourCC("echl")
+            probeDesc.componentManufacturer = Self.ownManufacturer
+            Task { @MainActor in
+                do {
+                    _ = try await Self.instantiate(probeDesc, name: "Echoelmusic (own-AUv3 probe)")
+                    EchoelCrashLog.breadcrumb(
+                        "auv3 self-probe: INSTANTIATE OK — registry serves the own appex; the component LIST is stale for this process")
+                } catch {
+                    let e = error as NSError
+                    EchoelCrashLog.breadcrumb(
+                        "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own appex not registered on this device (restart/reinstall territory)")
+                }
             }
         }
         #else
