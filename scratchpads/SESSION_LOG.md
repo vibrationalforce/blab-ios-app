@@ -7258,3 +7258,8 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - **#58 damit autonom KOMPLETT** (S1-S8; S4b Lane-Pinning + MPE-Rig-Hörtest =
   device-gated). Retro-Code-Review auf beide Commits läuft (Agents waren zur
   Bauzeit nicht verfügbar — Inline-Review dokumentiert, Agent-Review nachgezogen).
+- `4dbcbed` Retro-Review verarbeitet (4/4 grün): **HIGH Playhead-Leaf** —
+  `pattern.currentStep` in einer computed var des Roll-BODYS = 8-16 Hz-Rebuild
+  des ganzen Rolls beim Spielen; das neue Q-Menü wäre nach ~125 ms zugeklappt
+  (10.76.50-Klasse). Jetzt RollPlayheadView-Leaf. + Inspector-H-Scroll (Reset-
+  Chip war off-screen auf 390 pt) + MPE-Clear snapshottet + A11y-Dedupe.
