@@ -96,6 +96,24 @@ final class NoteMPETests: XCTestCase {
         XCTAssertEqual(merged?.pressure, 0)
     }
 
+    // MARK: - Model door (S6b: inspector setter)
+
+    @MainActor
+    func testSetMPE_routesThroughClampingInit_andCollapsesTransparentToNil() {
+        let m = PianoRollModel()
+        m.add(pitch: 60, startStep: 0)
+        guard let id = m.notes.first?.id else { return XCTFail("note missing") }
+
+        m.setMPE(id: id, bend: -3, slide: nil, pressure: 0.5)
+        XCTAssertEqual(m.notes.first?.mpe, NoteMPE(bend: -1, pressure: 0.5),
+                       "inspector writes clamp like every other path")
+
+        // Clearing every dimension collapses the override to nil — the note's
+        // JSON returns to byte-identical plain form (seam contract).
+        m.setMPE(id: id, bend: nil, slide: nil, pressure: nil)
+        XCTAssertNil(m.notes.first?.mpe)
+    }
+
     func testMerging_normalizedToWireUnits() {
         // slide/pressure are stored 0…1 and must land as 7-bit wire values.
         let merged = MPEExpression.merging(

@@ -245,6 +245,16 @@ public final class PianoRollModel {
         notes[i].velocity = min(max(velocity, 0), 1)
     }
 
+    /// #58 S6b: set a note's per-note MPE overrides from the inspector. Always
+    /// routed through NoteMPE's clamping init; a fully transparent result
+    /// collapses back to `nil` so the note's JSON stays byte-identical to a
+    /// plain note (the seam's backward-compat contract).
+    public func setMPE(id: UUID, bend: Float?, slide: Float?, pressure: Float?) {
+        guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
+        let m = NoteMPE(bend: bend, slide: slide, pressure: pressure)
+        notes[i].mpe = m.isTransparent ? nil : m
+    }
+
     /// Reposition a note to a new pitch + start step, preserving its length. Pitch
     /// clamps to the roll's range; the start clamps so the note never crosses the
     /// loop boundary (its tail stays inside the bar). The drag-to-move primitive —
@@ -1019,32 +1029,76 @@ struct PianoRollView: View {
             }
             .frame(height: 30)
         } else if let id = selection.single, let note = model.notes.first(where: { $0.id == id }) {
-            HStack(spacing: 12) {
-                Text(model.name(forPitch: note.pitch))
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 46, alignment: .leading)
+            VStack(spacing: 6) {
+                HStack(spacing: 12) {
+                    Text(model.name(forPitch: note.pitch))
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(EchoelTheme.text)
+                        .frame(width: 46, alignment: .leading)
 
-                EchoelValueField(label: "Len", value: Binding(
-                    get: { Float(note.lengthSteps) },
-                    set: { model.setLength(id: id, lengthSteps: Swift.max(1, Int($0.rounded()))) }
-                ), range: Float(1)...Float(PianoRollModel.stepCount), decimals: 0)
+                    EchoelValueField(label: "Len", value: Binding(
+                        get: { Float(note.lengthSteps) },
+                        set: { model.setLength(id: id, lengthSteps: Swift.max(1, Int($0.rounded()))) }
+                    ), range: Float(1)...Float(PianoRollModel.stepCount), decimals: 0)
 
-                EchoelValueField(label: "Vel", value: Binding(
-                    get: { note.velocity },
-                    set: { model.setVelocity(id: id, $0) }
-                ), range: Float(0)...Float(1))
+                    EchoelValueField(label: "Vel", value: Binding(
+                        get: { note.velocity },
+                        set: { model.setVelocity(id: id, $0) }
+                    ), range: Float(0)...Float(1))
 
-                Button {
-                    model.remove(id: id); selection = .none
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(EchoelTheme.danger)
+                    Button {
+                        model.remove(id: id); selection = .none
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(EchoelTheme.danger)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .frame(height: 30)
+
+                // #58 S6b — the MPE station's door: fixed per-note 5D overrides.
+                // A set dimension WINS over the live bio expression at trigger
+                // time; the reset chip returns the note to fully body-driven.
+                // Same captured-note Binding pattern as Len/Vel above.
+                HStack(spacing: 12) {
+                    Text("MPE")
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .frame(width: 46, alignment: .leading)
+
+                    EchoelValueField(label: "Bend", value: Binding(
+                        get: { note.mpe?.bend ?? 0 },
+                        set: { model.setMPE(id: id, bend: $0,
+                                            slide: note.mpe?.slide, pressure: note.mpe?.pressure) }
+                    ), range: Float(-1)...Float(1), decimals: 2, boxWidth: 64)
+
+                    EchoelValueField(label: "Slide", value: Binding(
+                        get: { note.mpe?.slide ?? 0.5 },
+                        set: { model.setMPE(id: id, bend: note.mpe?.bend,
+                                            slide: $0, pressure: note.mpe?.pressure) }
+                    ), range: Float(0)...Float(1), decimals: 2, boxWidth: 64)
+
+                    EchoelValueField(label: "Press", value: Binding(
+                        get: { note.mpe?.pressure ?? 0 },
+                        set: { model.setMPE(id: id, bend: note.mpe?.bend,
+                                            slide: note.mpe?.slide, pressure: $0) }
+                    ), range: Float(0)...Float(1), decimals: 2, boxWidth: 64)
+
+                    if note.mpe != nil {
+                        Button {
+                            model.setMPE(id: id, bend: nil, slide: nil, pressure: nil)
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(EchoelTheme.dim)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear MPE overrides — note follows the body again")
+                    }
+                }
+                .frame(height: 30)
             }
-            .frame(height: 30)
         } else {
             Text("Tap to add · drag a note to move · its edge to resize · empty to select")
                 .font(.caption2)
