@@ -1,34 +1,27 @@
-build: 2026-07-17 v10.79.288 (Automation in der Timeline + Clips launchen + dein Puls im AUv3)
+build: 2026-07-17 v10.79.289 (Generate erzeugt jetzt einen sichtbaren, editierbaren MIDI-Clip)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Vier Bausteine — der dichteste Build des Tages:
+notes: Direkte Antwort auf deinen Gerätebefund "Es wird kein midi Clip erzeugt":
 
-  1) AUTOMATION WOHNT IN DER TIMELINE (deine Direktive): Am Spurkopf
-     klappt ein Kurven-Chip eine Automation-Zeile DIREKT unter der Spur
-     auf — über den ganzen Song-Verlauf, auf exakt der Zeitachse der
-     Clips. Tippen setzt einen Punkt, Ziehen formt, Doppel-Tipp löscht;
-     Ziel-Picker (Master Level/Tempo/Filter/…) in der Zeile, "⋯" öffnet
-     weiterhin das Zahlen-Sheet für exakte Werte.
-     TEST: Spur-Chevron antippen → Kurve unter der Spur ziehen.
+  1) MIDI-CLIP AUS GENERATE: Wenn du Generate machst, erscheint jetzt eine
+     echte MIDI-Clip-Kachel auf der Haupt-Spur der Timeline — sichtbar,
+     im Piano Roll editierbar, und jedes Evolve schreibt sie fort. Ein
+     eigener/importierter Clip wird nie überschrieben; ist das 8-Slot-
+     Raster voll, sagt die App es dir ehrlich (statt still nichts zu tun).
 
-  2) CLIPS LAUNCHEN + PERFORMANCE MODE (dein "Play Button auf den Clips"):
-     Neuer Performance-Schalter im Timeline-Chrome. Ist er an, trägt jeder
-     MIDI-Clip einen Play-Button — Antippen startet den Clip quantisiert
-     auf der nächsten Bar-Grenze (loopt), nochmal antippen stoppt ihn
-     wieder quantisiert. Der gelaunchte Clip überstimmt seine Spur im
-     Arrangement (Ableton-Prinzip). Aus = alles wie gehabt.
-     TEST: Performance an → Play-Glyph auf einem MIDI-Clip tippen; springt
-     der Start sauber auf die Eins? Nochmal tippen = Stop?
+     ⚠️ WICHTIGE HÖR-BITTE (deshalb sorgfältig gebaut): Beim Einbau habe
+     ich verhindert, dass die neue Clip-Kachel dein Play-Verhalten
+     verändert. Der Transport-▶ spielt weiter genau wie vorher deine
+     LEBENDIGE, sich mit dem Biofeedback verändernde Musik — NICHT eine
+     eingefrorene Aufnahme. Bitte einmal prüfen: klingt Play noch
+     organisch/verändernd? Falls es plötzlich statisch/eingefroren klingt:
+     sofort melden — der Rückweg ist dokumentiert und eine Zeile.
 
-  3) DEIN PULS SPIELT DEN AUv3 IN GARAGEBAND: "Echoelmusic: EchoelBodyVibe"
-     bekommt in fremden Hosts (GarageBand/AUM/Logic) jetzt deine echten
-     Live-Bio-Werte (Herz/HRV/Kohärenz/Atem) — die App misst, das Plugin
-     spielt danach. Ohne laufende App gilt die Host-Automation.
+  2) AUv3 — NÄCHSTE STUFE: Löschen+Neuinstallieren hat das Register nicht
+     repariert (dein Log: raw 3rd-party 0 — iOS hat KEIN einziges fremdes
+     Plugin registriert, systemweit). Bitte jetzt: iPhone KOMPLETT NEU
+     STARTEN (aus/an), danach einmal GarageBand öffnen und je einmal die
+     App jedes externen Plugins (Eventide etc.). Dann Echoelmusic öffnen
+     und den Log schicken — steht dort "ownAUv3 true", ist es geheilt.
 
-  4) ECHOELBODYVIBE heißt jetzt so — am Spurkopf, im Instrument-Menü und
-     als AUv3-Name. Die Bio-Spur ist ein Instrument unter Instrumenten.
-
-  ⚠️ AUv3 NEU INSTALLIEREN: Dein letzter Log zeigte, dass iOS auf dem
-     Gerät KEIN einziges Nicht-Apple-Plugin registriert hat (self-probe
-     -3000). Das ist eine Register-Korruption, kein App-Bug. Bitte: App
-     LÖSCHEN und frisch aus TestFlight installieren — das registriert
-     unser Plugin neu. Danach sollte der Log "ownAUv3 true" zeigen.
+  3) Weiter drin: v288 (Automation in der Timeline, Clip-Launch/Performance
+     Mode, Puls-Brücke zum AUv3 in GarageBand, EchoelBodyVibe).

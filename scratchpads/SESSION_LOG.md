@@ -7573,3 +7573,21 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - Board A7/A8/A9 ergänzt. Nächste unblockierte Zeile: A5 Kamera-Modulator
   Stufe 1 ODER Roll R2. Founder-Verify offen: Log nach Neuinstall, Hörtests,
   Automation/Performance auf Gerät.
+
+## 2026-07-17 Forts. 75 — v289: MIDI-Clip aus Generate (Kern-Regression abgefangen)
+- Founder-Gerätebug "Es wird kein midi Clip erzeugt" (v287/v288): Home-Generate
+  war reiner Live-Take ohne Arrangement-Region → keine Clip-Kachel.
+- Fix 3ff0fe5 (4/4 grün): syncPrimaryRollClip spiegelt den Take in einen
+  composer-owned Clip+Region der primären Roll-Spur (ensureComposerRegion
+  idempotent, Evolve schreibt fort, User-Clip nie geklobbert, grid-full ehrlich),
+  MelodyClip.flatten pure invers zu barSlices.
+- KERN-REGRESSION ABGEFANGEN (nicht blind committet): WorkspaceView-Transport
+  routet bei !regions.isEmpty auf den Arrangement-Player → eine Region auf der
+  primären Spur hätte ▶ von der lebendigen bio-generativen Musik auf eine
+  eingefrorene Region umgeschaltet (Stille/Frozen-Klasse). Neu: pure getestete
+  doc.hasArrangementContent(isComposerOwned:) klammert den primären Roll-
+  Composer-Spiegel aus → ▶ byte-identisch zu heute (pattern.play/Live-Loop/
+  Evolve); nur echter Inhalt (Sekundär/Audio/User-Clip) engaged das Arrangement.
+- v289 deployt mit expliziter Hör-Verify-Bitte (Play noch lebendig?) + AUv3-
+  Neustart-Eskalation (Löschen reichte nicht, raw 3rd-party 0).
+- A5-Kamera-Modulator-Agent (ARKit-blendShapes, Core/Bio disjunkt) läuft noch.
