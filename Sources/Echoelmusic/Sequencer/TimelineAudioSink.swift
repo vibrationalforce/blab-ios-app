@@ -77,6 +77,27 @@ final class TimelineAudioSink: AudioRegionSink {
     private var gain: Float = 1
     private var pan: Float = 0
 
+    // MARK: Beats-Executor (prime-time offline WSOLA per region)
+
+    private struct BeatsKey: Hashable {
+        let url: URL
+        /// Rate quantized to 1/1000 so prime and play resolve the same entry.
+        let rateMilli: Int
+        init(url: URL, rate: Double) {
+            self.url = url
+            self.rateMilli = Int((rate * 1000).rounded())
+        }
+    }
+    /// One rendered window per (url, rate): the OUTPUT buffer (already stretched,
+    /// plays at rate 1 on the plain node) plus the media window it covers. One
+    /// entry per key — two same-file/same-rate regions with different trims keep
+    /// the last prepared window; a non-matching play falls back to the Clean
+    /// chain (honest, bounded memory).
+    private var beatsBuffers: [BeatsKey: (fromSeconds: Double, buffer: AVAudioPCMBuffer)] = [:]
+    /// Matches AudioClipPlayer's preview cap (~31 s @48 k output, ~60 MB stereo
+    /// transient): a longer Beats region is not pre-rendered and plays Clean.
+    private static let beatsMaxOutputFrames = 1_500_000
+
     init(engine: AudioEngine?) {
         self.engine = engine
     }
@@ -97,10 +118,83 @@ final class TimelineAudioSink: AudioRegionSink {
         }
     }
 
+    /// Beats-Executor: offline-render the media window through the coherent
+    /// multichannel WSOLA at prime time (transport parked; the render itself is
+    /// detached so prime never blocks on DSP). play() schedules the READY buffer
+    /// at rate 1 on the plain node; not-ready / mismatched windows fall back to
+    /// the Clean chain — honest, never silent. Idempotent per (url, rate, window).
+    func prepareBeats(url: URL, fromSeconds: Double, lengthSeconds: Double, rate: Double) {
+        guard rate.isFinite, rate > 0, rate != 1.0, lengthSeconds > 0 else { return }
+        let key = BeatsKey(url: url, rate: rate)
+        if let existing = beatsBuffers[key], existing.fromSeconds == fromSeconds { return }
+        guard ensureLoaded(url) != nil, let file else { return }
+        let sr = file.processingFormat.sampleRate
+        guard sr > 0 else { return }
+        let startFrame = AVAudioFramePosition((max(0, fromSeconds) * sr).rounded())
+        guard startFrame < file.length else { return }
+        let frames = AVAudioFrameCount(min(Double(file.length - startFrame),
+                                           (lengthSeconds * sr).rounded()))
+        guard frames > 0, Int(Double(frames) / rate) <= Self.beatsMaxOutputFrames else {
+            log.log(.info, category: .audio,
+                    "Beats pre-render skipped (window over memory cap) — region plays Clean")
+            return
+        }
+        guard let raw = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
+                                         frameCapacity: frames) else { return }
+        do {
+            file.framePosition = startFrame
+            try file.read(into: raw, frameCount: frames)
+        } catch { return }
+        guard let data = raw.floatChannelData else { return }
+        let n = Int(raw.frameLength)
+        let inputs: [[Float]] = (0..<Int(raw.format.channelCount)).map {
+            Array(UnsafeBufferPointer(start: data[$0], count: n))
+        }
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let rendered = WSOLAStretcher().stretchMultichannel(inputs, rate: Float(rate))
+            await self?.storeBeats(key: key, fromSeconds: fromSeconds, channels: rendered)
+        }
+    }
+
+    /// Rebuild the rendered channels as a PCM buffer in the file's processing
+    /// format and cache it (main actor — the cache is control-plane state).
+    private func storeBeats(key: BeatsKey, fromSeconds: Double, channels: [[Float]]) {
+        guard let file, file.url == key.url || knownURLs[key.url] != nil,
+              let first = channels.first, !first.isEmpty else { return }
+        guard let fmt = AVAudioFormat(standardFormatWithSampleRate: file.processingFormat.sampleRate,
+                                      channels: AVAudioChannelCount(channels.count)),
+              let out = AVAudioPCMBuffer(pcmFormat: fmt,
+                                         frameCapacity: AVAudioFrameCount(first.count)),
+              let dst = out.floatChannelData else { return }
+        for (c, channel) in channels.enumerated() {
+            channel.withUnsafeBufferPointer { src in
+                guard let s = src.baseAddress else { return }
+                dst[c].update(from: s, count: channel.count)
+            }
+        }
+        out.frameLength = AVAudioFrameCount(first.count)
+        beatsBuffers[key] = (fromSeconds: fromSeconds, buffer: out)
+    }
+
     func play(url: URL, fromSeconds: Double, lengthSeconds: Double, gain: Float,
               stretch: StretchPlan) {
         guard lengthSeconds > 0 else { stop(); return }
         guard let plainNode = ensureLoaded(url), let file else { return }
+        // Beats-Executor: a prepared region onset schedules the READY stretched
+        // buffer at rate 1 on the plain node (no spectral coloration). Only the
+        // exact prepared window qualifies (onset entry, |Δ| < 1 ms) — a mid-region
+        // entry (seek / unmute restart) falls through to the Clean chain below
+        // (honest; the next onset is transient-locked again).
+        if stretch.rate != 1.0, stretch.mode == .beats,
+           let entry = beatsBuffers[BeatsKey(url: url, rate: stretch.rate)],
+           abs(entry.fromSeconds - fromSeconds) < 0.001,
+           plainNode.engine?.isRunning == true {
+            stop()
+            plainNode.scheduleBuffer(entry.buffer, at: nil)
+            setGain(gain)
+            plainNode.play()
+            return
+        }
         // Slice B: rate ≠ 1.0 renders through the warp chain (rate 1.0 tape ≡
         // clean by design — tapePitchCents(1) = 0 — so the plain path is honest).
         // Unwarped playback stays on the plain node: bit-identical to pre-Slice-B.
@@ -171,6 +265,7 @@ final class TimelineAudioSink: AudioRegionSink {
         nodes.removeAll()
         warpChains.removeAll()
         knownURLs.removeAll()
+        beatsBuffers.removeAll()
         file = nil
     }
 

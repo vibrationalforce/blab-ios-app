@@ -44,7 +44,19 @@ final class StretchEngineTests: XCTestCase {
     func testResolve_defaultCapabilities_rendersBeatsAsClean() {
         let plan = StretchPlan.resolve(mode: .beats, warpEnabled: true,
                                        nativeBPM: 120, projectBPM: 140)
-        XCTAssertEqual(plan.mode, .clean, "timeline consumers keep the honest fallback")
+        XCTAssertEqual(plan.mode, .clean,
+                       "BASE (realtime spectral node) consumers keep the honest fallback")
+        XCTAssertTrue(plan.preservesPitch)
+    }
+
+    func testResolve_timelineCapabilities_rendersBeats() {
+        // Beats-Executor: the timeline consumer pre-renders Beats at prime time,
+        // so its capability set carries the mode through (buffer-vs-Clean is the
+        // sink's play-time decision, not the resolver's).
+        let plan = StretchPlan.resolve(mode: .beats, warpEnabled: true,
+                                       nativeBPM: 120, projectBPM: 140,
+                                       capabilities: StretchMode.timelineCapabilities)
+        XCTAssertEqual(plan.mode, .beats)
         XCTAssertTrue(plan.preservesPitch)
     }
 
@@ -96,8 +108,9 @@ final class StretchEngineTests: XCTestCase {
     }
 
     func testResolve_unimplementedMode_rendersAsCleanPitchPreserved() {
-        // A `.beats` selection today has no executor → renders as `.clean` (pitch preserved),
-        // never silent, never a lying selector. The rate still tempo-conforms.
+        // A `.beats` selection through the BASE set (a consumer without an offline
+        // renderer) → `.clean` (pitch preserved), never silent, never a lying
+        // selector. The rate still tempo-conforms.
         let plan = StretchPlan.resolve(mode: .beats, warpEnabled: true,
                                        nativeBPM: 100, projectBPM: 120)
         XCTAssertEqual(plan.mode, .clean)

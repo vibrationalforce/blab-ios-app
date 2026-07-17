@@ -80,6 +80,12 @@ public enum StretchMode: String, CaseIterable, Codable, Sendable {
     /// The editor-preview consumer's set: it can additionally pre-render Beats
     /// offline (`AudioClipPlayer` — no realtime constraint on the audition path).
     public static let previewCapabilities: Set<StretchMode> = [.clean, .tape, .beats]
+    /// The TIMELINE executor's set (Beats-Executor slice): `TimelineAudioSink`
+    /// pre-renders Beats regions offline at PRIME time (transport parked) and
+    /// schedules the buffer at rate 1 on the plain node; a region whose buffer
+    /// is not ready (prepared window mismatch, memory cap, mid-song live edit)
+    /// falls back to the Clean warp chain at play time — honest, never silent.
+    public static let timelineCapabilities: Set<StretchMode> = [.clean, .tape, .beats]
 
     /// The mode the BASE (realtime) path renders: itself when base-capable, else
     /// the `.clean` baseline. Kept for callers without a capability context;

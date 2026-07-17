@@ -171,7 +171,7 @@ struct AudioClipView: View {
                 Text(region.nativeBPM > 0
                      ? String(format: "Stretch ×%.3f → project %.0f BPM · %@", plan.rate,
                                beatPlayer.pattern.tempo,
-                               plan.mode == .beats ? "transient-locked (beats · preview; timeline plays clean for now)"
+                               plan.mode == .beats ? "transient-locked (beats)"
                                  : plan.preservesPitch ? "pitch held" : "pitch rides tempo (tape)")
                      : "Set the clip's own BPM to tempo-match it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)

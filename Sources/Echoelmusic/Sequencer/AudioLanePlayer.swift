@@ -46,6 +46,12 @@ public protocol AudioRegionSink: AnyObject {
     func preload(url: URL, warped: Bool)
     /// Release engine resources when the lane is removed (reconcile). Default: no-op.
     func detach()
+    /// Beats-Executor: pre-render the media window `fromSeconds`→`+lengthSeconds`
+    /// of `url` time-stretched by `rate` (pitch held, transient-locked WSOLA) so a
+    /// Beats region's onset schedules a READY buffer instead of stretching live.
+    /// Called at prime time (transport parked). Default: no-op — a sink without
+    /// an offline renderer plays the region through its Clean chain instead.
+    func prepareBeats(url: URL, fromSeconds: Double, lengthSeconds: Double, rate: Double)
     /// Live mixer (H4): set this lane's output gain WITHOUT re-scheduling — a
     /// mid-region level/solo edit must be heard now. Default: no-op.
     func setGain(_ gain: Float)
@@ -56,6 +62,7 @@ public protocol AudioRegionSink: AnyObject {
 public extension AudioRegionSink {
     func preload(url: URL, warped: Bool) {}
     func detach() {}
+    func prepareBeats(url: URL, fromSeconds: Double, lengthSeconds: Double, rate: Double) {}
     func setGain(_ gain: Float) {}
     func setPan(_ pan: Float) {}
 }
@@ -157,6 +164,25 @@ public final class AudioLanePlayer {
             for url in order {
                 sink(for: laneID).preload(url: url, warped: need[url] ?? false)
             }
+            // Beats-Executor: pre-render every Beats region's media window NOW,
+            // while the transport is parked — its onset then schedules a ready,
+            // transient-locked buffer at rate 1 (never a live stretch mid-song).
+            for region in laneRegions {
+                guard let url = self.resolveURL(region.clipID) else { continue }
+                let plan = StretchPlan.resolve(mode: region.stretchMode,
+                                               warpEnabled: region.warpEnabled,
+                                               nativeBPM: resolveNativeBPM(region.clipID),
+                                               projectBPM: bpm,
+                                               capabilities: StretchMode.timelineCapabilities)
+                if plan.mode == .beats, plan.rate != 1.0 {
+                    let mediaLength = TimelineTime.seconds(
+                        fromTicks: region.lengthTicks, bpm: bpm) * plan.rate
+                    sink(for: laneID).prepareBeats(url: url,
+                                                   fromSeconds: region.contentOffsetSeconds,
+                                                   lengthSeconds: mediaLength,
+                                                   rate: plan.rate)
+                }
+            }
             guard let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) else {
                 sinks[laneID]?.stop()
                 continue
@@ -190,14 +216,15 @@ public final class AudioLanePlayer {
             return
         }
         // Slice B: the region's stretch plan — rate 1.0 unless the placement opts
-        // in (warpEnabled) AND the clip's native tempo is known. Same resolver as
-        // the editor preview, but with BASE capabilities: Beats renders Clean
-        // HERE (pitch held) until the timeline's own executor slice — the
-        // per-consumer capability set is the truth mechanism for that.
+        // in (warpEnabled) AND the clip's native tempo is known. Beats-Executor:
+        // the timeline consumer now executes Beats too (prime-time pre-render in
+        // TimelineAudioSink; a missing buffer falls back to the Clean chain at
+        // play time — per-consumer capabilities stay the truth mechanism).
         let plan = StretchPlan.resolve(mode: region.stretchMode,
                                        warpEnabled: region.warpEnabled,
                                        nativeBPM: resolveNativeBPM(region.clipID),
-                                       projectBPM: bpm)
+                                       projectBPM: bpm,
+                                       capabilities: StretchMode.timelineCapabilities)
         // Media position at this tick (mid-region entry advances it — rate-aware:
         // a warped region consumes media rate× as fast as song time passes);
         // remaining MEDIA length to the region boundary (source = output × rate,

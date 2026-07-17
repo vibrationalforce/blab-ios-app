@@ -38,6 +38,15 @@ final class AudioLanePlayerTests: XCTestCase {
         func detach() { detaches += 1 }
         func setGain(_ gain: Float) { gains.append(gain) }
         func setPan(_ pan: Float) { pans.append(pan) }
+        /// Beats-Executor: the prime-time pre-render requests, in call order.
+        struct BeatsPrep: Equatable {
+            let url: URL; let from: Double; let length: Double; let rate: Double
+        }
+        var beatsPreps: [BeatsPrep] = []
+        func prepareBeats(url: URL, fromSeconds: Double, lengthSeconds: Double, rate: Double) {
+            beatsPreps.append(BeatsPrep(url: url, from: fromSeconds,
+                                        length: lengthSeconds, rate: rate))
+        }
     }
 
     final class Factory {
@@ -357,6 +366,53 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertEqual(factory.sinks.first?.preloads, [urlA, urlB], "still one preload per file")
         XCTAssertEqual(factory.sinks.first?.preloadWarps, [true, false],
                        "warp need OR-merges across a file's regions")
+    }
+
+    // MARK: - Beats-Executor (timeline pre-renders Beats at prime time)
+
+    func testPrime_preRendersBeatsRegion_withMediaWindowAndRate() {
+        // Native 100 BPM media in a 120 BPM song → rate 1.2. One-bar region
+        // (2.0 song-s @120) with a 0.5 s trim-in: the sink must be asked to
+        // pre-render media 0.5 s → +2.4 s (song-seconds × rate) at rate 1.2.
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let region = TimelineRegion(laneID: lane.id, clipID: UUID(), startTick: 0,
+                                    lengthTicks: 1920, contentOffsetSeconds: 0.5,
+                                    warpEnabled: true, stretchMode: .beats)
+        let document = TimelineDocument(lanes: [lane], regions: [region])
+        let factory = Factory()
+        let p = player(factory, resolve: { _ in self.fileURL }, nativeBPM: { _ in 100 })
+        p.prime(in: document, atTick: 0, bpm: 120)
+        let prep = try? XCTUnwrap(factory.sinks.first?.beatsPreps.first)
+        XCTAssertEqual(factory.sinks.first?.beatsPreps.count, 1)
+        XCTAssertEqual(prep?.url, fileURL)
+        XCTAssertEqual(prep?.from ?? -1, 0.5, accuracy: 1e-9, "media window starts at the trim-in")
+        XCTAssertEqual(prep?.length ?? -1, 2.4, accuracy: 1e-9, "media = song-seconds × rate")
+        XCTAssertEqual(prep?.rate ?? -1, 1.2, accuracy: 1e-9)
+        // And the onset resolves Beats AS Beats on the timeline now (the sink
+        // decides buffer vs honest Clean fallback at play time).
+        let play = try? XCTUnwrap(factory.sinks.first?.plays.first)
+        XCTAssertEqual(play?.stretch.mode, .beats)
+        XCTAssertEqual(play?.stretch.rate ?? -1, 1.2, accuracy: 1e-9)
+        XCTAssertEqual(play?.stretch.preservesPitch, true, "Beats holds pitch")
+    }
+
+    func testPrime_skipsBeatsPreRender_forCleanTapeUnwarpedOrUnknownTempo() {
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let clipTape = UUID(), clipPlain = UUID(), clipNoBPM = UUID()
+        let document = TimelineDocument(lanes: [lane], regions: [
+            TimelineRegion(laneID: lane.id, clipID: clipTape, startTick: 0,
+                           lengthTicks: 1920, warpEnabled: true, stretchMode: .tape),
+            TimelineRegion(laneID: lane.id, clipID: clipPlain, startTick: 1920,
+                           lengthTicks: 1920, stretchMode: .beats),          // warp OFF
+            TimelineRegion(laneID: lane.id, clipID: clipNoBPM, startTick: 3840,
+                           lengthTicks: 1920, warpEnabled: true, stretchMode: .beats),
+        ])
+        let factory = Factory()
+        let p = player(factory, resolve: { _ in self.fileURL },
+                       nativeBPM: { id in id == clipNoBPM ? 0 : 100 })   // no tempo → rate 1
+        p.prime(in: document, atTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.beatsPreps.count ?? -1, 0,
+                       "only warped Beats regions with a known tempo pre-render")
     }
 
     func testPan_appliedAtOnset_andLiveEdit() {
