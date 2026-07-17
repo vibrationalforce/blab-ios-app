@@ -181,7 +181,7 @@ targets:
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).AudioUnitViewController
           NSExtensionAttributes:
             AudioComponents:
-              - name: "Echoelmusic: Bio-Reactive Synth"
+              - name: "Echoelmusic: EchoelBodyVibe"
                 description: "Bio-reactive performance synthesizer"
                 manufacturer: Echo
                 type: augn

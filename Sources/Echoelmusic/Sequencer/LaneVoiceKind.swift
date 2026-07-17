@@ -22,7 +22,7 @@ public enum LaneVoiceKind: String, Sendable, CaseIterable, Equatable {
         case .drums:    return "Drums"
         case .sampler:  return "Sampler"
         case .subBass:  return "Sub bass"
-        case .bioVoice: return "Bio voice"
+        case .bioVoice: return "EchoelBodyVibe"
         }
     }
 }

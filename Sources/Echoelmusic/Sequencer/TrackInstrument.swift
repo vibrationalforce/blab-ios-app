@@ -31,7 +31,10 @@ public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable 
         case .sampler:   return "EchoelSampler"
         case .polySynth: return "EchoelSynth"
         case .subBass:   return "EchoelBass"
-        case .bioVoice:  return "Bio Instrument"
+        // Founder 2026-07-17: the bio special-status ends — EchoelBodyVibe is
+        // an instrument among instruments (renamed AFTER the engine really
+        // sounds, v287 — no lying label).
+        case .bioVoice:  return "EchoelBodyVibe"
         }
     }
 
@@ -43,7 +46,7 @@ public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable 
         case .sampler:   return "Sampler — your own one-shots"
         case .polySynth: return "Polyphonic synth — pads, chords, lead"
         case .subBass:   return "Sub bass — mono low end"
-        case .bioVoice:  return "Bio-reactive voice — driven by your body"
+        case .bioVoice:  return "Create from within — your body plays the voice"
         }
     }
 
