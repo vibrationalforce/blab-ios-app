@@ -7282,3 +7282,14 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - `bd4638a` Format-Re-Attach bei Load (Review APPROVE, 4/4 grün) — die NSException-
   Falle 44.1-nach-48-kHz im Preview-Node ist zu (isEqual = Settings-Vergleich,
   Generation-Token deckt das Detach-Fenster, verifiziert).
+
+### Forts. 57 (05:07–06:10): Format-Re-Attach + Multichannel-WSOLA — Warp-Kern fertig
+- `bd4638a` NSException-Falle zu (Format-Re-Attach bei Load, APPROVE, 4/4).
+- `b5d7cd9`+`f8cb6d2` **Multichannel-WSOLA** (eine Suche auf Mono-Summe, geteilte
+  Offsets → L/R phasenstarr; Preview-Konsument umgestellt). dsp-review: Produktion
+  APPROVED (Refactor bit-identisch bewiesen), Tests REQUEST_CHANGES — der
+  Phase-Lock-Test war NICHT diskriminierend (Skaleninvarianz der normierten
+  Kreuzkorrelation). Echter Guard = Superpositions-Test (Sinus + Klick-Zug:
+  Kanal-Summe == Stretch der Mono-Summe). Beide Commits 4/4 grün.
+- **Timeline-Beats-Executor entblockt** (nächste größere Scheibe, prime-time
+  Pre-Render pro Region). Ab hier still bis Founder-Morgen-Test; v280 bereit.
