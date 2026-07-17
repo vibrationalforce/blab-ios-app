@@ -631,8 +631,12 @@ private struct SessionNamePreviewLeaf: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             // Human-readable identity — the value of the whole card, made legible.
+            // monospacedDigit (ui-state review LOW): while the tempo is unlocked
+            // the body-following BPM ticks — proportional digits made the row
+            // width jitter next to the strip's Pickers (layout wobble, not a
+            // freeze — but visible). Fixed-width digits keep the row still.
             Text(readableFields.joined(separator: "  ·  "))
-                .font(EchoelTheme.font(13, .medium))
+                .font(EchoelTheme.font(13, .medium).monospacedDigit())
                 .foregroundStyle(EchoelTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
             // The exact export/save filename, kept for reference but de-emphasised.
