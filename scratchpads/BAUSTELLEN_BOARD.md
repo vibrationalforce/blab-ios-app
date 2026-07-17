@@ -15,7 +15,7 @@
 
 | # | Baustelle | Founder-Quelle | Nächste Slice | Verify-Weg | Route |
 |---|-----------|----------------|---------------|------------|-------|
-| A1 | **Piano Roll adaptiv + professionell** | „passt immer noch nicht in den Bildschirm… professioneller, adaptives Design" (07-17) | GEBAUT 804dfdc, Gates 4/4 grün, in v286 | Founder öffnet Roll auf iPhone: ganzer Takt sichtbar, Fit-Button — **Gerät offen** | — |
+| A1 | **Piano Roll adaptiv + Pro-Funktionen** | „passt immer noch nicht…adaptiv" + „mehr Funktion… siehe Ableton… Echoel twist" (07-17) | Adaptiv: in v286 (Gerät offen). R1 läuft: Ops-Menü (Reverse/Invert/Legato/Double/Half/Ramp/Echo) + Scale-Lock + Bio-Humanize (H3-Core auf Selektion mit echter HRV) — PLAN_ROLL_PRO.md | Founder editiert Clip mit Ops; Bio-Humanize hörbar | Kein neues Sheet; Type-Check-Budget |
 | A2 | **Harmony H2 ChordSuggest** | Scaler-Analyse-Ask (07-17) | GEBAUT bf1ee63 (opt-in), Gates laufen → bei Grün default-ON-Flip (v287) | Hörtest Akkord-Journey | Golden-Tests ✓ (20) |
 | A3 | **Hörtest v285/v286** (VoiceLeading + HRV-Humanize default-ON) | Modus-Lehre 07-17 | v286 DEPLOYT — wartet auf Ohr | Founder: „gleiten die Akkorde? atmet der Take?" — Rollback je 1 Wort | — |
 | A4 | **BodyVibe B1 — EchoelBodyVibe-Instrument** | Screenshot „Bio Instrument → EchoelBodyVibe" (07-17) | KindVoiceAllocator .bioVoice + BioReactiveSynthVoice als Rack-Einheit | BodyVibe-Spur klingt hörbar bio-reaktiv auf Gerät | PLAN_BODYVIBE §B; audio-thread-reviewer |
