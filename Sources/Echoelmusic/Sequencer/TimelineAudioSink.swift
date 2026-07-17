@@ -106,7 +106,10 @@ final class TimelineAudioSink: AudioRegionSink {
     private var urlFormats: [URL: AVAudioFormat] = [:]
     /// Matches AudioClipPlayer's preview cap (~31 s @48 k output, ~60 MB stereo
     /// transient): a longer Beats region is not pre-rendered and plays Clean.
-    private static let beatsMaxOutputFrames = 1_500_000
+    /// `nonisolated`: read inside the detached render task — Xcode's toolchain
+    /// isolates a plain `static let` on a @MainActor class (SwiftPM CI did not;
+    /// the toolchains disagree on SE-0434 inference, so state it explicitly).
+    private nonisolated static let beatsMaxOutputFrames = 1_500_000
 
     init(engine: AudioEngine?) {
         self.engine = engine
