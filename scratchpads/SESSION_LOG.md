@@ -7245,3 +7245,16 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   + Init-Doc. Beide Reviewer konvergierten unabhängig auf den Decode-Clamp.
 - Gates: Tip c3d7dbe 4/4 grün. **Noch nicht bedienbar** — S6b (UI-Tür im Roll-
   Inspector) ist der nächste Slice; erst dann founder-erlebbar.
+
+### Forts. 55 (02:00–02:30): #58 S6b + S7 — die MPE-Station ist BEDIENBAR
+- `77537ff` **S6b MPE-Tür**: Einzel-Note im Roll → zweite Inspector-Zeile "MPE"
+  mit Bend/Slide/Press-EchoelValueFields (boxWidth 64, decimals 2) + ×-Reset-Chip
+  (Override weg → Note folgt wieder dem Körper; mpe kollabiert zu nil).
+  PianoRollModel.setMPE routet IMMER durch den Clamping-Init (Test). 4 Gates grün.
+- `f68cea7` **S7 Quantize-Raster**: Q-Knopf = Menü (1/8 · 1/16 · 1/32 · 1/8T ·
+  1/16T); pures QuantizeDivision-Enum (Triole = 3 auf die nächstgröbere gerade
+  Teilung: 160/80 Ticks), quantize(ids:toTicks:) Default-verhaltensgleich.
+  Tests pinnen jeden Tick-Wert + Triolen-Quantize mit Undo. 4 Gates grün.
+- **#58 damit autonom KOMPLETT** (S1-S8; S4b Lane-Pinning + MPE-Rig-Hörtest =
+  device-gated). Retro-Code-Review auf beide Commits läuft (Agents waren zur
+  Bauzeit nicht verfügbar — Inline-Review dokumentiert, Agent-Review nachgezogen).
