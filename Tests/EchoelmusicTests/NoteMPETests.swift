@@ -41,6 +41,16 @@ final class NoteMPETests: XCTestCase {
         XCTAssertEqual(m.pressure, 0)
     }
 
+    func testNoteMPE_nonFiniteInputsAreUnset_neverFullScale() {
+        // NaN through generic min/max would land at FULL-SCALE (+1 bend!) — the
+        // repo's NaN law is fail quiet/neutral, so non-finite ⇒ dimension unset.
+        let m = NoteMPE(bend: .nan, slide: .infinity, pressure: -.infinity)
+        XCTAssertNil(m.bend)
+        XCTAssertNil(m.slide)
+        XCTAssertNil(m.pressure)
+        XCTAssertTrue(m.isTransparent)
+    }
+
     func testDecode_clampsOutOfRangeValues() throws {
         // A corrupt/hand-edited clip must not round-trip out-of-range values —
         // decode routes through the clamping init (audio-review LOW).

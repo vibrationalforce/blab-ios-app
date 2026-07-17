@@ -34,10 +34,13 @@ public struct NoteMPE: Codable, Sendable, Equatable {
     /// Press / channel pressure, normalized 0…1.
     public var pressure: Float?
 
+    /// All dimensions optional; set values are clamped (bend ±1, slide/pressure
+    /// 0…1). A non-finite input is treated as UNSET — never full-scale (repo
+    /// NaN precedent: fail quiet/neutral, see FloatingPointClamp/clampUnit).
     public init(bend: Float? = nil, slide: Float? = nil, pressure: Float? = nil) {
-        self.bend = bend.map { Swift.max(-1, Swift.min(1, $0)) }
-        self.slide = slide.map { Swift.max(0, Swift.min(1, $0)) }
-        self.pressure = pressure.map { Swift.max(0, Swift.min(1, $0)) }
+        self.bend = bend.flatMap { $0.isFinite ? Swift.max(-1, Swift.min(1, $0)) : nil }
+        self.slide = slide.flatMap { $0.isFinite ? Swift.max(0, Swift.min(1, $0)) : nil }
+        self.pressure = pressure.flatMap { $0.isFinite ? Swift.max(0, Swift.min(1, $0)) : nil }
     }
 
     /// True when no dimension is set — merging a transparent override is a no-op.
