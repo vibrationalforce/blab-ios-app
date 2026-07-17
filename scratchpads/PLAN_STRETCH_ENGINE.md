@@ -59,9 +59,15 @@ Accelerate only, DSP-Isolations-Gesetz; periodische vDSP-Hann → 50%-OLA exakt 
 Tail-Continuation-Suche mit normierter Kreuzkorrelation; rate-Vertrag == StretchPlan.rate,
 rate 1 bit-transparent, NaN/≤0 fail-quiet). DSP-Review APPROVE; M1 (Window-Sum-Normalisierung
 — Kick-Attack am Kopf überlebt) + L1 (geclampte Suche — kein Stille-Loch am Tail bei rate<1)
-+ L2/L3 eingearbeitet. 7 Test-Sets grün auf CI. **Node-Wrapper = EIGENE Scheibe** (realtime:
-pre-render/pre-alloc Pflicht, audio-thread-review; Kandidat: offline Pre-Render in den
-AudioClipPlayer-Preview-Pfad wie Slice A).
++ L2/L3 eingearbeitet. 7 Test-Sets grün auf CI. **S2b GEBAUT (2026-07-17, 1acc6ac+1a80732+34edaa6): Beats HÖRBAR im
+Editor-Preview** — per-consumer capabilities auf StretchPlan.resolve (Default = Realtime-Basis
+[.clean,.tape] → Timeline byte-identisch, ehrlicher Clean-Fallback; Preview deklariert
+zusätzlich .beats), Offline-WSOLA in Task.detached (Generation-Token, Memory-Cap 1.5M
+Output-Frames ≈ 31 s, Sub-Frame-Gate, node.stop vor Render-Fenster, generation-guarded
+Completions), Picker Clean·Tape·Beats, Status "beats · preview; timeline plays clean for
+now". Beide Reviewer APPROVE, alle Findings drin. **OFFEN als eigene Scheiben:** Timeline-
+Beats-Executor (mit Mono-Downmix-Suche fürs Stereo-Image) · Format-Re-Attach bei Load
+(pre-existing MEDIUM) · Geräte-Hörtest (Founder).
 
 ### Slice 3 — Studio-Executor (Signalsmith) — DEPENDENCY FOUNDER-APPROVED 2026-07-16
 Founder-Ja liegt vor („Python/C++ egal, wichtig gebührenfrei, Apple-first"): Signalsmith

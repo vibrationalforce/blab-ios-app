@@ -7268,3 +7268,14 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
   Warp-Stand: Clean ✅ Tape ✅ Beats-KERN ✅ (Node-Wrapper eigene Scheibe) · Signalsmith
   wartet auf On-Device-A/B. #65 Multipeer-Consent als GEBAUT verifiziert + Task zu.
   Nacht ab hier STILL bis Founder-Morgen-Test v278/v279; v280-Kandidat notiert.
+
+### Forts. 56 (04:07–04:45): #54 S2b — Beats HÖRBAR (Editor-Preview), Strecke grün
+- `1acc6ac` per-consumer capabilities (resolve-Default hält Timeline byte-identisch)
+  + Offline-WSOLA-Pre-Render im AudioClipPlayer (Task.detached, Generation-Token)
+  + Picker Clean·Tape·Beats. `1a80732` Audio-Review-Gates (Memory-Cap ~31 s Output,
+  Sub-Frame-Fallback, Sofort-Stille). `34edaa6` Code-Review (Status-Ehrlichkeit
+  "beats · preview; timeline plays clean for now", Completion-Race-Guard, Doku).
+  Beide Reviewer APPROVE. Tip 4/4 grün. Deferred: Format-Re-Attach (pre-existing),
+  Mono-Downmix-Suche (Timeline-Executor-Scheibe).
+- **NACHT KOMPLETT — ab hier STILL bis Founder-Morgen-Test v278/v279.** v280-Kandidat:
+  5D-Kanal-Reset + MPE-Tür + Quantize-Triolen + Playhead-Fix + Beats-Preview.
