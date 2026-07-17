@@ -42,6 +42,17 @@ public struct NoteMPE: Codable, Sendable, Equatable {
 
     /// True when no dimension is set — merging a transparent override is a no-op.
     public var isTransparent: Bool { bend == nil && slide == nil && pressure == nil }
+
+    /// Decode through the clamping init so a corrupt/hand-edited clip can never
+    /// round-trip out-of-range values through persistence (the synthesized
+    /// Decodable would bypass the init's clamps).
+    private enum CodingKeys: String, CodingKey { case bend, slide, pressure }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(bend: try c.decodeIfPresent(Float.self, forKey: .bend),
+                  slide: try c.decodeIfPresent(Float.self, forKey: .slide),
+                  pressure: try c.decodeIfPresent(Float.self, forKey: .pressure))
+    }
 }
 
 /// A single melodic note, timed in PPQ ticks.

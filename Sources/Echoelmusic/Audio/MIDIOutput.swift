@@ -131,8 +131,13 @@ public final class MIDIOutput {
         let ch = allocateChannel(for: pitch)
         let vel = UInt8(max(1, min(127, Int(velocity * 127))))   // 1…127 (0 = note off)
         send([0x90 | UInt8(ch), UInt8(pitch), vel])
-        if let expr = expression, mpeEnabled, expressionEnabled {
-            sendExpression(expr, channel: ch)
+        // While 5D is armed, EVERY note-on states its dimensions — an expression-
+        // less note resets its member channel to neutral instead of inheriting
+        // whatever bend/CC74/pressure the previous note left there (audible as a
+        // detuned neighbour on external MPE rigs once per-note overrides exist;
+        // MPE-spec practice is to initialise per-note dimensions at note-on).
+        if mpeEnabled, expressionEnabled {
+            sendExpression(expression ?? .neutral, channel: ch)
         }
     }
 

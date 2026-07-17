@@ -41,6 +41,14 @@ final class NoteMPETests: XCTestCase {
         XCTAssertEqual(m.pressure, 0)
     }
 
+    func testDecode_clampsOutOfRangeValues() throws {
+        // A corrupt/hand-edited clip must not round-trip out-of-range values —
+        // decode routes through the clamping init (audio-review LOW).
+        let json = #"{"pitch": 60, "startTick": 0, "lengthTicks": 120, "mpe": {"bend": -5, "slide": 7, "pressure": -1}}"#
+        let note = try JSONDecoder().decode(Note.self, from: Data(json.utf8))
+        XCTAssertEqual(note.mpe, NoteMPE(bend: -1, slide: 1, pressure: 0))
+    }
+
     func testNoteMPE_transparentWhenAllNil() {
         XCTAssertTrue(NoteMPE().isTransparent)
         XCTAssertFalse(NoteMPE(bend: 0).isTransparent,
