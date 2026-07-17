@@ -48,7 +48,10 @@ public struct WSOLAStretcher: Sendable {
     /// offsets wherever the content differs and smear the stereo image, exactly
     /// on the drum material Beats targets). Guards fail quiet: empty input → [],
     /// mismatched channel lengths / degenerate rate / sub-frame input →
-    /// passthrough unchanged.
+    /// passthrough unchanged. Anti-phase pathology: if the downmix cancels to
+    /// silence (L = −R), the search degrades to clamped-natural fixed-grid OLA —
+    /// channels remain phase-locked, only segment selection loses its
+    /// similarity criterion.
     public func stretchMultichannel(_ channels: [[Float]], rate: Float) -> [[Float]] {
         guard let first = channels.first else { return [] }
         guard channels.allSatisfy({ $0.count == first.count }),

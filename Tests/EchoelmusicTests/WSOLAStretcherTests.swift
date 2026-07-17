@@ -97,13 +97,12 @@ final class WSOLAStretcherTests: XCTestCase {
 
     // MARK: - Multichannel coherence (timeline-executor prep: mono-downmix search)
 
-    func testMultichannel_channelsStayPhaseLocked() {
-        // Both reviews flagged independent per-channel searches: different chosen
-        // offsets per channel decorrelate L/R (image smear on stereo drums). The
-        // multichannel API searches ONCE on a mono downmix and applies the SAME
-        // offsets everywhere. Pin it with an exact linear relation: R = 0.5·L on
-        // input ⇒ R = 0.5·L on output, sample for sample (identical offsets make
-        // the processing identical up to the scalar).
+    func testMultichannel_renderIsLinear_scaledChannelStaysScaled() {
+        // LINEARITY check (dsp-review: NOT a shared-search guard — normalized
+        // cross-correlation is scale-invariant, so R = 0.5·L yields identical
+        // offsets even under independent searches; the discriminating guard is
+        // the superposition test below): render() must be linear per channel,
+        // so an exactly scaled channel stays exactly scaled through the stretch.
         let left = sine(hz: 440, seconds: 0.5)
         let right = left.map { $0 * 0.5 }
         let out = WSOLAStretcher().stretchMultichannel([left, right], rate: 0.5)
@@ -116,6 +115,23 @@ final class WSOLAStretcherTests: XCTestCase {
         // And the stretch itself still happened (duration law).
         XCTAssertEqual(Double(out[0].count), Double(left.count) / 0.5,
                        accuracy: Double(left.count) * 0.08)
+    }
+
+    func testMultichannel_offsetsAreShared_superposition() {
+        // THE shared-offset guard (dsp-review MEDIUM): with two DIFFERENT-content
+        // channels, independent searches would pick different offsets (a click
+        // train snaps to click spacing, a sine to its period) and the identity
+        // below fails hard. With ONE shared search, render() linearity makes
+        // sum-of-channels == stretch-of-the-downmix by construction.
+        let a = sine(hz: 440, seconds: 0.5)
+        let clicks: [Float] = (0..<a.count).map { $0 % 4800 == 0 ? 1 : 0 }
+        let out = WSOLAStretcher().stretchMultichannel([a, clicks], rate: 0.5)
+        let mixRef = WSOLAStretcher().stretch(zip(a, clicks).map { ($0 + $1) * 0.5 }, rate: 0.5)
+        XCTAssertEqual(out[0].count, mixRef.count)
+        for i in stride(from: 0, to: mixRef.count, by: 7) {
+            XCTAssertEqual((out[0][i] + out[1][i]) * 0.5, mixRef[i], accuracy: 1e-3,
+                           "shared-offset law: sum of channels == stretch of the downmix")
+        }
     }
 
     func testMultichannel_degenerateInputs_failQuiet() {
