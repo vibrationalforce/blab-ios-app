@@ -7334,3 +7334,10 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - `aab879a` **DEPLOY v10.79.280** (Founder-Test erfolgt → Freeze aufgehoben):
   Oktaver + MPE-Tür + Triolen-Q + Playhead-Fix + Beats-Preview + Selbst-Probe.
   Release-Notes bitten explizit um neuen Log NACH Geräte-Neustart.
+
+### Forts. 60 (08:40): v280-Deploy-Retry — Type-Check-Budget-Fix
+- Deploy-Run 29565552206 ROT: exit 65 Type-Check-Timeout am ~140-Zeilen-Body-
+  Ausdruck von RegionBlockView (ArrangeTimelineView:1168) — identischer Swift-
+  Stand war bei 8c37efb minuten zuvor grün (Flaky am Limit; Ledger-Playbook).
+- `75adb7d` verhaltensgleiche Aufteilung (7 benannte Helfer: Waveform/Ring/Name/
+  Griffe/Tap/Menü) + .deploy/release-Retouch → v280-Deploy-Retry ausgelöst.
