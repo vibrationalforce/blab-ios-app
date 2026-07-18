@@ -105,4 +105,51 @@ final class BreathArpTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(n.velocity, 0.05)
         }
     }
+
+    // MARK: - Slice 2: motion accent + pulse swing (additive)
+
+    func testGrooveParams_defaultZeroMatchesExplicitZero() {
+        // The new params default to 0 ⇒ byte-identical to the slice-1 output.
+        let base = BreathArp.pattern(chordPitches: cMajor, steps: 16,
+                                     breathPhase: 0.3, breathDepth: 0.7, startTick: 240)
+        let explicit = BreathArp.pattern(chordPitches: cMajor, steps: 16,
+                                         breathPhase: 0.3, breathDepth: 0.7, startTick: 240,
+                                         motionAccent: 0, swing: 0)
+        XCTAssertEqual(base, explicit)
+    }
+
+    func testMotionAccent_liftsDownbeatVelocityOnly() {
+        // depth 1 → all 16 cells active, so out[i] is step i. Downbeats = i % 4 == 0.
+        let notes = BreathArp.pattern(chordPitches: cMajor, steps: 16,
+                                      breathPhase: 0.2, breathDepth: 1.0,
+                                      velocity: 0.8, motionAccent: 1.0)
+        XCTAssertEqual(notes.count, 16)
+        for (i, n) in notes.enumerated() {
+            if i % 4 == 0 {
+                XCTAssertEqual(n.velocity, 1.0, accuracy: 1e-6, "downbeat \(i) accented to full")
+            } else {
+                XCTAssertEqual(n.velocity, 0.8, accuracy: 1e-6, "off-beat \(i) unaccented")
+            }
+        }
+    }
+
+    func testSwing_delaysOffCellsBySwingTicks() {
+        let cell = Note.ticksPerStep
+        let notes = BreathArp.pattern(chordPitches: cMajor, steps: 16,
+                                      breathPhase: 0.2, breathDepth: 1.0,
+                                      startTick: 0, stepTicks: cell, swing: 1.0)
+        // swing 1.0 → off-16th (odd) cells pushed a full cell late; even cells on-grid.
+        for (i, n) in notes.enumerated() {
+            let expected = i * cell + (i % 2 == 1 ? cell : 0)
+            XCTAssertEqual(n.startTick, expected, "cell \(i) groove offset")
+        }
+    }
+
+    func testSwing_zeroLeavesGridUntouched() {
+        let cell = Note.ticksPerStep
+        let notes = BreathArp.pattern(chordPitches: cMajor, steps: 16,
+                                      breathPhase: 0.2, breathDepth: 1.0,
+                                      startTick: 0, stepTicks: cell, swing: 0)
+        for (i, n) in notes.enumerated() { XCTAssertEqual(n.startTick, i * cell) }
+    }
 }

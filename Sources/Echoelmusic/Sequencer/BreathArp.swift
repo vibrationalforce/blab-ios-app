@@ -56,6 +56,14 @@ public enum BreathArp {
     /// Each active cell gets one note; the pitch walks the chord in `direction`
     /// order, wrapping within the chord (Alberti-style — octave-climb is a later
     /// refinement). Deterministic, with reproducible note ids folded from `startTick`.
+    ///
+    /// Slice 2 adds the body's GROOVE, both additive (default 0 ⇒ slice-1 output,
+    /// byte-identical):
+    /// - `motionAccent` (motion-onset → strum accent): lifts the velocity of the
+    ///   downbeat cells (quarter-note positions) toward full, so a moved body hits
+    ///   harder on the beat.
+    /// - `swing` (pulse → groove): delays the off-16th cells (odd index) by up to one
+    ///   cell, the classic swing push — a livelier body swings the pattern more.
     public static func pattern(
         chordPitches: [Int],
         steps: Int,
@@ -63,7 +71,9 @@ public enum BreathArp {
         breathDepth: Float,
         startTick: Int = 0,
         stepTicks: Int = Note.ticksPerStep,
-        velocity: Float = 0.8
+        velocity: Float = 0.8,
+        motionAccent: Float = 0,
+        swing: Float = 0
     ) -> [Note] {
         let pitches = chordPitches.filter { $0 >= 0 && $0 <= 127 }.sorted()
         guard !pitches.isEmpty, steps > 0 else { return [] }
@@ -71,15 +81,23 @@ public enum BreathArp {
         let cellTicks = Swift.max(1, stepTicks)
         let order = direction(breathPhase: breathPhase) == .up ? pitches : pitches.reversed().map { $0 }
         let active = activeSteps(depth: breathDepth, steps: steps)
+        let accent = clamp01(motionAccent)
+        let swingTicks = Int(clamp01(swing) * Float(cellTicks))
+        let beatCells = Swift.max(1, steps / 4)   // quarter-note grid
 
         var rng = SeededRNG(seed: UInt64(truncatingIfNeeded: startTick) ^ 0x42524541_54480000) // "BREATH"
         var out: [Note] = []
         var hit = 0
         for i in 0..<steps where isActive(i, active: active, steps: steps) {
             let pitch = order[hit % order.count]
+            // Downbeat cells hit harder as motion rises (strum accent).
+            let onBeat = i % beatCells == 0
+            let noteVel = onBeat ? Swift.min(1, vel + accent * (1 - vel)) : vel
+            // Off-16th cells swing late as the pulse quickens (groove).
+            let offset = i % 2 == 1 ? swingTicks : 0
             out.append(Note(id: foldUUID(&rng), pitch: pitch,
-                            startTick: Swift.max(0, startTick) + i * cellTicks,
-                            lengthTicks: cellTicks, velocity: vel))
+                            startTick: Swift.max(0, startTick) + i * cellTicks + offset,
+                            lengthTicks: cellTicks, velocity: noteVel))
             hit += 1
         }
         return out
