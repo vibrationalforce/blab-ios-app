@@ -1,27 +1,30 @@
-build: 2026-07-17 v10.79.289 (Generate erzeugt jetzt einen sichtbaren, editierbaren MIDI-Clip)
+build: 2026-07-18 v10.79.290 (Piano Roll: Akkord-Stempel — dein Puls waehlt den Akkord)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkte Antwort auf deinen Gerätebefund "Es wird kein midi Clip erzeugt":
+notes: Neue, erlebbare Piano-Roll-Funktion (deine Bitte "mehr Funktion... siehe Ableton
+  und alle DAWs, plus ein Echoel-Twist"):
 
-  1) MIDI-CLIP AUS GENERATE: Wenn du Generate machst, erscheint jetzt eine
-     echte MIDI-Clip-Kachel auf der Haupt-Spur der Timeline — sichtbar,
-     im Piano Roll editierbar, und jedes Evolve schreibt sie fort. Ein
-     eigener/importierter Clip wird nie überschrieben; ist das 8-Slot-
-     Raster voll, sagt die App es dir ehrlich (statt still nichts zu tun).
+  AKKORD-STEMPEL. Im Piano Roll gibt es jetzt in der oberen Werkzeugleiste einen
+  neuen Knopf mit Noten-Listen-Symbol (neben dem Ops-Menue). Tipp ihn an (er wird
+  bio-gruen) = Chord-Modus. Solange er an ist, setzt ein Tipp auf eine leere Zelle
+  nicht EINE Note, sondern einen ganzen, stimmgefuehrten Akkord.
 
-     ⚠️ WICHTIGE HÖR-BITTE (deshalb sorgfältig gebaut): Beim Einbau habe
-     ich verhindert, dass die neue Clip-Kachel dein Play-Verhalten
-     verändert. Der Transport-▶ spielt weiter genau wie vorher deine
-     LEBENDIGE, sich mit dem Biofeedback verändernde Musik — NICHT eine
-     eingefrorene Aufnahme. Bitte einmal prüfen: klingt Play noch
-     organisch/verändernd? Falls es plötzlich statisch/eingefroren klingt:
-     sofort melden — der Rückweg ist dokumentiert und eine Zeile.
+  DER ECHOEL-TWIST (der Unterschied zu jedem DAW): den Akkord waehlt nicht ein
+  Dropdown, sondern DEIN KOERPER. Es ist dieselbe Harmonik-Maschine, die auch die
+  Komposition schreibt (ChordSuggest + VoiceLeader) — und deine aktuelle Kohaerenz
+  entscheidet: ruhiger Koerper = der schlichte, funktionale Akkord; unruhiger =
+  eine geliehene, ueberraschendere Farbe. Immer diatonisch zur Session-Tonart, auf
+  der getippten Reihe. Ein Tastendruck, kein Setup. Ein Undo-Schritt pro Stempel;
+  Knopf wieder aus = normales Zeichnen.
 
-  2) AUv3 — NÄCHSTE STUFE: Löschen+Neuinstallieren hat das Register nicht
-     repariert (dein Log: raw 3rd-party 0 — iOS hat KEIN einziges fremdes
-     Plugin registriert, systemweit). Bitte jetzt: iPhone KOMPLETT NEU
-     STARTEN (aus/an), danach einmal GarageBand öffnen und je einmal die
-     App jedes externen Plugins (Eventide etc.). Dann Echoelmusic öffnen
-     und den Log schicken — steht dort "ownAUv3 true", ist es geheilt.
+  ⚠️ HOER-/FUEHL-BITTE: Chord-Modus an, ein paar leere Zellen tippen — klingen die
+  Akkorde musikalisch + zur Tonart passend? Und veraendert sich die Farbe spuerbar,
+  wenn dein Puls ruhiger/unruhiger wird? Rueckmeldung = naechste Feinjustierung.
 
-  3) Weiter drin: v288 (Automation in der Timeline, Clip-Launch/Performance
-     Mode, Puls-Brücke zum AUv3 in GarageBand, EchoelBodyVibe).
+  UNTER DER HAUBE (noch NICHT sichtbar, braucht deine Freigabe): die Kamera-
+  Ausdrucks-Steuerung (Laecheln/Brauen/Kiefer als Modulator) ist fertig gebaut +
+  getestet, aber abgeschaltet — sie braucht vor dem Einschalten eine erweiterte
+  Kamera-Erlaubnis-Zeile in der App-Info (Front-Kamera-Gesicht statt nur Heck-
+  Fingerpuls). Den Text lege ich dir vor, sobald du die Funktion willst.
+
+  Weiter offen auf deiner Seite: iPhone-Neustart fuer die AUv3-Register-Reparatur
+  (Log "self-probe -3000", raw 3rd-party 0).
