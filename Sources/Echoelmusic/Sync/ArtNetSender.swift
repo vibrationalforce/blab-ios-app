@@ -83,6 +83,12 @@ public final class ArtNetSender {
     /// must never block a blackout).
     @ObservationIgnored private var lastSentGrandMaster: Float = 1
     @ObservationIgnored private var lastSentBlackout = false
+    /// Last RAW colour channels + dimmer target actually chosen (pre-master,
+    /// pre-slew). Held so a tick with NO fresh/allowed source can still honor a
+    /// Blackout / Grand-Master move from the last lit state (L1 — a stale or
+    /// egress-gated source must never freeze a blackout). Empty = never lit yet.
+    @ObservationIgnored private var lastChannels: [UInt8] = []
+    @ObservationIgnored private var lastTarget: Float = 0
 
     public init(host: String = "255.255.255.255", port: UInt16 = 6454, universe: Int = 0) {
         let d = UserDefaults.standard
@@ -167,9 +173,24 @@ public final class ArtNetSender {
             sourceTimestamp = frame.timestamp
             channels = Self.dmxChannels(for: frame, resolution: resolution)
             target = Self.dimmerUnit(for: frame)
+        } else if !lastChannels.isEmpty {
+            // No fresh/allowed source, but the rig is already lit: hold the last
+            // colour and keep running the master/slew logic below so a Blackout or
+            // Grand-Master move is honored NOW (L1 — a stale/gated source must never
+            // freeze a blackout). The guard uses the unchanged timestamp, so this
+            // only emits while master state moves or the slew is still settling.
+            // Held channels are always from an allowed source (a gated frame never
+            // reaches the store below), so nothing new egresses.
+            sourceTimestamp = lastFrameTimestamp
+            channels = lastChannels
+            target = lastTarget
         } else {
             return
         }
+        // Remember the RAW colour + target so a later no-source tick can still
+        // honor master/blackout from the held state.
+        lastChannels = channels
+        lastTarget = target
         // Grand Master scales the target; Blackout cuts to 0 instantly (and
         // resets the slew anchor, so the return to light ramps up from dark).
         let mastered = Self.masteredDimmer(target, grandMaster: grandMaster, blackout: blackout)

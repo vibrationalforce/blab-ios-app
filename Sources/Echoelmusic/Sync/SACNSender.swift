@@ -75,6 +75,12 @@ public final class SACNSender {
     /// a Blackout release (or a Grand-Master jump) can never strobe physical
     /// fixtures — the ≤3 Hz / W3C-WCAG flash hard law applies to sACN too.
     @ObservationIgnored private var lastDimmer: Float = -1
+    /// Last RAW colour channels + dimmer target chosen (pre-master, pre-slew).
+    /// Held so a tick with NO fresh/allowed source can still honor a Blackout /
+    /// Grand-Master move from the last lit state (L1 — mirrors ArtNetSender).
+    /// Empty = never lit yet.
+    @ObservationIgnored private var lastChannels: [UInt8] = []
+    @ObservationIgnored private var lastTarget: Float = 0
     @ObservationIgnored private var sequence: UInt8 = 0
     /// Sender CID — stable per instance (E1.31 requires a unique component id).
     @ObservationIgnored private let cid: [UInt8]
@@ -160,9 +166,23 @@ public final class SACNSender {
             sourceTimestamp = frame.timestamp
             channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
             dimmer = ArtNetSender.dimmerUnit(for: frame)
+        } else if !lastChannels.isEmpty {
+            // No fresh/allowed source, but the rig is already lit: hold the last
+            // colour and keep running the master/slew logic so a Blackout or
+            // Grand-Master move is honored NOW (L1 — mirrors ArtNetSender). The
+            // unchanged timestamp means this only emits while master state moves
+            // or the slew is still settling. Held channels come from an allowed
+            // source (a gated frame never reaches the store), so nothing egresses.
+            sourceTimestamp = lastFrameTimestamp
+            channels = lastChannels
+            dimmer = lastTarget
         } else {
             return
         }
+        // Remember the RAW colour + target so a later no-source tick can still
+        // honor master/blackout from the held state.
+        lastChannels = channels
+        lastTarget = dimmer
         let mastered = ArtNetSender.masteredDimmer(dimmer, grandMaster: grandMaster, blackout: blackout)
         // Send when the source is fresh, the master state moved, OR the slew ramp
         // hasn't reached its target yet — so a paused source can't freeze a fade
