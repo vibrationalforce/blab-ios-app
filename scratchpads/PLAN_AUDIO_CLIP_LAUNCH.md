@@ -83,15 +83,22 @@ MIDI-Launch überlebt (Audio/MIDI-Inkonsistenz), (b) `startedAtTick` bleibt un-g
 bekommt einen veralteten Anker (elapsed < 0), Override strandet. S3-Pflicht: eine Audio-seitige `shift`
 (analog `launch.shift`) ODER clear-and-reprime im Wrap-Zweig — NICHT nur in refreshStructure.
 
-## S3a STATUS (2026-07-18 — gebaut, Reviewer läuft): Override-Lifecycle-Härtung
-Die beiden dokumentierten S3-Pflichten (refreshStructure- + Wrap-Pfad-Desync) geschlossen, INERT bis S3b:
+## S3a STATUS (2026-07-18 — gebaut + Wrap-Re-Trigger-Defekt gefixt, Final-Review läuft)
+Die dokumentierten S3-Pflichten (refreshStructure- + Wrap-Pfad-Desync) geschlossen, INERT bis S3b:
 - `AudioLanePlayer.prime` überspringt jetzt overridete Lanes (kein Arrangement-Clobber beim Re-Prime;
   play/relocate leeren die Karte vorher → dort no-op).
 - `shiftLaunchOverrides(by:)` (Audio-Twin zu `ClipLaunchEngine.shift`) → im Wrap-Zweig gepaart mit
   `launch.shift`, faltet den Loop-Anker mit; `pruneLaunchOverrides(validLaneIDs:validRegionIDs:)` →
   in refreshStructure gepaart mit `launch.prune`, droppt+stoppt gelöschte Launch-Region/Lane.
-- 5 Unit-Tests (prime-skip, shift-fold, prune-deleted-region/-lane/-survivor). Golden Gate: alle drei
-  no-op wenn `overrides.isEmpty`.
+- **`applyWrappedOverrides(in:fromTick:toTick:bpm:)` (91deeff, audio-thread-review-Defekt geschlossen):**
+  der Wrap-Step läuft über `prime` (überspringt Overrides), also verlor ein bar-alignter Launch-Loop
+  seinen Re-Trigger AM Wrap → 1 stiller Takt pro Song-Loop, Audio nicht im Lockstep mit MIDI. Fix
+  fährt die Overrides über den Wrap im GEFALTETEN Frame `(lastTick − loopTicks, newTick)` — `loopWrapped`
+  entscheidet selbst: Boundary-koinzident → Re-Fire vom Loop-Top; Segment das den Wrap überspannt →
+  bleibt spielen (nur reconcile). Audio-Twin zu `ClipLaunchEngine.tick` nach `.shift`.
+- 6 Unit-Tests (prime-skip, shift-fold, prune×3 + **`testAudioLaunch_reTriggersOnSongWrap_noSilentBar`**
+  auf dem ECHTEN `transportStep`-Wrap-Pfad — schließt die False-Confidence-Lücke des Primitiv-Only-
+  Shift-Tests). Golden Gate: alle no-op wenn `overrides.isEmpty`.
 **Nächste = S3b:** `ClipLaunchGlyph` auf Audio-Regionen sichtbar machen (`launchGlyphOverlay` midi→
 midi||audio; der Glyph ist bereits spur-agnostisch, liest nur `launchState`) → macht Audio-Launch
 erreichbar+erlebbar → DEPLOY-reif.
