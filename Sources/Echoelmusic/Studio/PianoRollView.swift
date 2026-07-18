@@ -255,6 +255,32 @@ public final class PianoRollModel {
         notes[i].mpe = m.isTransparent ? nil : m
     }
 
+    /// A1 per-note CHANCE (founder "Ableton note chance", 2026-07-17): set the
+    /// probability [0…1] that a note plays each loop pass, from the Chance paint-lane.
+    /// Preserves any repeats/occurrence/expression the note already carries, routes
+    /// through NoteOperators' clamping init, and — like `setMPE` — collapses a
+    /// now-default operator bag back to `nil` so the note's JSON stays byte-identical
+    /// to a plain note (the backward-compat seam). A live body still bends this
+    /// threshold at play time (A4 `bioBentChance`); this sets the base the body bends.
+    public func setChance(id: UUID, _ chance: Double) {
+        guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
+        let base = notes[i].operators ?? NoteOperators()
+        let updated = NoteOperators(chance: chance,
+                                    repeats: base.repeats,
+                                    repeatRamp: base.repeatRamp,
+                                    occurrencePeriod: base.occurrencePeriod,
+                                    occurrencePhase: base.occurrencePhase,
+                                    velocityDepth: base.velocityDepth,
+                                    timingDepth: base.timingDepth,
+                                    filterDepth: base.filterDepth)
+        notes[i].operators = updated.isDefault ? nil : updated
+    }
+
+    /// The note's current play chance for the Chance paint-lane (plain note = 1).
+    public func chance(id: UUID) -> Double {
+        notes.first(where: { $0.id == id })?.operators?.chance ?? 1
+    }
+
     /// Reposition a note to a new pitch + start step, preserving its length. Pitch
     /// clamps to the roll's range; the start clamps so the note never crosses the
     /// loop boundary (its tail stays inside the bar). The drag-to-move primitive —
@@ -1037,6 +1063,10 @@ struct PianoRollView: View {
     @State private var drawLength: Int = 1
     @State private var stepW: CGFloat = 26
     @State private var rowH: CGFloat = 22
+    /// A1 per-note operator paint-lane: the SAME bottom lane paints either the
+    /// note velocity (today) or its play CHANCE (Ableton-style), toggled by the
+    /// lane's left label. No new always-on lane, no sheet — just a mode switch.
+    @State private var laneMode: RollLaneMode = .velocity
     /// Adaptive fit (founder 2026-07-17 "Piano Roll passt immer noch nicht in den
     /// Bildschirm"): on first layout — and on rotation/size change — the cell
     /// metrics are FIT to the measured roll size (`RollFitMath`) so the whole
@@ -1588,27 +1618,46 @@ struct PianoRollView: View {
             .foregroundStyle(EchoelTheme.border), alignment: .bottom)
     }
 
-    /// Left-margin label for the velocity lane, aligned under the pitch gutter.
-    private var velLabel: some View {
-        Text("Vel")
-            .font(.system(size: 8, weight: .semibold, design: .monospaced))
-            .foregroundStyle(EchoelTheme.dim)
-            .frame(width: gutterW, height: laneH, alignment: .trailing)
-            .padding(.trailing, 3)
-            .overlay(Rectangle().frame(height: 0.5)
-                .foregroundStyle(EchoelTheme.border), alignment: .top)
+    /// Which parameter the bottom paint-lane edits.
+    enum RollLaneMode { case velocity, chance
+        var label: String { self == .velocity ? "Vel" : "Cha" }
+        var next: RollLaneMode { self == .velocity ? .chance : .velocity }
     }
 
-    /// Velocity paint-lane: one bar per note (height = velocity), drag vertically
-    /// to set the velocity of the note under the finger (#58 Slice 4). Reuses the
-    /// pure `RollHitTest` laws + the existing `setVelocity`; no bio read here, so
-    /// no menu-freeze risk. Bars wear the note's physical tone colour, like the roll.
+    /// Left-margin label for the paint lane — TAP to cycle Vel ↔ Cha. Aligned under
+    /// the pitch gutter. A plain Button toggling `@State` (no sheet, no bio read).
+    private var velLabel: some View {
+        Button { laneMode = laneMode.next } label: {
+            Text(laneMode.label)
+                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                .foregroundStyle(laneMode == .chance ? EchoelTheme.accent : EchoelTheme.dim)
+                .frame(width: gutterW, height: laneH, alignment: .trailing)
+                .padding(.trailing, 3)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(Rectangle().frame(height: 0.5)
+            .foregroundStyle(EchoelTheme.border), alignment: .top)
+        .accessibilityLabel(laneMode == .velocity ? "Velocity lane" : "Chance lane")
+        .accessibilityHint("Tap to switch between velocity and note-chance painting")
+    }
+
+    /// The paint-lane value [0…1] the lane draws for `note`, per `laneMode` (read
+    /// straight off the note — O(1), no lookup in the render loop).
+    private func laneValue(_ note: Note) -> CGFloat {
+        laneMode == .velocity ? CGFloat(note.velocity) : CGFloat(note.operators?.chance ?? 1)
+    }
+
+    /// Paint-lane: one bar per note (height = the active parameter), drag vertically
+    /// to set that parameter for the note under the finger (#58 Slice 4; A1 adds the
+    /// chance mode). Reuses the pure `RollHitTest` laws + the existing setters; no bio
+    /// read here, so no menu-freeze risk. Bars wear the note's physical tone colour.
     private var velocityLane: some View {
         Canvas { ctx, size in
             for note in model.notes {
                 let x = CGFloat(note.startStep) * stepW
                 let w = Swift.max(3, CGFloat(note.lengthSteps) * stepW - 2)
-                let h = Swift.max(1, CGFloat(note.velocity) * size.height)
+                let h = Swift.max(1, laneValue(note) * size.height)
                 let rect = CGRect(x: x + 1, y: size.height - h, width: w, height: h)
                 let selected = selection.contains(note.id)
                 ctx.fill(Path(roundedRect: rect, cornerRadius: 2),
@@ -1629,13 +1678,17 @@ struct PianoRollView: View {
             .onChanged { value in
                 let s = step(atX: value.location.x)
                 guard let id = RollHitTest.noteToPaint(atStep: s, notes: model.notes) else { return }
-                // ONE undo point per velocity-paint gesture (not per tick).
+                // ONE undo point per paint gesture (not per tick).
                 if !velDragSnapshotTaken {
                     velDragSnapshotTaken = true
                     model.snapshotForUndo()
                 }
-                model.setVelocity(id: id,
-                    RollHitTest.velocity(forY: Double(value.location.y), laneHeight: Double(laneH)))
+                // Both parameters live in 0…1 → the same Y→unit map serves each.
+                let unit = RollHitTest.velocity(forY: Double(value.location.y), laneHeight: Double(laneH))
+                switch laneMode {
+                case .velocity: model.setVelocity(id: id, unit)
+                case .chance:   model.setChance(id: id, Double(unit))
+                }
                 selection = .single(id)
             }
             .onEnded { _ in velDragSnapshotTaken = false }

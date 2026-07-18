@@ -391,4 +391,49 @@ final class NoteOperatorsTests: XCTestCase {
         XCTAssertLessThan(lo.velocityScale, 1)
         XCTAssertEqual(none.velocityScale, 1, "no body → identity")
     }
+
+    // MARK: - A1 per-note Chance paint-lane (PianoRollModel.setChance / .chance)
+
+    @MainActor
+    func testSetChance_createsClampedOperators_andReadsBack() {
+        let m = PianoRollModel()
+        m.add(pitch: 60, startStep: 0)
+        guard let id = m.notes.first?.id else { return XCTFail("note missing") }
+        XCTAssertEqual(m.chance(id: id), 1, "a plain note reads full chance")
+
+        m.setChance(id: id, 1.7)                       // out of range → clamps to 1 → default → nil
+        XCTAssertNil(m.notes.first?.operators, "chance 1 stays a plain note")
+
+        m.setChance(id: id, 0.5)
+        XCTAssertEqual(m.notes.first?.operators?.chance, 0.5)
+        XCTAssertEqual(m.chance(id: id), 0.5, "read-back matches")
+    }
+
+    @MainActor
+    func testSetChance_collapsesToNilWhenDefault_butKeepsOtherOperators() {
+        let m = PianoRollModel()
+        m.add(pitch: 62, startStep: 0)
+        guard let id = m.notes.first?.id else { return XCTFail("note missing") }
+
+        // A note that already ratchets (inject repeats via the public op path).
+        m.applyOp(ids: [id]) { sel in
+            sel.map { var n = $0; n.operators = NoteOperators(repeats: 4); return n }
+        }
+        // Setting chance must PRESERVE the repeats.
+        m.setChance(id: id, 0.8)
+        XCTAssertEqual(m.notes.first?.operators?.chance, 0.8)
+        XCTAssertEqual(m.notes.first?.operators?.repeats, 4, "chance edit preserves repeats")
+
+        // Back to chance 1 while repeats>1 stays a NON-default operator (not nil).
+        m.setChance(id: id, 1)
+        XCTAssertEqual(m.notes.first?.operators?.repeats, 4, "still ratcheting → operators survive")
+
+        // Reset repeats too → now default → collapses to nil (byte-identical plain note).
+        m.applyOp(ids: [id]) { sel in
+            sel.map { var n = $0; n.operators = nil; return n }
+        }
+        m.setChance(id: id, 0.5)
+        m.setChance(id: id, 1)
+        XCTAssertNil(m.notes.first?.operators, "fully default operator bag collapses to nil")
+    }
 }
