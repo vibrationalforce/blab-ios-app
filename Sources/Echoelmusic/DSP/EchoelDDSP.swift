@@ -42,18 +42,31 @@ import Accelerate
 /// spectral morphing, extended bio-reactive mappings, and timbre transfer prep.
 ///
 /// Thread-safety invariant (corrected 2026-07-18, audit AU3 — the old note claimed
-/// "exclusively MainActor", which is the OPPOSITE of how every caller uses it):
-/// `@unchecked Sendable` because each instance is OWNED by a single audio-render
-/// context (one synth voice — `PolySynthVoice`, `BioReactiveSynthVoice`, or the
-/// AUv3 `EchoelmusicAudioUnit`) and is NEVER shared across threads; the owner
-/// serializes all access.
+/// "exclusively MainActor / do NOT call from background threads", the OPPOSITE of
+/// how the render path uses it, and cited storage `EchoelCreativeWorkspace.bioSynth`
+/// that no longer exists). `@unchecked Sendable` because each instance is reached by
+/// exactly ONE owner and the read/write threads are kept disjoint per-frame:
 ///
-/// `applyBioReactive()` and `renderStereo()` run ON THE AUDIO RENDER THREAD (the
-/// render block / tap-drained queue), NOT the MainActor. They are audio-thread-safe
-/// by construction — pre-allocated buffers, vDSP only, zero runtime allocation, no
-/// lock / malloc / ObjC / GCD. Control-plane parameter writes must reach the render
-/// through the owner's lock-free handoff (SPSC queue / `nonisolated(unsafe)` mirror),
-/// never a direct cross-thread mutation of a `var` while a render is in flight.
+/// • `renderStereo()` / `render()` ALWAYS run on the audio render thread (the
+///   `AVAudioSourceNode` render block). Audio-thread-safe by construction —
+///   pre-allocated buffers, vDSP only, zero runtime allocation, no lock/malloc/
+///   ObjC/GCD.
+/// • `applyBioReactive()` runs on the audio thread ONLY in `BioReactiveSynthVoice`
+///   (enqueued to an SPSC command queue on the 10 Hz control poll, drained inside
+///   the render). In `PolySynthVoice` and the AUv3 `EchoelmusicAudioUnit` it is
+///   instead called from a CONTROL thread (the 10 Hz MainActor poll / the vitals
+///   utility queue) and the write crosses to the render thread — safe because the
+///   bio params are Float-width (atomic on Apple); worst case the render reads
+///   slightly-stale params (see `PolySynthVoice` header).
+/// • Note / patch / master-gain updates use the lock-free handoff (SPSC queue /
+///   `nonisolated(unsafe)` mirror). The bio-param path on the direct-call owners
+///   does NOT — it is a direct cross-thread `var` write.
+///
+/// KNOWN SMELL (separate ticket, not fixed here): `applyBioReactive` calls
+/// `updateSpectralEnvelope()` every 6th invocation, which rewrites the
+/// `harmonicAmplitudes` Swift array — a non-atomic cross-thread mutation on the
+/// PolySynthVoice/AUv3 direct-call path (the COW hazard the SPSC pattern removes
+/// for notes). Only `BioReactiveSynthVoice`'s SPSC drain is fully clear of it.
 public final class EchoelDDSP: @unchecked Sendable {
 
     // MARK: - Configuration
