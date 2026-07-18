@@ -367,6 +367,52 @@ public final class PianoRollModel {
         return chord
     }
 
+    /// Echoel twist (R2 + Scaler #4): the body ARPEGGIATES. Pick the coherence-chosen
+    /// chord (exactly as `stampChord` does), then let the LIVE breath play it as an
+    /// arpeggio across the rest of the bar via `BreathArp`: breath phase = direction,
+    /// coherence = density, motion = downbeat accent, pulse = swing. All bio read ONCE
+    /// at tap time (never a 10 Hz body read — freeze law). No tonal context → the
+    /// tapped note (honest fallback). ONE undo step for the whole figure.
+    @discardableResult
+    public func stampArp(atPitch pitch: Int, startStep: Int) -> [Note] {
+        let anchor = min(max(pitch, Self.lowPitch), Self.highPitch)
+        let step = max(0, startStep)
+        let startTick = step * Note.ticksPerStep
+        guard let key = musicalKey else {
+            return [add(pitch: anchor, startStep: startStep)]
+        }
+        let bio = bus?.usableBio()
+        let coherence = Float(bio?.coherence ?? 0.5)
+        let span = max(1, min(12, Self.highPitch - anchor))
+        let seed = UInt64(truncatingIfNeeded: startTick) &* 2_654_435_761
+                 &+ UInt64(truncatingIfNeeded: anchor)
+        // The coherence-chosen chord's pitches (computed here, placed as an arp below).
+        let chord = RollChordStamp.stamp(anchorPitch: anchor, startTick: startTick,
+                                         lengthTicks: Note.ticksPerStep, velocity: 0.8,
+                                         key: key, coherence: coherence,
+                                         seed: seed, registerSpan: span)
+        let pitches = chord.map(\.pitch)
+        guard !pitches.isEmpty else { return [] }
+        let steps = max(1, Self.stepCount - step)   // fill the tapped cell → bar end
+        let arp = BreathArp.pattern(
+            chordPitches: pitches, steps: steps,
+            breathPhase: Float(bio?.breathPhase ?? 0.25),
+            breathDepth: coherence,                          // calmer body → fuller, steadier arp
+            startTick: startTick, stepTicks: Note.ticksPerStep, velocity: 0.8,
+            motionAccent: Float(bio?.motionEnergy ?? 0),     // movement accents the downbeats
+            swing: Self.pulseSwing(bio?.heartRateBPM))       // quicker pulse swings more
+        guard !arp.isEmpty else { return [] }
+        snapshotForUndo()
+        notes.append(contentsOf: arp)
+        return arp
+    }
+
+    /// Heart rate → swing [0..1]: ~60 bpm (calm) straight, ~120 bpm (lively) full swing.
+    static func pulseSwing(_ bpm: Float?) -> Float {
+        guard let bpm, bpm.isFinite, bpm > 0 else { return 0 }
+        return Swift.min(1, Swift.max(0, (bpm - 60) / 60))
+    }
+
     /// Test seam: plant an off-grid start tick (simulates a recorded note).
     /// Internal on purpose — production paths go through add/move/quantize.
     func setStartTickForTesting(index: Int, tick: Int) {
@@ -1029,6 +1075,10 @@ struct PianoRollView: View {
     /// bool read in the chrome — never a live-bio read (freeze law); the body's
     /// coherence is read once, inside the tap handler, by `model.stampChord`.
     @State private var chordStampMode = false
+    /// Arp-stamp mode (Scaler #4): a tap arpeggiates the coherence-chosen chord with
+    /// the live breath (`model.stampArp`). Mutually exclusive with chord mode; same
+    /// freeze-safe one-shot bio read in the handler, never in the chrome.
+    @State private var arpStampMode = false
 
     private let gutterW: CGFloat = 42
     private let minStepW: CGFloat = 16
@@ -1079,7 +1129,7 @@ struct PianoRollView: View {
 
     private var transport: some View {
         // H12 (founder v281 "links abgeschnitten"): this row's rigid minimum
-        // (Play 44 + Picker 120 + SEVEN 34-pt buttons + 8×12 spacing ≈ 498 pt,
+        // (Play 44 + Picker 120 + EIGHT 34-pt buttons + 8×12 spacing ≈ 532 pt,
         // ~496 pt with the caller's padding) exceeds every iPhone width since
         // the #58 batch added undo/redo + the Q menu. An overflowing fixed
         // HStack widens the WHOLE roll VStack, which the sheet then clips
@@ -1152,7 +1202,7 @@ struct PianoRollView: View {
             opsMenu
             // R2: chord-stamp mode toggle. On → an empty-cell tap stamps a
             // coherence-chosen, voice-led chord. Same chrome, no new sheet.
-            Button { chordStampMode.toggle() } label: {
+            Button { chordStampMode.toggle(); if chordStampMode { arpStampMode = false } } label: {
                 Image(systemName: "music.note.list")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(chordStampMode ? EchoelTheme.accent : EchoelTheme.text)
@@ -1164,6 +1214,20 @@ struct PianoRollView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Chord stamp")
             .accessibilityHint("When on, tapping an empty cell stamps a coherence-chosen chord")
+            // Scaler #4: arp-stamp mode. On → a tap arpeggiates the coherence-chosen
+            // chord with the live breath. Mutually exclusive with chord mode.
+            Button { arpStampMode.toggle(); if arpStampMode { chordStampMode = false } } label: {
+                Image(systemName: "wind")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(arpStampMode ? EchoelTheme.accent : EchoelTheme.text)
+                    .frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(arpStampMode ? EchoelTheme.accent : EchoelTheme.border,
+                                      lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Breath arp stamp")
+            .accessibilityHint("When on, tapping an empty cell arpeggiates a coherence-chosen chord with your breath")
             Button(role: .destructive) { model.clear(); selection = .none } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
@@ -1825,6 +1889,19 @@ struct PianoRollView: View {
                         if isClipScoped {
                             model.audition(pitch: existing.pitch,
                                            velocity: existing.velocity, role: existing.role)
+                        }
+                    } else if arpStampMode {
+                        // Scaler #4: the tap arpeggiates the coherence-chosen chord with
+                        // the live breath, filling the bar from here. ONE undo step;
+                        // select + audition the arp's first (lowest-tick) note.
+                        let arp = model.stampArp(atPitch: placedPitch(anchor.pitch),
+                                                 startStep: anchor.startStep)
+                        if let first = arp.min(by: { $0.startTick < $1.startTick }) {
+                            selection = .single(first.id)
+                            if isClipScoped {
+                                model.audition(pitch: first.pitch,
+                                               velocity: first.velocity, role: first.role)
+                            }
                         }
                     } else if chordStampMode {
                         // R2 chord stamp: the same tap drops a whole coherence-chosen,
