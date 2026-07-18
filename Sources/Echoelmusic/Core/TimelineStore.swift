@@ -520,6 +520,20 @@ public final class TimelineStore {
         persist()
     }
 
+    /// Per-instrument SYNTH PATCH (#23, founder: "each MIDI track carries its own
+    /// optional SynthPatch"). Assign this lane's own timbre, or clear with nil =
+    /// follow the shared/global melodic voice. State only, persisted like
+    /// setLaneSample; a change is STRUCTURAL (what sounds changes — timbre
+    /// identity), so the region player pulls it in via prime → slotPatchSink on
+    /// the next region load (secondary lanes today; the primary-lane sink lands in
+    /// S2b). NOT part of the region undo history (lane fields never are — undo
+    /// touches only regions).
+    public func setLanePatch(_ laneID: UUID, patch: SynthPatch?) {
+        guard let i = document.lanes.firstIndex(where: { $0.id == laneID }) else { return }
+        document.lanes[i].patch = patch
+        persist()
+    }
+
     // MARK: - Per-track composition (Slice A2 — founder 2026-07-17 "Genre, Sound,
     // Mix, FX, Mood, Synth kommt alles in ein Instrument")
 
