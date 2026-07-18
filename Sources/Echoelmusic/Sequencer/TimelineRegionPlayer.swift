@@ -816,14 +816,19 @@ public final class TimelineRegionPlayer {
                 switch t.kind {
                 case .started(let regionID), .switched(_, let regionID):
                     if let region = doc.regions.first(where: { $0.id == regionID }) {
+                        // START: anchor the loop timebase on the BOUNDARY (t.atTick).
                         audioLanes?.setLaunchOverride(region, laneID: t.laneID,
                                                       atTick: t.atTick, in: doc, bpm: bpm)
                     } else {
-                        audioLanes?.clearLaunchOverride(laneID: t.laneID, atTick: t.atTick,
-                                                        in: doc, bpm: bpm)   // vanished ⇒ arrangement
+                        // Vanished ⇒ hand back to the arrangement at the CURRENT playhead
+                        // (tick), matching the MIDI .stopped path + apply's convention.
+                        audioLanes?.clearLaunchOverride(laneID: t.laneID, atTick: tick,
+                                                        in: doc, bpm: bpm)
                     }
                 case .stopped:
-                    audioLanes?.clearLaunchOverride(laneID: t.laneID, atTick: t.atTick, in: doc, bpm: bpm)
+                    // Hand back at the current playhead (tick), not the boundary — the
+                    // arrangement resumes at the honest song position (MIDI-consistent).
+                    audioLanes?.clearLaunchOverride(laneID: t.laneID, atTick: tick, in: doc, bpm: bpm)
                 }
                 continue
             }
