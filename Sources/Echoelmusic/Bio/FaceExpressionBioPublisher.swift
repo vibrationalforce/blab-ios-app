@@ -84,8 +84,16 @@ public final class FaceExpressionBioPublisher {
     public init() {}
 
     /// Start front-camera expression tracking and publish `.faceCam` frames to `bus`.
-    /// No-op when unsupported or already running. The camera-permission dialog (the
-    /// same `NSCameraUsageDescription` rPPG uses) is raised by `arSession.run`.
+    /// No-op when unsupported or already running. `arSession.run` raises the camera
+    /// dialog using the app-wide `NSCameraUsageDescription`.
+    ///
+    /// ⚠️ MUST-FIX BEFORE ENABLING (`FeatureFlags.cameraExpression` → on): the
+    /// shipped `NSCameraUsageDescription` describes ONLY the rear-lens fingertip
+    /// pulse. ARKit here uses the FRONT camera to follow facial MOVEMENT — iOS has
+    /// one app-wide string, so it must be BROADENED to truthfully cover both uses
+    /// (carrying the "movement as control, never emotion" framing) or the front-
+    /// camera prompt lies (App Store 5.1.1 / GDPR transparency). Info.plist edit
+    /// needs founder approval; it lands with the selection-wiring slice, never after.
     public func start(publishing bus: EngineBus) {
         guard !isPublishing, Self.isSupported else { return }
         #if canImport(ARKit)

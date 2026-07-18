@@ -8,9 +8,11 @@
 //  App Store Guideline 5.1.3: data obtained from the HealthKit store may not be
 //  shared with third parties — and once a UDP packet leaves the phone to a
 //  user-typed host, we can no longer vouch for where it lands. So the network
-//  senders forward ONLY Echoel's OWN measurements (camera rPPG, BLE strap, the
-//  demo generator) and never frames sourced from Apple Health / Watch / ring
-//  bridges. Mirrors the non-circular pattern of `HealthWritePolicy.isWritableSource`
+//  senders forward ONLY Echoel's OWN measurements (camera rPPG, BLE strap,
+//  front-camera face expression, the demo generator) and never frames sourced from
+//  Apple Health / Watch / ring bridges. For face expression only the abstracted
+//  [0..1] channels egress — never the image. Mirrors the non-circular pattern of
+//  `HealthWritePolicy.isWritableSource`
 //  (which gates the opposite direction: what we write INTO Health).
 //
 //  Discrete BioEvents need no gate today: `.heartbeat` events are produced only by
