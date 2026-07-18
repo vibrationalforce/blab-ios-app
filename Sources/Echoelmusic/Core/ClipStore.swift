@@ -84,6 +84,31 @@ public final class ClipStore {
         return true
     }
 
+    /// Automation-in-Spur L1 (Item 1): the clip-scoped automation editor's
+    /// write-back — sets the parameter-automation lanes the clip carries
+    /// (`Clip.automation`, clip-relative ticks). Whole-value write like
+    /// `updateMelody` so the region player, which re-reads `clip(id:)?.automation`
+    /// and calls `setClipAutomation` at region onsets, never sees a torn state —
+    /// a mid-play save becomes audible at the next onset. Applies to ANY clip
+    /// kind (automation plays whenever the clip plays, MIDI or audio). No-op
+    /// (true, no persist) when the lanes are VALUE-equal to what the clip already
+    /// holds — so a read-modify-write editor that mutates `clip.automation` in
+    /// place (preserving lane/point `id`s) doesn't spam App-Group persistence on
+    /// a gesture that lands on the same value. (A caller that reconstructs lanes
+    /// with fresh `id`s each write defeats the skip — `AutomationLane`/`Point`
+    /// equality includes `id` — and will persist every time; the S2 editor keeps
+    /// ids stable.) Returns false (writing nothing) for an unknown id.
+    @discardableResult
+    public func setClipAutomation(id: UUID, lanes: [AutomationLane]) -> Bool {
+        guard let i = slots.firstIndex(where: { $0?.id == id }),
+              var clip = slots[i] else { return false }
+        guard clip.automation != lanes else { return true }   // unchanged → no persist
+        clip.automation = lanes
+        slots[i] = clip
+        persist()
+        return true
+    }
+
     public func rename(at index: Int, to name: String) {
         guard slots.indices.contains(index), var clip = slots[index] else { return }
         clip.name = name
