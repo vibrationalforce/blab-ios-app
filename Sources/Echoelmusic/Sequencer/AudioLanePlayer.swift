@@ -137,6 +137,32 @@ public final class AudioLanePlayer {
     /// path calls `stopAll` for the audio, exactly like the MIDI `launch.removeAll`).
     public func clearAllLaunchOverrides() { overrides.removeAll() }
 
+    /// S3 (song-loop wrap): fold every override's loop anchor by `deltaTicks`, the
+    /// audio twin of `ClipLaunchEngine.shift` — when the transport tick timebase
+    /// wraps by the loop length, the launched-segment timebase folds with it so its
+    /// next `loopWrapped` fires at the right (post-wrap) boundary instead of reading
+    /// a stale anchor (elapsed < 0). Whole-bar loop lengths keep grid alignment.
+    public func shiftLaunchOverrides(by deltaTicks: Int) {
+        guard deltaTicks != 0, !overrides.isEmpty else { return }
+        for (laneID, ov) in overrides {
+            overrides[laneID] = AudioLaunchOverride(region: ov.region,
+                                                    startedAtTick: ov.startedAtTick + deltaTicks)
+        }
+    }
+
+    /// S3 (structure edit): drop any override whose lane or region no longer exists,
+    /// stopping its now-orphaned audio (mirrors `ClipLaunchEngine.prune`). The caller
+    /// re-primes the freed lanes through the normal arrangement path afterwards.
+    public func pruneLaunchOverrides(validLaneIDs: Set<UUID>, validRegionIDs: Set<UUID>) {
+        guard !overrides.isEmpty else { return }
+        for (laneID, ov) in overrides where !validLaneIDs.contains(laneID)
+            || !validRegionIDs.contains(ov.region.id) {
+            overrides[laneID] = nil
+            sinks[laneID]?.stop()
+            appliedGain[laneID] = 0
+        }
+    }
+
     public init(makeSink: @escaping () -> AudioRegionSink,
                 resolveURL: @escaping (UUID) -> URL?,
                 resolveNativeBPM: @escaping (UUID) -> Double = { _ in 0 }) {
@@ -241,6 +267,13 @@ public final class AudioLanePlayer {
                                                    rate: plan.rate)
                 }
             }
+            // S3: a LAUNCHED lane keeps its override — the arrangement re-prime (song-
+            // loop wrap / structure edit) must NOT clobber it with an arrangement
+            // region (the MIDI `primeSecondaryLanes` guards the same way). The files
+            // are still warmed above; only the arrangement start/stop is skipped.
+            // play()/relocate() clear overrides BEFORE prime, so those paths are
+            // unaffected (the map is empty there).
+            if overrides[laneID] != nil { continue }
             guard let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) else {
                 sinks[laneID]?.stop()
                 continue

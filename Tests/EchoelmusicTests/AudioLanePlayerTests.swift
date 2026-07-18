@@ -572,4 +572,73 @@ final class AudioLanePlayerTests: XCTestCase {
         p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)      // normal onset
         XCTAssertEqual(factory.sinks.first?.plays.count, 1, "arrangement onset unaffected")
     }
+
+    // MARK: - S3: override lifecycle across re-prime, song-loop wrap, structure edits
+
+    /// A re-prime (song-loop wrap / structure edit) must NOT restart the arrangement
+    /// on a launched lane — the override keeps looping (mirrors MIDI primeSecondary).
+    func testPrime_skipsOverriddenLane_noArrangementClobber() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1)
+        p.prime(in: document, atTick: 0, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1,
+                       "prime skips the launched lane — no arrangement clobber")
+        XCTAssertTrue(p.isLaunchOverriding(laneID))
+    }
+
+    /// A song-loop wrap folds the override anchor by the loop length, so the loop
+    /// keeps firing at the post-wrap boundary instead of a stale (negative-elapsed) one.
+    func testShiftLaunchOverrides_foldsAnchor_soPostWrapLoopReTriggers() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 1920, in: document, bpm: 120)  // anchor @ bar 1
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1)
+        p.shiftLaunchOverrides(by: -1920)   // transport wrapped: fold the anchor to 0
+        XCTAssertTrue(p.isLaunchOverriding(laneID), "shift keeps the override")
+        p.apply(in: document, fromTick: 1900, toTick: 1940, bpm: 120)   // crosses the tick-0-anchored bar
+        XCTAssertEqual(factory.sinks.first?.plays.count, 2, "the folded anchor lets the loop wrap fire")
+    }
+
+    /// A structural edit that DELETES the launched region drops the override and stops
+    /// its now-orphaned audio (no phantom-region loop).
+    func testPruneLaunchOverrides_dropsDeletedRegion_andStops() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        p.pruneLaunchOverrides(validLaneIDs: [laneID], validRegionIDs: [])   // region gone
+        XCTAssertFalse(p.isLaunchOverriding(laneID))
+        XCTAssertEqual(factory.sinks.first?.stops, 1, "the orphaned launched audio is stopped")
+    }
+
+    /// A still-valid launched region survives an unrelated structure edit's prune.
+    func testPruneLaunchOverrides_keepsSurvivingOverride() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        p.pruneLaunchOverrides(validLaneIDs: [laneID], validRegionIDs: [region.id])
+        XCTAssertTrue(p.isLaunchOverriding(laneID), "a still-valid launched region survives prune")
+        XCTAssertEqual(factory.sinks.first?.stops, 0)
+    }
+
+    /// A removed LANE drops its override too.
+    func testPruneLaunchOverrides_dropsRemovedLane() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        p.pruneLaunchOverrides(validLaneIDs: [], validRegionIDs: [region.id])   // lane gone
+        XCTAssertFalse(p.isLaunchOverriding(laneID))
+        XCTAssertFalse(p.hasLaunchOverrides)
+    }
 }

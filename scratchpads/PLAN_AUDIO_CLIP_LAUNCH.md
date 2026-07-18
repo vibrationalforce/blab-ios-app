@@ -83,6 +83,19 @@ MIDI-Launch überlebt (Audio/MIDI-Inkonsistenz), (b) `startedAtTick` bleibt un-g
 bekommt einen veralteten Anker (elapsed < 0), Override strandet. S3-Pflicht: eine Audio-seitige `shift`
 (analog `launch.shift`) ODER clear-and-reprime im Wrap-Zweig — NICHT nur in refreshStructure.
 
+## S3a STATUS (2026-07-18 — gebaut, Reviewer läuft): Override-Lifecycle-Härtung
+Die beiden dokumentierten S3-Pflichten (refreshStructure- + Wrap-Pfad-Desync) geschlossen, INERT bis S3b:
+- `AudioLanePlayer.prime` überspringt jetzt overridete Lanes (kein Arrangement-Clobber beim Re-Prime;
+  play/relocate leeren die Karte vorher → dort no-op).
+- `shiftLaunchOverrides(by:)` (Audio-Twin zu `ClipLaunchEngine.shift`) → im Wrap-Zweig gepaart mit
+  `launch.shift`, faltet den Loop-Anker mit; `pruneLaunchOverrides(validLaneIDs:validRegionIDs:)` →
+  in refreshStructure gepaart mit `launch.prune`, droppt+stoppt gelöschte Launch-Region/Lane.
+- 5 Unit-Tests (prime-skip, shift-fold, prune-deleted-region/-lane/-survivor). Golden Gate: alle drei
+  no-op wenn `overrides.isEmpty`.
+**Nächste = S3b:** `ClipLaunchGlyph` auf Audio-Regionen sichtbar machen (`launchGlyphOverlay` midi→
+midi||audio; der Glyph ist bereits spur-agnostisch, liest nur `launchState`) → macht Audio-Launch
+erreichbar+erlebbar → DEPLOY-reif.
+
 ## S1 STATUS (2026-07-18, 41fac9c — gebaut, Gates laufen)
 AudioLanePlayer Override-Türen + 7 SpySink-Tests. audio-thread-reviewer: CLEAN (golden gate
 verifiziert, Anchoring korrekt, keine Audio-Thread-Regel berührt). Zwei Geräte-Verify-Punkte

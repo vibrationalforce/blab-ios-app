@@ -399,6 +399,10 @@ public final class TimelineRegionPlayer {
         // grid alignment survives), then due boundaries fire. An idle engine
         // emits nothing and every path below is byte-identical (golden gate).
         if wrapped, !launch.isIdle { launch.shift(by: -loopTicks) }
+        // S3: fold the AUDIO override timebase with the same wrap, so a launched
+        // audio clip keeps looping across the song wrap (the wrap re-prime below now
+        // skips overridden lanes, so it no longer clobbers the launch).
+        if wrapped { audioLanes?.shiftLaunchOverrides(by: -loopTicks) }
         let launchTransitions: [LaunchTransition] = launch.isIdle ? [] : launch.tick(now: newTick)
         if !launchTransitions.isEmpty {
             applyLaunchTransitions(launchTransitions, atTick: newTick, step: step)
@@ -742,6 +746,11 @@ public final class TimelineRegionPlayer {
             launch.prune(validLaneIDs: Set(fresh.lanes.map(\.id)),
                          validRegionIDs: Set(fresh.regions.map(\.id)))
         }
+        // S3: prune AUDIO overrides for a deleted launched region/lane too (its audio
+        // is stopped here); the prime below re-arms freed lanes, and skips surviving
+        // overridden lanes so an edit on another lane never clobbers a live launch.
+        audioLanes?.pruneLaunchOverrides(validLaneIDs: Set(fresh.lanes.map(\.id)),
+                                         validRegionIDs: Set(fresh.regions.map(\.id)))
         let newActive = rollLane.flatMap {
             TimelineScheduling.activeRegion(in: doc, laneID: $0, at: lastTick)
         }
