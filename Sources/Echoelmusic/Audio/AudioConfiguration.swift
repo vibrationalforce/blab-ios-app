@@ -186,6 +186,30 @@ enum AudioConfiguration {
         #endif
     }
 
+    /// Symmetric inverse of `upgradeToPlayAndRecord`: when the last mic feature stops,
+    /// return the SHARED session to the app's default `.playback` (output-only, A2DP
+    /// quality) WITHOUT deactivating it. The master playback engine OWNS the
+    /// process-wide session — a full `setActive(false)` on mic-stop cut its output
+    /// route, the "alles still" class (#22, AU4). This keeps the session live on the
+    /// default category and clears `recordingRouteNeeded` so a later latency
+    /// reconfigure stays on `.playback`. No-op on macOS / unconfigured / already
+    /// `.playback`. The playback options mirror `configureAudioSession` exactly.
+    static func downgradeToPlaybackAfterRecording() throws {
+        #if os(macOS)
+        return
+        #else
+        recordingRouteNeeded = false
+        guard isSessionConfigured else { return }
+        let audioSession = AVAudioSession.sharedInstance()
+        guard audioSession.category != .playback else { return }
+        try audioSession.setCategory(.playback, mode: .default,
+                                     options: [.allowBluetoothA2DP, .mixWithOthers])
+        // Deliberately NO setActive(false): the master output engine still needs the
+        // session live — deactivating it here is exactly the silence bug this fixes.
+        log.audio("Audio session downgraded to .playback (mic stopped)")
+        #endif
+    }
+
     // MARK: - Latency Modes
 
     enum LatencyMode {

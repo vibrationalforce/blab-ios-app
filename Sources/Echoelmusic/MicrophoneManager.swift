@@ -175,6 +175,14 @@ final class MicrophoneManager: NSObject {
             requestPermission()
             return
         }
+        // AU4 re-entry guard: a second startRecording() would overwrite `audioEngine`
+        // while the previous engine is still running with its input tap installed —
+        // leaking it (and its tap → processExtractedAudio) and contending for the input
+        // node ("alles still" class, #22). One recorder at a time; stop before restart.
+        guard !isRecording else {
+            log.audio("MicrophoneManager: startRecording ignored — already recording")
+            return
+        }
 
         do {
             // The app's DEFAULT session is now .playback (output only) so it never
@@ -263,12 +271,16 @@ final class MicrophoneManager: NSObject {
         // Release FFT wrapper
         complexDFT = nil
 
-        // Deactivate the audio session
+        // AU4: return the SHARED session to the app's default .playback WITHOUT
+        // deactivating it. The master output engine owns the process-wide session —
+        // the old `setActive(false)` here tore it down under the master and cut ALL
+        // app audio ("alles still" class, #22). The symmetric inverse of the
+        // start-side `upgradeToPlayAndRecord` keeps output alive + restores A2DP.
         #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
         do {
-            try AVAudioSession.sharedInstance().setActive(false)
+            try AudioConfiguration.downgradeToPlaybackAfterRecording()
         } catch {
-            log.audio("Failed to deactivate audio session: \(error.localizedDescription)", level: .warning)
+            log.audio("Failed to downgrade audio session after recording: \(error.localizedDescription)", level: .warning)
         }
         #endif
 
