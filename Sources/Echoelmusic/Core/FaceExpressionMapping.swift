@@ -102,4 +102,44 @@ public struct FaceExpressionMapping: Sendable, Equatable {
         if v.isNaN { return 0 }
         return Swift.min(1, Swift.max(0, v))
     }
+
+    // MARK: - ARKit blendShape → channel mapping (pure, ARKit-free)
+
+    /// The ARKit `ARFaceAnchor.BlendShapeLocation` raw keys we read. Kept as plain
+    /// strings so this Core type never imports ARKit — the device-side publisher
+    /// builds a `[String: Float]` from the anchor and calls `rawChannels(from:)`.
+    /// ARKit blendShape coefficients are already normalized to [0..1].
+    public enum BlendShapeKey {
+        public static let mouthSmileLeft = "mouthSmileLeft"
+        public static let mouthSmileRight = "mouthSmileRight"
+        public static let browInnerUp = "browInnerUp"
+        public static let browOuterUpLeft = "browOuterUpLeft"
+        public static let browOuterUpRight = "browOuterUpRight"
+        public static let jawOpen = "jawOpen"
+    }
+
+    /// Reduces a bag of ARKit blendShape coefficients to the three EXPRESSION
+    /// control channels. Pure, deterministic, ARKit-free — the raw feed for
+    /// `updated(rawSmile:rawBrowRaise:rawJawOpen:dt:)`.
+    ///
+    /// - smile = mean(mouthSmileLeft, mouthSmileRight) — symmetric mouth corners.
+    /// - browRaise = mean(browInnerUp, browOuterUpLeft, browOuterUpRight) — the
+    ///   whole brow lifting, center + both outer edges.
+    /// - jawOpen = jawOpen — the mouth opening directly.
+    ///
+    /// Missing keys count as `0` (that muscle simply not tracked / at rest); every
+    /// output is clamped to [0..1]. A neutral / empty bag yields all zeros, so a
+    /// lost face reads as "no expression", never a spike.
+    public static func rawChannels(
+        from blendShapes: [String: Float]
+    ) -> (smile: Float, browRaise: Float, jawOpen: Float) {
+        func value(_ key: String) -> Float { clamp01(blendShapes[key] ?? 0) }
+        let smile = (value(BlendShapeKey.mouthSmileLeft)
+                     + value(BlendShapeKey.mouthSmileRight)) / 2
+        let brow = (value(BlendShapeKey.browInnerUp)
+                    + value(BlendShapeKey.browOuterUpLeft)
+                    + value(BlendShapeKey.browOuterUpRight)) / 3
+        let jaw = value(BlendShapeKey.jawOpen)
+        return (clamp01(smile), clamp01(brow), clamp01(jaw))
+    }
 }

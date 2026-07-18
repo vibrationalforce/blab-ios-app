@@ -197,4 +197,61 @@ final class FaceExpressionMappingTests: XCTestCase {
         XCTAssertEqual(Array(ModSource.allCases.prefix(6)),
                        [.heartRate, .hrv, .breathRate, .breathPhase, .coherence, .motion])
     }
+
+    // MARK: - blendShape → channel mapping (pure, ARKit-free)
+
+    func testRawChannels_smileAveragesBothMouthCorners() {
+        let (smile, brow, jaw) = FaceExpressionMapping.rawChannels(from: [
+            "mouthSmileLeft": 0.8, "mouthSmileRight": 0.4
+        ])
+        XCTAssertEqual(smile, 0.6, accuracy: 1e-6)  // (0.8 + 0.4) / 2
+        XCTAssertEqual(brow, 0)                     // brow keys absent → 0
+        XCTAssertEqual(jaw, 0)
+    }
+
+    func testRawChannels_browAveragesInnerAndBothOuter() {
+        let (_, brow, _) = FaceExpressionMapping.rawChannels(from: [
+            "browInnerUp": 0.9, "browOuterUpLeft": 0.6, "browOuterUpRight": 0.3
+        ])
+        XCTAssertEqual(brow, 0.6, accuracy: 1e-6)   // (0.9 + 0.6 + 0.3) / 3
+    }
+
+    func testRawChannels_jawIsDirect() {
+        let (_, _, jaw) = FaceExpressionMapping.rawChannels(from: ["jawOpen": 0.55])
+        XCTAssertEqual(jaw, 0.55, accuracy: 1e-6)
+    }
+
+    func testRawChannels_emptyBagIsAllZero() {
+        let (smile, brow, jaw) = FaceExpressionMapping.rawChannels(from: [:])
+        XCTAssertEqual(smile, 0)
+        XCTAssertEqual(brow, 0)
+        XCTAssertEqual(jaw, 0)
+    }
+
+    func testRawChannels_clampsOutOfRangeCoefficients() {
+        // ARKit should give [0..1], but be defensive: out-of-range + NaN → clamped/0.
+        let (smile, brow, jaw) = FaceExpressionMapping.rawChannels(from: [
+            "mouthSmileLeft": 2.0, "mouthSmileRight": 2.0,
+            "browInnerUp": -1.0, "browOuterUpLeft": .nan, "browOuterUpRight": 0,
+            "jawOpen": 5.0
+        ])
+        XCTAssertEqual(smile, 1, accuracy: 1e-6)    // both clamp to 1 → mean 1
+        XCTAssertGreaterThanOrEqual(brow, 0)        // negatives/NaN clamp to 0
+        XCTAssertLessThanOrEqual(brow, 1)
+        XCTAssertEqual(jaw, 1, accuracy: 1e-6)
+    }
+
+    /// End-to-end: a blendShape bag feeds the EMA smoother the same way the
+    /// device publisher will — mapping then `updated(...)`.
+    func testRawChannels_feedsSmootherToTarget() {
+        var m = FaceExpressionMapping(timeConstant: 0.05)
+        let bag = ["mouthSmileLeft": 1.0, "mouthSmileRight": 1.0, "jawOpen": 1.0]
+        let (s, b, j) = FaceExpressionMapping.rawChannels(from: bag)
+        for _ in 0..<80 {
+            m = m.updated(rawSmile: s, rawBrowRaise: b, rawJawOpen: j, dt: 0.05)
+        }
+        XCTAssertEqual(m.smile, 1, accuracy: 1e-3)
+        XCTAssertEqual(m.jawOpen, 1, accuracy: 1e-3)
+        XCTAssertEqual(m.browRaise, 0, accuracy: 1e-3)  // no brow keys in the bag
+    }
 }
