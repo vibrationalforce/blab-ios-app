@@ -422,6 +422,34 @@ final class TimelineRegionPlayerAudioLaunchTests: XCTestCase {
                              "the lane restarts its arrangement region on stop")
     }
 
+    func testAudioLaunch_reTriggersOnSongWrap_noSilentBar() {
+        // Real-dispatch reproduction of the S3a wrap re-trigger defect (the primitive
+        // test `testShiftLaunchOverrides_foldsAnchor…` called `apply` directly, hiding
+        // the fact that a wrap is serviced by `prime`, which SKIPS overrides). The song
+        // and the launched region are both one bar (loopTicks == region length == 1920),
+        // and the launch is anchored to tick 0 (launched BEFORE the first step, `.off`
+        // fires immediately at the boundary), so the launched loop's boundary coincides
+        // exactly with the song wrap — the pathological case.
+        let (player, audio, factory, lane, region, pattern, clips, pianoRoll) = setup()
+        _ = (pattern, clips, pianoRoll)
+        defer { player.stop() }
+
+        player.launchRegion(region.id, quantize: .off)   // anchor 0 (currentTick == 0)
+        player.transportStep(1)
+        XCTAssertTrue(audio.isLaunchOverriding(lane.id), "launched from the top")
+
+        // Fill the rest of the bar — no loop boundary is crossed inside bar 0, so no
+        // re-trigger fires here (only the wrap step should).
+        for s in 2...15 { player.transportStep(s) }
+        let beforeWrap = factory.sinks.first?.plays.count ?? 0
+        player.transportStep(0)   // 1800 → 1920 ≥ loopTicks → song wrap
+
+        XCTAssertTrue(audio.isLaunchOverriding(lane.id), "still launched across the wrap")
+        XCTAssertGreaterThan(factory.sinks.first?.plays.count ?? 0, beforeWrap,
+                             "the boundary-aligned launched loop re-triggers on the song "
+                             + "wrap (no silent bar; audio stays in lockstep with MIDI)")
+    }
+
     func testTransportStop_clearsAudioOverride() {
         let (player, audio, _, _, region, pattern, clips, pianoRoll) = setup()
         _ = (pattern, clips, pianoRoll)

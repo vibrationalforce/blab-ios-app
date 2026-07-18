@@ -163,6 +163,26 @@ public final class AudioLanePlayer {
         }
     }
 
+    /// S3 (song-loop wrap, re-trigger): drive the OVERRIDDEN lanes across the wrap in
+    /// the SAME folded frame the anchors were just folded into (`shiftLaunchOverrides`).
+    /// `prime` warms the files but SKIPS overridden lanes, so the wrap-coincident
+    /// re-trigger of a launched one-shot segment would otherwise be dropped — a bar of
+    /// silence at the top of every song loop for a boundary-aligned launched loop
+    /// (audio-thread review, S3a). Passing the folded window `(lastTick − loopTicks,
+    /// newTick)` lets `loopWrapped` itself decide: a boundary coincident with the wrap
+    /// re-fires the segment from its loop top; a segment that SPANS the wrap is left
+    /// playing (reconcile only). This is the audio twin of `ClipLaunchEngine.tick`
+    /// running after `shift`. No-op with no overrides (golden gate).
+    public func applyWrappedOverrides(in doc: TimelineDocument, fromTick: Int,
+                                      toTick: Int, bpm: Double) {
+        guard !overrides.isEmpty else { return }
+        for laneID in doc.audioLaneIDs {
+            guard let ov = overrides[laneID] else { continue }
+            applyLaunchOverride(ov, laneID: laneID, fromTick: fromTick,
+                                toTick: toTick, in: doc, bpm: bpm)
+        }
+    }
+
     public init(makeSink: @escaping () -> AudioRegionSink,
                 resolveURL: @escaping (UUID) -> URL?,
                 resolveNativeBPM: @escaping (UUID) -> Double = { _ in 0 }) {

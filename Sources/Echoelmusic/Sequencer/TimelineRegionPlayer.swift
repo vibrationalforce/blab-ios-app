@@ -432,6 +432,14 @@ public final class TimelineRegionPlayer {
         // must be force-restarted at the wrapped position (audio review HIGH 1).
         if wrapped {
             audioLanes?.prime(in: doc, atTick: newTick, bpm: pattern?.tempo ?? 120)
+            // S3a: `prime` warms every lane's files but SKIPS overridden lanes, so a
+            // launched audio loop whose boundary coincides with the song wrap would
+            // lose its re-trigger there (one silent bar per song loop, audio/MIDI out
+            // of lockstep). Drive the overrides across the wrap in the folded frame the
+            // anchors were just shifted into — `loopWrapped` re-fires a boundary-aligned
+            // segment and leaves a spanning one playing (audio-thread review).
+            audioLanes?.applyWrappedOverrides(in: doc, fromTick: lastTick - loopTicks,
+                                              toTick: newTick, bpm: pattern?.tempo ?? 120)
         } else {
             audioLanes?.apply(in: doc, fromTick: lastTick, toTick: newTick,
                               bpm: pattern?.tempo ?? 120)
