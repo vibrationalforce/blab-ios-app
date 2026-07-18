@@ -1,29 +1,30 @@
-build: 2026-07-18 v10.79.292 (Piano Roll: Chance-Lane — jede Note bekommt eine Wahrscheinlichkeit)
+build: 2026-07-18 v10.79.293 (Per-Spur-Synth-Patch — jede MIDI-Spur ihre eigene Klangfarbe)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Per-Note-CHANCE ist jetzt bedienbar (deine Bitte "mehr Funktion... siehe Ableton
-  und alle DAWs, plus ein Echoel-Twist"). Die Chance-Maschine war schon gebaut +
-  getestet, aber es fehlte die Tuer, ihr eine Note-Wahrscheinlichkeit zu geben.
+notes: #23 ist komplett — jede MIDI-Spur traegt jetzt ihre EIGENE Synth-Klangfarbe
+  (dein Wunsch: "each MIDI track carries its own optional SynthPatch", wie ein
+  echtes DAW). Bisher teilten sich alle MIDI-Spuren EINE Stimme -> alle klangen
+  gleich. Jetzt hat jede Spur ihr eigenes Instrument.
 
-  WAS DU TUST: Im Piano Roll unten sitzt die Balken-Leiste (bisher "Vel" =
-  Velocity). Tipp das kleine Label links an -> es wechselt auf "Cha" (Chance,
-  wird bio-gruen). Jetzt zeigt/setzt dieselbe Leiste pro Note die ABSPIEL-
-  WAHRSCHEINLICHKEIT: Balken ganz oben = spielt immer (100%), halb = spielt im
-  Schnitt jede zweite Schleife, unten = fast nie. Vertikal ziehen wie bei
-  Velocity. Nochmal aufs Label = zurueck auf "Vel".
+  WAS DU TUST: Tippe den Kopf einer MIDI-Spur an -> im Menue "Synth patch". Der
+  Patch-Editor oeffnet jetzt auf DIESER Spur (nicht mehr auf der globalen Stimme).
+  Gib Spur 1 eine Klangfarbe, Spur 2 eine ANDERE. Schliesse den Editor -> der
+  Klang wird pro Spur gespeichert (ueberlebt Speichern/Laden).
 
-  Wie Abletons Note-Chance (Live 12): ein geloopter Takt spielt nie zweimal
-  exakt gleich, bleibt aber DETERMINISTISCH (gleicher Seed + Loop = gleiche
-  Version, reproduzierbar).
+  ⚠️ HOER-BITTE (der Closeout-Test): Zwei MIDI-Spuren anlegen, jeder ueber die
+  "Synth patch"-Tuer eine andere Klangfarbe geben, Play druecken -> klingen die
+  beiden Spuren jetzt HOERBAR unterschiedlich? (Vorher klangen alle gleich.)
+  Sowohl die Haupt-Spur als auch zusaetzliche Spuren muessen ihren eigenen Klang
+  haben. Rueckmeldung = Closeout oder Feinjustierung.
 
-  DER ECHOEL-TWIST: dein Koerper biegt diese Schwelle beim Spielen. Du setzt die
-  BASIS-Wahrscheinlichkeit; deine Kohaerenz hebt/senkt sie live (A4 Bio-
-  Operatoren) -- ruhiger, eingependelter Koerper fuellt das Pattern aus, unruhiger
-  duennt es aus. Nur bei Chance < 100% (eine 100%- oder stumme Note flackert nie).
-
-  ⚠️ HOER-/SEH-BITTE: Ein paar Noten auf Chance ~50% ziehen, Loop laufen lassen --
-  klingt das Pattern lebendig/variierend statt mechanisch? Und wenn dein Puls
-  ruhiger wird: fuellt sich das Pattern hoerbar aus? Rueckmeldung = naechste
-  Feinjustierung (evtl. Repeats/Occurrence als naechste Lane-Modi).
+  UNTER DER HAUBE (falls es dich interessiert): Sekundaer-Spuren bekamen ihren
+  Patch schon bei Region-Load (slotPatchSink); neu ist die HAUPT-Spur, die jetzt
+  ebenfalls ihren gespeicherten Patch anwendet (rollPatchSink) — mit dem
+  Sicherheits-Gesetz, dass eine Spur OHNE eigenen Patch den aktuell live-
+  editierten Global-Sound NICHT ueberschreibt. Audio-Thread- + Code-Review beide
+  sauber, per-Spur-Patch headless getestet, alle Gates gruen.
 
   Weiter offen auf deiner Seite: iPhone-Neustart fuer die AUv3-Register-Reparatur
-  (Log "self-probe -3000"); Hoertests v290 (Akkord-Stempel) + v291 (Audio-Clip-Launch).
+  (Log "self-probe -3000"); Hoertests v290 (Akkord-Stempel), v291 (Audio-Clip-
+  Launch), v292 (Per-Note-Chance) noch offen. Optionaler naechster Schliff zu #23:
+  Live-Drag-Vorschau auf Sekundaer-Spuren (heute erst beim naechsten Loop hoerbar)
+  — braucht einen Geraete-Takt, kein Regress.
