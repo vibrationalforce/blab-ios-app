@@ -41,6 +41,24 @@ public final class ModulationEngine {
     /// activity dot without its own timer.
     public private(set) var lastAppliedTimestamp: TimeInterval = 0
 
+    /// The most recent per-destination modulation outputs (summed, clamped
+    /// [0..1]) from the last applied tick — the data spine for a LIVE "which
+    /// parameter is the body moving, and by how much" readout (REIHENFOLGE
+    /// item 2). Deduped (only reassigned when it actually changes) and cleared
+    /// on `stop()`, so an idle engine doesn't churn observers. Observable and
+    /// updates ~10 Hz while bio moves a route, so read it ONLY inside its own
+    /// small leaf view — never a root/ancestor body (the 10 Hz menu-freeze law).
+    /// Empty when no route produced output this tick.
+    public private(set) var lastOutputs: [ModDestination: Float] = [:]
+
+    /// `lastOutputs` as a key-sorted list — a stable display order for the
+    /// item-2 meter (a dictionary has none). Pure; safe to compute in the leaf.
+    public var orderedOutputs: [(destination: ModDestination, value: Float)] {
+        lastOutputs
+            .sorted { $0.key.key < $1.key.key }
+            .map { (destination: $0.key, value: $0.value) }
+    }
+
     @ObservationIgnored
     private weak var bus: EngineBus?
 
@@ -132,6 +150,7 @@ public final class ModulationEngine {
         loop.stop()
         isActive = false
         routeSmoothing.removeAll() // a fresh start re-seeds smoothing, no stale ramp
+        lastOutputs = [:]          // the item-2 meter clears when modulation stops
     }
 
     // MARK: - Tick
@@ -181,6 +200,10 @@ public final class ModulationEngine {
             routeSmoothing = routeSmoothing.filter { active.contains($0.key) }
         }
 
+        // Item-2 live snapshot: reflect the applied outputs (incl. clearing to
+        // empty when nothing moved). Deduped so an idle engine doesn't notify
+        // observers every tick. Set before the empty-guard so the meter clears.
+        if lastOutputs != result { lastOutputs = result }
         guard !result.isEmpty else { return }
         for (destination, value) in result {
             destinations[destination.key]?(value)
