@@ -3,6 +3,20 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-18 (Forts. 77, ULTRACODE) — A1 per-Note-Chance UI → DEPLOY v292
+- **Board-Top-Slice A1** („mehr Funktion… siehe Ableton… Echoel twist"). Verify-Fund:
+  die NoteOperators-Maschine (Chance/Repeats/Occurrence + A4 bioBentChance + A5
+  Expression) UND die Playback-Gate `operatorAllows` waren längst gebaut/getestet/
+  verdrahtet — aber KEINE UI setzte je die Chance. „gebaut-aber-abgeschaltet."
+- **GEBAUT (50eb030):** untere Paint-Lane bekam einen Vel⇄Cha-Modus-Toggle (linkes
+  Label tippen). Im Cha-Modus zeigt/setzt jeder Balken die Note-Wahrscheinlichkeit
+  0…1 (gleiche Y→unit-Karte wie Velocity). `PianoRollModel.setChance` spiegelt exakt
+  `setMPE` (Clamp-Init, andere Operatoren bleiben, Default→nil byte-identisch) +
+  `chance(id:)`. Kein Sheet, kein Bio-Read in der Lane (Freeze-Gesetz). 2 Tests.
+- **Gates 4/4 grün, ui-state-reviewer 0 Defekte** (Freeze/Sheet/Gesten/Modell/Render/
+  Test alle CLEAN). Echoel-Twist bleibt: Body bendet die Schwelle beim Spielen (A4).
+- **DEPLOY v10.79.292** (.deploy/release bump). Hör-/Seh-Bitte an Founder.
+
 ## 2026-07-18 (Forts. 76, ULTRACODE) — A7 Audio-Clip-Launch KOMPLETT → DEPLOY v291
 - **Founder-Bitte (07-17):** „Play Button auf den Clips und Performance Mode". MIDI war
   schon da; dieser Zyklus schließt die AUDIO-Seite ab.

@@ -1,29 +1,29 @@
-build: 2026-07-18 v10.79.291 (Audio-Clips im Performance-Mode antippbar -> loopen)
+build: 2026-07-18 v10.79.292 (Piano Roll: Chance-Lane — jede Note bekommt eine Wahrscheinlichkeit)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Audio-Clip-Launch ist jetzt ERLEBBAR (deine Bitte "Play Button auf den Clips
-  und Performance Mode", 2026-07-17) -- vorher nur fuer MIDI-Clips, jetzt auch fuer
-  AUDIO-Clips.
+notes: Per-Note-CHANCE ist jetzt bedienbar (deine Bitte "mehr Funktion... siehe Ableton
+  und alle DAWs, plus ein Echoel-Twist"). Die Chance-Maschine war schon gebaut +
+  getestet, aber es fehlte die Tuer, ihr eine Note-Wahrscheinlichkeit zu geben.
 
-  WAS DU TUST: Performance-Mode einschalten. Auf jedem Audio-Clip in der Timeline
-  sitzt jetzt ein kleiner runder Play-Knopf (wie bei den MIDI-Clips schon). Tipp ihn
-  -> der Clip uebernimmt seine Spur und LOOPT ueber seine eigene Laenge, bis du
-  wieder tippst (dann Stop-Knopf, Spur kehrt zur Arrangement-Anordnung zurueck).
-  Antippen quantisiert auf die naechste Grenze (blinkt "gleich", dann laeuft's).
+  WAS DU TUST: Im Piano Roll unten sitzt die Balken-Leiste (bisher "Vel" =
+  Velocity). Tipp das kleine Label links an -> es wechselt auf "Cha" (Chance,
+  wird bio-gruen). Jetzt zeigt/setzt dieselbe Leiste pro Note die ABSPIEL-
+  WAHRSCHEINLICHKEIT: Balken ganz oben = spielt immer (100%), halb = spielt im
+  Schnitt jede zweite Schleife, unten = fast nie. Vertikal ziehen wie bei
+  Velocity. Nochmal aufs Label = zurueck auf "Vel".
 
-  Wie bei einem Clip-Launcher (Ableton Session-View): du triggerst Loops live per
-  Fingertipp, statt die Anordnung abzuspielen. MIDI- und Audio-Clips mischbar --
-  beide loopen synchron im selben Transport.
+  Wie Abletons Note-Chance (Live 12): ein geloopter Takt spielt nie zweimal
+  exakt gleich, bleibt aber DETERMINISTISCH (gleicher Seed + Loop = gleiche
+  Version, reproduzierbar).
 
-  UNTER DER HAUBE (fertig, in diesem Zyklus abgeschlossen): die Loop-Mechanik faellt
-  am Song-Ende nicht mehr aus dem Takt -- ein bar-alignter Audio-Loop wird exakt am
-  Song-Wrap neu getriggert (kein stiller Takt, Audio bleibt im Lockstep mit MIDI).
-  Drei unabhaengige Reviews sauber (Audio-Thread x2, UI-State x1), alle Gates gruen.
+  DER ECHOEL-TWIST: dein Koerper biegt diese Schwelle beim Spielen. Du setzt die
+  BASIS-Wahrscheinlichkeit; deine Kohaerenz hebt/senkt sie live (A4 Bio-
+  Operatoren) -- ruhiger, eingependelter Koerper fuellt das Pattern aus, unruhiger
+  duennt es aus. Nur bei Chance < 100% (eine 100%- oder stumme Note flackert nie).
 
-  ⚠️ HOER-/FUEHL-BITTE: Performance-Mode an, einen Audio-Clip antippen -- loopt er
-  sauber + nahtlos an der Schleifengrenze (kein Klick, keine Luecke)? Und wenn du
-  einen MIDI- und einen Audio-Clip gleichzeitig launchst: bleiben sie zusammen im
-  Takt? Rueckmeldung = naechste Feinjustierung (Naht-Klick/Phase haengt an der
-  echten Geraete-Wiedergabe, erst am Geraet final beurteilbar).
+  ⚠️ HOER-/SEH-BITTE: Ein paar Noten auf Chance ~50% ziehen, Loop laufen lassen --
+  klingt das Pattern lebendig/variierend statt mechanisch? Und wenn dein Puls
+  ruhiger wird: fuellt sich das Pattern hoerbar aus? Rueckmeldung = naechste
+  Feinjustierung (evtl. Repeats/Occurrence als naechste Lane-Modi).
 
   Weiter offen auf deiner Seite: iPhone-Neustart fuer die AUv3-Register-Reparatur
-  (Log "self-probe -3000", raw 3rd-party 0); Hoertest Akkord-Stempel (v290).
+  (Log "self-probe -3000"); Hoertests v290 (Akkord-Stempel) + v291 (Audio-Clip-Launch).

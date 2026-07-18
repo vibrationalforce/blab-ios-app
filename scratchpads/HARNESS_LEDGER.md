@@ -56,6 +56,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 
 | Version | What shipped | Gates |
 |---|---|---|
+| v10.79.292 | Per-note Chance paint-lane — the roll's bottom lane taps Vel⇄Cha; Chance mode paints each note's play probability 0…1 (Ableton note-chance, body bends the threshold live via A4). Model+playback were already built/tested; this added the missing UI (`setChance` mirrors `setMPE`). ui-state-reviewer 0 defects | green |
 | v10.79.291 | A7 Audio-Clip-Launch KOMPLETT — Play-Glyph auf Audio-Clips (Performance-Mode), Clip übernimmt Spur + loopt, MIDI+Audio synchron. S3a Override-Lifecycle + Wrap-Re-Trigger (kein stiller Takt am Song-Wrap, Audio im Lockstep mit MIDI) + S3b Glyph-Gate. 3 Reviews sauber, Golden Gate durchgängig | green |
 | v10.79.199+ | Founder live redesign (07-14): Bio→header (tap=info), Transpose removed, Immersive Stage→ADM-OSC egress; then the "alles ist still" root cause (roll-slot lane mute/solo gates the generative melody) + a silenced-instrument guard banner with one-tap "Ton an" | green |
 | v10.79.198 | BioVariationMaze audition — "Variationen" card in the Comp dropdown: Explore ranks 6 body-curated groove variations, tap one to play it. Shared makeComposerInput builder (no dup logic); generate() gains nil-default seed overrides. No new sheet, no 10 Hz read | green |
