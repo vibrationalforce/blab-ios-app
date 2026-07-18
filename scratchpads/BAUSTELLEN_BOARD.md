@@ -42,6 +42,26 @@
 | O11 | Sampler-Name statt UUID (UX-Niggle) | 07-17 Beobachtung | Kleine Slice bei Gelegenheit | Spur zeigt Sample-Namen |
 | O12 | Mood-Feintuning | 07-17 Beobachtung | Nach Hörtest-Feedback | Founder-Ohr |
 
+## ARCHITEKTUR-AUDIT-BACKLOG (2026-07-18, ultracode 54 Agenten — `scratchpads/ARCHITECTURE_AUDIT_2026-07-18.md`)
+
+> 32 bestätigte Befunde. Kernbotschaft: **zwei Wurzeln entriegeln fast alles** —
+> (A) tote/eingefrorene Bio-Freshness-Disziplin, (B) falsch dokumentierte DSP-Thread-Invariante.
+> Die 5 billigsten Hebel, nach Report-Rang (jeder klein & reversibel):
+
+| # | Fix | Datei | Entriegelt | Status |
+|---|-----|-------|-----------|--------|
+| AU1 | **Arrangement additive Codable** (kein stiller Song-Verlust) | Sequencer/Arrangement.swift | #39/#40/#11 | ✓ 66f94dc (Gates laufen) |
+| AU2 | ModulationEngine Freshness-Gate (Bio löst zu neutral) — **NICHT der 1-Zeiler den der Report behauptet; braucht Design** (Tempo 0→30BPM-Skalierung) | Core/ModulationEngine.swift:144 | #60, halb #61 | offen — eigener Design-Zyklus |
+| AU3 | DDSP-Header-Invariante korrigieren (Doc-Fix, „exclusively MainActor" ist falsch — alle Caller off-main) | DSP/EchoelDDSP.swift:44-48 | #59, schützt jeden DSP-Edit | offen — reiner Kommentar, 0 Risiko |
+| AU4 | MicrophoneManager `guard !isRecording` + Session-Teardown-Reihenfolge (#22-Klasse) | MicrophoneManager.swift:194/269 | #13 | offen — audio-review Pflicht |
+| AU5 | AudioEngine Meter-Props `@ObservationIgnored` (60-Hz-Freeze-Landmine) | Audio/AudioEngine.swift:59-67 | #11 | offen — mechanisch, launchGeneration-Muster |
+
+> HIGH-Befunde außerhalb der Top-5 (eigene Zyklen): AUv3 Cross-Thread-Race + malloc im Render
+> (EchoelmusicAudioUnit.swift:226/391 — deferred Target, #50), Colab umgeht Egress-Gate
+> (LiveColaboView.swift:78, App-Store 5.1.3), FaceExpression-Permission lügt (Info.plist, Founder-OK).
+> PLAUSIBLE/Gerät-Verify: SPSCQueue OSAtomic-Race (:153) — höchstes latentes Risiko, kein Ralph-Quick-Win.
+> #66 (tote Türen) = eigener Closeout-Loop.
+
 ## BLOCKIERT (wartet auf Founder)
 
 | # | Baustelle | Wartet auf |
