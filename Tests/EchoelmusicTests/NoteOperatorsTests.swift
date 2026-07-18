@@ -480,8 +480,12 @@ final class NoteOperatorsTests: XCTestCase {
         XCTAssertNil(m.notes.first?.operators, "fully default operator bag collapses to nil")
     }
 
+    @MainActor
     func testOccurrencePeriodForUnit_mapsRatioInverse() {
         // The bar draws the 1:N ratio, so the unit→period map is the inverse.
+        // @MainActor: occurrencePeriod(forUnit:) is a static on the @MainActor
+        // PianoRollView, so it inherits main-actor isolation (not nonisolated like
+        // PianoRollModel.noteExpression) — the test must hop onto the actor.
         XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 1.0), 1, "full bar = every loop")
         XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 0.5), 2, "half = 1:2")
         XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 0.25), 4, "quarter = 1:4")
