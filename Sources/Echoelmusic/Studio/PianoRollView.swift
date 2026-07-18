@@ -333,6 +333,40 @@ public final class PianoRollModel {
         }
     }
 
+    /// Echoel twist (R2): stamp a whole VOICE-LED, COHERENCE-CHOSEN chord where the
+    /// finger taps — the composition's own harmonic brain (`RollChordStamp` =
+    /// ChordSuggest H2 + VoiceLeader H1, reused) placed by hand. ONE-SHOT read of the
+    /// control-plane coherence at tap time (never a 10 Hz body read — freeze law); no
+    /// usable body falls back to a neutral 0.5. Deterministic per (cell, key,
+    /// coherence) via a stable seed. No tonal context → a single note on the tapped
+    /// row (honest fallback, same as a plain draw). ONE undo step. The voicing sits
+    /// within the visible range: it is rooted at the tapped row and spans upward at
+    /// most to `highPitch`, so every chord note stays on-screen and editable.
+    @discardableResult
+    public func stampChord(atPitch pitch: Int, startStep: Int, lengthSteps: Int = 1) -> [Note] {
+        let anchor = min(max(pitch, Self.lowPitch), Self.highPitch)
+        let step = max(0, startStep)
+        let startTick = step * Note.ticksPerStep
+        let maxLenSteps = max(1, Self.stepCount - step)
+        let lengthTicks = min(max(1, lengthSteps), maxLenSteps) * Note.ticksPerStep
+        guard let key = musicalKey else {
+            return [add(pitch: anchor, startStep: startStep, lengthSteps: lengthSteps)]
+        }
+        let coherence = Float(bus?.usableBio()?.coherence ?? 0.5)
+        let span = max(1, min(12, Self.highPitch - anchor))
+        // Stable per-cell seed so the same body-state stamps the same chord there.
+        let seed = UInt64(truncatingIfNeeded: startTick) &* 2_654_435_761
+                 &+ UInt64(truncatingIfNeeded: anchor)
+        let chord = RollChordStamp.stamp(anchorPitch: anchor, startTick: startTick,
+                                         lengthTicks: lengthTicks, velocity: 0.8,
+                                         key: key, coherence: coherence,
+                                         seed: seed, registerSpan: span)
+        guard !chord.isEmpty else { return [] }
+        snapshotForUndo()
+        notes.append(contentsOf: chord)
+        return chord
+    }
+
     /// Test seam: plant an off-grid start tick (simulates a recorded note).
     /// Internal on purpose — production paths go through add/move/quantize.
     func setStartTickForTesting(index: Int, tick: Int) {
@@ -990,6 +1024,11 @@ struct PianoRollView: View {
     /// offered while `model.musicalKey` resolves; existing notes are never
     /// touched implicitly ("Snap to Scale" in the Ops menu is the explicit op).
     @State private var scaleLock = false
+    /// R2 chord-stamp mode: when on, a tap on an empty cell drops a whole
+    /// coherence-chosen, voice-led chord instead of one note. A plain `@State`
+    /// bool read in the chrome — never a live-bio read (freeze law); the body's
+    /// coherence is read once, inside the tap handler, by `model.stampChord`.
+    @State private var chordStampMode = false
 
     private let gutterW: CGFloat = 42
     private let minStepW: CGFloat = 16
@@ -1111,6 +1150,20 @@ struct PianoRollView: View {
             .accessibilityLabel("Quantize")
             .accessibilityHint("Choose a grid — straight or triplet — to snap the selected notes")
             opsMenu
+            // R2: chord-stamp mode toggle. On → an empty-cell tap stamps a
+            // coherence-chosen, voice-led chord. Same chrome, no new sheet.
+            Button { chordStampMode.toggle() } label: {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(chordStampMode ? EchoelTheme.accent : EchoelTheme.text)
+                    .frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(chordStampMode ? EchoelTheme.accent : EchoelTheme.border,
+                                      lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Chord stamp")
+            .accessibilityHint("When on, tapping an empty cell stamps a coherence-chosen chord")
             Button(role: .destructive) { model.clear(); selection = .none } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 14, weight: .semibold))
@@ -1772,6 +1825,20 @@ struct PianoRollView: View {
                         if isClipScoped {
                             model.audition(pitch: existing.pitch,
                                            velocity: existing.velocity, role: existing.role)
+                        }
+                    } else if chordStampMode {
+                        // R2 chord stamp: the same tap drops a whole coherence-chosen,
+                        // voice-led chord (rooted at the scale-locked tapped row). ONE
+                        // undo step; select + audition the chord's lowest voice.
+                        let chord = model.stampChord(atPitch: placedPitch(anchor.pitch),
+                                                     startStep: anchor.startStep,
+                                                     lengthSteps: drawLength)
+                        if let root = chord.min(by: { $0.pitch < $1.pitch }) {
+                            selection = .single(root.id)
+                            if isClipScoped {
+                                model.audition(pitch: root.pitch,
+                                               velocity: root.velocity, role: root.role)
+                            }
                         }
                     } else {
                         // Scale-Lock (R1): a newly DRAWN note snaps to the
