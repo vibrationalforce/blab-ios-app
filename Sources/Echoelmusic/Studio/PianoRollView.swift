@@ -1079,7 +1079,7 @@ struct PianoRollView: View {
 
     private var transport: some View {
         // H12 (founder v281 "links abgeschnitten"): this row's rigid minimum
-        // (Play 44 + Picker 120 + SIX 34-pt buttons + 8×12 spacing ≈ 464 pt,
+        // (Play 44 + Picker 120 + SEVEN 34-pt buttons + 8×12 spacing ≈ 498 pt,
         // ~496 pt with the caller's padding) exceeds every iPhone width since
         // the #58 batch added undo/redo + the Q menu. An overflowing fixed
         // HStack widens the WHOLE roll VStack, which the sheet then clips
