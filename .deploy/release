@@ -1,30 +1,28 @@
-build: 2026-07-18 v10.79.293 (Per-Spur-Synth-Patch — jede MIDI-Spur ihre eigene Klangfarbe)
+build: 2026-07-18 v10.79.294 (Piano Roll: Occurrence-Paint-Modus — 1:N-Häufigkeit pro Note)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: #23 ist komplett — jede MIDI-Spur traegt jetzt ihre EIGENE Synth-Klangfarbe
-  (dein Wunsch: "each MIDI track carries its own optional SynthPatch", wie ein
-  echtes DAW). Bisher teilten sich alle MIDI-Spuren EINE Stimme -> alle klangen
-  gleich. Jetzt hat jede Spur ihr eigenes Instrument.
+notes: Dritter Paint-Modus im Piano Roll (deine Bitte "mehr Funktion... siehe
+  Ableton... Echoel-Twist"). Das kleine Label unten links an der Balken-Leiste
+  zyklt jetzt bei jedem Tipp: Vel -> Cha -> Occ -> Vel.
 
-  WAS DU TUST: Tippe den Kopf einer MIDI-Spur an -> im Menue "Synth patch". Der
-  Patch-Editor oeffnet jetzt auf DIESER Spur (nicht mehr auf der globalen Stimme).
-  Gib Spur 1 eine Klangfarbe, Spur 2 eine ANDERE. Schliesse den Editor -> der
-  Klang wird pro Spur gespeichert (ueberlebt Speichern/Laden).
+  WAS OCC MACHT: Im Occurrence-Modus (Label "Occ") malt jeder Balken, WIE OFT die
+  Note spielt — das 1:N-Verhaeltnis. Voller Balken = jede Schleife (1:1). Halb =
+  jede 2. Runde (1:2). Viertel = jede 4. (1:4). Vertikal ziehen wie bei Velocity/
+  Chance. Das ist Abletons "Occurrence": ein geloopter Takt entwickelt sich ueber
+  mehrere Runden, statt jede Runde gleich zu sein.
 
-  ⚠️ HOER-BITTE (der Closeout-Test): Zwei MIDI-Spuren anlegen, jeder ueber die
-  "Synth patch"-Tuer eine andere Klangfarbe geben, Play druecken -> klingen die
-  beiden Spuren jetzt HOERBAR unterschiedlich? (Vorher klangen alle gleich.)
-  Sowohl die Haupt-Spur als auch zusaetzliche Spuren muessen ihren eigenen Klang
-  haben. Rueckmeldung = Closeout oder Feinjustierung.
+  ⚠️ HOER-BITTE: Eine Note auf 1:2 malen (Balken halb runter), Loop laufen lassen
+  -> spielt sie nur JEDE ZWEITE Runde? Ein paar Noten auf verschiedene Verhaeltnisse
+  (1:2, 1:3, 1:4) -> baut sich ueber mehrere Schleifen ein Muster auf, das sich
+  periodisch fuellt und leert?
 
-  UNTER DER HAUBE (falls es dich interessiert): Sekundaer-Spuren bekamen ihren
-  Patch schon bei Region-Load (slotPatchSink); neu ist die HAUPT-Spur, die jetzt
-  ebenfalls ihren gespeicherten Patch anwendet (rollPatchSink) — mit dem
-  Sicherheits-Gesetz, dass eine Spur OHNE eigenen Patch den aktuell live-
-  editierten Global-Sound NICHT ueberschreibt. Audio-Thread- + Code-Review beide
-  sauber, per-Spur-Patch headless getestet, alle Gates gruen.
+  EHRLICHE GRENZE: Repeats/Ratchet (mehrere Anschlaege INNERHALB einer Note) ist
+  bewusst NOCH KEIN Modus — das braucht den Sub-Step-Clock (W2). Es zu malen waere
+  heute stumm, also kommt es erst, wenn es wirklich klingt. Occurrence klingt schon
+  jetzt (Playback-verdrahtet, headless getestet, alle Gates gruen).
 
-  Weiter offen auf deiner Seite: iPhone-Neustart fuer die AUv3-Register-Reparatur
-  (Log "self-probe -3000"); Hoertests v290 (Akkord-Stempel), v291 (Audio-Clip-
-  Launch), v292 (Per-Note-Chance) noch offen. Optionaler naechster Schliff zu #23:
-  Live-Drag-Vorschau auf Sekundaer-Spuren (heute erst beim naechsten Loop hoerbar)
-  — braucht einen Geraete-Takt, kein Regress.
+  DER ECHOEL-TWIST bleibt: dein Koerper bendet die Chance-Schwelle (Cha-Modus, A4);
+  Occurrence ist die deterministische Runden-Struktur darueber.
+
+  Weiter offen auf deiner Seite: iPhone-Neustart fuer AUv3-Register (Log "self-probe
+  -3000"); Hoertests v290 (Akkord), v291 (Audio-Clip-Launch), v292 (Chance), v293
+  (Per-Spur-Synth-Patch: 2 Spuren, 2 Klaenge, beide hoerbar?) noch offen.
