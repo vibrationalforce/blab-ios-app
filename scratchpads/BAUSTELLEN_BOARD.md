@@ -32,7 +32,7 @@
 | O1 | Clip-Handhabung rudimentär + Zittern (Task #56) | 07-16, „weiter offen auf 2373" | Slice-Review offene MEDIUMs; Founder-Repro-Clip anfordern | Clip ziehen/trimmen ruckelfrei auf Gerät |
 | O2 | Warp im Audio-Clip-Editor (#54) | 07-16 „neuste Technologie" | Plan liegt; nächste Slice nach C | Audio-Clip folgt Tempo hörbar |
 | O3 | MIDI/MPE-Station ausbauen (#58) | 07-16 „sehr rudimentär" | A1 ist die laufende Slice; danach: Velocity-Lane-Edit, Scale-Lock (Scaler #5) | Founder editiert Clip vollständig im Roll |
-| O4 | Scaler #4 — Atem-Pattern-Generatoren | Scaler-Analyse | Nach H2: BreathArp/BreathStrum pure Core | Arp folgt hörbar dem Atem |
+| O4 | Scaler #4 — Atem-Pattern-Generatoren | Scaler-Analyse | KERN-SLICE 1 ✓ (6c2a6b9, Gates laufen): `BreathArp` — Atemphase→Richtung, Atemtiefe→Dichte, Akkord-Walk; rein/deterministisch, code-reviewer PASS (Dichte-Identität bewiesen). Nächste: Puls→Groove + Motion→Strum-Akzent, dann Verdrahtung in BodyVibe/Roll (Preview) | Arp folgt hörbar dem Atem — Gerät offen (Verdrahtung folgt) |
 | O5 | Per-Instrument EchoelSynth (#23) | ältere Serie | SynthPatch pro MIDI-Spur zu Ende verdrahten | Patch-Wechsel pro Spur hörbar |
 | O6 | Audio-Loop-Import + Record-Capture Gerät (#13) | ältere Serie | Geräte-Verify des bestehenden Pfads | Loop landet in Lane, Record schreibt Clip |
 | O7 | Immersive-Stage-Automation (#20) | ältere Serie | AutomationGestureRecorder anbinden | Puck-Fahrt wird aufgezeichnet + spielt zurück |
