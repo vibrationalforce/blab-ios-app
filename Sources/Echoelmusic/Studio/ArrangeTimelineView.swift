@@ -215,7 +215,17 @@ struct ArrangeTimelineView: View {
             // session and re-presents — the OLD sheet's onDismiss then fires
             // and must not nil the fresh session (the fallback would silently
             // reopen the shared roll: the exact pre-H11 bug).
-            if activeModal == nil { clipEdit = nil }
+            if activeModal == nil {
+                clipEdit = nil
+                // #23 S2: persist the lane patch ONCE on a genuine close, only if
+                // it changed from the seed. Guarded by `activeModal == nil` like
+                // clipEdit above (a re-present leaves patchEdit for the new
+                // editor's onAppear to overwrite — no stray persist/clear).
+                if let e = patchEdit, e.latest != e.seed {
+                    timeline.setLanePatch(e.laneID, patch: e.latest)
+                }
+                patchEdit = nil
+            }
         }) { modal in
             // AnyView per the app-wide sheet pattern (EchoelStudioView) — keeps
             // the host body's generic signature flat (metadata rule).
@@ -251,7 +261,9 @@ struct ArrangeTimelineView: View {
         /// E2a (founder: "alles vertikal auf die Spuren"): the synth patch
         /// editor, on the MIDI lane. Re-doors PatchEditorView (its studio
         /// sheet trigger died with the Tools grid — deep audit 2026-07-12).
-        case patch
+        /// #23 S2: carries the LANE, so the editor seeds from + persists to
+        /// that lane's own `patch` (was global-only before).
+        case patch(TimelineLane)
         /// E2a: automation lanes, on the track. Re-doors AutomationView.
         case automation
         /// The Immersive Stage — the Touch surface that places every track in space.
@@ -262,7 +274,7 @@ struct ArrangeTimelineView: View {
             case .region(let r): return "region-\(r.id)"
             case .laneFX(let l): return "lanefx-\(l.id)"
             case .plugins:       return "plugins"
-            case .patch:         return "patch"
+            case .patch(let l):  return "patch-\(l.id)"
             case .automation:    return "automation"
             case .spatial:       return "spatial"
             }
@@ -280,6 +292,18 @@ struct ArrangeTimelineView: View {
         let model: PianoRollModel
     }
     @State private var clipEdit: ClipEditSession?
+
+    /// #23 S2 — the live per-lane patch edit. `onApply` (per edit tick) updates
+    /// only `latest`; the sheet's onDismiss persists it ONCE via
+    /// timeline.setLanePatch, and only when `latest != seed` (a mere open of the
+    /// door on a nil-patch lane must not commit a stray Init). `seed` is captured
+    /// on the first onApply (the editor's onAppear).
+    private struct LanePatchEdit {
+        let laneID: UUID
+        let seed: SynthPatch
+        var latest: SynthPatch
+    }
+    @State private var patchEdit: LanePatchEdit?
 
     /// Open a region's editor. For MIDI: load THE CLIP's notes (the tapped
     /// bar's slice) into a throwaway roll — never the shared roll (the region
@@ -425,14 +449,29 @@ struct ArrangeTimelineView: View {
             }
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
         case .plugins:            AUv3BrowserView()
-        case .patch:
-            // Opens on the sound that is actually playing (the voice's patch
-            // memory). No onApply closure: the editor's env voice IS this
-            // synth instance and already live-applies every change — a
-            // closure here would double-enqueue each edit tick (review note).
-            // Honest limit (multi-roll pending): this edits THE melodic
-            // instrument all MIDI lanes share today.
-            PatchEditorView(initial: synth.appliedPatch ?? SynthPatch(name: "Init"))
+        case .patch(let lane):
+            // #23 S2 — the patch editor, seeded from THIS lane's own timbre.
+            // Secondary lane: nil ⇒ a fresh Init (persisted on change, heard on
+            // the next region load via slotPatchSink). Primary roll lane: nil ⇒
+            // the current global sound (synth.appliedPatch), so the shared
+            // voice's character becomes the lane's persisted patch. `onApply`
+            // fires per edit tick (PatchEditorView:92) — here it only captures
+            // the latest value into `patchEdit` (cheap, NO persist); the sheet's
+            // onDismiss persists ONCE via timeline.setLanePatch, and only if the
+            // value changed from the seed (opening without editing commits
+            // nothing). The editor still live-applies to the GLOBAL env voice
+            // while editing — the honest S2 limit; lane-targeted live preview is
+            // the device-gated S3 slice.
+            let seed = lane.patch
+                ?? (isPrimaryRollLane(lane) ? (synth.appliedPatch ?? SynthPatch(name: "Init"))
+                                            : SynthPatch(name: "Init"))
+            PatchEditorView(initial: seed, onApply: { edited in
+                if patchEdit?.laneID == lane.id {
+                    patchEdit?.latest = edited
+                } else {
+                    patchEdit = LanePatchEdit(laneID: lane.id, seed: seed, latest: edited)
+                }
+            })
         case .automation:         AutomationView()
         case .spatial:            ImmersiveStageView()
         }
@@ -911,7 +950,7 @@ struct ArrangeTimelineView: View {
                 Button { activeModal = .laneFX(lane) } label: {
                     Label("Sound & FX (this track)", systemImage: "slider.horizontal.3")
                 }
-                Button { activeModal = .patch } label: {
+                Button { activeModal = .patch(lane) } label: {
                     Label("Synth patch", systemImage: "waveform.badge.plus")
                 }
             }
