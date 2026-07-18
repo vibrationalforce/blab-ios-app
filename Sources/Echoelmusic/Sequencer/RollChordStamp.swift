@@ -48,9 +48,12 @@ public enum RollChordStamp {
         registerSpan: Int = 12
     ) -> [Note] {
         let safeLen = Swift.max(1, lengthTicks)
-        let vel = Swift.min(Swift.max(velocity, 0.05), 1)
+        // Fail-neutral on a non-finite velocity (repo precedent), then floor so the
+        // chord is always audible.
+        let vel = Swift.min(Swift.max(velocity.isFinite ? velocity : 0.8, 0.05), 1)
         let anchor = Swift.min(Swift.max(anchorPitch, 0), 127)
-        let span = Swift.max(1, registerSpan)
+        // Clamp the span BEFORE the add so `anchor + span` can never overflow.
+        let span = Swift.min(127, Swift.max(1, registerSpan))
         let register = anchor ... Swift.min(127, anchor + span)
 
         // A separate stream for the deterministic note-id fold (the journey and

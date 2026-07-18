@@ -41,6 +41,29 @@ final class RollChordStampTests: XCTestCase {
         }
     }
 
+    func testStamp_failsNeutralOnNonFiniteVelocity() {
+        // A NaN velocity must not survive into a note (repo fail-neutral precedent).
+        let notes = RollChordStamp.stamp(anchorPitch: 60, startTick: 0, lengthTicks: 120,
+                                         velocity: .nan, key: key, coherence: 0.5, seed: 2)
+        XCTAssertFalse(notes.isEmpty)
+        for n in notes {
+            XCTAssertTrue(n.velocity.isFinite, "NaN velocity replaced with a finite default")
+            XCTAssertGreaterThanOrEqual(n.velocity, 0.05)
+            XCTAssertLessThanOrEqual(n.velocity, 1)
+        }
+    }
+
+    func testStamp_toleratesPathologicalRegisterSpan() {
+        // A huge span must not overflow the anchor+span add.
+        let notes = RollChordStamp.stamp(anchorPitch: 60, startTick: 0, lengthTicks: 120,
+                                         key: key, coherence: 0.5, seed: 2, registerSpan: .max)
+        XCTAssertFalse(notes.isEmpty)
+        for n in notes {
+            XCTAssertGreaterThanOrEqual(n.pitch, 0)
+            XCTAssertLessThanOrEqual(n.pitch, 127)
+        }
+    }
+
     // MARK: - Register invariants
 
     func testStamp_notesStayWithinRegisterAboveAnchor() {
