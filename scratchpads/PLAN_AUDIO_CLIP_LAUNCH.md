@@ -75,6 +75,13 @@ Audio-Region mitten im Spiel STRUKTURELL GELÖSCHT, prunt `launch.prune` (refres
 State OHNE Transition — die AudioLanePlayer-`overrides`-Karte (nur bei entfernter LANE, nicht Region,
 selbst-bereinigt) bliebe verwaist und würde eine Phantom-Region loopen. S3 MUSS in refreshStructure die
 Audio-Overrides gegen `launch.isOverriding` synchronisieren (clear wenn Engine nicht mehr overriding).
+**+ WRAP-PFAD (audio-thread-review S2, bf38ff8):** derselbe Desync gilt für den Song-Loop-Wrap in
+`transportStep` — die MIDI-Launch-Zeitbasis wird per `launch.shift(by: -loopTicks)` gefaltet, aber die
+Audio-Seite ruft nur `prime` (ignoriert die overrides-Karte) und schiftet/löscht den Override NICHT.
+Folge nach Wrap: (a) ein aktiver Audio-Override wird still vom Arrangement überschrieben während der
+MIDI-Launch überlebt (Audio/MIDI-Inkonsistenz), (b) `startedAtTick` bleibt un-geshiftet → `loopWrapped`
+bekommt einen veralteten Anker (elapsed < 0), Override strandet. S3-Pflicht: eine Audio-seitige `shift`
+(analog `launch.shift`) ODER clear-and-reprime im Wrap-Zweig — NICHT nur in refreshStructure.
 
 ## S1 STATUS (2026-07-18, 41fac9c — gebaut, Gates laufen)
 AudioLanePlayer Override-Türen + 7 SpySink-Tests. audio-thread-reviewer: CLEAN (golden gate
