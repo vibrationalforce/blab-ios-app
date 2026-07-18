@@ -75,7 +75,14 @@ struct LiveColaboView: View {
             .task(id: shareBio) {
                 guard shareBio else { return }
                 while !Task.isCancelled {
-                    if let f = bus.latestBio, !colab.connectedPeerNames.isEmpty {
+                    // App Store 5.1.3 egress gate (same rule the OSC/ADM-OSC senders
+                    // apply, ADMOSCSender): only Echoel's OWN measurements (rPPG /
+                    // BLE strap / face expression / demo) may leave the device to a
+                    // peer — HealthKit / Watch / ring frames stay on-device. Without
+                    // this guard a HealthKit-sourced pulse would stream to nearby
+                    // peers, the exact 5.1.3 violation the network senders forbid.
+                    if let f = bus.latestBio, BioEgressPolicy.allowsEgress(f.source),
+                       !colab.connectedPeerNames.isEmpty {
                         colab.sendBio(BioPeek(bpm: f.heartRateBPM,
                                               coherence: f.coherence,
                                               hrvNormalized: f.hrvNormalized,
