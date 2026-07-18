@@ -28,7 +28,9 @@ public enum BioEgressPolicy {
     /// read out of the HealthKit store stays on the device (5.1.3).
     public static func allowsEgress(_ source: BioSource) -> Bool {
         switch source {
-        case .ble, .cameraPPG, .fallback:
+        case .ble, .cameraPPG, .faceCam, .fallback:
+            // faceCam is measured on-device like rPPG; only the abstracted [0..1]
+            // expression channels egress (never the image), same principle as PPG.
             return true
         case .healthKit, .watch, .oura:
             return false

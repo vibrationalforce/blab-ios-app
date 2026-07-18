@@ -129,6 +129,11 @@ public enum BioSource: UInt8, Sendable, Equatable {
     case ble = 3
     case watch = 4
     case cameraPPG = 5
+    /// Front-camera facial-EXPRESSION tracking (ARKit blendShapes → smile/brow/jaw
+    /// control channels). Appended at the END so persisted raw values stay stable.
+    /// It carries NO pulse — expression/movement used as a control signal, never an
+    /// inferred emotion or a heart measurement.
+    case faceCam = 6
 
     /// Whether this source delivers beat-to-beat RR intervals accurate enough
     /// for time-domain HRV (RMSSD). Only a BLE Heart-Rate-Service chest strap
@@ -149,6 +154,7 @@ public enum BioSource: UInt8, Sendable, Equatable {
     public var freshnessWindow: TimeInterval {
         switch self {
         case .ble, .cameraPPG: return 6      // live, near beat-to-beat
+        case .faceCam: return 6              // live front-camera expression, same cadence
         case .watch, .healthKit: return 90   // latent + sporadic, valid at rest
         case .oura: return 600               // periodic readiness/HRV
         case .fallback: return 5

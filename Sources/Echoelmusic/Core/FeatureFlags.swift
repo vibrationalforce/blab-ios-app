@@ -67,6 +67,14 @@ public enum FeatureFlags {
         /// ship. `FeatureFlags.set(.voiceKindRouting, false)` is the one-line
         /// rollback lever. NEVER delete the OFF branches.
         case voiceKindRouting  = "feature.voiceKindRouting"
+        /// A5 BodyVibe camera modulator: front-camera facial-EXPRESSION tracking
+        /// (ARKit blendShapes → smile/brow/jaw control channels) as an opt-in bio
+        /// source. DEFAULT-OFF until the selection wiring + device verify land — the
+        /// publisher file compiles but nothing instantiates it while this is off, so
+        /// the app is bit-identical. Expression/movement as a control signal, never
+        /// an inferred emotion. `FeatureFlags.set(.cameraExpression, true)` is the
+        /// one-line enable lever once wired.
+        case cameraExpression  = "feature.cameraExpression"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -89,6 +97,7 @@ public enum FeatureFlags {
     public static var multiRoll: Bool { isOn(.multiRoll) }
     public static var laneAUInstruments: Bool { isOn(.laneAUInstruments) }
     public static var voiceKindRouting: Bool { isOn(.voiceKindRouting) }
+    public static var cameraExpression: Bool { isOn(.cameraExpression) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 

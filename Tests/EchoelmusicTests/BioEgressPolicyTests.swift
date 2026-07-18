@@ -11,6 +11,9 @@ final class BioEgressPolicyTests: XCTestCase {
         XCTAssertTrue(BioEgressPolicy.allowsEgress(.cameraPPG), "camera rPPG is Echoel's own measurement")
         XCTAssertTrue(BioEgressPolicy.allowsEgress(.ble), "BLE strap is Echoel's own measurement")
         XCTAssertTrue(BioEgressPolicy.allowsEgress(.fallback), "demo generator carries no real health data")
+        // faceCam is measured on-device like rPPG; only abstracted [0..1] expression
+        // channels egress, never the image.
+        XCTAssertTrue(BioEgressPolicy.allowsEgress(.faceCam), "face expression is Echoel's own on-device measurement")
     }
 
     func testHealthKitStoreSources_neverStreamOffDevice() {
@@ -24,10 +27,10 @@ final class BioEgressPolicyTests: XCTestCase {
     func testEverySourceHasAnExplicitRuling() {
         // A new BioSource case must consciously pick a side (the switch in the
         // policy is exhaustive; this documents the full current census).
-        let all: [BioSource] = [.fallback, .healthKit, .oura, .ble, .watch, .cameraPPG]
+        let all: [BioSource] = [.fallback, .healthKit, .oura, .ble, .watch, .cameraPPG, .faceCam]
         for source in all {
             _ = BioEgressPolicy.allowsEgress(source)   // must not trap; compile-time exhaustive
         }
-        XCTAssertEqual(all.count, 6, "update this census when BioSource grows")
+        XCTAssertEqual(all.count, 7, "update this census when BioSource grows")
     }
 }

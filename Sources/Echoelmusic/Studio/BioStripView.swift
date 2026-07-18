@@ -415,6 +415,7 @@ struct BioStripView: View {
         case .ble:        return "BLE"
         case .watch:      return "Watch"
         case .cameraPPG:  return "PPG"
+        case .faceCam:    return "Face"
         case .fallback:   return "—"
         }
     }

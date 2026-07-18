@@ -175,6 +175,40 @@ final class EngineBusTests: XCTestCase {
         XCTAssertNotNil(bus.latestBio)
     }
 
+    // MARK: - BioSource.faceCam (A5 additive source)
+
+    func testFaceCam_rawValueAppendedStable() {
+        // Appended at the end so persisted raw values of existing sources are unmoved.
+        XCTAssertEqual(BioSource.faceCam.rawValue, 6)
+        XCTAssertEqual(BioSource.cameraPPG.rawValue, 5)
+        XCTAssertEqual(BioSource.fallback.rawValue, 0)
+    }
+
+    func testFaceCam_isLiveSourceWindow() {
+        // Live front-camera expression expires fast, like rPPG/BLE.
+        XCTAssertEqual(BioSource.faceCam.freshnessWindow, 6)
+    }
+
+    func testFaceCam_carriesNoTrustedHRV() {
+        // Only a BLE chest strap gives beat-to-beat RR; face tracking has no pulse.
+        XCTAssertFalse(BioSource.faceCam.providesTrustedHRV)
+    }
+
+    @MainActor
+    func testFaceExpressionPublisher_inertUntilSupported() {
+        // No CI environment supports ARKit face tracking, so start() is a guarded
+        // no-op and the publisher never claims to publish. This also proves the
+        // non-ARKit stub compiles and behaves.
+        let bus = EngineBus()
+        let pub = FaceExpressionBioPublisher()
+        XCTAssertFalse(pub.isPublishing)
+        pub.start(publishing: bus)
+        XCTAssertEqual(pub.isPublishing, FaceExpressionBioPublisher.isSupported,
+                       "publishing only when the device supports face tracking")
+        pub.stop()
+        XCTAssertFalse(pub.isPublishing, "stop() is idempotent and resets state")
+    }
+
     // MARK: - Helpers
 
     private static func makeBioFrame(timestamp: TimeInterval = 0) -> BioSampleFrame {
