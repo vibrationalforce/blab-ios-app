@@ -46,18 +46,32 @@ this edits THE melodic instrument all MIDI lanes share today."*
   bleiben unberührt. Alle headless-testbar (kein Audio).
 - **Reviewer:** code-reviewer (Store-Mutation, Undo-Kohärenz).
 
-### S2 — `.patch(lane)` Modal-Payload + persist via `onApply` [reviewer-gated, kein Render-Pfad]
+### S2 — `.patch(lane)` Modal-Payload + persist via onDismiss [reviewer-gated, kein Render-Pfad]
+- **S1 ✓ (b2f7750):** `TimelineStore.setLanePatch(_:patch:)` + 4 Tests, code-reviewer 0 Defekte.
 - `ArrangeTimelineView` Modal-Enum: `case patch` → `case patch(TimelineLane)` (Payload
-  wie `.laneFX(let lane)` schon hat). **KEINE neue `.sheet`** — nur Payload an
-  bestehendem Case (Sheet-Ketten-Gesetz respektiert; EIN `.sheet(item:)`).
-- Tür öffnet auf `lane.patch ?? (istPrimär ? synth.appliedPatch : SynthPatch(name:"Init"))`.
-- `onApply: { store.setLanePatch(laneID: lane.id, $0) }` → persistiert + der
-  bestehende `slotPatchSink`/Re-Prime wendet es bei nächstem Region-Load an (Sekundär)
-  bzw. Primär-Sink (S2b) wendet auf die globale Stimme an.
-- Golden Gate: der alte parameterlose `.patch`-Aufruf (falls noch irgendwo) bleibt
-  = globaler Editor unverändert.
+  wie `.laneFX(let lane)` schon hat); `id: return "patch-\(l.id)"`. **KEINE neue `.sheet`** —
+  nur Payload an bestehendem Case (Sheet-Ketten-Gesetz respektiert; EIN `.sheet(item:)`).
+- Tür (`activeModal = .patch` an der Lane-Menü-Zeile ~914) → `.patch(lane)`.
+- Editor-Seed: `PatchEditorView(initial: lane.patch ?? (istPrimär ? (synth.appliedPatch ??
+  SynthPatch(name:"Init")) : SynthPatch(name:"Init")), onApply: { latest = ($0) })`.
+- **⚠️ RECON-BEFUND (Editor-Hook, PatchEditorView:91/92):** `onApply` feuert bei JEDEM
+  `onChange(of: patch)` — d.h. bei JEDEM Drag-Tick, nicht nur bei „Done". `onApply →
+  store.setLanePatch(...)` DIREKT würde `persist()` bei Drag-Rate (~60/s) fluten (jeder
+  Tick schreibt `document.lanes[i].patch` + `@Observable`-Invalidierung der ganzen
+  `document.lanes`). **LÖSUNG:** onApply schreibt nur ein Host-`@State private var
+  pendingLanePatch: (UUID, SynthPatch)?` (billige Zuweisung, KEIN persist); der
+  bestehende `.sheet(item:)`-`onDismiss:` (Zeile 212) persistiert EINMAL:
+  `store.setLanePatch(id, patch: pending.patch)`. So kein Flut, kein Live-Apply-Change
+  (Editor live-applied weiter auf die globale env-`voice` — der ehrliche S2-Limit:
+  während des Editierens hört man die globale Stimme, beim Schließen wird `lane.patch`
+  persistiert und beim nächsten Region-Load gehört).
+- Der bestehende `slotPatchSink`/Re-Prime wendet `lane.patch` bei nächstem Region-Load an
+  (Sekundär); Primär-Sink (S2b) wendet auf die globale Stimme an.
+- Golden Gate: kein parameterloser `.patch`-Aufruf bleibt übrig (alle Türen tragen jetzt
+  die Lane) → kein toter Code, aber der globale Editor bleibt funktional identisch für die
+  Primär-Lane (gleicher Seed via `synth.appliedPatch`).
 - **Reviewer:** ui-state-reviewer (Modal-Payload, Freeze — Editor liest keine 10-Hz-Bio;
-  Sheet-Ketten-Gesetz), code-reviewer.
+  Sheet-Ketten-Gesetz; onDismiss-Persist-Timing), code-reviewer.
 
 ### S2b — Primär-Lane-Patch-Anwendung bei Play/Load [wire, reviewer-gated]
 - Primär-Roll-Lane: beim Play/Region-Load `lane.patch` (falls gesetzt) auf die
