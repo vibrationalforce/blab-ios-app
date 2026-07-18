@@ -71,9 +71,14 @@ public enum MediaLibrary {
     /// 2. H6 re-rooting: an absolute path whose CONTAINER PREFIX died — an app
     ///    update/device migration changes the app-group container UUID, but the
     ///    file itself still sits under the same media subdirectory in the NEW
-    ///    container. Re-resolve by file name (import names are UUIDs — unique)
-    ///    against every media home. Without this, every imported clip silently
-    ///    lost its audio/video on the first app update (audit CRITICAL H6).
+    ///    container. Re-resolve by file name against every media home, FIRST match
+    ///    wins in the Audio→Video→Image order. (Import names are readable + only
+    ///    per-directory-unique since O11, no longer globally-unique UUIDs; a full
+    ///    name+extension clash across two homes is effectively unreachable because
+    ///    the audio/video/image picker extension sets are disjoint — but do not
+    ///    assume global filename uniqueness here.) Without this re-root, every
+    ///    imported clip silently lost its audio/video on the first app update
+    ///    (audit CRITICAL H6).
     /// 3. a bare file name against Documents/Videos (VisualRecorder captures).
     /// Side effect: probing creates the media home directories if missing (the
     /// same dirs import would create) — not a pure function by design.
@@ -98,17 +103,44 @@ public enum MediaLibrary {
         return nil
     }
 
-    /// Shared copy: resolve the media subdir, pick a fresh UUID name (preserving
-    /// the source extension), copy the file in. Throws on no container / copy fail.
+    /// Shared copy: resolve the media subdir, pick a READABLE collision-free name
+    /// (O11 — the founder saw a raw UUID where a sample name belonged, because the
+    /// old `<UUID>.<ext>` filename is what `BeatPlayer.sampleRefDisplayName` shows
+    /// for an imported ref), copy the file in. Throws on no container / copy fail.
     private static func copyIn(_ source: URL, subdirectory: String, fallbackExt: String) throws -> URL {
         guard let dir = directory(subdirectory) else { throw MediaImportError.noContainer }
         let ext = source.pathExtension.isEmpty ? fallbackExt : source.pathExtension
-        let dest = dir.appendingPathComponent("\(UUID().uuidString).\(ext)", isDirectory: false)
+        let base = source.deletingPathExtension().lastPathComponent
+        let name = uniqueName(base: base, ext: ext, taken: { candidate in
+            FileManager.default.fileExists(atPath: dir.appendingPathComponent(candidate).path)
+        })
+        let dest = dir.appendingPathComponent(name, isDirectory: false)
         do {
             try FileManager.default.copyItem(at: source, to: dest)
         } catch {
             throw MediaImportError.copyFailed
         }
         return dest
+    }
+
+    /// A readable, filesystem-safe, collision-free filename for an imported media
+    /// file (O11). Sanitizes the source base name (drops path separators + reserved
+    /// characters, trims, caps length), keeps the extension, and disambiguates with
+    /// a numeric suffix ONLY on an actual clash — so `sampleRefDisplayName` shows
+    /// "MyLoop" (or "MyLoop-1") instead of a UUID. An empty/garbage base falls back
+    /// to "sample". Pure (the filesystem check is injected) → unit-tested.
+    static func uniqueName(base: String, ext: String, taken: (String) -> Bool) -> String {
+        let cleaned = base
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>|"))
+            .joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let safe = cleaned.isEmpty ? "sample" : String(cleaned.prefix(60))
+        var candidate = "\(safe).\(ext)"
+        var n = 1
+        while taken(candidate) {
+            candidate = "\(safe)-\(n).\(ext)"
+            n += 1
+        }
+        return candidate
     }
 }
