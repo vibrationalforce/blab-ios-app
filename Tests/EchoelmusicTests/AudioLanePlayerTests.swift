@@ -426,4 +426,105 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertEqual(factory.sinks.first?.pans.last ?? -1, -1, accuracy: 1e-6, "live pan edit lands")
         XCTAssertEqual(factory.sinks.first?.plays.count, 1, "pan never re-schedules")
     }
+
+    // MARK: - Clip-Launch override (S1 of PLAN_AUDIO_CLIP_LAUNCH)
+
+    /// A launched override plays its region from the content top and reports itself.
+    func testLaunchOverride_startsFromTop_andReportsOverriding() {
+        let (document, laneID) = doc(offset: 1.5)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        XCTAssertFalse(p.hasLaunchOverrides)
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        XCTAssertTrue(p.hasLaunchOverrides)
+        XCTAssertTrue(p.isLaunchOverriding(laneID))
+        let plays = factory.sinks.first?.plays ?? []
+        XCTAssertEqual(plays.count, 1)
+        XCTAssertEqual(plays.first?.from ?? -1, 1.5, accuracy: 1e-6,
+                       "launched clip plays from its content offset (the top)")
+    }
+
+    /// The one-shot audio segment is RE-TRIGGERED when the loop wraps (a launched
+    /// clip loops; MIDI re-windows for free, audio must re-schedule).
+    func testLaunchOverride_loopWrap_reTriggers() {
+        let (document, laneID) = doc(length: 1920)              // 1 bar loop
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1)
+        // Cross the 1920 loop boundary → the segment re-starts from the top.
+        p.apply(in: document, fromTick: 1900, toTick: 1940, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 2, "loop wrap re-triggers the segment")
+        XCTAssertEqual(factory.sinks.first?.plays.last?.from ?? -1, 0, accuracy: 1e-6,
+                       "re-trigger restarts at the region top")
+    }
+
+    /// Inside the loop (no wrap, no mixer edit) the launched lane does nothing —
+    /// the segment keeps playing, not re-scheduled every step.
+    func testLaunchOverride_withinLoop_doesNotReTrigger() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        p.apply(in: document, fromTick: 100, toTick: 200, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1, "no wrap ⇒ no re-trigger")
+        XCTAssertEqual(factory.sinks.first?.stops, 0)
+    }
+
+    /// Clearing the override hands the lane back to the arrangement region active now.
+    func testClearLaunchOverride_returnsToArrangement() {
+        let (document, laneID) = doc(length: 1920)
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        p.clearLaunchOverride(laneID: laneID, atTick: 480, in: document, bpm: 120)
+        XCTAssertFalse(p.isLaunchOverriding(laneID))
+        XCTAssertFalse(p.hasLaunchOverrides)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 2,
+                       "clear restarts the arrangement region at the current tick")
+    }
+
+    /// Muting the lane stops a launched clip (live mixer works on an override too).
+    func testLaunchOverride_muteStopsLaunchedClip() {
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let region = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                    startTick: 0, lengthTicks: 1920)
+        let docOn = TimelineDocument(lanes: [lane], regions: [region])
+        var mutedLane = lane; mutedLane.isMuted = true
+        let docMuted = TimelineDocument(lanes: [mutedLane], regions: [region])
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: lane.id, atTick: 0, in: docOn, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1)
+        p.apply(in: docMuted, fromTick: 100, toTick: 200, bpm: 120)   // no wrap; gain → 0
+        XCTAssertEqual(factory.sinks.first?.stops, 1, "mute silences the launched clip")
+    }
+
+    /// clearAll drops the override state (transport-reset path).
+    func testClearAllLaunchOverrides_dropsState() {
+        let (document, laneID) = doc()
+        let region = document.regions[0]
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: laneID, atTick: 0, in: document, bpm: 120)
+        p.clearAllLaunchOverrides()
+        XCTAssertFalse(p.hasLaunchOverrides)
+        XCTAssertFalse(p.isLaunchOverriding(laneID))
+    }
+
+    /// Golden gate: with NO override, `apply` is the plain arrangement path — the
+    /// launch branch is inert (empty override map).
+    func testGoldenGate_noOverride_playsArrangementNormally() {
+        let (document, laneID) = doc()
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        XCTAssertFalse(p.hasLaunchOverrides)
+        XCTAssertFalse(p.isLaunchOverriding(laneID))
+        p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)      // normal onset
+        XCTAssertEqual(factory.sinks.first?.plays.count, 1, "arrangement onset unaffected")
+    }
 }

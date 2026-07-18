@@ -89,6 +89,54 @@ public final class AudioLanePlayer {
     private var appliedGain: [UUID: Float] = [:]
     private var appliedPan: [UUID: Float] = [:]
 
+    // MARK: - Clip-Launch override (S1 of PLAN_AUDIO_CLIP_LAUNCH — audio-lane launch)
+    //
+    // A LAUNCHED audio clip overrides its lane's arrangement and LOOPS its region
+    // window until stopped — the audio twin of the MIDI ClipLaunchEngine override.
+    // A MIDI launch re-windows for free every tick; an audio region is a ONE-SHOT
+    // file segment, so a launched clip must be RE-TRIGGERED at each loop boundary
+    // (`LaunchTiming.loopWrapped`, already tested). RUNTIME-ONLY like the MIDI
+    // launch: never persisted, dropped on every transport reset (the caller clears
+    // it in the same paths it clears the MIDI launch). GOLDEN GATE: while
+    // `overrides.isEmpty` every path below is byte-identical to arrangement-only
+    // playback — this whole slice is inert until a caller (S2) sets an override.
+
+    /// One lane's launched region + the song tick its loop phase is anchored to.
+    private struct AudioLaunchOverride { let region: TimelineRegion; let startedAtTick: Int }
+    private var overrides: [UUID: AudioLaunchOverride] = [:]
+
+    /// True when NO lane carries a launch override (the golden-gate query).
+    public var hasLaunchOverrides: Bool { !overrides.isEmpty }
+    /// Whether a launched region currently overrides this lane's arrangement.
+    public func isLaunchOverriding(_ laneID: UUID) -> Bool { overrides[laneID] != nil }
+
+    /// Begin (or replace) a launched override on `laneID`: loop `region` from its
+    /// content top starting now, anchored at `tick` (the launch boundary). Reuses
+    /// the SAME `start` path as the arrangement, so a launched clip sounds
+    /// byte-identical to that region playing from the arrangement.
+    public func setLaunchOverride(_ region: TimelineRegion, laneID: UUID,
+                                  atTick tick: Int, in doc: TimelineDocument, bpm: Double) {
+        overrides[laneID] = AudioLaunchOverride(region: region, startedAtTick: max(0, tick))
+        start(region, laneID: laneID, atTick: region.startTick, in: doc, bpm: bpm)   // from the top
+    }
+
+    /// End the launch on `laneID`: hand the lane back to the arrangement region
+    /// active at `tick` (or stop it in a gap). No-op when the lane isn't overridden.
+    public func clearLaunchOverride(laneID: UUID, atTick tick: Int,
+                                    in doc: TimelineDocument, bpm: Double) {
+        guard overrides.removeValue(forKey: laneID) != nil else { return }
+        if let region = TimelineScheduling.activeRegion(in: doc, laneID: laneID, at: tick) {
+            start(region, laneID: laneID, atTick: tick, in: doc, bpm: bpm)
+        } else {
+            sinks[laneID]?.stop()
+            appliedGain[laneID] = 0
+        }
+    }
+
+    /// Drop every launch override WITHOUT touching audio (the caller's transport-reset
+    /// path calls `stopAll` for the audio, exactly like the MIDI `launch.removeAll`).
+    public func clearAllLaunchOverrides() { overrides.removeAll() }
+
     public init(makeSink: @escaping () -> AudioRegionSink,
                 resolveURL: @escaping (UUID) -> URL?,
                 resolveNativeBPM: @escaping (UUID) -> Double = { _ in 0 }) {
@@ -111,8 +159,18 @@ public final class AudioLanePlayer {
             sinks[laneID] = nil
             appliedGain[laneID] = nil
             appliedPan[laneID] = nil
+            overrides[laneID] = nil   // a removed lane's launch dies with it
         }
         for laneID in doc.audioLaneIDs {
+            // S1 Clip-Launch: a LAUNCHED lane ignores the arrangement — it loops its
+            // launched region, re-triggering the one-shot segment at each loop wrap
+            // (`LaunchTiming.loopWrapped`) and honoring live mix in between. Idle
+            // engine (no override) ⇒ the arrangement switch below, byte-identical.
+            if let ov = overrides[laneID] {
+                applyLaunchOverride(ov, laneID: laneID, fromTick: fromTick,
+                                    toTick: toTick, in: doc, bpm: bpm)
+                continue
+            }
             switch TimelineScheduling.laneEvent(in: doc, laneID: laneID,
                                                 fromTick: fromTick, toTick: toTick) {
             case .unchanged:
@@ -266,6 +324,54 @@ public final class AudioLanePlayer {
                     start(region, laneID: laneID, atTick: tick, in: doc, bpm: bpm)
                 }
                 // No active region (gap): stay at 0 — the next onset starts it.
+            } else {
+                lane.setGain(gain)
+                appliedGain[laneID] = gain
+            }
+        }
+        let pan = clampedPan(in: doc, laneID: laneID)
+        if pan != (appliedPan[laneID] ?? 0) {
+            lane.setPan(pan)
+            appliedPan[laneID] = pan
+        }
+    }
+
+    /// S1 Clip-Launch: drive one launched lane for the window `fromTick`→`toTick`.
+    /// On a loop wrap the one-shot segment is re-triggered from the region's top;
+    /// otherwise a live mixer edit is reconciled against the OVERRIDE region's gain
+    /// (not the arrangement's), so mute/level/pan work on a launched clip too.
+    private func applyLaunchOverride(_ ov: AudioLaunchOverride, laneID: UUID,
+                                     fromTick: Int, toTick: Int,
+                                     in doc: TimelineDocument, bpm: Double) {
+        if LaunchTiming.loopWrapped(from: fromTick, to: toTick,
+                                    sinceTick: ov.startedAtTick,
+                                    loopLength: ov.region.lengthTicks) {
+            start(ov.region, laneID: laneID, atTick: ov.region.startTick, in: doc, bpm: bpm)
+        } else {
+            reconcileLaunchMix(ov, laneID: laneID, atTick: toTick, in: doc, bpm: bpm)
+        }
+    }
+
+    /// H4-style live-mixer reconcile for a LAUNCHED lane — mirrors `reconcileMix`
+    /// but gates on the override region's gain, and re-starts at the honest loop
+    /// PHASE (not the top) on un-silence, so an unmute mid-loop resumes in place.
+    private func reconcileLaunchMix(_ ov: AudioLaunchOverride, laneID: UUID,
+                                    atTick tick: Int, in doc: TimelineDocument, bpm: Double) {
+        guard let lane = sinks[laneID] else { return }
+        let gain = doc.effectiveGain(for: laneID) * ov.region.gain
+        let oldGain = appliedGain[laneID] ?? gain
+        if gain != oldGain {
+            if gain <= 0 {
+                lane.stop()
+                appliedGain[laneID] = 0
+            } else if oldGain <= 0 {
+                // Un-silence at the honest loop phase: file offset = content position
+                // within this loop cycle (a stopped one-shot can't resume; re-schedule).
+                let contentTick = LaunchTiming.loopContentTick(now: tick,
+                                                               sinceTick: ov.startedAtTick,
+                                                               loopLength: ov.region.lengthTicks)
+                start(ov.region, laneID: laneID,
+                      atTick: ov.region.startTick + contentTick, in: doc, bpm: bpm)
             } else {
                 lane.setGain(gain)
                 appliedGain[laneID] = gain
