@@ -32,6 +32,25 @@ public struct ArrangementSection: Codable, Sendable, Equatable, Identifiable {
         self.colorIndex = colorIndex
         self.lengthBars = max(1, lengthBars)
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, clipID, name, colorIndex, lengthBars
+    }
+
+    /// Forward/backward-compatible decode (law 9, mirroring `Clip.init(from:)`):
+    /// a section saved before a field existed — or a future field added later —
+    /// decodes to its default instead of THROWING. Without this, the synthesized
+    /// decoder makes every field required, so one new field fails the whole
+    /// `Arrangement` decode and `ArrangementStore` silently drops the entire song
+    /// (`?? Arrangement()`). Encode stays synthesized (the CodingKeys match).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(UUID.self, forKey: .id)) ?? UUID()
+        clipID = try? c.decode(UUID.self, forKey: .clipID)   // nil = silent gap
+        name = (try? c.decode(String.self, forKey: .name)) ?? "Section"
+        colorIndex = (try? c.decode(Int.self, forKey: .colorIndex)) ?? 0
+        lengthBars = max(1, (try? c.decode(Int.self, forKey: .lengthBars)) ?? 1)
+    }
 }
 
 /// The full song: an ordered list of sections.
@@ -40,6 +59,15 @@ public struct Arrangement: Codable, Sendable, Equatable {
 
     public init(sections: [ArrangementSection] = []) {
         self.sections = sections
+    }
+
+    private enum CodingKeys: String, CodingKey { case sections }
+
+    /// Additive decode (law 9): a document missing `sections` (or a future added
+    /// field) loads as an empty song instead of throwing and losing everything.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sections = (try? c.decode([ArrangementSection].self, forKey: .sections)) ?? []
     }
 
     /// Total length of the song in bars.

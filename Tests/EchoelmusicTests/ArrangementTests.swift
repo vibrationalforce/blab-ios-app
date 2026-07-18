@@ -154,4 +154,55 @@ final class ArrangementTests: XCTestCase {
         XCTAssertEqual(store.sections.first?.colorIndex, 3)
         store.clearAll()
     }
+
+    // MARK: - Additive Codable (law 9 — no silent whole-song loss on decode)
+
+    /// Full round-trip stays exact (the custom decoder must not change encode).
+    func testArrangement_roundTripsExactly() throws {
+        let a = Arrangement(sections: [
+            ArrangementSection(clipID: UUID(), name: "Intro", colorIndex: 2, lengthBars: 4),
+            ArrangementSection(name: "Gap", lengthBars: 2),
+        ])
+        let data = try JSONEncoder().encode(a)
+        let back = try JSONDecoder().decode(Arrangement.self, from: data)
+        XCTAssertEqual(a, back)
+    }
+
+    /// A section JSON missing later-added fields decodes to defaults, NOT a throw —
+    /// the whole point: one absent field must not lose the song.
+    func testArrangementSection_missingFieldsDecodeToDefaults() throws {
+        // Only `id` + `name` present (as an early build might have saved).
+        let json = #"{"id":"\#(UUID().uuidString)","name":"Old"}"#.data(using: .utf8)!
+        let s = try JSONDecoder().decode(ArrangementSection.self, from: json)
+        XCTAssertEqual(s.name, "Old")
+        XCTAssertNil(s.clipID)          // absent ⇒ silent gap
+        XCTAssertEqual(s.colorIndex, 0) // absent ⇒ default
+        XCTAssertEqual(s.lengthBars, 1) // absent ⇒ clamped default, never 0
+    }
+
+    /// A completely foreign / future-shaped section object still decodes (all
+    /// defaults) rather than throwing and dropping the arrangement.
+    func testArrangementSection_unknownShapeDoesNotThrow() throws {
+        let json = #"{"future":123,"lengthBars":0}"#.data(using: .utf8)!
+        let s = try JSONDecoder().decode(ArrangementSection.self, from: json)
+        XCTAssertEqual(s.lengthBars, 1, "lengthBars 0 clamps to 1 even on decode")
+        XCTAssertEqual(s.name, "Section")
+    }
+
+    /// An arrangement document missing `sections` loads as an empty song, not a throw.
+    func testArrangement_missingSectionsDecodesEmpty() throws {
+        let json = #"{}"#.data(using: .utf8)!
+        let a = try JSONDecoder().decode(Arrangement.self, from: json)
+        XCTAssertTrue(a.sections.isEmpty)
+    }
+
+    /// The nested case: a section inside the array carries only partial fields —
+    /// the arrangement still loads with that section defaulted (no whole-song loss).
+    func testArrangement_partialNestedSectionSurvives() throws {
+        let json = #"{"sections":[{"name":"Verse"}]}"#.data(using: .utf8)!
+        let a = try JSONDecoder().decode(Arrangement.self, from: json)
+        XCTAssertEqual(a.sections.count, 1)
+        XCTAssertEqual(a.sections.first?.name, "Verse")
+        XCTAssertEqual(a.sections.first?.lengthBars, 1)
+    }
 }
