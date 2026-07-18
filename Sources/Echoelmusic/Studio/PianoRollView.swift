@@ -281,6 +281,34 @@ public final class PianoRollModel {
         notes.first(where: { $0.id == id })?.operators?.chance ?? 1
     }
 
+    /// OCCURRENCE (A1 R5, founder "Repeats/Occurrence als Lane-Modi"): play this
+    /// note only every `period`-th loop pass (1 = every loop, Ableton's 1:N ratio).
+    /// Honored at playback via `operatorAllows`→`hits` (occurrence gate); Repeats
+    /// (ratchet) is deliberately NOT a lane mode yet — it needs the sample-accurate
+    /// sub-step clock (W2) and would be a silent no-op today. Mirrors `setChance`:
+    /// preserves the note's other operators, clamps via NoteOperators' init
+    /// (periodRange 1…64), and collapses a now-default bag back to `nil` so a plain
+    /// note stays byte-identical. Phase stays as-is (paint sets only the period).
+    public func setOccurrence(id: UUID, _ period: Int) {
+        guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
+        let base = notes[i].operators ?? NoteOperators()
+        let updated = NoteOperators(chance: base.chance,
+                                    repeats: base.repeats,
+                                    repeatRamp: base.repeatRamp,
+                                    occurrencePeriod: period,
+                                    occurrencePhase: base.occurrencePhase,
+                                    velocityDepth: base.velocityDepth,
+                                    timingDepth: base.timingDepth,
+                                    filterDepth: base.filterDepth)
+        notes[i].operators = updated.isDefault ? nil : updated
+    }
+
+    /// The note's current occurrence PERIOD for the Occurrence paint-lane (plain
+    /// note = 1 = plays every loop).
+    public func occurrencePeriod(id: UUID) -> Int {
+        notes.first(where: { $0.id == id })?.operators?.occurrencePeriod ?? 1
+    }
+
     /// Reposition a note to a new pitch + start step, preserving its length. Pitch
     /// clamps to the roll's range; the start clamps so the note never crosses the
     /// loop boundary (its tail stays inside the bar). The drag-to-move primitive —
@@ -1619,18 +1647,29 @@ struct PianoRollView: View {
     }
 
     /// Which parameter the bottom paint-lane edits.
-    enum RollLaneMode { case velocity, chance
-        var label: String { self == .velocity ? "Vel" : "Cha" }
-        var next: RollLaneMode { self == .velocity ? .chance : .velocity }
+    enum RollLaneMode { case velocity, chance, occurrence
+        var label: String {
+            switch self { case .velocity: return "Vel"; case .chance: return "Cha"; case .occurrence: return "Occ" }
+        }
+        var next: RollLaneMode {
+            switch self { case .velocity: return .chance; case .chance: return .occurrence; case .occurrence: return .velocity }
+        }
+        var accessibilityLabel: String {
+            switch self {
+            case .velocity: return "Velocity lane"
+            case .chance: return "Note-chance lane"
+            case .occurrence: return "Occurrence lane"
+            }
+        }
     }
 
-    /// Left-margin label for the paint lane — TAP to cycle Vel ↔ Cha. Aligned under
-    /// the pitch gutter. A plain Button toggling `@State` (no sheet, no bio read).
+    /// Left-margin label for the paint lane — TAP to cycle Vel → Cha → Occ. Aligned
+    /// under the pitch gutter. A plain Button toggling `@State` (no sheet, no bio read).
     private var velLabel: some View {
         Button { laneMode = laneMode.next } label: {
             Text(laneMode.label)
                 .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                .foregroundStyle(laneMode == .chance ? EchoelTheme.accent : EchoelTheme.dim)
+                .foregroundStyle(laneMode == .velocity ? EchoelTheme.dim : EchoelTheme.accent)
                 .frame(width: gutterW, height: laneH, alignment: .trailing)
                 .padding(.trailing, 3)
                 .contentShape(Rectangle())
@@ -1638,14 +1677,28 @@ struct PianoRollView: View {
         .buttonStyle(.plain)
         .overlay(Rectangle().frame(height: 0.5)
             .foregroundStyle(EchoelTheme.border), alignment: .top)
-        .accessibilityLabel(laneMode == .velocity ? "Velocity lane" : "Chance lane")
-        .accessibilityHint("Tap to switch between velocity and note-chance painting")
+        .accessibilityLabel(laneMode.accessibilityLabel)
+        .accessibilityHint("Tap to cycle between velocity, note-chance and occurrence painting")
     }
 
     /// The paint-lane value [0…1] the lane draws for `note`, per `laneMode` (read
-    /// straight off the note — O(1), no lookup in the render loop).
+    /// straight off the note — O(1), no lookup in the render loop). Occurrence draws
+    /// as the 1:N ratio (period 1 = full bar = every loop, 1:2 = half, …).
     private func laneValue(_ note: Note) -> CGFloat {
-        laneMode == .velocity ? CGFloat(note.velocity) : CGFloat(note.operators?.chance ?? 1)
+        switch laneMode {
+        case .velocity:   return CGFloat(note.velocity)
+        case .chance:     return CGFloat(note.operators?.chance ?? 1)
+        case .occurrence: return CGFloat(1.0 / Double(note.operators?.occurrencePeriod ?? 1))
+        }
+    }
+
+    /// Map a paint-lane unit [0…1] to an occurrence PERIOD (1…): the bar draws the
+    /// 1:N ratio, so the inverse recovers N (top = 1:1 = every loop, half = 1:2, …).
+    /// Clamped again by NoteOperators' init (periodRange). A unit at/near 0 → the
+    /// sparsest period the range allows.
+    static func occurrencePeriod(forUnit unit: Double) -> Int {
+        guard unit > 0.02 else { return NoteOperators.periodRange.upperBound }
+        return Int((1.0 / unit).rounded())
     }
 
     /// Paint-lane: one bar per note (height = the active parameter), drag vertically
@@ -1686,8 +1739,9 @@ struct PianoRollView: View {
                 // Both parameters live in 0…1 → the same Y→unit map serves each.
                 let unit = RollHitTest.velocity(forY: Double(value.location.y), laneHeight: Double(laneH))
                 switch laneMode {
-                case .velocity: model.setVelocity(id: id, unit)
-                case .chance:   model.setChance(id: id, Double(unit))
+                case .velocity:   model.setVelocity(id: id, unit)
+                case .chance:     model.setChance(id: id, Double(unit))
+                case .occurrence: model.setOccurrence(id: id, Self.occurrencePeriod(forUnit: Double(unit)))
                 }
                 selection = .single(id)
             }

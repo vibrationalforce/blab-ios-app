@@ -436,4 +436,56 @@ final class NoteOperatorsTests: XCTestCase {
         m.setChance(id: id, 1)
         XCTAssertNil(m.notes.first?.operators, "fully default operator bag collapses to nil")
     }
+
+    // MARK: - A1 R5 per-note Occurrence paint-lane (PianoRollModel.setOccurrence / .occurrencePeriod)
+
+    @MainActor
+    func testSetOccurrence_createsClampedOperators_andReadsBack() {
+        let m = PianoRollModel()
+        m.add(pitch: 60, startStep: 0)
+        guard let id = m.notes.first?.id else { return XCTFail("note missing") }
+        XCTAssertEqual(m.occurrencePeriod(id: id), 1, "a plain note plays every loop")
+
+        m.setOccurrence(id: id, 1)                     // period 1 → default → nil
+        XCTAssertNil(m.notes.first?.operators, "every-loop stays a plain note")
+
+        m.setOccurrence(id: id, 3)
+        XCTAssertEqual(m.notes.first?.operators?.occurrencePeriod, 3)
+        XCTAssertEqual(m.occurrencePeriod(id: id), 3, "read-back matches")
+
+        m.setOccurrence(id: id, 100)                   // out of range → clamps to 64
+        XCTAssertEqual(m.occurrencePeriod(id: id), NoteOperators.periodRange.upperBound)
+    }
+
+    @MainActor
+    func testSetOccurrence_preservesOtherOperators_andCollapses() {
+        let m = PianoRollModel()
+        m.add(pitch: 62, startStep: 0)
+        guard let id = m.notes.first?.id else { return XCTFail("note missing") }
+
+        // A note that already has a below-1 chance.
+        m.setChance(id: id, 0.4)
+        // Setting occurrence must PRESERVE the chance.
+        m.setOccurrence(id: id, 2)
+        XCTAssertEqual(m.notes.first?.operators?.chance, 0.4, "occurrence edit preserves chance")
+        XCTAssertEqual(m.notes.first?.operators?.occurrencePeriod, 2)
+
+        // Back to period 1 while chance<1 stays a NON-default operator (not nil).
+        m.setOccurrence(id: id, 1)
+        XCTAssertEqual(m.notes.first?.operators?.chance, 0.4, "chance still set → operators survive")
+        XCTAssertEqual(m.notes.first?.operators?.occurrencePeriod, 1)
+
+        // Reset chance too → now default → collapses to nil.
+        m.setChance(id: id, 1)
+        XCTAssertNil(m.notes.first?.operators, "fully default operator bag collapses to nil")
+    }
+
+    func testOccurrencePeriodForUnit_mapsRatioInverse() {
+        // The bar draws the 1:N ratio, so the unit→period map is the inverse.
+        XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 1.0), 1, "full bar = every loop")
+        XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 0.5), 2, "half = 1:2")
+        XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 0.25), 4, "quarter = 1:4")
+        XCTAssertEqual(PianoRollView.occurrencePeriod(forUnit: 0.0),
+                       NoteOperators.periodRange.upperBound, "bottom = sparsest")
+    }
 }
