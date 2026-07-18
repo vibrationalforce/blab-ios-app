@@ -469,6 +469,14 @@ struct ArrangeTimelineView: View {
                 if patchEdit?.laneID == lane.id {
                     patchEdit?.latest = edited
                 } else {
+                    // Dismiss-race parity with clipEdit (ui-state review LOW): if a
+                    // DIFFERENT lane's edit is still pending — its onDismiss was
+                    // skipped by the `activeModal == nil` re-present guard — persist
+                    // it before we overwrite, so a fast patch→patch door switch
+                    // inside the dismiss animation cannot drop it.
+                    if let prev = patchEdit, prev.laneID != lane.id, prev.latest != prev.seed {
+                        timeline.setLanePatch(prev.laneID, patch: prev.latest)
+                    }
                     patchEdit = LanePatchEdit(laneID: lane.id, seed: seed, latest: edited)
                 }
             })
