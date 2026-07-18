@@ -79,7 +79,13 @@ struct ClipAutomationView: View {
         HStack {
             Text("Parameter").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.dim)
             Spacer()
-            Picker("Parameter", selection: $selectedParameter) {
+            // Drive selection from `resolvedParameter` so it ALWAYS matches a
+            // live tag (falls back to targets.first) — no transient "" selection
+            // that SwiftUI logs as an invalid/unmatched tag on first appearance.
+            Picker("Parameter", selection: Binding(
+                get: { resolvedParameter },
+                set: { selectedParameter = $0 }
+            )) {
                 ForEach(targets, id: \.keyPath) { d in Text(d.displayName).tag(d.keyPath) }
             }
             .pickerStyle(.menu)
@@ -122,14 +128,21 @@ private struct ClipAutomationCanvas: View {
     @State private var dragMode: DragMode?
     @State private var lastTapTime: Date?
     @State private var lastTapLocation: CGPoint = .zero
+    /// In-flight working copy during a move/bend drag. Holds the edit in memory
+    /// so the canvas redraws every frame, but `ClipStore.setClipAutomation`
+    /// (a synchronous full-`[Clip?]` JSON encode + encrypted disk write on the
+    /// MainActor) fires ONCE on drag-end — not per `onChanged` frame (which would
+    /// re-serialize the whole clip document dozens of times/sec → drag jank).
+    @State private var draft: [AutomationLane]?
 
     private static let height = 140.0
     private static let touchRadius = 28.0
     private static let doubleTapWindow: TimeInterval = 0.4
 
     /// The clip's WHOLE lanes array — what ClipAutomationEdit transforms and
-    /// ClipStore.setClipAutomation persists.
-    private var currentLanes: [AutomationLane] { clips.clip(id: clipID)?.automation ?? [] }
+    /// ClipStore.setClipAutomation persists. During a drag it reflects the
+    /// in-memory `draft` so drawing tracks the finger without touching disk.
+    private var currentLanes: [AutomationLane] { draft ?? (clips.clip(id: clipID)?.automation ?? []) }
     private var lane: AutomationLane? { currentLanes.first { $0.parameter == parameter } }
     /// The selected lane's points — for hit-testing + drawing only.
     private var points: [AutomationPoint] { lane?.points ?? [] }
@@ -185,17 +198,18 @@ private struct ClipAutomationCanvas: View {
             }
         }
         guard travel(g) > AutomationCanvasMath.tapSlopPoints else { return }
+        // Move/bend update the in-memory draft only — no disk write until drag-end.
         switch dragMode {
         case .movePoint(let id):
             let tick = AutomationCanvasMath.tick(forX: Double(g.location.x), width: w, spanTicks: spanTicks)
             let value = AutomationCanvasMath.value(forY: Double(g.location.y), height: Self.height)
-            commit(ClipAutomationEdit.movePoint(currentLanes, id: id, toTick: tick,
-                                                value: value, spanTicks: spanTicks))
+            draft = ClipAutomationEdit.movePoint(currentLanes, id: id, toTick: tick,
+                                                 value: value, spanTicks: spanTicks)
         case .bendSegment(let id, let start, let rising):
             let c = AutomationCanvasMath.bentCurvature(start: start,
                                                        dragUpPoints: -Double(g.translation.height),
                                                        risingSegment: rising)
-            commit(ClipAutomationEdit.setCurvature(currentLanes, id: id, c))
+            draft = ClipAutomationEdit.setCurvature(currentLanes, id: id, c)
         case .tap, .none:
             break
         }
@@ -203,7 +217,12 @@ private struct ClipAutomationCanvas: View {
 
     private func handleEnded(_ g: DragGesture.Value, width: CGFloat) {
         let mode = dragMode
+        let pendingDraft = draft
         dragMode = nil
+        draft = nil
+        // A move/bend drag: persist the accumulated draft ONCE here.
+        if let pendingDraft, case .movePoint = mode { commit(pendingDraft) }
+        if let pendingDraft, case .bendSegment = mode { commit(pendingDraft) }
         guard travel(g) <= AutomationCanvasMath.tapSlopPoints else { lastTapTime = nil; return }
 
         let dx = Double(g.location.x - lastTapLocation.x)
