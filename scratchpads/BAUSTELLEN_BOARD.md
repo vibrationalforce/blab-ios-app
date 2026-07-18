@@ -87,3 +87,10 @@
 | H12: MIDI-Clip pro Spur, Drums im Editor, Roll-Leiste scrollt | v284 | Founder: b) behoben; Roll-Fit → A1 |
 | Harmony H1 VoiceLeader + default-ON | v285 | CI ✓, Hörtest offen (B2) |
 | Harmony H3 HRV-Humanize + default-ON | e8d124b/a511205 | Gates laufen; Hörtest offen (B2) |
+
+## ERLEDIGT 2026-07-18 (Härtung — reiten nächsten Feature-Deploy, kein Hörtest)
+
+| Baustelle | Commit | Verify |
+|-----------|--------|--------|
+| Egress-Sweep KOMPLETT: Art-Net + sACN Bio-Netzausgang auf BioEgressPolicy gegated (letzte 2 ungegateten Netz-Konsumenten; 5.1.3) | bbbf5dd | CI ✓ (beide Gates grün); security-agent SECURE, kein Rest-Leck |
+| EchoelLux L1: Blackout/Grand-Master bleibt autoritativ ohne frische/erlaubte Quelle (hält letzte Roh-Farbe, master/slew läuft weiter) — behebt vom Egress-Sweep verbreiterte No-Source-Early-Return-Kante | 65ff88b | code-reviewer PASS (bounded, kein Idle-Resend, egress-clean); Gerät-Verify: Blackout in reiner HealthKit-Session (optional, latent) |
