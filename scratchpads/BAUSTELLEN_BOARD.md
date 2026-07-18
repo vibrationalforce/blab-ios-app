@@ -58,8 +58,15 @@
 | AU5 | AudioEngine Meter-Props `@ObservationIgnored` (60-Hz-Freeze-Landmine) | Audio/AudioEngine.swift:59-67 | #11 | offen — mechanisch, launchGeneration-Muster |
 
 > HIGH-Befunde außerhalb der Top-5 (eigene Zyklen): AUv3 Cross-Thread-Race + malloc im Render
-> (EchoelmusicAudioUnit.swift:226/391 — deferred Target, #50), Colab umgeht Egress-Gate
-> (LiveColaboView.swift:78, App-Store 5.1.3), FaceExpression-Permission lügt (Info.plist, Founder-OK).
+> (EchoelmusicAudioUnit.swift:226/391 — deferred Target, #50), ~~Colab umgeht Egress-Gate
+> (LiveColaboView.swift:78, App-Store 5.1.3)~~ **✅ GEFIXT (b825b54):** `BioEgressPolicy.allowsEgress(f.source)`-Guard
+> im Share-Loop (spiegelt ADMOSCSender:178) — HealthKit/Watch/Oura streamen nicht mehr zu Peers;
+> security-agent SECURE+vollständig (einziger Bio-Egress-Pfad). Optionale Defense-in-Depth (Gate IN
+> sendBio) für späteren Zyklus notiert. FaceExpression-Permission lügt (Info.plist, Founder-OK).
+> **AU5** (Meter-Props @ObservationIgnored) = **latent/eingegrenzt, zurückgestellt:** die Props werden NUR
+> von `MasterLoudnessGrid` (Leaf-Meter, sichtbarkeits-gegatet) gelesen — EchoelStudioView liest sie NICHT,
+> also KEIN Live-Freeze heute; das Shield bräuchte einen riskanten Live-Meter-Self-Poll-Refactor (unter
+> No-Compiler nicht blind). Präventiv-only → eigener Gerät-/Compiler-Takt.
 > PLAUSIBLE/Gerät-Verify: SPSCQueue OSAtomic-Race (:153) — höchstes latentes Risiko, kein Ralph-Quick-Win.
 > #66 (tote Türen) = eigener Closeout-Loop.
 
