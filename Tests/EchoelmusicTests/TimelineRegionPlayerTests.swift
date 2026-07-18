@@ -169,6 +169,52 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
         XCTAssertEqual(pans[0] ?? -1, -0.5, accuracy: 1e-6)
     }
 
+    @MainActor
+    func testRollPatchSink_firesPrimaryLanePatchAtPrime() {
+        // #23 S2b: the primary roll lane carries its own SynthPatch → the player
+        // applies it to the global voice at region load (via applyRollLaneVoice,
+        // before the clip's notes). Mirrors the transpose/kind sinks. The clip need
+        // not exist — applyRollLaneVoice runs before loadClip resolves the clip.
+        var roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let patch = SynthPatch(name: "LeadTimbre", brightness: 0.8)
+        roll.patch = patch
+        let document = TimelineDocument(lanes: [roll], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var applied: [SynthPatch] = []
+        player.rollPatchSink = { applied.append($0) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        defer { player.stop() }
+        XCTAssertEqual(applied.first, patch,
+                       "prime applies the primary lane's own patch to the global voice")
+    }
+
+    @MainActor
+    func testRollPatchSink_neverFires_whenPrimaryLaneHasNoPatch() {
+        // The golden gate: a nil primary patch must NOT clobber the live-edited
+        // global sound — the sink is never called, so the voice is untouched.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)   // patch == nil
+        let document = TimelineDocument(lanes: [roll], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var applied: [SynthPatch] = []
+        player.rollPatchSink = { applied.append($0) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        defer { player.stop() }
+        XCTAssertTrue(applied.isEmpty,
+                      "a nil primary patch must not apply anything to the shared voice")
+    }
+
     func testSlotLaneSink_bindsAtPrime_releasesOnStop() {
         // H5b: the player publishes which LANE a slot plays (snapshot-truth) so
         // the app can route the slot to that lane's hosted AU instrument.

@@ -121,6 +121,15 @@ public final class TimelineRegionPlayer {
     /// Structural (an instrument change rides refreshStructure → loadRollRegion),
     /// so it is NOT re-pushed in refreshMixer. nil ⇒ poly, bit-identical.
     @ObservationIgnored public var rollKindSink: ((_ kind: LaneVoiceKind) -> Void)?
+    /// #23 S2b: applies the PRIMARY roll lane's own SynthPatch to the roll voice when
+    /// its region loads (the roll lane plays the global PolySynthVoice, so it needs its
+    /// own hook — the secondary lanes use `slotPatchSink`). CRITICAL asymmetry vs the
+    /// transpose/detune/octave sinks: those always fire with a neutral 0 default, but
+    /// this one is CALLED ONLY WHEN the lane actually carries a patch — a nil primary
+    /// patch must NOT clobber the live-edited global sound back to a default (that would
+    /// wipe the user's current timbre on every region load). Golden gate: nil patch ⇒
+    /// sink never called ⇒ the global voice is byte-identical to today.
+    @ObservationIgnored public var rollPatchSink: ((_ patch: SynthPatch) -> Void)?
     /// Applies a SECONDARY lane's stereo PAN (−1…1) to its slot's rack voice — on
     /// region load AND live on a mid-play mixer edit (H4, healing wave 1: pan was
     /// silently inert for rack voices). Injected (AVFoundation stays in the app).
@@ -901,6 +910,12 @@ public final class TimelineRegionPlayer {
         rollDetuneSink?(laneObj?.detuneCents ?? 0)
         rollOctaveSink?(laneObj?.octaveDouble ?? 0)
         rollKindSink?(laneObj?.builtinInstrument?.voiceKind ?? .poly)
+        // #23 S2b: apply the primary lane's OWN patch AFTER the kind binds the voice
+        // (so timbre lands on the correct poly/kind voice) and BEFORE the clip's notes
+        // (apply() enqueues ahead of the attack in the voice's render drain, like the
+        // secondary slotPatchSink). Guarded on non-nil: nil ⇒ keep the live global
+        // sound untouched (the golden gate — see rollPatchSink's doc).
+        if let patch = laneObj?.patch { rollPatchSink?(patch) }
     }
 
     /// Re-window the region currently LAUNCHED on `laneID` after a structural edit +

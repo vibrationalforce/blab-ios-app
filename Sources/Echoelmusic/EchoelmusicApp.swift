@@ -729,6 +729,14 @@ struct EchoelmusicApp: App {
                 timelinePlayer.rollOctaveSink = { [weak polyVoice] direction in
                     polyVoice?.setOctaver(direction: direction)
                 }
+                // #23 S2b: the PRIMARY roll lane's own persisted SynthPatch, applied to
+                // the global poly voice when its region loads. Fires ONLY when the lane
+                // carries a patch (the player guards nil), so a lane with no patch keeps
+                // the live-edited global sound — no clobber. This makes a primary lane's
+                // timbre document-persistent, symmetric with the secondary slotPatchSink.
+                timelinePlayer.rollPatchSink = { [weak polyVoice] patch in
+                    polyVoice?.apply(patch)
+                }
                 // S2-W2-6: route the PRIMARY roll through its lane's kind voice when
                 // that lane is a drums kit / sub-bass. The rack's single kit/sub back
                 // it; nil (poly, OR the units are absent because voiceKindRouting is
