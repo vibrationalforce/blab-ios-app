@@ -47,8 +47,26 @@ jeder Loop-Grenze neu getriggert** werden (Segment von vorn). Genau dafür ist
 - `transportStep`: Audio-Spuren mit Override NICHT über den normalen `audioLanes?.apply`
   doppelt fahren — der Override-Zweig in `apply` (S1) erledigt Loop-Restart; der normale
   Arrangement-Teil überspringt overridden lanes.
-- Stop/relocate/wrap: `audioLanes?.clearAllOverrides()` in denselben Reset-Pfaden wie
+- Stop/relocate/wrap: `audioLanes?.clearAllLaunchOverrides()` in denselben Reset-Pfaden wie
   `launch.removeAll()` (Launch überlebt keinen Transport-Reset — P0-Gesetz).
+  **HARTE S2-PFLICHT (audio-thread-review 41fac9c):** `clearAllLaunchOverrides()` leert NUR
+  die Karte, stoppt KEIN Audio. In JEDEM stop/handleTransportStopped/relocate-Pfad MUSS das
+  Paar zusammen gerufen werden: `stopAll()` (sonst tönt die overridete Spur weiter) UND
+  `clearAllLaunchOverrides()` (sonst re-triggert das nächste `apply()` den Loop vom Top).
+  S2-Test-Pflicht: ein Transport-Reset stoppt Audio UND `hasLaunchOverrides == false`.
+- **HARTE S2-PFLICHT #2 (code-review 41fac9c, #22-Historie):** `setLaunchOverride` ruft direkt
+  `start`→`sink.play`. Referenziert ein gelaunchtes Clip eine Datei, die auf DIESER Spur noch
+  NICHT geprimed ist (z. B. ein Clip-Slot-Clip ohne Arrangement-Region), attacht der Geräte-Sink
+  seinen Node mitten im Song = ganzer-Mix-Dropout (HIGH-2). S2 MUSS die Datei des gelaunchten
+  Clips vor `setLaunchOverride` warmen (`preload`) ODER `setLaunchOverride` warmt selbst zuerst.
+
+## S1 STATUS (2026-07-18, 41fac9c — gebaut, Gates laufen)
+AudioLanePlayer Override-Türen + 7 SpySink-Tests. audio-thread-reviewer: CLEAN (golden gate
+verifiziert, Anchoring korrekt, keine Audio-Thread-Regel berührt). Zwei Geräte-Verify-Punkte
+(inhärent an Block-Re-Trigger, nicht hier beweisbar): (1) Loop-Restart ist auf das Transport-
+Fenster gerundet, nicht sample-genau — bis zu 1 Fenster Phasenschlupf pro Wrap; (2) Klick/Gap
+an der Naht hängt an der echten Sink-Implementierung (`AudioClipPlayer`, S2+). Beide erst mit
+dem Geräte-Sink verifizierbar.
 
 **S3 — Glyph auf Audio-Regions:** `launchGlyphOverlay(isMidi:)` → `isLaunchable` (midi ODER
 audio, `!laneIsBio`). Der Glyph ist bereits spur-agnostisch (liest nur `launchState(laneID:)`).

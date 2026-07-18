@@ -448,7 +448,9 @@ final class AudioLanePlayerTests: XCTestCase {
     /// The one-shot audio segment is RE-TRIGGERED when the loop wraps (a launched
     /// clip loops; MIDI re-windows for free, audio must re-schedule).
     func testLaunchOverride_loopWrap_reTriggers() {
-        let (document, laneID) = doc(length: 1920)              // 1 bar loop
+        // offset 1.5 ⇒ the re-trigger `from` must equal the content offset, so a
+        // wrong-offset regression can't hide behind a 0 that also means "top".
+        let (document, laneID) = doc(length: 1920, offset: 1.5)   // 1 bar loop
         let region = document.regions[0]
         let factory = Factory()
         let p = player(factory) { _ in self.fileURL }
@@ -457,14 +459,14 @@ final class AudioLanePlayerTests: XCTestCase {
         // Cross the 1920 loop boundary → the segment re-starts from the top.
         p.apply(in: document, fromTick: 1900, toTick: 1940, bpm: 120)
         XCTAssertEqual(factory.sinks.first?.plays.count, 2, "loop wrap re-triggers the segment")
-        XCTAssertEqual(factory.sinks.first?.plays.last?.from ?? -1, 0, accuracy: 1e-6,
-                       "re-trigger restarts at the region top")
+        XCTAssertEqual(factory.sinks.first?.plays.last?.from ?? -1, 1.5, accuracy: 1e-6,
+                       "re-trigger restarts at the region content top (its offset)")
     }
 
     /// Inside the loop (no wrap, no mixer edit) the launched lane does nothing —
     /// the segment keeps playing, not re-scheduled every step.
     func testLaunchOverride_withinLoop_doesNotReTrigger() {
-        let (document, laneID) = doc(length: 1920)
+        let (document, laneID) = doc(length: 1920, offset: 1.5)
         let region = document.regions[0]
         let factory = Factory()
         let p = player(factory) { _ in self.fileURL }
@@ -474,7 +476,8 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertEqual(factory.sinks.first?.stops, 0)
     }
 
-    /// Clearing the override hands the lane back to the arrangement region active now.
+    /// Clearing the override hands the lane back to the arrangement region active now,
+    /// at the HONEST file position for that tick (480 ticks = 0.5 s @120 BPM).
     func testClearLaunchOverride_returnsToArrangement() {
         let (document, laneID) = doc(length: 1920)
         let region = document.regions[0]
@@ -486,6 +489,48 @@ final class AudioLanePlayerTests: XCTestCase {
         XCTAssertFalse(p.hasLaunchOverrides)
         XCTAssertEqual(factory.sinks.first?.plays.count, 2,
                        "clear restarts the arrangement region at the current tick")
+        XCTAssertEqual(factory.sinks.first?.plays.last?.from ?? -1, 0.5, accuracy: 1e-6,
+                       "the arrangement resumes at the honest file position for tick 480")
+    }
+
+    /// Replacing the override with a DIFFERENT region on the same lane launches the
+    /// new region from ITS content top (last tap wins).
+    func testSetLaunchOverride_replaceWithDifferentRegion() {
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let regionA = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                     startTick: 0, lengthTicks: 1920, contentOffsetSeconds: 0)
+        let regionB = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                     startTick: 1920, lengthTicks: 1920, contentOffsetSeconds: 1.0)
+        let document = TimelineDocument(lanes: [lane], regions: [regionA, regionB])
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(regionA, laneID: lane.id, atTick: 0, in: document, bpm: 120)
+        p.setLaunchOverride(regionB, laneID: lane.id, atTick: 0, in: document, bpm: 120)
+        XCTAssertTrue(p.isLaunchOverriding(lane.id))
+        XCTAssertEqual(factory.sinks.first?.plays.count, 2)
+        XCTAssertEqual(factory.sinks.first?.plays.last?.from ?? -1, 1.0, accuracy: 1e-6,
+                       "replacing the override launches the new region from its top")
+    }
+
+    /// The #22 silence surface: unmute a muted, looping launched clip and it resumes
+    /// at the honest loop PHASE (not the top) — the un-silence branch of the mixer.
+    func testLaunchOverride_unmuteResumesAtLoopPhase() {
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let region = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                    startTick: 0, lengthTicks: 1920)
+        let docOn = TimelineDocument(lanes: [lane], regions: [region])
+        var mutedLane = lane; mutedLane.isMuted = true
+        let docMuted = TimelineDocument(lanes: [mutedLane], regions: [region])
+        let factory = Factory()
+        let p = player(factory) { _ in self.fileURL }
+        p.setLaunchOverride(region, laneID: lane.id, atTick: 0, in: docOn, bpm: 120)   // play #1
+        p.apply(in: docMuted, fromTick: 100, toTick: 200, bpm: 120)                    // mute → stop
+        XCTAssertEqual(factory.sinks.first?.stops, 1)
+        // Unmute at tick 480 (0.5 s into the loop) → resume at that phase, not the top.
+        p.apply(in: docOn, fromTick: 400, toTick: 480, bpm: 120)
+        XCTAssertEqual(factory.sinks.first?.plays.count, 2, "unmute resumes the launched clip")
+        XCTAssertEqual(factory.sinks.first?.plays.last?.from ?? -1, 0.5, accuracy: 1e-6,
+                       "resume lands at the honest loop phase, not the region top")
     }
 
     /// Muting the lane stops a launched clip (live mixer works on an override too).
