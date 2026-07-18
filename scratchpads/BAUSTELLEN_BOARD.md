@@ -50,7 +50,7 @@
 
 | # | Fix | Datei | Entriegelt | Status |
 |---|-----|-------|-----------|--------|
-| AU1 | **Arrangement additive Codable** (kein stiller Song-Verlust) | Sequencer/Arrangement.swift | #39/#40/#11 | ✓ 66f94dc (Gates laufen) |
+| AU1 | **Arrangement additive Codable** (kein stiller Song-Verlust) | Sequencer/Arrangement.swift | #39/#40/#11 | ✅ 66f94dc GRÜN (beide Gates) |
 | AU2 | ModulationEngine Freshness-Gate (Bio löst zu neutral) — **NICHT der 1-Zeiler den der Report behauptet; braucht Design** (Tempo 0→30BPM-Skalierung) | Core/ModulationEngine.swift:144 | #60, halb #61 | offen — eigener Design-Zyklus |
 | AU3 | DDSP-Header-Invariante korrigieren (Doc-Fix, „exclusively MainActor" ist falsch — alle Caller off-main) | DSP/EchoelDDSP.swift:44-48 | #59, schützt jeden DSP-Edit | offen — reiner Kommentar, 0 Risiko |
 | AU4 | MicrophoneManager `guard !isRecording` + Session-Teardown-Reihenfolge (#22-Klasse) | MicrophoneManager.swift:194/269 | #13 | offen — audio-review Pflicht |
