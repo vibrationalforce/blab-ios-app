@@ -7625,3 +7625,12 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - v289 deployt mit expliziter Hör-Verify-Bitte (Play noch lebendig?) + AUv3-
   Neustart-Eskalation (Löschen reichte nicht, raw 3rd-party 0).
 - A5-Kamera-Modulator-Agent (ARKit-blendShapes, Core/Bio disjunkt) läuft noch.
+
+## 2026-07-18 — Sync-Egress-Härtung + Item-1/2/AU2-Fundamente (11 grüne Commits, CI-only)
+- **Härtung:** Egress-Sweep KOMPLETT — Art-Net + sACN Bio-Netzausgang auf BioEgressPolicy gegated (bbbf5dd, letzte 2 ungegateten Netz-Konsumenten, 5.1.3, security-agent SECURE). EchoelLux L1 Blackout/Grand-Master bleibt autoritativ ohne frische Quelle (65ff88b, hält letzte Roh-Farbe; behebt vom Egress-Sweep verbreiterte No-Source-Kante; bounded, egress-clean).
+- **Item 1 (Automation in der Spur):** PLAN+Council (760a1ac, Spine ~70% gebaut, Lücke = Editier-Reichweite). L1/S1 `ClipStore.setClipAutomation` Write-Back (e30c249, 8 Tests). L1/S2a `ClipAutomationEdit` reines Array-Editier-Gehirn (11e6c74, 16 Tests). Rest S2b Canvas + S3 Tür = device-gated (Task #70).
+- **Item 2 (Bio-Modulation live sichtbar):** verify-first fand die echte Lücke (Control-Plane hatte keinen Live-Werte-Readout; Task #3 "done" war FX-Bio-Mod). `ModulationEngine.lastOutputs` observable Snapshot + orderedOutputs (e5ac34b, 6 Tests, golden-gate). Leaf-View = device-gated (Task #71).
+- **AU2 ("Bio zu neutral"):** Ursache = fehlende Range-Expansion (enges Bio-Fenster ~0.3–0.6 nie auf Vollskala). `ModRoute.inputLow/inputHigh` Sensitivity-Window (f486c5c, Identity-Default golden-gate, 10 Tests). UI-Knopf + Feel-Tuning = device-gated.
+- **Alle 11 Commits: beide echten Gates grün, jeweils Pflicht-Reviewer (code-reviewer/security-agent) sauber.** Kein Deploy (alles Fundament/Härtung, keine sichtbare Fläche → kein Hörtest). Verify-first fing 2 Falsch-Gaps + 1 Fast-Regression ab (Drag-Snap-Kontrakt, OSC schon gegated, item-2 FX-vs-Control-Plane).
+- **Ledger:** 5 neue Playbooks (completed≠vollständig-grep, additive golden-gate-Primitiv-Rezept, Egress-Call-Site-Gate + Blackout-Held-State, kein Default-Route/Item-2-Leaf blind, Spine-zuerst bei voller Device-Queue).
+- **Offen beim Founder:** Hörtests v290–v294 + iPhone-Neustart AUv3-Register. Nächste sichtbare Slices (S2b, Item-2-Leaf, AU2-Knopf) warten auf Device-Kapazität/Greenlight.
