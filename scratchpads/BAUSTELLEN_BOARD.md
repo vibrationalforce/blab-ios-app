@@ -94,3 +94,7 @@
 |-----------|--------|--------|
 | Egress-Sweep KOMPLETT: Art-Net + sACN Bio-Netzausgang auf BioEgressPolicy gegated (letzte 2 ungegateten Netz-Konsumenten; 5.1.3) | bbbf5dd | CI ✓ (beide Gates grün); security-agent SECURE, kein Rest-Leck |
 | EchoelLux L1: Blackout/Grand-Master bleibt autoritativ ohne frische/erlaubte Quelle (hält letzte Roh-Farbe, master/slew läuft weiter) — behebt vom Egress-Sweep verbreiterte No-Source-Early-Return-Kante | 65ff88b | code-reviewer PASS (bounded, kein Idle-Resend, egress-clean); Gerät-Verify: Blackout in reiner HealthKit-Session (optional, latent) |
+| **Item 1 Automation-in-Spur PLAN+Council** (Spine ~70% gebaut; Lücke = Editier-Reichweite; L1 Draw-into-Clip zuerst) | 760a1ac | PLAN_AUTOMATION_IN_TRACK_2026-07-18.md, Task #70 |
+| **Item 1 L1/S1:** `ClipStore.setClipAutomation` Write-Back (die fehlende Editier-Mutation; Clip trägt+spielt schon) + 8 Tests | e30c249 | CI ✓ beide Gates; code-reviewer PASS (2 LOW behoben) |
+| **Item 1 L1/S2a:** `ClipAutomationEdit` reines Array-Editier-Gehirn (find-or-create Lane, upsert/move/delete/bend über Clip-Span) + 16 Tests | 11e6c74 | CI ✓ beide Gates; code-reviewer (MEDIUM Snap-Kollision-Test + LOWs behoben) |
+| **Item 2 Spine:** `ModulationEngine.lastOutputs` observable Snapshot (welche Params Bio bewegt + wie stark; Control-Plane hatte NUR Timestamp-Dot) + `orderedOutputs` + 6 Tests | e5ac34b | CI ✓ beide Gates; code-reviewer APPROVE (golden-gate); Leaf-View = device-gated (Task #71) |
