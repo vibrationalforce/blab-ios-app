@@ -29,6 +29,19 @@ final class PerTrackParameterKeyPathTests: XCTestCase {
         XCTAssertEqual(parsed?.base, "gain")
     }
 
+    /// Guards the `firstIndex` (not `lastIndex`) boundary: a base that itself
+    /// re-embeds the "track." prefix must still roundtrip — the FIRST dot after
+    /// the outer prefix ends the UUID regardless of the base's content. A future
+    /// refactor to lastIndex / "strip all track." would break this.
+    func testMakeParse_roundTrips_whenBaseReembedsPrefix() {
+        let id = UUID()
+        let kp = PerTrackParameterKeyPath.make(laneID: id, base: "track.foo")
+        XCTAssertEqual(kp, "track.\(id.uuidString).track.foo")
+        let parsed = PerTrackParameterKeyPath.parse(kp)
+        XCTAssertEqual(parsed?.laneID, id)
+        XCTAssertEqual(parsed?.base, "track.foo")
+    }
+
     // MARK: - parse rejects non-per-track / malformed
 
     func testParse_globalKeyPath_returnsNil() {
@@ -103,5 +116,26 @@ final class PerTrackParameterKeyPathTests: XCTestCase {
         for (src, dst) in zip(DDSPParameterCatalog.descriptors, out) {
             XCTAssertEqual(dst.displayName, src.displayName)
         }
+    }
+
+    func testDescriptors_emptyInput_returnsEmpty() {
+        XCTAssertTrue(PerTrackParameterKeyPath.descriptors(
+            for: UUID(), laneLabel: "Bass", from: []).isEmpty)
+    }
+
+    /// `valueLabels` (stepped/enum params) must be inherited verbatim by the
+    /// clone. The DDSP catalog has none, so use a hand-made stepped descriptor.
+    func testDescriptors_inheritValueLabels() {
+        let id = UUID()
+        let stepped = ParameterDescriptor(
+            keyPath: "ddsp.osc.waveform", displayName: "Waveform",
+            min: 0, max: 2, defaultValue: 0, unit: "",
+            valueLabels: ["Sine", "Saw", "Square"])
+        let out = PerTrackParameterKeyPath.descriptors(
+            for: id, laneLabel: "Lead", from: [stepped])
+        XCTAssertEqual(out.count, 1)
+        XCTAssertEqual(out.first?.valueLabels, ["Sine", "Saw", "Square"])
+        XCTAssertEqual(PerTrackParameterKeyPath.parse(out.first?.keyPath ?? "")?.base,
+                       "ddsp.osc.waveform")
     }
 }
