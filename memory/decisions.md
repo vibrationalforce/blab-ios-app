@@ -4,6 +4,26 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-18 #23 per-Lane-SynthPatch: staged, persist-first (Council)
+- **Founder-Quelle #23:** jede MIDI-Spur trägt ihre eigene optionale `SynthPatch` —
+  per-Instrument-Klangfarbe pro Spur, wie in einem echten DAW.
+- **Befund (investigiert):** der Kern ist SCHON DA — `TimelineLane.patch` persistiert
+  (Codable), Sekundär-Lanes wenden `lane.patch` bei Region-Load an
+  (`MultiRollFanout.patch → slotPatchSink → LaneVoiceRack.applyPatch`). Die EINE Lücke:
+  die `.patch`-Editor-Tür (`ArrangeTimelineView:428`) öffnet `PatchEditorView(initial:
+  synth.appliedPatch)` OHNE `onApply` → editiert die GLOBALE geteilte `PolySynthVoice`,
+  nie `lane.patch`. Und die Primär-Roll-Lane == globale Stimme (kein persistierter
+  per-Lane-Patch).
+- **Council:** **stage it — persist first (Linux-CI-testbar), Live-Preview-auf-der-
+  richtigen-Stimme später (geräteabhängig).** Slices: **S1** `TimelineStore.setLanePatch`
+  + Tests (pur, 0 Geräterisiko, Pitch-Familie-Spine) → **S2** `.patch(lane)`
+  Modal-Payload an bestehendem Case (KEINE neue `.sheet`) + persist via `onApply` →
+  **S2b** Primär-Lane-Patch-Anwendung bei Play/Load → **S3** (GERÄTE-GATED) lane-bewusstes
+  Live-Apply-Ziel. Golden-Gate: globaler Editor byte-identisch wenn keine Lane übergeben.
+- **Gate: proceed** — PLAN geschrieben (`scratchpads/PLAN_PER_LANE_PATCH.md`), nächster
+  Takt baut S1. **Verify:** zwei MIDI-Spuren, je eine andere Klangfarbe, beide beim Play
+  hörbar unterschiedlich (heute klingen alle gleich) — Gerät-Hörtest = Closeout.
+
 ### 2026-07-17 ECC-MUSTER adoptiert, kein Paket-Import (Baustellen-Board + Verify-Loop)
 - **Founder (Reel „Everything Claude Code", bennyautomates):** „Hiermit können wir die
   ganzen offenen Baustellen strukturieren und erfolgreich abschließen."
