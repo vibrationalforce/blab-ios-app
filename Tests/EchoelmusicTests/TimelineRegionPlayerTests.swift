@@ -369,4 +369,86 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
                        "a stopped player ignores relocate — play(fromTick:) owns the parked head")
     }
 }
+
+// S2 (audio-lane clip-launch): the TimelineRegionPlayer dispatches an AUDIO lane's
+// launch transitions to the AudioLanePlayer override (loop the launched segment /
+// hand back to the arrangement), and every transport-reset path clears the audio
+// override alongside the MIDI launch. Reuses the AudioLanePlayerTests spy harness.
+@MainActor
+final class TimelineRegionPlayerAudioLaunchTests: XCTestCase {
+
+    private func setup() -> (TimelineRegionPlayer, AudioLanePlayer,
+                             AudioLanePlayerTests.Factory, TimelineLane, TimelineRegion,
+                             PatternEngine, ClipStore, PianoRollModel) {
+        let url = URL(fileURLWithPath: "/tmp/echoel-s2.wav")
+        let lane = TimelineLane(name: "Audio 1", kind: .audio)
+        let region = TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                    startTick: 0, lengthTicks: 1920)
+        let document = TimelineDocument(lanes: [lane], regions: [region])
+        let factory = AudioLanePlayerTests.Factory()
+        let audio = AudioLanePlayer(makeSink: factory.make, resolveURL: { _ in url })
+        let player = TimelineRegionPlayer()
+        player.audioLanes = audio
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        return (player, audio, factory, lane, region, pattern, clips, pianoRoll)
+    }
+
+    func testAudioLaunch_startsOverrideAtBoundary_andStopReleases() {
+        let (player, audio, factory, lane, region, pattern, clips, pianoRoll) = setup()
+        _ = (pattern, clips, pianoRoll)   // keep the weakly-held locals alive
+        defer { player.stop() }
+
+        let primed = factory.sinks.first?.plays.count ?? 0
+        XCTAssertGreaterThanOrEqual(primed, 1, "play() primes the arrangement audio region")
+        XCTAssertFalse(audio.isLaunchOverriding(lane.id))
+
+        // Launch the audio region immediately (.off), then cross the boundary.
+        player.launchRegion(region.id, quantize: .off)
+        player.transportStep(1)
+        XCTAssertTrue(audio.isLaunchOverriding(lane.id),
+                      "the audio lane is launched after the boundary fires")
+        XCTAssertGreaterThan(factory.sinks.first?.plays.count ?? 0, primed,
+                             "the launch re-triggered the segment (override started)")
+
+        // Stop the launch → the override clears and the lane returns to the arrangement.
+        let beforeStop = factory.sinks.first?.plays.count ?? 0
+        player.stopLaunched(laneID: lane.id, quantize: .off)
+        player.transportStep(2)
+        XCTAssertFalse(audio.isLaunchOverriding(lane.id), "stop clears the audio override")
+        XCTAssertGreaterThan(factory.sinks.first?.plays.count ?? 0, beforeStop,
+                             "the lane restarts its arrangement region on stop")
+    }
+
+    func testTransportStop_clearsAudioOverride() {
+        let (player, audio, _, _, region, pattern, clips, pianoRoll) = setup()
+        _ = (pattern, clips, pianoRoll)
+        player.launchRegion(region.id, quantize: .off)
+        player.transportStep(1)
+        XCTAssertTrue(audio.hasLaunchOverrides)
+        player.stop()
+        XCTAssertFalse(audio.hasLaunchOverrides, "transport stop clears the audio override (paired with stopAll)")
+    }
+
+    func testMidiLane_launchIsUnaffectedByTheAudioBranch() {
+        // Golden guard: a MIDI-only song still never touches the audio override path.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let region = TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920)
+        let document = TimelineDocument(lanes: [roll], regions: [region])
+        let factory = AudioLanePlayerTests.Factory()
+        let audio = AudioLanePlayer(makeSink: factory.make, resolveURL: { _ in nil })
+        let player = TimelineRegionPlayer()
+        player.audioLanes = audio
+        let pattern = PatternEngine(); let clips = ClipStore(); let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        defer { player.stop() }
+        player.launchRegion(region.id, quantize: .off)
+        player.transportStep(1)
+        XCTAssertFalse(audio.hasLaunchOverrides, "a MIDI launch never creates an audio override")
+        XCTAssertNotEqual(player.launchState(laneID: roll.id), .idle,
+                          "the MIDI roll lane is launched via the roll path")
+    }
+}
 #endif

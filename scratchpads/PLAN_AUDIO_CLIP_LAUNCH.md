@@ -60,6 +60,22 @@ jeder Loop-Grenze neu getriggert** werden (Segment von vorn). Genau dafür ist
   seinen Node mitten im Song = ganzer-Mix-Dropout (HIGH-2). S2 MUSS die Datei des gelaunchten
   Clips vor `setLaunchOverride` warmen (`preload`) ODER `setLaunchOverride` warmt selbst zuerst.
 
+## S2 STATUS (2026-07-18 — gebaut, Reviewer laufen)
+TimelineRegionPlayer Audio-Dispatch: `launchRegion` erlaubt jetzt `.audio`-Lanes; `applyLaunchTransitions`
+routet Audio-Lane-Transitions an `audioLanes.setLaunchOverride/clearLaunchOverride` (Anker = `t.atTick`
+= Bar-Grenze). Alle 4 Reset-Pfade (play/relocate/stop/handleTransportStopped) paaren jetzt
+`clearAllLaunchOverrides()` mit `launch.removeAll()` (+ stopAll/prime) — Pflicht #1 erfüllt. Pflicht #2
+(preload): gelauncht werden nur TIMELINE-Regionen, die bei play()/prime bereits ge-preloadet sind →
+kein Mid-Song-Attach; Off-Timeline-Clips sind nicht launchbar (dokumentiert). 3 Integrationstests
+(SpySink-Harness): Audio-Launch startet Override an der Grenze + Stop löst zurück; Transport-Stop löscht
+Override; MIDI-Launch bleibt unberührt. **INERT bis S3** (kein Audio-Glyph → User kann Audio noch nicht
+launchen; golden-gate-geschützt wie S1).
+**HARTE S3-PFLICHT (in S2 bewusst NICHT gebaut, weil bis S3 unerreichbar):** wird eine GELAUNCHTE
+Audio-Region mitten im Spiel STRUKTURELL GELÖSCHT, prunt `launch.prune` (refreshStructure) den Engine-
+State OHNE Transition — die AudioLanePlayer-`overrides`-Karte (nur bei entfernter LANE, nicht Region,
+selbst-bereinigt) bliebe verwaist und würde eine Phantom-Region loopen. S3 MUSS in refreshStructure die
+Audio-Overrides gegen `launch.isOverriding` synchronisieren (clear wenn Engine nicht mehr overriding).
+
 ## S1 STATUS (2026-07-18, 41fac9c — gebaut, Gates laufen)
 AudioLanePlayer Override-Türen + 7 SpySink-Tests. audio-thread-reviewer: CLEAN (golden gate
 verifiziert, Anchoring korrekt, keine Audio-Thread-Regel berührt). Zwei Geräte-Verify-Punkte

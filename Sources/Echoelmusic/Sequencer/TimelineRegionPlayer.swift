@@ -175,11 +175,14 @@ public final class TimelineRegionPlayer {
     /// + quantize boundaries), never per-tick, so a leaf view may read it.
     public private(set) var launchGeneration = 0
 
-    /// Queue a MIDI region to LAUNCH on its lane at the next `quantize` boundary
-    /// (`.off` = immediate, i.e. the next transport tick). The launched clip
-    /// overrides its lane's arrangement and LOOPS over its own length until
-    /// `stopLaunched`. No-op while stopped (P0: launch rides the running
-    /// transport) and for non-MIDI/bio lanes (audio/video launch = later slice).
+    /// Queue a MIDI or AUDIO region to LAUNCH on its lane at the next `quantize`
+    /// boundary (`.off` = immediate, i.e. the next transport tick). The launched
+    /// clip overrides its lane's arrangement and LOOPS over its own length until
+    /// `stopLaunched`. No-op while stopped (P0: launch rides the running transport)
+    /// and for bio/video lanes. S2 (audio-lane launch): the ClipLaunchEngine is
+    /// spur-agnostic; an audio lane's transitions are dispatched to `audioLanes`
+    /// (setLaunchOverride/clearLaunchOverride) in `applyLaunchTransitions`, which
+    /// re-triggers the one-shot segment at each loop boundary (S1 golden gate).
     public func launchRegion(_ regionID: UUID, quantize: LaunchQuantize) {
         guard isPlaying else { return }
         let live = liveDocument?() ?? doc
@@ -187,7 +190,7 @@ public final class TimelineRegionPlayer {
                 ?? doc.regions.first(where: { $0.id == regionID }) else { return }
         guard let lane = live.lanes.first(where: { $0.id == region.laneID })
                 ?? doc.lanes.first(where: { $0.id == region.laneID }),
-              lane.kind == .midi, !lane.isBio else { return }
+              (lane.kind == .midi || lane.kind == .audio), !lane.isBio else { return }
         launch.requestLaunch(laneID: region.laneID, regionID: regionID,
                              atTick: currentTick, quantize: quantize)
         launchGeneration &+= 1
@@ -270,6 +273,7 @@ public final class TimelineRegionPlayer {
         // never drop a sounding pitch without its note-off), clear slots, rebuild pool.
         flushPumps()
         launch.removeAll()   // launch state never survives a transport reset (P0)
+        audioLanes?.clearAllLaunchOverrides()   // S2: pair the audio override reset (prime re-arms the arrangement below)
         isPlaying = true
         pianoRoll.setTimelineAutomation(document.automation)   // arrangement automation (cycle 5)
         pianoRoll.setTimelineAutomationTick(startTick)
@@ -314,6 +318,7 @@ public final class TimelineRegionPlayer {
         launch.removeAll()         // P0 policy: a locate is a hard cut — launches do not
                                    // survive it (their boundaries reference the old
                                    // position); the arrangement re-primes below.
+        audioLanes?.clearAllLaunchOverrides()   // S2: audio override dies with the locate; prime re-arms below
         cursor = TimelinePlaybackCursor(startBar: target / TimelineTime.ticksPerBar)
         lastTick = anchor
         currentTick = anchor
@@ -342,6 +347,7 @@ public final class TimelineRegionPlayer {
         pattern?.stop()
         pianoRoll?.allNotesOff()
         launch.removeAll()                     // launches die with the transport (P0)
+        audioLanes?.clearAllLaunchOverrides()  // S2: audio override reset paired with stopAll below
         flushPumps()                           // release every secondary-lane voice
         audioLanes?.stopAll()                  // release every audio lane (A1)
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
@@ -355,6 +361,7 @@ public final class TimelineRegionPlayer {
         isPlaying = false
         pianoRoll?.allNotesOff()
         launch.removeAll()                     // launches die with the transport (P0)
+        audioLanes?.clearAllLaunchOverrides()  // S2: audio override reset paired with stopAll below
         flushPumps()                           // release every secondary-lane voice
         audioLanes?.stopAll()                  // release every audio lane (A1)
         pianoRoll?.setTimelineAutomation([])   // release the arrangement layer (cycle 5)
@@ -793,7 +800,33 @@ public final class TimelineRegionPlayer {
     /// separately; a region that vanished between request and boundary falls silently
     /// back to the arrangement.
     private func applyLaunchTransitions(_ transitions: [LaunchTransition], atTick tick: Int, step: Int) {
+        let bpm = pattern?.tempo ?? 120
         for t in transitions {
+            // S2 (audio-lane launch): an AUDIO lane's transition drives the
+            // AudioLanePlayer override (loop the launched segment / hand back to the
+            // arrangement), NOT the roll/rack MIDI path. The launched region is a
+            // TIMELINE region, already file-primed on that lane at play()/refresh —
+            // so setLaunchOverride's play() cannot trigger a mid-song node attach
+            // (obligation from PLAN_AUDIO_CLIP_LAUNCH: off-timeline clips would need
+            // an explicit preload, not launchable today).
+            if doc.lanes.first(where: { $0.id == t.laneID })?.kind == .audio {
+                // Anchor on the transition's BOUNDARY tick (t.atTick), not the sampled
+                // `tick`, so the launched loop's phase aligns to the musical bar (the
+                // segment still starts playing now; only its loop timebase is anchored).
+                switch t.kind {
+                case .started(let regionID), .switched(_, let regionID):
+                    if let region = doc.regions.first(where: { $0.id == regionID }) {
+                        audioLanes?.setLaunchOverride(region, laneID: t.laneID,
+                                                      atTick: t.atTick, in: doc, bpm: bpm)
+                    } else {
+                        audioLanes?.clearLaunchOverride(laneID: t.laneID, atTick: t.atTick,
+                                                        in: doc, bpm: bpm)   // vanished ⇒ arrangement
+                    }
+                case .stopped:
+                    audioLanes?.clearLaunchOverride(laneID: t.laneID, atTick: t.atTick, in: doc, bpm: bpm)
+                }
+                continue
+            }
             let isRoll = (t.laneID == rollLane)
             switch t.kind {
             case .started(let regionID), .switched(_, let regionID):
