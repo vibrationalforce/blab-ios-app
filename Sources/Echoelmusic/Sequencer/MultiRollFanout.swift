@@ -72,6 +72,23 @@ public enum MultiRollFanout {
         return secondaries[slot]
     }
 
+    /// The physical rack slot a lane currently occupies — the INVERSE of
+    /// `laneID(forSlot:)`, for per-track automation dispatch (L2/L4). A namespaced
+    /// keyPath (`track.<laneID>.…`, see `PerTrackParameterKeyPath`) carries a
+    /// laneID; the router resolves it to a slot AT DISPATCH TIME. Slots are
+    /// rank-unstable between plays, so this MUST be called per-step, never cached
+    /// at bind time. Returns nil for a lane that owns no physical voice — not a
+    /// secondary MIDI lane (roll/bio/audio lane, or deleted), or a rank at/over
+    /// `capacity` (overflow) — so the caller no-ops silently instead of writing to
+    /// a foreign slot.
+    public static func slot(forLaneID laneID: UUID, in document: TimelineDocument,
+                            rollLane: UUID?, capacity: Int) -> Int? {
+        guard capacity > 0 else { return nil }
+        guard let rank = secondaryLaneIDs(in: document, rollLane: rollLane).firstIndex(of: laneID),
+              rank < capacity else { return nil }
+        return rank
+    }
+
     /// The patch slot `slot`'s lane carries (nil ⇒ caller uses the primary fallback).
     public static func patch(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> SynthPatch? {
         guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return nil }

@@ -442,4 +442,38 @@ final class MultiRollFanoutTests: XCTestCase {
                        "membership/order must stay snapshot-stable (rank-keyed pumps)")
         XCTAssertEqual(snapshot.lanes.map(\.id), docBase.lanes.map(\.id))
     }
+
+    // MARK: - Inverse resolver: slot(forLaneID:) for per-track automation (L2/L4 S2a)
+
+    func testSlotForLaneID_roundTripsWithLaneIDForSlot() throws {
+        let (doc, roll, sec, _) = makeDoc()
+        // laneID(forSlot:) and slot(forLaneID:) are inverses for every valid slot.
+        for s in 0..<sec.count {
+            let id = try XCTUnwrap(MultiRollFanout.laneID(forSlot: s, in: doc, rollLane: roll))
+            XCTAssertEqual(id, sec[s])
+            XCTAssertEqual(MultiRollFanout.slot(forLaneID: sec[s], in: doc, rollLane: roll, capacity: 4), s)
+        }
+    }
+
+    func testSlotForLaneID_foreignLanes_returnNil() throws {
+        let (doc, roll, _, _) = makeDoc()
+        // The roll (primary) lane owns no rack slot — it plays the rich PianoRollModel.
+        XCTAssertNil(MultiRollFanout.slot(forLaneID: roll, in: doc, rollLane: roll, capacity: 4))
+        // The bio lane and an unknown/deleted lane are not secondary MIDI lanes.
+        let bioID = try XCTUnwrap(doc.lanes.first(where: { $0.isBio })?.id)
+        XCTAssertNil(MultiRollFanout.slot(forLaneID: bioID, in: doc, rollLane: roll, capacity: 4))
+        XCTAssertNil(MultiRollFanout.slot(forLaneID: UUID(), in: doc, rollLane: roll, capacity: 4))
+    }
+
+    func testSlotForLaneID_overflowRankAtOrOverCapacity_returnsNil() {
+        let (doc, roll, sec, _) = makeDoc()
+        // sec[1] is rank 1; capacity 1 means only rank 0 has a physical voice.
+        XCTAssertNil(MultiRollFanout.slot(forLaneID: sec[1], in: doc, rollLane: roll, capacity: 1))
+        XCTAssertEqual(MultiRollFanout.slot(forLaneID: sec[0], in: doc, rollLane: roll, capacity: 1), 0)
+    }
+
+    func testSlotForLaneID_zeroCapacity_returnsNil() {
+        let (doc, roll, sec, _) = makeDoc()
+        XCTAssertNil(MultiRollFanout.slot(forLaneID: sec[0], in: doc, rollLane: roll, capacity: 0))
+    }
 }
