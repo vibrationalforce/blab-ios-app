@@ -1441,11 +1441,14 @@ private struct RegionBlockView: View {
             .sensoryFeedback(.impact(weight: .light), trigger: snapPulse)
             .contentShape(RoundedRectangle(cornerRadius: 6))
             // Performance mode (founder 2026-07-17): a launch play/stop glyph on
-            // every MIDI clip. Drawn on top so its Button wins taps in its 28 pt
-            // circle; the state lives in the ClipLaunchGlyph LEAF (freeze law —
-            // launchGeneration is read there, never here). EmptyView otherwise, so
-            // Performance OFF is behavior-identical.
-            .overlay(alignment: .center) { launchGlyphOverlay(isMidi: clip?.kind == .midi) }
+            // every launchable clip — MIDI and, since S3b, AUDIO (the override
+            // backend S1–S3a is wired + reviewed). Drawn on top so its Button wins
+            // taps in its 28 pt circle; the state lives in the ClipLaunchGlyph LEAF
+            // (freeze law — launchGeneration is read there, never here). EmptyView
+            // otherwise, so Performance OFF is behavior-identical.
+            .overlay(alignment: .center) {
+                launchGlyphOverlay(isLaunchable: clip?.kind == .midi || clip?.kind == .audio)
+            }
             // Drag-to-move on the clip BODY (clip game C1 — founder: "seamless workflow,
             // kein unbeholfenes Rumdrücken"): grab and slide. The trim grips are child
             // overlays drawn on top, so they keep winning their 22 pt edge zones; an
@@ -1478,12 +1481,14 @@ private struct RegionBlockView: View {
 
     // MARK: body helpers (type-check budget — see the note at the top of `body`)
 
-    /// Performance-mode launch glyph — only for MIDI clips (audio/video/bio do NOT
-    /// launch in P0). Own leaf so the launch-state observation stays out of this
-    /// block's body (freeze law).
+    /// Performance-mode launch glyph — for launchable clips: MIDI and (S3b) AUDIO.
+    /// Video/bio do NOT launch (no override backend; bio also barred by `laneIsBio`).
+    /// Own leaf so the launch-state observation stays out of this block's body
+    /// (freeze law). The glyph is spur-agnostic — it only reads `launchState` and
+    /// calls `launchRegion`/`stopLaunched`, both of which handle audio lanes.
     @ViewBuilder
-    private func launchGlyphOverlay(isMidi: Bool) -> some View {
-        if performanceMode, isMidi, !laneIsBio {
+    private func launchGlyphOverlay(isLaunchable: Bool) -> some View {
+        if performanceMode, isLaunchable, !laneIsBio {
             ClipLaunchGlyph(regionID: region.id, laneID: region.laneID,
                             quantize: launchQuantize)
         }
