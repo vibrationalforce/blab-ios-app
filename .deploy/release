@@ -1,30 +1,29 @@
-build: 2026-07-18 v10.79.290 (Piano Roll: Akkord-Stempel — dein Puls waehlt den Akkord)
+build: 2026-07-18 v10.79.291 (Audio-Clips im Performance-Mode antippbar -> loopen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Neue, erlebbare Piano-Roll-Funktion (deine Bitte "mehr Funktion... siehe Ableton
-  und alle DAWs, plus ein Echoel-Twist"):
+notes: Audio-Clip-Launch ist jetzt ERLEBBAR (deine Bitte "Play Button auf den Clips
+  und Performance Mode", 2026-07-17) -- vorher nur fuer MIDI-Clips, jetzt auch fuer
+  AUDIO-Clips.
 
-  AKKORD-STEMPEL. Im Piano Roll gibt es jetzt in der oberen Werkzeugleiste einen
-  neuen Knopf mit Noten-Listen-Symbol (neben dem Ops-Menue). Tipp ihn an (er wird
-  bio-gruen) = Chord-Modus. Solange er an ist, setzt ein Tipp auf eine leere Zelle
-  nicht EINE Note, sondern einen ganzen, stimmgefuehrten Akkord.
+  WAS DU TUST: Performance-Mode einschalten. Auf jedem Audio-Clip in der Timeline
+  sitzt jetzt ein kleiner runder Play-Knopf (wie bei den MIDI-Clips schon). Tipp ihn
+  -> der Clip uebernimmt seine Spur und LOOPT ueber seine eigene Laenge, bis du
+  wieder tippst (dann Stop-Knopf, Spur kehrt zur Arrangement-Anordnung zurueck).
+  Antippen quantisiert auf die naechste Grenze (blinkt "gleich", dann laeuft's).
 
-  DER ECHOEL-TWIST (der Unterschied zu jedem DAW): den Akkord waehlt nicht ein
-  Dropdown, sondern DEIN KOERPER. Es ist dieselbe Harmonik-Maschine, die auch die
-  Komposition schreibt (ChordSuggest + VoiceLeader) — und deine aktuelle Kohaerenz
-  entscheidet: ruhiger Koerper = der schlichte, funktionale Akkord; unruhiger =
-  eine geliehene, ueberraschendere Farbe. Immer diatonisch zur Session-Tonart, auf
-  der getippten Reihe. Ein Tastendruck, kein Setup. Ein Undo-Schritt pro Stempel;
-  Knopf wieder aus = normales Zeichnen.
+  Wie bei einem Clip-Launcher (Ableton Session-View): du triggerst Loops live per
+  Fingertipp, statt die Anordnung abzuspielen. MIDI- und Audio-Clips mischbar --
+  beide loopen synchron im selben Transport.
 
-  ⚠️ HOER-/FUEHL-BITTE: Chord-Modus an, ein paar leere Zellen tippen — klingen die
-  Akkorde musikalisch + zur Tonart passend? Und veraendert sich die Farbe spuerbar,
-  wenn dein Puls ruhiger/unruhiger wird? Rueckmeldung = naechste Feinjustierung.
+  UNTER DER HAUBE (fertig, in diesem Zyklus abgeschlossen): die Loop-Mechanik faellt
+  am Song-Ende nicht mehr aus dem Takt -- ein bar-alignter Audio-Loop wird exakt am
+  Song-Wrap neu getriggert (kein stiller Takt, Audio bleibt im Lockstep mit MIDI).
+  Drei unabhaengige Reviews sauber (Audio-Thread x2, UI-State x1), alle Gates gruen.
 
-  UNTER DER HAUBE (noch NICHT sichtbar, braucht deine Freigabe): die Kamera-
-  Ausdrucks-Steuerung (Laecheln/Brauen/Kiefer als Modulator) ist fertig gebaut +
-  getestet, aber abgeschaltet — sie braucht vor dem Einschalten eine erweiterte
-  Kamera-Erlaubnis-Zeile in der App-Info (Front-Kamera-Gesicht statt nur Heck-
-  Fingerpuls). Den Text lege ich dir vor, sobald du die Funktion willst.
+  ⚠️ HOER-/FUEHL-BITTE: Performance-Mode an, einen Audio-Clip antippen -- loopt er
+  sauber + nahtlos an der Schleifengrenze (kein Klick, keine Luecke)? Und wenn du
+  einen MIDI- und einen Audio-Clip gleichzeitig launchst: bleiben sie zusammen im
+  Takt? Rueckmeldung = naechste Feinjustierung (Naht-Klick/Phase haengt an der
+  echten Geraete-Wiedergabe, erst am Geraet final beurteilbar).
 
   Weiter offen auf deiner Seite: iPhone-Neustart fuer die AUv3-Register-Reparatur
-  (Log "self-probe -3000", raw 3rd-party 0).
+  (Log "self-probe -3000", raw 3rd-party 0); Hoertest Akkord-Stempel (v290).

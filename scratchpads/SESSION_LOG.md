@@ -3,6 +3,26 @@
 ## Purpose
 This file tracks ALL code healing sessions across Claude Code contexts.
 
+## 2026-07-18 (Forts. 76, ULTRACODE) — A7 Audio-Clip-Launch KOMPLETT → DEPLOY v291
+- **Founder-Bitte (07-17):** „Play Button auf den Clips und Performance Mode". MIDI war
+  schon da; dieser Zyklus schließt die AUDIO-Seite ab.
+- **S3a Override-Lifecycle** (c0a05c2): prime überspringt overridete Lanes,
+  shiftLaunchOverrides (Wrap-Anker-Fold), pruneLaunchOverrides (Struktur-Edit). 5 Tests.
+- **S3a Wrap-Re-Trigger-Fix** (91deeff): audio-thread-reviewer fand EINEN echten Defekt —
+  der Wrap-Step läuft über `prime` (überspringt Overrides), also verlor ein bar-alignter
+  Audio-Loop seinen Re-Trigger AM Song-Wrap → 1 stiller Takt pro Loop, Audio nicht im
+  Lockstep mit MIDI. Fix: `applyWrappedOverrides` fährt die Overrides über den Wrap im
+  GEFALTETEN Frame `(lastTick−loopTicks, newTick)`; `loopWrapped` entscheidet selbst
+  (koinzident→Re-Fire, überspannend→bleibt). +1 Test auf dem ECHTEN transportStep-Wrap-Pfad
+  (schließt die False-Confidence-Lücke des Primitiv-Tests). Re-Review: voll sauber.
+- **S3b Glyph-Gate** (2d2e151): `launchGlyphOverlay` isMidi→isLaunchable(midi‖audio) →
+  Play-Knopf auf Audio-Clips; Video/Bio ausgeschlossen. ui-state-reviewer 0 Defekte
+  (Freeze-Gesetz, Sheet-Gesetz, Gesten, Gate, Audio-Lane-State-Phase alle PASS).
+- **Gates:** alle 3 Commits 4/4 grün (Xcode Compile + CI/CD). 3 Reviews sauber
+  (audio-thread x2, ui-state x1). Golden Gate durchgängig (Performance-OFF = identisch).
+- **DEPLOY v10.79.291** (.deploy/release bump): Audio-Clips im Performance-Mode antippbar
+  → loopen, MIDI+Audio synchron. Hör-/Fühl-Bitte an Founder (Naht/Klick = Geräte-Verify).
+
 ## 2026-07-16 (Forts. 49, ULTRACODE) — Stretch-Engine REAL: Tape-Charakter (Founder-A/B)
 - **Founder delegiert:** „Du entscheidest — von vintage vibe bis präziser Technologie alles."
   → Entscheid: Engine jetzt real+hörbar machen mit erstem A/B (Clean↔Tape), risikoärmster Weg.
