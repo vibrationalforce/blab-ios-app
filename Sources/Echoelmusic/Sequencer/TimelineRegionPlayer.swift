@@ -54,8 +54,15 @@ public final class TimelineRegionPlayer {
 
     /// Whether the timeline is currently chaining regions.
     public private(set) var isPlaying = false
-    /// Absolute song tick sounding now (can drive a playhead).
-    public private(set) var currentTick = 0
+    /// Absolute song tick sounding now. Updated every transport step (~8 Hz while
+    /// playing). `@ObservationIgnored` (audit LOW, freeze-law): today every reader is
+    /// an imperative one-shot (play/seek handlers in WorkspaceView/ArrangeTimelineView),
+    /// so nothing observes it — shielding is behavior-identical AND removes the
+    /// landmine where a future body read (e.g. a naive playhead) would register the
+    /// whole view as an 8 Hz observer and tear down any open `.menu` Picker (the
+    /// recurring menu-freeze ship-blocker). A playhead MUST self-drive in its own leaf
+    /// (`TimelineView(.animation)`), never observe this. Direct/test reads are unaffected.
+    @ObservationIgnored public private(set) var currentTick = 0
     /// The region loaded on the roll lane now (nil = a gap / silence). Lets the UI
     /// and tests observe what is playing.
     public private(set) var loadedRegionID: UUID?
