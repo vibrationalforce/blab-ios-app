@@ -160,7 +160,10 @@ public final class ArtNetSender {
             sourceTimestamp = m.timestamp
             channels = MusicMediaMap.dmxChannels(forMusic: m, resolution: resolution)
             target = MusicMediaMap.dimmerUnit(forMusic: m)
-        } else if let frame = bus.latestBio {
+        } else if let frame = bus.latestBio, BioEgressPolicy.allowsEgress(frame.source) {
+            // 5.1.3: a HealthKit/Watch/ring-sourced frame must not drive a network
+            // fixture (unicast DMX leaves the device). Such a frame is treated as
+            // no-bio here — the light holds its last state (same gate OSC/ADM apply).
             sourceTimestamp = frame.timestamp
             channels = Self.dmxChannels(for: frame, resolution: resolution)
             target = Self.dimmerUnit(for: frame)

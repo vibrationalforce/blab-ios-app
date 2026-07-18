@@ -153,7 +153,10 @@ public final class SACNSender {
             sourceTimestamp = m.timestamp
             channels = MusicMediaMap.dmxChannels(forMusic: m, resolution: resolution)
             dimmer = MusicMediaMap.dimmerUnit(forMusic: m)
-        } else if let frame = bus.latestBio {
+        } else if let frame = bus.latestBio, BioEgressPolicy.allowsEgress(frame.source) {
+            // 5.1.3: a HealthKit/Watch/ring-sourced frame must not drive a network
+            // fixture (multicast sACN leaves the device). Treated as no-bio — the
+            // light holds its last state (same gate OSC/ADM/Art-Net apply).
             sourceTimestamp = frame.timestamp
             channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
             dimmer = ArtNetSender.dimmerUnit(for: frame)
