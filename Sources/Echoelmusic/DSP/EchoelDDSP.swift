@@ -41,11 +41,19 @@ import Accelerate
 /// Pure DSP engine with per-partial amplitude control, multi-band FIR noise,
 /// spectral morphing, extended bio-reactive mappings, and timbre transfer prep.
 ///
-/// Thread-safety invariant: `@unchecked Sendable` because all access is serialized
-/// through `@MainActor` (stored in `EchoelCreativeWorkspace.bioSynth`).
-/// Both `applyBioReactive()` and `renderStereo()` are called exclusively from
-/// MainActor context (Timer → `MainActor.assumeIsolated`). Do NOT call from
-/// background threads without adding synchronization.
+/// Thread-safety invariant (corrected 2026-07-18, audit AU3 — the old note claimed
+/// "exclusively MainActor", which is the OPPOSITE of how every caller uses it):
+/// `@unchecked Sendable` because each instance is OWNED by a single audio-render
+/// context (one synth voice — `PolySynthVoice`, `BioReactiveSynthVoice`, or the
+/// AUv3 `EchoelmusicAudioUnit`) and is NEVER shared across threads; the owner
+/// serializes all access.
+///
+/// `applyBioReactive()` and `renderStereo()` run ON THE AUDIO RENDER THREAD (the
+/// render block / tap-drained queue), NOT the MainActor. They are audio-thread-safe
+/// by construction — pre-allocated buffers, vDSP only, zero runtime allocation, no
+/// lock / malloc / ObjC / GCD. Control-plane parameter writes must reach the render
+/// through the owner's lock-free handoff (SPSC queue / `nonisolated(unsafe)` mirror),
+/// never a direct cross-thread mutation of a `var` while a render is in flight.
 public final class EchoelDDSP: @unchecked Sendable {
 
     // MARK: - Configuration
