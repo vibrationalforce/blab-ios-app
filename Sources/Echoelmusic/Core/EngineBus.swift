@@ -71,6 +71,20 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// Motion energy, [0..1]. Aggregate from CoreMotion.
     public let motionEnergy: Float
 
+    /// Facial-EXPRESSION control channels, all [0..1], all default `0` when the
+    /// source does not track the face (every current publisher writes `0`, like
+    /// `motionEnergy`). These are movement/expression used as a CONTROL signal —
+    /// NEVER an inferred emotion (EU AI Act framing; see `FaceExpressionMapping`).
+
+    /// Smile expression as a control value, [0..1]. `0` = not tracked / neutral.
+    public let faceSmile: Float
+
+    /// Brow-raise expression as a control value, [0..1]. `0` = not tracked / neutral.
+    public let faceBrowRaise: Float
+
+    /// Jaw-open expression as a control value, [0..1]. `0` = not tracked / neutral.
+    public let faceJawOpen: Float
+
     /// Where the frame originated.
     public let source: BioSource
 
@@ -85,7 +99,10 @@ public struct BioSampleFrame: Sendable, Equatable {
         source: BioSource,
         hrvRMSSDms: Float = 0,
         hrvSDNNms: Float = 0,
-        hrvPNN50: Float = 0
+        hrvPNN50: Float = 0,
+        faceSmile: Float = 0,
+        faceBrowRaise: Float = 0,
+        faceJawOpen: Float = 0
     ) {
         self.timestamp = timestamp
         self.heartRateBPM = heartRateBPM
@@ -98,6 +115,9 @@ public struct BioSampleFrame: Sendable, Equatable {
         self.hrvRMSSDms = hrvRMSSDms
         self.hrvSDNNms = hrvSDNNms
         self.hrvPNN50 = hrvPNN50
+        self.faceSmile = faceSmile
+        self.faceBrowRaise = faceBrowRaise
+        self.faceJawOpen = faceJawOpen
     }
 }
 

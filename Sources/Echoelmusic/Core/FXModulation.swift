@@ -81,6 +81,9 @@ public enum FXModCarrier: Codable, Sendable, Equatable, Hashable {
             case .breathPhase: return "Breath"
             case .coherence:   return "Coherence"
             case .motion:      return "Motion"
+            case .faceSmile:   return "Smile"
+            case .faceBrow:    return "Brow"
+            case .faceJaw:     return "Jaw"
             }
         }
     }

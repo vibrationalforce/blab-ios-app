@@ -38,6 +38,13 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     case breathPhase
     case coherence
     case motion
+    // Additive facial-EXPRESSION sources (2026-07-18). Movement/expression used
+    // as a CONTROL signal, NEVER an inferred emotion (see FaceExpressionMapping).
+    // Appended at the END so existing rawValue/CaseIterable ordering and any
+    // persisted routes decode unchanged.
+    case faceSmile
+    case faceBrow
+    case faceJaw
 
     /// Human label for the "bind this parameter to the body" UI (the one shared
     /// source vocabulary — see BoundParameter / the modulation matrix).
@@ -49,6 +56,9 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
         case .breathPhase: return "Breath"
         case .coherence:   return "Coherence"
         case .motion:      return "Motion"
+        case .faceSmile:   return "Smile"
+        case .faceBrow:    return "Brow"
+        case .faceJaw:     return "Jaw"
         }
     }
 
@@ -57,7 +67,8 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
         switch self {
         case .heartRate:   return 40...200
         case .breathRate:  return 4...30
-        case .hrv, .breathPhase, .coherence, .motion: return 0...1
+        case .hrv, .breathPhase, .coherence, .motion,
+             .faceSmile, .faceBrow, .faceJaw: return 0...1
         }
     }
 
@@ -70,6 +81,9 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
         case .breathPhase: return frame.breathPhase
         case .coherence:   return frame.coherence
         case .motion:      return frame.motionEnergy
+        case .faceSmile:   return frame.faceSmile
+        case .faceBrow:    return frame.faceBrowRaise
+        case .faceJaw:     return frame.faceJawOpen
         }
     }
 
