@@ -148,6 +148,23 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
     /// §A2). Defaults to `0`: existing routes are unsmoothed exactly as before.
     public var smoothingTau: Float
 
+    /// Input SENSITIVITY window (AU2 — "Bio fühlt sich zu neutral an"): bio
+    /// operating ranges are narrow (coherence typically lives in ~[0.3,0.6]), so
+    /// a full-range destination driven by the raw value only moves a fraction and
+    /// feels flat. The source's normalized value is remapped
+    /// `[inputLow…inputHigh] → [0…1]` BEFORE invert/curve/depth, so a route can
+    /// span its destination from the body's ACTUAL operating range. Defaults
+    /// `inputLow=0, inputHigh=1` = identity (existing routes + persisted data
+    /// behave EXACTLY as before). A non-positive width falls back to identity
+    /// (never divides by zero). Both clamped into [0,1].
+    /// NOTE (.hold mode): the window is applied to the FINAL base — including a
+    /// latched/held value — so a value captured at e.g. 0.45 under a [0.3,0.6]
+    /// window emits 0.5 (the destination always sees windowed output). This is
+    /// intentional (the meter/param is consistent with `.live`); it means a held
+    /// value is scaled, not reproduced literally.
+    public var inputLow: Float
+    public var inputHigh: Float
+
     public init(
         id: UUID = UUID(),
         source: ModSource,
@@ -158,7 +175,9 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         enabled: Bool = true,
         curve: ResponseCurve = .linear,
         requiresTrustedSource: Bool = false,
-        smoothingTau: Float = 0
+        smoothingTau: Float = 0,
+        inputLow: Float = 0,
+        inputHigh: Float = 1
     ) {
         self.id = id
         self.source = source
@@ -170,12 +189,23 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         self.curve = curve
         self.requiresTrustedSource = requiresTrustedSource
         self.smoothingTau = Swift.max(0, smoothingTau)
+        self.inputLow = ModulationMatrix.clamp01(inputLow)
+        self.inputHigh = ModulationMatrix.clamp01(inputHigh)
+    }
+
+    /// Remap `v` through the sensitivity window `[inputLow, inputHigh] → [0,1]`.
+    /// A non-positive width is identity (guards divide-by-zero); result clamped.
+    /// With the identity window (0…1) this returns `clamp01(v)` unchanged — the
+    /// golden-gate for every pre-AU2 route.
+    func windowed(_ v: Float) -> Float {
+        guard inputHigh > inputLow else { return ModulationMatrix.clamp01(v) }
+        return ModulationMatrix.clamp01((v - inputLow) / (inputHigh - inputLow))
     }
 
     // Custom Codable so older persisted routes (missing newer keys) still
     // decode with safe defaults. encode(to:) stays synthesized.
     private enum CodingKeys: String, CodingKey {
-        case id, source, destination, mode, depth, invert, enabled, curve, requiresTrustedSource, smoothingTau
+        case id, source, destination, mode, depth, invert, enabled, curve, requiresTrustedSource, smoothingTau, inputLow, inputHigh
     }
 
     public init(from decoder: Decoder) throws {
@@ -190,6 +220,8 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
         curve = try c.decodeIfPresent(ResponseCurve.self, forKey: .curve) ?? .linear
         requiresTrustedSource = try c.decodeIfPresent(Bool.self, forKey: .requiresTrustedSource) ?? false
         smoothingTau = try c.decodeIfPresent(Float.self, forKey: .smoothingTau) ?? 0
+        inputLow = ModulationMatrix.clamp01(try c.decodeIfPresent(Float.self, forKey: .inputLow) ?? 0)
+        inputHigh = ModulationMatrix.clamp01(try c.decodeIfPresent(Float.self, forKey: .inputHigh) ?? 1)
     }
 
     /// Returns a copy of this route latched to the source's current value
@@ -236,7 +268,10 @@ public struct ModulationMatrix: Codable, Sendable, Equatable {
             base = clamp01(held + drift * (live - 0.5) * 2)
         }
 
-        let inverted = route.invert ? (1 - base) : base
+        // AU2 sensitivity: expand the body's actual operating range to full
+        // scale BEFORE invert/curve/depth (identity for pre-AU2 routes).
+        let windowed = route.windowed(base)
+        let inverted = route.invert ? (1 - windowed) : windowed
         let shaped = route.curve.apply(inverted)
         return clamp01(shaped * clamp01(route.depth))
     }
