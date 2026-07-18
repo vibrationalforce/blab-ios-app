@@ -266,6 +266,10 @@ struct ArrangeTimelineView: View {
         case patch(TimelineLane)
         /// E2a: automation lanes, on the track. Re-doors AutomationView.
         case automation
+        /// Automation-in-Spur L1/S2b: DRAW automation INTO a specific clip (the
+        /// region's clip), clip-relative. Reuses THIS one sheet slot — never a
+        /// second `.sheet` (metadata law).
+        case clipAutomation(TimelineRegion)
         /// The Immersive Stage — the Touch surface that places every track in space.
         case spatial
         var id: String {
@@ -276,6 +280,7 @@ struct ArrangeTimelineView: View {
             case .plugins:       return "plugins"
             case .patch(let l):  return "patch-\(l.id)"
             case .automation:    return "automation"
+            case .clipAutomation(let r): return "clipautomation-\(r.id)"
             case .spatial:       return "spatial"
             }
         }
@@ -481,8 +486,24 @@ struct ArrangeTimelineView: View {
                 }
             })
         case .automation:         AutomationView()
+        case .clipAutomation(let region):
+            // L1/S2b: draw automation INTO the region's clip, clip-relative.
+            ClipAutomationView(clipID: region.clipID, spanTicks: clipSpanTicks(region))
         case .spatial:            ImmersiveStageView()
         }
+    }
+
+    /// Clip span (ticks) for the clip-automation canvas: the MIDI clip's own bar
+    /// count (so the drawing spans exactly what the clip plays), else a 4-bar
+    /// default. In `AutomationCanvasMath.barTicks` units so the canvas grid aligns.
+    private func clipSpanTicks(_ region: TimelineRegion) -> Int {
+        let bars: Int
+        if let clip = clips.clip(id: region.clipID), clip.kind == .midi {
+            bars = max(1, MelodyBarEdit.barCount(of: clip.melody?.notes ?? []))
+        } else {
+            bars = 4
+        }
+        return bars * AutomationCanvasMath.barTicks
     }
 
     /// The editor behind a door/region, by content kind. Only kinds with a real
@@ -1298,7 +1319,8 @@ struct ArrangeTimelineView: View {
                                     performanceMode: performanceMode,
                                     launchQuantize: launchQuantize,
                                     laneIsBio: lane.isBio,
-                                    onEdit: { openRegionEditor(region) })
+                                    onEdit: { openRegionEditor(region) },
+                                    onAutomation: { activeModal = .clipAutomation(region) })
                 }
             }
             .opacity(audible ? 1 : 0.35)
@@ -1391,6 +1413,10 @@ private struct RegionBlockView: View {
     var laneIsBio: Bool = false
     /// Opens this region's editor (the parent owns the one sheet slot).
     let onEdit: () -> Void
+    /// L1/S2b: opens the clip-automation DRAW editor for this region's clip
+    /// (same one sheet slot, parent-owned). Default no-op for callers that
+    /// don't offer it.
+    var onAutomation: () -> Void = {}
 
     @Environment(ClipStore.self) private var clips
     @Environment(TimelineStore.self) private var timeline
@@ -1624,6 +1650,9 @@ private struct RegionBlockView: View {
         if editableKind {
             Button { onEdit() } label: {
                 Label("Edit", systemImage: "slider.horizontal.3")
+            }
+            Button { onAutomation() } label: {
+                Label("Automation", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
             }
         }
         Button {
