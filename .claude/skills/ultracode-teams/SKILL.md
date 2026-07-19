@@ -22,8 +22,30 @@ The main loop (the PM) then synthesizes 6–8 vetted lead-reports, not 20 raw on
 | **AUv3/PLATFORM** | `e2e-test-agent` | AUv3 target, entitlements, CI/deploy | 2 |
 | **MARKETING** (pipeline-only) | `echoel-marketing` | `docs/`, ASO, website — **never** `Sources/` | 2 |
 
+**Cross-cutting teams** (activate per the work, not the domain):
+
+| Team | Lead agentType | Owns | Activate when |
+|------|----------------|------|---------------|
+| **PLAN/ARCHITECTURE** | `planning-agent` | plan-first for big/ambiguous items — the "ERST PLAN + Council" front door; breaks work into atomic slices before any build cycle | before a large, multi-file, or ambiguous item |
+| **RELEASE/CI** | `build-error-resolver` | keeping both gates green + owning the tokenless deploy (`.deploy/release`, `testflight.yml`, entitlements/provisioning) | every push / red gate / deploy |
+| **RED-TEAM / SKEPTIC** | `general-purpose` (N refuters) | adversarially trying to BREAK a risky slice (N refuters, majority-kill), not just review it | only irreversible / high-risk changes (deletes, audio-thread, protected triad, deploys) |
+| **DSP-CORRECTNESS** | `dsp-reviewer` | algorithm correctness (biquads, FFT/vDSP, Rausch triad READ-ONLY) — distinct from audio-thread safety | only DSP/ or Bio/ math changes |
+| **MEMORY/RECONCILE** | `general-purpose` | keeping the task list + `memory/` + `decisions.csv` honest — catch mislabeled-done, stale claims, drift | weekly / on task-list drift |
+
 **Standing cross-cut reviewers** every code change passes before ship:
 `concurrency-reviewer`, `code-reviewer`, `security-agent`.
+
+### Anti-proliferation (as important as the teams themselves)
+
+More teams are NOT automatically safer — the same ">8 parallel degrades focus"
+law applies to the roster itself. So:
+- **Per task, activate only the 1–3 relevant teams**, never all 13. The domain
+  teams are picked by which directory the change touches; the cross-cutting teams
+  by the "Activate when" column.
+- Every team stays **≤4 workers + 1 lead**; the PM synthesizes vetted LEAD reports,
+  never raw worker output.
+- If activating a team wouldn't change the decision, don't — coordination overhead
+  is the failure mode in the other direction.
 
 ## The lead's job (the quality gate)
 
