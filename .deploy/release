@@ -1,24 +1,16 @@
-build: 2026-07-19 v10.79.299 (AUv3-HOST-FIX C — Entitlement-Signatur-Beweis im CI + Re-Archive nach Capability-Propagation)
+build: 2026-07-19 v10.79.300 (AUv3-HOST-FIX D — fail-on-stripped Entitlement-Beweis)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: SCHLUSS MIT RATEN. v298 zeigte auf dem Gerät weiter "0 third-party" (Founder
-  bestätigt), obwohl inter-app-audio im Code steht + du die App-ID-Capability
-  aktiviert hast. Entweder strippt das Provisioning-Profil das Entitlement immer
-  noch (Capability war beim v298-Archive um 14:09 evtl. noch nicht propagiert), oder
-  es liegt tiefer.
+notes: SELBST-BERICHTENDER BUILD. Der Sandbox-Agent kann den CI-Job-Log nicht lesen
+  (Org-Policy 403 auf den Actions-Log-Blob) — nur das RUN-ERGEBNIS (grün/rot) ist
+  lesbar. Darum failt der Beweis-Schritt diesen Build jetzt HART, wenn inter-app-audio
+  aus dem signierten App-Bundle gestrippt ist. Damit ist das Build-Ergebnis selbst die
+  Antwort — du musst keinen weiteren evtl. toten Build testen:
 
-  DIESER BUILD BEWEIST ES: neuer CI-Schritt "Prove Inter-App-Audio entitlement in
-  the SIGNED app" liest die ECHTEN signierten Entitlements aus dem Archive und
-  schreibt ins Build-Summary, ob inter-app-audio PRESENT oder STRIPPED ist. Damit
-  weiß ich mit Gewissheit, ob der Fix im Binary ankommt — ohne weiteres
-  Geräte-Raten. Zusätzlich läuft dieser Re-Archive ~1h nach dem Portal-Haken, also
-  nach der Capability-Propagation — falls das v298-Timing das Problem war, trägt das
-  Profil die Capability jetzt.
+  - RUN GRÜN  → inter-app-audio ist im signierten Binary → Entitlement wirkt →
+    dann (und erst dann) testest du: Browse AUv3 → erscheinen Fremd-Plugins?
+  - RUN ROT (am "Prove Inter-App-Audio"-Schritt) → Profil trägt die Capability nicht
+    → du regenerierst im Portal das Distribution-Provisioning-Profil für
+    com.echoelmusic.app (mit Inter-App Audio aktiv), dann re-archive ich. Ich sage
+    dir das dann exakt.
 
-  ERGEBNIS-LOGIK (ich lese das Build-Log selbst):
-  - PRESENT + Gerät zeigt jetzt Fremd-Plugins → gelöst.
-  - PRESENT + Gerät weiter leer → tiefer als das Entitlement (dann anderer Pfad).
-  - STRIPPED → Profil trägt die Capability nicht → du regenerierst das Distribution-
-    Provisioning-Profil für com.echoelmusic.app (mit Inter-App Audio) im Portal, dann
-    Re-Archive. Ich sage dir dann exakt Bescheid.
-
-  Kein Code-Change am App-Verhalten — nur der CI-Beweis-Schritt + Re-Archive.
+  Kein App-Verhalten geändert — nur der CI-Beweis entscheidet jetzt über grün/rot.
