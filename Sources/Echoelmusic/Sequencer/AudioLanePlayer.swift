@@ -9,8 +9,10 @@
 //
 // It composes the two already-tested pieces: TimelineScheduling decides WHICH
 // region a lane plays and WHEN it changes (onset/clear); AudioRegionPlayback maps
-// the song tick to the media-file position + remaining length. Additive + opt-in:
-// nothing calls it until the wiring cycle, so it cannot regress the app today.
+// the song tick to the media-file position + remaining length. WIRED since v191
+// (EchoelmusicApp: `timelinePlayer.audioLanes = AudioLanePlayer(...)`) — audio
+// lanes now sound in time with the arrangement; it stays allocation-free on the
+// render path (the `.unchanged`/onset/clear windows do all reconciliation).
 //
 // LIVE MIXER (H4, closed the original known gap): `.unchanged` windows reconcile
 // the lane's gain/pan against what the sink last received — a mid-region level

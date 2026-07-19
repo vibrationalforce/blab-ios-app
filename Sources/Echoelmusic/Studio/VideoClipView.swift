@@ -84,7 +84,7 @@ struct VideoClipView: View {
                             .strokeBorder(EchoelTheme.border, lineWidth: 1))
                         if let laneID = landingLaneID { landRow(laneID) }
                     } else {
-                        Text("Import a video (MP4 · MOV · …) or an image from your library to place it on this track. It previews here; transport-synced playback follows in a later update. An image lands one bar long — stretch it on the timeline.")
+                        Text("Import a video (MP4 · MOV · …) or an image from your library to place it on this track. It previews here and plays back in sync in the floating video window while the transport runs. An image lands one bar long — stretch it on the timeline.")
                             .font(EchoelTheme.font(13))
                             .foregroundStyle(EchoelTheme.dim)
                             .padding(.top, 4)
