@@ -188,6 +188,36 @@ struct BioMetricsGuideView: View {
                     }
 
                     Divider().overlay(EchoelTheme.border)
+                    // Item 2 ("Bio-Modulation live sichtbar"): not only what the
+                    // numbers mean, but which SOUND each signal moves — the readable
+                    // half of "the music changes with your body". Static design facts
+                    // (BioSoundMapping), so there is NO live 10 Hz read here.
+                    Text("How your body shapes the sound")
+                        .font(EchoelTheme.font(15, .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                    ForEach(BioSoundMapping.all) { m in
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(m.source)
+                                    .font(EchoelTheme.font(13, .semibold))
+                                    .foregroundStyle(EchoelTheme.text)
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(EchoelTheme.dim)
+                                Text(m.target)
+                                    .font(EchoelTheme.font(13, .semibold))
+                                    .foregroundStyle(EchoelTheme.accent)
+                            }
+                            Text(m.direction)
+                                .font(EchoelTheme.font(12))
+                                .foregroundStyle(EchoelTheme.text.opacity(0.8))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(m.source) shapes \(m.target). \(m.direction)")
+                    }
+
+                    Divider().overlay(EchoelTheme.border)
                     Text(BioMetric.disclaimer)
                         .font(EchoelTheme.font(12))
                         .foregroundStyle(EchoelTheme.text.opacity(0.7))
