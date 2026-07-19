@@ -7641,3 +7641,33 @@ Timeline-Warp-Hörtest, Silent-Dimming sichtbar.
 - **Item 3 (externe AUv3 sichtbar):** `LaneInstrumentLabel` reiner Spurkopf-Belegungs-Formatter (5cfb5c1) — externe AU gewinnt über Built-in, FX als „N FX", ehrliches nil bei leer („no lying label"). Device-Schale (im Spurkopf rendern) = device-gated.
 - **DISZIPLIN-ENTSCHEID:** Nach 5 reinen/Prep-Slices sind ALLE verbleibenden REIHENFOLGE-Next-Slices device-gated UI (S2b-Verdrahtung, Item-2-Leaf, Item-3-Schale, #55 Leiste-Auflösung; item-4 D2/E2-Model war schon #5-completed). Per eigener Ledger-Direktive („Spine-zuerst, Blind-UI nicht stapeln, bei voller Device-Queue ehrlich halten") → HALT statt 6. unverifizierbare Fläche. Ledger-Playbook „per-Spur-Automation-Seam" ergänzt (e816c6d).
 - **Offen beim Founder (Device-Verify-Queue):** ClipAutomation-Sweep hörbar · per-Spur „Cutoff dieser Spur bewegt sich" (nach S2b) · Spurkopf-Belegung sichtbar · v290–v294 Hörtests + AUv3-Register-Neustart. Nächste sichtbare Slices warten auf Device-Kapazität/Greenlight.
+
+## 2026-07-19 — Ultracode-Teams-Modell + Reconciliation + 2 verifizierte Slices
+
+**Founder-Frage (Teams):** ab ~8 parallelen Agenten sinkt Konzentration → kleine
+Teams mit Lead + Pflicht-Verify. **Beantwortet + verankert:** 8 Domänen-Teams
+(≤4 Worker + 1 Lead=Reviewer-Agent), Lead verifiziert adversarial bevor Ergebnis
+den PM erreicht. Skill `.claude/skills/ultracode-teams/SKILL.md` + decisions.csv.
+Belegt am 21-Agenten-Audit: Agent #20 gab Müll zurück (evidence:test/files:a.swift)
+— flacher Pool hätte es geschluckt.
+
+**Reconciliation (Teams-Audit über 20 offene Tasks):** 5 fälschlich-offene
+geschlossen mit file:line-Beweis: #11 (tracks-DAW), #23 (per-lane SynthPatch),
+#39 (audio lanes sound+import), #54 (Warp), #58 (MIDI/MPE-Station).
+
+**Geshippt (jeder Lead-verifiziert CONFIRMED-SOUND + beide Gates grün):**
+- **#60 Freshness-Gate** (d079fcd): `ModulationEngine.tick` liest `usableBio()`
+  statt `latestBio` → eingefrorene Bio (Gurt ab/Finger weg/Watch stehen) steuert
+  keine Params mehr. Verify fing einen Fallstrick: Bestandstest mit uralten
+  Fake-Timestamps wäre unter dem Gate gebrochen — vor CI gefixt.
+- **#13 Audio-Take-Seam** (e203309): `TakeRecorder.captureAudio()` + finish()-Audio-
+  Loop → armed Audio-Spuren erzeugen `Clip(.audio)` via AudioClipFactory. Pure
+  value-type; device-PCM-Tap bleibt (nächster Geräte-Zyklus).
+
+**Deploy:** v304 (def21ae) = v303-Inhalt (Automation-in-Spur + AUv3-Appex-Fix) auf
+grünem Build, TestFlight neu angestoßen (der v303-Build war an doppeltem
+laneVoiceRack-@Environment gescheitert, e1f4cfd behob es).
+
+**Deferred (brauchen eigenen fokussierten Zyklus, NICHT halb bauen):** #61 EEG-Socket
+(7 Felder auf hot BioSampleFrame + Socket-Design → BIO-Team-Zyklus), #66/#67/#55
+Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
