@@ -30,10 +30,34 @@ The main loop (the PM) then synthesizes 6–8 vetted lead-reports, not 20 raw on
 | **RELEASE/CI** | `build-error-resolver` | keeping both gates green + owning the tokenless deploy (`.deploy/release`, `testflight.yml`, entitlements/provisioning) | every push / red gate / deploy |
 | **RED-TEAM / SKEPTIC** | `general-purpose` (N refuters) | adversarially trying to BREAK a risky slice (N refuters, majority-kill), not just review it | only irreversible / high-risk changes (deletes, audio-thread, protected triad, deploys) |
 | **DSP-CORRECTNESS** | `dsp-reviewer` | algorithm correctness (biquads, FFT/vDSP, Rausch triad READ-ONLY) — distinct from audio-thread safety | only DSP/ or Bio/ math changes |
+| **ADAPTIVE DESIGN/UX** | `general-purpose` (armed with the Uncodixfy rules) | look & feel & accessibility — Uncodixfy compliance (radii ≤16, no glassmorphism, solid fills, `EchoelValueField`), adaptive/responsive layout (Dynamic Type, `ScaledMetric`, device sizes, dark/light), a11y (VoiceOver, reduce-motion, flash ≤3 Hz WCAG), and the "wow"/contemplative quality bar. DISTINCT from UI/STUDIO (which owns state-flow/freeze/sheet correctness) — they compose on a UI slice. | any user-facing UI/visual change, new screen/panel, or a "make it feel right" ask |
 | **MEMORY/RECONCILE** | `general-purpose` | keeping the task list + `memory/` + `decisions.csv` honest — catch mislabeled-done, stale claims, drift | weekly / on task-list drift |
 
 **Standing cross-cut reviewers** every code change passes before ship:
 `concurrency-reviewer`, `code-reviewer`, `security-agent`.
+
+### Continuous processing — ONE PM loop, teams plug in per-task
+
+The safe way to "work through all open tasks in a loop" is NOT to keep every team
+running continuously — that multiplies token cost, floods the PM with raw output,
+and (with no local compiler + serial commits) manufactures merge conflicts. The loop
+lives at the PM level; teams are activated inside each iteration:
+
+```
+LOOP (the hourly cron heartbeat / Ralph cadence):
+  1. RECONCILE  — MEMORY/RECONCILE keeps the task list honest (periodically, not every tick)
+  2. PICK       — the next task by REIHENFOLGE (founder priority order)
+  3. PLAN       — PLAN/ARCHITECTURE if the task is big/ambiguous ("ERST PLAN")
+  4. ACTIVATE   — only the 1–3 teams that task touches (domain + relevant cross-cutting)
+  5. SHIP ONE   — one verified Ralph-Wiggum slice; lead-verify + cross-cut reviewers gate it
+  6. GREEN      — RELEASE/CI confirms both gates; deploy note on a real ship
+  7. repeat
+```
+
+This is exactly the loop already running (the 24h cron + this skill). A task is only
+"done" when its slice is shipped AND green AND (for device-facing behavior) founder-
+verified. The loop guarantees *safe* progress because every iteration ends in a gated,
+reversible, single-slice state — never a half-built pile.
 
 ### Anti-proliferation (as important as the teams themselves)
 
