@@ -159,23 +159,48 @@ final class ModulationEngineTests: XCTestCase {
     // MARK: - tick dedup via bus
 
     // publish(bio:) updates the @MainActor latestBio snapshot via an async
-    // Task, so let it settle before ticking.
+    // Task, so let it settle before ticking. Timestamps must be FRESH (near now)
+    // because tick(from:) freshness-gates on usableBio() (#60) — the fallback
+    // source's window is 5 s, so ancient fake timestamps would read as stale.
     func testTick_dedupsOnFrameTimestamp() async {
         let bus = EngineBus()
         let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "x")]))
         var count = 0
         engine.register("x") { _ in count += 1 }
 
-        bus.publish(bio: frame(coh: 1.0, ts: 100))
+        let t0 = CFAbsoluteTimeGetCurrent()
+        bus.publish(bio: frame(coh: 1.0, ts: t0))
         try? await Task.sleep(for: .milliseconds(20))
         engine.tick(from: bus)
         engine.tick(from: bus) // same timestamp → no re-apply
         XCTAssertEqual(count, 1)
 
-        bus.publish(bio: frame(coh: 1.0, ts: 200))
+        bus.publish(bio: frame(coh: 1.0, ts: t0 + 0.001))
         try? await Task.sleep(for: .milliseconds(20))
-        engine.tick(from: bus) // new timestamp → applies again
+        engine.tick(from: bus) // new (still-fresh) timestamp → applies again
         XCTAssertEqual(count, 2)
+    }
+
+    // #60 freshness gate: a stale bio frame must NOT drive the modulation brain,
+    // a fresh one must. Proves tick(from:) routes through usableBio(), so a frozen
+    // reading (dropped strap / lifted finger / stalled Watch) idles the mod-brain.
+    func testTick_ignoresStaleFrame_appliesFreshFrame() async {
+        let bus = EngineBus()
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "seq.tempo")]))
+        var fired = false
+        engine.register("seq.tempo") { _ in fired = true }
+
+        // Stale: the fallback source's window is 5 s; a 100 s-old frame is dead.
+        bus.publish(bio: frame(coh: 1.0, ts: CFAbsoluteTimeGetCurrent() - 100))
+        try? await Task.sleep(for: .milliseconds(20))
+        engine.tick(from: bus)
+        XCTAssertFalse(fired, "a stale bio frame must not drive the modulation brain")
+
+        // Fresh: the same route now fires.
+        bus.publish(bio: frame(coh: 1.0, ts: CFAbsoluteTimeGetCurrent()))
+        try? await Task.sleep(for: .milliseconds(20))
+        engine.tick(from: bus)
+        XCTAssertTrue(fired, "a fresh bio frame drives the modulation brain")
     }
 
     func testTick_noFrame_doesNothing() {

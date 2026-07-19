@@ -160,7 +160,12 @@ public final class ModulationEngine {
     /// unchanged snapshot does no work. Destinations without a registered
     /// handler are silently ignored.
     public func tick(from bus: EngineBus) {
-        guard let frame = bus.latestBio else { return }
+        // Freshness-gate the modulation brain (#60): a frozen bio reading — a
+        // dropped strap, a lifted finger, a stalled Watch — must NOT keep driving
+        // tempo/params off a dead value. `usableBio()` returns the freshest frame
+        // only while it is within ITS OWN source's window (rPPG/BLE 6 s, Watch 90 s),
+        // else nil, so the mod-brain simply idles instead of steering on stale data.
+        guard let frame = bus.usableBio() else { return }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
         apply(frame)
