@@ -1,24 +1,37 @@
-build: 2026-07-18 v10.79.295 (Housekeeping — Sample-Namen + Colabo-Datenschutz)
+build: 2026-07-19 v10.79.296 (Ultra-Audit-Burst — AUv3-Diagnose + sichtbare Belegung + Bio→Sound-Guide)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Zwei Fixes, KEIN neuer Hörtest noetig — die v290-294-Hoertests bleiben offen
-  (Akkord-Stempel, Audio-Clip-Launch, Chance, Per-Spur-Patch, Occurrence).
+notes: Founder-Vollmandat "bau alles richtig zusammen" → Ultra-Audit (Multi-Agent,
+  adversarisch verifiziert) + 4 grüne Zyklen, alle Gates grün, Reviewer sauber, KEIN
+  Blind-Bau. Kernbefund: fast ALLES ist schon verdrahtet — "funktionierende AUv3" ist
+  eine iOS-Registrierungs-Grenze (keine kaputte Code-Zeile), jetzt instrumentiert.
 
-  (1) SAMPLE-/IMPORT-NAME: Wenn du eine Audio-Datei als Sample/Loop importierst,
-  zeigt die Spur jetzt den ECHTEN Datei-Namen (z.B. "MyLoop") statt einer kryptischen
-  UUID. Betrifft neue Importe; bestehende Refs laden unveraendert weiter.
+  BITTE AUF DIESEM BUILD TESTEN (entsperrt die gerät-gated Mehrheit):
 
-  (2) DATENSCHUTZ-HAERTUNG (App Store 5.1.3): Live-Colabo (Puls an Geraete in der
-  Naehe) streamt jetzt NUR noch Puls aus Echoels EIGENEN Messquellen — Kamera-rPPG,
-  BLE-Brustgurt, Gesichtsausdruck, Demo. Werte aus Apple Health / Apple Watch / Ring
-  bleiben aufm Geraet und verlassen es nie an fremde Peers (dieselbe Regel, die die
-  OSC/ADM-OSC-Netz-Sender schon anwenden). Passt zu deinem Wunsch, dass Bio-Daten
-  nicht ungefragt an Fremdgeraete gehen.
+  (1) AUv3-DIAGNOSE — DER WICHTIGE TEST: Öffne den AUv3-Plugin-Browser (Spurkopf ▸
+  "Browse AUv3…"). Wenn nur die Apple-Units erscheinen (kalt), steht jetzt DIREKT AUF
+  DEM BILDSCHIRM die Ursache + die EINE Lösung: entweder "Self-test: OK — App komplett
+  schließen und neu öffnen" (die Plugin-LISTE ist veraltet) ODER "Self-test: FAILED
+  (…-3000) — Erweiterung nicht registriert → neu installieren / Gerät neu starten".
+  → Bitte diese Zeile FOTOGRAFIEREN und schicken. Damit fixe ich AUv3 im nächsten
+  Zyklus mit Gewissheit statt Rätselraten (löst den alten "self-probe -3000"-Log ab).
 
-  Unter der Haube: security-agent hat den Egress-Pfad als vollstaendig+sicher
-  bestaetigt (der Share-Loop ist der einzige Bio-Ausgang; der Projekt-Share traegt
-  kein Bio). Beide Fixes: alle Gates gruen, Reviewer sauber.
+  (2) SPURKOPF-BELEGUNG (item 3): Jeder Spurkopf zeigt jetzt WELCHES Instrument er
+  spielt — "EchoelDrums", "EchoelSampler · 1 FX", externer Plugin-Name — statt nur ein
+  Puzzle-Icon. Der Builtin-Name war vorher nie sichtbar. Bitte kurz prüfen, dass die
+  Zweizeilen-Kopfhöhe auf deinem Gerät nicht drängt.
 
-  Weiter offen auf deiner Seite: iPhone-Neustart fuer AUv3-Register (Log "self-probe
-  -3000"); die Hoertests v290 (Akkord), v291 (Audio-Clip-Launch), v292 (Chance), v293
-  (Per-Spur-Synth-Patch: 2 Spuren 2 Klaenge?), v294 (Occurrence: Note auf 1:2, spielt
-  sie nur jede 2. Runde?).
+  (3) BIO→SOUND-GUIDE (item 2): Tippe einen Wert im Bio-Strip (tap-to-learn) → im Guide
+  gibt es jetzt "How your body shapes the sound": Puls→Vibrato/Filter, HRV→Reverb,
+  Kohärenz→Filter-Helligkeit/Obertöne, Atem→Filter-Bewegung. Die lesbare Hälfte von
+  "die Musik verändert sich mit deinem Biofeedback".
+
+  Unter der Haube (alle grün, Reviewer clean): 4 echte Korrektheits-Fixes aus reinen
+  Bug-Hunts (obersten Clip bei gleichem Takt; Swing-Parität nach Mid-Play-Tempo;
+  SpatialScene-Reihenfolge-Konvergenz; SMF-Tempo-3-Byte-Overflow) + Ehrlichkeits-Fixes
+  (zwei Kommentare, die fertige Features fälschlich als "später" beschrieben). Bio-Input-
+  DSP (HRV-Kohärenz Lomb-Scargle/Welch + RMSSD/SDNN/pNN50) auditiert = numerisch solide.
+
+  Weiter offen (gerät-gated, warten auf dein Signal): VJ-Fullscreen (Visual-Recording)
+  Tür-zurück-oder-weg? · Face-Cam-Modulator (braucht Info.plist-Kamera-Permission-OK) ·
+  per-Spur-Parameter-Automation (Einheiten auf Gerät verifizieren). Offene Hörtests
+  v290-294 (Akkord, Audio-Clip-Launch, Chance, Per-Spur-Patch, Occurrence) bleiben.
