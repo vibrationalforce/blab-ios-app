@@ -40,20 +40,20 @@ struct ArrangeTimelineView: View {
     // source of truth, just reachable where the work happens.
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
-    /// Read to gate per-track automation targets on the SAME rack capacity the
-    /// playback dispatch uses (placebo law — never offer an overflow lane a target
-    /// that would no-op). `capacity` is a `let`, so this registers no 10 Hz churn.
+    /// The rack, used for THREE low-frequency reads, none in `body`:
+    ///  · H12 kind-true audition — `kits`/`subs` (the per-lane kit/sub voices the
+    ///    clip editor previews through), read only inside door-open handlers.
+    ///  · per-track automation gating — `capacity`, to offer per-track targets on
+    ///    the SAME rack capacity the playback dispatch uses (placebo law — never
+    ///    offer an overflow lane a target that would no-op).
+    /// `capacity` is a `let` and `kits`/`subs` are @ObservationIgnored, so this
+    /// registers no 10 Hz churn (freeze law).
     @Environment(LaneVoiceRack.self) private var laneVoiceRack
     @Environment(\.leadSynth) private var leadSynth
     // U3b: the AUv3 host, so a track head can SHOW its plugin assignment and
     // record the currently-loaded plugin onto the lane. `loaded`/`loadedEffects`
     // are low-frequency (change only on load/unload) — safe to read in the menu.
     @Environment(AUv3Host.self) private var auHost
-    /// H12 kind-true audition: the rack owns the per-lane kit/sub voices the
-    /// clip editor previews through. `kits`/`subs` are @ObservationIgnored on
-    /// the rack (no churn) and read only inside door-open handlers — never in
-    /// body (freeze law).
-    @Environment(LaneVoiceRack.self) private var laneVoiceRack
 
     /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
     /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
