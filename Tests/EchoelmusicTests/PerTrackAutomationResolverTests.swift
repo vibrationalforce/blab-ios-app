@@ -89,4 +89,14 @@ final class PerTrackAutomationResolverTests: XCTestCase {
         let kp = PerTrackParameterKeyPath.make(laneID: sec[0], base: "ddsp.does.notexist")
         XCTAssertNil(resolve(kp, 0.5, doc, roll: roll))
     }
+
+    /// Pins the isBio exclusion directly: a bio lane owns no secondary rack slot,
+    /// so a per-track write addressed to it is a no-op. Guards against a future
+    /// change that stopped filtering bio lanes out of the secondary set.
+    func testResolve_bioLane_returnsNil() throws {
+        let (doc, roll, _) = makeDoc()
+        let bioID = try XCTUnwrap(doc.lanes.first(where: { $0.isBio })?.id)
+        let kp = PerTrackParameterKeyPath.make(laneID: bioID, base: "ddsp.filter.cutoff")
+        XCTAssertNil(resolve(kp, 0.5, doc, roll: roll))
+    }
 }
