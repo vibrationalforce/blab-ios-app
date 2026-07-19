@@ -1034,10 +1034,26 @@ struct ArrangeTimelineView: View {
                 Image(systemName: lane.kind.systemImage)
                     .font(.system(size: 9))
                     .foregroundStyle(EchoelTheme.dim)
-                Text(lane.name)
-                    .font(EchoelTheme.font(10, .medium))
-                    .foregroundStyle(EchoelTheme.text)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(lane.name)
+                        .font(EchoelTheme.font(10, .medium))
+                        .foregroundStyle(EchoelTheme.text)
+                        .lineLimit(1)
+                    // Item 3 (founder: "sichtbare Instrument/FX-Belegung pro Spur"):
+                    // the track's instrument + FX AT A GLANCE — it was menu-only until
+                    // now (the head only carried a binary puzzle icon, never WHICH
+                    // instrument, and never the BUILT-IN voice name at all). Uses the
+                    // tested LaneInstrumentLabel formatter; a dim single-line caption
+                    // that scales down so the 140-pt head never overflows. nil for a
+                    // bare/bio lane → the row stays exactly as before.
+                    if let belegung = LaneInstrumentLabel.summary(for: lane) {
+                        Text(belegung)
+                            .font(EchoelTheme.font(8))
+                            .foregroundStyle(EchoelTheme.dim)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
                 Spacer(minLength: 0)
                 // U3b at-a-glance cue: this track carries a plugin assignment.
                 if lane.instrument != nil || !lane.effects.isEmpty {
