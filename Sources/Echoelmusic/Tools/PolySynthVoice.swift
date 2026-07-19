@@ -476,13 +476,45 @@ public final class PolySynthVoice {
     /// `patchOutputLevel` (which the render reads and neither bio nor noteOn touch),
     /// NOT `amplitude`. Filter automation stays on the existing scale-based lane
     /// (`setCutoffScale`), so the raw Hz `ddsp.filter.cutoff` is not bound here.
+    /// The base engine keyPaths this voice can automate. SINGLE SOURCE OF TRUTH for
+    /// both the global router binding (`bindAutomatable`) and the per-track dispatch
+    /// (`applyAutomatable`). Bio-contested params (filter/brightness) are intentionally
+    /// excluded — they need automation×bio composition, handled elsewhere.
+    /// `nonisolated` so a picker / contract test may read it off the main actor.
+    public nonisolated static let automatableBases: [String] = [
+        "ddsp.warmth.drive", "ddsp.env.attack", "ddsp.env.decay",
+        "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level"
+    ]
+
+    /// The live setter for an automatable base keyPath, or nil if the base is not
+    /// automatable on this voice. Used by BOTH bind paths so the global router and
+    /// the per-track dispatch can never drift.
+    private func automatableSetter(forBase base: String) -> ((Float) -> Void)? {
+        switch base {
+        case "ddsp.warmth.drive": return { [weak self] v in self?.poly.forEachVoice { $0.warmthDrive = v } }
+        case "ddsp.env.attack":   return { [weak self] v in self?.poly.forEachVoice { $0.attack = v } }
+        case "ddsp.env.decay":    return { [weak self] v in self?.poly.forEachVoice { $0.decay = v } }
+        case "ddsp.env.sustain":  return { [weak self] v in self?.poly.forEachVoice { $0.sustain = v } }
+        case "ddsp.env.release":  return { [weak self] v in self?.poly.forEachVoice { $0.release = v } }
+        case "ddsp.amp.level":    return { [weak self] v in self?.poly.forEachVoice { $0.patchOutputLevel = v } }
+        default: return nil
+        }
+    }
+
     public func bindAutomatable(into router: ParameterApplyRouter) {
-        router.bind("ddsp.warmth.drive") { [weak self] v in self?.poly.forEachVoice { $0.warmthDrive = v } }
-        router.bind("ddsp.env.attack")   { [weak self] v in self?.poly.forEachVoice { $0.attack = v } }
-        router.bind("ddsp.env.decay")    { [weak self] v in self?.poly.forEachVoice { $0.decay = v } }
-        router.bind("ddsp.env.sustain")  { [weak self] v in self?.poly.forEachVoice { $0.sustain = v } }
-        router.bind("ddsp.env.release")  { [weak self] v in self?.poly.forEachVoice { $0.release = v } }
-        router.bind("ddsp.amp.level")    { [weak self] v in self?.poly.forEachVoice { $0.patchOutputLevel = v } }
+        for base in Self.automatableBases {
+            if let setter = automatableSetter(forBase: base) { router.bind(base, setter) }
+        }
+    }
+
+    /// Apply a REAL (already-in-range) value to a base param on THIS voice — the
+    /// per-track automation dispatch target (L2/L4 S2b). Returns whether `base` is
+    /// automatable here (false = silent no-op, never a wrong-param write).
+    @discardableResult
+    public func applyAutomatable(base: String, real: Float) -> Bool {
+        guard let setter = automatableSetter(forBase: base) else { return false }
+        setter(real)
+        return true
     }
 
     /// B2 lane pan: stereo position of this voice's whole output, −1…1 (0 =

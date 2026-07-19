@@ -856,6 +856,25 @@ struct EchoelmusicApp: App {
                 // them (the picker widens past the 3 enum targets). Bio-contested params
                 // are excluded in bindAutomatable (they need automation×bio composition).
                 polyVoice.bindAutomatable(into: parameterRouter)
+                // L2/L4 S2b: per-track automation DISPATCH. A namespaced
+                // "track.<laneID>.<param>" lane resolves to the specific SECONDARY
+                // lane's rack voice slot (not the global voice above), so two tracks
+                // automating the same parameter move independently. The roll lane owns
+                // no rack slot ⇒ its params stay on the global path. Byte-identical
+                // no-op until a per-track lane is authored (no namespaced keyPaths
+                // exist yet — the golden gate). Context is read per apply (laneID→slot
+                // is rank-unstable between plays); the setter writes the slot voice's
+                // own automatable param.
+                parameterRouter.bindPerTrack(
+                    context: { [weak timelineStore, weak laneVoiceRack] in
+                        let doc = timelineStore?.document ?? TimelineDocument(lanes: [], regions: [])
+                        return ParameterApplyRouter.PerTrackContext(
+                            document: doc, rollLane: doc.rollLaneID,
+                            capacity: laneVoiceRack?.capacity ?? 0)
+                    },
+                    setter: { [weak laneVoiceRack] slot, base, real in
+                        laneVoiceRack?.voice(slot: slot)?.applyAutomatable(base: base, real: real) ?? false
+                    })
                 // AU-2: bring back the hosted chains (instrument · channel FX ·
                 // master FX) the user had loaded — pre-AU-2 a relaunch showed the
                 // lane badge "Instrument: X" but played the built-in voice, and
