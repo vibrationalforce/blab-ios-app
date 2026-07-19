@@ -487,6 +487,13 @@ jobs:
       # archivierten App-Bundle und macht im Build-Log/Summary sichtbar, ob das
       # Entitlement überlebt hat — kein Rätselraten mehr am Gerät. Non-failing:
       # der Upload läuft weiter (falls es diesmal drin ist, soll v-next hoch).
+      # FAIL-ON-STRIPPED (2026-07-19): the sandbox agent cannot read this job's log
+      # (org policy 403s the Actions log blob), so the only signal it CAN read is
+      # the RUN CONCLUSION. Therefore this step FAILS the build when inter-app-audio
+      # is definitively stripped from the signed app → a red run == "entitlement
+      # stripped, regenerate the distribution profile"; a green run == "entitlement
+      # present, test on device". Guarded so an empty/failed codesign never
+      # false-fails (only a non-empty entitlement set that LACKS the key fails).
       - name: "Prove Inter-App-Audio entitlement in the SIGNED app"
         run: |
           APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
@@ -496,9 +503,13 @@ jobs:
           if echo "$ENT" | grep -qi "inter-app-audio"; then
             echo "AUV3 inter-app-audio: PRESENT in signed binary — discovery entitlement is effective"
             echo "✅ AUv3 host entitlement inter-app-audio PRESENT in signed app" >> $GITHUB_STEP_SUMMARY
+          elif [ -z "$(echo "$ENT" | tr -d '[:space:]')" ]; then
+            echo "::warning title=AUv3 entitlement check inconclusive::codesign returned no entitlements — cannot determine inter-app-audio state; not failing the build."
+            echo "⚠️ AUv3 entitlement check inconclusive (codesign empty)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "::warning title=AUv3 entitlement STRIPPED::inter-app-audio is NOT in the signed app — the provisioning profile lacks the Inter-App Audio capability, so third-party AUv3 enumeration will return 0. Regenerate the distribution profile for com.echoelmusic.app with Inter-App Audio enabled."
-            echo "⚠️ AUv3 host entitlement inter-app-audio STRIPPED from signed app (profile lacks capability)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ AUv3 host entitlement inter-app-audio STRIPPED from signed app (profile lacks capability)" >> $GITHUB_STEP_SUMMARY
+            echo "::error title=AUv3 entitlement STRIPPED::inter-app-audio is NOT in the signed app — the com.echoelmusic.app distribution provisioning profile does not carry the Inter-App Audio capability, so third-party AUv3 enumeration will return 0. FIX: regenerate the distribution provisioning profile (with Inter-App Audio enabled) in the developer portal, then re-archive."
+            exit 1
           fi
 
       - name: "Export & Upload to TestFlight"
