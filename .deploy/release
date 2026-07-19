@@ -1,25 +1,24 @@
-build: 2026-07-19 v10.79.298 (AUv3-HOST-FIX B — App-ID-Capability aktiv → Re-Archive) [re-trigger: erster Lauf 90a5da2 an transientem actions/checkout-CI-Glitch gescheitert, nicht am Code/Signing]
+build: 2026-07-19 v10.79.299 (AUv3-HOST-FIX C — Entitlement-Signatur-Beweis im CI + Re-Archive nach Capability-Propagation)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: DER EIGENTLICHE AUv3-FIX-BUILD. v297 zeigte auf deinem Gerät exakt v296:
-  "101 Audio Units — 0 third-party, own AUv3 not visible, self-probe FAILED -3000".
-  Das Entitlement war im Code korrekt, wurde aber beim Signing GESTRIPPT, weil die
-  "Inter-App Audio"-Capability nicht auf der App-ID aktiviert war (automatic signing
-  kann diese abgekündigte Capability nicht selbst hinzufügen).
+notes: SCHLUSS MIT RATEN. v298 zeigte auf dem Gerät weiter "0 third-party" (Founder
+  bestätigt), obwohl inter-app-audio im Code steht + du die App-ID-Capability
+  aktiviert hast. Entweder strippt das Provisioning-Profil das Entitlement immer
+  noch (Capability war beim v298-Archive um 14:09 evtl. noch nicht propagiert), oder
+  es liegt tiefer.
 
-  DU HAST ES GEFIXT: im Developer-Portal Inter-App Audio auf com.echoelmusic.app
-  angehakt + gespeichert (per Video bestätigt). Dieser Re-Archive lässt
-  -allowProvisioningUpdates jetzt ein Profil MIT der Capability regenerieren →
-  das inter-app-audio-Entitlement überlebt ins signierte Binary.
+  DIESER BUILD BEWEIST ES: neuer CI-Schritt "Prove Inter-App-Audio entitlement in
+  the SIGNED app" liest die ECHTEN signierten Entitlements aus dem Archive und
+  schreibt ins Build-Summary, ob inter-app-audio PRESENT oder STRIPPED ist. Damit
+  weiß ich mit Gewissheit, ob der Fix im Binary ankommt — ohne weiteres
+  Geräte-Raten. Zusätzlich läuft dieser Re-Archive ~1h nach dem Portal-Haken, also
+  nach der Capability-Propagation — falls das v298-Timing das Problem war, trägt das
+  Profil die Capability jetzt.
 
-  BITTE AUF v298 TESTEN — der Beweis:
-  Spurkopf ▸ "Browse AUv3…" → erscheinen jetzt deine installierten Fremd-Plugins
-  UND "Echoelmusic: EchoelBodyVibe" (statt nur der 19 Apple-Units)? Und öffnet sich
-  eins beim Antippen? Wenn ja: AUv3-Hosting ist LIVE — item 3 erlebbar, der
-  #1-Blocker ist gelöst.
+  ERGEBNIS-LOGIK (ich lese das Build-Log selbst):
+  - PRESENT + Gerät zeigt jetzt Fremd-Plugins → gelöst.
+  - PRESENT + Gerät weiter leer → tiefer als das Entitlement (dann anderer Pfad).
+  - STRIPPED → Profil trägt die Capability nicht → du regenerierst das Distribution-
+    Provisioning-Profil für com.echoelmusic.app (mit Inter-App Audio) im Portal, dann
+    Re-Archive. Ich sage dir dann exakt Bescheid.
 
-  Falls WIDER ERWARTEN v298 immer noch "0 third-party" zeigt: schick die
-  self-probe-Log-Zeile. INSTANTIATE OK ⇒ Profil-Cache/Propagation (kurz warten +
-  1× Re-Archive); FAILED ⇒ tiefer (dann Registrierungspfad). Aber der Fingerabdruck
-  sagt: mit aktiver App-ID-Capability sollte v298 ziehen.
-
-  Kein Code-Change gegenüber v297 — reiner Re-Archive gegen die jetzt-fähige App-ID.
+  Kein Code-Change am App-Verhalten — nur der CI-Beweis-Schritt + Re-Archive.

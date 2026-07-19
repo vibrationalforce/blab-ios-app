@@ -478,6 +478,29 @@ jobs:
           [ -n "$PRINCIPAL" ] || fail "NSExtensionPrincipalClass missing"
           echo "AUv3 embed OK: $APPEX ($EXEC), component $TYPE/$SUB/$MFR, principal $PRINCIPAL"
 
+      # AUv3-HOST-ENTITLEMENT-BEWEIS (device 2026-07-19: v297/v298 zeigten weiter
+      # "0 third-party" trotz inter-app-audio in Echoelmusic.entitlements + App-ID-
+      # Capability). inter-app-audio ist der Discovery-Gate; wenn das Provisioning-
+      # Profil die Capability NICHT trägt, strippt das Signing das Entitlement
+      # SILENT aus dem Binary → Enumeration bleibt leer, obwohl die Quelle korrekt
+      # ist. Dieser Schritt liest die ECHTEN, signierten Entitlements aus dem
+      # archivierten App-Bundle und macht im Build-Log/Summary sichtbar, ob das
+      # Entitlement überlebt hat — kein Rätselraten mehr am Gerät. Non-failing:
+      # der Upload läuft weiter (falls es diesmal drin ist, soll v-next hoch).
+      - name: "Prove Inter-App-Audio entitlement in the SIGNED app"
+        run: |
+          APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
+          ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+          echo "=== signed host entitlements (filtered) ==="
+          echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit" || echo "(none matched)"
+          if echo "$ENT" | grep -qi "inter-app-audio"; then
+            echo "AUV3 inter-app-audio: PRESENT in signed binary — discovery entitlement is effective"
+            echo "✅ AUv3 host entitlement inter-app-audio PRESENT in signed app" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::warning title=AUv3 entitlement STRIPPED::inter-app-audio is NOT in the signed app — the provisioning profile lacks the Inter-App Audio capability, so third-party AUv3 enumeration will return 0. Regenerate the distribution profile for com.echoelmusic.app with Inter-App Audio enabled."
+            echo "⚠️ AUv3 host entitlement inter-app-audio STRIPPED from signed app (profile lacks capability)" >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: "Export & Upload to TestFlight"
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
