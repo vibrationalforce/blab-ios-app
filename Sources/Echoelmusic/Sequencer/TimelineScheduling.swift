@@ -33,11 +33,20 @@ public enum TimelineScheduling {
     /// half-open span `[startTick, endTick)` contains `tick`. On overlap the
     /// LATEST-starting containing region wins (the most-recently placed / top-most),
     /// so a region dropped over another takes over cleanly. `nil` in a gap.
+    ///
+    /// Tie-break: when two containing regions share the same `startTick` (a clip
+    /// dropped on top at the same bar — common with grid snap), the most-recently
+    /// PLACED one must win. Regions are appended in placement order (newest last),
+    /// so the tie breaks toward the later array element — hence the lexicographic
+    /// `(startTick, offset)` max. Plain `max(by: startTick)` keeps the FIRST
+    /// maximal element and would play the stale (older) clip on a tie.
     public static func activeRegion(in document: TimelineDocument,
                                     laneID: UUID, at tick: Int) -> TimelineRegion? {
         document.regions
             .filter { $0.laneID == laneID && tick >= $0.startTick && tick < $0.endTick }
-            .max(by: { $0.startTick < $1.startTick })
+            .enumerated()
+            .max(by: { ($0.element.startTick, $0.offset) < ($1.element.startTick, $1.offset) })?
+            .element
     }
 
     /// Whether the lane's active region CHANGED moving from `fromTick` to `toTick` —

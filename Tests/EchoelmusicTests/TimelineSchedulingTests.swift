@@ -67,6 +67,33 @@ final class TimelineSchedulingTests: XCTestCase {
         XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 1800)?.id, under.id, "outside the overlap → the underlying region")
     }
 
+    /// Overlap where the two regions share the SAME startTick — a clip dropped on
+    /// top of another at the same bar boundary (common with grid snap). The
+    /// contract (activeRegion doc) is "the most-recently placed / top-most wins".
+    /// Regions are appended in placement order (newest LAST), so the tie must break
+    /// toward the later array element — NOT `max(by: startTick)`, which keeps the
+    /// FIRST (oldest) maximal element and would play the stale clip.
+    func testActiveRegion_sameStartTick_mostRecentlyPlacedWins() {
+        let older = region(laneA, start: 1920, length: 1920)   // [1920, 3840) placed first
+        let newer = region(laneA, start: 1920, length: 960)    // [1920, 2880) dropped on top
+        let d = doc(lanes: [midiLane(laneA)], [older, newer])
+        XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 2000)?.id, newer.id,
+                       "on a startTick tie the most-recently-placed region wins")
+        // A tick only the older region covers still resolves to the older one.
+        XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 3000)?.id, older.id)
+    }
+
+    /// The tie-break must respect placement order regardless of array position:
+    /// even if the newer region is appended AFTER a non-overlapping one, it still
+    /// wins over an equal-start older region that precedes it.
+    func testActiveRegion_sameStartTick_orderInArrayDecidesTie() {
+        let newerFirst = region(laneA, start: 480, length: 480)   // placed first
+        let olderLast  = region(laneA, start: 480, length: 960)   // placed later → wins the tie
+        let d = doc(lanes: [midiLane(laneA)], [newerFirst, olderLast])
+        XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 600)?.id, olderLast.id,
+                       "later array element wins the equal-start tie")
+    }
+
     // MARK: - laneEvent (onset detection)
 
     func testLaneEvent_unchanged_withinSameRegion() {
