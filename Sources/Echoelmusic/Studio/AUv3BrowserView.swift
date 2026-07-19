@@ -118,6 +118,18 @@ struct AUv3BrowserView: View {
                     Text("iOS hasn't handed this app the plugin registry yet (not even Echoelmusic's own Audio Unit is visible). Quit Echoelmusic fully and reopen it — that reliably refreshes the registry. If plugins are still missing afterwards, open each plugin's app once, then restart again.")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.warning)
                         .fixedSize(horizontal: false, vertical: true)
+                    // Precise diagnostic (founder-visible twin of the device-log
+                    // breadcrumb): once the once-per-process self-test lands it says
+                    // WHICH cause this is — a stale component list (quit+reopen) vs.
+                    // an unregistered extension (reinstall). Selectable so it can be
+                    // pasted into a bug report.
+                    if let diag = host.diagnostic, !diag.guidance.isEmpty {
+                        Text(diag.guidance)
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                            .padding(.top, 2)
+                    }
                 } else if host.hasNoThirdPartyUnits {
                     Text("Only Apple's built-in units showed up. Third-party AUv3 sometimes register late — this list keeps refreshing for a few seconds. If yours still don't appear, open each plugin's app once (that registers its AUv3 with iOS), then tap Rescan.")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)

@@ -48,6 +48,65 @@ public struct HostedAUInfo: Identifiable, Sendable, Equatable, Codable {
     }
 }
 
+/// Founder-visible discovery diagnostic — the on-screen twin of the device-log
+/// breadcrumb built in `performScan`. Pure value type so its `guidance` is unit-
+/// tested off-device: the whole point is that the NEXT TestFlight build tells the
+/// founder WHICH cold-registry cause they hit without pasting a log.
+public struct AUv3ScanDiagnostic: Equatable, Sendable {
+    /// Total AudioComponents the OS returned to this process (all types).
+    public var rawComponentCount: Int
+    /// How many of those are NON-Apple, NON-Echoel (real third-party) units.
+    public var thirdPartyCount: Int
+    /// Whether Echoel's OWN bundled AUv3 surfaced (proves the registry serves
+    /// out-of-process components to this process at all).
+    public var ownAUv3Present: Bool
+    /// Which retry pass produced this snapshot (0…maxScanRetries).
+    public var scanAttempt: Int
+    /// Verdict of the once-per-process self-instantiate probe (nil until it runs).
+    public var selfProbe: SelfProbe?
+
+    /// The own-AUv3 self-instantiate probe result (see `performScan`).
+    public enum SelfProbe: Equatable, Sendable {
+        /// Registry SERVES our appex; the component LIST is stale for this process.
+        case instantiateOK
+        /// iOS has NOT registered the appex on this device (restart/reinstall).
+        case failed(domain: String, code: Int)
+    }
+
+    public init(rawComponentCount: Int, thirdPartyCount: Int, ownAUv3Present: Bool,
+                scanAttempt: Int, selfProbe: SelfProbe? = nil) {
+        self.rawComponentCount = rawComponentCount
+        self.thirdPartyCount = thirdPartyCount
+        self.ownAUv3Present = ownAUv3Present
+        self.scanAttempt = scanAttempt
+        self.selfProbe = selfProbe
+    }
+
+    /// Cold ⇒ the process saw NO real third-party units and not even our own AUv3.
+    public var isCold: Bool { thirdPartyCount == 0 && !ownAUv3Present }
+
+    /// One-line, founder-readable cause + the ONE action that helps. Empty when
+    /// discovery is healthy (the browser only shows this while cold). The probe
+    /// verdict is what discriminates "quit+reopen" (stale list) from "reinstall"
+    /// (unregistered appex) — the two remaining causes once the retries are spent.
+    public var guidance: String {
+        guard isCold else { return "" }
+        let counts = "iOS handed this app \(rawComponentCount) Audio Units — 0 third-party, own AUv3 not visible."
+        switch selfProbe {
+        case .none:
+            return counts + " Running a self-test to find out why…"
+        case .instantiateOK:
+            return counts
+                + " Self-test: OK — iOS DOES serve our plugin, but this app's plugin LIST is stale."
+                + " Fully quit Echoelmusic (swipe it away) and reopen — that reliably refreshes the list."
+        case let .failed(domain, code):
+            return counts
+                + " Self-test: FAILED (\(domain) \(code)) — the plugin extension isn't registered on this device."
+                + " Reinstall Echoelmusic or restart the device. For third-party plugins, open each plugin's own app once."
+        }
+    }
+}
+
 public extension AUPluginRef {
     /// Build a persistable track assignment (U3) from a discovered/loaded hosted
     /// AU. Lossless: carries the four component codes + names + kind, so the
@@ -109,6 +168,12 @@ public final class AUv3Host {
     /// RESTARTING the app. The browser shows that honestly instead of the
     /// provably ineffective "tap Rescan" advice.
     public private(set) var registryColdForProcess = false
+
+    /// Founder-visible discovery diagnostic (the on-screen twin of the device-log
+    /// breadcrumb). Set at the end of every scan pass; its `selfProbe` is filled
+    /// in later when the once-per-process own-AUv3 probe completes. The browser
+    /// renders `diagnostic.guidance` while cold so the cause is legible without a log.
+    public private(set) var diagnostic: AUv3ScanDiagnostic?
 
     /// Restore records that failed against the cold registry, held for ONE
     /// retry when kAudioComponentRegistrationsChanged announces late arrivals
@@ -734,6 +799,14 @@ public final class AUv3Host {
         // non-built-in appears — incl. our own AUv3, which proves the registry
         // serves out-of-process components to this process).
         registryColdForProcess = (thirdPartyCount == 0 && !ownAUv3)
+        // Founder-visible twin of the breadcrumb above. Preserve any self-probe
+        // verdict already captured this process (the probe runs at most once, after
+        // the last retry — a later scan pass must not erase its result).
+        diagnostic = AUv3ScanDiagnostic(rawComponentCount: components.count,
+                                        thirdPartyCount: thirdPartyCount,
+                                        ownAUv3Present: ownAUv3,
+                                        scanAttempt: scanAttempt,
+                                        selfProbe: diagnostic?.selfProbe)
         // Cold-cache / late-registration backstop: when the OS returns only Apple
         // built-ins, the third-party registry is likely not warm yet for this
         // process — and because those extensions were registered BEFORE this launch,
@@ -774,10 +847,14 @@ public final class AUv3Host {
                     _ = try await Self.instantiate(probeDesc, name: "Echoelmusic (own-AUv3 probe)")
                     EchoelCrashLog.breadcrumb(
                         "auv3 self-probe: INSTANTIATE OK — registry serves the own appex; the component LIST is stale for this process")
+                    // Surface the verdict on-screen too (founder-visible), so the
+                    // next build discriminates stale-list vs. unregistered without a log.
+                    diagnostic?.selfProbe = .instantiateOK
                 } catch {
                     let e = error as NSError
                     EchoelCrashLog.breadcrumb(
                         "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own appex not registered on this device (restart/reinstall territory)")
+                    diagnostic?.selfProbe = .failed(domain: e.domain, code: e.code)
                 }
             }
         }
