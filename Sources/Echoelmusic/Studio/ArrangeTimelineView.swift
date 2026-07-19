@@ -2036,6 +2036,9 @@ private struct LaneCompositionSection: View {
     /// Honest feedback when the 8-slot clip grid is full (ensureComposerRegion
     /// refuses rather than displacing a user clip).
     @State private var gridFullWarning = false
+    /// REIHENFOLGE #4 "alles in die Spur": the full 8-dial mood fine-tune is
+    /// collapsed by default so the composition rows stay compact.
+    @State private var showMoodDials = false
 
     private static let songTag = "song"
     private static let customTag = "custom"
@@ -2055,6 +2058,7 @@ private struct LaneCompositionSection: View {
             }
             genreRow
             moodRow
+            moodFineTune
             variationRow
             if gridFullWarning {
                 Text("Clip grid full (\(ClipStore.slotCount) slots) — clear a slot so this track can get its own \"Composed\" clip.")
@@ -2109,6 +2113,56 @@ private struct LaneCompositionSection: View {
             .pickerStyle(.menu).tint(EchoelTheme.accent)
             .accessibilityLabel("Mood for \(laneName)")
         }
+    }
+
+    /// Per-track FULL mood fine-tune (REIHENFOLGE #4 "alles in die Spur"): the same
+    /// 8 dimensions the global Mood panel edits, now on the lane itself via
+    /// `EchoelValueField` (the one parameter control). Collapsed by default. Editing
+    /// any dial gives THIS lane its own `MoodProfile` — `moodRow` then reads "Custom",
+    /// and its "Song" option reverts to following the global take. Lane fields are not
+    /// in undo history, so a dial drag persists without spamming it.
+    private var moodFineTune: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                showMoodDials.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: showMoodDials ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("Fine-tune mood").font(EchoelTheme.font(12, .semibold))
+                    Spacer()
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Fine-tune the eight mood dimensions for \(laneName)")
+            if showMoodDials {
+                moodDial("Liveliness", \.liveliness)
+                moodDial("Darkness", \.darkness)
+                moodDial("Tension", \.tension)
+                moodDial("Romance", \.romance)
+                moodDial("Weird", \.weird)
+                moodDial("Virtuosity", \.virtuosity)
+                moodDial("Syncopation", \.syncopation)
+                moodDial("Humanize", \.humanize)
+            }
+        }
+    }
+
+    /// A live binding to ONE dimension of this lane's mood. Reads fall back to a
+    /// neutral `MoodProfile()` while the lane still follows the song (`mood == nil`);
+    /// writing any dial gives the lane its own profile.
+    private func moodDial(_ label: String, _ keyPath: WritableKeyPath<MoodProfile, Float>) -> some View {
+        let binding = Binding<Float>(
+            get: { (lane?.mood ?? MoodProfile())[keyPath: keyPath] },
+            set: { v in
+                var profile = lane?.mood ?? MoodProfile()
+                profile[keyPath: keyPath] = v
+                timeline.setLaneMood(laneID, mood: profile)
+            }
+        )
+        return EchoelValueField(label: label, value: binding, range: 0...1)
     }
 
     private var variationRow: some View {
