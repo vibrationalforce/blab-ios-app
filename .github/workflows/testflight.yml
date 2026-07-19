@@ -478,38 +478,36 @@ jobs:
           [ -n "$PRINCIPAL" ] || fail "NSExtensionPrincipalClass missing"
           echo "AUv3 embed OK: $APPEX ($EXEC), component $TYPE/$SUB/$MFR, principal $PRINCIPAL"
 
-      # AUv3-HOST-ENTITLEMENT-BEWEIS (device 2026-07-19: v297/v298 zeigten weiter
-      # "0 third-party" trotz inter-app-audio in Echoelmusic.entitlements + App-ID-
-      # Capability). inter-app-audio ist der Discovery-Gate; wenn das Provisioning-
-      # Profil die Capability NICHT trägt, strippt das Signing das Entitlement
-      # SILENT aus dem Binary → Enumeration bleibt leer, obwohl die Quelle korrekt
-      # ist. Dieser Schritt liest die ECHTEN, signierten Entitlements aus dem
-      # archivierten App-Bundle und macht im Build-Log/Summary sichtbar, ob das
-      # Entitlement überlebt hat — kein Rätselraten mehr am Gerät. Non-failing:
-      # der Upload läuft weiter (falls es diesmal drin ist, soll v-next hoch).
-      # FAIL-ON-STRIPPED (2026-07-19): the sandbox agent cannot read this job's log
-      # (org policy 403s the Actions log blob), so the only signal it CAN read is
-      # the RUN CONCLUSION. Therefore this step FAILS the build when inter-app-audio
-      # is definitively stripped from the signed app → a red run == "entitlement
-      # stripped, regenerate the distribution profile"; a green run == "entitlement
-      # present, test on device". Guarded so an empty/failed codesign never
-      # false-fails (only a non-empty entitlement set that LACKS the key fails).
-      - name: "Prove Inter-App-Audio entitlement in the SIGNED app"
+      # AUv3-HOST-ENTITLEMENT-SICHTBARKEIT (device 2026-07-19).
+      # HISTORY & HONEST CORRECTION: v300 (fail-on-stripped) PROVED via its red run
+      # that inter-app-audio is stripped from the signed app — the auto-managed
+      # "iOS Team Provisioning Profile" does not carry the (deprecated) Inter-App
+      # Audio capability, so automatic signing drops it. That fact is now captured.
+      # BUT the hypothesis that inter-app-audio gates third-party AUv3 discovery is
+      # very likely WRONG: modern iOS AUv3 hosting via AVAudioUnitComponentManager
+      # needs NO entitlement (AUM/GarageBand/Drambo enumerate without it). The real,
+      # host-independent symptom is that EchoelBodyVibe fails to INSTANTIATE (AUM
+      # "sees but won't open"; our self-probe returns -3000 invalidComponentID =
+      # "not registered on this device / reinstall territory") — a pluginkit
+      # registration/appex issue, not a host entitlement. So this step is now a
+      # NON-BLOCKING visibility report only: it records the signed-entitlement state
+      # in the job summary but NEVER fails the build (a permanently-red required gate
+      # would block every deploy for an entitlement that probably doesn't matter).
+      - name: "Report Inter-App-Audio entitlement in the SIGNED app (non-blocking)"
         run: |
           APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
           ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
           echo "=== signed host entitlements (filtered) ==="
           echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit" || echo "(none matched)"
           if echo "$ENT" | grep -qi "inter-app-audio"; then
-            echo "AUV3 inter-app-audio: PRESENT in signed binary — discovery entitlement is effective"
-            echo "✅ AUv3 host entitlement inter-app-audio PRESENT in signed app" >> $GITHUB_STEP_SUMMARY
+            echo "AUV3 inter-app-audio: PRESENT in signed binary"
+            echo "ℹ️ AUv3 host entitlement inter-app-audio PRESENT in signed app" >> $GITHUB_STEP_SUMMARY
           elif [ -z "$(echo "$ENT" | tr -d '[:space:]')" ]; then
-            echo "::warning title=AUv3 entitlement check inconclusive::codesign returned no entitlements — cannot determine inter-app-audio state; not failing the build."
+            echo "::warning title=AUv3 entitlement check inconclusive::codesign returned no entitlements."
             echo "⚠️ AUv3 entitlement check inconclusive (codesign empty)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ AUv3 host entitlement inter-app-audio STRIPPED from signed app (profile lacks capability)" >> $GITHUB_STEP_SUMMARY
-            echo "::error title=AUv3 entitlement STRIPPED::inter-app-audio is NOT in the signed app — the com.echoelmusic.app distribution provisioning profile does not carry the Inter-App Audio capability, so third-party AUv3 enumeration will return 0. FIX: regenerate the distribution provisioning profile (with Inter-App Audio enabled) in the developer portal, then re-archive."
-            exit 1
+            echo "::warning title=AUv3 inter-app-audio stripped::inter-app-audio not in signed app (managed profile lacks the deprecated capability). Likely irrelevant to AUv3 discovery — see appex-instantiation track."
+            echo "ℹ️ AUv3 host entitlement inter-app-audio STRIPPED (managed profile) — non-blocking; not believed to gate discovery" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: "Export & Upload to TestFlight"

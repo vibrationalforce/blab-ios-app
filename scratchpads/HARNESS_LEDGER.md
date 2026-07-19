@@ -182,3 +182,21 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 - **Own-appex-stört-Enumeration = REFUTED** (AUM/Loopy embedden auch eigene appex + listen Fremd). Nicht graben.
 - **iOS-26-Regression existiert** (JUCE-Forum: scan OK, instantiate scheitert) — wir zielen iOS 18, NICHT unser Bug; nur merken für spätere iOS-26-Geräte-Reports.
 - **Host ist bereits korrekt/robuster als Referenz-Hosts** (Discovery-API, out-of-process-instantiate+Timeout, Format-Preflight, Registration-Rescan, Self-Probe, UI-Pfad, appex-Registrierung). Der EINZIGE echte Gap war das Entitlement. NICHT über-engineeren.
+
+## DEAD-END (2026-07-19, v300) — inter-app-audio ist NICHT der AUv3-Discovery-Gate
+- **Behauptet (v297–v300):** „Host braucht `inter-app-audio`-Entitlement, damit
+  `AVAudioUnitComponentManager` Fremd-AUv3 sieht." Mehrfach als „der Fix" verkauft.
+- **Beweis dagegen:** v300 (fail-on-stripped-CI) lief ROT → Entitlement wird vom
+  Auto-Managed-Profil gestrippt (Signing-Identität „Apple Development: Created via API",
+  Profil „iOS Team Provisioning Profile"). ABER: iOS-AUv3-Hosting braucht KEIN
+  Entitlement — jeder Host (AUM/GarageBand/Drambo) enumeriert ohne. Die DevForums-
+  Synthese war falsch verallgemeinert (IAA = Legacy-Streaming, ≠ AUv3-Extension-Discovery).
+- **DO THIS INSTEAD:** Nicht auf Provisioning-Profil-Chirurgie schicken. Das reale,
+  host-unabhängige Symptom lesen: Self-Probe `NSOSStatusErrorDomain#-3000`
+  (`invalidComponentID`) + „AUM sieht aber öffnet nicht" = Appex **instanziiert nicht** /
+  stale pluginkit-Registrierung. Erster, billigster Schritt = sauberer Delete+Reinstall
+  (klärt stale-Registrierung vs. echter Appex-Defekt). CI-Gate auf WARNING zurück
+  (permanent-rotes Required-Gate blockt sonst jeden Deploy).
+- **Meta-Lektion:** „Research-confirmed" ohne primäre API-Verifikation ist eine
+  Vermutung. Bei wiederholtem „das ist der Fix" ohne Landung → Hypothese selbst
+  anzweifeln, nicht die nächste Variante derselben Hypothese bauen.

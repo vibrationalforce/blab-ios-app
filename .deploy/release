@@ -1,16 +1,27 @@
-build: 2026-07-19 v10.79.300 (AUv3-HOST-FIX D — fail-on-stripped Entitlement-Beweis)
+build: 2026-07-19 v10.79.301 (AUv3 — ehrliche Korrektur + CI entblockt)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: SELBST-BERICHTENDER BUILD. Der Sandbox-Agent kann den CI-Job-Log nicht lesen
-  (Org-Policy 403 auf den Actions-Log-Blob) — nur das RUN-ERGEBNIS (grün/rot) ist
-  lesbar. Darum failt der Beweis-Schritt diesen Build jetzt HART, wenn inter-app-audio
-  aus dem signierten App-Bundle gestrippt ist. Damit ist das Build-Ergebnis selbst die
-  Antwort — du musst keinen weiteren evtl. toten Build testen:
+notes: KURSKORREKTUR nach hartem Beweis. v300 (fail-on-stripped) lief ROT und hat
+  damit bewiesen: inter-app-audio wird beim Signieren aus dem App-Bundle gestrippt
+  (das Auto-Managed-Profil trägt die veraltete Capability nicht). ABER: iOS-AUv3-
+  Hosting braucht dieses Entitlement GAR NICHT — jeder Host (AUM/GarageBand/Drambo)
+  findet Fremd-Plugins ohne. Meine inter-app-audio-These war falsch; ich habe sie
+  mehrfach als "den Fix" verkauft. Das stimmt nicht — Entschuldigung.
 
-  - RUN GRÜN  → inter-app-audio ist im signierten Binary → Entitlement wirkt →
-    dann (und erst dann) testest du: Browse AUv3 → erscheinen Fremd-Plugins?
-  - RUN ROT (am "Prove Inter-App-Audio"-Schritt) → Profil trägt die Capability nicht
-    → du regenerierst im Portal das Distribution-Provisioning-Profil für
-    com.echoelmusic.app (mit Inter-App Audio aktiv), dann re-archive ich. Ich sage
-    dir das dann exakt.
+  WAS WIRKLICH KAPUTT IST (host-unabhängig, reproduziert in JEDEM Host):
+  EchoelBodyVibe INSTANZIIERT NICHT. AUM "sieht es, öffnet es aber nicht"; unsere
+  eigene Self-Probe scheitert mit -3000 (invalidComponentID = "auf diesem Gerät nicht
+  registriert / Reinstall-Territorium"). Das ist ein pluginkit-Registrierungs-Problem,
+  kein Host-Entitlement.
 
-  Kein App-Verhalten geändert — nur der CI-Beweis entscheidet jetzt über grün/rot.
+  DIESER BUILD: (1) CI-Gate von HART-FAIL auf WARNUNG zurück — ein dauerhaft rotes
+  Pflicht-Gate blockierte sonst JEDEN künftigen Deploy für ein Entitlement, das
+  wahrscheinlich egal ist. (2) v300 kam wegen dieses roten Gates NIE bei TestFlight an;
+  dieser v301 lädt wieder hoch → sauberer, aktueller Reinstall-Ziel-Build. Kein
+  App-Verhalten geändert.
+
+  BITTE 1 SACHE TESTEN (klärt stale-Registrierung vs. echter Appex-Defekt):
+  Echoelmusic KOMPLETT löschen (App-Icon lange drücken → App entfernen → App löschen),
+  dann v301 aus TestFlight NEU installieren, einmal öffnen. Danach in AUM: lässt sich
+  EchoelBodyVibe jetzt ÖFFNEN? Und in Echoelmusics eigenem AUv3-Browser: erscheint
+  jetzt irgendetwas (auch nur "Echoel")? Das Ergebnis sagt mir exakt, wo der Fehler
+  sitzt — ohne weitere Rätsel.

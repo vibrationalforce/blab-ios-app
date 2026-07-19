@@ -63,9 +63,19 @@ Hauptgrund, warum ein Rewrite dumm wäre — sie neu zu lernen = Monate Schmerz.
 4. **Nie `Task { @MainActor }` pro Frame** aus 30-fps-Quelle — in Low-Rate-Poll batchen.
 5. **`DSP/` ohne `Core`/`Sequencer`-Typen** — AUv3 kompiliert `DSP/` isoliert.
 6. **Flash ≤3 Hz, Slews ratenbasiert** (WCAG/Epilepsie).
-7. **AUv3-Registrierung:** AudioComponents unter `NSExtensionAttributes`; **Host braucht
-   `inter-app-audio`-Entitlement** (v297-Fix). AVAudioEngine.connect() RAISED → Format-
-   Preflight-Gate vor attach.
+7. **AUv3-Registrierung:** AudioComponents MÜSSEN unter `NSExtensionAttributes` (nicht
+   direkt unter `NSExtension`) — pluginkit registriert nur dort (Fix build 2382).
+   AVAudioEngine.connect() RAISED → Format-Preflight-Gate vor attach.
+   **KORREKTUR 2026-07-19 (v300-Beweis + Deep-Read):** Die frühere Behauptung „Host
+   braucht `inter-app-audio`-Entitlement" ist WIDERLEGT. iOS-AUv3-Hosting via
+   `AVAudioUnitComponentManager` braucht KEIN Entitlement (AUM/GarageBand/Drambo
+   enumerieren ohne). v300 (fail-on-stripped) hat rot bewiesen: `inter-app-audio` wird
+   vom Auto-Managed-Profil gestrippt — aber das ist für AUv3-Discovery irrelevant. Das
+   ECHTE, host-unabhängige Symptom: **EchoelBodyVibe instanziiert nicht** (AUM „sieht
+   aber öffnet nicht"; Self-Probe `-3000 invalidComponentID` = „nicht auf diesem Gerät
+   registriert / Reinstall-Territorium"). Das ist ein pluginkit-Registrierungs-/Appex-
+   Problem, KEIN Host-Entitlement. Nächster Schritt = sauberer Delete+Reinstall (klärt
+   stale-Registrierung vs. echter Appex-Defekt), NICHT Provisioning-Profil-Chirurgie.
 8. **Kein Heilungs-/Wellness-/esoterik-Claim.** EchoelValueField für alle Parameter.
 9. **@AppStorage-Keys nur über StudioDefaultKeys** (Divergenz = stille Bug-Klasse).
 
