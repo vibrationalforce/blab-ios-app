@@ -32,8 +32,41 @@ public final class ParameterApplyRouter {
     /// keyPath → live setter (takes the REAL, already-in-range value).
     private var setters: [String: (Float) -> Void] = [:]
 
+    /// Live runtime context for resolving a per-track keyPath ("track.<laneID>.<base>")
+    /// to a physical rack slot. Supplied at app-wiring time via `bindPerTrack`; nil
+    /// until then, so a per-track keyPath is a safe no-op and the global automation
+    /// path stays byte-identical (the L2/L4 golden gate).
+    public struct PerTrackContext {
+        public let document: TimelineDocument
+        public let rollLane: UUID?
+        public let capacity: Int
+        public init(document: TimelineDocument, rollLane: UUID?, capacity: Int) {
+            self.document = document
+            self.rollLane = rollLane
+            self.capacity = capacity
+        }
+    }
+
+    /// Provides the CURRENT document/roll/capacity at dispatch time — laneID→slot is
+    /// rank-unstable between plays, so this is read per apply, never cached.
+    private var perTrackContext: (() -> PerTrackContext)?
+    /// Writes a resolved per-track value to the lane's rack voice slot; returns
+    /// whether it was applied (false = no live voice for that slot). Injected at
+    /// app-wiring time so the audio engine coupling stays out of Core.
+    private var perTrackSetter: ((_ slot: Int, _ base: String, _ real: Float) -> Bool)?
+
     public init(registry: EchoelParameterRegistry) {
         self.registry = registry
+    }
+
+    /// Wire the per-track dispatch path (L2/L4 S2b). Until this is called, per-track
+    /// keyPaths resolve to a no-op and behavior is byte-identical to the global-only
+    /// router. `context` yields the live document each apply; `setter` writes the
+    /// resolved (slot, base, real value) to the rack voice.
+    public func bindPerTrack(context: @escaping () -> PerTrackContext,
+                             setter: @escaping (_ slot: Int, _ base: String, _ real: Float) -> Bool) {
+        perTrackContext = context
+        perTrackSetter = setter
     }
 
     /// Bind (or replace) the live setter for a keyPath. Called at app wiring time,
@@ -55,11 +88,32 @@ public final class ParameterApplyRouter {
     /// descriptor to map the value or no setter bound — never a crash.
     @discardableResult
     public func applyNormalized(_ keyPath: String, _ normalized: Float) -> Float? {
+        // Per-track automation ("track.<laneID>.<base>") dispatches to the specific
+        // lane's rack voice slot, not a global setter. Intercept BEFORE the global
+        // lookup (a per-track keyPath has no global registry descriptor). Byte-
+        // identical no-op until `bindPerTrack` wires the context + setter.
+        if PerTrackParameterKeyPath.isPerTrack(keyPath) {
+            return applyPerTrack(keyPath, normalized)
+        }
         guard let descriptor = registry.descriptor(for: keyPath),
               let setter = setters[keyPath] else { return nil }
         let real = descriptor.denormalized(normalized)
         setter(real)
         return real
+    }
+
+    /// Resolve a per-track keyPath against the live document and write to the lane's
+    /// rack voice slot. Returns the applied real value, or nil (safe no-op) when the
+    /// per-track path is unwired, the lane has no physical voice (deleted / foreign /
+    /// overflow), the base parameter is unknown, or no live voice took the write.
+    private func applyPerTrack(_ keyPath: String, _ normalized: Float) -> Float? {
+        guard let context = perTrackContext, let setter = perTrackSetter else { return nil }
+        let ctx = context()
+        guard let resolved = PerTrackAutomationResolver.resolve(
+            keyPath: keyPath, normalized: normalized,
+            document: ctx.document, rollLane: ctx.rollLane, capacity: ctx.capacity,
+            descriptor: { registry.descriptor(for: $0) }) else { return nil }
+        return setter(resolved.slot, resolved.base, resolved.value) ? resolved.value : nil
     }
 
     /// Apply a REAL value directly (already in the parameter's units/range) — used
