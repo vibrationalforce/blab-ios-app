@@ -1,37 +1,29 @@
-build: 2026-07-19 v10.79.296 (Ultra-Audit-Burst — AUv3-Diagnose + sichtbare Belegung + Bio→Sound-Guide)
+build: 2026-07-19 v10.79.297 (AUv3-HOST-FIX — Inter-App-Audio-Entitlement)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder-Vollmandat "bau alles richtig zusammen" → Ultra-Audit (Multi-Agent,
-  adversarisch verifiziert) + 4 grüne Zyklen, alle Gates grün, Reviewer sauber, KEIN
-  Blind-Bau. Kernbefund: fast ALLES ist schon verdrahtet — "funktionierende AUv3" ist
-  eine iOS-Registrierungs-Grenze (keine kaputte Code-Zeile), jetzt instrumentiert.
+notes: DER AUv3-FIX. Dein v296-Log war eindeutig: unser App-PROZESS sah 101
+  Apple-Units, 0 Fremd-Plugins, nicht mal unsere eigene EchoelBodyVibe
+  (self-probe -3000) — WÄHREND AUM auf demselben Gerät alles sah. Also nicht
+  "nicht registriert", sondern: unsere App durfte die Fremd-Plugin-Liste gar
+  nicht sehen. Der Discriminator (GarageBand öffnen → zurück → immer noch leer,
+  dein "Nein") hat Timing/Warmup ausgeschlossen.
 
-  BITTE AUF DIESEM BUILD TESTEN (entsperrt die gerät-gated Mehrheit):
+  URSACHE + FIX: uns fehlte das **Inter-App-Audio-Entitlement** — genau das Tor,
+  das iOS prüft, bevor ein Host Fremd-AUv3 aufzählen darf. Jeder AU-Host (AUM,
+  Loopy, AudioKit) hat es; wir nicht. Jetzt gesetzt (Host-App-Entitlement).
 
-  (1) AUv3-DIAGNOSE — DER WICHTIGE TEST: Öffne den AUv3-Plugin-Browser (Spurkopf ▸
-  "Browse AUv3…"). Wenn nur die Apple-Units erscheinen (kalt), steht jetzt DIREKT AUF
-  DEM BILDSCHIRM die Ursache + die EINE Lösung: entweder "Self-test: OK — App komplett
-  schließen und neu öffnen" (die Plugin-LISTE ist veraltet) ODER "Self-test: FAILED
-  (…-3000) — Erweiterung nicht registriert → neu installieren / Gerät neu starten".
-  → Bitte diese Zeile FOTOGRAFIEREN und schicken. Damit fixe ich AUv3 im nächsten
-  Zyklus mit Gewissheit statt Rätselraten (löst den alten "self-probe -3000"-Log ab).
+  BITTE AUF v297 TESTEN (der eigentliche Beweis):
+  Spurkopf ▸ "Browse AUv3…" → erscheinen jetzt DEINE installierten Fremd-Plugins
+  UND unser eigenes "Echoelmusic: EchoelBodyVibe" (nicht mehr nur die Apple-Units)?
+  → Wenn ja: AUv3-Hosting ist LIVE — item 3 (sichtbare Instrument/FX-Belegung pro
+  Spur) ist damit erlebbar, und "lässt sich nicht öffnen" sollte weg sein (Load
+  zeigt jetzt zusätzlich den rohen OSStatus-Code, falls doch mal was hakt).
 
-  (2) SPURKOPF-BELEGUNG (item 3): Jeder Spurkopf zeigt jetzt WELCHES Instrument er
-  spielt — "EchoelDrums", "EchoelSampler · 1 FX", externer Plugin-Name — statt nur ein
-  Puzzle-Icon. Der Builtin-Name war vorher nie sichtbar. Bitte kurz prüfen, dass die
-  Zweizeilen-Kopfhöhe auf deinem Gerät nicht drängt.
+  REVERSIBEL: das IAA-Streaming-FEATURE ist abgekündigt, aber das ENTITLEMENT ist
+  weiter der Discovery-Gate. Falls das Archiv es doch ablehnt (Provisioning),
+  revertiere ich sofort — v296 bleibt unberührt, dieser Build lädt dann einfach
+  nicht hoch. Erwartung: automatic signing + -allowProvisioningUpdates fügt die
+  Capability der App-ID hinzu (gleicher Mechanismus wie HealthKit/CloudKit/Weather).
 
-  (3) BIO→SOUND-GUIDE (item 2): Tippe einen Wert im Bio-Strip (tap-to-learn) → im Guide
-  gibt es jetzt "How your body shapes the sound": Puls→Vibrato/Filter, HRV→Reverb,
-  Kohärenz→Filter-Helligkeit/Obertöne, Atem→Filter-Bewegung. Die lesbare Hälfte von
-  "die Musik verändert sich mit deinem Biofeedback".
-
-  Unter der Haube (alle grün, Reviewer clean): 4 echte Korrektheits-Fixes aus reinen
-  Bug-Hunts (obersten Clip bei gleichem Takt; Swing-Parität nach Mid-Play-Tempo;
-  SpatialScene-Reihenfolge-Konvergenz; SMF-Tempo-3-Byte-Overflow) + Ehrlichkeits-Fixes
-  (zwei Kommentare, die fertige Features fälschlich als "später" beschrieben). Bio-Input-
-  DSP (HRV-Kohärenz Lomb-Scargle/Welch + RMSSD/SDNN/pNN50) auditiert = numerisch solide.
-
-  Weiter offen (gerät-gated, warten auf dein Signal): VJ-Fullscreen (Visual-Recording)
-  Tür-zurück-oder-weg? · Face-Cam-Modulator (braucht Info.plist-Kamera-Permission-OK) ·
-  per-Spur-Parameter-Automation (Einheiten auf Gerät verifizieren). Offene Hörtests
-  v290-294 (Akkord, Audio-Clip-Launch, Chance, Per-Spur-Patch, Occurrence) bleiben.
+  Unter der Haube seit v296: Load-Fehler zeigt jetzt den echten domain#code
+  (efe621b, reviewer clean, Gates grün-erwartet). rPPG hat in deinem v296-Log
+  sauber gelockt (settled 64 bpm, conf 0.76) — Puls-Teil auf dem Gerät gesund.
