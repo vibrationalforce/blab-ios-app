@@ -135,8 +135,14 @@ struct BioMetricInfoView: View {
 /// "HRV etc. soll erklärt werden"). Opened from the bio strip's info affordance; the
 /// per-cell tap still deep-links to a single metric. Lists exactly the metrics the strip
 /// shows (HR · HRV · Coherence · Breath) so the guide matches what's on screen.
+@MainActor
 struct BioMetricsGuideView: View {
     @Environment(\.dismiss) private var dismiss
+    /// Live bio, read HERE (this modal sheet is its own leaf) to drive the "right
+    /// now" bars in the shaping section. Safe under the 10 Hz menu-freeze law: the
+    /// only view that reads `latestBio` in its body is this sheet, which has no
+    /// Picker to tear down, and the studio body underneath never observes it.
+    @Environment(EngineBus.self) private var bus
 
     /// The metrics actually shown in the strip, in display order (RMSSD/SDNN/pNN50 are
     /// sub-measures of HRV, not separate cells, so they stay out of the overview).
@@ -189,14 +195,24 @@ struct BioMetricsGuideView: View {
 
                     Divider().overlay(EchoelTheme.border)
                     // Item 2 ("Bio-Modulation live sichtbar"): not only what the
-                    // numbers mean, but which SOUND each signal moves — the readable
-                    // half of "the music changes with your body". Static design facts
-                    // (BioSoundMapping), so there is NO live 10 Hz read here.
-                    Text("How your body shapes the sound")
-                        .font(EchoelTheme.font(15, .semibold))
-                        .foregroundStyle(EchoelTheme.text)
+                    // numbers mean, but which SOUND each signal moves — AND how much,
+                    // right now. Static routing is BioSoundMapping (single source of
+                    // truth); the live bar is BioModulationMap.amount, read from the
+                    // sheet leaf (freeze-safe, see the `bus` property above).
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("How your body shapes the sound")
+                            .font(EchoelTheme.font(15, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                        Spacer(minLength: 0)
+                        if liveBio == nil {
+                            Text("read your pulse to see it move")
+                                .font(EchoelTheme.font(10))
+                                .foregroundStyle(EchoelTheme.dim)
+                        }
+                    }
                     ForEach(BioSoundMapping.all) { m in
-                        VStack(alignment: .leading, spacing: 3) {
+                        let amount = liveBio.map { BioModulationMap.amount(forMappingID: m.id, in: $0) }
+                        VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Text(m.source)
                                     .font(EchoelTheme.font(13, .semibold))
@@ -207,14 +223,21 @@ struct BioMetricsGuideView: View {
                                 Text(m.target)
                                     .font(EchoelTheme.font(13, .semibold))
                                     .foregroundStyle(EchoelTheme.accent)
+                                Spacer(minLength: 4)
+                                Text(amount.map { String(format: "%.2f", $0) } ?? "—")
+                                    .font(EchoelTheme.font(11, .semibold).monospacedDigit())
+                                    .foregroundStyle(amount == nil ? EchoelTheme.dim : EchoelTheme.accent)
                             }
+                            liveBar(amount ?? 0, live: amount != nil)
                             Text(m.direction)
                                 .font(EchoelTheme.font(12))
                                 .foregroundStyle(EchoelTheme.text.opacity(0.8))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(m.source) shapes \(m.target). \(m.direction)")
+                        .accessibilityLabel(
+                            "\(m.source) shapes \(m.target). \(m.direction)."
+                            + (amount.map { " Currently \(Int(($0 * 100).rounded())) percent." } ?? ""))
                     }
 
                     Divider().overlay(EchoelTheme.border)
@@ -232,6 +255,29 @@ struct BioMetricsGuideView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(EchoelTheme.bg)
         .presentationDetents([.medium, .large])
+    }
+
+    /// A FRESH bio frame or nil — a stale/expired reading stops the bars moving
+    /// (honest: "nothing live is driving the sound"), matching the strip's freshness.
+    private var liveBio: BioSampleFrame? { bus.freshBio() }
+
+    /// The moving "right now" bar for a shaping row. `live == false` (no fresh
+    /// signal) draws only the muted track. Fill is clamped ≥ 2 pt so a tiny live
+    /// value is still visible. No animation beyond SwiftUI's implicit value change
+    /// (well under 3 Hz — the 10 Hz frame only nudges a width).
+    private func liveBar(_ amount: Float, live: Bool) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(EchoelTheme.text.opacity(0.12))
+                if live {
+                    Capsule()
+                        .fill(EchoelTheme.accent)
+                        .frame(width: max(2, geo.size.width * CGFloat(min(1, max(0, amount)))))
+                }
+            }
+        }
+        .frame(height: 5)
+        .accessibilityHidden(true)
     }
 }
 #endif

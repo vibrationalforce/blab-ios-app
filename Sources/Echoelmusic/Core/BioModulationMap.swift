@@ -2,68 +2,28 @@
 //  BioModulationMap.swift
 //  Echoelmusic — Core (pure, cross-platform)
 //
-//  REIHENFOLGE item 2 ("Bio-Modulation live sichtbar"): the data spine for a
-//  legible readout of WHICH sound parameters the body is currently moving, and
-//  by how much. It surfaces the ALWAYS-ON core bio→sound mapping that lives in
-//  `EchoelDDSP.applyBioReactive` — the real, audible expression, not the
-//  (default-empty) user `ModulationMatrix`.
+//  REIHENFOLGE item 2 ("Bio-Modulation live sichtbar"): the LIVE half of the
+//  "how your body shapes the sound" readout. It answers, right now, HOW MUCH each
+//  body signal is contributing — the moving bar next to each static routing row.
 //
-//  Design law — single source of truth: this model surfaces each mapping's
-//  DRIVER value (coherence / heart-rate / HRV / breath, all normalized [0..1]
-//  straight from the live `BioSampleFrame`) plus an honest human description of
-//  its target. It deliberately does NOT re-derive the target parameter's value
-//  (brightness Hz, vibrato cents, …) — duplicating `applyBioReactive`'s
-//  coefficients here would silently drift from the DSP. The driver amount is
-//  exactly what the user needs to see ("your coherence is high → the filter is
-//  open"), and it needs no DSP-internal read.
+//  Single source of truth: the static routing (which signal → which sound target,
+//  and the plain-language direction) is `BioSoundMapping.all` — that list is the
+//  ONLY place the mappings are declared, so the display never drifts. This type
+//  adds ONLY the live [0..1] amount, keyed by the SAME `BioSoundMapping.id`
+//  strings, read straight from the live `BioSampleFrame`. It deliberately does NOT
+//  re-derive the DSP target values (brightness Hz, vibrato cents…) — duplicating
+//  `EchoelDDSP.applyBioReactive`'s coefficients would silently drift from the DSP.
+//  The driver amount is exactly what the user needs to see ("your coherence is
+//  high → this row is near full").
 //
-//  Pure value types + Foundation only, so it is Linux-CI testable and the leaf
-//  view can compute `amounts(for:)` cheaply in its OWN body — never in a
-//  root/ancestor (the 10 Hz `@Observable` menu-freeze law).
+//  Pure value types + Foundation only, so it is Linux-CI testable and a readout
+//  leaf can compute the amount cheaply in its OWN body — never in a root/ancestor
+//  (the 10 Hz `@Observable` menu-freeze law).
 //
 
 import Foundation
 
-/// One canonical bio→sound relationship, mirroring `EchoelDDSP.applyBioReactive`
-/// and the CLAUDE.md "DDSP Bio-Mappings" table.
-public struct BioModulationLink: Identifiable, Sendable, Equatable {
-
-    /// The physiological signal that drives the mapping. Each maps to a single
-    /// normalized [0..1] channel of the live `BioSampleFrame`.
-    public enum Driver: String, Sendable, CaseIterable {
-        case coherence
-        case heartRate
-        case hrv
-        case breath
-
-        /// Short user-facing label (matches the bio strip's terse vocabulary).
-        public var label: String {
-            switch self {
-            case .coherence: return "Coherence"
-            case .heartRate: return "Heart"
-            case .hrv:       return "HRV"
-            case .breath:    return "Breath"
-            }
-        }
-    }
-
-    /// The physiological driver.
-    public let driver: Driver
-    /// The sound parameter it moves (concise audio term, as used in the studio UI).
-    public let targetName: String
-    /// One honest line on HOW it moves the sound (no health claim).
-    public let detail: String
-
-    public var id: String { driver.rawValue }
-
-    public init(driver: Driver, targetName: String, detail: String) {
-        self.driver = driver
-        self.targetName = targetName
-        self.detail = detail
-    }
-}
-
-/// The canonical, always-on bio→sound map + live driver-amount extraction.
+/// Live [0..1] contribution of each bio driver behind a `BioSoundMapping` row.
 public enum BioModulationMap {
 
     /// The heart-rate normalization used across Echoel (appex `pullSharedVitals`,
@@ -71,36 +31,20 @@ public enum BioModulationMap {
     public static let minBPM: Float = 40
     public static let maxBPM: Float = 200
 
-    /// The canonical links, in a stable display order. Mirrors
-    /// `EchoelDDSP.applyBioReactive` so the readout is truthful, not decorative.
-    public static let links: [BioModulationLink] = [
-        BioModulationLink(
-            driver: .coherence,
-            targetName: "Brightness / Filter",
-            detail: "Higher coherence opens the filter and warms the harmonics."
-        ),
-        BioModulationLink(
-            driver: .heartRate,
-            targetName: "Vibrato / Pulse",
-            detail: "A faster pulse deepens vibrato and speeds the filter sweep."
-        ),
-        BioModulationLink(
-            driver: .hrv,
-            targetName: "Space / Reverb",
-            detail: "More heart-rate variability adds reverb space."
-        ),
-        BioModulationLink(
-            driver: .breath,
-            targetName: "Envelope",
-            detail: "Breath phase shapes the amplitude envelope in and out."
-        )
-    ]
+    /// The physiological signal behind a `BioSoundMapping`. Raw values MATCH
+    /// `BioSoundMapping.id` (heartRate / hrv / coherence / breath), so a row's
+    /// live amount is looked up by its own stable id.
+    public enum Driver: String, Sendable, CaseIterable {
+        case coherence
+        case heartRate
+        case hrv
+        case breath
+    }
 
     /// The live [0..1] amount for a driver, read straight from the frame.
     /// Heart rate is normalized on `[minBPM, maxBPM]`; the others are already
     /// normalized channels. Always finite and clamped to `[0..1]`.
-    public static func amount(_ driver: BioModulationLink.Driver,
-                              in frame: BioSampleFrame) -> Float {
+    public static func amount(_ driver: Driver, in frame: BioSampleFrame) -> Float {
         let raw: Float
         switch driver {
         case .coherence: raw = frame.coherence
@@ -114,9 +58,11 @@ public enum BioModulationMap {
         return Swift.min(1, Swift.max(0, raw))
     }
 
-    /// Every link paired with its current live amount, in `links` order —
-    /// the exact list a readout leaf view renders.
-    public static func amounts(for frame: BioSampleFrame) -> [(link: BioModulationLink, amount: Float)] {
-        links.map { (link: $0, amount: amount($0.driver, in: frame)) }
+    /// The live [0..1] amount for a `BioSoundMapping` row, by its stable id.
+    /// An unknown id yields `0` (no crash), so the display degrades safely if a
+    /// routing row is ever added without a matching driver.
+    public static func amount(forMappingID id: String, in frame: BioSampleFrame) -> Float {
+        guard let driver = Driver(rawValue: id) else { return 0 }
+        return amount(driver, in: frame)
     }
 }
