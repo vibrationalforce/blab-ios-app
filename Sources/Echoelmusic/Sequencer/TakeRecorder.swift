@@ -23,9 +23,9 @@ public struct RecordedTake: Equatable, Sendable {
 }
 
 /// Coordinates capture across every armed lane for one take. MIDI-input lanes record
-/// notes; bio lanes record an automation lane. Audio-input / video-capture sources are
-/// recognised but not yet captured here (they need per-track input isolation — a later
-/// cycle); they simply produce no take.
+/// notes; bio lanes record an automation lane; audio-input lanes commit the file the
+/// device recorder wrote (fed in via `captureAudio` — the PCM tap itself is the thin
+/// device layer). Video-capture / none sources are recognised but produce no take here.
 public struct TakeRecorder: Sendable {
 
     public private(set) var isRecording = false
@@ -38,13 +38,21 @@ public struct TakeRecorder: Sendable {
     private var midiOrder: [UUID] = []
     private var bioOrder: [UUID] = []
 
+    /// One armed audio lane's captured file. The device recorder measures the file on
+    /// stop (AVAsset) and hands the absolute mediaRef + duration to `captureAudio`;
+    /// this struct stays pure (no PCM, no AVFoundation, no I/O).
+    private struct AudioCapture: Equatable, Sendable { let mediaRef: String; let durationSeconds: Double }
+    private var audio: [UUID: AudioCapture] = [:]
+    private var audioOrder: [UUID] = []
+
     public init() {}
 
     /// True once a take is running AND at least one lane is actually capturing.
-    public var isCapturing: Bool { isRecording && (!midi.isEmpty || !bio.isEmpty) }
-    /// How many lanes are recording MIDI / bio right now (inspection/tests).
+    public var isCapturing: Bool { isRecording && (!midi.isEmpty || !bio.isEmpty || !audioOrder.isEmpty) }
+    /// How many lanes are recording MIDI / bio / audio right now (inspection/tests).
     public var midiLaneCount: Int { midi.count }
     public var bioLaneCount: Int { bio.count }
+    public var audioLaneCount: Int { audioOrder.count }
 
     /// Begin a take. `targets` are the armed, recordable lanes (RecordPlan.targets);
     /// each MIDI-input lane gets a MIDINoteRecorder, each bio lane a
@@ -54,6 +62,7 @@ public struct TakeRecorder: Sendable {
         isRecording = true
         self.anchorTick = anchorTick
         midi.removeAll(); bio.removeAll(); midiOrder.removeAll(); bioOrder.removeAll()
+        audio.removeAll(); audioOrder.removeAll()
         for target in targets {
             switch target.source {
             case .midiInput:
@@ -62,8 +71,10 @@ public struct TakeRecorder: Sendable {
             case .bio:
                 bio[target.laneID] = BioAutomationRecorder(parameter: "bio.arousal", anchorTick: anchorTick)
                 bioOrder.append(target.laneID)
-            case .audioInput, .videoCapture, .none:
-                break   // captured in a later cycle (per-track input isolation)
+            case .audioInput:
+                audioOrder.append(target.laneID)   // armed; the file arrives via captureAudio
+            case .videoCapture, .none:
+                break   // video capture handled by the video lane path; none records nothing
             }
         }
     }
@@ -88,6 +99,15 @@ public struct TakeRecorder: Sendable {
         for id in bioOrder { bio[id]?.capture(value: value, atTick: tick) }
     }
 
+    /// Commit the file a device-side audio recorder produced for an armed audio lane.
+    /// `mediaRef` is the absolute path it wrote (App Group `Media/Audio`), `durationSeconds`
+    /// its measured length. No-op unless a take is running and the lane was armed for
+    /// audio input. The latest call wins if a lane is committed more than once.
+    public mutating func captureAudio(laneID: UUID, mediaRef: String, durationSeconds: Double) {
+        guard isRecording, audioOrder.contains(laneID) else { return }
+        audio[laneID] = AudioCapture(mediaRef: mediaRef, durationSeconds: durationSeconds)
+    }
+
     /// End the take. Flushes any still-held notes, returns one RecordedTake per lane
     /// that actually captured content (empty takes are dropped), and resets to idle.
     public mutating func finish(atTick tick: Int) -> [RecordedTake] {
@@ -110,8 +130,19 @@ public struct TakeRecorder: Sendable {
                 clip: Clip(name: "Bio Take", kind: .midi, automation: [rec.lane()]),
                 startTick: anchorTick))
         }
+        for id in audioOrder {
+            // An armed audio lane that never got a file (or an empty ref) drops, exactly
+            // like an empty MIDI/bio take — no phantom zero-length clip.
+            guard let cap = audio[id], !cap.mediaRef.isEmpty else { continue }
+            takes.append(RecordedTake(
+                laneID: id,
+                clip: AudioClipFactory.clip(name: "Audio Take", mediaRef: cap.mediaRef,
+                                            nativeDurationSeconds: cap.durationSeconds),
+                startTick: anchorTick))
+        }
         isRecording = false
         midi.removeAll(); bio.removeAll(); midiOrder.removeAll(); bioOrder.removeAll()
+        audio.removeAll(); audioOrder.removeAll()
         return takes
     }
 
@@ -119,5 +150,6 @@ public struct TakeRecorder: Sendable {
     public mutating func cancel() {
         isRecording = false
         midi.removeAll(); bio.removeAll(); midiOrder.removeAll(); bioOrder.removeAll()
+        audio.removeAll(); audioOrder.removeAll()
     }
 }

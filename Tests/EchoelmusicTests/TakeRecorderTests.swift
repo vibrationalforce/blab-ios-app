@@ -88,12 +88,40 @@ final class TakeRecorderTests: XCTestCase {
         XCTAssertEqual(Set(takes.map(\.laneID)), [midiLane, bioLane])
     }
 
-    func testAudioAndVideoSourcesCaptureNothingYet() {
+    func testArmedAudioLaneWithoutFileStillDrops() {
+        // An armed audio lane that never received a captured file produces no take —
+        // exactly like an empty MIDI/bio take (no phantom clip). Video/none never record.
         var rec = TakeRecorder()
-        rec.start(targets: [(UUID(), .audioInput), (UUID(), .videoCapture), (UUID(), .none)],
+        let audioLane = UUID()
+        rec.start(targets: [(audioLane, .audioInput), (UUID(), .videoCapture), (UUID(), .none)],
                   anchorTick: 0)
         XCTAssertEqual(rec.midiLaneCount, 0)
         XCTAssertEqual(rec.bioLaneCount, 0)
+        XCTAssertEqual(rec.audioLaneCount, 1)          // audio lane is armed…
+        XCTAssertEqual(rec.finish(atTick: 480), [])    // …but drops with no file
+    }
+
+    func testAudioTakeProducesAudioClipWhenFileCaptured() {
+        var rec = TakeRecorder()
+        let audioLane = UUID()
+        rec.start(targets: [(audioLane, .audioInput)], anchorTick: 3840)
+        XCTAssertEqual(rec.audioLaneCount, 1)
+        rec.captureAudio(laneID: audioLane, mediaRef: "/media/audio/take1.caf", durationSeconds: 4.0)
+        let takes = rec.finish(atTick: 7680)
+        XCTAssertEqual(takes.count, 1)
+        XCTAssertEqual(takes[0].laneID, audioLane)
+        XCTAssertEqual(takes[0].clip.kind, .audio)
+        XCTAssertEqual(takes[0].clip.mediaRef, "/media/audio/take1.caf")
+        XCTAssertEqual(takes[0].startTick, 3840)       // clip starts at the take anchor
+        XCTAssertFalse(rec.isRecording)                // reset to idle
+    }
+
+    func testCaptureAudioIgnoresUnarmedLaneAndEmptyRef() {
+        var rec = TakeRecorder()
+        let audioLane = UUID()
+        rec.start(targets: [(audioLane, .audioInput)], anchorTick: 0)
+        rec.captureAudio(laneID: UUID(), mediaRef: "/media/audio/x.caf", durationSeconds: 2) // unarmed → ignored
+        rec.captureAudio(laneID: audioLane, mediaRef: "", durationSeconds: 2)                // empty ref → dropped
         XCTAssertEqual(rec.finish(atTick: 480), [])
     }
 
