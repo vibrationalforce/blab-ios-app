@@ -2162,7 +2162,12 @@ private struct LaneCompositionSection: View {
                 timeline.setLaneMood(laneID, mood: profile)
             }
         )
-        return EchoelValueField(label: label, value: binding, range: 0...1)
+        // On release (or keypad commit) guarantee this lane owns a composer clip+
+        // region so the mood is audible — the SAME explicit-override contract the
+        // genre / mood-preset / variation setters follow. Done on commit, not per
+        // drag delta, so a scrub doesn't re-run ensureComposerRegion each tick.
+        return EchoelValueField(label: label, value: binding, range: 0...1,
+                                onCommit: { ensureComposedClip() })
     }
 
     private var variationRow: some View {
