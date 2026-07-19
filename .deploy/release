@@ -1,29 +1,25 @@
-build: 2026-07-19 v10.79.297 (AUv3-HOST-FIX — Inter-App-Audio-Entitlement)
+build: 2026-07-19 v10.79.298 (AUv3-HOST-FIX B — App-ID-Capability aktiv → Re-Archive)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: DER AUv3-FIX. Dein v296-Log war eindeutig: unser App-PROZESS sah 101
-  Apple-Units, 0 Fremd-Plugins, nicht mal unsere eigene EchoelBodyVibe
-  (self-probe -3000) — WÄHREND AUM auf demselben Gerät alles sah. Also nicht
-  "nicht registriert", sondern: unsere App durfte die Fremd-Plugin-Liste gar
-  nicht sehen. Der Discriminator (GarageBand öffnen → zurück → immer noch leer,
-  dein "Nein") hat Timing/Warmup ausgeschlossen.
+notes: DER EIGENTLICHE AUv3-FIX-BUILD. v297 zeigte auf deinem Gerät exakt v296:
+  "101 Audio Units — 0 third-party, own AUv3 not visible, self-probe FAILED -3000".
+  Das Entitlement war im Code korrekt, wurde aber beim Signing GESTRIPPT, weil die
+  "Inter-App Audio"-Capability nicht auf der App-ID aktiviert war (automatic signing
+  kann diese abgekündigte Capability nicht selbst hinzufügen).
 
-  URSACHE + FIX: uns fehlte das **Inter-App-Audio-Entitlement** — genau das Tor,
-  das iOS prüft, bevor ein Host Fremd-AUv3 aufzählen darf. Jeder AU-Host (AUM,
-  Loopy, AudioKit) hat es; wir nicht. Jetzt gesetzt (Host-App-Entitlement).
+  DU HAST ES GEFIXT: im Developer-Portal Inter-App Audio auf com.echoelmusic.app
+  angehakt + gespeichert (per Video bestätigt). Dieser Re-Archive lässt
+  -allowProvisioningUpdates jetzt ein Profil MIT der Capability regenerieren →
+  das inter-app-audio-Entitlement überlebt ins signierte Binary.
 
-  BITTE AUF v297 TESTEN (der eigentliche Beweis):
-  Spurkopf ▸ "Browse AUv3…" → erscheinen jetzt DEINE installierten Fremd-Plugins
-  UND unser eigenes "Echoelmusic: EchoelBodyVibe" (nicht mehr nur die Apple-Units)?
-  → Wenn ja: AUv3-Hosting ist LIVE — item 3 (sichtbare Instrument/FX-Belegung pro
-  Spur) ist damit erlebbar, und "lässt sich nicht öffnen" sollte weg sein (Load
-  zeigt jetzt zusätzlich den rohen OSStatus-Code, falls doch mal was hakt).
+  BITTE AUF v298 TESTEN — der Beweis:
+  Spurkopf ▸ "Browse AUv3…" → erscheinen jetzt deine installierten Fremd-Plugins
+  UND "Echoelmusic: EchoelBodyVibe" (statt nur der 19 Apple-Units)? Und öffnet sich
+  eins beim Antippen? Wenn ja: AUv3-Hosting ist LIVE — item 3 erlebbar, der
+  #1-Blocker ist gelöst.
 
-  REVERSIBEL: das IAA-Streaming-FEATURE ist abgekündigt, aber das ENTITLEMENT ist
-  weiter der Discovery-Gate. Falls das Archiv es doch ablehnt (Provisioning),
-  revertiere ich sofort — v296 bleibt unberührt, dieser Build lädt dann einfach
-  nicht hoch. Erwartung: automatic signing + -allowProvisioningUpdates fügt die
-  Capability der App-ID hinzu (gleicher Mechanismus wie HealthKit/CloudKit/Weather).
+  Falls WIDER ERWARTEN v298 immer noch "0 third-party" zeigt: schick die
+  self-probe-Log-Zeile. INSTANTIATE OK ⇒ Profil-Cache/Propagation (kurz warten +
+  1× Re-Archive); FAILED ⇒ tiefer (dann Registrierungspfad). Aber der Fingerabdruck
+  sagt: mit aktiver App-ID-Capability sollte v298 ziehen.
 
-  Unter der Haube seit v296: Load-Fehler zeigt jetzt den echten domain#code
-  (efe621b, reviewer clean, Gates grün-erwartet). rPPG hat in deinem v296-Log
-  sauber gelockt (settled 64 bpm, conf 0.76) — Puls-Teil auf dem Gerät gesund.
+  Kein Code-Change gegenüber v297 — reiner Re-Archive gegen die jetzt-fähige App-ID.
