@@ -83,15 +83,26 @@ final class TimelineSchedulingTests: XCTestCase {
         XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 3000)?.id, older.id)
     }
 
-    /// The tie-break must respect placement order regardless of array position:
-    /// even if the newer region is appended AFTER a non-overlapping one, it still
-    /// wins over an equal-start older region that precedes it.
-    func testActiveRegion_sameStartTick_orderInArrayDecidesTie() {
-        let newerFirst = region(laneA, start: 480, length: 480)   // placed first
-        let olderLast  = region(laneA, start: 480, length: 960)   // placed later → wins the tie
-        let d = doc(lanes: [midiLane(laneA)], [newerFirst, olderLast])
-        XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 600)?.id, olderLast.id,
+    /// The tie-break is purely about ARRAY POSITION (= placement order): among
+    /// equal-start containing regions, the LATER array element wins, regardless of
+    /// span length. Names are placement-ordered to avoid implying length matters.
+    func testActiveRegion_sameStartTick_laterArrayElementWinsTie() {
+        let placedFirst  = region(laneA, start: 480, length: 480)   // earlier in array
+        let placedSecond = region(laneA, start: 480, length: 960)   // later → wins the tie
+        let d = doc(lanes: [midiLane(laneA)], [placedFirst, placedSecond])
+        XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 600)?.id, placedSecond.id,
                        "later array element wins the equal-start tie")
+    }
+
+    /// Three-way equal-start tie: the LAST-placed of three overlapping same-start
+    /// regions wins (proves the comparator generalizes past a 2-way tie).
+    func testActiveRegion_sameStartTick_threeWayTie_lastPlacedWins() {
+        let a = region(laneA, start: 960, length: 480)
+        let b = region(laneA, start: 960, length: 720)
+        let c = region(laneA, start: 960, length: 1200)   // placed last → wins
+        let d = doc(lanes: [midiLane(laneA)], [a, b, c])
+        XCTAssertEqual(S.activeRegion(in: d, laneID: laneA, at: 1000)?.id, c.id,
+                       "the last-placed of three equal-start regions wins")
     }
 
     // MARK: - laneEvent (onset detection)
