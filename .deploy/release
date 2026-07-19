@@ -1,22 +1,26 @@
-build: 2026-07-19 v10.79.303 (Automation-in-Spur END-TO-END + AUv3-Fix weiter drin)
+build: 2026-07-19 v10.79.304 (v303-Inhalt, jetzt GRÜN gebaut + Deploy neu angestoßen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: ZWEI Dinge in diesem Build.
+notes: v304 = v303-Inhalt, aber DER Build der wirklich baut.
 
-  1) AUTOMATION IN DER SPUR ist jetzt DURCHGÄNGIG (REIHENFOLGE #1). Auf einer
-     Sekundär-MIDI-Spur (nicht der Haupt-Roll) bietet die Automations-Zeile jetzt
-     eigene PER-SPUR-Ziele an ("MIDI 2 · Attack", "MIDI 2 · Reverb" …). Ziehst du
-     dort eine Kurve, bewegt sie NUR die Stimme DIESER Spur — zwei Spuren mit
-     demselben Parameter laufen unabhängig (vorher: eine geteilte Kurve). Nur
-     Spuren, die wirklich eine Rack-Stimme haben, bekommen die Ziele (keine toten
-     Optionen). Globale Ziele (Master, Tempo) bleiben wie bisher.
-     BITTE TESTEN: zwei MIDI-Spuren anlegen, bei jeder die Automations-Zeile öffnen,
-     je ein per-Spur-Ziel wählen und unterschiedliche Kurven zeichnen → beim Play
-     sollten sich die Spuren hörbar unterschiedlich verändern.
+  Der v303-Build (1248f60) ist an einem Xcode-only-Fehler gescheitert (doppelte
+  laneVoiceRack-Umgebungsreferenz in ArrangeTimelineView — SwiftPM schluckt es, Xcode
+  nicht). Fix e1f4cfd: die zwei Doku-Kommentare auf EINE Deklaration zusammengeführt,
+  Capacity-Prüfung unverändert. Xcode Compile Check auf e1f4cfd = grün. Dieser
+  Deploy-Bump stößt TestFlight mit exakt diesem grünen Stand neu an.
 
-  2) Der AUv3-Appex-Fix (App-Group-Mismatch, v302) ist WEITER enthalten — v303 ist
-     ein Superset von v302. Dein AUv3-Test gilt also unverändert auf v303:
-     Echoelmusic komplett löschen → Gerät neu starten → v303 frisch installieren →
-     in AUM: lässt sich EchoelBodyVibe jetzt öffnen?
+  Inhaltlich UNVERÄNDERT ggü. v303:
 
-  Alle Gates grün, jeder Schritt reviewt. Kein globales Verhalten geändert
-  (Golden Gate: die per-Spur-Automation wirkt nur, wenn du ein per-Spur-Ziel wählst).
+  1) AUTOMATION IN DER SPUR ist durchgängig (REIHENFOLGE #1). Auf einer Sekundär-MIDI-
+     Spur bietet die Automations-Zeile eigene PER-SPUR-Ziele an ("MIDI 2 · Attack" …).
+     Ziehst du dort eine Kurve, bewegt sie NUR die Stimme DIESER Spur — zwei Spuren mit
+     demselben Parameter laufen unabhängig. Nur Spuren mit echter Rack-Stimme bekommen
+     die Ziele (keine toten Optionen). Globale Ziele (Master, Tempo) wie bisher.
+     BITTE TESTEN: zwei MIDI-Spuren anlegen, bei jeder die Automations-Zeile öffnen, je
+     ein per-Spur-Ziel wählen, unterschiedliche Kurven zeichnen → beim Play sollten sich
+     die Spuren hörbar unterschiedlich verändern.
+
+  2) Der AUv3-Appex-Fix (App-Group-Mismatch, v302) ist WEITER enthalten — v304 ist ein
+     Superset. Dein AUv3-Test gilt unverändert: Echoelmusic komplett löschen → Gerät neu
+     starten → v304 frisch installieren → in AUM: lässt sich EchoelBodyVibe jetzt öffnen?
+
+  Alle Gates grün, jeder Schritt reviewt.
