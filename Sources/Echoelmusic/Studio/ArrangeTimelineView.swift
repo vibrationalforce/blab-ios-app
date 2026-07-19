@@ -40,6 +40,10 @@ struct ArrangeTimelineView: View {
     // source of truth, just reachable where the work happens.
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
+    /// Read to gate per-track automation targets on the SAME rack capacity the
+    /// playback dispatch uses (placebo law — never offer an overflow lane a target
+    /// that would no-op). `capacity` is a `let`, so this registers no 10 Hz churn.
+    @Environment(LaneVoiceRack.self) private var laneVoiceRack
     @Environment(\.leadSynth) private var leadSynth
     // U3b: the AUv3 host, so a track head can SHOW its plugin assignment and
     // record the currently-loaded plugin onto the lane. `loaded`/`loadedEffects`
@@ -878,6 +882,15 @@ struct ArrangeTimelineView: View {
         TimelineAutomationHeadCell(
             laneName: lane.name,
             selectedParameter: automationTargetBinding(lane.id),
+            // L2/L4: offer per-track targets only for a lane that actually OWNS a
+            // rack slot — the SAME slot resolution the playback dispatch uses
+            // (MultiRollFanout.slot bounds by rack capacity), so the picker and the
+            // audio agree by construction: the roll lane (no slot) and any overflow
+            // secondary lane (rank ≥ capacity) are never offered a dead target.
+            perTrackLaneID: MultiRollFanout.slot(
+                forLaneID: lane.id, in: timeline.document,
+                rollLane: timeline.document.rollLaneID, capacity: laneVoiceRack.capacity
+            ) != nil ? lane.id : nil,
             onOpenEditor: { activeModal = .automation },
             onClose: { automationOpen.remove(lane.id) })
     }

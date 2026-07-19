@@ -1,30 +1,22 @@
-build: 2026-07-19 v10.79.302 (AUv3-FIX-Kandidat #1 — Appex App-Group-Mismatch)
+build: 2026-07-19 v10.79.303 (Automation-in-Spur END-TO-END + AUv3-Fix weiter drin)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: ULTRACODE-HEAL-ERGEBNIS (14-Agenten-Sweep, adversarial verifiziert). Der
-  wahrscheinlichste, JETZT-code-fixbare Grund, warum sich EchoelBodyVibe in KEINEM
-  Host öffnen lässt (AUM "sieht es, öffnet es aber nicht"; -3000 in jedem Host):
+notes: ZWEI Dinge in diesem Build.
 
-  APP-GROUP-ENTITLEMENT-MISMATCH am Appex. Das Appex forderte hart
-  `group.com.echoelmusic`. Wenn die App-ID `com.echoelmusic.app.auv3` diese App
-  Group im Portal NICHT wirklich grantet hat, registriert iOS die Komponente aus
-  der Info.plist (deshalb listet AUM sie), verweigert aber den Start des Extension-
-  Prozesses → -3000 überall, dauerhaft über alle Builds. Das ist die Lehrbuch-
-  Signatur für "sichtbar, öffnet nirgends".
+  1) AUTOMATION IN DER SPUR ist jetzt DURCHGÄNGIG (REIHENFOLGE #1). Auf einer
+     Sekundär-MIDI-Spur (nicht der Haupt-Roll) bietet die Automations-Zeile jetzt
+     eigene PER-SPUR-Ziele an ("MIDI 2 · Attack", "MIDI 2 · Reverb" …). Ziehst du
+     dort eine Kurve, bewegt sie NUR die Stimme DIESER Spur — zwei Spuren mit
+     demselben Parameter laufen unabhängig (vorher: eine geteilte Kurve). Nur
+     Spuren, die wirklich eine Rack-Stimme haben, bekommen die Ziele (keine toten
+     Optionen). Globale Ziele (Master, Tempo) bleiben wie bisher.
+     BITTE TESTEN: zwei MIDI-Spuren anlegen, bei jeder die Automations-Zeile öffnen,
+     je ein per-Spur-Ziel wählen und unterschiedliche Kurven zeichnen → beim Play
+     sollten sich die Spuren hörbar unterschiedlich verändern.
 
-  FIX (dieser Build): App-Group aus `EchoelmusicAUv3.entitlements` entfernt. Der AU
-  braucht die Group zum Instanziieren NICHT — der Live-Vitals-Bridge (App→Plugin)
-  degradiert sauber zu "Host setzt die Parameter". Das Plugin funktioniert weiter,
-  verliert nur vorübergehend die Live-Bio-Brücke.
+  2) Der AUv3-Appex-Fix (App-Group-Mismatch, v302) ist WEITER enthalten — v303 ist
+     ein Superset von v302. Dein AUv3-Test gilt also unverändert auf v303:
+     Echoelmusic komplett löschen → Gerät neu starten → v303 frisch installieren →
+     in AUM: lässt sich EchoelBodyVibe jetzt öffnen?
 
-  BITTE TESTEN (klärt es hart): Echoelmusic KOMPLETT löschen → Gerät NEU STARTEN →
-  v302 aus TestFlight frisch installieren → einmal öffnen. Dann in AUM: lässt sich
-  EchoelBodyVibe JETZT ÖFFNEN?
-    - ÖFFNET → der App-Group-Mismatch WAR das Tor. Dann entscheiden wir: so lassen
-      (ohne Live-Bridge) oder die App Group im Portal für com.echoelmusic.app.auv3
-      granten und die Brücke zurückholen.
-    - ÖFFNET IMMER NOCH NICHT → tieferer Signatur-/iOS-Pfad; dann brauche ich EINE
-      Zeile frisches Gerät-Log (iOS-Version + ob `rawMakers` je einen Nicht-Apple-
-      Hersteller zeigt), das trennt OS-Blackout von unserem Code.
-
-  PARALLEL (optional, bestätigt Kandidat #1 hart): im Portal prüfen, ob App Groups
-  für die App-ID `com.echoelmusic.app.auv3` mit `group.com.echoelmusic` aktiviert ist.
+  Alle Gates grün, jeder Schritt reviewt. Kein globales Verhalten geändert
+  (Golden Gate: die per-Spur-Automation wirkt nur, wenn du ein per-Spur-Ziel wählst).

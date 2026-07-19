@@ -9,11 +9,13 @@
 // DAW-shaped fast path.
 //
 // DATA MODEL (honest): timeline automation lives in `TimelineDocument.automation`
-// — parameter-keyed, DOCUMENT-wide, song-absolute. There is no per-lane binding
-// in the model (the targets themselves are global: master level, tempo, filter
-// cutoff, router-bound registry params). The row is per-TRACK as UI (folds out
-// under the track the founder is working), but two tracks that pick the same
-// target edit the SAME curve — one truth, no fork.
+// — parameter-keyed, DOCUMENT-wide, song-absolute. GLOBAL targets (master level,
+// tempo, router-bound registry params) are one curve shared across tracks by
+// design. L2/L4: a SECONDARY lane may additionally pick a PER-TRACK target — the
+// rack-voice params namespaced as `track.<laneID>.<base>` — so drawing on that
+// track moves only that track's voice (the shared-curve debt is resolved where it
+// matters). The picker offers per-track targets only for lanes that own a rack
+// slot (never the roll lane / a global-only param).
 //
 // Render safety: the row reads only edit-frequency state (document points,
 // zoom). No playhead / bio read anywhere in these bodies — the shared
@@ -128,14 +130,33 @@ struct TimelineAutomationTargetOption: Identifiable {
 
     /// Build the catalog from the shared AutomationPlayer — one source, no
     /// second list to drift from the sheet's picker.
+    ///
+    /// `perTrackLaneID` (L2/L4): when non-nil, ALSO offer this lane's own per-track
+    /// targets — the rack-voice-automatable params namespaced as
+    /// `track.<laneID>.<base>`, so drawing on THIS track moves only THIS track's
+    /// voice (resolving the shared-curve debt). Pass it ONLY for a SECONDARY lane
+    /// that owns a rack slot (the roll lane owns none → its per-track keyPath is a
+    /// dead no-op, so it is never offered — placebo law).
     @MainActor
-    static func catalog(_ automation: AutomationPlayer) -> [TimelineAutomationTargetOption] {
-        AutomationTarget.allCases.map {
+    static func catalog(_ automation: AutomationPlayer,
+                        perTrackLaneID: UUID? = nil,
+                        laneLabel: String = "") -> [TimelineAutomationTargetOption] {
+        let global = AutomationTarget.allCases.map {
             TimelineAutomationTargetOption(parameter: $0.rawValue, displayName: $0.displayName)
         }
         + automation.extraAutomatableDescriptors.map {
             TimelineAutomationTargetOption(parameter: $0.keyPath, displayName: $0.displayName)
         }
+        guard let laneID = perTrackLaneID else { return global }
+        // Only the rack-voice-automatable params (PolySynthVoice.automatableBases)
+        // resolve to a per-track write; namespace exactly those for this lane.
+        let eligible = automation.extraAutomatableDescriptors.filter {
+            PolySynthVoice.automatableBases.contains($0.keyPath)
+        }
+        let perTrack = PerTrackParameterKeyPath
+            .descriptors(for: laneID, laneLabel: laneLabel, from: eligible)
+            .map { TimelineAutomationTargetOption(parameter: $0.keyPath, displayName: $0.displayName) }
+        return global + perTrack
     }
 }
 
@@ -148,6 +169,9 @@ struct TimelineAutomationTargetOption: Identifiable {
 struct TimelineAutomationHeadCell: View {
     let laneName: String
     @Binding var selectedParameter: String
+    /// When non-nil, the picker also offers this lane's per-track targets (L2/L4).
+    /// Pass ONLY for a secondary lane that owns a rack slot (never the roll lane).
+    var perTrackLaneID: UUID? = nil
     /// Opens the existing AutomationView sheet slot (precision editor).
     let onOpenEditor: () -> Void
     /// Folds the row back up.
@@ -156,7 +180,8 @@ struct TimelineAutomationHeadCell: View {
     @Environment(AutomationPlayer.self) private var automation
 
     var body: some View {
-        let options = TimelineAutomationTargetOption.catalog(automation)
+        let options = TimelineAutomationTargetOption.catalog(
+            automation, perTrackLaneID: perTrackLaneID, laneLabel: laneName)
         let current = options.first {
             TimelineAutomationRowMath.sameParameter($0.parameter, selectedParameter)
         }
