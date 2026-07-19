@@ -108,6 +108,18 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
                 + " Reinstall Echoelmusic or restart the device. For third-party plugins, open each plugin's own app once."
         }
     }
+
+    /// A founder- and log-friendly one-line reason for a FAILED AU load — for the
+    /// symptom AFTER discovery works: the plugin is listed but won't open (founder
+    /// 2026-07-19: "wird in AUM erkannt aber lässt sich nicht öffnen"). The raw
+    /// OSStatus is what actually pins the cause (e.g. NSOSStatusErrorDomain -3000
+    /// invalidComponentID = the extension isn't instantiable for this process;
+    /// -10868 = unsupported format), but `localizedDescription` buries it under
+    /// "The operation couldn’t be completed." — so the domain#code is surfaced
+    /// explicitly. Pure/primitive, so it is CI-verifiable off-device.
+    static func loadFailureMessage(name: String, domain: String, code: Int, localized: String) -> String {
+        "Could not load \(name): \(localized) [\(domain) \(code)]"
+    }
 }
 
 public extension AUPluginRef {
@@ -332,8 +344,11 @@ public final class AUv3Host {
             bridgeParameters(of: unit, info: info)   // params → registry + router (U2c)
             log.audio("AUv3 \(info.isInstrument ? "instrument" : "effect") loaded: \(info.name)")
         } catch {
-            loadError = "Could not load \(info.name): \(error.localizedDescription)"
-            log.audio("AUv3 load failed: \(error)", level: .error)
+            let e = error as NSError
+            loadError = AUv3ScanDiagnostic.loadFailureMessage(
+                name: info.name, domain: e.domain, code: e.code, localized: e.localizedDescription)
+            EchoelCrashLog.breadcrumb("auv3 load FAILED '\(info.name)': \(e.domain)#\(e.code) — \(e.localizedDescription)")
+            log.audio("AUv3 load failed: \(e.domain)#\(e.code)", level: .error)
         }
         isLoading = false
     }
@@ -407,8 +422,11 @@ public final class AUv3Host {
             bridgeParameters(of: unit, info: info)   // params → registry + router (U2c)
             log.audio("AUv3 master-bus effect loaded: \(info.name)")
         } catch {
-            loadError = "Could not load \(info.name): \(error.localizedDescription)"
-            log.audio("AUv3 master effect load failed: \(error)", level: .error)
+            let e = error as NSError
+            loadError = AUv3ScanDiagnostic.loadFailureMessage(
+                name: info.name, domain: e.domain, code: e.code, localized: e.localizedDescription)
+            EchoelCrashLog.breadcrumb("auv3 master-fx load FAILED '\(info.name)': \(e.domain)#\(e.code) — \(e.localizedDescription)")
+            log.audio("AUv3 master effect load failed: \(e.domain)#\(e.code)", level: .error)
         }
         isLoading = false
     }

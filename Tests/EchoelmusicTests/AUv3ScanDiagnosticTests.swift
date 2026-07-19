@@ -72,4 +72,29 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
                                    ownAUv3Present: true, scanAttempt: 1, selfProbe: nil)
         XCTAssertTrue(d.guidance.isEmpty)
     }
+
+    // MARK: - Load-failure message (founder-visible "won't open" triage)
+
+    // When a plugin is DISCOVERED but fails at LOAD/open time (founder 2026-07-19:
+    // "wird in AUM erkannt aber lässt sich nicht öffnen"), localizedDescription
+    // hides the OSStatus behind a vague string. The load-failure message must
+    // surface the raw domain#code so a device screenshot pins the cause.
+    func testLoadFailureMessage_carriesTheRawOSStatusCode() {
+        let msg = AUv3ScanDiagnostic.loadFailureMessage(
+            name: "Zeeon", domain: "NSOSStatusErrorDomain", code: -3000,
+            localized: "The operation couldn’t be completed.")
+        XCTAssertTrue(msg.contains("Zeeon"), "names the plugin that failed")
+        XCTAssertTrue(msg.contains("-3000"), "surfaces the OSStatus code that localizedDescription hides")
+        XCTAssertTrue(msg.contains("NSOSStatusErrorDomain"), "surfaces the error domain")
+    }
+
+    // The human-readable localizedDescription is kept alongside the code — the code
+    // is for triage, the prose is for the founder.
+    func testLoadFailureMessage_keepsTheHumanReadableReason() {
+        let msg = AUv3ScanDiagnostic.loadFailureMessage(
+            name: "BigReverb", domain: "com.acme.fx", code: -1,
+            localized: "Unsupported channel layout.")
+        XCTAssertTrue(msg.contains("Unsupported channel layout."))
+        XCTAssertTrue(msg.contains("BigReverb"))
+    }
 }
